@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xiaoniu_cron 架构设计文档</title>
+  <style>
+    :root { --p:#2563eb; --bg:#f8fafc; --card:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.75;color:var(--text);background:var(--bg)}
+    header{background:linear-gradient(135deg,#0f172a,#1e40af 60%,#3b82f6);color:#fff;padding:2.5rem 2rem}
+    header h1{font-size:1.85rem} header p{opacity:.9;margin-top:.5rem;font-size:.95rem}
+    .meta{margin-top:1rem;font-size:.8rem;opacity:.85}
+    .wrap{max-width:1080px;margin:0 auto;padding:2rem 1.5rem 4rem}
+    nav.toc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:2rem;position:sticky;top:0;z-index:10;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    nav.toc h2{font-size:.75rem;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+    nav.toc ol{columns:2;gap:1.5rem;padding-left:1.2rem;font-size:.88rem}
+    nav.toc a{color:var(--p);text-decoration:none}
+    section{margin-bottom:2.5rem}
+    section>h2{font-size:1.4rem;border-left:4px solid var(--p);padding-left:.85rem;margin-bottom:1rem}
+    section>h3{font-size:1.05rem;margin:1.25rem 0 .6rem;color:#334155}
+    section>h4{font-size:.95rem;margin:.9rem 0 .4rem;color:#475569}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;margin:.75rem 0}
+    .card.info{border-left:4px solid var(--p)}
+    .card.warn{border-left:4px solid #d97706;background:#fffbeb}
+    pre.diagram,.diagram{background:#0f172a;color:#94a3b8;padding:1rem;border-radius:8px;font-size:.78rem;line-height:1.45;overflow-x:auto;white-space:pre;margin:.75rem 0}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:.75rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .7rem;text-align:left}
+    th{background:#f1f5f9}
+    tr:nth-child(even){background:#fafbfc}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:3px;font-size:.85em}
+    pre.code{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow-x:auto;font-size:.82rem;margin:.5rem 0}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    @media(max-width:768px){nav.toc ol{columns:1}.grid2{grid-template-columns:1fr}}
+    .c4-box{border:2px solid var(--border);border-radius:8px;padding:1rem;text-align:center;background:#fff}
+    .c4-box.ext{border-style:dashed;background:#f8fafc}
+    .c4-box.core{border-color:var(--p);background:#eff6ff}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+    .back{display:inline-block;margin-bottom:1rem;color:var(--p);font-size:.9rem}
+  </style>
+</head>
+<body>
+<header>
+  <h1>xiaoniu_cron 架构设计文档</h1>
+  <p>小牛定时任务管理系统 · 软件架构说明（Architecture Design Document）</p>
+  <p class="meta">版本 1.0 · 基于源码逆向 · 分析基准：Flask 1.1 + APScheduler 3.6 + Python 3.6</p>
+</header>
+<div class="wrap">
+  <a class="back" href="index.html">← 文档索引</a>
+
+  <nav class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#s1">1. 文档说明</a></li>
+      <li><a href="#s2">2. 架构目标与约束</a></li>
+      <li><a href="#s3">3. C4 系统上下文</a></li>
+      <li><a href="#s4">4. 容器架构</a></li>
+      <li><a href="#s5">5. 组件架构</a></li>
+      <li><a href="#s6">6. 数据架构</a></li>
+      <li><a href="#s7">7. 调度子系统架构</a></li>
+      <li><a href="#s8">8. 集群与高可用</a></li>
+      <li><a href="#s9">9. 关键时序</a></li>
+      <li><a href="#s10">10. 部署架构</a></li>
+      <li><a href="#s11">11. 横切关注点</a></li>
+      <li><a href="#s12">12. 架构决策记录（ADR）</a></li>
+      <li><a href="#s13">13. 与 Plombery 架构对照</a></li>
+      <li><a href="#s14">14. 可借鉴的架构优化方向</a></li>
+    </ol>
+  </nav>
+
+  <section id="s1">
+    <h2>1. 文档说明</h2>
+    <div class="card info">
+      <p><strong>目的：</strong>为开发、运维、集成方提供 xiaoniu_cron 的结构性视图，说明模块边界、运行时拓扑、数据流向及扩展点。</p>
+      <p><strong>读者：</strong>后端工程师、SRE、架构师、需对接回调的业务研发。</p>
+      <p><strong>范围：</strong>应用层（<code>app/</code>）、数据层（<code>datas/</code>）、配置与容器化部署；不包含业务回调服务内部实现。</p>
+    </div>
+    <table>
+      <tr><th>术语</th><th>含义</th></tr>
+      <tr><td>调度 Job</td><td>APScheduler 中 id 为 <code>cron_{cron_infos.id}</code> 的持久化任务</td></tr>
+      <tr><td>回调</td><td>触发时对 <code>req_url</code> 发起的 HTTP GET</td></tr>
+      <tr><td>双库</td><td><code>cron_db_url</code>（JobStore）与 <code>cron_job_log_db_url</code>（业务 ORM）</td></tr>
+      <tr><td>体验版</td><td><code>is_dev=1</code>，禁用秒级字段</td></tr>
+    </table>
+  </section>
+
+  <section id="s2">
+    <h2>2. 架构目标与约束</h2>
+    <h3>2.1 设计目标</h3>
+    <table>
+      <tr><th>目标</th><th>架构手段</th><th>源码体现</th></tr>
+      <tr><td>Crontab 语义兼容</td><td>字段级 Cron + APScheduler cron trigger</td><td><code>views.py</code> 校验 + <code>scheduler.add_job</code></td></tr>
+      <tr><td>可视化运维</td><td>SSR Web + Session 鉴权</td><td><code>main/views.py</code>、templates</td></tr>
+      <tr><td>自动化集成</td><td>REST API + access_token</td><td><code>api/views.py</code></td></tr>
+      <tr><td>水平扩展</td><td>Redis 任务互斥 + 文件锁拉取 Job</td><td><code>single_task</code>、<code>CuBackgroundScheduler</code></td></tr>
+      <tr><td>故障可感知</td><td>关键词检测 + 三通道推送</td><td><code>crons.cron_do</code>、<code>send_text</code></td></tr>
+      <tr><td>低部署成本</td><td>Docker + Supervisor + 默认 SQLite</td><td>Dockerfile、docker-compose</td></tr>
+    </table>
+    <h3>2.2 约束条件</h3>
+    <ul style="margin-left:1.25rem">
+      <li>回调仅支持 <strong>GET</strong>，超时固定 <strong>120s</strong>（<code>requests.get(..., timeout=120)</code>）</li>
+      <li>集群模式要求 MySQL JobStore + Redis，SQLite 仅适合单机</li>
+      <li>每 Gunicorn worker 独立启动完整 Scheduler（非集中式 Master）</li>
+      <li>Web 鉴权为单密码 Session，无 RBAC</li>
+    </ul>
+  </section>
+
+  <section id="s3">
+    <h2>3. C4 系统上下文（Level 1）</h2>
+    <pre class="diagram">                    ┌──────────────────────────────────────────┐
+                    │           运维人员 / 开发者                  │
+                    │    (浏览器访问 Web 管理界面)                  │
+                    └────────────────────┬─────────────────────┘
+                                         │ HTTPS/HTTP
+                                         ▼
+┌─────────────┐              ┌─────────────────────────┐              ┌─────────────────┐
+│  conf.ini   │──配置────────▶│   xiaoniu_cron 系统      │──HTTP GET───▶│  业务回调服务    │
+│  (本地文件)  │              │  定时调度 + 日志 + 告警   │◀──响应体────│  (用户自有 API)  │
+└─────────────┘              └───────────┬─────────────┘              └─────────────────┘
+                                         │
+              ┌──────────────────────────┼──────────────────────────┐
+              │                          │                          │
+              ▼                          ▼                          ▼
+     ┌────────────────┐        ┌────────────────┐        ┌────────────────────┐
+     │ SQLite/MySQL  │        │     Redis       │        │ 企微 / 钉钉 / WebHook │
+     │  (任务+日志)   │        │  (集群分布式锁)  │        │   (异常通知)          │
+     └────────────────┘        └────────────────┘        └────────────────────┘
+
+外部系统还可通过 REST API（/api/cron*）编程式管理任务，无需经过 Web UI。</pre>
+    <p>系统在生态中的角色是 <strong>调度编排中枢（Orchestrator）</strong>：不执行业务逻辑，只负责按时间表触发 HTTP 调用并审计结果。</p>
+  </section>
+
+  <section id="s4">
+    <h2>4. 容器架构（Level 2）</h2>
+    <pre class="diagram">┌──────────────────────────────── Docker Host / 物理机 ────────────────────────────────┐
+│  Supervisor (nodaemon)                                                                │
+│    └── docker_start.sh                                                                │
+│          ├── flask db migrate / upgrade  (首次初始化 migrations)                      │
+│          └── gunicorn -c docker_gun.py manage:app                                     │
+│                ├── Worker 1 (gevent) ──► Flask App + APScheduler Instance             │
+│                ├── Worker 2 ...                                                       │
+│                └── Worker N (docker: 4, gun.py本地: 2)                                │
+│                                                                                       │
+│  每个 Worker 进程内：                                                                  │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│  │  WSGI Layer: Flask Application (create_app)                                      │ │
+│  │    ├── Blueprint: main  (/, Web UI)                                              │ │
+│  │    ├── Blueprint: api   (/api, JSON API)                                         │ │
+│  │    ├── SQLAlchemy ORM  → cron_job_log_db                                         │ │
+│  │    └── Flask-APScheduler → CuBackgroundScheduler                                 │ │
+│  │              ├── SQLAlchemyJobStore → cron_db (apscheduler_jobs)               │ │
+│  │              ├── ThreadPoolExecutor (max_workers=30)                             │ │
+│  │              └── portalocker(scheduler.lock) 进程间互斥拉取 due jobs             │ │
+│  └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                       │
+│  文件系统：datas/logs/{info,error,server}.log  |  scheduler.lock  |  caches/         │
+└───────────────────────────────────────────────────────────────────────────────────────┘</pre>
+
+    <h3>4.1 运行时双进程模型说明</h3>
+    <div class="card warn">
+      <p><strong>重要：</strong>Gunicorn 多 worker 意味着同一主机存在 <strong>N 个 APScheduler 实例</strong>。它们通过 <code>scheduler.lock</code>（portalocker 非阻塞排他锁）保证<strong>同一时刻仅一个进程</strong>执行 <code>_process_jobs()</code> 拉取到期任务；任务执行函数 <code>cron_do</code> 在集群模式下再由 Redis <code>@single_task</code> 保证跨节点互斥。</p>
+    </div>
+  </section>
+
+  <section id="s5">
+    <h2>5. 组件架构（Level 3）</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>表现层组件</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li><code>admin_base.html</code> — 全局静态资源、GV 变量</li>
+          <li><code>main/views.py</code> — 页面路由、表单校验、分页</li>
+          <li><code>static/js/common.js</code> — Ajax 表单、对话框、批量勾选</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>API 层组件</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li><code>api/views.py</code> — cron CRUD、status、add_log</li>
+          <li><code>decorated.api_deal_return</code> — 统一 JSON 包装</li>
+          <li><code>datas/utils/json.api_return</code> — 响应 schema</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>调度层组件</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li><code>app/__init__.py</code> — scheduler 生命周期</li>
+          <li><code>config.py JOBS</code> — 内置维护任务</li>
+          <li><code>CuBackgroundScheduler</code> — 锁 + date 任务收尾</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>执行层组件</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li><code>crons.cron_do</code> — HTTP 回调主路径</li>
+          <li><code>get_xiaoniu_cron_sign</code> — 回调签名</li>
+          <li><code>wechat_info_err / send_text</code> — 告警扇出</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>5.1 模块依赖关系</h3>
+    <pre class="diagram">configs.py (conf.ini)
+      │
+      ▼
+config.py ──────────────┐
+      │                 │
+      ▼                 ▼
+create_app() ◄── manage.py (Gunicorn entry: manage:app)
+      │
+      ├── db (SQLAlchemy) ──► datas/model/*
+      ├── scheduler (Flask-APScheduler)
+      │       └── CuBackgroundScheduler
+      │               └── crons.cron_do / cron_check / ...
+      ├── main blueprint ──► views + templates
+      └── api blueprint ──► api/views
+
+横向能力：decorated (auth) · common/functions (notify, sign, lock)</pre>
+  </section>
+
+  <section id="s6">
+    <h2>6. 数据架构</h2>
+    <h3>6.1 逻辑数据模型</h3>
+    <pre class="diagram">┌─────────────────┐         ┌─────────────────┐
+│  apscheduler_jobs│         │   cron_infos     │
+│  (JobStore 表)   │ 1    1  │   任务元数据      │
+│  id=cron_{id}   │◄───────►│   status 状态机   │
+└─────────────────┘         └────────┬──────────┘
+                                     │ 1
+                                     │ N
+                              ┌──────▼──────────┐
+                              │    job_log       │
+                              │  log_id (UUID)   │
+                              └──────┬──────────┘
+                                     │ 1
+                                     │ N
+                              ┌──────▼──────────┐
+                              │  job_log_items   │
+                              │  业务回传明细     │
+                              └─────────────────┘</pre>
+
+    <h3>6.2 存储分离策略</h3>
+    <table>
+      <tr><th>数据源</th><th>配置项</th><th>内容</th><th>访问方式</th></tr>
+      <tr><td>调度库</td><td>cron_db_url</td><td>apscheduler_jobs、下次触发时间</td><td>APScheduler SQLAlchemyJobStore</td></tr>
+      <tr><td>业务库</td><td>cron_job_log_db_url</td><td>cron_infos、job_log、job_log_items</td><td>Flask-SQLAlchemy ORM</td></tr>
+      <tr><td>可选相同库</td><td>两 URL 指向同一 MySQL</td><td>简化运维</td><td>单机 SQLite 时常分离两文件</td></tr>
+    </table>
+
+    <h3>6.3 状态机（cron_infos.status）</h3>
+    <pre class="diagram">                    ┌──────────────┐
+         创建/恢复    │  1 运行中     │◄──── resume_job()
+        ────────────►│  (调度活跃)   │
+                    └───┬──────┬─────┘
+                        │      │
+              pause_job()│      │ date 触发完成 / JobStore 移除
+                        ▼      ▼
+                    ┌──────┐  ┌──────────────┐
+                    │ 0停止 │  │ -1 已结束     │
+                    └──────┘  │ (不可再启停)  │
+                              └──────────────┘
+                        ▲
+                        │ cron_check 发现 JobStore 无对应 job</pre>
+  </section>
+
+  <section id="s7">
+    <h2>7. 调度子系统架构</h2>
+    <h3>7.1 触发器策略</h3>
+    <table>
+      <tr><th>业务模式</th><th>判定条件</th><th>APScheduler</th><th>字段映射</th></tr>
+      <tr><td>一次性</td><td>run_date 非空</td><td>date</td><td>run_date=字符串时间</td></tr>
+      <tr><td>周期</td><td>至少一个 cron 字段</td><td>cron</td><td>day, day_of_week, hour, minute, second 非空则传入</td></tr>
+    </table>
+
+    <h3>7.2 执行器与并发</h3>
+    <table>
+      <tr><th>参数</th><th>值</th><th>影响</th></tr>
+      <tr><td>SCHEDULER_EXECUTORS</td><td>threadpool, max_workers=30</td><td>同进程最多 30 并发执行任务</td></tr>
+      <tr><td>max_instances</td><td>20（per job）</td><td>单任务最多 20 个重叠实例</td></tr>
+      <tr><td>misfire_grace_time</td><td>50s</td><td>错过触发 50s 内仍可补跑</td></tr>
+      <tr><td>coalesce</td><td>False</td><td>积压触发不合并，可能连续执行</td></tr>
+    </table>
+
+    <h3>7.3 内置守护任务</h3>
+    <table>
+      <tr><th>ID</th><th>Cron</th><th>职责</th></tr>
+      <tr><td>cron_check</td><td>*/30 分钟</td><td>JobStore 与 cron_infos 对账，孤儿任务标 -1</td></tr>
+      <tr><td>cron_del_job_log</td><td>每 8 小时</td><td>按 job_log_counts 删历史</td></tr>
+      <tr><td>cron_check_db_sleep</td><td>每 15 秒</td><td>SELECT 1 探活 + 告警</td></tr>
+    </table>
+  </section>
+
+  <section id="s8">
+    <h2>8. 集群与高可用架构</h2>
+    <pre class="diagram">  Node A (Gunicorn×4)                    Node B (Gunicorn×4)
+  ┌─────────────────────┐               ┌─────────────────────┐
+  │ scheduler.lock       │               │ scheduler.lock       │
+  │ (本机仅1 worker拉取)  │               │ (本机仅1 worker拉取)  │
+  └──────────┬──────────┘               └──────────┬──────────┘
+             │                                      │
+             └──────────────┬───────────────────────┘
+                            ▼
+                    ┌───────────────┐
+                    │     Redis      │
+                    │ task:cron_do:  │
+                    │   {cron_id}    │  TTL 120s
+                    └───────────────┘
+                            │
+             ┌──────────────┴──────────────┐
+             ▼                             ▼
+    ┌─────────────────┐           ┌─────────────────┐
+    │ MySQL JobStore │           │ MySQL 业务库     │
+    │ (共享调度状态)  │           │ cron_infos/logs │
+    └─────────────────┘           └─────────────────┘</pre>
+
+    <h3>8.1 两层互斥的设计 rationale</h3>
+    <table>
+      <tr><th>层级</th><th>机制</th><th>解决的问题</th></tr>
+      <tr><td>L1 进程间</td><td>portalocker + scheduler.lock</td><td>同机多 Gunicorn worker 重复 poll due jobs</td></tr>
+      <tr><td>L2 节点间</td><td>Redis SET NX EX + @single_task</td><td>多机同时执行同一 cron_do</td></tr>
+    </table>
+    <div class="card warn">
+      <p>局限：非强一致 Leader 选举；Redis 锁 TTL 120s 内进程崩溃可能导致短暂空窗或重复（取决于崩溃时机）。生产环境建议监控 Redis 与调度延迟。</p>
+    </div>
+  </section>
+
+  <section id="s9">
+    <h2>9. 关键时序</h2>
+    <h3>9.1 周期任务触发全链路</h3>
+    <pre class="diagram">APScheduler      CuBackgroundScheduler    cron_do           业务API          job_log
+     │                      │                  │                  │                │
+     │──get_due_jobs()─────►│                  │                  │                │
+     │                      │──submit_job─────►│                  │                │
+     │                      │                  │──@single_task───►│                │
+     │                      │                  │──GET+sign───────►│                │
+     │                      │                  │◄──response───────│                │
+     │                      │                  │──keyword check──►│ (maybe alert)  │
+     │                      │                  │──INSERT──────────────────────────►│
+     │                      │◄──update next_run│                  │                │</pre>
+
+    <h3>9.2 Web 创建任务</h3>
+    <pre class="diagram">Browser          main.cron_add       CronInfos DB      APScheduler JobStore
+  │                    │                    │                    │
+  │──POST form────────►│                    │                    │
+  │                    │──validate cron────►│                    │
+  │                    │──INSERT───────────►│                    │
+  │                    │──add_job(cron_id)──┼───────────────────►│
+  │◄──JSON redirect────│                    │                    │</pre>
+
+    <h3>9.3 长任务进度回传（可选）</h3>
+    <pre class="diagram">业务API                         xiaoniu_cron API              job_log_items
+  │                                      │                            │
+  │◄── GET 回调(含 xiaoniu_cron_log_id)───│                            │
+  │── 异步处理中...                       │                            │
+  │── POST /api/cron/add_log ────────────►│──INSERT───────────────────►│
+  │   (可多次)                            │                            │</pre>
+  </section>
+
+  <section id="s10">
+    <h2>10. 部署架构</h2>
+    <h3>10.1 推荐拓扑</h3>
+    <table>
+      <tr><th>场景</th><th>拓扑</th><th>存储</th></tr>
+      <tr><td>开发/演示</td><td>单容器，1 worker</td><td>SQLite 双文件</td></tr>
+      <tr><td>生产单机</td><td>1 主机 Supervisor + Gunicorn gevent×2~4</td><td>SQLite 或 MySQL</td></tr>
+      <tr><td>生产集群</td><td>≥2 节点 + 负载均衡（仅 Web）；调度依赖共享 DB+Redis</td><td>MySQL + Redis 必须</td></tr>
+    </table>
+    <h3>10.2 端口与入口</h3>
+    <table>
+      <tr><th>环境</th><th>绑定</th><th>说明</th></tr>
+      <tr><td>Docker</td><td>容器 :80 → 宿主机映射（如 5002）</td><td>docker_gun.py</td></tr>
+      <tr><td>本地 gun.py</td><td>0.0.0.0:5860</td><td>2 workers gevent</td></tr>
+    </table>
+  </section>
+
+  <section id="s11">
+    <h2>11. 横切关注点</h2>
+    <table>
+      <tr><th>关注点</th><th>实现</th><th>缺口</th></tr>
+      <tr><td>日志</td><td>TimedRotatingFileHandler → datas/logs</td><td>无集中式 ELK 集成</td></tr>
+      <tr><td>监控</td><td>无内置 metrics</td><td>需外挂探活 / 日志告警</td></tr>
+      <tr><td>安全</td><td>Session 密码、API token、回调 MD5 签</td><td>无 HTTPS 强制、无 RBAC</td></tr>
+      <tr><td>配置</td><td>conf.ini 静态文件</td><td>无热更新、无密钥管理</td></tr>
+      <tr><td>国际化</td><td>中文 UI</td><td>无 i18n</td></tr>
+    </table>
+  </section>
+
+  <section id="s12">
+    <h2>12. 架构决策记录（ADR）</h2>
+    <table>
+      <tr><th>ID</th><th>决策</th><th>理由</th><th>代价</th></tr>
+      <tr><td>ADR-01</td><td>选用 APScheduler 而非 Celery Beat</td><td>轻量、内嵌 Flask、Crontab 语义直接</td><td>多 worker 需自研锁</td></tr>
+      <tr><td>ADR-02</td><td>HTTP GET 回调而非 Agent 拉取</td><td>集成简单，防火墙友好</td><td>无请求体、幂等需业务保证</td></tr>
+      <tr><td>ADR-03</td><td>双数据库 URL</td><td>JobStore 与业务 schema 解耦</td><td>运维需维护两套连接</td></tr>
+      <tr><td>ADR-04</td><td>SSR 管理台而非 SPA</td><td>2019 前后主流、部署简单</td><td>前端体验与可维护性弱</td></tr>
+      <tr><td>ADR-05</td><td>portalocker + Redis 双锁</td><td>渐进式支持集群</td><td>语义复杂，调试难度大</td></tr>
+    </table>
+  </section>
+
+  <section id="s13">
+    <h2>13. 与 Plombery 架构对照</h2>
+    <div class="card info">
+      <p>对照基准：Plombery <code>docs/architecture.html</code>（v1.0 · 2026-05）及 <code>src/plombery</code>、<code>frontend/src</code> 源码。
+      页面级交互、API 契约、代码路径的<strong>完整 16 章对比</strong>见
+      <a href="Plombery深度对比分析.html">Plombery深度对比分析.html</a>。</p>
+    </div>
+
+    <h3>13.1 架构范式差异（C4 视角）</h3>
+    <table>
+      <tr><th>视图</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr>
+        <td>系统角色</td>
+        <td>外部<strong>编排中枢</strong>：触发业务 HTTP，不执行业务逻辑</td>
+        <td>嵌入式<strong>执行运行时</strong>：在用户 Python 进程内跑 Pipeline</td>
+      </tr>
+      <tr>
+        <td>容器（运行时）</td>
+        <td>Gunicorn 多 worker × 每 worker 一套 Scheduler</td>
+        <td>Uvicorn 单 worker × AsyncIOScheduler 与 FastAPI 同循环</td>
+      </tr>
+      <tr>
+        <td>外部依赖</td>
+        <td>业务回调 URL、可选 Redis/MySQL、通知通道</td>
+        <td>可选 OAuth IdP、Apprise 通知；无「回调农场」</td>
+      </tr>
+      <tr>
+        <td>前端容器</td>
+        <td>无独立前端服务（Jinja SSR 同进程）</td>
+        <td>React SPA 静态资源由 FastAPI 挂载</td>
+      </tr>
+    </table>
+
+    <h3>13.2 分层架构对照</h3>
+    <pre class="diagram">xiaoniu_cron                          Plombery
+────────────────────────────────────────────────────────────
+表现  Jinja2 + jQuery (SSR)              React 19 SPA + TanStack Query
+接口  Flask main (HTML) + api (JSON)     FastAPI REST /api + Socket.IO /ws
+领域  CronInfos + cron_do(HTTP)          Pipeline/Task/Trigger + executor.run
+调度  CuBackgroundScheduler + ThreadPool  AsyncIOScheduler + async run()
+数据  cron_infos / job_log (DB)          pipeline_runs (DB) + .data/runs/ (FS)
+横切  conf.ini / 企微钉钉 / Redis锁       Settings yaml / Apprise / contextvars</pre>
+
+    <h3>13.3 前后端交互架构</h3>
+    <table>
+      <tr><th>维度</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr>
+        <td>交互模式</td>
+        <td>多页 SSR；表单 POST → JSON <code>{errcode,errmsg,url}</code>（<code>js-ajax-form</code>）</td>
+        <td>SPA；REST JSON + HTTP 状态码；422 字段级错误</td>
+      </tr>
+      <tr>
+        <td>任务配置 UI</td>
+        <td>Web 动态 CRUD <code>cron_infos</code></td>
+        <td>代码 <code>register_pipeline</code>；UI 仅展示与手动 Run</td>
+      </tr>
+      <tr>
+        <td>运行观测 UI</td>
+        <td>日志表 + iframe 明细；无 Run 状态机页面</td>
+        <td>RunsList + WS <code>run-update</code>；LogViewer + WS <code>logs.{id}</code></td>
+      </tr>
+      <tr>
+        <td>认证流</td>
+        <td>单密码 Session</td>
+        <td>OAuth2 Session（可关闭）</td>
+      </tr>
+    </table>
+
+    <h3>13.4 调度与执行架构</h3>
+    <table>
+      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><td>Job 函数</td><td><code>cron_do</code> → HTTP 客户端</td><td><code>run</code> → 循环 <code>_execute_task</code></td></tr>
+      <tr><td>拓扑</td><td>1 Job : 1 URL</td><td>1 Trigger : 1 Pipeline : N Task（线性）</td></tr>
+      <tr><td>成功语义</td><td>响应体 + error_keyword；无 COMPLETED 状态</td><td>Task 异常 → PipelineRun FAILED</td></tr>
+      <tr><td>coalesce</td><td>false</td><td>true</td></tr>
+      <tr><td>多副本</td><td>文件锁 + Redis 锁（设计支持集群）</td><td>文档禁止多 worker；无内置分布式锁</td></tr>
+    </table>
+
+    <h3>13.5 数据架构对照</h3>
+    <table>
+      <tr><th>数据</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><td>定义持久化</td><td>DB 表（可 API 改）</td><td>代码内存注册</td></tr>
+      <tr><td>运行记录</td><td><code>job_log</code>（回调响应 TEXT）</td><td><code>pipeline_runs</code> + <code>tasks_run[]</code></td></tr>
+      <tr><td>大对象</td><td>塞进 content 字段</td><td>文件系统 <code>task.json</code>、<code>logs.jsonl</code></td></tr>
+      <tr><td>双存储</td><td>JobStore DB + 业务 DB</td><td>SQLite 元数据 + .data 产物</td></tr>
+    </table>
+
+    <h3>13.6 部署拓扑对照</h3>
+    <div class="grid2">
+      <div class="card">
+        <h4>xiaoniu_cron</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li>Supervisor → Gunicorn gevent (N workers)</li>
+          <li>集群：共享 MySQL JobStore + Redis</li>
+          <li>无需 WebSocket 代理</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Plombery</h4>
+        <ul style="margin-left:1rem;font-size:.9rem">
+          <li>Nginx TLS + Uvicorn workers=1</li>
+          <li>必须代理 <code>/ws</code> WebSocket</li>
+          <li>单卷：db + .data</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>13.7 ADR 级对照（为何选型不同）</h3>
+    <table>
+      <tr><th>决策点</th><th>xiaoniu_cron 选择</th><th>Plombery 选择</th></tr>
+      <tr><td>执行位置</td><td>ADR-02 HTTP 回调</td><td>进程内 Python（Library-first）</td></tr>
+      <tr><td>UI 技术</td><td>ADR-04 SSR 简化部署</td><td>SPA 内嵌包（单进程交付）</td></tr>
+      <tr><td>扩展方式</td><td>DB/API 动态任务</td><td>代码注册 Pipeline</td></tr>
+      <tr><td>水平扩展</td><td>ADR-05 双锁</td><td>单实例；扩展靠外置调度或未来 Redis 锁</td></tr>
+      <tr><td>可观测</td><td>日志表 + 关键词告警</td><td>双存储 + WS 实时 + Apprise 状态告警</td></tr>
+    </table>
+
+    <h3>13.8 架构层选型建议</h3>
+    <table>
+      <tr><th>架构诉求</th><th>更合适</th></tr>
+      <tr><td>异构微服务统一 Cron 入口、调度与业务解耦</td><td>xiaoniu_cron</td></tr>
+      <tr><td>Python 数据管道、要强 Run 状态机与实时日志</td><td>Plombery</td></tr>
+      <tr><td>既要统一调度台又要 Python 多步管道</td><td>xiaoniu_cron 触发 → Plombery <code>POST /api/pipelines/{id}/run</code></td></tr>
+    </table>
+  </section>
+
+  <section id="s14">
+    <h2>14. 可借鉴的架构优化方向</h2>
+    <div class="card info">
+      <p>完整论证见 <a href="产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a>；
+      对比文档 <a href="Plombery深度对比分析.html#s17">§17</a> 含差距总览与路线图。此处仅列架构层要点。</p>
+    </div>
+    <h3>14.1 守正：必须保留</h3>
+    <ul style="margin-left:1.25rem">
+      <li>HTTP GET 回调 + 跨语言；Web/API 动态 <code>cron_infos</code></li>
+      <li>双锁集群、秒级 Cron、签名与 add_log</li>
+    </ul>
+    <h3>14.2 出奇：优先借鉴（不改变执行模型）</h3>
+    <table>
+      <tr><th>领域</th><th>借鉴 Plombery</th><th>架构落点</th></tr>
+      <tr><td>可观测</td><td>Run 状态机 + 结构化日志</td><td><code>job_log.status</code>、SSE、<code>/metrics</code></td></tr>
+      <tr><td>契约</td><td>REST + OpenAPI + 422</td><td>统一 envelope、校验服务层</td></tr>
+      <tr><td>存储</td><td>DB 元数据 + 文件大对象</td><td>超大响应落盘</td></tr>
+      <tr><td>安全</td><td>OAuth 可选</td><td>SSRF 白名单 + 密码哈希（P0）</td></tr>
+      <tr><td>工程</td><td>pytest + 新 Python</td><td>SQL 参数化、CI</td></tr>
+    </table>
+    <h3>14.3 不借鉴</h3>
+    <p>进程内 Pipeline、代码唯一任务定义、强制单 worker、全量 React 重写 —— 均会削弱 xiaoniu_cron 现有定位。</p>
+  </section>
+</div>
+<footer>xiaoniu_cron 架构设计文档 · <a href="Plombery深度对比分析.html#s17">借鉴优化</a> · <a href="详细技术方案.html">详细技术方案</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

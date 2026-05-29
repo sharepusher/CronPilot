@@ -1,0 +1,26 @@
+[default]
+# 复制为 conf.ini 后修改
+is_single=1
+is_dev=0
+redis_host=127.0.0.1
+redis_port=6379
+redis_pwd=
+redis_db=0
+cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
+cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
+login_pwd=请改为强密码或使用 scripts/hash_login_password.py 生成 pbkdf2 哈希
+job_log_counts=1000
+api_access_token=
+api_key=
+error_keyword=fail,error
+error_web_hook=
+qywechat_corpid=
+qywechat_corpsecret=
+qywechat_agentid=
+dingding_webhook=
+dingding_secret=
+
+# P0 SSRF 防护（可选，默认 block_private_ip=1）
+block_private_ip=1
+url_allow_hosts=
+url_ssrf_observe_only=0

@@ -11,7 +11,7 @@ if [ ! -d .venv311 ]; then
     records==0.5.3 pytz==2020.1 tzlocal==2.1 setuptools
 fi
 export FLASK_CONFIG=development
-echo "管理端: http://127.0.0.1:5001/  (密码见 conf.ini login_pwd)"
+echo "CronPilot 管理端: http://127.0.0.1:5001/  (密码见 conf.ini login_pwd)"
 .venv311/bin/python -c "
 from app import create_app
 app = create_app('development')

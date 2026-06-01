@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>小牛定时任务管理系统（xiaoniu_cron）— 技术方案与前端设计</title>
+  <title>CronPilot 定时调度平台（CronPilot）— 技术方案与前端设计</title>
   <style>
     :root {
       --primary: #2563eb;
@@ -222,8 +222,8 @@
 <body>
 
 <header class="doc-header">
-  <h1>小牛定时任务管理系统</h1>
-  <p class="meta">xiaoniu_cron · 技术方案与前端页面设计 · 基于源码逆向分析</p>
+  <h1>CronPilot 定时调度平台</h1>
+  <p class="meta">CronPilot · 技术方案与前端页面设计 · 基于源码逆向分析</p>
   <div class="badge-row" style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-top:1rem">
     <span class="badge">Flask 1.1</span>
     <span class="badge">APScheduler 3.6</span>
@@ -275,7 +275,7 @@
 
   <div class="card highlight">
     <h3>1.1 定位与价值</h3>
-    <p><strong>xiaoniu_cron（小牛定时任务管理）</strong> 是一套基于 Python Flask + APScheduler 的<strong>轻量级分布式定时任务调度平台</strong>。它将传统 Linux Crontab 的能力产品化：通过 Web 可视化界面或 REST API 统一管理定时任务，在触发时刻向业务系统发起 HTTP GET 回调，并记录执行日志、异常告警。</p>
+    <p><strong>CronPilot（CronPilot管理）</strong> 是一套基于 Python Flask + APScheduler 的<strong>轻量级分布式定时任务调度平台</strong>。它将传统 Linux Crontab 的能力产品化：通过 Web 可视化界面或 REST API 统一管理定时任务，在触发时刻向业务系统发起 HTTP GET 回调，并记录执行日志、异常告警。</p>
     <p style="margin-top:0.75rem">典型场景：每月还款提醒、每日凌晨数据清理、周期性健康检查、异步长任务的执行进度回传等。</p>
   </div>
 
@@ -290,7 +290,7 @@
       <tr><td>API 动态管理</td><td><code>/api/cron</code> 增改、<code>/api/cron/status</code> 启停</td><td><code>app/api/views.py</code></td></tr>
       <tr><td>执行日志</td><td>主日志 <code>job_log</code> + 明细 <code>job_log_items</code></td><td><code>datas/model/</code></td></tr>
       <tr><td>多渠道告警</td><td>企业微信 / WebHook / 钉钉</td><td><code>app/common/functions.py</code></td></tr>
-      <tr><td>回调签名</td><td><code>xiaoniu_cron_sign</code> MD5 签名校验</td><td><code>get_xiaoniu_cron_sign()</code></td></tr>
+      <tr><td>回调签名</td><td><code>cronpilot_sign</code> MD5 签名校验</td><td><code>get_cronpilot_sign()</code></td></tr>
     </tbody>
   </table>
 
@@ -319,8 +319,8 @@
 │                           用户 / 业务系统                                      │
 │         Web 浏览器 (管理界面)          业务服务 (HTTP 回调接收方)                  │
 └───────────────┬─────────────────────────────────────┬─────────────────────────┘
-                │ Session 密码登录                     │ GET + xiaoniu_cron_log_id
-                ▼                                     │     + xiaoniu_cron_sign
+                │ Session 密码登录                     │ GET + cronpilot_log_id
+                ▼                                     │     + cronpilot_sign
 ┌───────────────────────────────┐                     │
 │     Flask Application          │◄────────────────────┘
 │  ┌─────────────┬─────────────┐│
@@ -376,7 +376,7 @@
 <!-- ========== 3. 模块结构 ========== -->
 <section id="modules">
   <h2>3. 模块与目录结构</h2>
-  <pre>xiaoniu_cron/
+  <pre>CronPilot/
 ├── app/
 │   ├── __init__.py          # Flask 工厂、Scheduler 初始化
 │   ├── crons.py             # 任务执行核心 cron_do、内置维护任务
@@ -531,9 +531,9 @@
 
   <h3>5.5 任务执行时序（cron_do）</h3>
   <div class="flow-step"><span class="num">1</span>查询 CronInfos，校验 req_url</div>
-  <div class="flow-step"><span class="num">2</span>生成 UUID 作为 xiaoniu_cron_log_id</div>
-  <div class="flow-step"><span class="num">3</span>解析 URL 已有参数，计算 xiaoniu_cron_sign（MD5，参数 ASCII 排序 + api_key）</div>
-  <div class="flow-step"><span class="num">4</span>GET 请求，User-Agent: xiaoniu_cron，超时 120s</div>
+  <div class="flow-step"><span class="num">2</span>生成 UUID 作为 cronpilot_log_id</div>
+  <div class="flow-step"><span class="num">3</span>解析 URL 已有参数，计算 cronpilot_sign（MD5，参数 ASCII 排序 + api_key）</div>
+  <div class="flow-step"><span class="num">4</span>GET 请求，User-Agent: CronPilot，超时 120s</div>
   <div class="flow-step" style="display:flex;align-items:flex-start;gap:1rem;margin:0.75rem 0"><span class="num" style="flex-shrink:0;width:28px;height:28px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700">5</span><span>响应体检测 error_keyword（逗号分隔，不区分大小写）→ 触发 wechat_info_err</span></div>
   <div class="flow-step" style="display:flex;align-items:flex-start;gap:1rem;margin:0.75rem 0"><span class="num" style="flex-shrink:0;width:28px;height:28px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700">6</span><span>写入 JobLog（content、take_time、log_id）</span></div>
 </section>
@@ -572,19 +572,19 @@
   </table>
 
   <h3>6.3 /api/cron/add_log — 上传执行明细</h3>
-  <p>业务系统在收到 <code>xiaoniu_cron_log_id</code> 后，长任务执行过程中可多次调用，将进度写入 job_log_items。</p>
+  <p>业务系统在收到 <code>cronpilot_log_id</code> 后，长任务执行过程中可多次调用，将进度写入 job_log_items。</p>
   <pre>curl -X POST "http://host/api/cron/add_log" \
   -d "access_token=abcdabcd" \
-  -d "xiaoniu_cron_log_id=uuid-from-callback" \
+  -d "cronpilot_log_id=uuid-from-callback" \
   -d "content=步骤3/5 数据处理完成"</pre>
 
   <h3>6.4 回调签名算法</h3>
   <div class="card">
     <ol>
-      <li>收集回调 URL 已有 query 参数 + <code>xiaoniu_cron_log_id</code></li>
+      <li>收集回调 URL 已有 query 参数 + <code>cronpilot_log_id</code></li>
       <li>按参数名 ASCII 升序排列</li>
       <li>拼接为 <code>key1=val1&&key2=val2&&...&&api_key={api_key}</code></li>
-      <li>对拼接串做 MD5 → <code>xiaoniu_cron_sign</code></li>
+      <li>对拼接串做 MD5 → <code>cronpilot_sign</code></li>
     </ol>
     <p>前端参考：<code>app/static/js/signs.js</code>、<code>md5.js</code></p>
   </div>
@@ -690,7 +690,7 @@ python3.6 manage.py db upgrade</pre>
 
   <h4>（1）登录页 — check_pass.html</h4>
   <div class="wireframe">
-    <div class="wf-header">小牛定时任务管理系统 · 方便、统一、自由</div>
+    <div class="wf-header">CronPilot 定时调度平台 · 方便、统一、自由</div>
     <div class="wf-body" style="text-align:center;padding:2rem">
       <div class="wf-search" style="display:inline-block">
         [ 密码输入框 placeholder ]  [ 确定 ]
@@ -706,7 +706,7 @@ python3.6 manage.py db upgrade</pre>
 
   <h4>（2）任务列表 — cron_list.html</h4>
   <div class="wireframe">
-    <div class="wf-header">小牛定时任务管理系统</div>
+    <div class="wf-header">CronPilot 定时调度平台</div>
     <div class="wf-nav">
       <span class="active">任务列表</span><span>任务添加</span><span>任务执行记录</span><span>API文档</span><span>退出</span>
     </div>
@@ -730,7 +730,7 @@ python3.6 manage.py db upgrade</pre>
 
   <h4>（3）任务添加/编辑 — cron_add.html / cron_edit.html</h4>
   <div class="wireframe">
-    <div class="wf-header">小牛定时任务管理系统</div>
+    <div class="wf-header">CronPilot 定时调度平台</div>
     <div class="wf-nav"><span>任务列表</span><span class="active">任务添加</span></div>
     <div class="wf-body">
       <p>任务名称 * [________] 不可重复</p>
@@ -743,7 +743,7 @@ python3.6 manage.py db upgrade</pre>
         小时 [__] 0-23 &nbsp; 分钟 [__] 0-59 &nbsp; 秒 [__] 0-59
       </p>
       <hr>
-      <p>回调 URL [________________________] GET；附带 xiaoniu_cron_log_id</p>
+      <p>回调 URL [________________________] GET；附带 cronpilot_log_id</p>
       <p><span class="wf-btn">添加</span> <span class="wf-btn ghost">返回</span></p>
     </div>
   </div>
@@ -883,7 +883,7 @@ python3.6 manage.py db upgrade</pre>
 </div>
 
 <footer class="doc-footer">
-  <p>文档基于 xiaoniu_cron 源码分析生成 · 分析日期：2026-05-19</p>
+  <p>文档基于 CronPilot 源码分析生成 · 分析日期：2026-05-19</p>
   <p>仓库：<a href="https://github.com/aniu-lee/xiaoniu_cron">github.com/aniu-lee/xiaoniu_cron</a></p>
 </footer>
 

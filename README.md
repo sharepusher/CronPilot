@@ -1,4 +1,4 @@
-# cron-scheduler-admin
+# CronPilot
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
@@ -59,6 +59,10 @@ python -m unittest tests.test_p0_phase_a -v
 
 手工冒烟与用例表见：**[doc/P0测试用例与验收手册.html](doc/P0测试用例与验收手册.html)**
 
+## Release Notes
+
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — **v0.1.0**（2026-05-29）Phase A 全量变更说明。
+
 ## 技术文档（HTML）
 
 在浏览器中打开 **`doc/index.html`**：
@@ -80,6 +84,17 @@ tests/               # P0 单元测试
 scripts/             # 本地启动、密码哈希工具
 ```
 
+## 回调与 API 约定
+
+触发业务 URL 时，平台会追加 query 参数：
+
+| 参数 | 说明 |
+|------|------|
+| `cronpilot_log_id` | 本次执行唯一 ID（UUID） |
+| `cronpilot_sign` | 对现有 query + log_id 按 ASCII 排序拼接后 MD5（见 `get_cronpilot_sign`） |
+
+长任务进度回传：`POST /api/cron/add_log`，必传 `cronpilot_log_id`、`content`。
+
 ## 配置项（P0 新增）
 
 | 键 | 默认 | 说明 |
@@ -90,9 +105,11 @@ scripts/             # 本地启动、密码哈希工具
 
 ## 许可证与致谢
 
-沿用原项目开源协议。感谢 [xiaoniu_cron](https://github.com/aniu-lee/xiaoniu_cron) 作者与社区。
+- **本仓库**： [Apache License 2.0](LICENSE) — 见 [NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- **上游**：[aniu-lee/xiaoniu_cron](https://github.com/aniu-lee/xiaoniu_cron) 截至 2026-05 未在 GitHub 声明 SPDX 许可证；商业再分发前请与法务确认或取得作者授权
+- **审计说明**：见 [doc/LICENSE-AUDIT.html](doc/LICENSE-AUDIT.html)
 
 ## 仓库关系
 
-- **本仓库**：`cron-scheduler-admin` — 持续开发
+- **本仓库**：`CronPilot` — 持续开发
 - **上游参考**：`aniu-lee/xiaoniu_cron` — 只读对照，可选 cherry-pick 原仓库修复

@@ -1,4 +1,4 @@
-# 小牛定时任务管理 windows简易部署文档
+# CronPilot管理 windows简易部署文档
 
 ## 首先感谢大家的支持一直以来的支持！！！！
 
@@ -10,7 +10,7 @@
 
 ```shell script
 git clone https://github.com/aniu-lee/xiaoniu_cron.git
-cd xiaoniu_cron
+cd CronPilot
 virtualenv env
 source env/Scripts/activate
 pip install -r requirements.txt

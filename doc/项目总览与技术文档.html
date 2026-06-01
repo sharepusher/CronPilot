@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>cron-scheduler-admin · 项目总览与技术文档</title>
+  <title>CronPilot · 项目总览与技术文档</title>
   <style>
     :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488}
     *{box-sizing:border-box}
@@ -30,7 +30,7 @@
 </head>
 <body>
 <header class="hero">
-  <span class="tag">cron-scheduler-admin</span>
+  <span class="tag">CronPilot</span>
   <span class="tag">Phase A · P0 已交付</span>
   <h1>项目总览与技术文档</h1>
   <p>HTTP 定时回调调度台 · 独立演进自 xiaoniu_cron · 文档与代码一体维护</p>
@@ -40,7 +40,7 @@
   <section>
     <h2>1. 项目定位</h2>
     <div class="card">
-      <p><strong>cron-scheduler-admin</strong> 是企业内常用的「调度中心」形态：平台负责<strong>准时触发</strong>，业务系统暴露 HTTP 接口接收回调，无需把业务代码迁入调度进程。</p>
+      <p><strong>CronPilot</strong> 是企业内常用的「调度中心」形态：平台负责<strong>准时触发</strong>，业务系统暴露 HTTP 接口接收回调，无需把业务代码迁入调度进程。</p>
       <ul>
         <li><strong>守正：</strong>保留 HTTP GET 回调、秒级 Cron、Web/API 动态配置、集群锁。</li>
         <li><strong>出奇：</strong>借鉴 <a href="Plombery深度对比分析.html">Plombery</a> 的可观测与工程化，但不改为进程内 Python Pipeline。</li>
@@ -53,8 +53,8 @@
     <h2>2. 系统架构（逻辑）</h2>
     <div class="arch">
 ┌─────────────┐     Web/API      ┌──────────────────┐
-│  运维人员    │ ───────────────► │ cron-scheduler-  │
-│  业务系统    │ ◄── GET 回调 ─── │ admin (Flask)    │
+│  运维人员    │ ───────────────► │ CronPilot        │
+│  业务系统    │ ◄── GET 回调 ─── │ (Flask)          │
 └─────────────┘                  │  APScheduler     │
                                  │  MySQL/SQLite    │
                                  └────────┬─────────┘
@@ -90,7 +90,7 @@
       <a class="doc-card" href="Plombery深度对比分析.html"><h4>Plombery 深度对比</h4><p>16 章全维度对比 + 守正出奇</p></a>
       <a class="doc-card" href="产品优化需求-借鉴Plombery.html"><h4>产品优化需求（PRD）</h4><p>P0/P1/P2 论证、验收、路线图</p></a>
       <a class="doc-card" href="P0测试用例与验收手册.html"><h4>P0 测试用例与验收</h4><p>自动化 + 手工 + curl 脚本</p></a>
-      <a class="doc-card" href="新建项目与分支合并方案.html"><h4>仓库拆分方案</h4><p>与原 xiaoniu_cron 的关系与 Git 操作</p></a>
+      <a class="doc-card" href="新建项目与分支合并方案.html"><h4>仓库拆分方案</h4><p>与原 CronPilot 的关系与 Git 操作</p></a>
     </div>
   </section>
 
@@ -115,6 +115,6 @@ python -m unittest tests.test_p0_phase_a -v</pre>
     </div>
   </section>
 </main>
-<footer>cron-scheduler-admin · 独立演进 · 2026</footer>
+<footer>CronPilot · 独立演进 · 2026</footer>
 </body>
 </html>

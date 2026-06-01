@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>xiaoniu_cron 架构设计文档</title>
+  <title>CronPilot 架构设计文档</title>
   <style>
     :root { --p:#2563eb; --bg:#f8fafc; --card:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b; }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -41,8 +41,8 @@
 </head>
 <body>
 <header>
-  <h1>xiaoniu_cron 架构设计文档</h1>
-  <p>小牛定时任务管理系统 · 软件架构说明（Architecture Design Document）</p>
+  <h1>CronPilot 架构设计文档</h1>
+  <p>CronPilot 定时调度平台 · 软件架构说明（Architecture Design Document）</p>
   <p class="meta">版本 1.0 · 基于源码逆向 · 分析基准：Flask 1.1 + APScheduler 3.6 + Python 3.6</p>
 </header>
 <div class="wrap">
@@ -71,7 +71,7 @@
   <section id="s1">
     <h2>1. 文档说明</h2>
     <div class="card info">
-      <p><strong>目的：</strong>为开发、运维、集成方提供 xiaoniu_cron 的结构性视图，说明模块边界、运行时拓扑、数据流向及扩展点。</p>
+      <p><strong>目的：</strong>为开发、运维、集成方提供 CronPilot 的结构性视图，说明模块边界、运行时拓扑、数据流向及扩展点。</p>
       <p><strong>读者：</strong>后端工程师、SRE、架构师、需对接回调的业务研发。</p>
       <p><strong>范围：</strong>应用层（<code>app/</code>）、数据层（<code>datas/</code>）、配置与容器化部署；不包含业务回调服务内部实现。</p>
     </div>
@@ -114,7 +114,7 @@
                                          │ HTTPS/HTTP
                                          ▼
 ┌─────────────┐              ┌─────────────────────────┐              ┌─────────────────┐
-│  conf.ini   │──配置────────▶│   xiaoniu_cron 系统      │──HTTP GET───▶│  业务回调服务    │
+│  conf.ini   │──配置────────▶│   CronPilot 系统      │──HTTP GET───▶│  业务回调服务    │
 │  (本地文件)  │              │  定时调度 + 日志 + 告警   │◀──响应体────│  (用户自有 API)  │
 └─────────────┘              └───────────┬─────────────┘              └─────────────────┘
                                          │
@@ -193,7 +193,7 @@
         <h4>执行层组件</h4>
         <ul style="margin-left:1rem;font-size:.9rem">
           <li><code>crons.cron_do</code> — HTTP 回调主路径</li>
-          <li><code>get_xiaoniu_cron_sign</code> — 回调签名</li>
+          <li><code>get_cronpilot_sign</code> — 回调签名</li>
           <li><code>wechat_info_err / send_text</code> — 告警扇出</li>
         </ul>
       </div>
@@ -348,9 +348,9 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
   │◄──JSON redirect────│                    │                    │</pre>
 
     <h3>9.3 长任务进度回传（可选）</h3>
-    <pre class="diagram">业务API                         xiaoniu_cron API              job_log_items
+    <pre class="diagram">业务API                         CronPilot API              job_log_items
   │                                      │                            │
-  │◄── GET 回调(含 xiaoniu_cron_log_id)───│                            │
+  │◄── GET 回调(含 cronpilot_log_id)───│                            │
   │── 异步处理中...                       │                            │
   │── POST /api/cron/add_log ────────────►│──INSERT───────────────────►│
   │   (可多次)                            │                            │</pre>
@@ -407,7 +407,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>13.1 架构范式差异（C4 视角）</h3>
     <table>
-      <tr><th>视图</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>视图</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>系统角色</td>
         <td>外部<strong>编排中枢</strong>：触发业务 HTTP，不执行业务逻辑</td>
@@ -431,7 +431,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     </table>
 
     <h3>13.2 分层架构对照</h3>
-    <pre class="diagram">xiaoniu_cron                          Plombery
+    <pre class="diagram">CronPilot                          Plombery
 ────────────────────────────────────────────────────────────
 表现  Jinja2 + jQuery (SSR)              React 19 SPA + TanStack Query
 接口  Flask main (HTML) + api (JSON)     FastAPI REST /api + Socket.IO /ws
@@ -442,7 +442,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>13.3 前后端交互架构</h3>
     <table>
-      <tr><th>维度</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>维度</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>交互模式</td>
         <td>多页 SSR；表单 POST → JSON <code>{errcode,errmsg,url}</code>（<code>js-ajax-form</code>）</td>
@@ -467,7 +467,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>13.4 调度与执行架构</h3>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Job 函数</td><td><code>cron_do</code> → HTTP 客户端</td><td><code>run</code> → 循环 <code>_execute_task</code></td></tr>
       <tr><td>拓扑</td><td>1 Job : 1 URL</td><td>1 Trigger : 1 Pipeline : N Task（线性）</td></tr>
       <tr><td>成功语义</td><td>响应体 + error_keyword；无 COMPLETED 状态</td><td>Task 异常 → PipelineRun FAILED</td></tr>
@@ -477,7 +477,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>13.5 数据架构对照</h3>
     <table>
-      <tr><th>数据</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>数据</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>定义持久化</td><td>DB 表（可 API 改）</td><td>代码内存注册</td></tr>
       <tr><td>运行记录</td><td><code>job_log</code>（回调响应 TEXT）</td><td><code>pipeline_runs</code> + <code>tasks_run[]</code></td></tr>
       <tr><td>大对象</td><td>塞进 content 字段</td><td>文件系统 <code>task.json</code>、<code>logs.jsonl</code></td></tr>
@@ -487,7 +487,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <h3>13.6 部署拓扑对照</h3>
     <div class="grid2">
       <div class="card">
-        <h4>xiaoniu_cron</h4>
+        <h4>CronPilot</h4>
         <ul style="margin-left:1rem;font-size:.9rem">
           <li>Supervisor → Gunicorn gevent (N workers)</li>
           <li>集群：共享 MySQL JobStore + Redis</li>
@@ -506,7 +506,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>13.7 ADR 级对照（为何选型不同）</h3>
     <table>
-      <tr><th>决策点</th><th>xiaoniu_cron 选择</th><th>Plombery 选择</th></tr>
+      <tr><th>决策点</th><th>CronPilot 选择</th><th>Plombery 选择</th></tr>
       <tr><td>执行位置</td><td>ADR-02 HTTP 回调</td><td>进程内 Python（Library-first）</td></tr>
       <tr><td>UI 技术</td><td>ADR-04 SSR 简化部署</td><td>SPA 内嵌包（单进程交付）</td></tr>
       <tr><td>扩展方式</td><td>DB/API 动态任务</td><td>代码注册 Pipeline</td></tr>
@@ -517,9 +517,9 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <h3>13.8 架构层选型建议</h3>
     <table>
       <tr><th>架构诉求</th><th>更合适</th></tr>
-      <tr><td>异构微服务统一 Cron 入口、调度与业务解耦</td><td>xiaoniu_cron</td></tr>
+      <tr><td>异构微服务统一 Cron 入口、调度与业务解耦</td><td>CronPilot</td></tr>
       <tr><td>Python 数据管道、要强 Run 状态机与实时日志</td><td>Plombery</td></tr>
-      <tr><td>既要统一调度台又要 Python 多步管道</td><td>xiaoniu_cron 触发 → Plombery <code>POST /api/pipelines/{id}/run</code></td></tr>
+      <tr><td>既要统一调度台又要 Python 多步管道</td><td>CronPilot 触发 → Plombery <code>POST /api/pipelines/{id}/run</code></td></tr>
     </table>
   </section>
 
@@ -544,9 +544,9 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td>工程</td><td>pytest + 新 Python</td><td>SQL 参数化、CI</td></tr>
     </table>
     <h3>14.3 不借鉴</h3>
-    <p>进程内 Pipeline、代码唯一任务定义、强制单 worker、全量 React 重写 —— 均会削弱 xiaoniu_cron 现有定位。</p>
+    <p>进程内 Pipeline、代码唯一任务定义、强制单 worker、全量 React 重写 —— 均会削弱 CronPilot 现有定位。</p>
   </section>
 </div>
-<footer>xiaoniu_cron 架构设计文档 · <a href="Plombery深度对比分析.html#s17">借鉴优化</a> · <a href="详细技术方案.html">详细技术方案</a> · <a href="index.html">索引</a></footer>
+<footer>CronPilot 架构设计文档 · <a href="Plombery深度对比分析.html#s17">借鉴优化</a> · <a href="详细技术方案.html">详细技术方案</a> · <a href="index.html">索引</a></footer>
 </body>
 </html>

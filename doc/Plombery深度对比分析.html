@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>xiaoniu_cron vs Plombery — 深度架构与技术对比</title>
+  <title>CronPilot vs Plombery — 深度架构与技术对比</title>
   <style>
     :root{--xn:#2563eb;--pl:#0d9488;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
     *{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +46,7 @@
 </head>
 <body>
 <header>
-  <h1>xiaoniu_cron × Plombery 深度对比分析</h1>
+  <h1>CronPilot × Plombery 深度对比分析</h1>
   <p>从前端交互 → 前后端契约 → 调度执行 → 数据与安全 → 部署运维 · 基于双项目源码与 Plombery architecture.html（2026-05）</p>
 </header>
 <div class="wrap">
@@ -72,14 +72,14 @@
       <li><a href="#s14">14. 工程质量与测试</a></li>
       <li><a href="#s15">15. 综合评分与选型</a></li>
       <li><a href="#s16">16. 共存与迁移路径</a></li>
-      <li><a href="#s17">17. xiaoniu_cron 可借鉴与优化（守正出奇）</a></li>
+      <li><a href="#s17">17. CronPilot 可借鉴与优化（守正出奇）</a></li>
     </ol>
   </nav>
 
   <section id="s0">
     <h2>0. 一句话定位</h2>
     <div class="verdict">
-      <p><span class="tag tag-xn">xiaoniu_cron</span>：<strong>跨语言 HTTP 定时触发台</strong> —— 到点 GET 你的业务 URL，记响应、关键词告警，适合「已有微服务，只要统一 Cron」。<br>
+      <p><span class="tag tag-xn">CronPilot</span>：<strong>跨语言 HTTP 定时触发台</strong> —— 到点 GET 你的业务 URL，记响应、关键词告警，适合「已有微服务，只要统一 Cron」。<br>
       <span class="tag tag-pl">Plombery</span>：<strong>嵌入式 Python 流水线调度框架</strong> —— 代码里 <code>@task</code> 组成 Pipeline，进程内执行，Web UI 看 Run/日志/输出，适合「Python 管道 + 可观测 UI」。</p>
     </div>
   </section>
@@ -87,7 +87,7 @@
   <section id="s1">
     <h2>1. 产品形态与边界</h2>
     <table>
-      <tr><th class="col-xn">维度</th><th class="col-xn">xiaoniu_cron</th><th class="col-pl">Plombery</th></tr>
+      <tr><th class="col-xn">维度</th><th class="col-xn">CronPilot</th><th class="col-pl">Plombery</th></tr>
       <tr>
         <td>交付形态</td>
         <td>独立产品（Docker 一键、conf.ini 配置）</td>
@@ -126,7 +126,7 @@
 
     <h3>2.1 技术栈对照</h3>
     <table>
-      <tr><th>层级</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>层级</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>渲染</td><td><strong>SSR</strong> Jinja2 服务端渲染</td><td><strong>CSR SPA</strong> React 19 + Vite 7</td></tr>
       <tr><td>UI 库</td><td>SimpleBoot Admin + Bootstrap 3 风格</td><td>Tremor + Tailwind + Heroicons</td></tr>
       <tr><td>JS 运行时</td><td>jQuery 1.x 生态 + wind.js 模块加载</td><td>ESM、TypeScript、React Router 7</td></tr>
@@ -139,7 +139,7 @@
     <h3>2.2 架构模式差异（影响迭代成本）</h3>
     <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div class="card xn">
-        <h4>xiaoniu_cron：多页 SSR + 局部 Ajax</h4>
+        <h4>CronPilot：多页 SSR + 局部 Ajax</h4>
         <ul>
           <li>每个功能独立 URL（<code>/cron_list</code>、<code>/cron_add</code>）</li>
           <li>公共布局靠模板 <code>{% extends admin_base.html %}</code>，但 Jumbotron/Tab 每页复制</li>
@@ -159,7 +159,7 @@
     </div>
 
     <h3>2.3 信息架构（IA）对比</h3>
-    <pre class="diagram">xiaoniu_cron                          Plombery
+    <pre class="diagram">CronPilot                          Plombery
 ─────────────                          ────────
 /check_pass (登录)                     /login (OAuth)
     │                                      │
@@ -169,7 +169,7 @@
             └─ /api_doc                      └─ /runs/{runId} (日志+输出+状态)
 [iframe] job_log_list
 [iframe] job_log_item_list</pre>
-    <p>Plombery 以 <strong>Pipeline → Trigger → Run</strong> 三级组织；xiaoniu_cron 以 <strong>Task(cron_infos) → job_log</strong> 两级，无「一次运行」的强类型页面（只有日志行）。</p>
+    <p>Plombery 以 <strong>Pipeline → Trigger → Run</strong> 三级组织；CronPilot 以 <strong>Task(cron_infos) → job_log</strong> 两级，无「一次运行」的强类型页面（只有日志行）。</p>
   </section>
 
   <section id="s3">
@@ -177,7 +177,7 @@
 
     <h3>3.1 登录</h3>
     <table>
-      <tr><th>步骤</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>步骤</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>用户操作</td>
         <td>单输入框 password → POST <code>/check_pass</code></td>
@@ -207,7 +207,7 @@
 
     <h3>3.2 任务/流水线列表</h3>
     <table>
-      <tr><th>交互点</th><th>xiaoniu_cron <code>cron_list</code></th><th>Plombery <code>PipelinesList</code> / <code>RunsList</code></th></tr>
+      <tr><th>交互点</th><th>CronPilot <code>cron_list</code></th><th>Plombery <code>PipelinesList</code> / <code>RunsList</code></th></tr>
       <tr>
         <td>数据加载</td>
         <td>服务端分页 <code>paginate(20)</code>，关键词 GET 表单刷新整页</td>
@@ -242,7 +242,7 @@
 
     <h3>3.3 创建/编辑任务</h3>
     <table>
-      <tr><th>维度</th><th>xiaoniu_cron <code>cron_add/edit</code></th><th>Plombery</th></tr>
+      <tr><th>维度</th><th>CronPilot <code>cron_add/edit</code></th><th>Plombery</th></tr>
       <tr>
         <td>定义入口</td>
         <td>Web 表单填 cron 字段 + URL</td>
@@ -272,7 +272,7 @@
 
     <h3>3.4 执行记录 / 运行详情</h3>
     <table>
-      <tr><th>能力</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>能力</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>主列表</td>
         <td><code>job_log_all_list</code>：log_id、任务名、响应体、时间、耗时</td>
@@ -301,7 +301,7 @@
     </table>
 
     <h3>3.5 前端交互实现细节（代码级）</h3>
-    <h4>xiaoniu_cron：Ajax 表单管线</h4>
+    <h4>CronPilot：Ajax 表单管线</h4>
     <pre>// app/static/js/common.js 核心路径
 $('form.js-ajax-form').validate({ submitHandler: function(form) {
   $(form).ajaxSubmit({
@@ -330,7 +330,7 @@ navigate(`/pipelines/${data.pipeline_id}/triggers/${data.trigger_id}/runs/${data
 
     <h3>4.1 API 风格与路由组织</h3>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Web 与 API 分离</td><td>Web：<code>main</code> 返回 HTML；API：<code>/api</code> 前缀 JSON</td><td>统一 FastAPI；<code>/api/*</code> JSON，<code>/*</code> SPA</td></tr>
       <tr><td>REST 成熟度</td><td>RPC 风格（<code>/cron/add</code>、query 传参）</td><td>资源导向（<code>/pipelines/{id}/run</code>）</td></tr>
       <tr><td>文档</td><td>内嵌 <code>api_doc.html</code> 静态表 + JS 拼 HOST</td><td>OpenAPI 自动生成（FastAPI 默认）</td></tr>
@@ -339,7 +339,7 @@ navigate(`/pipelines/${data.pipeline_id}/triggers/${data.trigger_id}/runs/${data
 
     <h3>4.2 响应 envelope 对比</h3>
     <table>
-      <tr><th>场景</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>场景</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>Web Ajax</td>
         <td><code>{ errcode, errmsg, url }</code> — <code>web_api_return()</code></td>
@@ -359,7 +359,7 @@ navigate(`/pipelines/${data.pipeline_id}/triggers/${data.trigger_id}/runs/${data
 
     <h3>4.3 典型请求序列对比</h3>
     <h4>创建定时任务</h4>
-    <pre class="diagram">xiaoniu_cron (Web 添加)
+    <pre class="diagram">CronPilot (Web 添加)
 Browser --POST /cron_add (form)--> Flask main.cron_add
        <-- JSON {errcode:0, url:"/cron_list"}-- 
        (或 Ajax 不跳转)
@@ -370,7 +370,7 @@ Developer: register_pipeline(id, tasks, triggers=[CronTrigger...])
 Startup: orchestrator.register_pipeline → scheduler.add_job(job_id, func=run, kwargs={pipeline, trigger})</pre>
 
     <h4>触发执行</h4>
-    <pre class="diagram">xiaoniu_cron
+    <pre class="diagram">CronPilot
 APScheduler → cron_do(id) → requests.GET(req_url, params=log_id, sign)
            → INSERT job_log(content=响应体)
 
@@ -380,10 +380,10 @@ APScheduler → run(pipeline, trigger) → for task in pipeline.tasks: await _ex
 
     <h3>4.4 认证在请求中的携带方式</h3>
     <table>
-      <tr><th>通道</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>通道</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Web</td><td>Flask Session Cookie（<code>is_login</code>）</td><td>Session Cookie（OAuth 后）</td></tr>
       <tr><td>API</td><td><code>access_token</code> 在 query/form</td><td><code>NeedsAuth</code> Depends；Cookie credentials: include</td></tr>
-      <tr><td>执行回调</td><td>业务 URL 上 <code>xiaoniu_cron_sign</code></td><td>N/A（进程内执行）</td></tr>
+      <tr><td>执行回调</td><td>业务 URL 上 <code>cronpilot_sign</code></td><td>N/A（进程内执行）</td></tr>
       <tr><td>CORS</td><td>未显式配置</td><td><code>settings.allowed_origins</code></td></tr>
     </table>
   </section>
@@ -392,7 +392,7 @@ APScheduler → run(pipeline, trigger) → for task in pipeline.tasks: await _ex
     <h2>5. 后端分层与领域模型</h2>
 
     <table>
-      <tr><th>层次</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>层次</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>入口</td>
         <td><code>manage:app</code> + Gunicorn gevent</td>
@@ -426,7 +426,7 @@ APScheduler → run(pipeline, trigger) → for task in pipeline.tasks: await _ex
     </table>
 
     <h3>5.1 领域模型深度对照</h3>
-    <pre class="diagram">xiaoniu_cron                          Plombery
+    <pre class="diagram">CronPilot                          Plombery
 ─────────────                          ────────
 CronInfos (持久化任务定义)              Pipeline (代码注册, 含 tasks[])
   ├─ schedule 字段拆分                    ├─ Trigger[] (schedule + params)
@@ -443,7 +443,7 @@ JobLogItems (业务回传明细)                └─ reason
   <section id="s6">
     <h2>6. 调度子系统实现</h2>
     <table>
-      <tr><th>配置项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>配置项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Scheduler 类</td><td><code>CuBackgroundScheduler</code> (thread)</td><td><code>AsyncIOScheduler</code></td></tr>
       <tr><td>JobStore</td><td>SQLAlchemy 独立库 <code>cron_db_url</code></td><td>默认内存（文档：SQLite 元数据；调度 job 在 scheduler 内）</td></tr>
       <tr><td>Job ID</td><td><code>cron_{cron_infos.id}</code></td><td><code>{pipeline_id}: {trigger_id}</code></td></tr>
@@ -456,7 +456,7 @@ JobLogItems (业务回传明细)                └─ reason
 
     <h3>6.1 多实例/集群策略（关键差异）</h3>
     <div class="card xn">
-      <h4>xiaoniu_cron：允许多 Worker，双层锁</h4>
+      <h4>CronPilot：允许多 Worker，双层锁</h4>
       <ul>
         <li><strong>L1</strong> <code>scheduler.lock</code> + portalocker：同机仅一进程 poll due jobs</li>
         <li><strong>L2</strong> Redis <code>@single_task</code>：集群间 <code>cron_do</code> 互斥（TTL 120s）</li>
@@ -478,7 +478,7 @@ JobLogItems (业务回传明细)                └─ reason
 
     <h3>7.1 「成功/失败」如何判定</h3>
     <table>
-      <tr><th>判定来源</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>判定来源</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>HTTP 状态码</td>
         <td><strong>不判断</strong>（requests 不抛则视为可记录）</td>
@@ -508,21 +508,21 @@ JobLogItems (业务回传明细)                └─ reason
 
     <h3>7.2 超时与并发</h3>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>单次超时</td><td>HTTP 120s 固定</td><td>无全局 pipeline 超时（单 task 受 async 调度影响）</td></tr>
       <tr><td>并发模型</td><td>ThreadPool 30 + 每 job max_instances 20</td><td>AsyncIO 单线程事件循环；sync task → <code>asyncio.to_thread</code></td></tr>
       <tr><td>长任务进度</td><td>业务调 <code>/api/cron/add_log</code></td><td>task 内 <code>logger.info</code> → WS 实时</td></tr>
     </table>
 
     <h3>7.3 数据传递</h3>
-    <p><strong>xiaoniu_cron</strong>：平台 → 业务只传 query（<code>xiaoniu_cron_log_id</code>、<code>sign</code>）；业务 → 平台通过 HTTP 响应体或 add_log API。<br>
+    <p><strong>CronPilot</strong>：平台 → 业务只传 query（<code>cronpilot_log_id</code>、<code>sign</code>）；业务 → 平台通过 HTTP 响应体或 add_log API。<br>
     <strong>Plombery</strong>：Task 间通过 Python 返回值；Pipeline 输入通过 Pydantic <code>params</code>；输出落盘 JSON 供 UI 下载查看。</p>
   </section>
 
   <section id="s8">
     <h2>8. 数据与存储架构</h2>
     <table>
-      <tr><th>数据类型</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>数据类型</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>任务定义</td>
         <td>MySQL/SQLite <code>cron_infos</code></td>
@@ -559,7 +559,7 @@ JobLogItems (业务回传明细)                └─ reason
   <section id="s9">
     <h2>9. 实时通信与可观测性</h2>
     <table>
-      <tr><th>能力</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>能力</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>运行列表刷新</td><td>手动刷新 / 分页跳转</td><td>WS <code>run-update</code> + React state 合并</td></tr>
       <tr><td>日志流</td><td>无</td><td>WS <code>logs.{run_id}</code> + QueueHandler 异步</td></tr>
       <tr><td>日志格式</td><td>非结构化文本</td><td>JSON：level、timestamp、message、task</td></tr>
@@ -571,14 +571,14 @@ JobLogItems (业务回传明细)                └─ reason
 useQuery(getLogs(run.id))
 socket.on(`logs.${run.id}`, msg => queryClient.setQueryData(['logs', run.id], append))
 
-// xiaoniu_cron：仅 SSR 表格展示 item.content
+// CronPilot：仅 SSR 表格展示 item.content
 job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   </section>
 
   <section id="s10">
     <h2>10. 认证与安全</h2>
     <table>
-      <tr><th>威胁面</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>威胁面</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>管理面认证</td>
         <td>单密码明文配置比对</td>
@@ -615,7 +615,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   <section id="s11">
     <h2>11. 通知与告警</h2>
     <table>
-      <tr><th>维度</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>维度</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>触发条件</td><td>异常 + error_keyword 命中</td><td>NotificationRule 匹配 PipelineRunStatus</td></tr>
       <tr><td>通道实现</td><td>硬编码：企微、钉钉、自定义 WebHook</td><td>Apprise URL（80+ 服务）</td></tr>
       <tr><td>模板</td><td>纯文本拼接时间戳</td><td>邮件 HTML Jinja 模板</td></tr>
@@ -626,7 +626,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   <section id="s12">
     <h2>12. 配置与扩展机制</h2>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>配置源</td><td><code>conf.ini</code> 单文件</td><td>环境变量 + <code>plombery.config.yaml</code> + Pydantic Settings</td></tr>
       <tr><td>热更新</td><td>需重启进程</td><td>Pipeline 需重启加载代码</td></tr>
       <tr><td>扩展任务</td><td>改 DB/API 即可，无需发版平台</td><td>改 Python 代码 + 重启应用</td></tr>
@@ -638,7 +638,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   <section id="s13">
     <h2>13. 部署与运维</h2>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>进程模型</td><td>Gunicorn gevent ×2~4（Docker ×4）</td><td>Uvicorn <strong>workers=1</strong></td></tr>
       <tr><td>反向代理</td><td>端口映射即可</td><td>需配置 <code>/ws</code> WebSocket 升级</td></tr>
       <tr><td>持久化</td><td>双 SQLite 或双 MySQL + Redis（集群）</td><td>单卷：plombery.db + .data/</td></tr>
@@ -650,7 +650,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   <section id="s14">
     <h2>14. 工程质量与测试</h2>
     <table>
-      <tr><th>项</th><th>xiaoniu_cron</th><th>Plombery</th></tr>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>单元测试</td><td>未见完整 tests 目录</td><td>pytest：api、logging 等</td></tr>
       <tr><td>类型系统</td><td>无类型标注为主</td><td>Pydantic + TypeScript 全覆盖</td></tr>
       <tr><td>前端 CI</td><td>无</td><td>tsc + vite build</td></tr>
@@ -662,7 +662,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   <section id="s15">
     <h2>15. 综合评分与选型（主观权重：中小团队运维场景）</h2>
     <table>
-      <tr><th>维度 (权重)</th><th>xiaoniu_cron</th><th>Plombery</th><th>说明</th></tr>
+      <tr><th>维度 (权重)</th><th>CronPilot</th><th>Plombery</th><th>说明</th></tr>
       <tr><td>跨语言集成 (20%)</td><td>★★★★★</td><td>★★☆☆☆</td><td>HTTP 回调 vs Python 内执行</td></tr>
       <tr><td>运维 UI 体验 (15%)</td><td>★★☆☆☆</td><td>★★★★★</td><td>SSR 老栈 vs 现代 SPA+实时</td></tr>
       <tr><td>运行可观测 (15%)</td><td>★★☆☆☆</td><td>★★★★★</td><td>响应文本 vs 结构化日志+状态机</td></tr>
@@ -676,9 +676,9 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <h3>场景选型速查</h3>
     <table>
       <tr><th>你的场景</th><th>推荐</th></tr>
-      <tr><td>10+ 微服务，只要统一 Cron 触发既有 REST 接口</td><td><strong>xiaoniu_cron</strong></td></tr>
+      <tr><td>10+ 微服务，只要统一 Cron 触发既有 REST 接口</td><td><strong>CronPilot</strong></td></tr>
       <tr><td>数据团队 Python ETL，要多步串联、看实时日志、手动带参运行</td><td><strong>Plombery</strong></td></tr>
-      <tr><td>既要统一调度台，又要复杂 Python 管道</td><td><strong>组合</strong>：xiaoniu_cron 回调 Plombery <code>POST .../run</code></td></tr>
+      <tr><td>既要统一调度台，又要复杂 Python 管道</td><td><strong>组合</strong>：CronPilot 回调 Plombery <code>POST .../run</code></td></tr>
       <tr><td>DAG、重试矩阵、千级任务分布式</td><td>两者都不合适 → Airflow/Prefect/Dagster</td></tr>
     </table>
   </section>
@@ -688,7 +688,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
 
     <h3>16.1 推荐组合架构</h3>
     <pre class="diagram">┌─────────────┐   GET + sign    ┌──────────────┐   in-process    ┌─────────┐
-│ xiaoniu_cron│ ──────────────► │ Plombery API │ ───────────────►│ @tasks  │
+│ CronPilot│ ──────────────► │ Plombery API │ ───────────────►│ @tasks  │
 │ (调度/审计)  │                 │ /pipelines/…/run              │ Pipeline│
 └─────────────┘                 └──────────────┘                 └─────────┘
        │                                │
@@ -698,7 +698,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
 
     <h3>16.2 迁移检查清单</h3>
     <table>
-      <tr><th>从 xiaoniu_cron → Plombery</th><th>从 Plombery → xiaoniu_cron</th></tr>
+      <tr><th>从 CronPilot → Plombery</th><th>从 Plombery → CronPilot</th></tr>
       <tr>
         <td>每个 req_url 改写成 @task 或 pipeline</td>
         <td>每个 pipeline 暴露 HTTP 端点作 req_url</td>
@@ -719,7 +719,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
   </section>
 
   <section id="s17">
-    <h2>17. xiaoniu_cron 可借鉴与优化（守正出奇）</h2>
+    <h2>17. CronPilot 可借鉴与优化（守正出奇）</h2>
 
     <div class="card xn" style="border-left:4px solid #2563eb;margin-bottom:1rem">
       <p><strong>完整论证版（每条含：Plombery 对照 → 现状不足 → 为何优化 → 价值 → 优先级依据）：</strong>
@@ -730,19 +730,19 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
       <h4 style="margin-bottom:.5rem">必须保留的核心优势（优化时不得削弱）</h4>
       <ul style="margin-left:1.1rem;font-size:.9rem">
         <li><strong>HTTP 回调执行模型</strong>：继续以 <code>req_url</code> 触发业务系统，不改为进程内执行 Python。</li>
-        <li><strong>跨语言集成</strong>：任何能接 GET 的服务均可接入，无需迁入 xiaoniu_cron 运行时。</li>
+        <li><strong>跨语言集成</strong>：任何能接 GET 的服务均可接入，无需迁入 CronPilot 运行时。</li>
         <li><strong>Web/API 动态配置</strong>：任务存 <code>cron_infos</code>，运维无需发版即可增删改定时规则。</li>
         <li><strong>Crontab 兼容 + 秒级</strong>：字段级 cron 与一次性 <code>run_date</code> 保持现有语义。</li>
         <li><strong>集群能力</strong>：保留 portalocker + Redis <code>@single_task</code>，优于 Plombery 默认单实例限制。</li>
         <li><strong>轻量部署</strong>：Docker 一键、conf.ini、双 SQLite 开箱即用。</li>
-        <li><strong>回调签名与 add_log</strong>：<code>xiaoniu_cron_sign</code>、长任务进度回传仍是差异化能力。</li>
+        <li><strong>回调签名与 add_log</strong>：<code>cronpilot_sign</code>、长任务进度回传仍是差异化能力。</li>
       </ul>
     </div>
 
     <h3>17.0 差距总览：为何需要优化</h3>
-    <p>与 Plombery 对比，xiaoniu_cron 在<strong>「调度触发」</strong>上更强（跨语言、集群、动态配置），在<strong>「一次执行的可观测闭环」</strong>上明显偏弱。Plombery 用户默认拥有：Run 状态机、详情页、实时日志、失败原因；我方用户只能在表格里读一段 HTTP 响应，且 HTTP 500 可能仍显示为「成功」。</p>
+    <p>与 Plombery 对比，CronPilot 在<strong>「调度触发」</strong>上更强（跨语言、集群、动态配置），在<strong>「一次执行的可观测闭环」</strong>上明显偏弱。Plombery 用户默认拥有：Run 状态机、详情页、实时日志、失败原因；我方用户只能在表格里读一段 HTTP 响应，且 HTTP 500 可能仍显示为「成功」。</p>
     <table>
-      <tr><th>能力域</th><th>Plombery 水平</th><th>xiaoniu_cron 现状</th><th>差距等级</th></tr>
+      <tr><th>能力域</th><th>Plombery 水平</th><th>CronPilot 现状</th><th>差距等级</th></tr>
       <tr><td>执行成败语义</td><td>COMPLETED/FAILED 明确</td><td>仅 keyword + 异常；不看 status_code</td><td><strong>高</strong></td></tr>
       <tr><td>排障路径</td><td>Run 详情 + 日志流</td><td>表格 + iframe 碎片</td><td><strong>高</strong></td></tr>
       <tr><td>安全（HTTP 模型特有）</td><td>无 SSRF 面</td><td>任意 req_url</td><td><strong>高</strong></td></tr>
@@ -764,7 +764,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <div class="card">
       <table>
         <tr><th>Plombery</th><td>Task 异常 → <code>PipelineRunStatus.FAILED</code>；UI 红标；通知规则按 status 触发。用户无需读响应体。</td></tr>
-        <tr><th>xiaoniu_cron 现状</th><td><code>crons.cron_do</code> 在 <code>requests.get</code> 成功后仅把 <code>req.text</code> 写入 <code>job_log.content</code>；另用 <code>error_keyword in ret</code> 决定是否 <code>wechat_info_err</code>。<strong>不读取 <code>req.status_code</code>。</strong></td></tr>
+        <tr><th>CronPilot 现状</th><td><code>crons.cron_do</code> 在 <code>requests.get</code> 成功后仅把 <code>req.text</code> 写入 <code>job_log.content</code>；另用 <code>error_keyword in ret</code> 决定是否 <code>wechat_info_err</code>。<strong>不读取 <code>req.status_code</code>。</strong></td></tr>
         <tr><th>具体不足</th><td>① HTTP 502/500 常显示为「成功记录」；② 200 但业务失败且无关键词则静默；③ 列表无法筛失败；④ 与用户问「是否关心结果」的答案不一致。</td></tr>
         <tr><th>优化（P1）</th><td>OPT-P1-01/02：<code>job_log.status</code> + <code>fail_on_http_4xx_5xx</code> + <code>fail_reason</code>。</td></tr>
         <tr><th>价值</th><td>产品承诺可验证；告警准确率提升；对标 Plombery 的「执行结果语义」，而不改变 HTTP 回调模型。</td></tr>
@@ -794,7 +794,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <p>每一行的「现状 → 对比 → 原因 → 价值 → 验收」见 <a href="产品优化需求-借鉴Plombery.html">详版 PRD</a> 对应 OPT 卡片。</p>
 
     <h3>17.3 前端：为何不整站重写 React</h3>
-    <p><strong>Plombery</strong> 的体验来自 React + Query + WS，但代价是 Node 构建链、前端独立迭代、单 worker 约束。<strong>xiaoniu_cron</strong> 的用户看重 Docker 一键、无构建。优化应走：</p>
+    <p><strong>Plombery</strong> 的体验来自 React + Query + WS，但代价是 Node 构建链、前端独立迭代、单 worker 约束。<strong>CronPilot</strong> 的用户看重 Docker 一键、无构建。优化应走：</p>
     <ul>
       <li>P1：状态徽章 + 详情页 + partial 模板（解决 80% 体感差距）</li>
       <li>P2：SSE + Chart.js（补实时与统计，仍 SSR）</li>
@@ -802,7 +802,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <p>这与 Plombery「组件化思想」对齐，而非「技术栈照搬」。</p>
 
     <h3>17.4 调度与集群：保持优势</h3>
-    <p>Plombery 文档明确<strong>禁止</strong>多 worker 无锁扩展；xiaoniu_cron 的 portalocker + Redis 是差异化能力，<strong>不应为对齐 Plombery 而削弱</strong>。可借鉴的是：启动清理悬空状态（P1-08）、coalesce 可配置（P2-03）、文档化「推荐拓扑」。</p>
+    <p>Plombery 文档明确<strong>禁止</strong>多 worker 无锁扩展；CronPilot 的 portalocker + Redis 是差异化能力，<strong>不应为对齐 Plombery 而削弱</strong>。可借鉴的是：启动清理悬空状态（P1-08）、coalesce 可配置（P2-03）、文档化「推荐拓扑」。</p>
 
     <h3>17.5 明确不借鉴</h3>
     <p>进程内 Pipeline、纯代码注册、强制单 worker、整站 React、平台 DAG —— 均会牺牲 HTTP 跨语言或动态配置优势。组合方案：cron 回调 Plombery <code>POST /run</code>。</p>
@@ -823,7 +823,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
 
 </div>
 <footer>
-  参考：xiaoniu_cron 源码 · Plombery <code>docs/architecture.html</code> 与 <code>src/plombery</code>、<code>frontend/src</code><br>
+  参考：CronPilot 源码 · Plombery <code>docs/architecture.html</code> 与 <code>src/plombery</code>、<code>frontend/src</code><br>
   <a href="index.html">返回文档索引</a>
 </footer>
 </body>

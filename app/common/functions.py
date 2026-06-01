@@ -25,7 +25,7 @@ def md5(str=''):
     m.update(str.encode('utf8'))
     return m.hexdigest()
 
-def get_xiaoniu_cron_sign(data={},api_key=''):
+def get_cronpilot_sign(data={}, api_key=''):
     key_data=[d for d in sorted(data,reverse=False)]
     values = '&&'.join("%s=%s" %(v,data[v]) for v in key_data if data[v])+"&&api_key=" + api_key
     return md5(values)
@@ -35,7 +35,7 @@ def get_xiaoniu_cron_sign(data={},api_key=''):
 '''
 def wechat_info_err(titile,content=''):
     try:
-        content = '【小牛定时任务推送】\n{}\n{}\n{}'.format(get_now_time(),titile,content)
+        content = '【CronPilot推送】\n{}\n{}\n{}'.format(get_now_time(),titile,content)
         send_text(content=content)
     except Exception as e:
         current_app.logger.error("推送有BUG【%s】" % str(e))

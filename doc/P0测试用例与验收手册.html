@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>P0 测试用例与验收手册 · xiaoniu_cron</title>
+  <title>P0 测试用例与验收手册 · CronPilot</title>
   <style>
     :root{--p:#2563eb;--ok:#059669;--fail:#dc2626;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
     *{box-sizing:border-box}
@@ -29,7 +29,7 @@
 <body>
 <div class="hero">
   <h1>P0（Phase A）测试用例与验收手册</h1>
-  <p>cron-scheduler-admin · OPT-P0-01～05 · 自动化 + 手工冒烟 · 2026-05-29</p>
+  <p>CronPilot · OPT-P0-01～05 · 自动化 + 手工冒烟 · 2026-05-29</p>
 </div>
 <div class="layout">
   <a class="back" href="index.html">← 文档索引</a> ·
@@ -149,7 +149,7 @@ curl -s -X POST "$BASE/api/cron" \
   -d "req_url=http://8.8.8.8/cb2"</pre>
 
   <h2>本地启动</h2>
-  <pre>cd /path/to/xiaoniu_cron
+  <pre>cd /path/to/CronPilot
 cp conf.ini.example conf.ini   # 首次
 # 编辑 conf.ini：数据库、login_pwd、block_private_ip 等
 bash scripts/start_local.sh</pre>
@@ -164,6 +164,6 @@ bash scripts/start_local.sh</pre>
     <tr><td>P0-05</td><td></td><td></td><td>□</td></tr>
   </table>
 </div>
-<footer>xiaoniu_cron · Phase A 测试手册</footer>
+<footer>CronPilot · Phase A 测试手册</footer>
 </body>
 </html>

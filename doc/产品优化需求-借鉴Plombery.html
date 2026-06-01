@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>xiaoniu_cron 产品优化需求（详版 · 借鉴 Plombery）</title>
+  <title>CronPilot 产品优化需求（详版 · 借鉴 Plombery）</title>
   <style>
     :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--pl:#0d9488}
     *{box-sizing:border-box}
@@ -42,7 +42,7 @@
 </head>
 <body>
 <div class="hero">
-  <h1>xiaoniu_cron 产品优化需求（详版）</h1>
+  <h1>CronPilot 产品优化需求（详版）</h1>
   <p>针对性对比 Plombery · 现状不足 · 优化理由 · 业务价值 · 明确优先级</p>
 </div>
 <div class="layout">
@@ -85,7 +85,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">Plombery 运行元数据均经 SQLAlchemy Repository 写入，删除/查询走 ORM 或绑定参数；无业务方可控 SQL 拼接场景。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>
             <code>main/views.py</code> 中 <code>db.session.execute("delete from job_log where cron_info_id='%s'" % cron_id)</code>；
@@ -112,11 +112,11 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">生产推荐 OAuth2（Google/Microsoft）+ Session；密钥 <code>auth.secret_key</code> 用 SecretStr，不明文落盘。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td><code>check_pass</code> 中 <code>login_pwd != password</code> 直接与 conf.ini 明文比对；<code>is_dev=1</code> 时登录页 placeholder 可提示明文密码。</td></tr>
           <tr class="gap"><th>不足</th><td>conf.ini 泄露即全盘失守；镜像/备份/日志中常见明文配置；无法对接企业 SSO。</td></tr>
-          <tr><th>对比差距</th><td>Plombery 内网可关 auth，但生产路径明确；xiaoniu_cron 生产仍普遍用单密码，且防护弱。</td></tr>
+          <tr><th>对比差距</th><td>Plombery 内网可关 auth，但生产路径明确；CronPilot 生产仍普遍用单密码，且防护弱。</td></tr>
         </table>
         <h4>优化方案</h4>
         <p>存储 bcrypt/scrypt 哈希；首次启动或迁移工具将明文转为哈希；保留「仅哈希」配置项。OAuth 放 P1，不阻塞 P0。</p>
@@ -131,10 +131,10 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">任务在进程内执行，<strong>不存在</strong>「平台替用户请求任意 URL」模型；SSRF 风险主要在用户代码自身。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>仅校验 <code>req_url</code> 含 http/https；保存后 <code>cron_do</code> 由服务器发起 GET，可指向 <code>127.0.0.1</code>、云元数据 <code>169.254.169.254</code>、内网 Redis 等。</td></tr>
-          <tr class="gap"><th>不足</th><td>恶意或误配任务可导致<strong>内网扫描、云凭证窃取</strong>；多租户场景下属于严重事故面。Plombery 无此攻击面，但这是 xiaoniu_cron <strong>模式固有风险</strong>，必须补。</td></tr>
+          <tr class="gap"><th>不足</th><td>恶意或误配任务可导致<strong>内网扫描、云凭证窃取</strong>；多租户场景下属于严重事故面。Plombery 无此攻击面，但这是 CronPilot <strong>模式固有风险</strong>，必须补。</td></tr>
           <tr><th>为何 P0</th><td>属于架构型高危，与「能填 URL」的产品能力绑定，不修则无法对外宣传企业级。</td></tr>
         </table>
         <h4>优化方案</h4>
@@ -149,7 +149,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">REST 使用 HTTP 状态码 + Pydantic 校验；422 返回字段级 <code>detail</code>；前端 <code>ky</code> 按 status 分支，契约稳定。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>Web 用 <code>web_api_return</code>；API 用 <code>api_return</code>（字段相同但入口分散）；<code>requests.js</code> 判断 <code>data.errcode == '0'</code>（字符串），而服务端返回数字 <code>0</code>。</td></tr>
           <tr class="gap"><th>不足</th><td>部分 Ajax 成功回调可能永不触发；对接方难以依赖统一规范；与 Plombery「一种错误模型」相比显得业余。</td></tr>
@@ -166,7 +166,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">触发器来自 APScheduler + Pydantic 模型校验；<strong>单一路径</strong>注册。参数非法在边界一次拒绝。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td><code>main/views.py</code> 的 <code>cron_add</code>/<code>cron_edit</code> 与 <code>api/views.py</code> 的 <code>crons()</code> 各含约 300 行几乎相同的 day/hour/minute 校验。</td></tr>
           <tr class="gap"><th>不足</th><td>
@@ -195,7 +195,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref"><code>PipelineRunStatus</code>：PENDING → RUNNING → COMPLETED | FAILED | CANCELLED；UI <code>StatusBadge</code> 一眼可辨；通知按 status 匹配规则。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>
             任务级 <code>cron_infos.status</code>：0 停 / 1 跑 / -1 结束（指调度生命周期，非单次执行）。<br>
@@ -224,7 +224,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">Task 抛异常 → 流水线 FAILED，语义清晰；不依赖响应体猜词。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>仅 <code>error_keyword</code> 子串匹配响应体；<code>requests.get</code> 不因 4xx/5xx 抛错（除非连接失败）。</td></tr>
           <tr class="gap"><th>不足</th><td>
@@ -246,7 +246,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">路由 <code>/pipelines/.../runs/{runId}</code> 聚合：状态、耗时、Tasks、LogViewer、输出 JSON、Traceback 对话框。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>
             <code>job_log_all_list</code> 表格展示 content 全文（可能极大）。<br>
@@ -269,7 +269,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref"><code>ManualRunDialog</code> + <code>POST /api/pipelines/{id}/run</code>；可带 JsonSchema 参数；创建后跳转 Run 详情。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>验证任务只能改 cron 为 1 分钟后或调 API 改 run_date；无「现在就跑一次」。</td></tr>
           <tr class="gap"><th>不足</th><td>上线前验证、补跑、联调成本高；Plombery 将此作为核心卖点之一。</td></tr>
@@ -286,7 +286,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">任务内 <code>logger.info</code> → JSONL + WebSocket 实时推送；无需业务再调第二个 API。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>已有 <code>/api/cron/add_log</code> + <code>job_log_items</code>，但 UI 仅 iframe 列表；无 level/time 字段；平台侧无实时推送。</td></tr>
           <tr class="gap"><th>不足</th><td>长任务场景下 Plombery「边跑边看日志」；我方「回调完才看到一大坨响应」，中间黑盒。</td></tr>
@@ -303,7 +303,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">FastAPI 自动生成 OpenAPI；官方文档与代码同步。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td><code>api_doc.html</code> 手写表格 + JS 拼 HOST；与实现易脱节。</td></tr>
           <tr class="gap"><th>不足</th><td>集成方不能「Try it」；字段变更无编译期检查；显得不如 Plombery 现代。</td></tr>
@@ -320,7 +320,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">React 组件复用 <code>PageLayout</code>、<code>Breadcrumbs</code>，无重复布局。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>9 个页面各自复制 Jumbotron + nav-tabs；<code>cron_edit</code> 的 active tab 仍写「任务添加」。</td></tr>
           <tr class="gap"><th>不足</th><td>改一处导航需改 N 文件；细节错误损害信任感；阻碍统一加「仪表盘」入口。</td></tr>
@@ -337,7 +337,7 @@
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">启动时将残留 PENDING/RUNNING 的手动运行标为 CANCELLED，避免 UI 假死状态。</p>
-        <h4>xiaoniu_cron 现状与不足</h4>
+        <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>若引入 RUNNING 状态（P1-01）后，进程被 kill 可能留下永久 RUNNING；当前无 Run 状态故问题未暴露。</td></tr>
           <tr class="gap"><th>不足</th><td>与 Plombery 相比缺少「自愈」；升级/崩溃后数据可信度下降。</td></tr>

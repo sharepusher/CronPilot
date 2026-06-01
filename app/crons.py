@@ -11,7 +11,7 @@ import requests
 from flask import current_app
 
 from app import scheduler, db
-from app.common.functions import wechat_info_err, single_task, get_xiaoniu_cron_sign
+from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
 from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.url_security import validate_callback_url
 from configs import configs
@@ -74,7 +74,7 @@ def cron_do(cron_id):
                         else:
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
-                                xiaoniu_cron_log_id = str(uuid.uuid1())
+                                cronpilot_log_id = str(uuid.uuid1())
                                 parmas = {}
                                 t = time.time()
 
@@ -86,17 +86,17 @@ def cron_do(cron_id):
                                         ps = pp.split('&')
                                     parmas = {d.split('=')[0]: d.split('=')[1] for d in ps}
 
-                                parmas['xiaoniu_cron_log_id'] = xiaoniu_cron_log_id
-                                xiaoniu_cron_sign = get_xiaoniu_cron_sign(parmas, api_key=api_key)
+                                parmas['cronpilot_log_id'] = cronpilot_log_id
+                                cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
 
                                 req = requests.get(
                                     req_url,
                                     params={
-                                        'xiaoniu_cron_log_id': xiaoniu_cron_log_id,
-                                        'xiaoniu_cron_sign': xiaoniu_cron_sign,
+                                        'cronpilot_log_id': cronpilot_log_id,
+                                        'cronpilot_sign': cronpilot_sign,
                                     },
                                     timeout=2 * 60,
-                                    headers={'user-agent': 'xiaoniu_cron'},
+                                    headers={'user-agent': 'CronPilot'},
                                 )
 
                                 ret = req.text
@@ -124,7 +124,7 @@ def cron_do(cron_id):
                                     content=ret,
                                     create_time=nows,
                                     take_time=time.time() - t,
-                                    log_id=xiaoniu_cron_log_id,
+                                    log_id=cronpilot_log_id,
                                 )
                                 db.session.add(jl)
                                 db.session.commit()

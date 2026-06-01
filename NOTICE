@@ -1,0 +1,15 @@
+CronPilot
+Copyright 2026 CronPilot Contributors
+
+This product includes software developed as a derivative work from the
+xiaoniu_cron project (https://github.com/aniu-lee/xiaoniu_cron).
+
+As of the license audit dated 2026-05-29, the upstream GitHub repository
+did not declare an SPDX license in repository metadata and did not include
+a LICENSE file in the default branch. Portions of the codebase may
+originate from that upstream project. If you redistribute this software,
+ensure you have appropriate rights from upstream authors or confirm upstream
+licensing separately with your legal counsel.
+
+This distribution also includes third-party open source components listed
+in THIRD_PARTY_NOTICES.md.

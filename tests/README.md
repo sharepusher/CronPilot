@@ -3,7 +3,7 @@
 ## 自动化（推荐 Python 3.8–3.11，与项目 requirements 一致）
 
 ```bash
-cd /path/to/xiaoniu_cron
+cd /path/to/CronPilot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

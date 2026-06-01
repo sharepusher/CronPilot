@@ -130,7 +130,7 @@ def cron_status():
 
 '''
 上传执行记录
-xiaoniu_cron_log_id
+cronpilot_log_id
 content
 '''
 @api.route('/cron/add_log',methods=['GET','POST'])
@@ -144,7 +144,7 @@ def cron_add_log():
 
     access_token = datas.get('access_token')
 
-    xiaoniu_cron_log_id = datas.get('xiaoniu_cron_log_id')
+    cronpilot_log_id = datas.get('cronpilot_log_id')
 
     if api_access_token:
 
@@ -154,18 +154,18 @@ def cron_add_log():
         if api_access_token != access_token:
             return api_err_return(msg='access_token错误')
 
-    if not xiaoniu_cron_log_id:
-        return api_err_return(msg='xiaoniu_cron_log_id 必传哦！')
+    if not cronpilot_log_id:
+        return api_err_return(msg='cronpilot_log_id 必传哦！')
 
     content = datas.get('content')
     if not content:
         return api_err_return(msg='日志内容不能为空')
 
-    jl = JobLog.query.filter(JobLog.log_id == xiaoniu_cron_log_id).first()
+    jl = JobLog.query.filter(JobLog.log_id == cronpilot_log_id).first()
     if not jl:
-        return api_err_return(msg='xiaoniu_cron_log_id 不存在')
+        return api_err_return(msg='cronpilot_log_id 不存在')
 
-    jli = JobLogItems(log_id=xiaoniu_cron_log_id,content=content)
+    jli = JobLogItems(log_id=cronpilot_log_id,content=content)
 
     db.session.add(jli)
 

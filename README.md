@@ -2,9 +2,9 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-本项目在 [aniu-lee/xiaoniu_cron](https://github.com/aniu-lee/xiaoniu_cron) 基础上独立演进，完成 **Phase A（P0）** 安全与质量改造及完整技术文档，**不向原仓库强推合并**。
+当前版本 **v0.1.0** 包含 Phase A（P0）安全与质量能力及完整技术文档，详见 [Release Notes](RELEASE_NOTES.md)。
 
-## 与原版差异（Phase A / P0）
+## 主要能力（v0.1.0）
 
 | 能力 | 说明 |
 |------|------|
@@ -61,7 +61,7 @@ python -m unittest tests.test_p0_phase_a -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — **v0.1.0**（2026-05-29）Phase A 全量变更说明。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — **v0.1.0**（2026-05-29）Phase A 变更说明。
 
 ## 技术文档（HTML）
 
@@ -69,7 +69,7 @@ python -m unittest tests.test_p0_phase_a -v
 
 - 架构设计、详细技术方案、前端设计
 - Plombery 深度对比、详版 PRD
-- P0 测试手册、仓库拆分方案
+- P0 测试手册、Release Notes
 
 ## 目录结构
 
@@ -103,13 +103,6 @@ scripts/             # 本地启动、密码哈希工具
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |
 
-## 许可证与致谢
+## 许可证
 
-- **本仓库**： [Apache License 2.0](LICENSE) — 见 [NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-- **上游**：[aniu-lee/xiaoniu_cron](https://github.com/aniu-lee/xiaoniu_cron) 截至 2026-05 未在 GitHub 声明 SPDX 许可证；商业再分发前请与法务确认或取得作者授权
-- **审计说明**：见 [doc/LICENSE-AUDIT.html](doc/LICENSE-AUDIT.html)
-
-## 仓库关系
-
-- **本仓库**：`CronPilot` — 持续开发
-- **上游参考**：`aniu-lee/xiaoniu_cron` — 只读对照，可选 cherry-pick 原仓库修复
+本项目采用 [Apache License 2.0](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；合规说明见 [doc/LICENSE-AUDIT.html](doc/LICENSE-AUDIT.html)。

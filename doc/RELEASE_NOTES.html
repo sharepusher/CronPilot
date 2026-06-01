@@ -5,18 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Release Notes · CronPilot</title>
   <style>
-    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--ok:#059669;--warn:#b45309;--break:#dc2626}
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
     body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
     .hero{background:linear-gradient(135deg,#1e3a8a,#4338ca);color:#fff;padding:2rem}
     .hero h1{margin:0 0 .3rem;font-size:1.5rem}
     .layout{max-width:920px;margin:0 auto;padding:1.5rem}
     .back{color:var(--p);font-size:.88rem}
     h2{font-size:1.15rem;border-left:4px solid var(--p);padding-left:.65rem;margin:2rem 0 1rem}
-    h3{font-size:1rem;color:#334155;margin:1.25rem 0 .5rem}
     .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem;margin:1rem 0}
-    .tag{display:inline-block;font-size:.72rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;margin-right:.35rem}
-    .tag-v{background:#dbeafe;color:#1d4ed8}
-    .tag-break{background:#fee2e2;color:#b91c1c}
+    .tag{display:inline-block;font-size:.72rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;background:#dbeafe;color:#1d4ed8;margin-right:.35rem}
     table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.6rem 0}
     th,td{border:1px solid var(--border);padding:.45rem .55rem;vertical-align:top}
     th{background:#f1f5f9}
@@ -29,62 +26,45 @@
 <body>
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
-  <p><span class="tag tag-v">v0.1.0</span> 2026-05-29 · Phase A（P0）首发</p>
+  <p><span class="tag">v0.1.0</span> 2026-05-29 · Phase A（P0）首发</p>
 </div>
 <div class="layout">
   <a class="back" href="index.html">← 文档索引</a> ·
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版</a>
 
   <div class="card">
-    <p>首个可发布基线：品牌独立、P0 安全与质量、统一 API 契约、完整技术文档与 Apache-2.0 许可。<strong>未正式上线</strong>，含破坏性 API 更名，不保留 <code>xiaoniu_cron_*</code> 旧参数。</p>
+    <p>首个版本：HTTP 定时回调调度、Web/API 管理、P0 安全与质量、技术文档与 Apache-2.0 许可。</p>
   </div>
 
-  <h2>破坏性变更 · API 协议</h2>
-  <p><span class="tag tag-break">BREAKING</span></p>
+  <h2>回调与 API 协议</h2>
   <table>
-    <tr><th>旧</th><th>新</th></tr>
-    <tr><td><code>xiaoniu_cron_log_id</code></td><td><code>cronpilot_log_id</code></td></tr>
-    <tr><td><code>xiaoniu_cron_sign</code></td><td><code>cronpilot_sign</code></td></tr>
-    <tr><td><code>get_xiaoniu_cron_sign()</code></td><td><code>get_cronpilot_sign()</code></td></tr>
+    <tr><th>参数 / 接口</th><th>说明</th></tr>
+    <tr><td><code>cronpilot_log_id</code></td><td>每次触发的执行 UUID</td></tr>
+    <tr><td><code>cronpilot_sign</code></td><td>回调签名（MD5）</td></tr>
+    <tr><td><code>POST /api/cron/add_log</code></td><td>进度回传</td></tr>
   </table>
   <pre>GET /your/callback?cronpilot_log_id=&lt;UUID&gt;&amp;cronpilot_sign=&lt;MD5&gt;
 POST /api/cron/add_log  cronpilot_log_id=&lt;UUID&gt;&amp;content=...</pre>
-  <p>验签算法不变，仅参数名变更。DB 列仍为 <code>job_log.log_id</code>。</p>
 
-  <h2>项目与品牌</h2>
+  <h2>项目</h2>
   <ul>
-    <li>项目名：<strong>CronPilot</strong>，独立仓库演进自 xiaoniu_cron</li>
-    <li>管理端标题：CronPilot 定时调度平台</li>
+    <li><strong>CronPilot</strong> 定时调度平台</li>
     <li>回调 User-Agent：CronPilot</li>
     <li><code>scripts/start_local.sh</code>、<code>conf.ini.example</code></li>
   </ul>
 
-  <h2>Phase A（P0）功能</h2>
+  <h2>Phase A（P0）</h2>
   <table>
     <tr><th>ID</th><th>内容</th></tr>
-    <tr><td>P0-01</td><td>SQL ORM 化（删除任务、清理日志）· <code>job_log_service</code></td></tr>
-    <tr><td>P0-02</td><td>密码 pbkdf2 哈希 · <code>app/auth/password.py</code> · <code>scripts/hash_login_password.py</code></td></tr>
-    <tr><td>P0-03</td><td>SSRF：<code>block_private_ip</code>、<code>url_allow_hosts</code>、<code>url_ssrf_observe_only</code></td></tr>
-    <tr><td>P0-04</td><td>JSON <code>errcode</code> 数字类型 · 修复 <code>requests.js</code></td></tr>
-    <tr><td>P0-05</td><td><code>cron_validator</code> + <code>cron_service</code>，Web/API 单一路径</td></tr>
+    <tr><td>P0-01</td><td>SQL ORM 化 · <code>job_log_service</code></td></tr>
+    <tr><td>P0-02</td><td>密码 pbkdf2 哈希</td></tr>
+    <tr><td>P0-03</td><td>SSRF 防护配置项</td></tr>
+    <tr><td>P0-04</td><td>JSON <code>errcode</code> 数字类型</td></tr>
+    <tr><td>P0-05</td><td><code>cron_validator</code> + <code>cron_service</code></td></tr>
   </table>
 
-  <h2>新增模块</h2>
-  <pre>app/services/url_security.py
-app/services/cron_validator.py
-app/services/cron_service.py
-app/services/job_log_service.py
-app/auth/password.py
-datas/utils/json.py  → json_response()</pre>
-
-  <h2>文档</h2>
-  <p>完整 HTML 套件见 <a href="index.html">文档索引</a>：架构、详细方案、PRD、Plombery 对比、P0 测试手册、License Audit、仓库拆分方案。</p>
-
-  <h2>许可</h2>
-  <ul>
-    <li>本仓库：<strong>Apache-2.0</strong>（<code>LICENSE</code>、<code>NOTICE</code>、<code>THIRD_PARTY_NOTICES.md</code>）</li>
-    <li>审计：<a href="LICENSE-AUDIT.html">LICENSE-AUDIT.html</a></li>
-  </ul>
+  <h2>文档与许可</h2>
+  <p>见 <a href="index.html">文档索引</a>；许可 <a href="LICENSE-AUDIT.html">LICENSE-AUDIT</a>（Apache-2.0）。</p>
 
   <h2>测试</h2>
   <pre>python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v</pre>
@@ -94,27 +74,15 @@ datas/utils/json.py  → json_response()</pre>
 url_allow_hosts=
 url_ssrf_observe_only=0</pre>
 
-  <h2>迁移清单（自 xiaoniu_cron）</h2>
+  <h2>对接检查</h2>
   <ul>
-    <li>业务读取 <code>cronpilot_log_id</code> / <code>cronpilot_sign</code></li>
-    <li><code>add_log</code> 使用 <code>cronpilot_log_id</code></li>
-    <li>配置 SSRF；密码建议哈希</li>
-    <li>修改 conf.ini 后重启进程</li>
+    <li>回调使用 <code>cronpilot_log_id</code>、<code>cronpilot_sign</code></li>
+    <li><code>add_log</code> 回传进度</li>
+    <li>SSRF 与密码哈希配置</li>
   </ul>
 
-  <h2>已知限制</h2>
-  <ul>
-    <li>P1/P2 见 <a href="产品优化需求-借鉴Plombery.html">详版 PRD</a></li>
-    <li>推荐 Python 3.8–3.11</li>
-    <li>Dockerfile 仍 ubuntu:16.04（待升级）</li>
-  </ul>
-
-  <h2>版本规划</h2>
-  <table>
-    <tr><th>版本</th><th>计划</th></tr>
-    <tr><td>0.1.0</td><td>Phase A（当前）</td></tr>
-    <tr><td>0.2.x</td><td>P1 可观测（status、详情页、立即执行等）</td></tr>
-  </table>
+  <h2>后续版本</h2>
+  <p>P1/P2 见 <a href="产品优化需求-借鉴Plombery.html">PRD</a>；计划 <code>0.2.x</code> 对应 P1。</p>
 </div>
 <footer>CronPilot · Release Notes</footer>
 </body>

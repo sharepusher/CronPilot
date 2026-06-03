@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 非 Docker 部署指南</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488;--warn:#b45309}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f172a,#1e3a8a 55%,#0d9488);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .4rem;font-size:1.75rem}
+    .hero .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .nav-back{display:inline-block;margin-bottom:1rem;color:#bfdbfe;font-size:.9rem;text-decoration:none}
+    .nav-back:hover{text-decoration:underline}
+    .layout{max-width:920px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.5rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    .warn{background:#fffbeb;border-color:#fcd34d;color:#78350f}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.82rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em;color:#0f172a}
+    .arch{background:#1e293b;color:#e2e8f0;padding:1.2rem;border-radius:10px;font-family:ui-monospace,monospace;font-size:.78rem;line-height:1.5;overflow:auto}
+    ul{margin:.5rem 0;padding-left:1.25rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a class="nav-back" href="index.html">← 文档索引</a>
+  <span class="tag">运维</span>
+  <span class="tag">裸机 / VM</span>
+  <h1>非 Docker 部署指南</h1>
+  <p>在 Linux 或 macOS 上安装 CronPilot、远程访问管理端与 HTML 技术文档（<code>/docs/</code>）</p>
+</header>
+
+<main class="layout">
+  <section>
+    <h2>1. 部署拓扑</h2>
+    <div class="arch">
+ 浏览器 ──► Nginx :443 (可选 HTTPS / 文档鉴权)
+              │
+              ├── /        ──proxy──► Gunicorn 127.0.0.1:5860  (Flask 管理端 + API)
+              └── /docs/   ──proxy──► 同上（静态 HTML，内置路由）
+
+ Gunicorn ──► MySQL（或 SQLite）  +  Redis（集群时）
+    </div>
+    <p style="color:var(--muted);font-size:.9rem">不使用 Docker 时，推荐 <strong>Gunicorn + gevent</strong> 作为 WSGI 进程；文档与控制台<strong>同一端口</strong>，无需单独起静态服务。</p>
+  </section>
+
+  <section>
+    <h2>2. 环境要求</h2>
+    <table>
+      <tr><th>组件</th><th>要求</th><th>说明</th></tr>
+      <tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（Flask 1.1 / gevent 20 易失败）</td></tr>
+      <tr><td>数据库</td><td>MySQL 5.7+ / 8</td><td>生产推荐；试用可用 SQLite</td></tr>
+      <tr><td>Redis</td><td>可选</td><td>多实例集群锁；单机设 <code>is_single=1</code></td></tr>
+      <tr><td>端口</td><td><strong>5860</strong></td><td><code>gun.py</code> 默认；本地脚本常用 5001</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. 安装步骤</h2>
+    <h3>3.1 获取代码与虚拟环境</h3>
+    <pre>git clone git@github.com:sharepusher/CronPilot.git
+cd CronPilot
+
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp conf.ini.example conf.ini
+mkdir -p datas/logs</pre>
+
+    <h3>3.2 配置 conf.ini</h3>
+    <div class="card">
+      <p>必改项：<code>login_pwd</code>、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。</p>
+      <p>生成密码哈希：</p>
+      <pre style="margin:.5rem 0;background:#f8fafc;color:#1e293b">python scripts/hash_login_password.py '你的强密码'
+# 将输出写入 conf.ini 的 login_pwd=</pre>
+    </div>
+
+    <h3>3.3 MySQL 示例</h3>
+    <pre>[default]
+is_single=1
+cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
+cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
+login_pwd=pbkdf2:...
+block_private_ip=1
+url_allow_hosts=
+url_ssrf_observe_only=0</pre>
+
+    <h3>3.4 SQLite 单机试用</h3>
+    <pre>cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
+cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite</pre>
+    <p style="color:var(--muted);font-size:.9rem">路径请使用<strong>绝对路径</strong>（四个斜杠 <code>sqlite:////</code>）。</p>
+  </section>
+
+  <section>
+    <h2>4. 启动服务</h2>
+    <h3>4.1 生产（Gunicorn，监听外网）</h3>
+    <pre>cd /opt/cronpilot/CronPilot
+source .venv/bin/activate
+export FLASK_CONFIG=production
+
+gunicorn -c gun.py manage:app
+# gun.py 已配置 bind = '0.0.0.0:5860'</pre>
+
+    <h3>4.2 本地冒烟</h3>
+    <pre>bash scripts/start_local.sh
+# 默认 127.0.0.1:5001；远程调试可改 host 为 0.0.0.0</pre>
+
+    <h3>4.3 访问地址</h3>
+    <table>
+      <tr><th>用途</th><th>URL</th><th>认证</th></tr>
+      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td><code>login_pwd</code></td></tr>
+      <tr><td>REST API</td><td><code>http://&lt;IP&gt;:5860/api/...</code></td><td><code>api_access_token</code> 等</td></tr>
+      <tr><td>HTML 技术文档</td><td><code>http://&lt;IP&gt;:5860/docs/</code></td><td><strong>无登录</strong></td></tr>
+    </table>
+    <p>文档索引：<code>/docs/</code> → <code>doc/index.html</code>；子页如 <code>/docs/架构设计文档.html</code>。</p>
+  </section>
+
+  <section>
+    <h2>5. 防火墙与健康检查</h2>
+    <pre>sudo ufw allow 5860/tcp
+
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
+# 期望 200
+
+python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v</pre>
+  </section>
+
+  <section>
+    <h2>6. systemd（可选）</h2>
+    <p>文件 <code>/etc/systemd/system/cronpilot.service</code>：</p>
+    <pre>[Unit]
+Description=CronPilot scheduler admin
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/cronpilot/CronPilot
+Environment=FLASK_CONFIG=production
+ExecStart=/opt/cronpilot/CronPilot/.venv/bin/gunicorn -c gun.py manage:app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target</pre>
+    <pre>sudo systemctl daemon-reload
+sudo systemctl enable --now cronpilot
+sudo systemctl status cronpilot</pre>
+  </section>
+
+  <section>
+    <h2>7. Nginx 反代 + HTTPS</h2>
+    <pre>server {
+    listen 443 ssl;
+    server_name cron.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5860;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /docs/ {
+        proxy_pass http://127.0.0.1:5860/docs/;
+        # 公网建议加鉴权，例如：
+        # auth_basic "CronPilot Docs";
+        # auth_basic_user_file /etc/nginx/.htpasswd-cronpilot-docs;
+    }
+}</pre>
+    <p>对外仅暴露 443，Gunicorn 只监听 <code>127.0.0.1:5860</code> 更安全。</p>
+  </section>
+
+  <section>
+    <h2>8. 安全建议</h2>
+    <div class="card warn">
+      <ul>
+        <li>生产必须使用<strong>强密码</strong>或 <code>pbkdf2</code> 哈希，禁止默认口令。</li>
+        <li><code>/docs/</code> <strong>无需登录</strong>，含架构与 API 细节；公网请用 Nginx 白名单 / Basic Auth / 仅内网。</li>
+        <li>保持 <code>block_private_ip=1</code>，按需配置 <code>url_allow_hosts</code>。</li>
+        <li>勿对 <code>0.0.0.0</code> 使用 <code>debug=True</code> 的 Flask 内置服务器。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>9. 常见问题</h2>
+    <table>
+      <tr><th>现象</th><th>处理</th></tr>
+      <tr><td><code>pip install gevent</code> 失败</td><td>使用 Python 3.11；或 <code>scripts/start_local.sh</code> 核心依赖子集</td></tr>
+      <tr><td>外网无法访问</td><td>确认 Gunicorn <code>0.0.0.0</code>、防火墙、云安全组放行 5860</td></tr>
+      <tr><td><code>/docs/</code> 404</td><td>确认已部署含 <code>app/docs/</code> 的版本并重启进程</td></tr>
+      <tr><td>调度不触发</td><td>检查 <code>cron_db_url</code>、APScheduler 库表、<code>is_single</code> / Redis</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>10. 相关文档</h2>
+    <div class="card">
+      <ul>
+        <li><a href="index.html">文档索引</a></li>
+        <li><a href="架构设计文档.html">架构设计文档</a>（部署拓扑、集群）</li>
+        <li><a href="详细技术方案.html">详细技术方案</a>（配置项、API）</li>
+        <li><a href="P0测试用例与验收手册.html">P0 测试与验收</a></li>
+        <li>仓库 <code>README.md</code> 快速开始章节</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<footer>CronPilot · 非 Docker 部署 · v0.1.0 · <a href="非Docker部署指南.md">Markdown 版</a> · <a href="index.html">文档索引</a></footer>
+</body>
+</html>

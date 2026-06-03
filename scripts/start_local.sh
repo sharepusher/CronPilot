@@ -12,6 +12,7 @@ if [ ! -d .venv311 ]; then
 fi
 export FLASK_CONFIG=development
 echo "CronPilot 管理端: http://127.0.0.1:5001/  (密码见 conf.ini login_pwd)"
+echo "技术文档 HTML:  http://127.0.0.1:5001/docs/"
 .venv311/bin/python -c "
 from app import create_app
 app = create_app('development')

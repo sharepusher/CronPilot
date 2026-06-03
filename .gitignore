@@ -16,5 +16,6 @@ migrations/
 conf.ini
 .venv/
 .venv311/
+.venv-md/
 datas/*.db
 *.db

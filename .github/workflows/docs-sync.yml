@@ -1,0 +1,30 @@
+name: Docs HTML ↔ Markdown sync
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'doc/**'
+      - 'scripts/html_docs_to_markdown.py'
+      - '.github/workflows/docs-sync.yml'
+  pull_request:
+    paths:
+      - 'doc/**'
+      - 'scripts/html_docs_to_markdown.py'
+      - '.github/workflows/docs-sync.yml'
+
+jobs:
+  markdown-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install converter dependency
+        run: pip install markdownify
+
+      - name: Verify doc/*.md matches doc/*.html
+        run: python scripts/html_docs_to_markdown.py --check

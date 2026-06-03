@@ -7,15 +7,21 @@
   <style>
     body { font-family: system-ui, sans-serif; max-width: 720px; margin: 4rem auto; padding: 0 1.5rem; color: #1e293b; line-height: 1.6; }
     h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-    .sub { color: #64748b; margin-bottom: 2rem; }
+    .sub { color: #64748b; margin-bottom: 1rem; }
+    .fmt-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 2rem; font-size: .9rem; }
+    .fmt-banner a { color: #1d4ed8; }
     .cards { display: flex; flex-direction: column; gap: 1rem; }
-    a.card {
-      display: block; padding: 1.25rem 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px;
-      text-decoration: none; color: inherit; transition: box-shadow .2s, border-color .2s;
+    .card {
+      padding: 1.25rem 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px;
+      transition: box-shadow .2s, border-color .2s;
     }
-    a.card:hover { border-color: #2563eb; box-shadow: 0 4px 12px rgba(37,99,235,.12); }
-    a.card h2 { margin: 0 0 0.35rem; font-size: 1.15rem; color: #2563eb; }
-    a.card p { margin: 0; font-size: 0.9rem; color: #64748b; }
+    .card:hover { border-color: #2563eb; box-shadow: 0 4px 12px rgba(37,99,235,.12); }
+    .card h2 { margin: 0 0 0.35rem; font-size: 1.15rem; }
+    .card h2 a { color: #2563eb; text-decoration: none; }
+    .card h2 a:hover { text-decoration: underline; }
+    .card p { margin: 0; font-size: 0.9rem; color: #64748b; }
+    .card .formats { margin-top: .6rem; font-size: .8rem; }
+    .card .formats a { color: #0d9488; margin-right: .75rem; }
     .tag { font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; padding: 0.15rem 0.5rem; border-radius: 4px; margin-right: 0.35rem; }
     .featured { border-color: #0d9488; background: linear-gradient(135deg,#f0fdfa,#eff6ff); }
     footer { margin-top: 3rem; font-size: 0.85rem; color: #94a3b8; }
@@ -24,58 +30,76 @@
 <body>
   <h1>CronPilot</h1>
   <p class="sub">HTTP 定时回调调度台 · 技术文档中心</p>
+  <p class="fmt-banner">每份文档提供 <strong>HTML</strong> 与 <strong>Markdown</strong> 两种格式。
+    <a href="index.md">Markdown 文档索引</a> · 在线路径 <code>/docs/*.md</code></p>
   <div class="cards">
-    <a class="card featured" href="项目总览与技术文档.html">
-      <h2>项目总览与技术文档（入口）</h2>
+    <div class="card featured">
+      <h2><a href="项目总览与技术文档.html">项目总览与技术文档（入口）</a></h2>
       <p><span class="tag">推荐首读</span><span class="tag">架构</span><span class="tag">Phase A</span></p>
       <p>定位、逻辑架构图、已交付模块、文档导航与演进路线。</p>
-    </a>
-    <a class="card" href="架构设计文档.html">
-      <h2>架构设计文档</h2>
-      <p><span class="tag">C4</span><span class="tag">部署拓扑</span><span class="tag">调度引擎</span></p>
-      <p>系统上下文、容器/组件、数据架构、集群双锁、Plombery 对照摘要。</p>
-    </a>
-    <a class="card" href="详细技术方案.html">
-      <h2>详细技术方案</h2>
-      <p><span class="tag">功能规格</span><span class="tag">API</span><span class="tag">配置</span></p>
+      <p class="formats"><a href="项目总览与技术文档.html">HTML</a><a href="项目总览与技术文档.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="架构设计文档.html">架构设计文档</a></h2>
+      <p><span class="tag">C4</span><span class="tag">部署拓扑</span></p>
+      <p>系统上下文、容器/组件、数据架构、集群双锁。</p>
+      <p class="formats"><a href="架构设计文档.html">HTML</a><a href="架构设计文档.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="详细技术方案.html">详细技术方案</a></h2>
+      <p><span class="tag">功能规格</span><span class="tag">API</span></p>
       <p>需求说明、模块设计、接口契约、运维与安全。</p>
-    </a>
-    <a class="card" href="产品优化需求-借鉴Plombery.html">
-      <h2>产品优化需求（详版 PRD）</h2>
-      <p><span class="tag">P0/P1/P2</span><span class="tag">对比论证</span></p>
-      <p>每条 OPT 含 Plombery 对照、不足、价值、优先级与验收。</p>
-    </a>
-    <a class="card" href="Plombery深度对比分析.html">
-      <h2>Plombery 深度对比分析</h2>
-      <p><span class="tag">前端</span><span class="tag">API</span><span class="tag">执行模型</span></p>
+      <p class="formats"><a href="详细技术方案.html">HTML</a><a href="详细技术方案.md">Markdown</a></p>
+    </div>
+    <div class="card featured" style="border-color:#ea580c">
+      <h2><a href="非Docker部署指南.html">非 Docker 部署指南</a></h2>
+      <p><span class="tag">运维</span><span class="tag">远程访问</span></p>
+      <p>裸机安装、Gunicorn、systemd、Nginx、<code>/docs/</code> 远程访问。</p>
+      <p class="formats"><a href="非Docker部署指南.html">HTML</a><a href="非Docker部署指南.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a></h2>
+      <p><span class="tag">P0/P1/P2</span></p>
+      <p>Plombery 对照、价值、优先级与验收。</p>
+      <p class="formats"><a href="产品优化需求-借鉴Plombery.html">HTML</a><a href="产品优化需求-借鉴Plombery.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="Plombery深度对比分析.html">Plombery 深度对比分析</a></h2>
+      <p><span class="tag">前端</span><span class="tag">API</span></p>
       <p>全维度对照与守正出奇结论。</p>
-    </a>
-    <a class="card" href="P0测试用例与验收手册.html">
-      <h2>P0 测试用例与验收手册</h2>
+      <p class="formats"><a href="Plombery深度对比分析.html">HTML</a><a href="Plombery深度对比分析.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="P0测试用例与验收手册.html">P0 测试用例与验收手册</a></h2>
       <p><span class="tag">自动化</span><span class="tag">冒烟</span></p>
       <p>Phase A 全量用例、curl 脚本、发布签字表。</p>
-    </a>
-    <a class="card" href="新建项目与分支合并方案.html">
-      <h2>仓库拆分与 Git 方案</h2>
+      <p class="formats"><a href="P0测试用例与验收手册.html">HTML</a><a href="P0测试用例与验收手册.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="新建项目与分支合并方案.html">仓库拆分与 Git 方案</a></h2>
       <p><span class="tag">CronPilot</span></p>
       <p>独立仓库与 Git 发布说明。</p>
-    </a>
-    <a class="card" href="技术方案与前端设计.html">
-      <h2>技术方案与前端设计</h2>
+      <p class="formats"><a href="新建项目与分支合并方案.html">HTML</a><a href="新建项目与分支合并方案.md">Markdown</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="技术方案与前端设计.html">技术方案与前端设计</a></h2>
       <p><span class="tag">线框</span><span class="tag">UI</span></p>
       <p>Web 页面设计与界面演进建议。</p>
-    </a>
-    <a class="card featured" href="RELEASE_NOTES.html" style="border-color:#4338ca">
-      <h2>Release Notes（v0.1.0）</h2>
-      <p><span class="tag">变更日志</span><span class="tag">v0.1.0</span></p>
+      <p class="formats"><a href="技术方案与前端设计.html">HTML</a><a href="技术方案与前端设计.md">Markdown</a></p>
+    </div>
+    <div class="card featured" style="border-color:#4338ca">
+      <h2><a href="RELEASE_NOTES.html">Release Notes（v0.1.0）</a></h2>
+      <p><span class="tag">变更日志</span></p>
       <p>Phase A 全量变更：P0 安全、API 协议、文档与许可。</p>
-    </a>
-    <a class="card" href="LICENSE-AUDIT.html">
-      <h2>License Audit 报告</h2>
+      <p class="formats"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">Markdown</a><a href="../RELEASE_NOTES.md">仓库根目录 MD</a></p>
+    </div>
+    <div class="card">
+      <h2><a href="LICENSE-AUDIT.html">License Audit 报告</a></h2>
       <p><span class="tag">合规</span><span class="tag">Apache-2.0</span></p>
-      <p>上游许可风险、依赖归类、整改清单与免责声明。</p>
-    </a>
+      <p>上游许可风险、依赖归类与整改清单。</p>
+      <p class="formats"><a href="LICENSE-AUDIT.html">HTML</a><a href="LICENSE-AUDIT.md">Markdown</a></p>
+    </div>
   </div>
-  <footer>CronPilot · 技术文档</footer>
+  <footer>CronPilot · 技术文档 · HTML + Markdown</footer>
 </body>
 </html>

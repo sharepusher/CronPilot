@@ -49,6 +49,9 @@ def create_app(config_name):
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
+    from .docs import docs as docs_blueprint
+    app.register_blueprint(docs_blueprint)
+
     #接口对接
     from .api import api as apis_bl
     app.register_blueprint(apis_bl, url_prefix='/api')

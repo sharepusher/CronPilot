@@ -1,0 +1,46 @@
+---
+description: CronPilot 项目定位、仓库边界、沟通与 Git 协作规范
+alwaysApply: true
+---
+
+# CronPilot 项目总则
+
+## 定位与仓库
+
+- **CronPilot**：独立演进仓库（HTTP 定时回调调度台），承接 Phase A/B/C 改造与发布。
+- **aniu-lee/xiaoniu_cron**：上游参考仓库，**默认不修改、不同步回写**；新功能与文档在 CronPilot 完成。
+- 品牌与对外表述统一为 **CronPilot**；Release/README 中避免「小牛定时任务管理系统」等旧品牌主导表述，也避免突出「破坏性变更」标题化叙事（变更写清楚即可）。
+
+## 技术栈约束
+
+- Python **3.8～3.11**（勿默认 3.12+；Flask 1.1 + gevent 20 栈）。
+- 许可：**Apache-2.0**（`LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md`）；新增依赖需可合规分发。
+- 配置：仅提交 `conf.ini.example`；**勿提交** `conf.ini`、`.venv*`、`datas/*.db`、本地日志。
+
+## 命名与协议（绿field，不做旧名兼容）
+
+- 回调 query：`cronpilot_log_id`、`cronpilot_sign`；验签：`get_cronpilot_sign()`。
+- 进度回传：`POST /api/cron/add_log`（必传 `cronpilot_log_id`、`content`）。
+- **不保留** `xiaoniu_cron_*` 等旧协议别名（除非用户明确要求兼容层）。
+
+## 工作方式（避免重复沟通）
+
+1. **先读再改**：改 `app/` 前看 `cron_validator` / `cron_service` / 现有 `views` 是否已有路径。
+2. **最小 diff**：只改与任务相关的文件；不顺手重构、不扩 scope。
+3. **文档与代码同步**：行为变更 → `RELEASE_NOTES.md` + 必要时 `doc/*.html` → 运行 `python scripts/html_docs_to_markdown.py`。
+4. **Git**：仅用户明确要求时 `commit`/`push`；不擅自 force push、不 amend 已推送提交。
+5. **部署说明**：裸机优先写 `README` 部署节 + `doc/非Docker部署指南.html`（及生成 MD）；管理端与文档同端口 `/docs/`。
+
+## 路线图优先级（未明确要求不越级实现）
+
+| 阶段 | 范围 | 状态 |
+|------|------|------|
+| Phase A (P0) | SQL ORM、密码哈希、SSRF、JSON 契约、cron 校验统一 | 已交付，回归时勿回退 |
+| Phase B (P1) | 执行 status、失败规则、详情页、立即执行等 | 文档/PRD 为主，实现需用户确认 |
+| Phase C (P2) | SSE、图表、OAuth 等 | 同上 |
+
+## 测试
+
+- 单元测试：`python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v`
+- 用例应覆盖真实行为（SSRF、密码、校验、JSON、签名），不写无意义断言。
+- CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**；改 `doc/*.html` 后须 `--check` 通过。

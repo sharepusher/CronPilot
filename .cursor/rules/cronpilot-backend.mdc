@@ -1,0 +1,49 @@
+---
+description: CronPilot 后端安全、服务层与 API 实现规范（Phase A）
+globs: app/**/*.py,datas/**/*.py,configs.py,config.py
+alwaysApply: false
+---
+
+# 后端实现规范
+
+## 分层约定
+
+| 职责 | 位置 | 说明 |
+|------|------|------|
+| HTTP 入口 | `app/main/views.py`、`app/api/views.py` | 薄控制器：取参 → 调 service → `json_response` |
+| 业务写入/调度 | `app/services/cron_service.py` | 任务入库、注册 APScheduler；避免 views 重复校验 |
+| 表单/API 校验 | `app/services/cron_validator.py` | Web 与 API **单一路径** |
+| 日志清理 | `app/services/job_log_service.py` | ORM 删除/裁剪 |
+| SSRF | `app/services/url_security.py` | 保存与 `cron_do` 执行前均校验 |
+| 密码 | `app/auth/password.py` | 明文兼容 + `pbkdf2`；生产推荐哈希 |
+
+## P0 安全（禁止回退）
+
+```python
+# ❌ 禁止：拼接 SQL / execute("%…")
+# ✅ 使用：JobLog.query.filter(...).delete() 或 job_log_service 内 ORM
+
+# ❌ 禁止：新增明文硬编码或仅 strcmp 密码
+# ✅ 使用：verify_login_password(plain, stored)
+
+# ❌ 禁止：未校验即 requests.get(req_url)
+# ✅ 使用：validate_callback_url(url, cfg)（注意 url_ssrf_observe_only 灰度）
+
+# ❌ 禁止：errcode 返回字符串 "0"
+# ✅ 使用：datas/utils/json.py → json_response(errcode=0)  # int
+```
+
+## 配置项（conf.ini）
+
+- `block_private_ip`（默认 1）、`url_allow_hosts`、`url_ssrf_observe_only`
+- 修改 `conf.ini` 后需**重启进程**方生效。
+
+## 循环依赖
+
+- `cron_service` 注册任务时对 `cron_do` **延迟 import**。
+- 日志裁剪逻辑放在 `job_log_service`，勿从 `crons` 再引回 service 形成环。
+
+## 静态文档路由
+
+- HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。
+- `.md` 响应设置 `Content-Type: text/markdown; charset=utf-8`。

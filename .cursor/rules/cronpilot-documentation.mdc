@@ -1,0 +1,44 @@
+---
+description: 技术文档双格式、索引与 CI 同步流程
+globs: doc/**,README.md,RELEASE_NOTES.md,.github/workflows/**,scripts/html_docs_to_markdown.py
+alwaysApply: false
+---
+
+# 文档规范
+
+## 双格式（HTML + Markdown）
+
+- 源稿优先维护 **`doc/*.html`**（样式统一、可 `/docs/` 远程访问）。
+- 每个 HTML（除 `index.html`）须有同名 **`doc/*.md`**，由脚本生成，勿手写大段重复 MD。
+- 手写索引：**`doc/index.md`**（双格式对照表）；**`doc/index.html`** 每卡片提供 HTML · Markdown 链接。
+- 页脚：各 HTML 页含 `Markdown 版` + `文档索引` 链接（可用 `--footers-only` 补全）。
+
+## 同步命令
+
+```bash
+pip install markdownify
+python scripts/html_docs_to_markdown.py          # 生成/更新 doc/*.md
+python scripts/html_docs_to_markdown.py --check  # CI 同款校验
+```
+
+修改 HTML 后 **必须** `--check` 通过再提交。
+
+## 在线访问
+
+- `http://<host>:5860/docs/` → HTML 索引
+- `http://<host>:5860/docs/index.md`、 `/docs/架构设计文档.md` 等
+
+## 文档类型与落点
+
+| 类型 | 落点 |
+|------|------|
+| 版本变更 | `RELEASE_NOTES.md` + `doc/RELEASE_NOTES.html` |
+| 架构/方案/PRD/对比 | `doc/*.html` + 生成 MD |
+| 裸机部署 | `README` 部署节 + `doc/非Docker部署指南.html` |
+| 测试验收 | `doc/P0测试用例与验收手册.html`、`tests/README.md` |
+| 许可 | `doc/LICENSE-AUDIT.html`、`LICENSE`、`NOTICE` |
+
+## 表述
+
+- 文档面向 **CronPilot** 读者；对比上游时陈述事实，不喧宾夺主。
+- 新能力在 PRD 中标 OPT 编号（P0/P1/P2）与验收标准，便于与 Plombery 对照文档一致。

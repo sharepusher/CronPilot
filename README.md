@@ -75,7 +75,7 @@ python -m unittest tests.test_p0_phase_a -v
 ### 安装
 
 ```bash
-git clone git@github.com:sharepusher/CronPilot.git
+git clone https://github.com/sharepusher/CronPilot.git
 cd CronPilot
 
 python3.11 -m venv .venv

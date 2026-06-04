@@ -10,7 +10,8 @@ alwaysApply: false
 
 - 源稿优先维护 **`doc/*.html`**（样式统一、可 `/docs/` 远程访问）。
 - 每个 HTML（除 `index.html`）须有同名 **`doc/*.md`**，由脚本生成，勿手写大段重复 MD。
-- 手写索引：**`doc/index.md`**（双格式对照表）；**`doc/index.html`** 每卡片提供 HTML · Markdown 链接。
+- 手写索引：**`doc/index.md`**（双格式对照表，**改 `index.html` 后须同步**）；**`doc/index.html`** 每卡片提供 HTML · Markdown 链接。
+- `html_docs_to_markdown.py --check` 会校验 `index.md` 与 `index.html` 中 Release Notes 版本一致。
 - 页脚：各 HTML 页含 `Markdown 版` + `文档索引` 链接（可用 `--footers-only` 补全）。
 
 ## 同步命令

@@ -15,7 +15,7 @@
 | 技术方案与前端设计 | [技术方案与前端设计.html](技术方案与前端设计.html) | [技术方案与前端设计.md](技术方案与前端设计.md) |
 | P0 测试与验收 | [P0测试用例与验收手册.html](P0测试用例与验收手册.html) | [P0测试用例与验收手册.md](P0测试用例与验收手册.md) |
 | 仓库拆分方案 | [新建项目与分支合并方案.html](新建项目与分支合并方案.html) | [新建项目与分支合并方案.md](新建项目与分支合并方案.md) |
-| Release Notes v0.1.0 | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) |
+| Release Notes v0.1.1 | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) · [doc/RELEASE_NOTES.md](RELEASE_NOTES.md) |
 | License Audit | [LICENSE-AUDIT.html](LICENSE-AUDIT.html) | [LICENSE-AUDIT.md](LICENSE-AUDIT.md) |
 | Windows 部署（遗留） | — | [windows部署文档.md](windows部署文档.md) |
 

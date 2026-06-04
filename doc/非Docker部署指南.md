@@ -37,13 +37,17 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
 
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+bash scripts/check_python.sh
+bash scripts/install_core_deps.sh
+# 或指定: PY=python3.9 bash scripts/install_core_deps.sh
+source .venv-py310/bin/activate   # 目录随版本变化，如 .venv-py38
+pip install -r requirements.txt   # 生产 Gunicorn 需全量依赖
 
 cp conf.ini.example conf.ini
 mkdir -p datas/logs
 ```
+
+支持 **Python 3.8 / 3.9 / 3.10 / 3.11**；本地冒烟可用 `requirements-core.txt`（`start_local.sh` 已内置）。
 
 ### 3.2 配置 conf.ini
 
@@ -182,7 +186,7 @@ server {
 
 | 现象 | 处理 |
 | --- | --- |
-| `pip install gevent` 失败 | 使用 Python 3.11；或 `scripts/start_local.sh` 核心依赖子集 |
+| `pip install gevent` 失败 | 换 3.8–3.11 中另一版本；本地先用 `bash scripts/start_local.sh`（core 依赖） |
 | 外网无法访问 | 确认 Gunicorn `0.0.0.0`、防火墙、云安全组放行 5860 |
 | `/docs/` 404 | 确认已部署含 `app/docs/` 的版本并重启进程 |
 | 调度不触发 | 检查 `cron_db_url`、APScheduler 库表、`is_single` / Redis |

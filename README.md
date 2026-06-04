@@ -31,22 +31,35 @@ cp conf.ini.example conf.ini
 python scripts/hash_login_password.py '你的强密码'
 ```
 
-### 2. 依赖（Python 3.8～3.11）
+### 2. 依赖（Python 3.8 / 3.9 / 3.10 / 3.11）
+
+支持 **3.8～3.11**（勿用 3.12+）。脚本会按优先级自动选用本机已安装的版本：
+
+`python3.11` → `python3.10` → `python3.9` → `python3.8` → `python3`
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-# 若 gevent 安装失败，可用 scripts/start_local.sh（核心依赖子集）
+bash scripts/check_python.sh          # 查看本机可用版本
+bash scripts/install_core_deps.sh     # 创建 .venv-py39 等并安装核心依赖
+# 或指定版本：
+PY=python3.9 bash scripts/install_core_deps.sh
+```
+
+| 依赖文件 | 用途 |
+|----------|------|
+| `requirements-core.txt` | 本地开发、单元测试（无 gevent，各 3.8–3.11 通用） |
+| `requirements.txt` | 生产 Gunicorn + gevent 全量依赖 |
+
+```bash
+source .venv-py310/bin/activate   # 目录名随 Python 小版本变化
+pip install -r requirements.txt   # 生产环境
 ```
 
 ### 3. 启动
 
 ```bash
 bash scripts/start_local.sh
-# 或
-export FLASK_CONFIG=development
-python -c "from app import create_app; create_app('development').run(host='127.0.0.1', port=5001)"
+# 指定 Python 3.9 启动：
+PY=python3.9 bash scripts/start_local.sh
 ```
 
 浏览器打开：`http://127.0.0.1:5001/`，密码为 `conf.ini` 中的 `login_pwd`。
@@ -78,9 +91,10 @@ python -m unittest tests.test_p0_phase_a -v
 git clone https://github.com/sharepusher/CronPilot.git
 cd CronPilot
 
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+bash scripts/check_python.sh
+bash scripts/install_core_deps.sh   # 或 PY=python3.8 bash scripts/install_core_deps.sh
+source .venv-py*/bin/activate       # 按实际目录名，如 .venv-py310
+pip install -r requirements.txt     # 生产需 gevent 时用全量依赖
 
 cp conf.ini.example conf.ini
 mkdir -p datas/logs
@@ -221,7 +235,7 @@ GitHub Actions：
 | 工作流 | 说明 |
 |--------|------|
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
-| **Unit tests** | Python 3.11 下运行 `tests.test_p0_phase_a`、`tests.test_cronpilot_sign` |
+| **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 在 3.10 验证全量依赖 |
 
 文档含：架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 

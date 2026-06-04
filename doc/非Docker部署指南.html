@@ -68,12 +68,15 @@
     <pre>git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
 
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+bash scripts/check_python.sh
+bash scripts/install_core_deps.sh
+# 或指定: PY=python3.9 bash scripts/install_core_deps.sh
+source .venv-py310/bin/activate   # 目录随版本变化，如 .venv-py38
+pip install -r requirements.txt   # 生产 Gunicorn 需全量依赖
 
 cp conf.ini.example conf.ini
 mkdir -p datas/logs</pre>
+    <p style="color:var(--muted);font-size:.9rem">支持 <strong>Python 3.8 / 3.9 / 3.10 / 3.11</strong>；本地冒烟可用 <code>requirements-core.txt</code>（<code>start_local.sh</code> 已内置）。</p>
 
     <h3>3.2 配置 conf.ini</h3>
     <div class="card">
@@ -194,7 +197,7 @@ sudo systemctl status cronpilot</pre>
     <h2>9. 常见问题</h2>
     <table>
       <tr><th>现象</th><th>处理</th></tr>
-      <tr><td><code>pip install gevent</code> 失败</td><td>使用 Python 3.11；或 <code>scripts/start_local.sh</code> 核心依赖子集</td></tr>
+      <tr><td><code>pip install gevent</code> 失败</td><td>换 3.8–3.11 中另一版本；本地先用 <code>bash scripts/start_local.sh</code>（core 依赖）</td></tr>
       <tr><td>外网无法访问</td><td>确认 Gunicorn <code>0.0.0.0</code>、防火墙、云安全组放行 5860</td></tr>
       <tr><td><code>/docs/</code> 404</td><td>确认已部署含 <code>app/docs/</code> 的版本并重启进程</td></tr>
       <tr><td>调度不触发</td><td>检查 <code>cron_db_url</code>、APScheduler 库表、<code>is_single</code> / Redis</td></tr>

@@ -1,20 +1,15 @@
 #!/bin/bash
-# 本地冒烟：自动选用 Python 3.8 / 3.9 / 3.10 / 3.11（可用 PY= 指定）
+# 本地冒烟：自动匹配 Python 3.8–3.11，无需手动指定版本
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/python.sh
 source "$(dirname "$0")/lib/python.sh"
 
-PY=$(cronpilot_pick_python)
-VENV=$(cronpilot_venv_dir "$PY")
-echo "CronPilot 使用: $PY ($("$PY" --version 2>&1))"
+cronpilot_load_runtime
+PY="$CRONPILOT_PY"
+VENV="$CRONPILOT_VENV"
+echo "CronPilot 自动匹配: $PY ($("$PY" --version 2>&1))"
 echo "虚拟环境: $VENV"
-
-if [ ! -d "$VENV" ]; then
-  "$PY" -m venv "$VENV"
-  "$VENV/bin/pip" install -q --upgrade pip
-  "$VENV/bin/pip" install -q -r requirements-core.txt
-fi
 
 export FLASK_CONFIG=development
 echo "管理端:     http://127.0.0.1:5001/  (密码见 conf.ini login_pwd)"

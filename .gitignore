@@ -15,6 +15,7 @@ migrations/
 *.lock
 conf.ini
 .venv/
+.venv-py*/
 .venv311/
 .venv-md/
 datas/*.db

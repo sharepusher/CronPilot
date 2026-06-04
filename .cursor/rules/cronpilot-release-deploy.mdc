@@ -9,7 +9,7 @@ alwaysApply: false
 ## 非 Docker 部署（标准路径）
 
 1. `cp conf.ini.example conf.ini` → 配置 DB、`login_pwd`（推荐 `scripts/hash_login_password.py`）、Redis、`block_private_ip`。
-2. `python3.11 -m venv .venv && pip install -r requirements.txt`
+2. `bash scripts/install_core_deps.sh` 或 `PY=python3.9 bash scripts/install_core_deps.sh`；生产再 `pip install -r requirements.txt`
 3. 生产：`export FLASK_CONFIG=production` → `gunicorn -c gun.py manage:app`（`0.0.0.0:5860`）。
 4. 本地冒烟：`bash scripts/start_local.sh`（默认 `127.0.0.1:5001`）；远程调试改 `host='0.0.0.0'`。
 
@@ -31,7 +31,7 @@ alwaysApply: false
 ## GitHub
 
 - 远程：`sharepusher/CronPilot`（`main`）
-- CI：**Unit tests**（3.11）、**Docs HTML ↔ Markdown sync**
+- CI：**Unit tests**（矩阵 3.8–3.11 + core 依赖）、**install-full**（3.10 全量）、**Docs sync**
 - Release 文案可从 `RELEASE_NOTES.md` 摘录；Full Changelog 用 compare 链接
 
 ## 生产安全

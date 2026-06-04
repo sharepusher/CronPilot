@@ -12,7 +12,8 @@
 **快速命令**
 
 ```bash
-bash scripts/start_local.sh
+bash scripts/check_python.sh    # Python 3.8–3.11
+PY=python3.10 bash scripts/start_local.sh
 python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 python scripts/html_docs_to_markdown.py --check
 ```

@@ -1,0 +1,57 @@
+name: Unit tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/**'
+      - 'datas/**'
+      - 'configs.py'
+      - 'config.py'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'requirements-core.txt'
+      - 'conf.ini.example'
+      - 'conf.ci.ini'
+      - '.github/workflows/unit-tests.yml'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'datas/**'
+      - 'configs.py'
+      - 'config.py'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'requirements-core.txt'
+      - 'conf.ini.example'
+      - 'conf.ci.ini'
+      - '.github/workflows/unit-tests.yml'
+      - '.github/workflows/tests.yml'
+
+jobs:
+  unittest:
+    name: unittest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install core dependencies
+        run: |
+          python -m pip install --upgrade 'pip<25'
+          pip install -r requirements-core.txt
+
+      - name: Prepare conf.ini (SQLite, no external DB)
+        run: cp conf.ci.ini conf.ini
+
+      - name: Run P0 and sign unit tests
+        run: |
+          python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v

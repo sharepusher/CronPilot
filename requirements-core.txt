@@ -14,7 +14,8 @@ requests==2.24.0
 redis==3.5.3
 portalocker==2.6.0
 records==0.5.3
+tablib==2.0.0
 PyMySQL==0.10.1
 pytz==2020.1
 tzlocal==2.1
-setuptools
+setuptools>=40,<81

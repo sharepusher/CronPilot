@@ -1,12 +1,26 @@
 # -*- coding:utf-8 -*-
+"""签名函数测试：直接加载模块，避免 import app 触发 Flask/APScheduler 初始化。"""
+import importlib.util
 import os
 import sys
 import unittest
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, ROOT)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-from app.common.functions import get_cronpilot_sign, md5
+
+def _load_functions():
+    path = os.path.join(ROOT, 'app/common/functions.py')
+    spec = importlib.util.spec_from_file_location('cronpilot_functions_test', path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_functions = _load_functions()
+get_cronpilot_sign = _functions.get_cronpilot_sign
+md5 = _functions.md5
 
 
 class TestCronpilotSign(unittest.TestCase):

@@ -72,6 +72,27 @@ def iter_html_sources():
         yield html_path
 
 
+def check_index_md() -> bool:
+    """index.html 不参与自动生成，但 index.md 须与索引页版本信息一致。"""
+    html = (DOC / 'index.html').read_text(encoding='utf-8')
+    md_path = DOC / 'index.md'
+    if not md_path.exists():
+        print('OUT OF SYNC: doc/index.md missing (maintain alongside index.html)', file=sys.stderr)
+        return False
+    md = md_path.read_text(encoding='utf-8')
+    # 从 HTML 提取 Release Notes 卡片中的版本标签（如 v0.1.1）
+    import re as _re
+    m = _re.search(r'Release Notes[^<]*</a></h2>\s*<p>[^<]*<span class="tag">(v[\d.]+)</span>', html, _re.DOTALL)
+    if not m:
+        m = _re.search(r'Release Notes（(v[\d.]+)）', html)
+    if m:
+        ver = m.group(1)
+        if ver not in md:
+            print(f'OUT OF SYNC: doc/index.md missing {ver} (see doc/index.html Release Notes card)', file=sys.stderr)
+            return False
+    return True
+
+
 def sync_markdown(check_only: bool) -> int:
     """返回不同步的文件数量。"""
     stale = 0
@@ -93,7 +114,10 @@ def sync_markdown(check_only: bool) -> int:
 def main():
     argv = set(sys.argv[1:])
     if '--check' in argv:
+        index_ok = check_index_md()
         n = sync_markdown(check_only=True)
+        if not index_ok:
+            n += 1
         if n:
             print(
                 f'\n{n} Markdown file(s) out of date. Run:\n'

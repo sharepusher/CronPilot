@@ -4,12 +4,56 @@
 
 # CronPilot Release Notes
 
-v0.1.0 2026-05-29 · Phase A（P0）首发
+v0.1.1 2026-06-01 · 文档 / 部署 / 多版本 Python
+ | 
+v0.1.0 2026-05-29 · Phase A（P0）
 
 [← 文档索引](index.html) ·
-[Markdown 版](../RELEASE_NOTES.md)
+[Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
+[Markdown 版（doc）](RELEASE_NOTES.md)
 
-首个版本：HTTP 定时回调调度、Web/API 管理、P0 安全与质量、技术文档与 Apache-2.0 许可。
+## [0.1.1] — 2026-06-01
+
+工程化与运维增强，**无 API 协议变更**。
+
+### 文档与在线访问
+
+| 变更 | 说明 |
+| --- | --- |
+| `/docs/` | 技术文档 HTML 与 `/docs/*.md` 同端口访问 |
+| 双格式 | 各文档 HTML + Markdown；`doc/index.md` 索引 |
+| 同步工具 | `scripts/html_docs_to_markdown.py --check` |
+| 部署指南 | [非 Docker 部署指南](非Docker部署指南.html) |
+| 协作规范 | `.cursor/rules/`、`AGENTS.md` |
+
+### Python 3.8–3.11 自动匹配
+
+- 自动探测并复用 `.venv-py*`，**无需**手动 `export PY=`
+- 统一入口：`bash scripts/cronpilot.sh start|install|test|check`
+- `requirements-core.txt` 用于本地与 CI 单测
+
+```
+bash scripts/cronpilot.sh start
+bash scripts/cronpilot.sh test
+```
+
+### CI
+
+- Docs HTML ↔ Markdown sync
+- Unit tests 矩阵 3.8 / 3.9 / 3.10 / 3.11
+- install-full（3.10 全量依赖）
+
+### 升级（自 v0.1.0）
+
+- `bash scripts/cronpilot.sh install`
+- 改 HTML 后运行 `html_docs_to_markdown.py`
+- 重启后访问 `/docs/`
+
+---
+
+## [0.1.0] — 2026-05-29 · Phase A（P0）首发
+
+HTTP 定时回调调度、Web/API 管理、P0 安全与质量、技术文档与 Apache-2.0 许可。
 
 ## 回调与 API 协议
 
@@ -23,12 +67,6 @@ v0.1.0 2026-05-29 · Phase A（P0）首发
 GET /your/callback?cronpilot_log_id=<UUID>&cronpilot_sign=<MD5>
 POST /api/cron/add_log  cronpilot_log_id=<UUID>&content=...
 ```
-
-## 项目
-
-- **CronPilot** 定时调度平台
-- 回调 User-Agent：CronPilot
-- `scripts/start_local.sh`、`conf.ini.example`
 
 ## Phase A（P0）
 
@@ -47,22 +85,8 @@ POST /api/cron/add_log  cronpilot_log_id=<UUID>&content=...
 ## 测试
 
 ```
-python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
+bash scripts/cronpilot.sh test
 ```
-
-## 配置新增
-
-```
-block_private_ip=1
-url_allow_hosts=
-url_ssrf_observe_only=0
-```
-
-## 对接检查
-
-- 回调使用 `cronpilot_log_id`、`cronpilot_sign`
-- `add_log` 回传进度
-- SSRF 与密码哈希配置
 
 ## 后续版本
 

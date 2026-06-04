@@ -5,6 +5,54 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
+## [0.1.1] — 2026-06-01 · 文档、部署与多版本 Python
+
+在 v0.1.0 基础上的工程化与运维增强，**无 API 协议变更**。
+
+### 文档与在线访问
+
+| 变更 | 说明 |
+|------|------|
+| `/docs/` 路由 | Flask 提供 `doc/` 静态 HTML，与管理端同端口远程访问 |
+| HTML + Markdown | 各技术文档双格式；`doc/index.md` 索引表 |
+| 同步脚本 | `scripts/html_docs_to_markdown.py`（`--check` 供 CI 校验） |
+| 非 Docker 部署指南 | `doc/非Docker部署指南.html` / `.md`；README 部署章节 |
+| Cursor 规范 | `.cursor/rules/`、`AGENTS.md` 固化协作与实现约定 |
+
+在线示例：`http://<host>:5860/docs/`、`/docs/index.md`
+
+### Python 3.8–3.11 自动匹配
+
+| 变更 | 说明 |
+|------|------|
+| 自动探测 | `scripts/lib/python.sh`：优先复用 `.venv-py*`，否则按 3.11→3.8 选用 |
+| 统一入口 | `scripts/cronpilot.sh`（`start` / `install` / `test` / `check` / `exec`） |
+| 核心依赖 | `requirements-core.txt`（本地与单测，含 PyMySQL；无 gevent） |
+| 兼容 macOS | 启动脚本兼容 bash 3.2，**默认无需** `export PY=` |
+
+```bash
+bash scripts/cronpilot.sh start    # 自动匹配 Python，无需指定版本
+bash scripts/cronpilot.sh test
+```
+
+生产全量依赖仍用 `requirements.txt`（Gunicorn + gevent）。
+
+### CI（GitHub Actions）
+
+| 工作流 | 说明 |
+|--------|------|
+| Docs HTML ↔ Markdown sync | PR 校验 `doc/*.md` 与 HTML 一致 |
+| Unit tests | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt` |
+| install-full | 在 3.10 安装完整 `requirements.txt` 验证 gevent 等 |
+
+### 升级说明（自 v0.1.0）
+
+- 拉取代码后：`bash scripts/cronpilot.sh install` 或 `bash scripts/install_core_deps.sh`
+- 修改 `doc/*.html` 后执行：`python scripts/html_docs_to_markdown.py`
+- 远程文档：重启 Gunicorn 后访问 `/docs/`
+
+---
+
 ## [0.1.0] — 2026-05-29 · Phase A（P0）首发
 
 首个版本：HTTP 定时回调调度、Web/API 管理、P0 安全与质量能力、技术文档与 Apache-2.0 许可。
@@ -14,7 +62,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - **CronPilot** — 中心化 HTTP 定时回调调度台。
 - Web 管理端：**CronPilot 定时调度平台**。
 - 回调 HTTP `User-Agent`：`CronPilot`。
-- 本地开发：`scripts/start_local.sh`；配置示例：`conf.ini.example`。
+- 本地开发：`bash scripts/cronpilot.sh start`（v0.1.1+ 自动匹配 Python）；配置示例：`conf.ini.example`。
 
 ### 回调与 API 协议
 
@@ -97,7 +145,8 @@ cronpilot_log_id=<UUID>&content=...
 ### 测试
 
 ```bash
-python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
+bash scripts/cronpilot.sh test
+# 或: python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 ```
 
 | 套件 | 说明 |
@@ -148,5 +197,6 @@ url_ssrf_observe_only=0
 
 | 版本 | 说明 |
 |------|------|
-| `0.1.0` | Phase A（P0） |
+| `0.1.0` | Phase A（P0）首发 |
+| `0.1.1` | 文档 `/docs/`、Markdown 双格式、多版本 Python 自动匹配、CI |
 | `0.2.x` | 计划：P1 可观测与运维体验 |

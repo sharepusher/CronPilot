@@ -2,7 +2,7 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v0.1.0** 包含 Phase A（P0）安全与质量能力及完整技术文档，详见 [Release Notes](RELEASE_NOTES.md)。
+当前版本 **v0.1.1**（Phase A P0 + 文档 `/docs/`、多版本 Python 自动匹配）；详见 [Release Notes](RELEASE_NOTES.md)。
 
 ## 主要能力（v0.1.0）
 
@@ -33,34 +33,32 @@ python scripts/hash_login_password.py '你的强密码'
 
 ### 2. 依赖（Python 3.8 / 3.9 / 3.10 / 3.11）
 
-支持 **3.8～3.11**（勿用 3.12+）。脚本会按优先级自动选用本机已安装的版本：
+支持 **3.8～3.11**（勿用 3.12+）。**无需手动指定 Python 版本**，脚本会自动：
 
-`python3.11` → `python3.10` → `python3.9` → `python3.8` → `python3`
+1. 若已有 `.venv-py*` → 优先复用  
+2. 否则按 `python3.11` → `3.10` → `3.9` → `3.8` → `python3` 探测（跳过 3.12+）
 
 ```bash
-bash scripts/check_python.sh          # 查看本机可用版本
-bash scripts/install_core_deps.sh     # 创建 .venv-py39 等并安装核心依赖
-# 或指定版本：
-PY=python3.9 bash scripts/install_core_deps.sh
+bash scripts/cronpilot.sh check      # 查看本机可用版本
+bash scripts/cronpilot.sh install    # 自动建 venv + 安装核心依赖
+bash scripts/cronpilot.sh test       # 自动 venv 下跑单测
 ```
 
 | 依赖文件 | 用途 |
 |----------|------|
-| `requirements-core.txt` | 本地开发、单元测试（无 gevent，各 3.8–3.11 通用） |
+| `requirements-core.txt` | 本地开发、单元测试（无 gevent） |
 | `requirements.txt` | 生产 Gunicorn + gevent 全量依赖 |
 
-```bash
-source .venv-py310/bin/activate   # 目录名随 Python 小版本变化
-pip install -r requirements.txt   # 生产环境
-```
+生产环境在自动创建的 venv 中：`source .venv-py*/bin/activate` → `pip install -r requirements.txt`
 
 ### 3. 启动
 
 ```bash
-bash scripts/start_local.sh
-# 指定 Python 3.9 启动：
-PY=python3.9 bash scripts/start_local.sh
+bash scripts/cronpilot.sh start
+# 等价于 bash scripts/start_local.sh
 ```
+
+仅当自动检测不符合预期时，可临时覆盖：`PY=python3.9 bash scripts/cronpilot.sh start`
 
 浏览器打开：`http://127.0.0.1:5001/`，密码为 `conf.ini` 中的 `login_pwd`。
 

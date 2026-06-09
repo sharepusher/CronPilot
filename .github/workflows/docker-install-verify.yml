@@ -1,0 +1,47 @@
+# 在 Docker 中验证 Ubuntu / CentOS 7·8 完整安装流程（venv + SQLite + gunicorn）
+name: Docker install verify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "requirements*.txt"
+      - "conf.ini.example"
+      - "gun.py"
+      - "manage.py"
+      - "INSTALL.md"
+      - ".github/workflows/docker-install-verify.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "requirements*.txt"
+      - "conf.ini.example"
+      - "gun.py"
+      - "manage.py"
+      - "INSTALL.md"
+      - ".github/workflows/docker-install-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  docker-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: ubuntu
+            label: Ubuntu 22.04
+          - target: centos8
+            label: Rocky Linux 8
+          - target: centos7
+            label: CentOS 7
+
+    name: ${{ matrix.label }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and verify (${{ matrix.target }})
+        run: bash scripts/docker/verify_all.sh ${{ matrix.target }}

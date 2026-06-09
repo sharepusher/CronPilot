@@ -1,3 +1,20 @@
+# v0.1.1 补充：Linux 安装与运行（Ubuntu + CentOS）
+
+## CentOS 7 / 8
+
+| 脚本 / 文档 | 说明 |
+|-------------|------|
+| `scripts/install_linux.sh` | 自动识别 Ubuntu / CentOS |
+| `scripts/install_centos.sh` | CentOS 7（SCL python38）/ 8（python39） |
+| `doc/centos安装与运行.md` | 分步、firewalld、SELinux |
+
+```bash
+sudo bash scripts/install_linux.sh --production --sqlite
+bash scripts/run_production.sh
+```
+
+---
+
 # v0.1.1 补充：Ubuntu 安装与运行
 
 （请合并进 `RELEASE_NOTES.md` 的 `[0.1.1]` 章节，位于「Python 3.8–3.11」与「CI」之间。）

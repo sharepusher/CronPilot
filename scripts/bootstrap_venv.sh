@@ -5,6 +5,8 @@ cd "$(dirname "$0")/.."
 # shellcheck source=lib/python.sh
 source "$(dirname "$0")/lib/python.sh"
 
+export PATH="/opt/rh/rh-python38/root/usr/bin:/opt/rh/rh-python39/root/usr/bin:${PATH:-}"
+
 cronpilot_load_runtime
 PY="$CRONPILOT_PY"
 VENV="$CRONPILOT_VENV"

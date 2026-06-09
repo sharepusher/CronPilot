@@ -2,7 +2,8 @@
 
 > HTML 部署总览：[非Docker部署指南.html](非Docker部署指南.html)
 
-适用 **Ubuntu 20.04 / 22.04 / 24.04**，非 Docker 裸机部署。
+适用 **Ubuntu 20.04 / 22.04 / 24.04**，非 Docker 裸机部署。  
+**CentOS 7/8** 见 [centos安装与运行.md](centos安装与运行.md)；**自动识别**见 [linux安装与运行.md](linux安装与运行.md)。
 
 ## 一、系统要求
 
@@ -20,7 +21,8 @@ git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
 
 # 试用：SQLite + 核心依赖 + 生产依赖（Gunicorn/gevent）
-sudo bash scripts/install_ubuntu.sh --production --sqlite
+sudo bash scripts/install_linux.sh --production --sqlite
+# 或: sudo bash scripts/install_ubuntu.sh --production --sqlite
 ```
 
 以部署用户（非 root）启动：

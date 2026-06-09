@@ -1,0 +1,20 @@
+# 验证 CentOS 8 / Rocky 系安装流程（python39 + venv）
+# 构建: docker build -f scripts/docker/Dockerfile.centos8 -t cronpilot-verify-centos8 .
+FROM rockylinux:8
+WORKDIR /opt/cronpilot
+
+RUN dnf install -y -q curl ca-certificates \
+  && dnf clean all
+
+COPY . .
+RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot
+
+RUN SUDO_USER=cronpilot bash scripts/install_centos.sh --production --sqlite
+
+USER cronpilot
+RUN bash scripts/verify_linux_install.sh && bash scripts/verify_install_flow.sh
+
+RUN bash scripts/run_production.sh & \
+    sleep 5 && \
+    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html && \
+    kill %1 || (echo "gunicorn health check failed" && exit 1)

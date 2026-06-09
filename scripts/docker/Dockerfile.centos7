@@ -1,0 +1,25 @@
+# 验证 CentOS 7 安装流程（SCL rh-python38 + venv）
+# 构建: docker build -f scripts/docker/Dockerfile.centos7 -t cronpilot-verify-centos7 .
+# 注意: CentOS 7 已 EOL，yum 源指向 vault.centos.org
+FROM centos:7
+WORKDIR /opt/cronpilot
+
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo \
+  && sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+
+RUN yum install -y -q curl ca-certificates \
+  && yum clean all
+
+COPY . .
+RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot
+
+RUN SUDO_USER=cronpilot bash scripts/install_centos.sh --production --sqlite
+
+USER cronpilot
+ENV PATH="/opt/rh/rh-python38/root/usr/bin:${PATH}"
+RUN bash scripts/verify_linux_install.sh && bash scripts/verify_install_flow.sh
+
+RUN bash scripts/run_production.sh & \
+    sleep 8 && \
+    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html && \
+    kill %1 || (echo "gunicorn health check failed" && exit 1)

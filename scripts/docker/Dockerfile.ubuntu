@@ -1,0 +1,24 @@
+# 验证 Ubuntu 安装流程（含 venv + --sqlite + gunicorn）
+# 构建: docker build -f scripts/docker/Dockerfile.ubuntu -t cronpilot-verify-ubuntu .
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /opt/cronpilot
+
+RUN apt-get update -qq && apt-get install -y -qq curl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot
+
+# 模拟 sudo 安装：系统包 + 以部署用户建 venv
+RUN SUDO_USER=cronpilot bash scripts/install_ubuntu.sh --production --sqlite
+
+USER cronpilot
+RUN bash scripts/verify_linux_install.sh && bash scripts/verify_install_flow.sh
+
+# 生产启动与健康检查
+RUN bash scripts/run_production.sh & \
+    sleep 5 && \
+    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html && \
+    curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/ | grep -qE '200|302' && \
+    kill %1 || (echo "gunicorn health check failed" && exit 1)

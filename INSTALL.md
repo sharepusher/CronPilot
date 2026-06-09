@@ -11,6 +11,45 @@ INSTALL.md 里曾把 `--sqlite` 写在最前面，是为了降低「第一次跑
 
 ---
 
+## 虚拟环境（venv）— 自动创建，一般无需手动操作
+
+**上述一键安装都会用到虚拟环境**，只是脚本替你做了，文档里之前没写清楚。
+
+| 步骤 | 脚本 | 作用 |
+|------|------|------|
+| 1 | `install_linux.sh` → `bootstrap_venv.sh` | 自动选 Python 3.8–3.11，创建 **`.venv-py311`** 等目录 |
+| 2 | `bootstrap_venv.sh` | 在 venv 内 `pip install -r requirements-core.txt` |
+| 3 | `--production` 时 `install_production_deps.sh` | 在**同一 venv** 内安装 Gunicorn + gevent |
+| 4 | `run_production.sh` / `start_local.sh` | 直接用 `$VENV/bin/gunicorn`、`$VENV/bin/python`，**不必**先 `source activate` |
+
+安装完成后，项目根目录会出现类似：
+
+```text
+.venv-py311/          # Ubuntu 22.04 若探测到 python3.11
+.venv-py38/           # CentOS 7 常用 SCL 3.8
+.venv-py39/           # CentOS 8 常用 python3.9
+```
+
+查看本机将用哪个环境：
+
+```bash
+bash scripts/check_python_all.sh
+# 或
+bash scripts/cronpilot.sh check
+```
+
+**需要手动进 venv 时**（例如自己 `pip install`）：
+
+```bash
+source .venv-py311/bin/activate   # 按实际目录名
+pip list
+deactivate
+```
+
+**注意：** 安装脚本以**部署用户**（`sudo` 时的 `SUDO_USER`）创建 venv，不要用 `sudo pip` 装到系统 Python。
+
+---
+
 ## 一键安装 · 生产（MySQL，推荐）
 
 ### 1. 安装应用与 Python 依赖

@@ -1,55 +1,27 @@
-# CronPilot · Linux 安装与运行（Ubuntu + CentOS）
+# CronPilot · Linux 安装（Ubuntu + CentOS）
 
-## 统一入口（自动识别发行版）
+完整步骤见 **[INSTALL.md](../INSTALL.md)**。本文仅列平台差异。
+
+## 统一命令
 
 ```bash
-git clone git@github.com:sharepusher/CronPilot.git
-cd CronPilot
-sudo bash scripts/install_linux.sh --production --sqlite
+sudo bash scripts/install_linux.sh --production          # 生产 MySQL
+sudo bash scripts/install_linux.sh --production --sqlite # 试用 SQLite
 bash scripts/run_production.sh
 ```
 
-| 检测到 | 调用脚本 |
-|--------|----------|
+| 检测到 | 脚本 |
+|--------|------|
 | Ubuntu / Debian | `install_ubuntu.sh` |
 | CentOS / RHEL / Rocky / Alma | `install_centos.sh` |
 
-## 分平台文档
+## 分平台
 
-- [ubuntu安装与运行.md](ubuntu安装与运行.md) — Ubuntu 20.04 / 22.04 / 24.04
-- [centos安装与运行.md](centos安装与运行.md) — CentOS 7 / 8、RHEL、Rocky、Alma
+- [ubuntu安装与运行.md](ubuntu安装与运行.md) — Ubuntu 20.04+
+- [centos安装与运行.md](centos安装与运行.md) — CentOS 7/8
 
-## 通用脚本（两平台相同）
-
-| 脚本 | 用途 |
-|------|------|
-| `bootstrap_venv.sh` | Python 3.8–3.11 自动匹配 + 核心依赖 |
-| `install_production_deps.sh` | Gunicorn + gevent |
-| `run_production.sh` | 生产启动 `:5860` |
-| `start_local.sh` | 开发 `:5001` |
-
-## 环境要求（一致）
-
-- Python **3.8～3.11**
-- 生产需能编译/安装 **gevent**（libev 开发包）
-- 数据库：SQLite（试用）或 MySQL（生产）
-
-## 虚拟环境（自动）
-
-一键安装会调用 `bootstrap_venv.sh` 创建 `.venv-py*`，`run_production.sh` 直接使用 venv 内 gunicorn，**无需** `source activate`。
-
-## 生产 vs 试用
-
-| 场景 | 命令 |
-|------|------|
-| 生产 MySQL | `sudo bash scripts/install_linux.sh --production` → 编辑 `conf.ini` |
-| 试用 SQLite | 加 `--sqlite` |
-
-详见 [INSTALL.md](../INSTALL.md)。
-
-## 验证
+## 安装失败
 
 ```bash
-bash scripts/verify_install_flow.sh
-bash scripts/docker/verify_all.sh all   # 需 Docker
+sudo bash scripts/fix_broken_install.sh
 ```

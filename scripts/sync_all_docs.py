@@ -398,9 +398,14 @@ def patch_cursor_rule() -> None:
 
 
 def main() -> None:
-    patch_file(ROOT / "doc" / "非Docker部署指南.md", OLD_INSTALL_MD, LINUX_INSTALL_BLOCK_MD)
-    md_extra = ROOT / "doc" / "非Docker部署指南.md"
-    t = md_extra.read_text(encoding="utf-8")
+    md_path = ROOT / "doc" / "非Docker部署指南.md"
+    md_text = md_path.read_text(encoding="utf-8")
+    if OLD_INSTALL_MD in md_text:
+        md_text = md_text.replace(OLD_INSTALL_MD, LINUX_INSTALL_BLOCK_MD, 1)
+    elif "3.1 Linux 一键安装" not in md_text:
+        raise SystemExit("非Docker部署指南.md: 无法定位安装段落")
+    md_extra = md_path
+    t = md_text
     for a, b in [
         ("### 3.2 配置 conf.ini", "### 3.3 配置 conf.ini"),
         ("### 3.3 MySQL 示例", "### 3.4 MySQL 示例"),

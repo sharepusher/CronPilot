@@ -23,5 +23,5 @@ bash scripts/run_production.sh
 ## 安装失败
 
 ```bash
-sudo bash scripts/fix_broken_install.sh
+sudo bash scripts/fix_broken_install.sh --install
 ```

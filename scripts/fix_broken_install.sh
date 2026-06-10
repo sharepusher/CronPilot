@@ -1,56 +1,209 @@
 #!/bin/bash
-# 修复安装中断：dpkg/redis 异常 + 不完整 .venv-py*
-# 用法: sudo bash scripts/fix_broken_install.sh
-set -euo pipefail
+# 一键修复：dpkg（保留 PostgreSQL）+ redis + 损坏 venv + 可选继续安装 CronPilot
+#
+# 用法:
+#   sudo bash scripts/fix_broken_install.sh              # 只修复环境
+#   sudo bash scripts/fix_broken_install.sh --install    # 修复后继续 install_linux（试用 SQLite）
+#   sudo bash scripts/fix_broken_install.sh --purge-pg   # 不保留 PG，强制删除损坏的 postgresql 包
+#
+set -uo pipefail
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-APP_USER="${SUDO_USER:-${USER:-admin}}"
+APP_USER="${SUDO_USER:-${USER:-root}}"
+DO_INSTALL=0
+PURGE_PG=0
 
-echo "==> 1. 修复 apt/dpkg（半安装包：redis / postgresql 等）"
-export DEBIAN_FRONTEND=noninteractive
-
-# CronPilot 只需 MySQL 或 SQLite，不需要 PostgreSQL / Redis
-if dpkg -l 2>/dev/null | grep -qE '^..r.*(postgresql|redis)'; then
-  echo "提示: 检测到损坏的 postgresql/redis 包，CronPilot 不依赖它们"
-fi
-
-dpkg --configure -a 2>/dev/null || true
-apt-get install -y -f 2>/dev/null || true
-
-# PostgreSQL 9.x 在 Ubuntu 16.04 上常见 postgresql-common 配置失败
-if dpkg -l postgresql-common 2>/dev/null | grep -q '^..r'; then
-  echo "==> 尝试修复 postgresql-common…"
-  mkdir -p /var/lib/postgresql
-  id postgres &>/dev/null && chown postgres:postgres /var/lib/postgresql 2>/dev/null || true
-  apt-get install -y --reinstall postgresql-common 2>/dev/null || true
-  dpkg --configure -a 2>/dev/null || true
-fi
-if dpkg -l 2>/dev/null | grep -qE '^..r.*postgresql'; then
-  echo "==> postgresql 仍异常，移除相关包（不影响 CronPilot）…"
-  apt-get remove -y --purge \
-    'postgresql-*' postgresql-common 2>/dev/null || true
-  apt-get autoremove -y 2>/dev/null || true
-fi
-
-dpkg --configure -a 2>/dev/null || true
-apt-get install -y -f
-
-echo "==> 2. 安装 Python venv 支持包"
-apt-get install -y python3-venv python3-pip \
-  python3.9-venv python3.8-venv 2>/dev/null || true
-
-echo "==> 3. 删除不完整虚拟环境并重建"
-for d in .venv-py39 .venv-py38 .venv-py310 .venv-py311; do
-  if [ -d "$d" ] && [ ! -x "$d/bin/pip" ] && [ ! -x "$d/bin/pip3" ]; then
-    echo "  移除损坏目录: $d"
-    rm -rf "$d"
-  fi
+for arg in "$@"; do
+  case "$arg" in
+    --install) DO_INSTALL=1 ;;
+    --purge-pg) PURGE_PG=1 ;;
+    -h|--help)
+      sed -n '2,8p' "$0" | sed 's/^# \?//'
+      exit 0
+      ;;
+  esac
 done
 
-echo "==> 4. 以用户 $APP_USER 重建 venv"
-sudo -u "$APP_USER" bash -c "cd '$ROOT' && bash scripts/bootstrap_venv.sh"
+if [ "$(id -u)" -ne 0 ]; then
+  echo "请使用 root 运行: sudo bash scripts/fix_broken_install.sh" >&2
+  exit 1
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+FAILED=0
+
+log() { echo ""; echo "==> $*"; }
+
+# ---------- apt / dpkg：PostgreSQL（默认保留）----------
+fix_postgresql_keep() {
+  log "PostgreSQL：保留安装，只修 dpkg"
+
+  if ! dpkg -l 2>/dev/null | grep -qE '^..[^ ]*.*postgresql'; then
+    echo "  未检测到 postgresql 包，跳过"
+    return 0
+  fi
+
+  if [ "$PURGE_PG" -eq 1 ]; then
+    echo "  --purge-pg：移除 postgresql 包…"
+    apt-get remove -y --purge 'postgresql-*' postgresql-common 2>/dev/null || true
+    apt-get autoremove -y 2>/dev/null || true
+    return 0
+  fi
+
+  mkdir -p /var/lib/postgresql /var/log/postgresql /etc/postgresql
+  if ! id postgres &>/dev/null; then
+    useradd -r -s /bin/bash -d /var/lib/postgresql -m postgres 2>/dev/null || true
+  fi
+  chown -R postgres:postgres /var/lib/postgresql /var/log/postgresql 2>/dev/null || true
+  chmod 700 /var/lib/postgresql 2>/dev/null || true
+
+  if command -v pg_lsclusters >/dev/null 2>&1; then
+    echo "  当前集群:"
+    pg_lsclusters 2>/dev/null || true
+    while read -r ver name port status _; do
+      [ -z "${ver:-}" ] && continue
+      [[ "$ver" == Ver* ]] && continue
+      if [ "${status:-}" != "online" ]; then
+        echo "  尝试启动 $ver/$name …"
+        pg_ctlcluster "$ver" "$name" start 2>/dev/null || true
+      fi
+    done < <(pg_lsclusters 2>/dev/null || true)
+  fi
+
+  for pkg in postgresql-client-common postgresql-common; do
+    if dpkg -l "$pkg" 2>/dev/null | grep -qE '^..'; then
+      echo "  配置 $pkg …"
+      dpkg --configure "$pkg" 2>/dev/null || true
+    fi
+  done
+
+  apt-get install -y -f 2>/dev/null || true
+  apt-get install -y --reinstall postgresql-common 2>/dev/null || true
+
+  while read -r pkg; do
+    [ -z "$pkg" ] && continue
+    echo "  配置 $pkg …"
+    dpkg --configure "$pkg" 2>/dev/null || true
+  done < <(dpkg -l 2>/dev/null | awk '/postgresql/ && $1 !~ /^ii/ {print $2}')
+
+  dpkg --configure -a 2>/dev/null || true
+  apt-get install -y -f 2>/dev/null || true
+
+  if dpkg -l 2>/dev/null | awk '/postgresql/ {print $1}' | grep -qE '^i[^i]|^iU|^iF'; then
+    echo "  警告: 仍有 postgresql 包未就绪:" >&2
+    dpkg -l | grep postgresql | grep -v '^ii' >&2 || true
+    echo "  可查看: tail -30 /var/log/dpkg.log" >&2
+    echo "  或: bash -x /var/lib/dpkg/info/postgresql-common.postinst configure" >&2
+    return 1
+  fi
+  echo "  PostgreSQL dpkg 已正常"
+  pg_lsclusters 2>/dev/null || true
+  return 0
+}
+
+# ---------- apt / dpkg：redis（CronPilot 单机可不装）----------
+fix_redis_optional() {
+  log "Redis：尝试修复 dpkg（单机试用 CronPilot 可不装 Redis）"
+
+  if ! dpkg -l 2>/dev/null | grep -qE '^..[^ ]*.*redis'; then
+    echo "  未检测到 redis 包，跳过"
+    return 0
+  fi
+
+  for pkg in redis-server redis; do
+    if dpkg -l "$pkg" 2>/dev/null | grep -qE '^..'; then
+      dpkg --configure "$pkg" 2>/dev/null || true
+    fi
+  done
+  apt-get install -y -f 2>/dev/null || true
+
+  if dpkg -l 2>/dev/null | awk '/redis/ {print $1}' | grep -qE '^i[^i]|^iU|^iF'; then
+    echo "  警告: redis 包仍异常（不影响 SQLite 单机 CronPilot）" >&2
+    dpkg -l | grep redis | grep -v '^ii' >&2 || true
+    return 1
+  fi
+  echo "  Redis dpkg 已正常"
+  return 0
+}
+
+# ---------- apt / dpkg：全局收尾 ----------
+fix_dpkg_global() {
+  log "apt/dpkg 全局收尾"
+  dpkg --configure -a 2>/dev/null || true
+  apt-get install -y -f
+}
+
+# ---------- Python venv 支持包 ----------
+fix_python_apt() {
+  log "安装 Python venv 支持包"
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq 2>/dev/null || true
+    apt-get install -y -qq software-properties-common 2>/dev/null || true
+    add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+    apt-get update -qq 2>/dev/null || true
+    apt-get install -y -qq python3-venv python3-pip python3-dev 2>/dev/null || true
+    for pkg in python3.11-venv python3.10-venv python3.9-venv python3.8-venv; do
+      apt-get install -y -qq "$pkg" 2>/dev/null || true
+    done
+  fi
+}
+
+# ---------- 损坏的 .venv-py* ----------
+fix_venv() {
+  log "修复 CronPilot 虚拟环境（用户: $APP_USER）"
+
+  for d in .venv-py39 .venv-py38 .venv-py310 .venv-py311; do
+    if [ -d "$d" ]; then
+      ok=0
+      [ -x "$d/bin/python" ] && { [ -x "$d/bin/pip" ] || [ -x "$d/bin/pip3" ] || "$d/bin/python" -m pip --version >/dev/null 2>&1; } && ok=1
+      if [ "$ok" -eq 0 ]; then
+        echo "  删除不完整: $d"
+        rm -rf "$d"
+      fi
+    fi
+  done
+
+  chown -R "$APP_USER:$APP_USER" "$ROOT" 2>/dev/null || true
+
+  if ! sudo -u "$APP_USER" bash -c "cd '$ROOT' && bash scripts/bootstrap_venv.sh"; then
+    echo "  venv 重建失败" >&2
+    return 1
+  fi
+  echo "  venv 已就绪"
+  return 0
+}
+
+# ---------- 主流程 ----------
+log "CronPilot 环境一键修复（保留 PostgreSQL，除非 --purge-pg）"
+echo "  项目目录: $ROOT"
+echo "  部署用户: $APP_USER"
+
+fix_postgresql_keep || FAILED=$((FAILED + 1))
+fix_redis_optional || true
+fix_dpkg_global || FAILED=$((FAILED + 1))
+fix_python_apt || true
+fix_venv || FAILED=$((FAILED + 1))
 
 echo ""
-echo "完成。若仍失败，请执行:"
-echo "  python3.9 -m venv /tmp/test-venv && /tmp/test-venv/bin/pip --version"
-echo "  若 venv 失败: sudo apt-get install -y python3.9-venv"
+echo "=============================================="
+if [ "$FAILED" -eq 0 ]; then
+  echo " 修复完成"
+  echo "=============================================="
+  echo "下一步:"
+  if [ "$DO_INSTALL" -eq 1 ]; then
+    echo "  继续安装 CronPilot…"
+    bash "$ROOT/scripts/install_linux.sh" --production --sqlite
+    echo ""
+    echo "  安装完成，请执行: bash scripts/run_production.sh"
+  else
+    echo "  sudo bash scripts/install_linux.sh --production --sqlite"
+    echo "  bash scripts/run_production.sh"
+    echo ""
+    echo "  或一条命令: sudo bash scripts/fix_broken_install.sh --install"
+  fi
+else
+  echo " 部分步骤失败 ($FAILED)，请查看上方警告"
+  echo "=============================================="
+  exit 1
+fi

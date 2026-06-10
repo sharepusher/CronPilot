@@ -114,74 +114,20 @@ bash scripts/check_python_all.sh    # 查看 Python / venv
 
 ---
 
-## 安装失败
+## 安装失败（一键修复）
 
 ```bash
-sudo bash scripts/fix_broken_install.sh
+sudo bash scripts/fix_broken_install.sh              # 修 dpkg（保留 PG）+ venv
+sudo bash scripts/fix_broken_install.sh --install    # 修复后继续安装 CronPilot（SQLite 试用）
+sudo bash scripts/fix_broken_install.sh --purge-pg    # 不保留 PostgreSQL 时强制删除 PG 包
 ```
 
-| 现象 | 处理 |
+| 现象 | 说明 |
 |------|------|
-| `postgresql-* is not configured` | **与 CronPilot 无关**（本机历史 PG 包损坏）。不需 PG：见下方「移除 PG」；**要保留 PG**：见下方「保留 PG 修 dpkg」 |
-| `redis-server is not configured` | 同上 fix 脚本；单机试用可不装 Redis |
-| `.venv-py39/bin/pip: No such file` | fix 脚本，或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
-| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev`（Ubuntu）/ `libev-devel`（CentOS） |
-
-### 保留 PostgreSQL，只修 dpkg
-
-CronPilot 不装 PostgreSQL；报错来自本机已有 PG 9.5 未配置完成。按顺序执行：
-
-```bash
-# 1. 查看哪一步失败
-sudo dpkg --configure -a 2>&1 | tail -20
-sudo tail -30 /var/log/dpkg.log
-
-# 2. 常见修复：目录与用户
-sudo mkdir -p /var/lib/postgresql
-sudo id postgres &>/dev/null || sudo useradd -r -s /bin/bash -d /var/lib/postgresql -m postgres
-sudo chown -R postgres:postgres /var/lib/postgresql
-sudo chmod 700 /var/lib/postgresql
-
-# 3. 查看集群状态（Ubuntu 16.04 多为 9.5 main）
-sudo pg_lsclusters
-
-# 4. 集群 down 时尝试启动；无集群则创建（会初始化空库，慎用覆盖已有数据目录）
-# sudo pg_ctlcluster 9.5 main start
-# 或仅当 pg_lsclusters 为空且无旧数据时：
-# sudo pg_createcluster 9.5 main
-
-# 5. 重新配置包
-sudo dpkg --configure postgresql-common
-sudo dpkg --configure postgresql-9.5
-sudo dpkg --configure -a
-sudo apt-get install -y -f
-
-# 6. 验证 PG 与 apt
-sudo pg_lsclusters
-dpkg -l | grep postgresql | grep -v '^ii'
-```
-
-`dpkg --configure postgresql-common` 仍失败时，看具体报错：
-
-```bash
-sudo bash -x /var/lib/dpkg/info/postgresql-common.postinst configure 2>&1 | tail -30
-```
-
-修好 apt 后再装 CronPilot：
-
-```bash
-cd CronPilot
-sudo bash scripts/install_linux.sh --production --sqlite
-bash scripts/run_production.sh
-```
-
-### 不需要 PostgreSQL（移除坏包）
-
-```bash
-sudo apt-get remove --purge -y postgresql-9.5 postgresql-contrib-9.5 \
-  postgresql-plpython3-9.5 postgresql-common
-sudo apt-get autoremove -y && sudo apt-get install -y -f
-```
+| `postgresql-* is not configured` | 本机旧 PG 包损坏；上条命令**默认保留 PG** 只修 dpkg |
+| `redis-server is not configured` | 同上；SQLite 单机可不装 Redis |
+| `.venv-py39/bin/pip: No such file` | 脚本会自动删坏 venv 并重建 |
+| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev` |
 
 ---
 

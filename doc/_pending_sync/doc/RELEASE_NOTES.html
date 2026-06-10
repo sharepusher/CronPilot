@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Release Notes · CronPilot</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#1e3a8a,#4338ca);color:#fff;padding:2rem}
+    .hero h1{margin:0 0 .3rem;font-size:1.5rem}
+    .layout{max-width:920px;margin:0 auto;padding:1.5rem}
+    .back{color:var(--p);font-size:.88rem}
+    h2{font-size:1.15rem;border-left:4px solid var(--p);padding-left:.65rem;margin:2rem 0 1rem}
+    h2.new{border-color:var(--accent)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem;margin:1rem 0}
+    .card.highlight{border-color:var(--accent);background:linear-gradient(135deg,#f0fdfa,#eff6ff)}
+    .tag{display:inline-block;font-size:.72rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;background:#dbeafe;color:#1d4ed8;margin-right:.35rem}
+    .tag.new{background:#ccfbf1;color:#0f766e}
+    table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.6rem 0}
+    th,td{border:1px solid var(--border);padding:.45rem .55rem;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.82rem}
+    code{background:#f1f5f9;padding:.08rem .3rem;border-radius:3px;font-size:.88em}
+    ul{margin:.4rem 0 .6rem 1.2rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.82rem}
+  </style>
+</head>
+<body>
+<div class="hero">
+  <h1>CronPilot Release Notes</h1>
+  <p>
+    <span class="tag new">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
+    &nbsp;|&nbsp;
+    <span class="tag">v0.1.0</span> 2026-05-29 · Phase A（P0）
+  </p>
+</div>
+<div class="layout">
+  <a class="back" href="index.html">← 文档索引</a> ·
+  <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
+  <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
+
+  <h2 class="new">[0.1.1] — 2026-06-01</h2>
+  <div class="card highlight">
+    <p>工程化与运维增强，<strong>无 API 协议变更</strong>。</p>
+  </div>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">文档与在线访问</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>/docs/</code></td><td>技术文档 HTML 与 <code>/docs/*.md</code> 同端口访问</td></tr>
+    <tr><td>双格式</td><td>各文档 HTML + Markdown；<code>doc/index.md</code> 索引</td></tr>
+    <tr><td>同步工具</td><td><code>scripts/html_docs_to_markdown.py --check</code></td></tr>
+    <tr><td>部署指南</td><td><a href="非Docker部署指南.html">非 Docker 部署指南</a></td></tr>
+    <tr><td>协作规范</td><td><code>.cursor/rules/</code>、<code>AGENTS.md</code></td></tr>
+  </table>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">Python 3.8–3.11 自动匹配</h3>
+  <ul>
+    <li>自动探测并复用 <code>.venv-py*</code>，<strong>无需</strong>手动 <code>export PY=</code></li>
+    <li>统一入口：<code>bash scripts/cronpilot.sh start|install|test|check</code></li>
+    <li><code>requirements-core.txt</code> 用于本地与 CI 单测</li>
+  </ul>
+  <pre>bash scripts/cronpilot.sh start
+bash scripts/cronpilot.sh test</pre>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">CI</h3>
+  <ul>
+    <li>Docs HTML ↔ Markdown sync</li>
+    <li>Unit tests 矩阵 3.8 / 3.9 / 3.10 / 3.11</li>
+    <li>install-full（3.10 全量依赖）</li>
+  </ul>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">升级（自 v0.1.0）</h3>
+  <ul>
+    <li><code>bash scripts/cronpilot.sh install</code></li>
+    <li>改 HTML 后运行 <code>html_docs_to_markdown.py</code></li>
+    <li>重启后访问 <code>/docs/</code></li>
+  </ul>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0">
+
+  <h2>[0.1.0] — 2026-05-29 · Phase A（P0）首发</h2>
+  <div class="card">
+    <p>HTTP 定时回调调度、Web/API 管理、P0 安全与质量、技术文档与 Apache-2.0 许可。</p>
+  </div>
+
+  <h2>回调与 API 协议</h2>
+  <table>
+    <tr><th>参数 / 接口</th><th>说明</th></tr>
+    <tr><td><code>cronpilot_log_id</code></td><td>每次触发的执行 UUID</td></tr>
+    <tr><td><code>cronpilot_sign</code></td><td>回调签名（MD5）</td></tr>
+    <tr><td><code>POST /api/cron/add_log</code></td><td>进度回传</td></tr>
+  </table>
+  <pre>GET /your/callback?cronpilot_log_id=&lt;UUID&gt;&amp;cronpilot_sign=&lt;MD5&gt;
+POST /api/cron/add_log  cronpilot_log_id=&lt;UUID&gt;&amp;content=...</pre>
+
+  <h2>Phase A（P0）</h2>
+  <table>
+    <tr><th>ID</th><th>内容</th></tr>
+    <tr><td>P0-01</td><td>SQL ORM 化 · <code>job_log_service</code></td></tr>
+    <tr><td>P0-02</td><td>密码 pbkdf2 哈希</td></tr>
+    <tr><td>P0-03</td><td>SSRF 防护配置项</td></tr>
+    <tr><td>P0-04</td><td>JSON <code>errcode</code> 数字类型</td></tr>
+    <tr><td>P0-05</td><td><code>cron_validator</code> + <code>cron_service</code></td></tr>
+  </table>
+
+  <h2>文档与许可</h2>
+  <p>见 <a href="index.html">文档索引</a>；许可 <a href="LICENSE-AUDIT.html">LICENSE-AUDIT</a>（Apache-2.0）。</p>
+
+  <h2>测试</h2>
+  <pre>bash scripts/cronpilot.sh test</pre>
+
+  <h2>后续版本</h2>
+  <p>P1/P2 见 <a href="产品优化需求-借鉴Plombery.html">PRD</a>；计划 <code>0.2.x</code> 对应 P1。</p>
+</div>
+<footer>CronPilot · Release Notes · <a href="RELEASE_NOTES.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

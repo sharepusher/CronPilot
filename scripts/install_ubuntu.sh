@@ -36,6 +36,12 @@ fi
 echo "==> 安装系统依赖…"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
+# Ubuntu 22.04+ 默认无 python3.9，gevent 20.9 在 3.9 上有 wheel；通过 deadsnakes 补充
+if grep -qi ubuntu /etc/os-release 2>/dev/null; then
+  apt-get install -y -qq software-properties-common 2>/dev/null || true
+  add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+  apt-get update -qq 2>/dev/null || true
+fi
 apt-get install -y -qq \
   git curl \
   build-essential \
@@ -59,7 +65,8 @@ sudo -u "$APP_USER" bash <<EOSU
 set -e
 cd "$ROOT"
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-bash scripts/check_python.sh || true
+export PY="${CRONPILOT_PY_OVERRIDE:-${PY:-}}"
+bash scripts/check_python_all.sh 2>/dev/null || bash scripts/check_python.sh || true
 bash scripts/bootstrap_venv.sh
 EOSU
 

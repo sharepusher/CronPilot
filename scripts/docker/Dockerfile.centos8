@@ -7,14 +7,21 @@ RUN dnf install -y -q curl ca-certificates \
   && dnf clean all
 
 COPY . .
-RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot
+RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot \
+  && dnf install -y -q sudo \
+  && echo 'root ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/docker-root \
+  && chmod 440 /etc/sudoers.d/docker-root \
+  && dnf clean all
 
 RUN SUDO_USER=cronpilot bash scripts/install_centos.sh --production --sqlite
 
 USER cronpilot
 RUN bash scripts/verify_linux_install.sh && bash scripts/verify_install_flow.sh
 
-RUN bash scripts/run_production.sh & \
-    sleep 5 && \
-    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html && \
-    kill %1 || (echo "gunicorn health check failed" && exit 1)
+RUN bash -euc 'source scripts/lib/python.sh && cronpilot_load_runtime; \
+    export FLASK_CONFIG=production; mkdir -p datas/logs; \
+    "$CRONPILOT_VENV/bin/gunicorn" -b 0.0.0.0:5860 -w 1 -k gevent -c gun.py manage:app & pid=$!; \
+    sleep 8; curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html; \
+    code=$(curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/); \
+    echo "HTTP / => $code"; echo "$code" | grep -qE "200|302"; \
+    kill $pid; wait $pid 2>/dev/null || true'

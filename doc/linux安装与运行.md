@@ -33,3 +33,23 @@ bash scripts/run_production.sh
 - Python **3.8～3.11**
 - 生产需能编译/安装 **gevent**（libev 开发包）
 - 数据库：SQLite（试用）或 MySQL（生产）
+
+## 虚拟环境（自动）
+
+一键安装会调用 `bootstrap_venv.sh` 创建 `.venv-py*`，`run_production.sh` 直接使用 venv 内 gunicorn，**无需** `source activate`。
+
+## 生产 vs 试用
+
+| 场景 | 命令 |
+|------|------|
+| 生产 MySQL | `sudo bash scripts/install_linux.sh --production` → 编辑 `conf.ini` |
+| 试用 SQLite | 加 `--sqlite` |
+
+详见 [INSTALL.md](../INSTALL.md)。
+
+## 验证
+
+```bash
+bash scripts/verify_install_flow.sh
+bash scripts/docker/verify_all.sh all   # 需 Docker
+```

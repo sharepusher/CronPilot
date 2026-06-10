@@ -29,6 +29,7 @@ cronpilot_is_ubuntu() {
 
 cronpilot_is_rhel_family() {
   case "$(cronpilot_os_id)" in
+    ubuntu|debian) return 1 ;;
     centos|rhel|rocky|almalinux|ol|scientific) return 0 ;;
   esac
   [ -f /etc/redhat-release ]

@@ -16,14 +16,22 @@
 
 ## 二、一键安装（推荐）
 
-```bash
-git clone git@github.com:sharepusher/CronPilot.git
-cd CronPilot
+**生产（MySQL）：**
 
-# 试用：SQLite + 核心依赖 + 生产依赖（Gunicorn/gevent）
-sudo bash scripts/install_linux.sh --production --sqlite
-# 或: sudo bash scripts/install_ubuntu.sh --production --sqlite
+```bash
+sudo bash scripts/install_linux.sh --production
+# 编辑 conf.ini 中 cron_db_url → MySQL 后：
+bash scripts/run_production.sh
 ```
+
+**试用（SQLite，无需 MySQL）：**
+
+```bash
+sudo bash scripts/install_linux.sh --production --sqlite
+bash scripts/run_production.sh
+```
+
+以上均**自动创建** `.venv-py*` 虚拟环境，无需手动 `source activate`。速查：[INSTALL.md](../INSTALL.md)
 
 以部署用户（非 root）启动：
 

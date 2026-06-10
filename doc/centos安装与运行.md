@@ -14,15 +14,22 @@
 
 ## 二、一键安装（推荐）
 
+**生产（MySQL）：**
+
 ```bash
-git clone git@github.com:sharepusher/CronPilot.git
-cd CronPilot
-
-# 自动识别 CentOS → install_centos.sh
-sudo bash scripts/install_linux.sh --production --sqlite
-
+sudo bash scripts/install_linux.sh --production
+# 配置 conf.ini MySQL 后：
 bash scripts/run_production.sh
 ```
+
+**试用（SQLite）：**
+
+```bash
+sudo bash scripts/install_linux.sh --production --sqlite
+bash scripts/run_production.sh
+```
+
+自动创建 `.venv-py38`（CentOS7）或 `.venv-py39`（CentOS8）。速查：[INSTALL.md](../INSTALL.md)
 
 或显式：
 

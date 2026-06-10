@@ -1,0 +1,42 @@
+---
+description: 发布、非 Docker 部署与 GitHub 协作流程
+globs: gun.py,start.sh,scripts/**,docker-compose.yml,Dockerfile,.github/**
+alwaysApply: false
+---
+
+# 发布与部署流程
+
+## 非 Docker 部署（标准路径）
+
+**Linux（Ubuntu / CentOS 7·8）：** `sudo bash scripts/install_linux.sh --production` → 配置 MySQL → `bash scripts/run_production.sh`。试用加 `--sqlite`。详见 `INSTALL.md`。
+
+1. `cp conf.ini.example conf.ini` → 配置 DB、`login_pwd`（推荐 `scripts/hash_login_password.py`）、Redis、`block_private_ip`。
+2. `bash scripts/cronpilot.sh install` 或 `bash scripts/install_core_deps.sh`（自动 `.venv-py*`） 或 `PY=python3.9 bash scripts/install_core_deps.sh`；生产再 `pip install -r requirements.txt`
+3. 生产：`export FLASK_CONFIG=production` → `gunicorn -c gun.py manage:app`（`0.0.0.0:5860`）。
+4. 本地冒烟：`bash scripts/start_local.sh`（默认 `127.0.0.1:5001`）；远程调试改 `host='0.0.0.0'`。
+
+## 访问入口
+
+| 入口 | URL | 认证 |
+|------|-----|------|
+| 管理端 | `/` | `login_pwd` |
+| API | `/api/...` | `api_access_token` 等 |
+| 技术文档 | `/docs/` | **无登录**（公网需 Nginx 鉴权或内网） |
+
+## 发布检查清单
+
+- [ ] `unittest` 与 `html_docs_to_markdown.py --check` 本地通过
+- [ ] `RELEASE_NOTES` 已更新；tag 指向含文档提交的 commit
+- [ ] 未提交 `conf.ini`、数据库文件、虚拟环境
+- [ ] 对接方已知 `cronpilot_log_id` / `cronpilot_sign` / `add_log` 协议
+
+## GitHub
+
+- 远程：`sharepusher/CronPilot`（`main`）
+- CI：**Unit tests**、**Docker install verify**（Ubuntu/Rocky8/CentOS7）（矩阵 3.8–3.11 + core 依赖）、**install-full**（3.10 全量）、**Docs sync**
+- Release 文案可从 `RELEASE_NOTES.md` 摘录；Full Changelog 用 compare 链接
+
+## 生产安全
+
+- `/docs/` 不对公网裸奔；管理端强密码；`block_private_ip=1`。
+- 勿对 `0.0.0.0` 开 Flask `debug=True`。

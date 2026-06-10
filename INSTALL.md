@@ -156,3 +156,15 @@ sudo firewall-cmd --reload
 
 - 管理端：`http://<IP>:5860/`
 - 技术文档：`http://<IP>:5860/docs/`
+
+## Docker 验收（可选）
+
+在已安装 Docker 的环境验证完整安装链路（venv + gevent + gunicorn + `/docs/`）：
+
+```bash
+bash scripts/docker/verify_all.sh all
+# 或: ubuntu | centos8 | centos7
+```
+
+CI 工作流：`.github/workflows/docker-install-verify.yml`。
+

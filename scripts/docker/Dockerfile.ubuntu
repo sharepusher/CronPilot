@@ -8,17 +8,27 @@ RUN apt-get update -qq && apt-get install -y -qq curl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 COPY . .
-RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot
+RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronpilot \
+  && apt-get update -qq && apt-get install -y -qq sudo software-properties-common \
+  && add-apt-repository -y ppa:deadsnakes/ppa \
+  && apt-get update -qq && apt-get install -y -qq python3.9 python3.9-venv python3.9-dev \
+  && echo 'root ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/docker-root \
+  && chmod 440 /etc/sudoers.d/docker-root \
+  && rm -rf /var/lib/apt/lists/*
 
-# 模拟 sudo 安装：系统包 + 以部署用户建 venv
+# gevent 20.9 + greenlet 0.4.17：py3.9 有预编译 wheel，生产环境推荐 3.9/3.10（3.10 见 install_production_deps 补丁）
+ENV PY=python3.9
 RUN SUDO_USER=cronpilot bash scripts/install_ubuntu.sh --production --sqlite
 
 USER cronpilot
 RUN bash scripts/verify_linux_install.sh && bash scripts/verify_install_flow.sh
 
-# 生产启动与健康检查
-RUN bash scripts/run_production.sh & \
-    sleep 5 && \
-    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html && \
-    curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/ | grep -qE '200|302' && \
-    kill %1 || (echo "gunicorn health check failed" && exit 1)
+# 生产启动与健康检查（单 worker 避免 SQLite 双进程建表冲突）
+RUN bash -euc 'source scripts/lib/python.sh && cronpilot_load_runtime; \
+    export FLASK_CONFIG=production; mkdir -p datas/logs; \
+    "$CRONPILOT_VENV/bin/gunicorn" -b 0.0.0.0:5860 -w 1 -k gevent -c gun.py manage:app & pid=$!; \
+    sleep 8; \
+    curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html; \
+    code=$(curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/); \
+    echo "HTTP / => $code"; echo "$code" | grep -qE "200|302"; \
+    kill $pid; wait $pid 2>/dev/null || true'

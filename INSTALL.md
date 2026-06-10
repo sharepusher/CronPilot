@@ -3,15 +3,25 @@
 支持 **Ubuntu / Debian**、**CentOS 7/8**、Rocky、Alma。  
 Python 3.8–3.11，自动创建 `.venv-py*`，无需手动 `source activate`。
 
+## 两步分别做什么
+
+| 命令 | 做什么 | 会不会打开网页 |
+|------|--------|----------------|
+| `install_linux.sh` | 装系统包、建 venv、装 Python 依赖、生成 `conf.ini` | **不会** — 装完就退出 |
+| `run_production.sh` | 启动 Gunicorn，监听 `:5860` | **会** — 进程需一直运行 |
+
+`install` = 准备环境（装软件）；`run` = 启动服务（跑起来）。  
+生产环境常把 `run` 交给 **systemd** 开机自启，见 [非Docker部署指南](doc/非Docker部署指南.html)。
+
 ---
 
-## 路径 A：试用（SQLite，3 条命令）
+## 路径 A：试用（SQLite）
 
 ```bash
 git clone https://github.com/sharepusher/CronPilot.git
 cd CronPilot
-sudo bash scripts/install_linux.sh --production --sqlite
-bash scripts/run_production.sh
+sudo bash scripts/install_linux.sh --production --sqlite   # ① 安装（不启动服务）
+bash scripts/run_production.sh                             # ② 启动（前台运行，Ctrl+C 停止）
 ```
 
 | 项 | 值 |

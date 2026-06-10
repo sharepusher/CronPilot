@@ -1,11 +1,23 @@
 # CronPilot · Ubuntu 安装与运行
 
-> HTML 部署总览：[非Docker部署指南.html](非Docker部署指南.html)
+> HTML：[非Docker部署指南.html](非Docker部署指南.html) · **Docker**：[Docker部署指南.html](Docker部署指南.html)
 
-适用 **Ubuntu 20.04 / 22.04 / 24.04**，非 Docker 裸机部署。  
-**CentOS 7/8** 见 [centos安装与运行.md](centos安装与运行.md)；**自动识别**见 [linux安装与运行.md](linux安装与运行.md)。
+适用 **Ubuntu 20.04 / 22.04 / 24.04** 裸机部署。  
+**Docker 试用**（无需宿主机 Python）：[Docker部署指南.md](Docker部署指南.md)  
+**CentOS 7/8**：[centos安装与运行.md](centos安装与运行.md) · **自动识别**：[linux安装与运行.md](linux安装与运行.md)
 
-## 一、系统要求
+## Docker 一键（推荐快速试用）
+
+```bash
+git clone https://github.com/sharepusher/CronPilot.git
+cd CronPilot
+cp conf.ini.example conf.ini
+docker compose up --build -d
+```
+
+访问 `http://<IP>:5860/`，默认密码 `changeme`。详见 [Docker部署指南.md](Docker部署指南.md)。
+
+## 一、系统要求（裸机）
 
 | 项 | 要求 |
 |----|------|
@@ -14,7 +26,7 @@
 | Redis | 集群多机时需要；单机 `is_single=1` 可省略 |
 | 端口 | 生产 **5860**（Gunicorn） |
 
-## 二、一键安装（推荐）
+## 二、一键安装（裸机，推荐）
 
 **生产（MySQL）：**
 
@@ -121,6 +133,7 @@ sudo ufw allow 5860/tcp
 | 无法连 MySQL | 试用加 `--sqlite`；或检查 `cron_db_url` 与 MySQL 服务 |
 | `.venv-py39/bin/pip: No such file` | `sudo bash scripts/fix_broken_install.sh`；或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
 | `redis-server is not configured` | `sudo dpkg --configure -a && sudo apt-get install -y -f`（单机试用可不装 Redis） |
+| `postgresql-* is not configured` | 阻塞 apt；见 [INSTALL.md](../INSTALL.md) 或改用 **Docker** |
 | 5860 无法访问 | `ufw`/安全组放行；确认 `gun.py` 中 `0.0.0.0:5860` |
 
 ## 七、脚本索引
@@ -133,3 +146,4 @@ sudo ufw allow 5860/tcp
 | `scripts/run_production.sh` | 生产启动 |
 | `scripts/cronpilot.sh` | 统一入口 start/test/install |
 | `scripts/start_local.sh` | 本地 5001 开发 |
+| `docker compose up` | Docker 试用（见 [Docker部署指南.md](Docker部署指南.md)） |

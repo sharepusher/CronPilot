@@ -1,5 +1,4 @@
-# CronPilot Docker（v0.1.1+，Python 3.9，默认 SQLite 试用）
-# 用法: docker compose up --build -d
+# 与 docker-compose.yml 相同（兼容旧文档中的 -f docker-compose.run.yml）
 services:
   cronpilot:
     build: .

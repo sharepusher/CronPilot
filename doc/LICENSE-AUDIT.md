@@ -65,7 +65,7 @@ Apache-2.0 仅覆盖**本仓库贡献者**享有版权的部分；自上游复�
 
 ## 7. Docker / 系统层
 
-`Dockerfile` 基于 `ubuntu:16.04`（已 EOL），涉及 Canonical 镜像条款与系统包许可证，与 Python 包许可证审计正交，建议升级至 22.04/24.04 LTS。
+`Dockerfile` 基于 `ubuntu:22.04` LTS，涉及 Canonical 镜像条款与系统包许可证，与 Python 包许可证审计正交。
 
 ## 8. 合规行动清单
 

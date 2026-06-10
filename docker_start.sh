@@ -1,7 +1,5 @@
 #!/bin/bash
-if [ ! -d "migrations" ];then
-  python3.6 manage.py db init
-fi
-python3.6 manage.py db migrate -m "upgrade"
-python3.6 manage.py db upgrade
-gunicorn -c docker_gun.py manage:app
+# 兼容旧 Supervisor 入口；新镜像请直接使用 scripts/run_production.sh
+set -e
+cd "$(dirname "$0")"
+exec bash scripts/run_production.sh

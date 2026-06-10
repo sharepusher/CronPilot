@@ -70,6 +70,36 @@ python -m unittest tests.test_p0_phase_a -v
 
 手工冒烟与用例表见：**[doc/P0测试用例与验收手册.html](doc/P0测试用例与验收手册.html)**
 
+## Docker 部署（快速试用）
+
+无需在宿主机安装 Python；适合本地验证，或宿主机 apt/dpkg（如 PostgreSQL）异常时。
+
+```bash
+git clone https://github.com/sharepusher/CronPilot.git
+cd CronPilot
+cp conf.ini.example conf.ini
+docker compose up --build -d
+```
+
+| 项 | 值 |
+|----|-----|
+| 管理端 | `http://<宿主机IP>:5860/` |
+| 文档 | `http://<宿主机IP>:5860/docs/` |
+| 默认密码 | `changeme`（改 `conf.ini` → `login_pwd`） |
+
+- 数据目录：宿主机 `./datas` 挂载进容器
+- 改配置：`nano conf.ini` → `docker compose restart`
+- 停止：`docker compose down`
+- 镜像：Ubuntu 22.04 + Python 3.9，容器内自动 SQLite 试用配置
+
+裸机 / pyenv / MySQL 生产路径见 **[INSTALL.md](INSTALL.md)**（路径 A/B/C/D）。
+
+**开发者 CI 验收**（验证裸机安装脚本，非运行镜像）：
+
+```bash
+bash scripts/docker/verify_all.sh all
+```
+
 ## 非 Docker 部署（生产 / 远程访问）
 
 适用于 Linux 或 macOS 裸机、虚拟机，**不使用 Docker**。
@@ -241,7 +271,7 @@ GitHub Actions：
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
 | **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 在 3.10 验证全量依赖 |
 
-文档含：架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
+文档含：**[INSTALL.md](INSTALL.md)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
 ## AI / 协作规范（Cursor）
 

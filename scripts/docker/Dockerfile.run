@@ -1,6 +1,5 @@
-# CronPilot 运行镜像（Ubuntu 22.04 + Python 3.9 + SQLite 试用）
-# 构建: docker build -t cronpilot:latest .
-# 运行: docker compose up --build -d
+# 与根目录 Dockerfile 相同，供 scripts/docker/ 目录引用
+# 构建: docker build -f scripts/docker/Dockerfile.run -t cronpilot:latest .
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -28,7 +27,6 @@ RUN SUDO_USER=cronpilot bash scripts/install_ubuntu.sh --production --sqlite
 
 USER cronpilot
 
-# 构建期健康检查（与 scripts/docker/Dockerfile.ubuntu 一致）
 RUN bash -euc 'source scripts/lib/python.sh && cronpilot_load_runtime; \
     export FLASK_CONFIG=production; mkdir -p datas/logs; \
     "$CRONPILOT_VENV/bin/gunicorn" -b 0.0.0.0:5860 -w 1 -k gevent -c gun.py manage:app & pid=$!; \

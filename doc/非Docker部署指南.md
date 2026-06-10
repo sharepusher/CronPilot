@@ -10,6 +10,9 @@
 
 在 Linux 或 macOS 上安装 CronPilot、远程访问管理端与 HTML 技术文档（`/docs/`）
 
+> **Docker 部署**：若不想在宿主机装 Python，见 [Docker部署指南.md](Docker部署指南.md)
+
+
 ## 1. 部署拓扑
 
 浏览器 ──► Nginx :443 (可选 HTTPS / 文档鉴权)

@@ -82,5 +82,5 @@ A full attribution file for vendored JS/CSS is recommended in a future release
 
 ## Container base image
 
-`Dockerfile` uses `ubuntu:16.04`, subject to Ubuntu/Canonical terms. Image is
+`Dockerfile` uses `ubuntu:22.04` LTS, subject to Ubuntu/Canonical terms. Image is
 EOL; upgrade to a supported LTS for security and compliance.

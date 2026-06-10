@@ -13,6 +13,7 @@
 | Ubuntu 安装 | — | [ubuntu安装与运行.md](ubuntu安装与运行.md) |
 | CentOS 安装 | — | [centos安装与运行.md](centos安装与运行.md) |
 | 安装速查 INSTALL | — | [INSTALL.md](../INSTALL.md) |
+| **Docker 部署指南** | [Docker部署指南.html](Docker部署指南.html) | [Docker部署指南.md](Docker部署指南.md) |
 | 非 Docker 部署指南 | [非Docker部署指南.html](非Docker部署指南.html) | [非Docker部署指南.md](非Docker部署指南.md) |
 | 产品优化需求（PRD） | [产品优化需求-借鉴Plombery.html](产品优化需求-借鉴Plombery.html) | [产品优化需求-借鉴Plombery.md](产品优化需求-借鉴Plombery.md) |
 | Plombery 深度对比 | [Plombery深度对比分析.html](Plombery深度对比分析.html) | [Plombery深度对比分析.md](Plombery深度对比分析.md) |
@@ -30,7 +31,8 @@
 
 ## 仓库根目录
 
-- [README.md](../README.md) — 快速开始与非 Docker 部署摘要
+- [README.md](../README.md) — 快速开始摘要
+- [INSTALL.md](../INSTALL.md) — Linux / Docker / pyenv 安装
 - [INSTALL.md](../INSTALL.md) — Linux 安装速查（Ubuntu + CentOS、venv、MySQL/SQLite）
 - [RELEASE_NOTES.md](../RELEASE_NOTES.md) — 版本变更（与 HTML Release Notes 同步维护）
 

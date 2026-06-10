@@ -31,23 +31,42 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 
 ## 3. 安装步骤
 
-### 3.1 获取代码与虚拟环境
+### 3.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）
+
+自动识别发行版、**自动创建虚拟环境**（`.venv-py*`），无需手动 `source activate` 即可用 `run_production.sh` 启动。
+
+| 场景 | 命令 |
+| --- | --- |
+| **生产（MySQL）** | `sudo bash scripts/install_linux.sh --production` → 编辑 `conf.ini` → `bash scripts/run_production.sh` |
+| **试用（SQLite）** | `sudo bash scripts/install_linux.sh --production --sqlite` → `bash scripts/run_production.sh` |
+
+速查：[INSTALL.md](../INSTALL.md) · 分平台：[linux安装与运行.md](linux安装与运行.md) · [ubuntu安装与运行.md](ubuntu安装与运行.md) · [centos安装与运行.md](centos安装与运行.md)
+
+安装链路：`install_linux.sh` → `bootstrap_venv.sh` → `install_production_deps.sh`（同一 venv）。
+
+```
+git clone git@github.com:sharepusher/CronPilot.git
+cd CronPilot
+sudo bash scripts/install_linux.sh --production
+bash scripts/check_python_all.sh
+bash scripts/run_production.sh
+```
+
+### 3.2 手动安装（macOS 或自定义环境）
 
 ```
 git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
 
-bash scripts/check_python.sh
-bash scripts/install_core_deps.sh
-# 或指定: PY=python3.9 bash scripts/install_core_deps.sh
-source .venv-py310/bin/activate   # 目录随版本变化，如 .venv-py38
-pip install -r requirements.txt   # 生产 Gunicorn 需全量依赖
+bash scripts/cronpilot.sh check
+bash scripts/cronpilot.sh install
+bash scripts/install_production_deps.sh
 
 cp conf.ini.example conf.ini
 mkdir -p datas/logs
 ```
 
-支持 **Python 3.8 / 3.9 / 3.10 / 3.11**；本地冒烟可用 `requirements-core.txt`（`start_local.sh` 已内置）。
+支持 **Python 3.8～3.11**。`run_production.sh` 自动使用 venv，一般不必 `source activate`。
 
 ### 3.3 配置 conf.ini
 

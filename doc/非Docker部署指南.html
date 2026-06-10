@@ -64,19 +64,23 @@
 
   <section>
     <h2>3. 安装步骤</h2>
-    <h3>3.1 获取代码与虚拟环境</h3>
+    <h3>3.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）</h3>
+    <p>自动识别发行版、<strong>自动创建虚拟环境</strong>（<code>.venv-py*</code>）。生产用 MySQL；试用加 <code>--sqlite</code>。</p>
+    <table>
+      <tr><th>场景</th><th>命令</th></tr>
+      <tr><td>生产 MySQL</td><td><code>sudo bash scripts/install_linux.sh --production</code> → 编辑 conf.ini → <code>bash scripts/run_production.sh</code></td></tr>
+      <tr><td>试用 SQLite</td><td><code>sudo bash scripts/install_linux.sh --production --sqlite</code> → <code>bash scripts/run_production.sh</code></td></tr>
+    </table>
+    <p class="formats" style="font-size:.88rem">速查：<a href="../INSTALL.md">INSTALL.md</a> · <a href="linux安装与运行.md">linux</a> · <a href="ubuntu安装与运行.md">ubuntu</a> · <a href="centos安装与运行.md">centos</a></p>
     <pre>git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
-
-bash scripts/check_python.sh
-bash scripts/install_core_deps.sh
-# 或指定: PY=python3.9 bash scripts/install_core_deps.sh
-source .venv-py310/bin/activate   # 目录随版本变化，如 .venv-py38
-pip install -r requirements.txt   # 生产 Gunicorn 需全量依赖
-
-cp conf.ini.example conf.ini
-mkdir -p datas/logs</pre>
-    <p style="color:var(--muted);font-size:.9rem">支持 <strong>Python 3.8 / 3.9 / 3.10 / 3.11</strong>；本地冒烟可用 <code>requirements-core.txt</code>（<code>start_local.sh</code> 已内置）。</p>
+sudo bash scripts/install_linux.sh --production
+bash scripts/run_production.sh</pre>
+    <h3>3.2 手动安装（macOS / 自定义）</h3>
+    <pre>bash scripts/cronpilot.sh install
+bash scripts/install_production_deps.sh
+cp conf.ini.example conf.ini</pre>
+    <p style="color:var(--muted);font-size:.9rem">Python 3.8～3.11；<code>run_production.sh</code> 自动使用 venv。</p>
 
     <h3>3.3 配置 conf.ini</h3>
     <div class="card">

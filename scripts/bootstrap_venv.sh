@@ -9,7 +9,13 @@ source "$(dirname "$0")/venv_helpers.sh"
 
 export PATH="/opt/rh/rh-python38/root/usr/bin:/opt/rh/rh-python39/root/usr/bin:${PATH:-}"
 
-PY=$(cronpilot_pick_python)
+if ! PY=$(cronpilot_pick_python); then
+  echo "未找到 Python 3.8–3.11。请先安装（需 root）：" >&2
+  echo "  sudo bash scripts/install_python_ubuntu.sh" >&2
+  echo "  或: sudo bash scripts/fix_broken_install.sh --install" >&2
+  exit 1
+fi
+
 VENV=$(cronpilot_venv_dir "$PY")
 cronpilot_bootstrap_venv_deps "$PY" "$VENV"
 

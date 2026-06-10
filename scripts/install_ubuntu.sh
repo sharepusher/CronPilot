@@ -63,14 +63,8 @@ apt-get install -y -qq \
   libffi-dev libev-dev \
   python3-venv python3-dev python3-pip
 
-# 多版本 Python（按发行版可用性安装，须带 *-venv 否则无法建虚拟环境）
-for pkg in \
-  python3.11 python3.11-venv python3.11-dev \
-  python3.10 python3.10-venv python3.10-dev \
-  python3.9 python3.9-venv python3.9-dev \
-  python3.8 python3.8-venv python3.8-dev; do
-  apt-get install -y -qq "$pkg" 2>/dev/null || true
-done
+# 安装 Python 3.8–3.11（缺则 apt 安装，不再静默跳过）
+bash "$ROOT/scripts/install_python_ubuntu.sh"
 
 # 若系统 redis 包损坏，不阻塞 CronPilot（单机 is_single=1 可不装 Redis）
 if dpkg -l redis-server 2>/dev/null | grep -q '^..r'; then

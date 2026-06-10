@@ -134,19 +134,14 @@ fix_dpkg_global() {
   apt-get install -y -f
 }
 
-# ---------- Python venv 支持包 ----------
+# ---------- Python 3.8–3.11（缺则 apt 安装，失败才报错）----------
 fix_python_apt() {
-  log "安装 Python venv 支持包"
-  if command -v apt-get >/dev/null 2>&1; then
-    apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq software-properties-common 2>/dev/null || true
-    add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
-    apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq python3-venv python3-pip python3-dev 2>/dev/null || true
-    for pkg in python3.11-venv python3.10-venv python3.9-venv python3.8-venv; do
-      apt-get install -y -qq "$pkg" 2>/dev/null || true
-    done
+  log "安装 Python 3.8–3.11（含 venv）"
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "  非 apt 系统，请手动安装 Python 3.8–3.11" >&2
+    return 1
   fi
+  bash "$ROOT/scripts/install_python_ubuntu.sh"
 }
 
 # ---------- 损坏的 .venv-py* ----------
@@ -182,7 +177,7 @@ echo "  部署用户: $APP_USER"
 fix_postgresql_keep || FAILED=$((FAILED + 1))
 fix_redis_optional || true
 fix_dpkg_global || FAILED=$((FAILED + 1))
-fix_python_apt || true
+fix_python_apt || FAILED=$((FAILED + 1))
 fix_venv || FAILED=$((FAILED + 1))
 
 echo ""

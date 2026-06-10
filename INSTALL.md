@@ -126,7 +126,7 @@ sudo bash scripts/fix_broken_install.sh --purge-pg    # 不保留 PostgreSQL 时
 |------|------|
 | `postgresql-* is not configured` | 本机旧 PG 包损坏；上条命令**默认保留 PG** 只修 dpkg |
 | `redis-server is not configured` | 同上；SQLite 单机可不装 Redis |
-| `.venv-py39/bin/pip: No such file` | 脚本会自动删坏 venv 并重建 |
+| `.venv-py39/bin/pip: No such file` / 未找到 Python 3.8–3.11 | 脚本会自动 `apt install python3.9-venv` 等；仍失败则单独跑 `sudo bash scripts/install_python_ubuntu.sh` |
 | `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev` |
 
 ---

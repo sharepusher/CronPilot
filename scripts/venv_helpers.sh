@@ -30,8 +30,8 @@ cronpilot_bootstrap_venv_deps() {
   fi
   if [ ! -d "$venv" ]; then cronpilot_create_venv "$py" "$venv"; fi
   if ! cronpilot_venv_ok "$venv"; then
-    echo "错误: 无法创建虚拟环境 $venv" >&2
-    echo "  请执行: sudo apt-get install -y python3.9-venv python3-venv" >&2
+    echo "错误: 无法创建虚拟环境 $venv（Python: $py）" >&2
+    echo "  请先运行: sudo bash scripts/install_python_ubuntu.sh" >&2
     return 1
   fi
   pip=$(cronpilot_venv_pip "$venv")

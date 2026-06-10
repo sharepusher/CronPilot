@@ -49,7 +49,7 @@ mkdir -p datas/logs
 
 支持 **Python 3.8 / 3.9 / 3.10 / 3.11**；本地冒烟可用 `requirements-core.txt`（`start_local.sh` 已内置）。
 
-### 3.2 配置 conf.ini
+### 3.3 配置 conf.ini
 
 必改项：`login_pwd`、`cron_db_url`、`cron_job_log_db_url`、Redis（若集群）。
 
@@ -60,7 +60,7 @@ python scripts/hash_login_password.py '你的强密码'
 # 将输出写入 conf.ini 的 login_pwd=
 ```
 
-### 3.3 MySQL 示例
+### 3.4 MySQL 示例
 
 ```
 [default]
@@ -73,7 +73,7 @@ url_allow_hosts=
 url_ssrf_observe_only=0
 ```
 
-### 3.4 SQLite 单机试用
+### 3.5 SQLite 单机试用
 
 ```
 cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
@@ -88,10 +88,7 @@ cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite
 
 ```
 cd /opt/cronpilot/CronPilot
-source .venv/bin/activate
-export FLASK_CONFIG=production
-
-gunicorn -c gun.py manage:app
+bash scripts/run_production.sh
 # gun.py 已配置 bind = '0.0.0.0:5860'
 ```
 
@@ -117,10 +114,13 @@ bash scripts/start_local.sh
 ```
 sudo ufw allow 5860/tcp
 
+**CentOS：** `sudo firewall-cmd --permanent --add-port=5860/tcp && sudo firewall-cmd --reload`
+
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
 # 期望 200
 
-python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
+bash scripts/cronpilot.sh test
+bash scripts/docker/verify_all.sh all   # 可选 Docker 验收
 ```
 
 ## 6. systemd（可选）
@@ -137,7 +137,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/cronpilot/CronPilot
 Environment=FLASK_CONFIG=production
-ExecStart=/opt/cronpilot/CronPilot/.venv/bin/gunicorn -c gun.py manage:app
+ExecStart=/opt/cronpilot/CronPilot/.venv-py311/bin/gunicorn -c gun.py manage:app
 Restart=on-failure
 
 [Install]
@@ -199,7 +199,7 @@ server {
 - [P0 测试与验收](P0测试用例与验收手册.html)
 - 仓库 `README.md` 快速开始章节
 
-CronPilot · 非 Docker 部署 · v0.1.0 · [Markdown 版](非Docker部署指南.md) · [文档索引](index.html)
+CronPilot · 非 Docker 部署 · v0.1.1 · [Markdown 版](非Docker部署指南.md) · [文档索引](index.html)
 
 ---
 

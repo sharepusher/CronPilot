@@ -85,19 +85,29 @@ python -m unittest tests.test_p0_phase_a -v
 
 ### 安装
 
+**Linux 一键安装（Ubuntu / CentOS 7·8）：** 详见 [INSTALL.md](INSTALL.md)
+
 ```bash
 git clone https://github.com/sharepusher/CronPilot.git
 cd CronPilot
+# 生产（MySQL）：sudo bash scripts/install_linux.sh --production
+# 试用（SQLite）：sudo bash scripts/install_linux.sh --production --sqlite
+sudo bash scripts/install_linux.sh --production
+# 编辑 conf.ini 中 cron_db_url（MySQL）后：
+bash scripts/run_production.sh
+```
 
-bash scripts/check_python.sh
-bash scripts/install_core_deps.sh   # 或 PY=python3.8 bash scripts/install_core_deps.sh
-source .venv-py*/bin/activate       # 按实际目录名，如 .venv-py310
-pip install -r requirements.txt     # 生产需 gevent 时用全量依赖
+脚本自动创建 `.venv-py*` 虚拟环境，**一般无需** `source activate`。
 
+**手动安装（macOS 或自定义）：**
+
+```bash
+git clone https://github.com/sharepusher/CronPilot.git
+cd CronPilot
+bash scripts/cronpilot.sh install
+bash scripts/install_production_deps.sh
 cp conf.ini.example conf.ini
-mkdir -p datas/logs
-# 编辑 conf.ini：cron_db_url、cron_job_log_db_url、login_pwd、redis、SSRF 等
-python scripts/hash_login_password.py '强密码'   # 推荐写入 login_pwd
+bash scripts/cronpilot.sh exec python scripts/hash_login_password.py '强密码'
 ```
 
 **SQLite 单机示例**（路径改为本机绝对路径）：
@@ -112,14 +122,8 @@ cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite
 
 ```bash
 cd /opt/cronpilot/CronPilot
-source .venv/bin/activate
-export FLASK_CONFIG=production
-
-# 前台（调试）
-gunicorn -c gun.py manage:app
-
-# 或指定绑定（与 gun.py 一致：0.0.0.0:5860）
-gunicorn -b 0.0.0.0:5860 -w 2 -k gevent manage:app
+bash scripts/run_production.sh
+# 内部使用 .venv-py*/bin/gunicorn，监听 0.0.0.0:5860
 ```
 
 | 入口 | URL | 认证 |
@@ -132,9 +136,11 @@ gunicorn -b 0.0.0.0:5860 -w 2 -k gevent manage:app
 
 ### 防火墙
 
-```bash
-sudo ufw allow 5860/tcp
-```
+**Ubuntu：** `sudo ufw allow 5860/tcp`
+
+**CentOS / RHEL：** `sudo firewall-cmd --permanent --add-port=5860/tcp && sudo firewall-cmd --reload`
+
+**Docker 验收（可选）：** `bash scripts/docker/verify_all.sh all`
 
 ### systemd 示例（可选）
 

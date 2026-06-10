@@ -12,6 +12,7 @@
 **快速命令**
 
 ```bash
+sudo bash scripts/install_linux.sh --production   # Linux 裸机
 bash scripts/cronpilot.sh start   # 自动匹配 Python 3.8–3.11，无需 PY=
 bash scripts/cronpilot.sh test
 python scripts/html_docs_to_markdown.py --check

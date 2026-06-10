@@ -78,7 +78,7 @@ cp conf.ini.example conf.ini
 mkdir -p datas/logs</pre>
     <p style="color:var(--muted);font-size:.9rem">支持 <strong>Python 3.8 / 3.9 / 3.10 / 3.11</strong>；本地冒烟可用 <code>requirements-core.txt</code>（<code>start_local.sh</code> 已内置）。</p>
 
-    <h3>3.2 配置 conf.ini</h3>
+    <h3>3.3 配置 conf.ini</h3>
     <div class="card">
       <p>必改项：<code>login_pwd</code>、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。</p>
       <p>生成密码哈希：</p>
@@ -86,7 +86,7 @@ mkdir -p datas/logs</pre>
 # 将输出写入 conf.ini 的 login_pwd=</pre>
     </div>
 
-    <h3>3.3 MySQL 示例</h3>
+    <h3>3.4 MySQL 示例</h3>
     <pre>[default]
 is_single=1
 cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
@@ -96,7 +96,7 @@ block_private_ip=1
 url_allow_hosts=
 url_ssrf_observe_only=0</pre>
 
-    <h3>3.4 SQLite 单机试用</h3>
+    <h3>3.5 SQLite 单机试用</h3>
     <pre>cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
 cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite</pre>
     <p style="color:var(--muted);font-size:.9rem">路径请使用<strong>绝对路径</strong>（四个斜杠 <code>sqlite:////</code>）。</p>
@@ -106,7 +106,7 @@ cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite</pre>
     <h2>4. 启动服务</h2>
     <h3>4.1 生产（Gunicorn，监听外网）</h3>
     <pre>cd /opt/cronpilot/CronPilot
-source .venv/bin/activate
+bash scripts/run_production.sh
 export FLASK_CONFIG=production
 
 gunicorn -c gun.py manage:app
@@ -148,7 +148,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/cronpilot/CronPilot
 Environment=FLASK_CONFIG=production
-ExecStart=/opt/cronpilot/CronPilot/.venv/bin/gunicorn -c gun.py manage:app
+ExecStart=/opt/cronpilot/CronPilot/.venv-py311/bin/gunicorn -c gun.py manage:app
 Restart=on-failure
 
 [Install]

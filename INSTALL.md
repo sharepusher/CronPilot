@@ -122,9 +122,10 @@ sudo bash scripts/fix_broken_install.sh
 
 | 现象 | 处理 |
 |------|------|
-| `.venv-py39/bin/pip: No such file` | 上条命令，或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
-| `redis-server is not configured` | `sudo dpkg --configure -a && sudo apt-get install -y -f`（单机试用可不装 Redis） |
-| `pip install gevent` 失败 | 确认已加 `--production` 且系统有 `libev-dev`（Ubuntu）/ `libev-devel`（CentOS） |
+| `postgresql-* is not configured` | **与 CronPilot 无关**（只用 MySQL/SQLite）。`sudo bash scripts/fix_broken_install.sh`，或手动：`sudo apt-get remove --purge postgresql-9.5 postgresql-contrib-9.5 postgresql-plpython3-9.5 postgresql-common && sudo apt-get install -y -f` |
+| `redis-server is not configured` | 同上 fix 脚本；单机试用可不装 Redis |
+| `.venv-py39/bin/pip: No such file` | fix 脚本，或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
+| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev`（Ubuntu）/ `libev-devel`（CentOS） |
 
 ---
 

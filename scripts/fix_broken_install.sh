@@ -6,9 +6,33 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 APP_USER="${SUDO_USER:-${USER:-admin}}"
 
-echo "==> 1. 修复 apt/dpkg（redis-server 等半安装包）"
+echo "==> 1. 修复 apt/dpkg（半安装包：redis / postgresql 等）"
 export DEBIAN_FRONTEND=noninteractive
-dpkg --configure -a || true
+
+# CronPilot 只需 MySQL 或 SQLite，不需要 PostgreSQL / Redis
+if dpkg -l 2>/dev/null | grep -qE '^..r.*(postgresql|redis)'; then
+  echo "提示: 检测到损坏的 postgresql/redis 包，CronPilot 不依赖它们"
+fi
+
+dpkg --configure -a 2>/dev/null || true
+apt-get install -y -f 2>/dev/null || true
+
+# PostgreSQL 9.x 在 Ubuntu 16.04 上常见 postgresql-common 配置失败
+if dpkg -l postgresql-common 2>/dev/null | grep -q '^..r'; then
+  echo "==> 尝试修复 postgresql-common…"
+  mkdir -p /var/lib/postgresql
+  id postgres &>/dev/null && chown postgres:postgres /var/lib/postgresql 2>/dev/null || true
+  apt-get install -y --reinstall postgresql-common 2>/dev/null || true
+  dpkg --configure -a 2>/dev/null || true
+fi
+if dpkg -l 2>/dev/null | grep -qE '^..r.*postgresql'; then
+  echo "==> postgresql 仍异常，移除相关包（不影响 CronPilot）…"
+  apt-get remove -y --purge \
+    'postgresql-*' postgresql-common 2>/dev/null || true
+  apt-get autoremove -y 2>/dev/null || true
+fi
+
+dpkg --configure -a 2>/dev/null || true
 apt-get install -y -f
 
 echo "==> 2. 安装 Python venv 支持包"

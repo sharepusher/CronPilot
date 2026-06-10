@@ -119,6 +119,8 @@ sudo ufw allow 5860/tcp
 | 仅有 Python 3.12 | `sudo apt-get install -y python3.11 python3.11-venv` |
 | `Permission denied` venv | 勿用 `sudo pip`；用 `install_ubuntu.sh` 或部署用户执行 `bootstrap_venv.sh` |
 | 无法连 MySQL | 试用加 `--sqlite`；或检查 `cron_db_url` 与 MySQL 服务 |
+| `.venv-py39/bin/pip: No such file` | `sudo bash scripts/fix_broken_install.sh`；或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
+| `redis-server is not configured` | `sudo dpkg --configure -a && sudo apt-get install -y -f`（单机试用可不装 Redis） |
 | 5860 无法访问 | `ufw`/安全组放行；确认 `gun.py` 中 `0.0.0.0:5860` |
 
 ## 七、脚本索引

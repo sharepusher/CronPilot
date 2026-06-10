@@ -35,29 +35,48 @@ fi
 
 echo "==> 安装系统依赖…"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-# Ubuntu 22.04+ 默认无 python3.9，gevent 20.9 在 3.9 上有 wheel；通过 deadsnakes 补充
-if grep -qi ubuntu /etc/os-release 2>/dev/null; then
-  apt-get install -y -qq software-properties-common 2>/dev/null || true
-  add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
-  apt-get update -qq 2>/dev/null || true
+
+# 修复半安装 dpkg（常见：redis-server 未 configure 导致后续 apt 异常）
+echo "==> 检查 apt/dpkg 状态…"
+dpkg --configure -a 2>/dev/null || true
+apt-get install -y -f -qq 2>/dev/null || true
+
+UBUNTU_VER=""
+if [ -f /etc/os-release ]; then
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  UBUNTU_VER="${VERSION_ID:-}"
 fi
+if [ "$UBUNTU_VER" = "18.04" ]; then
+  echo "提示: Ubuntu 18.04 已 EOL，建议 20.04+；将尝试通过 deadsnakes 安装 Python 3.8/3.9…" >&2
+fi
+
+apt-get update -qq
+apt-get install -y -qq software-properties-common
+add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+apt-get update -qq 2>/dev/null || true
+
+# 核心编译依赖（必须成功）
 apt-get install -y -qq \
   git curl \
   build-essential \
   libffi-dev libev-dev \
-  python3-venv python3-dev \
+  python3-venv python3-dev python3-pip
+
+# 多版本 Python（按发行版可用性安装，须带 *-venv 否则无法建虚拟环境）
+for pkg in \
   python3.11 python3.11-venv python3.11-dev \
-  2>/dev/null || true
-apt-get install -y -qq \
   python3.10 python3.10-venv python3.10-dev \
-  2>/dev/null || true
-apt-get install -y -qq \
   python3.9 python3.9-venv python3.9-dev \
-  2>/dev/null || true
-apt-get install -y -qq \
-  python3.8 python3.8-venv python3.8-dev \
-  2>/dev/null || true
+  python3.8 python3.8-venv python3.8-dev; do
+  apt-get install -y -qq "$pkg" 2>/dev/null || true
+done
+
+# 若系统 redis 包损坏，不阻塞 CronPilot（单机 is_single=1 可不装 Redis）
+if dpkg -l redis-server 2>/dev/null | grep -q '^..r'; then
+  echo "警告: redis-server 处于异常状态，尝试修复（CronPilot 单机试用可不依赖 Redis）…" >&2
+  apt-get install -y -f -qq 2>/dev/null || true
+fi
 
 # 以部署用户执行 Python 部分（避免 root 创建 venv）
 echo "==> 安装 Python 依赖（用户: $APP_USER）…"

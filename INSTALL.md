@@ -126,7 +126,8 @@ sudo bash scripts/fix_broken_install.sh --purge-pg    # 不保留 PostgreSQL 时
 |------|------|
 | `postgresql-* is not configured` | 本机旧 PG 包损坏；上条命令**默认保留 PG** 只修 dpkg |
 | `redis-server is not configured` | 同上；SQLite 单机可不装 Redis |
-| `.venv-py39/bin/pip: No such file` / 未找到 Python 3.8–3.11 | 脚本会自动 `apt install python3.9-venv` 等；仍失败则单独跑 `sudo bash scripts/install_python_ubuntu.sh` |
+| 未找到 python3.8 / Unable to locate package | **Ubuntu 16.04 默认源无 3.8**，必须 `sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update` 后再装；或直接 `sudo bash scripts/install_python_ubuntu.sh` |
+| Permission denied dpkg lock | 所有 apt 命令前加 **sudo** |
 | `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev` |
 
 ---

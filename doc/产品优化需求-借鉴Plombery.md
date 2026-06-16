@@ -510,7 +510,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 #### 优化方案
 
-1. 表：`users`、`roles`、`user_roles`、`role_permissions`；可选 `api_clients`（详见 [架构设计 §6.6](架构设计文档.html#rbac-detail)）。
+1. 表：`users`、`roles`、`user_roles`、`role_permissions`；可选 `api_clients`（详见 [§6.6](架构设计文档.html#rbac-detail)、[§15 详设](架构设计文档.html#rbac-arch)）。
 2. `conf.ini`：`auth_mode=legacy|rbac`；迁移脚本从旧 `login_pwd` 生成首个 admin。
 3. 装饰器：`@require_permission("cron:write")` 等，与 OPT-P1-09 审计联动。
 4. 管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler\_admin / viewer / auditor。

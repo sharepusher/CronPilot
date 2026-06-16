@@ -437,7 +437,7 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
     <p>写操作前由 <code>@require_permission("cron:write")</code>（P2）校验；<strong>无论校验是否通过</strong>，失败尝试也可记 <code>result=fail</code> 行（可选，防滥用时需限流）。</p>
 
     <h4>6.5.6 P2 预留：用户与角色（概要）</h4>
-    <p>完整表结构、默认角色、鉴权装饰器与迁移方案见下方 <strong><a href="#rbac-detail">§6.6</a></strong>。与 <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> 绑定交付。</p>
+    <p>完整表结构、默认角色、鉴权装饰器与迁移方案见 <strong><a href="#rbac-detail">§6.6</a></strong>；<strong>逻辑架构、模块、时序、DDL、路由权限矩阵</strong>见 <strong><a href="#rbac-arch">§15</a></strong>。与 <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> 绑定交付。</p>
     <pre class="diagram">users ── user_roles ── roles ── role_permissions (permission_code)
 api_clients（可选）── 独立 API 主体，写入 operation_log.operator_type=api_client
 operation_log.operator_id ──(逻辑关联)──► users.id | api_clients.id</pre>
@@ -703,9 +703,221 @@ rbac
       <tr><th>关注点</th><th>实现</th><th>缺口</th></tr>
       <tr><td>日志</td><td>TimedRotatingFileHandler → datas/logs</td><td>无集中式 ELK 集成</td></tr>
       <tr><td>监控</td><td>无内置 metrics</td><td>需外挂探活 / 日志告警</td></tr>
-      <tr><td>安全</td><td>Session 密码、API token、回调 MD5 签</td><td>无 HTTPS 强制、无 RBAC</td></tr>
+      <tr><td>安全</td><td>Session 密码、API token、回调 MD5 签</td><td>无 HTTPS 强制；RBAC 规划见 <a href="#rbac-arch">§15</a>（OPT-P2-10）</td></tr>
       <tr><td>配置</td><td>conf.ini 静态文件</td><td>无热更新、无密钥管理</td></tr>
       <tr><td>国际化</td><td>中文 UI</td><td>无 i18n</td></tr>
+    </table>
+  </section>
+
+  <section id="rbac-arch">
+    <h2>15. RBAC 与安全子系统架构（OPT-P2-10 详设）</h2>
+    <p>本章在 <a href="#rbac-detail">§6.6</a> 数据模型基础上，给出<strong>逻辑架构、模块划分、鉴权时序、路由权限矩阵与实现约束</strong>，供 P2 开发直接对照落地。</p>
+
+    <h3>15.1 子系统定位</h3>
+    <table>
+      <tr><th>职责</th><th>不负责</th></tr>
+      <tr><td>识别操作主体（Web 用户 / API 客户端 / 系统）</td><td>业务回调 URL 的鉴权（仍由业务方处理）</td></tr>
+      <tr><td>校验对 CronPilot 管理端与写 API 的权限</td><td>替换企业统一 IAM（可提供 OAuth 接入）</td></tr>
+      <tr><td>为 <code>operation_log</code> 提供 <code>OperatorContext</code></td><td>修改历史审计行（只追加）</td></tr>
+    </table>
+
+    <h3>15.2 逻辑架构（组件图）</h3>
+    <pre class="diagram">┌──────────────────── 表现层 ────────────────────┐
+│  main/views (SSR)          api/views (JSON)       │
+│       │                           │               │
+│       └───────────┬───────────────┘               │
+│                   ▼                               │
+│         @login_required  @require_permission(*)     │
+└───────────────────┬───────────────────────────────┘
+                    ▼
+┌──────────────────── 认证层 app/auth/ ─────────────┐
+│  password.py (已有)   session_auth.py (规划)      │
+│  legacy_gate.py         oauth_callback.py (P2-07) │
+│  api_token_auth.py      permission.py             │
+└───────────────────┬───────────────────────────────┘
+                    ▼
+┌──────────────────── 领域服务 app/services/ ───────┐
+│  user_service.py        role_service.py           │
+│  permission_service.py  operator_context.py       │
+│  operation_log_service.py (P1, 消费 OperatorContext)│
+└───────────────────┬───────────────────────────────┘
+                    ▼
+┌──────────────────── 数据层 datas/model/ ──────────┐
+│  users · roles · user_roles · role_permissions    │
+│  api_clients (可选)                               │
+└───────────────────────────────────────────────────┘</pre>
+
+    <h3>15.3 模块与文件规划</h3>
+    <table>
+      <tr><th>路径</th><th>职责</th></tr>
+      <tr><td><code>app/auth/permission.py</code></td><td><code>has_permission(user, code)</code>、<code>require_permission</code> 装饰器</td></tr>
+      <tr><td><code>app/auth/session_auth.py</code></td><td>从 Flask <code>session</code> 加载 <code>CurrentUser</code></td></tr>
+      <tr><td><code>app/auth/api_token_auth.py</code></td><td>校验 <code>access_token</code> → <code>ApiClient</code> 或 legacy 全局 token</td></tr>
+      <tr><td><code>app/services/permission_service.py</code></td><td>展开用户角色 → 权限集合；带请求级缓存</td></tr>
+      <tr><td><code>app/services/operator_context.py</code></td><td><code>resolve_operator_from_request()</code> 统一出口</td></tr>
+      <tr><td><code>app/services/user_service.py</code></td><td>用户 CRUD、启用/禁用、分配角色</td></tr>
+      <tr><td><code>datas/model/users.py</code> 等</td><td>ORM 模型</td></tr>
+      <tr><td><code>app/decorated.py</code></td><td>扩展：<code>login_required</code> 在 rbac 下校验 <code>user_id</code></td></tr>
+    </table>
+
+    <h3>15.4 权限求值算法</h3>
+    <pre># permission_service.py（伪代码）
+def expand_permissions(user_id) -> set[str]:
+    if user_has_role(user_id, "admin"):  # 可选：admin 角色内置 *
+        return {"*"}
+    codes = set()
+    for role in get_user_roles(user_id):
+        codes |= get_role_permissions(role.id)
+    return codes
+
+def has_permission(perms: set[str], required: str) -> bool:
+    return "*" in perms or required in perms</pre>
+    <p>多角色取<strong>并集</strong>；禁用用户（<code>status=0</code>）在 <code>session_auth</code> 层直接拒绝，权限集为空。</p>
+
+    <h3>15.5 鉴权时序</h3>
+    <h4>15.5.1 Web 写操作（rbac 模式）</h4>
+    <pre class="diagram">Browser          login_required    require_permission    cron_service      operation_log
+  │                    │                  │                    │                  │
+  │──POST /cron_add───►│ Session[user_id] │                    │                  │
+  │                    │──load user──────►│                    │                  │
+  │                    │                  │──cron:write?────►│                  │
+  │                    │                  │──add_cron_web────►│                  │
+  │                    │                  │                    │──record_operation►│
+  │◄──JSON ok──────────│                  │                    │                  │
+  │                    │                  │                    │                  │
+  │──无权限───────────►│                  │──403──────────────►│ (可选 audit fail)│</pre>
+
+    <h4>15.5.2 API 写操作</h4>
+    <pre class="diagram">Client           api_token_auth      permission_service    cron_service
+  │                    │                      │                    │
+  │──POST /api/cron───►│ validate token       │                    │
+  │                    │→ ApiClient or legacy │                    │
+  │                    │──expand perms───────►│                    │
+  │                    │                      │──upsert_cron──────►│
+  │                    │                      │ operator=api_client│</pre>
+
+    <h4>15.5.3 OAuth 登录（与 OPT-P2-07）</h4>
+    <pre class="diagram">IdP → /oauth/callback → find users by oauth_sub
+  → 不存在则 insert users + user_roles(viewer)
+  → Session[user_id]=id → redirect /cron_list</pre>
+
+    <h3>15.6 Session 与请求上下文</h3>
+    <table>
+      <tr><th>键 / 对象</th><th>legacy</th><th>rbac</th></tr>
+      <tr><td><code>session["authenticated"]</code></td><td>1</td><td>弃用或冗余</td></tr>
+      <tr><td><code>session["user_id"]</code></td><td>—</td><td>整数 PK</td></tr>
+      <tr><td><code>g.current_user</code></td><td>—</td><td><code>User</code> ORM 或 namedtuple</td></tr>
+      <tr><td><code>g.permissions</code></td><td><code>{"*"}</code></td><td><code>set[str]</code> 请求内缓存</td></tr>
+      <tr><td><code>g.api_client</code></td><td>—</td><td>API 请求时可选</td></tr>
+    </table>
+
+    <h3>15.7 路由 → 权限映射（管理端）</h3>
+    <table>
+      <tr><th>路由</th><th>方法</th><th>permission</th></tr>
+      <tr><td><code>/cron_list</code>、<code>/job_log_*</code>（读）</td><td>GET</td><td><code>cron:read</code></td></tr>
+      <tr><td><code>/cron_add</code></td><td>GET/POST</td><td><code>cron:read</code> / <code>cron:write</code></td></tr>
+      <tr><td><code>/cron_edit</code></td><td>GET/POST</td><td><code>cron:read</code> / <code>cron:write</code></td></tr>
+      <tr><td><code>/update_status</code></td><td>GET</td><td><code>cron:toggle</code></td></tr>
+      <tr><td><code>/cron_del</code>、<code>/cron_batch_del</code></td><td>GET/POST</td><td><code>cron:delete</code></td></tr>
+      <tr><td><code>/job_log_delete</code> 等</td><td>—</td><td><code>job_log:delete</code></td></tr>
+      <tr><td><code>/operation_log_list</code></td><td>GET</td><td><code>operation_log:read</code></td></tr>
+      <tr><td><code>/users_list</code>、<code>/user_edit</code></td><td>—</td><td><code>user:read</code> / <code>user:write</code></td></tr>
+      <tr><td><code>/api_doc</code></td><td>GET</td><td><code>cron:read</code></td></tr>
+    </table>
+    <p>API：<code>/api/cron</code>、<code>/api/cron/status</code> 需 <code>cron:write</code> / <code>cron:toggle</code>（或 client 级 permissions_json）；<code>/api/cron/add_log</code> 仍为业务回调通道，保持 token 校验不变。</p>
+
+    <h3>15.8 DDL 草案（MySQL / SQLite 通用）</h3>
+    <pre>CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username VARCHAR(64) NOT NULL UNIQUE,
+  email VARCHAR(120) UNIQUE,
+  password_hash VARCHAR(255),
+  display_name VARCHAR(120) NOT NULL DEFAULT '',
+  status SMALLINT NOT NULL DEFAULT 1,
+  auth_source VARCHAR(32) NOT NULL DEFAULT 'local',
+  oauth_sub VARCHAR(128),
+  last_login_at VARCHAR(25) DEFAULT '',
+  created_at VARCHAR(25) NOT NULL,
+  updated_at VARCHAR(25) NOT NULL
+);
+CREATE UNIQUE INDEX uq_users_oauth ON users(auth_source, oauth_sub);
+
+CREATE TABLE roles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code VARCHAR(32) NOT NULL UNIQUE,
+  name VARCHAR(64) NOT NULL,
+  description VARCHAR(255) DEFAULT '',
+  is_system SMALLINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE user_roles (
+  user_id INTEGER NOT NULL,
+  role_id INTEGER NOT NULL,
+  granted_at VARCHAR(25) NOT NULL,
+  granted_by INTEGER,
+  PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE role_permissions (
+  role_id INTEGER NOT NULL,
+  permission_code VARCHAR(64) NOT NULL,
+  PRIMARY KEY (role_id, permission_code)
+);
+
+CREATE TABLE api_clients (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name VARCHAR(120) NOT NULL,
+  token_hash VARCHAR(64) NOT NULL UNIQUE,
+  status SMALLINT NOT NULL DEFAULT 1,
+  permissions_json TEXT NOT NULL DEFAULT '[]',
+  created_at VARCHAR(25) NOT NULL
+);</pre>
+
+    <h3>15.9 与 operation_log 集成</h3>
+    <pre class="diagram">resolve_operator_from_request()
+  ├─ Web + rbac  → user + expand_permissions → OperatorContext 快照 JSON
+  ├─ Web + legacy → legacy_admin
+  ├─ API         → api_client + permissions_json
+  └─ system      → system
+
+record_operation(..., operator=ctx)  # commit 业务后调用，见 §6.5.2</pre>
+    <p>权限拒绝时（可选）：<code>record_operation(action=..., result=fail, error_msg="forbidden")</code>，需防刷接口限流。</p>
+
+    <h3>15.10 配置项（conf.ini 规划）</h3>
+    <table>
+      <tr><th>键</th><th>默认</th><th>说明</th></tr>
+      <tr><td><code>auth_mode</code></td><td><code>legacy</code></td><td><code>legacy</code> | <code>rbac</code></td></tr>
+      <tr><td><code>admin_display_name</code></td><td>管理员</td><td>legacy 模式 operation_log 展示名</td></tr>
+      <tr><td><code>session_lifetime_hours</code></td><td>24</td><td>Session 过期</td></tr>
+      <tr><td><code>oauth_enabled</code></td><td>0</td><td>OPT-P2-07</td></tr>
+      <tr><td><code>rbac_default_role</code></td><td>viewer</td><td>OAuth 首次登录默认角色</td></tr>
+    </table>
+
+    <h3>15.11 安全与运维约束</h3>
+    <ul style="margin-left:1rem;font-size:.9rem">
+      <li><strong>密码</strong>：复用 P0 <code>pbkdf2</code>；禁止日志打印 token / 密码。</li>
+      <li><strong>Session</strong>：生产 <code>SECRET_KEY</code> 独立配置；HTTPS 反代时 <code>Secure</code> cookie。</li>
+      <li><strong>API token</strong>：库内仅存 <code>sha256(token)</code>；展示时仅一次明文。</li>
+      <li><strong>提权</strong>：仅 <code>user:write</code> 可改角色；禁止自我删除唯一 admin（业务规则）。</li>
+      <li><strong>缓存</strong>：<code>g.permissions</code> 仅请求内有效；改角色后下次请求生效。</li>
+    </ul>
+
+    <h3>15.12 ADR-06：选用应用内 RBAC 而非外置 IAM</h3>
+    <table>
+      <tr><th>决策</th><th>理由</th><th>代价</th></tr>
+      <tr><td>内置 roles + permission_code</td><td>轻量部署、SQLite 友好、与 operation_log 快照自然契合</td><td>大型企业需再对接 SSO</td></tr>
+      <tr><td>权限快照写入审计</td><td>合规可追溯「当时有何权限」</td><td>行体积略增</td></tr>
+      <tr><td>legacy 与 rbac 双模式</td><td>平滑升级现有单密码用户</td><td>分支测试矩阵增大</td></tr>
+    </table>
+
+    <h3>15.13 测试策略</h3>
+    <table>
+      <tr><th>层级</th><th>用例</th></tr>
+      <tr><td>单元</td><td><code>has_permission</code>、<code>expand_permissions</code> 多角色并集、<code>*</code> 短路</td></tr>
+      <tr><td>单元</td><td><code>build_cron_diff</code>、<code>OperatorContext</code> 序列化</td></tr>
+      <tr><td>集成</td><td>viewer POST <code>/cron_add</code> → 403；admin → 200 + operation_log</td></tr>
+      <tr><td>集成</td><td>API client 仅 <code>cron:write</code> 不可 <code>cron:delete</code></td></tr>
+      <tr><td>迁移</td><td><code>auth_mode</code> legacy→rbac 后原密码可登录 <code>admin</code></td></tr>
     </table>
   </section>
 
@@ -718,6 +930,7 @@ rbac
       <tr><td>ADR-03</td><td>双数据库 URL</td><td>JobStore 与业务 schema 解耦</td><td>运维需维护两套连接</td></tr>
       <tr><td>ADR-04</td><td>SSR 管理台而非 SPA</td><td>2019 前后主流、部署简单</td><td>前端体验与可维护性弱</td></tr>
       <tr><td>ADR-05</td><td>portalocker + Redis 双锁</td><td>渐进式支持集群</td><td>语义复杂，调试难度大</td></tr>
+      <tr><td>ADR-06</td><td>应用内 RBAC + 审计权限快照</td><td>轻量部署、与 operation_log 契合</td><td>大企业需 SSO；见 <a href="#rbac-arch">§15</a></td></tr>
     </table>
   </section>
 

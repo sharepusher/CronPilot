@@ -507,7 +507,7 @@
         </table>
         <h4>优化方案</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>表：<code>users</code>、<code>roles</code>、<code>user_roles</code>、<code>role_permissions</code>；可选 <code>api_clients</code>（详见 <a href="架构设计文档.html#rbac-detail">架构设计 §6.6</a>）。</li>
+          <li>表：<code>users</code>、<code>roles</code>、<code>user_roles</code>、<code>role_permissions</code>；可选 <code>api_clients</code>（详见 <a href="架构设计文档.html#rbac-detail">§6.6</a>、<a href="架构设计文档.html#rbac-arch">§15 详设</a>）。</li>
           <li><code>conf.ini</code>：<code>auth_mode=legacy|rbac</code>；迁移脚本从旧 <code>login_pwd</code> 生成首个 admin。</li>
           <li>装饰器：<code>@require_permission("cron:write")</code> 等，与 OPT-P1-09 审计联动。</li>
           <li>管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler_admin / viewer / auditor。</li>

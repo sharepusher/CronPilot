@@ -506,6 +506,70 @@ gunicorn -c gun.py manage:app</pre>
     </table>
   </section>
 
+  <!-- 17 RBAC -->
+  <section id="t17">
+    <h2>17. RBAC 与多用户技术规格（OPT-P2-10）</h2>
+    <p>架构级组件图、时序与 ADR 见 <a href="架构设计文档.html#rbac-arch">架构设计文档 §15</a>。本节补充<strong>实现规格与种子数据</strong>。</p>
+
+    <h3>17.1 内置角色种子（role_permissions）</h3>
+    <table>
+      <tr><th>roles.code</th><th>permission_code</th></tr>
+      <tr><td><code>admin</code></td><td><code>*</code>（实现层短路，可不落库）</td></tr>
+      <tr><td><code>scheduler_admin</code></td><td><code>cron:read</code>、<code>cron:write</code>、<code>cron:toggle</code></td></tr>
+      <tr><td><code>viewer</code></td><td><code>cron:read</code></td></tr>
+      <tr><td><code>auditor</code></td><td><code>cron:read</code>、<code>operation_log:read</code></td></tr>
+    </table>
+    <p><code>admin</code> 额外隐含：<code>user:read</code> <code>user:write</code> <code>api_client:write</code> <code>job_log:delete</code> <code>cron:delete</code>。</p>
+
+    <h3>17.2 CurrentUser 与 OperatorContext（数据结构）</h3>
+    <pre>@dataclass
+class CurrentUser:
+    id: int
+    username: str
+    display_name: str
+    roles: list[str]          # role codes
+    permissions: set[str]
+
+@dataclass
+class OperatorContext:
+    operator_type: str
+    operator_id: str
+    operator_name: str
+    roles: list[str]
+    permissions: list[str]    # 写入 JSON 前 sorted list</pre>
+
+    <h3>17.3 装饰器行为</h3>
+    <table>
+      <tr><th>装饰器</th><th>legacy</th><th>rbac</th></tr>
+      <tr><td><code>@login_required</code></td><td>session.authenticated</td><td>session.user_id 且 users.status=1</td></tr>
+      <tr><td><code>@require_permission("cron:write")</code></td><td>放行（等价 *）</td><td>403 JSON/HTML；无权限不写业务库</td></tr>
+    </table>
+
+    <h3>17.4 API 鉴权双轨（过渡期）</h3>
+    <ul style="margin-left:1.2rem;font-size:.9rem">
+      <li><strong>Legacy</strong>：单一 <code>api_access_token</code> 校验通过 → <code>OperatorContext(api_client, id=0, permissions=["*"])</code>。</li>
+      <li><strong>RBAC</strong>：<code>api_clients.token_hash</code> 命中 → 使用 <code>permissions_json</code> 列表校验。</li>
+    </ul>
+
+    <h3>17.5 用户管理 API（Web 表单，非 REST）</h3>
+    <table>
+      <tr><th>表单字段</th><th>说明</th></tr>
+      <tr><td>username, display_name, email</td><td>必填/选填</td></tr>
+      <tr><td>password</td><td>创建必填；编辑留空表示不改</td></tr>
+      <tr><td>role_ids[]</td><td>多选 checkbox，提交后全量替换 user_roles</td></tr>
+      <tr><td>status</td><td>启用/禁用</td></tr>
+    </table>
+
+    <h3>17.6 迁移脚本规格</h3>
+    <p><code>scripts/migrate_legacy_admin_user.py</code>（规划）：</p>
+    <ol style="margin-left:1.2rem;font-size:.9rem">
+      <li>若 <code>users</code> 表已有数据则跳过。</li>
+      <li>插入 <code>admin</code> 用户；<code>password_hash</code> 从 <code>login_pwd</code> 读取（已是 pbkdf2 则原样）。</li>
+      <li>绑定 <code>admin</code> 角色；写入种子 roles/permissions。</li>
+      <li>打印提示：请设置 <code>auth_mode=rbac</code> 并重启。</li>
+    </ol>
+  </section>
+
   <!-- 16 -->
   <section id="t16">
     <h2>16. 与 Plombery 的架构与技术方案对比</h2>

@@ -216,6 +216,43 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       └── api blueprint ──► api/views
 
 横向能力：decorated (auth) · common/functions (notify, sign, lock)</pre>
+
+    <h3>5.2 Web 管理端调用链（与 APScheduler 的关系）</h3>
+    <div class="card warn">
+      <p><strong>结论：</strong>管理页面（任务添加/编辑、执行时间、启停、删除等）<strong>不会</strong>由浏览器直接调用 APScheduler 或 Flask-APScheduler 接口。前端仅通过 HTML 表单 / Ajax 请求 Flask 的 <code>main</code> 蓝图路由；服务端在 <code>cron_service</code> 或 <code>main/views.py</code> 内完成校验、写 <code>cron_infos</code>，再调用 <code>scheduler.add_job</code> / <code>pause_job</code> / <code>resume_job</code> / <code>remove_job</code>。</p>
+    </div>
+    <pre class="diagram">┌─────────────── 浏览器（jQuery + common.js）────────────────────────────┐
+│  cron_add.html / cron_edit.html  →  js-ajax-form  →  POST Flask 路由    │
+│  cron_list.html  →  js-ajax-dialog-btn / js-ajax-delete  →  GET 路由     │
+│  ❌ 无 apscheduler SDK；❌ 不请求 /api/cron（管理 UI 走 main，不走 api）   │
+└───────────────────────────────┬────────────────────────────────────────┘
+                                ▼
+┌─────────────── Flask 表现层（app/main/views.py）────────────────────────┐
+│  /cron_add  /cron_edit  /update_status  /cron_del  /cron_list  …         │
+└───────────────────────────────┬────────────────────────────────────────┘
+                                ▼
+┌─────────────── 服务层（app/services/）──────────────────────────────────┐
+│  cron_validator.validate_cron_form  — Web/API 共用校验（执行时间字段等）   │
+│  cron_service.add_cron_web / edit_cron_web / create_cron / update_cron   │
+│       → INSERT/UPDATE cron_infos  → register_cron_job()                  │
+└───────────────────────────────┬────────────────────────────────────────┘
+                                ▼
+┌─────────────── 调度层（进程内 Flask-APScheduler，非 HTTP）────────────────┐
+│  scheduler.add_job('cron_{id}', cron_do, trigger=date|cron, …)           │
+│  scheduler.pause_job / resume_job / remove_job                           │
+│  持久化 → apscheduler_jobs（SQLAlchemyJobStore）                          │
+└─────────────────────────────────────────────────────────────────────────┘</pre>
+
+    <h4>管理页操作对照表</h4>
+    <table>
+      <tr><th>管理页操作</th><th>前端请求</th><th>Flask 路由</th><th>服务/逻辑</th><th>APScheduler（服务端）</th></tr>
+      <tr><td>添加任务（含执行时间）</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_add</code></td><td><code>add_cron_web</code> → <code>create_cron</code></td><td><code>add_job</code></td></tr>
+      <tr><td>编辑任务 / 改时间</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_edit</code></td><td><code>edit_cron_web</code> → <code>update_cron</code></td><td><code>add_job(replace_existing)</code></td></tr>
+      <tr><td>启动 / 停止</td><td><code>GET</code> Ajax 对话框</td><td><code>/update_status</code></td><td><code>main/views.py</code> 直接</td><td><code>resume_job</code> / <code>pause_job</code></td></tr>
+      <tr><td>删除 / 批量删</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_del</code>、<code>/cron_batch_del</code></td><td>ORM 删除 + <code>job_log_service</code></td><td><code>remove_job</code></td></tr>
+      <tr><td>任务列表 / 执行记录</td><td><code>GET</code> 页面</td><td><code>/cron_list</code>、<code>/job_log_*</code></td><td>ORM 分页查询</td><td>无（只读 DB）</td></tr>
+    </table>
+    <p>外部系统集成走 <strong>REST API</strong>（<code>/api/cron</code>、<code>/api/cron/status</code>），同样经 <code>cron_service</code> 写库后由服务端注册调度，<strong>亦非</strong>直连 APScheduler。详见 <a href="技术方案与前端设计.html">技术方案与前端设计</a> 第 6 节 API 规范。</p>
   </section>
 
   <section id="s6">
@@ -338,14 +375,18 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
      │                      │                  │──INSERT──────────────────────────►│
      │                      │◄──update next_run│                  │                │</pre>
 
-    <h3>9.2 Web 创建任务</h3>
-    <pre class="diagram">Browser          main.cron_add       CronInfos DB      APScheduler JobStore
-  │                    │                    │                    │
-  │──POST form────────►│                    │                    │
-  │                    │──validate cron────►│                    │
-  │                    │──INSERT───────────►│                    │
-  │                    │──add_job(cron_id)──┼───────────────────►│
-  │◄──JSON redirect────│                    │                    │</pre>
+    <h3>9.2 Web 管理端操作（创建 / 编辑 / 启停）</h3>
+    <pre class="diagram">Browser          main.views          cron_service       cron_infos      APScheduler
+  │                    │                    │                  │                │
+  │──POST /cron_add───►│──add_cron_web─────►│──validate───────►│                │
+  │  (task_name,       │                    │──INSERT─────────►│                │
+  │   hour/minute/     │                    │──register_job───┼──add_job──────►│
+  │   run_date, url)   │                    │                  │                │
+  │◄──JSON redirect────│                    │                  │                │
+  │                    │                    │                  │                │
+  │──GET /update_status►│──toggle status────┼──────────────────┼──pause/resume─►│
+  │◄──JSON ok──────────│                    │                  │                │</pre>
+    <p>「执行时间」在表单中为 <code>run_date</code>（一次性）或 <code>day/hour/minute/second</code>（周期）；校验在 <code>cron_validator</code>，落库字段在 <code>cron_infos</code>，再由 <code>build_scheduler_kwargs</code> 转为 APScheduler 的 <code>date</code> / <code>cron</code> trigger 参数。</p>
 
     <h3>9.3 长任务进度回传（可选）</h3>
     <pre class="diagram">业务API                         CronPilot API              job_log_items

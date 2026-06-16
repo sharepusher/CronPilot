@@ -10,9 +10,6 @@
 
 在 Linux 或 macOS 上安装 CronPilot、远程访问管理端与 HTML 技术文档（`/docs/`）
 
-> **Docker 部署**：若不想在宿主机装 Python，见 [Docker部署指南.md](Docker部署指南.md)
-
-
 ## 1. 部署拓扑
 
 浏览器 ──► Nginx :443 (可选 HTTPS / 文档鉴权)
@@ -36,40 +33,31 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 
 ### 3.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）
 
-自动识别发行版、**自动创建虚拟环境**（`.venv-py*`），无需手动 `source activate` 即可用 `run_production.sh` 启动。
+自动识别发行版、**自动创建虚拟环境**（`.venv-py*`）。生产用 MySQL；试用加 `--sqlite`。
 
 | 场景 | 命令 |
 | --- | --- |
-| **生产（MySQL）** | `sudo bash scripts/install_linux.sh --production` → 编辑 `conf.ini` → `bash scripts/run_production.sh` |
-| **试用（SQLite）** | `sudo bash scripts/install_linux.sh --production --sqlite` → `bash scripts/run_production.sh` |
+| 生产 MySQL | `sudo bash scripts/install_linux.sh --production` → 编辑 conf.ini → `bash scripts/run_production.sh` |
+| 试用 SQLite | `sudo bash scripts/install_linux.sh --production --sqlite` → `bash scripts/run_production.sh` |
 
-速查：[INSTALL.md](../INSTALL.md) · 分平台：[linux安装与运行.md](linux安装与运行.md) · [ubuntu安装与运行.md](ubuntu安装与运行.md) · [centos安装与运行.md](centos安装与运行.md)
-
-安装链路：`install_linux.sh` → `bootstrap_venv.sh` → `install_production_deps.sh`（同一 venv）。
+速查：[INSTALL.md](../INSTALL.md) · [linux](linux安装与运行.md) · [ubuntu](ubuntu安装与运行.md) · [centos](centos安装与运行.md)
 
 ```
 git clone git@github.com:sharepusher/CronPilot.git
 cd CronPilot
 sudo bash scripts/install_linux.sh --production
-bash scripts/check_python_all.sh
 bash scripts/run_production.sh
 ```
 
-### 3.2 手动安装（macOS 或自定义环境）
+### 3.2 手动安装（macOS / 自定义）
 
 ```
-git clone git@github.com:sharepusher/CronPilot.git
-cd CronPilot
-
-bash scripts/cronpilot.sh check
 bash scripts/cronpilot.sh install
 bash scripts/install_production_deps.sh
-
 cp conf.ini.example conf.ini
-mkdir -p datas/logs
 ```
 
-支持 **Python 3.8～3.11**。`run_production.sh` 自动使用 venv，一般不必 `source activate`。
+Python 3.8～3.11；`run_production.sh` 自动使用 venv。
 
 ### 3.3 配置 conf.ini
 
@@ -111,6 +99,9 @@ cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite
 ```
 cd /opt/cronpilot/CronPilot
 bash scripts/run_production.sh
+export FLASK_CONFIG=production
+
+gunicorn -c gun.py manage:app
 # gun.py 已配置 bind = '0.0.0.0:5860'
 ```
 
@@ -136,13 +127,10 @@ bash scripts/start_local.sh
 ```
 sudo ufw allow 5860/tcp
 
-**CentOS：** `sudo firewall-cmd --permanent --add-port=5860/tcp && sudo firewall-cmd --reload`
-
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
 # 期望 200
 
-bash scripts/cronpilot.sh test
-bash scripts/docker/verify_all.sh all   # 可选 Docker 验收
+python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 ```
 
 ## 6. systemd（可选）
@@ -221,7 +209,7 @@ server {
 - [P0 测试与验收](P0测试用例与验收手册.html)
 - 仓库 `README.md` 快速开始章节
 
-CronPilot · 非 Docker 部署 · v0.1.1 · [Markdown 版](非Docker部署指南.md) · [文档索引](index.html)
+CronPilot · 非 Docker 部署 · v0.1.0 · [Markdown 版](非Docker部署指南.md) · [文档索引](index.html)
 
 ---
 

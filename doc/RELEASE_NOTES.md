@@ -37,33 +37,7 @@ bash scripts/cronpilot.sh start
 bash scripts/cronpilot.sh test
 ```
 
-
-### Linux 安装与运行（Ubuntu + CentOS 7/8）
-
-| 脚本 / 文档 | 说明 |
-| --- | --- |
-| `scripts/install_linux.sh` | 统一入口，自动识别发行版 |
-| `scripts/install_ubuntu.sh` / `install_centos.sh` | 分平台一键安装 |
-| `scripts/bootstrap_venv.sh` | 自动 `.venv-py*` + 核心依赖 |
-| `scripts/install_production_deps.sh` | 同一 venv 安装 Gunicorn + gevent |
-| `scripts/run_production.sh` | 生产启动（无需手动 activate） |
-| `scripts/docker/verify_all.sh` | Docker 验收 Ubuntu / Rocky8 / CentOS7 |
-| [INSTALL.md](../INSTALL.md) | 安装速查（MySQL 生产 / SQLite 试用） |
-
-```bash
-sudo bash scripts/install_linux.sh --production
-bash scripts/run_production.sh
-```
-
-### Docker 安装验收 CI
-
-- 工作流：`.github/workflows/docker-install-verify.yml`
-- 矩阵构建验证 venv + gunicorn + `/docs/`（SQLite 试用路径）
-
-
 ### CI
-
-- Docker install verify（Ubuntu / Rocky8 / CentOS7）
 
 - Docs HTML ↔ Markdown sync
 - Unit tests 矩阵 3.8 / 3.9 / 3.10 / 3.11

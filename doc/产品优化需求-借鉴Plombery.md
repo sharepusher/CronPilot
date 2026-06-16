@@ -333,6 +333,46 @@ React 组件复用 `PageLayout`、`Breadcrumbs`，无重复布局。
 
 **优先级：**在 P1-01 上线同一版本交付。
 
+**OPT-P1-09** P1 管理操作审计（operation\_log + 操作记录页）
+
+#### Plombery 对照
+
+Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元数据分离。CronPilot 当前连「谁改了 cron 表达式」都无记录。
+
+#### CronPilot 现状与不足
+
+|  |  |
+| --- | --- |
+| 现状 | 管理端添加/编辑/启停/删除与 `/api/cron` 写操作**无审计表**；仅 `cron_infos` 保留**当前配置**；`job_log` 只记录**到点执行**结果，不是配置变更。 |
+| 不足 | 无法回答「谁把 9 点改成 10 点」「昨晚谁删了任务」；合规与安全事件复盘困难；与详细技术方案已列风险「无审计日志」一致。 |
+
+#### 优化方案
+
+1. 新增表 `operation_log`（库：`cron_job_log_db`），字段见 [架构设计 §6.4](架构设计文档.html#s6)。
+2. 新增 `app/services/operation_log_service.py`，在 `cron_service` / `main/views` / `api/views` 写库成功后统一 `record_operation`。
+3. 管理页 `/operation_log_list`：分页、按任务名/操作类型/时间筛选；导航与「任务执行记录」分 Tab。
+4. 编辑类操作 `detail_json` 存字段级 diff；删除类存最后快照摘要。
+5. 配置 `operation_log_counts` 控制保留条数（默认可 5000）。
+
+#### 记录范围（首批）
+
+| action | 触发点 | channel |
+| --- | --- | --- |
+| `create_cron` | `/cron_add`、`/api/cron` 新建 | web / api |
+| `update_cron` | `/cron_edit`、`/api/cron` 更新 | web / api |
+| `toggle_status` | `/update_status`、`/api/cron/status` | web / api |
+| `delete_cron` | `/cron_del` | web |
+| `batch_delete_cron` | `/cron_batch_del` | web |
+| `delete_job_log` | 执行记录删除（可选 P1） | web |
+
+#### 价值与意义
+
+补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 `job_log`，两页职责清晰。
+
+**验收：**Web 改任务后 `operation_log` 有行且 `detail_json` 含变更字段；API 改任务 `channel=api`；列表页可筛可查；删任务后仍可按 `task_name` 搜到历史。
+
+**局限（单密码模式）：**无多用户账号时 `actor` 仅能记 session 指纹或固定 `admin`，细粒度到人需 P2 OAuth/多用户。
+
 ## P2 需求（体验与规模化）
 
 P2 项均有明确价值，但可通过人工手段短期绕过，或依赖 P0/P1 完成后才有意义。
@@ -470,7 +510,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 | 阶段 | 周期 | 交付项 | 业务可见价值 |
 | --- | --- | --- | --- |
 | **Phase A** | 1–2 周 | 全部 OPT-P0-01 ~ 05 | 安全可审计；API 集成稳定；后续改造不再双倍工时 |
-| **Phase B** | 3–6 周 | OPT-P1-01 ~ 08（状态、详情、立即执行、OpenAPI…） | 运维「看得懂成败、点得进详情、验得了任务」— 对齐 Plombery 核心体验 |
+| **Phase B** | 3–6 周 | OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…） | 运维「看得懂成败、点得进详情、验得了任务」— 对齐 Plombery 核心体验 |
 | **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、metrics、coalesce… | 实时感与规模化；对接企业监控栈 |
 
 ### 优先级总览表
@@ -490,6 +530,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 | OPT-P1-06 | OpenAPI | P1 | 集成专业度 |
 | OPT-P1-07 | 模板 partial | P1 | UI 可维护 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 状态可信 |
+| OPT-P1-09 | 管理操作审计 | P1 | 配置变更可追溯 |
 | OPT-P2-01 ~ 09 | SSE/图表/metrics… | P2 | 体验与规模化增强 |
 
 论证详见各 OPT 卡片 · 对比全文：[Plombery深度对比分析](Plombery深度对比分析.html) ·

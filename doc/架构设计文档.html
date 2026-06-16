@@ -252,6 +252,9 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td>删除 / 批量删</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_del</code>、<code>/cron_batch_del</code></td><td>ORM 删除 + <code>job_log_service</code></td><td><code>remove_job</code></td></tr>
       <tr><td>任务列表 / 执行记录</td><td><code>GET</code> 页面</td><td><code>/cron_list</code>、<code>/job_log_*</code></td><td>ORM 分页查询</td><td>无（只读 DB）</td></tr>
     </table>
+    <div class="card warn">
+      <p><strong>操作审计（现状）：</strong>上表管理写操作<strong>不落库操作记录</strong>，仅更新 <code>cron_infos</code> 当前态。谁、何时、改了什么<strong>不可追溯</strong>。任务<strong>执行</strong>记录见 <code>job_log</code>（到点回调结果），与配置变更审计不同。P1 规划见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-09">OPT-P1-09</a>。</p>
+    </div>
     <p>外部系统集成走 <strong>REST API</strong>（<code>/api/cron</code>、<code>/api/cron/status</code>），同样经 <code>cron_service</code> 写库后由服务端注册调度，<strong>亦非</strong>直连 APScheduler。详见 <a href="技术方案与前端设计.html">技术方案与前端设计</a> 第 6 节 API 规范。</p>
   </section>
 
@@ -274,13 +277,57 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
                               ┌──────▼──────────┐
                               │  job_log_items   │
                               │  业务回传明细     │
-                              └─────────────────┘</pre>
+                              └─────────────────┘
+
+（P1 规划，当前未实现）
+┌─────────────────┐
+│ operation_log   │  管理/API 写操作审计（谁、何时、改了什么）
+│ 见 §6.4         │
+└─────────────────┘</pre>
+
+    <h3>6.4 管理操作审计（P1 规划 · OPT-P1-09）</h3>
+    <p><strong>现状：</strong>无 <code>operation_log</code> 表；添加/编辑/启停/删除仅改 <code>cron_infos</code> 与 APScheduler，不写审计行。执行侧仅有 <code>job_log</code>（回调 HTTP 结果）与可选 <code>job_log_items</code>（业务 <code>add_log</code> 进度）。</p>
+    <table>
+      <tr><th>记录类型</th><th>表</th><th>记录什么</th><th>现状</th></tr>
+      <tr><td>任务执行</td><td><code>job_log</code></td><td>到点 GET 回调的响应、耗时、UUID</td><td>✅ 已有，管理端「任务执行记录」</td></tr>
+      <tr><td>执行进度</td><td><code>job_log_items</code></td><td>业务 <code>POST /api/cron/add_log</code></td><td>✅ 已有</td></tr>
+      <tr><td>配置变更审计</td><td><code>operation_log</code>（规划）</td><td>添加/编辑/删任务、启停、API 改配置</td><td>❌ 未实现</td></tr>
+      <tr><td>服务端异常</td><td><code>datas/logs/error.log</code></td><td>未捕获异常栈</td><td>✅ 有，非结构化、非按任务检索</td></tr>
+    </table>
+    <h4>表结构草案（<code>cron_job_log_db</code>）</h4>
+    <table>
+      <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>id</code></td><td>INTEGER PK</td><td>自增</td></tr>
+      <tr><td><code>create_time</code></td><td>VARCHAR(25)</td><td>与 <code>job_log</code> 一致，本地时间字符串</td></tr>
+      <tr><td><code>action</code></td><td>VARCHAR(32)</td><td><code>create_cron</code> <code>update_cron</code> <code>delete_cron</code> <code>toggle_status</code> <code>batch_delete_cron</code> <code>delete_job_log</code> …</td></tr>
+      <tr><td><code>channel</code></td><td>VARCHAR(8)</td><td><code>web</code> | <code>api</code> | <code>system</code></td></tr>
+      <tr><td><code>actor</code></td><td>VARCHAR(64)</td><td>Web 会话指纹或 <code>api</code>；单密码模式下无多用户账号</td></tr>
+      <tr><td><code>client_ip</code></td><td>VARCHAR(45)</td><td>可选，取自 <code>X-Forwarded-For</code> / <code>remote_addr</code></td></tr>
+      <tr><td><code>target_type</code></td><td>VARCHAR(16)</td><td><code>cron</code> | <code>job_log</code></td></tr>
+      <tr><td><code>target_id</code></td><td>INTEGER</td><td><code>cron_infos.id</code> 或 <code>job_log.id</code>；删除后仍可凭 <code>task_name</code> 检索</td></tr>
+      <tr><td><code>task_name</code></td><td>VARCHAR(120)</td><td>冗余，便于删任务后查询</td></tr>
+      <tr><td><code>detail_json</code></td><td>TEXT</td><td>变更摘要 JSON，如 <code>{"hour":{"old":"9","new":"10"}}</code></td></tr>
+      <tr><td><code>result</code></td><td>VARCHAR(8)</td><td><code>ok</code> | <code>fail</code></td></tr>
+      <tr><td><code>error_msg</code></td><td>VARCHAR(255)</td><td>失败时简短原因</td></tr>
+    </table>
+    <h4>写入点（服务层统一）</h4>
+    <pre class="diagram">app/services/operation_log_service.record_operation(...)
+  ↑ 由 cron_service / main/views / api/views 在 commit 成功后调用
+  覆盖：create_cron · update_cron · delete · toggle_status · API upsert/status</pre>
+    <h4>管理页「操作记录」</h4>
+    <ul style="margin-left:1rem;font-size:.9rem">
+      <li>路由：<code>GET /operation_log_list</code>（需 <code>@login_required</code>）</li>
+      <li>筛选：任务名、<code>action</code>、时间范围、<code>channel</code></li>
+      <li>列表列：时间、操作、任务名、渠道、结果、详情（展开 <code>detail_json</code>）</li>
+      <li>导航：与「任务执行记录」并列，勿与 <code>job_log</code> 混为一页</li>
+      <li>保留：配置项 <code>operation_log_counts</code>，超限按 id 删最旧（同 <code>job_log_counts</code>）</li>
+    </ul>
 
     <h3>6.2 存储分离策略</h3>
     <table>
       <tr><th>数据源</th><th>配置项</th><th>内容</th><th>访问方式</th></tr>
       <tr><td>调度库</td><td>cron_db_url</td><td>apscheduler_jobs、下次触发时间</td><td>APScheduler SQLAlchemyJobStore</td></tr>
-      <tr><td>业务库</td><td>cron_job_log_db_url</td><td>cron_infos、job_log、job_log_items</td><td>Flask-SQLAlchemy ORM</td></tr>
+      <tr><td>业务库</td><td>cron_job_log_db_url</td><td>cron_infos、job_log、job_log_items、<strong>operation_log（P1）</strong></td><td>Flask-SQLAlchemy ORM</td></tr>
       <tr><td>可选相同库</td><td>两 URL 指向同一 MySQL</td><td>简化运维</td><td>单机 SQLite 时常分离两文件</td></tr>
     </table>
 
@@ -298,6 +345,105 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
                               └──────────────┘
                         ▲
                         │ cron_check 发现 JobStore 无对应 job</pre>
+
+    <h3 id="op-audit-detail">6.5 管理操作审计详细设计（OPT-P1-09）</h3>
+
+    <h4>6.5.1 设计目标与边界</h4>
+    <table>
+      <tr><th>要记录</th><th>不记录</th></tr>
+      <tr><td>任务配置的增删改、启停（Web + API）</td><td>到点 HTTP 回调执行（已有 <code>job_log</code>）</td></tr>
+      <tr><td>操作时间、渠道、结果、字段级 diff</td><td>登录成功/失败（首批可不做，避免噪音）</td></tr>
+      <tr><td>删任务后的历史（靠冗余 <code>task_name</code>）</td><td>只读查询（列表、看执行记录）</td></tr>
+    </table>
+
+    <h4>6.5.2 时序：写入时机</h4>
+    <pre class="diagram">Browser/API     views/cron_service      DB                 operation_log_service
+     │                  │                   │                         │
+     │──写任务请求──────►│──validate────────►│                         │
+     │                  │──INSERT/UPDATE───►│ cron_infos              │
+     │                  │──scheduler.*──────►│ apscheduler_jobs        │
+     │                  │──commit──────────►│                         │
+     │                  │──record_operation─┼────────────────────────►│ INSERT
+     │◄──响应───────────│                   │                         │
+     │                  │  ※ 审计失败仅打 error.log，不回滚业务事务      │</pre>
+
+    <h4>6.5.3 服务层接口（草案）</h4>
+    <pre># app/services/operation_log_service.py
+
+def record_operation(
+    *,
+    action: str,           # create_cron | update_cron | ...
+    channel: str,          # web | api | system
+    target_type: str,      # cron | job_log
+    target_id: int | None,
+    task_name: str = '',
+    detail: dict | None = None,
+    result: str = 'ok',    # ok | fail
+    error_msg: str = '',
+    actor: str | None = None,
+    client_ip: str | None = None,
+) -> None: ...
+
+def build_cron_diff(before: CronInfos, after_fields: dict) -> dict:
+    """仅包含有变化的字段：{"hour": {"old":"9","new":"10"}}"""</pre>
+
+    <h4>6.5.4 detail_json 约定</h4>
+    <table>
+      <tr><th>action</th><th>detail_json 示例</th></tr>
+      <tr><td><code>create_cron</code></td><td><code>{"task_name":"daily","hour":"9","minute":"0","req_url":"https://..."}</code></td></tr>
+      <tr><td><code>update_cron</code></td><td><code>{"hour":{"old":"9","new":"10"},"req_url":{"old":"...","new":"..."}}</code></td></tr>
+      <tr><td><code>toggle_status</code></td><td><code>{"status":{"old":0,"new":1}}</code></td></tr>
+      <tr><td><code>delete_cron</code></td><td><code>{"snapshot":{"task_name":"...","hour":"9",...}}</code> 删除前最后一屏配置</td></tr>
+      <tr><td><code>batch_delete_cron</code></td><td><code>{"ids":[1,2,3],"task_names":["a","b","c"]}</code></td></tr>
+    </table>
+
+    <h4>6.5.5 actor 与 channel 判定</h4>
+    <table>
+      <tr><th>来源</th><th>channel</th><th>actor</th></tr>
+      <tr><td><code>main/views.py</code>（已登录 Session）</td><td><code>web</code></td><td><code>admin</code> 或 <code>sha256(session_id)[:12]</code></td></tr>
+      <tr><td><code>api/views.py</code>（access_token 校验通过）</td><td><code>api</code></td><td><code>api</code>（不记录 token 明文）</td></tr>
+      <tr><td><code>crons.cron_check</code> 等内置任务改 status</td><td><code>system</code></td><td><code>system</code></td></tr>
+    </table>
+    <p>单密码模式下无法区分「哪个自然人」；多用户/OAuth 为 P2，届时 <code>actor</code> 改为 <code>user_id</code> 或邮箱。</p>
+
+    <h4>6.5.6 索引与保留</h4>
+    <table>
+      <tr><th>索引</th><th>用途</th></tr>
+      <tr><td><code>(create_time)</code></td><td>时间范围筛选、按时间倒序列表</td></tr>
+      <tr><td><code>(task_name)</code></td><td>按任务名搜索（含已删任务）</td></tr>
+      <tr><td><code>(action, channel)</code></td><td>可选，管理端筛选项</td></tr>
+    </table>
+    <p><code>conf.ini</code> 新增 <code>operation_log_counts=5000</code>（0=不裁剪）。内置任务 <code>cron_del_operation_log</code> 可复用 <code>cron_del_job_log</code> 模式，每 8 小时裁剪。</p>
+
+    <h4>6.5.7 管理页线框（operation_log_list.html）</h4>
+    <pre>任务列表 | 任务添加 | 任务执行记录 | 操作记录 | API文档 | 退出
+
+任务名称 [____]  操作类型 [▼全部|创建|修改|启停|删除]  渠道 [▼]  时间 [____] — [____]  [搜索]
+
+| 时间           | 操作     | 任务名称   | 渠道 | 结果 | 详情        |
+|----------------|----------|------------|------|------|-------------|
+| 2026-06-10 ... | 修改任务 | daily_job  | web  | 成功 | hour 9→10   |
+| 2026-06-09 ... | 删除任务 | old_task   | web  | 成功 | [查看快照]  |
+
+※ 与 job_log_all_list 分页风格一致（每页 20 条）</pre>
+
+    <h4>6.5.8 代码接入点清单</h4>
+    <table>
+      <tr><th>文件</th><th>函数</th><th>action</th></tr>
+      <tr><td><code>cron_service.py</code></td><td><code>create_cron</code></td><td><code>create_cron</code></td></tr>
+      <tr><td><code>cron_service.py</code></td><td><code>update_cron</code></td><td><code>update_cron</code></td></tr>
+      <tr><td><code>main/views.py</code></td><td><code>update_status</code></td><td><code>toggle_status</code></td></tr>
+      <tr><td><code>main/views.py</code></td><td><code>cron_del</code> / <code>cron_batch_del</code></td><td><code>delete_cron</code> / <code>batch_delete_cron</code></td></tr>
+      <tr><td><code>api/views.py</code></td><td><code>crons</code> / <code>cron_status</code></td><td>同 Web，<code>channel=api</code></td></tr>
+    </table>
+
+    <h4>6.5.9 迁移与验收</h4>
+    <ul style="margin-left:1rem;font-size:.9rem">
+      <li>Flask-Migrate 新增 <code>operation_log</code> 表；升级不改变既有 <code>cron_infos</code> 数据。</li>
+      <li>单测：<code>record_operation</code> 入库；<code>build_cron_diff</code> 仅输出变化字段。</li>
+      <li>集成：Web 改 hour 后列表可见；API <code>POST /api/cron</code> 行 <code>channel=api</code>。</li>
+      <li>回归：审计写入失败时任务仍创建成功（mock DB 异常测日志）。</li>
+    </ul>
   </section>
 
   <section id="s7">

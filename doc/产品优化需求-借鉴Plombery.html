@@ -349,6 +349,41 @@
         <p><strong>优先级：</strong>在 P1-01 上线同一版本交付。</p>
       </div>
     </article>
+
+    <article class="opt" id="opt-p1-09">
+      <div class="opt-h"><strong>OPT-P1-09</strong> <span class="p1">P1</span> 管理操作审计（operation_log + 操作记录页）</div>
+      <div class="opt-b">
+        <h4>Plombery 对照</h4>
+        <p class="ref">Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元数据分离。CronPilot 当前连「谁改了 cron 表达式」都无记录。</p>
+        <h4>CronPilot 现状与不足</h4>
+        <table>
+          <tr class="gap"><th>现状</th><td>管理端添加/编辑/启停/删除与 <code>/api/cron</code> 写操作<strong>无审计表</strong>；仅 <code>cron_infos</code> 保留<strong>当前配置</strong>；<code>job_log</code> 只记录<strong>到点执行</strong>结果，不是配置变更。</td></tr>
+          <tr class="gap"><th>不足</th><td>无法回答「谁把 9 点改成 10 点」「昨晚谁删了任务」；合规与安全事件复盘困难；与详细技术方案已列风险「无审计日志」一致。</td></tr>
+        </table>
+        <h4>优化方案</h4>
+        <ol style="margin-left:1.2rem;font-size:.9rem">
+          <li>新增表 <code>operation_log</code>（库：<code>cron_job_log_db</code>），字段见 <a href="架构设计文档.html#s6">架构设计 §6.4</a>。</li>
+          <li>新增 <code>app/services/operation_log_service.py</code>，在 <code>cron_service</code> / <code>main/views</code> / <code>api/views</code> 写库成功后统一 <code>record_operation</code>。</li>
+          <li>管理页 <code>/operation_log_list</code>：分页、按任务名/操作类型/时间筛选；导航与「任务执行记录」分 Tab。</li>
+          <li>编辑类操作 <code>detail_json</code> 存字段级 diff；删除类存最后快照摘要。</li>
+          <li>配置 <code>operation_log_counts</code> 控制保留条数（默认可 5000）。</li>
+        </ol>
+        <h4>记录范围（首批）</h4>
+        <table>
+          <tr><th>action</th><th>触发点</th><th>channel</th></tr>
+          <tr><td><code>create_cron</code></td><td><code>/cron_add</code>、<code>/api/cron</code> 新建</td><td>web / api</td></tr>
+          <tr><td><code>update_cron</code></td><td><code>/cron_edit</code>、<code>/api/cron</code> 更新</td><td>web / api</td></tr>
+          <tr><td><code>toggle_status</code></td><td><code>/update_status</code>、<code>/api/cron/status</code></td><td>web / api</td></tr>
+          <tr><td><code>delete_cron</code></td><td><code>/cron_del</code></td><td>web</td></tr>
+          <tr><td><code>batch_delete_cron</code></td><td><code>/cron_batch_del</code></td><td>web</td></tr>
+          <tr><td><code>delete_job_log</code></td><td>执行记录删除（可选 P1）</td><td>web</td></tr>
+        </table>
+        <h4>价值与意义</h4>
+        <p>补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 <code>job_log</code>，两页职责清晰。</p>
+        <p><strong>验收：</strong>Web 改任务后 <code>operation_log</code> 有行且 <code>detail_json</code> 含变更字段；API 改任务 <code>channel=api</code>；列表页可筛可查；删任务后仍可按 <code>task_name</code> 搜到历史。</p>
+        <p><strong>局限（单密码模式）：</strong>无多用户账号时 <code>actor</code> 仅能记 session 指纹或固定 <code>admin</code>，细粒度到人需 P2 OAuth/多用户。</p>
+      </div>
+    </article>
   </section>
 
   <!-- ===================== P2 ===================== -->
@@ -486,7 +521,7 @@
       <tr>
         <td><strong>Phase B</strong></td>
         <td>3–6 周</td>
-        <td>OPT-P1-01 ~ 08（状态、详情、立即执行、OpenAPI…）</td>
+        <td>OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…）</td>
         <td>运维「看得懂成败、点得进详情、验得了任务」— 对齐 Plombery 核心体验</td>
       </tr>
       <tr>
@@ -512,6 +547,7 @@
       <tr><td>OPT-P1-06</td><td>OpenAPI</td><td class="p1">P1</td><td>集成专业度</td></tr>
       <tr><td>OPT-P1-07</td><td>模板 partial</td><td class="p1">P1</td><td>UI 可维护</td></tr>
       <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="p1">P1</td><td>状态可信</td></tr>
+      <tr><td>OPT-P1-09</td><td>管理操作审计</td><td class="p1">P1</td><td>配置变更可追溯</td></tr>
       <tr><td>OPT-P2-01 ~ 09</td><td>SSE/图表/metrics…</td><td class="p2">P2</td><td>体验与规模化增强</td></tr>
     </table>
   </section>

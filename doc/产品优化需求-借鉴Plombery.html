@@ -494,6 +494,31 @@
         <p>降低误配；减少 support。优先级低于「成败可见」类需求。</p>
       </div>
     </article>
+
+    <article class="opt" id="opt-p2-10">
+      <div class="opt-h"><strong>OPT-P2-10</strong> <span class="p2">P2</span> 多用户账号与 RBAC（users / roles / 权限校验）</div>
+      <div class="opt-b">
+        <h4>Plombery 对照</h4>
+        <p class="ref">生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 <code>operation_log</code> 预留 <code>operator_*</code>，P2 需落地真实用户与权限。</p>
+        <h4>CronPilot 现状与不足</h4>
+        <table>
+          <tr class="gap"><th>现状</th><td>全站单一 <code>login_pwd</code>；无 <code>users</code> 表；无路由级权限；操作审计只能记 <code>legacy_admin</code>。</td></tr>
+          <tr class="gap"><th>不足</th><td>多人共用一个密码无法问责；无法「只读运维」与「调度员」分权；企业采购常要求账号与角色。</td></tr>
+        </table>
+        <h4>优化方案</h4>
+        <ol style="margin-left:1.2rem;font-size:.9rem">
+          <li>表：<code>users</code>、<code>roles</code>、<code>user_roles</code>、<code>role_permissions</code>；可选 <code>api_clients</code>（详见 <a href="架构设计文档.html#rbac-detail">架构设计 §6.6</a>）。</li>
+          <li><code>conf.ini</code>：<code>auth_mode=legacy|rbac</code>；迁移脚本从旧 <code>login_pwd</code> 生成首个 admin。</li>
+          <li>装饰器：<code>@require_permission("cron:write")</code> 等，与 OPT-P1-09 审计联动。</li>
+          <li>管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler_admin / viewer / auditor。</li>
+        </ol>
+        <h4>与 OPT-P2-07（OAuth）关系</h4>
+        <p>OAuth 是<strong>登录方式</strong>，本项是<strong>账号与授权模型</strong>；OAuth 用户写入 <code>users</code> 后仍走同一 RBAC。可先交付本地多用户，再接 OAuth。</p>
+        <h4>价值与意义</h4>
+        <p>操作审计可精确到人；满足企业分权与合规；为 API 多客户端打基础。</p>
+        <p><strong>验收：</strong>viewer 403 写操作；scheduler_admin 不可删任务；auditor 可读操作记录；<code>operation_log.operator_id</code> 对齐 <code>users.id</code>。</p>
+      </div>
+    </article>
   </section>
 
   <section id="out">
@@ -527,7 +552,7 @@
       <tr>
         <td><strong>Phase C</strong></td>
         <td>按需</td>
-        <td>OPT-P2 中选：SSE、仪表盘、metrics、coalesce…</td>
+        <td>OPT-P2 中选：SSE、仪表盘、<strong>RBAC（P2-10）</strong>、OAuth、metrics…</td>
         <td>实时感与规模化；对接企业监控栈</td>
       </tr>
     </table>
@@ -548,7 +573,8 @@
       <tr><td>OPT-P1-07</td><td>模板 partial</td><td class="p1">P1</td><td>UI 可维护</td></tr>
       <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="p1">P1</td><td>状态可信</td></tr>
       <tr><td>OPT-P1-09</td><td>管理操作审计</td><td class="p1">P1</td><td>配置变更可追溯</td></tr>
-      <tr><td>OPT-P2-01 ~ 09</td><td>SSE/图表/metrics…</td><td class="p2">P2</td><td>体验与规模化增强</td></tr>
+      <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="p2">P2</td><td>操作人分权与问责</td></tr>
+      <tr><td>OPT-P2-01 ~ 09</td><td>SSE/图表/OAuth/metrics…</td><td class="p2">P2</td><td>体验与规模化增强</td></tr>
     </table>
   </section>
 

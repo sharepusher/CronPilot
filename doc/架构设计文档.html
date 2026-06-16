@@ -436,14 +436,11 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
     </table>
     <p>写操作前由 <code>@require_permission("cron:write")</code>（P2）校验；<strong>无论校验是否通过</strong>，失败尝试也可记 <code>result=fail</code> 行（可选，防滥用时需限流）。</p>
 
-    <h4>6.5.6 P2 预留：用户与角色表（本迭代不建表，仅约定）</h4>
-    <pre class="diagram">users (id, username, email, password_hash, status, …)
-  └── user_roles (user_id, role_id)
-        └── roles (id, code, name)   # admin | scheduler_admin | viewer | auditor
-              └── role_permissions (role_id, permission_code)
-
-operation_log.operator_id  ──(逻辑关联，非强制 FK)──► users.id
-operation_log.operator_roles_json / operator_permissions_json = 操作时刻快照</pre>
+    <h4>6.5.6 P2 预留：用户与角色（概要）</h4>
+    <p>完整表结构、默认角色、鉴权装饰器与迁移方案见下方 <strong><a href="#rbac-detail">§6.6</a></strong>。与 <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> 绑定交付。</p>
+    <pre class="diagram">users ── user_roles ── roles ── role_permissions (permission_code)
+api_clients（可选）── 独立 API 主体，写入 operation_log.operator_type=api_client
+operation_log.operator_id ──(逻辑关联)──► users.id | api_clients.id</pre>
 
     <h4>6.5.7 索引与保留</h4>
     <table>
@@ -486,6 +483,103 @@ operation_log.operator_roles_json / operator_permissions_json = 操作时刻快�
       <li>集成：Web 改 hour 后列表展示操作人 + 角色；API 行 <code>operator_type=api_client</code>。</li>
       <li>P2 接入多用户后：同一 <code>operator_id</code> 可串联历史，无需改表结构。</li>
       <li>回归：审计写入失败时任务仍创建成功。</li>
+    </ul>
+
+    <h3 id="rbac-detail">6.6 P2 多用户与 RBAC 详细设计（OPT-P2-10）</h3>
+    <p>在 P1 <code>operation_log</code> 已预留 <code>operator_*</code> 列的前提下，P2 落地账号体系与权限校验，使「操作人 + 角色」从过渡期 <code>legacy_admin</code> 升级为真实用户/API 主体。</p>
+
+    <h4>6.6.1 设计目标</h4>
+    <table>
+      <tr><th>目标</th><th>说明</th></tr>
+      <tr><td>多用户</td><td>本地账号和/或 OAuth（<a href="产品优化需求-借鉴Plombery.html#opt-p2-07">OPT-P2-07</a>）统一落到 <code>users</code></td></tr>
+      <tr><td>RBAC</td><td>角色 → 权限码；路由与写操作 <code>@require_permission</code></td></tr>
+      <tr><td>可审计</td><td><code>resolve_operator_from_request()</code> 从当前用户展开 roles/permissions 写入快照</td></tr>
+      <tr><td>可迁移</td><td><code>auth_mode=legacy</code> 与 <code>rbac</code> 共存一段时间</td></tr>
+    </table>
+
+    <h4>6.6.2 数据模型（<code>cron_job_log_db</code>）</h4>
+    <table>
+      <tr><th>表</th><th>字段（要点）</th><th>说明</th></tr>
+      <tr><td><code>users</code></td><td><code>id</code> PK · <code>username</code> UNIQUE · <code>email</code> UNIQUE nullable · <code>password_hash</code> nullable · <code>display_name</code> · <code>status</code> 1=启用 0=禁用 · <code>auth_source</code> local/oauth_* · <code>oauth_sub</code> · <code>last_login_at</code> · <code>created_at</code></td><td>OAuth 用户可无本地密码</td></tr>
+      <tr><td><code>roles</code></td><td><code>id</code> PK · <code>code</code> UNIQUE · <code>name</code> · <code>description</code> · <code>is_system</code> 内置角色不可删</td><td>种子：admin / scheduler_admin / viewer / auditor</td></tr>
+      <tr><td><code>user_roles</code></td><td><code>user_id</code> + <code>role_id</code> PK · <code>granted_at</code> · <code>granted_by</code> nullable</td><td>多角色并集授权</td></tr>
+      <tr><td><code>role_permissions</code></td><td><code>role_id</code> + <code>permission_code</code> PK</td><td>权限码字符串，见 §6.5.5</td></tr>
+      <tr><td><code>api_clients</code></td><td><code>id</code> PK · <code>name</code> · <code>token_hash</code> UNIQUE · <code>status</code> · <code>permissions_json</code> TEXT · <code>created_at</code></td><td>可选；多 API 集成方时替代单一 <code>api_access_token</code></td></tr>
+    </table>
+    <pre class="diagram">┌─────────┐     ┌────────────┐     ┌───────┐     ┌──────────────────┐
+│  users  │────►│ user_roles │────►│ roles │────►│ role_permissions │
+└────┬────┘     └────────────┘     └───────┘     │ permission_code  │
+     │                                              └──────────────────┘
+     │  Session user_id / OAuth 绑定 oauth_sub
+     ▼
+┌──────────────┐          ┌─────────────────┐
+│ operation_log│◄────────│ api_clients      │  token 校验 → operator_id
+│ operator_*   │          │ (可选多客户端)    │
+└──────────────┘          └─────────────────┘</pre>
+
+    <h4>6.6.3 内置角色与权限矩阵（种子数据）</h4>
+    <table>
+      <tr><th>role.code</th><th>名称</th><th>permissions</th></tr>
+      <tr><td><code>admin</code></td><td>管理员</td><td><code>*</code>（全部）</td></tr>
+      <tr><td><code>scheduler_admin</code></td><td>调度员</td><td><code>cron:read</code> <code>cron:write</code> <code>cron:toggle</code></td></tr>
+      <tr><td><code>viewer</code></td><td>只读</td><td><code>cron:read</code></td></tr>
+      <tr><td><code>auditor</code></td><td>审计员</td><td><code>cron:read</code> <code>operation_log:read</code></td></tr>
+    </table>
+    <p>权限展开：<code>user.permissions = ⋃ role_permissions</code>；含 <code>*</code> 则通过所有校验。</p>
+
+    <h4>6.6.4 鉴权与会话</h4>
+    <pre class="diagram">conf.ini auth_mode=legacy | rbac
+
+legacy（默认，兼容现状）
+  check_pass → Session[authenticated]=1
+  OperatorContext(legacy_admin, permissions=["*"])
+
+rbac
+  check_pass / OAuth callback → Session[user_id]=N
+  加载 users + user_roles → g.current_user, g.permissions
+  @login_required → 已登录
+  @require_permission("cron:write") → 403 + 可选记 operation_log result=fail</pre>
+    <p>装饰器落点：<code>main/views</code> 写操作、<code>operation_log_list</code> 需 <code>operation_log:read</code>；<code>api/views</code> 校验 token 后映射 <code>api_clients</code> 或全局 API 角色。</p>
+
+    <h4>6.6.5 OperatorContext 解析（RBAC 模式）</h4>
+    <table>
+      <tr><th>场景</th><th>operator_type</th><th>operator_id</th><th>operator_name</th><th>roles / permissions</th></tr>
+      <tr><td>Web 已登录用户</td><td><code>user</code></td><td><code>str(users.id)</code></td><td><code>display_name</code> 或 username</td><td>当前并集快照 JSON</td></tr>
+      <tr><td>API client</td><td><code>api_client</code></td><td><code>str(api_clients.id)</code></td><td><code>api_clients.name</code></td><td>client 配置或绑定角色</td></tr>
+      <tr><td>系统任务</td><td><code>system</code></td><td>空</td><td><code>系统</code></td><td><code>["system"]</code> / <code>["*"]</code></td></tr>
+    </table>
+
+    <h4>6.6.6 从单密码迁移</h4>
+    <ol style="margin-left:1.2rem;font-size:.9rem">
+      <li>配置 <code>auth_mode=rbac</code>，执行迁移脚本 <code>scripts/migrate_legacy_admin_user.py</code>（规划）。</li>
+      <li>创建用户 <code>admin</code>，<code>password_hash</code> 复用现有 <code>login_pwd</code>（pbkdf2 已有则直接拷贝）。</li>
+      <li>赋予 <code>admin</code> 角色；保留 <code>auth_mode=legacy</code> 可回退。</li>
+      <li>历史 <code>operation_log</code> 中 <code>legacy_admin</code> 行保留，新行为 <code>user</code>。</li>
+    </ol>
+
+    <h4>6.6.7 管理页（仅 admin）</h4>
+    <table>
+      <tr><th>路由</th><th>权限</th><th>功能</th></tr>
+      <tr><td><code>/users_list</code></td><td><code>user:read</code> 或 admin</td><td>用户列表、启用/禁用</td></tr>
+      <tr><td><code>/user_edit</code></td><td><code>user:write</code></td><td>创建用户、分配角色（checkbox roles）</td></tr>
+      <tr><td><code>/api_clients_list</code></td><td><code>api_client:write</code></td><td>多 API 令牌管理（可选）</td></tr>
+    </table>
+    <p>扩展权限码（P2）：<code>user:read</code> <code>user:write</code> <code>api_client:write</code> — 仅 <code>admin</code> 角色默认拥有。</p>
+
+    <h4>6.6.8 与 OAuth（OPT-P2-07）关系</h4>
+    <ul style="margin-left:1rem;font-size:.9rem">
+      <li>OAuth 回调：按 <code>oauth_sub</code> 查找或自动创建 <code>users</code>（<code>auth_source=oauth_google</code> 等）。</li>
+      <li>首次 OAuth 登录默认角色 <code>viewer</code>，由 admin 在「用户管理」提权。</li>
+      <li>Session 仍用 <code>user_id</code>；与本地密码用户同一套 RBAC。</li>
+    </ul>
+
+    <h4>6.6.9 验收标准</h4>
+    <ul style="margin-left:1rem;font-size:.9rem">
+      <li><code>viewer</code> 无法访问 <code>/cron_add</code>（403）。</li>
+      <li><code>scheduler_admin</code> 可改任务但不可删任务（无 <code>cron:delete</code>）。</li>
+      <li><code>auditor</code> 可看操作记录，不可改任务。</li>
+      <li>操作审计行 <code>operator_id</code> 等于 <code>users.id</code>，roles/permissions 与操作时一致。</li>
+      <li><code>auth_mode=legacy</code> 升级后旧部署一键迁移 admin 用户。</li>
     </ul>
   </section>
 

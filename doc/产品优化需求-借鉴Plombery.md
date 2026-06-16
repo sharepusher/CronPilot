@@ -495,6 +495,36 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 降低误配；减少 support。优先级低于「成败可见」类需求。
 
+**OPT-P2-10** P2 多用户账号与 RBAC（users / roles / 权限校验）
+
+#### Plombery 对照
+
+生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 `operation_log` 预留 `operator_*`，P2 需落地真实用户与权限。
+
+#### CronPilot 现状与不足
+
+|  |  |
+| --- | --- |
+| 现状 | 全站单一 `login_pwd`；无 `users` 表；无路由级权限；操作审计只能记 `legacy_admin`。 |
+| 不足 | 多人共用一个密码无法问责；无法「只读运维」与「调度员」分权；企业采购常要求账号与角色。 |
+
+#### 优化方案
+
+1. 表：`users`、`roles`、`user_roles`、`role_permissions`；可选 `api_clients`（详见 [架构设计 §6.6](架构设计文档.html#rbac-detail)）。
+2. `conf.ini`：`auth_mode=legacy|rbac`；迁移脚本从旧 `login_pwd` 生成首个 admin。
+3. 装饰器：`@require_permission("cron:write")` 等，与 OPT-P1-09 审计联动。
+4. 管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler\_admin / viewer / auditor。
+
+#### 与 OPT-P2-07（OAuth）关系
+
+OAuth 是**登录方式**，本项是**账号与授权模型**；OAuth 用户写入 `users` 后仍走同一 RBAC。可先交付本地多用户，再接 OAuth。
+
+#### 价值与意义
+
+操作审计可精确到人；满足企业分权与合规；为 API 多客户端打基础。
+
+**验收：**viewer 403 写操作；scheduler\_admin 不可删任务；auditor 可读操作记录；`operation_log.operator_id` 对齐 `users.id`。
+
 ## 明确不做（避免偏离定位）
 
 | Plombery 能力 | 不做原因 | 替代策略 |
@@ -511,7 +541,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 | --- | --- | --- | --- |
 | **Phase A** | 1–2 周 | 全部 OPT-P0-01 ~ 05 | 安全可审计；API 集成稳定；后续改造不再双倍工时 |
 | **Phase B** | 3–6 周 | OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…） | 运维「看得懂成败、点得进详情、验得了任务」— 对齐 Plombery 核心体验 |
-| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、metrics、coalesce… | 实时感与规模化；对接企业监控栈 |
+| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、OAuth、metrics… | 实时感与规模化；对接企业监控栈 |
 
 ### 优先级总览表
 
@@ -531,7 +561,8 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 | OPT-P1-07 | 模板 partial | P1 | UI 可维护 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 状态可信 |
 | OPT-P1-09 | 管理操作审计 | P1 | 配置变更可追溯 |
-| OPT-P2-01 ~ 09 | SSE/图表/metrics… | P2 | 体验与规模化增强 |
+| OPT-P2-10 | 多用户 RBAC | P2 | 操作人分权与问责 |
+| OPT-P2-01 ~ 09 | SSE/图表/OAuth/metrics… | P2 | 体验与规模化增强 |
 
 论证详见各 OPT 卡片 · 对比全文：[Plombery深度对比分析](Plombery深度对比分析.html) ·
 [架构摘要](架构设计文档.html#s14)

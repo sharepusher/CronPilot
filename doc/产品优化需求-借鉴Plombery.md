@@ -348,9 +348,9 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 
 #### 优化方案
 
-1. 新增表 `operation_log`（库：`cron_job_log_db`），字段见 [架构设计 §6.4](架构设计文档.html#s6)。
-2. 新增 `app/services/operation_log_service.py`，在 `cron_service` / `main/views` / `api/views` 写库成功后统一 `record_operation`。
-3. 管理页 `/operation_log_list`：分页、按任务名/操作类型/时间筛选；导航与「任务执行记录」分 Tab。
+1. 新增表 `operation_log`（库：`cron_job_log_db`），含**操作人五元组**：`operator_type`、`operator_id`、`operator_name`、`operator_roles_json`、`operator_permissions_json`（见 [架构设计 §6.5](架构设计文档.html#op-audit-detail)）。
+2. 新增 `OperatorContext` + `resolve_operator_from_request()`，写审计时固化角色/权限快照。
+3. 管理页 `/operation_log_list`：分页、按任务名/**操作人**/操作类型/时间筛选；列表展示**操作人、角色**。
 4. 编辑类操作 `detail_json` 存字段级 diff；删除类存最后快照摘要。
 5. 配置 `operation_log_counts` 控制保留条数（默认可 5000）。
 
@@ -369,9 +369,9 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 
 补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 `job_log`，两页职责清晰。
 
-**验收：**Web 改任务后 `operation_log` 有行且 `detail_json` 含变更字段；API 改任务 `channel=api`；列表页可筛可查；删任务后仍可按 `task_name` 搜到历史。
+**验收：**Web 改任务后审计行含 `operator_name`、`operator_roles_json`；API 行为 `operator_type=api_client`；列表可按操作人筛选；P2 接 `users` 后 `operator_id` 可对齐用户主键无需改表。
 
-**局限（单密码模式）：**无多用户账号时 `actor` 仅能记 session 指纹或固定 `admin`，细粒度到人需 P2 OAuth/多用户。
+**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度到人与 RBAC 校验在 P2（`users` / `roles` / `@require_permission`）落地，P1 先把列和快照机制建好。
 
 ## P2 需求（体验与规模化）
 

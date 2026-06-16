@@ -493,7 +493,7 @@ gunicorn -c gun.py manage:app</pre>
       <tr><td>依赖版本陈旧</td><td>CVE、无官方支持</td><td>升级 Python 3.10+、Flask 2.x</td></tr>
       <tr><td>多 Scheduler 实例</td><td>锁失效时重复执行</td><td>监控 + 单 worker 调度可选方案</td></tr>
       <tr><td>GET 回调无 body</td><td>复杂参数受限</td><td>未来支持 POST + 模板</td></tr>
-      <tr><td>无审计日志</td><td>谁改了任务不可追溯</td><td>增加 operation_log 表</td></tr>
+      <tr><td>无审计日志</td><td>谁改了任务不可追溯</td><td>增加 <code>operation_log</code>（含操作人、角色/权限快照，见 OPT-P1-09）</td></tr>
     </table>
     <h3>15.2 演进路线图</h3>
     <table>

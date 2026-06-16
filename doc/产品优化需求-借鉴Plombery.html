@@ -362,9 +362,9 @@
         </table>
         <h4>优化方案</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>新增表 <code>operation_log</code>（库：<code>cron_job_log_db</code>），字段见 <a href="架构设计文档.html#s6">架构设计 §6.4</a>。</li>
-          <li>新增 <code>app/services/operation_log_service.py</code>，在 <code>cron_service</code> / <code>main/views</code> / <code>api/views</code> 写库成功后统一 <code>record_operation</code>。</li>
-          <li>管理页 <code>/operation_log_list</code>：分页、按任务名/操作类型/时间筛选；导航与「任务执行记录」分 Tab。</li>
+          <li>新增表 <code>operation_log</code>（库：<code>cron_job_log_db</code>），含<strong>操作人五元组</strong>：<code>operator_type</code>、<code>operator_id</code>、<code>operator_name</code>、<code>operator_roles_json</code>、<code>operator_permissions_json</code>（见 <a href="架构设计文档.html#op-audit-detail">架构设计 §6.5</a>）。</li>
+          <li>新增 <code>OperatorContext</code> + <code>resolve_operator_from_request()</code>，写审计时固化角色/权限快照。</li>
+          <li>管理页 <code>/operation_log_list</code>：分页、按任务名/<strong>操作人</strong>/操作类型/时间筛选；列表展示<strong>操作人、角色</strong>。</li>
           <li>编辑类操作 <code>detail_json</code> 存字段级 diff；删除类存最后快照摘要。</li>
           <li>配置 <code>operation_log_counts</code> 控制保留条数（默认可 5000）。</li>
         </ol>
@@ -380,8 +380,8 @@
         </table>
         <h4>价值与意义</h4>
         <p>补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 <code>job_log</code>，两页职责清晰。</p>
-        <p><strong>验收：</strong>Web 改任务后 <code>operation_log</code> 有行且 <code>detail_json</code> 含变更字段；API 改任务 <code>channel=api</code>；列表页可筛可查；删任务后仍可按 <code>task_name</code> 搜到历史。</p>
-        <p><strong>局限（单密码模式）：</strong>无多用户账号时 <code>actor</code> 仅能记 session 指纹或固定 <code>admin</code>，细粒度到人需 P2 OAuth/多用户。</p>
+        <p><strong>验收：</strong>Web 改任务后审计行含 <code>operator_name</code>、<code>operator_roles_json</code>；API 行为 <code>operator_type=api_client</code>；列表可按操作人筛选；P2 接 <code>users</code> 后 <code>operator_id</code> 可对齐用户主键无需改表。</p>
+        <p><strong>单密码过渡期：</strong><code>operator_type=legacy_admin</code>，<code>operator_name=管理员</code>，<code>roles=["admin"]</code>；细粒度到人与 RBAC 校验在 P2（<code>users</code> / <code>roles</code> / <code>@require_permission</code>）落地，P1 先把列和快照机制建好。</p>
       </div>
     </article>
   </section>

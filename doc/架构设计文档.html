@@ -301,7 +301,13 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td><code>create_time</code></td><td>VARCHAR(25)</td><td>与 <code>job_log</code> 一致，本地时间字符串</td></tr>
       <tr><td><code>action</code></td><td>VARCHAR(32)</td><td><code>create_cron</code> <code>update_cron</code> <code>delete_cron</code> <code>toggle_status</code> <code>batch_delete_cron</code> <code>delete_job_log</code> …</td></tr>
       <tr><td><code>channel</code></td><td>VARCHAR(8)</td><td><code>web</code> | <code>api</code> | <code>system</code></td></tr>
-      <tr><td><code>actor</code></td><td>VARCHAR(64)</td><td>Web 会话指纹或 <code>api</code>；单密码模式下无多用户账号</td></tr>
+      <tr><td colspan="3"><strong>操作人（预留多用户 / RBAC，P1 建列、P2 接账号体系）</strong></td></tr>
+      <tr><td><code>operator_type</code></td><td>VARCHAR(16)</td><td><code>user</code> | <code>api_client</code> | <code>system</code> | <code>legacy_admin</code>（单密码过渡期）</td></tr>
+      <tr><td><code>operator_id</code></td><td>VARCHAR(64)</td><td>稳定主体 ID：未来 <code>users.id</code>；API 为 client/token 哈希；legacy 为 session 哈希；system 为空</td></tr>
+      <tr><td><code>operator_name</code></td><td>VARCHAR(120)</td><td>展示名快照：用户名、邮箱、<code>API集成</code>、<code>系统</code>、<code>管理员</code>（删用户后仍可读）</td></tr>
+      <tr><td><code>operator_roles_json</code></td><td>TEXT</td><td>操作时角色快照 JSON 数组，如 <code>["admin"]</code>、<code>["scheduler_admin","viewer"]</code></td></tr>
+      <tr><td><code>operator_permissions_json</code></td><td>TEXT</td><td>操作时权限码快照，如 <code>["cron:read","cron:write","cron:delete"]</code>；全权限可 <code>["*"]</code></td></tr>
+      <tr><td colspan="3"><strong>请求与目标</strong></td></tr>
       <tr><td><code>client_ip</code></td><td>VARCHAR(45)</td><td>可选，取自 <code>X-Forwarded-For</code> / <code>remote_addr</code></td></tr>
       <tr><td><code>target_type</code></td><td>VARCHAR(16)</td><td><code>cron</code> | <code>job_log</code></td></tr>
       <tr><td><code>target_id</code></td><td>INTEGER</td><td><code>cron_infos.id</code> 或 <code>job_log.id</code>；删除后仍可凭 <code>task_name</code> 检索</td></tr>
@@ -317,8 +323,8 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <h4>管理页「操作记录」</h4>
     <ul style="margin-left:1rem;font-size:.9rem">
       <li>路由：<code>GET /operation_log_list</code>（需 <code>@login_required</code>）</li>
-      <li>筛选：任务名、<code>action</code>、时间范围、<code>channel</code></li>
-      <li>列表列：时间、操作、任务名、渠道、结果、详情（展开 <code>detail_json</code>）</li>
+      <li>筛选：任务名、<code>action</code>、<strong>操作人</strong>、<strong>角色</strong>、时间范围、<code>channel</code></li>
+      <li>列表列：时间、操作、<strong>操作人</strong>、<strong>角色</strong>、任务名、渠道、结果、详情（展开 <code>detail_json</code> / 权限快照）</li>
       <li>导航：与「任务执行记录」并列，勿与 <code>job_log</code> 混为一页</li>
       <li>保留：配置项 <code>operation_log_counts</code>，超限按 id 删最旧（同 <code>job_log_counts</code>）</li>
     </ul>
@@ -353,7 +359,8 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><th>要记录</th><th>不记录</th></tr>
       <tr><td>任务配置的增删改、启停（Web + API）</td><td>到点 HTTP 回调执行（已有 <code>job_log</code>）</td></tr>
       <tr><td>操作时间、渠道、结果、字段级 diff</td><td>登录成功/失败（首批可不做，避免噪音）</td></tr>
-      <tr><td>删任务后的历史（靠冗余 <code>task_name</code>）</td><td>只读查询（列表、看执行记录）</td></tr>
+      <tr><td><strong>操作人</strong>、<strong>角色与权限快照</strong>（操作时态）</td><td>只读查询（列表、看执行记录）</td></tr>
+      <tr><td>删任务后的历史（靠冗余 <code>task_name</code>）</td><td>—</td></tr>
     </table>
 
     <h4>6.5.2 时序：写入时机</h4>
@@ -370,22 +377,33 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <h4>6.5.3 服务层接口（草案）</h4>
     <pre># app/services/operation_log_service.py
 
+@dataclass
+class OperatorContext:
+    """从当前请求解析；写入 operation_log 时为快照，不随用户后续改角色而变。"""
+    operator_type: str       # user | api_client | system | legacy_admin
+    operator_id: str = ''    # users.id / api client hash / session hash
+    operator_name: str = '' # 展示名
+    roles: list[str] | None = None         # 如 ["admin"]
+    permissions: list[str] | None = None   # 如 ["cron:write", "cron:delete"]
+
+def resolve_operator_from_request() -> OperatorContext:
+    """Web：legacy_admin + session 哈希；API：api_client；内置任务：system。"""
+
 def record_operation(
     *,
-    action: str,           # create_cron | update_cron | ...
-    channel: str,          # web | api | system
-    target_type: str,      # cron | job_log
+    action: str,
+    channel: str,
+    operator: OperatorContext,   # 必填：操作人 + 角色权限快照
+    target_type: str,
     target_id: int | None,
     task_name: str = '',
     detail: dict | None = None,
-    result: str = 'ok',    # ok | fail
+    result: str = 'ok',
     error_msg: str = '',
-    actor: str | None = None,
     client_ip: str | None = None,
 ) -> None: ...
 
-def build_cron_diff(before: CronInfos, after_fields: dict) -> dict:
-    """仅包含有变化的字段：{"hour": {"old":"9","new":"10"}}"""</pre>
+def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
 
     <h4>6.5.4 detail_json 约定</h4>
     <table>
@@ -397,37 +415,61 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict:
       <tr><td><code>batch_delete_cron</code></td><td><code>{"ids":[1,2,3],"task_names":["a","b","c"]}</code></td></tr>
     </table>
 
-    <h4>6.5.5 actor 与 channel 判定</h4>
+    <h4>6.5.5 操作人、角色与权限快照</h4>
+    <p><strong>原则：</strong>审计行保存<strong>操作当时</strong>的主体与授权态，不存 live 外键到当前用户表（用户删改角色后历史仍可读）。P2 接入 <code>users</code> / RBAC 后，<code>operator_id</code> 对齐用户主键即可。</p>
     <table>
-      <tr><th>来源</th><th>channel</th><th>actor</th></tr>
-      <tr><td><code>main/views.py</code>（已登录 Session）</td><td><code>web</code></td><td><code>admin</code> 或 <code>sha256(session_id)[:12]</code></td></tr>
-      <tr><td><code>api/views.py</code>（access_token 校验通过）</td><td><code>api</code></td><td><code>api</code>（不记录 token 明文）</td></tr>
-      <tr><td><code>crons.cron_check</code> 等内置任务改 status</td><td><code>system</code></td><td><code>system</code></td></tr>
+      <tr><th>来源</th><th>channel</th><th>operator_type</th><th>operator_id / name</th><th>roles / permissions（快照）</th></tr>
+      <tr><td>Web Session（单密码过渡期）</td><td><code>web</code></td><td><code>legacy_admin</code></td><td>id=session 哈希；name=<code>管理员</code> 或 conf <code>admin_display_name</code></td><td><code>["admin"]</code> / <code>["*"]</code></td></tr>
+      <tr><td>Web Session（P2 多用户）</td><td><code>web</code></td><td><code>user</code></td><td>id=<code>users.id</code>；name=用户名或邮箱</td><td>当前用户角色列表 + 展开后的 permission 码</td></tr>
+      <tr><td>REST API <code>access_token</code></td><td><code>api</code></td><td><code>api_client</code></td><td>id=token 或 client_id 哈希；name=<code>API集成</code> 或配置名</td><td><code>["api_scheduler"]</code> + <code>["cron:write",…]</code></td></tr>
+      <tr><td>内置任务 <code>cron_check</code> 等</td><td><code>system</code></td><td><code>system</code></td><td>id 空；name=<code>系统</code></td><td><code>["system"]</code> / <code>["*"]</code></td></tr>
     </table>
-    <p>单密码模式下无法区分「哪个自然人」；多用户/OAuth 为 P2，届时 <code>actor</code> 改为 <code>user_id</code> 或邮箱。</p>
+    <h4>权限码草案（与 P2 RBAC 对齐，P1 可先落常量）</h4>
+    <table>
+      <tr><th>permission</th><th>含义</th><th>典型角色</th></tr>
+      <tr><td><code>cron:read</code></td><td>查看任务与执行记录</td><td>viewer</td></tr>
+      <tr><td><code>cron:write</code></td><td>创建/编辑任务</td><td>scheduler_admin</td></tr>
+      <tr><td><code>cron:toggle</code></td><td>启停任务</td><td>scheduler_admin</td></tr>
+      <tr><td><code>cron:delete</code></td><td>删除任务</td><td>admin</td></tr>
+      <tr><td><code>job_log:delete</code></td><td>删执行记录</td><td>admin</td></tr>
+      <tr><td><code>operation_log:read</code></td><td>查看操作审计</td><td>admin, auditor</td></tr>
+    </table>
+    <p>写操作前由 <code>@require_permission("cron:write")</code>（P2）校验；<strong>无论校验是否通过</strong>，失败尝试也可记 <code>result=fail</code> 行（可选，防滥用时需限流）。</p>
 
-    <h4>6.5.6 索引与保留</h4>
+    <h4>6.5.6 P2 预留：用户与角色表（本迭代不建表，仅约定）</h4>
+    <pre class="diagram">users (id, username, email, password_hash, status, …)
+  └── user_roles (user_id, role_id)
+        └── roles (id, code, name)   # admin | scheduler_admin | viewer | auditor
+              └── role_permissions (role_id, permission_code)
+
+operation_log.operator_id  ──(逻辑关联，非强制 FK)──► users.id
+operation_log.operator_roles_json / operator_permissions_json = 操作时刻快照</pre>
+
+    <h4>6.5.7 索引与保留</h4>
     <table>
       <tr><th>索引</th><th>用途</th></tr>
       <tr><td><code>(create_time)</code></td><td>时间范围筛选、按时间倒序列表</td></tr>
       <tr><td><code>(task_name)</code></td><td>按任务名搜索（含已删任务）</td></tr>
+      <tr><td><code>(operator_id)</code></td><td>按操作人 ID 查历史（多用户后）</td></tr>
+      <tr><td><code>(operator_name)</code></td><td>按展示名模糊搜索</td></tr>
       <tr><td><code>(action, channel)</code></td><td>可选，管理端筛选项</td></tr>
     </table>
     <p><code>conf.ini</code> 新增 <code>operation_log_counts=5000</code>（0=不裁剪）。内置任务 <code>cron_del_operation_log</code> 可复用 <code>cron_del_job_log</code> 模式，每 8 小时裁剪。</p>
 
-    <h4>6.5.7 管理页线框（operation_log_list.html）</h4>
+    <h4>6.5.8 管理页线框（operation_log_list.html）</h4>
     <pre>任务列表 | 任务添加 | 任务执行记录 | 操作记录 | API文档 | 退出
 
-任务名称 [____]  操作类型 [▼全部|创建|修改|启停|删除]  渠道 [▼]  时间 [____] — [____]  [搜索]
+任务名称 [____]  操作人 [____]  操作类型 [▼]  渠道 [▼]  时间 [____]—[____]  [搜索]
 
-| 时间           | 操作     | 任务名称   | 渠道 | 结果 | 详情        |
-|----------------|----------|------------|------|------|-------------|
-| 2026-06-10 ... | 修改任务 | daily_job  | web  | 成功 | hour 9→10   |
-| 2026-06-09 ... | 删除任务 | old_task   | web  | 成功 | [查看快照]  |
+| 时间           | 操作     | 操作人     | 角色        | 任务名称  | 渠道 | 结果 | 详情       |
+|----------------|----------|------------|-------------|-----------|------|------|------------|
+| 2026-06-10 ... | 修改任务 | 张三       | admin       | daily_job | web  | 成功 | hour 9→10  |
+| 2026-06-09 ... | 删除任务 | API集成    | api_scheduler | old_task| api  | 成功 | [快照]     |
+| 2026-06-08 ... | 修改任务 | 管理员     | admin       | trial     | web  | 成功 | [权限 *]   |
 
-※ 与 job_log_all_list 分页风格一致（每页 20 条）</pre>
+※ 角色列展示 operator_roles_json 摘要；详情可展开 permissions 快照</pre>
 
-    <h4>6.5.8 代码接入点清单</h4>
+    <h4>6.5.9 代码接入点清单</h4>
     <table>
       <tr><th>文件</th><th>函数</th><th>action</th></tr>
       <tr><td><code>cron_service.py</code></td><td><code>create_cron</code></td><td><code>create_cron</code></td></tr>
@@ -437,12 +479,13 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict:
       <tr><td><code>api/views.py</code></td><td><code>crons</code> / <code>cron_status</code></td><td>同 Web，<code>channel=api</code></td></tr>
     </table>
 
-    <h4>6.5.9 迁移与验收</h4>
+    <h4>6.5.10 迁移与验收</h4>
     <ul style="margin-left:1rem;font-size:.9rem">
-      <li>Flask-Migrate 新增 <code>operation_log</code> 表；升级不改变既有 <code>cron_infos</code> 数据。</li>
-      <li>单测：<code>record_operation</code> 入库；<code>build_cron_diff</code> 仅输出变化字段。</li>
-      <li>集成：Web 改 hour 后列表可见；API <code>POST /api/cron</code> 行 <code>channel=api</code>。</li>
-      <li>回归：审计写入失败时任务仍创建成功（mock DB 异常测日志）。</li>
+      <li>Flask-Migrate 新增 <code>operation_log</code> 表（含 <code>operator_*</code> 五列）；升级不改变既有 <code>cron_infos</code> 数据。</li>
+      <li>单测：<code>OperatorContext</code> 序列化；<code>resolve_operator_from_request</code> Web/API 分支；roles/permissions 写入 JSON。</li>
+      <li>集成：Web 改 hour 后列表展示操作人 + 角色；API 行 <code>operator_type=api_client</code>。</li>
+      <li>P2 接入多用户后：同一 <code>operator_id</code> 可串联历史，无需改表结构。</li>
+      <li>回归：审计写入失败时任务仍创建成功。</li>
     </ul>
   </section>
 

@@ -1,0 +1,95 @@
+---
+description: RBAC v2 实现规范（Flask 装饰器 + Blueprint，OPT-P2-10）
+globs: app/rbac/**/*.py,datas/model/rbac_*.py,app/main/views.py,tests/test_rbac*.py
+alwaysApply: false
+---
+
+# RBAC v2 开发规范
+
+权威详设：`doc/RBAC架构设计方案.html`（v2 真实代码版）。**废弃** v1.1 中间件、`init_rbac`、`route_registry`、JWT、`auth_mode`、四角色 `superadmin` 等误判方案。
+
+## 定位
+
+- **OPT-P2-10**：需用户明确要求后实施；不顺手扩 scope。
+- **Web RBAC** 与 **API `access_token`** 分离：`app/api/views.py` 的 token 校验**不要**并入角色体系。
+- `rbac_enable=0`（默认）时行为须与现网一致；P0 单测不可回归。
+
+## 代码布局
+
+| 路径 | 职责 |
+|------|------|
+| `app/rbac/__init__.py` | Blueprint，`url_prefix='/rbac'` |
+| `app/rbac/policy.py` | `ROLE_PERMISSIONS`、`has_permission`（**唯一**权限表） |
+| `app/rbac/decorators.py` | `require_permission`；`rbac_enable=0` 时等同 `login_required` |
+| `app/rbac/services.py` | 用户 CRUD、`write_audit_log`、`get_rbac_enabled`、`resolve_role_for_legacy_login` |
+| `app/rbac/views.py` | `/rbac/users`、`/rbac/audit-logs` |
+| `datas/model/rbac_user.py` | 表 `rbac_users` |
+| `datas/model/rbac_audit_log.py` | 表 `rbac_audit_logs` |
+
+## 三角色（勿增第四内置角色）
+
+```python
+ROLE_PERMISSIONS = {
+    'viewer':   {'cron:read', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
+    'admin':    {'cron:read', 'cron:write', 'cron:delete',
+                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+}
+```
+
+权限码：`cron:read` `cron:write` `cron:delete` `log:read` `log:delete` `user:manage` `audit:read`。
+
+## `main/views.py` 改动边界
+
+- **允许**：`from app.rbac.decorators import require_permission`；`@login_required` → `@require_permission('…')`。
+- **禁止**：改 handler 函数体业务逻辑；在 views 内手写 `has_permission`。
+- **不改**：`check_pass` / `logout` 除约定的 `session['role']`（及可选 `user_id`/`username`）写入外。
+
+装饰器映射见 RBAC 文档 §3.4。
+
+## 配置与密码
+
+- 开关：`conf.ini` → `rbac_enable=0|1`；经 `configs.py` → `pz['rbac_enable']`。**不用** `.env` / `AUTH_MODE`。
+- 密码：复用 `app/auth/password.py` 的 `hash_password` / `verify_login_password`；**禁止**新增 bcrypt 依赖或明文 strcmp。
+
+## Session
+
+- 保留 `session['is_login']`。
+- RBAC 启用后增加 `session['role']`；匹配 `rbac_users` 时写入 `user_id`、`username`。
+- P1 `operation_log` 的 `operator_*` 从 Session 快照；RBAC 事件写 `rbac_audit_logs`，**不**替代 `operation_log` 业务审计。
+
+## 数据库
+
+- 使用 **Flask-Migrate**：`python manage.py db migrate` / `db upgrade`。
+- CLI 不可用时方可退化 `ensure_rbac_tables(app)`（限定新模型 `create_all`）。
+- **禁止**手写一次性 SQL 脚本替代 migrate（除非用户明确要求）。
+
+## 响应与拒绝
+
+- 新 JSON 接口：`datas/utils/json.py` → `json_response()`，`errcode` 为 **int**。
+- Web Ajax：`app/common/functions.py` → `web_api_return(code=1, msg='权限不足')`。
+- 页面 GET： `redirect` 带 `msg`；拒绝时可选 `write_audit_log(..., status='deny')`。
+
+## 注册
+
+`app/__init__.py` 仅追加：
+
+```python
+from .rbac import rbac as rbac_blueprint
+app.register_blueprint(rbac_blueprint)
+```
+
+## 测试
+
+- 新增 `tests/test_rbac_phase.py`；命令：`python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v`。
+- 必覆盖：`has_permission` 三角色边界、`rbac_enable=0` 旁路。
+
+## 禁止事项
+
+- ❌ `before_request` 全局中间件 / `route_registry` 自动推断权限
+- ❌ JWT、`api_clients` 多表 RBAC、`users`+`roles`+`user_roles`
+- ❌ 修改 `cron_service.py` 塞权限逻辑（除非仅传 Session 供 P1 审计）
+- ❌ 修改 `app/api/views.py` 的 `access_token` 语义
+- ❌ 引入 pytest 或新 pip 依赖（除非用户确认）
+
+行为变更同步 `RELEASE_NOTES.md`；改 `doc/RBAC架构设计方案.html` 后运行 `python scripts/html_docs_to_markdown.py --check`。

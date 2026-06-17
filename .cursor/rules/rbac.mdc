@@ -8,6 +8,21 @@ alwaysApply: false
 
 权威详设：`doc/RBAC架构设计方案.html`（v2 真实代码版）。**废弃** v1.1 中间件、`init_rbac`、`route_registry`、JWT、`auth_mode`、四角色 `superadmin` 等误判方案。
 
+## 与项目总则 / 后端规范对齐
+
+遵循 `cronpilot-project.mdc` **最小 diff**：
+
+- 只改 RBAC 相关文件（`app/rbac/`、模型、`main/views` 装饰器替换、`check_pass` Session 行、`configs.py` 一行、`app/__init__.py` 两行注册）。
+- 不顺手重构 `cron_service`、`api/views`、现有校验链；不扩 P2 以外 scope（OAuth/SSE 等另项）。
+- 改 `app/` 前先读 `cron_validator` / `cron_service` / 现有 `views`，避免重复造轮子。
+
+遵循 `cronpilot-backend.mdc` **JSON 响应契约**：
+
+- 契约字段：`{errcode: int, errmsg: str, result, data, url}`（见 `datas/utils/json.py`）。
+- **禁止** `errcode` 为字符串（如 `"0"`）；`json_response()` 内已 `int(errcode)`，新增 RBAC API 必须走此路径。
+- `app/rbac/views.py` 等 JSON 端点：只用 `json_response(errcode=0|1, errmsg=..., data=...)`。
+- 现有 Web Ajax 路由（`cron_add` 等）权限拒绝：用 `web_api_return(code=1, msg=...)`（内部仍映射为 int `errcode`），**不**自定义 `{code, message}` 等新格式。
+
 ## 定位
 
 - **OPT-P2-10**：需用户明确要求后实施；不顺手扩 scope。

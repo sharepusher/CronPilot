@@ -8,6 +8,7 @@
 | `cronpilot-backend.mdc` | 后端安全、服务层、API 与 `/docs` 路由 |
 | `cronpilot-documentation.mdc` | HTML+Markdown 双格式文档与 CI 同步 |
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI |
+| `rbac.mdc` | RBAC v2（`app/rbac/`、装饰器、`rbac_enable`；OPT-P2-10） |
 
 **快速命令**
 

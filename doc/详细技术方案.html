@@ -508,66 +508,44 @@ gunicorn -c gun.py manage:app</pre>
 
   <!-- 17 RBAC -->
   <section id="t17">
-    <h2>17. RBAC 与多用户技术规格（OPT-P2-10）</h2>
-    <p>架构级组件图、时序与 ADR 见 <a href="架构设计文档.html#rbac-arch">架构设计文档 §15</a>。本节补充<strong>实现规格与种子数据</strong>。</p>
+    <h2>17. RBAC 与多用户技术规格（OPT-P2-10 · v2）</h2>
+    <p>权威方案：<a href="RBAC架构设计方案.html">RBAC架构设计方案 v2（真实代码版）</a>；架构摘要：<a href="架构设计文档.html#rbac-arch">§15</a>。</p>
 
-    <h3>17.1 内置角色种子（role_permissions）</h3>
+    <h3>17.1 角色与 <code>ROLE_PERMISSIONS</code></h3>
+    <pre>ROLE_PERMISSIONS = {
+    'viewer':   {'cron:read', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
+    'admin':    {'cron:read', 'cron:write', 'cron:delete',
+                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+}</pre>
+
+    <h3>17.2 Session 字段（RBAC 启用后）</h3>
     <table>
-      <tr><th>roles.code</th><th>permission_code</th></tr>
-      <tr><td><code>admin</code></td><td><code>*</code>（实现层短路，可不落库）</td></tr>
-      <tr><td><code>scheduler_admin</code></td><td><code>cron:read</code>、<code>cron:write</code>、<code>cron:toggle</code></td></tr>
-      <tr><td><code>viewer</code></td><td><code>cron:read</code></td></tr>
-      <tr><td><code>auditor</code></td><td><code>cron:read</code>、<code>operation_log:read</code></td></tr>
-    </table>
-    <p><code>admin</code> 额外隐含：<code>user:read</code> <code>user:write</code> <code>api_client:write</code> <code>job_log:delete</code> <code>cron:delete</code>。</p>
-
-    <h3>17.2 CurrentUser 与 OperatorContext（数据结构）</h3>
-    <pre>@dataclass
-class CurrentUser:
-    id: int
-    username: str
-    display_name: str
-    roles: list[str]          # role codes
-    permissions: set[str]
-
-@dataclass
-class OperatorContext:
-    operator_type: str
-    operator_id: str
-    operator_name: str
-    roles: list[str]
-    permissions: list[str]    # 写入 JSON 前 sorted list</pre>
-
-    <h3>17.3 装饰器行为</h3>
-    <table>
-      <tr><th>装饰器</th><th>legacy</th><th>rbac</th></tr>
-      <tr><td><code>@login_required</code></td><td>session.authenticated</td><td>session.user_id 且 users.status=1</td></tr>
-      <tr><td><code>@require_permission("cron:write")</code></td><td>放行（等价 *）</td><td>403 JSON/HTML；无权限不写业务库</td></tr>
+      <tr><th>键</th><th>说明</th></tr>
+      <tr><td><code>is_login</code></td><td>沿用现状</td></tr>
+      <tr><td><code>role</code></td><td><code>viewer</code> / <code>operator</code> / <code>admin</code></td></tr>
+      <tr><td><code>user_id</code>、<code>username</code></td><td>匹配 <code>rbac_users</code> 时写入；供 P1 <code>operation_log</code></td></tr>
     </table>
 
-    <h3>17.4 API 鉴权双轨（过渡期）</h3>
+    <h3>17.3 <code>require_permission</code> 行为</h3>
+    <table>
+      <tr><th><code>rbac_enable</code></th><th>行为</th></tr>
+      <tr><td><code>0</code>（默认）</td><td>等同 <code>@login_required</code>，已登录即放行</td></tr>
+      <tr><td><code>1</code></td><td>校验 <code>has_permission(session['role'], perm)</code>；拒绝 → <code>web_api_return</code> 或 redirect</td></tr>
+    </table>
+
+    <h3>17.4 路由装饰器映射</h3>
+    <p>见 RBAC 文档 §3.4；<code>check_pass</code>、<code>logout</code> 不改；<code>api/views.py</code> 不改。</p>
+
+    <h3>17.5 迁移与配置</h3>
     <ul style="margin-left:1.2rem;font-size:.9rem">
-      <li><strong>Legacy</strong>：单一 <code>api_access_token</code> 校验通过 → <code>OperatorContext(api_client, id=0, permissions=["*"])</code>。</li>
-      <li><strong>RBAC</strong>：<code>api_clients.token_hash</code> 命中 → 使用 <code>permissions_json</code> 列表校验。</li>
+      <li><code>python manage.py db migrate</code> / <code>db upgrade</code></li>
+      <li><code>conf.ini.example</code> 增加 <code>rbac_enable=0</code></li>
+      <li><code>configs.py</code> → <code>pz['rbac_enable']</code></li>
     </ul>
 
-    <h3>17.5 用户管理 API（Web 表单，非 REST）</h3>
-    <table>
-      <tr><th>表单字段</th><th>说明</th></tr>
-      <tr><td>username, display_name, email</td><td>必填/选填</td></tr>
-      <tr><td>password</td><td>创建必填；编辑留空表示不改</td></tr>
-      <tr><td>role_ids[]</td><td>多选 checkbox，提交后全量替换 user_roles</td></tr>
-      <tr><td>status</td><td>启用/禁用</td></tr>
-    </table>
-
-    <h3>17.6 迁移脚本规格</h3>
-    <p><code>scripts/migrate_legacy_admin_user.py</code>（规划）：</p>
-    <ol style="margin-left:1.2rem;font-size:.9rem">
-      <li>若 <code>users</code> 表已有数据则跳过。</li>
-      <li>插入 <code>admin</code> 用户；<code>password_hash</code> 从 <code>login_pwd</code> 读取（已是 pbkdf2 则原样）。</li>
-      <li>绑定 <code>admin</code> 角色；写入种子 roles/permissions。</li>
-      <li>打印提示：请设置 <code>auth_mode=rbac</code> 并重启。</li>
-    </ol>
+    <h3>17.6 测试</h3>
+    <p><code>tests/test_rbac_phase.py</code>：<code>has_permission</code>、legacy 旁路、三角色边界。</p>
   </section>
 
   <!-- 16 -->

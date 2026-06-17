@@ -381,7 +381,7 @@
         <h4>价值与意义</h4>
         <p>补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 <code>job_log</code>，两页职责清晰。</p>
         <p><strong>验收：</strong>Web 改任务后审计行含 <code>operator_name</code>、<code>operator_roles_json</code>；API 行为 <code>operator_type=api_client</code>；列表可按操作人筛选；P2 接 <code>users</code> 后 <code>operator_id</code> 可对齐用户主键无需改表。</p>
-        <p><strong>单密码过渡期：</strong><code>operator_type=legacy_admin</code>，<code>operator_name=管理员</code>，<code>roles=["admin"]</code>；细粒度到人与 RBAC 校验在 P2（<code>users</code> / <code>roles</code> / <code>@require_permission</code>）落地，P1 先把列和快照机制建好。</p>
+        <p><strong>单密码过渡期：</strong><code>operator_type=legacy_admin</code>，<code>operator_name=管理员</code>，<code>roles=["admin"]</code>；细粒度 RBAC 在 P2（<code>rbac_users</code> + <code>@require_permission</code>，见 <a href="RBAC架构设计方案.html">RBAC v2</a>）落地，P1 先把列和快照机制建好。</p>
       </div>
     </article>
   </section>
@@ -496,27 +496,28 @@
     </article>
 
     <article class="opt" id="opt-p2-10">
-      <div class="opt-h"><strong>OPT-P2-10</strong> <span class="p2">P2</span> 多用户账号与 RBAC（users / roles / 权限校验）</div>
+      <div class="opt-h"><strong>OPT-P2-10</strong> <span class="p2">P2</span> 多用户账号与 RBAC（v2 · 真实代码版）</div>
       <div class="opt-b">
         <h4>Plombery 对照</h4>
-        <p class="ref">生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 <code>operation_log</code> 预留 <code>operator_*</code>，P2 需落地真实用户与权限。</p>
+        <p class="ref">生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 <code>operation_log</code> 预留 <code>operator_*</code>，P2 基于真实 Flask 源码落地 RBAC（<strong>废弃</strong> v1.1 中间件误判方案）。</p>
         <h4>CronPilot 现状与不足</h4>
         <table>
-          <tr class="gap"><th>现状</th><td>全站单一 <code>login_pwd</code>；无 <code>users</code> 表；无路由级权限；操作审计只能记 <code>legacy_admin</code>。</td></tr>
-          <tr class="gap"><th>不足</th><td>多人共用一个密码无法问责；无法「只读运维」与「调度员」分权；企业采购常要求账号与角色。</td></tr>
+          <tr class="gap"><th>现状</th><td>全站单一 <code>login_pwd</code>；<code>@login_required</code> 仅查 <code>session['is_login']</code>；API 三处重复 <code>access_token</code> 比对。</td></tr>
+          <tr class="gap"><th>不足</th><td>多人共密无法问责；无法只读/调度分权；企业采购常要求账号与角色。</td></tr>
         </table>
-        <h4>优化方案</h4>
+        <h4>优化方案（v2）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>表：<code>users</code>、<code>roles</code>、<code>user_roles</code>、<code>role_permissions</code>；可选 <code>api_clients</code>（详见 <a href="架构设计文档.html#rbac-detail">§6.6</a>、<a href="架构设计文档.html#rbac-arch">§15 详设</a>）。</li>
-          <li><code>conf.ini</code>：<code>auth_mode=legacy|rbac</code>；迁移脚本从旧 <code>login_pwd</code> 生成首个 admin。</li>
-          <li>装饰器：<code>@require_permission("cron:write")</code> 等，与 OPT-P1-09 审计联动。</li>
-          <li>管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler_admin / viewer / auditor。</li>
+          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate 迁移（详见 <a href="RBAC架构设计方案.html">RBAC架构设计方案 v2</a>）。</li>
+          <li><code>conf.ini</code>：<code>rbac_enable=0|1</code>（默认 0，与现网一致）。</li>
+          <li>新增 Blueprint <code>app/rbac/</code>；<code>main/views.py</code> <strong>仅替换</strong> <code>@login_required</code> → <code>@require_permission(...)</code>。</li>
+          <li>三角色：<code>viewer</code> / <code>operator</code> / <code>admin</code>；管理路由 <code>/rbac/users</code>。</li>
+          <li>API <code>access_token</code> <strong>保持不变</strong>（外部集成独立轨道）。</li>
         </ol>
         <h4>与 OPT-P2-07（OAuth）关系</h4>
-        <p>OAuth 是<strong>登录方式</strong>，本项是<strong>账号与授权模型</strong>；OAuth 用户写入 <code>users</code> 后仍走同一 RBAC。可先交付本地多用户，再接 OAuth。</p>
+        <p>OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC。</p>
         <h4>价值与意义</h4>
-        <p>操作审计可精确到人；满足企业分权与合规；为 API 多客户端打基础。</p>
-        <p><strong>验收：</strong>viewer 403 写操作；scheduler_admin 不可删任务；auditor 可读操作记录；<code>operation_log.operator_id</code> 对齐 <code>users.id</code>。</p>
+        <p>最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。</p>
+        <p><strong>验收：</strong><code>rbac_enable=0</code> 时 P0 单测全绿；<code>rbac_enable=1</code> 时 viewer 不可写、operator 不可删任务；admin 可管用户；<code>rbac_audit_logs</code> 记录拒绝；无新增 pip 依赖。<strong>实施前需用户明确确认。</strong></p>
       </div>
     </article>
   </section>

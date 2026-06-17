@@ -371,7 +371,7 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 
 **验收：**Web 改任务后审计行含 `operator_name`、`operator_roles_json`；API 行为 `operator_type=api_client`；列表可按操作人筛选；P2 接 `users` 后 `operator_id` 可对齐用户主键无需改表。
 
-**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度到人与 RBAC 校验在 P2（`users` / `roles` / `@require_permission`）落地，P1 先把列和快照机制建好。
+**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度 RBAC 在 P2（`rbac_users` + `@require_permission`，见 [RBAC v2](RBAC架构设计方案.html)）落地，P1 先把列和快照机制建好。
 
 ## P2 需求（体验与规模化）
 
@@ -495,35 +495,36 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 降低误配；减少 support。优先级低于「成败可见」类需求。
 
-**OPT-P2-10** P2 多用户账号与 RBAC（users / roles / 权限校验）
+**OPT-P2-10** P2 多用户账号与 RBAC（v2 · 真实代码版）
 
 #### Plombery 对照
 
-生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 `operation_log` 预留 `operator_*`，P2 需落地真实用户与权限。
+生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 `operation_log` 预留 `operator_*`，P2 基于真实 Flask 源码落地 RBAC（**废弃** v1.1 中间件误判方案）。
 
 #### CronPilot 现状与不足
 
 |  |  |
 | --- | --- |
-| 现状 | 全站单一 `login_pwd`；无 `users` 表；无路由级权限；操作审计只能记 `legacy_admin`。 |
-| 不足 | 多人共用一个密码无法问责；无法「只读运维」与「调度员」分权；企业采购常要求账号与角色。 |
+| 现状 | 全站单一 `login_pwd`；`@login_required` 仅查 `session['is_login']`；API 三处重复 `access_token` 比对。 |
+| 不足 | 多人共密无法问责；无法只读/调度分权；企业采购常要求账号与角色。 |
 
-#### 优化方案
+#### 优化方案（v2）
 
-1. 表：`users`、`roles`、`user_roles`、`role_permissions`；可选 `api_clients`（详见 [§6.6](架构设计文档.html#rbac-detail)、[§15 详设](架构设计文档.html#rbac-arch)）。
-2. `conf.ini`：`auth_mode=legacy|rbac`；迁移脚本从旧 `login_pwd` 生成首个 admin。
-3. 装饰器：`@require_permission("cron:write")` 等，与 OPT-P1-09 审计联动。
-4. 管理页：用户列表、角色分配（admin）；内置角色 admin / scheduler\_admin / viewer / auditor。
+1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate 迁移（详见 [RBAC架构设计方案 v2](RBAC架构设计方案.html)）。
+2. `conf.ini`：`rbac_enable=0|1`（默认 0，与现网一致）。
+3. 新增 Blueprint `app/rbac/`；`main/views.py` **仅替换** `@login_required` → `@require_permission(...)`。
+4. 三角色：`viewer` / `operator` / `admin`；管理路由 `/rbac/users`。
+5. API `access_token` **保持不变**（外部集成独立轨道）。
 
 #### 与 OPT-P2-07（OAuth）关系
 
-OAuth 是**登录方式**，本项是**账号与授权模型**；OAuth 用户写入 `users` 后仍走同一 RBAC。可先交付本地多用户，再接 OAuth。
+OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC。
 
 #### 价值与意义
 
-操作审计可精确到人；满足企业分权与合规；为 API 多客户端打基础。
+最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。
 
-**验收：**viewer 403 写操作；scheduler\_admin 不可删任务；auditor 可读操作记录；`operation_log.operator_id` 对齐 `users.id`。
+**验收：**`rbac_enable=0` 时 P0 单测全绿；`rbac_enable=1` 时 viewer 不可写、operator 不可删任务；admin 可管用户；`rbac_audit_logs` 记录拒绝；无新增 pip 依赖。**实施前需用户明确确认。**
 
 ## 明确不做（避免偏离定位）
 

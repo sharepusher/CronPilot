@@ -87,5 +87,31 @@ if [[ "$docs_code" != "200" || ! "$home_code" =~ ^(200|302)$ ]]; then
 fi
 echo "HTTP: OK"
 
+if [[ "${SMOKE_LEVEL:-basic}" == "full" ]]; then
+  echo "=== extended HTTP smoke ==="
+  # shellcheck source=smoke_http.sh
+  source "$SCRIPT_DIR/smoke_http.sh"
+  ext_fail=0
+  smoke_http_suite "http://127.0.0.1:5860" "changeme" || ext_fail=$?
+  if [[ "$ext_fail" -ne 0 ]]; then
+    echo "EXTENDED_HTTP: FAIL ($ext_fail checks)" >&2
+    docker stop "$CONTAINER" && docker rm "$CONTAINER"
+    exit 1
+  fi
+  echo "=== flask db CLI (container) ==="
+  docker exec "$CONTAINER" bash -c 'cd /opt/cronpilot && export FLASK_APP=manage:app FLASK_CONFIG=production && .venv-py39/bin/flask db --help | head -1' || {
+    echo "EXTENDED: flask db FAIL" >&2
+    docker stop "$CONTAINER" && docker rm "$CONTAINER"
+    exit 1
+  }
+  echo "=== gevent / gunicorn (container) ==="
+  docker exec "$CONTAINER" bash -c '.venv-py39/bin/python -c "import gevent, gunicorn; print(gevent.__version__, gunicorn.__version__)"' || {
+    echo "EXTENDED: gevent FAIL" >&2
+    docker stop "$CONTAINER" && docker rm "$CONTAINER"
+    exit 1
+  }
+  echo "EXTENDED: OK"
+fi
+
 docker stop "$CONTAINER" && docker rm "$CONTAINER"
 echo "CLEANUP: OK"

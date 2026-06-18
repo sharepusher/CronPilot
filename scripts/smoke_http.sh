@@ -19,18 +19,21 @@ smoke_http_check() {
 
 smoke_http_cron_list() {
   local base="$1" password="$2"
-  local jar
+  local jar body
   jar=$(mktemp)
   curl -s -c "$jar" -b "$jar" -X POST -d "password=${password}" -o /dev/null "$base/check_pass" 2>/dev/null || true
-  local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" -b "$jar" -L "$base/cron_list" 2>/dev/null || echo "000")
+  body=$(curl -s -b "$jar" -L "$base/cron_list" 2>/dev/null || true)
   rm -f "$jar"
-  if echo "$code" | grep -qE "200"; then
-    echo "PASS cron_list ($code)"
-    return 0
+  if echo "$body" | grep -qi 'system err'; then
+    echo "FAIL cron_list (body contains system err)"
+    return 1
   fi
-  echo "FAIL cron_list ($code)"
-  return 1
+  if ! echo "$body" | grep -q '任务列表'; then
+    echo "FAIL cron_list (missing 任务列表 in body)"
+    return 1
+  fi
+  echo "PASS cron_list (page OK)"
+  return 0
 }
 
 smoke_http_suite() {

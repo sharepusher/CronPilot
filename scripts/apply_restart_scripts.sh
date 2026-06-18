@@ -1,4 +1,40 @@
 #!/bin/bash
+# 将 stop/restart/status 合入 root 属主的 cronpilot.sh / start_local.sh（需 sudo）
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "请使用 sudo 运行: sudo bash scripts/apply_restart_scripts.sh" >&2
+  exit 1
+fi
+
+TARGET_USER="${SUDO_USER:-$USER}"
+chown "$TARGET_USER" "$ROOT/scripts/process.sh" \
+  "$ROOT/scripts/stop_local.sh" \
+  "$ROOT/scripts/stop_production.sh" \
+  "$ROOT/scripts/restart_local.sh" \
+  "$ROOT/scripts/restart_production.sh" \
+  "$ROOT/scripts/status.sh" \
+  "$ROOT/scripts/start_local_full.sh" \
+  "$ROOT/scripts/cronpilot_dev.sh" \
+  "$ROOT/scripts/ensure_sqlite_tables.sh" \
+  "$ROOT/scripts/ensure_sqlite_tables.py" 2>/dev/null || true
+chmod +x "$ROOT/scripts/process.sh" \
+  "$ROOT/scripts/stop_local.sh" \
+  "$ROOT/scripts/stop_production.sh" \
+  "$ROOT/scripts/restart_local.sh" \
+  "$ROOT/scripts/restart_production.sh" \
+  "$ROOT/scripts/status.sh" \
+  "$ROOT/scripts/start_local_full.sh" \
+  "$ROOT/scripts/cronpilot_dev.sh" \
+  "$ROOT/scripts/ensure_sqlite_tables.sh" 2>/dev/null || true
+
+cp -a "$ROOT/scripts/cronpilot.sh" "$ROOT/scripts/cronpilot.sh.bak.$(date +%Y%m%d)" 2>/dev/null || true
+cp -a "$ROOT/scripts/start_local.sh" "$ROOT/scripts/start_local.sh.bak.$(date +%Y%m%d)" 2>/dev/null || true
+
+cat >"$ROOT/scripts/cronpilot.sh" <<'EOF'
+#!/bin/bash
 # CronPilot 统一入口：自动匹配 Python 3.8–3.11，无需手动指定 PY
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -80,3 +116,16 @@ case "$cmd" in
     exit 1
     ;;
 esac
+EOF
+
+cat >"$ROOT/scripts/start_local.sh" <<'EOF'
+#!/bin/bash
+# 兼容入口 → start_local_full.sh
+exec bash "$(dirname "$0")/start_local_full.sh" "$@"
+EOF
+
+chmod +x "$ROOT/scripts/cronpilot.sh" "$ROOT/scripts/start_local.sh"
+chown "$TARGET_USER" "$ROOT/scripts/cronpilot.sh" "$ROOT/scripts/start_local.sh"
+
+echo "OK: cronpilot.sh / start_local.sh 已更新（含 stop / restart / status）"
+echo "试用: bash scripts/cronpilot.sh restart"

@@ -17,10 +17,13 @@
 ```bash
 sudo bash scripts/install_linux.sh --production   # Linux 裸机
 bash scripts/cronpilot.sh start   # 自动匹配 Python 3.8–3.11，无需 PY=
+bash scripts/cronpilot.sh restart        # 本地停+启（推荐）
+bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test
-bash scripts/verify_all.sh              # 本地单测 + HTTP + Docker 全量验收
-bash scripts/verify_all.sh --local-only   # 仅本地
-bash scripts/verify_all.sh --with-compose # 含 docker compose（较慢）
+bash scripts/verify_golden_path.sh       # 黄金路径：双次 restart + 登录 + cron_list 内容断言
+bash scripts/verify_all.sh               # 全量验收（含黄金路径）
+bash scripts/verify_all.sh --local-only
+bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒烟
 python scripts/html_docs_to_markdown.py --check
 ```
 

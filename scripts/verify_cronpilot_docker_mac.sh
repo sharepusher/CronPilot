@@ -7,11 +7,40 @@ DOCKERFILE="${DOCKERFILE:-$CRONPILOT_ROOT/Dockerfile}"
 IMAGE="${IMAGE:-cronpilot:verify-test}"
 CONTAINER="${CONTAINER:-cronpilot-verify}"
 BUILD_LOG="${BUILD_LOG:-/tmp/cronpilot-docker-build.log}"
+VERIFY_CONF="${VERIFY_CONF:-$(mktemp /tmp/cronpilot-docker-verify.XXXXXX.ini)}"
+WAIT_SECS="${WAIT_SECS:-60}"
 cd "$CRONPILOT_ROOT"
+
+cleanup() {
+  rm -f "$VERIFY_CONF" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 if ! docker info >/dev/null 2>&1; then
   echo "ERROR: Docker daemon not reachable. Start Docker Desktop and retry." >&2
   exit 1
 fi
+
+echo "=== prepare SQLite conf for container ==="
+mkdir -p datas/logs
+CRONPILOT_ROOT="$CRONPILOT_ROOT" VERIFY_CONF="$VERIFY_CONF" python3 - <<'PY'
+from configparser import ConfigParser
+import os
+from pathlib import Path
+
+root = Path(os.environ["CRONPILOT_ROOT"])
+out = Path(os.environ["VERIFY_CONF"])
+cp = ConfigParser()
+cp.read(root / "conf.ini.example", encoding="utf-8")
+cp.set("default", "is_single", "1")
+cp.set("default", "cron_db_url", "sqlite:////opt/cronpilot/datas/cron.sqlite")
+cp.set("default", "cron_job_log_db_url", "sqlite:////opt/cronpilot/datas/job_log.sqlite")
+cp.set("default", "login_pwd", "changeme")
+with open(out, "w", encoding="utf-8") as f:
+    cp.write(f)
+print("VERIFY_CONF:", out)
+PY
+
 echo "=== docker build ==="
 set +e
 docker build -f "$DOCKERFILE" -t "$IMAGE" . 2>&1 | tee "$BUILD_LOG"
@@ -24,17 +53,39 @@ if [[ "$BUILD_EXIT" -ne 0 ]]; then
   exit "$BUILD_EXIT"
 fi
 echo "BUILD: OK"
-cp conf.ini.example conf.ini 2>/dev/null || true
+
 docker rm -f "$CONTAINER" 2>/dev/null || true
 echo "=== docker run ==="
 docker run -d --name "$CONTAINER" -p 5860:5860 \
   -v "$(pwd)/datas:/opt/cronpilot/datas" \
-  -v "$(pwd)/conf.ini:/opt/cronpilot/conf.ini" \
+  -v "$VERIFY_CONF:/opt/cronpilot/conf.ini:ro" \
   "$IMAGE"
-sleep 10
-curl -s -o /dev/null -w "docs:%{http_code}\n" http://127.0.0.1:5860/docs/
-curl -s -o /dev/null -w "home:%{http_code}\n" http://127.0.0.1:5860/
+
+echo "=== wait for HTTP (up to ${WAIT_SECS}s) ==="
+deadline=$((SECONDS + WAIT_SECS))
+docs_code="000"
+home_code="000"
+while (( SECONDS < deadline )); do
+  docs_code=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 3 http://127.0.0.1:5860/docs/ 2>/dev/null || echo "000")
+  home_code=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 3 http://127.0.0.1:5860/ 2>/dev/null || echo "000")
+  if [[ "$docs_code" == "200" && "$home_code" =~ ^(200|302)$ ]]; then
+    break
+  fi
+  sleep 2
+done
+
+echo "docs:${docs_code}"
+echo "home:${home_code}"
+
 echo "--- container logs (last 50) ---"
 docker logs "$CONTAINER" 2>&1 | tail -50
+
+if [[ "$docs_code" != "200" || ! "$home_code" =~ ^(200|302)$ ]]; then
+  echo "HTTP: FAIL (docs=${docs_code}, home=${home_code})" >&2
+  docker stop "$CONTAINER" && docker rm "$CONTAINER"
+  exit 1
+fi
+echo "HTTP: OK"
+
 docker stop "$CONTAINER" && docker rm "$CONTAINER"
 echo "CLEANUP: OK"

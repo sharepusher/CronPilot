@@ -12,6 +12,25 @@ v0.1.0 2026-05-29 · Phase A（P0）
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
+## [Unreleased] · 依赖升级 Tier 0
+
+退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。**无 API 协议变更。**
+
+| 变更 | 说明 |
+| --- | --- |
+| Flask-Script 移除 | `manage.py` 注册 Click `db` 子命令 |
+| `requirements-core.txt` | 锁定 `Flask-Migrate`、`alembic==1.4.3` |
+
+```
+export FLASK_APP=manage:app
+flask db migrate -m "描述"
+flask db upgrade
+```
+
+详 [依赖升级 RFC](依赖升级RFC.html) Tier 0。
+
+---
+
 ## [0.1.1] — 2026-06-01
 
 工程化与运维增强，**无 API 协议变更**。

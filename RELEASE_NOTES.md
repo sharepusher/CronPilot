@@ -5,6 +5,28 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
+## [Unreleased]
+
+### 依赖升级 · Tier 0
+
+| 变更 | 说明 |
+|------|------|
+| 退役 Flask-Script | `manage.py` 改用 Flask 内置 `flask db`（Click 注册 Migrate 子命令） |
+| `requirements.txt` | 移除 `Flask-Script==2.0.6` |
+| `requirements-core.txt` | 增加 `Flask-Migrate`、`alembic==1.4.3` 等迁移依赖 |
+
+用法：
+
+```bash
+export FLASK_APP=manage:app
+flask db migrate -m "描述"
+flask db upgrade
+```
+
+试用配置可 `cp conf.ci.ini conf.ini`（SQLite 内存库，无需 MySQL）。
+
+---
+
 ## [0.1.1] — 2026-06-01 · 文档、部署与多版本 Python
 
 在 v0.1.0 基础上的工程化与运维增强，**无 API 协议变更**。

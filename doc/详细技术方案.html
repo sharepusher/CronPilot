@@ -414,15 +414,16 @@ cp conf.example.ini conf.ini
 # 启动
 docker-compose up --build -d
 
-# 库表升级（容器内）
+# 库表升级（容器内；Python 与镜像一致，当前多为 3.9）
 docker exec -it &lt;container&gt; bash -c \
-  'cd /home/www && python3.6 manage.py db migrate -m "upgrade" && python3.6 manage.py db upgrade'</pre>
+  'cd /opt/cronpilot &amp;&amp; export FLASK_APP=manage:app &amp;&amp; flask db migrate -m "upgrade" &amp;&amp; flask db upgrade'</pre>
 
     <h3>12.2 裸机 / Windows</h3>
     <p>参考 <code>doc/windows部署文档.md</code>；核心命令：</p>
     <pre>pip install -r requirements.txt
 cp conf.example.ini conf.ini
-python manage.py db upgrade
+export FLASK_APP=manage:app
+flask db upgrade
 gunicorn -c gun.py manage:app</pre>
 
     <h3>12.3 运维操作手册</h3>
@@ -490,7 +491,7 @@ gunicorn -c gun.py manage:app</pre>
     <h3>15.1 已知风险</h3>
     <table>
       <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
-      <tr><td>依赖版本陈旧</td><td>CVE、无官方支持</td><td>升级 Python 3.10+、Flask 2.x</td></tr>
+      <tr><td>依赖版本陈旧</td><td>CVE、Py3.11 上 gevent/Flask-Script 受限</td><td>按 <a href="依赖升级RFC.html">依赖升级 RFC</a> 分层：Tier 0 Flask CLI → Tier 1 SA 1.4 渐进 → Tier 2 gevent → Tier 3/4 SA2/Flask2</td></tr>
       <tr><td>多 Scheduler 实例</td><td>锁失效时重复执行</td><td>监控 + 单 worker 调度可选方案</td></tr>
       <tr><td>GET 回调无 body</td><td>复杂参数受限</td><td>未来支持 POST + 模板</td></tr>
       <tr><td>无审计日志</td><td>谁改了任务不可追溯</td><td>增加 <code>operation_log</code>（含操作人、角色/权限快照，见 OPT-P1-09）</td></tr>
@@ -503,6 +504,16 @@ gunicorn -c gun.py manage:app</pre>
       <tr><td>Phase 3</td><td>Prometheus metrics + 仪表盘 API</td><td>P2</td></tr>
       <tr><td>Phase 4</td><td>Vue3 管理台、Cron 可视化构建器</td><td>P3</td></tr>
       <tr><td>Phase 5</td><td>可选 POST 回调、任务依赖 DAG</td><td>P4</td></tr>
+    </table>
+    <h3>15.3 依赖升级路线（权威）</h3>
+    <p>详述见 <a href="依赖升级RFC.html">依赖升级 RFC v1.1</a>。执行序按<strong>耦合从弱到强</strong>，禁止跳级：</p>
+    <table>
+      <tr><th>Tier</th><th>内容</th><th>与 RBAC</th></tr>
+      <tr><td>Tier 0</td><td>Flask-Script → <code>flask db</code> 原生 CLI</td><td><strong>已交付</strong>；RBAC 建表前置</td></tr>
+      <tr><td>Tier 1</td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（<code>Model.query</code> 可渐进保留）</td><td>可与 RBAC 并行</td></tr>
+      <tr><td>侧车</td><td>requests / urllib3 安全补丁</td><td>独立 PR</td></tr>
+      <tr><td>Tier 2</td><td>gevent / gunicorn / APScheduler / Python 上限</td><td>RBAC 稳定后</td></tr>
+      <tr><td>Tier 3/4</td><td>SA 2.0 → Flask 2.x</td><td>单独立项，禁止与 RBAC 首期并行</td></tr>
     </table>
   </section>
 
@@ -539,7 +550,7 @@ gunicorn -c gun.py manage:app</pre>
 
     <h3>17.5 迁移与配置</h3>
     <ul style="margin-left:1.2rem;font-size:.9rem">
-      <li><code>python manage.py db migrate</code> / <code>db upgrade</code></li>
+      <li><code>flask --app manage:app db migrate</code> / <code>db upgrade</code>（<strong>Tier 0 已交付</strong>；排期见 <a href="依赖升级RFC.html">依赖升级 RFC</a> §七）</li>
       <li><code>conf.ini.example</code> 增加 <code>rbac_enable=0</code></li>
       <li><code>configs.py</code> → <code>pz['rbac_enable']</code></li>
     </ul>

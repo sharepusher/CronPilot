@@ -10,6 +10,7 @@
 | 架构设计文档 | [架构设计文档.html](架构设计文档.html) | [架构设计文档.md](架构设计文档.md) |
 | **RBAC 架构设计方案（v2）** | [RBAC架构设计方案.html](RBAC架构设计方案.html) | [RBAC架构设计方案.md](RBAC架构设计方案.md) |
 | 详细技术方案 | [详细技术方案.html](详细技术方案.html) | [详细技术方案.md](详细技术方案.md) |
+| **依赖升级 RFC（v1.1）** | [依赖升级RFC.html](依赖升级RFC.html) | [依赖升级RFC.md](依赖升级RFC.md) |
 | Linux 安装总览 | — | [linux安装与运行.md](linux安装与运行.md) |
 | Ubuntu 安装 | — | [ubuntu安装与运行.md](ubuntu安装与运行.md) |
 | CentOS 安装 | — | [centos安装与运行.md](centos安装与运行.md) |

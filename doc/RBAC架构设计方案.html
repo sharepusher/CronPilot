@@ -56,7 +56,7 @@
     <tr><td>配置</td><td><code>auth_mode</code>、JWT、<code>.env</code></td><td><code>conf.ini</code> → <code>rbac_enable=0|1</code></td></tr>
     <tr><td>API</td><td>与 Web 统一 JWT/RBAC</td><td><strong>保持 <code>access_token</code> 不变</strong>（外部集成契约）</td></tr>
     <tr><td>审计</td><td><code>audit_queue</code> 异步写 <code>operation_log</code></td><td><code>rbac_audit_logs</code> 同步写 RBAC 事件；<code>operation_log</code> 仍由 P1 管业务变更</td></tr>
-    <tr><td>迁移</td><td>手写 DDL</td><td>Flask-Migrate（<code>manage.py db migrate</code>，已存在）</td></tr>
+    <tr><td>迁移</td><td>手写 DDL</td><td>Flask-Migrate + <code>flask db</code>（<code>manage.py</code> 已注册 Click 子命令；见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0）</td></tr>
   </table>
 
   <h2>一、现状分析（代码出处）</h2>
@@ -180,9 +180,9 @@ def has_permission(role: str, permission: str) -> bool:
   <p>RBAC 启用后 Session 增加 <code>user_id</code>、<code>username</code>、<code>role</code>，供 P1 <code>operation_log</code> 填充 <code>operator_*</code> 快照（<code>operator_type=user</code>）。</p>
 
   <h3>4.4 迁移</h3>
-  <pre>python manage.py db migrate -m "add rbac_users and rbac_audit_logs"
-python manage.py db upgrade</pre>
-  <p><code>manage.py</code> 已注册 <code>MigrateCommand</code>（Flask-Script 2.0.6）。若 CLI 不可用，退化 <code>ensure_rbac_tables(app)</code> 限定 <code>db.create_all()</code> 范围至两新模型。</p>
+  <pre>flask --app manage:app db migrate -m "add rbac_users and rbac_audit_logs"
+flask --app manage:app db upgrade</pre>
+  <p>迁移 CLI：Flask 原生 <code>flask db</code>（<code>manage.py</code> 已注册 Click 子命令，Py3.11 可用；<strong>Tier 0 已交付</strong>）。排期见 <a href="依赖升级RFC.html">依赖升级 RFC</a> §七；CLI 不可用时退化 <code>ensure_rbac_tables(app)</code>。</p>
 
   <h2>五、目录结构</h2>
   <pre>app/rbac/                    ← 与 main/api/docs 平级 Blueprint
@@ -259,6 +259,7 @@ rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色</pre>
 
   <h2>九、实施步骤</h2>
   <ol>
+    <li><code>flask db</code> CLI 已就绪（<a href="依赖升级RFC.html">依赖升级 RFC</a> <strong>Tier 0</strong>）；可与 RBAC 代码并行实施</li>
     <li>新增 <code>rbac_user.py</code>、<code>rbac_audit_log.py</code> → <code>db migrate</code> / <code>upgrade</code></li>
     <li>新增 <code>app/rbac/</code> Blueprint 全套</li>
     <li><code>app/__init__.py</code> 注册 Blueprint</li>
@@ -281,7 +282,7 @@ rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色</pre>
 
   <h2>十一、风险与待确认</h2>
   <ul>
-    <li>需在目标环境验证 <code>python manage.py db migrate</code> 可用性。</li>
+    <li>建表：目标环境验证 <code>flask --app manage:app db migrate</code> 或 <code>ensure_rbac_tables</code>；<strong>不必</strong>等待 gevent / Flask 2 升级（RFC §七）。</li>
     <li>多用户登录 UX：首期可继续 <code>check_pass</code> 单页输入密码匹配 <code>rbac_users</code>；远期可加 <code>/rbac/login</code> 用户名+密码（非必须）。</li>
     <li>OAuth（OPT-P2-07）为独立后续项，v2 不展开。</li>
     <li><strong>实施前需用户明确确认</strong>进入 OPT-P2-10 开发（项目路线图纪律）。</li>
@@ -292,6 +293,7 @@ rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色</pre>
   <a href="RBAC架构设计方案.md">Markdown</a> ·
   <a href="架构设计文档.html#rbac-arch">架构 §15</a> ·
   <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> ·
+  <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
   <a href="index.html">索引</a>
 </footer>
 </body>

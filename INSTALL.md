@@ -341,7 +341,8 @@ sudo bash -x /var/lib/dpkg/info/postgresql-common.postinst configure 2>&1 | tail
 | 未找到 python3.8 / Unable to locate package | **Ubuntu 16.04 默认源无 3.8**；`sudo bash scripts/install_python_ubuntu.sh`；或 **路径 C pyenv** |
 | Permission denied / dpkg lock | 所有 apt 命令前加 **sudo** |
 | `.venv-py39/bin/pip: No such file` | `rm -rf .venv-py* && bash scripts/bootstrap_venv.sh` |
-| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev` |
+| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev`；或换 Python 3.9/3.10。长期见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html) Tier 2 |
+| 数据库迁移 CLI | `export FLASK_APP=manage:app` 后 `flask db migrate` / `flask db upgrade`（Py3.11 可用；见 [依赖升级 RFC](doc/依赖升级RFC.html) Tier 0） |
 
 ---
 

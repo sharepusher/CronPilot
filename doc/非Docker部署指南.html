@@ -55,7 +55,7 @@
     <h2>2. 环境要求</h2>
     <table>
       <tr><th>组件</th><th>要求</th><th>说明</th></tr>
-      <tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（Flask 1.1 / gevent 20 易失败）</td></tr>
+      <tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（当前 gevent 20 栈；升级见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 2）</td></tr>
       <tr><td>数据库</td><td>MySQL 5.7+ / 8</td><td>生产推荐；试用可用 SQLite</td></tr>
       <tr><td>Redis</td><td>可选</td><td>多实例集群锁；单机设 <code>is_single=1</code></td></tr>
       <tr><td>端口</td><td><strong>5860</strong></td><td><code>gun.py</code> 默认；本地脚本常用 5001</td></tr>
@@ -201,7 +201,8 @@ sudo systemctl status cronpilot</pre>
     <h2>9. 常见问题</h2>
     <table>
       <tr><th>现象</th><th>处理</th></tr>
-      <tr><td><code>pip install gevent</code> 失败</td><td>换 3.8–3.11 中另一版本；本地先用 <code>bash scripts/start_local.sh</code>（core 依赖）</td></tr>
+      <tr><td><code>pip install gevent</code> 失败</td><td>换 3.9/3.10；或本地用 <code>bash scripts/start_local.sh</code>（core 依赖）。长期方案：<a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 2</td></tr>
+      <tr><td>数据库迁移 CLI</td><td><code>export FLASK_APP=manage:app</code> 后 <code>flask db migrate</code> / <code>flask db upgrade</code>（Py3.11 可用；见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0）</td></tr>
       <tr><td>外网无法访问</td><td>确认 Gunicorn <code>0.0.0.0</code>、防火墙、云安全组放行 5860</td></tr>
       <tr><td><code>/docs/</code> 404</td><td>确认已部署含 <code>app/docs/</code> 的版本并重启进程</td></tr>
       <tr><td>调度不触发</td><td>检查 <code>cron_db_url</code>、APScheduler 库表、<code>is_single</code> / Redis</td></tr>
@@ -213,6 +214,7 @@ sudo systemctl status cronpilot</pre>
     <div class="card">
       <ul>
         <li><a href="index.html">文档索引</a></li>
+        <li><a href="依赖升级RFC.html">依赖升级 RFC</a>（Tier 0～4 分层路线、与 RBAC 排期）</li>
         <li><a href="架构设计文档.html">架构设计文档</a>（部署拓扑、集群）</li>
         <li><a href="详细技术方案.html">详细技术方案</a>（配置项、API）</li>
         <li><a href="P0测试用例与验收手册.html">P0 测试与验收</a></li>

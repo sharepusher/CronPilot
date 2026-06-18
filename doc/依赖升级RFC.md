@@ -1,0 +1,329 @@
+# CronPilot · 依赖升级 RFC
+
+> HTML 版：[依赖升级RFC.html](依赖升级RFC.html) · [文档索引](index.html) · [索引 Markdown](index.md)
+
+[← 文档索引](index.html)
+RFC依赖运维P2
+
+# 依赖升级 RFC
+
+分层路线 · 风险分级 · 验收标准 · 与 RBAC / Phase B 的排期约束
+
+状态：Draft v1.1 · 2026-06 · 按「耦合从弱到强」重排 Tier；SA 1.4 渐进策略
+
+**定位：**本文是**决策与排期**文档，不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier 须单独 PR、`RELEASE_NOTES` 条目与回归清单。
+
+## 一、摘要
+
+CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3.11**，这是项目规则与 Docker/CI 共同维护的**稳定栈**，而非遗漏升级。
+
+- **版本偏旧**主要体现在 HTTP 客户端 CVE、gevent 20 在 macOS + Python 3.11 上难以编译；迁移 CLI 已由 **Tier 0** 改为 `flask db`。
+- **大规模升级**（Flask 2、SQLAlchemy 2、Python 3.12+）会牵动调度器、多 worker 锁、全站 `Model.query`，属**独立里程碑**，不应与 RBAC（OPT-P2-10）并行。
+- **推荐路径**（依赖耦合从弱到强）：**Tier 0** Flask 原生 CLI → **Tier 1** SQLAlchemy 1.4 过渡（渐进改写）→ **Tier 2** gevent / Python → **Tier 3/4** SA 2.0 / Flask 2。
+- RBAC 在 **Tier 0 后**即可启动，可与 Tier 1 并行；**不必**等待 gevent。
+
+## 二、现状基线
+
+### 2.1 锁定版本（`requirements.txt`）
+
+| 层级 | 包 | 版本 | 备注 |
+| --- | --- | --- | --- |
+| Web | Flask / Werkzeug / Jinja2 | 1.1.2 / 1.0.1 / 2.11.2 | Flask 1.x 已停止演进 |
+| ORM | SQLAlchemy / Flask-SQLAlchemy | 1.3.19 / 2.4.4 | `Model.query` 遍布业务层 |
+| 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
+| 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
+| WSGI | gunicorn / gevent | 20.0.4 / 20.9.0 | `gun.py` 启动即 monkey patch |
+| HTTP | requests / urllib3 | 2.24.0 / 1.25.10 | 存在已知 CVE，与 Flask 弱耦合 |
+| 辅助 | records / redis / PyMySQL | 0.5.3 / 3.5.3 / 0.10.1 | `CuBackgroundScheduler` 用 records 裸 SQL |
+
+### 2.2 开发与 CI 分工
+
+| 场景 | 依赖文件 | Python | 说明 |
+| --- | --- | --- | --- |
+| 单元测试 | `requirements-core.txt` | 3.8–3.11（matrix） | 无 gevent；`conf.ci.ini` SQLite |
+| 本地冒烟 | `requirements-core.txt` | 3.8–3.11 自动探测 | `scripts/start_local.sh`，Flask 内置 server |
+| 完整生产依赖 | `requirements.txt` | CI 固定 **3.10** | `install-full.yml` + `libev-dev` |
+| Docker 镜像 | `requirements.txt` | **3.9** | `Dockerfile` + gunicorn gevent 健康检查 |
+
+### 2.3 已验证问题（2026-06 本地）
+
+| 现象 | 根因 | 影响面 |
+| --- | --- | --- |
+| `pip install -r requirements.txt` 失败（macOS 3.11） | `gevent==20.9.0` Cython 编译失败 | 本机无法装全量生产栈 |
+| `python manage.py db` 导入失败（3.11） | Flask-Script 使用已移除的 `inspect.getargspec` | **已解决**（Tier 0：`flask db`） |
+| 仅装 Flask-Migrate 后 alembic 升到 1.18 | 未锁 `alembic==1.4.3`，拉取 SQLAlchemy 2.x | 与项目 SA 1.3 冲突 |
+| `create_app()` + 本机 MySQL 未启动 | 调度器启动时连 `cron_db_url` | manage.py 需可用 DB 或 CI 配置 |
+
+## 三、设计原则与约束
+
+| 原则 | 说明 |
+| --- | --- |
+| 最小 diff | 依赖升级 PR 不得夹带 RBAC、operation\_log 等业务功能；反之亦然。 |
+| 行为不变优先 | 调度触发、集群互斥（portalocker + Redis）、回调验签契约不得因升级而改变默认行为。 |
+| Python 3.8–3.11 | 在 **Tier 2** 完成前，项目规则仍禁止默认 3.12+。 |
+| 双格式文档 | 本 RFC 行为变更落地后同步 `RELEASE_NOTES`、`非Docker部署指南`、`INSTALL.md` 相关节。 |
+| 可回滚 | 每一 Tier 须能在同一版本线回退 `requirements*.txt` 并恢复 Docker 构建。 |
+| **耦合从弱到强** | 严格按 Tier 0→1→2→3→4 顺序推进；**禁止跳级**（如未修 CLI 就升 gevent）。每一级合并后须全量回归再进入下一级。 |
+| **SA 1.4 渐进式** | 升到 SQLAlchemy 1.4 后**不强制**一次性改掉 `Model.query`；新代码优先 `text()` / 2.0 风格，旧写法在 1.4 兼容层下分批替换。 |
+
+## 四、依赖耦合强度与升级顺序
+
+下列顺序按**与业务代码/运行时的耦合度**从低到高排列，是 RFC 的**权威执行序**（与安全补丁、RBAC 的并行关系见 §七）。
+
+| 顺序 | 层级 | 动作 | 耦合度 | 为何在此顺位 |
+| --- | --- | --- | --- | --- |
+| 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **已交付**；`manage.py` 注册 `flask db`，解锁 Py3.11 迁移 |
+| 2 | **Tier 1** | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | 1.4 同时容纳旧 `Model.query` 与新 `text()`；避免直达 2.0 的「大爆炸」改写 |
+| ∥ | *侧车* | HTTP 安全补丁（requests / urllib3） | 最弱 | 与 Tier 0/1 无代码交叉，可独立 PR |
+| ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法） |
+| 3 | **Tier 2** | gevent / gunicorn / APScheduler + Python 上限 | 强 | 牵动 monkey patch、多 worker 调度、Docker 金路径 |
+| 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | 须在 Tier 1 后**分批**完成旧 API 清理，再升 2.0 |
+| 5 | **Tier 4** | Flask 1.1 → 2.x | 高 | Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑 |
+
+### 4.1 代码触点与耦合（盘点表）
+
+| 模式 | 出处示例 | 耦合 | Tier 0 | Tier 1 (SA 1.4) | Tier 2 | Tier 3+ |
+| --- | --- | --- | --- | --- | --- | --- |
+| Flask-Script `Manager` | `manage.py` | 最弱 | 替换 | — | — | — |
+| `db.session.execute("裸 SQL")` | `app/crons.py` | 中 | — | 改为 `text()`（小 PR） | — | 必须完成 |
+| `Model.query.filter / paginate` | `main/views.py` 等 | 中 | — | 可暂保留 | — | 升 SA 2 前分批改 |
+| `SQLAlchemyJobStore` | `config.py` | 中 | — | 验证 1.4 | 随 APS 升级 | — |
+| `records` 裸 SQL | `CuBackgroundScheduler.py` | 中 | — | — | — | 与 SQL 整改一并 |
+| `gevent.monkey.patch_all()` | `gun.py` | 强 | — | — | 升级 | — |
+| Flask / Jinja SSR | `decorated.py`、模板 | 强 | — | — | — | Flask 2 |
+
+## 五、分层升级路线（耦合从弱到强）
+
+### Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）· 已交付（Unreleased）
+
+**目标：**只动 `manage.py` 与依赖声明，**不**升 Flask / SQLAlchemy / gevent 主版本。
+
+| 项 | 动作 | 风险 |
+| --- | --- | --- |
+| RFC-0.1 | 移除 Flask-Script；`manage.py` 改用 Flask 应用工厂 + `flask db`（或 Click 注册 `MigrateCommand`） | 低 |
+| RFC-0.2 | `requirements-core.txt` 锁定 `alembic==1.4.3`、`Flask-Migrate==2.5.3`；从 `requirements.txt` 移除 `Flask-Script` | 低 |
+| RFC-0.3 | 文档：`flask --app manage:app db migrate` 用法；Docker `docker_start.sh` 若有 migrate 步骤则同步 | 低 |
+
+#### 验收标准
+
+- Python **3.11**：`flask db --help` 成功（无需 `inspect.getargspec` 补丁）。
+- `bash scripts/cronpilot.sh test` 全 matrix 通过。
+- RBAC / operation\_log 的 `db init | migrate | upgrade` 在 SQLite CI 配置下可跑通。
+
+### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）
+
+**目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.4 下运行；**允许旧 `Model.query` 继续存在**，用多个小 PR 逐步替换，而非一次性重写。
+
+| 项 | 动作 | 说明 |
+| --- | --- | --- |
+| RFC-1.1 | `SQLAlchemy==1.4.52`（或 1.4 末版） | 保持 `Flask-SQLAlchemy==2.4.4`；验证 JobStore |
+| RFC-1.2 | 应用级 `SQLALCHEMY_ENGINE_OPTIONS` 或配置 `future=False`（1.4 默认） | 抑制 2.0 迁移警告至可控范围 |
+| RFC-1.3 | **首批**必改：`app/crons.py` 中 `execute("SELECT 1")` → `execute(text("SELECT 1"))` | 改动面极小，验证 1.4 路径 |
+| RFC-1.4 | 建立「查询改写 backlog」：按文件列出 `Model.query` 触点，RBAC 新代码直接用 `text()` / 推荐写法 | 与 RBAC 并行时，新表模型不增加旧债 |
+| RFC-1.5 | alembic：评估 `1.4.3` 是否仍满足 1.4；若不足则升到 1.7.x（仍 < 2.0），**禁止**解析到 alembic 1.18+ 拉 SA 2 | 锁版本写入 requirements |
+
+#### SA 1.4 渐进策略（核心）
+
+- **允许保留：**`CronInfos.query.filter(...)`、`paginate()` 等直至 Tier 3 前。
+- **新代码要求：**RBAC 模型、operation\_log、任何新 PR 中避免新增裸字符串 `execute`。
+- **分批 PR：**建议按模块（`crons` → `job_log_service` → `main/views` → `cron_service`）逐个合并，每 PR 跑全量单测 + 冒烟。
+- **不做什么：**本 Tier **不**升 SQLAlchemy 2.0、**不**升 Flask-SQLAlchemy 3.x。
+
+#### 验收标准
+
+- 单元测试 + 本地 `start_local.sh` 冒烟通过（SQLite / MySQL 各一轮）。
+- APScheduler JobStore 正常：`apscheduler_jobs` 读写、任务触发无异常。
+- 改写 backlog 已入库（Issue 或 `doc/` 清单），并标记 Tier 3 前须清零的「硬必改」项（裸 `execute`）。
+
+### 侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）
+
+耦合最弱，**不改变 Tier 序号**；任意时刻可独立合并。
+
+| 项 | 候选 | 注意 |
+| --- | --- | --- |
+| RFC-S.1 | `requests` 2.31.x、`urllib3` / `certifi` 同步 | 回归 `cron_do` |
+| RFC-S.2 | `PyMySQL` 小版本（按公告） | 连接池 |
+
+### Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）
+
+**前置条件：**Tier 0、Tier 1 已合并且回归通过。**本 Tier 在 SA 1.4 稳定之后、Flask 2 之前。**
+
+| 项 | 动作 | 风险 |
+| --- | --- | --- |
+| RFC-2.1 | `gevent` 20.9 → 22.x 或 24.x + `greenlet` | 中–高 |
+| RFC-2.2 | `gunicorn` 20 → 21/22，gevent worker 回归 | 中 |
+| RFC-2.3 | `APScheduler` 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调） | 中 |
+| RFC-2.4 | Python：Docker 金路径 3.9 → 评估 3.10/3.11；`install-full.yml` matrix 扩展 | 中 |
+| RFC-2.5 | 项目规则中「勿 3.12+」维持至本 Tier 验收完成 | — |
+
+#### 验收标准
+
+- `pip install -r requirements.txt` 在目标 Python（3.10、3.11）成功。
+- Docker 构建 + gunicorn 健康检查通过；多 worker 调度与 Redis 互斥正常。
+- 不在此 Tier 改 Flask / SA 主版本（除 1.4 补丁）。
+
+### Tier 3 — SQLAlchemy 2.0 + 查询写法收束（数周，耦合高）
+
+**前置条件：**Tier 1 的 backlog 中「硬必改」项已清零；`Model.query` 已分批迁移或经 SA 1.4 弃用警告评估可安全升级。
+
+| 子阶段 | 内容 |
+| --- | --- |
+| 3a | `SQLAlchemy==2.0.x` + `Flask-SQLAlchemy==3.x`；Alembic 升到与 SA 2 匹配版本 |
+| 3b | 剩余 `Model.query` → `db.session.scalars(select(...))`；迁移脚本重放验证 |
+| 3c | 生产库备份 → upgrade → 任务与 `job_log` 只读校验 |
+
+#### 验收标准
+
+- Phase A 单测 + P0 手册 + Docker 全绿。
+- `THIRD_PARTY_NOTICES.md` 更新。
+
+### Tier 4 — Flask 2.x（独立里程碑，与 Tier 3 同窗或紧随）
+
+**目标：**Werkzeug 2 + Jinja2 3 + click 升级。可与 Tier 3 末尾合并为「框架代际」大版本，但**仍晚于** Tier 0/1/2。
+
+- Flask 2.3 LTS 线；全站 session、错误处理、`jsonify` 行为回归。
+- 评估 Python 3.12+ 是否纳入支持范围（依赖 gevent 与本 Tier 结果）。
+
+## 六、组件风险矩阵（对齐新 Tier 序）
+
+| 组件 | 维持现状风险 | 建议 Tier | 说明 |
+| --- | --- | --- | --- |
+| Flask-Script | Py3.11 阻断 migrate | **Tier 0** 已移除 | 耦合最弱，**已完成** |
+| SQLAlchemy 1.3 | 维护结束 | **Tier 1** → 1.4 | 过渡版；渐进改写，非大爆炸 |
+| requests/urllib3 | CVE | **侧车** | 与 Tier 0/1 并行 |
+| gevent 20 | Py3.11 编译失败 | **Tier 2** | 在 SA 1.4 稳定后 |
+| APScheduler 3.6 | 旧 bug | **Tier 2** | 与 gevent 同窗回归 |
+| SQLAlchemy 2.0 | — | **Tier 3** | backlog 清零后 |
+| Flask 1.1 | 无新补丁 | **Tier 4** | 晚于 Tier 2 |
+| records 0.5.3 | 裸 SQL | Tier 3 或 SQL 整改 | 与 OPT 安全项对齐 |
+
+## 七、与 RBAC（OPT-P2-10）的关系
+
+RBAC v2 详设见 [RBAC 架构设计方案](RBAC架构设计方案.html)。本节专门回答：**做 RBAC 前必须升哪些依赖？升级与 RBAC 如何排期？**
+
+### 7.1 结论（审阅要点）
+
+| 问题 | 答案 |
+| --- | --- |
+| RBAC 是否依赖 Flask 2 / SQLAlchemy 2？ | **否。**RBAC 在 Flask 1.1 + SA 1.3/1.4 + 装饰器下可交付；Tier 1 升 1.4 后新表宜用 `text()` 写法。 |
+| RBAC 是否依赖 gevent 升级？ | **否。**RBAC 与 gunicorn worker 无关；gevent 属 **Tier 2**。 |
+| RBAC 前是否必须完成 Tier 0？ | **强烈建议。**否则 Py3.11 无标准 `db migrate`；可退化 `ensure_rbac_tables`。 |
+| RBAC 与 Tier 1（SA 1.4）关系？ | **可并行。**RBAC 合入前完成 Tier 0 即可；若 Tier 1 已合，RBAC 模型避免新增 `Model.query` 债。 |
+| RBAC 与 Tier 2/3/4 能否并行？ | Tier 2 **谨慎**；Tier 3/4 **禁止**与 RBAC 首期并行。 |
+
+### 7.2 RBAC 对当前栈的实际依赖
+
+| RBAC 能力 | 依赖组件 | 当前栈是否满足 |
+| --- | --- | --- |
+| 装饰器 + Session | Flask 1.1、`session` | 是 |
+| 密码哈希 | `app/auth/password.py`（现有） | 是 |
+| JSON 契约 | `json_response` / `web_api_return` | 是 |
+| 新表 `rbac_users`、`rbac_audit_logs` | Flask-SQLAlchemy 2.4 + SA 1.3/1.4 | 是（Tier 1 后更佳） |
+| 库表迁移 | Flask-Migrate + alembic（锁版本） | 是（**Tier 0** 后） |
+| `rbac_enable=0` 兼容 | 无新依赖 | 是 |
+| API `access_token` 不变 | 不升级 `app/api/views.py` | 是（设计约束） |
+
+### 7.3 推荐排期（耦合从弱到强 × RBAC）
+
+```
+权威顺序（升级线）:
+  Tier 0  Flask CLI
+    → Tier 1  SQLAlchemy 1.4（渐进改写，不阻塞功能）
+    → Tier 2  gevent + Python 上限
+    → Tier 3  SQLAlchemy 2.0
+    → Tier 4  Flask 2.x
+
+RBAC 插入点（推荐）:
+  Tier 0 完成
+    → RBAC 实现 + db migrate（可与 Tier 1 并行）
+    → RBAC 验收（rbac_enable=0/1）
+    → 继续 Tier 1 backlog / Tier 2
+
+侧车（任意时刻）:
+  HTTP 安全补丁（requests 等）
+
+禁止:
+  RBAC 首期与 Tier 3/4 同迭代
+  未做 Tier 0 即在 Py3.11 强依赖 Flask-Script migrate
+```
+
+### 7.4 RBAC 实施时各 Tier 的影响
+
+| Tier | 对 RBAC 开发 | 对 RBAC 发布 | 建议 |
+| --- | --- | --- | --- |
+| Tier 0 | 解锁 `flask db migrate` | 标准 Alembic 建表 | RBAC 前置（强烈建议） |
+| Tier 1 (SA 1.4) | 无冲突；新代码避免旧查询债 | 与 1.3 行为一致即可发布 | 可与 RBAC 并行 |
+| 侧车 安全补丁 | 无 | 回调冒烟 | 任意时刻 |
+| Tier 2 gevent | 无直接冲突 | 调度回归 | RBAC 稳定后 |
+| Tier 3/4 | 可能改 RBAC 查询 | 全站迁移 | RBAC 发布后 |
+
+### 7.5 RBAC 迁移验收（与 RFC 验收对齐）
+
+在**不升级 Flask 主版本**前提下，RBAC 发布除 [RBAC 详设 §验收](RBAC架构设计方案.html) 外，还须满足：
+
+- `rbac_enable=0`：`bash scripts/cronpilot.sh test` 与 Phase A 行为一致。
+- `rbac_enable=1`：角色矩阵单测（`tests/test_rbac_phase.py`）通过。
+- 建表：目标环境执行 `db upgrade` 成功，或文档记录 `ensure_rbac_tables` 使用条件与限制（不替代 Alembic 历史时的局限须写清）。
+- 配置：仅 `conf.ini` 的 `rbac_enable`；修改后重启（与现网配置纪律一致）。
+
+### 7.6 不必因 RBAC 而升级的内容
+
+- Flask 2.x / 3.x、Werkzeug 2+
+- SQLAlchemy 2.0、Flask-SQLAlchemy 3.x
+- gevent 22+、Python 3.12+
+- JWT、OAuth、新 API 鉴权协议（RBAC v2 明确不做）
+
+## 八、排期与功能交叉（总表）
+
+| 工作项 | Tier / 位置 | 与 RBAC | 说明 |
+| --- | --- | --- | --- |
+| Flask CLI | Tier 0 | RBAC 前置 | 耦合最弱，最先做 |
+| SQLAlchemy 1.4 | Tier 1 | 可并行 | 渐进改写，不挡 RBAC |
+| RBAC | 功能线 | — | Tier 0 后启动；不等 gevent |
+| HTTP 安全补丁 | 侧车 | 可并行 | 独立 PR |
+| gevent / Python | Tier 2 | RBAC 稳定后 | 耦合强，靠后 |
+| SA 2.0 / Flask 2 | Tier 3/4 | 禁止与 RBAC 首期并行 | 单独立项 |
+
+## 九、推荐执行顺序（甘特）
+
+```
+时间 ─────────────────────────────────────────────────────────────►
+
+[Tier 0 Flask CLI]────┐
+                      ├──► [RBAC + db migrate] ──► [RBAC 发布]
+[Tier 1 SA 1.4 起步]──┘         │                      │
+  （渐进 PR：crons→views…）      │                      ▼
+                                │              [Tier 1 backlog 继续]
+[侧车 requests 补丁]（任意）     │
+                                ▼
+                      [Tier 2 gevent + Py 上限]
+                                │
+                                ▼
+                      [Tier 3 SA 2.0] → [Tier 4 Flask 2]
+```
+
+## 十、决策记录
+
+| ID | 决策 | 理由 | 日期 |
+| --- | --- | --- | --- |
+| DEC-001 | 升级顺序按**依赖耦合从弱到强**：Tier 0 CLI → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4 代际 | 避免 gevent 与 ORM 大爆炸同窗；SA 1.4 作过渡 | 2026-06 |
+| DEC-002 | SA 1.4 阶段**不强制**一次性移除 `Model.query` | 分批 PR；新功能（RBAC）不新增旧债 | 2026-06 |
+| DEC-003 | RBAC 不依赖 Tier 2+；仅需 Tier 0（推荐）或与 Tier 1 并行 | 功能交付不等待 gevent | 2026-06 |
+| DEC-004 | 迁移依赖须锁 alembic，禁止解析到 SA 2.x | 本地 venv 实测 | 2026-06 |
+| DEC-005 | RBAC 允许 `ensure_rbac_tables` 作 Tier 0 未完成时的退化 | 与 RBAC v2 详设一致 | 2026-06 |
+
+## 十一、参考
+
+- [RBAC 架构设计方案 v2](RBAC架构设计方案.html) — OPT-P2-10 权威详设
+- [详细技术方案 §15 风险与演进路线](详细技术方案.html#t15)
+- [技术方案与前端设计](技术方案与前端设计.html) — P0 依赖升级意向
+- [非 Docker 部署指南](非Docker部署指南.html) — Python 3.8–3.11 与 gevent 故障
+- [P0 测试用例与验收手册](P0测试用例与验收手册.html)
+- [License Audit](LICENSE-AUDIT.html)
+- 仓库：`requirements.txt`、`requirements-core.txt`、`.github/workflows/unit-tests.yml`、`install-full.yml`
+
+[Markdown 版](依赖升级RFC.md) · [文档索引](index.html) · CronPilot RFC v1.1 Draft
+
+---
+
+[← 文档索引（HTML）](index.html) · [← 文档索引（Markdown）](index.md)

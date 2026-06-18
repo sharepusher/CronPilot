@@ -33,6 +33,7 @@ Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
 | Compose | Docker Compose v2（`docker compose`） |
 | 宿主机 | 无需安装 Python / MySQL（试用 SQLite） |
 | 端口 | 宿主机 **5860** 未被占用 |
+| 运行时栈 | 镜像内 **Python 3.9 + gevent 20**（勿期望 3.12+；升级路线见 [依赖升级 RFC](依赖升级RFC.html) Tier 2） |
 
 ## 3. 快速开始（SQLite 试用）
 
@@ -151,7 +152,7 @@ GitHub Actions：`.github/workflows/docker-install-verify.yml`。
 bash scripts/verify_cronpilot_docker_mac.sh
 ```
 
-构建根目录 `Dockerfile`，启动容器并 curl `/docs/` 与 `/`。
+构建根目录 `Dockerfile`，生成**临时 SQLite `conf.ini`**（不覆盖宿主机配置），启动容器并 curl `/docs/` 与 `/`。
 
 ## 10. 常见问题
 
@@ -166,6 +167,7 @@ bash scripts/verify_cronpilot_docker_mac.sh
 
 ## 11. 相关文档
 
+- [依赖升级 RFC](依赖升级RFC.html) — Tier 0～4 分层路线、Docker/Python 栈约束
 - [INSTALL.md](../INSTALL.md) — 路径 A/B/C/D 总览
 - [非 Docker 部署指南](非Docker部署指南.html) — 裸机生产、systemd、Nginx
 - <ubuntu安装与运行.md> — Ubuntu 裸机分步

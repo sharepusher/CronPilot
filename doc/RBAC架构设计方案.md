@@ -29,7 +29,7 @@ v2 · 基于 CronPilot 真实源码逆向 · Flask 装饰器 + Blueprint（非 E
 | 配置 | `auth_mode`、JWT、`.env` | `conf.ini` → `rbac_enable=0|1` |
 | API | 与 Web 统一 JWT/RBAC | **保持 `access_token` 不变**（外部集成契约） |
 | 审计 | `audit_queue` 异步写 `operation_log` | `rbac_audit_logs` 同步写 RBAC 事件；`operation_log` 仍由 P1 管业务变更 |
-| 迁移 | 手写 DDL | Flask-Migrate（`manage.py db migrate`，已存在） |
+| 迁移 | 手写 DDL | Flask-Migrate + `flask db`（`manage.py` 已注册 Click 子命令；见 [依赖升级 RFC](依赖升级RFC.html) Tier 0） |
 
 ## 一、现状分析（代码出处）
 
@@ -172,11 +172,11 @@ RBAC 启用后 Session 增加 `user_id`、`username`、`role`，供 P1 `operatio
 ### 4.4 迁移
 
 ```
-python manage.py db migrate -m "add rbac_users and rbac_audit_logs"
-python manage.py db upgrade
+flask --app manage:app db migrate -m "add rbac_users and rbac_audit_logs"
+flask --app manage:app db upgrade
 ```
 
-`manage.py` 已注册 `MigrateCommand`（Flask-Script 2.0.6）。若 CLI 不可用，退化 `ensure_rbac_tables(app)` 限定 `db.create_all()` 范围至两新模型。
+迁移 CLI：Flask 原生 `flask db`（`manage.py` 已注册 Click 子命令，Py3.11 可用；**Tier 0 已交付**）。排期见 [依赖升级 RFC](依赖升级RFC.html) §七；CLI 不可用时退化 `ensure_rbac_tables(app)`。
 
 ## 五、目录结构
 
@@ -274,14 +274,15 @@ rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色
 
 ## 九、实施步骤
 
-1. 新增 `rbac_user.py`、`rbac_audit_log.py` → `db migrate` / `upgrade`
-2. 新增 `app/rbac/` Blueprint 全套
-3. `app/__init__.py` 注册 Blueprint
-4. `main/views.py` 按 §3.4 逐路由替换装饰器；每步跑 P0 单测
-5. `check_pass` 写入 `session['role']`（及可选 `user_id`）
-6. `configs.py` + `conf.ini.example` 增加 `rbac_enable`
-7. 新增 `tests/test_rbac_phase.py`
-8. `RELEASE_NOTES.md` 记录变更
+1. `flask db` CLI 已就绪（[依赖升级 RFC](依赖升级RFC.html) **Tier 0**）；可与 RBAC 代码并行实施
+2. 新增 `rbac_user.py`、`rbac_audit_log.py` → `db migrate` / `upgrade`
+3. 新增 `app/rbac/` Blueprint 全套
+4. `app/__init__.py` 注册 Blueprint
+5. `main/views.py` 按 §3.4 逐路由替换装饰器；每步跑 P0 单测
+6. `check_pass` 写入 `session['role']`（及可选 `user_id`）
+7. `configs.py` + `conf.ini.example` 增加 `rbac_enable`
+8. 新增 `tests/test_rbac_phase.py`
+9. `RELEASE_NOTES.md` 记录变更
 
 ## 十、验收标准
 
@@ -294,7 +295,7 @@ rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色
 
 ## 十一、风险与待确认
 
-- 需在目标环境验证 `python manage.py db migrate` 可用性。
+- 建表：目标环境验证 `flask --app manage:app db migrate` 或 `ensure_rbac_tables`；**不必**等待 gevent / Flask 2 升级（RFC §七）。
 - 多用户登录 UX：首期可继续 `check_pass` 单页输入密码匹配 `rbac_users`；远期可加 `/rbac/login` 用户名+密码（非必须）。
 - OAuth（OPT-P2-07）为独立后续项，v2 不展开。
 - **实施前需用户明确确认**进入 OPT-P2-10 开发（项目路线图纪律）。
@@ -303,6 +304,7 @@ CronPilot · RBAC v2 ·
 [Markdown](RBAC架构设计方案.md) ·
 [架构 §15](架构设计文档.html#rbac-arch) ·
 [OPT-P2-10](产品优化需求-借鉴Plombery.html#opt-p2-10) ·
+[依赖升级 RFC](依赖升级RFC.html) ·
 [索引](index.html)
 
 ---

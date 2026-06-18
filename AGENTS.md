@@ -10,6 +10,8 @@
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI |
 | `rbac.mdc` | RBAC v2（OPT-P2-10；分层、白名单、rbac_enable 兼容；见详设） |
 
+依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0 `flask db` → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4；RBAC 在 Tier 0 后可并行。
+
 **快速命令**
 
 ```bash

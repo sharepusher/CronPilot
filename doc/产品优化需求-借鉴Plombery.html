@@ -507,7 +507,7 @@
         </table>
         <h4>优化方案（v2）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate 迁移（详见 <a href="RBAC架构设计方案.html">RBAC架构设计方案 v2</a>）。</li>
+          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate 迁移（<strong>Tier 0</strong> <code>flask db</code> 后；见 <a href="RBAC架构设计方案.html">RBAC v2</a>、<a href="依赖升级RFC.html">依赖升级 RFC</a> §七）。</li>
           <li><code>conf.ini</code>：<code>rbac_enable=0|1</code>（默认 0，与现网一致）。</li>
           <li>新增 Blueprint <code>app/rbac/</code>；<code>main/views.py</code> <strong>仅替换</strong> <code>@login_required</code> → <code>@require_permission(...)</code>。</li>
           <li>三角色：<code>viewer</code> / <code>operator</code> / <code>admin</code>；管理路由 <code>/rbac/users</code>。</li>
@@ -518,6 +518,24 @@
         <h4>价值与意义</h4>
         <p>最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。</p>
         <p><strong>验收：</strong><code>rbac_enable=0</code> 时 P0 单测全绿；<code>rbac_enable=1</code> 时 viewer 不可写、operator 不可删任务；admin 可管用户；<code>rbac_audit_logs</code> 记录拒绝；无新增 pip 依赖。<strong>实施前需用户明确确认。</strong></p>
+      </div>
+    </article>
+
+    <article class="opt" id="opt-p2-11">
+      <div class="opt-h"><strong>OPT-P2-11</strong> <span class="p2">P2</span> 依赖分层升级（RFC）</div>
+      <div class="opt-b">
+        <h4>背景</h4>
+        <p>当前栈 Flask 1.1 + SQLAlchemy 1.3 + gevent 20 为<strong>稳定选型</strong>，但 Flask-Script 阻断 Py3.11 迁移 CLI、HTTP 依赖存在 CVE、gevent 20 在部分环境难编译。</p>
+        <h4>方案（耦合从弱到强）</h4>
+        <ol style="margin-left:1.2rem;font-size:.9rem">
+          <li><strong>Tier 0</strong>：Flask-Script → <code>flask db</code> 原生 CLI（RBAC / operation_log 建表前置）</li>
+          <li><strong>Tier 1</strong>：SQLAlchemy 1.4 过渡版；<code>Model.query</code> 渐进改写，非大爆炸</li>
+          <li><strong>侧车</strong>：requests / urllib3 安全补丁（独立 PR）</li>
+          <li><strong>Tier 2</strong>：gevent / gunicorn / APScheduler / Python 上限</li>
+          <li><strong>Tier 3/4</strong>：SA 2.0 → Flask 2.x（单独立项）</li>
+        </ol>
+        <p>权威文档：<a href="依赖升级RFC.html">依赖升级 RFC v1.1</a>。与 OPT-P2-10（RBAC）关系：RBAC 在 Tier 0 后可启动，<strong>不必</strong>等待 gevent / Flask 2。</p>
+        <p><strong>验收：</strong>每一 Tier 独立 PR + 全量单测 / Docker 健康检查（Tier 2+）；禁止跳级合并。</p>
       </div>
     </article>
   </section>
@@ -553,7 +571,7 @@
       <tr>
         <td><strong>Phase C</strong></td>
         <td>按需</td>
-        <td>OPT-P2 中选：SSE、仪表盘、<strong>RBAC（P2-10）</strong>、OAuth、metrics…</td>
+        <td>OPT-P2 中选：SSE、仪表盘、<strong>RBAC（P2-10）</strong>、<strong>依赖升级 RFC（P2-11）</strong>、OAuth、metrics…</td>
         <td>实时感与规模化；对接企业监控栈</td>
       </tr>
     </table>
@@ -575,6 +593,7 @@
       <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="p1">P1</td><td>状态可信</td></tr>
       <tr><td>OPT-P1-09</td><td>管理操作审计</td><td class="p1">P1</td><td>配置变更可追溯</td></tr>
       <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="p2">P2</td><td>操作人分权与问责</td></tr>
+      <tr><td>OPT-P2-11</td><td>依赖分层升级</td><td class="p2">P2</td><td>flask db → SA 1.4 → gevent → Flask 2</td></tr>
       <tr><td>OPT-P2-01 ~ 09</td><td>SSE/图表/OAuth/metrics…</td><td class="p2">P2</td><td>体验与规模化增强</td></tr>
     </table>
   </section>

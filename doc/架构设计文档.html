@@ -540,7 +540,7 @@ rbac_enable=1
 
     <h4>6.6.6 迁移</h4>
     <ol style="margin-left:1.2rem;font-size:.9rem">
-      <li><code>python manage.py db migrate</code> / <code>db upgrade</code>（Flask-Migrate 已配置）。</li>
+      <li><code>flask --app manage:app db migrate</code> / <code>db upgrade</code>（Flask-Migrate；<strong>Tier 0</strong> 退役 Flask-Script，见 <a href="依赖升级RFC.html">依赖升级 RFC</a>）。</li>
       <li>种子：可选将 <code>login_pwd</code> 导入为首条 <code>admin</code> 用户。</li>
       <li><code>conf.ini</code> 设 <code>rbac_enable=1</code> 并重启。</li>
     </ol>
@@ -729,6 +729,7 @@ api/views ──► access_token（不变，与 Web RBAC 分离）</pre>
 
     <h3>15.5 实施步骤（摘要）</h3>
     <ol style="margin-left:1rem;font-size:.9rem">
+      <li><code>flask db</code> CLI 已就绪（<a href="依赖升级RFC.html">依赖升级 RFC</a> <strong>Tier 0</strong>）</li>
       <li>Flask-Migrate 新增 <code>rbac_users</code>、<code>rbac_audit_logs</code></li>
       <li>注册 <code>app/rbac</code> Blueprint</li>
       <li><code>main/views.py</code> 装饰器替换（见 RBAC 文档 §3.4）</li>
@@ -766,7 +767,10 @@ CREATE TABLE rbac_audit_logs (
     <h3>15.8 与 operation_log 集成</h3>
     <p>P1 <code>operation_log</code> 记录 cron 业务变更；RBAC 启用后从 Session 取 <code>user_id</code>、<code>username</code>、<code>role</code> 写入 <code>operator_*</code>。RBAC 自身事件写 <code>rbac_audit_logs</code>。</p>
 
-    <h3>15.9 ADR-06（修订）</h3>
+    <h3>15.9 依赖升级排期（与 RBAC）</h3>
+    <p>RBAC <strong>不依赖</strong> Flask 2 / gevent 升级。权威路线：<a href="依赖升级RFC.html">依赖升级 RFC</a> — Tier 0 <code>flask db</code> → Tier 1 SA 1.4 渐进 → Tier 2 gevent → Tier 3/4 代际；RBAC 在 Tier 0 后可与 Tier 1 并行。</p>
+
+    <h3>15.10 ADR-06（修订）</h3>
     <table>
       <tr><th>决策</th><th>理由</th></tr>
       <tr><td>应用内三角色 + 单表用户</td><td>轻量、贴合 Flask 装饰器习惯、最小 diff</td></tr>

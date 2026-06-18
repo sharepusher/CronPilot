@@ -510,7 +510,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 #### 优化方案（v2）
 
-1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate 迁移（详见 [RBAC架构设计方案 v2](RBAC架构设计方案.html)）。
+1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate 迁移（**Tier 0** `flask db` 后；见 [RBAC v2](RBAC架构设计方案.html)、[依赖升级 RFC](依赖升级RFC.html) §七）。
 2. `conf.ini`：`rbac_enable=0|1`（默认 0，与现网一致）。
 3. 新增 Blueprint `app/rbac/`；`main/views.py` **仅替换** `@login_required` → `@require_permission(...)`。
 4. 三角色：`viewer` / `operator` / `admin`；管理路由 `/rbac/users`。
@@ -525,6 +525,24 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。
 
 **验收：**`rbac_enable=0` 时 P0 单测全绿；`rbac_enable=1` 时 viewer 不可写、operator 不可删任务；admin 可管用户；`rbac_audit_logs` 记录拒绝；无新增 pip 依赖。**实施前需用户明确确认。**
+
+**OPT-P2-11** P2 依赖分层升级（RFC）
+
+#### 背景
+
+当前栈 Flask 1.1 + SQLAlchemy 1.3 + gevent 20 为**稳定选型**，但 Flask-Script 阻断 Py3.11 迁移 CLI、HTTP 依赖存在 CVE、gevent 20 在部分环境难编译。
+
+#### 方案（耦合从弱到强）
+
+1. **Tier 0**：Flask-Script → `flask db` 原生 CLI（RBAC / operation\_log 建表前置）
+2. **Tier 1**：SQLAlchemy 1.4 过渡版；`Model.query` 渐进改写，非大爆炸
+3. **侧车**：requests / urllib3 安全补丁（独立 PR）
+4. **Tier 2**：gevent / gunicorn / APScheduler / Python 上限
+5. **Tier 3/4**：SA 2.0 → Flask 2.x（单独立项）
+
+权威文档：[依赖升级 RFC v1.1](依赖升级RFC.html)。与 OPT-P2-10（RBAC）关系：RBAC 在 Tier 0 后可启动，**不必**等待 gevent / Flask 2。
+
+**验收：**每一 Tier 独立 PR + 全量单测 / Docker 健康检查（Tier 2+）；禁止跳级合并。
 
 ## 明确不做（避免偏离定位）
 
@@ -542,7 +560,7 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 | --- | --- | --- | --- |
 | **Phase A** | 1–2 周 | 全部 OPT-P0-01 ~ 05 | 安全可审计；API 集成稳定；后续改造不再双倍工时 |
 | **Phase B** | 3–6 周 | OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…） | 运维「看得懂成败、点得进详情、验得了任务」— 对齐 Plombery 核心体验 |
-| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、OAuth、metrics… | 实时感与规模化；对接企业监控栈 |
+| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、**依赖升级 RFC（P2-11）**、OAuth、metrics… | 实时感与规模化；对接企业监控栈 |
 
 ### 优先级总览表
 
@@ -563,6 +581,7 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 状态可信 |
 | OPT-P1-09 | 管理操作审计 | P1 | 配置变更可追溯 |
 | OPT-P2-10 | 多用户 RBAC | P2 | 操作人分权与问责 |
+| OPT-P2-11 | 依赖分层升级 | P2 | flask db → SA 1.4 → gevent → Flask 2 |
 | OPT-P2-01 ~ 09 | SSE/图表/OAuth/metrics… | P2 | 体验与规模化增强 |
 
 论证详见各 OPT 卡片 · 对比全文：[Plombery深度对比分析](Plombery深度对比分析.html) ·

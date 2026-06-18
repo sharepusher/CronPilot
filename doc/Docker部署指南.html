@@ -62,6 +62,7 @@
       <tr><td>Compose</td><td>Docker Compose v2（<code>docker compose</code>）</td></tr>
       <tr><td>宿主机</td><td>无需安装 Python / MySQL（试用 SQLite）</td></tr>
       <tr><td>端口</td><td>宿主机 <strong>5860</strong> 未被占用</td></tr>
+      <tr><td>运行时栈</td><td>镜像内 <strong>Python 3.9 + gevent 20</strong>（勿期望 3.12+；升级路线见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 2）</td></tr>
     </table>
   </section>
 
@@ -161,7 +162,7 @@ docker run -d --name cronpilot \
     <p>GitHub Actions：<code>.github/workflows/docker-install-verify.yml</code>。</p>
     <h3>Mac 一键验收运行镜像</h3>
     <pre>bash scripts/verify_cronpilot_docker_mac.sh</pre>
-    <p>构建根目录 <code>Dockerfile</code>，启动容器并 curl <code>/docs/</code> 与 <code>/</code>。</p>
+    <p>构建根目录 <code>Dockerfile</code>，生成<strong>临时 SQLite <code>conf.ini</code></strong>（不覆盖宿主机配置），启动容器并 curl <code>/docs/</code> 与 <code>/</code>。</p>
   </section>
 
   <section>
@@ -180,6 +181,7 @@ docker run -d --name cronpilot \
   <section>
     <h2>11. 相关文档</h2>
     <ul>
+      <li><a href="依赖升级RFC.html">依赖升级 RFC</a> — Tier 0～4 分层路线、Docker/Python 栈约束</li>
       <li><a href="../INSTALL.md">INSTALL.md</a> — 路径 A/B/C/D 总览</li>
       <li><a href="非Docker部署指南.html">非 Docker 部署指南</a> — 裸机生产、systemd、Nginx</li>
       <li><a href="ubuntu安装与运行.md">ubuntu安装与运行.md</a> — Ubuntu 裸机分步</li>

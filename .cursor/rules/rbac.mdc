@@ -101,9 +101,10 @@ RBAC 管理端：`/rbac/users*` → `user:manage`；`/rbac/audit-logs` → `audi
 
 ## 数据库
 
-- 优先 **Flask-Migrate**：`python manage.py db migrate` / `db upgrade`。
+- 优先 **Flask-Migrate**：`flask --app manage:app db migrate` / `db upgrade`（`manage.py` 已注册 `flask db` 子命令，Py3.11 可用）。
 - CLI 不可用时：`ensure_rbac_tables(app)` 限定 `db.create_all()` 至两新模型。
 - **禁止**手写一次性 SQL 替代 migrate（除非用户明确要求）。
+- RBAC **不依赖** gevent / Flask 2 / SQLAlchemy 2.0 升级。
 
 ## 兼容性硬约束（最高优先级）
 

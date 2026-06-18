@@ -40,6 +40,22 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
+<h2 class="new">[Unreleased] · 依赖升级 Tier 0</h2>
+  <div class="card highlight">
+    <p>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<strong>无 API 协议变更。</strong></p>
+  </div>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>Flask-Script 移除</td><td><code>manage.py</code> 注册 Click <code>db</code> 子命令</td></tr>
+    <tr><td><code>requirements-core.txt</code></td><td>锁定 <code>Flask-Migrate</code>、<code>alembic==1.4.3</code></td></tr>
+  </table>
+  <pre>export FLASK_APP=manage:app
+flask db migrate -m "描述"
+flask db upgrade</pre>
+  <p>详 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0。</p>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0">
+
   <h2 class="new">[0.1.1] — 2026-06-01</h2>
   <div class="card highlight">
     <p>工程化与运维增强，<strong>无 API 协议变更</strong>。</p>

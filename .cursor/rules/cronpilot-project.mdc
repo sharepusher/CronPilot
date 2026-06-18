@@ -38,6 +38,7 @@ alwaysApply: true
 | Phase A (P0) | SQL ORM、密码哈希、SSRF、JSON 契约、cron 校验统一 | 已交付，回归时勿回退 |
 | Phase B (P1) | 执行 status、失败规则、详情页、立即执行等 | 文档/PRD 为主，实现需用户确认 |
 | Phase C (P2) | SSE、图表、OAuth 等 | 同上 |
+| 依赖升级 (OPT-P2-11) | Tier 0 `flask db`（已交付）→ Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4 | 权威路线 `doc/依赖升级RFC.html`；RBAC 在 Tier 0 后可并行 |
 
 ## 测试
 

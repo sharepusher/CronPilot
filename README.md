@@ -14,7 +14,7 @@
 | API 契约 | 统一 `errcode` 数字类型；修复前端 `requests.js` 判断 |
 | 校验统一 | `cron_validator` + `cron_service`，Web/API 单一路径 |
 
-后续路线图见 `doc/产品优化需求-借鉴Plombery.html`（P1 可观测、P2 体验）。
+后续路线图见 `doc/产品优化需求-借鉴Plombery.html`（P1 可观测、P2 体验）；依赖分层升级见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html)（OPT-P2-11：Tier 0 `flask db` → SA 1.4 → gevent → Flask 2）。
 
 ## 快速开始
 
@@ -108,7 +108,7 @@ bash scripts/docker/verify_all.sh all
 
 | 组件 | 要求 |
 |------|------|
-| Python | **3.8～3.11**（勿用 3.12+，与 Flask 1.1 / gevent 20 不兼容） |
+| Python | **3.8～3.11**（勿用 3.12+；gevent 20 栈见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html) Tier 2） |
 | 数据库 | **MySQL**（推荐）或 SQLite（试用） |
 | Redis | 多节点集群时必需；单机可 `is_single=1` |
 | 端口 | 管理端默认 **5860**（`gun.py`）；本地脚本常用 **5001** |
@@ -271,7 +271,7 @@ GitHub Actions：
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
 | **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 在 3.10 验证全量依赖 |
 
-文档含：**[INSTALL.md](INSTALL.md)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
+文档含：**[INSTALL.md](INSTALL.md)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
 ## AI / 协作规范（Cursor）
 

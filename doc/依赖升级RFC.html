@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 依赖升级 RFC</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#4338ca;--ok:#059669;--warn:#b45309;--risk:#b91c1c}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#312e81,#4338ca 50%,#6366f1);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:980px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    h4{font-size:.95rem;color:#475569;margin:1rem 0 .4rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .risk{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .tier{border-left:4px solid var(--accent);padding-left:1rem;margin:1.25rem 0}
+    .tier.t0{border-color:var(--ok)}
+    .tier.t1{border-color:#0d9488}
+    .tier.t2{border-color:var(--warn)}
+    .tier.t3{border-color:var(--risk)}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .status-draft{color:#fcd34d;font-weight:600}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#c7d2fe;font-size:.9rem">← 文档索引</a>
+  <span class="tag">RFC</span><span class="tag">依赖</span><span class="tag">运维</span><span class="tag">P2</span>
+  <h1>依赖升级 RFC</h1>
+  <p>分层路线 · 风险分级 · 验收标准 · 与 RBAC / Phase B 的排期约束</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.9">状态：<span class="status-draft">Draft v1.1</span> · 2026-06 · 按「耦合从弱到强」重排 Tier；SA 1.4 渐进策略</p>
+</header>
+
+<main class="layout">
+
+  <div class="note">
+    <strong>定位：</strong>本文是<strong>决策与排期</strong>文档，不替代 <a href="详细技术方案.html">详细技术方案</a> 的功能规格，也不在本 RFC 合并时自动修改 <code>requirements.txt</code>。实施每一 Tier 须单独 PR、<code>RELEASE_NOTES</code> 条目与回归清单。
+  </div>
+
+  <h2>一、摘要</h2>
+  <div class="card">
+    <p>CronPilot 当前锁定 <strong>Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3.11</strong>，这是项目规则与 Docker/CI 共同维护的<strong>稳定栈</strong>，而非遗漏升级。</p>
+    <ul>
+      <li><strong>版本偏旧</strong>主要体现在 HTTP 客户端 CVE、gevent 20 在 macOS + Python 3.11 上难以编译；迁移 CLI 已由 <strong>Tier 0</strong> 改为 <code>flask db</code>。</li>
+      <li><strong>大规模升级</strong>（Flask 2、SQLAlchemy 2、Python 3.12+）会牵动调度器、多 worker 锁、全站 <code>Model.query</code>，属<strong>独立里程碑</strong>，不应与 RBAC（OPT-P2-10）并行。</li>
+      <li><strong>推荐路径</strong>（依赖耦合从弱到强）：<strong>Tier 0</strong> Flask 原生 CLI → <strong>Tier 1</strong> SQLAlchemy 1.4 过渡（渐进改写）→ <strong>Tier 2</strong> gevent / Python → <strong>Tier 3/4</strong> SA 2.0 / Flask 2。</li>
+      <li>RBAC 在 <strong>Tier 0 后</strong>即可启动，可与 Tier 1 并行；<strong>不必</strong>等待 gevent。</li>
+    </ul>
+  </div>
+
+  <h2>二、现状基线</h2>
+  <h3>2.1 锁定版本（<code>requirements.txt</code>）</h3>
+  <table>
+    <tr><th>层级</th><th>包</th><th>版本</th><th>备注</th></tr>
+    <tr><td>Web</td><td>Flask / Werkzeug / Jinja2</td><td>1.1.2 / 1.0.1 / 2.11.2</td><td>Flask 1.x 已停止演进</td></tr>
+    <tr><td>ORM</td><td>SQLAlchemy / Flask-SQLAlchemy</td><td>1.3.19 / 2.4.4</td><td><code>Model.query</code> 遍布业务层</td></tr>
+    <tr><td>迁移</td><td>Flask-Migrate / alembic</td><td>2.5.3 / 1.4.3</td><td><strong>Tier 0 已交付</strong>：<code>flask db</code>（Click）；Flask-Script 已移除</td></tr>
+    <tr><td>调度</td><td>APScheduler / Flask-APScheduler</td><td>3.6.3 / 1.11.0</td><td><code>SQLAlchemyJobStore</code> 绑定 SA 1.3 API</td></tr>
+    <tr><td>WSGI</td><td>gunicorn / gevent</td><td>20.0.4 / 20.9.0</td><td><code>gun.py</code> 启动即 monkey patch</td></tr>
+    <tr><td>HTTP</td><td>requests / urllib3</td><td>2.24.0 / 1.25.10</td><td>存在已知 CVE，与 Flask 弱耦合</td></tr>
+    <tr><td>辅助</td><td>records / redis / PyMySQL</td><td>0.5.3 / 3.5.3 / 0.10.1</td><td><code>CuBackgroundScheduler</code> 用 records 裸 SQL</td></tr>
+  </table>
+
+  <h3>2.2 开发与 CI 分工</h3>
+  <table>
+    <tr><th>场景</th><th>依赖文件</th><th>Python</th><th>说明</th></tr>
+    <tr><td>单元测试</td><td><code>requirements-core.txt</code></td><td>3.8–3.11（matrix）</td><td>无 gevent；<code>conf.ci.ini</code> SQLite</td></tr>
+    <tr><td>本地冒烟</td><td><code>requirements-core.txt</code></td><td>3.8–3.11 自动探测</td><td><code>scripts/start_local.sh</code>，Flask 内置 server</td></tr>
+    <tr><td>完整生产依赖</td><td><code>requirements.txt</code></td><td>CI 固定 <strong>3.10</strong></td><td><code>install-full.yml</code> + <code>libev-dev</code></td></tr>
+    <tr><td>Docker 镜像</td><td><code>requirements.txt</code></td><td><strong>3.9</strong></td><td><code>Dockerfile</code> + gunicorn gevent 健康检查</td></tr>
+  </table>
+
+  <h3>2.3 已验证问题（2026-06 本地）</h3>
+  <table>
+    <tr><th>现象</th><th>根因</th><th>影响面</th></tr>
+    <tr><td><code>pip install -r requirements.txt</code> 失败（macOS 3.11）</td><td><code>gevent==20.9.0</code> Cython 编译失败</td><td>本机无法装全量生产栈</td></tr>
+    <tr><td><code>python manage.py db</code> 导入失败（3.11）</td><td>Flask-Script 使用已移除的 <code>inspect.getargspec</code></td><td><strong>已解决</strong>（Tier 0：<code>flask db</code>）</td></tr>
+    <tr><td>仅装 Flask-Migrate 后 alembic 升到 1.18</td><td>未锁 <code>alembic==1.4.3</code>，拉取 SQLAlchemy 2.x</td><td>与项目 SA 1.3 冲突</td></tr>
+    <tr><td><code>create_app()</code> + 本机 MySQL 未启动</td><td>调度器启动时连 <code>cron_db_url</code></td><td>manage.py 需可用 DB 或 CI 配置</td></tr>
+  </table>
+
+  <h2>三、设计原则与约束</h2>
+  <table>
+    <tr><th>原则</th><th>说明</th></tr>
+    <tr><td>最小 diff</td><td>依赖升级 PR 不得夹带 RBAC、operation_log 等业务功能；反之亦然。</td></tr>
+    <tr><td>行为不变优先</td><td>调度触发、集群互斥（portalocker + Redis）、回调验签契约不得因升级而改变默认行为。</td></tr>
+    <tr><td>Python 3.8–3.11</td><td>在 <strong>Tier 2</strong> 完成前，项目规则仍禁止默认 3.12+。</td></tr>
+    <tr><td>双格式文档</td><td>本 RFC 行为变更落地后同步 <code>RELEASE_NOTES</code>、<code>非Docker部署指南</code>、<code>INSTALL.md</code> 相关节。</td></tr>
+    <tr><td>可回滚</td><td>每一 Tier 须能在同一版本线回退 <code>requirements*.txt</code> 并恢复 Docker 构建。</td></tr>
+    <tr><td><strong>耦合从弱到强</strong></td><td>严格按 Tier 0→1→2→3→4 顺序推进；<strong>禁止跳级</strong>（如未修 CLI 就升 gevent）。每一级合并后须全量回归再进入下一级。</td></tr>
+    <tr><td><strong>SA 1.4 渐进式</strong></td><td>升到 SQLAlchemy 1.4 后<strong>不强制</strong>一次性改掉 <code>Model.query</code>；新代码优先 <code>text()</code> / 2.0 风格，旧写法在 1.4 兼容层下分批替换。</td></tr>
+  </table>
+
+  <h2>四、依赖耦合强度与升级顺序</h2>
+  <p>下列顺序按<strong>与业务代码/运行时的耦合度</strong>从低到高排列，是 RFC 的<strong>权威执行序</strong>（与安全补丁、RBAC 的并行关系见 §七）。</p>
+  <table>
+    <tr><th>顺序</th><th>层级</th><th>动作</th><th>耦合度</th><th>为何在此顺位</th></tr>
+    <tr><td>1</td><td><strong>Tier 0</strong> ✓</td><td>Flask-Script → Flask 原生 CLI</td><td class="ok">最弱</td><td><strong>已交付</strong>；<code>manage.py</code> 注册 <code>flask db</code>，解锁 Py3.11 迁移</td></tr>
+    <tr><td>2</td><td><strong>Tier 1</strong></td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（过渡版）</td><td class="ok">弱–中</td><td>1.4 同时容纳旧 <code>Model.query</code> 与新 <code>text()</code>；避免直达 2.0 的「大爆炸」改写</td></tr>
+    <tr><td>∥</td><td><em>侧车</em></td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td>与 Tier 0/1 无代码交叉，可独立 PR</td></tr>
+    <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td>Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法）</td></tr>
+    <tr><td>3</td><td><strong>Tier 2</strong></td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td>牵动 monkey patch、多 worker 调度、Docker 金路径</td></tr>
+    <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 查询写法收束 → SA 2.0</td><td class="risk">高</td><td>须在 Tier 1 后<strong>分批</strong>完成旧 API 清理，再升 2.0</td></tr>
+    <tr><td>5</td><td><strong>Tier 4</strong></td><td>Flask 1.1 → 2.x</td><td class="risk">高</td><td>Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑</td></tr>
+  </table>
+
+  <h3>4.1 代码触点与耦合（盘点表）</h3>
+  <table>
+    <tr><th>模式</th><th>出处示例</th><th>耦合</th><th>Tier 0</th><th>Tier 1 (SA 1.4)</th><th>Tier 2</th><th>Tier 3+</th></tr>
+    <tr><td>Flask-Script <code>Manager</code></td><td><code>manage.py</code></td><td class="ok">最弱</td><td class="ok">替换</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td><code>db.session.execute("裸 SQL")</code></td><td><code>app/crons.py</code></td><td class="warn">中</td><td>—</td><td class="ok">改为 <code>text()</code>（小 PR）</td><td>—</td><td>必须完成</td></tr>
+    <tr><td><code>Model.query.filter / paginate</code></td><td><code>main/views.py</code> 等</td><td class="warn">中</td><td>—</td><td class="ok">可暂保留</td><td>—</td><td>升 SA 2 前分批改</td></tr>
+    <tr><td><code>SQLAlchemyJobStore</code></td><td><code>config.py</code></td><td class="warn">中</td><td>—</td><td class="ok">验证 1.4</td><td class="warn">随 APS 升级</td><td>—</td></tr>
+    <tr><td><code>records</code> 裸 SQL</td><td><code>CuBackgroundScheduler.py</code></td><td class="warn">中</td><td>—</td><td>—</td><td>—</td><td>与 SQL 整改一并</td></tr>
+    <tr><td><code>gevent.monkey.patch_all()</code></td><td><code>gun.py</code></td><td class="risk">强</td><td>—</td><td>—</td><td class="warn">升级</td><td>—</td></tr>
+    <tr><td>Flask / Jinja SSR</td><td><code>decorated.py</code>、模板</td><td class="risk">强</td><td>—</td><td>—</td><td>—</td><td>Flask 2</td></tr>
+  </table>
+
+  <h2>五、分层升级路线（耦合从弱到强）</h2>
+
+  <div class="tier t0">
+    <h3>Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（Unreleased）</span></h3>
+    <p><strong>目标：</strong>只动 <code>manage.py</code> 与依赖声明，<strong>不</strong>升 Flask / SQLAlchemy / gevent 主版本。</p>
+    <table>
+      <tr><th>项</th><th>动作</th><th>风险</th></tr>
+      <tr><td>RFC-0.1</td><td>移除 Flask-Script；<code>manage.py</code> 改用 Flask 应用工厂 + <code>flask db</code>（或 Click 注册 <code>MigrateCommand</code>）</td><td class="ok">低</td></tr>
+      <tr><td>RFC-0.2</td><td><code>requirements-core.txt</code> 锁定 <code>alembic==1.4.3</code>、<code>Flask-Migrate==2.5.3</code>；从 <code>requirements.txt</code> 移除 <code>Flask-Script</code></td><td class="ok">低</td></tr>
+      <tr><td>RFC-0.3</td><td>文档：<code>flask --app manage:app db migrate</code> 用法；Docker <code>docker_start.sh</code> 若有 migrate 步骤则同步</td><td class="ok">低</td></tr>
+    </table>
+    <h4>验收标准</h4>
+    <ul>
+      <li>Python <strong>3.11</strong>：<code>flask db --help</code> 成功（无需 <code>inspect.getargspec</code> 补丁）。</li>
+      <li><code>bash scripts/cronpilot.sh test</code> 全 matrix 通过。</li>
+      <li>RBAC / operation_log 的 <code>db init | migrate | upgrade</code> 在 SQLite CI 配置下可跑通。</li>
+    </ul>
+  </div>
+
+  <div class="tier t1">
+    <h3>Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）</h3>
+    <p><strong>目标：</strong>把 ORM 底座升到官方<strong>过渡版本</strong> 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.4 下运行；<strong>允许旧 <code>Model.query</code> 继续存在</strong>，用多个小 PR 逐步替换，而非一次性重写。</p>
+    <table>
+      <tr><th>项</th><th>动作</th><th>说明</th></tr>
+      <tr><td>RFC-1.1</td><td><code>SQLAlchemy==1.4.52</code>（或 1.4 末版）</td><td>保持 <code>Flask-SQLAlchemy==2.4.4</code>；验证 JobStore</td></tr>
+      <tr><td>RFC-1.2</td><td>应用级 <code>SQLALCHEMY_ENGINE_OPTIONS</code> 或配置 <code>future=False</code>（1.4 默认）</td><td>抑制 2.0 迁移警告至可控范围</td></tr>
+      <tr><td>RFC-1.3</td><td><strong>首批</strong>必改：<code>app/crons.py</code> 中 <code>execute("SELECT 1")</code> → <code>execute(text("SELECT 1"))</code></td><td>改动面极小，验证 1.4 路径</td></tr>
+      <tr><td>RFC-1.4</td><td>建立「查询改写 backlog」：按文件列出 <code>Model.query</code> 触点，RBAC 新代码直接用 <code>text()</code> / 推荐写法</td><td>与 RBAC 并行时，新表模型不增加旧债</td></tr>
+      <tr><td>RFC-1.5</td><td>alembic：评估 <code>1.4.3</code> 是否仍满足 1.4；若不足则升到 1.7.x（仍 &lt; 2.0），<strong>禁止</strong>解析到 alembic 1.18+ 拉 SA 2</td><td>锁版本写入 requirements</td></tr>
+    </table>
+    <h4>SA 1.4 渐进策略（核心）</h4>
+    <div class="note">
+      <ul style="margin:.25rem 0;padding-left:1.25rem">
+        <li><strong>允许保留：</strong><code>CronInfos.query.filter(...)</code>、<code>paginate()</code> 等直至 Tier 3 前。</li>
+        <li><strong>新代码要求：</strong>RBAC 模型、operation_log、任何新 PR 中避免新增裸字符串 <code>execute</code>。</li>
+        <li><strong>分批 PR：</strong>建议按模块（<code>crons</code> → <code>job_log_service</code> → <code>main/views</code> → <code>cron_service</code>）逐个合并，每 PR 跑全量单测 + 冒烟。</li>
+        <li><strong>不做什么：</strong>本 Tier <strong>不</strong>升 SQLAlchemy 2.0、<strong>不</strong>升 Flask-SQLAlchemy 3.x。</li>
+      </ul>
+    </div>
+    <h4>验收标准</h4>
+    <ul>
+      <li>单元测试 + 本地 <code>start_local.sh</code> 冒烟通过（SQLite / MySQL 各一轮）。</li>
+      <li>APScheduler JobStore 正常：<code>apscheduler_jobs</code> 读写、任务触发无异常。</li>
+      <li>改写 backlog 已入库（Issue 或 <code>doc/</code> 清单），并标记 Tier 3 前须清零的「硬必改」项（裸 <code>execute</code>）。</li>
+    </ul>
+  </div>
+
+  <div class="tier t1" style="border-left-color:#6366f1">
+    <h3>侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）</h3>
+    <p>耦合最弱，<strong>不改变 Tier 序号</strong>；任意时刻可独立合并。</p>
+    <table>
+      <tr><th>项</th><th>候选</th><th>注意</th></tr>
+      <tr><td>RFC-S.1</td><td><code>requests</code> 2.31.x、<code>urllib3</code> / <code>certifi</code> 同步</td><td>回归 <code>cron_do</code></td></tr>
+      <tr><td>RFC-S.2</td><td><code>PyMySQL</code> 小版本（按公告）</td><td>连接池</td></tr>
+    </table>
+  </div>
+
+  <div class="tier t2">
+    <h3>Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）</h3>
+    <p><strong>前置条件：</strong>Tier 0、Tier 1 已合并且回归通过。<strong>本 Tier 在 SA 1.4 稳定之后、Flask 2 之前。</strong></p>
+    <table>
+      <tr><th>项</th><th>动作</th><th>风险</th></tr>
+      <tr><td>RFC-2.1</td><td><code>gevent</code> 20.9 → 22.x 或 24.x + <code>greenlet</code></td><td class="warn">中–高</td></tr>
+      <tr><td>RFC-2.2</td><td><code>gunicorn</code> 20 → 21/22，gevent worker 回归</td><td class="warn">中</td></tr>
+      <tr><td>RFC-2.3</td><td><code>APScheduler</code> 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调）</td><td class="warn">中</td></tr>
+      <tr><td>RFC-2.4</td><td>Python：Docker 金路径 3.9 → 评估 3.10/3.11；<code>install-full.yml</code> matrix 扩展</td><td class="warn">中</td></tr>
+      <tr><td>RFC-2.5</td><td>项目规则中「勿 3.12+」维持至本 Tier 验收完成</td><td>—</td></tr>
+    </table>
+    <h4>验收标准</h4>
+    <ul>
+      <li><code>pip install -r requirements.txt</code> 在目标 Python（3.10、3.11）成功。</li>
+      <li>Docker 构建 + gunicorn 健康检查通过；多 worker 调度与 Redis 互斥正常。</li>
+      <li>不在此 Tier 改 Flask / SA 主版本（除 1.4 补丁）。</li>
+    </ul>
+  </div>
+
+  <div class="tier t3">
+    <h3>Tier 3 — SQLAlchemy 2.0 + 查询写法收束（数周，耦合高）</h3>
+    <p><strong>前置条件：</strong>Tier 1 的 backlog 中「硬必改」项已清零；<code>Model.query</code> 已分批迁移或经 SA 1.4 弃用警告评估可安全升级。</p>
+    <table>
+      <tr><th>子阶段</th><th>内容</th></tr>
+      <tr><td>3a</td><td><code>SQLAlchemy==2.0.x</code> + <code>Flask-SQLAlchemy==3.x</code>；Alembic 升到与 SA 2 匹配版本</td></tr>
+      <tr><td>3b</td><td>剩余 <code>Model.query</code> → <code>db.session.scalars(select(...))</code>；迁移脚本重放验证</td></tr>
+      <tr><td>3c</td><td>生产库备份 → upgrade → 任务与 <code>job_log</code> 只读校验</td></tr>
+    </table>
+    <h4>验收标准</h4>
+    <ul>
+      <li>Phase A 单测 + P0 手册 + Docker 全绿。</li>
+      <li><code>THIRD_PARTY_NOTICES.md</code> 更新。</li>
+    </ul>
+  </div>
+
+  <div class="tier t3">
+    <h3>Tier 4 — Flask 2.x（独立里程碑，与 Tier 3 同窗或紧随）</h3>
+    <p><strong>目标：</strong>Werkzeug 2 + Jinja2 3 + click 升级。可与 Tier 3 末尾合并为「框架代际」大版本，但<strong>仍晚于</strong> Tier 0/1/2。</p>
+    <ul>
+      <li>Flask 2.3 LTS 线；全站 session、错误处理、<code>jsonify</code> 行为回归。</li>
+      <li>评估 Python 3.12+ 是否纳入支持范围（依赖 gevent 与本 Tier 结果）。</li>
+    </ul>
+  </div>
+
+  <h2>六、组件风险矩阵（对齐新 Tier 序）</h2>
+  <table>
+    <tr><th>组件</th><th>维持现状风险</th><th>建议 Tier</th><th>说明</th></tr>
+    <tr><td>Flask-Script</td><td>Py3.11 阻断 migrate</td><td><strong>Tier 0</strong> 已移除</td><td>耦合最弱，<strong>已完成</strong></td></tr>
+    <tr><td>SQLAlchemy 1.3</td><td>维护结束</td><td><strong>Tier 1</strong> → 1.4</td><td>过渡版；渐进改写，非大爆炸</td></tr>
+    <tr><td>requests/urllib3</td><td>CVE</td><td><strong>侧车</strong></td><td>与 Tier 0/1 并行</td></tr>
+    <tr><td>gevent 20</td><td>Py3.11 编译失败</td><td><strong>Tier 2</strong></td><td>在 SA 1.4 稳定后</td></tr>
+    <tr><td>APScheduler 3.6</td><td>旧 bug</td><td><strong>Tier 2</strong></td><td>与 gevent 同窗回归</td></tr>
+    <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td>backlog 清零后</td></tr>
+    <tr><td>Flask 1.1</td><td>无新补丁</td><td><strong>Tier 4</strong></td><td>晚于 Tier 2</td></tr>
+    <tr><td>records 0.5.3</td><td>裸 SQL</td><td>Tier 3 或 SQL 整改</td><td>与 OPT 安全项对齐</td></tr>
+  </table>
+
+  <h2>七、与 RBAC（OPT-P2-10）的关系</h2>
+  <div class="card">
+    <p>RBAC v2 详设见 <a href="RBAC架构设计方案.html">RBAC 架构设计方案</a>。本节专门回答：<strong>做 RBAC 前必须升哪些依赖？升级与 RBAC 如何排期？</strong></p>
+  </div>
+
+  <h3>7.1 结论（审阅要点）</h3>
+  <table>
+    <tr><th>问题</th><th>答案</th></tr>
+    <tr><td>RBAC 是否依赖 Flask 2 / SQLAlchemy 2？</td><td><strong>否。</strong>RBAC 在 Flask 1.1 + SA 1.3/1.4 + 装饰器下可交付；Tier 1 升 1.4 后新表宜用 <code>text()</code> 写法。</td></tr>
+    <tr><td>RBAC 是否依赖 gevent 升级？</td><td><strong>否。</strong>RBAC 与 gunicorn worker 无关；gevent 属 <strong>Tier 2</strong>。</td></tr>
+    <tr><td>RBAC 前是否必须完成 Tier 0？</td><td><strong>强烈建议。</strong>否则 Py3.11 无标准 <code>db migrate</code>；可退化 <code>ensure_rbac_tables</code>。</td></tr>
+    <tr><td>RBAC 与 Tier 1（SA 1.4）关系？</td><td><strong>可并行。</strong>RBAC 合入前完成 Tier 0 即可；若 Tier 1 已合，RBAC 模型避免新增 <code>Model.query</code> 债。</td></tr>
+    <tr><td>RBAC 与 Tier 2/3/4 能否并行？</td><td>Tier 2 <strong>谨慎</strong>；Tier 3/4 <strong>禁止</strong>与 RBAC 首期并行。</td></tr>
+  </table>
+
+  <h3>7.2 RBAC 对当前栈的实际依赖</h3>
+  <table>
+    <tr><th>RBAC 能力</th><th>依赖组件</th><th>当前栈是否满足</th></tr>
+    <tr><td>装饰器 + Session</td><td>Flask 1.1、<code>session</code></td><td>是</td></tr>
+    <tr><td>密码哈希</td><td><code>app/auth/password.py</code>（现有）</td><td>是</td></tr>
+    <tr><td>JSON 契约</td><td><code>json_response</code> / <code>web_api_return</code></td><td>是</td></tr>
+    <tr><td>新表 <code>rbac_users</code>、<code>rbac_audit_logs</code></td><td>Flask-SQLAlchemy 2.4 + SA 1.3/1.4</td><td>是（Tier 1 后更佳）</td></tr>
+    <tr><td>库表迁移</td><td>Flask-Migrate + alembic（锁版本）</td><td>是（<strong>Tier 0</strong> 后）</td></tr>
+    <tr><td><code>rbac_enable=0</code> 兼容</td><td>无新依赖</td><td>是</td></tr>
+    <tr><td>API <code>access_token</code> 不变</td><td>不升级 <code>app/api/views.py</code></td><td>是（设计约束）</td></tr>
+  </table>
+
+  <h3>7.3 推荐排期（耦合从弱到强 × RBAC）</h3>
+  <pre>
+权威顺序（升级线）:
+  Tier 0  Flask CLI
+    → Tier 1  SQLAlchemy 1.4（渐进改写，不阻塞功能）
+    → Tier 2  gevent + Python 上限
+    → Tier 3  SQLAlchemy 2.0
+    → Tier 4  Flask 2.x
+
+RBAC 插入点（推荐）:
+  Tier 0 完成
+    → RBAC 实现 + db migrate（可与 Tier 1 并行）
+    → RBAC 验收（rbac_enable=0/1）
+    → 继续 Tier 1 backlog / Tier 2
+
+侧车（任意时刻）:
+  HTTP 安全补丁（requests 等）
+
+禁止:
+  RBAC 首期与 Tier 3/4 同迭代
+  未做 Tier 0 即在 Py3.11 强依赖 Flask-Script migrate
+  </pre>
+
+  <h3>7.4 RBAC 实施时各 Tier 的影响</h3>
+  <table>
+    <tr><th>Tier</th><th>对 RBAC 开发</th><th>对 RBAC 发布</th><th>建议</th></tr>
+    <tr><td>Tier 0</td><td>解锁 <code>flask db migrate</code></td><td>标准 Alembic 建表</td><td class="ok">RBAC 前置（强烈建议）</td></tr>
+    <tr><td>Tier 1 (SA 1.4)</td><td>无冲突；新代码避免旧查询债</td><td>与 1.3 行为一致即可发布</td><td>可与 RBAC 并行</td></tr>
+    <tr><td>侧车 安全补丁</td><td>无</td><td>回调冒烟</td><td>任意时刻</td></tr>
+    <tr><td>Tier 2 gevent</td><td>无直接冲突</td><td>调度回归</td><td>RBAC 稳定后</td></tr>
+    <tr><td>Tier 3/4</td><td>可能改 RBAC 查询</td><td>全站迁移</td><td>RBAC 发布后</td></tr>
+  </table>
+
+  <h3>7.5 RBAC 迁移验收（与 RFC 验收对齐）</h3>
+  <p>在<strong>不升级 Flask 主版本</strong>前提下，RBAC 发布除 <a href="RBAC架构设计方案.html">RBAC 详设 §验收</a> 外，还须满足：</p>
+  <ul>
+    <li><code>rbac_enable=0</code>：<code>bash scripts/cronpilot.sh test</code> 与 Phase A 行为一致。</li>
+    <li><code>rbac_enable=1</code>：角色矩阵单测（<code>tests/test_rbac_phase.py</code>）通过。</li>
+    <li>建表：目标环境执行 <code>db upgrade</code> 成功，或文档记录 <code>ensure_rbac_tables</code> 使用条件与限制（不替代 Alembic 历史时的局限须写清）。</li>
+    <li>配置：仅 <code>conf.ini</code> 的 <code>rbac_enable</code>；修改后重启（与现网配置纪律一致）。</li>
+  </ul>
+
+  <h3>7.6 不必因 RBAC 而升级的内容</h3>
+  <div class="note">
+    <ul style="margin:.25rem 0;padding-left:1.25rem">
+      <li>Flask 2.x / 3.x、Werkzeug 2+</li>
+      <li>SQLAlchemy 2.0、Flask-SQLAlchemy 3.x</li>
+      <li>gevent 22+、Python 3.12+</li>
+      <li>JWT、OAuth、新 API 鉴权协议（RBAC v2 明确不做）</li>
+    </ul>
+  </div>
+
+  <h2>八、排期与功能交叉（总表）</h2>
+  <table>
+    <tr><th>工作项</th><th>Tier / 位置</th><th>与 RBAC</th><th>说明</th></tr>
+    <tr><td>Flask CLI</td><td>Tier 0</td><td class="ok">RBAC 前置</td><td>耦合最弱，最先做</td></tr>
+    <tr><td>SQLAlchemy 1.4</td><td>Tier 1</td><td class="ok">可并行</td><td>渐进改写，不挡 RBAC</td></tr>
+    <tr><td>RBAC</td><td>功能线</td><td>—</td><td>Tier 0 后启动；不等 gevent</td></tr>
+    <tr><td>HTTP 安全补丁</td><td>侧车</td><td class="ok">可并行</td><td>独立 PR</td></tr>
+    <tr><td>gevent / Python</td><td>Tier 2</td><td class="warn">RBAC 稳定后</td><td>耦合强，靠后</td></tr>
+    <tr><td>SA 2.0 / Flask 2</td><td>Tier 3/4</td><td class="risk">禁止与 RBAC 首期并行</td><td>单独立项</td></tr>
+  </table>
+
+  <h2>九、推荐执行顺序（甘特）</h2>
+  <pre>
+时间 ─────────────────────────────────────────────────────────────►
+
+[Tier 0 Flask CLI]────┐
+                      ├──► [RBAC + db migrate] ──► [RBAC 发布]
+[Tier 1 SA 1.4 起步]──┘         │                      │
+  （渐进 PR：crons→views…）      │                      ▼
+                                │              [Tier 1 backlog 继续]
+[侧车 requests 补丁]（任意）     │
+                                ▼
+                      [Tier 2 gevent + Py 上限]
+                                │
+                                ▼
+                      [Tier 3 SA 2.0] → [Tier 4 Flask 2]
+  </pre>
+
+  <h2>十、决策记录</h2>
+  <table>
+    <tr><th>ID</th><th>决策</th><th>理由</th><th>日期</th></tr>
+    <tr><td>DEC-001</td><td>升级顺序按<strong>依赖耦合从弱到强</strong>：Tier 0 CLI → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4 代际</td><td>避免 gevent 与 ORM 大爆炸同窗；SA 1.4 作过渡</td><td>2026-06</td></tr>
+    <tr><td>DEC-002</td><td>SA 1.4 阶段<strong>不强制</strong>一次性移除 <code>Model.query</code></td><td>分批 PR；新功能（RBAC）不新增旧债</td><td>2026-06</td></tr>
+    <tr><td>DEC-003</td><td>RBAC 不依赖 Tier 2+；仅需 Tier 0（推荐）或与 Tier 1 并行</td><td>功能交付不等待 gevent</td><td>2026-06</td></tr>
+    <tr><td>DEC-004</td><td>迁移依赖须锁 alembic，禁止解析到 SA 2.x</td><td>本地 venv 实测</td><td>2026-06</td></tr>
+    <tr><td>DEC-005</td><td>RBAC 允许 <code>ensure_rbac_tables</code> 作 Tier 0 未完成时的退化</td><td>与 RBAC v2 详设一致</td><td>2026-06</td></tr>
+  </table>
+
+  <h2>十一、参考</h2>
+  <ul>
+    <li><a href="RBAC架构设计方案.html">RBAC 架构设计方案 v2</a> — OPT-P2-10 权威详设</li>
+    <li><a href="详细技术方案.html#t15">详细技术方案 §15 风险与演进路线</a></li>
+    <li><a href="技术方案与前端设计.html">技术方案与前端设计</a> — P0 依赖升级意向</li>
+    <li><a href="非Docker部署指南.html">非 Docker 部署指南</a> — Python 3.8–3.11 与 gevent 故障</li>
+    <li><a href="P0测试用例与验收手册.html">P0 测试用例与验收手册</a></li>
+    <li><a href="LICENSE-AUDIT.html">License Audit</a></li>
+    <li>仓库：<code>requirements.txt</code>、<code>requirements-core.txt</code>、<code>.github/workflows/unit-tests.yml</code>、<code>install-full.yml</code></li>
+  </ul>
+
+</main>
+
+<footer>
+  <a href="依赖升级RFC.md">Markdown 版</a> · <a href="index.html">文档索引</a> · CronPilot RFC v1.1 Draft
+</footer>
+</body>
+</html>

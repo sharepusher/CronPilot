@@ -24,7 +24,7 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 
 | 组件 | 要求 | 说明 |
 | --- | --- | --- |
-| Python | **3.8～3.11** | 勿用 3.12+（Flask 1.1 / gevent 20 易失败） |
+| Python | **3.8～3.11** | 勿用 3.12+（当前 gevent 20 栈；升级见 [依赖升级 RFC](依赖升级RFC.html) Tier 2） |
 | 数据库 | MySQL 5.7+ / 8 | 生产推荐；试用可用 SQLite |
 | Redis | 可选 | 多实例集群锁；单机设 `is_single=1` |
 | 端口 | **5860** | `gun.py` 默认；本地脚本常用 5001 |
@@ -196,7 +196,8 @@ server {
 
 | 现象 | 处理 |
 | --- | --- |
-| `pip install gevent` 失败 | 换 3.8–3.11 中另一版本；本地先用 `bash scripts/start_local.sh`（core 依赖） |
+| `pip install gevent` 失败 | 换 3.9/3.10；或本地用 `bash scripts/start_local.sh`（core 依赖）。长期方案：[依赖升级 RFC](依赖升级RFC.html) Tier 2 |
+| 数据库迁移 CLI | `export FLASK_APP=manage:app` 后 `flask db migrate` / `flask db upgrade`（Py3.11 可用；见 [依赖升级 RFC](依赖升级RFC.html) Tier 0） |
 | 外网无法访问 | 确认 Gunicorn `0.0.0.0`、防火墙、云安全组放行 5860 |
 | `/docs/` 404 | 确认已部署含 `app/docs/` 的版本并重启进程 |
 | 调度不触发 | 检查 `cron_db_url`、APScheduler 库表、`is_single` / Redis |
@@ -204,6 +205,7 @@ server {
 ## 10. 相关文档
 
 - [文档索引](index.html)
+- [依赖升级 RFC](依赖升级RFC.html)（Tier 0～4 分层路线、与 RBAC 排期）
 - [架构设计文档](架构设计文档.html)（部署拓扑、集群）
 - [详细技术方案](详细技术方案.html)（配置项、API）
 - [P0 测试与验收](P0测试用例与验收手册.html)

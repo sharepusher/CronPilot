@@ -9,6 +9,7 @@ import uuid
 import records
 import requests
 from flask import current_app
+from sqlalchemy import text
 
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
@@ -24,7 +25,7 @@ from datas.utils.times import get_now_time
 def cron_check_db_sleep():
     with scheduler.app.app_context():
         try:
-            db.session.execute("SELECT 1;")
+            db.session.execute(text("SELECT 1"))
             db.session.commit()
         except Exception as e:
             wechat_info_err('定时任务发生严重错误', '检查数据库出错:%s' % str(e))

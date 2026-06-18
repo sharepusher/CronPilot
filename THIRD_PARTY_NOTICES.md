@@ -16,9 +16,9 @@ pip-licenses --format=markdown --with-urls --order=license
 | Flask | 1.1.2 | BSD-3-Clause |
 | Flask-APScheduler | 1.11.0 | Apache-2.0 |
 | Flask-Migrate | 2.5.3 | MIT |
-| Flask-SQLAlchemy | 2.4.4 | BSD-3-Clause |
+| Flask-SQLAlchemy | 2.5.1 | BSD-3-Clause |
 | Jinja2 | 2.11.2 | BSD-3-Clause |
-| SQLAlchemy | 1.3.19 | MIT |
+| SQLAlchemy | 1.4.52 | MIT |
 | Werkzeug | 1.0.1 | BSD-3-Clause |
 | gevent | 20.9.0 | MIT |
 | gunicorn | 20.0.4 | MIT |

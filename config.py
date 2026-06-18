@@ -14,6 +14,8 @@ class Config:
     SQLALCHEMY_COMMIT_ON_TEARDOWN = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_POOL_RECYCLE = 3000
+    # Tier 1 (SA 1.4)：保持 1.x 行为，Tier 3 升 2.0 前不改 future 默认
+    SQLALCHEMY_ENGINE_OPTIONS = {'future': False}
 
     SCHEDULER_API_ENABLED = False
 

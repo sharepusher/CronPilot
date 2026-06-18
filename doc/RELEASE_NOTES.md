@@ -12,14 +12,26 @@ v0.1.0 2026-05-29 · Phase A（P0）
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
-## [Unreleased] · 依赖升级 Tier 0
+## [Unreleased] · 依赖升级 Tier 0 / Tier 1
 
-退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。**无 API 协议变更。**
+**Tier 0：**退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。  
+**Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；`crons.py` 裸 `execute` 已改 `text()`。**无 API 协议变更。**
+
+### Tier 0
 
 | 变更 | 说明 |
 | --- | --- |
 | Flask-Script 移除 | `manage.py` 注册 Click `db` 子命令 |
 | `requirements-core.txt` | 锁定 `Flask-Migrate`、`alembic==1.4.3` |
+
+### Tier 1
+
+| 变更 | 说明 |
+| --- | --- |
+| SQLAlchemy 1.4.52 | 过渡版；`Model.query` 保留至 Tier 3 |
+| Flask-SQLAlchemy 2.5.1 | SA 1.4 兼容（2.4.x URL API 不兼容） |
+| `config.py` | `SQLALCHEMY_ENGINE_OPTIONS = {'future': False}` |
+| `app/crons.py` | `execute(text("SELECT 1"))` |
 
 ```
 export FLASK_APP=manage:app
@@ -27,7 +39,7 @@ flask db migrate -m "描述"
 flask db upgrade
 ```
 
-详 [依赖升级 RFC](依赖升级RFC.html) Tier 0。
+详 [依赖升级 RFC](依赖升级RFC.html) Tier 0–1；本地试用 `conf.local.sqlite.example`。
 
 ---
 

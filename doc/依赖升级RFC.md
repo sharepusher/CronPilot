@@ -29,7 +29,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 层级 | 包 | 版本 | 备注 |
 | --- | --- | --- | --- |
 | Web | Flask / Werkzeug / Jinja2 | 1.1.2 / 1.0.1 / 2.11.2 | Flask 1.x 已停止演进 |
-| ORM | SQLAlchemy / Flask-SQLAlchemy | 1.3.19 / 2.4.4 | `Model.query` 遍布业务层 |
+| ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；`Model.query` 渐进保留至 Tier 3 |
 | 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
 | 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
 | WSGI | gunicorn / gevent | 20.0.4 / 20.9.0 | `gun.py` 启动即 monkey patch |
@@ -73,7 +73,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 顺序 | 层级 | 动作 | 耦合度 | 为何在此顺位 |
 | --- | --- | --- | --- | --- |
 | 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **已交付**；`manage.py` 注册 `flask db`，解锁 Py3.11 迁移 |
-| 2 | **Tier 1** | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | 1.4 同时容纳旧 `Model.query` 与新 `text()`；避免直达 2.0 的「大爆炸」改写 |
+| 2 | **Tier 1** ✓ | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | **已交付**；含 Flask-SQLAlchemy 2.5.1（2.4.x 不兼容 SA 1.4 URL） |
 | ∥ | *侧车* | HTTP 安全补丁（requests / urllib3） | 最弱 | 与 Tier 0/1 无代码交叉，可独立 PR |
 | ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法） |
 | 3 | **Tier 2** | gevent / gunicorn / APScheduler + Python 上限 | 强 | 牵动 monkey patch、多 worker 调度、Docker 金路径 |
@@ -110,13 +110,13 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 - `bash scripts/cronpilot.sh test` 全 matrix 通过。
 - RBAC / operation\_log 的 `db init | migrate | upgrade` 在 SQLite CI 配置下可跑通。
 
-### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）
+### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）· 已交付（Unreleased）
 
-**目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.4 下运行；**允许旧 `Model.query` 继续存在**，用多个小 PR 逐步替换，而非一次性重写。
+**目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.5 下运行；**允许旧 `Model.query` 继续存在**，用多个小 PR 逐步替换，而非一次性重写。
 
 | 项 | 动作 | 说明 |
 | --- | --- | --- |
-| RFC-1.1 | `SQLAlchemy==1.4.52`（或 1.4 末版） | 保持 `Flask-SQLAlchemy==2.4.4`；验证 JobStore |
+| RFC-1.1 | `SQLAlchemy==1.4.52` | `Flask-SQLAlchemy==2.5.1`（2.4.4 与 SA 1.4 不兼容，须 2.5+） |
 | RFC-1.2 | 应用级 `SQLALCHEMY_ENGINE_OPTIONS` 或配置 `future=False`（1.4 默认） | 抑制 2.0 迁移警告至可控范围 |
 | RFC-1.3 | **首批**必改：`app/crons.py` 中 `execute("SELECT 1")` → `execute(text("SELECT 1"))` | 改动面极小，验证 1.4 路径 |
 | RFC-1.4 | 建立「查询改写 backlog」：按文件列出 `Model.query` 触点，RBAC 新代码直接用 `text()` / 推荐写法 | 与 RBAC 并行时，新表模型不增加旧债 |
@@ -189,7 +189,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 组件 | 维持现状风险 | 建议 Tier | 说明 |
 | --- | --- | --- | --- |
 | Flask-Script | Py3.11 阻断 migrate | **Tier 0** 已移除 | 耦合最弱，**已完成** |
-| SQLAlchemy 1.3 | 维护结束 | **Tier 1** → 1.4 | 过渡版；渐进改写，非大爆炸 |
+| SQLAlchemy 1.3 | 维护结束 | **Tier 1** 已升 1.4 | 过渡版；backlog 渐进改写 |
 | requests/urllib3 | CVE | **侧车** | 与 Tier 0/1 并行 |
 | gevent 20 | Py3.11 编译失败 | **Tier 2** | 在 SA 1.4 稳定后 |
 | APScheduler 3.6 | 旧 bug | **Tier 2** | 与 gevent 同窗回归 |

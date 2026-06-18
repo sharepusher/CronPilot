@@ -40,19 +40,29 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
-<h2 class="new">[Unreleased] · 依赖升级 Tier 0</h2>
+<h2 class="new">[Unreleased] · 依赖升级 Tier 0 / Tier 1</h2>
   <div class="card highlight">
-    <p>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<strong>无 API 协议变更。</strong></p>
+    <p><strong>Tier 0：</strong>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<br>
+    <strong>Tier 1：</strong>SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；<code>crons.py</code> 裸 <code>execute</code> 已改 <code>text()</code>。<strong>无 API 协议变更。</strong></p>
   </div>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 0</h3>
   <table>
     <tr><th>变更</th><th>说明</th></tr>
     <tr><td>Flask-Script 移除</td><td><code>manage.py</code> 注册 Click <code>db</code> 子命令</td></tr>
     <tr><td><code>requirements-core.txt</code></td><td>锁定 <code>Flask-Migrate</code>、<code>alembic==1.4.3</code></td></tr>
   </table>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 1</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>SQLAlchemy 1.4.52</td><td>过渡版；<code>Model.query</code> 保留至 Tier 3</td></tr>
+    <tr><td>Flask-SQLAlchemy 2.5.1</td><td>SA 1.4 兼容（2.4.x URL API 不兼容）</td></tr>
+    <tr><td><code>config.py</code></td><td><code>SQLALCHEMY_ENGINE_OPTIONS = {'future': False}</code></td></tr>
+    <tr><td><code>app/crons.py</code></td><td><code>execute(text("SELECT 1"))</code></td></tr>
+  </table>
   <pre>export FLASK_APP=manage:app
 flask db migrate -m "描述"
 flask db upgrade</pre>
-  <p>详 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0。</p>
+  <p>详 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0–1；本地试用 <code>conf.local.sqlite.example</code>。</p>
 
   <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0">
 

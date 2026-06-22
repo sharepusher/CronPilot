@@ -62,6 +62,13 @@ flask db upgrade
 
 新代码（RBAC、operation_log）禁止新增裸字符串 `execute`。
 
+### 依赖升级 · 侧车 PyMySQL（RFC-S.2）
+
+| 变更 | 说明 |
+|------|------|
+| `PyMySQL` 0.10.1 → **1.1.2** | 1.x 维护线末版，兼容 Python 3.8–3.11；SQLAlchemy `mysql+pymysql://` 无需改 URL |
+| 验收 | `bash scripts/cronpilot.sh test`；Docker compose 构建与健康检查 |
+
 ### 依赖升级 · 侧车 HTTP 安全补丁
 
 | 变更 | 说明 |

@@ -43,7 +43,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
 | WSGI | gunicorn / gevent | 20.0.4 / 20.9.0 | `gun.py` 启动即 monkey patch |
 | HTTP | requests / urllib3 | 2.24.0 / 1.25.10 | 存在已知 CVE，与 Flask 弱耦合 |
-| 辅助 | records / redis / PyMySQL | 0.5.3 / 3.5.3 / 0.10.1 | `CuBackgroundScheduler` 用 records 裸 SQL |
+| 辅助 | records / redis / PyMySQL | 0.5.3 / 3.5.3 / **1.1.2** | `CuBackgroundScheduler` 用 records 裸 SQL |
 
 ### 2.2 开发与 CI 分工
 
@@ -83,7 +83,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | --- | --- | --- | --- | --- |
 | 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **已交付**；`manage.py` 注册 `flask db`，解锁 Py3.11 迁移 |
 | 2 | **Tier 1** ✓ | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | **已交付**；含 Flask-SQLAlchemy 2.5.1（2.4.x 不兼容 SA 1.4 URL） |
-| ∥ | *侧车* ✓ | HTTP 安全补丁（requests / urllib3） | 最弱 | **RFC-S.1 已交付**；RFC-S.2 PyMySQL 按公告择机 |
+| ∥ | *侧车* ✓ | HTTP 安全补丁（requests / urllib3） | 最弱 | **RFC-S.1 已交付**；**RFC-S.2 PyMySQL 1.1.2 已交付** |
 | ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法） |
 | 3 | **Tier 2** | gevent / gunicorn / APScheduler + Python 上限 | 强 | 牵动 monkey patch、多 worker 调度、Docker 金路径 |
 | 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | `Model.query` 已清零；升 SA 2 前须处理 `records` 裸 SQL |
@@ -151,7 +151,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 项 | 候选 | 注意 |
 | --- | --- | --- |
 | RFC-S.1 ✓ | `requests` **2.31.0**、`urllib3` **1.26.19**、`certifi` **2024.8.30** | 已回归 `cron_do`、SSRF 单测、黄金路径 |
-| RFC-S.2 | `PyMySQL` 小版本（按公告） | 连接池；未纳入本批次 |
+| RFC-S.2 ✓ | `PyMySQL` **1.1.2** | 兼容 Py 3.8–3.11；MySQL 生产连接回归 |
 
 ### Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）
 
@@ -199,7 +199,8 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | --- | --- | --- | --- |
 | Flask-Script | Py3.11 阻断 migrate | **Tier 0** 已移除 | 耦合最弱，**已完成** |
 | SQLAlchemy 1.3 | 维护结束 | **Tier 1** 已升 1.4 | 过渡版；`Model.query` 已迁移 |
-| requests/urllib3 | CVE | **侧车 RFC-S.1** | **已升** 2.31.0 / 1.26.19；PyMySQL 留 RFC-S.2 |
+| requests/urllib3 | CVE | **侧车 RFC-S.1** | **已升** 2.31.0 / 1.26.19 |
+| PyMySQL 0.10 | 旧驱动 | **侧车 RFC-S.2** | **已升** 1.1.2（Py 3.8+） |
 | gevent 20 | Py3.11 编译失败 | **Tier 2** | 在 SA 1.4 稳定后 |
 | APScheduler 3.6 | 旧 bug | **Tier 2** | 与 gevent 同窗回归 |
 | SQLAlchemy 2.0 | — | **Tier 3** | `records` 裸 SQL 清零后 |

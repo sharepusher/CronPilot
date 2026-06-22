@@ -19,7 +19,7 @@ redis==3.5.3
 portalocker==2.6.0
 records==0.5.3
 tablib==2.0.0
-PyMySQL==0.10.1
+PyMySQL==1.1.2
 pytz==2020.1
 tzlocal==2.1
 setuptools>=40,<81

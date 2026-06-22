@@ -25,7 +25,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | requests | 2.31.0 | Apache-2.0 |
 | urllib3 | 1.26.19 | MIT |
 | redis | 3.5.3 | MIT |
-| PyMySQL | 0.10.1 | MIT |
+| PyMySQL | 1.1.2 | MIT |
 | alembic | 1.4.3 | MIT |
 | click | 7.1.2 | BSD-3-Clause |
 | itsdangerous | 1.1.0 | BSD-3-Clause |

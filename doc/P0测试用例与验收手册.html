@@ -154,6 +154,19 @@ cp conf.ini.example conf.ini   # 首次
 # 编辑 conf.ini：数据库、login_pwd、block_private_ip 等
 bash scripts/start_local.sh</pre>
 
+  <h2>优化交付验收（Tier / Phase / 部署）</h2>
+  <div class="card">
+    <p><strong>强制顺序：</strong>实现改动 → 跑通下表验收 → <strong>再</strong>更新 <code>RELEASE_NOTES</code>、RFC、架构/部署等相关文档 → <code>python scripts/html_docs_to_markdown.py --check</code>。不得在验收未通过时把文档标为「已交付」。</p>
+    <table>
+      <tr><th>变更类型</th><th>最低验收命令</th></tr>
+      <tr><td>后端 / API / 服务层</td><td><code>bash scripts/cronpilot.sh test</code> + <code>bash scripts/verify_golden_path.sh</code></td></tr>
+      <tr><td>依赖升级 Tier</td><td>上栏 + Docker/生产依赖时 <code>bash scripts/verify_all.sh --docker-only</code> 或 <code>verify_cronpilot_docker_mac.sh</code></td></tr>
+      <tr><td>部署 / 启动脚本</td><td><code>bash scripts/verify_install_flow.sh</code> 或 <code>verify_all.sh</code> 对应节</td></tr>
+      <tr><td>大批量改写</td><td>建议单模块改完即验收，再更新文档（避免多文件改完才测）</td></tr>
+    </table>
+    <p>协作细则：<code>AGENTS.md</code>、<code>.cursor/rules/cronpilot-project.mdc</code>「优化交付闭环」。</p>
+  </div>
+
   <h2>验收签字表（发布前）</h2>
   <table>
     <tr><th>OPT</th><th>负责人</th><th>日期</th><th>通过</th></tr>

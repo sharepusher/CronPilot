@@ -1,5 +1,18 @@
 # P0 测试说明
 
+## 优化交付（每次 Tier / Phase / 部署改动）
+
+**顺序**：改代码 → 验收通过 → 更新文档 → `html_docs_to_markdown.py --check`。
+
+```bash
+bash scripts/cronpilot.sh test
+bash scripts/verify_golden_path.sh
+# 触及 Docker/生产依赖时再加：
+bash scripts/verify_all.sh --docker-only   # 或 --with-compose
+```
+
+详 `AGENTS.md`、`.cursor/rules/cronpilot-project.mdc`、`doc/P0测试用例与验收手册.html` §优化交付验收。
+
 ## 自动化（推荐 Python 3.8–3.11，与项目 requirements 一致）
 
 ```bash

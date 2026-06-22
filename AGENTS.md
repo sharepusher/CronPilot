@@ -12,6 +12,8 @@
 
 依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0 `flask db` → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4；RBAC 在 Tier 0 后可并行。
 
+**每次优化**：先验收通过，再更新相关文档（`RELEASE_NOTES`、RFC、架构/部署 doc 等）→ `html_docs_to_markdown.py --check`。细则见 `.cursor/rules/cronpilot-project.mdc`「优化交付闭环」。
+
 **快速命令**
 
 ```bash

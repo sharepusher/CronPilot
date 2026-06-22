@@ -13,6 +13,15 @@ RFC依赖运维P2
 
 **定位：**本文是**决策与排期**文档，不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier 须单独 PR、`RELEASE_NOTES` 条目与回归清单。
 
+**交付纪律（每一 Tier / 优化项）：**
+
+1. 实现改动（最小 diff）
+2. 验收通过：`cronpilot.sh test` + `verify_golden_path.sh`；触及 Docker/生产时加 `verify_all.sh --docker-only`
+3. **再**更新 `RELEASE_NOTES`、本 RFC 状态、相关 `doc/*.html`
+4. `python scripts/html_docs_to_markdown.py --check`
+
+大批量改写建议单模块验收后再更文档。详 [P0 验收手册](P0测试用例与验收手册.html) §优化交付验收。
+
 ## 一、摘要
 
 CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3.11**，这是项目规则与 Docker/CI 共同维护的**稳定栈**，而非遗漏升级。

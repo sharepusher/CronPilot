@@ -49,6 +49,17 @@
     <strong>定位：</strong>本文是<strong>决策与排期</strong>文档，不替代 <a href="详细技术方案.html">详细技术方案</a> 的功能规格，也不在本 RFC 合并时自动修改 <code>requirements.txt</code>。实施每一 Tier 须单独 PR、<code>RELEASE_NOTES</code> 条目与回归清单。
   </div>
 
+  <div class="warn">
+    <strong>交付纪律（每一 Tier / 优化项）：</strong>
+    <ol style="margin:.35rem 0 0 1.2rem;padding:0">
+      <li>实现改动（最小 diff）</li>
+      <li>验收通过：<code>cronpilot.sh test</code> + <code>verify_golden_path.sh</code>；触及 Docker/生产时加 <code>verify_all.sh --docker-only</code></li>
+      <li><strong>再</strong>更新 <code>RELEASE_NOTES</code>、本 RFC 状态、相关 <code>doc/*.html</code></li>
+      <li><code>python scripts/html_docs_to_markdown.py --check</code></li>
+    </ol>
+    大批量改写建议单模块验收后再更文档。详 <a href="P0测试用例与验收手册.html">P0 验收手册</a> §优化交付验收。
+  </div>
+
   <h2>一、摘要</h2>
   <div class="card">
     <p>CronPilot 当前锁定 <strong>Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3.11</strong>，这是项目规则与 Docker/CI 共同维护的<strong>稳定栈</strong>，而非遗漏升级。</p>

@@ -29,7 +29,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 层级 | 包 | 版本 | 备注 |
 | --- | --- | --- | --- |
 | Web | Flask / Werkzeug / Jinja2 | 1.1.2 / 1.0.1 / 2.11.2 | Flask 1.x 已停止演进 |
-| ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；`Model.query` 渐进保留至 Tier 3 |
+| ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；全站 `Model.query` 已迁移；`records` 裸 SQL 留 Tier 3 |
 | 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
 | 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
 | WSGI | gunicorn / gevent | 20.0.4 / 20.9.0 | `gun.py` 启动即 monkey patch |
@@ -77,7 +77,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | ∥ | *侧车* | HTTP 安全补丁（requests / urllib3） | 最弱 | 与 Tier 0/1 无代码交叉，可独立 PR |
 | ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法） |
 | 3 | **Tier 2** | gevent / gunicorn / APScheduler + Python 上限 | 强 | 牵动 monkey patch、多 worker 调度、Docker 金路径 |
-| 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | 须在 Tier 1 后**分批**完成旧 API 清理，再升 2.0 |
+| 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | `Model.query` 已清零；升 SA 2 前须处理 `records` 裸 SQL |
 | 5 | **Tier 4** | Flask 1.1 → 2.x | 高 | Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑 |
 
 ### 4.1 代码触点与耦合（盘点表）
@@ -86,7 +86,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | --- | --- | --- | --- | --- | --- | --- |
 | Flask-Script `Manager` | `manage.py` | 最弱 | 替换 | — | — | — |
 | `db.session.execute("裸 SQL")` | `app/crons.py` | 中 | — | 改为 `text()`（小 PR） | — | 必须完成 |
-| `Model.query.filter / paginate` | `main/views.py` 等 | 中 | — | 可暂保留 | — | 升 SA 2 前分批改 |
+| `Model.query.filter / paginate` | `main/views.py` 等 | 中 | — | ✅ 已改 | — | — |
 | `SQLAlchemyJobStore` | `config.py` | 中 | — | 验证 1.4 | 随 APS 升级 | — |
 | `records` 裸 SQL | `CuBackgroundScheduler.py` | 中 | — | — | — | 与 SQL 整改一并 |
 | `gevent.monkey.patch_all()` | `gun.py` | 强 | — | — | 升级 | — |
@@ -112,28 +112,28 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 
 ### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）· 已交付（Unreleased）
 
-**目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.5 下运行；**允许旧 `Model.query` 继续存在**，用多个小 PR 逐步替换，而非一次性重写。
+**目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.5 下运行；**全站 `Model.query` 已分批迁移**为 `session.get` / `scalars(select(...))` / `execute(delete(...))`。
 
 | 项 | 动作 | 说明 |
 | --- | --- | --- |
 | RFC-1.1 | `SQLAlchemy==1.4.52` | `Flask-SQLAlchemy==2.5.1`（2.4.4 与 SA 1.4 不兼容，须 2.5+） |
 | RFC-1.2 | 应用级 `SQLALCHEMY_ENGINE_OPTIONS` 或配置 `future=False`（1.4 默认） | 抑制 2.0 迁移警告至可控范围 |
 | RFC-1.3 | **首批**必改：`app/crons.py` 中 `execute("SELECT 1")` → `execute(text("SELECT 1"))` | 改动面极小，验证 1.4 路径 |
-| RFC-1.4 | 建立「查询改写 backlog」：按文件列出 `Model.query` 触点，RBAC 新代码直接用 `text()` / 推荐写法 | 与 RBAC 并行时，新表模型不增加旧债 |
+| RFC-1.4 | 「查询改写 backlog」按模块完成（`job_log_service` → `main/views` → `cron_service` → `api/views` → `crons`） | RBAC 新代码继续用 `text()` / 推荐写法 |
 | RFC-1.5 | alembic：评估 `1.4.3` 是否仍满足 1.4；若不足则升到 1.7.x（仍 < 2.0），**禁止**解析到 alembic 1.18+ 拉 SA 2 | 锁版本写入 requirements |
 
 #### SA 1.4 渐进策略（核心）
 
-- **允许保留：**`CronInfos.query.filter(...)`、`paginate()` 等直至 Tier 3 前。
-- **新代码要求：**RBAC 模型、operation\_log、任何新 PR 中避免新增裸字符串 `execute`。
-- **分批 PR：**建议按模块（`crons` → `job_log_service` → `main/views` → `cron_service`）逐个合并，每 PR 跑全量单测 + 冒烟。
+- **已完成：**`Model.query` 全站迁移；`main/views.py` 分页仍用 `db.session.query(...).paginate()`（SA 1.4 兼容）。
+- **新代码要求：**RBAC 模型、operation\_log、任何新 PR 中避免新增裸字符串 `execute` 与 `Model.query`。
+- **分批 PR：**已按模块（`crons` → `job_log_service` → `main/views` → `cron_service` → `api/views`）合并，每 PR 跑全量单测 + 冒烟。
 - **不做什么：**本 Tier **不**升 SQLAlchemy 2.0、**不**升 Flask-SQLAlchemy 3.x。
 
 #### 验收标准
 
 - 单元测试 + 本地 `start_local.sh` 冒烟通过（SQLite / MySQL 各一轮）。
 - APScheduler JobStore 正常：`apscheduler_jobs` 读写、任务触发无异常。
-- 改写 backlog 已入库（Issue 或 `doc/` 清单），并标记 Tier 3 前须清零的「硬必改」项（裸 `execute`）。
+- 改写 backlog 已清零：`Model.query` 与裸 `execute` 字符串已改；`records` 裸 SQL 列入 Tier 3。
 
 ### 侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）
 
@@ -164,12 +164,12 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 
 ### Tier 3 — SQLAlchemy 2.0 + 查询写法收束（数周，耦合高）
 
-**前置条件：**Tier 1 的 backlog 中「硬必改」项已清零；`Model.query` 已分批迁移或经 SA 1.4 弃用警告评估可安全升级。
+**前置条件：**Tier 1 的 `Model.query` 已清零；升 SA 2 前须将 `records` 裸 SQL（`CuBackgroundScheduler`、`crons.cron_check` 等）改为 ORM 或 `text()`。
 
 | 子阶段 | 内容 |
 | --- | --- |
 | 3a | `SQLAlchemy==2.0.x` + `Flask-SQLAlchemy==3.x`；Alembic 升到与 SA 2 匹配版本 |
-| 3b | 剩余 `Model.query` → `db.session.scalars(select(...))`；迁移脚本重放验证 |
+| 3b | `records` 裸 SQL → ORM / `text()`；迁移脚本重放验证 |
 | 3c | 生产库备份 → upgrade → 任务与 `job_log` 只读校验 |
 
 #### 验收标准
@@ -189,11 +189,11 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | 组件 | 维持现状风险 | 建议 Tier | 说明 |
 | --- | --- | --- | --- |
 | Flask-Script | Py3.11 阻断 migrate | **Tier 0** 已移除 | 耦合最弱，**已完成** |
-| SQLAlchemy 1.3 | 维护结束 | **Tier 1** 已升 1.4 | 过渡版；backlog 渐进改写 |
+| SQLAlchemy 1.3 | 维护结束 | **Tier 1** 已升 1.4 | 过渡版；`Model.query` 已迁移 |
 | requests/urllib3 | CVE | **侧车** | 与 Tier 0/1 并行 |
 | gevent 20 | Py3.11 编译失败 | **Tier 2** | 在 SA 1.4 稳定后 |
 | APScheduler 3.6 | 旧 bug | **Tier 2** | 与 gevent 同窗回归 |
-| SQLAlchemy 2.0 | — | **Tier 3** | backlog 清零后 |
+| SQLAlchemy 2.0 | — | **Tier 3** | `records` 裸 SQL 清零后 |
 | Flask 1.1 | 无新补丁 | **Tier 4** | 晚于 Tier 2 |
 | records 0.5.3 | 裸 SQL | Tier 3 或 SQL 整改 | 与 OPT 安全项对齐 |
 
@@ -228,7 +228,7 @@ RBAC v2 详设见 [RBAC 架构设计方案](RBAC架构设计方案.html)。本�
 ```
 权威顺序（升级线）:
   Tier 0  Flask CLI
-    → Tier 1  SQLAlchemy 1.4（渐进改写，不阻塞功能）
+    → Tier 1  SQLAlchemy 1.4（Model.query 已迁移）
     → Tier 2  gevent + Python 上限
     → Tier 3  SQLAlchemy 2.0
     → Tier 4  Flask 2.x
@@ -237,7 +237,7 @@ RBAC 插入点（推荐）:
   Tier 0 完成
     → RBAC 实现 + db migrate（可与 Tier 1 并行）
     → RBAC 验收（rbac_enable=0/1）
-    → 继续 Tier 1 backlog / Tier 2
+    → Tier 2（gevent）/ 侧车安全补丁
 
 侧车（任意时刻）:
   HTTP 安全补丁（requests 等）
@@ -293,7 +293,7 @@ RBAC 插入点（推荐）:
                       ├──► [RBAC + db migrate] ──► [RBAC 发布]
 [Tier 1 SA 1.4 起步]──┘         │                      │
   （渐进 PR：crons→views…）      │                      ▼
-                                │              [Tier 1 backlog 继续]
+                                │              [Tier 2 gevent]
 [侧车 requests 补丁]（任意）     │
                                 ▼
                       [Tier 2 gevent + Py 上限]

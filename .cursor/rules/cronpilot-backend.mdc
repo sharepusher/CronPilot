@@ -21,7 +21,7 @@ alwaysApply: false
 
 ```python
 # ❌ 禁止：拼接 SQL / execute("%…")
-# ✅ 使用：JobLog.query.filter(...).delete() 或 job_log_service 内 ORM
+# ✅ 使用：job_log_service 内 delete()/scalars() 或 ORM
 
 # ❌ 禁止：新增明文硬编码或仅 strcmp 密码
 # ✅ 使用：verify_login_password(plain, stored)

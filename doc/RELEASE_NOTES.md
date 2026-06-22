@@ -15,7 +15,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 ## [Unreleased] · 依赖升级 Tier 0 / Tier 1
 
 **Tier 0：**退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。  
-**Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；`crons.py` 裸 `execute` 已改 `text()`。**无 API 协议变更。**
+**Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 `Model.query` 已迁移为 SA 1.4 推荐写法。**无 API 协议变更。**
 
 ### Tier 0
 
@@ -28,10 +28,12 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 | 变更 | 说明 |
 | --- | --- |
-| SQLAlchemy 1.4.52 | 过渡版；`Model.query` 保留至 Tier 3 |
+| SQLAlchemy 1.4.52 | 过渡版；全站 `Model.query` 已迁移 |
 | Flask-SQLAlchemy 2.5.1 | SA 1.4 兼容（2.4.x URL API 不兼容） |
 | `config.py` | `SQLALCHEMY_ENGINE_OPTIONS = {'future': False}` |
-| `app/crons.py` | `execute(text("SELECT 1"))` |
+| 查询改写 | `job_log_service`、`main/views`、`cron_service`、`api/views`、`crons` |
+| Docker 验收 | `write_sqlite_conf.py --container-paths`；`reset_datas_sqlite.sh` |
+| 留 Tier 3 | `records` 裸 SQL（`CuBackgroundScheduler` 等） |
 
 ```
 export FLASK_APP=manage:app

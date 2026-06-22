@@ -529,7 +529,7 @@
         <h4>方案（耦合从弱到强）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
           <li><strong>Tier 0</strong>：Flask-Script → <code>flask db</code> 原生 CLI（RBAC / operation_log 建表前置）</li>
-          <li><strong>Tier 1</strong>：SQLAlchemy 1.4 过渡版；<code>Model.query</code> 渐进改写，非大爆炸</li>
+          <li><strong>Tier 1</strong>：SQLAlchemy 1.4 过渡版；<code>Model.query</code> 已分批迁移完成</li>
           <li><strong>侧车</strong>：requests / urllib3 安全补丁（独立 PR）</li>
           <li><strong>Tier 2</strong>：gevent / gunicorn / APScheduler / Python 上限</li>
           <li><strong>Tier 3/4</strong>：SA 2.0 → Flask 2.x（单独立项）</li>

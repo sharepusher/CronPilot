@@ -535,7 +535,7 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 #### 方案（耦合从弱到强）
 
 1. **Tier 0**：Flask-Script → `flask db` 原生 CLI（RBAC / operation\_log 建表前置）
-2. **Tier 1**：SQLAlchemy 1.4 过渡版；`Model.query` 渐进改写，非大爆炸
+2. **Tier 1**：SQLAlchemy 1.4 过渡版；`Model.query` 已分批迁移完成
 3. **侧车**：requests / urllib3 安全补丁（独立 PR）
 4. **Tier 2**：gevent / gunicorn / APScheduler / Python 上限
 5. **Tier 3/4**：SA 2.0 → Flask 2.x（单独立项）

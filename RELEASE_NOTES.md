@@ -29,12 +29,14 @@ flask db upgrade
 
 | 变更 | 说明 |
 |------|------|
-| SQLAlchemy 1.3.19 → **1.4.52** | 过渡版；`Model.query` 可渐进保留至 Tier 3 |
+| SQLAlchemy 1.3.19 → **1.4.52** | 过渡版；全站 `Model.query` 已迁移为 SA 1.4 推荐写法 |
 | Flask-SQLAlchemy 2.4.4 → **2.5.1** | SA 1.4 兼容（2.4.x 与 1.4 URL API 不兼容） |
 | `config.py` | `SQLALCHEMY_ENGINE_OPTIONS = {'future': False}` |
-| `app/crons.py` | `execute("SELECT 1")` → `execute(text("SELECT 1"))` |
+| `app/crons.py` | `execute(text(...))`；`session.get` / `scalars(select(...))` |
+| `app/services/job_log_service.py` 等 | `delete()` / `scalars()` 替代 `Model.query` |
+| Docker 验收 | `write_sqlite_conf.py --container-paths`；`reset_datas_sqlite.sh` 仅清 `*.sqlite` |
 
-**SA 1.4 查询改写 backlog（Tier 3 前分批）：**
+**SA 1.4 查询改写 backlog：**
 
 | 模块 | 模式 | 优先级 |
 |------|------|--------|

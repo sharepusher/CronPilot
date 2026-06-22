@@ -38,7 +38,7 @@ alwaysApply: true
 | 变更类型 | 最低验收 |
 |----------|----------|
 | 后端 / API / 服务层 | `bash scripts/cronpilot.sh test` + `bash scripts/verify_golden_path.sh` |
-| 依赖升级（Tier N） | 上栏 + 触及 Docker/生产依赖时 `bash scripts/verify_all.sh --docker-only` 或 `verify_cronpilot_docker_mac.sh` |
+| 依赖升级（Tier N） / `requirements*.txt` 侧车补丁 | `cronpilot.sh test` + **`docker compose up --build -d` 后容器内确认 pin**（如 `pip show requests urllib3`）+ **`smoke_http_suite` 或 `verify_all.sh --docker-only --with-compose`**；**通过前不得 commit** |
 | 部署 / 启动脚本 | `verify_install_flow.sh` 或 `verify_all.sh` 中对应节 |
 | 仅文档 | `html_docs_to_markdown.py --check` + `check_pending_sync.sh`（无代码则可不跑服务） |
 
@@ -71,4 +71,4 @@ alwaysApply: true
 - 集成冒烟：`bash scripts/verify_golden_path.sh`；全量 `bash scripts/verify_all.sh`（Docker 用 `--docker-only --with-compose`）
 - 用例应覆盖真实行为（SSRF、密码、校验、JSON、签名），不写无意义断言。
 - CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**；改 `doc/*.html` 后须 `--check` 通过。
-- **顺序**：代码/脚本改动 → 上栏验收 **全部通过** → 再更新文档（见上文「优化交付闭环」）。
+- **顺序**：代码/脚本改动 → 上栏验收 **全部通过**（依赖变更须含 **Docker compose 冒烟**）→ 再更新文档 → **最后 commit**（见上文「优化交付闭环」）。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。

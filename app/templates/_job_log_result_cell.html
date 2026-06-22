@@ -1,0 +1,17 @@
+{% macro job_log_result_cell(jl) %}
+{% set status = jl.http_status|job_log_status_line(jl.content) %}
+<div style="line-height:1.45">
+  {% if status[1] == 'ok' %}
+  <strong style="color:#059669">{{ status[0] }}</strong>
+  {% elif status[1] == 'warn' %}
+  <strong style="color:#b45309">{{ status[0] }}</strong>
+  {% elif status[1] == 'fail' %}
+  <strong style="color:#b91c1c">{{ status[0] }}</strong>
+  {% else %}
+  <span style="color:#64748b">{{ status[0] }}</span>
+  {% endif %}
+  {% if jl.take_time %} · {{ jl.take_time }}s{% endif %}
+  <br>
+  <span style="color:#64748b;font-size:12px" title="{{ jl.content }}">{{ jl.content|job_log_content_preview(120) }}</span>
+</div>
+{% endmacro %}

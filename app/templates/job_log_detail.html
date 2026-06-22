@@ -1,0 +1,46 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap js-check-wrap">
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="javascript:;">执行详情</a></li>
+        </ul>
+        {% if not jl %}
+        <p class="help-block">记录不存在。</p>
+        {% else %}
+        {% set status = jl.http_status|job_log_status_line(jl.content) %}
+        <p>
+            {% if cif %}<strong>{{ cif.task_name }}</strong> · {% endif %}
+            {{ jl.create_time }}
+            {% if status[1] == 'fail' %}
+            · <strong style="color:#b91c1c">{{ status[0] }}</strong>
+            {% elif status[1] == 'warn' %}
+            · <strong style="color:#b45309">{{ status[0] }}</strong>
+            {% elif status[1] == 'ok' %}
+            · <strong style="color:#059669">{{ status[0] }}</strong>
+            {% else %}
+            · <span style="color:#64748b">{{ status[0] }}</span>
+            {% endif %}
+            {% if jl.take_time %} · 耗时 {{ jl.take_time }}s{% endif %}
+        </p>
+        {% if jl.log_id %}
+        <p class="help-block" style="margin-top:0">log_id: <code>{{ jl.log_id }}</code></p>
+        {% endif %}
+        {% if cif and cif.req_url %}
+        <p class="help-block" style="margin-top:0">回调: <code>{{ cif.req_url }}</code></p>
+        {% endif %}
+        <pre style="max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;background:#f8fafc;border:1px solid #e2e8f0;padding:10px;font-size:12px">{{ jl.content }}</pre>
+
+        {% if items %}
+        <h4 style="font-size:14px;margin:1rem 0 .5rem">业务上报进度（{{ items|length }} 条）</h4>
+        <p class="help-block">由回调方 <code>POST /api/cron/add_log</code> 写入，与上方 HTTP 响应不同。</p>
+        <table class="table table-bordered table-hover">
+            <tr><th>内容</th></tr>
+            {% for item in items %}
+            <tr><td><pre style="margin:0;white-space:pre-wrap;word-break:break-all;font-size:12px">{{ item.content }}</pre></td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

@@ -23,8 +23,24 @@ def main():
         return 0
     with app.app_context():
         db.create_all()
+        _ensure_job_log_http_status_column()
     print('OK: SQLite 业务表已就绪 ->', uri)
     return 0
+
+
+def _ensure_job_log_http_status_column():
+    """已有 SQLite 库补列 http_status（create_all 不会 ALTER）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log'):
+        return
+    cols = {c['name'] for c in insp.get_columns('job_log')}
+    if 'http_status' in cols:
+        return
+    with db.engine.begin() as conn:
+        conn.execute(text('ALTER TABLE job_log ADD COLUMN http_status INTEGER'))
+    print('OK: job_log.http_status 列已添加')
 
 
 if __name__ == '__main__':

@@ -75,6 +75,23 @@ def job_log_item_list():
 
     return render_template("job_log_item_list.html", page_data=page_data)
 
+
+@main.route('/job_log_detail', methods=['GET'])
+@login_required
+def job_log_detail():
+    job_log_id = request.args.get('id')
+    jl = db.session.get(JobLog, job_log_id)
+    if not jl:
+        return render_template("job_log_detail.html", jl=None, cif=None, items=[])
+    cif = db.session.get(CronInfos, jl.cron_info_id)
+    items = []
+    if jl.log_id:
+        items = db.session.scalars(
+            select(JobLogItems).where(JobLogItems.log_id == jl.log_id)
+        ).all()
+    return render_template("job_log_detail.html", jl=jl, cif=cif, items=items)
+
+
 @main.route('/job_log_all_list', methods=['GET', 'POST'])
 @login_required
 def job_log_all_list():

@@ -126,6 +126,7 @@ def cron_do(cron_id):
                                     create_time=nows,
                                     take_time=time.time() - t,
                                     log_id=cronpilot_log_id,
+                                    http_status=req.status_code,
                                 )
                                 db.session.add(jl)
                                 db.session.commit()

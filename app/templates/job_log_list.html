@@ -1,6 +1,7 @@
 {% extends "admin_base.html" %}
 
 {% import "admin_page.html" as pg %}
+{% from "_job_log_result_cell.html" import job_log_result_cell %}
 {% block content %}
     <div class="wrap js-check-wrap">
         <ul class="nav nav-tabs">
@@ -14,18 +15,18 @@
                     <th>返回的内容</th>
                     <th>执行时间</th>
                     <th>耗时</th>
-                    <th>更详细的执行记录</th>
+                    <th>操作</th>
                 </tr>
                 </thead>
                 <tbody>
                     {% for item in page_data.items %}
                     <tr>
                         <td>{{ item.log_id }}</td>
-                        <td>{{ item.content }}</td>
+                        <td>{{ job_log_result_cell(item) }}</td>
                         <td>{{ item.create_time }}</td>
                         <td>{{ item.take_time }}</td>
-                        <td><a href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_item_list',log_id=item.log_id) }}','详细执行记录',{width: '80%',
-        height: '80%'})">查看</a></td>
+                        <td><a href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_detail', id=item.id) }}','执行详情',{width: '80%',
+        height: '80%'})">查看详情</a></td>
                     </tr>
                 {% endfor %}
                 </tbody>

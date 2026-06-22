@@ -10,10 +10,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 PENDING = ROOT / "doc" / "_pending_sync"
 MANIFEST_NAME = "pending_apply.manifest"
+FORBIDDEN_MANIFEST = frozenset({
+    "doc/_pending_sync/INDEX.md",
+    "doc/_pending_sync/已合并补丁记录.md",
+    "INDEX.md",
+    "已合并补丁记录.md",
+})
 
 
 def _append_manifest(rel: Path) -> None:
     """登记待 sudo 合并的相对路径（勿登记目录说明/归档文件）。"""
+    key = rel.as_posix()
+    if key in FORBIDDEN_MANIFEST:
+        raise SystemExit(f"禁止将元数据写入 manifest: {key}")
     PENDING.mkdir(parents=True, exist_ok=True)
     manifest = PENDING / MANIFEST_NAME
     line = f"{rel.as_posix()}\n"

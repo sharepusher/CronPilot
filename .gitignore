@@ -23,5 +23,5 @@ datas/*.db
 
 # doc/_pending_sync：仅跟踪目录说明与归档，忽略临时全文副本
 doc/_pending_sync/*
-!doc/_pending_sync/README.md
+!doc/_pending_sync/INDEX.md
 !doc/_pending_sync/已合并补丁记录.md

@@ -54,3 +54,10 @@ python scripts/html_docs_to_markdown.py --check  # CI 同款校验
 
 - 文档面向 **CronPilot** 读者；对比上游时陈述事实，不喧宾夺主。
 - 新能力在 PRD 中标 OPT 编号（P0/P1/P2）与验收标准，便于与 Plombery 对照文档一致。
+
+## `doc/_pending_sync/` 与删除纪律
+
+- **目录说明**：`doc/_pending_sync/INDEX.md`（勿将目录说明写入 `README.md`——该路径留给根 `README.md` 的 pending 副本）。
+- **临时副本**：仅 `sync_all_docs.py` 在 `PermissionError` 时写入，并登记 `pending_apply.manifest`；`apply_pending_docs.sh` 只合并 manifest 路径。
+- **删除任何文件前**须在 `doc/_pending_sync/已合并补丁记录.md` 追加：**完整相对路径**（自仓库根）、**充分删除原因**、对照证据；未跟踪文件亦同。提交说明中应复述关键删除项。
+- **入库前**：`bash scripts/check_pending_sync.sh`（CI `docs-sync.yml` 同款）。

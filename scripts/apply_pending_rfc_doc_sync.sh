@@ -36,7 +36,7 @@ text = deploy.read_text(encoding="utf-8")
 old_py = '<tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（Flask 1.1 / gevent 20 易失败）</td></tr>'
 new_py = '<tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（当前 gevent 20 栈；升级见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 2）</td></tr>'
 if old_py not in text:
-    raise SystemExit(f"未找到预期片段，请手动对照 doc/_pending_sync/非Docker部署指南-依赖升级RFC同步.md")
+    raise SystemExit("未找到预期 Python 行片段，请手动对照 doc/非Docker部署指南.html §2 与 doc/_pending_sync/已合并补丁记录.md 批次 A3")
 text = text.replace(old_py, new_py, 1)
 
 old_gevent = '<tr><td><code>pip install gevent</code> 失败</td><td>换 3.8–3.11 中另一版本；本地先用 <code>bash scripts/start_local.sh</code>（core 依赖）</td></tr>'

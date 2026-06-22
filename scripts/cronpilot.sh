@@ -53,6 +53,7 @@ case "$cmd" in
     cronpilot_load_runtime
     export FLASK_CONFIG=development
     cp -n conf.ini.example conf.ini 2>/dev/null || true
+    bash "$ROOT/scripts/check_pending_sync.sh"
     "$CRONPILOT_VENV/bin/python" -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
     ;;
   check)

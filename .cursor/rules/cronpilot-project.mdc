@@ -30,7 +30,8 @@ alwaysApply: true
 3. **优化交付闭环（强制）**：每次优化（依赖 Tier、Phase 功能、部署/验收脚本、安全修复等）须 **先验证通过，再更新文档**；不得在未跑验收的情况下只改文档或只改代码。
 4. **文档与代码同步**：验证通过后 → `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、架构、部署、验收手册等）→ `python scripts/html_docs_to_markdown.py --check`。
 5. **Git**：仅用户明确要求时 `commit`/`push`；不擅自 force push、不 amend 已推送提交。
-6. **部署说明**：裸机优先写 `README` 部署节 + `doc/非Docker部署指南.html`（及生成 MD）；管理端与文档同端口 `/docs/`。
+6. **删除纪律**：删除 `doc/_pending_sync/` 或其它仓库文件时，须在回复/提交说明与 `doc/_pending_sync/已合并补丁记录.md` 中写明 **完整相对路径** 与 **充分删除原因**（附主文档对照证据），避免误删。
+7. **部署说明**：裸机优先写 `README` 部署节 + `doc/非Docker部署指南.html`（及生成 MD）；管理端与文档同端口 `/docs/`。
 
 ### 优化验收（验证通过后再写文档）
 
@@ -39,7 +40,7 @@ alwaysApply: true
 | 后端 / API / 服务层 | `bash scripts/cronpilot.sh test` + `bash scripts/verify_golden_path.sh` |
 | 依赖升级（Tier N） | 上栏 + 触及 Docker/生产依赖时 `bash scripts/verify_all.sh --docker-only` 或 `verify_cronpilot_docker_mac.sh` |
 | 部署 / 启动脚本 | `verify_install_flow.sh` 或 `verify_all.sh` 中对应节 |
-| 仅文档 | `html_docs_to_markdown.py --check`（无代码则可不跑服务） |
+| 仅文档 | `html_docs_to_markdown.py --check` + `check_pending_sync.sh`（无代码则可不跑服务） |
 
 大批量改写（如查询 backlog）建议 **单文件（或单模块）→ 验收 → 文档**，避免多文件改完才测。
 
@@ -53,6 +54,7 @@ alwaysApply: true
 - [ ] 部署/验收：`README`、`doc/非Docker部署指南.html`、`doc/P0测试用例与验收手册.html`（若影响验收）
 - [ ] `AGENTS.md` / `.cursor/rules/`（若流程或命令变更）
 - [ ] `python scripts/html_docs_to_markdown.py --check` 通过
+- [ ] 若删除 `doc/_pending_sync/*`：`已合并补丁记录.md` 已记完整路径与原因
 
 ## 路线图优先级（未明确要求不越级实现）
 

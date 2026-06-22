@@ -47,6 +47,13 @@ while IFS= read -r rel || [ -n "${rel:-}" ]; do
   rel="$(echo "$rel" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
   [ -z "$rel" ] && continue
 
+  case "$rel" in
+    doc/_pending_sync/INDEX.md|doc/_pending_sync/已合并补丁记录.md|INDEX.md|已合并补丁记录.md)
+      echo "SKIP (meta): $rel" >&2
+      continue
+      ;;
+  esac
+
   src="$PENDING/$rel"
   dest="$ROOT/$rel"
 

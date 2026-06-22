@@ -9,6 +9,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 PENDING = ROOT / "doc" / "_pending_sync"
+MANIFEST_NAME = "pending_apply.manifest"
+
+
+def _append_manifest(rel: Path) -> None:
+    """登记待 sudo 合并的相对路径（勿登记目录说明/归档文件）。"""
+    PENDING.mkdir(parents=True, exist_ok=True)
+    manifest = PENDING / MANIFEST_NAME
+    line = f"{rel.as_posix()}\n"
+    existing = manifest.read_text(encoding="utf-8") if manifest.exists() else ""
+    if line not in existing:
+        with manifest.open("a", encoding="utf-8") as f:
+            f.write(line)
 
 
 def write(path: Path, content: str) -> None:
@@ -16,12 +28,12 @@ def write(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
         print(f"updated {path.relative_to(ROOT)}")
     except PermissionError:
-        PENDING.mkdir(parents=True, exist_ok=True)
         rel = path.relative_to(ROOT)
         dest = PENDING / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
-        print(f"pending {rel} -> doc/_pending_sync/{rel}")
+        _append_manifest(rel)
+        print(f"pending {rel} -> doc/_pending_sync/{rel} (see {MANIFEST_NAME})")
 
 
 def patch_file(path: Path, old: str, new: str) -> bool:
@@ -457,9 +469,10 @@ def main() -> None:
     patch_project_overview()
     patch_linux_guides()
     print("done.")
-    if PENDING.exists() and any(PENDING.rglob("*")):
-        print("\n部分文件属 root，已写入 doc/_pending_sync/。请执行:")
+    if PENDING.exists() and (PENDING / MANIFEST_NAME).is_file():
+        print("\n部分文件属 root，已写入 doc/_pending_sync/ 并登记 manifest。请执行:")
         print("  sudo bash scripts/apply_pending_docs.sh")
+        print("（仅合并 manifest 中的路径；主文件若比副本新将自动跳过）")
 
 
 def patch_project_overview() -> None:

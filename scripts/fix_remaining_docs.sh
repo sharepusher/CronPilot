@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 python3 scripts/sync_all_docs.py
-# 仅当 pending 生成时合并
-if [ -d doc/_pending_sync ]; then
-  bash scripts/apply_pending_docs.sh
+# 仅当 manifest 存在时合并（避免盲目覆盖主文档）
+if [ -f doc/_pending_sync/pending_apply.manifest ]; then
+  sudo bash scripts/apply_pending_docs.sh
 fi
 # 强制修补 非Docker / index.html（若仍缺 install_linux）
 if ! grep -q "install_linux.sh" doc/非Docker部署指南.md 2>/dev/null; then

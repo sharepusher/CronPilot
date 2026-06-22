@@ -144,12 +144,48 @@ cron_do 触发 ──► job_log（每次必有）
 | **B1 推荐** | 小时/分钟行尾灰字，与现有一致 | 推荐 |
 | B2 | 旁路链到本文档 §四 | 可作补充链接「Cron 填写说明」 |
 
-## 七、影响范围与验收
+## 七、索引策略（`job_log.http_status`）
+
+**结论（方案 A′ 本次）：**只加列 `http_status`，**不新增、不修改**任何索引。现有查询路径不变，`http_status` 仅用于展示。
+
+### 7.1 现有 `job_log` 索引（保持不变）
+
+| 索引 | 字段 | 典型查询 |
+| --- | --- | --- |
+| PRIMARY KEY | `id` | `ORDER BY id DESC` 分页 |
+| `ix_job_log_log_id` | `log_id` | `POST /api/cron/add_log` 反查主记录 |
+| `ix_job_log_cron_info_id` | `cron_info_id` | `/job_log_list?id=` 单任务记录 |
+
+详见 [详细技术方案](详细技术方案.html) §6.1。注：`create_time` 目前**无索引**；全量记录按时间范围筛选时大数据量可能偏慢（既有问题，非本次引入）。
+
+### 7.2 本次迁移（A′）
+
+```
+ALTER TABLE job_log ADD COLUMN http_status INTEGER NULL;
+-- 不执行 CREATE INDEX … ON job_log(http_status)
+```
+
+- 旧数据 `http_status IS NULL` → UI 显示「—」或「无状态码」。
+- `job_log_items` 表与索引**不变**。
+- 迁移方式：`flask db migrate` + `flask db upgrade`（Tier 0 已交付）。
+
+### 7.3 远期索引（OPT-P1-01，本次不做）
+
+若产品增加「只查失败 / 4xx / 5xx」筛选或失败率统计，再单独评估索引，例如：
+
+| 场景 | 候选索引 | 说明 |
+| --- | --- | --- |
+| 单任务失败列表 | `(cron_info_id, http_status)` | 与现有 `cron_info_id` 查询叠加 |
+| 全局失败筛选 | `(http_status, id)` 或 `create_time` | 需结合数据量与 EXPLAIN；可能先加 `create_time` 索引 |
+
+原则：**有 WHERE 再建索引**；A′ 仅展示不筛选，避免无效索引拖慢 `cron_do` 写入。
+
+## 八、影响范围与验收
 
 | 文件（确认后修改） | 变更 |
 | --- | --- |
 | `app/crons.py` | 写入 `job_log.http_status`（成功）；异常写 status 空或 0 + content 含错误 |
-| `datas/model/job_log.py` + 迁移 | 新增 `http_status` 字段（INTEGER，可空）；**列表 UI 不加列** |
+| `datas/model/job_log.py` + 迁移 | 新增 `http_status`（INTEGER，可空）；**不新增索引**（见 §七） |
 | `app/main/views.py` | 新增或改造 `job_log_detail`（按 job\_log.id 展示详情） |
 | `job_log_all_list.html`、`job_log_list.html` | 「返回的内容」单元格两行；链接改「查看详情」→ detail |
 | `job_log_item_list.html` | 仅作详情页内可选「业务上报」区块，或废弃主入口 |
@@ -162,11 +198,11 @@ cron_do 触发 ──► job_log（每次必有）
 3. 点「查看详情」→ 弹窗见完整两行结构（状态 + 全文），**不应再是空白页**
 4. 未调用 add\_log 的任务 → 详情页无「业务上报」或显示 0 条
 
-## 八、确认项（请勾选后回复）
+## 九、确认项（请勾选后回复）
 
 - □ 执行记录采用 **方案 A′**（列表不加列，一格两行）
 - □ 「更详细的执行记录」改为「**查看详情**」，展示 HTTP 状态 + 完整响应/异常
-- ☑ `job_log.http_status` 单独字段（**已确认**；列表仍不加列）
+- ☑ `job_log.http_status` 单独字段（已确认；列表不加列；**索引不变**，见 §七）
 - □ `add_log` 从主按钮移除，改详情页可选折叠
 - □ 周期说明采用 **方案 B1**
 

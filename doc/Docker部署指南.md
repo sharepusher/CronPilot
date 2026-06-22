@@ -33,7 +33,7 @@ Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
 | Compose | Docker Compose v2（`docker compose`） |
 | 宿主机 | 无需安装 Python / MySQL（试用 SQLite） |
 | 端口 | 宿主机 **5860** 未被占用 |
-| 运行时栈 | 镜像内 **Python 3.9 + gevent 20**（勿期望 3.12+；升级路线见 [依赖升级 RFC](依赖升级RFC.html) Tier 2） |
+| 运行时栈 | 镜像内 **Python 3.9 + gevent 23.9.1**（勿期望 3.12+；Tier 2 进行中见 [依赖升级 RFC](依赖升级RFC.html)） |
 
 ## 3. 快速开始（SQLite 试用）
 

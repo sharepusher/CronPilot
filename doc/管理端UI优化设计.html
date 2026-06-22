@@ -79,13 +79,13 @@
   </div>
 
   <div class="warn">
-    <strong>交付纪律：</strong>本文档为<strong>设计稿</strong>，非已实现功能。按 <a href="../.cursor/rules/cronpilot-project.mdc">项目总则</a>「UI / 功能优化先设计」——<strong>你确认方案后</strong>再改模板并走 Docker 验收。
+    <strong>交付说明：</strong>A′+B1 已于 <code>b105e47</code> 交付；本文保留问题背景、原型与验收清单供查阅。
   </div>
 
   <h2>一、背景与问题</h2>
   <table>
     <tr><th>#</th><th>用户反馈</th><th>根因（已核实）</th></tr>
-    <tr><td>1</td><td>点击「更详细的执行记录」弹窗为空</td><td><code>job_log_items</code> 仅由 <code>POST /api/cron/add_log</code> 写入；普通 GET 回调只写 <code>job_log.content</code>，故弹窗无行是<strong>现有设计</strong>，但文案误导用户以为坏了</td></tr>
+    <tr><td>1</td><td>点击「更详细的执行记录」弹窗为空</td><td><strong>已修复（b105e47）</strong>：改为「查看详情」展示 <code>job_log</code> HTTP 全文；原 <code>job_log_items</code> 仅 add_log 有数据时折叠显示</td></tr>
     <tr><td>2</td><td>执行记录列表「没有有效内容」</td><td>列表把整页 HTML（约 80KB）塞进单元格，页面难读；与「空」的主观感受相关</td></tr>
     <tr><td>3</td><td>「1 分钟一次」只跑一条</td><td>Cron 语义：<code>minute=1</code> = 每小时第 1 分，非每 1 分钟；需 <code>minute=*/1</code>（见 §四）</td></tr>
     <tr><td>4</td><td>周期说明 UI 丑陋、风格不一致</td><td>试探性 <code>alert</code> / 独立说明块未对齐 simpleboot <code>control-group</code> + 行内灰字</td></tr>
@@ -96,7 +96,7 @@
     <pre>cron_do 触发 ──► job_log（每次必有）
                          ├─ content   ← 目前只存 HTTP 响应<strong>正文</strong>（或异常文案）
                          ├─ take_time、log_id、create_time
-                         └─ http_status ← <strong>当前未写入</strong>（代码里 req.status_code 已有，没落库）
+                         └─ http_status ← <strong>已写入</strong>（<code>cron_do</code> 成功时落库，b105e47）
 
     job_log_items ← 另一套机制：业务在执行过程中 POST /api/cron/add_log 上报<strong>中间进度</strong>
                     与「看本次回调 HTTP 结果」<strong>不是一回事</strong>，不应作为「更详细执行记录」的主入口。</pre>

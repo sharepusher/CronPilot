@@ -16,13 +16,13 @@ UI已交付
 · 本地开发（`start_local.sh` 默认 5001）：[http://127.0.0.1:5001/docs/管理端UI优化设计.html](http://127.0.0.1:5001/docs/%E7%AE%A1%E7%90%86%E7%AB%AFUI%E4%BC%98%E5%8C%96%E8%AE%BE%E8%AE%A1.html)  
 · 仓库源稿：`doc/管理端UI优化设计.html` · Markdown：<管理端UI优化设计.md>
 
-**交付纪律：**本文档为**设计稿**，非已实现功能。按 [项目总则](../.cursor/rules/cronpilot-project.mdc)「UI / 功能优化先设计」——**你确认方案后**再改模板并走 Docker 验收。
+**交付说明：**A′+B1 已于 `b105e47` 交付；本文保留问题背景、原型与验收清单供查阅。
 
 ## 一、背景与问题
 
 | # | 用户反馈 | 根因（已核实） |
 | --- | --- | --- |
-| 1 | 点击「更详细的执行记录」弹窗为空 | `job_log_items` 仅由 `POST /api/cron/add_log` 写入；普通 GET 回调只写 `job_log.content`，故弹窗无行是**现有设计**，但文案误导用户以为坏了 |
+| 1 | 点击「更详细的执行记录」弹窗为空 | **已修复（b105e47）**：改为「查看详情」展示 `job_log` HTTP 全文；原 `job_log_items` 仅 add\_log 有数据时折叠显示 |
 | 2 | 执行记录列表「没有有效内容」 | 列表把整页 HTML（约 80KB）塞进单元格，页面难读；与「空」的主观感受相关 |
 | 3 | 「1 分钟一次」只跑一条 | Cron 语义：`minute=1` = 每小时第 1 分，非每 1 分钟；需 `minute=*/1`（见 §四） |
 | 4 | 周期说明 UI 丑陋、风格不一致 | 试探性 `alert` / 独立说明块未对齐 simpleboot `control-group` + 行内灰字 |
@@ -33,7 +33,7 @@ UI已交付
 cron_do 触发 ──► job_log（每次必有）
                          ├─ content   ← 目前只存 HTTP 响应正文（或异常文案）
                          ├─ take_time、log_id、create_time
-                         └─ http_status ← 当前未写入（代码里 req.status_code 已有，没落库）
+                         └─ http_status ← 已写入（cron_do 成功时落库，b105e47）
 
     job_log_items ← 另一套机制：业务在执行过程中 POST /api/cron/add_log 上报中间进度
                     与「看本次回调 HTTP 结果」不是一回事，不应作为「更详细执行记录」的主入口。

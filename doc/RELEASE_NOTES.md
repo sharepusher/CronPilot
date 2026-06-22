@@ -12,11 +12,43 @@ v0.1.0 2026-05-29 · Phase A（P0）
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
-## [Unreleased] · 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP
+## [Unreleased] · UI / 侧车 / Tier 2
+
+**管理端 A′+B1（b105e47）：**执行记录单列两行 +「查看详情」；`job_log.http_status`；Cron 分钟 `*/1` 提示。  
+**侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
+**Tier 2 RFC-2.1：**`gevent` 23.9.1 + `greenlet` 3.1.1（gunicorn 20 待 RFC-2.2）。  
+**Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
+
+### 管理端 UI（A′ + B1）
+
+| 变更 | 说明 |
+| --- | --- |
+| 执行记录列表 | 「返回的内容」一格两行：HTTP 状态 + 正文截断 |
+| 查看详情 | 替代「更详细的执行记录」；展示 `job_log` 完整 HTTP 响应/异常 |
+| `http_status` | `cron_do` 写入；SQLite `ensure_sqlite_tables.py` 补列 |
+| Cron 分钟 B1 | 添加/编辑页：`*/1` = 每分钟 |
+
+设计说明：[管理端 UI 优化设计](管理端UI优化设计.html)
+
+### 侧车 PyMySQL（RFC-S.2）
+
+| 变更 | 说明 |
+| --- | --- |
+| `PyMySQL` 1.1.2 | 0.10.1 → 1.1.2；`mysql+pymysql://` URL 不变 |
+
+### Tier 2 · RFC-2.1（进行中）
+
+| 变更 | 说明 |
+| --- | --- |
+| `gevent` 23.9.1 | 20.9.0 → 23.9.1；Py 3.8–3.11 |
+| `greenlet` 3.1.1 | 与 gevent 23 配套 |
+| 待续 | RFC-2.2 gunicorn、RFC-2.3 APScheduler |
+
+### 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP
 
 **Tier 0：**退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。  
 **Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 `Model.query` 已迁移为 SA 1.4 推荐写法。  
-**侧车 RFC-S.1：**`requests` 2.31.0、`urllib3` 1.26.19、`certifi` 2024.8.30。**无 API 协议变更。**
+**侧车 RFC-S.1：**`requests` 2.31.0、`urllib3` 1.26.19、`certifi` 2024.8.30。
 
 ### Tier 0
 

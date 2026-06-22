@@ -13,7 +13,7 @@ alwaysApply: true
 
 ## 技术栈约束
 
-- Python **3.8～3.11**（勿默认 3.12+；Flask 1.1 + gevent 20 栈）。
+- Python **3.8～3.11**（勿默认 3.12+；Flask 1.1 + gevent 23 栈，RFC-2.1 已交付）。
 - 许可：**Apache-2.0**（`LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md`）；新增依赖需可合规分发。
 - 配置：仅提交 `conf.ini.example`；**勿提交** `conf.ini`、`.venv*`、`datas/*.db`、本地日志。
 

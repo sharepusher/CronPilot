@@ -40,11 +40,39 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
-<h2 class="new">[Unreleased] · 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP</h2>
+<h2 class="new">[Unreleased] · UI / 侧车 / Tier 2</h2>
   <div class="card highlight">
+    <p><strong>管理端 A′+B1（b105e47）：</strong>执行记录单列两行 +「查看详情」；<code>job_log.http_status</code>；Cron 分钟 <code>*/1</code> 提示。<br>
+    <strong>侧车 RFC-S.2：</strong><code>PyMySQL</code> 1.1.2。<br>
+    <strong>Tier 2 RFC-2.1：</strong><code>gevent</code> 23.9.1 + <code>greenlet</code> 3.1.1（gunicorn 20 待 RFC-2.2）。<br>
+    <strong>Tier 0/1 + RFC-S.1</strong> 见下方；<strong>无 API 协议变更。</strong></p>
+  </div>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI（A′ + B1）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>执行记录列表</td><td>「返回的内容」一格两行：HTTP 状态 + 正文截断</td></tr>
+    <tr><td>查看详情</td><td>替代「更详细的执行记录」；展示 <code>job_log</code> 完整 HTTP 响应/异常</td></tr>
+    <tr><td><code>http_status</code></td><td><code>cron_do</code> 写入；SQLite <code>ensure_sqlite_tables.py</code> 补列</td></tr>
+    <tr><td>Cron 分钟 B1</td><td>添加/编辑页：<code>*/1</code> = 每分钟</td></tr>
+  </table>
+  <p>设计说明：<a href="管理端UI优化设计.html">管理端 UI 优化设计</a></p>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">侧车 PyMySQL（RFC-S.2）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>PyMySQL</code> 1.1.2</td><td>0.10.1 → 1.1.2；<code>mysql+pymysql://</code> URL 不变</td></tr>
+  </table>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 2 · RFC-2.1（进行中）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>gevent</code> 23.9.1</td><td>20.9.0 → 23.9.1；Py 3.8–3.11</td></tr>
+    <tr><td><code>greenlet</code> 3.1.1</td><td>与 gevent 23 配套</td></tr>
+    <tr><td>待续</td><td>RFC-2.2 gunicorn、RFC-2.3 APScheduler</td></tr>
+  </table>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">依赖升级 Tier 0 / Tier 1 / 侧车 HTTP</h3>
+  <div class="card">
     <p><strong>Tier 0：</strong>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<br>
     <strong>Tier 1：</strong>SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 <code>Model.query</code> 已迁移为 SA 1.4 推荐写法。<br>
-    <strong>侧车 RFC-S.1：</strong><code>requests</code> 2.31.0、<code>urllib3</code> 1.26.19、<code>certifi</code> 2024.8.30。<strong>无 API 协议变更。</strong></p>
+    <strong>侧车 RFC-S.1：</strong><code>requests</code> 2.31.0、<code>urllib3</code> 1.26.19、<code>certifi</code> 2024.8.30。</p>
   </div>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 0</h3>
   <table>

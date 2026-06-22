@@ -530,7 +530,7 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 
 #### 背景
 
-当前栈 Flask 1.1 + SQLAlchemy 1.3 + gevent 20 为**稳定选型**，但 Flask-Script 阻断 Py3.11 迁移 CLI、HTTP 依赖存在 CVE、gevent 20 在部分环境难编译。
+当前栈 Flask 1.1 + SQLAlchemy 1.4 + gevent 23 为**稳定选型**；HTTP CVE 与 gevent 20 编译问题已由侧车/Tier 2 解决；Flask-Script 已由 Tier 0 移除。
 
 #### 方案（耦合从弱到强）
 

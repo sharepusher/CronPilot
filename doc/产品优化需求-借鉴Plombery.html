@@ -525,7 +525,7 @@
       <div class="opt-h"><strong>OPT-P2-11</strong> <span class="p2">P2</span> 依赖分层升级（RFC）</div>
       <div class="opt-b">
         <h4>背景</h4>
-        <p>当前栈 Flask 1.1 + SQLAlchemy 1.3 + gevent 20 为<strong>稳定选型</strong>，但 Flask-Script 阻断 Py3.11 迁移 CLI、HTTP 依赖存在 CVE、gevent 20 在部分环境难编译。</p>
+        <p>当前栈 Flask 1.1 + SQLAlchemy 1.4 + gevent 23 为<strong>稳定选型</strong>；HTTP CVE 与 gevent 20 编译问题已由侧车/Tier 2 解决；Flask-Script 已由 Tier 0 移除。</p>
         <h4>方案（耦合从弱到强）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
           <li><strong>Tier 0</strong>：Flask-Script → <code>flask db</code> 原生 CLI（RBAC / operation_log 建表前置）</li>

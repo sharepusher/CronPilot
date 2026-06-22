@@ -16,7 +16,7 @@ RUN useradd -m -s /bin/bash cronpilot && chown -R cronpilot:cronpilot /opt/cronp
   && chmod 440 /etc/sudoers.d/docker-root \
   && rm -rf /var/lib/apt/lists/*
 
-# gevent 20.9 + greenlet 0.4.17：py3.9 有预编译 wheel，生产环境推荐 3.9/3.10（3.10 见 install_production_deps 补丁）
+# gevent 23.9 + greenlet 3.1.1：py3.9+ 有预编译 wheel；生产环境推荐 3.9/3.10/3.11
 ENV PY=python3.9
 RUN SUDO_USER=cronpilot bash scripts/install_ubuntu.sh --production --sqlite
 

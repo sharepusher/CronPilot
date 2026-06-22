@@ -24,7 +24,7 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 
 | 组件 | 要求 | 说明 |
 | --- | --- | --- |
-| Python | **3.8～3.11** | 勿用 3.12+（当前 gevent 20 栈；升级见 [依赖升级 RFC](依赖升级RFC.html) Tier 2） |
+| Python | **3.8～3.11** | 勿用 3.12+（gevent 23 栈；Tier 2 其余项见 [依赖升级 RFC](依赖升级RFC.html)） |
 | 数据库 | MySQL 5.7+ / 8 | 生产推荐；试用可用 SQLite |
 | Redis | 可选 | 多实例集群锁；单机设 `is_single=1` |
 | 端口 | **5860** | `gun.py` 默认；本地脚本常用 5001 |

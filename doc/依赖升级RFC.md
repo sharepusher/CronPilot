@@ -24,9 +24,9 @@ RFC依赖运维P2
 
 ## 一、摘要
 
-CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3.11**，这是项目规则与 Docker/CI 共同维护的**稳定栈**，而非遗漏升级。
+CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3.11**，这是项目规则与 Docker/CI 共同维护的**稳定栈**，而非遗漏升级。
 
-- **版本偏旧**主要体现在 HTTP 客户端 CVE、gevent 20 在 macOS + Python 3.11 上难以编译；迁移 CLI 已由 **Tier 0** 改为 `flask db`。
+- **版本偏旧**主要体现在 Flask 1.x 停止演进；HTTP 客户端 CVE 与 gevent 20 编译问题已由**侧车 RFC-S.1**与**Tier 2 RFC-2.1**解决；迁移 CLI 已由 **Tier 0** 改为 `flask db`。
 - **大规模升级**（Flask 2、SQLAlchemy 2、Python 3.12+）会牵动调度器、多 worker 锁、全站 `Model.query`，属**独立里程碑**，不应与 RBAC（OPT-P2-10）并行。
 - **推荐路径**（依赖耦合从弱到强）：**Tier 0** Flask 原生 CLI → **Tier 1** SQLAlchemy 1.4 过渡（渐进改写）→ **Tier 2** gevent / Python → **Tier 3/4** SA 2.0 / Flask 2。
 - RBAC 在 **Tier 0 后**即可启动，可与 Tier 1 并行；**不必**等待 gevent。
@@ -58,7 +58,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 
 | 现象 | 根因 | 影响面 |
 | --- | --- | --- |
-| `pip install -r requirements.txt` 失败（macOS 3.11） | `gevent==20.9.0` Cython 编译失败 | 本机无法装全量生产栈 |
+| `pip install -r requirements.txt` 失败（macOS 3.11） | 旧版 `gevent==20.9.0` Cython 编译失败 | **RFC-2.1 已缓解**（gevent 23.9.1 + greenlet 3.1.1 有 wheel） |
 | `python manage.py db` 导入失败（3.11） | Flask-Script 使用已移除的 `inspect.getargspec` | **已解决**（Tier 0：`flask db`） |
 | 仅装 Flask-Migrate 后 alembic 升到 1.18 | 未锁 `alembic==1.4.3`，拉取 SQLAlchemy 2.x | 与项目 SA 1.3 冲突 |
 | `create_app()` + 本机 MySQL 未启动 | 调度器启动时连 `cron_db_url` | manage.py 需可用 DB 或 CI 配置 |

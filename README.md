@@ -108,7 +108,7 @@ bash scripts/docker/verify_all.sh all
 
 | 组件 | 要求 |
 |------|------|
-| Python | **3.8～3.11**（勿用 3.12+；gevent 20 栈见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html) Tier 2） |
+| Python | **3.8～3.11**（勿用 3.12+；gevent 23 栈见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html)） |
 | 数据库 | **MySQL**（推荐）或 SQLite（试用） |
 | Redis | 多节点集群时必需；单机可 `is_single=1` |
 | 端口 | 管理端默认 **5860**（`gun.py`）；本地脚本常用 **5001** |

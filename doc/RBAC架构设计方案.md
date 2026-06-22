@@ -38,9 +38,9 @@ v2 · 基于 CronPilot 真实源码逆向 · Flask 装饰器 + Blueprint（非 E
 | 维度 | 真实值 | 出处 |
 | --- | --- | --- |
 | Web | Flask 1.1.2，Blueprint：`main` / `api` / `docs` | `app/__init__.py` |
-| ORM | SQLAlchemy 1.3 + Flask-SQLAlchemy | `app/__init__.py` |
+| ORM | SQLAlchemy **1.4.52** + Flask-SQLAlchemy **2.5.1**（Tier 1 已交付） | `app/__init__.py`、`requirements.txt` |
 | 调度 | Flask-APScheduler + `CuBackgroundScheduler` | `app/CuBackgroundScheduler.py` |
-| 部署 | gunicorn + gevent；Python **3.8–3.11** | 项目规则 / `requirements.txt` |
+| 部署 | gunicorn + gevent **23.9.1**；Python **3.8–3.11** | 项目规则 / `requirements.txt` |
 | 配置 | `conf.ini` + `configs()` 每次读盘无缓存 | `configs.py` |
 | 前端 | Jinja2 SSR + jQuery + Vue（非 SPA） | `app/templates/` |
 | JSON 契约 | `{errcode:int, errmsg, result, data, url}` | `datas/utils/json.py` |
@@ -60,6 +60,7 @@ session['is_login'] = True
 
 ### 1.3 项目纪律约束
 
+- RBAC 新模型/查询：**禁止**新增 `Model.query` 与裸字符串 `execute`；用 `session.get` / `scalars(select(...))` / `text()`（与 Tier 1 一致，见 [依赖升级 RFC](依赖升级RFC.html)）。
 - Phase A（P0）已交付；RBAC 为**需用户明确确认**的新阶段（OPT-P2-10），非默认 scope。
 - 最小 diff：不顺手重构；密码走 `verify_login_password` / `hash_password`（`app/auth/password.py`）。
 - 测试沿用 `python -m unittest`，不引入 pytest。

@@ -41,7 +41,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；全站 `Model.query` 已迁移；`records` 裸 SQL 留 Tier 3 |
 | 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
 | 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
-| WSGI | gunicorn / gevent | 20.0.4 / 20.9.0 | `gun.py` 启动即 monkey patch |
+| WSGI | gunicorn / gevent | 20.0.4 / **23.9.1** | `gun.py` 启动即 monkey patch |
 | HTTP | requests / urllib3 | 2.24.0 / 1.25.10 | 存在已知 CVE，与 Flask 弱耦合 |
 | 辅助 | records / redis / PyMySQL | 0.5.3 / 3.5.3 / **1.1.2** | `CuBackgroundScheduler` 用 records 裸 SQL |
 
@@ -159,7 +159,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 
 | 项 | 动作 | 风险 |
 | --- | --- | --- |
-| RFC-2.1 | `gevent` 20.9 → 22.x 或 24.x + `greenlet` | 中–高 |
+| RFC-2.1 ✓ | `gevent` **23.9.1** + `greenlet` **3.1.1** | Docker 构建 + gunicorn gevent worker 健康检查通过 |
 | RFC-2.2 | `gunicorn` 20 → 21/22，gevent worker 回归 | 中 |
 | RFC-2.3 | `APScheduler` 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调） | 中 |
 | RFC-2.4 | Python：Docker 金路径 3.9 → 评估 3.10/3.11；`install-full.yml` matrix 扩展 | 中 |
@@ -201,7 +201,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.3 + gevent 20 + Python 3.8–3
 | SQLAlchemy 1.3 | 维护结束 | **Tier 1** 已升 1.4 | 过渡版；`Model.query` 已迁移 |
 | requests/urllib3 | CVE | **侧车 RFC-S.1** | **已升** 2.31.0 / 1.26.19 |
 | PyMySQL 0.10 | 旧驱动 | **侧车 RFC-S.2** | **已升** 1.1.2（Py 3.8+） |
-| gevent 20 | Py3.11 编译失败 | **Tier 2** | 在 SA 1.4 稳定后 |
+| gevent 20 | Py3.11 编译失败 | **Tier 2 RFC-2.1** | **已升** gevent 23.9.1 + greenlet 3.1.1 |
 | APScheduler 3.6 | 旧 bug | **Tier 2** | 与 gevent 同窗回归 |
 | SQLAlchemy 2.0 | — | **Tier 3** | `records` 裸 SQL 清零后 |
 | Flask 1.1 | 无新补丁 | **Tier 4** | 晚于 Tier 2 |

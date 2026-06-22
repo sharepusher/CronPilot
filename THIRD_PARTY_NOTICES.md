@@ -20,7 +20,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | Jinja2 | 2.11.2 | BSD-3-Clause |
 | SQLAlchemy | 1.4.52 | MIT |
 | Werkzeug | 1.0.1 | BSD-3-Clause |
-| gevent | 20.9.0 | MIT |
+| gevent | 23.9.1 | MIT |
 | gunicorn | 20.0.4 | MIT |
 | requests | 2.31.0 | Apache-2.0 |
 | urllib3 | 1.26.19 | MIT |
@@ -45,7 +45,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | tzlocal | 2.1 | MIT |
 | cffi | 1.15.1 | MIT |
 | pycparser | 2.21 | BSD-3-Clause |
-| greenlet | 0.4.17 | MIT |
+| greenlet | 3.1.1 | MIT |
 | idna | 2.10 | BSD-3-Clause (Unicode) |
 | Mako | 1.1.3 | MIT |
 | et-xmlfile | 1.0.1 | MIT |

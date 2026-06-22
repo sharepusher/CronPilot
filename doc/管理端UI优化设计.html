@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 管理端 UI 优化设计（含原型）</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#4338ca;--ok:#059669;--warn:#b45309}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f766e,#0d9488 55%,#14b8a6);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .ok-box{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .status-draft{color:#fcd34d;font-weight:600}
+    .url-box{background:#1e293b;color:#e2e8f0;padding:1rem 1.2rem;border-radius:8px;font-size:.9rem;margin:1rem 0}
+    .url-box a{color:#7dd3fc}
+    /* —— 线框原型：对齐 simpleboot 管理端 —— */
+    .proto{border:2px dashed #94a3b8;border-radius:10px;padding:1rem;margin:1.25rem 0;background:#fff}
+    .proto-label{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+    .proto .tabs{border-bottom:1px solid #ddd;margin-bottom:1rem}
+    .proto .tabs span{display:inline-block;padding:.5rem 1rem;border:1px solid #ddd;border-bottom:none;margin-right:.25rem;background:#f5f5f5;font-size:.85rem}
+    .proto .tabs span.on{background:#fff;font-weight:600}
+    .proto .jumbo{text-align:center;padding:1rem 0;border-bottom:1px solid #eee;margin-bottom:1rem}
+    .proto .jumbo h4{margin:0;font-size:1.1rem}
+    .proto .jumbo p{margin:.25rem 0 0;color:#888;font-size:.85rem}
+    .proto-form .row{display:flex;margin-bottom:.75rem;align-items:flex-start;font-size:.85rem}
+    .proto-form .lbl{width:100px;text-align:right;padding-right:12px;padding-top:6px;color:#333;flex-shrink:0}
+    .proto-form .ctl{flex:1}
+    .proto-form input[type=text],.proto-form select{width:100%;max-width:360px;padding:4px 8px;border:1px solid #ccc;border-radius:3px}
+    .proto-form .hint{color:#999;font-size:.8rem;margin-top:4px;line-height:1.5}
+    .proto-form .hint code{background:#f1f5f9;padding:0 .25rem;font-size:.85em}
+    .proto-table{width:100%;border-collapse:collapse;font-size:.8rem}
+    .proto-table th,.proto-table td{border:1px solid #ddd;padding:.4rem .5rem}
+    .proto-table th{background:#f9f9f9}
+    .proto-modal{border:1px solid #999;border-radius:6px;max-width:640px;margin:1rem auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    .proto-modal-h{padding:.6rem 1rem;background:#f5f5f5;border-bottom:1px solid #ddd;font-weight:600;font-size:.9rem}
+    .proto-modal-b{padding:1rem;font-size:.85rem}
+    .proto-modal-b pre{background:#f8fafc;border:1px solid #e2e8f0;padding:.75rem;border-radius:4px;font-size:.75rem;max-height:120px;overflow:auto;margin:.5rem 0}
+    .proto-empty{color:#94a3b8;font-style:italic;padding:1rem;text-align:center;background:#fafafa;border:1px dashed #ddd;border-radius:4px}
+    .badge{display:inline-block;font-size:.7rem;padding:.15rem .45rem;border-radius:4px;margin-left:.35rem}
+    .badge-rec{background:#dbeafe;color:#1d4ed8}
+    .badge-draft{background:#fef3c7;color:#b45309}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    @media(max-width:768px){.compare{grid-template-columns:1fr}}
+    .x{color:#b91c1c;text-decoration:line-through;opacity:.7}
+    .check{color:var(--ok);font-weight:600}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
+  <span class="tag">UI</span><span class="tag">原型</span><span class="tag">待确认</span>
+  <h1>管理端 UI 优化设计</h1>
+  <p>执行记录交互 · Cron 周期说明 · 含线框原型</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">Draft · 待产品确认</span> · 2026-06-22 · 确认后再改 <code>app/templates/</code></p>
+</header>
+
+<main class="layout">
+
+  <div class="url-box">
+    <strong>在线访问（与管理端同端口 <code>/docs/</code>）：</strong><br>
+    · Docker / 本地生产：<a href="http://127.0.0.1:5860/docs/%E7%AE%A1%E7%90%86%E7%AB%AFUI%E4%BC%98%E5%8C%96%E8%AE%BE%E8%AE%A1.html">http://127.0.0.1:5860/docs/管理端UI优化设计.html</a><br>
+    · 本地开发（<code>start_local.sh</code> 默认 5001）：<a href="http://127.0.0.1:5001/docs/%E7%AE%A1%E7%90%86%E7%AB%AFUI%E4%BC%98%E5%8C%96%E8%AE%BE%E8%AE%A1.html">http://127.0.0.1:5001/docs/管理端UI优化设计.html</a><br>
+    · 仓库源稿：<code>doc/管理端UI优化设计.html</code> · Markdown：<a href="管理端UI优化设计.md">管理端UI优化设计.md</a>
+  </div>
+
+  <div class="warn">
+    <strong>交付纪律：</strong>本文档为<strong>设计稿</strong>，非已实现功能。按 <a href="../.cursor/rules/cronpilot-project.mdc">项目总则</a>「UI / 功能优化先设计」——<strong>你确认方案后</strong>再改模板并走 Docker 验收。
+  </div>
+
+  <h2>一、背景与问题</h2>
+  <table>
+    <tr><th>#</th><th>用户反馈</th><th>根因（已核实）</th></tr>
+    <tr><td>1</td><td>点击「更详细的执行记录」弹窗为空</td><td><code>job_log_items</code> 仅由 <code>POST /api/cron/add_log</code> 写入；普通 GET 回调只写 <code>job_log.content</code>，故弹窗无行是<strong>现有设计</strong>，但文案误导用户以为坏了</td></tr>
+    <tr><td>2</td><td>执行记录列表「没有有效内容」</td><td>列表把整页 HTML（约 80KB）塞进单元格，页面难读；与「空」的主观感受相关</td></tr>
+    <tr><td>3</td><td>「1 分钟一次」只跑一条</td><td>Cron 语义：<code>minute=1</code> = 每小时第 1 分，非每 1 分钟；需 <code>minute=*/1</code>（见 §四）</td></tr>
+    <tr><td>4</td><td>周期说明 UI 丑陋、风格不一致</td><td>试探性 <code>alert</code> / 独立说明块未对齐 simpleboot <code>control-group</code> + 行内灰字</td></tr>
+  </table>
+
+  <h2>二、数据模型（不变）</h2>
+  <div class="card">
+    <pre>cron_do 触发
+    │
+    ├─► job_log（必有）     content = HTTP 响应正文；log_id = cronpilot_log_id
+    │
+    └─► job_log_items（可选） 仅当业务 POST /api/cron/add_log?cronpilot_log_id=&amp;content=...</pre>
+  </div>
+
+  <h2>三、推荐方案总览</h2>
+  <table>
+    <tr><th>模块</th><th>推荐</th><th>改动量</th></tr>
+    <tr><td>执行记录列表</td><td><strong>方案 A2</strong>：列表截断预览 +「查看响应」弹窗展示摘要</td><td>模板 + 少量 JS</td></tr>
+    <tr><td>详细记录弹窗</td><td>改名为「进度明细」；无数据时固定说明 + 链到 API 文档</td><td>模板文案</td></tr>
+    <tr><td>Cron 周期说明</td><td><strong>方案 B1</strong>：仅「分钟」行尾一行灰字，不新增分组</td><td>2 个模板</td></tr>
+    <tr><td>远期（P1）</td><td>OPT-P1-01：<code>status</code> / <code>http_status</code> 列，替代读 HTML 判断成败</td><td>需库表迁移，单独立项</td></tr>
+  </table>
+
+  <h2>四、原型 · 任务添加（周期说明 B1）</h2>
+  <p>对齐现有 <code>cron_add.html</code>：不增加蓝色 alert、不增加「周期说明」label 行；仅在<strong>分钟</strong>输入框后保留与「小时」字段同款的灰色说明。</p>
+
+  <div class="compare">
+    <div class="proto">
+      <div class="proto-label">现状（易误解）</div>
+      <div class="proto-form">
+        <div class="row"><span class="lbl">分钟</span><div class="ctl"><input type="text" value="1"> <span class="hint">0-59，不填表示默认</span></div></div>
+      </div>
+      <p class="hint" style="margin:.5rem 0 0">用户填 <code>1</code> 以为「每 1 分钟」→ 实际是「每小时第 1 分」。</p>
+    </div>
+    <div class="proto">
+      <div class="proto-label">方案 B1（推荐）<span class="badge badge-rec">待确认</span></div>
+      <div class="proto-form">
+        <div class="row"><span class="lbl">小时</span><div class="ctl"><input type="text" placeholder=""> <span class="hint">0-23；留空表示每个小时。每 2 小时填 <code>*/2</code></span></div></div>
+        <div class="row"><span class="lbl">分钟</span><div class="ctl"><input type="text" placeholder=""> <span class="hint">0-59；<strong>每分钟</strong>填 <code>*/1</code>。只填 <code>1</code> 表示每小时第 1 分钟</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Cron 语义速查（APScheduler，与 Linux crontab 一致）：</strong>未填字段 = <code>*</code>。
+    <table style="margin-top:.5rem">
+      <tr><th>意图</th><th>填写</th></tr>
+      <tr><td>每分钟</td><td><code>minute=*/1</code>（小时留空）</td></tr>
+      <tr><td>每小时第 2 分</td><td><code>minute=2</code></td></tr>
+      <tr><td>每天 02:00</td><td><code>hour=2</code> <code>minute=0</code></td></tr>
+    </table>
+  </div>
+
+  <h2>五、原型 · 任务执行记录（方案 A2）</h2>
+
+  <h3>5.1 列表页 <code>/job_log_all_list</code></h3>
+  <div class="proto">
+    <div class="proto-label">线框 · 任务执行记录</div>
+    <div class="jumbo"><h4>CronPilot 定时调度平台</h4><p>方便、统一、自由</p></div>
+    <div class="tabs"><span>任务列表</span><span>任务添加</span><span class="on">任务执行记录</span><span>API文档</span></div>
+    <table class="proto-table">
+      <tr><th>任务名称</th><th>HTTP 响应摘要</th><th>执行时间</th><th>耗时</th><th>操作</th></tr>
+      <tr>
+        <td>teststp</td>
+        <td><code>&lt;!doctype html&gt;&lt;html…</code>（前 120 字）<a href="#modal">查看全文</a></td>
+        <td>2026-06-22 09:02:00</td>
+        <td>0.85s</td>
+        <td><a href="#progress">进度明细</a> · 删除</td>
+      </tr>
+    </table>
+    <p class="hint" style="margin-top:.75rem">列名「返回的内容」→ 建议改为「<strong>HTTP 响应摘要</strong>」；悬停 <code>title</code> 可看更长片段。</p>
+  </div>
+
+  <h3>5.2 弹窗 · 查看 HTTP 响应（新增）</h3>
+  <div class="proto-modal" id="modal">
+    <div class="proto-modal-h">HTTP 响应 · teststp · 2026-06-22 09:02:00</div>
+    <div class="proto-modal-b">
+      <p>log_id: <code>ab8148aa-6e24-11f1-a53a-d24c536d198f</code> · 耗时 0.85s</p>
+      <pre>&lt;!doctype html&gt;&lt;html itemscope="" lang="id"&gt;…（全文，等宽字体，可滚动）</pre>
+      <p class="hint">实现：<code>open_iframe_dialog</code> 或只读 <code>&lt;pre&gt;</code>，勿把 80KB HTML 直接渲染进表格。</p>
+    </div>
+  </div>
+
+  <h3>5.3 弹窗 · 进度明细（原「更详细的执行记录」）</h3>
+  <div class="compare">
+    <div class="proto-modal">
+      <div class="proto-modal-h"><span class="x">现文案</span> 更详细的执行记录</div>
+      <div class="proto-modal-b">
+        <table class="proto-table"><tr><th>内容</th></tr></table>
+        <p class="proto-empty">（空白 — 用户认为坏了）</p>
+      </div>
+    </div>
+    <div class="proto-modal">
+      <div class="proto-modal-h"><span class="check">推荐</span> 进度明细 <span class="badge badge-rec">待确认</span></div>
+      <div class="proto-modal-b">
+        <div class="proto-empty">
+          暂无进度上报。<br><br>
+          仅当回调方在任务执行期间调用<br>
+          <code>POST /api/cron/add_log</code><br>
+          （<code>cronpilot_log_id</code> + <code>content</code>）时才会有明细。<br><br>
+          HTTP 响应正文见列表「<a href="#modal">查看全文</a>」或上栏响应弹窗。
+        </div>
+        <p class="hint" style="margin-top:.75rem"><a href="详细技术方案.html">API 文档</a> §add_log</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>六、方案对比</h2>
+  <h3>执行记录</h3>
+  <table>
+    <tr><th>方案</th><th>说明</th><th>优点</th><th>缺点</th></tr>
+    <tr><td>A1 仅改文案</td><td>改名 + 空状态说明</td><td>最小 diff</td><td>列表仍难读大段 HTML</td></tr>
+    <tr><td><strong>A2 推荐</strong></td><td>A1 + 列表截断 + 响应弹窗</td><td>解决「无有效内容」观感；不误导</td><td>需统一 3 个模板</td></tr>
+    <tr><td>A3 P1</td><td>增加 status / http_status 列</td><td>运维体验最佳</td><td>库表 + cron_do 改动，属 OPT-P1-01</td></tr>
+  </table>
+  <h3>周期说明</h3>
+  <table>
+    <tr><th>方案</th><th>说明</th><th>结论</th></tr>
+    <tr><td>B0</td><td>独立「周期说明」<code>control-group</code> 多行</td><td class="x">用户反馈风格突兀，不推荐</td></tr>
+    <tr><td><strong>B1 推荐</strong></td><td>小时/分钟行尾灰字，与现有一致</td><td class="check">推荐</td></tr>
+    <tr><td>B2</td><td>旁路链到本文档 §四</td><td>可作补充链接「Cron 填写说明」</td></tr>
+  </table>
+
+  <h2>七、影响范围与验收</h2>
+  <table>
+    <tr><th>文件（确认后修改）</th><th>变更</th></tr>
+    <tr><td><code>app/templates/cron_add.html</code>、<code>cron_edit.html</code></td><td>方案 B1 行内 hint</td></tr>
+    <tr><td><code>app/templates/job_log_all_list.html</code>、<code>job_log_list.html</code></td><td>方案 A2 截断 + 查看全文</td></tr>
+    <tr><td><code>app/templates/job_log_item_list.html</code></td><td>空状态文案 + 标题「进度明细」</td></tr>
+    <tr><td><code>doc/详细技术方案.html</code></td><td>可选：Cron 示例表同步 B1</td></tr>
+  </table>
+  <div class="ok-box">
+    <strong>验收步骤（实现后）：</strong>
+    <ol style="margin:.35rem 0 0 1.2rem">
+      <li>登录 <code>http://127.0.0.1:5860/</code>（<code>changeme</code>）</li>
+      <li>任务添加 → 选「定时模式」→ 确认分钟行 hint 无突兀色块</li>
+      <li>任务执行记录 → 列表有摘要；「查看全文」可见响应；「进度明细」无 add_log 时显示说明</li>
+      <li><code>bash scripts/cronpilot.sh test</code>；Docker compose 冒烟</li>
+    </ol>
+  </div>
+
+  <h2>八、确认项（请勾选后回复）</h2>
+  <div class="card">
+    <ul style="margin:0;padding-left:1.2rem">
+      <li>□ 执行记录采用 <strong>方案 A2</strong>（非仅 A1）</li>
+      <li>□ 周期说明采用 <strong>方案 B1</strong>（非独立说明块 B0）</li>
+      <li>□ 列名「返回的内容」改为「HTTP 响应摘要」</li>
+      <li>□ 「更详细的执行记录」改为「进度明细」</li>
+      <li>□ OPT-P1-01（status 列）另开迭代，不纳入本次</li>
+    </ul>
+  </div>
+
+</main>
+<footer>
+  <a href="index.html">文档索引</a> ·
+  <a href="index.md">Markdown 索引</a> ·
+  <a href="产品优化需求-借鉴Plombery.html">产品 PRD</a> ·
+  <a href="技术方案与前端设计.html">技术方案与前端设计</a> ·
+  Markdown 版：<a href="管理端UI优化设计.md">管理端UI优化设计.md</a>
+ · <a href="管理端UI优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

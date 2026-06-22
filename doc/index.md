@@ -19,6 +19,7 @@
 | 非 Docker 部署指南 | [非Docker部署指南.html](非Docker部署指南.html) | [非Docker部署指南.md](非Docker部署指南.md) |
 | 产品优化需求（PRD） | [产品优化需求-借鉴Plombery.html](产品优化需求-借鉴Plombery.html) | [产品优化需求-借鉴Plombery.md](产品优化需求-借鉴Plombery.md) |
 | Plombery 深度对比 | [Plombery深度对比分析.html](Plombery深度对比分析.html) | [Plombery深度对比分析.md](Plombery深度对比分析.md) |
+| **管理端 UI 优化设计（含原型）** | [管理端UI优化设计.html](管理端UI优化设计.html) | [管理端UI优化设计.md](管理端UI优化设计.md) |
 | 技术方案与前端设计 | [技术方案与前端设计.html](技术方案与前端设计.html) | [技术方案与前端设计.md](技术方案与前端设计.md) |
 | P0 测试与验收 | [P0测试用例与验收手册.html](P0测试用例与验收手册.html) | [P0测试用例与验收手册.md](P0测试用例与验收手册.md) |
 | 仓库拆分方案 | [新建项目与分支合并方案.html](新建项目与分支合并方案.html) | [新建项目与分支合并方案.md](新建项目与分支合并方案.md) |

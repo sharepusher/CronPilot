@@ -7,6 +7,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 管理端 UI · 执行记录 A′ + Cron 周期 B1
+
+| 变更 | 说明 |
+|------|------|
+| 执行记录列表 | 「返回的内容」一格两行：① HTTP 状态/异常 ② 响应正文截断；**不加新列** |
+| 查看详情 | 替代原「更详细的执行记录」；弹窗展示 `job_log` 完整 HTTP 响应/异常（非空白 add_log 表） |
+| `job_log.http_status` | `cron_do` 成功时写入状态码；SQLite 已有库经 `ensure_sqlite_tables.py` ALTER 补列；**不新增索引** |
+| Cron 分钟提示 B1 | 添加/编辑任务页分钟字段行尾灰字：`*/1` = 每分钟，`1` = 每小时第 1 分 |
+| 测试 | `tests/test_job_log_display.py` 并入 `bash scripts/cronpilot.sh test` |
+
+设计说明：[doc/管理端UI优化设计.html](doc/管理端UI优化设计.html)
+
 ### 依赖升级 · Tier 0
 
 | 变更 | 说明 |

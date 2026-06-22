@@ -63,10 +63,10 @@
 <body>
 <header class="hero">
   <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
-  <span class="tag">UI</span><span class="tag">原型</span><span class="tag">待确认</span>
+  <span class="tag">UI</span><span class="tag">已交付</span>
   <h1>管理端 UI 优化设计</h1>
   <p>执行记录 · Cron 周期说明 · 含线框原型 · <strong>v2 按反馈修订</strong></p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">Draft v2 · 待确认</span> · 2026-06-22</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">已交付 · b105e47</span> · 2026-06-22</p>
 </header>
 
 <main class="layout">
@@ -135,7 +135,7 @@
       <p class="hint" style="margin:.5rem 0 0">用户填 <code>1</code> 以为「每 1 分钟」→ 实际是「每小时第 1 分」。</p>
     </div>
     <div class="proto">
-      <div class="proto-label">方案 B1（推荐）<span class="badge badge-rec">待确认</span></div>
+      <div class="proto-label">方案 B1（推荐）<span class="badge badge-rec">已交付</span></div>
       <div class="proto-form">
         <div class="row"><span class="lbl">小时</span><div class="ctl"><input type="text" placeholder=""> <span class="hint">0-23；留空表示每个小时。每 2 小时填 <code>*/2</code></span></div></div>
         <div class="row"><span class="lbl">分钟</span><div class="ctl"><input type="text" placeholder=""> <span class="hint">0-59；<strong>每分钟</strong>填 <code>*/1</code>。只填 <code>1</code> 表示每小时第 1 分钟</span></div></div>
@@ -278,11 +278,11 @@
   <h2>九、确认项（请勾选后回复）</h2>
   <div class="card">
     <ul style="margin:0;padding-left:1.2rem">
-      <li>□ 执行记录采用 <strong>方案 A′</strong>（列表不加列，一格两行）</li>
-      <li>□ 「更详细的执行记录」改为「<strong>查看详情</strong>」，展示 HTTP 状态 + 完整响应/异常</li>
+      <li>☑ 执行记录采用 <strong>方案 A′</strong>（列表不加列，一格两行）</li>
+      <li>☑ 「更详细的执行记录」改为「<strong>查看详情</strong>」，展示 HTTP 状态 + 完整响应/异常</li>
       <li>☑ <code>job_log.http_status</code> 单独字段（已确认；列表不加列；<strong>索引不变</strong>，见 §七）</li>
-      <li>□ <code>add_log</code> 从主按钮移除，改详情页可选折叠</li>
-      <li>□ 周期说明采用 <strong>方案 B1</strong></li>
+      <li>☑ <code>add_log</code> 从主按钮移除，改详情页可选折叠</li>
+      <li>☑ 周期说明采用 <strong>方案 B1</strong></li>
     </ul>
   </div>
 

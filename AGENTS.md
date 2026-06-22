@@ -14,6 +14,8 @@
 
 **每次优化**：先验收通过，再更新相关文档（`RELEASE_NOTES`、RFC、架构/部署 doc 等）→ `html_docs_to_markdown.py --check`。细则见 `.cursor/rules/cronpilot-project.mdc`「优化交付闭环」。
 
+**UI / 功能可见改动**：先出设计说明并获确认，再改 `app/templates/` 等；见项目总则「UI / 功能优化先设计」。
+
 **快速命令**
 
 ```bash

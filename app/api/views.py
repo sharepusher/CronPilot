@@ -1,6 +1,7 @@
 #!/usr/bin/python3 
 # -*- coding:utf-8 -*-
 from flask import request, current_app
+from sqlalchemy import select
 
 from app import scheduler, db
 from app.decorated import api_deal_return, api_err_return
@@ -96,7 +97,9 @@ def cron_status():
     if not task_name:
         return api_err_return(msg='任务名称不能为空')
 
-    ci = CronInfos.query.filter(CronInfos.task_name == task_name).first()
+    ci = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
     if not ci:
         return api_err_return(msg='任务不存在')
 
@@ -161,7 +164,9 @@ def cron_add_log():
     if not content:
         return api_err_return(msg='日志内容不能为空')
 
-    jl = JobLog.query.filter(JobLog.log_id == cronpilot_log_id).first()
+    jl = db.session.scalars(
+        select(JobLog).where(JobLog.log_id == cronpilot_log_id)
+    ).first()
     if not jl:
         return api_err_return(msg='cronpilot_log_id 不存在')
 

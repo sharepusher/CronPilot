@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 import traceback
 
+from sqlalchemy import delete, select
+
 from app import scheduler, db
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
@@ -28,7 +30,12 @@ def cron_list():
     if task_name:
         filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
 
-    page_data = CronInfos.query.filter(*filter_arr).order_by(db.desc(CronInfos.status),db.desc(CronInfos.task_name)).paginate(page=page,per_page=20)
+    page_data = (
+        db.session.query(CronInfos)
+        .filter(*filter_arr)
+        .order_by(db.desc(CronInfos.status), db.desc(CronInfos.task_name))
+        .paginate(page=page, per_page=20)
+    )
     if 'page' in keyword: del keyword['page']
     return render_template("cron_list.html", page_data=page_data, keyword=keyword)
 
@@ -47,7 +54,12 @@ def job_log_list():
     page = int(request.args.get('page') or 1)
     id = request.args.get('id')
 
-    page_data = JobLog.query.filter(JobLog.cron_info_id == id).order_by(db.desc(JobLog.id)).paginate(page=page,per_page=20)
+    page_data = (
+        db.session.query(JobLog)
+        .filter(JobLog.cron_info_id == id)
+        .order_by(db.desc(JobLog.id))
+        .paginate(page=page, per_page=20)
+    )
     if 'page' in keywords:
         del keywords['page']
 
@@ -57,7 +69,9 @@ def job_log_list():
 @login_required
 def job_log_item_list():
     log_id = request.args.get('log_id')
-    page_data = JobLogItems.query.filter(JobLogItems.log_id == log_id).all()
+    page_data = db.session.scalars(
+        select(JobLogItems).where(JobLogItems.log_id == log_id)
+    ).all()
 
     return render_template("job_log_item_list.html", page_data=page_data)
 
@@ -77,12 +91,13 @@ def job_log_all_list():
     if beg_time and end_time:
         filter_arr.append(JobLog.create_time.between(beg_time,end_time))
 
-    page_data = JobLog.query.\
-        join(CronInfos,CronInfos.id == JobLog.cron_info_id).\
-        filter(*filter_arr).\
-        order_by(db.desc(JobLog.id)).\
-        add_entity(CronInfos).\
-        paginate(page=page,per_page=20)
+    page_data = (
+        db.session.query(JobLog, CronInfos)
+        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+        .filter(*filter_arr)
+        .order_by(db.desc(JobLog.id))
+        .paginate(page=page, per_page=20)
+    )
 
     if 'page' in keywords:
         del keywords['page']
@@ -95,7 +110,7 @@ def job_log_all_list():
 def job_log_delete():
     datas = request.values.to_dict()
     job_log_id = datas.get('job_log_id')
-    job_logs = JobLog.query.get(job_log_id)
+    job_logs = db.session.get(JobLog, job_log_id)
     if not job_logs:
         return web_api_return(code=1,msg='信息不存在')
     db.session.delete(job_logs)
@@ -107,7 +122,7 @@ def job_log_delete():
 @login_required
 def job_batch_delete():
     ids = request.form.getlist('id')
-    JobLog.query.filter(JobLog.id.in_(ids)).delete(synchronize_session=False)
+    db.session.execute(delete(JobLog).where(JobLog.id.in_(ids)))
     db.session.commit()
     return web_api_return(code=0, msg='操作成功', url='/job_log_all_list')
 
@@ -136,7 +151,7 @@ def cron_edit():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
     id = request.values.get('id')
-    cif = CronInfos.query.get(id)
+    cif = db.session.get(CronInfos, id)
     if request.method == 'POST':
         err = edit_cron_web(request.values.to_dict(), is_dev, CRON_CONFIG, id)
         if err:
@@ -150,7 +165,7 @@ def cron_edit():
 @login_required
 def update_status():
     id = request.args.get('id')
-    cif = CronInfos.query.get(id)
+    cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在',url='/cron_list')
     status = cif.status
@@ -169,7 +184,7 @@ def update_status():
 @login_required
 def cron_del():
     id = request.args.get('id')
-    cif = CronInfos.query.get(id)
+    cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在', url='/cron_list')
     cron_id = cif.id
@@ -190,8 +205,8 @@ def cron_del():
 @login_required
 def cron_batch_del():
     ids = request.form.getlist('id')
-    CronInfos.query.filter(CronInfos.id.in_(ids)).delete(synchronize_session=False)
-    JobLog.query.filter(JobLog.cron_info_id.in_(ids)).delete(synchronize_session=False)
+    db.session.execute(delete(CronInfos).where(CronInfos.id.in_(ids)))
+    db.session.execute(delete(JobLog).where(JobLog.cron_info_id.in_(ids)))
     db.session.commit()
 
     try:

@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 """Cron 任务写入与调度注册（Web / API 共用）。"""
+from sqlalchemy import select
+
 from app import db, scheduler
 from app.services.cron_validator import validate_cron_form
 from app.services.job_log_service import delete_job_logs_for_cron
@@ -94,7 +96,9 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
         return err, None
 
     task_name = normalized['task_name']
-    cif = CronInfos.query.filter(CronInfos.task_name == task_name).first()
+    cif = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
     if not cif:
         cif = create_cron(normalized)
     else:
@@ -106,7 +110,9 @@ def add_cron_web(datas, is_dev, cron_config):
     err, normalized = validate_cron_form(datas, is_dev, cron_config, mode='add')
     if err:
         return err
-    exists = CronInfos.query.filter(CronInfos.task_name == normalized['task_name']).first()
+    exists = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == normalized['task_name'])
+    ).first()
     if exists:
         return '任务名称已存在'
     create_cron(normalized)
@@ -119,13 +125,15 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
     )
     if err:
         return err
-    dup = CronInfos.query.filter(
-        CronInfos.task_name == normalized['task_name'],
-        CronInfos.id != cron_id,
+    dup = db.session.scalars(
+        select(CronInfos).where(
+            CronInfos.task_name == normalized['task_name'],
+            CronInfos.id != cron_id,
+        )
     ).first()
     if dup:
         return '任务名称已存在已存在'
-    cif = CronInfos.query.get(cron_id)
+    cif = db.session.get(CronInfos, cron_id)
     if not cif:
         return '任务不存在'
     update_cron(cif, normalized)

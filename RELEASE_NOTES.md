@@ -39,11 +39,12 @@ flask db upgrade
 | 模块 | 模式 | 优先级 |
 |------|------|--------|
 | `app/crons.py` | 裸 `execute` 字符串 | ✅ Tier 1 已改 |
-| `app/services/job_log_service.py` | `Model.query` | P2 |
-| `app/main/views.py` | `Model.query` / `paginate` | P2 |
-| `app/services/cron_service.py` | `Model.query` | P2 |
-| `app/api/views.py` | `Model.query` | P2 |
-| `app/CuBackgroundScheduler.py` | `records` 裸 SQL | Tier 3 与 SQL 整改一并 |
+| `app/crons.py` | `Model.query`（`cron_check`/`cron_del_job_log` 等） | ✅ Tier 1 已改 |
+| `app/services/job_log_service.py` | `Model.query` | ✅ Tier 1 已改 |
+| `app/main/views.py` | `Model.query` / `paginate` | ✅ Tier 1 已改 |
+| `app/services/cron_service.py` | `Model.query` | ✅ Tier 1 已改 |
+| `app/api/views.py` | `Model.query` | ✅ Tier 1 已改 |
+| `app/crons.py` / `CuBackgroundScheduler.py` | `records` 裸 SQL | Tier 3 与 SQL 整改一并 |
 
 新代码（RBAC、operation_log）禁止新增裸字符串 `execute`。
 

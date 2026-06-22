@@ -18,7 +18,7 @@ RUN_DOCKER=1
 RUN_COMPOSE=0
 RUN_DOCKER_FRESH=0
 CONF_BACKUP=""
-DATAS_BACKUP=""
+DATAS_SQLITE_BACKUP=""
 RESTORE_CONF=0
 RESTORE_DATAS=0
 
@@ -44,9 +44,9 @@ verify_all_cleanup() {
   if [[ "$RESTORE_CONF" -eq 1 && -n "$CONF_BACKUP" && -f "$CONF_BACKUP" ]]; then
     cp -f "$CONF_BACKUP" "$ROOT/conf.ini"
   fi
-  if [[ "$RESTORE_DATAS" -eq 1 && -n "$DATAS_BACKUP" && -d "$DATAS_BACKUP" ]]; then
-    rm -rf "$ROOT/datas"
-    mv "$DATAS_BACKUP" "$ROOT/datas"
+  if [[ "$RESTORE_DATAS" -eq 1 && -n "$DATAS_SQLITE_BACKUP" && -d "$DATAS_SQLITE_BACKUP" ]]; then
+    bash "$ROOT/scripts/reset_datas_sqlite.sh" --restore "$DATAS_SQLITE_BACKUP"
+    rm -rf "$DATAS_SQLITE_BACKUP"
   fi
   docker compose down 2>/dev/null || true
 }
@@ -133,12 +133,12 @@ if [[ "$RUN_COMPOSE" -eq 1 ]]; then
     bad "docker compose (daemon unavailable)"
   else
     if [[ "$RUN_DOCKER_FRESH" -eq 1 && -d datas ]]; then
-      DATAS_BACKUP="${ROOT}/datas.bak.verify.$$"
-      mv datas "$DATAS_BACKUP"
+      DATAS_SQLITE_BACKUP="$(mktemp -d /tmp/cronpilot-datas-sqlite.XXXXXX)"
+      bash "$ROOT/scripts/reset_datas_sqlite.sh" --backup "$DATAS_SQLITE_BACKUP"
       RESTORE_DATAS=1
-      mkdir -p datas/logs
     fi
 
+    mkdir -p datas/logs
     # shellcheck source=lib/python.sh
     source "$ROOT/scripts/lib/python.sh"
     cronpilot_load_runtime
@@ -146,9 +146,10 @@ if [[ "$RUN_COMPOSE" -eq 1 ]]; then
       --out "$ROOT/conf.ini" \
       --datas-dir "$ROOT/datas" \
       --login-pwd changeme \
-      --template "$ROOT/conf.local.sqlite.example"
+      --template "$ROOT/conf.local.sqlite.example" \
+      --container-paths
     RESTORE_CONF=1
-    bash "$ROOT/scripts/ensure_sqlite_tables.sh"
+    # Tables are created inside the container via run_production.sh → ensure_sqlite_tables.sh
 
     docker compose down 2>/dev/null || true
     if docker compose up -d --build >/tmp/cronpilot_compose.log 2>&1; then

@@ -9,7 +9,7 @@ import uuid
 import records
 import requests
 from flask import current_app
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
@@ -44,7 +44,7 @@ def cron_do(cron_id):
 
             nows = get_now_time()
 
-            cif = CronInfos.query.get(cron_id)
+            cif = db.session.get(CronInfos, cron_id)
 
             if not cif:
                 jl = JobLog(cron_info_id=cron_id,content="定时任务不存在",create_time=nows,take_time=0)
@@ -172,7 +172,7 @@ def cron_check():
                 for item in jobs:
                     job_arr.append(item.id)
 
-            cifs = CronInfos.query.all()
+            cifs = db.session.scalars(select(CronInfos)).all()
 
             if cifs:
                 for item in cifs:
@@ -199,9 +199,13 @@ def cron_del_job_log():
         try:
             job_log_counts = configs('job_log_counts') or 0
             if int(job_log_counts) !=0:
-                crons = CronInfos.query.all()
+                crons = db.session.scalars(select(CronInfos)).all()
                 for item in crons:
-                    counts = JobLog.query.filter(JobLog.cron_info_id == item.id).count()
+                    counts = db.session.scalar(
+                        select(func.count())
+                        .select_from(JobLog)
+                        .where(JobLog.cron_info_id == item.id)
+                    ) or 0
                     if counts > int(job_log_counts):
                         trim_job_logs_for_cron(item.id, int(job_log_counts))
                         db.session.commit()

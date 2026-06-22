@@ -14,17 +14,20 @@ echo "安装生产依赖到: $VENV"
 # gevent 20.9 源码构建：须 Cython 0.29.x，且禁用 build isolation
 "$VENV/bin/pip" install -q 'cython<3.0' 'setuptools<70' wheel
 
-if "$VENV/bin/python" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
-  # greenlet 0.4.17 无 py3.10+ wheel；须先装 greenlet 1.1.x 再装 gevent，避免 ABI 不一致 segfault
-  echo "Python 3.10+：使用 greenlet 1.1.3 + gevent 20.9"
+if "$VENV/bin/python" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)'; then
+  # gevent/greenlet 与 requirements 一并解析时，新版 pip 易与 SQLAlchemy 1.4 冲突；先装 greenlet 再装 gevent
+  echo "Python 3.9+：使用 greenlet 1.1.3 + gevent 20.9（分步安装）"
   "$VENV/bin/pip" install -q 'greenlet==1.1.3'
+  "$VENV/bin/pip" install -q 'zope.interface==5.1.0' 'zope.event==4.5.0'
   "$VENV/bin/pip" install -q --no-build-isolation 'gevent==20.9.0'
   REQ_FILE="$(mktemp)"
-  grep -v -E '^(gevent|greenlet)==' "$ROOT/requirements.txt" > "$REQ_FILE"
-  "$VENV/bin/pip" install -q --no-build-isolation -r "$REQ_FILE"
+  grep -v -E '^(gevent|greenlet|zope\.(interface|event))==' "$ROOT/requirements.txt" > "$REQ_FILE"
+  "$VENV/bin/pip" install -q -r "$REQ_FILE"
   rm -f "$REQ_FILE"
 else
   "$VENV/bin/pip" install -q --no-build-isolation -r "$ROOT/requirements.txt"
 fi
+
+"$VENV/bin/pip" install -q 'setuptools<70'
 
 echo "完成。启动: bash scripts/run_production.sh"

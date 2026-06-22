@@ -65,8 +65,8 @@
   <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
   <span class="tag">UI</span><span class="tag">原型</span><span class="tag">待确认</span>
   <h1>管理端 UI 优化设计</h1>
-  <p>执行记录交互 · Cron 周期说明 · 含线框原型</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">Draft · 待产品确认</span> · 2026-06-22 · 确认后再改 <code>app/templates/</code></p>
+  <p>执行记录 · Cron 周期说明 · 含线框原型 · <strong>v2 按反馈修订</strong></p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">Draft v2 · 待确认</span> · 2026-06-22</p>
 </header>
 
 <main class="layout">
@@ -91,22 +91,36 @@
     <tr><td>4</td><td>周期说明 UI 丑陋、风格不一致</td><td>试探性 <code>alert</code> / 独立说明块未对齐 simpleboot <code>control-group</code> + 行内灰字</td></tr>
   </table>
 
-  <h2>二、数据模型（不变）</h2>
+  <h2>二、数据模型与现状缺口</h2>
   <div class="card">
-    <pre>cron_do 触发
-    │
-    ├─► job_log（必有）     content = HTTP 响应正文；log_id = cronpilot_log_id
-    │
-    └─► job_log_items（可选） 仅当业务 POST /api/cron/add_log?cronpilot_log_id=&amp;content=...</pre>
+    <pre>cron_do 触发 ──► job_log（每次必有）
+                         ├─ content   ← 目前只存 HTTP 响应<strong>正文</strong>（或异常文案）
+                         ├─ take_time、log_id、create_time
+                         └─ http_status ← <strong>当前未写入</strong>（代码里 req.status_code 已有，没落库）
+
+    job_log_items ← 另一套机制：业务在执行过程中 POST /api/cron/add_log 上报<strong>中间进度</strong>
+                    与「看本次回调 HTTP 结果」<strong>不是一回事</strong>，不应作为「更详细执行记录」的主入口。</pre>
+  </div>
+  <div class="warn">
+    <strong>用户诉求（2026-06-22 反馈）：</strong>
+    <ul style="margin:.35rem 0 0 1.2rem">
+      <li><strong>列表不要加新列</strong>——仍在「返回的内容」一格里，用<strong>两行</strong>展示：第一行 HTTP 状态，第二行响应摘要。</li>
+      <li>点击「更详细的执行记录」就是要看<strong>本次调用的结果或异常</strong>，不要叫「进度明细」，也不要打开空的 add_log 表。</li>
+    </ul>
   </div>
 
-  <h2>三、推荐方案总览</h2>
+  <div class="ok-box">
+    <strong>已确认（2026-06-22）：</strong>采用 <code>job_log.http_status</code> 单独字段存储状态码；列表 UI <strong>不加列</strong>，仍在「返回的内容」一格内两行展示。详情弹窗展示完整 HTTP 结果/异常（非 add_log 空表）。
+  </div>
+
+  <h2>三、推荐方案总览（v2 · 按反馈修订）</h2>
   <table>
-    <tr><th>模块</th><th>推荐</th><th>改动量</th></tr>
-    <tr><td>执行记录列表</td><td><strong>方案 A2</strong>：列表截断预览 +「查看响应」弹窗展示摘要</td><td>模板 + 少量 JS</td></tr>
-    <tr><td>详细记录弹窗</td><td>改名为「进度明细」；无数据时固定说明 + 链到 API 文档</td><td>模板文案</td></tr>
-    <tr><td>Cron 周期说明</td><td><strong>方案 B1</strong>：仅「分钟」行尾一行灰字，不新增分组</td><td>2 个模板</td></tr>
-    <tr><td>远期（P1）</td><td>OPT-P1-01：<code>status</code> / <code>http_status</code> 列，替代读 HTML 判断成败</td><td>需库表迁移，单独立项</td></tr>
+    <tr><th>模块</th><th>推荐</th><th>说明</th></tr>
+    <tr><td>执行记录列表</td><td><strong>方案 A′</strong></td><td>仍一列「返回的内容」，单元格内<strong>两行</strong>：① HTTP 状态/异常 ② 正文截断</td></tr>
+    <tr><td>详情弹窗</td><td><strong>方案 A′</strong></td><td>原「更详细的执行记录」改为「<strong>查看详情</strong>」→ 同一逻辑：状态行 + 完整正文 <code>&lt;pre&gt;</code></td></tr>
+    <tr><td>后端</td><td><strong>已确认</strong></td><td><code>cron_do</code> 写入 <code>job_log.http_status</code>（INTEGER，可空）；异常时 status 空/0，<code>content</code> 为错误文案；<strong>列表不加列</strong></td></tr>
+    <tr><td>add_log / job_log_items</td><td>从主 UI 隐藏</td><td>保留 API 给长任务上报进度；管理端仅在详情页底部可选展示「业务上报（N 条）」</td></tr>
+    <tr><td>Cron 周期说明</td><td><strong>方案 B1</strong></td><td>分钟行尾一行灰字，不新增说明块</td></tr>
   </table>
 
   <h2>四、原型 · 任务添加（周期说明 B1）</h2>
@@ -139,67 +153,67 @@
     </table>
   </div>
 
-  <h2>五、原型 · 任务执行记录（方案 A2）</h2>
+  <h2>五、原型 · 任务执行记录（方案 A′ · 单列两行）</h2>
 
-  <h3>5.1 列表页 <code>/job_log_all_list</code></h3>
+  <h3>5.1 列表页 — 不增列，一格两行</h3>
   <div class="proto">
-    <div class="proto-label">线框 · 任务执行记录</div>
-    <div class="jumbo"><h4>CronPilot 定时调度平台</h4><p>方便、统一、自由</p></div>
-    <div class="tabs"><span>任务列表</span><span>任务添加</span><span class="on">任务执行记录</span><span>API文档</span></div>
+    <div class="proto-label">线框 · 「返回的内容」列（仍为单列）</div>
     <table class="proto-table">
-      <tr><th>任务名称</th><th>HTTP 响应摘要</th><th>执行时间</th><th>耗时</th><th>操作</th></tr>
+      <tr><th>任务名称</th><th>返回的内容</th><th>执行时间</th><th>耗时</th><th>操作</th></tr>
       <tr>
         <td>teststp</td>
-        <td><code>&lt;!doctype html&gt;&lt;html…</code>（前 120 字）<a href="#modal">查看全文</a></td>
+        <td style="line-height:1.5">
+          <strong style="color:#059669">HTTP 200</strong> · 0.85s<br>
+          <span style="color:#64748b;font-size:.85em"><code>&lt;!doctype html&gt;&lt;html…</code>（截断，不撑破表格）</span>
+        </td>
         <td>2026-06-22 09:02:00</td>
-        <td>0.85s</td>
-        <td><a href="#progress">进度明细</a> · 删除</td>
+        <td>0.85</td>
+        <td><a href="#detail">查看详情</a> · 删除</td>
+      </tr>
+      <tr>
+        <td>badurl</td>
+        <td style="line-height:1.5">
+          <strong style="color:#b91c1c">请求异常</strong> · 1.2s<br>
+          <span style="color:#64748b;font-size:.85em">发生严重错误: Connection timeout</span>
+        </td>
+        <td>2026-06-22 10:00:00</td>
+        <td>1.2</td>
+        <td><a href="#detail">查看详情</a> · 删除</td>
       </tr>
     </table>
-    <p class="hint" style="margin-top:.75rem">列名「返回的内容」→ 建议改为「<strong>HTTP 响应摘要</strong>」；悬停 <code>title</code> 可看更长片段。</p>
+    <p class="hint" style="margin-top:.75rem">第一行：HTTP 状态码（4xx/5xx 可标红）或「请求异常」；第二行：<code>content</code> 摘要。列数与现网一致。</p>
   </div>
 
-  <h3>5.2 弹窗 · 查看 HTTP 响应（新增）</h3>
-  <div class="proto-modal" id="modal">
-    <div class="proto-modal-h">HTTP 响应 · teststp · 2026-06-22 09:02:00</div>
+  <h3>5.2 详情弹窗 — 即「更详细的执行记录」应展示的内容</h3>
+  <p>用户点击「查看详情」（替代现「更详细的执行记录」）时期望看到<strong>本次 HTTP 调用的完整结果或异常</strong>，不是 add_log 进度表。</p>
+  <div class="proto-modal" id="detail">
+    <div class="proto-modal-h">执行详情 · teststp · 2026-06-22 09:02:00</div>
     <div class="proto-modal-b">
-      <p>log_id: <code>ab8148aa-6e24-11f1-a53a-d24c536d198f</code> · 耗时 0.85s</p>
-      <pre>&lt;!doctype html&gt;&lt;html itemscope="" lang="id"&gt;…（全文，等宽字体，可滚动）</pre>
-      <p class="hint">实现：<code>open_iframe_dialog</code> 或只读 <code>&lt;pre&gt;</code>，勿把 80KB HTML 直接渲染进表格。</p>
+      <p><strong>HTTP 200</strong> · 耗时 0.85s · log_id <code>ab8148aa-…</code></p>
+      <p style="margin:.5rem 0;color:#64748b;font-size:.85em">回调 URL：<code>http://example.com/callback</code></p>
+      <pre>（第二行起：完整响应正文，等宽、可滚动；JSON 可原样展示）</pre>
+      <hr style="border:none;border-top:1px dashed #ddd;margin:1rem 0">
+      <p class="hint" style="margin:0"><strong>可选折叠区</strong>「业务上报进度」：仅当存在 <code>job_log_items</code> 时展开（<code>POST /api/cron/add_log</code>），默认收起，避免与 HTTP 结果混淆。</p>
     </div>
   </div>
 
-  <h3>5.3 弹窗 · 进度明细（原「更详细的执行记录」）</h3>
-  <div class="compare">
-    <div class="proto-modal">
-      <div class="proto-modal-h"><span class="x">现文案</span> 更详细的执行记录</div>
-      <div class="proto-modal-b">
-        <table class="proto-table"><tr><th>内容</th></tr></table>
-        <p class="proto-empty">（空白 — 用户认为坏了）</p>
-      </div>
-    </div>
-    <div class="proto-modal">
-      <div class="proto-modal-h"><span class="check">推荐</span> 进度明细 <span class="badge badge-rec">待确认</span></div>
-      <div class="proto-modal-b">
-        <div class="proto-empty">
-          暂无进度上报。<br><br>
-          仅当回调方在任务执行期间调用<br>
-          <code>POST /api/cron/add_log</code><br>
-          （<code>cronpilot_log_id</code> + <code>content</code>）时才会有明细。<br><br>
-          HTTP 响应正文见列表「<a href="#modal">查看全文</a>」或上栏响应弹窗。
-        </div>
-        <p class="hint" style="margin-top:.75rem"><a href="详细技术方案.html">API 文档</a> §add_log</p>
-      </div>
-    </div>
+  <h3>5.3 现网误导点（为何弹窗是空的）</h3>
+  <table>
+    <tr><th>现按钮文案</th><th>实际打开</th><th>用户期望</th><th>v2 改法</th></tr>
+    <tr><td>更详细的执行记录</td><td><code>job_log_item_list</code>（add_log 表）</td><td>HTTP 响应 / 异常全文</td><td>改为打开<strong>执行详情</strong>（<code>job_log</code> 一条），见 §5.2</td></tr>
+    <tr><td>返回的内容列</td><td>整页 HTML 塞进一格</td><td>先看状态，再看摘要</td><td>同列两行（§5.1）</td></tr>
+  </table>
+  <div class="note">
+    <strong>「进度 / add_log」是什么？</strong> 给<strong>长时间运行</strong>的回调用的：被调方在处理过程中多次 POST 进度文本（如「步骤 1/3」）。普通「CronPilot 调一下 URL 拿响应」的任务<strong>不会</strong>产生这类记录，所以原弹窗常为空——不是没执行，而是入口绑错了数据表。
   </div>
 
   <h2>六、方案对比</h2>
   <h3>执行记录</h3>
   <table>
-    <tr><th>方案</th><th>说明</th><th>优点</th><th>缺点</th></tr>
-    <tr><td>A1 仅改文案</td><td>改名 + 空状态说明</td><td>最小 diff</td><td>列表仍难读大段 HTML</td></tr>
-    <tr><td><strong>A2 推荐</strong></td><td>A1 + 列表截断 + 响应弹窗</td><td>解决「无有效内容」观感；不误导</td><td>需统一 3 个模板</td></tr>
-    <tr><td>A3 P1</td><td>增加 status / http_status 列</td><td>运维体验最佳</td><td>库表 + cron_do 改动，属 OPT-P1-01</td></tr>
+    <tr><th>方案</th><th>说明</th><th>结论</th></tr>
+    <tr><td class="x">旧 A2</td><td>新增「HTTP 响应摘要」列 +「进度明细」弹窗</td><td>用户不需要加列；「进度明细」语义错误</td></tr>
+    <tr><td><strong>A′ 推荐</strong></td><td>单列两行 +「查看详情」= HTTP 结果/异常全文；<code>http_status</code> 落库但列表不加列</td><td class="check">与反馈一致</td></tr>
+    <tr><td>A3 远期 P1</td><td>success/fail 枚举、失败规则、筛选</td><td>OPT-P1-01，本次不做</td></tr>
   </table>
   <h3>周期说明</h3>
   <table>
@@ -212,29 +226,31 @@
   <h2>七、影响范围与验收</h2>
   <table>
     <tr><th>文件（确认后修改）</th><th>变更</th></tr>
-    <tr><td><code>app/templates/cron_add.html</code>、<code>cron_edit.html</code></td><td>方案 B1 行内 hint</td></tr>
-    <tr><td><code>app/templates/job_log_all_list.html</code>、<code>job_log_list.html</code></td><td>方案 A2 截断 + 查看全文</td></tr>
-    <tr><td><code>app/templates/job_log_item_list.html</code></td><td>空状态文案 + 标题「进度明细」</td></tr>
-    <tr><td><code>doc/详细技术方案.html</code></td><td>可选：Cron 示例表同步 B1</td></tr>
+    <tr><td><code>app/crons.py</code></td><td>写入 <code>job_log.http_status</code>（成功）；异常写 status 空或 0 + content 含错误</td></tr>
+    <tr><td><code>datas/model/job_log.py</code> + 迁移</td><td>新增 <code>http_status</code> 字段（INTEGER，可空）；<strong>列表 UI 不加列</strong></td></tr>
+    <tr><td><code>app/main/views.py</code></td><td>新增或改造 <code>job_log_detail</code>（按 job_log.id 展示详情）</td></tr>
+    <tr><td><code>job_log_all_list.html</code>、<code>job_log_list.html</code></td><td>「返回的内容」单元格两行；链接改「查看详情」→ detail</td></tr>
+    <tr><td><code>job_log_item_list.html</code></td><td>仅作详情页内可选「业务上报」区块，或废弃主入口</td></tr>
+    <tr><td><code>cron_add.html</code>、<code>cron_edit.html</code></td><td>方案 B1 行内 hint</td></tr>
   </table>
   <div class="ok-box">
-    <strong>验收步骤（实现后）：</strong>
+    <strong>验收步骤：</strong>
     <ol style="margin:.35rem 0 0 1.2rem">
-      <li>登录 <code>http://127.0.0.1:5860/</code>（<code>changeme</code>）</li>
-      <li>任务添加 → 选「定时模式」→ 确认分钟行 hint 无突兀色块</li>
-      <li>任务执行记录 → 列表有摘要；「查看全文」可见响应；「进度明细」无 add_log 时显示说明</li>
-      <li><code>bash scripts/cronpilot.sh test</code>；Docker compose 冒烟</li>
+      <li>触发一次成功回调 → 列表同一格见「HTTP 200」+ 正文摘要</li>
+      <li>触发一次失败（超时/4xx）→ 第一行见异常或状态码，第二行见错误信息</li>
+      <li>点「查看详情」→ 弹窗见完整两行结构（状态 + 全文），<strong>不应再是空白页</strong></li>
+      <li>未调用 add_log 的任务 → 详情页无「业务上报」或显示 0 条</li>
     </ol>
   </div>
 
   <h2>八、确认项（请勾选后回复）</h2>
   <div class="card">
     <ul style="margin:0;padding-left:1.2rem">
-      <li>□ 执行记录采用 <strong>方案 A2</strong>（非仅 A1）</li>
-      <li>□ 周期说明采用 <strong>方案 B1</strong>（非独立说明块 B0）</li>
-      <li>□ 列名「返回的内容」改为「HTTP 响应摘要」</li>
-      <li>□ 「更详细的执行记录」改为「进度明细」</li>
-      <li>□ OPT-P1-01（status 列）另开迭代，不纳入本次</li>
+      <li>□ 执行记录采用 <strong>方案 A′</strong>（列表不加列，一格两行）</li>
+      <li>□ 「更详细的执行记录」改为「<strong>查看详情</strong>」，展示 HTTP 状态 + 完整响应/异常</li>
+      <li>☑ <code>job_log.http_status</code> 单独字段（<strong>已确认</strong>；列表仍不加列）</li>
+      <li>□ <code>add_log</code> 从主按钮移除，改详情页可选折叠</li>
+      <li>□ 周期说明采用 <strong>方案 B1</strong></li>
     </ul>
   </div>
 

@@ -24,6 +24,17 @@ python scripts/html_docs_to_markdown.py --check  # CI 同款校验
 
 修改 HTML 后 **必须** `--check` 通过再提交。
 
+## 优化与文档顺序（强制）
+
+与 `cronpilot-project.mdc` 一致：**不得**在验收未通过时更新 Release/RFC/架构等「已交付」表述。
+
+1. 实现改动（最小 diff）
+2. 跑验收（见项目总则「优化验收」表）
+3. **仅当全部通过后**：更新本表所列相关 HTML/MD
+4. `python scripts/html_docs_to_markdown.py --check`
+
+依赖 Tier、部署脚本、验收脚本变更时，同步 `doc/依赖升级RFC.html` 与 `AGENTS.md` 快速命令（若新增入口）。
+
 ## 在线访问
 
 - `http://<host>:5860/docs/` → HTML 索引

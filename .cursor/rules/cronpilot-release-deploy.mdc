@@ -25,8 +25,9 @@ alwaysApply: false
 
 ## 发布检查清单
 
+- [ ] **先验收后文档**：`cronpilot.sh test` + `verify_golden_path.sh`（及 Docker/安装链路若相关）已通过
 - [ ] `unittest` 与 `html_docs_to_markdown.py --check` 本地通过
-- [ ] `RELEASE_NOTES` 已更新；tag 指向含文档提交的 commit
+- [ ] `RELEASE_NOTES` 与相关 `doc/*.html` 已更新；tag 指向含文档提交的 commit
 - [ ] 未提交 `conf.ini`、数据库文件、虚拟环境
 - [ ] 对接方已知 `cronpilot_log_id` / `cronpilot_sign` / `add_log` 协议
 

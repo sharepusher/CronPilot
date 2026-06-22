@@ -120,7 +120,7 @@
     <tr><th>顺序</th><th>层级</th><th>动作</th><th>耦合度</th><th>为何在此顺位</th></tr>
     <tr><td>1</td><td><strong>Tier 0</strong> ✓</td><td>Flask-Script → Flask 原生 CLI</td><td class="ok">最弱</td><td><strong>已交付</strong>；<code>manage.py</code> 注册 <code>flask db</code>，解锁 Py3.11 迁移</td></tr>
     <tr><td>2</td><td><strong>Tier 1</strong> ✓</td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（过渡版）</td><td class="ok">弱–中</td><td><strong>已交付</strong>；含 Flask-SQLAlchemy 2.5.1（2.4.x 不兼容 SA 1.4 URL）</td></tr>
-    <tr><td>∥</td><td><em>侧车</em></td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td>与 Tier 0/1 无代码交叉，可独立 PR</td></tr>
+    <tr><td>∥</td><td><em>侧车</em> ✓</td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td><strong>RFC-S.1 已交付</strong>；RFC-S.2 PyMySQL 按公告择机</td></tr>
     <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td>Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法）</td></tr>
     <tr><td>3</td><td><strong>Tier 2</strong></td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td>牵动 monkey patch、多 worker 调度、Docker 金路径</td></tr>
     <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 查询写法收束 → SA 2.0</td><td class="risk">高</td><td><code>Model.query</code> 已清零；升 SA 2 前须处理 <code>records</code> 裸 SQL</td></tr>
@@ -187,12 +187,12 @@
   </div>
 
   <div class="tier t1" style="border-left-color:#6366f1">
-    <h3>侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）</h3>
+    <h3>侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· RFC-S.1 已交付（Unreleased）</span></h3>
     <p>耦合最弱，<strong>不改变 Tier 序号</strong>；任意时刻可独立合并。</p>
     <table>
       <tr><th>项</th><th>候选</th><th>注意</th></tr>
-      <tr><td>RFC-S.1</td><td><code>requests</code> 2.31.x、<code>urllib3</code> / <code>certifi</code> 同步</td><td>回归 <code>cron_do</code></td></tr>
-      <tr><td>RFC-S.2</td><td><code>PyMySQL</code> 小版本（按公告）</td><td>连接池</td></tr>
+      <tr><td>RFC-S.1 ✓</td><td><code>requests</code> <strong>2.31.0</strong>、<code>urllib3</code> <strong>1.26.19</strong>、<code>certifi</code> <strong>2024.8.30</strong></td><td>已回归 <code>cron_do</code>、SSRF 单测、黄金路径</td></tr>
+      <tr><td>RFC-S.2</td><td><code>PyMySQL</code> 小版本（按公告）</td><td>连接池；未纳入本批次</td></tr>
     </table>
   </div>
 
@@ -245,7 +245,7 @@
     <tr><th>组件</th><th>维持现状风险</th><th>建议 Tier</th><th>说明</th></tr>
     <tr><td>Flask-Script</td><td>Py3.11 阻断 migrate</td><td><strong>Tier 0</strong> 已移除</td><td>耦合最弱，<strong>已完成</strong></td></tr>
     <tr><td>SQLAlchemy 1.3</td><td>维护结束</td><td><strong>Tier 1</strong> 已升 1.4</td><td>过渡版；<code>Model.query</code> 已迁移</td></tr>
-    <tr><td>requests/urllib3</td><td>CVE</td><td><strong>侧车</strong></td><td>与 Tier 0/1 并行</td></tr>
+    <tr><td>requests/urllib3</td><td>CVE</td><td><strong>侧车 RFC-S.1</strong></td><td><strong>已升</strong> 2.31.0 / 1.26.19；PyMySQL 留 RFC-S.2</td></tr>
     <tr><td>gevent 20</td><td>Py3.11 编译失败</td><td><strong>Tier 2</strong></td><td>在 SA 1.4 稳定后</td></tr>
     <tr><td>APScheduler 3.6</td><td>旧 bug</td><td><strong>Tier 2</strong></td><td>与 gevent 同窗回归</td></tr>
     <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td><code>records</code> 裸 SQL 清零后</td></tr>

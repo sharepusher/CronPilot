@@ -22,8 +22,8 @@ pip-licenses --format=markdown --with-urls --order=license
 | Werkzeug | 1.0.1 | BSD-3-Clause |
 | gevent | 20.9.0 | MIT |
 | gunicorn | 20.0.4 | MIT |
-| requests | 2.24.0 | Apache-2.0 |
-| urllib3 | 1.25.10 | MIT |
+| requests | 2.31.0 | Apache-2.0 |
+| urllib3 | 1.26.19 | MIT |
 | redis | 3.5.3 | MIT |
 | PyMySQL | 0.10.1 | MIT |
 | alembic | 1.4.3 | MIT |
@@ -32,7 +32,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | MarkupSafe | 1.1.1 | BSD-3-Clause |
 | python-dateutil | 2.8.1 | Apache-2.0 / BSD |
 | pytz | 2020.1 | MIT |
-| certifi | 2020.6.20 | MPL-2.0 |
+| certifi | 2024.8.30 | MPL-2.0 |
 | chardet | 3.0.4 | LGPL-2.1+ (see note) |
 | zope.interface | 5.1.0 | ZPL-2.1 |
 | zope.event | 4.5.0 | ZPL-2.1 |
@@ -52,9 +52,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | jdcal | 1.4.1 | BSD |
 | python-editor | 1.0.4 | Apache-2.0 |
 
-**Note on chardet:** Transitive dependency of `requests`. LGPL-2.1+ may impose
-additional obligations if you distribute modified versions or embed statically;
-consult legal counsel for commercial redistribution.
+**Note on chardet:** May remain as transitive dependency of older packages. `requests` 2.31+ uses `charset-normalizer` (MIT) instead of chardet for encoding detection. LGPL-2.1+ may impose additional obligations if you distribute modified versions or embed statically; consult legal counsel for commercial redistribution.
 
 **Note on certifi (MPL-2.0):** Mozilla Public License 2.0 applies to certifi
 files; modifications to those files must be shared under MPL-2.0.

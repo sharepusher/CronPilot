@@ -50,6 +50,16 @@ flask db upgrade
 
 新代码（RBAC、operation_log）禁止新增裸字符串 `execute`。
 
+### 依赖升级 · 侧车 HTTP 安全补丁
+
+| 变更 | 说明 |
+|------|------|
+| `requests` 2.24.0 → **2.31.0** | 收敛已知 CVE；回归 `cron_do` 回调与 SSRF 校验 |
+| `urllib3` 1.25.10 → **1.26.19** | 与 requests 2.31 配套（1.26 末代安全线） |
+| `certifi` 2020.6.20 → **2024.8.30** | CA 根证书同步 |
+
+验收：`bash scripts/cronpilot.sh test`、`bash scripts/verify_golden_path.sh`。
+
 ---
 
 ## [0.1.1] — 2026-06-01 · 文档、部署与多版本 Python

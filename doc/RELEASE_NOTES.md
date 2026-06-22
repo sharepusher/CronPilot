@@ -12,10 +12,11 @@ v0.1.0 2026-05-29 · Phase A（P0）
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
-## [Unreleased] · 依赖升级 Tier 0 / Tier 1
+## [Unreleased] · 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP
 
 **Tier 0：**退役 Flask-Script；迁移 CLI 改为 `flask db`（Python 3.11 可用）。  
-**Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 `Model.query` 已迁移为 SA 1.4 推荐写法。**无 API 协议变更。**
+**Tier 1：**SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 `Model.query` 已迁移为 SA 1.4 推荐写法。  
+**侧车 RFC-S.1：**`requests` 2.31.0、`urllib3` 1.26.19、`certifi` 2024.8.30。**无 API 协议变更。**
 
 ### Tier 0
 
@@ -34,6 +35,14 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 查询改写 | `job_log_service`、`main/views`、`cron_service`、`api/views`、`crons` |
 | Docker 验收 | `write_sqlite_conf.py --container-paths`；`reset_datas_sqlite.sh` |
 | 留 Tier 3 | `records` 裸 SQL（`CuBackgroundScheduler` 等） |
+
+### 侧车 HTTP（RFC-S.1）
+
+| 变更 | 说明 |
+| --- | --- |
+| `requests` 2.31.0 | 收敛已知 CVE；回归回调与 SSRF |
+| `urllib3` 1.26.19 | 与 requests 2.31 配套 |
+| `certifi` 2024.8.30 | CA 根证书同步 |
 
 ```
 export FLASK_APP=manage:app

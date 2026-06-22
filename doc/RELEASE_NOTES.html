@@ -40,10 +40,11 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
-<h2 class="new">[Unreleased] · 依赖升级 Tier 0 / Tier 1</h2>
+<h2 class="new">[Unreleased] · 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP</h2>
   <div class="card highlight">
     <p><strong>Tier 0：</strong>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<br>
-    <strong>Tier 1：</strong>SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 <code>Model.query</code> 已迁移为 SA 1.4 推荐写法。<strong>无 API 协议变更。</strong></p>
+    <strong>Tier 1：</strong>SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 <code>Model.query</code> 已迁移为 SA 1.4 推荐写法。<br>
+    <strong>侧车 RFC-S.1：</strong><code>requests</code> 2.31.0、<code>urllib3</code> 1.26.19、<code>certifi</code> 2024.8.30。<strong>无 API 协议变更。</strong></p>
   </div>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 0</h3>
   <table>
@@ -60,6 +61,13 @@
     <tr><td>查询改写</td><td><code>job_log_service</code>、<code>main/views</code>、<code>cron_service</code>、<code>api/views</code>、<code>crons</code></td></tr>
     <tr><td>Docker 验收</td><td><code>write_sqlite_conf.py --container-paths</code>；<code>reset_datas_sqlite.sh</code></td></tr>
     <tr><td>留 Tier 3</td><td><code>records</code> 裸 SQL（<code>CuBackgroundScheduler</code> 等）</td></tr>
+  </table>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">侧车 HTTP（RFC-S.1）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>requests</code> 2.31.0</td><td>收敛已知 CVE；回归回调与 SSRF</td></tr>
+    <tr><td><code>urllib3</code> 1.26.19</td><td>与 requests 2.31 配套</td></tr>
+    <tr><td><code>certifi</code> 2024.8.30</td><td>CA 根证书同步</td></tr>
   </table>
   <pre>export FLASK_APP=manage:app
 flask db migrate -m "描述"

@@ -25,7 +25,7 @@ alwaysApply: false
 
 ## 发布检查清单
 
-- [ ] **先验收后文档**：`cronpilot.sh test` + `verify_golden_path.sh`（及 Docker/安装链路若相关）已通过
+- [ ] **先验收后文档**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`（compose 黄金路径）
 - [ ] `unittest` 与 `html_docs_to_markdown.py --check` 本地通过
 - [ ] `RELEASE_NOTES` 与相关 `doc/*.html` 已更新；tag 指向含文档提交的 commit
 - [ ] 未提交 `conf.ini`、数据库文件、虚拟环境

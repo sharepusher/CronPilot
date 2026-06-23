@@ -159,11 +159,21 @@ docker run -d --name cronpilot \
 
   <section>
     <h2>9. 开发者：CI 与本地验收</h2>
+    <p><strong>Docker 声称「可用」须两条路径均通过</strong>（缺一不可）：</p>
+    <table>
+      <tr><th>路径</th><th>命令</th><th>验证什么</th></tr>
+      <tr><td>A · 隔离镜像</td><td><code>SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh</code></td><td>Dockerfile 构建 + 临时 conf</td></tr>
+      <tr><td>B · <strong>用户黄金路径</strong></td><td><code>bash scripts/verify_docker_compose.sh --keep-running</code></td><td><strong>宿主机 <code>conf.ini</code> volume + 登录 + cron_list</strong></td></tr>
+    </table>
+    <p>路径 B 才是 <code>docker compose up</code> 真实用法；路径 A 通过<strong>不能</strong>代替 B。</p>
     <h3>裸机安装脚本验收（非运行镜像）</h3>
     <p>在 Ubuntu / Rocky8 / CentOS7 容器内验证 <code>install_linux.sh</code> 链路：</p>
     <pre>bash scripts/docker/verify_all.sh all</pre>
     <p>GitHub Actions：<code>.github/workflows/docker-install-verify.yml</code>。</p>
-    <h3>Mac 一键验收运行镜像</h3>
+    <h3>Mac / 本地：compose 黄金路径（必跑）</h3>
+    <pre>bash scripts/verify_docker_compose.sh --keep-running</pre>
+    <p>使用仓库根目录 <code>conf.ini</code>（勿为 <code>:memory:</code>），<code>docker compose up</code> 后 login + cron_list 全量冒烟。</p>
+    <h3>隔离镜像验收（补充，不能代替 compose）</h3>
     <pre>bash scripts/verify_cronpilot_docker_mac.sh</pre>
     <p>扩展验收（含 login、cron_list、<code>flask db</code>、容器内 gevent/gunicorn 版本）：</p>
     <pre>SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh</pre>

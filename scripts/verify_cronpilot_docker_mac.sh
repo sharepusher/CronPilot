@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# 在 Docker 中验证根目录 Dockerfile（隔离 conf，不覆盖宿主机 conf.ini）。
+# 注意：通过本脚本 ≠ docker compose 可用；compose 黄金路径须 scripts/verify_docker_compose.sh
 set -euo pipefail
 export PATH="/Applications/Docker.app/Contents/Resources/bin:${PATH:-/usr/bin:/bin}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

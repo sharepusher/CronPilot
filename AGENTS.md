@@ -24,6 +24,8 @@ bash scripts/cronpilot.sh start   # 自动匹配 Python 3.8–3.11，无需 PY=
 bash scripts/cronpilot.sh restart        # 本地停+启（推荐）
 bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test
+bash scripts/verify_golden_path.sh          # 裸机 SQLite 黄金路径
+bash scripts/verify_docker_compose.sh --keep-running   # docker compose 黄金路径
 bash scripts/verify_golden_path.sh       # 黄金路径：双次 restart + 登录 + cron_list 内容断言
 bash scripts/verify_all.sh               # 全量验收（含黄金路径）
 bash scripts/verify_all.sh --local-only

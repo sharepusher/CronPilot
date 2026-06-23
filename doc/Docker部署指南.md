@@ -140,6 +140,15 @@ docker run -d --name cronpilot \
 
 ## 9. 开发者：CI 与本地验收
 
+**Docker 声称「可用」须两条路径均通过**（缺一不可）：
+
+| 路径 | 命令 | 验证什么 |
+| --- | --- | --- |
+| A · 隔离镜像 | `SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh` | Dockerfile 构建 + 临时 conf |
+| B · **用户黄金路径** | `bash scripts/verify_docker_compose.sh --keep-running` | **宿主机 `conf.ini` volume + 登录 + cron\_list** |
+
+路径 B 才是 `docker compose up` 真实用法；路径 A 通过**不能**代替 B。
+
 ### 裸机安装脚本验收（非运行镜像）
 
 在 Ubuntu / Rocky8 / CentOS7 容器内验证 `install_linux.sh` 链路：
@@ -150,7 +159,15 @@ bash scripts/docker/verify_all.sh all
 
 GitHub Actions：`.github/workflows/docker-install-verify.yml`。
 
-### Mac 一键验收运行镜像
+### Mac / 本地：compose 黄金路径（必跑）
+
+```
+bash scripts/verify_docker_compose.sh --keep-running
+```
+
+使用仓库根目录 `conf.ini`（勿为 `:memory:`），`docker compose up` 后 login + cron\_list 全量冒烟。
+
+### 隔离镜像验收（补充，不能代替 compose）
 
 ```
 bash scripts/verify_cronpilot_docker_mac.sh

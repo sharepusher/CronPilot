@@ -25,6 +25,12 @@ VENV="$CRONPILOT_VENV"
 export FLASK_CONFIG="${FLASK_CONFIG:-production}"
 PROD_PORT="${PROD_PORT:-5860}"
 
+if [ "$FLASK_CONFIG" = "production" ]; then
+  if ! "$VENV/bin/python" "$ROOT/scripts/check_conf_production.py"; then
+    exit 1
+  fi
+fi
+
 if ! "$VENV/bin/python" -c "import gevent" 2>/dev/null; then
   echo "未安装 gevent，请运行: bash scripts/install_production_deps.sh" >&2
   exit 1

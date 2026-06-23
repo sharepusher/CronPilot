@@ -16,7 +16,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 **管理端 A′+B1（b105e47）：**执行记录单列两行 +「查看详情」；`job_log.http_status`；Cron 分钟 `*/1` 提示。  
 **侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
-**Tier 2 RFC-2.1：**`gevent` 23.9.1 + `greenlet` 3.1.1（gunicorn 20 待 RFC-2.2）。  
+**Tier 2 RFC-2.1/2.2：**`gevent` 23.9.1 + `greenlet` 3.1.1 + `gunicorn` 22.0.0。  
 **P1 OPT-P1-01/02：**`job_log.status` + `fail_on_http_4xx_5xx`（见下方）。  
 **Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
 
@@ -47,13 +47,14 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | --- | --- |
 | `PyMySQL` 1.1.2 | 0.10.1 → 1.1.2；`mysql+pymysql://` URL 不变 |
 
-### Tier 2 · RFC-2.1（进行中）
+### Tier 2 · RFC-2.1 / RFC-2.2
 
 | 变更 | 说明 |
 | --- | --- |
 | `gevent` 23.9.1 | 20.9.0 → 23.9.1；Py 3.8–3.11 |
 | `greenlet` 3.1.1 | 与 gevent 23 配套 |
-| 待续 | RFC-2.2 gunicorn、RFC-2.3 APScheduler |
+| `gunicorn` 22.0.0 | 20.0.4 → 22.0.0；gevent worker 冒烟通过 |
+| 待续 | RFC-2.3 APScheduler、RFC-2.4 Python matrix |
 
 ### 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP
 

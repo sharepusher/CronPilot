@@ -21,7 +21,7 @@ pip-licenses --format=markdown --with-urls --order=license
 | SQLAlchemy | 1.4.52 | MIT |
 | Werkzeug | 1.0.1 | BSD-3-Clause |
 | gevent | 23.9.1 | MIT |
-| gunicorn | 20.0.4 | MIT |
+| gunicorn | 22.0.0 | MIT |
 | requests | 2.31.0 | Apache-2.0 |
 | urllib3 | 1.26.19 | MIT |
 | redis | 3.5.3 | MIT |

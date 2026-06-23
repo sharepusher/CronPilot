@@ -37,15 +37,19 @@ Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
 
 ## 3. 快速开始（SQLite 试用）
 
-首次启动前必须 `cp conf.ini.example conf.ini`。若省略，Docker 可能把 `conf.ini` 挂载成目录导致启动失败。
+首次启动前必须生成 `conf.ini`（**勿**直接 `cp conf.ci.ini`——其为内存库，Docker 下登录后会 `system error`）。推荐：
 
 ```
 git clone https://github.com/sharepusher/CronPilot.git
 cd CronPilot
-cp conf.ini.example conf.ini
+python3 scripts/write_sqlite_conf.py \
+  --out conf.ini --datas-dir datas --container-paths \
+  --template conf.local.sqlite.example
 
 docker compose up --build -d
 ```
+
+也可 `cp conf.local.sqlite.example conf.ini` 后把路径改为容器内 `/opt/cronpilot/datas/*.sqlite`。若省略 `conf.ini`，Docker 可能把其挂载成目录导致启动失败。
 
 | 项 | 值 |
 | --- | --- |
@@ -164,6 +168,7 @@ SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh
 
 | 现象 | 处理 |
 | --- | --- |
+| 登录后页面 `system error` / 日志 `no such table: cron_infos` | `conf.ini` 误用 `conf.ci.ini`（`:memory:`）或路径不对；执行 `python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths`，容器内 `bash scripts/ensure_sqlite_tables.sh`，`docker compose restart` |
 | `port is already allocated` | 改 `docker-compose.yml` 为 `"5861:5860"` 或释放 5860 |
 | 容器启动后 502 / 无响应 | `docker compose logs`；确认 `conf.ini` 是文件且已正确挂载 |
 | `conf.ini` 变成目录 | 删除该目录，`cp conf.ini.example conf.ini` 后重启 |

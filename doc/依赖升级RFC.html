@@ -202,7 +202,7 @@
     <table>
       <tr><th>项</th><th>动作</th><th>风险</th></tr>
       <tr><td>RFC-2.1 ✓</td><td><code>gevent</code> <strong>23.9.1</strong> + <code>greenlet</code> <strong>3.1.1</strong></td><td class="ok">Docker 构建 + gunicorn gevent worker 健康检查通过</td></tr>
-      <tr><td>RFC-2.2 ✓</td><td><code>gunicorn</code> <strong>22.0.0</strong></td><td class="ok">gevent worker 冒烟 + <code>/login</code> 200</td></tr>
+      <tr><td>RFC-2.2 ✓</td><td><code>gunicorn</code> <strong>22.0.0</strong></td><td class="ok">Docker 构建 + gevent worker + <code>SMOKE_LEVEL=full</code> 扩展冒烟</td></tr>
       <tr><td>RFC-2.3</td><td><code>APScheduler</code> 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调）</td><td class="warn">中</td></tr>
       <tr><td>RFC-2.4</td><td>Python：Docker 金路径 3.9 → 评估 3.10/3.11；<code>install-full.yml</code> matrix 扩展</td><td class="warn">中</td></tr>
       <tr><td>RFC-2.5</td><td>项目规则中「勿 3.12+」维持至本 Tier 验收完成</td><td>—</td></tr>

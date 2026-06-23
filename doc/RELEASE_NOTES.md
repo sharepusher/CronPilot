@@ -53,7 +53,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | --- | --- |
 | `gevent` 23.9.1 | 20.9.0 → 23.9.1；Py 3.8–3.11 |
 | `greenlet` 3.1.1 | 与 gevent 23 配套 |
-| `gunicorn` 22.0.0 | 20.0.4 → 22.0.0；gevent worker 冒烟通过 |
+| `gunicorn` 22.0.0 | 20.0.4 → 22.0.0；gevent worker + Docker 金路径（`SMOKE_LEVEL=full`）已验收 |
 | 待续 | RFC-2.3 APScheduler、RFC-2.4 Python matrix |
 
 ### 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP

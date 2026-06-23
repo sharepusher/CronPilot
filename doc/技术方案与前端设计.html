@@ -859,7 +859,7 @@ flask db upgrade</pre>
   <h3>12.2 技术债与风险</h3>
   <div class="card danger">
     <ul>
-      <li><span class="tag tag-red">安全</span> 单密码 Session、SQL 拼接；Flask 1.1 / SA 1.4 仍待 Tier 3/4 代际升级；gevent 已升 23.9.1（RFC-2.1），路线见 <a href="依赖升级RFC.html">依赖升级 RFC</a></li>
+      <li><span class="tag tag-red">安全</span> 单密码 Session、SQL 拼接；Flask 1.1 / SA 1.4 仍待 Tier 3/4 代际升级；gunicorn 22 + gevent 23（RFC-2.1/2.2），路线见 <a href="依赖升级RFC.html">依赖升级 RFC</a></li>
       <li><span class="tag tag-orange">代码</span> views.py 校验逻辑 Web/API 大量重复，维护成本高</li>
       <li><span class="tag tag-orange">前端</span> Jumbotron 每页重复、无组件化、响应式弱</li>
       <li><span class="tag tag-blue">架构</span> 多 worker 各启 Scheduler，依赖锁而非单 leader 选举</li>

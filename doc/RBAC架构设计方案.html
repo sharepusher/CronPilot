@@ -66,7 +66,7 @@
     <tr><td>Web</td><td>Flask 1.1.2，Blueprint：<code>main</code> / <code>api</code> / <code>docs</code></td><td><code>app/__init__.py</code></td></tr>
     <tr><td>ORM</td><td>SQLAlchemy <strong>1.4.52</strong> + Flask-SQLAlchemy <strong>2.5.1</strong>（Tier 1 已交付）</td><td><code>app/__init__.py</code>、<code>requirements.txt</code></td></tr>
     <tr><td>调度</td><td>Flask-APScheduler + <code>CuBackgroundScheduler</code></td><td><code>app/CuBackgroundScheduler.py</code></td></tr>
-    <tr><td>部署</td><td>gunicorn + gevent <strong>23.9.1</strong>；Python <strong>3.8–3.11</strong></td><td>项目规则 / <code>requirements.txt</code></td></tr>
+    <tr><td>部署</td><td>gunicorn <strong>22.0.0</strong> + gevent <strong>23.9.1</strong>；Python <strong>3.8–3.11</strong></td><td>项目规则 / <code>requirements.txt</code></td></tr>
     <tr><td>配置</td><td><code>conf.ini</code> + <code>configs()</code> 每次读盘无缓存</td><td><code>configs.py</code></td></tr>
     <tr><td>前端</td><td>Jinja2 SSR + jQuery + Vue（非 SPA）</td><td><code>app/templates/</code></td></tr>
     <tr><td>JSON 契约</td><td><code>{errcode:int, errmsg, result, data, url}</code></td><td><code>datas/utils/json.py</code></td></tr>

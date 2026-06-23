@@ -160,7 +160,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | 项 | 动作 | 风险 |
 | --- | --- | --- |
 | RFC-2.1 ✓ | `gevent` **23.9.1** + `greenlet` **3.1.1** | Docker 构建 + gunicorn gevent worker 健康检查通过 |
-| RFC-2.2 ✓ | `gunicorn` **22.0.0** | gevent worker 冒烟 + `/login` 200 |
+| RFC-2.2 ✓ | `gunicorn` **22.0.0** | Docker 构建 + gevent worker + `SMOKE_LEVEL=full` 扩展冒烟 |
 | RFC-2.3 | `APScheduler` 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调） | 中 |
 | RFC-2.4 | Python：Docker 金路径 3.9 → 评估 3.10/3.11；`install-full.yml` matrix 扩展 | 中 |
 | RFC-2.5 | 项目规则中「勿 3.12+」维持至本 Tier 验收完成 | — |

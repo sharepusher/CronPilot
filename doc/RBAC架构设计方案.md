@@ -40,7 +40,7 @@ v2 · 基于 CronPilot 真实源码逆向 · Flask 装饰器 + Blueprint（非 E
 | Web | Flask 1.1.2，Blueprint：`main` / `api` / `docs` | `app/__init__.py` |
 | ORM | SQLAlchemy **1.4.52** + Flask-SQLAlchemy **2.5.1**（Tier 1 已交付） | `app/__init__.py`、`requirements.txt` |
 | 调度 | Flask-APScheduler + `CuBackgroundScheduler` | `app/CuBackgroundScheduler.py` |
-| 部署 | gunicorn + gevent **23.9.1**；Python **3.8–3.11** | 项目规则 / `requirements.txt` |
+| 部署 | gunicorn **22.0.0** + gevent **23.9.1**；Python **3.8–3.11** | 项目规则 / `requirements.txt` |
 | 配置 | `conf.ini` + `configs()` 每次读盘无缓存 | `configs.py` |
 | 前端 | Jinja2 SSR + jQuery + Vue（非 SPA） | `app/templates/` |
 | JSON 契约 | `{errcode:int, errmsg, result, data, url}` | `datas/utils/json.py` |

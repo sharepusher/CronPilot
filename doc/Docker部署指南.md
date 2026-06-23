@@ -33,7 +33,7 @@ Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
 | Compose | Docker Compose v2（`docker compose`） |
 | 宿主机 | 无需安装 Python / MySQL（试用 SQLite） |
 | 端口 | 宿主机 **5860** 未被占用 |
-| 运行时栈 | 镜像内 **Python 3.9 + gevent 23.9.1**（勿期望 3.12+；Tier 2 进行中见 [依赖升级 RFC](依赖升级RFC.html)） |
+| 运行时栈 | 镜像内 **Python 3.9 + gunicorn 22.0.0 + gevent 23.9.1**（勿期望 3.12+；Tier 2 RFC-2.1/2.2 已交付，见 [依赖升级 RFC](依赖升级RFC.html)） |
 
 ## 3. 快速开始（SQLite 试用）
 
@@ -119,7 +119,7 @@ docker run -d --name cronpilot \
 | 启动命令 | `bash scripts/run_production.sh` |
 | 暴露端口 | **5860**（与裸机 `gun.py` 一致） |
 
-构建期会自动跑健康检查：`/docs/` 返回 HTML，`/` 返回 200 或 302。
+构建期会自动跑健康检查（gunicorn 22 gevent worker）：`/docs/` 返回 HTML，`/` 返回 200 或 302。
 
 `docker_start.sh`、`docker_gun.py`、`doc/supervisors.conf` 为旧 Supervisor 方案遗留，**新镜像不再使用**。
 
@@ -150,6 +150,12 @@ GitHub Actions：`.github/workflows/docker-install-verify.yml`。
 
 ```
 bash scripts/verify_cronpilot_docker_mac.sh
+```
+
+扩展验收（含 login、cron\_list、`flask db`、容器内 gevent/gunicorn 版本）：
+
+```
+SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh
 ```
 
 构建根目录 `Dockerfile`，生成**临时 SQLite `conf.ini`**（不覆盖宿主机配置），启动容器并 curl `/docs/` 与 `/`。

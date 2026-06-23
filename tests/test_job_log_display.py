@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import unittest
 
-from app.services.job_log_display import job_log_content_preview, job_log_status_line
+from app.services.job_log_display import job_log_badge, job_log_content_preview, job_log_status_line
 
 
 class TestJobLogDisplay(unittest.TestCase):
@@ -19,6 +19,11 @@ class TestJobLogDisplay(unittest.TestCase):
             job_log_status_line(None, '回调URL安全校验未通过'),
             ('未执行回调', 'muted'),
         )
+
+    def test_badge(self):
+        self.assertEqual(job_log_badge('success'), ('成功', 'ok'))
+        self.assertEqual(job_log_badge('fail'), ('失败', 'fail'))
+        self.assertEqual(job_log_badge(None), (None, None))
 
     def test_content_preview_truncates(self):
         long_text = 'x' * 200

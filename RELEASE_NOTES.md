@@ -19,6 +19,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 设计说明：[doc/管理端UI优化设计.html](doc/管理端UI优化设计.html)
 
+### P1 可观测 · OPT-P1-01/02（执行 status + HTTP 失败规则）
+
+| 变更 | 说明 |
+|------|------|
+| `job_log.status` | `success` / `fail` / `error`；`cron_do` 综合判定后写入 |
+| `job_log.fail_reason` | 短标签：`http_5xx`、`keyword`、`timeout` 等 |
+| `fail_on_http_4xx_5xx` | `conf.ini` 默认 `1`；4xx/5xx 记 fail 并走统一告警 |
+| UI | A′ 列表第一行增加状态徽章；详情页展示 `fail_reason` |
+| 测试 | `tests/test_job_log_outcome.py` 并入 `bash scripts/cronpilot.sh test` |
+
+设计说明：[doc/P1可观测优化设计.html](doc/P1可观测优化设计.html)
+
 ### 依赖升级 · Tier 0
 
 | 变更 | 说明 |

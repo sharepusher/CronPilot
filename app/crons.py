@@ -13,12 +13,64 @@ from sqlalchemy import func, select, text
 
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
+from app.services.job_log_outcome import (
+    STATUS_ERROR,
+    evaluate_http_response,
+    exception_fail_reason,
+    pre_request_outcome,
+    should_alert,
+)
 from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.url_security import validate_callback_url
 from configs import configs
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.utils.times import get_now_time
+
+
+def _notify_job_outcome(task_name, content, status):
+    if not should_alert(status):
+        return
+    if status == STATUS_ERROR:
+        wechat_info_err(
+            '定时任务【%s】执行异常' % task_name,
+            '返回信息:%s' % content,
+        )
+    else:
+        wechat_info_err(
+            '定时任务【%s】发生错误' % task_name,
+            '返回信息:%s' % content,
+        )
+
+
+def _save_job_log(
+    cron_id,
+    content,
+    nows,
+    take_time,
+    task_name=None,
+    log_id='',
+    http_status=None,
+    status=None,
+    fail_reason=None,
+):
+    if status is None:
+        status, fail_reason = pre_request_outcome(content)
+    jl = JobLog(
+        cron_info_id=cron_id,
+        content=content,
+        create_time=nows,
+        take_time=take_time,
+        log_id=log_id or '',
+        http_status=http_status,
+        status=status,
+        fail_reason=fail_reason,
+    )
+    db.session.add(jl)
+    db.session.commit()
+    if task_name:
+        _notify_job_outcome(task_name, content, status)
+    return jl
 
 
 @single_task()
@@ -47,31 +99,31 @@ def cron_do(cron_id):
             cif = db.session.get(CronInfos, cron_id)
 
             if not cif:
-                jl = JobLog(cron_info_id=cron_id,content="定时任务不存在",create_time=nows,take_time=0)
-                db.session.add(jl)
-                db.session.commit()
+                _save_job_log(cron_id, "定时任务不存在", nows, 0)
             else:
                 req_url = cif.req_url
+                task_name = cif.task_name
                 if not req_url:
-                    jl = JobLog(cron_info_id=cron_id, content="请求链接不存在", create_time=nows, take_time=0)
-                    db.session.add(jl)
-                    db.session.commit()
+                    _save_job_log(cron_id, "请求链接不存在", nows, 0, task_name=task_name)
                 else:
                     if req_url.find('http') == -1:
-                        jl = JobLog(cron_info_id=cron_id, content="请求链接有误，请检查一下", create_time=nows, take_time=0)
-                        db.session.add(jl)
-                        db.session.commit()
+                        _save_job_log(
+                            cron_id,
+                            "请求链接有误，请检查一下",
+                            nows,
+                            0,
+                            task_name=task_name,
+                        )
                     else:
                         url_ok, url_msg = validate_callback_url(req_url, CRON_CONFIG)
                         if not url_ok:
-                            jl = JobLog(
-                                cron_info_id=cron_id,
-                                content='回调URL安全校验未通过: %s' % url_msg,
-                                create_time=nows,
-                                take_time=0,
+                            _save_job_log(
+                                cron_id,
+                                '回调URL安全校验未通过: %s' % url_msg,
+                                nows,
+                                0,
+                                task_name=task_name,
                             )
-                            db.session.add(jl)
-                            db.session.commit()
                         else:
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
@@ -109,39 +161,33 @@ def cron_do(cron_id):
                                 if type(ret) == dict:
                                     ret = json.dumps(ret, ensure_ascii=False)
 
-                                error_keyword = CRON_CONFIG.get('error_keyword')
-                                if error_keyword:
-                                    error_keyword = error_keyword.replace('，', ',').split(',')
-                                    for item in error_keyword:
-                                        if item.strip().lower() in ret.lower():
-                                            wechat_info_err(
-                                                '定时任务【%s】发生错误' % cif.task_name,
-                                                '返回信息:%s' % ret,
-                                            )
-                                            break
-
-                                jl = JobLog(
-                                    cron_info_id=cron_id,
-                                    content=ret,
-                                    create_time=nows,
-                                    take_time=time.time() - t,
+                                run_status, fail_reason = evaluate_http_response(
+                                    req.status_code,
+                                    ret,
+                                    CRON_CONFIG.get('error_keyword'),
+                                    CRON_CONFIG.get('fail_on_http_4xx_5xx'),
+                                )
+                                _save_job_log(
+                                    cron_id,
+                                    ret,
+                                    nows,
+                                    time.time() - t,
+                                    task_name=task_name,
                                     log_id=cronpilot_log_id,
                                     http_status=req.status_code,
+                                    status=run_status,
+                                    fail_reason=fail_reason,
                                 )
-                                db.session.add(jl)
-                                db.session.commit()
                             except Exception as e:
-                                jl = JobLog(
-                                    cron_info_id=cron_id,
-                                    content="发生严重错误:%s" % str(e),
-                                    create_time=nows,
-                                    take_time=time.time() - t,
-                                )
-                                db.session.add(jl)
-                                db.session.commit()
-                                wechat_info_err(
-                                    '定时任务【%s】发生严重错误' % cif.task_name,
-                                    '返回信息:%s' % str(e),
+                                err_content = "发生严重错误:%s" % str(e)
+                                _save_job_log(
+                                    cron_id,
+                                    err_content,
+                                    nows,
+                                    time.time() - t,
+                                    task_name=task_name,
+                                    status=STATUS_ERROR,
+                                    fail_reason=exception_fail_reason(e),
                                 )
 
         except Exception as e:

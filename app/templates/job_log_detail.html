@@ -8,21 +8,30 @@
         {% if not jl %}
         <p class="help-block">记录不存在。</p>
         {% else %}
-        {% set status = jl.http_status|job_log_status_line(jl.content) %}
+        {% set badge = jl.status|job_log_badge if jl.status else (none, none) %}
+        {% set line = jl.http_status|job_log_status_line(jl.content) %}
         <p>
             {% if cif %}<strong>{{ cif.task_name }}</strong> · {% endif %}
             {{ jl.create_time }}
-            {% if status[1] == 'fail' %}
-            · <strong style="color:#b91c1c">{{ status[0] }}</strong>
-            {% elif status[1] == 'warn' %}
-            · <strong style="color:#b45309">{{ status[0] }}</strong>
-            {% elif status[1] == 'ok' %}
-            · <strong style="color:#059669">{{ status[0] }}</strong>
+            {% if badge[0] %}
+            · {% if badge[1] == 'fail' %}<strong style="color:#b91c1c">{{ badge[0] }}</strong>
+            {% elif badge[1] == 'error' %}<strong style="color:#b45309">{{ badge[0] }}</strong>
+            {% else %}<strong style="color:#059669">{{ badge[0] }}</strong>{% endif %}
+            {% endif %}
+            {% if line[1] == 'fail' %}
+            · <strong style="color:#b91c1c">{{ line[0] }}</strong>
+            {% elif line[1] == 'warn' %}
+            · <strong style="color:#b45309">{{ line[0] }}</strong>
+            {% elif line[1] == 'ok' %}
+            · <strong style="color:#059669">{{ line[0] }}</strong>
             {% else %}
-            · <span style="color:#64748b">{{ status[0] }}</span>
+            · <span style="color:#64748b">{{ line[0] }}</span>
             {% endif %}
             {% if jl.take_time %} · 耗时 {{ jl.take_time }}s{% endif %}
         </p>
+        {% if jl.fail_reason %}
+        <p class="help-block" style="margin-top:0">失败原因：<code>{{ jl.fail_reason }}</code></p>
+        {% endif %}
         {% if jl.log_id %}
         <p class="help-block" style="margin-top:0">log_id: <code>{{ jl.log_id }}</code></p>
         {% endif %}

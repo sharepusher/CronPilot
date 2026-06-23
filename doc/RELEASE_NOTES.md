@@ -17,6 +17,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 **管理端 A′+B1（b105e47）：**执行记录单列两行 +「查看详情」；`job_log.http_status`；Cron 分钟 `*/1` 提示。  
 **侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
 **Tier 2 RFC-2.1：**`gevent` 23.9.1 + `greenlet` 3.1.1（gunicorn 20 待 RFC-2.2）。  
+**P1 OPT-P1-01/02：**`job_log.status` + `fail_on_http_4xx_5xx`（见下方）。  
 **Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
 
 ### 管理端 UI（A′ + B1）
@@ -29,6 +30,16 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | Cron 分钟 B1 | 添加/编辑页：`*/1` = 每分钟 |
 
 设计说明：[管理端 UI 优化设计](管理端UI优化设计.html)
+
+### P1 可观测（OPT-P1-01/02）
+
+| 变更 | 说明 |
+| --- | --- |
+| `status` / `fail_reason` | `success` / `fail` / `error` + 短标签 |
+| `fail_on_http_4xx_5xx` | 默认 `1`；4xx/5xx 记 fail 并告警 |
+| UI | A′ 列表增加状态徽章；详情展示 `fail_reason` |
+
+设计说明：[P1 可观测优化设计](P1可观测优化设计.html)
 
 ### 侧车 PyMySQL（RFC-S.2）
 

@@ -46,10 +46,10 @@
 <body>
 <header class="hero">
   <a href="index.html" style="color:#ddd6fe;font-size:.9rem">← 文档索引</a>
-  <span class="tag">P1</span><span class="tag">可观测</span><span class="tag">待确认</span>
+  <span class="tag">P1</span><span class="tag">已交付</span>
   <h1>P1 可观测优化设计</h1>
   <p>OPT-P1-01 执行 status · OPT-P1-02 失败判定规则 · 含线框原型</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">Draft v1 · 待确认</span> · 2026-06-22</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">已交付</span> · 2026-06-23</p>
 </header>
 
 <main class="layout">
@@ -61,8 +61,8 @@
     · 仓库源稿：<code>doc/P1可观测优化设计.html</code> · Markdown：<a href="P1可观测优化设计.md">P1可观测优化设计.md</a>
   </div>
 
-  <div class="warn">
-    <strong>交付纪律：</strong>本文档为<strong>设计稿</strong>，非已实现功能。按 <a href="../.cursor/rules/cronpilot-project.mdc">项目总则</a>「UI / 功能优化先设计」——<strong>你确认方案后</strong>再改 <code>crons.py</code> / 模板并走 Docker 验收。
+  <div class="ok-box">
+    <strong>交付说明：</strong>OPT-P1-01/02 已按 §十 确认实现；本文保留判定逻辑与验收清单。
   </div>
 
   <h2>一、背景：A′ 之后仍缺什么</h2>
@@ -233,11 +233,10 @@ requests.get(timeout=120s) 异常 → status=error, fail_reason=timeout|connecti
 
   <h2>十、待你确认</h2>
   <ul>
-    <li>□ 采纳 <strong>status</strong> 三值：<code>success</code> / <code>fail</code> / <code>error</code></li>
-    <li>□ <strong>fail_on_http_4xx_5xx</strong> 默认 <code>1</code>（改变现网：502 将从「不告警」变为失败+告警）</li>
-    <li>□ UI 采用 <strong>P1-UI</strong>：A′ 两行 + status 徽章，不新增列</li>
-    <li>□ 本次<strong>不做</strong>列表「仅失败」筛选（可下期）</li>
-    <li>□ 确认后开始实现（预计 1 PR：模型 + cron_do + UI + 测试）</li>
+    <li>☑ 采纳 <strong>status</strong> 三值：<code>success</code> / <code>fail</code> / <code>error</code></li>
+    <li>☑ <strong>fail_on_http_4xx_5xx</strong> 默认 <code>1</code></li>
+    <li>☑ UI 采用 <strong>P1-UI</strong>：A′ 两行 + status 徽章，不新增列</li>
+    <li>☑ 本次<strong>不做</strong>列表「仅失败」筛选（可下期）</li>
   </ul>
 
 </main>

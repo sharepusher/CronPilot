@@ -10,6 +10,8 @@ class JobLog(db.Model):
     cron_info_id = db.Column(db.Integer,nullable=False,default=0,index=True)
     content = db.Column(db.TEXT,nullable=False,default='',doc='返回的内容')
     http_status = db.Column(db.Integer, nullable=True, doc='HTTP 响应状态码；未发起请求或异常时为 NULL')
+    status = db.Column(db.String(16), nullable=True, doc='success | fail | error')
+    fail_reason = db.Column(db.String(128), nullable=True, doc='失败原因短标签')
     create_time = db.Column(db.String(25),nullable=False,default='')
     take_time = db.Column(db.String(25), default='',doc='耗时时间')
     def to_json(self):

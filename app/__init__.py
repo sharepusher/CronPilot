@@ -42,10 +42,11 @@ def create_app(config_name):
 
 
     db.init_app(app)
-    from app.services.job_log_display import job_log_content_preview, job_log_status_line
+    from app.services.job_log_display import job_log_badge, job_log_content_preview, job_log_status_line
 
     app.jinja_env.filters['job_log_status_line'] = job_log_status_line
     app.jinja_env.filters['job_log_content_preview'] = job_log_content_preview
+    app.jinja_env.filters['job_log_badge'] = job_log_badge
     scheduler.app = app
     scheduler.init_app(app)
     scheduler.start()

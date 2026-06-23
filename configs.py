@@ -18,6 +18,9 @@ def configs(key = None):
     job_log_counts = cp.get('default','job_log_counts')
     api_access_token = cp.get('default','api_access_token')
     error_keyword = cp.get('default',"error_keyword")
+    fail_on_http_4xx_5xx = '1'
+    if cp.has_option('default', 'fail_on_http_4xx_5xx'):
+        fail_on_http_4xx_5xx = cp.get('default', 'fail_on_http_4xx_5xx')
     is_dev = cp.get('default','is_dev') or 0
     api_key = cp.get('default', 'api_key') or 0
     qywechat_corpid = cp.get('default','qywechat_corpid')
@@ -53,6 +56,7 @@ def configs(key = None):
         'job_log_counts':job_log_counts,
         'api_access_token':api_access_token,
         'error_keyword':error_keyword,
+        'fail_on_http_4xx_5xx': fail_on_http_4xx_5xx,
         'error_web_hook':error_web_hook,
         'dingding_webhook':dingding_webhook,
         'dingding_secret':dingding_secret,

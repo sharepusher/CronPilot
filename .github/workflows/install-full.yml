@@ -14,13 +14,18 @@ on:
 
 jobs:
   install-full:
+    name: install-full (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install build dependencies for gevent
         run: sudo apt-get update && sudo apt-get install -y python3-dev libev-dev
@@ -29,3 +34,7 @@ jobs:
         run: |
           python -m pip install --upgrade 'pip<25'
           pip install -r requirements.txt
+
+      - name: Smoke import gevent + gunicorn
+        run: |
+          python -c "import gevent, gunicorn, apscheduler; print(gevent.__version__, gunicorn.__version__, apscheduler.__version__)"

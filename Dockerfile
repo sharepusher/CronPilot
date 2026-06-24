@@ -1,4 +1,4 @@
-# CronPilot 运行镜像（Ubuntu 22.04 + Python 3.9 + SQLite 试用）
+# CronPilot 运行镜像（Ubuntu 22.04 + Python 3.10 + SQLite 试用）
 # 构建: docker build -t cronpilot:latest .
 # 运行: docker compose up --build -d
 FROM ubuntu:22.04
@@ -17,13 +17,13 @@ RUN useradd -m -s /bin/bash cronpilot \
   && add-apt-repository -y ppa:deadsnakes/ppa \
   && apt-get update -qq \
   && apt-get install -y -qq \
-    python3.9 python3.9-venv python3.9-dev \
+    python3.10 python3.10-venv python3.10-dev \
     build-essential libffi-dev libev-dev git \
   && echo 'root ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/docker-root \
   && chmod 440 /etc/sudoers.d/docker-root \
   && rm -rf /var/lib/apt/lists/*
 
-ENV PY=python3.9
+ENV PY=python3.10
 RUN SUDO_USER=cronpilot bash scripts/install_ubuntu.sh --production --sqlite
 
 USER cronpilot

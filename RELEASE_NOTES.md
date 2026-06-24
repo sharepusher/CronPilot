@@ -84,16 +84,16 @@ flask db upgrade
 
 新代码（RBAC、operation_log）禁止新增裸字符串 `execute`。
 
-### 依赖升级 · Tier 2（RFC-2.1 ✓ · RFC-2.2 ✓ · RFC-2.3 ✓）
+### 依赖升级 · Tier 2（RFC-2.1 ✓ · RFC-2.2 ✓ · RFC-2.3 ✓ · RFC-2.4 ✓）
 
 | 变更 | 说明 |
 |------|------|
-| `gevent` 20.9.0 → **23.9.1** | 支持 Python 3.8–3.11；Docker 金路径（Py 3.9 + gunicorn gevent worker）已验收 |
+| `gevent` 20.9.0 → **23.9.1** | 支持 Python 3.8–3.11；Docker 金路径（Py 3.10 + gunicorn gevent worker）已验收 |
 | `greenlet` 0.4.17 → **3.1.1** | 与 gevent 23 配套；修复 Py 3.11 `SystemError` 类问题 |
 | `gunicorn` 20.0.4 → **22.0.0** | gevent worker 冒烟通过；Docker 金路径（`verify_cronpilot_docker_mac.sh` full）已验收；`gun.py` 无需改动 |
 | `APScheduler` 3.6.3 → **3.10.4** | `SQLAlchemyJobStore` + SA 1.4 联调；`CuBackgroundScheduler` 无需改；Docker compose 冒烟通过 |
 | `install_production_deps.sh` | 移除 gevent 20 分步安装特例，统一 `pip install -r requirements.txt` |
-| 待续 | RFC-2.4 Python matrix |
+| **RFC-2.4** Docker **3.10** + `install-full` matrix **3.9 / 3.10 / 3.11** | CI 全量依赖安装 + gevent/gunicorn 导入冒烟 |
 
 ### 依赖升级 · 侧车 PyMySQL（RFC-S.2）
 
@@ -174,7 +174,7 @@ bash scripts/run_production.sh
 |--------|------|
 | Docs HTML ↔ Markdown sync | PR 校验 `doc/*.md` 与 HTML 一致 |
 | Unit tests | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt` |
-| install-full | 在 3.10 安装完整 `requirements.txt` 验证 gevent 等 |
+| install-full | 矩阵 **3.9 / 3.10 / 3.11** 安装完整 `requirements.txt` 并导入 gevent/gunicorn |
 | Docker install verify | 矩阵 Ubuntu / Rocky8 / CentOS7 完整安装 + venv + gunicorn |
 
 ### 升级说明（自 v0.1.0）

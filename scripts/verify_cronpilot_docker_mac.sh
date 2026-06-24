@@ -101,13 +101,13 @@ if [[ "${SMOKE_LEVEL:-basic}" == "full" ]]; then
     exit 1
   fi
   echo "=== flask db CLI (container) ==="
-  docker exec "$CONTAINER" bash -c 'cd /opt/cronpilot && export FLASK_APP=manage:app FLASK_CONFIG=production && .venv-py39/bin/flask db --help | head -1' || {
+  docker exec "$CONTAINER" bash -c 'cd /opt/cronpilot && export FLASK_APP=manage:app FLASK_CONFIG=production && source scripts/lib/python.sh && cronpilot_load_runtime && "$CRONPILOT_VENV/bin/flask" db --help | head -1' || {
     echo "EXTENDED: flask db FAIL" >&2
     docker stop "$CONTAINER" && docker rm "$CONTAINER"
     exit 1
   }
   echo "=== gevent / gunicorn (container) ==="
-  docker exec "$CONTAINER" bash -c '.venv-py39/bin/python -c "import gevent, gunicorn; print(gevent.__version__, gunicorn.__version__)"' || {
+  docker exec "$CONTAINER" bash -c 'cd /opt/cronpilot && source scripts/lib/python.sh && cronpilot_load_runtime && "$CRONPILOT_VENV/bin/python" -c "import gevent, gunicorn, apscheduler; print(gevent.__version__, gunicorn.__version__, apscheduler.__version__)"' || {
     echo "EXTENDED: gevent FAIL" >&2
     docker stop "$CONTAINER" && docker rm "$CONTAINER"
     exit 1

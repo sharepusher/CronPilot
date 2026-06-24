@@ -51,8 +51,8 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | --- | --- | --- | --- |
 | 单元测试 | `requirements-core.txt` | 3.8–3.11（matrix） | 无 gevent；`conf.ci.ini` SQLite |
 | 本地冒烟 | `requirements-core.txt` | 3.8–3.11 自动探测 | `scripts/start_local.sh`，Flask 内置 server |
-| 完整生产依赖 | `requirements.txt` | CI 固定 **3.10** | `install-full.yml` + `libev-dev` |
-| Docker 镜像 | `requirements.txt` | **3.9** | `Dockerfile` + gunicorn gevent 健康检查 |
+| 完整生产依赖 | `requirements.txt` | **3.9 / 3.10 / 3.11**（matrix） | `install-full.yml` + `libev-dev` |
+| Docker 镜像 | `requirements.txt` | **3.10** | `Dockerfile` + gunicorn gevent 健康检查 |
 
 ### 2.3 已验证问题（2026-06 本地）
 
@@ -162,7 +162,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | RFC-2.1 ✓ | `gevent` **23.9.1** + `greenlet` **3.1.1** | Docker 构建 + gunicorn gevent worker 健康检查通过 |
 | RFC-2.2 ✓ | `gunicorn` **22.0.0** | Docker 构建 + gevent worker + `SMOKE_LEVEL=full` 扩展冒烟 |
 | RFC-2.3 ✓ | `APScheduler` **3.10.4** | `SQLAlchemyJobStore` + SA 1.4；Docker compose 冒烟通过 |
-| RFC-2.4 | Python：Docker 金路径 3.9 → 评估 3.10/3.11；`install-full.yml` matrix 扩展 | 中 |
+| RFC-2.4 ✓ | Python：Docker 金路径 **3.10**；`install-full.yml` matrix **3.9 / 3.10 / 3.11** | Docker 构建 + compose 冒烟通过 |
 | RFC-2.5 | 项目规则中「勿 3.12+」维持至本 Tier 验收完成 | — |
 
 #### 验收标准

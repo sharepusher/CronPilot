@@ -8,10 +8,10 @@ Docker
 
 # Docker 部署指南
 
-Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
+Ubuntu 22.04 镜像 · Python 3.10 · 默认 SQLite 试用 · 端口 `5860`
 
 适用：**快速试用**、**不在宿主机装 Python**、或宿主机 **apt/dpkg 异常**（如 PostgreSQL 卡住）时。
-镜像基于 Ubuntu 22.04 + Python 3.9，容器内自动执行 `install_ubuntu.sh --production --sqlite`。
+镜像基于 Ubuntu 22.04 + Python 3.10，容器内自动执行 `install_ubuntu.sh --production --sqlite`。
 裸机生产路径见 [非 Docker 部署指南](非Docker部署指南.html)。
 
 ## 1. 部署拓扑
@@ -33,7 +33,7 @@ Ubuntu 22.04 镜像 · Python 3.9 · 默认 SQLite 试用 · 端口 `5860`
 | Compose | Docker Compose v2（`docker compose`） |
 | 宿主机 | 无需安装 Python / MySQL（试用 SQLite） |
 | 端口 | 宿主机 **5860** 未被占用 |
-| 运行时栈 | 镜像内 **Python 3.9 + gunicorn 22.0.0 + gevent 23.9.1**（勿期望 3.12+；Tier 2 RFC-2.1/2.2 已交付，见 [依赖升级 RFC](依赖升级RFC.html)） |
+| 运行时栈 | 镜像内 **Python 3.10 + gunicorn 22.0.0 + gevent 23.9.1**（勿期望 3.12+；Tier 2 已交付，见 [依赖升级 RFC](依赖升级RFC.html)） |
 
 ## 3. 快速开始（SQLite 试用）
 
@@ -118,7 +118,7 @@ docker run -d --name cronpilot \
 | 项目 | 说明 |
 | --- | --- |
 | 基础镜像 | `ubuntu:22.04` |
-| Python | 3.9（deadsnakes PPA，容器内安装） |
+| Python | 3.10（deadsnakes PPA，容器内安装） |
 | 虚拟环境 | `.venv-py39`（构建期创建） |
 | 启动命令 | `bash scripts/run_production.sh` |
 | 暴露端口 | **5860**（与裸机 `gun.py` 一致） |
@@ -131,7 +131,7 @@ docker run -d --name cronpilot \
 
 | 旧版（已废弃） | v0.1.1+ |
 | --- | --- |
-| Ubuntu 16.04 + Python 3.6 | Ubuntu 22.04 + Python 3.9 |
+| Ubuntu 16.04 + Python 3.6 | Ubuntu 22.04 + Python 3.10 |
 | 容器 `:80` → 宿主机 `5002` | 统一 **`:5860`** |
 | Supervisor + `docker_start.sh` | 直接 `run_production.sh` |
 | 豆瓣 pip 源 | 标准 `install_ubuntu.sh` |

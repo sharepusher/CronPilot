@@ -89,8 +89,8 @@
     <tr><th>场景</th><th>依赖文件</th><th>Python</th><th>说明</th></tr>
     <tr><td>单元测试</td><td><code>requirements-core.txt</code></td><td>3.8–3.11（matrix）</td><td>无 gevent；<code>conf.ci.ini</code> SQLite</td></tr>
     <tr><td>本地冒烟</td><td><code>requirements-core.txt</code></td><td>3.8–3.11 自动探测</td><td><code>scripts/start_local.sh</code>，Flask 内置 server</td></tr>
-    <tr><td>完整生产依赖</td><td><code>requirements.txt</code></td><td>CI 固定 <strong>3.10</strong></td><td><code>install-full.yml</code> + <code>libev-dev</code></td></tr>
-    <tr><td>Docker 镜像</td><td><code>requirements.txt</code></td><td><strong>3.9</strong></td><td><code>Dockerfile</code> + gunicorn gevent 健康检查</td></tr>
+    <tr><td>完整生产依赖</td><td><code>requirements.txt</code></td><td><strong>3.9 / 3.10 / 3.11</strong>（matrix）</td><td><code>install-full.yml</code> + <code>libev-dev</code></td></tr>
+    <tr><td>Docker 镜像</td><td><code>requirements.txt</code></td><td><strong>3.10</strong></td><td><code>Dockerfile</code> + gunicorn gevent 健康检查</td></tr>
   </table>
 
   <h3>2.3 已验证问题（2026-06 本地）</h3>
@@ -204,7 +204,7 @@
       <tr><td>RFC-2.1 ✓</td><td><code>gevent</code> <strong>23.9.1</strong> + <code>greenlet</code> <strong>3.1.1</strong></td><td class="ok">Docker 构建 + gunicorn gevent worker 健康检查通过</td></tr>
       <tr><td>RFC-2.2 ✓</td><td><code>gunicorn</code> <strong>22.0.0</strong></td><td class="ok">Docker 构建 + gevent worker + <code>SMOKE_LEVEL=full</code> 扩展冒烟</td></tr>
       <tr><td>RFC-2.3 ✓</td><td><code>APScheduler</code> <strong>3.10.4</strong></td><td class="ok"><code>SQLAlchemyJobStore</code> + SA 1.4；Docker compose 冒烟通过</td></tr>
-      <tr><td>RFC-2.4</td><td>Python：Docker 金路径 3.9 → 评估 3.10/3.11；<code>install-full.yml</code> matrix 扩展</td><td class="warn">中</td></tr>
+      <tr><td>RFC-2.4 ✓</td><td>Python：Docker 金路径 <strong>3.10</strong>；<code>install-full.yml</code> matrix <strong>3.9 / 3.10 / 3.11</strong></td><td class="ok">Docker 构建 + compose 冒烟通过</td></tr>
       <tr><td>RFC-2.5</td><td>项目规则中「勿 3.12+」维持至本 Tier 验收完成</td><td>—</td></tr>
     </table>
     <h4>验收标准</h4>

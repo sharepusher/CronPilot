@@ -16,7 +16,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 **管理端 A′+B1（b105e47）：**执行记录单列两行 +「查看详情」；`job_log.http_status`；Cron 分钟 `*/1` 提示。  
 **侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
-**Tier 2 RFC-2.1/2.2/2.3：**`gevent` 23.9.1 + `gunicorn` 22.0.0 + `APScheduler` 3.10.4。  
+**Tier 2 RFC-2.1/2.2/2.3/2.4：**`gevent` 23.9.1 + `gunicorn` 22.0.0 + `APScheduler` 3.10.4 + Docker Py 3.10 / install-full matrix。  
 **P1 OPT-P1-01/02：**`job_log.status` + `fail_on_http_4xx_5xx`（见下方）。  
 **OPT-P1-07：**管理端 `_admin_nav.html` 统一导航（见下方）。  
 **Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
@@ -66,7 +66,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | `greenlet` 3.1.1 | 与 gevent 23 配套 |
 | `gunicorn` 22.0.0 | 20.0.4 → 22.0.0；gevent worker + Docker 金路径已验收 |
 | `APScheduler` 3.10.4 | 3.6.3 → 3.10.4；`SQLAlchemyJobStore` + SA 1.4；Docker compose 冒烟通过 |
-| 待续 | RFC-2.4 Python matrix |
+| **RFC-2.4** | Docker **3.10** + `install-full` matrix **3.9 / 3.10 / 3.11** |
 
 ### 依赖升级 Tier 0 / Tier 1 / 侧车 HTTP
 

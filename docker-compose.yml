@@ -1,4 +1,4 @@
-# CronPilot Docker（v0.1.1+，Python 3.9，默认 SQLite 试用）
+# CronPilot Docker（v0.1.1+，Python 3.10，默认 SQLite 试用）
 # 用法: docker compose up --build -d
 services:
   cronpilot:

@@ -44,7 +44,7 @@
   <div class="card highlight">
     <p><strong>管理端 A′+B1（b105e47）：</strong>执行记录单列两行 +「查看详情」；<code>job_log.http_status</code>；Cron 分钟 <code>*/1</code> 提示。<br>
     <strong>侧车 RFC-S.2：</strong><code>PyMySQL</code> 1.1.2。<br>
-    <strong>Tier 2 RFC-2.1/2.2/2.3：</strong><code>gevent</code> 23.9.1 + <code>gunicorn</code> 22.0.0 + <code>APScheduler</code> 3.10.4。<br>
+    <strong>Tier 2 RFC-2.1/2.2/2.3/2.4：</strong><code>gevent</code> 23.9.1 + <code>gunicorn</code> 22.0.0 + <code>APScheduler</code> 3.10.4 + Docker Py 3.10 / install-full matrix。<br>
     <strong>P1 OPT-P1-01/02：</strong><code>job_log.status</code> + <code>fail_on_http_4xx_5xx</code>（见下方）。<br>
     <strong>OPT-P1-07：</strong>管理端 <code>_admin_nav.html</code> 统一导航（见下方）。<br>
     <strong>Tier 0/1 + RFC-S.1</strong> 见下方；<strong>无 API 协议变更。</strong></p>
@@ -86,7 +86,7 @@
     <tr><td><code>greenlet</code> 3.1.1</td><td>与 gevent 23 配套</td></tr>
     <tr><td><code>gunicorn</code> 22.0.0</td><td>20.0.4 → 22.0.0；gevent worker + Docker 金路径已验收</td></tr>
     <tr><td><code>APScheduler</code> 3.10.4</td><td>3.6.3 → 3.10.4；<code>SQLAlchemyJobStore</code> + SA 1.4；Docker compose 冒烟通过</td></tr>
-    <tr><td>待续</td><td>RFC-2.4 Python matrix</td></tr>
+    <tr><td><strong>RFC-2.4</strong></td><td>Docker <strong>3.10</strong> + <code>install-full</code> matrix <strong>3.9 / 3.10 / 3.11</strong></td></tr>
   </table>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">依赖升级 Tier 0 / Tier 1 / 侧车 HTTP</h3>
   <div class="card">

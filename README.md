@@ -90,7 +90,7 @@ docker compose up --build -d
 - 数据目录：宿主机 `./datas` 挂载进容器
 - 改配置：`nano conf.ini` → `docker compose restart`
 - 停止：`docker compose down`
-- 镜像：Ubuntu 22.04 + Python 3.9，容器内自动 SQLite 试用配置
+- 镜像：Ubuntu 22.04 + Python 3.10，容器内自动 SQLite 试用配置
 
 裸机 / pyenv / MySQL 生产路径见 **[INSTALL.md](INSTALL.md)**（路径 A/B/C/D）。
 
@@ -269,7 +269,7 @@ GitHub Actions：
 | 工作流 | 说明 |
 |--------|------|
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
-| **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 在 3.10 验证全量依赖 |
+| **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 矩阵 **3.9 / 3.10 / 3.11** 验证全量依赖 |
 
 文档含：**[INSTALL.md](INSTALL.md)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 

@@ -84,7 +84,9 @@ flask db upgrade
 
 新代码（RBAC、operation_log）禁止新增裸字符串 `execute`。
 
-### 依赖升级 · Tier 2（RFC-2.1 ✓ · RFC-2.2 ✓ · RFC-2.3 ✓ · RFC-2.4 ✓）
+### 依赖升级 · Tier 2（RFC-2.1 ✓ · RFC-2.2 ✓ · RFC-2.3 ✓ · RFC-2.4 ✓ · RFC-2.5 ✓）
+
+**Tier 2 已全部交付**（gevent / gunicorn / APScheduler / Docker Py 3.10 / CI matrix）；Python **3.8–3.11** 规则经 RFC-2.5 签收仍有效，3.12+ 待 Tier 3+ 评估。
 
 | 变更 | 说明 |
 |------|------|

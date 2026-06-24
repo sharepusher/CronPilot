@@ -163,7 +163,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | RFC-2.2 ✓ | `gunicorn` **22.0.0** | Docker 构建 + gevent worker + `SMOKE_LEVEL=full` 扩展冒烟 |
 | RFC-2.3 ✓ | `APScheduler` **3.10.4** | `SQLAlchemyJobStore` + SA 1.4；Docker compose 冒烟通过 |
 | RFC-2.4 ✓ | Python：Docker 金路径 **3.10**；`install-full.yml` matrix **3.9 / 3.10 / 3.11** | Docker 构建 + compose 冒烟通过 |
-| RFC-2.5 | 项目规则中「勿 3.12+」维持至本 Tier 验收完成 | — |
+| RFC-2.5 ✓ | 项目规则「勿 3.12+」经 Tier 2 全量验收仍维持（3.8–3.11 稳定栈） | Tier 2 签收 |
 
 #### 验收标准
 

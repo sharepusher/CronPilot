@@ -37,7 +37,7 @@ alwaysApply: false
 ## GitHub
 
 - 远程：`sharepusher/CronPilot`（`main`）
-- CI：**Unit tests**、**Docker install verify**（Ubuntu/Rocky8/CentOS7）（矩阵 3.8–3.11 + core 依赖）、**install-full**（3.10 全量）、**Docs sync**
+- CI：**Unit tests**、**Docker install verify**（Ubuntu/Rocky8/CentOS7）（矩阵 3.8–3.11 + core 依赖）、**install-full**（矩阵 3.9/3.10/3.11 全量）、**Docs sync**
 - Release 文案可从 `RELEASE_NOTES.md` 摘录；Full Changelog 用 compare 链接
 
 ## 生产安全

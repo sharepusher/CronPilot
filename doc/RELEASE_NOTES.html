@@ -30,7 +30,9 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
+    <span class="tag new">v0.2.0</span> 2026-06-10 · P1 可观测 / Tier 0–2 / UI
+    &nbsp;|&nbsp;
+    <span class="tag">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
     &nbsp;|&nbsp;
     <span class="tag">v0.1.0</span> 2026-05-29 · Phase A（P0）
   </p>
@@ -40,14 +42,18 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
-<h2 class="new">[Unreleased] · UI / 侧车 / Tier 2</h2>
+<h2>[Unreleased]</h2>
+  <div class="card">
+    <p>下一版计划：P1-03/04、P1 小步筛选/展示统一、Tier 3 前置。设计稿见
+    <a href="P1执行详情与立即执行设计.html">P1-03/04</a>、
+    <a href="P1可观测小步优化设计.html">P1 小步</a>、
+    <a href="Tier3前置收束设计.html">Tier 3 前置</a>。</p>
+  </div>
+
+<h2 class="new">[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
   <div class="card highlight">
-    <p><strong>管理端 A′+B1（b105e47）：</strong>执行记录单列两行 +「查看详情」；<code>job_log.http_status</code>；Cron 分钟 <code>*/1</code> 提示。<br>
-    <strong>侧车 RFC-S.2：</strong><code>PyMySQL</code> 1.1.2。<br>
-    <strong>Tier 2 已全部交付（RFC-2.1～2.5）：</strong><code>gevent</code> 23.9.1 + <code>gunicorn</code> 22.0.0 + <code>APScheduler</code> 3.10.4 + Docker Py 3.10 / install-full matrix；Python 3.8–3.11 规则经 RFC-2.5 签收仍有效。<br>
-    <strong>P1 OPT-P1-01/02：</strong><code>job_log.status</code> + <code>fail_on_http_4xx_5xx</code>（见下方）。<br>
-    <strong>OPT-P1-07：</strong>管理端 <code>_admin_nav.html</code> 统一导航（见下方）。<br>
-    <strong>Tier 0/1 + RFC-S.1</strong> 见下方；<strong>无 API 协议变更。</strong></p>
+    <p>在 v0.1.1 上交付 <strong>P1 OPT-P1-01/02</strong>、<strong>UI A′+B1+OPT-P1-07</strong>、<strong>Tier 0/1/2（RFC-2.1～2.5）</strong>、侧车 HTTP/PyMySQL。<strong>无 API 协议变更。</strong></p>
+    <p><strong>升级要点：</strong>Docker 镜像 Python <strong>3.10</strong>；<code>fail_on_http_4xx_5xx</code> 新配置；勿用 <code>conf.ci.ini</code> 作生产挂载。</p>
   </div>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI（A′ + B1）</h3>
   <table>

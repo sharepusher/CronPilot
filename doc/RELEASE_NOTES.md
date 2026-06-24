@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v0.2.0 2026-06-10 · P1 可观测 / Tier 0–2 / UI
+ | 
 v0.1.1 2026-06-01 · 文档 / 部署 / 多版本 Python
  | 
 v0.1.0 2026-05-29 · Phase A（P0）
@@ -12,14 +14,18 @@ v0.1.0 2026-05-29 · Phase A（P0）
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
-## [Unreleased] · UI / 侧车 / Tier 2
+## [Unreleased]
 
-**管理端 A′+B1（b105e47）：**执行记录单列两行 +「查看详情」；`job_log.http_status`；Cron 分钟 `*/1` 提示。  
-**侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
-**Tier 2 已全部交付（RFC-2.1～2.5）：**`gevent` 23.9.1 + `gunicorn` 22.0.0 + `APScheduler` 3.10.4 + Docker Py 3.10 / install-full matrix；Python 3.8–3.11 规则经 RFC-2.5 签收仍有效。  
-**P1 OPT-P1-01/02：**`job_log.status` + `fail_on_http_4xx_5xx`（见下方）。  
-**OPT-P1-07：**管理端 `_admin_nav.html` 统一导航（见下方）。  
-**Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
+下一版计划：P1-03/04、P1 小步筛选/展示统一、Tier 3 前置。设计稿见
+[P1-03/04](P1执行详情与立即执行设计.html)、
+[P1 小步](P1可观测小步优化设计.html)、
+[Tier 3 前置](Tier3前置收束设计.html)。
+
+## [0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI
+
+在 v0.1.1 上交付 **P1 OPT-P1-01/02**、**UI A′+B1+OPT-P1-07**、**Tier 0/1/2（RFC-2.1～2.5）**、侧车 HTTP/PyMySQL。**无 API 协议变更。**
+
+**升级要点：**Docker 镜像 Python **3.10**；`fail_on_http_4xx_5xx` 新配置；勿用 `conf.ci.ini` 作生产挂载。
 
 ### 管理端 UI（A′ + B1）
 

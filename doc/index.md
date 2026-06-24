@@ -21,11 +21,13 @@
 | Plombery 深度对比 | [Plombery深度对比分析.html](Plombery深度对比分析.html) | [Plombery深度对比分析.md](Plombery深度对比分析.md) |
 | **管理端 UI 优化设计（A′+B1 已交付）** | [管理端UI优化设计.html](管理端UI优化设计.html) | [管理端UI优化设计.md](管理端UI优化设计.md) |
 | **P1 可观测优化设计（OPT-P1-01/02 已交付）** | [P1可观测优化设计.html](P1可观测优化设计.html) | [P1可观测优化设计.md](P1可观测优化设计.md) |
+| **P1 可观测小步优化（筛选 + 展示统一 · 待确认）** | [P1可观测小步优化设计.html](P1可观测小步优化设计.html) | [P1可观测小步优化设计.md](P1可观测小步优化设计.md) |
 | **P1 执行详情与立即执行（OPT-P1-03/04 · 待确认）** | [P1执行详情与立即执行设计.html](P1执行详情与立即执行设计.html) | [P1执行详情与立即执行设计.md](P1执行详情与立即执行设计.md) |
+| **Tier 3 前置收束（去 records · 待确认）** | [Tier3前置收束设计.html](Tier3前置收束设计.html) | [Tier3前置收束设计.md](Tier3前置收束设计.md) |
 | 技术方案与前端设计 | [技术方案与前端设计.html](技术方案与前端设计.html) | [技术方案与前端设计.md](技术方案与前端设计.md) |
 | P0 测试与验收 | [P0测试用例与验收手册.html](P0测试用例与验收手册.html) | [P0测试用例与验收手册.md](P0测试用例与验收手册.md) |
 | 仓库拆分方案 | [新建项目与分支合并方案.html](新建项目与分支合并方案.html) | [新建项目与分支合并方案.md](新建项目与分支合并方案.md) |
-| Release Notes v0.1.1 | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) · [doc/RELEASE_NOTES.md](RELEASE_NOTES.md) |
+| Release Notes **v0.2.0** | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) · [doc/RELEASE_NOTES.md](RELEASE_NOTES.md) |
 | License Audit | [LICENSE-AUDIT.html](LICENSE-AUDIT.html) | [LICENSE-AUDIT.md](LICENSE-AUDIT.md) |
 | Windows 部署（遗留） | — | [windows部署文档.md](windows部署文档.md) |
 
@@ -43,4 +45,4 @@
 
 ---
 
-*CronPilot · 技术文档 · v0.1.1*
+*CronPilot · 技术文档 · v0.2.0*

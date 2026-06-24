@@ -7,7 +7,35 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-### 管理端 UI · 执行记录 A′ + Cron 周期 B1
+（下一版计划：P1-03/04 执行详情与立即执行、P1 小步筛选/展示统一、Tier 3 前置；设计稿见 `doc/P1执行详情与立即执行设计.html`、`doc/P1可观测小步优化设计.html`、`doc/Tier3前置收束设计.html`。）
+
+---
+
+## [0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI
+
+在 v0.1.1 基础上交付 **P1 可观测（OPT-P1-01/02）**、**管理端 UI（A′+B1、OPT-P1-07）**、**依赖升级 Tier 0 / Tier 1 / Tier 2（RFC-2.1～2.5）** 与侧车安全补丁。**无 API 协议变更**（仍为 `cronpilot_log_id` / `cronpilot_sign` / `add_log`）。
+
+### 版本摘要
+
+| 类别 | 已交付 |
+|------|--------|
+| **P1 可观测** | `job_log.status` / `fail_reason`；`fail_on_http_4xx_5xx`；列表状态徽章 |
+| **管理端 UI** | 执行记录 A′（单列两行 + 查看详情）；Cron 分钟 B1 提示；`_admin_nav.html` 五 Tab 导航 |
+| **依赖 Tier 0** | `flask db` 替代 Flask-Script |
+| **依赖 Tier 1** | SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；`Model.query` 全站迁移 |
+| **依赖 Tier 2** | gevent 23.9.1、gunicorn 22.0.0、APScheduler 3.10.4；Docker **Python 3.10**；install-full CI matrix 3.9–3.11 |
+| **侧车** | requests/urllib3/certifi 安全线；PyMySQL 1.1.2 |
+| **Docker 运维** | `verify_docker_compose.sh` 黄金路径；`check_conf_production.py` 拒绝 `:memory:`；SQLite conf 生成指引 |
+
+### 升级说明（自 v0.1.1）
+
+1. `bash scripts/cronpilot.sh install` 或 `pip install -r requirements.txt`（依赖版本见上表）。
+2. **Docker**：`docker compose build --no-cache && docker compose up -d`（镜像 Python **3.9 → 3.10**）。
+3. **conf.ini**：勿用 `conf.ci.ini` 挂载生产；试用请 `python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths`。
+4. SQLite 已有库：启动时 `ensure_sqlite_tables.py` 补 `http_status`、`status`、`fail_reason` 列。
+5. 新配置项：`fail_on_http_4xx_5xx=1`（见 `conf.ini.example`）。
+6. 验证：`bash scripts/cronpilot.sh test`；Docker 建议 `bash scripts/verify_docker_compose.sh`。
+
 
 | 变更 | 说明 |
 |------|------|
@@ -333,4 +361,5 @@ url_ssrf_observe_only=0
 |------|------|
 | `0.1.0` | Phase A（P0）首发 |
 | `0.1.1` | 文档 `/docs/`、Markdown 双格式、多版本 Python 自动匹配、CI |
-| `0.2.x` | 计划：P1 可观测与运维体验 |
+| **`0.2.0`** | **P1 可观测、UI A′+B1+导航、Tier 0–2、Docker Py 3.10** |
+| `0.2.x` / `0.3.x` | 计划：P1-03/04、操作审计、Tier 3 前置 |

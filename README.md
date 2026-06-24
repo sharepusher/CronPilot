@@ -2,7 +2,7 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v0.1.1**（Phase A P0 + 文档 `/docs/`、多版本 Python 自动匹配）；详见 [Release Notes](RELEASE_NOTES.md)。
+当前版本 **v0.2.0**（P1 可观测 + 依赖 Tier 0–2 + 管理端 UI）；详见 [Release Notes](RELEASE_NOTES.md)。
 
 ## 主要能力（v0.1.0）
 

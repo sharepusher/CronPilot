@@ -7,7 +7,9 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-（下一版计划：P1-03/04 执行详情与立即执行、P1 小步筛选/展示统一、Tier 3 前置；设计稿见 `doc/P1执行详情与立即执行设计.html`、`doc/P1可观测小步优化设计.html`、`doc/Tier3前置收束设计.html`。）
+下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**（P1 小步、P1-03/04、Tier 3 前置等）。设计稿：`doc/P1可观测小步优化设计.html`、`doc/P1执行详情与立即执行设计.html`、`doc/Tier3前置收束设计.html`。
+
+**维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
 ---
 

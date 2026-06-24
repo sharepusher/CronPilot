@@ -11,7 +11,8 @@ RFC依赖运维P2
 
 状态：Draft v1.1 · 2026-06 · 按「耦合从弱到强」重排 Tier；SA 1.4 渐进策略
 
-**定位：**本文是**决策与排期**文档，不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier 须单独 PR、`RELEASE_NOTES` 条目与回归清单。
+**定位：**本文是**决策与排期**文档，不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier 须单独 PR、`RELEASE_NOTES` 条目与回归清单。  
+**已交付版本：**Tier 0–2 见 **v0.2.0** · 总览 [交付状态与路线图](交付状态与路线图.html)。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -81,11 +82,11 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 
 | 顺序 | 层级 | 动作 | 耦合度 | 为何在此顺位 |
 | --- | --- | --- | --- | --- |
-| 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **已交付**；`manage.py` 注册 `flask db`，解锁 Py3.11 迁移 |
-| 2 | **Tier 1** ✓ | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | **已交付**；含 Flask-SQLAlchemy 2.5.1（2.4.x 不兼容 SA 1.4 URL） |
-| ∥ | *侧车* ✓ | HTTP 安全补丁（requests / urllib3） | 最弱 | **RFC-S.1 已交付**；**RFC-S.2 PyMySQL 1.1.2 已交付** |
-| ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法） |
-| 3 | **Tier 2** | gevent / gunicorn / APScheduler + Python 上限 | 强 | 牵动 monkey patch、多 worker 调度、Docker 金路径 |
+| 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **v0.2.0 已交付** |
+| 2 | **Tier 1** ✓ | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | **v0.2.0 已交付** |
+| ∥ | *侧车* ✓ | HTTP 安全补丁（requests / urllib3） | 最弱 | **v0.2.0 已交付**（RFC-S.1 + RFC-S.2） |
+| ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | 详设已有；**实施待确认**（见 [交付状态](交付状态与路线图.html)） |
+| 3 | **Tier 2** ✓ | gevent / gunicorn / APScheduler + Python 上限 | 强 | **v0.2.0 已交付**（RFC-2.1～2.5） |
 | 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | `Model.query` 已清零；升 SA 2 前须处理 `records` 裸 SQL |
 | 5 | **Tier 4** | Flask 1.1 → 2.x | 高 | Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑 |
 
@@ -103,7 +104,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 
 ## 五、分层升级路线（耦合从弱到强）
 
-### Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）· 已交付（Unreleased）
+### Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）· 已交付（v0.2.0）
 
 **目标：**只动 `manage.py` 与依赖声明，**不**升 Flask / SQLAlchemy / gevent 主版本。
 
@@ -119,7 +120,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 - `bash scripts/cronpilot.sh test` 全 matrix 通过。
 - RBAC / operation\_log 的 `db init | migrate | upgrade` 在 SQLite CI 配置下可跑通。
 
-### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）· 已交付（Unreleased）
+### Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）· 已交付（v0.2.0）
 
 **目标：**把 ORM 底座升到官方**过渡版本** 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.5 下运行；**全站 `Model.query` 已分批迁移**为 `session.get` / `scalars(select(...))` / `execute(delete(...))`。
 
@@ -144,7 +145,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 - APScheduler JobStore 正常：`apscheduler_jobs` 读写、任务触发无异常。
 - 改写 backlog 已清零：`Model.query` 与裸 `execute` 字符串已改；`records` 裸 SQL 列入 Tier 3。
 
-### 侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）· RFC-S.1 已交付（Unreleased）
+### 侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）· RFC-S.1 已交付（v0.2.0）
 
 耦合最弱，**不改变 Tier 序号**；任意时刻可独立合并。
 
@@ -153,7 +154,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | RFC-S.1 ✓ | `requests` **2.31.0**、`urllib3` **1.26.19**、`certifi` **2024.8.30** | 已回归 `cron_do`、SSRF 单测、黄金路径 |
 | RFC-S.2 ✓ | `PyMySQL` **1.1.2** | 兼容 Py 3.8–3.11；MySQL 生产连接回归 |
 
-### Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）
+### Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）· 已全部交付（v0.2.0）
 
 **前置条件：**Tier 0、Tier 1 已合并且回归通过。**本 Tier 在 SA 1.4 稳定之后、Flask 2 之前。**
 

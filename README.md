@@ -2,19 +2,17 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v0.2.0**（P1 可观测 + 依赖 Tier 0–2 + 管理端 UI）；详见 [Release Notes](RELEASE_NOTES.md)。
+当前版本 **v0.2.0**（P1 可观测 + 依赖 Tier 0–2 + 管理端 UI）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
 
-## 主要能力（v0.1.0）
+## 主要能力
 
-| 能力 | 说明 |
+| 版本 | 能力 |
 |------|------|
-| SQL 安全 | 删除任务/清理日志改为 SQLAlchemy ORM，消除拼接 SQL |
-| 登录安全 | 支持 `login_pwd` 明文（兼容）与 `pbkdf2` 哈希 |
-| SSRF 防护 | `block_private_ip`、`url_allow_hosts`、执行前二次校验 |
-| API 契约 | 统一 `errcode` 数字类型；修复前端 `requests.js` 判断 |
-| 校验统一 | `cron_validator` + `cron_service`，Web/API 单一路径 |
+| **v0.2.0** | P1 执行 status / 失败规则；UI 执行记录 A′、导航统一；依赖 Tier 0–2；Docker Py 3.10 |
+| **v0.1.1** | 文档 `/docs/`、Python 3.8–3.11 自动匹配、CI |
+| **v0.1.0** | P0：SQL ORM 化、密码哈希、SSRF、JSON 契约、校验/service 统一 |
 
-后续路线图见 `doc/产品优化需求-借鉴Plombery.html`（P1 可观测、P2 体验）；依赖分层升级见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html)（OPT-P2-11：Tier 0 `flask db` → SA 1.4 → gevent → Flask 2）。
+后续路线图见 [doc/交付状态与路线图.html](doc/交付状态与路线图.html)（推荐）或 [doc/产品优化需求-借鉴Plombery.html](doc/产品优化需求-借鉴Plombery.html)。
 
 ## 快速开始
 

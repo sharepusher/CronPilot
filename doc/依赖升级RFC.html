@@ -46,7 +46,8 @@
 <main class="layout">
 
   <div class="note">
-    <strong>定位：</strong>本文是<strong>决策与排期</strong>文档，不替代 <a href="详细技术方案.html">详细技术方案</a> 的功能规格，也不在本 RFC 合并时自动修改 <code>requirements.txt</code>。实施每一 Tier 须单独 PR、<code>RELEASE_NOTES</code> 条目与回归清单。
+    <strong>定位：</strong>本文是<strong>决策与排期</strong>文档，不替代 <a href="详细技术方案.html">详细技术方案</a> 的功能规格，也不在本 RFC 合并时自动修改 <code>requirements.txt</code>。实施每一 Tier 须单独 PR、<code>RELEASE_NOTES</code> 条目与回归清单。<br>
+    <strong>已交付版本：</strong>Tier 0–2 见 <strong>v0.2.0</strong> · 总览 <a href="交付状态与路线图.html">交付状态与路线图</a>。
   </div>
 
   <div class="warn">
@@ -118,11 +119,11 @@
   <p>下列顺序按<strong>与业务代码/运行时的耦合度</strong>从低到高排列，是 RFC 的<strong>权威执行序</strong>（与安全补丁、RBAC 的并行关系见 §七）。</p>
   <table>
     <tr><th>顺序</th><th>层级</th><th>动作</th><th>耦合度</th><th>为何在此顺位</th></tr>
-    <tr><td>1</td><td><strong>Tier 0</strong> ✓</td><td>Flask-Script → Flask 原生 CLI</td><td class="ok">最弱</td><td><strong>已交付</strong>；<code>manage.py</code> 注册 <code>flask db</code>，解锁 Py3.11 迁移</td></tr>
-    <tr><td>2</td><td><strong>Tier 1</strong> ✓</td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（过渡版）</td><td class="ok">弱–中</td><td><strong>已交付</strong>；含 Flask-SQLAlchemy 2.5.1（2.4.x 不兼容 SA 1.4 URL）</td></tr>
-    <tr><td>∥</td><td><em>侧车</em> ✓</td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td><strong>RFC-S.1 已交付</strong>；<strong>RFC-S.2 PyMySQL 1.1.2 已交付</strong></td></tr>
-    <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td>Tier 0 完成后即可；与 Tier 1 可并行（新表用 1.4 友好写法）</td></tr>
-    <tr><td>3</td><td><strong>Tier 2</strong></td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td>牵动 monkey patch、多 worker 调度、Docker 金路径</td></tr>
+    <tr><td>1</td><td><strong>Tier 0</strong> ✓</td><td>Flask-Script → Flask 原生 CLI</td><td class="ok">最弱</td><td><strong>v0.2.0 已交付</strong></td></tr>
+    <tr><td>2</td><td><strong>Tier 1</strong> ✓</td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（过渡版）</td><td class="ok">弱–中</td><td><strong>v0.2.0 已交付</strong></td></tr>
+    <tr><td>∥</td><td><em>侧车</em> ✓</td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td><strong>v0.2.0 已交付</strong>（RFC-S.1 + RFC-S.2）</td></tr>
+    <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td>详设已有；<strong>实施待确认</strong>（见 <a href="交付状态与路线图.html">交付状态</a>）</td></tr>
+    <tr><td>3</td><td><strong>Tier 2</strong> ✓</td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td><strong>v0.2.0 已交付</strong>（RFC-2.1～2.5）</td></tr>
     <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 查询写法收束 → SA 2.0</td><td class="risk">高</td><td><code>Model.query</code> 已清零；升 SA 2 前须处理 <code>records</code> 裸 SQL</td></tr>
     <tr><td>5</td><td><strong>Tier 4</strong></td><td>Flask 1.1 → 2.x</td><td class="risk">高</td><td>Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑</td></tr>
   </table>
@@ -142,7 +143,7 @@
   <h2>五、分层升级路线（耦合从弱到强）</h2>
 
   <div class="tier t0">
-    <h3>Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（Unreleased）</span></h3>
+    <h3>Tier 0 — Flask-Script → Flask 原生 CLI（1–2 天，耦合最弱）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（v0.2.0）</span></h3>
     <p><strong>目标：</strong>只动 <code>manage.py</code> 与依赖声明，<strong>不</strong>升 Flask / SQLAlchemy / gevent 主版本。</p>
     <table>
       <tr><th>项</th><th>动作</th><th>风险</th></tr>
@@ -159,7 +160,7 @@
   </div>
 
   <div class="tier t1">
-    <h3>Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（Unreleased）</span></h3>
+    <h3>Tier 1 — SQLAlchemy 1.4 过渡版（约 1 周，含渐进改写）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（v0.2.0）</span></h3>
     <p><strong>目标：</strong>把 ORM 底座升到官方<strong>过渡版本</strong> 1.4.x，在 Flask 1.1 + Flask-SQLAlchemy 2.5 下运行；<strong>全站 <code>Model.query</code> 已分批迁移</strong>为 <code>session.get</code> / <code>scalars(select(...))</code> / <code>execute(delete(...))</code>。</p>
     <table>
       <tr><th>项</th><th>动作</th><th>说明</th></tr>
@@ -187,7 +188,7 @@
   </div>
 
   <div class="tier t1" style="border-left-color:#6366f1">
-    <h3>侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· RFC-S.1 已交付（Unreleased）</span></h3>
+    <h3>侧车 — HTTP 安全补丁（与 Tier 0/1 并行，2–3 天）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· RFC-S.1 已交付（v0.2.0）</span></h3>
     <p>耦合最弱，<strong>不改变 Tier 序号</strong>；任意时刻可独立合并。</p>
     <table>
       <tr><th>项</th><th>候选</th><th>注意</th></tr>
@@ -197,7 +198,7 @@
   </div>
 
   <div class="tier t2">
-    <h3>Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）</h3>
+    <h3>Tier 2 — gevent / gunicorn / APScheduler / Python 上限（1–2 周，耦合强）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已全部交付（v0.2.0）</span></h3>
     <p><strong>前置条件：</strong>Tier 0、Tier 1 已合并且回归通过。<strong>本 Tier 在 SA 1.4 稳定之后、Flask 2 之前。</strong></p>
     <table>
       <tr><th>项</th><th>动作</th><th>风险</th></tr>

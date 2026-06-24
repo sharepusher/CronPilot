@@ -14,6 +14,8 @@
 
 依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0 `flask db` → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4；RBAC 在 Tier 0 后可并行。
 
+**交付总览**：`doc/交付状态与路线图.html` — 已发布版本、已完成 OPT/RFC 与未完成项对照。
+
 **UI / 功能可见改动**：先出设计说明并获确认，再改 `app/templates/` 等；见项目总则「交付闭环」步骤 1。
 
 **快速命令**

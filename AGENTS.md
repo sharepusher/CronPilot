@@ -10,11 +10,11 @@
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI |
 | `rbac.mdc` | RBAC v2（OPT-P2-10；分层、白名单、rbac_enable 兼容；见详设） |
 
+**协作闭环**：设计确认 → 实现 → 验证 → 文档 → commit（任一步失败则修复后重验并重更文档）。详 `.cursor/rules/cronpilot-project.mdc`「交付闭环」。
+
 依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0 `flask db` → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4；RBAC 在 Tier 0 后可并行。
 
-**每次优化**：先验收通过，再更新相关文档（`RELEASE_NOTES`、RFC、架构/部署 doc 等）→ `html_docs_to_markdown.py --check`。细则见 `.cursor/rules/cronpilot-project.mdc`「优化交付闭环」。
-
-**UI / 功能可见改动**：先出设计说明并获确认，再改 `app/templates/` 等；见项目总则「UI / 功能优化先设计」。
+**UI / 功能可见改动**：先出设计说明并获确认，再改 `app/templates/` 等；见项目总则「交付闭环」步骤 1。
 
 **快速命令**
 
@@ -26,7 +26,6 @@ bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test
 bash scripts/verify_golden_path.sh          # 裸机 SQLite 黄金路径
 bash scripts/verify_docker_compose.sh --keep-running   # docker compose 黄金路径
-bash scripts/verify_golden_path.sh       # 黄金路径：双次 restart + 登录 + cron_list 内容断言
 bash scripts/verify_all.sh               # 全量验收（含黄金路径）
 bash scripts/verify_all.sh --local-only
 bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒烟

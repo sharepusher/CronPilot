@@ -25,14 +25,24 @@ alwaysApply: true
 
 ## 工作方式（避免重复沟通）
 
-1. **先读再改**：改 `app/` 前看 `cron_validator` / `cron_service` / 现有 `views` 是否已有路径。
-2. **最小 diff**：只改与任务相关的文件；不顺手重构、不扩 scope。
-3. **优化交付闭环（强制）**：每次优化（依赖 Tier、Phase 功能、部署/验收脚本、安全修复等）须 **先验证通过，再更新文档**；不得在未跑验收的情况下只改文档或只改代码。
-4. **文档与代码同步**：验证通过后 → `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、架构、部署、验收手册等）→ `python scripts/html_docs_to_markdown.py --check`。
-5. **Git**：仅用户明确要求时 `commit`/`push`；不擅自 force push、不 amend 已推送提交。
-6. **删除纪律**：删除 `doc/_pending_sync/` 或其它仓库文件时，须在回复/提交说明与 `doc/_pending_sync/已合并补丁记录.md` 中写明 **完整相对路径** 与 **充分删除原因**（附主文档对照证据），避免误删。
-7. **部署说明**：裸机优先写 `README` 部署节 + `doc/非Docker部署指南.html`（及生成 MD）；管理端与文档同端口 `/docs/`。
-8. **UI / 功能优化先设计（强制）**：改 `app/templates/`、管理端交互或用户可见行为前，须先在回复或 `doc/*.html` 中给出 **设计说明**（问题根因、方案对比、影响范围、验收步骤），**用户确认后再写代码**；不得未经确认直接改模板/样式。
+### 交付闭环（强制顺序）
+
+任一步未通过则 **修复 → 重新验证 → 同步更新相关文档**，再进入下一步或 commit。
+
+| 步骤 | 动作 | 门禁 |
+|------|------|------|
+| 1 · **设计** | `doc/*.html` 设计稿或回复中说明（问题、根因、方案、验收）；UI/行为变更须用户确认 | **确认前不写代码** |
+| 2 · **实现** | 最小 diff；改 `app/` 前先读 `cron_validator` / `cron_service` / 现有 `views` | — |
+| 3 · **验证** | 按下方「优化验收」表跑单测 / golden path / Docker compose 等 | **未通过不得更新「已交付」文档、不得 commit** |
+| 4 · **文档** | `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、PRD、部署、UI 设计等）→ `html_docs_to_markdown.py --check` | 与代码变更 **同一轮** 完成 |
+| 5 · **提交** | 仅用户明确要求时 `commit`/`push`；**代码 + 文档同一 commit**（除非用户要求拆 PR） | 工作区干净 |
+
+**禁止**：只改代码不更文档就宣称交付；只更文档不跑验证；验证通过但文档/commit 留到下一轮。
+
+1. **最小 diff**：只改与任务相关的文件；不顺手重构、不扩 scope。
+2. **Git**：不擅自 force push、不 amend 已推送提交。
+3. **删除纪律**：删除 `doc/_pending_sync/` 或其它仓库文件时，须在回复/提交说明与 `doc/_pending_sync/已合并补丁记录.md` 中写明 **完整相对路径** 与 **充分删除原因**（附主文档对照证据），避免误删。
+4. **部署说明**：裸机优先写 `README` 部署节 + `doc/非Docker部署指南.html`（及生成 MD）；管理端与文档同端口 `/docs/`。
 
 ### UI / 功能设计确认（模板）
 
@@ -84,4 +94,4 @@ alwaysApply: true
 - 集成冒烟：`bash scripts/verify_golden_path.sh`；全量 `bash scripts/verify_all.sh`（Docker 用 `--docker-only --with-compose`）
 - 用例应覆盖真实行为（SSRF、密码、校验、JSON、签名），不写无意义断言。
 - CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**；改 `doc/*.html` 后须 `--check` 通过。
-- **顺序**：代码/脚本改动 → 上栏验收 **全部通过**（依赖变更须含 **Docker compose 冒烟**）→ 再更新文档 → **最后 commit**（见上文「优化交付闭环」）。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。
+- **顺序**：见上文「交付闭环」5 步。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。

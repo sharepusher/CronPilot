@@ -25,9 +25,12 @@ alwaysApply: false
 
 ## 发布检查清单
 
-- [ ] **先验收后文档**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`（compose 黄金路径）
-- [ ] `unittest` 与 `html_docs_to_markdown.py --check` 本地通过
-- [ ] `RELEASE_NOTES` 与相关 `doc/*.html` 已更新；tag 指向含文档提交的 commit
+按 **设计 → 实现 → 验证 → 文档 → commit** 顺序（详 `.cursor/rules/cronpilot-project.mdc`）：
+
+- [ ] 设计已确认（UI/行为变更）
+- [ ] **验证通过**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`
+- [ ] **文档已同步**：`RELEASE_NOTES` + 相关 `doc/*.html`；`html_docs_to_markdown.py --check` 通过
+- [ ] **同一 commit** 含代码与文档（除非用户要求拆 PR）
 - [ ] 未提交 `conf.ini`、数据库文件、虚拟环境
 - [ ] 对接方已知 `cronpilot_log_id` / `cronpilot_sign` / `add_log` 协议
 

@@ -604,7 +604,7 @@ gunicorn -c gun.py manage:app</pre>
     <table>
       <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Web 框架</td><td>Flask (WSGI)</td><td>FastAPI (ASGI)</td></tr>
-      <tr><td>Scheduler</td><td>APScheduler 3.6 + 自定义 BackgroundScheduler</td><td>APScheduler 3.11 + AsyncIOScheduler</td></tr>
+      <tr><td>Scheduler</td><td>APScheduler 3.10 + 自定义 BackgroundScheduler</td><td>APScheduler 3.11 + AsyncIOScheduler</td></tr>
       <tr><td>并发执行</td><td>ThreadPoolExecutor（<code>max_workers=30</code>）</td><td>AsyncIO（sync 任务用 <code>asyncio.to_thread</code>）</td></tr>
       <tr><td>misfire_grace_time</td><td>50s</td><td>60s（文档）</td></tr>
       <tr><td>coalesce</td><td>false（积压不合并）</td><td>true（积压合并一次）</td></tr>

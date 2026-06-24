@@ -92,7 +92,7 @@ ext_fail=0
 smoke_http_suite "$BASE" "$LOGIN_PWD" || ext_fail=$?
 
 echo "=== gevent / gunicorn (container) ==="
-docker compose exec -T cronpilot bash -c '.venv-py39/bin/python -c "import gevent, gunicorn; print(gevent.__version__, gunicorn.__version__)"' || ext_fail=$((ext_fail + 1))
+  docker compose exec -T cronpilot bash -c '.venv-py39/bin/python -c "import gevent, gunicorn, apscheduler; print(gevent.__version__, gunicorn.__version__, apscheduler.__version__)"' || ext_fail=$((ext_fail + 1))
 
 if [[ "$ext_fail" -ne 0 ]]; then
   echo "COMPOSE_VERIFY: FAIL ($ext_fail checks)" >&2

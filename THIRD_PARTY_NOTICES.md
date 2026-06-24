@@ -12,7 +12,7 @@ pip-licenses --format=markdown --with-urls --order=license
 
 | Component | Version (pinned) | License (SPDX / PyPI) |
 |-----------|------------------|------------------------|
-| APScheduler | 3.6.3 | MIT |
+| APScheduler | 3.10.4 | MIT |
 | Flask | 1.1.2 | BSD-3-Clause |
 | Flask-APScheduler | 1.11.0 | Apache-2.0 |
 | Flask-Migrate | 2.5.3 | MIT |

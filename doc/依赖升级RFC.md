@@ -40,7 +40,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | Web | Flask / Werkzeug / Jinja2 | 1.1.2 / 1.0.1 / 2.11.2 | Flask 1.x 已停止演进 |
 | ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；全站 `Model.query` 已迁移；`records` 裸 SQL 留 Tier 3 |
 | 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
-| 调度 | APScheduler / Flask-APScheduler | 3.6.3 / 1.11.0 | `SQLAlchemyJobStore` 绑定 SA 1.3 API |
+| 调度 | APScheduler / Flask-APScheduler | **3.10.4** / 1.11.0 | `SQLAlchemyJobStore` + SA 1.4 |
 | WSGI | gunicorn / gevent | **22.0.0** / **23.9.1** | `gun.py` 启动即 monkey patch |
 | HTTP | requests / urllib3 | 2.24.0 / 1.25.10 | 存在已知 CVE，与 Flask 弱耦合 |
 | 辅助 | records / redis / PyMySQL | 0.5.3 / 3.5.3 / **1.1.2** | `CuBackgroundScheduler` 用 records 裸 SQL |
@@ -161,7 +161,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | --- | --- | --- |
 | RFC-2.1 ✓ | `gevent` **23.9.1** + `greenlet` **3.1.1** | Docker 构建 + gunicorn gevent worker 健康检查通过 |
 | RFC-2.2 ✓ | `gunicorn` **22.0.0** | Docker 构建 + gevent worker + `SMOKE_LEVEL=full` 扩展冒烟 |
-| RFC-2.3 | `APScheduler` 3.6 → 3.9/3.10（与 SA 1.4 JobStore 联调） | 中 |
+| RFC-2.3 ✓ | `APScheduler` **3.10.4** | `SQLAlchemyJobStore` + SA 1.4；Docker compose 冒烟通过 |
 | RFC-2.4 | Python：Docker 金路径 3.9 → 评估 3.10/3.11；`install-full.yml` matrix 扩展 | 中 |
 | RFC-2.5 | 项目规则中「勿 3.12+」维持至本 Tier 验收完成 | — |
 
@@ -203,7 +203,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | PyMySQL 0.10 | 旧驱动 | **侧车 RFC-S.2** | **已升** 1.1.2（Py 3.8+） |
 | gevent 20 | Py3.11 编译失败 | **Tier 2 RFC-2.1** | **已升** gevent 23.9.1 + greenlet 3.1.1 |
 | gunicorn 20 | 旧版维护线 | **Tier 2 RFC-2.2** | **已升** gunicorn 22.0.0 |
-| APScheduler 3.6 | 旧 bug | **Tier 2 RFC-2.3** | 与 gevent 同窗回归 |
+| APScheduler 3.6 | 旧 bug | **Tier 2 RFC-2.3** | **已升** APScheduler 3.10.4 |
 | SQLAlchemy 2.0 | — | **Tier 3** | `records` 裸 SQL 清零后 |
 | Flask 1.1 | 无新补丁 | **Tier 4** | 晚于 Tier 2 |
 | records 0.5.3 | 裸 SQL | Tier 3 或 SQL 整改 | 与 OPT 安全项对齐 |

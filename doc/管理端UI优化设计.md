@@ -218,6 +218,10 @@ ALTER TABLE job_log ADD COLUMN http_status INTEGER NULL;
 
 修复：`cron_add` / `cron_edit` 曾仅 2 项导航，导致添加页无法跳转执行记录等 Tab。
 
+### 10.1 RBAC（OPT-P2-10）演进
+
+RBAC v4 不重复抽取 Tab，而是在 `rbac/_nav.html` 承接 `_admin_nav` 并增加 `has_perm` 与用户管理项。5 主页面分批改 include（3+2）；详见 [RBAC 落地路线 §阶段 3](RBAC落地路线.html)。
+
 [文档索引](index.html) ·
 [Markdown 索引](index.md) ·
 [产品 PRD](产品优化需求-借鉴Plombery.html) ·

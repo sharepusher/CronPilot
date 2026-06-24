@@ -36,13 +36,16 @@ OPT-P2-10RBACv4
 | Web 鉴权 | 单密码 `login_pwd` → `session['is_login']`；`@login_required` |
 | API 鉴权 | 各路由内 `api_access_token` 比对（三处重复） |
 
-### 1.2 三个决定方案形态的事实
+### 1.2 导航与前端事实（对齐 v0.2.0 已交付项）
 
-1. **非前后端分离** — RBAC 前端 = Jinja2 条件渲染 + 既有 Ajax class，非 React 路由。
-2. **导航栏硬编码在 7 个模板** — 须先抽 `rbac/_nav.html`，否则权限菜单改 7 遍。
-3. **现登录页无用户名字段** — 新登录页用户名**可选**，留空走 legacy 单密码。
+| 项 | 现状（真实代码） |
+| --- | --- |
+| 主 Tab 导航 | **v0.2.0 已交付** `_admin_nav.html`（OPT-P1-07）；5 页 `include`：`cron_list`、`cron_add`、`cron_edit`、`job_log_all_list`、`api_doc` |
+| RBAC 导航目标 | 迁入 `rbac/_nav.html`，在 partial 内加 `has_perm`（用户管理 Tab、条件菜单）；参数仍用 `active` |
+| 子页导航 | `job_log_list`、`job_log_item_list` 为单 Tab「运行记录」子视图，**非**主 Tab，本阶段不改 |
+| 登录页 | `check_pass.html` 仅密码；RBAC 新增 `rbac/login.html`（用户名可选） |
 
-7 个模板：`cron_list.html`、`cron_add.html`、`cron_edit.html`、`job_log_list.html`、`job_log_all_list.html`、`job_log_item_list.html`、`api_doc.html`。
+**纠正 v3 初稿：**主站导航并非 7 文件硬编码 `<ul class="nav nav-tabs">`；RBAC 阶段 3 是 **`_admin_nav` → `rbac/_nav`** 迁移 + 权限菜单，而非从零抽取。
 
 ### 1.3 项目纪律
 
@@ -310,20 +313,22 @@ def get_role_permission_set(role):
 
 ## 八、前端设计
 
-### 8.1 `rbac/_nav.html`
+### 8.1 `rbac/_nav.html`（自 `_admin_nav.html` 演进）
+
+基线内容与 v0.2.0 `_admin_nav.html` 一致；RBAC 启用后增加：
 
 ```
-<ul class="nav nav-tabs">
-  <li class="{{ 'active' if active_tab == 'list' else '' }}">...任务列表...</li>
-  {% if has_perm('cron:write') %}<li ...>任务添加</li>{% endif %}
-  <li ...>执行记录</li>
-  <li ...>API文档</li>
-  {% if has_perm('user:manage') %}<li ...>用户管理</li>{% endif %}
-  <li><a href="{{ url_for('rbac.logout') }}">退出（{{ current_user.username }}）</a></li>
-</ul>
+{% if has_perm('cron:write') %}...任务添加...{% endif %}
+{% if has_perm('user:manage') %}...用户管理...{% endif %}
+退出 → url_for('rbac.logout')，展示 current_user.username
 ```
 
-7 模板替换为 `{% include 'rbac/_nav.html' with context %}`；分批 **3+4**，每批 `git diff`。
+5 个主页面将 `{% include "_admin_nav.html" %}` 改为 `{% include "rbac/_nav.html" %}`（保留 `{% with active='...' %}`）。
+
+| 批次 | 文件 | 状态 |
+| --- | --- | --- |
+| 3-A | `cron_list`、`cron_add`、`cron_edit` | include 已切至 `rbac/_nav`（行为不变） |
+| 3-B | `job_log_all_list`、`api_doc` | 待办 |
 
 ### 8.2 `rbac/login.html`
 

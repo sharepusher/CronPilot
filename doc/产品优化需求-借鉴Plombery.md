@@ -516,7 +516,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate（**Tier 0** 已交付）。
 2. `conf.ini`：`rbac_enable=0|1`；`app/rbac/` + `context_processor` 注入 `has_perm`。
 3. 登录：`/rbac/login`（用户名可选）；`check_pass` 转发 + `next` 透传（v4）。
-4. `main/views.py` 仅换装饰器；7 模板抽 `rbac/_nav.html` + 按钮级 `has_perm`。
+4. `main/views.py` 仅换装饰器；5 主页面 `_admin_nav` → `rbac/_nav.html` + 按钮级 `has_perm`。
 5. API `access_token` **保持不变**。
 
 #### 与 OPT-P2-07（OAuth）关系

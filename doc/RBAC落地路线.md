@@ -32,7 +32,7 @@ OPT-P2-10路线v4
 | **1** 数据层 | 模型 + migrate + `rbac_enable` 配置读取 | 0.5–1 d | 否（内部） |
 | **2** RBAC 核心 | `app/rbac/` policy/services/decorators/context（v4 性能） | 1–1.5 d | 否 |
 | **2.5** 登录身份 | `/rbac/login`、`check_pass` 转发、logout | 0.5 d | 可灰度（`rbac_enable=0`） |
-| **3** 导航抽取 | `_nav.html` + 7 模板分批（3+4） | 0.5 d | 可合并 PR2 |
+| **3** 导航迁移 | `_admin_nav` → `rbac/_nav.html`（5 主页面，分批 3+2） | 0.25 d | 可合并 PR2 |
 | **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 需 `rbac_enable=0` 回归 |
 | **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 同上 |
 | **6** 用户管理 | `/rbac/users`、审计列表、单测 | 1 d | **v0.3.0** |
@@ -76,16 +76,25 @@ OPT-P2-10路线v4
 
 **门禁：**`rbac_enable=0` 下 legacy 登录行为与现网一致；带 query 的 `next` 登录后筛选条件不丢。
 
-### 阶段 3 — 导航栏抽取（分批 3+4）
+### 阶段 3 — 导航迁移（`_admin_nav` → `rbac/_nav`）
 
-| 批次 | 文件 | 人工检查 |
-| --- | --- | --- |
-| **3-A** | `cron_list.html`、`cron_add.html`、`cron_edit.html` | `git diff` 三文件；仅 nav → `include` |
-| **3-B**（新对话） | `job_log_list.html`、`job_log_all_list.html`、`job_log_item_list.html`、`api_doc.html` | `git diff app/templates/ --stat` 仅 7 文件 |
+**前提：**v0.2.0 已交付 `_admin_nav.html`（OPT-P1-07），5 个主页面已 `include`，**非** 7 文件硬编码 Tab。本阶段只改 include 路径，再在 `rbac/_nav.html` 内加 `has_perm`。
 
-各视图 `render_template` 补 `active_tab`（`list`/`add`/`logs`/`doc`）。
+| 批次 | 文件 | 改动 | 状态 |
+| --- | --- | --- | --- |
+| **3-A** | `cron_list.html`、`cron_add.html`、`cron_edit.html` | `_admin_nav` → `rbac/_nav.html` | 已实施 |
+| **3-B**（新对话） | `job_log_all_list.html`、`api_doc.html` | 同上 | 待办 |
 
-**门禁：**导航高亮正确；`rbac_enable=0` 下菜单与改前一致。
+`job_log_list` / `job_log_item_list` 为详情子页单 Tab，不在本阶段范围。
+
+每批人工检查：
+
+```
+git diff app/templates/cron_list.html app/templates/cron_add.html app/templates/cron_edit.html
+git diff app/templates/job_log_all_list.html app/templates/api_doc.html
+```
+
+**门禁：**仅 include 路径变化 + 新增 `rbac/_nav.html`；页面其余字节不变；导航高亮 `active` 仍正确。
 
 ### 阶段 4 + 5 — 权限点逐对落地（强关联）
 
@@ -122,7 +131,7 @@ OPT-P2-10路线v4
 | PR | 阶段 | 说明 |
 | --- | --- | --- |
 | PR-R1 | 1 + 2 | 模型 + 核心模块 + 单测骨架；`rbac_enable=0` 无行为变化 |
-| PR-R2 | 2.5 + 3 | 登录页 + nav 抽取；可独立灰度 |
+| PR-R2 | 2.5 + 3 | 登录页 + `rbac/_nav` 迁移（3+2）；可独立灰度 |
 | PR-R3 | 4 + 5 | 装饰器 + 模板（可按 permission 再拆 2–3 个 PR） |
 | PR-R4 | 6 + 7 | 用户管理 + 文档 + Release |
 

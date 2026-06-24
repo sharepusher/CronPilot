@@ -62,7 +62,7 @@
     <tr><td><strong>1</strong> 数据层</td><td>模型 + migrate + <code>rbac_enable</code> 配置读取</td><td>0.5–1 d</td><td>否（内部）</td></tr>
     <tr><td><strong>2</strong> RBAC 核心</td><td><code>app/rbac/</code> policy/services/decorators/context（v4 性能）</td><td>1–1.5 d</td><td>否</td></tr>
     <tr><td><strong>2.5</strong> 登录身份</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发、logout</td><td>0.5 d</td><td>可灰度（<code>rbac_enable=0</code>）</td></tr>
-    <tr><td><strong>3</strong> 导航抽取</td><td><code>_nav.html</code> + 7 模板分批（3+4）</td><td>0.5 d</td><td>可合并 PR2</td></tr>
+    <tr><td><strong>3</strong> 导航迁移</td><td><code>_admin_nav</code> → <code>rbac/_nav.html</code>（5 主页面，分批 3+2）</td><td>0.25 d</td><td>可合并 PR2</td></tr>
     <tr><td><strong>4</strong> 路由装饰器</td><td><code>main/views.py</code> 逐路由 <code>@require_permission</code></td><td>1 d</td><td>需 <code>rbac_enable=0</code> 回归</td></tr>
     <tr><td><strong>5</strong> 模板按钮</td><td>各页 <code>has_perm</code> 包裹（与阶段 4 同权限点配对）</td><td>1 d</td><td>同上</td></tr>
     <tr><td><strong>6</strong> 用户管理</td><td><code>/rbac/users</code>、审计列表、单测</td><td>1 d</td><td><strong>v0.3.0</strong></td></tr>
@@ -104,14 +104,20 @@
   </ul>
   <div class="gate"><strong>门禁：</strong><code>rbac_enable=0</code> 下 legacy 登录行为与现网一致；带 query 的 <code>next</code> 登录后筛选条件不丢。</div>
 
-  <h3>阶段 3 — 导航栏抽取（分批 3+4）</h3>
+  <h3>阶段 3 — 导航迁移（<code>_admin_nav</code> → <code>rbac/_nav</code>）</h3>
+  <div class="note">
+    <strong>前提：</strong>v0.2.0 已交付 <code>_admin_nav.html</code>（OPT-P1-07），5 个主页面已 <code>include</code>，<strong>非</strong> 7 文件硬编码 Tab。本阶段只改 include 路径，再在 <code>rbac/_nav.html</code> 内加 <code>has_perm</code>。
+  </div>
   <table>
-    <tr><th>批次</th><th>文件</th><th>人工检查</th></tr>
-    <tr><td><strong>3-A</strong></td><td><code>cron_list.html</code>、<code>cron_add.html</code>、<code>cron_edit.html</code></td><td><code>git diff</code> 三文件；仅 nav → <code>include</code></td></tr>
-    <tr><td><strong>3-B</strong>（新对话）</td><td><code>job_log_list.html</code>、<code>job_log_all_list.html</code>、<code>job_log_item_list.html</code>、<code>api_doc.html</code></td><td><code>git diff app/templates/ --stat</code> 仅 7 文件</td></tr>
+    <tr><th>批次</th><th>文件</th><th>改动</th><th>状态</th></tr>
+    <tr><td><strong>3-A</strong></td><td><code>cron_list.html</code>、<code>cron_add.html</code>、<code>cron_edit.html</code></td><td><code>_admin_nav</code> → <code>rbac/_nav.html</code></td><td class="status-ok">已实施</td></tr>
+    <tr><td><strong>3-B</strong>（新对话）</td><td><code>job_log_all_list.html</code>、<code>api_doc.html</code></td><td>同上</td><td class="status-todo">待办</td></tr>
   </table>
-  <p>各视图 <code>render_template</code> 补 <code>active_tab</code>（<code>list</code>/<code>add</code>/<code>logs</code>/<code>doc</code>）。</p>
-  <div class="gate"><strong>门禁：</strong>导航高亮正确；<code>rbac_enable=0</code> 下菜单与改前一致。</div>
+  <p><code>job_log_list</code> / <code>job_log_item_list</code> 为详情子页单 Tab，不在本阶段范围。</p>
+  <p>每批人工检查：</p>
+  <pre>git diff app/templates/cron_list.html app/templates/cron_add.html app/templates/cron_edit.html
+git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
+  <div class="gate"><strong>门禁：</strong>仅 include 路径变化 + 新增 <code>rbac/_nav.html</code>；页面其余字节不变；导航高亮 <code>active</code> 仍正确。</div>
 
   <h3>阶段 4 + 5 — 权限点逐对落地（强关联）</h3>
   <p>每个权限点<strong>同一 PR / 同一轮</strong>同时改装饰器与模板，避免「后端拦了、按钮还在」或反之。</p>
@@ -147,7 +153,7 @@
   <table>
     <tr><th>PR</th><th>阶段</th><th>说明</th></tr>
     <tr><td>PR-R1</td><td>1 + 2</td><td>模型 + 核心模块 + 单测骨架；<code>rbac_enable=0</code> 无行为变化</td></tr>
-    <tr><td>PR-R2</td><td>2.5 + 3</td><td>登录页 + nav 抽取；可独立灰度</td></tr>
+    <tr><td>PR-R2</td><td>2.5 + 3</td><td>登录页 + <code>rbac/_nav</code> 迁移（3+2）；可独立灰度</td></tr>
     <tr><td>PR-R3</td><td>4 + 5</td><td>装饰器 + 模板（可按 permission 再拆 2–3 个 PR）</td></tr>
     <tr><td>PR-R4</td><td>6 + 7</td><td>用户管理 + 文档 + Release</td></tr>
   </table>

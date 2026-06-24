@@ -50,8 +50,8 @@ alwaysApply: false
 | `datas/model/rbac_*.py` | 新增模型 |
 | `app/main/views.py` | 仅：`import` + `@login_required` → `@require_permission('…')`；**函数体不动**（`check_pass` 仅改函数体为转发 `/rbac/login` + `next` 透传） |
 | `app/main/views.py` → `check_pass` | 保留路由；GET/POST 转发 `/rbac/login`（307 保留 POST）；透传 `next` 与装饰器格式一致 |
-| `app/templates/rbac/**` | 新增 `login.html`、`_nav.html`、`users.html`、`forbidden.html` |
-| `app/templates/*.html`（7 个） | 导航栏 → `{% include 'rbac/_nav.html' %}`；按钮级 `{% if has_perm(...) %}` |
+| `app/templates/rbac/**` | 新增 `login.html`、`_nav.html`（自 `_admin_nav` 演进）、`users.html`、`forbidden.html` |
+| `app/templates/*.html`（5 主页面） | <code>_admin_nav</code> → <code>rbac/_nav.html</code>；按钮级 <code>{% if has_perm(...) %}` |
 | `configs.py` | 追加 `rbac_enable` 读取入 `pz` |
 | `conf.ini.example` | 追加 `rbac_enable=0` 注释 |
 | `app/__init__.py` | 仅追加 Blueprint 注册（2 行） |

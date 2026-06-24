@@ -513,7 +513,7 @@
           <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate（<strong>Tier 0</strong> 已交付）。</li>
           <li><code>conf.ini</code>：<code>rbac_enable=0|1</code>；<code>app/rbac/</code> + <code>context_processor</code> 注入 <code>has_perm</code>。</li>
           <li>登录：<code>/rbac/login</code>（用户名可选）；<code>check_pass</code> 转发 + <code>next</code> 透传（v4）。</li>
-          <li><code>main/views.py</code> 仅换装饰器；7 模板抽 <code>rbac/_nav.html</code> + 按钮级 <code>has_perm</code>。</li>
+          <li><code>main/views.py</code> 仅换装饰器；5 主页面 <code>_admin_nav</code> → <code>rbac/_nav.html</code> + 按钮级 <code>has_perm</code>。</li>
           <li>API <code>access_token</code> <strong>保持不变</strong>。</li>
         </ol>
         <h4>与 OPT-P2-07（OAuth）关系</h4>

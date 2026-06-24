@@ -374,7 +374,7 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 
 **验收：**Web 改任务后审计行含 `operator_name`、`operator_roles_json`；API 行为 `operator_type=api_client`；列表可按操作人筛选；P2 接 `users` 后 `operator_id` 可对齐用户主键无需改表。
 
-**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度 RBAC 在 P2（`rbac_users` + `@require_permission`，见 [RBAC v2](RBAC架构设计方案.html)）落地，P1 先把列和快照机制建好。
+**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度 RBAC 在 P2（见 [RBAC v4 详设](RBAC架构设计方案.html)、[落地路线](RBAC落地路线.html)）落地，P1 先把列和快照机制建好。
 
 ## P2 需求（体验与规模化）
 
@@ -527,7 +527,7 @@ OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联
 
 最小 diff；操作审计可精确到人；不破坏 API 契约。
 
-**验收：**见 [RBAC v4 §十一](RBAC架构设计方案.html)。**设计稿待确认后实施。**
+**验收：**见 [RBAC v4 详设 §十](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)。**设计稿待确认后实施**（建议 v0.3.0）。
 
 **OPT-P2-11** P2 依赖分层升级（RFC）
 
@@ -586,7 +586,7 @@ OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联
 | OPT-P1-07 | 模板 partial（nav） | P1 | 已交付 | v0.2.0 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 未开始 | — |
 | OPT-P1-09 | 管理操作审计 | P1 | 未开始 | — |
-| OPT-P2-10 | 多用户 RBAC | P2 | 详设待确认 | — |
+| OPT-P2-10 | 多用户 RBAC | P2 | 设计稿 v4 · 待确认 | 计划 v0.3.0 |
 | OPT-P2-11 | 依赖分层升级 | P2 | Tier 0–2 已交付 | v0.2.0 |
 | OPT-P2-01~09 | SSE/图表/OAuth… | P2 | 未开始 | — |
 

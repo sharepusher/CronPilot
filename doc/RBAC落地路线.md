@@ -1,0 +1,151 @@
+# CronPilot · RBAC 落地路线 v4
+
+> HTML 版：[RBAC落地路线.html](RBAC落地路线.html) · [文档索引](index.html) · [索引 Markdown](index.md)
+
+[← 文档索引](index.html)
+OPT-P2-10路线v4
+
+# RBAC 落地路线
+
+分阶段实施 · 验收门禁 · PR 切分 · 与 v4 详设对齐
+
+目标版本：**v0.3.0**（建议）· 状态：未开始
+
+**权威详设：**[RBAC架构设计方案 v4](RBAC架构设计方案.html) ·
+**交付总览：**[交付状态与路线图](交付状态与路线图.html) ·
+**开发规范：**`.cursor/rules/rbac.mdc`、`cronpilot-format-guard.mdc`
+
+## 一、前置条件（已满足）
+
+| 项 | 状态 | 说明 |
+| --- | --- | --- |
+| Tier 0 · `flask db` | v0.2.0 已交付 | 迁移 CLI 可用 |
+| Tier 1 · SA 1.4 | v0.2.0 已交付 | 新代码禁止 `Model.query` |
+| 格式保留规则 | 已提交 | `cronpilot-format-guard.mdc` |
+| v4 详设确认 | 待用户确认 | 确认后进入阶段 1 编码 |
+
+## 二、里程碑总览
+
+| 阶段 | 交付物 | 估时 | 可发布 |
+| --- | --- | --- | --- |
+| **0** 工程防护 | format-guard 规则（已完成可跳过） | 5 min | — |
+| **1** 数据层 | 模型 + migrate + `rbac_enable` 配置读取 | 0.5–1 d | 否（内部） |
+| **2** RBAC 核心 | `app/rbac/` policy/services/decorators/context（v4 性能） | 1–1.5 d | 否 |
+| **2.5** 登录身份 | `/rbac/login`、`check_pass` 转发、logout | 0.5 d | 可灰度（`rbac_enable=0`） |
+| **3** 导航抽取 | `_nav.html` + 7 模板分批（3+4） | 0.5 d | 可合并 PR2 |
+| **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 需 `rbac_enable=0` 回归 |
+| **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 同上 |
+| **6** 用户管理 | `/rbac/users`、审计列表、单测 | 1 d | **v0.3.0** |
+| **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
+
+**合计：**约 5–7 个工作日（12–16 h 净编码 + 分批人工 `git diff` 约 30–40 min）。
+
+## 三、阶段明细与验收门禁
+
+### 阶段 0 — 格式风格保留（已完成可跳过）
+
+确认 `.cursor/rules/cronpilot-format-guard.mdc` 存在且 `alwaysApply: true`。
+
+**门禁：**规则文件在仓库中；后续模板 diff 无无关格式化行。
+
+### 阶段 1 — 数据层与配置
+
+- 新增 `datas/model/rbac_user.py`、`rbac_audit_log.py`
+- `flask --app manage:app db migrate -m "add rbac tables"` + `upgrade`
+- `configs.py` + `conf.ini.example` 增加 `rbac_enable=0`
+
+**门禁：**`bash scripts/cronpilot.sh test` 仍全绿；migrate 在 SQLite/MySQL 试用库可重复执行。
+
+### 阶段 2 — RBAC 核心模块（v4 性能实现）
+
+- `policy.py` — `ROLE_PERMISSIONS` + `has_permission`
+- `services.py` — `get_rbac_enabled`（`@lru_cache`）、`get_role_permission_set`、`write_audit_log`
+- `context.py` — `make_has_perm` 闭包外层预加载（v4 §8.1）
+- `decorators.py` — `require_permission` + `full_path` next + Ajax/页面 403 分流
+- `__init__.py` — Blueprint + `app_context_processor`
+- `app/__init__.py` 注册 Blueprint（+2 行）
+
+**门禁：**新增 `tests/test_rbac_phase.py`（policy + legacy 旁路 + `cache_clear`）；P0 单测仍绿。
+
+### 阶段 2.5 — 登录身份子阶段
+
+- `views.py` — `/rbac/login` GET/POST、`/logout`
+- `authenticate_user` — legacy 单密码 + `rbac_users`（`select` 查询）
+- 模板 `rbac/login.html`、`forbidden.html`
+- `check_pass` 仅改函数体：转发 + `next` 透传 + 307（v4 §8.2）
+
+**门禁：**`rbac_enable=0` 下 legacy 登录行为与现网一致；带 query 的 `next` 登录后筛选条件不丢。
+
+### 阶段 3 — 导航栏抽取（分批 3+4）
+
+| 批次 | 文件 | 人工检查 |
+| --- | --- | --- |
+| **3-A** | `cron_list.html`、`cron_add.html`、`cron_edit.html` | `git diff` 三文件；仅 nav → `include` |
+| **3-B**（新对话） | `job_log_list.html`、`job_log_all_list.html`、`job_log_item_list.html`、`api_doc.html` | `git diff app/templates/ --stat` 仅 7 文件 |
+
+各视图 `render_template` 补 `active_tab`（`list`/`add`/`logs`/`doc`）。
+
+**门禁：**导航高亮正确；`rbac_enable=0` 下菜单与改前一致。
+
+### 阶段 4 + 5 — 权限点逐对落地（强关联）
+
+每个权限点**同一 PR / 同一轮**同时改装饰器与模板，避免「后端拦了、按钮还在」或反之。
+
+| 顺序 | permission | 视图 | 模板触点 |
+| --- | --- | --- | --- |
+| 1 | `cron:read` | `cron_list`、`api_doc` | —（基线） |
+| 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` | 编辑链接、添加页入口、启停 |
+| 3 | `cron:delete` | `cron_del`、`cron_batch_del` | `js-ajax-delete`、批量删除 |
+| 4 | `log:read` | 三个 `job_log_*_list` | — |
+| 5 | `log:delete` | `job_log_delete`、`job_batch_delete` | 删除按钮 |
+| 6 | `user:manage` | `/rbac/users*` | 用户管理页 |
+| 7 | `audit:read` | `/rbac/audit-logs` | 审计列表（P1 `operation_log` 可后续接） |
+
+**门禁：**每步 `unittest` + 手工：viewer / operator / admin 三角验证；Ajax 403 弹窗、页面 403 友好页。
+
+### 阶段 6 — 用户管理与审计
+
+- `rbac/users.html` + CRUD 服务
+- 首次 `rbac_enable=1` 空表策略：legacy 登录仍为 admin
+- 补全 `test_rbac_phase.py` 角色边界用例
+
+### 阶段 7 — 发布（Release 前文档梳理）
+
+1. `bash scripts/cronpilot.sh test`
+2. 更新 `RELEASE_NOTES.md` → **v0.3.0** 节；清空/更新 `[Unreleased]`
+3. 更新 [交付状态与路线图](交付状态与路线图.html)：OPT-P2-10 → 已交付 v0.3.0
+4. `python scripts/html_docs_to_markdown.py --check`
+5. 运维：监控 `/check_pass` 307、通知外部 POST 调用方迁移（v4 §8.3）
+
+## 四、建议 PR 切分
+
+| PR | 阶段 | 说明 |
+| --- | --- | --- |
+| PR-R1 | 1 + 2 | 模型 + 核心模块 + 单测骨架；`rbac_enable=0` 无行为变化 |
+| PR-R2 | 2.5 + 3 | 登录页 + nav 抽取；可独立灰度 |
+| PR-R3 | 4 + 5 | 装饰器 + 模板（可按 permission 再拆 2–3 个 PR） |
+| PR-R4 | 6 + 7 | 用户管理 + 文档 + Release |
+
+## 五、与项目路线图关系
+
+| 项 | 关系 |
+| --- | --- |
+| P1 小步 / P1-03/04 | 可并行排期；RBAC 独立里程碑不阻塞 |
+| Tier 3 前置 | 无硬依赖；勿与 RBAC 首期同一 sprint 并行（减认知负担） |
+| P1-09 `operation_log` | RBAC Session 字段为 P1 审计预留；可后接 |
+| OAuth（P2-07） | 独立后续；v4 不展开 |
+
+## 六、风险与回退
+
+- **回退：**`rbac_enable=0` + 重启 → 与 v0.2.0 行为一致
+- **性能：**列表页须验证 `get_rbac_enabled` 每请求 ≤1 次读盘（v4）
+- **体验：**`next` 与 `check_pass` 格式须与装饰器一致（写前核对、写后自查）
+
+CronPilot · RBAC 落地路线 v4 ·
+[Markdown](RBAC落地路线.md) ·
+[详设 v4](RBAC架构设计方案.html) ·
+[索引](index.html)
+
+---
+
+[← 文档索引（HTML）](index.html) · [← 文档索引（Markdown）](index.md)

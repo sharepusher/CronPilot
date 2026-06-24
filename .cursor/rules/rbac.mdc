@@ -6,7 +6,7 @@ alwaysApply: false
 
 # RBAC v2 开发规范
 
-权威详设：`doc/RBAC架构设计方案.html`（**v4**：v2 后端 + v3 前后端联动 + v4 性能/体验修正）。**废弃** v1.1：`init_rbac`、`route_registry`、`audit_queue`、JWT、`auth_mode`、四角色 `superadmin`、多表 `users/roles`。
+权威详设：`doc/RBAC架构设计方案.html`（**v4**）· 落地路线：`doc/RBAC落地路线.html`。
 
 ## 范围声明
 

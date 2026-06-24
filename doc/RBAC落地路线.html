@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · RBAC 落地路线 v4</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488;--phase:#7c3aed}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#312e81,#4338ca 55%,#0d9488);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:980px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h2.phase{border-color:var(--phase)}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .gate{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:.6rem .9rem;font-size:.88rem;margin:.5rem 0}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .status-todo{color:#b45309;font-weight:600}
+    .status-ok{color:#059669;font-weight:600}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#c7d2fe;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P2-10</span><span class="tag">路线</span><span class="tag">v4</span>
+  <h1>RBAC 落地路线</h1>
+  <p>分阶段实施 · 验收门禁 · PR 切分 · 与 v4 详设对齐</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">目标版本：<strong>v0.3.0</strong>（建议）· 状态：<span class="status-todo">未开始</span></p>
+</header>
+
+<main class="layout">
+
+  <div class="note">
+    <strong>权威详设：</strong><a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a> ·
+    <strong>交付总览：</strong><a href="交付状态与路线图.html">交付状态与路线图</a> ·
+    <strong>开发规范：</strong><code>.cursor/rules/rbac.mdc</code>、<code>cronpilot-format-guard.mdc</code>
+  </div>
+
+  <h2>一、前置条件（已满足）</h2>
+  <table>
+    <tr><th>项</th><th>状态</th><th>说明</th></tr>
+    <tr><td>Tier 0 · <code>flask db</code></td><td class="status-ok">v0.2.0 已交付</td><td>迁移 CLI 可用</td></tr>
+    <tr><td>Tier 1 · SA 1.4</td><td class="status-ok">v0.2.0 已交付</td><td>新代码禁止 <code>Model.query</code></td></tr>
+    <tr><td>格式保留规则</td><td class="status-ok">已提交</td><td><code>cronpilot-format-guard.mdc</code></td></tr>
+    <tr><td>v4 详设确认</td><td class="status-todo">待用户确认</td><td>确认后进入阶段 1 编码</td></tr>
+  </table>
+
+  <h2>二、里程碑总览</h2>
+  <table>
+    <tr><th>阶段</th><th>交付物</th><th>估时</th><th>可发布</th></tr>
+    <tr><td><strong>0</strong> 工程防护</td><td>format-guard 规则（已完成可跳过）</td><td>5 min</td><td>—</td></tr>
+    <tr><td><strong>1</strong> 数据层</td><td>模型 + migrate + <code>rbac_enable</code> 配置读取</td><td>0.5–1 d</td><td>否（内部）</td></tr>
+    <tr><td><strong>2</strong> RBAC 核心</td><td><code>app/rbac/</code> policy/services/decorators/context（v4 性能）</td><td>1–1.5 d</td><td>否</td></tr>
+    <tr><td><strong>2.5</strong> 登录身份</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发、logout</td><td>0.5 d</td><td>可灰度（<code>rbac_enable=0</code>）</td></tr>
+    <tr><td><strong>3</strong> 导航抽取</td><td><code>_nav.html</code> + 7 模板分批（3+4）</td><td>0.5 d</td><td>可合并 PR2</td></tr>
+    <tr><td><strong>4</strong> 路由装饰器</td><td><code>main/views.py</code> 逐路由 <code>@require_permission</code></td><td>1 d</td><td>需 <code>rbac_enable=0</code> 回归</td></tr>
+    <tr><td><strong>5</strong> 模板按钮</td><td>各页 <code>has_perm</code> 包裹（与阶段 4 同权限点配对）</td><td>1 d</td><td>同上</td></tr>
+    <tr><td><strong>6</strong> 用户管理</td><td><code>/rbac/users</code>、审计列表、单测</td><td>1 d</td><td><strong>v0.3.0</strong></td></tr>
+    <tr><td><strong>7</strong> 发布</td><td>文档、<code>RELEASE_NOTES</code>、交付状态、运维清单</td><td>0.5 d</td><td>打 tag</td></tr>
+  </table>
+  <p><strong>合计：</strong>约 5–7 个工作日（12–16 h 净编码 + 分批人工 <code>git diff</code> 约 30–40 min）。</p>
+
+  <h2 class="phase">三、阶段明细与验收门禁</h2>
+
+  <h3>阶段 0 — 格式风格保留（已完成可跳过）</h3>
+  <p>确认 <code>.cursor/rules/cronpilot-format-guard.mdc</code> 存在且 <code>alwaysApply: true</code>。</p>
+  <div class="gate"><strong>门禁：</strong>规则文件在仓库中；后续模板 diff 无无关格式化行。</div>
+
+  <h3>阶段 1 — 数据层与配置</h3>
+  <ul>
+    <li>新增 <code>datas/model/rbac_user.py</code>、<code>rbac_audit_log.py</code></li>
+    <li><code>flask --app manage:app db migrate -m "add rbac tables"</code> + <code>upgrade</code></li>
+    <li><code>configs.py</code> + <code>conf.ini.example</code> 增加 <code>rbac_enable=0</code></li>
+  </ul>
+  <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code> 仍全绿；migrate 在 SQLite/MySQL 试用库可重复执行。</div>
+
+  <h3>阶段 2 — RBAC 核心模块（v4 性能实现）</h3>
+  <ul>
+    <li><code>policy.py</code> — <code>ROLE_PERMISSIONS</code> + <code>has_permission</code></li>
+    <li><code>services.py</code> — <code>get_rbac_enabled</code>（<code>@lru_cache</code>）、<code>get_role_permission_set</code>、<code>write_audit_log</code></li>
+    <li><code>context.py</code> — <code>make_has_perm</code> 闭包外层预加载（v4 §8.1）</li>
+    <li><code>decorators.py</code> — <code>require_permission</code> + <code>full_path</code> next + Ajax/页面 403 分流</li>
+    <li><code>__init__.py</code> — Blueprint + <code>app_context_processor</code></li>
+    <li><code>app/__init__.py</code> 注册 Blueprint（+2 行）</li>
+  </ul>
+  <div class="gate"><strong>门禁：</strong>新增 <code>tests/test_rbac_phase.py</code>（policy + legacy 旁路 + <code>cache_clear</code>）；P0 单测仍绿。</div>
+
+  <h3>阶段 2.5 — 登录身份子阶段</h3>
+  <ul>
+    <li><code>views.py</code> — <code>/rbac/login</code> GET/POST、<code>/logout</code></li>
+    <li><code>authenticate_user</code> — legacy 单密码 + <code>rbac_users</code>（<code>select</code> 查询）</li>
+    <li>模板 <code>rbac/login.html</code>、<code>forbidden.html</code></li>
+    <li><code>check_pass</code> 仅改函数体：转发 + <code>next</code> 透传 + 307（v4 §8.2）</li>
+  </ul>
+  <div class="gate"><strong>门禁：</strong><code>rbac_enable=0</code> 下 legacy 登录行为与现网一致；带 query 的 <code>next</code> 登录后筛选条件不丢。</div>
+
+  <h3>阶段 3 — 导航栏抽取（分批 3+4）</h3>
+  <table>
+    <tr><th>批次</th><th>文件</th><th>人工检查</th></tr>
+    <tr><td><strong>3-A</strong></td><td><code>cron_list.html</code>、<code>cron_add.html</code>、<code>cron_edit.html</code></td><td><code>git diff</code> 三文件；仅 nav → <code>include</code></td></tr>
+    <tr><td><strong>3-B</strong>（新对话）</td><td><code>job_log_list.html</code>、<code>job_log_all_list.html</code>、<code>job_log_item_list.html</code>、<code>api_doc.html</code></td><td><code>git diff app/templates/ --stat</code> 仅 7 文件</td></tr>
+  </table>
+  <p>各视图 <code>render_template</code> 补 <code>active_tab</code>（<code>list</code>/<code>add</code>/<code>logs</code>/<code>doc</code>）。</p>
+  <div class="gate"><strong>门禁：</strong>导航高亮正确；<code>rbac_enable=0</code> 下菜单与改前一致。</div>
+
+  <h3>阶段 4 + 5 — 权限点逐对落地（强关联）</h3>
+  <p>每个权限点<strong>同一 PR / 同一轮</strong>同时改装饰器与模板，避免「后端拦了、按钮还在」或反之。</p>
+  <table>
+    <tr><th>顺序</th><th>permission</th><th>视图</th><th>模板触点</th></tr>
+    <tr><td>1</td><td><code>cron:read</code></td><td><code>cron_list</code>、<code>api_doc</code></td><td>—（基线）</td></tr>
+    <tr><td>2</td><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code></td><td>编辑链接、添加页入口、启停</td></tr>
+    <tr><td>3</td><td><code>cron:delete</code></td><td><code>cron_del</code>、<code>cron_batch_del</code></td><td><code>js-ajax-delete</code>、批量删除</td></tr>
+    <tr><td>4</td><td><code>log:read</code></td><td>三个 <code>job_log_*_list</code></td><td>—</td></tr>
+    <tr><td>5</td><td><code>log:delete</code></td><td><code>job_log_delete</code>、<code>job_batch_delete</code></td><td>删除按钮</td></tr>
+    <tr><td>6</td><td><code>user:manage</code></td><td><code>/rbac/users*</code></td><td>用户管理页</td></tr>
+    <tr><td>7</td><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code></td><td>审计列表（P1 <code>operation_log</code> 可后续接）</td></tr>
+  </table>
+  <div class="gate"><strong>门禁：</strong>每步 <code>unittest</code> + 手工：viewer / operator / admin 三角验证；Ajax 403 弹窗、页面 403 友好页。</div>
+
+  <h3>阶段 6 — 用户管理与审计</h3>
+  <ul>
+    <li><code>rbac/users.html</code> + CRUD 服务</li>
+    <li>首次 <code>rbac_enable=1</code> 空表策略：legacy 登录仍为 admin</li>
+    <li>补全 <code>test_rbac_phase.py</code> 角色边界用例</li>
+  </ul>
+
+  <h3>阶段 7 — 发布（Release 前文档梳理）</h3>
+  <ol>
+    <li><code>bash scripts/cronpilot.sh test</code></li>
+    <li>更新 <code>RELEASE_NOTES.md</code> → <strong>v0.3.0</strong> 节；清空/更新 <code>[Unreleased]</code></li>
+    <li>更新 <a href="交付状态与路线图.html">交付状态与路线图</a>：OPT-P2-10 → 已交付 v0.3.0</li>
+    <li><code>python scripts/html_docs_to_markdown.py --check</code></li>
+    <li>运维：监控 <code>/check_pass</code> 307、通知外部 POST 调用方迁移（v4 §8.3）</li>
+  </ol>
+
+  <h2>四、建议 PR 切分</h2>
+  <table>
+    <tr><th>PR</th><th>阶段</th><th>说明</th></tr>
+    <tr><td>PR-R1</td><td>1 + 2</td><td>模型 + 核心模块 + 单测骨架；<code>rbac_enable=0</code> 无行为变化</td></tr>
+    <tr><td>PR-R2</td><td>2.5 + 3</td><td>登录页 + nav 抽取；可独立灰度</td></tr>
+    <tr><td>PR-R3</td><td>4 + 5</td><td>装饰器 + 模板（可按 permission 再拆 2–3 个 PR）</td></tr>
+    <tr><td>PR-R4</td><td>6 + 7</td><td>用户管理 + 文档 + Release</td></tr>
+  </table>
+
+  <h2>五、与项目路线图关系</h2>
+  <table>
+    <tr><th>项</th><th>关系</th></tr>
+    <tr><td>P1 小步 / P1-03/04</td><td>可并行排期；RBAC 独立里程碑不阻塞</td></tr>
+    <tr><td>Tier 3 前置</td><td>无硬依赖；勿与 RBAC 首期同一 sprint 并行（减认知负担）</td></tr>
+    <tr><td>P1-09 <code>operation_log</code></td><td>RBAC Session 字段为 P1 审计预留；可后接</td></tr>
+    <tr><td>OAuth（P2-07）</td><td>独立后续；v4 不展开</td></tr>
+  </table>
+
+  <h2>六、风险与回退</h2>
+  <ul>
+    <li><strong>回退：</strong><code>rbac_enable=0</code> + 重启 → 与 v0.2.0 行为一致</li>
+    <li><strong>性能：</strong>列表页须验证 <code>get_rbac_enabled</code> 每请求 ≤1 次读盘（v4）</li>
+    <li><strong>体验：</strong><code>next</code> 与 <code>check_pass</code> 格式须与装饰器一致（写前核对、写后自查）</li>
+  </ul>
+
+</main>
+<footer>
+  CronPilot · RBAC 落地路线 v4 ·
+  <a href="RBAC落地路线.md">Markdown</a> ·
+  <a href="RBAC架构设计方案.html">详设 v4</a> ·
+  <a href="index.html">索引</a>
+</footer>
+</body>
+</html>

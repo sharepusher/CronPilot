@@ -682,7 +682,7 @@ rbac_enable=1
 
   <section id="rbac-arch">
     <h2>15. RBAC 与安全子系统架构（OPT-P2-10 · v4）</h2>
-    <p>完整方案见 <strong><a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a></strong>（v2 后端 + v3 前后端 + v4 修正）。v1.1 中间件/JWT/四角色<strong>已废弃</strong>。数据模型摘要见 <a href="#rbac-detail">§6.6</a>。</p>
+    <p>完整方案见 <strong><a href="RBAC架构设计方案.html">RBAC 详细设计 v4</a></strong> · 实施见 <strong><a href="RBAC落地路线.html">RBAC 落地路线</a></strong>。v1.1 中间件/JWT/四角色<strong>已废弃</strong>。数据模型摘要见 <a href="#rbac-detail">§6.6</a>。</p>
 
     <div class="card warn">
       <p><strong>v4 核心：</strong>Flask <code>@require_permission</code> + <code>app/rbac/</code> Blueprint；<code>app_context_processor</code> 注入 <code>has_perm</code>；<code>/rbac/login</code> 渐进多用户；<code>make_has_perm</code> 防 N+1；三角色；<code>rbac_enable=0|1</code>；API <code>access_token</code> 独立不变。</p>

@@ -34,7 +34,7 @@ alwaysApply: true
 | 1 · **设计** | `doc/*.html` 设计稿或回复中说明（问题、根因、方案、验收）；UI/行为变更须用户确认 | **确认前不写代码** |
 | 2 · **实现** | 最小 diff；改 `app/` 前先读 `cron_validator` / `cron_service` / 现有 `views` | — |
 | 3 · **验证** | 按下方「优化验收」表跑单测 / golden path / Docker compose 等 | **未通过不得更新「已交付」文档、不得 commit** |
-| 4 · **文档** | `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、PRD、部署、UI 设计等）→ `html_docs_to_markdown.py --check` | 与代码变更 **同一轮** 完成 |
+| 4 · **文档** | `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、PRD、部署、UI 设计等）→ `html_docs_to_markdown.py --check`；**打 tag / Release 前**须同步 `doc/交付状态与路线图.html`（已交付 vs 未完成总览） | 与代码变更 **同一轮** 完成 |
 | 5 · **提交** | 仅用户明确要求时 `commit`/`push`；**代码 + 文档同一 commit**（除非用户要求拆 PR） | 工作区干净 |
 
 **禁止**：只改代码不更文档就宣称交付；只更文档不跑验证；验证通过但文档/commit 留到下一轮。

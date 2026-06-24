@@ -1,14 +1,16 @@
 # CronPilot — Agent 指南
 
-本仓库 AI 协作规范见 **`.cursor/rules/`**（Cursor 自动加载）：
+本仓库 AI 协作规范见 `**.cursor/rules/**`（Cursor 自动加载）：
 
-| 规则文件 | 作用 |
-|----------|------|
-| `cronpilot-project.mdc` | 项目定位、仓库边界、路线图、Git/测试总则（始终生效） |
-| `cronpilot-backend.mdc` | 后端安全、服务层、API 与 `/docs` 路由 |
-| `cronpilot-documentation.mdc` | HTML+Markdown 双格式文档与 CI 同步 |
-| `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI |
-| `rbac.mdc` | RBAC v2（OPT-P2-10；分层、白名单、rbac_enable 兼容；见详设） |
+
+| 规则文件                           | 作用                                           |
+| ------------------------------ | -------------------------------------------- |
+| `cronpilot-project.mdc`        | 项目定位、仓库边界、路线图、Git/测试总则（始终生效）                 |
+| `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由                    |
+| `cronpilot-documentation.mdc`  | HTML+Markdown 双格式文档与 CI 同步                   |
+| `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI                    |
+| `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、rbac_enable；见详设） |
+
 
 **协作闭环**：设计确认 → 实现 → 验证 → 文档 → commit（任一步失败则修复后重验并重更文档）。详 `.cursor/rules/cronpilot-project.mdc`「交付闭环」。
 

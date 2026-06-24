@@ -519,8 +519,8 @@ gunicorn -c gun.py manage:app</pre>
 
   <!-- 17 RBAC -->
   <section id="t17">
-    <h2>17. RBAC 与多用户技术规格（OPT-P2-10 · v2）</h2>
-    <p>权威方案：<a href="RBAC架构设计方案.html">RBAC架构设计方案 v2（真实代码版）</a>；架构摘要：<a href="架构设计文档.html#rbac-arch">§15</a>。</p>
+    <h2>17. RBAC 与多用户技术规格（OPT-P2-10 · v4）</h2>
+    <p>权威方案：<a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a>；架构摘要：<a href="架构设计文档.html#rbac-arch">§15</a>。</p>
 
     <h3>17.1 角色与 <code>ROLE_PERMISSIONS</code></h3>
     <pre>ROLE_PERMISSIONS = {
@@ -546,7 +546,7 @@ gunicorn -c gun.py manage:app</pre>
     </table>
 
     <h3>17.4 路由装饰器映射</h3>
-    <p>见 RBAC 文档 §3.4；<code>check_pass</code>、<code>logout</code> 不改；<code>api/views.py</code> 不改。</p>
+    <p>见 RBAC 文档 §六–§八；<code>/rbac/login</code> 替代登录渲染；<code>check_pass</code> 转发壳 + <code>next</code> 透传；<code>api/views.py</code> 不改。</p>
 
     <h3>17.5 迁移与配置</h3>
     <ul style="margin-left:1.2rem;font-size:.9rem">

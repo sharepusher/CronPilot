@@ -499,7 +499,7 @@
     </article>
 
     <article class="opt" id="opt-p2-10">
-      <div class="opt-h"><strong>OPT-P2-10</strong> <span class="p2">P2</span> 多用户账号与 RBAC（v2 · 真实代码版）</div>
+      <div class="opt-h"><strong>OPT-P2-10</strong> <span class="p2">P2</span> 多用户账号与 RBAC（v4 · 前后端联动）</div>
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 <code>operation_log</code> 预留 <code>operator_*</code>，P2 基于真实 Flask 源码落地 RBAC（<strong>废弃</strong> v1.1 中间件误判方案）。</p>
@@ -508,19 +508,19 @@
           <tr class="gap"><th>现状</th><td>全站单一 <code>login_pwd</code>；<code>@login_required</code> 仅查 <code>session['is_login']</code>；API 三处重复 <code>access_token</code> 比对。</td></tr>
           <tr class="gap"><th>不足</th><td>多人共密无法问责；无法只读/调度分权；企业采购常要求账号与角色。</td></tr>
         </table>
-        <h4>优化方案（v2）</h4>
+        <h4>优化方案（v4）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate 迁移（<strong>Tier 0</strong> <code>flask db</code> 后；见 <a href="RBAC架构设计方案.html">RBAC v2</a>、<a href="依赖升级RFC.html">依赖升级 RFC</a> §七）。</li>
-          <li><code>conf.ini</code>：<code>rbac_enable=0|1</code>（默认 0，与现网一致）。</li>
-          <li>新增 Blueprint <code>app/rbac/</code>；<code>main/views.py</code> <strong>仅替换</strong> <code>@login_required</code> → <code>@require_permission(...)</code>。</li>
-          <li>三角色：<code>viewer</code> / <code>operator</code> / <code>admin</code>；管理路由 <code>/rbac/users</code>。</li>
-          <li>API <code>access_token</code> <strong>保持不变</strong>（外部集成独立轨道）。</li>
+          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；Flask-Migrate（<strong>Tier 0</strong> 已交付）。</li>
+          <li><code>conf.ini</code>：<code>rbac_enable=0|1</code>；<code>app/rbac/</code> + <code>context_processor</code> 注入 <code>has_perm</code>。</li>
+          <li>登录：<code>/rbac/login</code>（用户名可选）；<code>check_pass</code> 转发 + <code>next</code> 透传（v4）。</li>
+          <li><code>main/views.py</code> 仅换装饰器；7 模板抽 <code>rbac/_nav.html</code> + 按钮级 <code>has_perm</code>。</li>
+          <li>API <code>access_token</code> <strong>保持不变</strong>。</li>
         </ol>
         <h4>与 OPT-P2-07（OAuth）关系</h4>
-        <p>OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC。</p>
+        <p>OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联动。</p>
         <h4>价值与意义</h4>
-        <p>最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。</p>
-        <p><strong>验收：</strong><code>rbac_enable=0</code> 时 P0 单测全绿；<code>rbac_enable=1</code> 时 viewer 不可写、operator 不可删任务；admin 可管用户；<code>rbac_audit_logs</code> 记录拒绝；无新增 pip 依赖。<strong>实施前需用户明确确认。</strong></p>
+        <p>最小 diff；操作审计可精确到人；不破坏 API 契约。</p>
+        <p><strong>验收：</strong>见 <a href="RBAC架构设计方案.html">RBAC v4 §十一</a>。<strong>设计稿待确认后实施。</strong></p>
       </div>
     </article>
 

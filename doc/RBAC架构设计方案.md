@@ -1,311 +1,223 @@
-# CronPilot · RBAC 架构设计方案 v2（真实代码版）
+# CronPilot · RBAC 架构设计方案 v4
 
 > HTML 版：[RBAC架构设计方案.html](RBAC架构设计方案.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-安全RBACOPT-P2-10v2
+安全RBACOPT-P2-10v4
 
 # RBAC 架构设计方案
 
-v2 · 基于 CronPilot 真实源码逆向 · Flask 装饰器 + Blueprint（非 Express 中间件）
+v4 · v2 后端骨架 + v3 前后端联动 + v4 性能/体验修正 · Flask 装饰器 + Blueprint + Jinja2 条件渲染
 
-**纠错：**v1.0/v1.1 方案误将本仓库当作 Node/Express 项目设计（`init_rbac`、`route_registry`、JWT、`audit_queue` 等**均已废弃**）。v2 全部结论标注真实代码出处，遵循 `.cursor/rules/cronpilot-project.mdc` 的**最小 diff**纪律。
+状态：**设计稿 · 待确认实施** · 2026-06
+
+**纠错：**v1.0/v1.1（Node 中间件、`route_registry`、JWT、四角色）**已废弃**。现行方案以 v2 真实 Flask 源码为基，v3 补全登录/模板联动，v4 修正权限闭包 N+1、`next` 透传与运维清单。
+
+**交付状态：**OPT-P2-10 尚未编码；查「已交付 vs 未完成」见 [交付状态与路线图](交付状态与路线图.html)。Tier 0 已交付（`flask db`），技术前置已满足。
 
 ## 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
-| v1.0–v1.1 | — | **废弃**：误判技术栈的中间件 / 四角色 / JWT 方案 |
-| **v2** | 2026-06 | 基于 `app/main/views.py`、`app/decorated.py`、`configs.py` 等真实代码重设；三角色 + 装饰器替换 + `rbac_enable` |
+| v1.0–v1.1 | — | **废弃**：误判技术栈 |
+| v2 | 2026-06 | 三角色、`@require_permission`、`rbac_users` 单表、`rbac_enable` |
+| v3 | 2026-06 | 登录身份子阶段：`/rbac/login`、`context_processor`、导航栏抽取、按钮级 `has_perm` |
+| **v4** | 2026-06 | 修正 `make_has_perm` N+1、`get_rbac_enabled` 进程缓存、`next` + `full_path`、307 运维清单、格式保留规则 |
 
-## 〇、与误判方案对照
+## 〇、版本关系
 
-| 维度 | v1.1（废弃） | v2（本方案） |
+| 层级 | 内容 | 落地时以谁为准 |
 | --- | --- | --- |
-| 载体 | Express / Flask `before_request` 全局中间件 | Flask `@require_permission` 装饰器 + `app/rbac/` Blueprint |
-| views 改动 | 声称零修改 | **仅替换装饰器与 import**，函数体不动 |
-| 角色 | 4 角色 + `superadmin` | **3 角色**（viewer / operator / admin） |
-| 用户模型 | `users` + `roles` + 多表 RBAC | 单表 `rbac_users`（username + role 字段） |
-| 配置 | `auth_mode`、JWT、`.env` | `conf.ini` → `rbac_enable=0|1` |
-| API | 与 Web 统一 JWT/RBAC | **保持 `access_token` 不变**（外部集成契约） |
-| 审计 | `audit_queue` 异步写 `operation_log` | `rbac_audit_logs` 同步写 RBAC 事件；`operation_log` 仍由 P1 管业务变更 |
-| 迁移 | 手写 DDL | Flask-Migrate + `flask db`（`manage.py` 已注册 Click 子命令；见 [依赖升级 RFC](依赖升级RFC.html) Tier 0） |
+| v2 | 角色矩阵、`policy.py`、数据表、装饰器替换表、API 独立轨道 | §三–§四 |
+| v3 | 登录页、`authenticate_user`、`_nav.html`、模板 `has_perm`、Web/Ajax 403 分流 | §五–§七 |
+| v4 | 性能边界、`check_pass` 转发契约、运维监控、`cronpilot-format-guard` | §八（覆盖 v3 同节实现） |
 
-## 一、现状分析（代码出处）
+## 一、现状与约束（v2，不变）
 
-### 1.1 技术栈
+技术栈：Flask 1.1 + Jinja2 SSR + jQuery（`common.js` 的 `js-ajax-*`）；配置 `configs()` 每次读盘无缓存；Web 单密码 `login_pwd`；API 独立 `access_token`。详见 v2 §1.1–1.3。
 
-| 维度 | 真实值 | 出处 |
-| --- | --- | --- |
-| Web | Flask 1.1.2，Blueprint：`main` / `api` / `docs` | `app/__init__.py` |
-| ORM | SQLAlchemy **1.4.52** + Flask-SQLAlchemy **2.5.1**（Tier 1 已交付） | `app/__init__.py`、`requirements.txt` |
-| 调度 | Flask-APScheduler + `CuBackgroundScheduler` | `app/CuBackgroundScheduler.py` |
-| 部署 | gunicorn **22.0.0** + gevent **23.9.1**；Python **3.8–3.11** | 项目规则 / `requirements.txt` |
-| 配置 | `conf.ini` + `configs()` 每次读盘无缓存 | `configs.py` |
-| 前端 | Jinja2 SSR + jQuery + Vue（非 SPA） | `app/templates/` |
-| JSON 契约 | `{errcode:int, errmsg, result, data, url}` | `datas/utils/json.py` |
+- 导航栏在 **7 个模板**硬编码（`cron_list`、`cron_add`、`cron_edit`、三个 `job_log_*`、`api_doc`）——须先抽 `rbac/_nav.html`。
+- 现有 `check_pass.html` 仅密码字段；登录成功后硬编码 `redirect('/cron_list')`，**从未支持 `next`**（v3 新引入，v4 对齐）。
+- RBAC 新查询：**禁止**新增 `Model.query`；用 `session.scalars(select(...))`（Tier 1 纪律）。
 
-### 1.2 现有鉴权（两套独立）
-
-**Web：**单全局密码 `login_pwd` → `session['is_login']=True`；`@login_required` 仅检查 `is_login` 键（`app/decorated.py:37–45`）。
+## 二、端到端链路（v3）
 
 ```
-# app/main/views.py check_pass()
-if not verify_login_password(password, login_pwd):
-    return redirect("/check_pass?msg=密码有误")
-session['is_login'] = True
+受保护页面 → @require_permission
+  ├─ 未登录 → /rbac/login?next={full_path}
+  ├─ rbac_enable=0 → 与现网一致（仅 is_login）
+  └─ 已登录 → has_permission(role, perm) → 视图 / 403
+
+/rbac/login POST
+  ├─ username 空 → legacy 单密码 → role=admin, username=legacy_admin
+  └─ username 非空 → rbac_users 校验 → role/username 写入 session
+  → redirect(next) 回原页
+
+模板渲染：app_context_processor 注入 current_user + has_perm()
+  → {% if has_perm('cron:delete') %} 控制按钮与导航
 ```
 
-**API：**各路由内重复 `api_access_token` 字符串比对（`app/api/views.py` 三处），无统一入口、无用户概念。
+**渐进迁移：**用户名字段**可选**，留空走旧单密码，避免 RBAC 账号未建全时锁死管理员。
 
-### 1.3 项目纪律约束
+## 三、角色与权限（v2，不变）
 
-- RBAC 新模型/查询：**禁止**新增 `Model.query` 与裸字符串 `execute`；用 `session.get` / `scalars(select(...))` / `text()`（与 Tier 1 一致，见 [依赖升级 RFC](依赖升级RFC.html)）。
-- Phase A（P0）已交付；RBAC 为**需用户明确确认**的新阶段（OPT-P2-10），非默认 scope。
-- 最小 diff：不顺手重构；密码走 `verify_login_password` / `hash_password`（`app/auth/password.py`）。
-- 测试沿用 `python -m unittest`，不引入 pytest。
+| role | 权限摘要 |
+| --- | --- |
+| `viewer` | `cron:read`、`log:read` |
+| `operator` | + `cron:write`、`log:delete`；不可 `cron:delete`、`user:manage` |
+| `admin` | 全部含 `cron:delete`、`user:manage`、`audit:read` |
 
-## 二、设计原则
+路由 → 装饰器替换表见 v2 §3.4；`check_pass` 改为转发壳（§八.2）；`api/views.py` **不改**。
 
-1. **解耦**：RBAC 代码集中在新增 Blueprint `app/rbac/`，复用 `app/auth/password.py`。
-2. **最小 diff**：`main/views.py` 只替换 `@login_required` → `@require_permission(...)`；函数体逐行保留。
-3. **单一校验路径**：权限逻辑仅在 `policy.py` + `decorators.py`，禁止像 `access_token` 那样复制粘贴。
-4. **JSON 契约**：新增接口统一 `json_response()` / `web_api_return()`，`errcode` 为 int。
-5. **配置体系**：`conf.ini` 的 `rbac_enable`，不用环境变量。
-6. **向后兼容**：`rbac_enable=0`（默认）时行为与现网**逐字节一致**。
+## 四、数据模型（v2，不变）
 
-## 三、角色与权限
+`rbac_users`、`rbac_audit_logs`；与 P1 `operation_log` 分工见 v2 §4.3。迁移：`flask --app manage:app db migrate/upgrade`（Tier 0 已交付）。
 
-### 3.1 三内置角色
-
-| role | 说明 | 典型用户 |
-| --- | --- | --- |
-| `viewer` | 只读任务与执行日志 | 监控、只读审计 |
-| `operator` | 新增/编辑/启停任务；可删日志；**不可删任务、不可管用户** | 开发 / 运维 |
-| `admin` | 全部 Web 权限 + 用户管理 + RBAC/业务审计查看 | 团队负责人 |
-
-单密码模式天然等价于唯一 `admin`；`rbac_enable=1` 后由 `rbac_users` 表承载多账号。
-
-### 3.2 权限点（对照真实路由）
-
-| permission | 含义 | 路由（`app/main/views.py`） |
-| --- | --- | --- |
-| `cron:read` | 查看任务、API 文档 | `/`、`/cron_list`、`/api_doc` |
-| `cron:write` | 新增/编辑/启停 | `/cron_add`、`/cron_edit`、`/update_status` |
-| `cron:delete` | 删除任务 | `/cron_del`、`/cron_batch_del` |
-| `log:read` | 查看执行日志 | `/job_log_list`、`/job_log_item_list`、`/job_log_all_list` |
-| `log:delete` | 删除执行日志 | `/job_log_delete`、`/job_batch_delete` |
-| `user:manage` | 用户与角色管理 | `/rbac/users*`（新增 Blueprint） |
-| `audit:read` | 查看审计 | `/rbac/audit-logs`；`/operation_log_list`（P1，admin） |
-
-### 3.3 角色 → 权限（`app/rbac/policy.py`）
+## 五、目录结构（v3 扩展）
 
 ```
-ROLE_PERMISSIONS = {
-    'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
-    'admin':    {'cron:read', 'cron:write', 'cron:delete',
-                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
-}
+app/rbac/
+  ├── __init__.py      Blueprint + app_context_processor
+  ├── policy.py        ROLE_PERMISSIONS（v2）
+  ├── decorators.py    require_permission（v4 修正 next）
+  ├── context.py       get_current_user + make_has_perm（v4 性能）
+  ├── services.py      authenticate_user, get_rbac_enabled, CRUD, audit
+  └── views.py         /login /logout /users /audit-logs
 
-def has_permission(role: str, permission: str) -> bool:
-    return permission in ROLE_PERMISSIONS.get(role, set())
+app/templates/rbac/
+  ├── login.html       用户名(可选)+密码
+  ├── _nav.html        公共导航（has_perm 控制项）
+  ├── users.html       用户管理
+  └── forbidden.html   403 友好页
+
+datas/model/rbac_user.py, rbac_audit_log.py
 ```
 
-### 3.4 路由 → 装饰器替换表
+## 六、后端关键实现（v3 + v4 修正）
 
-| 函数 | 原 | 新 |
-| --- | --- | --- |
-| `cron_list`、`api_doc` | `@login_required` | `@require_permission('cron:read')` |
-| `cron_add`、`cron_edit`、`update_status` | `@login_required` | `@require_permission('cron:write')` |
-| `cron_del`、`cron_batch_del` | `@login_required` | `@require_permission('cron:delete')` |
-| `job_log_*`（三个 list） | `@login_required` | `@require_permission('log:read')` |
-| `job_log_delete`、`job_batch_delete` | `@login_required` | `@require_permission('log:delete')` |
-| `check_pass`、`logout` | 无 / 无 | **不改** |
-
-## 四、数据模型
-
-### 4.1 `rbac_users`（`datas/model/rbac_user.py`）
+### 6.1 `app/rbac/__init__.py` — 全局模板注入
 
 ```
-class RbacUser(db.Model):
-    __tablename__ = 'rbac_users'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), nullable=False, unique=True, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='viewer')
-    is_active = db.Column(db.SMALLINT, nullable=False, default=1)
-    create_time = db.Column(db.String(25), nullable=False, default='')
-
-    def set_password(self, plain):
-        self.password_hash = hash_password(plain)  # app/auth/password.py
-
-    def check_password(self, plain):
-        return verify_login_password(plain, self.password_hash)
+@rbac.app_context_processor
+def inject_rbac_context():
+    from .context import get_current_user, make_has_perm
+    return {'current_user': get_current_user(), 'has_perm': make_has_perm()}
 ```
 
-单角色字段（非多表 RBAC），符合轻量自托管定位；零新增密码依赖。
+使 `main` 蓝图下的 `cron_list.html` 等**无需**在每个 `render_template` 手动传参。
 
-### 4.2 `rbac_audit_logs`（`datas/model/rbac_audit_log.py`）
+### 6.2 `app/rbac/decorators.py` — Web/Ajax 403 分流
 
-```
-class RbacAuditLog(db.Model):
-    __tablename__ = 'rbac_audit_logs'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=True, index=True)
-    username = db.Column(db.String(64), default='')
-    action = db.Column(db.String(50), nullable=False)   # user:create | permission:deny | ...
-    resource = db.Column(db.String(100), default='')
-    ip = db.Column(db.String(45), default='')
-    status = db.Column(db.String(10), default='allow')  # allow | deny
-    create_time = db.Column(db.String(25), nullable=False, default='')
-```
+- `X-Requested-With: XMLHttpRequest` → `json_response(errcode=1, ..., status=403)`（兼容 `common.js`）
+- 普通 GET → `rbac/forbidden.html`
+- 未登录 → `redirect('/rbac/login?next=' + request.full_path.rstrip('?'))`（**v4：保留 query string**）
 
-### 4.3 与 P1 `operation_log` 分工
+### 6.3 `app/rbac/services.py` — `authenticate_user`
 
-| 表 | 职责 | 写入时机 |
-| --- | --- | --- |
-| `operation_log` | 业务配置变更（增删改任务、启停） | P1：`cron_service` / views 成功后 |
-| `rbac_audit_logs` | RBAC 管理、权限拒绝 | `app/rbac/services.write_audit_log` |
+username 空 → `verify_login_password` 对比 `login_pwd`；非空 → `rbac_users` 查表（`select`，非 `Model.query`）。
 
-RBAC 启用后 Session 增加 `user_id`、`username`、`role`，供 P1 `operation_log` 填充 `operator_*` 快照（`operator_type=user`）。
+## 八、v4 修正（相对 v3 的最终实现）
 
-### 4.4 迁移
+### 8.1 权限闭包性能（`context.py` + `services.py`）
+
+**问题：**`configs()` 每次读盘；列表页每行按钮调用 `has_perm()` 会 N+1 触发 I/O。  
+**修正：**`make_has_perm()` 在闭包**创建时**一次性取 `rbac_enabled` 与 `get_role_permission_set(role)`；闭包内仅 `permission in user_perms`（O(1)）。  
+**`get_rbac_enabled()`：**`@lru_cache(maxsize=1)` 进程级缓存——与「改 conf.ini 须重启」一致，无额外滞后风险。
 
 ```
-flask --app manage:app db migrate -m "add rbac_users and rbac_audit_logs"
-flask --app manage:app db upgrade
+def make_has_perm():
+    from .services import get_rbac_enabled, get_role_permission_set
+    rbac_enabled = get_rbac_enabled()
+    role = session.get('role', '')
+    user_perms = get_role_permission_set(role) if rbac_enabled else None
+    def _has_perm(permission):
+        if not rbac_enabled:
+            return True
+        return permission in user_perms
+    return _has_perm
 ```
 
-迁移 CLI：Flask 原生 `flask db`（`manage.py` 已注册 Click 子命令，Py3.11 可用；**Tier 0 已交付**）。排期见 [依赖升级 RFC](依赖升级RFC.html) §七；CLI 不可用时退化 `ensure_rbac_tables(app)`。
+*扩展提醒：*若未来权限矩阵改数据库可配置，须在 `get_role_permission_set` 上加请求级缓存（Flask `g`）。
 
-## 五、目录结构
-
-```
-app/rbac/                    ← 与 main/api/docs 平级 Blueprint
-  ├── __init__.py            url_prefix='/rbac'
-  ├── policy.py              ROLE_PERMISSIONS + has_permission
-  ├── decorators.py          require_permission / require_role
-  ├── services.py            用户 CRUD、write_audit_log、get_rbac_enabled
-  └── views.py               /rbac/users、/rbac/audit-logs
-
-datas/model/
-  ├── rbac_user.py
-  └── rbac_audit_log.py
-
-app/templates/
-  ├── rbac_users.html        ← 参照 cron_list 分页风格
-  └── rbac_audit_logs.html
-```
-
-## 六、关键实现
-
-### 6.1 Blueprint（`app/rbac/__init__.py`）
+### 8.2 `check_pass` 转发与 `next` 契约
 
 ```
-from flask import Blueprint
-rbac = Blueprint('rbac', __name__, url_prefix='/rbac')
-from . import views  # noqa
+@main.route('/check_pass', methods=['GET', 'POST'])
+def check_pass():
+    next_url = request.args.get('next', '')
+    target = f'/rbac/login?next={next_url}' if next_url else '/rbac/login'
+    if request.method == 'GET':
+        return redirect(target)
+    return redirect(target, code=307)  # 保留 POST body
 ```
 
-### 6.2 权限装饰器（`app/rbac/decorators.py`）
+不删除 `check_pass.html`；与装饰器拼接 `next` 的格式必须一致。
+
+### 8.3 上线运维清单（非代码）
+
+- 灰度监控：`/check_pass` 307 频次、`/rbac/login` 4xx/5xx
+- 外部 POST 调用方应迁移到 `/rbac/login`，勿长期依赖 307 转发
+
+### 8.4 格式保留规则
+
+已写入 `.cursor/rules/cronpilot-format-guard.mdc`（`alwaysApply: true`）：模板改动禁止无关格式化（引号、缩进、import 顺序）。
+
+## 七、前端改造（v3）
+
+### 7.1 导航栏抽取（第一批 3 + 第二批 4 文件）
+
+7 个模板将 `<ul class="nav nav-tabs">...` 替换为 `{% include 'rbac/_nav.html' with context %}`；视图仅补 `active_tab` 参数。
+
+### 7.2 按钮级权限（示例 `cron_list.html`）
 
 ```
-def require_permission(permission):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if 'is_login' not in session:
-                return redirect('/check_pass?msg=需要验证密码')
-            if not get_rbac_enabled():
-                return func(*args, **kwargs)   # rbac_enable=0：与现网一致
-
-            role = session.get('role', 'admin')
-            if not has_permission(role, permission):
-                write_audit_log(action='permission:deny', resource=permission, status='deny')
-                # Ajax/POST 走 web_api_return；页面 GET 走 redirect
-                if request.method == 'POST':
-                    return web_api_return(code=1, msg='权限不足')
-                return redirect('/cron_list?msg=权限不足')
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+{% if has_perm('cron:write') %}...编辑...{% endif %}
+{% if has_perm('cron:delete') %}...js-ajax-delete...{% endif %}
 ```
 
-### 6.3 登录写入 Session（`check_pass` 微调）
+复用既有 `js-ajax-delete` / `js-ajax-form`，RBAC 只控制渲染与否。
 
-```
-session['is_login'] = True
-session['role'] = resolve_role_for_legacy_login(password)
-# resolve_role_for_legacy_login:
-#   rbac_enable=0 → 'admin'
-#   匹配 rbac_users 表 → 对应 role + user_id/username
-#   否则仍用 login_pwd 验证通过 → 'admin'（兜底，不锁死旧管理员）
-```
+### 7.3 登录页 `rbac/login.html`
 
-### 6.4 API 端（独立轨道，**本次不改**）
+隐藏域 `next`；placeholder 写明「用户名留空则使用旧版密码登录」。
 
-`/api/cron`、`/api/cron/status`、`/api/cron/add_log` 保持现有 `access_token` 校验，不并入 Web 角色体系，避免破坏第三方对接。可选远期：多 token 只读范围（非本次 scope）。
-
-### 6.5 入口注册（`app/__init__.py` +2 行）
-
-```
-from .rbac import rbac as rbac_blueprint
-app.register_blueprint(rbac_blueprint)
-```
-
-## 七、配置（`conf.ini`）
+## 九、配置与兼容
 
 ```
 [default]
-; ...现有项不变...
-rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色
+rbac_enable=0   ; 0=单密码全权限（默认） 1=启用三角色多账号
 ```
 
-`configs.py` 增加容错读取（沿用 `cp.has_option` 模式），写入 `pz['rbac_enable']`。修改后需**重启进程**（与现有配置行为一致）。
+`rbac_enable=0`：装饰器与 `has_perm` 均旁路，行为与现网一致。首次 `rbac_enable=1` 且表空时，legacy 登录仍为 `admin`，不被锁门外。
 
-## 八、测试（`tests/test_rbac_phase.py`）
+## 十、实施阶段（建议顺序）
 
-- `test_viewer_cannot_write` — `has_permission('viewer','cron:write')` 为 False
-- `test_operator_cannot_delete` — 不可 `cron:delete`
-- `test_admin_has_all` — admin 具备全部 permission
-- `test_legacy_mode_bypasses_check` — `rbac_enable=0` 时不拦截已登录用户
+1. 格式规则 `cronpilot-format-guard.mdc`（已提交则跳过）
+2. 模型 + `flask db migrate`
+3. `app/rbac/` 核心（policy、services、decorators、context v4）
+4. 登录 / 登出 / `check_pass` 转发
+5. `_nav.html` + 7 模板分批替换（3+4，每批 `git diff`）
+6. `main/views.py` 装饰器逐路由替换 + 模板按钮 `has_perm`
+7. 用户管理页 + `tests/test_rbac_phase.py`
+8. 文档 + [交付状态](交付状态与路线图.html) 标版本 + `RELEASE_NOTES [Unreleased]`
 
-命令：`python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v`
+## 十一、验收标准
 
-## 九、实施步骤
+- `rbac_enable=0`：P0 单测全绿；UI/行为与现网一致
+- `rbac_enable=1`：viewer 不可写/删任务；operator 不可删任务；admin 可管用户
+- 登录 `next` 带回 query string（如 `/cron_list?task_name=x`）
+- 列表 100 行 × 2 按钮：`get_rbac_enabled` 磁盘读取 ≤1 次/请求
+- API `access_token` 不变；无新增 pip 依赖
 
-1. `flask db` CLI 已就绪（[依赖升级 RFC](依赖升级RFC.html) **Tier 0**）；可与 RBAC 代码并行实施
-2. 新增 `rbac_user.py`、`rbac_audit_log.py` → `db migrate` / `upgrade`
-3. 新增 `app/rbac/` Blueprint 全套
-4. `app/__init__.py` 注册 Blueprint
-5. `main/views.py` 按 §3.4 逐路由替换装饰器；每步跑 P0 单测
-6. `check_pass` 写入 `session['role']`（及可选 `user_id`）
-7. `configs.py` + `conf.ini.example` 增加 `rbac_enable`
-8. 新增 `tests/test_rbac_phase.py`
-9. `RELEASE_NOTES.md` 记录变更
+## 十二、测试
 
-## 十、验收标准
+`python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v` — 含 `has_permission`、legacy 旁路、`get_rbac_enabled.cache_clear()` 单测钩子。
 
-- `rbac_enable=0`：与现网行为一致；P0 单测全绿。
-- `rbac_enable=1`：`viewer` POST `/cron_add` 被拒绝；`operator` 不可 `/cron_del`。
-- 用户管理仅 `admin` 可访问 `/rbac/users`。
-- 权限拒绝写入 `rbac_audit_logs`（`status=deny`）。
-- API `access_token` 行为不变。
-- 无新增 pip 依赖。
-
-## 十一、风险与待确认
-
-- 建表：目标环境验证 `flask --app manage:app db migrate` 或 `ensure_rbac_tables`；**不必**等待 gevent / Flask 2 升级（RFC §七）。
-- 多用户登录 UX：首期可继续 `check_pass` 单页输入密码匹配 `rbac_users`；远期可加 `/rbac/login` 用户名+密码（非必须）。
-- OAuth（OPT-P2-07）为独立后续项，v2 不展开。
-- **实施前需用户明确确认**进入 OPT-P2-10 开发（项目路线图纪律）。
-
-CronPilot · RBAC v2 ·
+CronPilot · RBAC v4 ·
 [Markdown](RBAC架构设计方案.md) ·
+[交付状态](交付状态与路线图.html) ·
 [架构 §15](架构设计文档.html#rbac-arch) ·
 [OPT-P2-10](产品优化需求-借鉴Plombery.html#opt-p2-10) ·
-[依赖升级 RFC](依赖升级RFC.html) ·
 [索引](index.html)
 
 ---

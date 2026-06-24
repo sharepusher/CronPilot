@@ -498,7 +498,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 降低误配；减少 support。优先级低于「成败可见」类需求。
 
-**OPT-P2-10** P2 多用户账号与 RBAC（v2 · 真实代码版）
+**OPT-P2-10** P2 多用户账号与 RBAC（v4 · 前后端联动）
 
 #### Plombery 对照
 
@@ -511,23 +511,23 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 | 现状 | 全站单一 `login_pwd`；`@login_required` 仅查 `session['is_login']`；API 三处重复 `access_token` 比对。 |
 | 不足 | 多人共密无法问责；无法只读/调度分权；企业采购常要求账号与角色。 |
 
-#### 优化方案（v2）
+#### 优化方案（v4）
 
-1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate 迁移（**Tier 0** `flask db` 后；见 [RBAC v2](RBAC架构设计方案.html)、[依赖升级 RFC](依赖升级RFC.html) §七）。
-2. `conf.ini`：`rbac_enable=0|1`（默认 0，与现网一致）。
-3. 新增 Blueprint `app/rbac/`；`main/views.py` **仅替换** `@login_required` → `@require_permission(...)`。
-4. 三角色：`viewer` / `operator` / `admin`；管理路由 `/rbac/users`。
-5. API `access_token` **保持不变**（外部集成独立轨道）。
+1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate（**Tier 0** 已交付）。
+2. `conf.ini`：`rbac_enable=0|1`；`app/rbac/` + `context_processor` 注入 `has_perm`。
+3. 登录：`/rbac/login`（用户名可选）；`check_pass` 转发 + `next` 透传（v4）。
+4. `main/views.py` 仅换装饰器；7 模板抽 `rbac/_nav.html` + 按钮级 `has_perm`。
+5. API `access_token` **保持不变**。
 
 #### 与 OPT-P2-07（OAuth）关系
 
-OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC。
+OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联动。
 
 #### 价值与意义
 
-最小 diff 符合项目纪律；操作审计可精确到人；不破坏 API 契约。
+最小 diff；操作审计可精确到人；不破坏 API 契约。
 
-**验收：**`rbac_enable=0` 时 P0 单测全绿；`rbac_enable=1` 时 viewer 不可写、operator 不可删任务；admin 可管用户；`rbac_audit_logs` 记录拒绝；无新增 pip 依赖。**实施前需用户明确确认。**
+**验收：**见 [RBAC v4 §十一](RBAC架构设计方案.html)。**设计稿待确认后实施。**
 
 **OPT-P2-11** P2 依赖分层升级（RFC）
 

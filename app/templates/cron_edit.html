@@ -10,10 +10,9 @@
                 <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
             </div>
         </div>
-        <ul class="nav nav-tabs">
-            <li><a href="{{ url_for('main.cron_list') }}">任务列表</a></li>
-            <li class="active"><a href="{{ url_for('main.cron_add') }}">任务添加</a></li>
-        </ul>
+        {% with active='cron_add' %}
+        {% include "_admin_nav.html" %}
+        {% endwith %}
         <form method="post" class="form-horizontal js-ajax-form" action='{{ url_for('main.cron_edit') }}'>
             <fieldset>
                 <div class="control-group">

@@ -206,6 +206,18 @@ ALTER TABLE job_log ADD COLUMN http_status INTEGER NULL;
 - ☑ `add_log` 从主按钮移除，改详情页可选折叠
 - ☑ 周期说明采用 **方案 B1**
 
+## 十、导航栏 partial（OPT-P1-07 · 已交付）
+
+管理端主 Tab 抽为 `app/templates/_admin_nav.html`，参数 `active` 取值：`cron_list` | `cron_add` | `job_log` | `api_doc`。
+
+| 文件 | 说明 |
+| --- | --- |
+| `_admin_nav.html` | 5 项：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出 |
+| `cron_list`、`cron_add`、`cron_edit`、`job_log_all_list`、`api_doc` | `{% include "_admin_nav.html" %}` |
+| `job_log_list.html` 等 iframe 页 | 仍用轻量 Tab，不在本次范围 |
+
+修复：`cron_add` / `cron_edit` 曾仅 2 项导航，导致添加页无法跳转执行记录等 Tab。
+
 [文档索引](index.html) ·
 [Markdown 索引](index.md) ·
 [产品 PRD](产品优化需求-借鉴Plombery.html) ·

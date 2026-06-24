@@ -18,6 +18,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 **侧车 RFC-S.2：**`PyMySQL` 1.1.2。  
 **Tier 2 RFC-2.1/2.2：**`gevent` 23.9.1 + `greenlet` 3.1.1 + `gunicorn` 22.0.0。  
 **P1 OPT-P1-01/02：**`job_log.status` + `fail_on_http_4xx_5xx`（见下方）。  
+**OPT-P1-07：**管理端 `_admin_nav.html` 统一导航（见下方）。  
 **Tier 0/1 + RFC-S.1** 见下方；**无 API 协议变更。**
 
 ### 管理端 UI（A′ + B1）
@@ -30,6 +31,16 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | Cron 分钟 B1 | 添加/编辑页：`*/1` = 每分钟 |
 
 设计说明：[管理端 UI 优化设计](管理端UI优化设计.html)
+
+### 管理端 UI · OPT-P1-07 导航栏 partial
+
+| 变更 | 说明 |
+| --- | --- |
+| `_admin_nav.html` | 统一 5 项 Tab：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出 |
+| 修复 | `cron_add`、`cron_edit` 此前仅 2 项导航，进入添加页后其余 Tab 消失 |
+| 引用页 | `cron_list`、`cron_add`、`cron_edit`、`job_log_all_list`、`api_doc` |
+
+设计说明：[产品 PRD OPT-P1-07](产品优化需求-借鉴Plombery.html) · [技术方案与前端设计](技术方案与前端设计.html)
 
 ### P1 可观测（OPT-P1-01/02）
 

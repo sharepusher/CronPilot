@@ -46,6 +46,7 @@
     <strong>侧车 RFC-S.2：</strong><code>PyMySQL</code> 1.1.2。<br>
     <strong>Tier 2 RFC-2.1/2.2：</strong><code>gevent</code> 23.9.1 + <code>greenlet</code> 3.1.1 + <code>gunicorn</code> 22.0.0。<br>
     <strong>P1 OPT-P1-01/02：</strong><code>job_log.status</code> + <code>fail_on_http_4xx_5xx</code>（见下方）。<br>
+    <strong>OPT-P1-07：</strong>管理端 <code>_admin_nav.html</code> 统一导航（见下方）。<br>
     <strong>Tier 0/1 + RFC-S.1</strong> 见下方；<strong>无 API 协议变更。</strong></p>
   </div>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI（A′ + B1）</h3>
@@ -57,6 +58,14 @@
     <tr><td>Cron 分钟 B1</td><td>添加/编辑页：<code>*/1</code> = 每分钟</td></tr>
   </table>
   <p>设计说明：<a href="管理端UI优化设计.html">管理端 UI 优化设计</a></p>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI · OPT-P1-07 导航栏 partial</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>_admin_nav.html</code></td><td>统一 5 项 Tab：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出</td></tr>
+    <tr><td>修复</td><td><code>cron_add</code>、<code>cron_edit</code> 此前仅 2 项导航，进入添加页后其余 Tab 消失</td></tr>
+    <tr><td>引用页</td><td><code>cron_list</code>、<code>cron_add</code>、<code>cron_edit</code>、<code>job_log_all_list</code>、<code>api_doc</code></td></tr>
+  </table>
+  <p>设计说明：<a href="产品优化需求-借鉴Plombery.html">产品 PRD OPT-P1-07</a> · <a href="技术方案与前端设计.html">技术方案与前端设计</a></p>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">P1 可观测（OPT-P1-01/02）</h3>
   <table>
     <tr><th>变更</th><th>说明</th></tr>

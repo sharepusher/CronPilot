@@ -289,22 +289,25 @@ Flask-Smorest / apispec 或维护 openapi.yaml + Swagger UI；与统一 JSON 契
 
 降低集成支持成本；提升开源项目专业形象。
 
-**OPT-P1-07** P1 模板 partial 化与导航一致
+**OPT-P1-07** P1 模板 partial 化与导航一致 · **已交付（nav partial）**
 
 #### Plombery 对照
 
 React 组件复用 `PageLayout`、`Breadcrumbs`，无重复布局。
 
-#### CronPilot 现状与不足
+#### CronPilot 原状与不足
 
 |  |  |
 | --- | --- |
-| 现状 | 9 个页面各自复制 Jumbotron + nav-tabs；`cron_edit` 的 active tab 仍写「任务添加」。 |
-| 不足 | 改一处导航需改 N 文件；细节错误损害信任感；阻碍统一加「仪表盘」入口。 |
+| 原状 | 9 个页面各自复制 Jumbotron + nav-tabs；`cron_add`/`cron_edit` 仅 2 项 Tab。 |
+| 不足 | 改一处导航需改 N 文件；添加页 Tab 缺失损害可用性。 |
 
-#### 优化方案
+#### 已交付（2026-06）
 
-`templates/partials/`：header、nav、flash；各页只填 content block。
+|  |  |
+| --- | --- |
+| `_admin_nav.html` | 5 Tab partial；`cron_list` / `cron_add` / `cron_edit` / `job_log_all_list` / `api_doc` 已引用 |
+| 待续 | Jumbotron partial 化、iframe 页统一（非阻塞） |
 
 #### 价值与意义
 
@@ -577,7 +580,7 @@ OAuth 为后续登录方式扩展；v2 先交付本地多用户 + 装饰器 RBAC
 | OPT-P1-04 | 立即执行 | P1 | 联调补跑 |
 | OPT-P1-05 | 强化 add\_log | P1 | 长任务可观测 |
 | OPT-P1-06 | OpenAPI | P1 | 集成专业度 |
-| OPT-P1-07 | 模板 partial | P1 | UI 可维护 |
+| OPT-P1-07 | 模板 partial（nav） | P1 · **已交付** | UI 可维护 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 状态可信 |
 | OPT-P1-09 | 管理操作审计 | P1 | 配置变更可追溯 |
 | OPT-P2-10 | 多用户 RBAC | P2 | 操作人分权与问责 |

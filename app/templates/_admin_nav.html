@@ -1,0 +1,16 @@
+{# active: cron_list | cron_add | job_log | api_doc #}
+<ul class="nav nav-tabs">
+    <li{% if active == 'cron_list' %} class="active"{% endif %}>
+        <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务列表</a>
+    </li>
+    <li{% if active == 'cron_add' %} class="active"{% endif %}>
+        <a{% if active != 'cron_add' %} href="{{ url_for('main.cron_add') }}"{% endif %}>任务添加</a>
+    </li>
+    <li{% if active == 'job_log' %} class="active"{% endif %}>
+        <a{% if active != 'job_log' %} href="{{ url_for('main.job_log_all_list') }}"{% endif %}>任务执行记录</a>
+    </li>
+    <li{% if active == 'api_doc' %} class="active"{% endif %}>
+        <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
+    </li>
+    <li><a href="{{ url_for('main.logout') }}">退出</a></li>
+</ul>

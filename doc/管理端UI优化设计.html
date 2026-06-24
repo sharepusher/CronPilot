@@ -286,6 +286,16 @@
     </ul>
   </div>
 
+  <h2>十、导航栏 partial（OPT-P1-07 · 已交付）</h2>
+  <p>管理端主 Tab 抽为 <code>app/templates/_admin_nav.html</code>，参数 <code>active</code> 取值：<code>cron_list</code> | <code>cron_add</code> | <code>job_log</code> | <code>api_doc</code>。</p>
+  <table>
+    <tr><th>文件</th><th>说明</th></tr>
+    <tr><td><code>_admin_nav.html</code></td><td>5 项：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出</td></tr>
+    <tr><td><code>cron_list</code>、<code>cron_add</code>、<code>cron_edit</code>、<code>job_log_all_list</code>、<code>api_doc</code></td><td><code>{% include "_admin_nav.html" %}</code></td></tr>
+    <tr><td><code>job_log_list.html</code> 等 iframe 页</td><td>仍用轻量 Tab，不在本次范围</td></tr>
+  </table>
+  <p class="hint">修复：<code>cron_add</code> / <code>cron_edit</code> 曾仅 2 项导航，导致添加页无法跳转执行记录等 Tab。</p>
+
 </main>
 <footer>
   <a href="index.html">文档索引</a> ·

@@ -316,17 +316,20 @@
     </article>
 
     <article class="opt" id="opt-p1-07">
-      <div class="opt-h"><strong>OPT-P1-07</strong> <span class="p1">P1</span> 模板 partial 化与导航一致</div>
+      <div class="opt-h"><strong>OPT-P1-07</strong> <span class="p1">P1</span> 模板 partial 化与导航一致 · <strong>已交付（nav partial）</strong></div>
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">React 组件复用 <code>PageLayout</code>、<code>Breadcrumbs</code>，无重复布局。</p>
-        <h4>CronPilot 现状与不足</h4>
+        <h4>CronPilot 原状与不足</h4>
         <table>
-          <tr class="gap"><th>现状</th><td>9 个页面各自复制 Jumbotron + nav-tabs；<code>cron_edit</code> 的 active tab 仍写「任务添加」。</td></tr>
-          <tr class="gap"><th>不足</th><td>改一处导航需改 N 文件；细节错误损害信任感；阻碍统一加「仪表盘」入口。</td></tr>
+          <tr class="gap"><th>原状</th><td>9 个页面各自复制 Jumbotron + nav-tabs；<code>cron_add</code>/<code>cron_edit</code> 仅 2 项 Tab。</td></tr>
+          <tr class="gap"><th>不足</th><td>改一处导航需改 N 文件；添加页 Tab 缺失损害可用性。</td></tr>
         </table>
-        <h4>优化方案</h4>
-        <p><code>templates/partials/</code>：header、nav、flash；各页只填 content block。</p>
+        <h4>已交付（2026-06）</h4>
+        <table>
+          <tr><th><code>_admin_nav.html</code></th><td>5 Tab partial；<code>cron_list</code> / <code>cron_add</code> / <code>cron_edit</code> / <code>job_log_all_list</code> / <code>api_doc</code> 已引用</td></tr>
+          <tr><th>待续</th><td>Jumbotron partial 化、iframe 页统一（非阻塞）</td></tr>
+        </table>
         <h4>价值与意义</h4>
         <p>降低 UI 迭代成本；为 P2 统计页嵌入铺路。不改 SSR 架构，借鉴 Plombery 组件化<strong>思想</strong>而非技术栈。</p>
       </div>
@@ -589,7 +592,7 @@
       <tr><td>OPT-P1-04</td><td>立即执行</td><td class="p1">P1</td><td>联调补跑</td></tr>
       <tr><td>OPT-P1-05</td><td>强化 add_log</td><td class="p1">P1</td><td>长任务可观测</td></tr>
       <tr><td>OPT-P1-06</td><td>OpenAPI</td><td class="p1">P1</td><td>集成专业度</td></tr>
-      <tr><td>OPT-P1-07</td><td>模板 partial</td><td class="p1">P1</td><td>UI 可维护</td></tr>
+      <tr><td>OPT-P1-07</td><td>模板 partial（nav）</td><td class="p1">P1 · <strong>已交付</strong></td><td>UI 可维护</td></tr>
       <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="p1">P1</td><td>状态可信</td></tr>
       <tr><td>OPT-P1-09</td><td>管理操作审计</td><td class="p1">P1</td><td>配置变更可追溯</td></tr>
       <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="p2">P2</td><td>操作人分权与问责</td></tr>

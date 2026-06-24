@@ -12,13 +12,9 @@
             </div>
         </div>
 
-        <ul class="nav nav-tabs">
-            <li class="active"><a href="">任务列表</a></li>
-            <li><a href="{{ url_for('main.cron_add') }}">任务添加</a></li>
-            <li><a href="{{ url_for('main.job_log_all_list') }}">任务执行记录</a></li>
-            <li><a href="{{ url_for('main.api_doc') }}">API文档</a></li>
-            <li><a href="{{ url_for('main.logout') }}">退出</a></li>
-        </ul>
+        {% with active='cron_list' %}
+        {% include "_admin_nav.html" %}
+        {% endwith %}
         <form class="well form-search" method="get" action="{{ url_for('main.cron_list') }}">高级查询：
             <input type="text" placeholder="任务名称" name="task_name" value="{{ keyword.get("task_name","") }}">
             <input type="submit" class="btn btn-primary" value="搜索"/>

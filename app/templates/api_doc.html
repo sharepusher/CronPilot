@@ -11,13 +11,9 @@
             </div>
         </div>
 
-        <ul class="nav nav-tabs">
-            <li><a href="{{ url_for('main.cron_list') }}">任务列表</a></li>
-            <li><a href="{{ url_for('main.cron_add') }}">任务添加</a></li>
-            <li><a href="{{ url_for('main.job_log_all_list') }}">任务执行记录</a></li>
-            <li class="active"><a href="{{ url_for('main.api_doc') }}">API文档</a></li>
-            <li><a href="{{ url_for('main.logout') }}">退出</a></li>
-        </ul>
+        {% with active='api_doc' %}
+        {% include "_admin_nav.html" %}
+        {% endwith %}
         <form method="post" class="form-horizontal js-ajax-form" action='{{ url_for('main.cron_add') }}'>
             <fieldset>
                 <div class="control-group">

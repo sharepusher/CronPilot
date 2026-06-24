@@ -732,7 +732,7 @@ flask db upgrade</pre>
   <h4>（3）任务添加/编辑 — cron_add.html / cron_edit.html</h4>
   <div class="wireframe">
     <div class="wf-header">CronPilot 定时调度平台</div>
-    <div class="wf-nav"><span>任务列表</span><span class="active">任务添加</span></div>
+    <div class="wf-nav"><span>任务列表</span><span class="active">任务添加</span><span>任务执行记录</span><span>API文档</span><span>退出</span></div>
     <div class="wf-body">
       <p>任务名称 * [________] 不可重复</p>
       <p>任务关键词 [________] 可为空</p>
@@ -750,6 +750,7 @@ flask db upgrade</pre>
   </div>
   <div class="page-spec">
     <strong>模式切换：</strong>#ds_ms change → 显示/隐藏 #run_date 与 #cron_div<br>
+    <strong>导航：</strong>与列表页同款 5 Tab，由 <code>_admin_nav.html</code> partial 渲染（active=<code>cron_add</code>）<br>
     <strong>校验：</strong>服务端完整 Cron 表达式校验（Web 与 API 逻辑重复）<br>
     <strong>组件：</strong>js-datetime（datePicker）、js-ajax-form 提交
   </div>
@@ -787,7 +788,7 @@ flask db upgrade</pre>
     <thead><tr><th>区域</th><th>规范</th><th>源码</th></tr></thead>
     <tbody>
       <tr><td>页头 Banner</td><td>Jumbotron 居中，标题 + Slogan「方便、统一、自由」</td><td>各页面重复</td></tr>
-      <tr><td>主导航</td><td>nav-tabs 水平 Tab，当前页 active</td><td>4-5 个固定 Tab</td></tr>
+      <tr><td>主导航</td><td>nav-tabs 水平 Tab，由 <code>_admin_nav.html</code> partial 统一；当前页 active</td><td>5 个固定 Tab</td></tr>
       <tr><td>内容区</td><td>wrap 容器，well 搜索栏 + table-bordered</td><td>simplebootadmin.css</td></tr>
       <tr><td>分页</td><td>宏 admin_page.html</td><td>保留 keyword 查询参数</td></tr>
     </tbody>

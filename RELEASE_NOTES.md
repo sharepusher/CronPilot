@@ -19,6 +19,16 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 设计说明：[doc/管理端UI优化设计.html](doc/管理端UI优化设计.html)
 
+### 管理端 UI · OPT-P1-07 导航栏 partial
+
+| 变更 | 说明 |
+|------|------|
+| `_admin_nav.html` | 统一 5 项 Tab：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出 |
+| 修复 | `cron_add`、`cron_edit` 此前仅 2 项导航，进入添加页后其余 Tab 消失 |
+| 引用页 | `cron_list`、`cron_add`、`cron_edit`、`job_log_all_list`、`api_doc` |
+
+设计说明：[doc/产品优化需求-借鉴Plombery.html#opt-p1-07](doc/产品优化需求-借鉴Plombery.html) · [doc/技术方案与前端设计.html](doc/技术方案与前端设计.html)
+
 ### P1 可观测 · OPT-P1-01/02（执行 status + HTTP 失败规则）
 
 | 变更 | 说明 |

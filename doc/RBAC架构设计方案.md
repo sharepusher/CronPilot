@@ -315,15 +315,13 @@ def get_role_permission_set(role):
 
 ### 8.1 `rbac/_nav.html`（自 `_admin_nav.html` 演进）
 
-基线内容与 v0.2.0 `_admin_nav.html` 一致；RBAC 启用后增加：
+5 个主页面 `{% include "rbac/_nav.html" %}`（保留 `{% with active='...' %}`）。**已实施** `has_perm` 菜单裁剪：
 
 ```
+{% if has_perm('cron:read') %}...任务列表、API文档...{% endif %}
 {% if has_perm('cron:write') %}...任务添加...{% endif %}
-{% if has_perm('user:manage') %}...用户管理...{% endif %}
-退出 → url_for('rbac.logout')，展示 current_user.username
+{% if has_perm('log:read') %}...任务执行记录...{% endif %}
 ```
-
-5 个主页面将 `{% include "_admin_nav.html" %}` 改为 `{% include "rbac/_nav.html" %}`（保留 `{% with active='...' %}`）。
 
 | 批次 | 文件 | 状态 |
 | --- | --- | --- |

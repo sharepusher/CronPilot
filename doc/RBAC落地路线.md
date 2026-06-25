@@ -9,7 +9,7 @@ OPT-P2-10路线v4
 
 分阶段实施 · 验收门禁 · PR 切分 · 与 v4 详设对齐
 
-目标版本：**v0.3.0**（建议）· 状态：实施中（阶段 1～3、2.5 已交付；4/5 局部；6/7 待办）
+目标版本：**v0.3.0**（建议）· 状态：实施中（阶段 1～3、2.5、2.6、R2 已交付；4/5 其余权限点待办）
 
 **权威详设：**[RBAC架构设计方案 v4](RBAC架构设计方案.html) ·
 **交付总览：**[交付状态与路线图](交付状态与路线图.html) ·
@@ -32,10 +32,10 @@ OPT-P2-10路线v4
 | **1** 数据层 | 模型 + migrate + `rbac_enable` 配置读取 | 0.5–1 d | 已交付 |
 | **2** RBAC 核心 | `app/rbac/` policy/services/decorators/context（v4 性能） | 1–1.5 d | 已交付 |
 | **2.5** 登录身份 | `/rbac/login`、`check_pass` 转发、logout | 0.5 d | 已交付 |
-| **3** 导航迁移 | `_admin_nav` → `rbac/_nav.html`（5 主页面） | 0.25 d | 已交付 |
+| **3** 导航迁移 | `_admin_nav` → `rbac/_nav.html` + `has_perm` 菜单 | 0.25 d | 已交付 |
 | **2.6** 404 页 | 登录态/访客 `errors/404*.html` + `smoke_http_not_found` | 0.25 d | 已交付 |
-| **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 进行中（`cron:delete` 试点） |
-| **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 进行中（单行删除） |
+| **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 进行中（`cron:delete` ✅） |
+| **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 进行中（`cron:delete` + `_nav` ✅） |
 | **6** 用户管理 | `/rbac/users`、审计列表、单测 | 1 d | **v0.3.0** |
 | **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
 
@@ -95,7 +95,7 @@ git diff app/templates/cron_list.html app/templates/cron_add.html app/templates/
 git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 ```
 
-**门禁：**仅 include 路径变化 + 新增 `rbac/_nav.html`；页面其余字节不变；导航高亮 `active` 仍正确。**已验收。**
+**门禁：**仅 include 路径变化 + `rbac/_nav.html` 内 `has_perm`；`rbac_enable=0` 菜单与 v0.2.0 一致。**已验收。**
 
 ### 阶段 2.6 — 404 友好页（R2.5）
 
@@ -112,7 +112,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 | --- | --- | --- | --- |
 | 1 | `cron:read` | `cron_list`、`api_doc` | —（基线） |
 | 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` | 编辑链接、添加页入口、启停 |
-| 3 | `cron:delete` | `cron_del` ✅；`cron_batch_del` 待办 | 单行 `js-ajax-delete` ✅；批量删除待办 |
+| 3 | `cron:delete` | `cron_del`、`cron_batch_del` ✅ | 单行 `js-ajax-delete`、批量删除按钮与复选框列 ✅ |
 | 4 | `log:read` | 三个 `job_log_*_list` | — |
 | 5 | `log:delete` | `job_log_delete`、`job_batch_delete` | 删除按钮 |
 | 6 | `user:manage` | `/rbac/users*` | 用户管理页 |

@@ -1,17 +1,24 @@
 {# active: cron_list | cron_add | job_log | api_doc #}
-{# RBAC v4：后续在本文件内加 has_perm 控制菜单项；当前与 _admin_nav 行为一致 #}
 <ul class="nav nav-tabs">
+    {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
         <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务列表</a>
     </li>
+    {% endif %}
+    {% if has_perm('cron:write') %}
     <li{% if active == 'cron_add' %} class="active"{% endif %}>
         <a{% if active != 'cron_add' %} href="{{ url_for('main.cron_add') }}"{% endif %}>任务添加</a>
     </li>
+    {% endif %}
+    {% if has_perm('log:read') %}
     <li{% if active == 'job_log' %} class="active"{% endif %}>
         <a{% if active != 'job_log' %} href="{{ url_for('main.job_log_all_list') }}"{% endif %}>任务执行记录</a>
     </li>
+    {% endif %}
+    {% if has_perm('cron:read') %}
     <li{% if active == 'api_doc' %} class="active"{% endif %}>
         <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
     </li>
+    {% endif %}
     <li><a href="{{ url_for('main.logout') }}">退出</a></li>
 </ul>

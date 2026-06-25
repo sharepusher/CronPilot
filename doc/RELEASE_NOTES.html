@@ -54,8 +54,8 @@
     <tr><td>1 数据层</td><td>✅</td><td><code>rbac_users</code> / <code>rbac_audit_logs</code>；<code>rbac_enable=0</code></td></tr>
     <tr><td>2 核心模块</td><td>✅</td><td><code>app/rbac/</code> policy/services/context/decorators；<code>make_has_perm</code> 闭包预加载</td></tr>
     <tr><td>2.5 登录</td><td>✅</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发 + <code>next</code></td></tr>
-    <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code></td></tr>
-    <tr><td>4+5 权限</td><td>🔄</td><td><code>cron:delete</code> 试点；批量删除与其余权限点待办</td></tr>
+    <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code>；<code>has_perm</code> 菜单裁剪</td></tr>
+    <tr><td>4+5 权限</td><td>🔄</td><td><code>cron:delete</code> 已闭环；其余权限点待办</td></tr>
     <tr><td>6 用户管理</td><td>⏳</td><td><code>/rbac/users</code> 未开始</td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>

@@ -27,8 +27,8 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`rbac_enable=0` |
 | 2 核心模块 | ✅ | `app/rbac/` policy/services/context/decorators；`make_has_perm` 闭包预加载 |
 | 2.5 登录 | ✅ | `/rbac/login`、`check_pass` 转发 + `next` |
-| 3 导航 | ✅ | 5 主页面 `rbac/_nav.html` |
-| 4+5 权限 | 🔄 | `cron:delete` 试点；批量删除与其余权限点待办 |
+| 3 导航 | ✅ | 5 主页面 `rbac/_nav.html`；`has_perm` 菜单裁剪 |
+| 4+5 权限 | 🔄 | `cron:delete` 已闭环；其余权限点待办 |
 | 6 用户管理 | ⏳ | `/rbac/users` 未开始 |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)

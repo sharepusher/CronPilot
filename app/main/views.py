@@ -220,7 +220,7 @@ def cron_del():
     return web_api_return(code=0, msg='操作成功', url='/cron_list')
 
 @main.route('/cron_batch_del', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:delete')
 def cron_batch_del():
     ids = request.form.getlist('id')
     db.session.execute(delete(CronInfos).where(CronInfos.id.in_(ids)))

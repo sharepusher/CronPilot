@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from flask import Flask, session
+from flask import Flask, render_template, session
 
 from app.main import main as main_blueprint
 from app.rbac.context import make_has_perm
@@ -99,6 +99,68 @@ class TestRbacLogin(unittest.TestCase):
         loc = resp.headers['Location']
         self.assertIn('/rbac/login?next=', loc)
         self.assertIn('task_name=x', loc)
+
+
+class TestCronBatchDel(unittest.TestCase):
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.client = app.test_client()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def test_operator_post_batch_del_returns_403(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'operator'
+            resp = self.client.post('/cron_batch_del', data={'id': '1'})
+            self.assertEqual(resp.status_code, 403)
+
+
+class TestNavHasPerm(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+
+    def _render_nav(self, role):
+        with self.app.app_context():
+            with self.app.test_request_context():
+                session['is_login'] = True
+                session['role'] = role
+                with patch('app.rbac.context.get_rbac_enabled', return_value=True):
+                    return render_template('rbac/_nav.html', active='cron_list')
+
+    def test_viewer_nav_hides_cron_add(self):
+        html = self._render_nav('viewer')
+        self.assertIn('任务列表', html)
+        self.assertIn('任务执行记录', html)
+        self.assertNotIn('任务添加', html)
+
+    def test_operator_nav_shows_cron_add(self):
+        html = self._render_nav('operator')
+        self.assertIn('任务添加', html)
 
 
 class TestNotFound(unittest.TestCase):

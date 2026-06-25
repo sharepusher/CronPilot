@@ -302,11 +302,10 @@ def get_role_permission_set(role):
   <h2>八、前端设计</h2>
 
   <h3>8.1 <code>rbac/_nav.html</code>（自 <code>_admin_nav.html</code> 演进）</h3>
-  <p>基线内容与 v0.2.0 <code>_admin_nav.html</code> 一致；RBAC 启用后增加：</p>
-  <pre>{% if has_perm('cron:write') %}...任务添加...{% endif %}
-{% if has_perm('user:manage') %}...用户管理...{% endif %}
-退出 → url_for('rbac.logout')，展示 current_user.username</pre>
-  <p>5 个主页面将 <code>{% include "_admin_nav.html" %}</code> 改为 <code>{% include "rbac/_nav.html" %}</code>（保留 <code>{% with active='...' %}</code>）。</p>
+  <p>5 个主页面 <code>{% include "rbac/_nav.html" %}</code>（保留 <code>{% with active='...' %}</code>）。<strong>已实施</strong> <code>has_perm</code> 菜单裁剪：</p>
+  <pre>{% if has_perm('cron:read') %}...任务列表、API文档...{% endif %}
+{% if has_perm('cron:write') %}...任务添加...{% endif %}
+{% if has_perm('log:read') %}...任务执行记录...{% endif %}</pre>
   <table>
     <tr><th>批次</th><th>文件</th><th>状态</th></tr>
     <tr><td>3-A</td><td><code>cron_list</code>、<code>cron_add</code>、<code>cron_edit</code></td><td>include 已切至 <code>rbac/_nav</code>（行为不变）</td></tr>

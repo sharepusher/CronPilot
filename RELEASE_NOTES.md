@@ -18,8 +18,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs` 模型；`rbac_enable=0` 配置；`ensure_sqlite_tables` 建表 |
 | 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services（`@lru_cache`）、`make_has_perm`、`require_permission`、Blueprint 注入 `has_perm` |
 | 2.5 登录身份 | ✅ | `/rbac/login` GET/POST、`/rbac/logout`；`check_pass` 转发 + `next` 透传；`rbac/login.html`、`forbidden.html` |
-| 3 导航迁移 | ✅ | 5 主页面 `{% include "rbac/_nav.html" %}`（`cron_list` / `cron_add` / `cron_edit` / `job_log_all_list` / `api_doc`）；子页 `job_log_list` 等保持单 Tab |
-| 4+5 权限（局部） | 🔄 | `cron_del` → `@require_permission('cron:delete')`；`cron_list` 单行删除按钮 `has_perm`；**待办**：`cron_batch_del`、其余权限点、`_nav` 菜单裁剪 |
+| 3 导航迁移 | ✅ | 5 主页面 `{% include "rbac/_nav.html" %}`；`rbac/_nav.html` 内 `has_perm` 菜单裁剪 |
+| 4+5 权限（局部） | 🔄 | **`cron:delete` 已闭环**（`cron_del` / `cron_batch_del` + 单行/批量按钮）；**待办**：`cron:read`/`cron:write`、`log:*` 等其余权限点 |
 | 6 用户管理 | ⏳ | `/rbac/users`、审计列表 — 未开始 |
 | 7 发布 | ⏳ | 全量 `require_permission` 替换 `@login_required`、三角角色验收、打 tag — 未开始 |
 
@@ -30,8 +30,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 默认行为 | `rbac_enable=0`（`conf.ini.example`）：`require_permission` 等同 `@login_required`；`has_perm` 恒为 `True` |
 | 登录入口 | 新：`/rbac/login`；旧：`/check_pass` 仅转发壳（GET 302 / POST 307），保留 `next` |
 | 未登录跳转 | **仅**带 `@login_required` / `@require_permission` 的路由跳转登录；`/docs/*`、`/api/*`（`access_token`）保持公开/独立鉴权 |
-| `cron:delete` 试点 | 视图 `cron_del` + 模板单行删除按钮；批量删除仍 `@login_required` |
-| 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test`（44 项） |
+| `cron:delete` | `cron_del`、`cron_batch_del` 装饰器 + `cron_list` 单行/批量删除 UI；`rbac/_nav` 按 `cron:read`/`cron:write`/`log:read` 裁剪 Tab |
+| 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test`（47 项） |
 
 ### 管理端 · 404 友好页（R2.5）
 

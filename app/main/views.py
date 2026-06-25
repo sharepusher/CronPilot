@@ -12,6 +12,7 @@ from . import main
 from flask import render_template, request, redirect, session, current_app, jsonify, url_for
 
 from app.auth.password import verify_login_password
+from app.rbac.decorators import require_permission
 from app.services.cron_service import add_cron_web, edit_cron_web
 from app.services.job_log_service import delete_job_logs_for_cron
 
@@ -198,7 +199,7 @@ def update_status():
     return web_api_return(code=0, msg='操作成功')
 
 @main.route('/cron_del', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:delete')
 def cron_del():
     id = request.args.get('id')
     cif = db.session.get(CronInfos, id)
@@ -236,25 +237,11 @@ def cron_batch_del():
 
 @main.route('/check_pass', methods=['GET', 'POST'])
 def check_pass():
-    msg = request.values.get('msg', '')
-    CRON_CONFIG = current_app.config.get('CRON_CONFIG')
-    is_dev = int(CRON_CONFIG.get('is_dev'))
-    placeholder = '密码'
-    if request.method == 'POST':
-        try:
-            password = request.values.get('password')
-            if not password:
-                return redirect("/check_pass?msg=密码不能为空")
-            login_pwd = current_app.config.get('LOGIN_PWD')
-            if not login_pwd:
-                return redirect("/check_pass?msg=请联系管理员")
-            if not verify_login_password(password, login_pwd):
-                return redirect("/check_pass?msg=密码有误")
-            session['is_login'] = True
-            return redirect('/cron_list')
-        except:
-            return redirect("/check_pass?msg=系统有误,请重新试试")
-    return render_template("check_pass.html", msg=msg,placeholder=placeholder)
+    next_url = request.args.get('next', '')
+    target = f'/rbac/login?next={next_url}' if next_url else '/rbac/login'
+    if request.method == 'GET':
+        return redirect(target)
+    return redirect(target, code=307)
 
 @main.route('/logout')
 def logout():

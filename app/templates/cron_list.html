@@ -76,7 +76,9 @@
                             {% else %}
                             {% endif%}
                             <a href="{{ url_for('main.cron_edit',id=item.id) }}">编辑</a> |
+                            {% if has_perm('cron:delete') %}
                             <a class="js-ajax-delete" href="{{ url_for('main.cron_del',id=item.id) }}">删除</a>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}

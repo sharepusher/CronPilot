@@ -61,4 +61,7 @@ def create_app(config_name):
     from .api import api as apis_bl
     app.register_blueprint(apis_bl, url_prefix='/api')
 
+    from .rbac import rbac as rbac_blueprint
+    app.register_blueprint(rbac_blueprint)
+
     return app

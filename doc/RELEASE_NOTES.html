@@ -44,9 +44,30 @@
 
 <h2>[Unreleased]</h2>
   <div class="card">
-    <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
+    <p>目标版本 <strong>v0.3.0 · OPT-P2-10 RBAC v4</strong>（实施中，尚未打 tag）。总览见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
     <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。</p>
   </div>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-10 · RBAC v4（实施中）</h3>
+  <table>
+    <tr><th>阶段</th><th>状态</th><th>摘要</th></tr>
+    <tr><td>1 数据层</td><td>✅</td><td><code>rbac_users</code> / <code>rbac_audit_logs</code>；<code>rbac_enable=0</code></td></tr>
+    <tr><td>2 核心模块</td><td>✅</td><td><code>app/rbac/</code> policy/services/context/decorators；<code>make_has_perm</code> 闭包预加载</td></tr>
+    <tr><td>2.5 登录</td><td>✅</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发 + <code>next</code></td></tr>
+    <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code></td></tr>
+    <tr><td>4+5 权限</td><td>🔄</td><td><code>cron:delete</code> 试点；批量删除与其余权限点待办</td></tr>
+    <tr><td>6 用户管理</td><td>⏳</td><td><code>/rbac/users</code> 未开始</td></tr>
+  </table>
+  <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 · 404 友好页（R2.5）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>errors/404.html</code></td><td>已登录：导航 + 返回任务列表；HTTP 404</td></tr>
+    <tr><td><code>errors/404_guest.html</code></td><td>未登录极简页；无效 URL 不强制跳登录</td></tr>
+    <tr><td><code>smoke_http_not_found</code></td><td>黄金路径断言 404 页面；检测未重启旧 handler</td></tr>
+  </table>
+  <p><strong>部署：</strong>改错误页后须重启进程或 Docker <code>--force-recreate</code>。</p>
 
 <h2 class="new">[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
   <div class="card highlight">

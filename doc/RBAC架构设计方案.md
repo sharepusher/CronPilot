@@ -9,7 +9,7 @@ OPT-P2-10RBACv4
 
 前后端联动 · 三角色 · Flask 装饰器 + Jinja2 `has_perm` · v4 性能与体验修正
 
-状态：**设计稿 · 待确认实施** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
+状态：**实施中 · v0.3.0 待发布** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
 
 **废弃方案：**v1.0/v1.1（Node/Express、`init_rbac`、`route_registry`、JWT、四角色 `superadmin`）不适用本仓库。
 
@@ -328,7 +328,7 @@ def get_role_permission_set(role):
 | 批次 | 文件 | 状态 |
 | --- | --- | --- |
 | 3-A | `cron_list`、`cron_add`、`cron_edit` | include 已切至 `rbac/_nav`（行为不变） |
-| 3-B | `job_log_all_list`、`api_doc` | 待办 |
+| 3-B | `job_log_all_list`、`api_doc` | include 已切至 `rbac/_nav` |
 
 ### 8.2 `rbac/login.html`
 
@@ -351,6 +351,15 @@ def get_role_permission_set(role):
 
 展示 `current_user`、`permission`；返回任务列表链接。
 
+### 8.6 404 友好页（`errors/404*.html`）
+
+无效 URL **不**全局跳登录（与受保护路由装饰器分流）：
+
+- 已登录 → `errors/404.html`（含 `rbac/_nav.html`）+ HTTP 404
+- 未登录 → `errors/404_guest.html` 极简页 +「前往登录」
+
+`smoke_http_not_found` 纳入黄金路径；部署后须重启进程。
+
 ## 九、配置
 
 ```
@@ -366,16 +375,17 @@ rbac_enable=0   ; 0=默认单密码全权限  1=三角色多账号
 - `rbac_enable=1`：viewer 不可写/删任务；operator 不可删任务；admin 可 `/rbac/users`
 - `next` 保留 query（如 `/cron_list?task_name=x`）
 - 列表页：`get_rbac_enabled` 读盘 ≤1 次/请求
-- Ajax 403 → JSON 弹窗；页面 403 → forbidden 页
+- Ajax 403 → JSON 弹窗；页面 403 → forbidden 页；404 → 品牌化错误页（非纯文本）
 - API `access_token` 不变；无新依赖
 
 ## 十一、测试
 
 ```
-python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v
+bash scripts/cronpilot.sh test   # 含 tests.test_rbac_phase
+source scripts/smoke_http.sh && smoke_http_suite "http://127.0.0.1:5001" "changeme"
 ```
 
-用例：`has_permission` 边界；`rbac_enable=0` 旁路；`get_rbac_enabled.cache_clear()`。
+用例：`has_permission` 边界；`rbac_enable=0` 旁路；404 登录态分流；`smoke_http_not_found` 检测未重启旧 handler。
 
 ## 十二、实施与发布
 

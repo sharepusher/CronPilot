@@ -35,7 +35,7 @@
   <span class="tag">OPT-P2-10</span><span class="tag">RBAC</span><span class="tag">v4</span>
   <h1>RBAC 详细设计方案</h1>
   <p>前后端联动 · 三角色 · Flask 装饰器 + Jinja2 <code>has_perm</code> · v4 性能与体验修正</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<strong>设计稿 · 待确认实施</strong> · 落地路线见 <a href="RBAC落地路线.html" style="color:#e9d5ff">RBAC落地路线 v4</a></p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<strong>实施中 · v0.3.0 待发布</strong> · 落地路线见 <a href="RBAC落地路线.html" style="color:#e9d5ff">RBAC落地路线 v4</a></p>
 </header>
 
 <main class="layout">
@@ -310,7 +310,7 @@ def get_role_permission_set(role):
   <table>
     <tr><th>批次</th><th>文件</th><th>状态</th></tr>
     <tr><td>3-A</td><td><code>cron_list</code>、<code>cron_add</code>、<code>cron_edit</code></td><td>include 已切至 <code>rbac/_nav</code>（行为不变）</td></tr>
-    <tr><td>3-B</td><td><code>job_log_all_list</code>、<code>api_doc</code></td><td>待办</td></tr>
+    <tr><td>3-B</td><td><code>job_log_all_list</code>、<code>api_doc</code></td><td>include 已切至 <code>rbac/_nav</code></td></tr>
   </table>
 
   <h3>8.2 <code>rbac/login.html</code></h3>
@@ -327,6 +327,14 @@ def get_role_permission_set(role):
   <h3>8.5 <code>rbac/forbidden.html</code></h3>
   <p>展示 <code>current_user</code>、<code>permission</code>；返回任务列表链接。</p>
 
+  <h3>8.6 404 友好页（<code>errors/404*.html</code>）</h3>
+  <p>无效 URL <strong>不</strong>全局跳登录（与受保护路由装饰器分流）：</p>
+  <ul>
+    <li>已登录 → <code>errors/404.html</code>（含 <code>rbac/_nav.html</code>）+ HTTP 404</li>
+    <li>未登录 → <code>errors/404_guest.html</code> 极简页 +「前往登录」</li>
+  </ul>
+  <p><code>smoke_http_not_found</code> 纳入黄金路径；部署后须重启进程。</p>
+
   <h2>九、配置</h2>
   <pre>[default]
 rbac_enable=0   ; 0=默认单密码全权限  1=三角色多账号</pre>
@@ -338,13 +346,14 @@ rbac_enable=0   ; 0=默认单密码全权限  1=三角色多账号</pre>
     <li><code>rbac_enable=1</code>：viewer 不可写/删任务；operator 不可删任务；admin 可 <code>/rbac/users</code></li>
     <li><code>next</code> 保留 query（如 <code>/cron_list?task_name=x</code>）</li>
     <li>列表页：<code>get_rbac_enabled</code> 读盘 ≤1 次/请求</li>
-    <li>Ajax 403 → JSON 弹窗；页面 403 → forbidden 页</li>
+    <li>Ajax 403 → JSON 弹窗；页面 403 → forbidden 页；404 → 品牌化错误页（非纯文本）</li>
     <li>API <code>access_token</code> 不变；无新依赖</li>
   </ul>
 
   <h2>十一、测试</h2>
-  <pre>python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v</pre>
-  <p>用例：<code>has_permission</code> 边界；<code>rbac_enable=0</code> 旁路；<code>get_rbac_enabled.cache_clear()</code>。</p>
+  <pre>bash scripts/cronpilot.sh test   # 含 tests.test_rbac_phase
+source scripts/smoke_http.sh &amp;&amp; smoke_http_suite "http://127.0.0.1:5001" "changeme"</pre>
+  <p>用例：<code>has_permission</code> 边界；<code>rbac_enable=0</code> 旁路；404 登录态分流；<code>smoke_http_not_found</code> 检测未重启旧 handler。</p>
 
   <h2>十二、实施与发布</h2>
   <p>分阶段任务、PR 切分、Release 前文档梳理见 <strong><a href="RBAC落地路线.html">RBAC落地路线 v4</a></strong>。建议目标版本 <strong>v0.3.0</strong>。</p>

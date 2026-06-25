@@ -16,9 +16,32 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 ## [Unreleased]
 
-下一版计划见 [**交付状态与路线图**](交付状态与路线图.html)。
+目标版本 **v0.3.0 · OPT-P2-10 RBAC v4**（实施中，尚未打 tag）。总览见 [**交付状态与路线图**](交付状态与路线图.html)。
 
 **维护约定：**未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
+
+### OPT-P2-10 · RBAC v4（实施中）
+
+| 阶段 | 状态 | 摘要 |
+| --- | --- | --- |
+| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`rbac_enable=0` |
+| 2 核心模块 | ✅ | `app/rbac/` policy/services/context/decorators；`make_has_perm` 闭包预加载 |
+| 2.5 登录 | ✅ | `/rbac/login`、`check_pass` 转发 + `next` |
+| 3 导航 | ✅ | 5 主页面 `rbac/_nav.html` |
+| 4+5 权限 | 🔄 | `cron:delete` 试点；批量删除与其余权限点待办 |
+| 6 用户管理 | ⏳ | `/rbac/users` 未开始 |
+
+详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
+
+### 管理端 · 404 友好页（R2.5）
+
+| 变更 | 说明 |
+| --- | --- |
+| `errors/404.html` | 已登录：导航 + 返回任务列表；HTTP 404 |
+| `errors/404_guest.html` | 未登录极简页；无效 URL 不强制跳登录 |
+| `smoke_http_not_found` | 黄金路径断言 404 页面；检测未重启旧 handler |
+
+**部署：**改错误页后须重启进程或 Docker `--force-recreate`。
 
 ## [0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI
 

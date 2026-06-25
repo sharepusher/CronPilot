@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -46,6 +47,58 @@ class TestCheckPassForward(unittest.TestCase):
         resp = self.client.post('/check_pass?next=/cron_list')
         self.assertEqual(resp.status_code, 307)
         self.assertEqual(self._location_path_query(resp), '/rbac/login?next=/cron_list')
+
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+
+class TestRbacLogin(unittest.TestCase):
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            db.create_all()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def test_login_get_renders(self):
+        resp = self.client.get('/rbac/login')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('密码', resp.get_data(as_text=True))
+
+    def test_legacy_login_redirects_to_next(self):
+        with patch('app.rbac.services.configs', return_value={'login_pwd': 'changeme', 'rbac_enable': '0'}):
+            get_rbac_enabled.cache_clear()
+            resp = self.client.post(
+                '/rbac/login',
+                data={'password': 'changeme', 'next': '/cron_list?task_name=x'},
+            )
+            self.assertEqual(resp.status_code, 302)
+            self.assertIn('/cron_list?task_name=x', resp.headers['Location'])
+
+    def test_check_pass_forwards_next_to_login(self):
+        resp = self.client.get('/check_pass?next=/cron_list?task_name=x')
+        self.assertEqual(resp.status_code, 302)
+        loc = resp.headers['Location']
+        self.assertIn('/rbac/login?next=', loc)
+        self.assertIn('task_name=x', loc)
 
 
 class TestRbacPolicy(unittest.TestCase):

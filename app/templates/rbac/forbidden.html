@@ -1,0 +1,13 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">权限不足</h1>
+                <p class="lead">需要权限：{{ permission }}</p>
+                <p><a href="{{ url_for('main.cron_list') }}">返回任务列表</a></p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

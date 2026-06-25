@@ -12,6 +12,8 @@ from app import create_app, db  # noqa: E402
 from datas.model.cron_infos import CronInfos  # noqa: F401,E402
 from datas.model.job_log import JobLog  # noqa: F401,E402
 from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
+from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
+from datas.model.rbac_user import RbacUser  # noqa: F401,E402
 
 
 def main():

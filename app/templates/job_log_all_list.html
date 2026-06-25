@@ -12,7 +12,7 @@
         </div>
 
         {% with active='job_log' %}
-        {% include "_admin_nav.html" %}
+        {% include "rbac/_nav.html" %}
         {% endwith %}
         <form class="well form-search" method="get" action="{{ url_for('main.job_log_all_list') }}">
             高级查询：

@@ -13,7 +13,7 @@
         </div>
 
         {% with active='cron_list' %}
-        {% include "_admin_nav.html" %}
+        {% include "rbac/_nav.html" %}
         {% endwith %}
         <form class="well form-search" method="get" action="{{ url_for('main.cron_list') }}">高级查询：
             <input type="text" placeholder="任务名称" name="task_name" value="{{ keyword.get("task_name","") }}">

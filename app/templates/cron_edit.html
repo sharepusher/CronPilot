@@ -11,7 +11,7 @@
             </div>
         </div>
         {% with active='cron_add' %}
-        {% include "_admin_nav.html" %}
+        {% include "rbac/_nav.html" %}
         {% endwith %}
         <form method="post" class="form-horizontal js-ajax-form" action='{{ url_for('main.cron_edit') }}'>
             <fieldset>

@@ -101,6 +101,38 @@ class TestRbacLogin(unittest.TestCase):
         self.assertIn('task_name=x', loc)
 
 
+class TestNotFound(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.client = app.test_client()
+
+    def test_guest_404_renders_minimal_page(self):
+        resp = self.client.get('/__no_such_route__')
+        self.assertEqual(resp.status_code, 404)
+        body = resp.get_data(as_text=True)
+        self.assertIn('页面不存在', body)
+        self.assertIn('前往登录', body)
+        self.assertNotIn('任务列表', body)
+
+    def test_logged_in_404_renders_nav_and_home_link(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+        resp = self.client.get('/__no_such_route__')
+        self.assertEqual(resp.status_code, 404)
+        body = resp.get_data(as_text=True)
+        self.assertIn('页面不存在', body)
+        self.assertIn('返回任务列表', body)
+        self.assertIn('任务列表', body)
+
+
 class TestRbacPolicy(unittest.TestCase):
     def test_viewer_cannot_write(self):
         self.assertFalse(has_permission('viewer', 'cron:write'))

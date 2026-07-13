@@ -101,10 +101,10 @@
   <h3>4.1 <code>cron_infos</code> 扩展字段</h3>
   <table>
     <tr><th>字段</th><th>类型（建议）</th><th>说明</th></tr>
-    <tr><td><code>task_keyword</code></td><td>VARCHAR(120)</td><td>任务说明/备注；<strong>新建与编辑必填</strong>（trim 后非空）</td></tr>
+    <tr><td><code>task_keyword</code></td><td>VARCHAR(500)</td><td>任务说明/备注；<strong>新建与编辑必填</strong>（1～500 字 trim 非空）</td></tr>
     <tr><td><code>created_at</code></td><td>VARCHAR(25)</td><td>创建时间；只写一次</td></tr>
     <tr><td><code>updated_at</code></td><td>VARCHAR(25)</td><td>最后配置编辑时间；创建时与 <code>created_at</code> 相同</td></tr>
-    <tr><td><code>retire_reason</code></td><td>VARCHAR(500)</td><td>下线原因；人工下线必填（1～500 字 trim 非空）</td></tr>
+    <tr><td><code>retire_reason</code></td><td>VARCHAR(500)</td><td>下线原因；人工下线必填（1～500 字 trim 非空；与说明同长）</td></tr>
     <tr><td><code>retired_at</code></td><td>VARCHAR(25)</td><td>下线时刻</td></tr>
   </table>
   <p style="font-size:.9rem;color:#64748b"><strong>不做 <code>retired_by</code>：</strong>操作人属体验增强，与远期 <code>operation_log</code> 重叠；列表用原因文案区分人工/系统即可。</p>
@@ -112,7 +112,7 @@
   <h3>4.2 校验与行为规则</h3>
   <table>
     <tr><th>规则</th><th>内容</th></tr>
-    <tr><td>备注必填</td><td>Web/API 新建、编辑：<code>task_keyword</code> trim 后非空，否则拒绝</td></tr>
+    <tr><td>备注必填</td><td>Web/API 新建、编辑：<code>task_keyword</code> trim 后 1～500 字，否则拒绝</td></tr>
     <tr><td>存量空备注</td><td>允许继续运行/暂停；<strong>下次编辑必须补全</strong>（避免 bulk 迁移失败）</td></tr>
     <tr><td><code>updated_at</code></td><td><strong>仅</strong>添加/编辑配置时更新；暂停/运行/<strong>下线不刷</strong>（下线用 <code>retired_at</code>）</td></tr>
     <tr><td>人工下线</td><td>Web <code>POST /cron_retire</code>、API <code>/api/cron/retire</code> 必传 <code>reason</code>；写 <code>status=-1</code> + <code>retire_reason</code>/<code>retired_at</code> + <code>remove_job</code></td></tr>

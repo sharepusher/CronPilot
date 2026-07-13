@@ -201,7 +201,7 @@
     <pre>CREATE TABLE cron_infos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   task_name VARCHAR(120) NOT NULL,
-  task_keyword VARCHAR(120) DEFAULT '',  -- LIFECYCLE-2：新建/编辑必填
+  task_keyword VARCHAR(500) DEFAULT '',  -- LIFECYCLE-2：新建/编辑必填 1～500
   run_date VARCHAR(25) DEFAULT '',
   day_of_week VARCHAR(10) DEFAULT '',
   day VARCHAR(20) DEFAULT '',
@@ -212,7 +212,7 @@
   status SMALLINT DEFAULT 1,  -- 0暂停 1运行 -1下线
   created_at VARCHAR(25) DEFAULT '',     -- LIFECYCLE-2 · 待实现
   updated_at VARCHAR(25) DEFAULT '',     -- 仅配置编辑刷新
-  retire_reason VARCHAR(500) DEFAULT '', -- 人工下线必填
+  retire_reason VARCHAR(500) DEFAULT '', -- 人工下线必填 1～500（与说明同长）
   retired_at VARCHAR(25) DEFAULT ''
 );</pre>
     <p>LIFECYCLE-2 字段与校验见 <a href="任务生命周期与无删除设计.html#lifecycle-2">任务生命周期 §四</a>。完整变更历史走 OPT-P1-09 <code>operation_log</code>，不另建任务更新日志表。</p>
@@ -285,7 +285,7 @@ CREATE TABLE job_log_items (
       <tr><td>req_url</td><td>string</td><td class="must">是</td><td>须含 http:// 或 https://</td></tr>
       <tr><td>run_date</td><td>string</td><td>二选一</td><td>yyyy-MM-dd HH:mm，非空则 date 模式</td></tr>
       <tr><td>day, day_of_week, hour, minute, second</td><td>string</td><td>二选一</td><td>Cron 模式，至少填一项</td></tr>
-      <tr><td>task_keyword</td><td>string</td><td class="must">是</td><td>备注/说明（LIFECYCLE-2；trim 非空）</td></tr>
+      <tr><td>task_keyword</td><td>string</td><td class="must">是</td><td>备注/说明（LIFECYCLE-2；1～500 字）</td></tr>
     </table>
     <pre>curl -X POST 'http://HOST/api/cron' \
   -d 'access_token=YOUR_TOKEN' \
@@ -306,7 +306,7 @@ CREATE TABLE job_log_items (
     <table>
       <tr><th>参数</th><th>必填</th><th>说明</th></tr>
       <tr><td>task_name</td><td class="must">是</td><td>任务名称</td></tr>
-      <tr><td>reason</td><td class="must">是</td><td>下线原因（LIFECYCLE-2 · 设计已确认；实现后强制）</td></tr>
+      <tr><td>reason</td><td class="must">是</td><td>下线原因（LIFECYCLE-2 · 1～500 字；与说明同长；实现后强制）</td></tr>
     </table>
     <p>写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code>（无 <code>retired_by</code>）。见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>。</p>
 

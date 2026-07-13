@@ -439,8 +439,7 @@
     <tbody>
       <tr><td>id</td><td>INTEGER PK</td><td>主键，对应调度 Job ID：<code>cron_{id}</code></td></tr>
       <tr><td>task_name</td><td>VARCHAR(120)</td><td>任务名称，全局唯一</td></tr>
-      <tr><td>task_name</td><td>VARCHAR(120)</td><td>任务名称，全局唯一</td></tr>
-      <tr><td>task_keyword</td><td>VARCHAR(120)</td><td>备注/说明；<strong>必填</strong>（LIFECYCLE-2；存量空允许运行，下次编辑须补全）</td></tr>
+      <tr><td>task_keyword</td><td>VARCHAR(500)</td><td>备注/说明；<strong>必填</strong> 1～500 字（LIFECYCLE-2；存量空允许运行，下次编辑须补全）</td></tr>
       <tr><td>run_date</td><td>VARCHAR(25)</td><td>一次性执行时间（date 触发器）</td></tr>
       <tr><td>day_of_week</td><td>VARCHAR(10)</td><td>星期：0-6 或 mon-sun，支持 */n、区间、枚举</td></tr>
       <tr><td>day</td><td>VARCHAR(20)</td><td>日：1-31，同上表达式</td></tr>
@@ -449,7 +448,7 @@
       <tr><td>status</td><td>SMALLINT</td><td>0=暂停，1=运行中，-1=已下线（不可逆）</td></tr>
       <tr><td>created_at</td><td>VARCHAR(25)</td><td>创建时间（LIFECYCLE-2 · 待实现）</td></tr>
       <tr><td>updated_at</td><td>VARCHAR(25)</td><td>最后配置编辑时间；暂停/下线不刷（LIFECYCLE-2 · 待实现）</td></tr>
-      <tr><td>retire_reason</td><td>VARCHAR(500)</td><td>下线原因；人工必填（LIFECYCLE-2 · 待实现）</td></tr>
+      <tr><td>retire_reason</td><td>VARCHAR(500)</td><td>下线原因；人工必填 1～500 字（与说明同长；LIFECYCLE-2 · 待实现）</td></tr>
       <tr><td>retired_at</td><td>VARCHAR(25)</td><td>下线时刻（LIFECYCLE-2 · 待实现）</td></tr>
     </tbody>
   </table>
@@ -560,7 +559,7 @@
       <tr><td>req_url</td><td>是</td><td>http(s) 回调地址</td></tr>
       <tr><td>run_date</td><td>二选一</td><td>有值则 date 模式</td></tr>
       <tr><td>day, day_of_week, hour, minute, second</td><td>二选一</td><td>Cron 模式字段</td></tr>
-      <tr><td>task_keyword</td><td>是</td><td>备注/说明（LIFECYCLE-2；trim 非空）</td></tr>
+      <tr><td>task_keyword</td><td>是</td><td>备注/说明（LIFECYCLE-2；1～500 字）</td></tr>
     </tbody>
   </table>
   <pre>curl -X POST "http://host/api/cron" \

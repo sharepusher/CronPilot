@@ -249,12 +249,12 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td>添加任务（含执行时间）</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_add</code></td><td><code>add_cron_web</code> → <code>create_cron</code></td><td><code>add_job</code></td></tr>
       <tr><td>编辑任务 / 改时间</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_edit</code></td><td><code>edit_cron_web</code> → <code>update_cron</code></td><td><code>add_job(replace_existing)</code></td></tr>
       <tr><td>启动 / 暂停</td><td><code>GET</code> Ajax 对话框</td><td><code>/update_status</code></td><td><code>main/views.py</code></td><td><code>resume_job</code> / <code>pause_job</code></td></tr>
-      <tr><td>下线（生命周期终点）</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_retire</code></td><td>写 <code>status=-1</code>；保留行与日志</td><td><code>remove_job</code></td></tr>
+      <tr><td>下线（生命周期终点）</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_retire</code></td><td>写 <code>status=-1</code>；LIFECYCLE-2 另写 <code>retire_reason</code>/<code>retired_at</code>/<code>retired_by</code>（人工必传 reason）；保留行与日志</td><td><code>remove_job</code></td></tr>
       <tr><td>任务列表 / 执行记录</td><td><code>GET</code> 页面</td><td><code>/cron_list</code>、<code>/job_log_*</code></td><td>ORM 分页查询</td><td>无（只读 DB）</td></tr>
     </table>
     <div class="card warn">
-      <p><strong>无删除：</strong>禁止人工删除任务与执行流水。暂停 ≠ 下线。权威设计见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>。</p>
-      <p><strong>操作审计（现状）：</strong>管理写操作<strong>不落库操作记录</strong>（P1 规划见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-09">OPT-P1-09</a>）。审计 action 用 <code>retire_cron</code>，不用 <code>delete_cron</code>。</p>
+      <p><strong>无删除：</strong>禁止人工删除任务与执行流水。暂停 ≠ 下线。权威设计见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>（含 <a href="任务生命周期与无删除设计.html#lifecycle-2">LIFECYCLE-2 元数据</a>）。</p>
+      <p><strong>操作审计（现状）：</strong>管理写操作<strong>不落库操作记录</strong>（P1 规划见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-09">OPT-P1-09</a>）。审计 action 用 <code>retire_cron</code>，不用 <code>delete_cron</code>。<strong>行内查阅</strong>（原因/时间戳）由 LIFECYCLE-2 扩展 <code>cron_infos</code>；完整 old→new 历史仍归 <code>operation_log</code>，不另建「任务更新日志」表。</p>
     </div>
     <p>外部系统集成走 <strong>REST API</strong>（<code>/api/cron</code>、<code>/api/cron/status</code>），同样经 <code>cron_service</code> 写库后由服务端注册调度，<strong>亦非</strong>直连 APScheduler。详见 <a href="技术方案与前端设计.html">技术方案与前端设计</a> 第 6 节 API 规范。</p>
   </section>
@@ -412,9 +412,11 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
       <tr><td><code>create_cron</code></td><td><code>{"task_name":"daily","hour":"9","minute":"0","req_url":"https://..."}</code></td></tr>
       <tr><td><code>update_cron</code></td><td><code>{"hour":{"old":"9","new":"10"},"req_url":{"old":"...","new":"..."}}</code></td></tr>
       <tr><td><code>toggle_status</code></td><td><code>{"status":{"old":0,"new":1}}</code></td></tr>
-      <tr><td><code>delete_cron</code></td><td><code>{"snapshot":{"task_name":"...","hour":"9",...}}</code> 删除前最后一屏配置</td></tr>
-      <tr><td><code>batch_delete_cron</code></td><td><code>{"ids":[1,2,3],"task_names":["a","b","c"]}</code></td></tr>
+      <tr><td><code>retire_cron</code></td><td><code>{"reason":"业务下线","retired_at":"2026-07-13 12:00:00","snapshot":{"task_name":"...","hour":"9",...}}</code></td></tr>
+      <tr><td><code>delete_cron</code></td><td>已废弃（无删除）；历史文档勿再新增此类 action</td></tr>
+      <tr><td><code>batch_delete_cron</code></td><td>已废弃</td></tr>
     </table>
+    <p style="font-size:.9rem;color:#64748b"><strong>与 LIFECYCLE-2：</strong><code>cron_infos.retire_reason</code> / <code>retired_at</code> / <code>created_at</code> / <code>updated_at</code> 供列表/详情即时查阅；本表记录完整操作历史。二者互补，勿新建第三张「任务更新日志」。</p>
 
     <h4>6.5.5 操作人、角色与权限快照</h4>
     <p><strong>原则：</strong>审计行保存<strong>操作当时</strong>的主体与授权态，不存 live 外键到当前用户表（用户删改角色后历史仍可读）。P2 接入 <code>users</code> / RBAC 后，<code>operator_id</code> 对齐用户主键即可。</p>

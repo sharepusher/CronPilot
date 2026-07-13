@@ -90,7 +90,7 @@
       <tr><td class="req">003</td><td>新增任务：一次性 / Cron 模式切换</td><td><code>/cron_add</code></td></tr>
       <tr><td class="req">004</td><td>编辑任务，任务名唯一（排除自身）</td><td><code>/cron_edit?id=</code></td></tr>
       <tr><td class="req">005</td><td>单任务启停（pause/resume；暂停 ≠ 下线）</td><td><code>/update_status?id=</code></td></tr>
-      <tr><td class="req">006</td><td>任务下线（status=-1，不可逆；保留行与日志）</td><td><code>/cron_retire</code></td></tr>
+      <tr><td class="req">006</td><td>任务下线（status=-1，不可逆；保留行与日志；LIFECYCLE-2 强制原因与时间）</td><td><code>/cron_retire</code> · <code>/api/cron/retire</code></td></tr>
       <tr><td class="req">007</td><td>单任务执行记录弹窗</td><td><code>/job_log_list?id=</code> iframe</td></tr>
       <tr><td class="req">008</td><td>全局执行记录：任务名、时间范围筛选</td><td><code>/job_log_all_list</code></td></tr>
       <tr><td class="req">009</td><td>执行明细查看（<strong>无</strong>人工删日志）</td><td><code>/job_log_item_list</code>、<code>/job_log_detail</code></td></tr>
@@ -201,7 +201,7 @@
     <pre>CREATE TABLE cron_infos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   task_name VARCHAR(120) NOT NULL,
-  task_keyword VARCHAR(120) DEFAULT '',
+  task_keyword VARCHAR(120) DEFAULT '',  -- LIFECYCLE-2：新建/编辑必填
   run_date VARCHAR(25) DEFAULT '',
   day_of_week VARCHAR(10) DEFAULT '',
   day VARCHAR(20) DEFAULT '',
@@ -209,10 +209,15 @@
   minute VARCHAR(10) DEFAULT '',
   second VARCHAR(10) DEFAULT '',
   req_url VARCHAR(200) DEFAULT '',
-  status SMALLINT DEFAULT 1  -- 0停 1跑 -1结束
-);
-
-CREATE TABLE job_log (
+  status SMALLINT DEFAULT 1,  -- 0暂停 1运行 -1下线
+  created_at VARCHAR(25) DEFAULT '',     -- LIFECYCLE-2 · 待实现
+  updated_at VARCHAR(25) DEFAULT '',     -- 仅配置编辑刷新
+  retire_reason VARCHAR(500) DEFAULT '', -- 人工下线必填
+  retired_at VARCHAR(25) DEFAULT '',
+  retired_by VARCHAR(64) DEFAULT ''
+);</pre>
+    <p>LIFECYCLE-2 字段与校验见 <a href="任务生命周期与无删除设计.html#lifecycle-2">任务生命周期 §四</a>。完整变更历史走 OPT-P1-09 <code>operation_log</code>，不另建任务更新日志表。</p>
+    <pre>CREATE TABLE job_log (
   id INTEGER PRIMARY KEY,
   log_id VARCHAR(65) NOT NULL DEFAULT '',
   cron_info_id INTEGER NOT NULL,
@@ -281,11 +286,12 @@ CREATE TABLE job_log_items (
       <tr><td>req_url</td><td>string</td><td class="must">是</td><td>须含 http:// 或 https://</td></tr>
       <tr><td>run_date</td><td>string</td><td>二选一</td><td>yyyy-MM-dd HH:mm，非空则 date 模式</td></tr>
       <tr><td>day, day_of_week, hour, minute, second</td><td>string</td><td>二选一</td><td>Cron 模式，至少填一项</td></tr>
-      <tr><td>task_keyword</td><td>string</td><td>否</td><td>备注</td></tr>
+      <tr><td>task_keyword</td><td>string</td><td class="must">是</td><td>备注/说明（LIFECYCLE-2；trim 非空）</td></tr>
     </table>
     <pre>curl -X POST 'http://HOST/api/cron' \
   -d 'access_token=YOUR_TOKEN' \
   -d 'task_name=nightly_backup' \
+  -d 'task_keyword=夜间备份·运维' \
   -d 'hour=2' -d 'minute=30' \
   -d 'req_url=https://api.example.com/jobs/backup'</pre>
 
@@ -296,6 +302,14 @@ CREATE TABLE job_log_items (
       <tr><td>status</td><td>可选：0 停止，1 开启；不传则 toggle</td></tr>
     </table>
     <p>status=-1 的任务返回错误「任务已结束，不能再操作」。</p>
+
+    <h3>8.3b POST /api/cron/retire</h3>
+    <table>
+      <tr><th>参数</th><th>必填</th><th>说明</th></tr>
+      <tr><td>task_name</td><td class="must">是</td><td>任务名称</td></tr>
+      <tr><td>reason</td><td class="must">是</td><td>下线原因（LIFECYCLE-2 · 设计已确认；实现后强制）</td></tr>
+    </table>
+    <p>写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code> / <code>retired_by</code>。见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>。</p>
 
     <h3>8.4 POST /api/cron/add_log</h3>
     <table>

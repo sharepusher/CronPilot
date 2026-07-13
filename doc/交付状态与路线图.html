@@ -93,6 +93,7 @@
     <tr><td>OPT-P1-09</td><td>管理操作审计 <code>operation_log</code></td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a> · <a href="架构设计文档.html">架构 §操作审计</a></td></tr>
     <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="s-wip">实施中 · v0.3.0 待发布</td><td>—</td><td><a href="RBAC架构设计方案.html">详设 v4</a> · <a href="RBAC落地路线.html">落地路线</a> · 无删除 / <code>cron:retire</code></td></tr>
     <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已落地 · 待 v0.3.0 tag</td><td>—</td><td><a href="任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
+    <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-draft">设计已确认 · 待实现</td><td>计划 v0.3.x</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间/操作人；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
     <tr><td>OPT-P2-01~09</td><td>SSE、图表、OAuth、metrics…</td><td class="s-future">远期 P2</td><td>—</td><td><a href="产品优化需求-借鉴Plombery.html">PRD Phase C</a></td></tr>
   </table>
 
@@ -127,7 +128,8 @@
 
   <h2>五、建议实施顺序（未交付）</h2>
   <ol>
-    <li><strong>LIFECYCLE-1</strong> — 退役删除、实现下线（<a href="任务生命周期与无删除设计.html">设计</a>）</li>
+    <li><strong>LIFECYCLE-1</strong> — 已落地；随 v0.3.0 tag（<a href="任务生命周期与无删除设计.html">设计</a>）</li>
+    <li><strong>LIFECYCLE-2</strong> — 备注必填 · 下线原因/时间 · 创建/编辑时间戳（<a href="任务生命周期与无删除设计.html#lifecycle-2">设计已确认</a>）</li>
     <li><strong>RBAC v0.3.0 收尾</strong> — <code>/rbac/users</code>、三角色验收、打 tag</li>
     <li><strong>P1 小步</strong>（01b/c）— 小 diff，改善列表可读性</li>
     <li><strong>P1-03/04</strong> — 详情页 + 立即执行（设计已 Draft）</li>

@@ -213,8 +213,7 @@
   created_at VARCHAR(25) DEFAULT '',     -- LIFECYCLE-2 · 待实现
   updated_at VARCHAR(25) DEFAULT '',     -- 仅配置编辑刷新
   retire_reason VARCHAR(500) DEFAULT '', -- 人工下线必填
-  retired_at VARCHAR(25) DEFAULT '',
-  retired_by VARCHAR(64) DEFAULT ''
+  retired_at VARCHAR(25) DEFAULT ''
 );</pre>
     <p>LIFECYCLE-2 字段与校验见 <a href="任务生命周期与无删除设计.html#lifecycle-2">任务生命周期 §四</a>。完整变更历史走 OPT-P1-09 <code>operation_log</code>，不另建任务更新日志表。</p>
     <pre>CREATE TABLE job_log (
@@ -309,7 +308,7 @@ CREATE TABLE job_log_items (
       <tr><td>task_name</td><td class="must">是</td><td>任务名称</td></tr>
       <tr><td>reason</td><td class="must">是</td><td>下线原因（LIFECYCLE-2 · 设计已确认；实现后强制）</td></tr>
     </table>
-    <p>写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code> / <code>retired_by</code>。见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>。</p>
+    <p>写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code>（无 <code>retired_by</code>）。见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>。</p>
 
     <h3>8.4 POST /api/cron/add_log</h3>
     <table>

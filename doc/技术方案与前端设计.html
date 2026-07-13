@@ -451,7 +451,6 @@
       <tr><td>updated_at</td><td>VARCHAR(25)</td><td>最后配置编辑时间；暂停/下线不刷（LIFECYCLE-2 · 待实现）</td></tr>
       <tr><td>retire_reason</td><td>VARCHAR(500)</td><td>下线原因；人工必填（LIFECYCLE-2 · 待实现）</td></tr>
       <tr><td>retired_at</td><td>VARCHAR(25)</td><td>下线时刻（LIFECYCLE-2 · 待实现）</td></tr>
-      <tr><td>retired_by</td><td>VARCHAR(64)</td><td>下线操作人展示名（LIFECYCLE-2 · 待实现）</td></tr>
     </tbody>
   </table>
   <p style="font-size:.9rem;color:#64748b">LIFECYCLE-2 字段权威说明见 <a href="任务生命周期与无删除设计.html#lifecycle-2">任务生命周期 §四</a>。完整变更历史不另建表，走 OPT-P1-09 <code>operation_log</code>。</p>
@@ -589,7 +588,7 @@
       <tr><td>access_token</td><td>配置后必填</td><td>与 conf.ini 一致</td></tr>
     </tbody>
   </table>
-  <p style="font-size:.9rem;color:#64748b">写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code> / <code>retired_by</code>（LIFECYCLE-2）。详见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期设计</a>。</p>
+  <p style="font-size:.9rem;color:#64748b">写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code>（LIFECYCLE-2；无 <code>retired_by</code>）。详见 <a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期设计</a>。</p>
 
   <h3>6.3 /api/cron/add_log — 上传执行明细</h3>
   <p>业务系统在收到 <code>cronpilot_log_id</code> 后，长任务执行过程中可多次调用，将进度写入 job_log_items。</p>

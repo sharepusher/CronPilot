@@ -249,7 +249,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td>添加任务（含执行时间）</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_add</code></td><td><code>add_cron_web</code> → <code>create_cron</code></td><td><code>add_job</code></td></tr>
       <tr><td>编辑任务 / 改时间</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_edit</code></td><td><code>edit_cron_web</code> → <code>update_cron</code></td><td><code>add_job(replace_existing)</code></td></tr>
       <tr><td>启动 / 暂停</td><td><code>GET</code> Ajax 对话框</td><td><code>/update_status</code></td><td><code>main/views.py</code></td><td><code>resume_job</code> / <code>pause_job</code></td></tr>
-      <tr><td>下线（生命周期终点）</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_retire</code></td><td>写 <code>status=-1</code>；LIFECYCLE-2 另写 <code>retire_reason</code>/<code>retired_at</code>/<code>retired_by</code>（人工必传 reason）；保留行与日志</td><td><code>remove_job</code></td></tr>
+      <tr><td>下线（生命周期终点）</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_retire</code></td><td>写 <code>status=-1</code>；LIFECYCLE-2 另写 <code>retire_reason</code>/<code>retired_at</code>（人工必传 reason；无 <code>retired_by</code>）；保留行与日志</td><td><code>remove_job</code></td></tr>
       <tr><td>任务列表 / 执行记录</td><td><code>GET</code> 页面</td><td><code>/cron_list</code>、<code>/job_log_*</code></td><td>ORM 分页查询</td><td>无（只读 DB）</td></tr>
     </table>
     <div class="card warn">
@@ -416,7 +416,7 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
       <tr><td><code>delete_cron</code></td><td>已废弃（无删除）；历史文档勿再新增此类 action</td></tr>
       <tr><td><code>batch_delete_cron</code></td><td>已废弃</td></tr>
     </table>
-    <p style="font-size:.9rem;color:#64748b"><strong>与 LIFECYCLE-2：</strong><code>cron_infos.retire_reason</code> / <code>retired_at</code> / <code>created_at</code> / <code>updated_at</code> 供列表/详情即时查阅；本表记录完整操作历史。二者互补，勿新建第三张「任务更新日志」。</p>
+    <p style="font-size:.9rem;color:#64748b"><strong>与 LIFECYCLE-2：</strong><code>cron_infos.retire_reason</code> / <code>retired_at</code> / <code>created_at</code> / <code>updated_at</code> 供列表/详情即时查阅（无行内 <code>retired_by</code>）；本表记录完整操作历史含操作人。二者互补，勿新建第三张「任务更新日志」。</p>
 
     <h4>6.5.5 操作人、角色与权限快照</h4>
     <p><strong>原则：</strong>审计行保存<strong>操作当时</strong>的主体与授权态，不存 live 外键到当前用户表（用户删改角色后历史仍可读）。P2 接入 <code>users</code> / RBAC 后，<code>operator_id</code> 对齐用户主键即可。</p>

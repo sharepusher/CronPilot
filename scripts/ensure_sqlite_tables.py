@@ -26,6 +26,7 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
+        _ensure_cron_infos_columns()
     print('OK: SQLite 业务表已就绪 ->', uri)
     return 0
 
@@ -53,6 +54,31 @@ def _ensure_job_log_columns():
     print('OK: job_log 列已补全 ->', ', '.join(
         c.split()[-1] for c in alters
     ))
+
+
+def _ensure_cron_infos_columns():
+    """LIFECYCLE-2：已有 SQLite 库补 created_at/updated_at/retire_*。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('cron_infos'):
+        return
+    cols = {c['name'] for c in insp.get_columns('cron_infos')}
+    alters = []
+    if 'created_at' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN created_at VARCHAR(25) DEFAULT ''")
+    if 'updated_at' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN updated_at VARCHAR(25) DEFAULT ''")
+    if 'retire_reason' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN retire_reason VARCHAR(500) DEFAULT ''")
+    if 'retired_at' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN retired_at VARCHAR(25) DEFAULT ''")
+    if not alters:
+        return
+    with db.engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+    print('OK: cron_infos 列已补全 ->', ', '.join(a.split()[5] for a in alters))
 
 
 def _ensure_job_log_http_status_column():

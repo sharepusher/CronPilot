@@ -3,10 +3,14 @@
 from sqlalchemy import select
 
 from app import db, scheduler
-from app.services.cron_validator import validate_cron_form
-from app.services.job_log_service import delete_job_logs_for_cron
+from app.services.cron_validator import validate_cron_form, validate_retire_reason
 from datas.model.cron_infos import CronInfos
-from datas.model.job_log import JobLog
+from datas.utils.times import get_now_time
+
+# 系统自动下线固定文案（LIFECYCLE-2）
+RETIRE_REASON_ONE_SHOT = '一次性任务执行完成（系统）'
+RETIRE_REASON_EXECUTOR = '调度执行器异常移除（系统）'
+RETIRE_REASON_ORPHAN = 'JobStore 无对应任务，系统对账下线'
 
 
 def build_scheduler_kwargs(normalized):
@@ -55,9 +59,11 @@ def apply_normalized_to_model(cif, normalized):
     cif.second = normalized['second']
     cif.req_url = normalized['req_url']
     cif.status = 1
+    cif.updated_at = get_now_time()
 
 
 def create_cron(normalized):
+    now = get_now_time()
     cif = CronInfos(
         task_name=normalized['task_name'],
         task_keyword=normalized['task_keyword'],
@@ -69,6 +75,8 @@ def create_cron(normalized):
         second=normalized['second'],
         req_url=normalized['req_url'],
         status=1,
+        created_at=now,
+        updated_at=now,
     )
     db.session.add(cif)
     db.session.commit()
@@ -82,6 +90,58 @@ def update_cron(cif, normalized):
     db.session.commit()
     register_cron_job(cif.id, normalized)
     return cif
+
+
+def apply_retire(cif, reason):
+    """将任务标为下线并写原因/时间；调用方负责 remove_job 与 commit。"""
+    cif.status = -1
+    cif.retire_reason = reason
+    cif.retired_at = get_now_time()
+    db.session.add(cif)
+
+
+def retire_cron_by_id(cron_id, reason):
+    """
+    Web 下线。返回 (error_msg, cif)；error_msg 为 None 表示成功。
+    """
+    err, reason = validate_retire_reason(reason)
+    if err:
+        return err, None
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return '项目不存在', None
+    if cif.status == -1:
+        return None, cif
+    apply_retire(cif, reason)
+    try:
+        scheduler.remove_job('cron_%s' % cif.id)
+    except Exception:
+        pass
+    db.session.commit()
+    return None, cif
+
+
+def retire_cron_by_task_name(task_name, reason):
+    """
+    API 下线。返回 (error_msg, cif)；error_msg 为 None 表示成功。
+    """
+    err, reason = validate_retire_reason(reason)
+    if err:
+        return err, None
+    cif = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
+    if not cif:
+        return '任务不存在', None
+    if cif.status == -1:
+        return None, cif
+    apply_retire(cif, reason)
+    try:
+        scheduler.remove_job('cron_%s' % cif.id)
+    except Exception:
+        pass
+    db.session.commit()
+    return None, cif
 
 
 def upsert_cron_by_task_name(datas, is_dev, cron_config):

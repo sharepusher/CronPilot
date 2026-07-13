@@ -194,19 +194,21 @@ def update_status():
 @main.route('/cron_retire', methods=['GET', 'POST'])
 @require_permission('cron:retire')
 def cron_retire():
+    from app.services.cron_service import retire_cron_by_id
+
     id = request.args.get('id') or request.values.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在', url='/cron_list')
     if cif.status == -1:
+        if request.method == 'GET' and not request.values.get('reason'):
+            return render_template('cron_retire.html', cif=cif, already=True)
         return web_api_return(code=0, msg='任务已下线', url='/cron_list')
-    cif.status = -1
-    db.session.add(cif)
-    try:
-        scheduler.remove_job('cron_%s' % cif.id)
-    except Exception:
-        pass
-    db.session.commit()
+    if request.method == 'GET':
+        return render_template('cron_retire.html', cif=cif, already=False)
+    err, _ = retire_cron_by_id(id, request.values.get('reason'))
+    if err:
+        return web_api_return(code=1, msg=err)
     return web_api_return(code=0, msg='任务已下线', url='/cron_list')
 
 

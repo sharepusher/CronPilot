@@ -42,6 +42,16 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | `cron:retire` | Web `/cron_retire` + API `/api/cron/retire`（仅 admin） |
 | 设计 | [任务生命周期与无删除](任务生命周期与无删除设计.html) |
 
+### LIFECYCLE-2 · 元数据与下线可追溯（已落地）
+
+| 变更 | 说明 |
+| --- | --- |
+| `task_keyword` | 新建/编辑必填，VARCHAR(500) |
+| `created_at` / `updated_at` | 创建只写一次；仅配置编辑刷新 updated |
+| `retire_reason` / `retired_at` | 人工必填原因；系统固定文案；无 `retired_by` |
+| Web / API | 下线表单；`/api/cron/retire` 必传 `reason` |
+| 设计 | [生命周期 §四](任务生命周期与无删除设计.html#lifecycle-2) |
+
 ### 管理端 · 404 友好页（R2.5）
 
 | 变更 | 说明 |
@@ -51,6 +61,14 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | `smoke_http_not_found` | 黄金路径断言 404 页面；检测未重启旧 handler |
 
 **部署：**改错误页后须重启进程或 Docker `--force-recreate`。
+
+### 执行记录 log\_id 必填（可追溯）
+
+| 变更 | 说明 |
+| --- | --- |
+| `cron_do` | 每次触发开始即生成 UUID；预检失败 / HTTP / 异常共用同一 `job_log.log_id` |
+| `_save_job_log` | 未传则自动补 UUID，禁止空串落库 |
+| 追溯 | 可与回调 query、`add_log`、error.log 中 `log_id=` 对照 |
 
 ## [0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI
 

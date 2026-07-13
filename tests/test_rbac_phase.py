@@ -93,6 +93,8 @@ class TestRbacLogin(unittest.TestCase):
             self.assertEqual(resp.status_code, 302)
             self.assertIn('/cron_list?task_name=x', resp.headers['Location'])
 
+
+
     def test_check_pass_forwards_next_to_login(self):
         resp = self.client.get('/check_pass?next=/cron_list?task_name=x')
         self.assertEqual(resp.status_code, 302)
@@ -198,6 +200,50 @@ class TestLifecycleNoDelete(unittest.TestCase):
                 sess['role'] = 'operator'
             resp = self.client.get('/cron_retire?id=1')
             self.assertEqual(resp.status_code, 403)
+
+    def test_admin_retire_requires_reason_and_writes_fields(self):
+        from app import db
+        from datas.model.cron_infos import CronInfos
+
+        with self.client.application.app_context():
+            db.create_all()
+            cif = CronInfos(
+                task_name='retire-me',
+                task_keyword='说明',
+                req_url='https://example.com/x',
+                status=1,
+                created_at='2026-01-01 00:00:00',
+                updated_at='2026-01-01 00:00:00',
+            )
+            db.session.add(cif)
+            db.session.commit()
+            cron_id = cif.id
+
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.services.cron_service.scheduler') as sch:
+                sch.remove_job.side_effect = Exception('no job')
+                with self.client.session_transaction() as sess:
+                    sess['is_login'] = True
+                    sess['role'] = 'admin'
+                resp = self.client.post(
+                    '/cron_retire',
+                    data={'id': str(cron_id)},
+                )
+                self.assertEqual(resp.status_code, 200)
+                payload = resp.get_json()
+                self.assertEqual(payload.get('errmsg'), '请填写下线原因')
+
+                resp = self.client.post(
+                    '/cron_retire',
+                    data={'id': str(cron_id), 'reason': '测试下线'},
+                )
+                self.assertEqual(resp.status_code, 200)
+
+        with self.client.application.app_context():
+            row = db.session.get(CronInfos, cron_id)
+            self.assertEqual(row.status, -1)
+            self.assertEqual(row.retire_reason, '测试下线')
+            self.assertTrue(row.retired_at)
 
 
 class TestNavHasPerm(unittest.TestCase):

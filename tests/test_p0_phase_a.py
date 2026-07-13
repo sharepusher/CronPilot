@@ -100,6 +100,7 @@ class TestCronValidator(unittest.TestCase):
         err, norm = self.validator.validate_cron_form(
             {
                 'task_name': 'job-a',
+                'task_keyword': '备注A',
                 'hour': '8',
                 'minute': '30',
                 'req_url': 'https://example.com/cb',
@@ -110,12 +111,39 @@ class TestCronValidator(unittest.TestCase):
         )
         self.assertIsNone(err, err)
         self.assertEqual(norm['hour'], '8')
+        self.assertEqual(norm['task_keyword'], '备注A')
+
+    def test_reject_empty_task_keyword(self):
+        cfg = {'block_private_ip': '0'}
+        err, _ = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-kw',
+                'task_keyword': '  ',
+                'hour': '1',
+                'req_url': 'https://example.com/cb',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('说明', err)
+
+    def test_validate_retire_reason(self):
+        err, reason = self.validator.validate_retire_reason('  业务下线  ')
+        self.assertIsNone(err)
+        self.assertEqual(reason, '业务下线')
+        err, _ = self.validator.validate_retire_reason('')
+        self.assertIsNotNone(err)
+        err, _ = self.validator.validate_retire_reason('x' * 501)
+        self.assertIsNotNone(err)
 
     def test_api_weekday_names(self):
         cfg = {'block_private_ip': '0'}
         err, norm = self.validator.validate_cron_form(
             {
                 'task_name': 'job-b',
+                'task_keyword': '备注B',
                 'day_of_week': 'mon,wed',
                 'hour': '9',
                 'req_url': 'https://example.com/cb',
@@ -133,6 +161,7 @@ class TestCronValidator(unittest.TestCase):
         err, _ = self.validator.validate_cron_form(
             {
                 'task_name': 'job-c',
+                'task_keyword': '备注C',
                 'hour': '1',
                 'req_url': 'http://127.0.0.1/internal',
             },
@@ -147,6 +176,7 @@ class TestCronValidator(unittest.TestCase):
         err, norm = self.validator.validate_cron_form(
             {
                 'task_name': 'job-d',
+                'task_keyword': '备注D',
                 'hour': '2',
                 'req_url': 'http://8.8.8.8/cb',
             },

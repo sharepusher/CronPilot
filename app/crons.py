@@ -56,12 +56,15 @@ def _save_job_log(
 ):
     if status is None:
         status, fail_reason = pre_request_outcome(content)
+    # 每条执行记录必有 log_id，便于与回调 / add_log / 文件日志相互印证
+    if not log_id:
+        log_id = str(uuid.uuid1())
     jl = JobLog(
         cron_info_id=cron_id,
         content=content,
         create_time=nows,
         take_time=take_time,
-        log_id=log_id or '',
+        log_id=log_id,
         http_status=http_status,
         status=status,
         fail_reason=fail_reason,
@@ -89,22 +92,38 @@ def cron_check_db_sleep():
 @single_task()
 def cron_do(cron_id):
     with scheduler.app.app_context():
+        # 一次触发一个 log_id：预检失败 / HTTP / 异常共用，保证可追溯
+        cronpilot_log_id = str(uuid.uuid1())
+        nows = get_now_time()
+        t0 = time.time()
+        task_name = None
 
         try:
 
             CRON_CONFIG = current_app.config.get('CRON_CONFIG')
 
-            nows = get_now_time()
-
             cif = db.session.get(CronInfos, cron_id)
 
             if not cif:
-                _save_job_log(cron_id, "定时任务不存在", nows, 0)
+                _save_job_log(
+                    cron_id,
+                    "定时任务不存在",
+                    nows,
+                    0,
+                    log_id=cronpilot_log_id,
+                )
             else:
                 req_url = cif.req_url
                 task_name = cif.task_name
                 if not req_url:
-                    _save_job_log(cron_id, "请求链接不存在", nows, 0, task_name=task_name)
+                    _save_job_log(
+                        cron_id,
+                        "请求链接不存在",
+                        nows,
+                        0,
+                        task_name=task_name,
+                        log_id=cronpilot_log_id,
+                    )
                 else:
                     if req_url.find('http') == -1:
                         _save_job_log(
@@ -113,6 +132,7 @@ def cron_do(cron_id):
                             nows,
                             0,
                             task_name=task_name,
+                            log_id=cronpilot_log_id,
                         )
                     else:
                         url_ok, url_msg = validate_callback_url(req_url, CRON_CONFIG)
@@ -123,13 +143,12 @@ def cron_do(cron_id):
                                 nows,
                                 0,
                                 task_name=task_name,
+                                log_id=cronpilot_log_id,
                             )
                         else:
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
-                                cronpilot_log_id = str(uuid.uuid1())
                                 parmas = {}
-                                t = time.time()
 
                                 if req_url.find('?') != -1:
                                     pp = req_url.split('?')[-1]
@@ -171,7 +190,7 @@ def cron_do(cron_id):
                                     cron_id,
                                     ret,
                                     nows,
-                                    time.time() - t,
+                                    time.time() - t0,
                                     task_name=task_name,
                                     log_id=cronpilot_log_id,
                                     http_status=req.status_code,
@@ -184,8 +203,9 @@ def cron_do(cron_id):
                                     cron_id,
                                     err_content,
                                     nows,
-                                    time.time() - t,
+                                    time.time() - t0,
                                     task_name=task_name,
+                                    log_id=cronpilot_log_id,
                                     status=STATUS_ERROR,
                                     fail_reason=exception_fail_reason(e),
                                 )
@@ -193,12 +213,33 @@ def cron_do(cron_id):
         except Exception as e:
             print(str(e))
             db.session.rollback()
+            try:
+                _save_job_log(
+                    cron_id,
+                    "发生严重错误:%s" % str(e),
+                    nows,
+                    time.time() - t0,
+                    task_name=task_name,
+                    log_id=cronpilot_log_id,
+                    status=STATUS_ERROR,
+                    fail_reason=exception_fail_reason(e),
+                )
+            except Exception:
+                pass
             trace_info = traceback.format_exc()
             current_app.logger.error("==============")
-            current_app.logger.error(str(e))
+            current_app.logger.error(
+                "cron_do cron_id=%s log_id=%s err=%s",
+                cron_id,
+                cronpilot_log_id,
+                str(e),
+            )
             current_app.logger.error(trace_info)
             current_app.logger.error("==============")
-            wechat_info_err('定时任务发生严重错误', '返回信息:%s' % str(e))
+            wechat_info_err(
+                '定时任务发生严重错误',
+                'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
+            )
 
     return "ok"
 
@@ -224,8 +265,13 @@ def cron_check():
             if cifs:
                 for item in cifs:
                     if "cron_%s" % item.id not in job_arr:
-                        item.status = -1
-                        db.session.add(item)
+                        if item.status == -1:
+                            continue
+                        from app.services.cron_service import (
+                            RETIRE_REASON_ORPHAN,
+                            apply_retire,
+                        )
+                        apply_retire(item, RETIRE_REASON_ORPHAN)
                         db.session.commit()
         except Exception as e:
             db.session.rollback()

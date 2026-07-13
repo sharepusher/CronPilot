@@ -135,6 +135,8 @@ def cron_status():
 @api.route('/cron/retire', methods=['GET', 'POST'])
 @api_deal_return
 def cron_retire_api():
+    from app.services.cron_service import retire_cron_by_task_name
+
     datas = request.values.to_dict()
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     api_access_token = CRON_CONFIG.get('api_access_token')
@@ -150,20 +152,9 @@ def cron_retire_api():
     if not task_name:
         return api_err_return(msg='任务名称不能为空')
 
-    ci = db.session.scalars(
-        select(CronInfos).where(CronInfos.task_name == task_name)
-    ).first()
-    if not ci:
-        return api_err_return(msg='任务不存在')
-    if ci.status == -1:
-        return 'ok'
-    ci.status = -1
-    db.session.add(ci)
-    try:
-        scheduler.remove_job('cron_%s' % ci.id)
-    except Exception:
-        pass
-    db.session.commit()
+    err, _ = retire_cron_by_task_name(task_name, datas.get('reason'))
+    if err:
+        return api_err_return(msg=err)
     return 'ok'
 
 

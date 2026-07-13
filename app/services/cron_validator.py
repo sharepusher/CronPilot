@@ -111,7 +111,12 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
     if not task_name:
         return '任务名称不能为空', None
 
-    task_keyword = datas.get('task_keyword') or ''
+    task_keyword = (datas.get('task_keyword') or '').strip()
+    if not task_keyword:
+        return '任务说明不能为空', None
+    if len(task_keyword) > 500:
+        return '任务说明不能超过500字', None
+
     run_date = datas.get('run_date') or ''
     ds_ms = (datas.get('ds_ms') or '').strip()
 
@@ -188,3 +193,13 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         'second': second,
         'req_url': req_url,
     }
+
+
+def validate_retire_reason(reason):
+    """人工下线原因：trim 后 1～500 字。成功返回 (None, reason)。"""
+    reason = (reason or '').strip()
+    if not reason:
+        return '请填写下线原因', None
+    if len(reason) > 500:
+        return '下线原因不能超过500字', None
+    return None, reason

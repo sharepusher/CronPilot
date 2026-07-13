@@ -43,6 +43,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 系统裁剪 | 保留 `job_log_counts` 自动裁剪（容量策略） |
 | 设计 | [doc/任务生命周期与无删除设计.html](doc/任务生命周期与无删除设计.html) |
 
+### LIFECYCLE-2 · 元数据与下线可追溯（已落地 · 待 v0.3.0 tag）
+
+| 变更 | 说明 |
+|------|------|
+| `task_keyword` | 新建/编辑**必填**，VARCHAR(500)，1～500 字 |
+| `created_at` / `updated_at` | 创建只写一次；仅配置编辑刷新 `updated_at`（启停/下线不刷） |
+| `retire_reason` / `retired_at` | 人工下线必填原因；系统路径写固定文案；**无** `retired_by` |
+| Web | `/cron_retire` 表单填原因后 POST；列表展示下线时间与原因摘要 |
+| API | `/api/cron/retire` 必传 `reason` |
+| Schema | `ensure_sqlite_tables.py` 为已有库补列 |
+| 设计 | [生命周期 §四](doc/任务生命周期与无删除设计.html#lifecycle-2) |
+
 ### 管理端 · 404 友好页（R2.5）
 
 | 变更 | 说明 |
@@ -51,6 +63,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | `errors/404_guest.html` | 未登录：极简页 +「前往登录」；不强制跳登录（无效 URL 语义） |
 | `smoke_http_not_found` | `smoke_http_suite` 断言 guest/logged-in 404 页面；检测旧进程纯文本 `page not found` |
 | 部署注意 | 改 `errors.py` / 模板后须 **重启进程**（`cronpilot.sh restart` 或 Docker `--force-recreate`），否则冒烟失败 |
+
+### 执行记录 log_id 必填（可追溯）
+
+| 变更 | 说明 |
+|------|------|
+| `cron_do` | 每次触发开始即生成 `cronpilot_log_id`；预检失败 / HTTP / 异常均写入同一 `job_log.log_id` |
+| `_save_job_log` | 若调用方未传 `log_id` 则自动补 UUID，禁止空串落库 |
+| 追溯 | 列表 `log_id` 可与回调 query、`/api/cron/add_log`、error.log 中 `log_id=` 对照 |
 
 ---
 

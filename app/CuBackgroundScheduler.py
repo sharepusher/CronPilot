@@ -24,12 +24,25 @@ class CuBackgroundScheduler(BackgroundScheduler):
         db = db.get_connection()
         return db
 
-    def update_cron_info(self,cron_id):
+    def update_cron_info(self, cron_id, reason=''):
         try:
+            from app.services.cron_service import RETIRE_REASON_ONE_SHOT
+            from datas.utils.times import get_now_time
+
             cron_id = cron_id.split('_')[-1]
-            self._dbs().query("update cron_infos set status=-1 where id='%s'" % cron_id)
-        except:
-            pass
+            reason = reason or RETIRE_REASON_ONE_SHOT
+            # reason 仅系统常量，不含用户输入
+            now = get_now_time()
+            self._dbs().query(
+                "update cron_infos set status=-1, retire_reason=:r, retired_at=:t where id=:id",
+                r=reason, t=now, id=cron_id,
+            )
+        except Exception:
+            try:
+                cron_id = str(cron_id).split('_')[-1]
+                self._dbs().query("update cron_infos set status=-1 where id='%s'" % cron_id)
+            except Exception:
+                pass
 
     def _process_jobs(self):
         """
@@ -79,7 +92,8 @@ class CuBackgroundScheduler(BackgroundScheduler):
                             self._logger.error(
                                 'Executor lookup ("%s") failed for job "%s" -- removing it from the '
                                 'job store', job.executor, job)
-                            self.update_cron_info(job.id)
+                            from app.services.cron_service import RETIRE_REASON_EXECUTOR
+                            self.update_cron_info(job.id, RETIRE_REASON_EXECUTOR)
                             self.remove_job(job.id, jobstore_alias)
                             continue
 

@@ -69,6 +69,16 @@
     <tr><td>设计</td><td><a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a></td></tr>
   </table>
 
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">LIFECYCLE-2 · 元数据与下线可追溯（已落地）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>task_keyword</code></td><td>新建/编辑必填，VARCHAR(500)</td></tr>
+    <tr><td><code>created_at</code> / <code>updated_at</code></td><td>创建只写一次；仅配置编辑刷新 updated</td></tr>
+    <tr><td><code>retire_reason</code> / <code>retired_at</code></td><td>人工必填原因；系统固定文案；无 <code>retired_by</code></td></tr>
+    <tr><td>Web / API</td><td>下线表单；<code>/api/cron/retire</code> 必传 <code>reason</code></td></tr>
+    <tr><td>设计</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a></td></tr>
+  </table>
+
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 · 404 友好页（R2.5）</h3>
   <table>
     <tr><th>变更</th><th>说明</th></tr>
@@ -77,6 +87,14 @@
     <tr><td><code>smoke_http_not_found</code></td><td>黄金路径断言 404 页面；检测未重启旧 handler</td></tr>
   </table>
   <p><strong>部署：</strong>改错误页后须重启进程或 Docker <code>--force-recreate</code>。</p>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">执行记录 log_id 必填（可追溯）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td><code>cron_do</code></td><td>每次触发开始即生成 UUID；预检失败 / HTTP / 异常共用同一 <code>job_log.log_id</code></td></tr>
+    <tr><td><code>_save_job_log</code></td><td>未传则自动补 UUID，禁止空串落库</td></tr>
+    <tr><td>追溯</td><td>可与回调 query、<code>add_log</code>、error.log 中 <code>log_id=</code> 对照</td></tr>
+  </table>
 
 <h2 class="new">[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
   <div class="card highlight">

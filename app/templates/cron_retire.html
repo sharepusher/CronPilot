@@ -1,0 +1,48 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='cron_list' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if already %}
+        <div class="alert alert-info">任务「{{ cif.task_name }}」已下线。
+            {% if cif.retired_at %}<br>下线于 {{ cif.retired_at }}{% endif %}
+            {% if cif.retire_reason %}<br>原因：{{ cif.retire_reason }}{% endif %}
+        </div>
+        <p><a href="{{ url_for('main.cron_list') }}" class="btn">返回列表</a></p>
+        {% else %}
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('main.cron_retire') }}">
+            <input type="hidden" name="id" value="{{ cif.id }}"/>
+            <fieldset>
+                <legend>下线任务（不可逆）</legend>
+                <div class="control-group">
+                    <label class="control-label">任务名称</label>
+                    <div class="controls">
+                        <span>{{ cif.task_name }}</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">下线原因</label>
+                    <div class="controls">
+                        <textarea name="reason" rows="3" style="width:80%;max-width:480px" maxlength="500" required></textarea>
+                        <span class="help-block" style="color:#64748b">必填，1～500 字；下线后不可再启/编辑，同类需求请新建任务</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn_submit js-ajax-submit">确认下线</button>
+                    <a class="btn" href="{{ url_for('main.cron_list') }}">取消</a>
+                </div>
+            </fieldset>
+        </form>
+        {% endif %}
+    </div>
+{% endblock %}

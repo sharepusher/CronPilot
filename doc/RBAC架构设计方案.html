@@ -113,21 +113,21 @@
   <table>
     <tr><th>permission</th><th>路由（main）</th></tr>
     <tr><td><code>cron:read</code></td><td><code>cron_list</code>、<code>api_doc</code></td></tr>
-    <tr><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code></td></tr>
-    <tr><td><code>cron:delete</code></td><td><code>cron_del</code>、<code>cron_batch_del</code></td></tr>
-    <tr><td><code>log:read</code></td><td><code>job_log_list</code>、<code>job_log_item_list</code>、<code>job_log_all_list</code></td></tr>
-    <tr><td><code>log:delete</code></td><td><code>job_log_delete</code>、<code>job_batch_delete</code></td></tr>
+    <tr><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code>（暂停/运行）</td></tr>
+    <tr><td><code>cron:retire</code></td><td><code>cron_retire</code>（下线，不可逆；仅 admin）</td></tr>
+    <tr><td><code>log:read</code></td><td><code>job_log_list</code>、<code>job_log_item_list</code>、<code>job_log_all_list</code>、<code>job_log_detail</code></td></tr>
     <tr><td><code>user:manage</code></td><td><code>/rbac/users*</code>（新 Blueprint）</td></tr>
     <tr><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code>；远期 P1 <code>operation_log_list</code></td></tr>
   </table>
-  <p><code>check_pass</code>、<code>logout</code>（main 旧路由）不挂权限装饰器；<code>api/views.py</code> <strong>本次不改</strong>。</p>
+  <p><strong>废弃：</strong><code>cron:delete</code>、<code>log:delete</code>（产品禁止人工删除任务/流水）。生命周期见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>。</p>
+  <p><code>check_pass</code>、<code>logout</code>（main 旧路由）不挂权限装饰器。</p>
 
   <h3>3.3 <code>app/rbac/policy.py</code></h3>
   <pre>ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
-    'admin':    {'cron:read', 'cron:write', 'cron:delete',
-                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'user:manage', 'audit:read'},
 }
 
 def has_permission(role: str, permission: str) -> bool:
@@ -316,9 +316,10 @@ def get_role_permission_set(role):
   <p>隐藏域 <code>next</code>；用户名 placeholder：「留空则使用旧版密码登录」。</p>
 
   <h3>8.3 按钮级权限（<code>cron_list.html</code>）</h3>
-  <pre>{% if has_perm('cron:write') %}&lt;a href="...cron_edit..."&gt;编辑&lt;/a&gt;{% endif %}
-{% if has_perm('cron:delete') %}&lt;a class="js-ajax-delete" ...&gt;删除&lt;/a&gt;{% endif %}</pre>
-  <p>装饰器权限字符串与模板 <code>has_perm('...')</code> 必须完全一致。</p>
+  <pre>{% if has_perm('cron:write') %}&lt;a href="...cron_edit..."&gt;编辑&lt;/a&gt;
+&lt;a ...&gt;运行/停止&lt;/a&gt;{% endif %}
+{% if has_perm('cron:retire') %}&lt;a ...&gt;下线&lt;/a&gt;{% endif %}</pre>
+  <p>装饰器权限字符串与模板 <code>has_perm('...')</code> 必须完全一致。<strong>无</strong>删除按钮（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）。</p>
 
   <h3>8.4 <code>rbac/users.html</code></h3>
   <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。</p>

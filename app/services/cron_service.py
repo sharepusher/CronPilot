@@ -102,6 +102,8 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
     if not cif:
         cif = create_cron(normalized)
     else:
+        if cif.status == -1:
+            return '任务已下线，不能更新；请使用新的任务名称新建', None
         update_cron(cif, normalized)
     return None, cif
 
@@ -136,6 +138,8 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
     cif = db.session.get(CronInfos, cron_id)
     if not cif:
         return '任务不存在'
+    if cif.status == -1:
+        return '任务已下线，不能编辑；请新建任务'
     update_cron(cif, normalized)
     return None
 

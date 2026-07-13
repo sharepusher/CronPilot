@@ -1,28 +1,25 @@
 # -*- coding:utf-8 -*-
 import traceback
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app import scheduler, db
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.job_log_items import JobLogItems
-from datas.utils.times import get_now_time
+from datas.utils.json import json_response
 from . import main
-from flask import render_template, request, redirect, session, current_app, jsonify, url_for
+from flask import render_template, request, redirect, session, current_app
 
-from app.auth.password import verify_login_password
 from app.rbac.decorators import require_permission
 from app.services.cron_service import add_cron_web, edit_cron_web
-from app.services.job_log_service import delete_job_logs_for_cron
 
 from ..common.functions import wechat_info_err, web_api_return
-from ..decorated import login_required
 
 
 @main.route('/cron_list', methods=['GET', 'POST'])
 @main.route('/', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:read')
 def cron_list():
     keyword = request.args.to_dict()
     page = int(request.args.get('page') or 1)
@@ -42,13 +39,13 @@ def cron_list():
 
 
 @main.route('/api_doc', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:read')
 def api_doc():
     return render_template("api_doc.html")
 
 
 @main.route('/job_log_list', methods=['GET', 'POST'])
-@login_required
+@require_permission('log:read')
 def job_log_list():
     keywords = request.args.to_dict()
 
@@ -67,7 +64,7 @@ def job_log_list():
     return render_template("job_log_list.html", page_data=page_data, keywords=keywords)
 
 @main.route('/job_log_item_list', methods=['GET', 'POST'])
-@login_required
+@require_permission('log:read')
 def job_log_item_list():
     log_id = request.args.get('log_id')
     page_data = db.session.scalars(
@@ -78,7 +75,7 @@ def job_log_item_list():
 
 
 @main.route('/job_log_detail', methods=['GET'])
-@login_required
+@require_permission('log:read')
 def job_log_detail():
     job_log_id = request.args.get('id')
     jl = db.session.get(JobLog, job_log_id)
@@ -94,7 +91,7 @@ def job_log_detail():
 
 
 @main.route('/job_log_all_list', methods=['GET', 'POST'])
-@login_required
+@require_permission('log:read')
 def job_log_all_list():
     keywords = request.args.to_dict()
 
@@ -124,28 +121,19 @@ def job_log_all_list():
 
 
 @main.route('/job_log_delete', methods=['GET', 'POST'])
-@login_required
+@require_permission('log:read')
 def job_log_delete():
-    datas = request.values.to_dict()
-    job_log_id = datas.get('job_log_id')
-    job_logs = db.session.get(JobLog, job_log_id)
-    if not job_logs:
-        return web_api_return(code=1,msg='信息不存在')
-    db.session.delete(job_logs)
-    db.session.commit()
+    return json_response(errcode=1, errmsg='已禁止删除执行记录', status=410)
 
-    return web_api_return(code=0,msg='删除成功')
 
 @main.route('/job_batch_delete', methods=['GET', 'POST'])
-@login_required
+@require_permission('log:read')
 def job_batch_delete():
-    ids = request.form.getlist('id')
-    db.session.execute(delete(JobLog).where(JobLog.id.in_(ids)))
-    db.session.commit()
-    return web_api_return(code=0, msg='操作成功', url='/job_log_all_list')
+    return json_response(errcode=1, errmsg='已禁止删除执行记录', status=410)
+
 
 @main.route('/cron_add', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:write')
 def cron_add():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
@@ -164,12 +152,14 @@ def cron_add():
 
 
 @main.route('/cron_edit', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:write')
 def cron_edit():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
     id = request.values.get('id')
     cif = db.session.get(CronInfos, id)
+    if cif and cif.status == -1:
+        return web_api_return(code=1, msg='任务已下线，不能编辑；请新建任务', url='/cron_list')
     if request.method == 'POST':
         err = edit_cron_web(request.values.to_dict(), is_dev, CRON_CONFIG, id)
         if err:
@@ -180,12 +170,14 @@ def cron_edit():
 
 
 @main.route('/update_status', methods=['GET', 'POST'])
-@login_required
+@require_permission('cron:write')
 def update_status():
     id = request.args.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在',url='/cron_list')
+    if cif.status == -1:
+        return web_api_return(code=1, msg='任务已下线，不能启停；请新建任务')
     status = cif.status
     _status = 0
     if status == 0:
@@ -198,42 +190,37 @@ def update_status():
     db.session.commit()
     return web_api_return(code=0, msg='操作成功')
 
-@main.route('/cron_del', methods=['GET', 'POST'])
-@require_permission('cron:delete')
-def cron_del():
-    id = request.args.get('id')
+
+@main.route('/cron_retire', methods=['GET', 'POST'])
+@require_permission('cron:retire')
+def cron_retire():
+    id = request.args.get('id') or request.values.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在', url='/cron_list')
-    cron_id = cif.id
-
-    db.session.delete(cif)
-
+    if cif.status == -1:
+        return web_api_return(code=0, msg='任务已下线', url='/cron_list')
+    cif.status = -1
+    db.session.add(cif)
     try:
-        scheduler.remove_job('cron_%s' % cron_id)
-    except:
+        scheduler.remove_job('cron_%s' % cif.id)
+    except Exception:
         pass
-
-    delete_job_logs_for_cron(cron_id)
-
     db.session.commit()
-    return web_api_return(code=0, msg='操作成功', url='/cron_list')
+    return web_api_return(code=0, msg='任务已下线', url='/cron_list')
+
+
+@main.route('/cron_del', methods=['GET', 'POST'])
+@require_permission('cron:read')
+def cron_del():
+    return json_response(errcode=1, errmsg='已禁止删除任务，请使用下线', status=410)
+
 
 @main.route('/cron_batch_del', methods=['GET', 'POST'])
-@require_permission('cron:delete')
+@require_permission('cron:read')
 def cron_batch_del():
-    ids = request.form.getlist('id')
-    db.session.execute(delete(CronInfos).where(CronInfos.id.in_(ids)))
-    db.session.execute(delete(JobLog).where(JobLog.cron_info_id.in_(ids)))
-    db.session.commit()
+    return json_response(errcode=1, errmsg='已禁止删除任务，请使用下线', status=410)
 
-    try:
-        for cron_id in ids:
-            scheduler.remove_job('cron_%s' % cron_id)
-    except:
-        pass
-
-    return web_api_return(code=0, msg='操作成功', url='/cron_list')
 
 @main.route('/check_pass', methods=['GET', 'POST'])
 def check_pass():

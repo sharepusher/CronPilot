@@ -248,12 +248,13 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><th>管理页操作</th><th>前端请求</th><th>Flask 路由</th><th>服务/逻辑</th><th>APScheduler（服务端）</th></tr>
       <tr><td>添加任务（含执行时间）</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_add</code></td><td><code>add_cron_web</code> → <code>create_cron</code></td><td><code>add_job</code></td></tr>
       <tr><td>编辑任务 / 改时间</td><td><code>POST</code> 表单 Ajax</td><td><code>/cron_edit</code></td><td><code>edit_cron_web</code> → <code>update_cron</code></td><td><code>add_job(replace_existing)</code></td></tr>
-      <tr><td>启动 / 停止</td><td><code>GET</code> Ajax 对话框</td><td><code>/update_status</code></td><td><code>main/views.py</code> 直接</td><td><code>resume_job</code> / <code>pause_job</code></td></tr>
-      <tr><td>删除 / 批量删</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_del</code>、<code>/cron_batch_del</code></td><td>ORM 删除 + <code>job_log_service</code></td><td><code>remove_job</code></td></tr>
+      <tr><td>启动 / 暂停</td><td><code>GET</code> Ajax 对话框</td><td><code>/update_status</code></td><td><code>main/views.py</code></td><td><code>resume_job</code> / <code>pause_job</code></td></tr>
+      <tr><td>下线（生命周期终点）</td><td><code>GET</code> / <code>POST</code></td><td><code>/cron_retire</code></td><td>写 <code>status=-1</code>；保留行与日志</td><td><code>remove_job</code></td></tr>
       <tr><td>任务列表 / 执行记录</td><td><code>GET</code> 页面</td><td><code>/cron_list</code>、<code>/job_log_*</code></td><td>ORM 分页查询</td><td>无（只读 DB）</td></tr>
     </table>
     <div class="card warn">
-      <p><strong>操作审计（现状）：</strong>上表管理写操作<strong>不落库操作记录</strong>，仅更新 <code>cron_infos</code> 当前态。谁、何时、改了什么<strong>不可追溯</strong>。任务<strong>执行</strong>记录见 <code>job_log</code>（到点回调结果），与配置变更审计不同。P1 规划见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-09">OPT-P1-09</a>。</p>
+      <p><strong>无删除：</strong>禁止人工删除任务与执行流水。暂停 ≠ 下线。权威设计见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>。</p>
+      <p><strong>操作审计（现状）：</strong>管理写操作<strong>不落库操作记录</strong>（P1 规划见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-09">OPT-P1-09</a>）。审计 action 用 <code>retire_cron</code>，不用 <code>delete_cron</code>。</p>
     </div>
     <p>外部系统集成走 <strong>REST API</strong>（<code>/api/cron</code>、<code>/api/cron/status</code>），同样经 <code>cron_service</code> 写库后由服务端注册调度，<strong>亦非</strong>直连 APScheduler。详见 <a href="技术方案与前端设计.html">技术方案与前端设计</a> 第 6 节 API 规范。</p>
   </section>
@@ -306,7 +307,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td><code>operator_id</code></td><td>VARCHAR(64)</td><td>稳定主体 ID：未来 <code>users.id</code>；API 为 client/token 哈希；legacy 为 session 哈希；system 为空</td></tr>
       <tr><td><code>operator_name</code></td><td>VARCHAR(120)</td><td>展示名快照：用户名、邮箱、<code>API集成</code>、<code>系统</code>、<code>管理员</code>（删用户后仍可读）</td></tr>
       <tr><td><code>operator_roles_json</code></td><td>TEXT</td><td>操作时角色快照 JSON 数组，如 <code>["admin"]</code>、<code>["operator","viewer"]</code></td></tr>
-      <tr><td><code>operator_permissions_json</code></td><td>TEXT</td><td>操作时权限码快照，如 <code>["cron:read","cron:write","cron:delete"]</code>；全权限可 <code>["*"]</code></td></tr>
+      <tr><td><code>operator_permissions_json</code></td><td>TEXT</td><td>操作时权限码快照，如 <code>["cron:read","cron:write","cron:retire"]</code>；全权限可 <code>["*"]</code></td></tr>
       <tr><td colspan="3"><strong>请求与目标</strong></td></tr>
       <tr><td><code>client_ip</code></td><td>VARCHAR(45)</td><td>可选，取自 <code>X-Forwarded-For</code> / <code>remote_addr</code></td></tr>
       <tr><td><code>target_type</code></td><td>VARCHAR(16)</td><td><code>cron</code> | <code>job_log</code></td></tr>
@@ -429,9 +430,9 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
       <tr><th>permission</th><th>含义</th><th>典型角色</th></tr>
       <tr><td><code>cron:read</code></td><td>查看任务列表、API 文档</td><td>viewer</td></tr>
       <tr><td><code>cron:write</code></td><td>新增/编辑/启停任务</td><td>operator</td></tr>
-      <tr><td><code>cron:delete</code></td><td>删除任务</td><td>admin</td></tr>
+      <tr><td><code>cron:write</code></td><td>添加/编辑/启停</td><td>operator</td></tr>
+      <tr><td><code>cron:retire</code></td><td>下线任务（不可逆）</td><td>admin</td></tr>
       <tr><td><code>log:read</code></td><td>查看执行日志</td><td>viewer</td></tr>
-      <tr><td><code>log:delete</code></td><td>删除执行记录</td><td>operator</td></tr>
       <tr><td><code>audit:read</code></td><td>查看操作/ RBAC 审计</td><td>admin</td></tr>
       <tr><td><code>user:manage</code></td><td>用户与角色管理</td><td>admin</td></tr>
     </table>
@@ -476,7 +477,7 @@ API access_token ──► 独立轨道，operator_type=api（P1 规划）</pre>
       <tr><td><code>cron_service.py</code></td><td><code>create_cron</code></td><td><code>create_cron</code></td></tr>
       <tr><td><code>cron_service.py</code></td><td><code>update_cron</code></td><td><code>update_cron</code></td></tr>
       <tr><td><code>main/views.py</code></td><td><code>update_status</code></td><td><code>toggle_status</code></td></tr>
-      <tr><td><code>main/views.py</code></td><td><code>cron_del</code> / <code>cron_batch_del</code></td><td><code>delete_cron</code> / <code>batch_delete_cron</code></td></tr>
+      <tr><td><code>main/views.py</code></td><td><code>cron_retire</code></td><td><code>retire_cron</code></td></tr>
       <tr><td><code>api/views.py</code></td><td><code>crons</code> / <code>cron_status</code></td><td>同 Web，<code>channel=api</code></td></tr>
     </table>
 
@@ -513,8 +514,8 @@ API access_token ──► 独立轨道，operator_type=api（P1 规划）</pre>
     <table>
       <tr><th>role</th><th>permissions</th></tr>
       <tr><td><code>viewer</code></td><td><code>cron:read</code> <code>log:read</code></td></tr>
-      <tr><td><code>operator</code></td><td>viewer + <code>cron:write</code> <code>log:delete</code></td></tr>
-      <tr><td><code>admin</code></td><td>operator + <code>cron:delete</code> <code>user:manage</code> <code>audit:read</code></td></tr>
+      <tr><td><code>operator</code></td><td>viewer + <code>cron:write</code></td></tr>
+      <tr><td><code>admin</code></td><td>operator + <code>cron:retire</code> <code>user:manage</code> <code>audit:read</code></td></tr>
     </table>
     <p>策略常量：<code>app/rbac/policy.py</code> → <code>ROLE_PERMISSIONS</code>。</p>
 
@@ -723,8 +724,8 @@ api/views ──► access_token（不变，与 Web RBAC 分离）</pre>
     <table>
       <tr><th>角色</th><th>权限摘要</th></tr>
       <tr><td><code>viewer</code></td><td><code>cron:read</code> <code>log:read</code></td></tr>
-      <tr><td><code>operator</code></td><td>+ <code>cron:write</code> <code>log:delete</code></td></tr>
-      <tr><td><code>admin</code></td><td>+ <code>cron:delete</code> <code>user:manage</code> <code>audit:read</code></td></tr>
+      <tr><td><code>operator</code></td><td>+ <code>cron:write</code></td></tr>
+      <tr><td><code>admin</code></td><td>+ <code>cron:retire</code> <code>user:manage</code> <code>audit:read</code></td></tr>
     </table>
 
     <h3>15.5 实施步骤（摘要）</h3>

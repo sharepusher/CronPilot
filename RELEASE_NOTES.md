@@ -19,9 +19,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services（`@lru_cache`）、`make_has_perm`、`require_permission`、Blueprint 注入 `has_perm` |
 | 2.5 登录身份 | ✅ | `/rbac/login` GET/POST、`/rbac/logout`；`check_pass` 转发 + `next` 透传；`rbac/login.html`、`forbidden.html` |
 | 3 导航迁移 | ✅ | 5 主页面 `{% include "rbac/_nav.html" %}`；`rbac/_nav.html` 内 `has_perm` 菜单裁剪 |
-| 4+5 权限（局部） | 🔄 | **`cron:delete` 已闭环**（`cron_del` / `cron_batch_del` + 单行/批量按钮）；**待办**：`cron:read`/`cron:write`、`log:*` 等其余权限点 |
+| 4+5 权限 | ✅ | 全路由 `@require_permission`；**无删除**；`cron:retire` 下线（仅 admin） |
+| 生命周期 | ✅ | 见 [任务生命周期与无删除](doc/任务生命周期与无删除设计.html)：暂停 ≠ 下线；禁人工删任务/流水；`cron:retire` |
 | 6 用户管理 | ⏳ | `/rbac/users`、审计列表 — 未开始 |
-| 7 发布 | ⏳ | 全量 `require_permission` 替换 `@login_required`、三角角色验收、打 tag — 未开始 |
+| 7 发布 | ⏳ | `rbac_enable=1` 三角角色验收、打 tag — 未开始 |
 
 设计说明：[doc/RBAC架构设计方案.html](doc/RBAC架构设计方案.html) · [doc/RBAC落地路线.html](doc/RBAC落地路线.html)
 
@@ -30,8 +31,17 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 默认行为 | `rbac_enable=0`（`conf.ini.example`）：`require_permission` 等同 `@login_required`；`has_perm` 恒为 `True` |
 | 登录入口 | 新：`/rbac/login`；旧：`/check_pass` 仅转发壳（GET 302 / POST 307），保留 `next` |
 | 未登录跳转 | **仅**带 `@login_required` / `@require_permission` 的路由跳转登录；`/docs/*`、`/api/*`（`access_token`）保持公开/独立鉴权 |
-| `cron:delete` | `cron_del`、`cron_batch_del` 装饰器 + `cron_list` 单行/批量删除 UI；`rbac/_nav` 按 `cron:read`/`cron:write`/`log:read` 裁剪 Tab |
-| 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test`（47 项） |
+| `cron:write` / `cron:retire` / `log:read` | 写=启停编辑；下线仅 admin；**废弃** delete |
+| 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test` |
+
+### 任务生命周期 · 无删除（产品约束）
+
+| 变更 | 说明 |
+|------|------|
+| 暂停 vs 下线 | `status=0` 可恢复；`status=-1` 不可逆终点 |
+| 无人工删除 | 退役任务/日志删除路由与 UI；同类需求**新建**任务 |
+| 系统裁剪 | 保留 `job_log_counts` 自动裁剪（容量策略） |
+| 设计 | [doc/任务生命周期与无删除设计.html](doc/任务生命周期与无删除设计.html) |
 
 ### 管理端 · 404 友好页（R2.5）
 

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 任务生命周期与无删除设计</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#134e4a,#0d9488 50%,#2563eb);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:980px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .ok{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#bfdbfe;font-size:.9rem">← 文档索引</a>
+  <span class="tag">产品约束</span><span class="tag">生命周期</span>
+  <h1>任务生命周期与无删除</h1>
+  <p>暂停 ≠ 下线；取消任务/日志人工删除；下线为不可逆终点，同类需求须新建</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<strong>已确认 · 随 v0.3.0 实施</strong></p>
+</header>
+
+<main class="layout">
+
+  <div class="note">
+    <strong>关联：</strong><a href="RBAC架构设计方案.html">RBAC v4</a> ·
+    <a href="架构设计文档.html">架构设计</a> ·
+    <a href="交付状态与路线图.html">交付状态</a>
+  </div>
+
+  <h2>一、问题与根因</h2>
+  <table>
+    <tr><th>项</th><th>内容</th></tr>
+    <tr><td>问题</td><td>任务/执行流水提供「删除」，易丢失审计与历史；「停止」与「结束」语义混淆</td></tr>
+    <tr><td>根因</td><td>早期 CRUD 把删除当生命周期终点；模型已有 <code>status=-1</code> 结束态，但 Web 以物理删除为主</td></tr>
+    <tr><td>目标</td><td>配置与流水可追溯；暂停可恢复；下线不可逆；同类需求新建任务</td></tr>
+  </table>
+
+  <h2>二、状态机（权威）</h2>
+  <table>
+    <tr><th>动作</th><th>含义</th><th><code>cron_infos.status</code></th><th>可逆？</th></tr>
+    <tr><td><strong>运行</strong></td><td>调度执行中</td><td><code>1</code></td><td>—</td></tr>
+    <tr><td><strong>暂停</strong></td><td>临时停调度，配置保留</td><td><code>0</code></td><td>是（可再「运行」）</td></tr>
+    <tr><td><strong>下线</strong></td><td>生命周期终点</td><td><code>-1</code></td><td><strong>否</strong>（不可再启/再改；同类需求<strong>新建</strong>）</td></tr>
+  </table>
+  <pre>创建 → 运行 ⇄ 暂停
+         ↘       ↙
+          下线（终点）</pre>
+  <div class="warn">
+    <strong>不做：</strong>管理端/API 人工删除任务；管理端人工删除执行日志/流水；对已下线任务再启动或编辑「复活」。
+  </div>
+  <div class="ok">
+    <strong>保留：</strong>按 <code>job_log_counts</code> 的系统自动裁剪（容量策略，非用户删除功能）；one-shot 自然结束后写 <code>status=-1</code>。
+  </div>
+
+  <h2>三、方案要点</h2>
+  <h3>3.1 Web</h3>
+  <ul>
+    <li>退役 <code>/cron_del</code>、<code>/cron_batch_del</code>、<code>/job_log_delete</code>、<code>/job_batch_delete</code>（返回 410）</li>
+    <li>新增 <code>/cron_retire?id=</code>：写 <code>status=-1</code> + <code>remove_job</code>；<strong>不删</strong> <code>cron_infos</code> / <code>job_log</code></li>
+    <li>列表：运行中/已暂停显示「下线」；已下线仅展示状态，无启停/编辑/下线</li>
+    <li>已下线禁止 <code>update_status</code>、<code>cron_edit</code></li>
+  </ul>
+  <h3>3.2 API</h3>
+  <ul>
+    <li><code>/api/cron/status</code> 仍仅 <code>0|1</code>（暂停/运行）</li>
+    <li>新增 <code>/api/cron/retire</code>（按 <code>task_name</code>）</li>
+    <li><code>/api/cron</code> upsert：若同名任务已 <code>status=-1</code> → <strong>拒绝</strong>，提示须新建（新 <code>task_name</code>）</li>
+  </ul>
+  <h3>3.3 RBAC</h3>
+  <pre>ROLE_PERMISSIONS = {
+    'viewer':   {'cron:read', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'user:manage', 'audit:read'},
+}</pre>
+  <p><code>cron:write</code> = 添加/编辑/启停；<code>cron:retire</code> = 下线（仅 admin）。<strong>废弃</strong> <code>cron:delete</code>、<code>log:delete</code>。</p>
+
+  <h2>四、开发步骤</h2>
+  <table>
+    <tr><th>步骤</th><th>内容</th></tr>
+    <tr><td>D0</td><td>文档冻结（本文 + RBAC/架构/PRD/路线图/Release Notes）</td></tr>
+    <tr><td>D1</td><td>去掉删除 UI/路由；改单测</td></tr>
+    <tr><td>D2</td><td>实现 <code>cron_retire</code> + 禁改已下线 + API</td></tr>
+    <tr><td>D3</td><td>policy / 三角色 / smoke</td></tr>
+  </table>
+
+  <h2>五、验收</h2>
+  <ol>
+    <li>UI 无任务删除、无日志删除</li>
+    <li>旧删除 URL → 410</li>
+    <li>暂停 ⇄ 运行；下线后不可运行/编辑；列表显示已下线</li>
+    <li>下线后流水仍可查；同类需求走添加（新 task_name）</li>
+    <li><code>rbac_enable=1</code>：operator 可暂停不可下线；admin 可下线</li>
+    <li>自动日志裁剪仍可按配置工作</li>
+  </ol>
+
+</main>
+<footer>
+  CronPilot · 任务生命周期与无删除 ·
+  <a href="任务生命周期与无删除设计.md">Markdown</a> ·
+  <a href="index.html">索引</a>
+</footer>
+</body>
+</html>

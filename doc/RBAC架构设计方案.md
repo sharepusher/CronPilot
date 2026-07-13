@@ -86,23 +86,24 @@ OPT-P2-10RBACv4
 | permission | 路由（main） |
 | --- | --- |
 | `cron:read` | `cron_list`、`api_doc` |
-| `cron:write` | `cron_add`、`cron_edit`、`update_status` |
-| `cron:delete` | `cron_del`、`cron_batch_del` |
-| `log:read` | `job_log_list`、`job_log_item_list`、`job_log_all_list` |
-| `log:delete` | `job_log_delete`、`job_batch_delete` |
+| `cron:write` | `cron_add`、`cron_edit`、`update_status`（暂停/运行） |
+| `cron:retire` | `cron_retire`（下线，不可逆；仅 admin） |
+| `log:read` | `job_log_list`、`job_log_item_list`、`job_log_all_list`、`job_log_detail` |
 | `user:manage` | `/rbac/users*`（新 Blueprint） |
 | `audit:read` | `/rbac/audit-logs`；远期 P1 `operation_log_list` |
 
-`check_pass`、`logout`（main 旧路由）不挂权限装饰器；`api/views.py` **本次不改**。
+**废弃：**`cron:delete`、`log:delete`（产品禁止人工删除任务/流水）。生命周期见 [任务生命周期与无删除](任务生命周期与无删除设计.html)。
+
+`check_pass`、`logout`（main 旧路由）不挂权限装饰器。
 
 ### 3.3 `app/rbac/policy.py`
 
 ```
 ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
-    'admin':    {'cron:read', 'cron:write', 'cron:delete',
-                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'user:manage', 'audit:read'},
 }
 
 def has_permission(role: str, permission: str) -> bool:
@@ -335,11 +336,12 @@ def get_role_permission_set(role):
 ### 8.3 按钮级权限（`cron_list.html`）
 
 ```
-{% if has_perm('cron:write') %}<a href="...cron_edit...">编辑</a>{% endif %}
-{% if has_perm('cron:delete') %}<a class="js-ajax-delete" ...>删除</a>{% endif %}
+{% if has_perm('cron:write') %}<a href="...cron_edit...">编辑</a>
+<a ...>运行/停止</a>{% endif %}
+{% if has_perm('cron:retire') %}<a ...>下线</a>{% endif %}
 ```
 
-装饰器权限字符串与模板 `has_perm('...')` 必须完全一致。
+装饰器权限字符串与模板 `has_perm('...')` 必须完全一致。**无**删除按钮（见 [生命周期设计](任务生命周期与无删除设计.html)）。
 
 ### 8.4 `rbac/users.html`
 

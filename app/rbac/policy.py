@@ -1,9 +1,9 @@
 ROLE_PERMISSIONS = {
     'viewer': {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
+    'operator': {'cron:read', 'cron:write', 'log:read'},
     'admin': {
-        'cron:read', 'cron:write', 'cron:delete',
-        'log:read', 'log:delete', 'user:manage', 'audit:read',
+        'cron:read', 'cron:write', 'cron:retire',
+        'log:read', 'user:manage', 'audit:read',
     },
 }
 

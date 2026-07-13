@@ -101,7 +101,66 @@ class TestRbacLogin(unittest.TestCase):
         self.assertIn('task_name=x', loc)
 
 
-class TestCronBatchDel(unittest.TestCase):
+class TestR3Permissions(unittest.TestCase):
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        with app.app_context():
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            db.create_all()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def _login_as(self, role):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = role
+
+    def test_viewer_cron_write_routes_return_403(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            self._login_as('viewer')
+            for path in ('/cron_add', '/cron_edit?id=1', '/update_status?id=1'):
+                resp = self.client.get(path)
+                self.assertEqual(resp.status_code, 403, path)
+
+    def test_viewer_log_delete_returns_410(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            self._login_as('viewer')
+            resp = self.client.post('/job_log_delete', data={'job_log_id': '1'})
+            self.assertEqual(resp.status_code, 410)
+            resp = self.client.post('/job_batch_delete', data={'id': '1'})
+            self.assertEqual(resp.status_code, 410)
+
+    def test_viewer_cron_retire_returns_403(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            self._login_as('viewer')
+            resp = self.client.get('/cron_retire?id=1')
+            self.assertEqual(resp.status_code, 403)
+
+    def test_unauthenticated_redirects_to_rbac_login_with_next(self):
+        resp = self.client.get('/cron_list')
+        self.assertEqual(resp.status_code, 302)
+        loc = resp.headers['Location']
+        self.assertIn('/rbac/login?next=', loc)
+        self.assertIn('/cron_list', loc)
+
+
+class TestLifecycleNoDelete(unittest.TestCase):
     def setUp(self):
         get_rbac_enabled.cache_clear()
         app = Flask(
@@ -122,12 +181,22 @@ class TestCronBatchDel(unittest.TestCase):
     def tearDown(self):
         get_rbac_enabled.cache_clear()
 
-    def test_operator_post_batch_del_returns_403(self):
+    def test_operator_cron_del_returns_410(self):
         with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
             with self.client.session_transaction() as sess:
                 sess['is_login'] = True
                 sess['role'] = 'operator'
             resp = self.client.post('/cron_batch_del', data={'id': '1'})
+            self.assertEqual(resp.status_code, 410)
+            resp = self.client.get('/cron_del?id=1')
+            self.assertEqual(resp.status_code, 410)
+
+    def test_operator_cannot_retire(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'operator'
+            resp = self.client.get('/cron_retire?id=1')
             self.assertEqual(resp.status_code, 403)
 
 
@@ -199,11 +268,18 @@ class TestRbacPolicy(unittest.TestCase):
     def test_viewer_cannot_write(self):
         self.assertFalse(has_permission('viewer', 'cron:write'))
 
-    def test_operator_cannot_delete_cron(self):
-        self.assertFalse(has_permission('operator', 'cron:delete'))
+    def test_operator_cannot_retire_cron(self):
+        self.assertFalse(has_permission('operator', 'cron:retire'))
+
+    def test_admin_has_retire(self):
+        self.assertTrue(has_permission('admin', 'cron:retire'))
 
     def test_admin_has_user_manage(self):
         self.assertTrue(has_permission('admin', 'user:manage'))
+
+    def test_no_delete_permissions(self):
+        self.assertFalse(has_permission('admin', 'cron:delete'))
+        self.assertFalse(has_permission('operator', 'log:delete'))
 
 
 class TestMakeHasPerm(unittest.TestCase):
@@ -220,7 +296,7 @@ class TestMakeHasPerm(unittest.TestCase):
             with patch('app.rbac.context.get_rbac_enabled', return_value=False) as mocked:
                 has_perm = make_has_perm()
                 for _ in range(200):
-                    self.assertTrue(has_perm('cron:delete'))
+                    self.assertTrue(has_perm('cron:retire'))
                 mocked.assert_called_once()
 
     def test_rbac_enabled_uses_preloaded_set(self):

@@ -377,9 +377,8 @@
           <tr><td><code>create_cron</code></td><td><code>/cron_add</code>、<code>/api/cron</code> 新建</td><td>web / api</td></tr>
           <tr><td><code>update_cron</code></td><td><code>/cron_edit</code>、<code>/api/cron</code> 更新</td><td>web / api</td></tr>
           <tr><td><code>toggle_status</code></td><td><code>/update_status</code>、<code>/api/cron/status</code></td><td>web / api</td></tr>
-          <tr><td><code>delete_cron</code></td><td><code>/cron_del</code></td><td>web</td></tr>
-          <tr><td><code>batch_delete_cron</code></td><td><code>/cron_batch_del</code></td><td>web</td></tr>
-          <tr><td><code>delete_job_log</code></td><td>执行记录删除（可选 P1）</td><td>web</td></tr>
+          <tr><td><code>retire_cron</code></td><td><code>/cron_retire</code>、<code>/api/cron/retire</code></td><td>web / api</td></tr>
+          <tr><td><del>delete_cron</del> / <del>delete_job_log</del></td><td colspan="2"><strong>不做</strong>（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）</td></tr>
         </table>
         <h4>价值与意义</h4>
         <p>补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 <code>job_log</code>，两页职责清晰。</p>

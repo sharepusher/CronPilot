@@ -71,7 +71,7 @@
     <h3>1.1 建设目标</h3>
     <table>
       <tr><th>编号</th><th>目标</th><th>验收标准</th></tr>
-      <tr><td>G1</td><td>任务统一管理</td><td>Web 列表 CRUD、搜索、启停、批量删除</td></tr>
+      <tr><td>G1</td><td>任务统一管理</td><td>Web 列表、搜索、启停、下线（无物理删除）</td></tr>
       <tr><td>G2</td><td>Crontab 兼容</td><td>支持日/周/时/分/秒及 */n、列表、区间</td></tr>
       <tr><td>G3</td><td>开放集成</td><td>REST API 增改任务、启停、上传执行明细</td></tr>
       <tr><td>G4</td><td>集群安全</td><td>多节点部署时同一任务不重复执行</td></tr>
@@ -89,11 +89,11 @@
       <tr><td class="req">002</td><td>任务列表分页（20 条/页），按任务名模糊搜索</td><td><code>/cron_list</code></td></tr>
       <tr><td class="req">003</td><td>新增任务：一次性 / Cron 模式切换</td><td><code>/cron_add</code></td></tr>
       <tr><td class="req">004</td><td>编辑任务，任务名唯一（排除自身）</td><td><code>/cron_edit?id=</code></td></tr>
-      <tr><td class="req">005</td><td>单任务启停（pause/resume job）</td><td><code>/update_status?id=</code></td></tr>
-      <tr><td class="req">006</td><td>单删 / 批量删（同步删 job_log、remove_job）</td><td><code>/cron_del</code>、<code>/cron_batch_del</code></td></tr>
+      <tr><td class="req">005</td><td>单任务启停（pause/resume；暂停 ≠ 下线）</td><td><code>/update_status?id=</code></td></tr>
+      <tr><td class="req">006</td><td>任务下线（status=-1，不可逆；保留行与日志）</td><td><code>/cron_retire</code></td></tr>
       <tr><td class="req">007</td><td>单任务执行记录弹窗</td><td><code>/job_log_list?id=</code> iframe</td></tr>
       <tr><td class="req">008</td><td>全局执行记录：任务名、时间范围筛选</td><td><code>/job_log_all_list</code></td></tr>
-      <tr><td class="req">009</td><td>执行明细查看、单条/批量删日志</td><td><code>/job_log_item_list</code>、delete 路由</td></tr>
+      <tr><td class="req">009</td><td>执行明细查看（<strong>无</strong>人工删日志）</td><td><code>/job_log_item_list</code>、<code>/job_log_detail</code></td></tr>
       <tr><td class="req">010</td><td>内嵌 API 文档页（动态 HOST）</td><td><code>/api_doc</code></td></tr>
     </table>
 
@@ -479,7 +479,7 @@ gunicorn -c gun.py manage:app</pre>
     <h3>14.3 手工检查清单</h3>
     <ul style="margin-left:1.25rem">
       <li>Web 登录失败/成功跳转</li>
-      <li>批量删除任务与日志</li>
+      <li>任务下线（保留配置与流水）；无人工删除</li>
       <li>集群双节点同时只执行一次（查 job_log 时间戳）</li>
       <li>docker-compose 端口映射访问</li>
     </ul>
@@ -525,9 +525,9 @@ gunicorn -c gun.py manage:app</pre>
     <h3>17.1 角色与 <code>ROLE_PERMISSIONS</code></h3>
     <pre>ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
-    'admin':    {'cron:read', 'cron:write', 'cron:delete',
-                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'user:manage', 'audit:read'},
 }</pre>
 
     <h3>17.2 Session 字段（RBAC 启用后）</h3>

@@ -9,7 +9,7 @@ OPT-P2-10路线v4
 
 分阶段实施 · 验收门禁 · PR 切分 · 与 v4 详设对齐
 
-目标版本：**v0.3.0**（建议）· 状态：实施中（阶段 1～3、2.5、2.6、R2 已交付；4/5 其余权限点待办）
+目标版本：**v0.3.0**（建议）· 状态：实施中（阶段 1～5、2.5、2.6、R2/R3 已交付；6/7 待办）
 
 **权威详设：**[RBAC架构设计方案 v4](RBAC架构设计方案.html) ·
 **交付总览：**[交付状态与路线图](交付状态与路线图.html) ·
@@ -34,8 +34,8 @@ OPT-P2-10路线v4
 | **2.5** 登录身份 | `/rbac/login`、`check_pass` 转发、logout | 0.5 d | 已交付 |
 | **3** 导航迁移 | `_admin_nav` → `rbac/_nav.html` + `has_perm` 菜单 | 0.25 d | 已交付 |
 | **2.6** 404 页 | 登录态/访客 `errors/404*.html` + `smoke_http_not_found` | 0.25 d | 已交付 |
-| **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 进行中（`cron:delete` ✅） |
-| **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 进行中（`cron:delete` + `_nav` ✅） |
+| **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 已交付 |
+| **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 已交付 |
 | **6** 用户管理 | `/rbac/users`、审计列表、单测 | 1 d | **v0.3.0** |
 | **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
 
@@ -110,13 +110,15 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 | 顺序 | permission | 视图 | 模板触点 |
 | --- | --- | --- | --- |
-| 1 | `cron:read` | `cron_list`、`api_doc` | —（基线） |
-| 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` | 编辑链接、添加页入口、启停 |
-| 3 | `cron:delete` | `cron_del`、`cron_batch_del` ✅ | 单行 `js-ajax-delete`、批量删除按钮与复选框列 ✅ |
-| 4 | `log:read` | 三个 `job_log_*_list` | — |
-| 5 | `log:delete` | `job_log_delete`、`job_batch_delete` | 删除按钮 |
-| 6 | `user:manage` | `/rbac/users*` | 用户管理页 |
-| 7 | `audit:read` | `/rbac/audit-logs` | 审计列表（P1 `operation_log` 可后续接） |
+| 1 | `cron:read` | `cron_list`、`api_doc` ✅ | —（基线） |
+| 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` ✅ | 编辑、添加入口、启停 ✅ |
+| 3 | `cron:retire` | `cron_retire` | 下线按钮（替代已废弃的 delete） |
+| 4 | `log:read` | 三个 `job_log_*_list` + `job_log_detail` ✅ | — |
+| 5 | ~~`log:delete`~~ | **废弃**：禁止人工删除流水（见 [生命周期设计](任务生命周期与无删除设计.html)） | |
+| 6 | `user:manage` | `/rbac/users*` | 用户管理页（阶段 6） |
+| 7 | `audit:read` | `/rbac/audit-logs` | 审计列表（阶段 6） |
+
+**废弃权限：**`cron:delete`、`log:delete`。任务终点为**下线**（`status=-1`），非物理删除。
 
 **门禁：**每步 `unittest` + 手工：viewer / operator / admin 三角验证；Ajax 403 弹窗、页面 403 友好页。
 

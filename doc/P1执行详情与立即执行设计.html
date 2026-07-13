@@ -133,14 +133,14 @@
         <td>
           <a href="#">立即执行</a> ·
           <a href="#">运行记录</a> ·
-          <a href="#">停止</a> · 编辑 · 删除
+          <a href="#">停止</a> · 编辑 · 下线
         </td>
       </tr>
     </table>
   </div>
   <ul>
     <li>点击「立即执行」→ 确认框（可选，默认<strong>要</strong>）→ POST → 等待（回调最长 120s）→ 跳转 <code>/job_log/&lt;new_id&gt;</code></li>
-    <li><strong>不校验</strong>任务 <code>status==1</code>：已停止任务也可手动跑一次（仅读 <code>cron_infos</code> + URL）</li>
+    <li><strong>不校验</strong>任务 <code>status==1</code>：已暂停任务也可手动跑一次（仅读 <code>cron_infos</code> + URL）；已下线（<code>status=-1</code>）不可</li>
     <li>若 <code>req_url</code> 为空 → 返回 JSON 错误，不调用 <code>cron_do</code></li>
   </ul>
 

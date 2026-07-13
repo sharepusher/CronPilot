@@ -104,7 +104,7 @@ def cron_status():
         return api_err_return(msg='任务不存在')
 
     if ci.status == -1:
-        return api_err_return(msg='任务已结束，不能再操作，只能重新更新')
+        return api_err_return(msg='任务已下线，不能再操作；请使用新的任务名称新建')
 
     if not status:
         #0停止1运行中
@@ -130,6 +130,42 @@ def cron_status():
     db.session.commit()
 
     return 'ok'
+
+
+@api.route('/cron/retire', methods=['GET', 'POST'])
+@api_deal_return
+def cron_retire_api():
+    datas = request.values.to_dict()
+    CRON_CONFIG = current_app.config.get('CRON_CONFIG')
+    api_access_token = CRON_CONFIG.get('api_access_token')
+    task_name = datas.get('task_name')
+    access_token = datas.get('access_token')
+
+    if api_access_token:
+        if not access_token:
+            return api_err_return(msg='access_token不能为空')
+        if api_access_token != access_token:
+            return api_err_return(msg='access_token错误')
+
+    if not task_name:
+        return api_err_return(msg='任务名称不能为空')
+
+    ci = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
+    if not ci:
+        return api_err_return(msg='任务不存在')
+    if ci.status == -1:
+        return 'ok'
+    ci.status = -1
+    db.session.add(ci)
+    try:
+        scheduler.remove_job('cron_%s' % ci.id)
+    except Exception:
+        pass
+    db.session.commit()
+    return 'ok'
+
 
 '''
 上传执行记录

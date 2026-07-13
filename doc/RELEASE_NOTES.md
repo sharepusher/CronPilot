@@ -28,10 +28,19 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 2 核心模块 | ✅ | `app/rbac/` policy/services/context/decorators；`make_has_perm` 闭包预加载 |
 | 2.5 登录 | ✅ | `/rbac/login`、`check_pass` 转发 + `next` |
 | 3 导航 | ✅ | 5 主页面 `rbac/_nav.html`；`has_perm` 菜单裁剪 |
-| 4+5 权限 | 🔄 | `cron:delete` 已闭环；其余权限点待办 |
+| 4+5 权限 | ✅ | 全路由 `@require_permission`；无删除；`cron:retire` |
 | 6 用户管理 | ⏳ | `/rbac/users` 未开始 |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
+
+### 任务生命周期 · 无删除
+
+| 变更 | 说明 |
+| --- | --- |
+| 暂停 vs 下线 | `status=0` 可恢复；`status=-1` 不可逆 |
+| 无人工删除 | 旧删除路由返回 410；同类需求新建 |
+| `cron:retire` | Web `/cron_retire` + API `/api/cron/retire`（仅 admin） |
+| 设计 | [任务生命周期与无删除](任务生命周期与无删除设计.html) |
 
 ### 管理端 · 404 友好页（R2.5）
 

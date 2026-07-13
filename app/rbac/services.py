@@ -58,17 +58,17 @@ def authenticate_user(username, password):
 def write_audit_log(action='', resource='', status='allow', user_id=None, username=None, ip=None):
     if not get_rbac_enabled():
         return
-    entry = RbacAuditLog(
-        user_id=user_id if user_id is not None else session.get('user_id'),
-        username=username if username is not None else session.get('username', ''),
-        action=action,
-        resource=resource or '',
-        ip=ip if ip is not None else (request.remote_addr or ''),
-        status=status,
-        create_time=get_now_time(),
-    )
-    db.session.add(entry)
     try:
+        entry = RbacAuditLog(
+            user_id=user_id if user_id is not None else session.get('user_id'),
+            username=username if username is not None else session.get('username', ''),
+            action=action,
+            resource=resource or '',
+            ip=ip if ip is not None else (request.remote_addr or ''),
+            status=status,
+            create_time=get_now_time(),
+        )
+        db.session.add(entry)
         db.session.commit()
     except Exception:
         db.session.rollback()

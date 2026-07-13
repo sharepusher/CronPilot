@@ -364,9 +364,8 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 | `create_cron` | `/cron_add`、`/api/cron` 新建 | web / api |
 | `update_cron` | `/cron_edit`、`/api/cron` 更新 | web / api |
 | `toggle_status` | `/update_status`、`/api/cron/status` | web / api |
-| `delete_cron` | `/cron_del` | web |
-| `batch_delete_cron` | `/cron_batch_del` | web |
-| `delete_job_log` | 执行记录删除（可选 P1） | web |
+| `retire_cron` | `/cron_retire`、`/api/cron/retire` | web / api |
+| ~~delete\_cron~~ / ~~delete\_job\_log~~ | **不做**（见 [生命周期设计](任务生命周期与无删除设计.html)） | |
 
 #### 价值与意义
 

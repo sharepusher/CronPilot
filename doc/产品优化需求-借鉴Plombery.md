@@ -336,44 +336,26 @@ React 组件复用 `PageLayout`、`Breadcrumbs`，无重复布局。
 
 **优先级：**在 P1-01 上线同一版本交付。
 
-**OPT-P1-09** P1 管理操作审计（operation\_log + 操作记录页）
+**OPT-P1-09** P1 管理操作审计（operation\_log + 操作记录页）· **已交付（待 v0.3.0 tag）**
+
+#### 已交付摘要
+
+表 `operation_log`；服务 `operation_log_service`；路由 `/operation_log_list`（`audit:read`）；写入 create/update/toggle/retire（Web+API）及系统对账下线；配置 `operation_log_counts`。详 [架构 §6.5](架构设计文档.html#op-audit-detail) · [交付状态](交付状态与路线图.html)。
 
 #### Plombery 对照
 
-Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元数据分离。CronPilot 当前连「谁改了 cron 表达式」都无记录。
+Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元数据分离。
 
-#### CronPilot 现状与不足
-
-|  |  |
-| --- | --- |
-| 现状 | 管理端添加/编辑/启停/删除与 `/api/cron` 写操作**无审计表**；仅 `cron_infos` 保留**当前配置**；`job_log` 只记录**到点执行**结果，不是配置变更。 |
-| 不足 | 无法回答「谁把 9 点改成 10 点」「昨晚谁删了任务」；合规与安全事件复盘困难；与详细技术方案已列风险「无审计日志」一致。 |
-
-#### 优化方案
-
-1. 新增表 `operation_log`（库：`cron_job_log_db`），含**操作人五元组**：`operator_type`、`operator_id`、`operator_name`、`operator_roles_json`、`operator_permissions_json`（见 [架构设计 §6.5](架构设计文档.html#op-audit-detail)）。
-2. 新增 `OperatorContext` + `resolve_operator_from_request()`，写审计时固化角色/权限快照。
-3. 管理页 `/operation_log_list`：分页、按任务名/**操作人**/操作类型/时间筛选；列表展示**操作人、角色**。
-4. 编辑类操作 `detail_json` 存字段级 diff；删除类存最后快照摘要。
-5. 配置 `operation_log_counts` 控制保留条数（默认可 5000）。
-
-#### 记录范围（首批）
+#### 记录范围
 
 | action | 触发点 | channel |
 | --- | --- | --- |
 | `create_cron` | `/cron_add`、`/api/cron` 新建 | web / api |
 | `update_cron` | `/cron_edit`、`/api/cron` 更新 | web / api |
 | `toggle_status` | `/update_status`、`/api/cron/status` | web / api |
-| `retire_cron` | `/cron_retire`、`/api/cron/retire` | web / api |
-| ~~delete\_cron~~ / ~~delete\_job\_log~~ | **不做**（见 [生命周期设计](任务生命周期与无删除设计.html)） | |
+| `retire_cron` | `/cron_retire`、`/api/cron/retire`、系统对账 | web / api / system |
 
-#### 价值与意义
-
-补齐「配置变更」与「执行结果」边界；满足运维问责与轻量合规；不替代 `job_log`，两页职责清晰。
-
-**验收：**Web 改任务后审计行含 `operator_name`、`operator_roles_json`；API 行为 `operator_type=api_client`；列表可按操作人筛选；P2 接 `users` 后 `operator_id` 可对齐用户主键无需改表。
-
-**操作人：**RBAC 已落地后 Web 写审计用 `operator_type=user`（Session `user_id`/`username`/`role`）；API 用 `api_client`。`legacy_admin` 已取消，勿再设计该分支。
+**操作人：**Web=`user`；API=`api_client`；无请求=`system`。与 `rbac_audit_logs` 分表。
 
 ## P2 需求（体验与规模化）
 
@@ -573,7 +555,7 @@ OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 | OPT-P1-06 | OpenAPI | P1 | 未开始 | — |
 | OPT-P1-07 | 模板 partial（nav） | P1 | 已交付 | v0.2.0 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 未开始 | — |
-| OPT-P1-09 | 管理操作审计 | P1 | 未开始 | — |
+| OPT-P1-09 | 管理操作审计 | P1 | 已交付 · 待 tag | v0.3.0 |
 | OPT-P2-10 | 多用户 RBAC | P2 | 已交付 · 待 tag | v0.3.0 |
 | OPT-P2-11 | 依赖分层升级 | P2 | Tier 0–2 已交付 | v0.2.0 |
 | OPT-P2-01~09 | SSE/图表/OAuth… | P2 | 未开始 | — |

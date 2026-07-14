@@ -4,7 +4,7 @@
 
 # CronPilot Release Notes
 
-v0.3.0 2026-07-14 · RBAC / 生命周期 / log\_id
+v0.3.0 2026-07-14 · RBAC / 生命周期 / operation\_log
  | 
 v0.2.0 2026-06-10 · P1 可观测 / Tier 0–2 / UI
  | 
@@ -18,13 +18,13 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 ## [Unreleased]
 
-下一版计划见 [**交付状态与路线图**](交付状态与路线图.html)。建议下一优化：**OPT-P1-09** 管理操作审计 `operation_log`（与 `/rbac/audit-logs` 分表）。
+下一版计划见 [**交付状态与路线图**](交付状态与路线图.html)。
 
 **维护约定：**未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。
 
-## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录
+## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、操作审计、可追溯执行记录
 
-交付 **OPT-P2-10 RBAC v4**（用户管理/审计）、**LIFECYCLE-1/2**、**log\_id 必填**、**404 友好页**。升级须重启；登录改为用户名+密码（空表种子 `admin`）。
+交付 **OPT-P2-10 RBAC v4**、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**log\_id 必填**、**404 友好页**。升级须重启；登录改为用户名+密码（空表种子 `admin`）。
 
 ### OPT-P2-10 · RBAC v4
 
@@ -42,6 +42,14 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 冒烟 | `username=admin&password=…` |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
+
+### OPT-P1-09 · 操作记录 `operation_log`
+
+| 变更 | 说明 |
+| --- | --- |
+| 写入 | `create_cron` / `update_cron` / `toggle_status` / `retire_cron`（Web+API）；系统对账下线 |
+| 管理页 | `/operation_log_list`；权限 `audit:read`；与 RBAC「审计」分表 |
+| 保留 | `operation_log_counts`（默认 5000）；`cron_del_operation_log` |
 
 ### 任务生命周期 / LIFECYCLE-2 / 404 / log\_id
 

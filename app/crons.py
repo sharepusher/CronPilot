@@ -271,8 +271,30 @@ def cron_check():
                             RETIRE_REASON_ORPHAN,
                             apply_retire,
                         )
+                        from app.services.operation_log_service import (
+                            OperatorContext,
+                            record_operation,
+                            snapshot_cron,
+                        )
                         apply_retire(item, RETIRE_REASON_ORPHAN)
                         db.session.commit()
+                        record_operation(
+                            action='retire_cron',
+                            channel='system',
+                            operator=OperatorContext(
+                                operator_type='system',
+                                operator_name='系统',
+                                roles=['system'],
+                                permissions=['*'],
+                            ),
+                            target_id=item.id,
+                            task_name=item.task_name or '',
+                            detail={
+                                'reason': item.retire_reason or '',
+                                'retired_at': item.retired_at or '',
+                                'snapshot': snapshot_cron(item),
+                            },
+                        )
         except Exception as e:
             db.session.rollback()
             trace_info = traceback.format_exc()
@@ -302,6 +324,26 @@ def cron_del_job_log():
                     if counts > int(job_log_counts):
                         trim_job_logs_for_cron(item.id, int(job_log_counts))
                         db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            trace_info = traceback.format_exc()
+            current_app.logger.error("==============")
+            current_app.logger.error(str(e))
+            current_app.logger.error(trace_info)
+            current_app.logger.error("==============")
+    return "ok"
+
+
+@single_task()
+def cron_del_operation_log():
+    with scheduler.app.app_context():
+        try:
+            from app.services.operation_log_service import trim_operation_logs
+
+            keep = configs().get('operation_log_counts') or 0
+            if int(keep) != 0:
+                trim_operation_logs(int(keep))
+                db.session.commit()
         except Exception as e:
             db.session.rollback()
             trace_info = traceback.format_exc()

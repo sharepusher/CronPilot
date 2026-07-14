@@ -1,4 +1,4 @@
-{# active: cron_list | cron_add | job_log | api_doc | users | audit #}
+{# active: cron_list | cron_add | job_log | operation_log | api_doc | users | audit #}
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
@@ -13,6 +13,11 @@
     {% if has_perm('log:read') %}
     <li{% if active == 'job_log' %} class="active"{% endif %}>
         <a{% if active != 'job_log' %} href="{{ url_for('main.job_log_all_list') }}"{% endif %}>任务执行记录</a>
+    </li>
+    {% endif %}
+    {% if has_perm('audit:read') %}
+    <li{% if active == 'operation_log' %} class="active"{% endif %}>
+        <a{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>操作记录</a>
     </li>
     {% endif %}
     {% if has_perm('cron:read') %}

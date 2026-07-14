@@ -16,6 +16,9 @@ def configs(key = None):
     redis_port = cp.get('default','redis_port')
     login_pwd = cp.get('default','login_pwd')
     job_log_counts = cp.get('default','job_log_counts')
+    operation_log_counts = '5000'
+    if cp.has_option('default', 'operation_log_counts'):
+        operation_log_counts = cp.get('default', 'operation_log_counts')
     api_access_token = cp.get('default','api_access_token')
     error_keyword = cp.get('default',"error_keyword")
     fail_on_http_4xx_5xx = '1'
@@ -57,6 +60,7 @@ def configs(key = None):
         'redis_port':redis_port,
         'login_pwd':login_pwd,
         'job_log_counts':job_log_counts,
+        'operation_log_counts': operation_log_counts,
         'api_access_token':api_access_token,
         'error_keyword':error_keyword,
         'fail_on_http_4xx_5xx': fail_on_http_4xx_5xx,

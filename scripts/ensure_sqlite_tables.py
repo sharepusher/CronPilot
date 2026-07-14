@@ -14,6 +14,7 @@ from datas.model.job_log import JobLog  # noqa: F401,E402
 from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
 from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
 from datas.model.rbac_user import RbacUser  # noqa: F401,E402
+from datas.model.operation_log import OperationLog  # noqa: F401,E402
 
 
 def main():

@@ -7,15 +7,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。建议下一优化：**OPT-P1-09** 管理操作审计 `operation_log`（与 `/rbac/audit-logs` 分表）。
+下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
 ---
 
-## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录
+## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、操作审计、可追溯执行记录
 
-交付 **OPT-P2-10 RBAC v4**（含用户管理/审计）、**LIFECYCLE-1/2 无删除与元数据**、**执行记录 log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
+交付 **OPT-P2-10 RBAC v4**（含用户管理/审计）、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**执行记录 log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
 
 ### OPT-P2-10 · RBAC v4
 
@@ -55,7 +55,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 |------|------|
 | 路由 | 只读分页；`audit:read` |
 | 展示 | 用户 ID 独立列；动作/结果中文；说明列可读文案 |
-| 分工 | ≠ OPT-P1-09 `operation_log` |
+| 分工 | ≠ OPT-P1-09 `operation_log`（业务配置变更见「操作记录」） |
+
+### OPT-P1-09 · 管理操作审计 `operation_log`
+
+| 变更 | 说明 |
+|------|------|
+| 表 | `operation_log`（业务库）；SQLite `ensure_sqlite_tables` 自动建表 |
+| 写入 | `create_cron` / `update_cron` / `toggle_status` / `retire_cron`（Web + API）；系统对账下线 |
+| 操作人 | Web=`user`（Session）；API=`api_client`；无请求=`system`；角色/权限快照 JSON |
+| 管理页 | `/operation_log_list`；筛选任务名/操作人/类型/渠道/时间；权限 `audit:read` |
+| 保留 | `operation_log_counts`（默认 5000）；`cron_del_operation_log` 每 8 小时裁剪 |
+| 测试 | `tests/test_operation_log.py` 并入 `cronpilot.sh test` |
 
 ### 任务生命周期 · 无删除
 
@@ -92,7 +103,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 1. 安装/重启：`bash scripts/cronpilot.sh restart`（模板与鉴权变更须重启）。
 2. Web 登录改为 **用户名 + 密码**；空库自动种子 `admin`（密码=`login_pwd`）。
 3. 可选：`rbac_enable=1` 启用三角色；`0` 仍须账号登录但权限旁路。
-4. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
+4. 可选：`operation_log_counts=5000`（未配置时默认 5000）。
+5. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
 
 ---
 

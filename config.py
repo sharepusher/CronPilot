@@ -62,6 +62,16 @@ class Config:
             'hour':'*/8'
         },
         {
+            'id': 'cron_del_operation_log',
+            'func': 'app.crons:cron_del_operation_log',
+            'args': None,
+            'replace_existing': True,
+            'trigger': 'cron',
+            'day_of_week': "*",
+            'day': '*',
+            'hour': '*/8'
+        },
+        {
             'id': 'cron_check_db_sleep',
             'func': 'app.crons:cron_check_db_sleep',
             'args': None,

@@ -30,7 +30,7 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v0.3.0</span> 2026-07-14 · RBAC / 生命周期 / log_id
+    <span class="tag new">v0.3.0</span> 2026-07-14 · RBAC / 生命周期 / operation_log
     &nbsp;|&nbsp;
     <span class="tag">v0.2.0</span> 2026-06-10 · P1 可观测 / Tier 0–2 / UI
     &nbsp;|&nbsp;
@@ -46,13 +46,13 @@
 
 <h2>[Unreleased]</h2>
   <div class="card">
-    <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。建议下一优化：<strong>OPT-P1-09</strong> 管理操作审计 <code>operation_log</code>（与 <code>/rbac/audit-logs</code> 分表）。</p>
+    <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
     <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。</p>
   </div>
 
-<h2 class="new">[0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录</h2>
+<h2 class="new">[0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、操作审计、可追溯执行记录</h2>
   <div class="card highlight">
-    <p>交付 <strong>OPT-P2-10 RBAC v4</strong>（用户管理/审计）、<strong>LIFECYCLE-1/2</strong>、<strong>log_id 必填</strong>、<strong>404 友好页</strong>。升级须重启；登录改为用户名+密码（空表种子 <code>admin</code>）。</p>
+    <p>交付 <strong>OPT-P2-10 RBAC v4</strong>、<strong>OPT-P1-09 <code>operation_log</code></strong>、<strong>LIFECYCLE-1/2</strong>、<strong>log_id 必填</strong>、<strong>404 友好页</strong>。升级须重启；登录改为用户名+密码（空表种子 <code>admin</code>）。</p>
   </div>
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-10 · RBAC v4</h3>
   <table>
@@ -69,6 +69,14 @@
     <tr><td>冒烟</td><td><code>username=admin&amp;password=…</code></td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P1-09 · 操作记录 <code>operation_log</code></h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>写入</td><td><code>create_cron</code> / <code>update_cron</code> / <code>toggle_status</code> / <code>retire_cron</code>（Web+API）；系统对账下线</td></tr>
+    <tr><td>管理页</td><td><code>/operation_log_list</code>；权限 <code>audit:read</code>；与 RBAC「审计」分表</td></tr>
+    <tr><td>保留</td><td><code>operation_log_counts</code>（默认 5000）；<code>cron_del_operation_log</code></td></tr>
+  </table>
 
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 / LIFECYCLE-2 / 404 / log_id</h3>
   <table>

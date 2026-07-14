@@ -1,0 +1,78 @@
+{% extends "admin_base.html" %}
+
+{% import "admin_page.html" as pg %}
+{% block content %}
+    <div class="wrap js-check-wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='operation_log' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        <p style="color:#64748b;margin:8px 0">
+            本页为<strong>任务配置变更</strong>审计（创建/编辑/启停/下线）。
+            登录与权限事件见{% if rbac_enabled and has_perm('audit:read') %}
+            <a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需开启 rbac_enable）{% endif %}。
+        </p>
+        <form class="well form-search" method="get" action="{{ url_for('main.operation_log_list') }}">
+            高级查询：
+            <input type="text" placeholder="任务名称" name="task_name" value="{{ keywords.get('task_name') or '' }}">
+            <input type="text" placeholder="操作人" name="operator_name" value="{{ keywords.get('operator_name') or '' }}">
+            <select name="action">
+                <option value="">操作类型</option>
+                <option value="create_cron"{% if keywords.get('action') == 'create_cron' %} selected{% endif %}>创建任务</option>
+                <option value="update_cron"{% if keywords.get('action') == 'update_cron' %} selected{% endif %}>修改任务</option>
+                <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启停任务</option>
+                <option value="retire_cron"{% if keywords.get('action') == 'retire_cron' %} selected{% endif %}>下线任务</option>
+            </select>
+            <select name="channel">
+                <option value="">渠道</option>
+                <option value="web"{% if keywords.get('channel') == 'web' %} selected{% endif %}>管理端</option>
+                <option value="api"{% if keywords.get('channel') == 'api' %} selected{% endif %}>API</option>
+                <option value="system"{% if keywords.get('channel') == 'system' %} selected{% endif %}>系统</option>
+            </select>
+            <input type="text" name="beg_time" class="js-datetime" value="{{ keywords.get('beg_time') or '' }}" placeholder="开始时间"> --
+            <input type="text" name="end_time" class="js-datetime" value="{{ keywords.get('end_time') or '' }}" placeholder="结束时间">
+            <input type="submit" class="btn btn-primary" value="搜索"/>
+            <a href="{{ url_for('main.operation_log_list') }}" class="btn btn-danger">重置</a>
+        </form>
+        <table class="table table-hover table-bordered">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>操作</th>
+                <th>操作人</th>
+                <th>角色</th>
+                <th>任务名称</th>
+                <th>渠道</th>
+                <th>结果</th>
+                <th>详情</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for item in page_data.items %}
+            <tr>
+                <td>{{ item.create_time }}</td>
+                <td title="{{ item.action }}">{{ operation_action_label(item.action) }}</td>
+                <td>{{ item.operator_name }}</td>
+                <td style="color:#64748b;font-size:12px">{{ item.operator_roles_json }}</td>
+                <td>{{ item.task_name }}</td>
+                <td title="{{ item.channel }}">{{ operation_channel_label(item.channel) }}</td>
+                <td title="{{ item.result }}">{{ operation_result_label(item.result) }}</td>
+                <td title="{{ item.detail_json }}">{{ format_detail_summary(item.action, item.detail_json) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="color:#64748b">暂无操作记录</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination">
+            {{ pg.page(page_data, 'main.operation_log_list', keywords) }}
+        </div>
+    </div>
+{% endblock %}

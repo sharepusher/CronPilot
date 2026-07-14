@@ -63,6 +63,8 @@ def apply_normalized_to_model(cif, normalized):
 
 
 def create_cron(normalized):
+    from app.services.operation_log_service import record_operation, snapshot_cron
+
     now = get_now_time()
     cif = CronInfos(
         task_name=normalized['task_name'],
@@ -81,14 +83,33 @@ def create_cron(normalized):
     db.session.add(cif)
     db.session.commit()
     register_cron_job(cif.id, normalized)
+    record_operation(
+        action='create_cron',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail=snapshot_cron(cif),
+    )
     return cif
 
 
 def update_cron(cif, normalized):
+    from app.services.operation_log_service import (
+        build_cron_diff,
+        record_operation,
+        snapshot_cron,
+    )
+
+    before = snapshot_cron(cif)
     apply_normalized_to_model(cif, normalized)
     db.session.add(cif)
     db.session.commit()
     register_cron_job(cif.id, normalized)
+    record_operation(
+        action='update_cron',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail=build_cron_diff(before, snapshot_cron(cif)),
+    )
     return cif
 
 
@@ -98,6 +119,21 @@ def apply_retire(cif, reason):
     cif.retire_reason = reason
     cif.retired_at = get_now_time()
     db.session.add(cif)
+
+
+def _record_retire(cif):
+    from app.services.operation_log_service import record_operation, snapshot_cron
+
+    record_operation(
+        action='retire_cron',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail={
+            'reason': cif.retire_reason or '',
+            'retired_at': cif.retired_at or '',
+            'snapshot': snapshot_cron(cif),
+        },
+    )
 
 
 def retire_cron_by_id(cron_id, reason):
@@ -118,6 +154,7 @@ def retire_cron_by_id(cron_id, reason):
     except Exception:
         pass
     db.session.commit()
+    _record_retire(cif)
     return None, cif
 
 
@@ -141,6 +178,7 @@ def retire_cron_by_task_name(task_name, reason):
     except Exception:
         pass
     db.session.commit()
+    _record_retire(cif)
     return None, cif
 
 

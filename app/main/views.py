@@ -172,6 +172,8 @@ def cron_edit():
 @main.route('/update_status', methods=['GET', 'POST'])
 @require_permission('cron:write')
 def update_status():
+    from app.services.operation_log_service import record_operation
+
     id = request.args.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
@@ -188,6 +190,12 @@ def update_status():
     cif.status = _status
     db.session.add(cif)
     db.session.commit()
+    record_operation(
+        action='toggle_status',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail={'status': {'old': status, 'new': _status}},
+    )
     return web_api_return(code=0, msg='操作成功')
 
 
@@ -210,6 +218,59 @@ def cron_retire():
     if err:
         return web_api_return(code=1, msg=err)
     return web_api_return(code=0, msg='任务已下线', url='/cron_list')
+
+
+@main.route('/operation_log_list', methods=['GET', 'POST'])
+@require_permission('audit:read')
+def operation_log_list():
+    from datas.model.operation_log import OperationLog
+    from app.services.operation_log_service import (
+        format_detail_summary,
+        operation_action_label,
+        operation_channel_label,
+        operation_result_label,
+    )
+
+    keywords = request.args.to_dict()
+    page = int(request.args.get('page') or 1)
+    task_name = (keywords.get('task_name') or '').strip()
+    operator_name = (keywords.get('operator_name') or '').strip()
+    action = (keywords.get('action') or '').strip()
+    channel = (keywords.get('channel') or '').strip()
+    beg_time = (keywords.get('beg_time') or '').strip()
+    end_time = (keywords.get('end_time') or '').strip()
+
+    filters = []
+    if task_name:
+        filters.append(OperationLog.task_name.like('%{}%'.format(task_name)))
+    if operator_name:
+        filters.append(OperationLog.operator_name.like('%{}%'.format(operator_name)))
+    if action:
+        filters.append(OperationLog.action == action)
+    if channel:
+        filters.append(OperationLog.channel == channel)
+    if beg_time:
+        filters.append(OperationLog.create_time >= beg_time)
+    if end_time:
+        filters.append(OperationLog.create_time <= end_time)
+
+    page_data = (
+        db.session.query(OperationLog)
+        .filter(*filters)
+        .order_by(db.desc(OperationLog.id))
+        .paginate(page=page, per_page=20)
+    )
+    if 'page' in keywords:
+        del keywords['page']
+    return render_template(
+        'operation_log_list.html',
+        page_data=page_data,
+        keywords=keywords,
+        operation_action_label=operation_action_label,
+        operation_channel_label=operation_channel_label,
+        operation_result_label=operation_result_label,
+        format_detail_summary=format_detail_summary,
+    )
 
 
 @main.route('/cron_del', methods=['GET', 'POST'])

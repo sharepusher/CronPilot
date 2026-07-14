@@ -307,15 +307,19 @@ class TestNavHasPerm(unittest.TestCase):
         html = self._render_nav('admin', rbac_enabled=True)
         self.assertIn('用户管理', html)
         self.assertIn('审计', html)
+        self.assertIn('操作记录', html)
 
     def test_admin_nav_hides_users_when_rbac_off(self):
         html = self._render_nav('admin', rbac_enabled=False)
         self.assertNotIn('用户管理', html)
         self.assertNotIn('审计', html)
+        # rbac 关时 has_perm 旁路，操作记录仍对登录用户可见
+        self.assertIn('操作记录', html)
 
     def test_operator_nav_hides_audit(self):
         html = self._render_nav('operator', rbac_enabled=True)
         self.assertNotIn('审计', html)
+        self.assertNotIn('操作记录', html)
 
 
 class TestNotFound(unittest.TestCase):
@@ -646,6 +650,7 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
             self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
             self.assertEqual(self.client.get('/rbac/users').status_code, 403)
             self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+            self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
 
             # operator：可写任务，不可退休/管用户/审计
             self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
@@ -654,15 +659,18 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
             self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
             self.assertEqual(self.client.get('/rbac/users').status_code, 403)
             self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+            self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
 
             # admin：用户管理 + 审计
             self.assertEqual(self._login('tri_admin', 'admin-pass').status_code, 302)
             self.assertEqual(self.client.get('/cron_add').status_code, 200)
             self.assertEqual(self.client.get('/rbac/users').status_code, 200)
             self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 200)
+            self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
             list_html = self.client.get('/cron_list').get_data(as_text=True)
             self.assertIn('用户管理', list_html)
             self.assertIn('审计', list_html)
+            self.assertIn('操作记录', list_html)
         finally:
             for p in patches:
                 p.stop()

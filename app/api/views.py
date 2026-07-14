@@ -106,6 +106,9 @@ def cron_status():
     if ci.status == -1:
         return api_err_return(msg='任务已下线，不能再操作；请使用新的任务名称新建')
 
+    from app.services.operation_log_service import record_operation
+
+    old_status = ci.status
     if not status:
         #0停止1运行中
         if ci.status == 0:
@@ -128,6 +131,13 @@ def cron_status():
 
     db.session.add(ci)
     db.session.commit()
+    if old_status != ci.status:
+        record_operation(
+            action='toggle_status',
+            target_id=ci.id,
+            task_name=ci.task_name or '',
+            detail={'status': {'old': old_status, 'new': ci.status}},
+        )
 
     return 'ok'
 

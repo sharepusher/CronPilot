@@ -11,6 +11,8 @@ cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
 login_pwd=请改为强密码或使用 scripts/hash_login_password.py 生成 pbkdf2 哈希
 # login_pwd：亦作 rbac_users 空表时自动种子用户 admin 的初始密码；Web 登录须填用户名+密码（不再支持空用户名 / legacy_admin）
 job_log_counts=1000
+# 管理操作审计保留条数（OPT-P1-09）；0=不裁剪；内置任务每 8 小时按 id 删最旧
+operation_log_counts=5000
 api_access_token=
 api_key=
 error_keyword=fail,error

@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from flask import request, session
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app import db
 from configs import configs
@@ -11,6 +11,8 @@ from datas.utils.times import get_now_time
 from app.auth.password import verify_login_password
 
 from .policy import ROLE_PERMISSIONS
+
+VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
 
 
 @lru_cache(maxsize=1)
@@ -78,3 +80,89 @@ def ensure_rbac_tables(app):
     with app.app_context():
         RbacUser.__table__.create(db.engine, checkfirst=True)
         RbacAuditLog.__table__.create(db.engine, checkfirst=True)
+
+
+def _normalize_username(username):
+    return (username or '').strip()
+
+
+def _validate_role(role):
+    if role not in VALID_ROLES:
+        return '角色无效，可选：viewer / operator / admin'
+    return ''
+
+
+def _count_active_admins(exclude_id=None):
+    filters = [RbacUser.role == 'admin', RbacUser.is_active == 1]
+    if exclude_id is not None:
+        filters.append(RbacUser.id != exclude_id)
+    return db.session.scalar(select(func.count()).select_from(RbacUser).where(*filters)) or 0
+
+
+def create_user(username, password, role='viewer'):
+    username = _normalize_username(username)
+    if not username:
+        return {'ok': False, 'msg': '用户名不能为空'}
+    if len(username) > 64:
+        return {'ok': False, 'msg': '用户名最长 64 字符'}
+    if not password:
+        return {'ok': False, 'msg': '密码不能为空'}
+    err = _validate_role(role)
+    if err:
+        return {'ok': False, 'msg': err}
+    exists = db.session.scalars(
+        select(RbacUser).where(RbacUser.username == username)
+    ).first()
+    if exists:
+        return {'ok': False, 'msg': '用户名已存在'}
+    user = RbacUser(
+        username=username,
+        role=role,
+        is_active=1,
+        create_time=get_now_time(),
+    )
+    user.set_password(password)
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '创建失败'}
+    write_audit_log(action='user:create', resource=username)
+    return {'ok': True, 'msg': '创建成功', 'user_id': user.id}
+
+
+def update_user(user_id, role=None, is_active=None, password=None):
+    user = db.session.get(RbacUser, user_id)
+    if not user:
+        return {'ok': False, 'msg': '用户不存在'}
+    session_uid = session.get('user_id')
+    if is_active is not None and int(is_active) == 0 and session_uid == user.id:
+        return {'ok': False, 'msg': '不能停用当前登录账号'}
+    new_role = role if role is not None else user.role
+    err = _validate_role(new_role)
+    if err:
+        return {'ok': False, 'msg': err}
+    new_active = user.is_active if is_active is None else (1 if int(is_active) else 0)
+    losing_admin = (
+        user.role == 'admin'
+        and user.is_active == 1
+        and (new_role != 'admin' or new_active == 0)
+    )
+    if losing_admin and _count_active_admins(exclude_id=user.id) < 1:
+        return {'ok': False, 'msg': '不能停用或降权最后一名启用中的管理员'}
+    if password:
+        user.set_password(password)
+    user.role = new_role
+    user.is_active = new_active
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败'}
+    write_audit_log(action='user:update', resource=user.username)
+    return {'ok': True, 'msg': '保存成功'}
+
+
+def get_user_by_id(user_id):
+    return db.session.get(RbacUser, user_id)

@@ -1,0 +1,63 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='users' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if form_msg %}
+        <div style="color:red;margin:8px 0">{{ form_msg }}</div>
+        {% endif %}
+
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.users_edit') }}">
+            <input type="hidden" name="id" value="{{ user.id }}" />
+            <fieldset>
+                <div class="control-group">
+                    <label class="control-label">用户名</label>
+                    <div class="controls">
+                        <input type="text" value="{{ user.username }}" disabled />
+                        <span style="color:#64748b">创建后不可改</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">新密码</label>
+                    <div class="controls">
+                        <input type="password" name="password" />留空则不修改
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">角色</label>
+                    <div class="controls">
+                        <select name="role">
+                            {% for r in roles %}
+                            <option value="{{ r }}"{% if r == user.role %} selected{% endif %}>{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">状态</label>
+                    <div class="controls">
+                        <select name="is_active">
+                            <option value="1"{% if user.is_active %} selected{% endif %}>启用</option>
+                            <option value="0"{% if not user.is_active %} selected{% endif %}>停用</option>
+                        </select>
+                        <span style="color:#64748b">不能停用当前登录账号；须保留至少一名启用中的管理员</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary js-ajax-submit">保存</button>
+                    <a class="btn" href="{{ url_for('rbac.users_list') }}">返回</a>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+{% endblock %}

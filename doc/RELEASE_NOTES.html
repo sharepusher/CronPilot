@@ -56,9 +56,20 @@
     <tr><td>2.5 登录</td><td>✅</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发 + <code>next</code></td></tr>
     <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code>；<code>has_perm</code> 菜单裁剪</td></tr>
     <tr><td>4+5 权限</td><td>✅</td><td>全路由 <code>@require_permission</code>；无删除；<code>cron:retire</code></td></tr>
-    <tr><td>6 用户管理</td><td>⏳</td><td><code>/rbac/users</code> 未开始</td></tr>
+    <tr><td>6a 用户管理</td><td>✅</td><td><code>/rbac/users</code> 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；关 RBAC 隐藏入口</td></tr>
+    <tr><td>6b 审计列表</td><td>⏳</td><td><code>/rbac/audit-logs</code> 未开始</td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">RBAC 6a · <code>/rbac/users</code>（已落地）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>路由</td><td>列表 / 添加 / 编辑；权限 <code>user:manage</code></td></tr>
+    <tr><td>能力</td><td>角色与启停、可选重置密码；无物理删除</td></tr>
+    <tr><td>安全</td><td>禁停用自己；保护最后一名启用中 admin；关 RBAC 隐藏入口</td></tr>
+    <tr><td>表单</td><td>按钮 <code>js-ajax-submit</code>；Ajax 跳转列表；非 Ajax 成功 302</td></tr>
+    <tr><td>防再发</td><td>静态门禁 <code>tests.test_ajax_form_guard</code>；去掉 <code>api_doc</code> / <code>job_log_*</code> 空壳 <code>js-ajax-form</code></td></tr>
+  </table>
 
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 · 无删除</h3>
   <table>

@@ -29,9 +29,20 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 2.5 登录 | ✅ | `/rbac/login`、`check_pass` 转发 + `next` |
 | 3 导航 | ✅ | 5 主页面 `rbac/_nav.html`；`has_perm` 菜单裁剪 |
 | 4+5 权限 | ✅ | 全路由 `@require_permission`；无删除；`cron:retire` |
-| 6 用户管理 | ⏳ | `/rbac/users` 未开始 |
+| 6a 用户管理 | ✅ | `/rbac/users` 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；关 RBAC 隐藏入口 |
+| 6b 审计列表 | ⏳ | `/rbac/audit-logs` 未开始 |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
+
+### RBAC 6a · `/rbac/users`（已落地）
+
+| 变更 | 说明 |
+| --- | --- |
+| 路由 | 列表 / 添加 / 编辑；权限 `user:manage` |
+| 能力 | 角色与启停、可选重置密码；无物理删除 |
+| 安全 | 禁停用自己；保护最后一名启用中 admin；关 RBAC 隐藏入口 |
+| 表单 | 按钮 `js-ajax-submit`；Ajax 跳转列表；非 Ajax 成功 302 |
+| 防再发 | 静态门禁 `tests.test_ajax_form_guard`；去掉 `api_doc` / `job_log_*` 空壳 `js-ajax-form` |
 
 ### 任务生命周期 · 无删除
 

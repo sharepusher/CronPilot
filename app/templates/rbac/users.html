@@ -1,0 +1,49 @@
+{% extends "admin_base.html" %}
+
+{% import "admin_page.html" as pg %}
+{% block content %}
+    <div class="wrap js-check-wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='users' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        <p>
+            <a href="{{ url_for('rbac.users_add') }}" class="btn btn-primary">添加用户</a>
+            <span style="color:#64748b;margin-left:8px">无物理删除；停用即可。须保留至少一名启用中的管理员。</span>
+        </p>
+        <table class="table table-hover table-bordered">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th width="100">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for item in page_data.items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.username }}</td>
+                <td>{{ item.role }}</td>
+                <td>{% if item.is_active %}启用{% else %}停用{% endif %}</td>
+                <td>{{ item.create_time }}</td>
+                <td><a href="{{ url_for('rbac.users_edit', id=item.id) }}">编辑</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination">
+            {{ pg.page(page_data, 'rbac.users_list') }}
+        </div>
+    </div>
+{% endblock %}

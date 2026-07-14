@@ -1,0 +1,52 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='users' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if form_msg %}
+        <div style="color:red;margin:8px 0">{{ form_msg }}</div>
+        {% endif %}
+
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.users_add') }}">
+            <fieldset>
+                <div class="control-group">
+                    <label class="control-label">用户名</label>
+                    <div class="controls">
+                        <input type="text" name="username" maxlength="64" required />* 1～64 字，不可重复
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">密码</label>
+                    <div class="controls">
+                        <input type="password" name="password" required />* 必填
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">角色</label>
+                    <div class="controls">
+                        <select name="role">
+                            {% for r in roles %}
+                            <option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ r }}</option>
+                            {% endfor %}
+                        </select>
+                        <span style="color:#64748b">viewer 只读；operator 可写任务；admin 含用户管理与下线</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary js-ajax-submit">保存</button>
+                    <a class="btn" href="{{ url_for('rbac.users_list') }}">返回</a>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+{% endblock %}

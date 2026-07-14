@@ -343,9 +343,9 @@ def get_role_permission_set(role):
 
 装饰器权限字符串与模板 `has_perm('...')` 必须完全一致。**无**删除按钮（见 [生命周期设计](任务生命周期与无删除设计.html)）。
 
-### 8.4 `rbac/users.html`
+### 8.4 `rbac/users.html`（阶段 6a · 已交付）
 
-复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。
+复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`。无物理删除；禁停用当前登录账号与最后一名启用中 admin。`rbac_enable=0` 时导航隐藏且路由重定向任务列表。
 
 ### 8.5 `rbac/forbidden.html`
 

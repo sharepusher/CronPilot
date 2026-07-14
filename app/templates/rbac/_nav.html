@@ -1,4 +1,4 @@
-{# active: cron_list | cron_add | job_log | api_doc #}
+{# active: cron_list | cron_add | job_log | api_doc | users #}
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
@@ -18,6 +18,11 @@
     {% if has_perm('cron:read') %}
     <li{% if active == 'api_doc' %} class="active"{% endif %}>
         <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
+    </li>
+    {% endif %}
+    {% if rbac_enabled and has_perm('user:manage') %}
+    <li{% if active == 'users' %} class="active"{% endif %}>
+        <a{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>用户管理</a>
     </li>
     {% endif %}
     <li><a href="{{ url_for('main.logout') }}">退出</a></li>

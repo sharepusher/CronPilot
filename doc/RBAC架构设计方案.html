@@ -321,8 +321,8 @@ def get_role_permission_set(role):
 {% if has_perm('cron:retire') %}&lt;a ...&gt;下线&lt;/a&gt;{% endif %}</pre>
   <p>装饰器权限字符串与模板 <code>has_perm('...')</code> 必须完全一致。<strong>无</strong>删除按钮（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）。</p>
 
-  <h3>8.4 <code>rbac/users.html</code></h3>
-  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。</p>
+  <h3>8.4 <code>rbac/users.html</code>（阶段 6a · 已交付）</h3>
+  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。路由：<code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code>。无物理删除；禁停用当前登录账号与最后一名启用中 admin。<code>rbac_enable=0</code> 时导航隐藏且路由重定向任务列表。</p>
 
   <h3>8.5 <code>rbac/forbidden.html</code></h3>
   <p>展示 <code>current_user</code>、<code>permission</code>；返回任务列表链接。</p>

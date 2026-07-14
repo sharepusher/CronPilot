@@ -36,7 +36,8 @@ OPT-P2-10路线v4
 | **2.6** 404 页 | 登录态/访客 `errors/404*.html` + `smoke_http_not_found` | 0.25 d | 已交付 |
 | **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 已交付 |
 | **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 已交付 |
-| **6** 用户管理 | `/rbac/users`、审计列表、单测 | 1 d | **v0.3.0** |
+| **6a** 用户管理 | `/rbac/users` CRUD、单测 | 0.5–1 d | 已交付 |
+| **6b** 审计列表 | `/rbac/audit-logs`、单测 | 0.5 d | **v0.3.0** |
 | **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
 
 **合计：**约 5–7 个工作日（12–16 h 净编码 + 分批人工 `git diff` 约 30–40 min）。
@@ -122,11 +123,20 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 **门禁：**每步 `unittest` + 手工：viewer / operator / admin 三角验证；Ajax 403 弹窗、页面 403 友好页。
 
-### 阶段 6 — 用户管理与审计
+### 阶段 6a — 用户管理（已交付）
 
-- `rbac/users.html` + CRUD 服务
-- 首次 `rbac_enable=1` 空表策略：legacy 登录仍为 admin
-- 补全 `test_rbac_phase.py` 角色边界用例
+- `/rbac/users`、`/users/add`、`/users/edit` + `create_user` / `update_user`
+- 无物理删除；禁停用当前登录账号；保护最后一名启用中 admin
+- `rbac_enable=0`：导航隐藏「用户管理」，直达路由重定向 `/cron_list`
+- 首次 `rbac_enable=1` 空表策略：legacy 登录仍为 admin（既有）
+- `test_rbac_phase.TestRbacUsersManage` + 导航用例
+
+**门禁：**`bash scripts/cronpilot.sh test`（含用户 CRUD / 403 / 最后 admin）；operator 不可进 `/rbac/users`。
+
+### 阶段 6b — 审计列表
+
+- `/rbac/audit-logs` 只读分页；`@require_permission('audit:read')`
+- 导航入口仅 admin；与 P1-09 `operation_log` 分表
 
 ### 阶段 7 — 发布（Release 前文档梳理）
 

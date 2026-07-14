@@ -259,23 +259,34 @@ class TestNavHasPerm(unittest.TestCase):
         app.register_blueprint(rbac_blueprint)
         self.app = app
 
-    def _render_nav(self, role):
+    def _render_nav(self, role, rbac_enabled=True):
         with self.app.app_context():
             with self.app.test_request_context():
                 session['is_login'] = True
                 session['role'] = role
-                with patch('app.rbac.context.get_rbac_enabled', return_value=True):
-                    return render_template('rbac/_nav.html', active='cron_list')
+                with patch('app.rbac.context.get_rbac_enabled', return_value=rbac_enabled):
+                    with patch('app.rbac.services.get_rbac_enabled', return_value=rbac_enabled):
+                        return render_template('rbac/_nav.html', active='cron_list')
 
     def test_viewer_nav_hides_cron_add(self):
         html = self._render_nav('viewer')
         self.assertIn('任务列表', html)
         self.assertIn('任务执行记录', html)
         self.assertNotIn('任务添加', html)
+        self.assertNotIn('用户管理', html)
 
     def test_operator_nav_shows_cron_add(self):
         html = self._render_nav('operator')
         self.assertIn('任务添加', html)
+        self.assertNotIn('用户管理', html)
+
+    def test_admin_nav_shows_users_when_rbac_on(self):
+        html = self._render_nav('admin', rbac_enabled=True)
+        self.assertIn('用户管理', html)
+
+    def test_admin_nav_hides_users_when_rbac_off(self):
+        html = self._render_nav('admin', rbac_enabled=False)
+        self.assertNotIn('用户管理', html)
 
 
 class TestNotFound(unittest.TestCase):
@@ -308,6 +319,144 @@ class TestNotFound(unittest.TestCase):
         self.assertIn('页面不存在', body)
         self.assertIn('返回任务列表', body)
         self.assertIn('任务列表', body)
+
+
+class TestRbacUsersManage(unittest.TestCase):
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            db.create_all()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def _login(self, role='admin', user_id=None):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = role
+            sess['username'] = role
+            if user_id is not None:
+                sess['user_id'] = user_id
+
+    def test_operator_users_list_403(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                self._login('operator')
+                resp = self.client.get('/rbac/users')
+                self.assertEqual(resp.status_code, 403)
+
+    def test_rbac_off_users_redirects_even_for_admin(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=False):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=False):
+                self._login('admin')
+                resp = self.client.get('/rbac/users')
+                self.assertEqual(resp.status_code, 302)
+                self.assertIn('/cron_list', resp.headers['Location'])
+
+    def test_admin_create_and_list_users(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin')
+                    resp = self.client.post(
+                        '/rbac/users/add',
+                        data={'username': 'alice', 'password': 'secret', 'role': 'viewer'},
+                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                    )
+                    self.assertEqual(resp.status_code, 200)
+                    payload = resp.get_json()
+                    self.assertEqual(payload.get('errcode'), 0)
+                    self.assertEqual(payload.get('url'), '/rbac/users')
+                    resp = self.client.get('/rbac/users')
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertIn('alice', resp.get_data(as_text=True))
+
+    def test_add_form_has_ajax_submit_button(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin')
+                    resp = self.client.get('/rbac/users/add')
+                    body = resp.get_data(as_text=True)
+                    self.assertIn('js-ajax-form', body)
+                    self.assertIn('js-ajax-submit', body)
+
+    def test_native_post_add_redirects_to_list(self):
+        """无 Ajax 头时成功应 302 回列表，避免浏览器落在裸 JSON 页。"""
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin')
+                    resp = self.client.post(
+                        '/rbac/users/add',
+                        data={'username': 'bob', 'password': 'secret', 'role': 'viewer'},
+                    )
+                    self.assertEqual(resp.status_code, 302)
+                    self.assertIn('/rbac/users', resp.headers['Location'])
+
+    def test_cannot_disable_last_admin(self):
+        from datas.model.rbac_user import RbacUser
+
+        with self.app.app_context():
+            admin = RbacUser(username='solo', role='admin', is_active=1, create_time='t')
+            admin.set_password('x')
+            self.db.session.add(admin)
+            self.db.session.commit()
+            admin_id = admin.id
+
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin', user_id=999)
+                    resp = self.client.post(
+                        '/rbac/users/edit',
+                        data={'id': str(admin_id), 'role': 'viewer', 'is_active': '1'},
+                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                    )
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertIn('最后一名', resp.get_json().get('errmsg', ''))
+
+    def test_cannot_disable_self(self):
+        from datas.model.rbac_user import RbacUser
+
+        with self.app.app_context():
+            a1 = RbacUser(username='a1', role='admin', is_active=1, create_time='t')
+            a1.set_password('x')
+            a2 = RbacUser(username='a2', role='admin', is_active=1, create_time='t')
+            a2.set_password('x')
+            self.db.session.add_all([a1, a2])
+            self.db.session.commit()
+            self_id = a1.id
+
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin', user_id=self_id)
+                    resp = self.client.post(
+                        '/rbac/users/edit',
+                        data={'id': str(self_id), 'role': 'admin', 'is_active': '0'},
+                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                    )
+                    self.assertEqual(resp.status_code, 200)
+                    self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
 
 
 class TestRbacPolicy(unittest.TestCase):

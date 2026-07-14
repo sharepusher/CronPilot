@@ -21,7 +21,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 3 导航迁移 | ✅ | 5 主页面 `{% include "rbac/_nav.html" %}`；`rbac/_nav.html` 内 `has_perm` 菜单裁剪 |
 | 4+5 权限 | ✅ | 全路由 `@require_permission`；**无删除**；`cron:retire` 下线（仅 admin） |
 | 生命周期 | ✅ | 见 [任务生命周期与无删除](doc/任务生命周期与无删除设计.html)：暂停 ≠ 下线；禁人工删任务/流水；`cron:retire` |
-| 6 用户管理 | ⏳ | `/rbac/users`、审计列表 — 未开始 |
+| 6a 用户管理 | ✅ | `/rbac/users` 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；`rbac_enable=0` 隐藏入口并重定向 |
+| 6b 审计列表 | ⏳ | `/rbac/audit-logs` — 未开始 |
 | 7 发布 | ⏳ | `rbac_enable=1` 三角角色验收、打 tag — 未开始 |
 
 设计说明：[doc/RBAC架构设计方案.html](doc/RBAC架构设计方案.html) · [doc/RBAC落地路线.html](doc/RBAC落地路线.html)
@@ -33,6 +34,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 未登录跳转 | **仅**带 `@login_required` / `@require_permission` 的路由跳转登录；`/docs/*`、`/api/*`（`access_token`）保持公开/独立鉴权 |
 | `cron:write` / `cron:retire` / `log:read` | 写=启停编辑；下线仅 admin；**废弃** delete |
 | 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test` |
+
+### RBAC 6a · `/rbac/users`（已落地 · 待 v0.3.0 tag）
+
+| 变更 | 说明 |
+|------|------|
+| 路由 | `GET /rbac/users`、`/users/add`、`/users/edit`；`@require_permission('user:manage')` |
+| 能力 | 添加用户、改角色/启停、可选重置密码；**无物理删除** |
+| 安全 | 禁停用当前登录账号；禁停用/降权最后一名启用中 admin |
+| 开关 | `rbac_enable=0`：导航隐藏；直达路由重定向 `/cron_list` |
+| 表单 | 提交按钮须 `js-ajax-submit`（与任务添加一致）；Ajax 成功跳转列表；非 Ajax POST 302 回列表 |
+| 测试 | `TestRbacUsersManage`（含按钮类名、原生 POST 302） |
+| 防再发 | 静态门禁 `tests.test_ajax_form_guard`；去掉 `api_doc` / `job_log_*` 无提交的空壳 `js-ajax-form` |
 
 ### 任务生命周期 · 无删除（产品约束）
 

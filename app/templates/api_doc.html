@@ -14,9 +14,7 @@
         {% with active='api_doc' %}
         {% include "rbac/_nav.html" %}
         {% endwith %}
-        <form method="post" class="form-horizontal js-ajax-form" action='{{ url_for('main.cron_add') }}'>
-            <fieldset>
-                <div class="control-group">
+        <div class="control-group">
                     <h3 id="urls"></h3>
                     <h5>请求方式: GET,POST</h5>
                     <h4>参数说明：</h4>
@@ -163,8 +161,6 @@
                         </tbody>
                     </table>
                 </div>
-            </fieldset>
-        </form>
     </div>
 {% endblock %}
 

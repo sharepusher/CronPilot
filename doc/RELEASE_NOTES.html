@@ -48,6 +48,9 @@
   <div class="card">
     <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
     <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。</p>
+    <ul>
+      <li>文档：澄清 <code>login_pwd</code> 仅空表种子；日常改密走「用户管理 → 编辑 → 新密码」（见 README / RBAC §4.5）。</li>
+    </ul>
   </div>
 
 <h2 class="new">[1.0.0] — 2026-07-14 · 重大版本：多用户 RBAC、任务生命周期、操作审计</h2>
@@ -64,7 +67,7 @@
   </table>
   <table>
     <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>登录</td><td>用户名+密码必填；空表种子 <code>admin</code>（密码=<code>login_pwd</code>）；无 <code>legacy_admin</code></td></tr>
+    <tr><td>登录 / 密码</td><td>用户名+密码；空表种子 <code>admin</code>（初始密码=<code>login_pwd</code>）。日常改密：用户管理 → 编辑 → 新密码；有用户后改 <code>login_pwd</code> 无效。无忘记密码。</td></tr>
     <tr><td>默认行为</td><td>三角色分权<strong>始终启用</strong>；登录须 <code>rbac_users</code>；空表种子 <code>admin</code></td></tr>
     <tr><td>分权</td><td>三角色<strong>始终启用</strong>；已移除旁路开关 <code>rbac_enable</code></td></tr>
     <tr><td>冒烟</td><td><code>username=admin&amp;password=…</code></td></tr>

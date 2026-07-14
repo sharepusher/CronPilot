@@ -99,7 +99,7 @@
   <h3>阶段 2.5 — 登录身份子阶段</h3>
   <ul>
     <li><code>views.py</code> — <code>/rbac/login</code> GET/POST、<code>/logout</code></li>
-    <li><code>authenticate_user</code> — legacy 单密码 + <code>rbac_users</code>（<code>select</code> 查询）</li>
+    <li><code>authenticate_user</code> — 校验 <code>rbac_users</code>（用户名+密码；空表时先 <code>ensure_seed_admin</code>）</li>
     <li>模板 <code>rbac/login.html</code>、<code>forbidden.html</code></li>
     <li><code>check_pass</code> 仅改函数体：转发 + <code>next</code> 透传 + 307（v4 §8.2）</li>
   </ul>
@@ -147,7 +147,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
   <ul>
     <li><code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code> + <code>create_user</code> / <code>update_user</code></li>
     <li>无物理删除；禁停用当前登录账号；保护最后一名启用中 admin</li>
-    <li>首次空表：种子 <code>admin</code>（密码=<code>login_pwd</code>）；**无** legacy_admin</li>
+    <li>首次空表：种子 <code>admin</code>（密码=<code>login_pwd</code>）；**无** legacy_admin。有用户后改密：用户管理 → 编辑 →「新密码」；改 <code>login_pwd</code> 无效</li>
     <li><code>test_rbac_phase.TestRbacUsersManage</code> + 导航用例</li>
   </ul>
   <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含用户 CRUD / 403 / 最后 admin）；operator 不可进 <code>/rbac/users</code>。</div>

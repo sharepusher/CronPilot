@@ -57,7 +57,8 @@ bash scripts/run_production.sh                             # ② 启动（前台
 |----|-----|
 | 管理端 | `http://<IP>:5860/` |
 | 文档 | `http://<IP>:5860/docs/` |
-| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启） |
+| 默认登录 | 用户名 `admin` · 初始密码见 `login_pwd`（常为 `changeme`，**仅空库种子**） |
+| 日常改密 | 登录后 **用户管理 → 编辑 → 新密码**（改 `login_pwd` 并重启**不会**改已有账号） |
 
 ---
 
@@ -92,10 +93,12 @@ nano conf.ini
 is_single=1
 cron_db_url=mysql+pymysql://cronpilot:你的密码@127.0.0.1:3306/cron_scheduler
 cron_job_log_db_url=mysql+pymysql://cronpilot:你的密码@127.0.0.1:3306/cron_job_log
-login_pwd=你的管理端密码
+login_pwd=你的管理端初始密码
 ```
 
-可选：生成密码哈希
+> `login_pwd` **仅**在 `rbac_users` 为空时写入种子用户 `admin`。有用户后请用管理端 **用户管理 → 编辑 → 新密码** 改密；再改本配置无效。
+
+可选：生成初始密码哈希（空库首次启动前写入 `login_pwd`）
 
 ```bash
 bash scripts/cronpilot.sh exec python scripts/hash_login_password.py '你的管理端密码'
@@ -212,7 +215,8 @@ docker compose up --build -d
 |----|-----|
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认登录 | 用户名 `admin` · 密码 `changeme`（改挂载的 `conf.ini` → `login_pwd` 后重启） |
+| 默认登录 | 用户名 `admin` · 初始密码见挂载 `conf.ini` 的 `login_pwd`（常为 `changeme`，**仅空库种子**） |
+| 日常改密 | **用户管理 → 编辑 → 新密码**；勿指望改 `login_pwd` 重启生效 |
 | 数据持久化 | 宿主机 `./datas` 挂载到容器 |
 
 ### 步骤 2 — 查看日志 / 停止

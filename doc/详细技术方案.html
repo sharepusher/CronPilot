@@ -320,8 +320,8 @@ CREATE TABLE job_log_items (
     <h3>8.5 Web 路由与鉴权</h3>
     <table>
       <tr><th>路由</th><th>鉴权</th><th>响应类型</th></tr>
-      <tr><td>/check_pass</td><td>无</td><td>HTML / redirect</td></tr>
-      <tr><td>/* 管理页</td><td>session.is_login</td><td>HTML / JSON（Ajax）</td></tr>
+      <tr><td>/check_pass</td><td>无（转发登录）</td><td>HTML / redirect</td></tr>
+      <tr><td>/rbac/login · 管理页</td><td>Session + <code>require_permission</code> / <code>has_perm</code></td><td>HTML / JSON（Ajax）</td></tr>
       <tr><td>/api/*</td><td>access_token（可选）</td><td>JSON</td></tr>
     </table>
   </section>
@@ -377,7 +377,7 @@ def verify(params: dict, api_key: str, sign: str) -> bool:
       <tr><td>redis_host / redis_port / redis_db / redis_pwd</td><td>—</td><td>集群锁</td></tr>
       <tr><td>cron_db_url</td><td>sqlite JobStore</td><td>mysql+pymysql://user:pass@host/db</td></tr>
       <tr><td>cron_job_log_db_url</td><td>sqlite 业务库</td><td>可与上相同或分离</td></tr>
-      <tr><td>login_pwd</td><td>123456</td><td>Web 登录密码（明文比对）</td></tr>
+      <tr><td>login_pwd</td><td>（必填）</td><td><strong>仅</strong> <code>rbac_users</code> 空表时种子用户 <code>admin</code> 的初始密码（明文或 pbkdf2）。有用户后改此项并重启<strong>不会</strong>改库内密码；日常改密见管理端「用户管理 → 编辑 → 新密码」</td></tr>
       <tr><td>error_keyword</td><td>fail</td><td>逗号分隔，命中则告警</td></tr>
       <tr><td>job_log_counts</td><td>1000</td><td>每任务保留日志条数，0=不清理</td></tr>
       <tr><td>api_access_token</td><td>空</td><td>非空则 API 必传 access_token</td></tr>
@@ -442,7 +442,7 @@ gunicorn -c gun.py manage:app</pre>
     <h3>12.3 运维操作手册</h3>
     <table>
       <tr><th>操作</th><th>步骤</th></tr>
-      <tr><td>修改登录密码</td><td>改 conf.ini login_pwd，重启进程</td></tr>
+      <tr><td>修改登录密码</td><td>admin → <strong>用户管理</strong> → 编辑对应用户 →「新密码」→ 保存。勿再改 conf.ini <code>login_pwd</code>（有用户后无效）</td></tr>
       <tr><td>扩容节点</td><td>新节点相同 conf（is_single=0）、共享 MySQL+Redis</td></tr>
       <tr><td>清理磁盘</td><td>调低 job_log_counts；检查 datas/logs 轮转</td></tr>
       <tr><td>任务不触发</td><td>查 status=1、apscheduler_jobs 存在 cron_{id}、scheduler.lock 权限</td></tr>
@@ -461,7 +461,7 @@ gunicorn -c gun.py manage:app</pre>
     <h2>13. 安全方案</h2>
     <table>
       <tr><th>威胁</th><th>现状</th><th>加固建议</th></tr>
-      <tr><td>未授权访问 Web</td><td>单密码 Session</td><td>HTTPS、强密码、失败锁定</td></tr>
+      <tr><td>未授权访问 Web</td><td>RBAC 用户名密码 + Session</td><td>HTTPS、强初始 <code>login_pwd</code>、用户管理改密、失败锁定（未做）</td></tr>
       <tr><td>API 滥用</td><td>access_token 明文配置</td><td>环境变量、IP 白名单、速率限制</td></tr>
       <tr><td>伪造回调</td><td>可选 MD5 签名</td><td>业务方强制验签 + 时间戳防重放</td></tr>
       <tr><td>SQL 注入</td><td>部分 execute 字符串拼接</td><td>改为 ORM / 参数化</td></tr>
@@ -647,7 +647,7 @@ gunicorn -c gun.py manage:app</pre>
     <h3>16.4 安全与认证</h3>
     <table>
       <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
-      <tr><td>Web 认证</td><td>单密码（conf.ini login_pwd）+ Session</td><td>可选 OAuth2（Google/Microsoft）+ Session（Authlib）</td></tr>
+      <tr><td>Web 认证</td><td>三角色 RBAC：用户名+密码校验 <code>rbac_users.password_hash</code> + Session（空表种子 <code>admin</code>/<code>login_pwd</code>）</td><td>可选 OAuth2（Google/Microsoft）+ Session（Authlib）</td></tr>
       <tr><td>API 认证</td><td>可选 access_token（query/form）</td><td>NeedsAuth 依赖注入（启用 auth 时）</td></tr>
       <tr><td>执行鉴权</td><td>回调签名：<code>cronpilot_sign</code>（MD5 + api_key）交由业务验签</td><td>任务在进程内执行；主要保护 UI/API 与 data 路径访问</td></tr>
       <tr><td>SSRF 风险</td><td>高：req_url 可配置任意 URL（需加固白名单/禁内网段）</td><td>低：无外部回调执行模型（但仍有外部通知/HTTP 依赖）</td></tr>

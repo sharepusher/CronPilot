@@ -84,8 +84,8 @@ cp conf.ini.example conf.ini</pre>
 
     <h3>3.3 配置 conf.ini</h3>
     <div class="card">
-      <p>必改项：<code>login_pwd</code>、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。</p>
-      <p>生成密码哈希：</p>
+      <p>必改项：<code>login_pwd</code>（<strong>仅</strong>空库种子 <code>admin</code> 的初始密码）、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 <code>login_pwd</code>。</p>
+      <p>生成<strong>初始</strong>密码哈希（写入 <code>login_pwd</code>，须在空库首次启动前）：</p>
       <pre style="margin:.5rem 0;background:#f8fafc;color:#1e293b">python scripts/hash_login_password.py '你的强密码'
 # 将输出写入 conf.ini 的 login_pwd=</pre>
     </div>
@@ -123,7 +123,7 @@ gunicorn -c gun.py manage:app
     <h3>4.3 访问地址</h3>
     <table>
       <tr><th>用途</th><th>URL</th><th>认证</th></tr>
-      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td>用户名 + 密码（种子 <code>admin</code> / <code>login_pwd</code>）；三角色 RBAC</td></tr>
+      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td>用户名 + 密码（<code>rbac_users</code>）。空库种子 <code>admin</code>/<code>login_pwd</code>；日常改密：用户管理 → 编辑 → 新密码</td></tr>
       <tr><td>REST API</td><td><code>http://&lt;IP&gt;:5860/api/...</code></td><td><code>api_access_token</code> 等</td></tr>
       <tr><td>HTML 技术文档</td><td><code>http://&lt;IP&gt;:5860/docs/</code></td><td><strong>无登录</strong></td></tr>
     </table>

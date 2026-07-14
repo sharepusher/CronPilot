@@ -581,7 +581,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
       <tr><th>威胁面</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr>
         <td>管理面认证</td>
-        <td>单密码明文配置比对</td>
+        <td>三角色 RBAC：用户名+密码（<code>rbac_users</code>）；空表种子 <code>admin</code>/<code>login_pwd</code>；改密走用户管理</td>
         <td>OAuth2 + Session（可关闭）</td>
       </tr>
       <tr>
@@ -669,7 +669,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
       <tr><td>任务编排 (10%)</td><td>★☆☆☆☆</td><td>★★★☆☆</td><td>单 URL vs 线性 Pipeline</td></tr>
       <tr><td>动态配置 (10%)</td><td>★★★★★</td><td>★★☆☆☆</td><td>DB 改任务 vs 改代码重启</td></tr>
       <tr><td>集群扩展 (10%)</td><td>★★★☆☆</td><td>★★☆☆☆</td><td>有 Redis 锁但仍复杂；Plombery 默认单实例</td></tr>
-      <tr><td>安全现代性 (10%)</td><td>★★☆☆☆</td><td>★★★★☆</td><td>OAuth vs 单密码；SSRF vs 本地执行</td></tr>
+      <tr><td>安全现代性 (10%)</td><td>★★★☆☆</td><td>★★★★☆</td><td>OAuth vs 本地 RBAC；SSRF vs 本地执行</td></tr>
       <tr><td>技术债/维护 (10%)</td><td>★★☆☆☆</td><td>★★★★☆</td><td>旧依赖 vs 现代栈+测试</td></tr>
     </table>
 

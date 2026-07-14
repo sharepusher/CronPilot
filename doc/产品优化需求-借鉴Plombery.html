@@ -114,9 +114,10 @@
         <p class="ref">生产推荐 OAuth2（Google/Microsoft）+ Session；密钥 <code>auth.secret_key</code> 用 SecretStr，不明文落盘。</p>
         <h4>CronPilot 现状与不足</h4>
         <table>
-          <tr class="gap"><th>现状</th><td><code>check_pass</code> 中 <code>login_pwd != password</code> 直接与 conf.ini 明文比对；<code>is_dev=1</code> 时登录页 placeholder 可提示明文密码。</td></tr>
-          <tr class="gap"><th>不足</th><td>conf.ini 泄露即全盘失守；镜像/备份/日志中常见明文配置；无法对接企业 SSO。</td></tr>
-          <tr><th>对比差距</th><td>Plombery 内网可关 auth，但生产路径明确；CronPilot 生产仍普遍用单密码，且防护弱。</td></tr>
+          <tr class="gap"><th>撰写时现状</th><td>（Phase A 前）<code>check_pass</code> 中与 conf.ini <code>login_pwd</code> 明文比对；<code>is_dev=1</code> 时登录页可提示明文。</td></tr>
+          <tr><th>v1.0+ 现状</th><td>登录校验 <code>rbac_users.password_hash</code>（支持明文兼容种子与 pbkdf2）。<code>login_pwd</code> <strong>仅</strong>空表种子 <code>admin</code>；日常改密：用户管理 → 编辑 → 新密码。</td></tr>
+          <tr class="gap"><th>不足（当时）</th><td>conf.ini 泄露即全盘失守；镜像/备份中常见明文配置；无法对接企业 SSO。</td></tr>
+          <tr><th>对比差距</th><td>Plombery 生产可走 OAuth；CronPilot OAuth 仍属后续（OPT-P2-07）。</td></tr>
         </table>
         <h4>优化方案</h4>
         <p>存储 bcrypt/scrypt 哈希；首次启动或迁移工具将明文转为哈希；保留「仅哈希」配置项。OAuth 放 P1，不阻塞 P0。</p>
@@ -489,7 +490,7 @@
         <p class="ref">生产可选 OAuth + Session；角色边界在应用层。CronPilot 业务配置审计仍归 OPT-P1-09 <code>operation_log</code>；RBAC 事件写 <code>rbac_audit_logs</code>（<strong>废弃</strong> v1.1 中间件误判方案）。</p>
         <h4>已交付摘要（v1.0.0）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
-          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；空表种子 <code>admin</code>（密码=<code>login_pwd</code>）。</li>
+          <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；空表种子 <code>admin</code>（初始密码=<code>login_pwd</code>）。日常改密：用户管理 → 编辑 → 新密码；有用户后改 <code>login_pwd</code> 无效。</li>
           <li>三角色分权<strong>始终启用</strong>；<code>app/rbac/</code> + <code>has_perm</code> / <code>@require_permission</code>；无 <code>rbac_enable</code> 配置项。</li>
           <li>登录：<code>/rbac/login</code> 用户名+密码<strong>必填</strong>；无 <code>legacy_admin</code>；<code>check_pass</code> 转发 + <code>next</code>。</li>
           <li>导航 <code>rbac/_nav.html</code>；用户管理 / 审计列表（6a/6b）；无删除 · <code>cron:retire</code>。</li>

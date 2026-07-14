@@ -339,7 +339,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 
 | 威胁面 | CronPilot | Plombery |
 | --- | --- | --- |
-| 管理面认证 | 单密码明文配置比对 | OAuth2 + Session（可关闭） |
+| 管理面认证 | 三角色 RBAC：用户名+密码（`rbac_users`）；空表种子 `admin`/`login_pwd`；改密走用户管理 | OAuth2 + Session（可关闭） |
 | API 鉴权 | 可选 access\_token 明文 | NeedsAuth；内网可 auth=null 全开放 |
 | 执行面 | SSRF 风险（任意 req\_url）；回调 MD5 签名为可选 | 执行本地代码；需信任 pipeline 作者 |
 | 路径安全 | 无用户文件读取 API | `_check_is_valid_path` 防穿越 |
@@ -395,7 +395,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 | 任务编排 (10%) | ★☆☆☆☆ | ★★★☆☆ | 单 URL vs 线性 Pipeline |
 | 动态配置 (10%) | ★★★★★ | ★★☆☆☆ | DB 改任务 vs 改代码重启 |
 | 集群扩展 (10%) | ★★★☆☆ | ★★☆☆☆ | 有 Redis 锁但仍复杂；Plombery 默认单实例 |
-| 安全现代性 (10%) | ★★☆☆☆ | ★★★★☆ | OAuth vs 单密码；SSRF vs 本地执行 |
+| 安全现代性 (10%) | ★★★☆☆ | ★★★★☆ | OAuth vs 本地 RBAC；SSRF vs 本地执行 |
 | 技术债/维护 (10%) | ★★☆☆☆ | ★★★★☆ | 旧依赖 vs 现代栈+测试 |
 
 ### 场景选型速查

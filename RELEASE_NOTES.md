@@ -11,6 +11,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
+- 文档：澄清 `login_pwd` 仅空表种子；日常改密走「用户管理 → 编辑 → 新密码」（见 README / RBAC §4.5）。
+
 ---
 
 ## [1.0.0] — 2026-07-14 · 重大版本：多用户 RBAC、任务生命周期、操作审计
@@ -34,6 +36,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
+| 登录 / 密码 | 用户名+密码必填；空表种子 `admin`（初始=`login_pwd`）；日常改密：**用户管理 → 编辑 → 新密码**；有用户后改 `login_pwd` **无效**；无忘记密码 / 无 `legacy_admin` |
 | 默认行为 | 三角色分权**始终启用**；登录须 `rbac_users`；空表种子 `admin` |
 | 分权 | 三角色**始终启用**；已移除旁路开关 `rbac_enable` |
 | 登录入口 | `/rbac/login`；`/check_pass` 仅转发；冒烟 `username=admin&password=…` |
@@ -45,7 +48,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
-| 路由 | 列表 / 添加 / 编辑；`user:manage` |
+| 路由 | 列表 / 添加 / 编辑；`user:manage`；编辑页「新密码」留空不改 |
 | 安全 | 无物理删除；禁停用自己与最后一名启用中 admin |
 | 表单 | `js-ajax-submit`；非 Ajax 成功 302 |
 | 防再发 | `test_ajax_form_guard`；去掉空壳 `js-ajax-form` |
@@ -103,9 +106,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 1. 安装/重启：`bash scripts/cronpilot.sh restart`（模板与鉴权变更须重启）。
 2. Web 登录改为 **用户名 + 密码**；空库自动种子 `admin`（密码=`login_pwd`）。
-3. 三角色分权始终启用（已无 `rbac_enable` 旁路）。
-4. 可选：`operation_log_counts=5000`（未配置时默认 5000）。
-5. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
+3. **`login_pwd` 仅用于种子**：表已有用户后改 conf 并重启不会改登录密码；日常改密 → **用户管理 → 编辑 → 新密码**。
+4. 三角色分权始终启用（已无 `rbac_enable` 旁路）。
+5. 可选：`operation_log_counts=5000`（未配置时默认 5000）。
+6. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
 
 ---
 

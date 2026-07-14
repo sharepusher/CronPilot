@@ -55,7 +55,8 @@ docker compose up --build -d
 | --- | --- |
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 技术文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启；空库种子 `admin`） |
+| 默认登录 | 用户名 `admin` · 初始密码 = `login_pwd`（常为 `changeme`，**仅空库种子**） |
+| 日常改密 | 管理端 **用户管理 → 编辑 → 新密码**；已有用户后改 `login_pwd` 并重启**不会**改库内密码 |
 
 ```
 docker compose logs -f
@@ -87,7 +88,7 @@ docker compose restart
 is_single=1
 cron_db_url=mysql+pymysql://cronpilot:密码@host.docker.internal:3306/cron_scheduler
 cron_job_log_db_url=mysql+pymysql://cronpilot:密码@host.docker.internal:3306/cron_job_log
-login_pwd=你的管理端密码
+login_pwd=你的管理端初始密码（仅空库种子；日常改密走用户管理）
 ```
 
 执行 `docker compose up -d`。

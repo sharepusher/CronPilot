@@ -15,7 +15,7 @@ cp conf.ini.example conf.ini
 docker compose up --build -d
 ```
 
-访问 `http://<IP>:5860/`，默认密码 `changeme`。详见 [Docker部署指南.md](Docker部署指南.md)。
+访问 `http://<IP>:5860/`，用户名 `admin` · 初始密码见 `login_pwd`（常 `changeme`）；改密走用户管理。详见 [Docker部署指南.md](Docker部署指南.md)。
 
 ## 一、系统要求（裸机）
 
@@ -55,7 +55,7 @@ bash scripts/start_local.sh
 
 访问：
 
-- 管理端：`http://<服务器IP>:5860/`（默认密码 `changeme`，请尽快修改 `conf.ini`）
+- 管理端：`http://<服务器IP>:5860/`（用户名 `admin`；空库初始密码见 `login_pwd`，常为 `changeme`。日常请在 **用户管理** 改密，勿只改 `conf.ini`）
 - 文档：`http://<服务器IP>:5860/docs/`
 
 ## 三、分步安装

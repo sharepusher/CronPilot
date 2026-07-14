@@ -101,7 +101,7 @@
       <li>回调仅支持 <strong>GET</strong>，超时固定 <strong>120s</strong>（<code>requests.get(..., timeout=120)</code>）</li>
       <li>集群模式要求 MySQL JobStore + Redis，SQLite 仅适合单机</li>
       <li>每 Gunicorn worker 独立启动完整 Scheduler（非集中式 Master）</li>
-      <li>Web 鉴权为单密码 Session，无 RBAC</li>
+      <li>Web 鉴权为三角色 RBAC（用户名+密码 / Session；空表种子 <code>admin</code>）；<code>login_pwd</code> 仅作初始种子</li>
     </ul>
   </section>
 
@@ -539,7 +539,7 @@ API /api/* → access_token 不变（独立轨道）</pre>
     <h4>6.6.6 迁移</h4>
     <ol style="margin-left:1.2rem;font-size:.9rem">
       <li><code>flask --app manage:app db migrate</code> / <code>db upgrade</code>（Flask-Migrate；<strong>Tier 0</strong> 退役 Flask-Script，见 <a href="依赖升级RFC.html">依赖升级 RFC</a>）。</li>
-      <li>种子：空表时自动写入 <code>admin</code>（密码=<code>login_pwd</code>）。</li>
+      <li>种子：空表时自动写入 <code>admin</code>（密码=<code>login_pwd</code>）。有用户后改密走「用户管理 → 编辑 → 新密码」；改 <code>login_pwd</code> 不再同步库内哈希。</li>
       <li>重启进程使模板与鉴权变更生效。</li>
     </ol>
 
@@ -852,7 +852,7 @@ CREATE TABLE rbac_audit_logs (
       </tr>
       <tr>
         <td>认证流</td>
-        <td>单密码 Session</td>
+        <td>三角色 RBAC + Session（v1.0+）；<code>login_pwd</code> 仅空表种子</td>
         <td>OAuth2 Session（可关闭）</td>
       </tr>
     </table>

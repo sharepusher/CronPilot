@@ -164,9 +164,16 @@ flask --app manage:app db upgrade
 
 CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 
-### 4.5 首次启用与种子管理员
+### 4.5 首次启用、种子管理员与改密
 
-**已取消**空用户名 → `legacy_admin` 登录。`rbac_users` 为空且 `login_pwd` 已配置时，启动/登录时自动种子用户名 `admin`（密码=login\_pwd）。此后 Web 登录**必须**填写用户名 + 密码。
+**已取消**空用户名 → `legacy_admin` 登录。`rbac_users` 为空且 `login_pwd` 已配置时，启动/登录时自动种子用户名 `admin`（密码=login\_pwd，明文或 pbkdf2 均可）。此后 Web 登录**必须**填写用户名 + 密码。
+
+| 场景 | 做法 |
+| --- | --- |
+| 首次部署（空表） | 在 conf.ini 配置 `login_pwd`（推荐 `scripts/hash_login_password.py`）→ 启动 → 用 `admin` + 该密码登录 |
+| 日常修改任意用户密码 | admin 登录 → **用户管理** → 编辑 → 填写「新密码」（留空则不改）→ 保存（权限 `user:manage`） |
+| 改 conf.ini `login_pwd` | 表**已有**用户时：重启也**不会**更新库内 `password_hash`；勿当作改密手段 |
+| 产品未提供 | 登录页「忘记密码」、非 admin 自助改密 |
 
 **分权始终启用**：三角色权限矩阵始终生效，无配置旁路。`conf.ini` 中遗留的 `rbac_enable` 键已废弃，存在亦忽略。
 
@@ -345,7 +352,7 @@ def get_role_permission_set(role):
 
 ### 8.4 `rbac/users.html`（阶段 6a · 已交付）
 
-复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 `user:manage` 裁剪。
+复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`。编辑页含「新密码」字段（留空不修改）。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 `user:manage` 裁剪。**这是日常改密的唯一管理端入口**（含改种子 `admin` 密码）。
 
 ### 8.4b `rbac/audit_logs.html`（阶段 6b · 已交付）
 

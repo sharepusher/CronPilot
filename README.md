@@ -21,10 +21,10 @@
 
 ```bash
 cp conf.ini.example conf.ini
-# 编辑数据库、login_pwd、redis、block_private_ip 等
+# 编辑数据库、login_pwd（仅空库种子 admin 的初始密码）、redis、block_private_ip 等
 ```
 
-生成密码哈希（推荐生产）：
+生成初始密码哈希（推荐在**首次启动、空库种子之前**写入 `login_pwd`）：
 
 ```bash
 python scripts/hash_login_password.py '你的强密码'
@@ -59,7 +59,14 @@ bash scripts/cronpilot.sh start
 
 仅当自动检测不符合预期时，可临时覆盖：`PY=python3.9 bash scripts/cronpilot.sh start`
 
-浏览器打开：`http://127.0.0.1:5001/`。Web 登录为 **用户名 + 密码**（空库自动种子用户名 `admin`，初始密码为 `conf.ini` 的 `login_pwd`，默认示例多为 `changeme`）。
+浏览器打开：`http://127.0.0.1:5001/`。Web 登录为 **用户名 + 密码**：
+
+| 项 | 说明 |
+|----|------|
+| 空库首次 | 自动种子用户名 `admin`；初始密码 = `conf.ini` → `login_pwd`（示例多为 `changeme`） |
+| 日常改密 | **用户管理** → 编辑对应用户 →「新密码」（留空不改）；需 admin（`user:manage`） |
+| `login_pwd` | **仅种子用**；表已有用户后改此项并重启**不会**改库内密码 |
+| 不提供 | 登录页「忘记密码」、非管理员自助改密 |
 
 ### 4. 测试
 
@@ -85,7 +92,7 @@ docker compose up --build -d
 |----|-----|
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启；空库种子 `admin`） |
+| 默认登录 | 用户名 `admin` · 初始密码见 `login_pwd`（常为 `changeme`）；**仅空库种子**。日常改密走「用户管理」，勿指望改 `login_pwd` 重启生效 |
 
 - 数据目录：宿主机 `./datas` 挂载进容器
 - 改配置：`nano conf.ini` → `docker compose restart`
@@ -158,7 +165,7 @@ bash scripts/run_production.sh
 
 | 入口 | URL | 认证 |
 |------|-----|------|
-| Web 管理端 | `http://<服务器IP>:5860/` | 用户名 + 密码（种子 `admin` / `login_pwd`）；三角色 RBAC |
+| Web 管理端 | `http://<服务器IP>:5860/` | 用户名 + 密码（`rbac_users`）；种子见下节「密码」；三角色 RBAC |
 | REST API | `http://<服务器IP>:5860/api/...` | `api_access_token` 等 |
 | **HTML 技术文档** | `http://<服务器IP>:5860/docs/` | **无登录**（见下方安全说明） |
 
@@ -224,7 +231,7 @@ server {
 
 ### 安全建议
 
-1. 生产务必使用 **强密码** 或 `pbkdf2` 哈希写入 `login_pwd`，并尽快在「用户管理」中改掉种子账号；勿暴露默认 `changeme`。
+1. **初始密码**：空库前用强明文或 `pbkdf2` 写入 `login_pwd`；首次启动种子 `admin`。**已有用户后**改密请走「用户管理 → 编辑 → 新密码」，勿再依赖改 `login_pwd`。
 2. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
 3. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
 4. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
@@ -308,7 +315,7 @@ scripts/             # 本地启动、验收、密码哈希工具
 
 | 键 | 默认 | 说明 |
 |----|------|------|
-| `login_pwd` | （必填） | 种子用户 `admin` 的初始密码；推荐 `pbkdf2` 哈希 |
+| `login_pwd` | （必填） | **仅**空表时种子 `admin` 的初始密码（明文或 `pbkdf2`）；有用户后改此项无效于登录 |
 | `block_private_ip` | `1` | 禁止回调内网/本机/元数据地址 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |

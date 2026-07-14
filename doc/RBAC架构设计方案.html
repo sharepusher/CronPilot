@@ -175,8 +175,15 @@ def has_permission(role: str, permission: str) -> bool:
 flask --app manage:app db upgrade</pre>
   <p>CLI 不可用时：<code>ensure_rbac_tables(app)</code> 限定 <code>create_all</code> 至两模型。</p>
 
-  <h3>4.5 首次启用与种子管理员</h3>
-  <p><strong>已取消</strong>空用户名 → <code>legacy_admin</code> 登录。<code>rbac_users</code> 为空且 <code>login_pwd</code> 已配置时，启动/登录时自动种子用户名 <code>admin</code>（密码=login_pwd）。此后 Web 登录<strong>必须</strong>填写用户名 + 密码。</p>
+  <h3>4.5 首次启用、种子管理员与改密</h3>
+  <p><strong>已取消</strong>空用户名 → <code>legacy_admin</code> 登录。<code>rbac_users</code> 为空且 <code>login_pwd</code> 已配置时，启动/登录时自动种子用户名 <code>admin</code>（密码=login_pwd，明文或 pbkdf2 均可）。此后 Web 登录<strong>必须</strong>填写用户名 + 密码。</p>
+  <table>
+    <tr><th>场景</th><th>做法</th></tr>
+    <tr><td>首次部署（空表）</td><td>在 conf.ini 配置 <code>login_pwd</code>（推荐 <code>scripts/hash_login_password.py</code>）→ 启动 → 用 <code>admin</code> + 该密码登录</td></tr>
+    <tr><td>日常修改任意用户密码</td><td>admin 登录 → <strong>用户管理</strong> → 编辑 → 填写「新密码」（留空则不改）→ 保存（权限 <code>user:manage</code>）</td></tr>
+    <tr><td>改 conf.ini <code>login_pwd</code></td><td>表<strong>已有</strong>用户时：重启也<strong>不会</strong>更新库内 <code>password_hash</code>；勿当作改密手段</td></tr>
+    <tr><td>产品未提供</td><td>登录页「忘记密码」、非 admin 自助改密</td></tr>
+  </table>
   <p><strong>分权始终启用</strong>：三角色权限矩阵始终生效，无配置旁路。<code>conf.ini</code> 中遗留的 <code>rbac_enable</code> 键已废弃，存在亦忽略。</p>
 
   <h2>五、目录结构</h2>
@@ -322,7 +329,7 @@ def get_role_permission_set(role):
   <p>装饰器权限字符串与模板 <code>has_perm('...')</code> 必须完全一致。<strong>无</strong>删除按钮（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）。</p>
 
   <h3>8.4 <code>rbac/users.html</code>（阶段 6a · 已交付）</h3>
-  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。路由：<code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code>。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 <code>user:manage</code> 裁剪。</p>
+  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。路由：<code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code>。编辑页含「新密码」字段（留空不修改）。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 <code>user:manage</code> 裁剪。<strong>这是日常改密的唯一管理端入口</strong>（含改种子 <code>admin</code> 密码）。</p>
 
   <h3>8.4b <code>rbac/audit_logs.html</code>（阶段 6b · 已交付）</h3>
   <p>只读分页 <code>/rbac/audit-logs</code>，权限 <code>audit:read</code>（仅 admin）。列：时间 / 用户 / 动作 / 资源 / IP / 结果。与「操作记录」<code>operation_log</code>（权限 <code>operation:read</code>，operator+admin）分表分权。</p>

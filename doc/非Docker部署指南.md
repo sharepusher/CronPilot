@@ -61,9 +61,9 @@ Python 3.8～3.11；`run_production.sh` 自动使用 venv。
 
 ### 3.3 配置 conf.ini
 
-必改项：`login_pwd`、`cron_db_url`、`cron_job_log_db_url`、Redis（若集群）。
+必改项：`login_pwd`（**仅**空库种子 `admin` 的初始密码）、`cron_db_url`、`cron_job_log_db_url`、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 `login_pwd`。
 
-生成密码哈希：
+生成**初始**密码哈希（写入 `login_pwd`，须在空库首次启动前）：
 
 ```
 python scripts/hash_login_password.py '你的强密码'
@@ -116,7 +116,7 @@ bash scripts/start_local.sh
 
 | 用途 | URL | 认证 |
 | --- | --- | --- |
-| Web 管理端 | `http://<IP>:5860/` | 用户名 + 密码（种子 `admin` / `login_pwd`）；三角色 RBAC |
+| Web 管理端 | `http://<IP>:5860/` | 用户名 + 密码（`rbac_users`）。空库种子 `admin`/`login_pwd`；日常改密：用户管理 → 编辑 → 新密码 |
 | REST API | `http://<IP>:5860/api/...` | `api_access_token` 等 |
 | HTML 技术文档 | `http://<IP>:5860/docs/` | **无登录** |
 

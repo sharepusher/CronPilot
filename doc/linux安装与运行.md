@@ -9,7 +9,7 @@
 ```bash
 cp conf.ini.example conf.ini   # 必须，否则 conf.ini 可能被挂载成目录
 docker compose up --build -d
-# http://<IP>:5860/  密码 changeme
+# http://<IP>:5860/  用户名 admin · 初始密码见 login_pwd（常 changeme）；改密走用户管理
 ```
 
 详见 **[Docker部署指南.md](Docker部署指南.md)**。

@@ -69,9 +69,10 @@ Plombery 运行元数据均经 SQLAlchemy Repository 写入，删除/查询走 O
 
 |  |  |
 | --- | --- |
-| 现状 | `check_pass` 中 `login_pwd != password` 直接与 conf.ini 明文比对；`is_dev=1` 时登录页 placeholder 可提示明文密码。 |
-| 不足 | conf.ini 泄露即全盘失守；镜像/备份/日志中常见明文配置；无法对接企业 SSO。 |
-| 对比差距 | Plombery 内网可关 auth，但生产路径明确；CronPilot 生产仍普遍用单密码，且防护弱。 |
+| 撰写时现状 | （Phase A 前）`check_pass` 中与 conf.ini `login_pwd` 明文比对；`is_dev=1` 时登录页可提示明文。 |
+| v1.0+ 现状 | 登录校验 `rbac_users.password_hash`（支持明文兼容种子与 pbkdf2）。`login_pwd` **仅**空表种子 `admin`；日常改密：用户管理 → 编辑 → 新密码。 |
+| 不足（当时） | conf.ini 泄露即全盘失守；镜像/备份中常见明文配置；无法对接企业 SSO。 |
+| 对比差距 | Plombery 生产可走 OAuth；CronPilot OAuth 仍属后续（OPT-P2-07）。 |
 
 #### 优化方案
 
@@ -487,7 +488,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 #### 已交付摘要（v1.0.0）
 
-1. 表：`rbac_users`、`rbac_audit_logs`；空表种子 `admin`（密码=`login_pwd`）。
+1. 表：`rbac_users`、`rbac_audit_logs`；空表种子 `admin`（初始密码=`login_pwd`）。日常改密：用户管理 → 编辑 → 新密码；有用户后改 `login_pwd` 无效。
 2. 三角色分权**始终启用**；`app/rbac/` + `has_perm` / `@require_permission`；无 `rbac_enable` 配置项。
 3. 登录：`/rbac/login` 用户名+密码**必填**；无 `legacy_admin`；`check_pass` 转发 + `next`。
 4. 导航 `rbac/_nav.html`；用户管理 / 审计列表（6a/6b）；无删除 · `cron:retire`。

@@ -614,7 +614,7 @@
   <table>
     <thead><tr><th>机制</th><th>实现</th><th>风险与建议</th></tr></thead>
     <tbody>
-      <tr><td>Web 登录</td><td>Session <code>is_login</code> + 单密码 conf.ini login_pwd</td><td>无用户名、无 bcrypt；建议生产改用哈希存储 + HTTPS</td></tr>
+      <tr><td>Web 登录</td><td>Session + <code>rbac_users</code> 用户名密码（v1.0+）；编辑页可改「新密码」</td><td><code>login_pwd</code> 仅空表种子；HTTPS；无忘记密码自助</td></tr>
       <tr><td>API Token</td><td>access_token 可选校验</td><td>明文配置；建议环境变量注入</td></tr>
       <tr><td>回调签名</td><td>api_key + MD5</td><td>业务方验签防伪造；api_key 为空则不签名</td></tr>
       <tr><td>SQL</td><td>部分 raw SQL 字符串拼接（delete）</td><td>存在注入风险，建议改为 ORM 参数化</td></tr>
@@ -671,7 +671,7 @@ flask db upgrade</pre>
       <tr><td>is_single</td><td>1</td><td>1=单机，0=集群+Redis</td></tr>
       <tr><td>cron_db_url</td><td>sqlite</td><td>APScheduler JobStore</td></tr>
       <tr><td>cron_job_log_db_url</td><td>sqlite</td><td>业务库，集群建议 MySQL</td></tr>
-      <tr><td>login_pwd</td><td>123456</td><td>Web 登录密码</td></tr>
+      <tr><td>login_pwd</td><td>（必填）</td><td>空表种子 <code>admin</code> 初始密码；有用户后改密走用户管理，勿依赖本项</td></tr>
       <tr><td>job_log_counts</td><td>1000</td><td>每任务保留日志条数</td></tr>
       <tr><td>api_access_token</td><td>—</td><td>API 鉴权，空则不校验</td></tr>
       <tr><td>api_key</td><td>—</td><td>回调签名密钥</td></tr>
@@ -878,7 +878,7 @@ flask db upgrade</pre>
   <h3>12.2 技术债与风险</h3>
   <div class="card danger">
     <ul>
-      <li><span class="tag tag-red">安全</span> 单密码 Session、SQL 拼接；Flask 1.1 / SA 1.4 仍待 Tier 3/4 代际升级；gunicorn 22 + gevent 23（RFC-2.1/2.2），路线见 <a href="依赖升级RFC.html">依赖升级 RFC</a></li>
+      <li><span class="tag tag-red">安全</span> RBAC 三角色 + Session（v1.0）；无忘记密码；Flask 1.1 / SA 1.4 仍待 Tier 3/4；gunicorn 22 + gevent 23（RFC-2.1/2.2），路线见 <a href="依赖升级RFC.html">依赖升级 RFC</a></li>
       <li><span class="tag tag-orange">代码</span> views.py 校验逻辑 Web/API 大量重复，维护成本高</li>
       <li><span class="tag tag-orange">前端</span> Jumbotron 每页重复、无组件化、响应式弱</li>
       <li><span class="tag tag-blue">架构</span> 多 worker 各启 Scheduler，依赖锁而非单 leader 选举</li>

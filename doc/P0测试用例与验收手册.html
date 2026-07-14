@@ -42,7 +42,7 @@
       <li><strong>Python</strong>：3.8～3.11（与 Flask 1.1 / Werkzeug 1.0 兼容；勿用 3.12+ 跑完整应用）</li>
       <li><strong>配置</strong>：项目根目录 <code>conf.ini</code>（已在 .gitignore，勿提交）</li>
       <li><strong>启动</strong>：<code>bash scripts/start_local.sh</code> 或见下文「本地启动」</li>
-      <li><strong>管理端</strong>：<code>http://127.0.0.1:5001/</code> · 密码见 <code>conf.ini</code> 的 <code>login_pwd</code></li>
+      <li><strong>管理端</strong>：<code>http://127.0.0.1:5001/</code> · 用户名 <code>admin</code> + 密码（空库种子自 <code>login_pwd</code>；有用户后改密走「用户管理」）</li>
       <li><strong>自动化</strong>：<code>python -m unittest tests.test_p0_phase_a -v</code>（12 用例，无需 DB）</li>
     </ul>
   </div>
@@ -86,11 +86,12 @@
   </table>
 
   <h3>OPT-P0-02 · 密码哈希</h3>
+  <p style="font-size:.9rem;color:#64748b">v1.0+：Web 登录校验 <code>rbac_users</code>；下方用例描述种子阶段 <code>login_pwd</code> 与哈希工具行为。日常改密见「用户管理 → 编辑 → 新密码」。</p>
   <table>
-    <tr><th>TC-P0-02-01</th><td>明文 <code>login_pwd=123456</code> 可登录</td></tr>
-    <tr><th>TC-P0-02-02</th><td>执行 <code>python scripts/hash_login_password.py 你的密码</code> 后，仅哈希可登录</td></tr>
-    <tr><th>TC-P0-02-03</th><td>POST <code>/check_pass</code> 正确密码 → 302 到 <code>/cron_list</code></td></tr>
-    <tr><th>注意</th><td>修改 <code>conf.ini</code> 后<strong>必须重启</strong>进程（<code>LOGIN_PWD</code> 在启动时加载）</td></tr>
+    <tr><th>TC-P0-02-01</th><td>空库：明文 <code>login_pwd=123456</code> 可种子并以 <code>admin</code>/该密码登录</td></tr>
+    <tr><th>TC-P0-02-02</th><td>空库前执行 <code>python scripts/hash_login_password.py 你的密码</code> 写入 <code>login_pwd</code> 后，可以哈希值完成种子并以相同明文登录</td></tr>
+    <tr><th>TC-P0-02-03</th><td>POST <code>/check_pass</code>（须带 <code>username</code>+<code>password</code>）正确 → 302 到 <code>/cron_list</code></td></tr>
+    <tr><th>注意</th><td>修改 <code>login_pwd</code> 后须<strong>重启</strong>才影响<strong>尚未种子</strong>的空库；已有用户后改 <code>login_pwd</code> 无效，须走用户管理改密</td></tr>
   </table>
 
   <h3>OPT-P0-03 · SSRF 防护</h3>

@@ -9,8 +9,11 @@ redis_db=0
 cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
 cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
 login_pwd=请改为强密码或使用 scripts/hash_login_password.py 生成 pbkdf2 哈希
-# login_pwd：亦作 rbac_users 空表时自动种子用户 admin 的初始密码；Web 登录须填用户名+密码
-# RBAC 三角色分权始终启用（无旁路开关）；种子用户角色为 admin
+# login_pwd 用途（v1.0+）：
+#   - 仅当 rbac_users 为空时，作为自动种子用户 admin 的初始密码（明文或 pbkdf2 均可）
+#   - 表中已有用户后，改本项并重启不会更新任何账号密码
+# 日常改密：admin 登录 → 用户管理 → 编辑用户 → 「新密码」（留空则不改）
+# Web 登录须填用户名+密码；三角色分权始终启用（无旁路开关）；种子角色为 admin
 job_log_counts=1000
 # 管理操作审计保留条数（OPT-P1-09）；0=不裁剪；内置任务每 8 小时按 id 删最旧
 operation_log_counts=5000

@@ -71,7 +71,7 @@ OPT-P2-10路线v4
 ### 阶段 2.5 — 登录身份子阶段
 
 - `views.py` — `/rbac/login` GET/POST、`/logout`
-- `authenticate_user` — legacy 单密码 + `rbac_users`（`select` 查询）
+- `authenticate_user` — 校验 `rbac_users`（用户名+密码；空表时先 `ensure_seed_admin`）
 - 模板 `rbac/login.html`、`forbidden.html`
 - `check_pass` 仅改函数体：转发 + `next` 透传 + 307（v4 §8.2）
 
@@ -127,7 +127,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 - `/rbac/users`、`/users/add`、`/users/edit` + `create_user` / `update_user`
 - 无物理删除；禁停用当前登录账号；保护最后一名启用中 admin
-- 首次空表：种子 `admin`（密码=`login_pwd`）；\*\*无\*\* legacy\_admin
+- 首次空表：种子 `admin`（密码=`login_pwd`）；\*\*无\*\* legacy\_admin。有用户后改密：用户管理 → 编辑 →「新密码」；改 `login_pwd` 无效
 - `test_rbac_phase.TestRbacUsersManage` + 导航用例
 
 **门禁：**`bash scripts/cronpilot.sh test`（含用户 CRUD / 403 / 最后 admin）；operator 不可进 `/rbac/users`。

@@ -14,15 +14,20 @@
         {% include "rbac/_nav.html" %}
         {% endwith %}
 
-        <p style="color:#64748b;margin:8px 0">RBAC 审计（登录/登出、用户管理、权限拒绝）。任务配置变更完整历史见远期 OPT-P1-09 <code>operation_log</code>。</p>
+        <p style="color:#64748b;margin:8px 0">
+            本页为 <strong>RBAC 身份与权限审计</strong>（登录/登出、用户管理、权限拒绝）。
+            「用户 ID」对应 <code>rbac_users.id</code>。
+            任务添加/编辑等业务变更不在此表，见远期 OPT-P1-09 <code>operation_log</code>。
+        </p>
         <table class="table table-hover table-bordered">
             <thead>
             <tr>
                 <th>ID</th>
                 <th>时间</th>
-                <th>用户</th>
+                <th>用户名</th>
+                <th>用户 ID</th>
                 <th>动作</th>
-                <th>资源</th>
+                <th>说明</th>
                 <th>IP</th>
                 <th>结果</th>
             </tr>
@@ -32,14 +37,15 @@
             <tr>
                 <td>{{ item.id }}</td>
                 <td>{{ item.create_time }}</td>
-                <td>{{ item.username }}{% if item.user_id %} <span style="color:#64748b">#{{ item.user_id }}</span>{% endif %}</td>
-                <td>{{ item.action }}</td>
-                <td>{{ item.resource }}</td>
+                <td>{{ item.username }}</td>
+                <td>{% if item.user_id is not none %}{{ item.user_id }}{% else %}<span style="color:#64748b">—</span>{% endif %}</td>
+                <td title="{{ item.action }}">{{ audit_action_label(item.action) }}</td>
+                <td title="{{ item.resource }}">{{ audit_resource_label(item.action, item.resource) }}</td>
                 <td>{{ item.ip }}</td>
-                <td>{{ item.status }}</td>
+                <td title="{{ item.status }}">{{ audit_status_label(item.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="7" style="color:#64748b">暂无审计记录</td></tr>
+            <tr><td colspan="8" style="color:#64748b">暂无审计记录</td></tr>
             {% endfor %}
             </tbody>
         </table>

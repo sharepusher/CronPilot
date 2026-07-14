@@ -8,11 +8,53 @@ from configs import configs
 from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 from datas.utils.times import get_now_time
-from app.auth.password import verify_login_password
 
 from .policy import ROLE_PERMISSIONS
 
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
+
+# 空表种子：首个管理员固定用户名（Web 登录不再支持空用户名 / legacy_admin）
+SEED_ADMIN_USERNAME = 'admin'
+
+# 审计列表展示（码 → 中文）；未知码原样回退
+AUDIT_ACTION_LABELS = {
+    'user:login': '登录',
+    'user:logout': '登出',
+    'user:create': '创建用户',
+    'user:update': '更新用户',
+    'permission:deny': '权限拒绝',
+}
+AUDIT_STATUS_LABELS = {
+    'allow': '允许',
+    'deny': '拒绝',
+}
+
+
+def audit_action_label(action):
+    action = action or ''
+    return AUDIT_ACTION_LABELS.get(action, action)
+
+
+def audit_status_label(status):
+    status = status or ''
+    return AUDIT_STATUS_LABELS.get(status, status)
+
+
+def audit_resource_label(action, resource):
+    """资源列可读说明；任务配置变更不在本表。"""
+    resource = resource or ''
+    action = action or ''
+    if action == 'user:login':
+        return '账号 %s' % resource if resource else '账号'
+    if action == 'user:logout':
+        return '账号 %s' % resource if resource else '账号'
+    if action == 'user:create':
+        return '新建账号 %s' % resource if resource else '新建账号'
+    if action == 'user:update':
+        return '账号 %s（角色/启停/密码等）' % resource if resource else '账号变更'
+    if action == 'permission:deny':
+        return '缺少权限 %s' % resource if resource else '权限不足'
+    return resource
 
 
 @lru_cache(maxsize=1)
@@ -24,22 +66,45 @@ def get_role_permission_set(role):
     return ROLE_PERMISSIONS.get(role, set())
 
 
+def ensure_seed_admin():
+    """rbac_users 为空且 conf 有 login_pwd 时，种子用户名 admin（密码=login_pwd）。
+
+    不再提供空用户名 → legacy_admin 登录；首次部署依赖此种子或管理端手动建用户。
+    """
+    from app.auth.password import is_hashed_password
+
+    count = db.session.scalar(select(func.count()).select_from(RbacUser)) or 0
+    if count > 0:
+        return False
+    login_pwd = configs().get('login_pwd', '')
+    if not login_pwd:
+        return False
+    user = RbacUser(
+        username=SEED_ADMIN_USERNAME,
+        role='admin',
+        is_active=1,
+        create_time=get_now_time(),
+    )
+    if is_hashed_password(login_pwd):
+        user.password_hash = login_pwd
+    else:
+        user.set_password(login_pwd)
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return False
+    return True
+
+
 def authenticate_user(username, password):
     if not password:
         return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '密码不能为空'}
+    username = (username or '').strip()
     if not username:
-        login_pwd = configs().get('login_pwd', '')
-        if not login_pwd:
-            return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '请联系管理员'}
-        if verify_login_password(password, login_pwd):
-            return {
-                'ok': True,
-                'role': 'admin',
-                'username': 'legacy_admin',
-                'user_id': None,
-                'msg': '',
-            }
-        return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '密码有误'}
+        return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '请填写用户名'}
+    ensure_seed_admin()
     user = db.session.scalars(
         select(RbacUser).where(
             RbacUser.username == username,
@@ -80,6 +145,7 @@ def ensure_rbac_tables(app):
     with app.app_context():
         RbacUser.__table__.create(db.engine, checkfirst=True)
         RbacAuditLog.__table__.create(db.engine, checkfirst=True)
+        ensure_seed_admin()
 
 
 def _normalize_username(username):

@@ -83,15 +83,38 @@ class TestRbacLogin(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('密码', resp.get_data(as_text=True))
 
-    def test_legacy_login_redirects_to_next(self):
-        with patch('app.rbac.services.configs', return_value={'login_pwd': 'changeme', 'rbac_enable': '0'}):
+    def test_seed_admin_login_redirects_to_next(self):
+        with patch(
+            'app.rbac.services.configs',
+            return_value={'login_pwd': 'changeme', 'rbac_enable': '0'},
+        ):
             get_rbac_enabled.cache_clear()
             resp = self.client.post(
                 '/rbac/login',
-                data={'password': 'changeme', 'next': '/cron_list?task_name=x'},
+                data={
+                    'username': 'admin',
+                    'password': 'changeme',
+                    'next': '/cron_list?task_name=x',
+                },
             )
             self.assertEqual(resp.status_code, 302)
             self.assertIn('/cron_list?task_name=x', resp.headers['Location'])
+
+    def test_empty_username_rejected(self):
+        with patch(
+            'app.rbac.services.configs',
+            return_value={'login_pwd': 'changeme', 'rbac_enable': '0'},
+        ):
+            get_rbac_enabled.cache_clear()
+            resp = self.client.post(
+                '/rbac/login',
+                data={'password': 'changeme', 'next': '/cron_list'},
+                follow_redirects=False,
+            )
+            self.assertEqual(resp.status_code, 302)
+            self.assertIn('msg=', resp.headers['Location'])
+            from urllib.parse import unquote
+            self.assertIn('用户名', unquote(resp.headers['Location']))
 
 
 
@@ -518,9 +541,10 @@ class TestRbacAuditLogs(unittest.TestCase):
         with self.app.app_context():
             self.db.session.add(
                 RbacAuditLog(
-                    username='legacy_admin',
+                    username='admin',
+                    user_id=1,
                     action='user:login',
-                    resource='legacy_admin',
+                    resource='admin',
                     ip='127.0.0.1',
                     status='allow',
                     create_time='2026-07-14 10:00:00',
@@ -535,9 +559,26 @@ class TestRbacAuditLogs(unittest.TestCase):
                     resp = self.client.get('/rbac/audit-logs')
                     self.assertEqual(resp.status_code, 200)
                     body = resp.get_data(as_text=True)
-                    self.assertIn('user:login', body)
-                    self.assertIn('legacy_admin', body)
+                    self.assertIn('登录', body)
+                    self.assertIn('用户 ID', body)
+                    self.assertIn('账号 admin', body)
+                    self.assertIn('<td>1</td>', body)
                     self.assertNotIn('js-ajax-form', body)
+                    self.assertNotIn('legacy_admin', body)
+
+    def test_audit_labels_unit(self):
+        from app.rbac.services import (
+            audit_action_label,
+            audit_resource_label,
+            audit_status_label,
+        )
+        self.assertEqual(audit_action_label('user:login'), '登录')
+        self.assertEqual(audit_status_label('deny'), '拒绝')
+        self.assertEqual(
+            audit_resource_label('permission:deny', 'user:manage'),
+            '缺少权限 user:manage',
+        )
+        self.assertEqual(audit_action_label('unknown:x'), 'unknown:x')
 
 
 class TestRbacPolicy(unittest.TestCase):

@@ -12,6 +12,9 @@ from . import rbac
 from .decorators import require_permission
 from .services import (
     VALID_ROLES,
+    audit_action_label,
+    audit_resource_label,
+    audit_status_label,
     authenticate_user,
     create_user,
     get_rbac_enabled,
@@ -170,4 +173,10 @@ def audit_logs():
         .order_by(desc(RbacAuditLog.id))
         .paginate(page=page, per_page=20)
     )
-    return render_template('rbac/audit_logs.html', page_data=page_data)
+    return render_template(
+        'rbac/audit_logs.html',
+        page_data=page_data,
+        audit_action_label=audit_action_label,
+        audit_status_label=audit_status_label,
+        audit_resource_label=audit_resource_label,
+    )

@@ -29,11 +29,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
-| 默认行为 | `rbac_enable=0`（`conf.ini.example`）：`require_permission` 等同 `@login_required`；`has_perm` 恒为 `True` |
-| 登录入口 | 新：`/rbac/login`；旧：`/check_pass` 仅转发壳（GET 302 / POST 307），保留 `next` |
+| 默认行为 | `rbac_enable=0`：权限旁路；登录仍须 `rbac_users`（空表种子 `admin`，密码=`login_pwd`）；**无** `legacy_admin` / 空用户名登录 |
+| 登录入口 | `/rbac/login`：用户名+密码必填；旧 `/check_pass` 仅转发 |
 | 未登录跳转 | **仅**带 `@login_required` / `@require_permission` 的路由跳转登录；`/docs/*`、`/api/*`（`access_token`）保持公开/独立鉴权 |
 | `cron:write` / `cron:retire` / `log:read` | 写=启停编辑；下线仅 admin；**废弃** delete |
 | 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test` |
+| 冒烟 | `smoke_http` 使用 `username=admin&password=…` |
 
 ### RBAC 6a · `/rbac/users`（已落地 · 待 v0.3.0 tag）
 
@@ -55,6 +56,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 能力 | 只读分页：时间 / 用户 / 动作 / 资源 / IP / 结果 |
 | 分工 | RBAC 审计 ≠ P1-09 `operation_log`（任务配置变更） |
 | 开关 | `rbac_enable=0`：导航隐藏；直达重定向 `/cron_list` |
+| 展示 | 「用户 ID」独立列（`rbac_users.id`）；动作/结果中文；说明列可读文案 |
 
 ### 任务生命周期 · 无删除（产品约束）
 

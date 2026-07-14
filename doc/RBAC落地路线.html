@@ -104,7 +104,7 @@
     <li>模板 <code>rbac/login.html</code>、<code>forbidden.html</code></li>
     <li><code>check_pass</code> 仅改函数体：转发 + <code>next</code> 透传 + 307（v4 §8.2）</li>
   </ul>
-  <div class="gate"><strong>门禁：</strong><code>rbac_enable=0</code> 下 legacy 登录行为与现网一致；带 query 的 <code>next</code> 登录后筛选条件不丢。</div>
+  <div class="gate"><strong>门禁：</strong><code>username=admin&amp;password=…</code> 可登录；空用户名被拒绝；带 query 的 <code>next</code> 登录后筛选条件不丢。</div>
 
   <h3>阶段 3 — 导航迁移（<code>_admin_nav</code> → <code>rbac/_nav</code>）</h3>
   <div class="note">
@@ -148,7 +148,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
     <li><code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code> + <code>create_user</code> / <code>update_user</code></li>
     <li>无物理删除；禁停用当前登录账号；保护最后一名启用中 admin</li>
     <li><code>rbac_enable=0</code>：导航隐藏「用户管理」，直达路由重定向 <code>/cron_list</code></li>
-    <li>首次 <code>rbac_enable=1</code> 空表策略：legacy 登录仍为 admin（既有）</li>
+    <li>首次空表：种子 <code>admin</code>（密码=<code>login_pwd</code>）；**无** legacy_admin</li>
     <li><code>test_rbac_phase.TestRbacUsersManage</code> + 导航用例</li>
   </ul>
   <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含用户 CRUD / 403 / 最后 admin）；operator 不可进 <code>/rbac/users</code>。</div>

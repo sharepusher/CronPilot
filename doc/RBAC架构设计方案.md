@@ -63,8 +63,8 @@ OPT-P2-10RBACv4
   └─ has_permission(role, perm) → 视图 | 403（Ajax JSON / 页面 forbidden.html）
 
 /rbac/login POST
-  ├─ username 空 → verify_login_password(login_pwd) → role=admin, username=legacy_admin
-  └─ username 非空 → rbac_users + 密码 → role/username
+  ├─ username 必填 → rbac_users 校验；空表时种子 admin（密码=login_pwd）
+  └─ 失败 → 请填写用户名 / 用户名或密码有误
   → redirect(next)
 
 每请求：app_context_processor → current_user, has_perm()
@@ -156,9 +156,11 @@ flask --app manage:app db upgrade
 
 CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 
-### 4.5 首次启用 `rbac_enable=1`
+### 4.5 首次启用与种子管理员
 
-表为空时仅 legacy 单密码可登录，角色固定 `admin` — 切换开关不会锁死管理员。
+**已取消**空用户名 → `legacy_admin` 登录。`rbac_users` 为空且 `login_pwd` 已配置时，启动/登录时自动种子用户名 `admin`（密码=login\_pwd）。此后 Web 登录**必须**填写用户名 + 密码。
+
+`rbac_enable=0` 时仍须用账号登录，但权限旁路（全权限）；用户/审计管理页隐藏。
 
 ## 五、目录结构
 
@@ -331,7 +333,7 @@ def get_role_permission_set(role):
 
 ### 8.2 `rbac/login.html`
 
-隐藏域 `next`；用户名 placeholder：「留空则使用旧版密码登录」。
+隐藏域 `next`；用户名、密码均必填（无「留空旧版密码」）。
 
 ### 8.3 按钮级权限（`cron_list.html`）
 

@@ -76,7 +76,7 @@ OPT-P2-10路线v4
 - 模板 `rbac/login.html`、`forbidden.html`
 - `check_pass` 仅改函数体：转发 + `next` 透传 + 307（v4 §8.2）
 
-**门禁：**`rbac_enable=0` 下 legacy 登录行为与现网一致；带 query 的 `next` 登录后筛选条件不丢。
+**门禁：**`username=admin&password=…` 可登录；空用户名被拒绝；带 query 的 `next` 登录后筛选条件不丢。
 
 ### 阶段 3 — 导航迁移（`_admin_nav` → `rbac/_nav`）
 
@@ -128,7 +128,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 - `/rbac/users`、`/users/add`、`/users/edit` + `create_user` / `update_user`
 - 无物理删除；禁停用当前登录账号；保护最后一名启用中 admin
 - `rbac_enable=0`：导航隐藏「用户管理」，直达路由重定向 `/cron_list`
-- 首次 `rbac_enable=1` 空表策略：legacy 登录仍为 admin（既有）
+- 首次空表：种子 `admin`（密码=`login_pwd`）；\*\*无\*\* legacy\_admin
 - `test_rbac_phase.TestRbacUsersManage` + 导航用例
 
 **门禁：**`bash scripts/cronpilot.sh test`（含用户 CRUD / 403 / 最后 admin）；operator 不可进 `/rbac/users`。

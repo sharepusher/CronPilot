@@ -18,8 +18,8 @@
 <div style="text-align: center">
 <form action="{{ url_for('rbac.login') }}" method="post" class="well form-search form-inline">
     <input type="hidden" name="next" value="{{ next_url }}">
-    <input type="text" name="username" value="" placeholder="用户名（可选）" class="form-control">
-    <input type="password" name="password" value="" placeholder="密码" class="form-control">
+    <input type="text" name="username" value="" placeholder="用户名" class="form-control" required>
+    <input type="password" name="password" value="" placeholder="密码" class="form-control" required>
     <input type="submit" value="确定" class="btn btn-primary">
 </form>
     {% if msg %}

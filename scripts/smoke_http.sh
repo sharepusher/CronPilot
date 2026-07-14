@@ -21,7 +21,7 @@ smoke_http_cron_list() {
   local base="$1" password="$2"
   local jar body
   jar=$(mktemp)
-  curl -s -c "$jar" -b "$jar" -X POST -d "password=${password}" -o /dev/null "$base/rbac/login" 2>/dev/null || true
+  curl -s -c "$jar" -b "$jar" -X POST -d "username=admin&password=${password}" -o /dev/null "$base/rbac/login" 2>/dev/null || true
   body=$(curl -s -b "$jar" -L "$base/cron_list" 2>/dev/null || true)
   rm -f "$jar"
   if echo "$body" | grep -qi 'system err'; then
@@ -61,7 +61,7 @@ smoke_http_not_found() {
   fi
 
   jar=$(mktemp)
-  curl -s -c "$jar" -b "$jar" -X POST -d "password=${password}" -o /dev/null "$base/rbac/login" 2>/dev/null || true
+  curl -s -c "$jar" -b "$jar" -X POST -d "username=admin&password=${password}" -o /dev/null "$base/rbac/login" 2>/dev/null || true
   body=$(curl -s -b "$jar" -w $'\n%{http_code}' --connect-timeout 5 "$base/__smoke_404_probe__" 2>/dev/null || true)
   rm -f "$jar"
   code=$(echo "$body" | tail -1)
@@ -94,7 +94,7 @@ smoke_http_suite() {
   smoke_http_check docs_index '200' "$base/docs/index.html" || fail=$((fail + 1))
   smoke_http_check docs_rfc '200' "$base/docs/依赖升级RFC.html" || fail=$((fail + 1))
   smoke_http_check login_page '200' "$base/rbac/login" || fail=$((fail + 1))
-  smoke_http_check login_post '302' "$base/rbac/login" POST "password=${password}" || fail=$((fail + 1))
+  smoke_http_check login_post '302' "$base/rbac/login" POST "username=admin&password=${password}" || fail=$((fail + 1))
   smoke_http_check api_test '200' "$base/api/test" || fail=$((fail + 1))
   smoke_http_cron_list "$base" "$password" || fail=$((fail + 1))
   smoke_http_not_found "$base" "$password" || fail=$((fail + 1))

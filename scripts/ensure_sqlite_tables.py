@@ -27,6 +27,8 @@ def main():
         db.create_all()
         _ensure_job_log_columns()
         _ensure_cron_infos_columns()
+        from app.rbac.services import ensure_seed_admin
+        ensure_seed_admin()
     print('OK: SQLite 业务表已就绪 ->', uri)
     return 0
 

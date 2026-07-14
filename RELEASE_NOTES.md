@@ -15,7 +15,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简
 
-在 v1.0.0 RBAC 之上交付 **OPT-P2-12 资源隔离**，并完善账号自助与任务编辑体验。升级须重启；已有库会经 `ensure_sqlite_tables` 补业务组表与任务 Scope 列。
+在 v1.0.0 RBAC 之上交付 **OPT-P2-12 资源隔离**，并完善账号自助与任务编辑体验。升级须**重启**。
+
+| 库 | 升级动作 |
+|----|----------|
+| **SQLite / MySQL** | 部署启动时 `ensure_sqlite_tables.py`（`run_production.sh` / `cronpilot.sh start` 会调用）：`create_all` 建缺失表（含 `resource_groups` / `user_groups`），并对已有 `cron_infos` / `job_log` 按需 `ALTER` 补列 |
+| 其它方言 | 打印 `SKIP`；需自行维护 schema |
+
+前提：MySQL 库与账号已存在且 `cron_db_url` 可连；脚本**不会**删表或改已有列类型。手写 DDL（设计 §十）仍作备用。
 
 ### OPT-P2-12 · Resource Scope 资源隔离
 
@@ -23,7 +30,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
-| 数据 | `resource_groups`、`user_groups`；`cron_infos.scope_type`（默认 GLOBAL）/ `group_id`；SQLite `ensure_sqlite_tables` 补列 |
+| 数据 | `resource_groups`、`user_groups`；`cron_infos.scope_type`（默认 GLOBAL）/ `group_id`；SQLite/MySQL 均由 `ensure_sqlite_tables` 自动建表补列（§十 DDL 备用） |
 | 鉴权 | `app/rbac/scope.py`、`authorize.py`；登录写 `session['group_ids']`；越权 403 + `scope:deny` |
 | 管理端 | `/rbac/groups*`（组编码由名称自动生成）；用户绑组（非 admin 至少一组）；**任务添加**时可设作用域；执行日志/操作记录继承可见性 |
 | 非 admin 任务 | 强制 `GROUP`、仅可选本人所属组；不可设 GLOBAL |

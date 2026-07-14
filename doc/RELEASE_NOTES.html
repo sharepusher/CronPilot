@@ -54,11 +54,17 @@
 
 <h2 class="new" id="110">[1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简</h2>
   <div class="card highlight">
-    <p>在 v1.0.0 RBAC 之上交付 <strong>OPT-P2-12 资源隔离</strong>，并完善账号自助与任务编辑体验。升级须重启；已有库会经 <code>ensure_sqlite_tables</code> 补业务组表与任务 Scope 列。</p>
+    <p>在 v1.0.0 RBAC 之上交付 <strong>OPT-P2-12 资源隔离</strong>，并完善账号自助与任务编辑体验。升级须<strong>重启</strong>。</p>
+    <table>
+      <tr><th>库</th><th>升级动作</th></tr>
+      <tr><td><strong>SQLite / MySQL</strong></td><td>部署启动时 <code>ensure_sqlite_tables.py</code>（<code>run_production.sh</code> / <code>cronpilot.sh start</code>）：<code>create_all</code> 建缺失表（含业务组），并对已有 <code>cron_infos</code> / <code>job_log</code> 按需 <code>ALTER</code> 补列</td></tr>
+      <tr><td>其它方言</td><td>打印 <code>SKIP</code>；需自行维护 schema</td></tr>
+    </table>
+    <p>前提：MySQL 库与账号已存在且 <code>cron_db_url</code> 可连；脚本<strong>不会</strong>删表或改已有列类型。手写 DDL（设计 §十）仍作备用。<code>login_pwd</code> 仍仅空表种子。</p>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-12 · Resource Scope</h3>
     <table>
       <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>数据</td><td><code>resource_groups</code> / <code>user_groups</code>；<code>cron_infos.scope_type</code>（默认 GLOBAL）/ <code>group_id</code></td></tr>
+      <tr><td>数据</td><td><code>resource_groups</code> / <code>user_groups</code>；<code>cron_infos.scope_type</code>（默认 GLOBAL）/ <code>group_id</code>；SQLite/MySQL 均由 <code>ensure_sqlite_tables</code> 自动补齐</td></tr>
       <tr><td>鉴权</td><td>列表 Scope 过滤 + 单资源 <code>authorize</code>；admin 绕过；越权 403 + <code>scope:deny</code></td></tr>
       <tr><td>管理端</td><td><code>/rbac/groups*</code>（编码由名称自动生成）；用户绑组（非 admin 至少一组）；<strong>任务添加</strong>时可设作用域；日志继承可见性</td></tr>
       <tr><td>非 admin 任务</td><td>强制 <code>GROUP</code>、仅可选本人所属组；不可设 GLOBAL</td></tr>

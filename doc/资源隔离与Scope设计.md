@@ -114,7 +114,17 @@ Allow / Deny（403）
 - 历史 GLOBAL 任务对所有已登录有权限用户可见
 - `tests.test_ajax_form_guard` 通过
 
-## 十、MySQL 补表（裸机）
+## 十、schema 升级（部署自动 + 人工备用）
+
+**推荐（SQLite / MySQL）：**部署时执行 `bash scripts/ensure_sqlite_tables.sh`（`run_production.sh`、`cronpilot.sh start` 已调用）。行为：
+
+- `db.create_all()` — 仅创建**缺失**表（含 `resource_groups` / `user_groups` / RBAC / `operation_log` 等），不删不改已有表
+- 已有表缺列时 `ALTER TABLE … ADD COLUMN`（`scope_type` / `group_id` 等）
+- 空表时种子 `admin`（密码=`login_pwd`）
+
+前提：MySQL **数据库已建好**且 `cron_db_url` 账号有建表/改表权限。列已存在则跳过对应 ALTER。
+
+**备用手写 DDL（MySQL）：**
 
 ```
 CREATE TABLE IF NOT EXISTS resource_groups (
@@ -135,7 +145,7 @@ ALTER TABLE cron_infos
   ADD COLUMN group_id INT NULL;
 ```
 
-SQLite 由 `scripts/ensure_sqlite_tables.py` 建表/补列。
+列已存在时 `ADD COLUMN` 会报错，可先 `SHOW COLUMNS FROM cron_infos LIKE 'scope_type'`。
 
 CronPilot · OPT-P2-12 Resource Scope ·
 [Markdown](资源隔离与Scope设计.md) ·

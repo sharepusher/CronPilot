@@ -141,7 +141,15 @@ Allow / Deny（403）</pre>
     <li><code>tests.test_ajax_form_guard</code> 通过</li>
   </ul>
 
-  <h2>十、MySQL 补表（裸机）</h2>
+  <h2>十、schema 升级（部署自动 + 人工备用）</h2>
+  <p><strong>推荐（SQLite / MySQL）：</strong>部署时执行 <code>bash scripts/ensure_sqlite_tables.sh</code>（<code>run_production.sh</code>、<code>cronpilot.sh start</code> 已调用）。行为：</p>
+  <ul>
+    <li><code>db.create_all()</code> — 仅创建<strong>缺失</strong>表（含 <code>resource_groups</code> / <code>user_groups</code> / RBAC / <code>operation_log</code> 等），不删不改已有表</li>
+    <li>已有表缺列时 <code>ALTER TABLE … ADD COLUMN</code>（<code>scope_type</code> / <code>group_id</code> 等）</li>
+    <li>空表时种子 <code>admin</code>（密码=<code>login_pwd</code>）</li>
+  </ul>
+  <p>前提：MySQL <strong>数据库已建好</strong>且 <code>cron_db_url</code> 账号有建表/改表权限。列已存在则跳过对应 ALTER。</p>
+  <p><strong>备用手写 DDL（MySQL）：</strong></p>
   <pre>CREATE TABLE IF NOT EXISTS resource_groups (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(64) NOT NULL,
@@ -158,7 +166,7 @@ CREATE TABLE IF NOT EXISTS user_groups (
 ALTER TABLE cron_infos
   ADD COLUMN scope_type VARCHAR(16) NOT NULL DEFAULT 'GLOBAL',
   ADD COLUMN group_id INT NULL;</pre>
-  <p>SQLite 由 <code>scripts/ensure_sqlite_tables.py</code> 建表/补列。</p>
+  <p>列已存在时 <code>ADD COLUMN</code> 会报错，可先 <code>SHOW COLUMNS FROM cron_infos LIKE 'scope_type'</code>。</p>
 
 </main>
 <footer>

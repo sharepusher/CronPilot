@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8
-"""确保 SQLite 业务表存在（cron_infos / job_log / job_log_items）。"""
+"""确保业务库表存在：SQLite / MySQL（cron_infos、组表、RBAC、补列）。
+
+部署入口：scripts/ensure_sqlite_tables.sh（历史脚本名保留）。
+- create_all：仅创建缺失表，不删不改已有表结构
+- 补列：对已有 cron_infos / job_log 按需 ALTER ADD COLUMN
+- 非 sqlite/mysql URI：SKIP
+"""
 import os
 import sys
 
@@ -19,12 +25,25 @@ from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
 from datas.model.user_group import UserGroup  # noqa: F401,E402
 
 
+def business_db_backend(uri):
+    """返回 sqlite / mysql / 其它。供单测与 main 门禁复用。"""
+    if not uri:
+        return ''
+    u = uri.strip().lower()
+    if u.startswith('sqlite'):
+        return 'sqlite'
+    if u.startswith('mysql'):
+        return 'mysql'
+    return ''
+
+
 def main():
     config_name = os.getenv('FLASK_CONFIG') or 'development'
     app = create_app(config_name)
-    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-    if not uri.startswith('sqlite'):
-        print('SKIP: 非 SQLite 业务库，不自动建表')
+    uri = app.config.get('SQLALCHEMY_DATABASE_URI', '') or ''
+    backend = business_db_backend(uri)
+    if not backend:
+        print('SKIP: 业务库非 SQLite/MySQL，不自动建表 ->', uri)
         return 0
     with app.app_context():
         db.create_all()
@@ -32,12 +51,12 @@ def main():
         _ensure_cron_infos_columns()
         from app.rbac.services import ensure_seed_admin
         ensure_seed_admin()
-    print('OK: SQLite 业务表已就绪 ->', uri)
+    print('OK: %s 业务表已就绪 ->' % backend, uri)
     return 0
 
 
 def _ensure_job_log_columns():
-    """已有 SQLite 库补列（create_all 不会 ALTER）。"""
+    """已有库补列（create_all 不会 ALTER）。SQLite / MySQL 通用 DDL。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -62,7 +81,7 @@ def _ensure_job_log_columns():
 
 
 def _ensure_cron_infos_columns():
-    """LIFECYCLE-2：已有 SQLite 库补 created_at/updated_at/retire_*。"""
+    """LIFECYCLE-2 + Scope：已有库补列。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)

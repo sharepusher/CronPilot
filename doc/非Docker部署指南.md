@@ -83,7 +83,7 @@ url_allow_hosts=
 url_ssrf_observe_only=0
 ```
 
-升级 **OPT-P2-12 Resource Scope** 时，须为业务库建 `resource_groups` / `user_groups` 并为 `cron_infos` 增加 `scope_type`/`group_id`（SQL 见 [资源隔离与 Scope 设计 §十](资源隔离与Scope设计.html)）。SQLite 由 `ensure_sqlite_tables.py` 自动补列。
+升级 **OPT-P2-12**：`bash scripts/run_production.sh`（或单独 `bash scripts/ensure_sqlite_tables.sh`）会对 **MySQL / SQLite** 自动建业务组表并补 `scope_type`/`group_id`。需库已存在且账号有 DDL 权限。手写 SQL 备用见 [资源隔离与 Scope 设计 §十](资源隔离与Scope设计.html)。
 
 ### 3.5 SQLite 单机试用
 

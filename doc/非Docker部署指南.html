@@ -99,7 +99,7 @@ login_pwd=pbkdf2:...
 block_private_ip=1
 url_allow_hosts=
 url_ssrf_observe_only=0</pre>
-    <p style="color:var(--muted);font-size:.9rem">升级 <strong>OPT-P2-12 Resource Scope</strong> 时，须为业务库建 <code>resource_groups</code> / <code>user_groups</code> 并为 <code>cron_infos</code> 增加 <code>scope_type</code>/<code>group_id</code>（SQL 见 <a href="资源隔离与Scope设计.html">资源隔离与 Scope 设计 §十</a>）。SQLite 由 <code>ensure_sqlite_tables.py</code> 自动补列。</p>
+    <p style="color:var(--muted);font-size:.9rem">升级 <strong>OPT-P2-12</strong>：<code>bash scripts/run_production.sh</code>（或单独 <code>bash scripts/ensure_sqlite_tables.sh</code>）会对 <strong>MySQL / SQLite</strong> 自动建业务组表并补 <code>scope_type</code>/<code>group_id</code>。需库已存在且账号有 DDL 权限。手写 SQL 备用见 <a href="资源隔离与Scope设计.html">资源隔离与 Scope 设计 §十</a>。</p>
 
     <h3>3.5 SQLite 单机试用</h3>
     <pre>cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite

@@ -1,5 +1,5 @@
 #!/bin/bash
-# 本地 SQLite 试用：自动创建 cron_infos / job_log / job_log_items 表
+# 业务库建表/补列：SQLite 与 MySQL（mysql+pymysql）均由 ensure_sqlite_tables.py 处理
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/python.sh

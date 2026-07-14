@@ -30,16 +30,16 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 | 库 | 升级动作 |
 | --- | --- |
-| **SQLite / MySQL** | 部署启动时 `ensure_sqlite_tables.py`（`run_production.sh` / `cronpilot.sh start`）：`create_all` 建缺失表（含业务组），并对已有 `cron_infos` / `job_log` 按需 `ALTER` 补列 |
+| **SQLite / MySQL** | 部署启动时 `ensure_business_tables.py`（`run_production.sh` / `cronpilot.sh start`）：`create_all` 建缺失表（含业务组），并对已有 `cron_infos` / `job_log` 按需 `ALTER` 补列。旧名 `ensure_sqlite_tables.*` 仍转发 |
 | 其它方言 | 打印 `SKIP`；需自行维护 schema |
 
-前提：MySQL 库与账号已存在且 `cron_db_url` 可连；脚本**不会**删表或改已有列类型。手写 DDL（设计 §十）仍作备用。`login_pwd` 仍仅空表种子。
+前提：MySQL 库与账号已存在且 `cron_db_url` 可连；脚本**不会**删表或改已有列类型。手写 DDL（设计 §十）仍作备用。脚本已更名为 **`ensure_business_tables`**（旧名 `ensure_sqlite_tables` 仍转发）。`login_pwd` 仍仅空表种子。
 
 ### OPT-P2-12 · Resource Scope
 
 | 变更 | 说明 |
 | --- | --- |
-| 数据 | `resource_groups` / `user_groups`；`cron_infos.scope_type`（默认 GLOBAL）/ `group_id`；SQLite/MySQL 均由 `ensure_sqlite_tables` 自动补齐 |
+| 数据 | `resource_groups` / `user_groups`；`cron_infos.scope_type`（默认 GLOBAL）/ `group_id`；SQLite/MySQL 均由 `ensure_business_tables` 自动补齐 |
 | 鉴权 | 列表 Scope 过滤 + 单资源 `authorize`；admin 绕过；越权 403 + `scope:deny` |
 | 管理端 | `/rbac/groups*`（编码由名称自动生成）；用户绑组（非 admin 至少一组）；**任务添加**时可设作用域；日志继承可见性 |
 | 非 admin 任务 | 强制 `GROUP`、仅可选本人所属组；不可设 GLOBAL |

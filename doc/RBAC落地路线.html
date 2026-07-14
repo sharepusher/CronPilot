@@ -83,7 +83,7 @@
     <li>新增 <code>datas/model/rbac_user.py</code>、<code>rbac_audit_log.py</code></li>
     <li><code>flask --app manage:app db migrate -m "add rbac tables"</code> + <code>upgrade</code></li>
   </ul>
-  <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含 <code>tests.test_rbac_phase</code>）；migrate / <code>ensure_sqlite_tables</code> 在 SQLite 可重复执行。</div>
+  <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含 <code>tests.test_rbac_phase</code>）；migrate / <code>ensure_business_tables</code> 在 SQLite 可重复执行。</div>
 
   <h3>阶段 2 — RBAC 核心模块（v4 性能实现）</h3>
   <ul>

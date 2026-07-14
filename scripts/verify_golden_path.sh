@@ -65,7 +65,7 @@ cronpilot_load_runtime
   --template "$ROOT/conf.local.sqlite.example"
 
 export FLASK_CONFIG=development
-bash "$ROOT/scripts/ensure_sqlite_tables.sh"
+bash "$ROOT/scripts/ensure_business_tables.sh"
 
 echo "=== golden: double restart ==="
 bash "$ROOT/scripts/restart_local.sh" --daemon

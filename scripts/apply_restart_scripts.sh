@@ -18,6 +18,8 @@ chown "$TARGET_USER" "$ROOT/scripts/process.sh" \
   "$ROOT/scripts/status.sh" \
   "$ROOT/scripts/start_local_full.sh" \
   "$ROOT/scripts/cronpilot_dev.sh" \
+  "$ROOT/scripts/ensure_business_tables.sh" \
+  "$ROOT/scripts/ensure_business_tables.py" \
   "$ROOT/scripts/ensure_sqlite_tables.sh" \
   "$ROOT/scripts/ensure_sqlite_tables.py" 2>/dev/null || true
 chmod +x "$ROOT/scripts/process.sh" \
@@ -28,6 +30,7 @@ chmod +x "$ROOT/scripts/process.sh" \
   "$ROOT/scripts/status.sh" \
   "$ROOT/scripts/start_local_full.sh" \
   "$ROOT/scripts/cronpilot_dev.sh" \
+  "$ROOT/scripts/ensure_business_tables.sh" \
   "$ROOT/scripts/ensure_sqlite_tables.sh" 2>/dev/null || true
 
 cp -a "$ROOT/scripts/cronpilot.sh" "$ROOT/scripts/cronpilot.sh.bak.$(date +%Y%m%d)" 2>/dev/null || true

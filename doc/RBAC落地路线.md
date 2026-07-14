@@ -55,7 +55,7 @@ OPT-P2-10路线v4
 - 新增 `datas/model/rbac_user.py`、`rbac_audit_log.py`
 - `flask --app manage:app db migrate -m "add rbac tables"` + `upgrade`
 
-**门禁：**`bash scripts/cronpilot.sh test`（含 `tests.test_rbac_phase`）；migrate / `ensure_sqlite_tables` 在 SQLite 可重复执行。
+**门禁：**`bash scripts/cronpilot.sh test`（含 `tests.test_rbac_phase`）；migrate / `ensure_business_tables` 在 SQLite 可重复执行。
 
 ### 阶段 2 — RBAC 核心模块（v4 性能实现）
 

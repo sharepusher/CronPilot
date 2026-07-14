@@ -37,7 +37,7 @@ if ! "$VENV/bin/python" -c "import gevent" 2>/dev/null; then
 fi
 
 mkdir -p datas/logs
-bash "$ROOT/scripts/ensure_sqlite_tables.sh"
+bash "$ROOT/scripts/ensure_business_tables.sh"
 
 pids=$(cronpilot_listen_pids "$PROD_PORT")
 if [ -n "${pids// }" ]; then

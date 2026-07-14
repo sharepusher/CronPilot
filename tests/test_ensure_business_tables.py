@@ -10,8 +10,8 @@ if ROOT not in sys.path:
 
 
 def _load_ensure():
-    path = os.path.join(ROOT, 'scripts', 'ensure_sqlite_tables.py')
-    spec = importlib.util.spec_from_file_location('ensure_sqlite_tables_test', path)
+    path = os.path.join(ROOT, 'scripts', 'ensure_business_tables.py')
+    spec = importlib.util.spec_from_file_location('ensure_business_tables_test', path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

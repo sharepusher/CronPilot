@@ -116,7 +116,7 @@ Allow / Deny（403）
 
 ## 十、schema 升级（部署自动 + 人工备用）
 
-**推荐（SQLite / MySQL）：**部署时执行 `bash scripts/ensure_sqlite_tables.sh`（`run_production.sh`、`cronpilot.sh start` 已调用）。行为：
+**推荐（SQLite / MySQL）：**部署时执行 `bash scripts/ensure_business_tables.sh`（`run_production.sh`、`cronpilot.sh start` 已调用；旧名 `ensure_sqlite_tables.sh` 仍转发）。行为：
 
 - `db.create_all()` — 仅创建**缺失**表（含 `resource_groups` / `user_groups` / RBAC / `operation_log` 等），不删不改已有表
 - 已有表缺列时 `ALTER TABLE … ADD COLUMN`（`scope_type` / `group_id` 等）

@@ -85,7 +85,7 @@ if [[ "$docs_code" != "200" ]]; then
 fi
 
 echo "=== ensure SQLite tables (container) ==="
-docker compose exec -T cronpilot bash -c 'cd /opt/cronpilot && export FLASK_CONFIG=production && bash scripts/ensure_sqlite_tables.sh'
+docker compose exec -T cronpilot bash -c 'cd /opt/cronpilot && export FLASK_CONFIG=production && bash scripts/ensure_business_tables.sh'
 
 echo "=== HTTP smoke (login + cron_list) ==="
 ext_fail=0

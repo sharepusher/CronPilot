@@ -202,7 +202,7 @@ requests.get(timeout=120s) 异常 → status=error, fail_reason=timeout|connecti
   <h2>七、迁移与兼容</h2>
   <table>
     <tr><th>环境</th><th>动作</th></tr>
-    <tr><td>SQLite 试用</td><td><code>scripts/ensure_sqlite_tables.py</code> 增加 ALTER <code>status</code>、<code>fail_reason</code></td></tr>
+    <tr><td>SQLite 试用</td><td><code>scripts/ensure_business_tables.py</code>（原 <code>ensure_sqlite_tables</code>）增加 ALTER <code>status</code>、<code>fail_reason</code></td></tr>
     <tr><td>MySQL 生产</td><td><code>flask db migrate</code> 或运维 ALTER（与 A′ <code>http_status</code> 同流程）</td></tr>
     <tr><td>旧 job_log 行</td><td><code>status IS NULL</code>；UI 不崩溃，展示 A′ 回退逻辑</td></tr>
     <tr><td><code>fail_on_http_4xx_5xx=0</code></td><td>显式关闭 HTTP 失败判定；仅 keyword + 异常 → fail/error（兼容极端老部署）</td></tr>
@@ -212,7 +212,7 @@ requests.get(timeout=120s) 异常 → status=error, fail_reason=timeout|connecti
   <table>
     <tr><th>文件</th><th>变更</th></tr>
     <tr><td><code>datas/model/job_log.py</code></td><td>列 <code>status</code>、<code>fail_reason</code></td></tr>
-    <tr><td><code>scripts/ensure_sqlite_tables.py</code></td><td>SQLite 补列</td></tr>
+    <tr><td><code>scripts/ensure_business_tables.py</code></td><td>业务库补列（SQLite/MySQL）</td></tr>
     <tr><td><code>app/crons.py</code></td><td>判定函数 + 写入 status；统一告警入口</td></tr>
     <tr><td><code>configs.py</code> / <code>conf.ini.example</code></td><td><code>fail_on_http_4xx_5xx</code></td></tr>
     <tr><td><code>app/services/job_log_display.py</code></td><td>徽章 + 第一行文案（扩展 A′）</td></tr>

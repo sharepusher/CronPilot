@@ -35,7 +35,7 @@ alwaysApply: false
 | `app/services/cron_service.py` | **仅**透传 `scope_type`/`group_id` 落库，**禁止**角色/组判断 |
 | `app/templates/cron_*.html`、`rbac/groups*.html`、`rbac/users_*.html`、`rbac/_nav.html` | Scope UI |
 | `tests/test_rbac_scope.py` | Scope 单测 |
-| `scripts/ensure_sqlite_tables.py` | SQLite **与 MySQL** 建表/补列（脚本名历史保留） |
+| `scripts/ensure_business_tables.py` | SQLite **与 MySQL** 建表/补列（旧名 `ensure_sqlite_tables` 仍转发） |
 | 文档 | `doc/资源隔离*.html`、`RELEASE_NOTES`、`交付状态与路线图` |
 
 **不在白名单、默认不改**：`app/api/views.py`（`access_token` 独立，Scope 首期除外）。

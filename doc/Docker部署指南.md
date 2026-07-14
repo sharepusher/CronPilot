@@ -186,7 +186,7 @@ SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh
 
 | 现象 | 处理 |
 | --- | --- |
-| 登录后页面 `system error` / 日志 `no such table: cron_infos` | `conf.ini` 误用 `conf.ci.ini`（`:memory:`）或路径不对；执行 `python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths`，容器内 `bash scripts/ensure_sqlite_tables.sh`，`docker compose restart` |
+| 登录后页面 `system error` / 日志 `no such table: cron_infos` | `conf.ini` 误用 `conf.ci.ini`（`:memory:`）或路径不对；执行 `python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths`，容器内 `bash scripts/ensure_business_tables.sh`，`docker compose restart` |
 | `port is already allocated` | 改 `docker-compose.yml` 为 `"5861:5860"` 或释放 5860 |
 | 容器启动后 502 / 无响应 | `docker compose logs`；确认 `conf.ini` 是文件且已正确挂载 |
 | `conf.ini` 变成目录 | 删除该目录，`cp conf.ini.example conf.ini` 后重启 |

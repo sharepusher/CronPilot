@@ -185,7 +185,7 @@ docker run -d --name cronpilot \
     <h2>10. 常见问题</h2>
     <table>
       <tr><th>现象</th><th>处理</th></tr>
-      <tr><td>登录后页面 <code>system error</code> / 日志 <code>no such table: cron_infos</code></td><td><code>conf.ini</code> 误用 <code>conf.ci.ini</code>（<code>:memory:</code>）或路径不对；执行 <code>python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths</code>，容器内 <code>bash scripts/ensure_sqlite_tables.sh</code>，<code>docker compose restart</code></td></tr>
+      <tr><td>登录后页面 <code>system error</code> / 日志 <code>no such table: cron_infos</code></td><td><code>conf.ini</code> 误用 <code>conf.ci.ini</code>（<code>:memory:</code>）或路径不对；执行 <code>python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths</code>，容器内 <code>bash scripts/ensure_business_tables.sh</code>，<code>docker compose restart</code></td></tr>
       <tr><td><code>port is already allocated</code></td><td>改 <code>docker-compose.yml</code> 为 <code>"5861:5860"</code> 或释放 5860</td></tr>
       <tr><td>容器启动后 502 / 无响应</td><td><code>docker compose logs</code>；确认 <code>conf.ini</code> 是文件且已正确挂载</td></tr>
       <tr><td><code>conf.ini</code> 变成目录</td><td>删除该目录，<code>cp conf.ini.example conf.ini</code> 后重启</td></tr>

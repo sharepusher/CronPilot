@@ -149,7 +149,7 @@ if [[ "$RUN_COMPOSE" -eq 1 ]]; then
       --template "$ROOT/conf.local.sqlite.example" \
       --container-paths
     RESTORE_CONF=1
-    # Tables are created inside the container via run_production.sh → ensure_sqlite_tables.sh
+    # Tables are created inside the container via run_production.sh → ensure_business_tables.sh
 
     docker compose down 2>/dev/null || true
     if docker compose up -d --build >/tmp/cronpilot_compose.log 2>&1; then

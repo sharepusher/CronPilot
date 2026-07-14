@@ -5,6 +5,7 @@ from sqlalchemy import desc
 
 from app import db
 from app.common.functions import web_api_return
+from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 
 from . import rbac
@@ -20,8 +21,8 @@ from .services import (
 )
 
 
-def _users_feature_or_redirect():
-    """rbac_enable=0 时管理面不可用（装饰器会旁路权限，须额外闸门）。"""
+def _rbac_feature_or_redirect():
+    """rbac_enable=0 时用户/审计管理面不可用（装饰器会旁路权限，须额外闸门）。"""
     if not get_rbac_enabled():
         return redirect('/cron_list')
     return None
@@ -84,7 +85,7 @@ def logout():
 @rbac.route('/users', methods=['GET'])
 @require_permission('user:manage')
 def users_list():
-    blocked = _users_feature_or_redirect()
+    blocked = _rbac_feature_or_redirect()
     if blocked is not None:
         return blocked
     page = int(request.args.get('page') or 1)
@@ -99,7 +100,7 @@ def users_list():
 @rbac.route('/users/add', methods=['GET', 'POST'])
 @require_permission('user:manage')
 def users_add():
-    blocked = _users_feature_or_redirect()
+    blocked = _rbac_feature_or_redirect()
     if blocked is not None:
         return blocked
     if request.method == 'GET':
@@ -119,7 +120,7 @@ def users_add():
 @rbac.route('/users/edit', methods=['GET', 'POST'])
 @require_permission('user:manage')
 def users_edit():
-    blocked = _users_feature_or_redirect()
+    blocked = _rbac_feature_or_redirect()
     if blocked is not None:
         return blocked
     user_id = request.values.get('id')
@@ -155,3 +156,18 @@ def users_edit():
         template='rbac/users_edit.html',
         user=user,
     )
+
+
+@rbac.route('/audit-logs', methods=['GET'])
+@require_permission('audit:read')
+def audit_logs():
+    blocked = _rbac_feature_or_redirect()
+    if blocked is not None:
+        return blocked
+    page = int(request.args.get('page') or 1)
+    page_data = (
+        db.session.query(RbacAuditLog)
+        .order_by(desc(RbacAuditLog.id))
+        .paginate(page=page, per_page=20)
+    )
+    return render_template('rbac/audit_logs.html', page_data=page_data)

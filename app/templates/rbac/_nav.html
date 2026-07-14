@@ -1,4 +1,4 @@
-{# active: cron_list | cron_add | job_log | api_doc | users #}
+{# active: cron_list | cron_add | job_log | api_doc | users | audit #}
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
@@ -23,6 +23,11 @@
     {% if rbac_enabled and has_perm('user:manage') %}
     <li{% if active == 'users' %} class="active"{% endif %}>
         <a{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>用户管理</a>
+    </li>
+    {% endif %}
+    {% if rbac_enabled and has_perm('audit:read') %}
+    <li{% if active == 'audit' %} class="active"{% endif %}>
+        <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>审计</a>
     </li>
     {% endif %}
     <li><a href="{{ url_for('main.logout') }}">退出</a></li>

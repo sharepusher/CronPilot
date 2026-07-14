@@ -57,7 +57,7 @@
     <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code>；<code>has_perm</code> 菜单裁剪</td></tr>
     <tr><td>4+5 权限</td><td>✅</td><td>全路由 <code>@require_permission</code>；无删除；<code>cron:retire</code></td></tr>
     <tr><td>6a 用户管理</td><td>✅</td><td><code>/rbac/users</code> 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；关 RBAC 隐藏入口</td></tr>
-    <tr><td>6b 审计列表</td><td>⏳</td><td><code>/rbac/audit-logs</code> 未开始</td></tr>
+    <tr><td>6b 审计列表</td><td>✅</td><td><code>/rbac/audit-logs</code> 只读分页；关 RBAC 隐藏入口</td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
 
@@ -69,6 +69,15 @@
     <tr><td>安全</td><td>禁停用自己；保护最后一名启用中 admin；关 RBAC 隐藏入口</td></tr>
     <tr><td>表单</td><td>按钮 <code>js-ajax-submit</code>；Ajax 跳转列表；非 Ajax 成功 302</td></tr>
     <tr><td>防再发</td><td>静态门禁 <code>tests.test_ajax_form_guard</code>；去掉 <code>api_doc</code> / <code>job_log_*</code> 空壳 <code>js-ajax-form</code></td></tr>
+  </table>
+
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">RBAC 6b · <code>/rbac/audit-logs</code>（已落地）</h3>
+  <table>
+    <tr><th>变更</th><th>说明</th></tr>
+    <tr><td>路由</td><td>只读分页；权限 <code>audit:read</code></td></tr>
+    <tr><td>字段</td><td>时间 / 用户 / 动作 / 资源 / IP / 结果</td></tr>
+    <tr><td>分工</td><td>RBAC 审计 ≠ P1-09 <code>operation_log</code></td></tr>
+    <tr><td>开关</td><td><code>rbac_enable=0</code> 隐藏入口并重定向任务列表</td></tr>
   </table>
 
   <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 · 无删除</h3>

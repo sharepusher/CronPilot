@@ -37,7 +37,7 @@ OPT-P2-10路线v4
 | **4** 路由装饰器 | `main/views.py` 逐路由 `@require_permission` | 1 d | 已交付 |
 | **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 已交付 |
 | **6a** 用户管理 | `/rbac/users` CRUD、单测 | 0.5–1 d | 已交付 |
-| **6b** 审计列表 | `/rbac/audit-logs`、单测 | 0.5 d | **v0.3.0** |
+| **6b** 审计列表 | `/rbac/audit-logs`、单测 | 0.5 d | 已交付 |
 | **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
 
 **合计：**约 5–7 个工作日（12–16 h 净编码 + 分批人工 `git diff` 约 30–40 min）。
@@ -133,10 +133,14 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 **门禁：**`bash scripts/cronpilot.sh test`（含用户 CRUD / 403 / 最后 admin）；operator 不可进 `/rbac/users`。
 
-### 阶段 6b — 审计列表
+### 阶段 6b — 审计列表（已交付）
 
 - `/rbac/audit-logs` 只读分页；`@require_permission('audit:read')`
-- 导航入口仅 admin；与 P1-09 `operation_log` 分表
+- 导航「审计」：仅 `rbac_enable=1` 且 `has_perm('audit:read')`
+- 与 P1-09 `operation_log` 分表；关 RBAC 时路由重定向 `/cron_list`
+- `test_rbac_phase.TestRbacAuditLogs`
+
+**门禁：**operator/viewer 403；admin 可见登录等审计行；页面无 `js-ajax-form`。
 
 ### 阶段 7 — 发布（Release 前文档梳理）
 

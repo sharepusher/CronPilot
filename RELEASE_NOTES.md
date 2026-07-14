@@ -22,7 +22,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 4+5 权限 | ✅ | 全路由 `@require_permission`；**无删除**；`cron:retire` 下线（仅 admin） |
 | 生命周期 | ✅ | 见 [任务生命周期与无删除](doc/任务生命周期与无删除设计.html)：暂停 ≠ 下线；禁人工删任务/流水；`cron:retire` |
 | 6a 用户管理 | ✅ | `/rbac/users` 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；`rbac_enable=0` 隐藏入口并重定向 |
-| 6b 审计列表 | ⏳ | `/rbac/audit-logs` — 未开始 |
+| 6b 审计列表 | ✅ | `/rbac/audit-logs` 只读分页；`audit:read`；关 RBAC 隐藏入口 |
 | 7 发布 | ⏳ | `rbac_enable=1` 三角角色验收、打 tag — 未开始 |
 
 设计说明：[doc/RBAC架构设计方案.html](doc/RBAC架构设计方案.html) · [doc/RBAC落地路线.html](doc/RBAC落地路线.html)
@@ -46,6 +46,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 表单 | 提交按钮须 `js-ajax-submit`（与任务添加一致）；Ajax 成功跳转列表；非 Ajax POST 302 回列表 |
 | 测试 | `TestRbacUsersManage`（含按钮类名、原生 POST 302） |
 | 防再发 | 静态门禁 `tests.test_ajax_form_guard`；去掉 `api_doc` / `job_log_*` 无提交的空壳 `js-ajax-form` |
+
+### RBAC 6b · `/rbac/audit-logs`（已落地 · 待 v0.3.0 tag）
+
+| 变更 | 说明 |
+|------|------|
+| 路由 | `GET /rbac/audit-logs`；`@require_permission('audit:read')` |
+| 能力 | 只读分页：时间 / 用户 / 动作 / 资源 / IP / 结果 |
+| 分工 | RBAC 审计 ≠ P1-09 `operation_log`（任务配置变更） |
+| 开关 | `rbac_enable=0`：导航隐藏；直达重定向 `/cron_list` |
 
 ### 任务生命周期 · 无删除（产品约束）
 

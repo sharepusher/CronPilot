@@ -347,6 +347,10 @@ def get_role_permission_set(role):
 
 复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`。无物理删除；禁停用当前登录账号与最后一名启用中 admin。`rbac_enable=0` 时导航隐藏且路由重定向任务列表。
 
+### 8.4b `rbac/audit_logs.html`（阶段 6b · 已交付）
+
+只读分页 `/rbac/audit-logs`，权限 `audit:read`。列：时间 / 用户 / 动作 / 资源 / IP / 结果。与 P1-09 `operation_log` 分表；关 RBAC 时隐藏导航并重定向。
+
 ### 8.5 `rbac/forbidden.html`
 
 展示 `current_user`、`permission`；返回任务列表链接。

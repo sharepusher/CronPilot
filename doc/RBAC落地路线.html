@@ -67,7 +67,7 @@
     <tr><td><strong>4</strong> 路由装饰器</td><td><code>main/views.py</code> 逐路由 <code>@require_permission</code></td><td>1 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>5</strong> 模板按钮</td><td>各页 <code>has_perm</code> 包裹（与阶段 4 同权限点配对）</td><td>1 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>6a</strong> 用户管理</td><td><code>/rbac/users</code> CRUD、单测</td><td>0.5–1 d</td><td class="status-ok">已交付</td></tr>
-    <tr><td><strong>6b</strong> 审计列表</td><td><code>/rbac/audit-logs</code>、单测</td><td>0.5 d</td><td><strong>v0.3.0</strong></td></tr>
+    <tr><td><strong>6b</strong> 审计列表</td><td><code>/rbac/audit-logs</code>、单测</td><td>0.5 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>7</strong> 发布</td><td>文档、<code>RELEASE_NOTES</code>、交付状态、运维清单</td><td>0.5 d</td><td>打 tag</td></tr>
   </table>
   <p><strong>合计：</strong>约 5–7 个工作日（12–16 h 净编码 + 分批人工 <code>git diff</code> 约 30–40 min）。</p>
@@ -153,11 +153,14 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
   </ul>
   <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含用户 CRUD / 403 / 最后 admin）；operator 不可进 <code>/rbac/users</code>。</div>
 
-  <h3>阶段 6b — 审计列表</h3>
+  <h3>阶段 6b — 审计列表（已交付）</h3>
   <ul>
     <li><code>/rbac/audit-logs</code> 只读分页；<code>@require_permission('audit:read')</code></li>
-    <li>导航入口仅 admin；与 P1-09 <code>operation_log</code> 分表</li>
+    <li>导航「审计」：仅 <code>rbac_enable=1</code> 且 <code>has_perm('audit:read')</code></li>
+    <li>与 P1-09 <code>operation_log</code> 分表；关 RBAC 时路由重定向 <code>/cron_list</code></li>
+    <li><code>test_rbac_phase.TestRbacAuditLogs</code></li>
   </ul>
+  <div class="gate"><strong>门禁：</strong>operator/viewer 403；admin 可见登录等审计行；页面无 <code>js-ajax-form</code>。</div>
 
   <h3>阶段 7 — 发布（Release 前文档梳理）</h3>
   <ol>

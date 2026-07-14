@@ -283,10 +283,16 @@ class TestNavHasPerm(unittest.TestCase):
     def test_admin_nav_shows_users_when_rbac_on(self):
         html = self._render_nav('admin', rbac_enabled=True)
         self.assertIn('用户管理', html)
+        self.assertIn('审计', html)
 
     def test_admin_nav_hides_users_when_rbac_off(self):
         html = self._render_nav('admin', rbac_enabled=False)
         self.assertNotIn('用户管理', html)
+        self.assertNotIn('审计', html)
+
+    def test_operator_nav_hides_audit(self):
+        html = self._render_nav('operator', rbac_enabled=True)
+        self.assertNotIn('审计', html)
 
 
 class TestNotFound(unittest.TestCase):
@@ -459,6 +465,81 @@ class TestRbacUsersManage(unittest.TestCase):
                     self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
 
 
+class TestRbacAuditLogs(unittest.TestCase):
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            db.create_all()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def _login(self, role='admin'):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = role
+            sess['username'] = role
+
+    def test_operator_audit_logs_403(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                self._login('operator')
+                resp = self.client.get('/rbac/audit-logs')
+                self.assertEqual(resp.status_code, 403)
+
+    def test_rbac_off_audit_redirects(self):
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=False):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=False):
+                self._login('admin')
+                resp = self.client.get('/rbac/audit-logs')
+                self.assertEqual(resp.status_code, 302)
+                self.assertIn('/cron_list', resp.headers['Location'])
+
+    def test_admin_lists_audit_rows(self):
+        from datas.model.rbac_audit_log import RbacAuditLog
+
+        with self.app.app_context():
+            self.db.session.add(
+                RbacAuditLog(
+                    username='legacy_admin',
+                    action='user:login',
+                    resource='legacy_admin',
+                    ip='127.0.0.1',
+                    status='allow',
+                    create_time='2026-07-14 10:00:00',
+                )
+            )
+            self.db.session.commit()
+
+        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
+            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
+                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
+                    self._login('admin')
+                    resp = self.client.get('/rbac/audit-logs')
+                    self.assertEqual(resp.status_code, 200)
+                    body = resp.get_data(as_text=True)
+                    self.assertIn('user:login', body)
+                    self.assertIn('legacy_admin', body)
+                    self.assertNotIn('js-ajax-form', body)
+
+
 class TestRbacPolicy(unittest.TestCase):
     def test_viewer_cannot_write(self):
         self.assertFalse(has_permission('viewer', 'cron:write'))
@@ -471,6 +552,9 @@ class TestRbacPolicy(unittest.TestCase):
 
     def test_admin_has_user_manage(self):
         self.assertTrue(has_permission('admin', 'user:manage'))
+
+    def test_admin_has_audit_read(self):
+        self.assertTrue(has_permission('admin', 'audit:read'))
 
     def test_no_delete_permissions(self):
         self.assertFalse(has_permission('admin', 'cron:delete'))

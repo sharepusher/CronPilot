@@ -13,9 +13,9 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
-## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、操作审计、可追溯执行记录
+## [1.0.0] — 2026-07-14 · 重大版本：多用户 RBAC、任务生命周期、操作审计
 
-交付 **OPT-P2-10 RBAC v4**（含用户管理/审计）、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**执行记录 log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
+首个 **1.x** 里程碑：交付 **OPT-P2-10 RBAC v4**（三角色始终分权、用户管理/审计）、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
 
 ### OPT-P2-10 · RBAC v4
 
@@ -460,4 +460,4 @@ url_ssrf_observe_only=0
 | `0.1.0` | Phase A（P0）首发 |
 | `0.1.1` | 文档 `/docs/`、Markdown 双格式、多版本 Python 自动匹配、CI |
 | **`0.2.0`** | **P1 可观测、UI A′+B1+导航、Tier 0–2、Docker Py 3.10** |
-| `0.2.x` / `0.3.x` | 计划：P1-03/04、操作审计、Tier 3 前置 |
+| `1.x` / 后续 | 计划：P1-03/04、OpenAPI、Tier 3 前置等（见交付状态） |

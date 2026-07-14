@@ -9,7 +9,7 @@ OPT-P2-10RBACv4
 
 前后端联动 · 三角色 · Flask 装饰器 + Jinja2 `has_perm` · v4 性能与体验修正
 
-状态：**已交付 · v0.3.0 待打 tag** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
+状态：**已交付 · v1.0.0 待打 tag** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
 
 **废弃方案：**v1.0/v1.1（Node/Express、`init_rbac`、`route_registry`、JWT、四角色 `superadmin`）不适用本仓库。
 
@@ -22,7 +22,7 @@ OPT-P2-10RBACv4
 | v2 | 真实 Flask 源码；三角色；`rbac_users` 单表；`@require_permission`；API `access_token` 不变 |
 | v3 | 登录身份子阶段：`/rbac/login`、`app_context_processor`、`_nav.html`、按钮级权限、Ajax/页面 403 分流 |
 | **v4** | `make_has_perm` 防 N+1；分权始终启用；`next`+`full_path`；307 运维清单；format-guard 规则 |
-| v0.3.0 | 阶段 1～7 + OPT-P1-09：三角色、`operation:read`（operator 看操作记录）/ `audit:read`（仅 admin 看 RBAC 审计）、无 `legacy_admin`、种子 `admin`；待打 tag |
+| v1.0.0 | 阶段 1～7 + OPT-P1-09：三角色、`operation:read`（operator 看操作记录）/ `audit:read`（仅 admin 看 RBAC 审计）、无 `legacy_admin`、种子 `admin`；待打 tag |
 
 ## 一、现状与前端约束
 
@@ -386,7 +386,7 @@ source scripts/smoke_http.sh && smoke_http_suite "http://127.0.0.1:5001" "change
 
 ## 十二、实施与发布
 
-分阶段任务、PR 切分、Release 前文档梳理见 **[RBAC落地路线 v4](RBAC落地路线.html)**。建议目标版本 **v0.3.0**。
+分阶段任务、PR 切分、Release 前文档梳理见 **[RBAC落地路线 v4](RBAC落地路线.html)**。建议目标版本 **v1.0.0**。
 
 CronPilot · RBAC 详细设计 v4 ·
 [Markdown](RBAC架构设计方案.md) ·

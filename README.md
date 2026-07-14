@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v1.0.0**（多用户 RBAC + 任务生命周期 + 操作审计）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
+当前版本 **v1.1.0**（Resource Scope + 自助改密 + 任务编辑精简）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v1.1.0** | Resource Scope 业务组隔离；自助改密（成功后强制重新登录）；任务编辑页精简 |
 | **v1.0.0** | 三角色 RBAC（始终分权）、用户管理 / 审计；`operation_log`；无人工删除 + `cron:retire`；`log_id` 必填；404 友好页 |
 | **v0.2.0** | P1 执行 status / 失败规则；UI 执行记录 A′、导航统一；依赖 Tier 0–2；Docker Py 3.10 |
 | **v0.1.1** | 文档 `/docs/`、Python 3.8–3.11 自动匹配、CI |
@@ -64,9 +65,9 @@ bash scripts/cronpilot.sh start
 | 项 | 说明 |
 |----|------|
 | 空库首次 | 自动种子用户名 `admin`；初始密码 = `conf.ini` → `login_pwd`（示例多为 `changeme`） |
-| 日常改密 | **用户管理** → 编辑对应用户 →「新密码」（留空不改）；需 admin（`user:manage`） |
+| 日常改密 | 登录后导航 **修改密码**（任意角色，自助）；或 admin **用户管理** → 编辑 →「新密码」（`user:manage`） |
 | `login_pwd` | **仅种子用**；表已有用户后改此项并重启**不会**改库内密码 |
-| 不提供 | 登录页「忘记密码」、非管理员自助改密 |
+| 不提供 | 登录页「忘记密码」 |
 
 ### 4. 测试
 
@@ -92,7 +93,7 @@ docker compose up --build -d
 |----|-----|
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认登录 | 用户名 `admin` · 初始密码见 `login_pwd`（常为 `changeme`）；**仅空库种子**。日常改密走「用户管理」，勿指望改 `login_pwd` 重启生效 |
+| 默认登录 | 用户名 `admin` · 初始密码见 `login_pwd`（常为 `changeme`）；**仅空库种子**。日常改密走导航「修改密码」或「用户管理」，勿指望改 `login_pwd` 重启生效 |
 
 - 数据目录：宿主机 `./datas` 挂载进容器
 - 改配置：`nano conf.ini` → `docker compose restart`
@@ -231,7 +232,7 @@ server {
 
 ### 安全建议
 
-1. **初始密码**：空库前用强明文或 `pbkdf2` 写入 `login_pwd`；首次启动种子 `admin`。**已有用户后**改密请走「用户管理 → 编辑 → 新密码」，勿再依赖改 `login_pwd`。
+1. **初始密码**：空库前用强明文或 `pbkdf2` 写入 `login_pwd`；首次启动种子 `admin`。**已有用户后**改密请走导航「修改密码」或「用户管理 → 编辑 → 新密码」，勿再依赖改 `login_pwd`。
 2. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
 3. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
 4. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
@@ -247,7 +248,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v1.0.0**（RBAC / 生命周期 / operation_log）；历史含 v0.2.0、v0.1.x。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v1.1.0**（Scope / 自助改密）；历史含 v1.0.0、v0.2.0、v0.1.x。
 
 ## 技术文档（HTML + Markdown）
 

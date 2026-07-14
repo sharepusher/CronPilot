@@ -180,9 +180,10 @@ flask --app manage:app db upgrade</pre>
   <table>
     <tr><th>场景</th><th>做法</th></tr>
     <tr><td>首次部署（空表）</td><td>在 conf.ini 配置 <code>login_pwd</code>（推荐 <code>scripts/hash_login_password.py</code>）→ 启动 → 用 <code>admin</code> + 该密码登录</td></tr>
-    <tr><td>日常修改任意用户密码</td><td>admin 登录 → <strong>用户管理</strong> → 编辑 → 填写「新密码」（留空则不改）→ 保存（权限 <code>user:manage</code>）</td></tr>
+    <tr><td>自助修改自己的密码</td><td>任意已登录用户 → 导航 <strong>修改密码</strong>（<code>/rbac/password</code>）→ 当前密码 + 新密码（≥6 位）；审计 <code>user:password</code>；成功后<strong>强制重新登录</strong>；无需 <code>user:manage</code></td></tr>
+    <tr><td>管理员修改他人密码</td><td>admin → <strong>用户管理</strong> → 编辑 →「新密码」（留空则不改）→ 保存（<code>user:manage</code>）</td></tr>
     <tr><td>改 conf.ini <code>login_pwd</code></td><td>表<strong>已有</strong>用户时：重启也<strong>不会</strong>更新库内 <code>password_hash</code>；勿当作改密手段</td></tr>
-    <tr><td>产品未提供</td><td>登录页「忘记密码」、非 admin 自助改密</td></tr>
+    <tr><td>产品未提供</td><td>登录页「忘记密码」</td></tr>
   </table>
   <p><strong>分权始终启用</strong>：三角色权限矩阵始终生效，无配置旁路。<code>conf.ini</code> 中遗留的 <code>rbac_enable</code> 键已废弃，存在亦忽略。</p>
 
@@ -364,11 +365,16 @@ source scripts/smoke_http.sh &amp;&amp; smoke_http_suite "http://127.0.0.1:5001"
   <h2>十二、实施与发布</h2>
   <p>分阶段任务、PR 切分、Release 前文档梳理见 <strong><a href="RBAC落地路线.html">RBAC落地路线 v4</a></strong>。建议目标版本 <strong>v1.0.0</strong>。</p>
 
+  <h2>十三、Resource Scope（OPT-P2-12）</h2>
+  <p>Capability 之外的业务线可见范围见 <strong><a href="资源隔离与Scope设计.html">资源隔离与 Scope 设计</a></strong> ·
+  <a href="资源隔离落地路线.html">落地路线</a>。Scope <strong>不</strong>改变本节三角色矩阵；组管理复用 <code>user:manage</code>。</p>
+
 </main>
 <footer>
   CronPilot · RBAC 详细设计 v4 ·
   <a href="RBAC架构设计方案.md">Markdown</a> ·
   <a href="RBAC落地路线.html">落地路线</a> ·
+  <a href="资源隔离与Scope设计.html">Resource Scope</a> ·
   <a href="交付状态与路线图.html">交付状态</a> ·
   <a href="index.html">索引</a>
 </footer>

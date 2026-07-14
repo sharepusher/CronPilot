@@ -53,6 +53,21 @@
                         <span style="color:#64748b">不能停用当前登录账号；须保留至少一名启用中的管理员</span>
                     </div>
                 </div>
+                <div class="control-group">
+                    <label class="control-label">业务组</label>
+                    <div class="controls">
+                        {% if groups %}
+                        <select name="group_ids" multiple size="{% if groups|length < 4 %}{{ groups|length }}{% else %}4{% endif %}">
+                            {% for g in groups %}
+                            <option value="{{ g.id }}"{% if g.id in (user_group_ids or []) %} selected{% endif %}>{{ g.name }} ({{ g.code }})</option>
+                            {% endfor %}
+                        </select>
+                        <span style="color:#64748b">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个；仅 admin 可不选。变更后该用户需重新登录生效</span>
+                        {% else %}
+                        <span style="color:#64748b">暂无业务组，请先在「业务组」创建</span>
+                        {% endif %}
+                    </div>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary js-ajax-submit">保存</button>
                     <a class="btn" href="{{ url_for('rbac.users_list') }}">返回</a>

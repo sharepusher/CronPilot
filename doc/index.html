@@ -34,7 +34,7 @@
     <a href="index.md">Markdown 文档索引</a> · 在线路径 <code>/docs/*.md</code></p>
   <div class="cards">
     <div class="card featured" style="border-color:#4338ca;background:linear-gradient(135deg,#eef2ff,#eff6ff)">
-      <h2><a href="交付状态与路线图.html">交付状态与路线图（v1.0.0）</a></h2>
+      <h2><a href="交付状态与路线图.html">交付状态与路线图（v1.1.0）</a></h2>
       <p><span class="tag">权威</span><span class="tag">已交付 vs 未完成</span></p>
       <p>按版本汇总已发布优化；OPT / RFC 状态与对应设计稿链接。</p>
       <p class="formats"><a href="交付状态与路线图.html">HTML</a><a href="交付状态与路线图.md">Markdown</a></p>
@@ -56,6 +56,12 @@
       <p><span class="tag">安全</span><span class="tag">P2</span><span class="tag">v4</span></p>
       <p>三角色、<code>/rbac/login</code>、<code>has_perm</code>；含 <code>cron:retire</code>，无 delete。</p>
       <p class="formats"><a href="RBAC架构设计方案.html">详设 HTML</a><a href="RBAC架构设计方案.md">详设 MD</a><a href="RBAC落地路线.html">落地路线</a></p>
+    </div>
+    <div class="card featured" style="border-color:#0d9488">
+      <h2><a href="资源隔离与Scope设计.html">Resource Scope 资源隔离（OPT-P2-12）</a></h2>
+      <p><span class="tag">安全</span><span class="tag">Scope</span><span class="tag">v1.1.0</span></p>
+      <p>业务组可见范围；列表过滤 + 单资源鉴权防 IDOR；admin 绕过 Scope。</p>
+      <p class="formats"><a href="资源隔离与Scope设计.html">详设 HTML</a><a href="资源隔离与Scope设计.md">详设 MD</a><a href="资源隔离落地路线.html">落地路线</a></p>
     </div>
     <div class="card featured" style="border-color:#0d9488">
       <h2><a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a></h2>
@@ -155,9 +161,9 @@
       <p class="formats"><a href="技术方案与前端设计.html">HTML</a><a href="技术方案与前端设计.md">Markdown</a></p>
     </div>
     <div class="card featured" style="border-color:#4338ca">
-      <h2><a href="RELEASE_NOTES.html">Release Notes（v1.0.0）</a></h2>
-      <p><span class="tag">变更日志</span><span class="tag">v1.0.0</span><span class="tag">v0.2.0</span><span class="tag">v0.1.x</span></p>
-      <p>v1.0.0：RBAC、生命周期、operation_log；v0.2.0：P1 可观测、Tier 0–2、UI；v0.1.x：文档/部署与 Phase A P0。</p>
+      <h2><a href="RELEASE_NOTES.html">Release Notes（v1.1.0）</a></h2>
+      <p><span class="tag">变更日志</span><span class="tag">v1.1.0</span><span class="tag">v1.0.0</span><span class="tag">v0.2.0</span></p>
+      <p>v1.1.0：Scope 资源隔离、自助改密、编辑页精简；v1.0.0：RBAC、生命周期、operation_log；更早：P1/Tier、Phase A。</p>
       <p class="formats"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">Markdown</a><a href="../RELEASE_NOTES.md">仓库根目录 MD</a></p>
     </div>
     <div class="card">

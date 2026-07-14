@@ -15,6 +15,8 @@ from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
 from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
 from datas.model.rbac_user import RbacUser  # noqa: F401,E402
 from datas.model.operation_log import OperationLog  # noqa: F401,E402
+from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
+from datas.model.user_group import UserGroup  # noqa: F401,E402
 
 
 def main():
@@ -76,6 +78,10 @@ def _ensure_cron_infos_columns():
         alters.append("ALTER TABLE cron_infos ADD COLUMN retire_reason VARCHAR(500) DEFAULT ''")
     if 'retired_at' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN retired_at VARCHAR(25) DEFAULT ''")
+    if 'scope_type' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN scope_type VARCHAR(16) DEFAULT 'GLOBAL'")
+    if 'group_id' not in cols:
+        alters.append('ALTER TABLE cron_infos ADD COLUMN group_id INTEGER')
     if not alters:
         return
     with db.engine.begin() as conn:

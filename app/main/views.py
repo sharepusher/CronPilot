@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 import traceback
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from app import scheduler, db
 from datas.model.cron_infos import CronInfos
@@ -11,10 +11,79 @@ from datas.utils.json import json_response
 from . import main
 from flask import render_template, request, redirect, session, current_app
 
-from app.rbac.decorators import require_permission
+from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
+from app.rbac.policy import role_bypasses_scope
+from app.rbac.scope import (
+    build_scope_filter_clause,
+    normalize_scope_fields,
+    user_can_assign_group,
+)
+from app.rbac.services import list_resource_groups
 from app.services.cron_service import add_cron_web, edit_cron_web
 
 from ..common.functions import wechat_info_err, web_api_return
+
+
+def _scope_groups_for_form():
+    """admin 见全部组；其它用户仅见所属组。"""
+    role = session.get('role') or ''
+    try:
+        all_groups = list_resource_groups()
+    except Exception:
+        return []
+    if role_bypasses_scope(role):
+        return all_groups
+    allowed = set(session_group_ids())
+    return [g for g in all_groups if g.id in allowed]
+
+
+def _scope_form_context():
+    """非 admin：任务强制落在所属业务组，不可选 GLOBAL。"""
+    role = session.get('role') or ''
+    groups = _scope_groups_for_form()
+    locked = not role_bypasses_scope(role)
+    return {
+        'scope_groups': groups,
+        'scope_locked': locked,
+        'default_group_id': groups[0].id if locked and len(groups) == 1 else None,
+    }
+
+
+def _apply_scope_from_form(datas):
+    """从 POST 字段解析 scope，写入 datas；失败返回错误字符串。"""
+    role = session.get('role') or ''
+    gids = session_group_ids()
+    # 非 admin：强制 GROUP，且 group 必须属于本人
+    if not role_bypasses_scope(role):
+        if not gids:
+            return '当前账号未绑定业务组，无法创建/编辑任务'
+        group_id = datas.get('group_id')
+        if group_id is None or group_id == '':
+            if len(gids) == 1:
+                group_id = gids[0]
+            else:
+                return '请选择所属业务组'
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return '业务组无效'
+        if group_id not in set(int(x) for x in gids):
+            return '只能将任务放在本人所属业务组内'
+        datas['scope_type'] = 'GROUP'
+        datas['group_id'] = group_id
+        return None
+
+    err, scope_type, group_id = normalize_scope_fields(
+        datas.get('scope_type'),
+        datas.get('group_id'),
+    )
+    if err:
+        return err
+    if not user_can_assign_group(role, gids, group_id):
+        return '不能将任务分配到未所属的业务组'
+    datas['scope_type'] = scope_type
+    datas['group_id'] = group_id
+    return None
 
 
 @main.route('/cron_list', methods=['GET', 'POST'])
@@ -27,6 +96,12 @@ def cron_list():
     filter_arr = []
     if task_name:
         filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
+    scope_clause = build_scope_filter_clause(
+        session.get('role') or '',
+        session_group_ids(),
+    )
+    if scope_clause is not None:
+        filter_arr.append(scope_clause)
 
     page_data = (
         db.session.query(CronInfos)
@@ -51,6 +126,21 @@ def job_log_list():
 
     page = int(request.args.get('page') or 1)
     id = request.args.get('id')
+    cif = db.session.get(CronInfos, id) if id else None
+    if id:
+        if not cif:
+            page_data = (
+                db.session.query(JobLog)
+                .filter(JobLog.cron_info_id == -1)
+                .order_by(db.desc(JobLog.id))
+                .paginate(page=page, per_page=20)
+            )
+            if 'page' in keywords:
+                del keywords['page']
+            return render_template("job_log_list.html", page_data=page_data, keywords=keywords)
+        denied = authorize_resource('log:read', cif)
+        if denied:
+            return denied
 
     page_data = (
         db.session.query(JobLog)
@@ -67,6 +157,15 @@ def job_log_list():
 @require_permission('log:read')
 def job_log_item_list():
     log_id = request.args.get('log_id')
+    jl = db.session.scalars(
+        select(JobLog).where(JobLog.log_id == log_id)
+    ).first()
+    if not jl:
+        return render_template("job_log_item_list.html", page_data=[])
+    cif = db.session.get(CronInfos, jl.cron_info_id)
+    denied = authorize_resource('log:read', cif)
+    if denied:
+        return denied
     page_data = db.session.scalars(
         select(JobLogItems).where(JobLogItems.log_id == log_id)
     ).all()
@@ -82,6 +181,9 @@ def job_log_detail():
     if not jl:
         return render_template("job_log_detail.html", jl=None, cif=None, items=[])
     cif = db.session.get(CronInfos, jl.cron_info_id)
+    denied = authorize_resource('log:read', cif)
+    if denied:
+        return denied
     items = []
     if jl.log_id:
         items = db.session.scalars(
@@ -105,6 +207,12 @@ def job_log_all_list():
     end_time = keywords.get('end_time')
     if beg_time and end_time:
         filter_arr.append(JobLog.create_time.between(beg_time,end_time))
+    scope_clause = build_scope_filter_clause(
+        session.get('role') or '',
+        session_group_ids(),
+    )
+    if scope_clause is not None:
+        filter_arr.append(scope_clause)
 
     page_data = (
         db.session.query(JobLog, CronInfos)
@@ -137,9 +245,14 @@ def job_batch_delete():
 def cron_add():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
+    scope_ctx = _scope_form_context()
     if request.method == 'POST':
         try:
-            err = add_cron_web(request.values.to_dict(), is_dev, CRON_CONFIG)
+            datas = request.values.to_dict()
+            scope_err = _apply_scope_from_form(datas)
+            if scope_err:
+                return web_api_return(code=1, msg=scope_err)
+            err = add_cron_web(datas, is_dev, CRON_CONFIG)
             if err:
                 return web_api_return(code=1, msg=err)
             return web_api_return(code=0, msg='添加成功', url='/cron_list')
@@ -148,7 +261,11 @@ def cron_add():
             wechat_info_err(str(e), trace_info)
             return web_api_return(code=1, msg=str(e), url='/cron_list')
 
-    return render_template("cron_add.html", is_dev=is_dev)
+    return render_template(
+        "cron_add.html",
+        is_dev=is_dev,
+        **scope_ctx,
+    )
 
 
 @main.route('/cron_edit', methods=['GET', 'POST'])
@@ -158,15 +275,26 @@ def cron_edit():
     is_dev = int(CRON_CONFIG.get('is_dev'))
     id = request.values.get('id')
     cif = db.session.get(CronInfos, id)
-    if cif and cif.status == -1:
+    if not cif:
+        return web_api_return(code=1, msg='任务不存在', url='/cron_list')
+    denied = authorize_resource('cron:write', cif)
+    if denied:
+        return denied
+    if cif.status == -1:
         return web_api_return(code=1, msg='任务已下线，不能编辑；请新建任务', url='/cron_list')
     if request.method == 'POST':
-        err = edit_cron_web(request.values.to_dict(), is_dev, CRON_CONFIG, id)
+        # 编辑不改作用域（表单亦不展示）；创建/更新时间只读且不展示
+        datas = request.values.to_dict()
+        err = edit_cron_web(datas, is_dev, CRON_CONFIG, id)
         if err:
             return web_api_return(code=1, msg=err)
         return web_api_return(code=0, msg='修改成功！', url='/cron_list')
 
-    return render_template("cron_edit.html", cif=cif, is_dev=is_dev)
+    return render_template(
+        "cron_edit.html",
+        cif=cif,
+        is_dev=is_dev,
+    )
 
 
 @main.route('/update_status', methods=['GET', 'POST'])
@@ -178,6 +306,9 @@ def update_status():
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在',url='/cron_list')
+    denied = authorize_resource('cron:write', cif)
+    if denied:
+        return denied
     if cif.status == -1:
         return web_api_return(code=1, msg='任务已下线，不能启停；请新建任务')
     status = cif.status
@@ -208,6 +339,9 @@ def cron_retire():
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在', url='/cron_list')
+    denied = authorize_resource('cron:retire', cif)
+    if denied:
+        return denied
     if cif.status == -1:
         if request.method == 'GET' and not request.values.get('reason'):
             return render_template('cron_retire.html', cif=cif, already=True)
@@ -253,6 +387,19 @@ def operation_log_list():
         filters.append(OperationLog.create_time >= beg_time)
     if end_time:
         filters.append(OperationLog.create_time <= end_time)
+
+    role = session.get('role') or ''
+    if not role_bypasses_scope(role):
+        scope_clause = build_scope_filter_clause(role, session_group_ids())
+        visible_ids = select(CronInfos.id)
+        if scope_clause is not None:
+            visible_ids = visible_ids.where(scope_clause)
+        filters.append(
+            and_(
+                OperationLog.target_type == 'cron',
+                OperationLog.target_id.in_(visible_ids),
+            )
+        )
 
     page_data = (
         db.session.query(OperationLog)

@@ -8,10 +8,12 @@
 
 | 文档 | HTML | Markdown |
 |------|------|----------|
-| **交付状态与路线图（v1.0.0）** | [交付状态与路线图.html](交付状态与路线图.html) | [交付状态与路线图.md](交付状态与路线图.md) |
+| **交付状态与路线图（v1.1.0）** | [交付状态与路线图.html](交付状态与路线图.html) | [交付状态与路线图.md](交付状态与路线图.md) |
 | 项目总览与技术文档 | [项目总览与技术文档.html](项目总览与技术文档.html) | [项目总览与技术文档.md](项目总览与技术文档.md) |
 | 架构设计文档 | [架构设计文档.html](架构设计文档.html) | [架构设计文档.md](架构设计文档.md) |
 | **RBAC 详细设计方案（v4）** | [RBAC架构设计方案.html](RBAC架构设计方案.html) | [RBAC架构设计方案.md](RBAC架构设计方案.md) |
+| **Resource Scope 资源隔离（OPT-P2-12 · v1.1.0）** | [资源隔离与Scope设计.html](资源隔离与Scope设计.html) | [资源隔离与Scope设计.md](资源隔离与Scope设计.md) |
+| **资源隔离落地路线** | [资源隔离落地路线.html](资源隔离落地路线.html) | [资源隔离落地路线.md](资源隔离落地路线.md) |
 | **任务生命周期与无删除**（含 LIFECYCLE-2：下线原因/备注必填/时间戳 · 已落地） | [任务生命周期与无删除设计.html](任务生命周期与无删除设计.html) | [任务生命周期与无删除设计.md](任务生命周期与无删除设计.md) |
 | **RBAC 落地路线（v4）** | [RBAC落地路线.html](RBAC落地路线.html) | [RBAC落地路线.md](RBAC落地路线.md) |
 | 详细技术方案 | [详细技术方案.html](详细技术方案.html) | [详细技术方案.md](详细技术方案.md) |
@@ -32,7 +34,7 @@
 | 技术方案与前端设计 | [技术方案与前端设计.html](技术方案与前端设计.html) | [技术方案与前端设计.md](技术方案与前端设计.md) |
 | P0 测试与验收 | [P0测试用例与验收手册.html](P0测试用例与验收手册.html) | [P0测试用例与验收手册.md](P0测试用例与验收手册.md) |
 | 仓库拆分方案 | [新建项目与分支合并方案.html](新建项目与分支合并方案.html) | [新建项目与分支合并方案.md](新建项目与分支合并方案.md) |
-| Release Notes **v1.0.0** | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) · [doc/RELEASE_NOTES.md](RELEASE_NOTES.md) |
+| Release Notes **v1.1.0** | [RELEASE_NOTES.html](RELEASE_NOTES.html) | [RELEASE_NOTES.md](../RELEASE_NOTES.md) · [doc/RELEASE_NOTES.md](RELEASE_NOTES.md) |
 | License Audit | [LICENSE-AUDIT.html](LICENSE-AUDIT.html) | [LICENSE-AUDIT.md](LICENSE-AUDIT.md) |
 | Windows 部署（遗留） | — | [windows部署文档.md](windows部署文档.md) |
 
@@ -50,4 +52,4 @@
 
 ---
 
-*CronPilot · 技术文档 · v1.0.0*
+*CronPilot · 技术文档 · v1.1.0*

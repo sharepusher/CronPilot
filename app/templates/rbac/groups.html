@@ -1,0 +1,48 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='groups' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        <p style="margin:8px 0">
+            <a class="btn btn-primary" href="{{ url_for('rbac.groups_add') }}">新建业务组</a>
+            <span style="color:#64748b;margin-left:8px">禁止删除业务组，避免悬挂任务引用</span>
+        </p>
+
+        <table class="table table-bordered table-hover">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>编码</th>
+                <th>描述</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for g in groups %}
+            <tr>
+                <td>{{ g.id }}</td>
+                <td>{{ g.name }}</td>
+                <td>{{ g.code }}</td>
+                <td>{{ g.description }}</td>
+                <td>{{ g.create_time }}</td>
+                <td><a href="{{ url_for('rbac.groups_edit', id=g.id) }}">编辑</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6">暂无业务组</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

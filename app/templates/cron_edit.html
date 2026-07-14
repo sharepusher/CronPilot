@@ -10,7 +10,7 @@
                 <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
             </div>
         </div>
-        {% with active='cron_add' %}
+        {% with active='cron_edit' %}
         {% include "rbac/_nav.html" %}
         {% endwith %}
         <form method="post" class="form-horizontal js-ajax-form" action='{{ url_for('main.cron_edit') }}'>
@@ -25,18 +25,6 @@
                     <label class="control-label">任务说明(备注)</label>
                     <div class="controls">
                         <input type="text" name="task_keyword" value="{{ cif.task_keyword }}" maxlength="500" required />* 必填，1～500 字；用途/负责人/告警联系等
-                    </div>
-                </div>
-                <div class="control-group">
-                    <label class="control-label">创建时间</label>
-                    <div class="controls">
-                        <span>{{ cif.created_at or '—' }}</span>
-                    </div>
-                </div>
-                <div class="control-group">
-                    <label class="control-label">上次编辑</label>
-                    <div class="controls">
-                        <span>{{ cif.updated_at or '—' }}</span>
                     </div>
                 </div>
                 <div class="control-group">

@@ -20,7 +20,11 @@ AUDIT_ACTION_LABELS = {
     'user:logout': '登出',
     'user:create': '创建用户',
     'user:update': '更新用户',
+    'user:password': '修改密码',
     'permission:deny': '权限拒绝',
+    'scope:deny': '作用域拒绝',
+    'group:create': '创建业务组',
+    'group:update': '更新业务组',
 }
 AUDIT_STATUS_LABELS = {
     'allow': '允许',
@@ -50,8 +54,16 @@ def audit_resource_label(action, resource):
         return '新建账号 %s' % resource if resource else '新建账号'
     if action == 'user:update':
         return '账号 %s（角色/启停/密码等）' % resource if resource else '账号变更'
+    if action == 'user:password':
+        return '账号 %s 修改密码' % resource if resource else '修改密码'
     if action == 'permission:deny':
         return '缺少权限 %s' % resource if resource else '权限不足'
+    if action == 'scope:deny':
+        return '无权访问 %s' % resource if resource else '作用域不足'
+    if action == 'group:create':
+        return '业务组 %s' % resource if resource else '新建业务组'
+    if action == 'group:update':
+        return '业务组 %s' % resource if resource else '业务组变更'
     return resource
 
 
@@ -134,8 +146,13 @@ def write_audit_log(action='', resource='', status='allow', user_id=None, userna
 
 def ensure_rbac_tables(app):
     with app.app_context():
+        from datas.model.resource_group import ResourceGroup
+        from datas.model.user_group import UserGroup
+
         RbacUser.__table__.create(db.engine, checkfirst=True)
         RbacAuditLog.__table__.create(db.engine, checkfirst=True)
+        ResourceGroup.__table__.create(db.engine, checkfirst=True)
+        UserGroup.__table__.create(db.engine, checkfirst=True)
         ensure_seed_admin()
 
 
@@ -154,6 +171,26 @@ def _count_active_admins(exclude_id=None):
     if exclude_id is not None:
         filters.append(RbacUser.id != exclude_id)
     return db.session.scalar(select(func.count()).select_from(RbacUser).where(*filters)) or 0
+
+
+def role_requires_groups(role):
+    """非 admin 必须绑定至少一个业务组。"""
+    return (role or '') != 'admin'
+
+
+def validate_groups_for_role(role, group_ids):
+    """成功返回 ''；失败返回错误文案。"""
+    if not role_requires_groups(role):
+        return ''
+    cleaned = []
+    for g in group_ids or []:
+        try:
+            cleaned.append(int(g))
+        except (TypeError, ValueError):
+            return '业务组参数无效'
+    if not cleaned:
+        return '非管理员用户必须至少选择一个业务组'
+    return ''
 
 
 def create_user(username, password, role='viewer'):
@@ -221,5 +258,174 @@ def update_user(user_id, role=None, is_active=None, password=None):
     return {'ok': True, 'msg': '保存成功'}
 
 
+def change_own_password(user_id, old_password, new_password, confirm_password):
+    """登录用户修改自己的密码。须校验旧密码；成功后写审计。"""
+    if user_id is None:
+        return {'ok': False, 'msg': '未登录'}
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return {'ok': False, 'msg': '用户不存在或已停用'}
+    if not old_password:
+        return {'ok': False, 'msg': '请填写当前密码'}
+    if not user.check_password(old_password):
+        return {'ok': False, 'msg': '当前密码不正确'}
+    new_password = new_password or ''
+    confirm_password = confirm_password or ''
+    if not new_password:
+        return {'ok': False, 'msg': '请填写新密码'}
+    if len(new_password) < 6:
+        return {'ok': False, 'msg': '新密码至少 6 位'}
+    if new_password != confirm_password:
+        return {'ok': False, 'msg': '两次输入的新密码不一致'}
+    if old_password == new_password:
+        return {'ok': False, 'msg': '新密码不能与当前密码相同'}
+    user.set_password(new_password)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败'}
+    write_audit_log(
+        action='user:password',
+        resource=user.username,
+        user_id=user.id,
+        username=user.username,
+    )
+    return {'ok': True, 'msg': '密码已修改'}
+
+
 def get_user_by_id(user_id):
     return db.session.get(RbacUser, user_id)
+
+
+def list_resource_groups():
+    from datas.model.resource_group import ResourceGroup
+
+    return db.session.scalars(
+        select(ResourceGroup).order_by(ResourceGroup.id)
+    ).all()
+
+
+def get_resource_group(group_id):
+    from datas.model.resource_group import ResourceGroup
+
+    return db.session.get(ResourceGroup, group_id)
+
+
+def create_resource_group(name, code=None, description=''):
+    from datas.model.resource_group import ResourceGroup
+
+    from .group_code import generate_group_code
+
+    name = (name or '').strip()
+    description = (description or '').strip()
+    if not name:
+        return {'ok': False, 'msg': '名称不能为空'}
+    if len(name) > 64:
+        return {'ok': False, 'msg': '名称最长 64 字符'}
+    if len(description) > 255:
+        return {'ok': False, 'msg': '描述最长 255 字符'}
+    code = (code or '').strip()
+    if not code:
+        existing = db.session.scalars(select(ResourceGroup.code)).all()
+        code = generate_group_code(name, existing_codes=existing)
+    if not code:
+        return {'ok': False, 'msg': '无法根据名称生成编码'}
+    if len(code) > 64:
+        return {'ok': False, 'msg': '编码最长 64 字符'}
+    exists = db.session.scalars(
+        select(ResourceGroup).where(ResourceGroup.code == code)
+    ).first()
+    if exists:
+        return {'ok': False, 'msg': '编码已存在'}
+    group = ResourceGroup(
+        name=name,
+        code=code,
+        description=description,
+        create_time=get_now_time(),
+    )
+    try:
+        db.session.add(group)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '创建失败'}
+    write_audit_log(action='group:create', resource=code)
+    return {'ok': True, 'msg': '创建成功', 'group_id': group.id, 'code': code}
+
+
+def update_resource_group(group_id, name=None, description=None):
+    from datas.model.resource_group import ResourceGroup
+
+    group = db.session.get(ResourceGroup, group_id)
+    if not group:
+        return {'ok': False, 'msg': '业务组不存在'}
+    if name is not None:
+        name = (name or '').strip()
+        if not name:
+            return {'ok': False, 'msg': '名称不能为空'}
+        if len(name) > 64:
+            return {'ok': False, 'msg': '名称最长 64 字符'}
+        group.name = name
+    if description is not None:
+        description = (description or '').strip()
+        if len(description) > 255:
+            return {'ok': False, 'msg': '描述最长 255 字符'}
+        group.description = description
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败'}
+    write_audit_log(action='group:update', resource=group.code)
+    return {'ok': True, 'msg': '保存成功'}
+
+
+def get_user_group_ids_for_user(user_id):
+    from .scope import get_user_group_ids
+
+    return get_user_group_ids(user_id)
+
+
+def set_user_groups(user_id, group_ids, role=None):
+    """替换用户业务组绑定。group_ids 为 int 列表。组变更后需重新登录生效。
+
+    role: 校验用角色；默认取用户当前角色。非 admin 不得空组。
+    """
+    from datas.model.resource_group import ResourceGroup
+    from datas.model.user_group import UserGroup
+
+    user = db.session.get(RbacUser, user_id)
+    if not user:
+        return {'ok': False, 'msg': '用户不存在'}
+    check_role = role if role is not None else user.role
+    err = validate_groups_for_role(check_role, group_ids)
+    if err:
+        return {'ok': False, 'msg': err}
+    cleaned = []
+    for g in group_ids or []:
+        try:
+            cleaned.append(int(g))
+        except (TypeError, ValueError):
+            return {'ok': False, 'msg': '业务组参数无效'}
+    cleaned = list(dict.fromkeys(cleaned))
+    if cleaned:
+        found = db.session.scalars(
+            select(ResourceGroup.id).where(ResourceGroup.id.in_(cleaned))
+        ).all()
+        if set(found) != set(cleaned):
+            return {'ok': False, 'msg': '存在无效业务组'}
+    try:
+        existing = db.session.scalars(
+            select(UserGroup).where(UserGroup.user_id == user_id)
+        ).all()
+        for row in existing:
+            db.session.delete(row)
+        for gid in cleaned:
+            db.session.add(UserGroup(user_id=user_id, group_id=gid))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存业务组失败'}
+    write_audit_log(action='user:update', resource='%s:groups' % user.username)
+    return {'ok': True, 'msg': '保存成功'}

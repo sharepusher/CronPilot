@@ -9,16 +9,24 @@ from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 
 from . import rbac
-from .decorators import require_permission
+from .decorators import require_login, require_permission
 from .services import (
     VALID_ROLES,
     audit_action_label,
     audit_resource_label,
     audit_status_label,
     authenticate_user,
+    change_own_password,
+    create_resource_group,
     create_user,
+    get_resource_group,
     get_user_by_id,
+    get_user_group_ids_for_user,
+    list_resource_groups,
+    set_user_groups,
+    update_resource_group,
     update_user,
+    validate_groups_for_role,
     write_audit_log,
 )
 
@@ -63,8 +71,11 @@ def login():
     session['role'] = result['role']
     if result.get('user_id') is not None:
         session['user_id'] = result['user_id']
+        from .scope import get_user_group_ids
+        session['group_ids'] = get_user_group_ids(result['user_id'])
     else:
         session.pop('user_id', None)
+        session['group_ids'] = []
     write_audit_log(action='user:login', resource=result['username'])
     return redirect(next_url)
 
@@ -75,6 +86,32 @@ def logout():
         write_audit_log(action='user:logout', resource=session.get('username', ''))
     session.clear()
     return redirect('/rbac/login')
+
+
+@rbac.route('/password', methods=['GET', 'POST'])
+@require_login
+def change_password():
+    """任意已登录用户修改自己的密码；成功后清空会话并要求重新登录。"""
+    if request.method == 'GET':
+        return render_template('rbac/change_password.html')
+    result = change_own_password(
+        session.get('user_id'),
+        request.values.get('old_password', ''),
+        request.values.get('new_password', ''),
+        request.values.get('confirm_password', ''),
+    )
+    login_url = '/rbac/login?msg=%s' % quote('密码已修改，请重新登录')
+    if result['ok']:
+        session.clear()
+    if _wants_ajax_json():
+        return web_api_return(
+            code=0 if result['ok'] else 1,
+            msg=result['msg'] if not result['ok'] else '密码已修改，请重新登录',
+            url=login_url if result['ok'] else '',
+        )
+    if result['ok']:
+        return redirect(login_url)
+    return render_template('rbac/change_password.html', form_msg=result['msg'])
 
 
 @rbac.route('/users', methods=['GET'])
@@ -92,17 +129,56 @@ def users_list():
 @rbac.route('/users/add', methods=['GET', 'POST'])
 @require_permission('user:manage')
 def users_add():
+    groups = list_resource_groups()
     if request.method == 'GET':
-        return render_template('rbac/users_add.html', roles=sorted(VALID_ROLES))
+        return render_template(
+            'rbac/users_add.html',
+            roles=sorted(VALID_ROLES),
+            groups=groups,
+        )
+    role = request.values.get('role', 'viewer')
+    group_ids = request.values.getlist('group_ids')
+    groups_err = validate_groups_for_role(role, group_ids)
+    if groups_err:
+        return _users_form_response(
+            False,
+            groups_err,
+            template='rbac/users_add.html',
+            groups=groups,
+        )
+    if not groups and role != 'admin':
+        return _users_form_response(
+            False,
+            '请先创建业务组，再添加非管理员用户',
+            template='rbac/users_add.html',
+            groups=groups,
+        )
     result = create_user(
         request.values.get('username', ''),
         request.values.get('password', ''),
-        request.values.get('role', 'viewer'),
+        role,
     )
+    if result.get('ok') and result.get('user_id'):
+        bound = set_user_groups(result['user_id'], group_ids, role=role)
+        if not bound['ok']:
+            orphan = get_user_by_id(result['user_id'])
+            if orphan:
+                try:
+                    db.session.delete(orphan)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            return _users_form_response(
+                False,
+                bound['msg'],
+                template='rbac/users_add.html',
+                groups=groups,
+            )
     return _users_form_response(
         result['ok'],
         result['msg'],
         template='rbac/users_add.html',
+        groups=groups,
     )
 
 
@@ -117,19 +193,38 @@ def users_edit():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    groups = list_resource_groups()
     if request.method == 'GET':
         return render_template(
             'rbac/users_edit.html',
             user=user,
             roles=sorted(VALID_ROLES),
+            groups=groups,
+            user_group_ids=get_user_group_ids_for_user(user.id),
         )
     password = request.values.get('password', '')
+    new_role = request.values.get('role', user.role)
+    group_ids = request.values.getlist('group_ids')
+    groups_err = validate_groups_for_role(new_role, group_ids)
+    if groups_err:
+        return _users_form_response(
+            False,
+            groups_err,
+            template='rbac/users_edit.html',
+            user=user,
+            groups=groups,
+            user_group_ids=get_user_group_ids_for_user(user.id),
+        )
     result = update_user(
         user_id,
-        role=request.values.get('role', user.role),
+        role=new_role,
         is_active=request.values.get('is_active', user.is_active),
         password=password if password else None,
     )
+    if result['ok']:
+        bound = set_user_groups(user_id, group_ids, role=new_role)
+        if not bound['ok']:
+            result = bound
     if not result['ok']:
         user.role = request.values.get('role', user.role)
         try:
@@ -141,6 +236,67 @@ def users_edit():
         result['msg'],
         template='rbac/users_edit.html',
         user=user,
+        groups=groups,
+        user_group_ids=get_user_group_ids_for_user(user.id),
+    )
+
+
+@rbac.route('/groups', methods=['GET'])
+@require_permission('user:manage')
+def groups_list():
+    return render_template(
+        'rbac/groups.html',
+        groups=list_resource_groups(),
+    )
+
+
+@rbac.route('/groups/add', methods=['GET', 'POST'])
+@require_permission('user:manage')
+def groups_add():
+    if request.method == 'GET':
+        return render_template('rbac/groups_add.html')
+    result = create_resource_group(
+        request.values.get('name', ''),
+        None,
+        request.values.get('description', ''),
+    )
+    return _users_form_response(
+        result['ok'],
+        result['msg'] if not result.get('ok') else (
+            '%s（编码 %s）' % (result['msg'], result.get('code') or '')
+        ),
+        url='/rbac/groups',
+        template='rbac/groups_add.html',
+    )
+
+
+@rbac.route('/groups/edit', methods=['GET', 'POST'])
+@require_permission('user:manage')
+def groups_edit():
+    group_id = request.values.get('id')
+    try:
+        group_id = int(group_id)
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/groups')
+    group = get_resource_group(group_id)
+    if not group:
+        return _users_form_response(False, '业务组不存在', url='/rbac/groups')
+    if request.method == 'GET':
+        return render_template('rbac/groups_edit.html', group=group)
+    result = update_resource_group(
+        group_id,
+        name=request.values.get('name', group.name),
+        description=request.values.get('description', group.description),
+    )
+    if not result['ok']:
+        group.name = request.values.get('name', group.name)
+        group.description = request.values.get('description', group.description)
+    return _users_form_response(
+        result['ok'],
+        result['msg'],
+        url='/rbac/groups',
+        template='rbac/groups_edit.html',
+        group=group,
     )
 
 

@@ -11,7 +11,45 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
-- 文档：澄清 `login_pwd` 仅空表种子；日常改密走「用户管理 → 编辑 → 新密码」（见 README / RBAC §4.5）。
+---
+
+## [1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简
+
+在 v1.0.0 RBAC 之上交付 **OPT-P2-12 资源隔离**，并完善账号自助与任务编辑体验。升级须重启；已有库会经 `ensure_sqlite_tables` 补业务组表与任务 Scope 列。
+
+### OPT-P2-12 · Resource Scope 资源隔离
+
+在 RBAC v4 Capability 之上增加 Visibility 层：业务组（`resource_groups` / `user_groups`）、任务 `scope_type`/`group_id`、列表过滤 + 单资源 `authorize` 防 IDOR；`admin` 绕过 Scope；组管理复用 `user:manage`。
+
+| 变更 | 说明 |
+|------|------|
+| 数据 | `resource_groups`、`user_groups`；`cron_infos.scope_type`（默认 GLOBAL）/ `group_id`；SQLite `ensure_sqlite_tables` 补列 |
+| 鉴权 | `app/rbac/scope.py`、`authorize.py`；登录写 `session['group_ids']`；越权 403 + `scope:deny` |
+| 管理端 | `/rbac/groups*`（组编码由名称自动生成）；用户绑组（非 admin 至少一组）；**任务添加**时可设作用域；执行日志/操作记录继承可见性 |
+| 非 admin 任务 | 强制 `GROUP`、仅可选本人所属组；不可设 GLOBAL |
+| API | **未改**：部署级 `api_access_token` 仍全库（已知缺口，见设计 §七；S6 远期） |
+| 测试 | `tests/test_rbac_scope.py` 并入 `cronpilot.sh test` |
+
+设计：[doc/资源隔离与Scope设计.html](doc/资源隔离与Scope设计.html) · [doc/资源隔离落地路线.html](doc/资源隔离落地路线.html)
+
+### 自助修改密码
+
+| 变更 | 说明 |
+|------|------|
+| 入口 | 导航 **修改密码** → `/rbac/password`（任意已登录角色；不需 `user:manage`） |
+| 校验 | 当前密码正确；新密码 ≥6 位且与旧密码不同；确认一致 |
+| 会话 | 成功后 **清空会话**，跳转登录页提示「密码已修改，请重新登录」 |
+| 审计 | `user:password` |
+| 代改 | admin 仍可通过「用户管理 → 编辑 → 新密码」改他人密码（**不**强制对方下线） |
+| 种子 | `login_pwd` 仅空表种子；有用户后改 conf **无效** |
+
+### 任务编辑页精简
+
+| 变更 | 说明 |
+|------|------|
+| 导航 | 编辑页显示 **任务编辑**（不再误高亮「任务添加」） |
+| 表单 | 不展示创建时间、上次编辑、作用域/可见范围 |
+| 作用域 | 保存时保持原值；仅在「任务添加」时设置 |
 
 ---
 

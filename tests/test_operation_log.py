@@ -97,6 +97,8 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             from datas.model.operation_log import OperationLog  # noqa: F401
             from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
 
     def test_operator_forbidden_on_list(self):
@@ -108,9 +110,23 @@ class TestOperationLogListAndWrite(unittest.TestCase):
 
     def test_operator_can_list_rows(self):
         from app import db
+        from datas.model.cron_infos import CronInfos
         from datas.model.operation_log import OperationLog
+        from datas.utils.times import get_now_time
 
         with self.app.app_context():
+            now = get_now_time()
+            cif = CronInfos(
+                task_name='daily',
+                task_keyword='kw',
+                req_url='https://example.com/d',
+                status=1,
+                created_at=now,
+                updated_at=now,
+                scope_type='GLOBAL',
+            )
+            db.session.add(cif)
+            db.session.flush()
             db.session.add(
                 OperationLog(
                     create_time='2026-07-14 10:00:00',
@@ -121,6 +137,8 @@ class TestOperationLogListAndWrite(unittest.TestCase):
                     operator_name='op',
                     operator_roles_json='["operator"]',
                     operator_permissions_json='[]',
+                    target_type='cron',
+                    target_id=cif.id,
                     task_name='daily',
                     detail_json='{"hour":"9"}',
                     result='ok',
@@ -133,6 +151,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             sess['role'] = 'operator'
             sess['username'] = 'op'
             sess['user_id'] = 2
+            sess['group_ids'] = []
         resp = self.client.get('/operation_log_list')
         self.assertEqual(resp.status_code, 200)
         html = resp.get_data(as_text=True)

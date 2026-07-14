@@ -28,6 +28,50 @@
                         <input type="text" name="task_keyword" maxlength="500" required />* 必填，1～500 字；用途/负责人/告警联系等
                     </div>
                 </div>
+                {% if scope_locked %}
+                <div class="control-group">
+                    <label class="control-label">可见范围</label>
+                    <div class="controls">
+                        <input type="hidden" name="scope_type" value="GROUP" />
+                        {% if scope_groups|length == 1 %}
+                        <input type="hidden" name="group_id" value="{{ scope_groups[0].id }}" />
+                        <span>所属业务组：{{ scope_groups[0].name }} ({{ scope_groups[0].code }})</span>
+                        <span style="color:#64748b;margin-left:8px">仅同组可见，不可改为全局或其它组</span>
+                        {% elif scope_groups|length > 1 %}
+                        <select name="group_id" id="group_id" required>
+                            {% for g in scope_groups %}
+                            <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
+                            {% endfor %}
+                        </select>
+                        <span style="color:#64748b">仅可选本人所属业务组；不可创建全局任务</span>
+                        {% else %}
+                        <span style="color:#b45309">当前账号未绑定业务组，请联系管理员后再创建任务</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="control-group">
+                    <label class="control-label">作用域</label>
+                    <div class="controls">
+                        <select name="scope_type" id="scope_type">
+                            <option value="GLOBAL" selected>全局共享 (GLOBAL)</option>
+                            <option value="GROUP">业务组 (GROUP)</option>
+                        </select>
+                        <span style="color:#64748b">管理员可创建全局共享或指定业务组任务</span>
+                    </div>
+                </div>
+                <div class="control-group" id="group_id_row" style="display:none">
+                    <label class="control-label">业务组</label>
+                    <div class="controls">
+                        <select name="group_id" id="group_id">
+                            <option value="">请选择</option>
+                            {% for g in scope_groups or [] %}
+                            <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="control-group">
                     <label class="control-label">定时方式</label>
                     <div class="controls">
@@ -104,5 +148,17 @@
                 $('#cron_div').show()
             }
         });
+        function syncScopeGroupRow() {
+            if (!$('#scope_type').length) return;
+            if ($('#scope_type').val() === 'GROUP') {
+                $('#group_id_row').show();
+            } else {
+                $('#group_id_row').hide();
+            }
+        }
+        if ($('#scope_type').length) {
+            $('#scope_type').change(syncScopeGroupRow);
+            syncScopeGroupRow();
+        }
     </script>
 {% endblock %}

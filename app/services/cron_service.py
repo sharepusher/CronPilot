@@ -60,6 +60,10 @@ def apply_normalized_to_model(cif, normalized):
     cif.req_url = normalized['req_url']
     cif.status = 1
     cif.updated_at = get_now_time()
+    if 'scope_type' in normalized:
+        cif.scope_type = normalized['scope_type'] or 'GLOBAL'
+    if 'group_id' in normalized:
+        cif.group_id = normalized['group_id']
 
 
 def create_cron(normalized):
@@ -79,6 +83,8 @@ def create_cron(normalized):
         status=1,
         created_at=now,
         updated_at=now,
+        scope_type=normalized.get('scope_type') or 'GLOBAL',
+        group_id=normalized.get('group_id'),
     )
     db.session.add(cif)
     db.session.commit()
@@ -210,6 +216,9 @@ def add_cron_web(datas, is_dev, cron_config):
     err, normalized = validate_cron_form(datas, is_dev, cron_config, mode='add')
     if err:
         return err
+    if 'scope_type' in datas:
+        normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
+        normalized['group_id'] = datas.get('group_id')
     exists = db.session.scalars(
         select(CronInfos).where(CronInfos.task_name == normalized['task_name'])
     ).first()
@@ -225,6 +234,9 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
     )
     if err:
         return err
+    if 'scope_type' in datas:
+        normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
+        normalized['group_id'] = datas.get('group_id')
     dup = db.session.scalars(
         select(CronInfos).where(
             CronInfos.task_name == normalized['task_name'],

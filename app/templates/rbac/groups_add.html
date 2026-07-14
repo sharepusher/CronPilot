@@ -1,0 +1,72 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='groups' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if form_msg %}
+        <div style="color:red;margin:8px 0">{{ form_msg }}</div>
+        {% endif %}
+
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.groups_add') }}">
+            <fieldset>
+                <div class="control-group">
+                    <label class="control-label">名称</label>
+                    <div class="controls">
+                        <input type="text" name="name" id="group_name" required maxlength="64" />
+                        <span style="color:#64748b">创建后编码由名称自动生成（中文等会先译成英文再转编码）；编码创建后不可改</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">编码预览</label>
+                    <div class="controls">
+                        <input type="text" id="code_preview" disabled value="" placeholder="保存时自动生成" />
+                        <span style="color:#64748b">英文名称即时预览；中文名称以服务端翻译结果为准</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">描述</label>
+                    <div class="controls">
+                        <input type="text" name="description" maxlength="255" />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary js-ajax-submit">创建</button>
+                    <a class="btn" href="{{ url_for('rbac.groups_list') }}">返回</a>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+{% endblock %}
+
+{% block js %}
+    <script>
+        function previewGroupCode(name) {
+            name = (name || '').trim().toLowerCase();
+            if (!name) return '';
+            // 含非拉丁字符时不客户端假造，提示服务端生成
+            if (/[^\x00-\x7F]/.test(name)) {
+                return '';
+            }
+            var slug = name.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            return slug;
+        }
+        $('#group_name').on('input', function () {
+            var slug = previewGroupCode($(this).val());
+            $('#code_preview').val(slug || '');
+            $('#code_preview').attr(
+                'placeholder',
+                slug ? slug : '保存时自动生成（含中文将翻译后生成）'
+            );
+        });
+    </script>
+{% endblock %}

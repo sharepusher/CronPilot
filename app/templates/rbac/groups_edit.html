@@ -1,0 +1,49 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='groups' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if form_msg %}
+        <div style="color:red;margin:8px 0">{{ form_msg }}</div>
+        {% endif %}
+
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.groups_edit') }}">
+            <input type="hidden" name="id" value="{{ group.id }}" />
+            <fieldset>
+                <div class="control-group">
+                    <label class="control-label">编码</label>
+                    <div class="controls">
+                        <input type="text" value="{{ group.code }}" disabled />
+                        <span style="color:#64748b">创建后不可改</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">名称</label>
+                    <div class="controls">
+                        <input type="text" name="name" value="{{ group.name }}" required />
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">描述</label>
+                    <div class="controls">
+                        <input type="text" name="description" value="{{ group.description }}" maxlength="255" />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary js-ajax-submit">保存</button>
+                    <a class="btn" href="{{ url_for('rbac.groups_list') }}">返回</a>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+{% endblock %}

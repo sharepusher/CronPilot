@@ -1,148 +1,76 @@
 ---
-description: CronPilot RBAC v2 开发规范（OPT-P2-10，用户明确要求后实施）
-globs: app/rbac/**/*.py,datas/model/rbac_*.py,app/main/views.py,configs.py,conf.ini.example,app/__init__.py,tests/test_rbac*.py
+description: CronPilot RBAC v4 + Resource Scope（OPT-P2-10 / OPT-P2-12）
+globs: app/rbac/**/*.py,datas/model/rbac_*.py,datas/model/resource_group.py,datas/model/user_group.py,app/main/views.py,configs.py,conf.ini.example,app/__init__.py,tests/test_rbac*.py
 alwaysApply: false
 ---
 
-# RBAC v2 开发规范
+# RBAC + Resource Scope 开发规范
 
-权威详设：`doc/RBAC架构设计方案.html`（**v4**）· 落地路线：`doc/RBAC落地路线.html`。
+权威详设：`doc/RBAC架构设计方案.html`（**v4**）· Scope：`doc/资源隔离与Scope设计.html`（**OPT-P2-12**）· 落地：`doc/RBAC落地路线.html`、`doc/资源隔离落地路线.html`。
 
 ## 范围声明
 
-- 本规则是**用户明确要求后**新增的功能阶段（OPT-P2-10），**不属于** `cronpilot-project.mdc` 路线图 Phase A 既有范围，但同样必须遵守该文件全部总则（最小 diff、unittest、文档同步等）。
-- 未明确要求时**不**默认实现 RBAC；不顺手做 OAuth/SSE 等其它 P2 项。
+- OPT-P2-10（三角色 Capability）与 OPT-P2-12（Resource Scope Visibility）均须用户明确要求后演进；**勿**未确认越级实现 S6（API Scope / Tenant）。
+- 遵守 `cronpilot-project.mdc` 交付闭环与最小 diff。
 
-## 与项目总则 / 后端规范对齐
-
-**最小 diff**（`cronpilot-project.mdc`）：
-
-- 改 `app/` 前先读 `cron_validator`、`cron_service`、现有 `views`，避免重复造轮子。
-- 只改下文「允许改动白名单」内文件；不顺手重构 `cron_service`、现有校验链。
-
-**JSON 响应契约**（`cronpilot-backend.mdc`）：
-
-- 统一形态：`{errcode: int, errmsg: str, result, data, url}`（`datas/utils/json.py`）。
-- **禁止** `errcode` 为字符串（如 `"0"`）。
-- 新增 `/rbac/*` JSON 端点：只用 `json_response(errcode=0|1, errmsg=..., data=...)`。
-- 现有 Web Ajax 路由（`cron_add` 等）权限拒绝：`web_api_return(code=1, msg=...)`（内部仍 `int(errcode)`），**禁止**自定义 `{code, message}` 等新格式。
-- 页面 GET 拒绝：`redirect(...?msg=权限不足)`。
-
-## 分层约定（对齐 cronpilot-backend.mdc）
+## 分层约定
 
 | 职责 | 位置 | 说明 |
 |------|------|------|
-| 权限判断 | `app/rbac/policy.py` | `ROLE_PERMISSIONS`、`has_permission`；**纯函数，不依赖** Flask request/session |
-| 装饰器 | `app/rbac/decorators.py` | `require_permission`；未登录 → `/rbac/login?next={full_path}`；分权始终启用 |
-| 模板上下文 | `app/rbac/context.py` | `make_has_perm()` **v4**：闭包外层预加载权限集 |
-| RBAC 路由 | `app/rbac/views.py` | `/rbac/login`、`/logout`、`/users`、`/audit-logs` |
-| 用户/审计 | `app/rbac/services.py` | CRUD、`write_audit_log`、`resolve_role_for_legacy_login` |
-| Blueprint | `app/rbac/__init__.py` | 注册 views |
-| 数据模型 | `datas/model/rbac_user.py`、`rbac_audit_log.py` | 表 `rbac_users`、`rbac_audit_logs` |
+| 权限判断 | `app/rbac/policy.py` | `ROLE_PERMISSIONS`、`has_permission`、`SCOPE_BYPASS_ROLES`（admin）、`check_policy` stub |
+| Scope | `app/rbac/scope.py` | `build_scope_filter_clause`、`has_scope`、`normalize_scope_fields` |
+| 统一授权 | `app/rbac/authorize.py` | `authorize`：Permission → Scope → Policy |
+| 装饰器 | `app/rbac/decorators.py` | `require_permission`；`require_login`（自助改密）；`authorize_resource`（对象级） |
+| 模板上下文 | `app/rbac/context.py` | `make_has_perm`；`current_group_ids` |
+| 用户/组/审计 | `app/rbac/services.py` | 用户 CRUD、`change_own_password`、业务组 CRUD、`set_user_groups`、审计 |
+| 数据模型 | `rbac_*`、`resource_group`、`user_group`；`cron_infos.scope_type/group_id` | |
 
-`decorators.py` 实现建议：抽取 `_ensure_logged_in()`（与 `app/decorated.py` 的 `login_required` 同逻辑），`require_permission` 先调它，再调 `has_permission`；**勿**复制第三份 session 判断。
-
-## 允许改动白名单
+## 允许改动白名单（Scope 相关追加）
 
 | 文件 | 允许改动 |
 |------|----------|
-| `app/rbac/**` | 新增/修改 RBAC 模块 |
-| `datas/model/rbac_*.py` | 新增模型 |
-| `app/main/views.py` | 仅：`import` + `@login_required` → `@require_permission('…')`；**函数体不动**（`check_pass` 仅改函数体为转发 `/rbac/login` + `next` 透传） |
-| `app/main/views.py` → `check_pass` | 保留路由；GET/POST 转发 `/rbac/login`（307 保留 POST）；透传 `next` 与装饰器格式一致 |
-| `app/templates/rbac/**` | 新增 `login.html`、`_nav.html`（自 `_admin_nav` 演进）、`users.html`、`forbidden.html` |
-| `app/templates/*.html`（5 主页面） | <code>_admin_nav</code> → <code>rbac/_nav.html</code>；按钮级 <code>{% if has_perm(...) %}` |
-| `conf.ini.example` | RBAC 分权说明注释（始终启用） |
-| `app/__init__.py` | 仅追加 Blueprint 注册（2 行） |
-| `tests/test_rbac_phase.py` | 新增单测 |
-| `RELEASE_NOTES.md`、`doc/RBAC*.html` | 行为变更时同步 |
+| `app/rbac/**` | 含 `scope.py`、`authorize.py`、groups 路由 |
+| `datas/model/resource_group.py`、`user_group.py`、`cron_infos.py`（Scope 列） | 模型 |
+| `app/main/views.py` | `@require_permission` + load 后 **`authorize_resource` / `build_scope_filter_clause`**；禁止散落 `if group_id` |
+| `app/services/cron_service.py` | **仅**透传 `scope_type`/`group_id` 落库，**禁止**角色/组判断 |
+| `app/templates/cron_*.html`、`rbac/groups*.html`、`rbac/users_*.html`、`rbac/_nav.html` | Scope UI |
+| `tests/test_rbac_scope.py` | Scope 单测 |
+| `scripts/ensure_sqlite_tables.py` | 建表/补列 |
+| 文档 | `doc/资源隔离*.html`、`RELEASE_NOTES`、`交付状态与路线图` |
 
-**不在白名单、默认不改**：`app/api/views.py`（`access_token` 独立）、`app/services/cron_service.py`（无权限逻辑）、`app/decorated.py`（可保持不动，逻辑在 rbac 装饰器内复用）。
+**不在白名单、默认不改**：`app/api/views.py`（`access_token` 独立，Scope 首期除外）。
 
 ## 三角色与权限（勿增第四内置角色）
 
 ```python
-# app/rbac/policy.py
 ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
     'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
     'admin':    {'cron:read', 'cron:write', 'cron:retire',
                  'log:read', 'operation:read', 'user:manage', 'audit:read'},
 }
-
-def has_permission(role: str, permission: str) -> bool:
-    return permission in ROLE_PERMISSIONS.get(role, set())
+SCOPE_BYPASS_ROLES = frozenset({'admin'})
 ```
 
-### 路由 → 装饰器（`app/main/views.py`）
+业务组管理复用 **`user:manage`**（不新增 `group:manage`）。Role **不得**绑定 Group。
 
-| 路由 / 函数 | permission |
-|-------------|------------|
-| `cron_list`、`api_doc` | `cron:read` |
-| `cron_add`、`cron_edit`、`update_status` | `cron:write` |
-| `cron_retire` | `cron:retire` |
-| `operation_log_list` | `operation:read`（operator+admin） |
-| `job_log_list`、`job_log_item_list`、`job_log_all_list`、`job_log_detail` | `log:read` |
-| 已废弃删除路由 | 返回 410；勿挂 `cron:delete` / `log:delete` |
-| `check_pass`、`logout` | **不改装饰器**；`check_pass` 为转发壳 |
+## Session
 
-RBAC 管理端：`/rbac/users*` → `user:manage`；`/rbac/audit-logs` → `audit:read`（仅 admin）。
-
-可见性：viewer **不可**见操作记录与 RBAC 管理面；operator 可看操作记录、不可看 RBAC 审计/用户管理；admin 全覆盖。权威表见 `doc/RBAC架构设计方案.html` §3.2.1。
-
-## Session 与审计分工
-
-- 保留 `session['is_login']`。
-- 登录成功写 `session['role']`；匹配 `rbac_users` 时写 `user_id`、`username`。
-- `operation_log`（`operation:read`）：业务配置变更。
-- `rbac_audit_logs`（`audit:read`）：登录/用户管理/权限拒绝；**不**替代 `operation_log`。
-
-## 配置与密码
-
-- 三角色分权**始终启用**；遗留 无 `rbac_enable` 配置项。
-- **禁止** `.env`、`AUTH_MODE` 等环境变量读 RBAC 配置。
-- 密码：复用 `app/auth/password.py` 的 `hash_password` / `verify_login_password`。
-- **禁止** jsonwebtoken、bcrypt、flask-login 等新依赖。
-
-## 数据库
-
-- 优先 **Flask-Migrate**：`flask --app manage:app db migrate` / `db upgrade`（`manage.py` 已注册 `flask db` 子命令，Py3.11 可用）。
-- CLI 不可用时：`ensure_rbac_tables(app)` 限定 `db.create_all()` 至两新模型。
-- **禁止**手写一次性 SQL 替代 migrate（除非用户明确要求）。
-- RBAC **不依赖** gevent / Flask 2 / SQLAlchemy 2.0 升级。
-
-## 验收
-
-- 验收：`python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v` 全绿。
-- 三角色矩阵始终生效；无 `rbac_enable` / `get_rbac_enabled`。
-
-## 注册
-
-```python
-# app/__init__.py 仅追加
-from .rbac import rbac as rbac_blueprint
-app.register_blueprint(rbac_blueprint)
-```
-
-## 测试（`tests/test_rbac_phase.py`）
-
-- `has_permission`：viewer 不可 write / operation / audit；operator 有 `operation:read`、不可 retire/audit/user:manage；admin 全覆盖。
-- 无 `get_rbac_enabled` / `rbac_enable`。
-- 可选：拒绝时写入 `rbac_audit_logs`。
+- 登录写 `role`、`user_id`、`group_ids`
+- 用户组变更后须**重新登录**生效
 
 ## 禁止事项
 
-- ❌ `before_request` 全局中间件 / `route_registry` 自动推断权限
-- ❌ JWT、多表 RBAC（`users`+`roles`+`user_roles`）、`api_clients` 权限表
-- ❌ 修改 `app/main/views.py`、`app/api/views.py` **函数体内**业务逻辑（装饰器与 `check_pass` Session 行除外）
-- ❌ 修改 `app/api/views.py` 的 `access_token` 语义
-- ❌ 在 views 内手写 `has_permission`（必须走装饰器 + `policy.py`）
-- ❌ 修改 `cron_service.py` 塞权限逻辑（除非仅读 Session 供 P1 审计）
+- ❌ `before_request` / `route_registry` / JWT / 多表角色权限引擎
+- ❌ 角色爆炸（研发管理员等）或 Role↔Group
+- ❌ 在 views/service 手写 `if cron.group_id != …`（必须 `authorize` / `build_scope_filter_clause`）
+- ❌ 修改 `app/api/views.py` 的 `access_token` 语义（除非单独 RFC）
+- ❌ 删除业务组（防悬挂）；删除任务（生命周期）
+- ❌ `rbac_enable` 旁路
 - ❌ 引入 pytest 或新 pip 依赖（除非用户确认）
-- ❌ 新响应 JSON 格式；非 `json_response` / `web_api_return` 体系
-- ❌ 恢复 `rbac_enable=0` 权限旁路
 
-## 发布
+## 验收
 
-- 行为变更 → `RELEASE_NOTES.md`。
-- 改 `doc/RBAC架构设计方案.html` → `python scripts/html_docs_to_markdown.py --check`。
+```bash
+bash scripts/cronpilot.sh test   # 含 tests.test_rbac_scope
+```

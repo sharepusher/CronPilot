@@ -120,6 +120,96 @@ class TestRbacLogin(unittest.TestCase):
         self.assertIn('task_name=x', loc)
 
 
+class TestChangeOwnPassword(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            db.create_all()
+            u = RbacUser(username='op1', role='operator', is_active=1, create_time='t')
+            u.set_password('oldpass1')
+            db.session.add(u)
+            db.session.commit()
+            self.user_id = u.id
+
+    def _login(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = 'op1'
+            sess['role'] = 'operator'
+            sess['user_id'] = self.user_id
+            sess['group_ids'] = []
+
+    def test_unauthenticated_redirects_to_login(self):
+        resp = self.client.get('/rbac/password')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/rbac/login', resp.headers['Location'])
+
+    def test_get_renders_form(self):
+        self._login()
+        resp = self.client.get('/rbac/password')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.get_data(as_text=True)
+        self.assertIn('js-ajax-form', body)
+        self.assertIn('js-ajax-submit', body)
+        self.assertIn('当前密码', body)
+
+    def test_wrong_old_password_rejected(self):
+        self._login()
+        resp = self.client.post(
+            '/rbac/password',
+            data={
+                'old_password': 'wrong',
+                'new_password': 'newpass1',
+                'confirm_password': 'newpass1',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        self.assertIn('当前密码', resp.get_json().get('errmsg', ''))
+
+    def test_operator_can_change_own_password(self):
+        self._login()
+        resp = self.client.post(
+            '/rbac/password',
+            data={
+                'old_password': 'oldpass1',
+                'new_password': 'newpass1',
+                'confirm_password': 'newpass1',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertEqual(data.get('errcode'), 0)
+        self.assertIn('/rbac/login', data.get('url', ''))
+        self.assertIn('重新登录', data.get('errmsg', ''))
+        with self.client.session_transaction() as sess:
+            self.assertNotIn('is_login', sess)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.user_id)
+            self.assertTrue(u.check_password('newpass1'))
+            self.assertFalse(u.check_password('oldpass1'))
+
+
 class TestR3Permissions(unittest.TestCase):
     def setUp(self):
         app = Flask(
@@ -293,6 +383,20 @@ class TestNavHasPerm(unittest.TestCase):
         self.assertNotIn('用户管理', html)
         self.assertIn('操作记录', html)
 
+    def test_any_role_nav_shows_change_password(self):
+        for role in ('admin', 'operator', 'viewer'):
+            html = self._render_nav(role)
+            self.assertIn('修改密码', html, role)
+
+    def test_cron_edit_nav_shows_edit_not_add(self):
+        with self.app.app_context():
+            with self.app.test_request_context():
+                session['is_login'] = True
+                session['role'] = 'operator'
+                html = render_template('rbac/_nav.html', active='cron_edit')
+        self.assertIn('任务编辑', html)
+        self.assertNotIn('任务添加', html)
+
     def test_viewer_nav_hides_operation_and_rbac(self):
         html = self._render_nav('viewer')
         self.assertNotIn('操作记录', html)
@@ -353,7 +457,18 @@ class TestRbacUsersManage(unittest.TestCase):
         with app.app_context():
             from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
+            g = ResourceGroup(
+                name='Default',
+                code='default',
+                description='',
+                create_time='t',
+            )
+            db.session.add(g)
+            db.session.commit()
+            self.group_id = g.id
 
     def _login(self, role='admin', user_id=None):
         with self.client.session_transaction() as sess:
@@ -372,7 +487,12 @@ class TestRbacUsersManage(unittest.TestCase):
         self._login('admin')
         resp = self.client.post(
             '/rbac/users/add',
-            data={'username': 'alice', 'password': 'secret', 'role': 'viewer'},
+            data={
+                'username': 'alice',
+                'password': 'secret',
+                'role': 'viewer',
+                'group_ids': str(self.group_id),
+            },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
         self.assertEqual(resp.status_code, 200)
@@ -395,7 +515,12 @@ class TestRbacUsersManage(unittest.TestCase):
         self._login('admin')
         resp = self.client.post(
             '/rbac/users/add',
-            data={'username': 'bob', 'password': 'secret', 'role': 'viewer'},
+            data={
+                'username': 'bob',
+                'password': 'secret',
+                'role': 'viewer',
+                'group_ids': str(self.group_id),
+            },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/rbac/users', resp.headers['Location'])
@@ -413,7 +538,12 @@ class TestRbacUsersManage(unittest.TestCase):
         self._login('admin', user_id=999)
         resp = self.client.post(
             '/rbac/users/edit',
-            data={'id': str(admin_id), 'role': 'viewer', 'is_active': '1'},
+            data={
+                'id': str(admin_id),
+                'role': 'viewer',
+                'is_active': '1',
+                'group_ids': str(self.group_id),
+            },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
         self.assertEqual(resp.status_code, 200)
@@ -542,6 +672,9 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
             from datas.model.rbac_user import RbacUser
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.cron_infos import CronInfos  # noqa: F401
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
+            from datas.model.operation_log import OperationLog  # noqa: F401
             db.create_all()
             for name, role, pwd in (
                 ('tri_admin', 'admin', 'admin-pass'),

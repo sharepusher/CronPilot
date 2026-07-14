@@ -12,6 +12,18 @@ ROLE_PERMISSIONS = {
     },
 }
 
+# OPT-P2-12：admin 绕过 Resource Scope（不增第四角色）
+SCOPE_BYPASS_ROLES = frozenset({'admin'})
+
 
 def has_permission(role, permission):
     return permission in ROLE_PERMISSIONS.get(role, set())
+
+
+def role_bypasses_scope(role):
+    return (role or '') in SCOPE_BYPASS_ROLES
+
+
+def check_policy(role, permission, resource):
+    """Resource Policy 预留：当前恒 True。"""
+    return True

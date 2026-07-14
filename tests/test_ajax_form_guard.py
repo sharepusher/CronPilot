@@ -65,6 +65,9 @@ class TestAjaxFormGuard(unittest.TestCase):
             'cron_retire.html',
             os.path.join('rbac', 'users_add.html'),
             os.path.join('rbac', 'users_edit.html'),
+            os.path.join('rbac', 'groups_add.html'),
+            os.path.join('rbac', 'groups_edit.html'),
+            os.path.join('rbac', 'change_password.html'),
         )
         for name in must:
             path = os.path.join(TEMPLATES, name)

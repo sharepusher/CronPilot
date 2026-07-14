@@ -171,9 +171,10 @@ CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 | 场景 | 做法 |
 | --- | --- |
 | 首次部署（空表） | 在 conf.ini 配置 `login_pwd`（推荐 `scripts/hash_login_password.py`）→ 启动 → 用 `admin` + 该密码登录 |
-| 日常修改任意用户密码 | admin 登录 → **用户管理** → 编辑 → 填写「新密码」（留空则不改）→ 保存（权限 `user:manage`） |
+| 自助修改自己的密码 | 任意已登录用户 → 导航 **修改密码**（`/rbac/password`）→ 当前密码 + 新密码（≥6 位）；审计 `user:password`；成功后**强制重新登录**；无需 `user:manage` |
+| 管理员修改他人密码 | admin → **用户管理** → 编辑 →「新密码」（留空则不改）→ 保存（`user:manage`） |
 | 改 conf.ini `login_pwd` | 表**已有**用户时：重启也**不会**更新库内 `password_hash`；勿当作改密手段 |
-| 产品未提供 | 登录页「忘记密码」、非 admin 自助改密 |
+| 产品未提供 | 登录页「忘记密码」 |
 
 **分权始终启用**：三角色权限矩阵始终生效，无配置旁路。`conf.ini` 中遗留的 `rbac_enable` 键已废弃，存在亦忽略。
 
@@ -395,9 +396,15 @@ source scripts/smoke_http.sh && smoke_http_suite "http://127.0.0.1:5001" "change
 
 分阶段任务、PR 切分、Release 前文档梳理见 **[RBAC落地路线 v4](RBAC落地路线.html)**。建议目标版本 **v1.0.0**。
 
+## 十三、Resource Scope（OPT-P2-12）
+
+Capability 之外的业务线可见范围见 **[资源隔离与 Scope 设计](资源隔离与Scope设计.html)** ·
+[落地路线](资源隔离落地路线.html)。Scope **不**改变本节三角色矩阵；组管理复用 `user:manage`。
+
 CronPilot · RBAC 详细设计 v4 ·
 [Markdown](RBAC架构设计方案.md) ·
 [落地路线](RBAC落地路线.html) ·
+[Resource Scope](资源隔离与Scope设计.html) ·
 [交付状态](交付状态与路线图.html) ·
 [索引](index.html)
 

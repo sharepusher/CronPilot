@@ -21,3 +21,16 @@ class CronInfos(db.Model):
     updated_at = db.Column(db.String(25), default='', doc='最后配置编辑时间')
     retire_reason = db.Column(db.String(500), default='', doc='下线原因')
     retired_at = db.Column(db.String(25), default='', doc='下线时刻')
+    scope_type = db.Column(
+        db.String(16),
+        nullable=False,
+        default='GLOBAL',
+        server_default='GLOBAL',
+        doc='GLOBAL=全局共享；GROUP=业务组隔离',
+    )
+    group_id = db.Column(
+        db.Integer,
+        nullable=True,
+        default=None,
+        doc='scope_type=GROUP 时所属 resource_groups.id；GLOBAL 时为 NULL',
+    )

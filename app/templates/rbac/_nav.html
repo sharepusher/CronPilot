@@ -1,4 +1,4 @@
-{# active: cron_list | cron_add | job_log | operation_log | api_doc | users | audit #}
+{# active: cron_list | cron_add | cron_edit | job_log | operation_log | api_doc | users | groups | audit | password #}
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
@@ -6,9 +6,13 @@
     </li>
     {% endif %}
     {% if has_perm('cron:write') %}
+    {% if active == 'cron_edit' %}
+    <li class="active"><a>任务编辑</a></li>
+    {% else %}
     <li{% if active == 'cron_add' %} class="active"{% endif %}>
         <a{% if active != 'cron_add' %} href="{{ url_for('main.cron_add') }}"{% endif %}>任务添加</a>
     </li>
+    {% endif %}
     {% endif %}
     {% if has_perm('log:read') %}
     <li{% if active == 'job_log' %} class="active"{% endif %}>
@@ -29,11 +33,17 @@
     <li{% if active == 'users' %} class="active"{% endif %}>
         <a{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>用户管理</a>
     </li>
+    <li{% if active == 'groups' %} class="active"{% endif %}>
+        <a{% if active != 'groups' %} href="{{ url_for('rbac.groups_list') }}"{% endif %}>业务组</a>
+    </li>
     {% endif %}
     {% if has_perm('audit:read') %}
     <li{% if active == 'audit' %} class="active"{% endif %}>
         <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>审计</a>
     </li>
     {% endif %}
+    <li{% if active == 'password' %} class="active"{% endif %}>
+        <a{% if active != 'password' %} href="{{ url_for('rbac.change_password') }}"{% endif %}>修改密码</a>
+    </li>
     <li><a href="{{ url_for('main.logout') }}">退出</a></li>
 </ul>

@@ -42,6 +42,8 @@ CRON_SNAPSHOT_FIELDS = (
     'second',
     'req_url',
     'status',
+    'scope_type',
+    'group_id',
 )
 
 

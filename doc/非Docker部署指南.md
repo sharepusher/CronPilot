@@ -116,7 +116,7 @@ bash scripts/start_local.sh
 
 | 用途 | URL | 认证 |
 | --- | --- | --- |
-| Web 管理端 | `http://<IP>:5860/` | `login_pwd` |
+| Web 管理端 | `http://<IP>:5860/` | 用户名 + 密码（种子 `admin` / `login_pwd`）；三角色 RBAC |
 | REST API | `http://<IP>:5860/api/...` | `api_access_token` 等 |
 | HTML 技术文档 | `http://<IP>:5860/docs/` | **无登录** |
 

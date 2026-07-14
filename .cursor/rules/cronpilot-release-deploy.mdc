@@ -19,7 +19,7 @@ alwaysApply: false
 
 | 入口 | URL | 认证 |
 |------|-----|------|
-| 管理端 | `/` | `login_pwd` |
+| 管理端 | `/` | 用户名 + 密码（种子 `admin` / `login_pwd`） |
 | API | `/api/...` | `api_access_token` 等 |
 | 技术文档 | `/docs/` | **无登录**（公网需 Nginx 鉴权或内网） |
 

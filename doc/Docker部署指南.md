@@ -55,7 +55,7 @@ docker compose up --build -d
 | --- | --- |
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 技术文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认密码 | `changeme`（改 `conf.ini` → `login_pwd`） |
+| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启；空库种子 `admin`） |
 
 ```
 docker compose logs -f

@@ -9,7 +9,7 @@ OPT-P2-10路线v4
 
 分阶段实施 · 验收门禁 · PR 切分 · 与 v4 详设对齐
 
-目标版本：**v1.0.0** · 状态：代码与文档已齐 · 待打 tag（阶段 1～7、2.5、2.6、R2/R3 均已交付）
+目标版本：**v1.0.0** · 状态：已发布 · v1.0.0（阶段 1～7、2.5、2.6、R2/R3 均已交付）
 
 **权威详设：**[RBAC架构设计方案 v4](RBAC架构设计方案.html) ·
 **交付总览：**[交付状态与路线图](交付状态与路线图.html) ·
@@ -38,7 +38,7 @@ OPT-P2-10路线v4
 | **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 已交付 |
 | **6a** 用户管理 | `/rbac/users` CRUD、单测 | 0.5–1 d | 已交付 |
 | **6b** 审计列表 | `/rbac/audit-logs`、单测 | 0.5 d | 已交付 |
-| **7** 发布 | 三角色验收、文档、Release Notes v1.0.0 | 0.5 d | 文档/验收已齐 · 待 tag |
+| **7** 发布 | 三角色验收、文档、Release Notes v1.0.0 | 0.5 d | 已发布 · v1.0.0 |
 
 **合计：**约 5–7 个工作日（12–16 h 净编码 + 分批人工 `git diff` 约 30–40 min）。
 
@@ -141,14 +141,14 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 **门禁：**operator/viewer 403；admin 可见登录等审计行；页面无 `js-ajax-form`。
 
-### 阶段 7 — 发布（文档与验收已齐 · 待打 tag）
+### 阶段 7 — 发布（已发布 · v1.0.0）
 
 1. `bash scripts/cronpilot.sh test`（含 `TestRbacTriangularAcceptance`）
 2. `RELEASE_NOTES` 已下沉 **v1.0.0** 节；`[Unreleased]` 清空为占位
-3. [交付状态与路线图](交付状态与路线图.html)：OPT-P2-10 / LIFECYCLE → 已交付 v1.0.0（待 tag）
+3. [交付状态与路线图](交付状态与路线图.html)：OPT-P2-10 / LIFECYCLE → 已交付 v1.0.0
 4. `python scripts/html_docs_to_markdown.py --check`
 5. 运维：监控 `/check_pass` 307；登录须 `username=admin&password=…`
-6. 确认后：`git tag v1.0.0` + GitHub Release（不自动执行）
+6. 已完成：`git tag v1.0.0` + GitHub Release
 
 ## 四、建议 PR 切分
 

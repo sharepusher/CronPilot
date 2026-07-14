@@ -15,7 +15,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [1.0.0] — 2026-07-14 · 重大版本：多用户 RBAC、任务生命周期、操作审计
 
-首个 **1.x** 里程碑：交付 **OPT-P2-10 RBAC v4**（三角色始终分权、用户管理/审计）、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
+首个 **1.x** 里程碑：交付 **OPT-P2-10 RBAC v4**（三角色始终分权、用户管理/审计）、**OPT-P1-09 `operation_log`**、**LIFECYCLE-1/2**、**log_id 必填**、**404 友好页**。升级须重启；登录为用户名+密码（空表种子 `admin`）。
 
 ### OPT-P2-10 · RBAC v4
 

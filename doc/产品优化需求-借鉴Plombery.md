@@ -336,7 +336,7 @@ React 组件复用 `PageLayout`、`Breadcrumbs`，无重复布局。
 
 **优先级：**在 P1-01 上线同一版本交付。
 
-**OPT-P1-09** P1 管理操作审计（operation\_log + 操作记录页）· **已交付（待 v1.0.0 tag）**
+**OPT-P1-09** P1 管理操作审计（operation\_log + 操作记录页）· **已交付（v1.0.0）**
 
 #### 已交付摘要
 
@@ -479,7 +479,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 降低误配；减少 support。优先级低于「成败可见」类需求。
 
-**OPT-P2-10** P2 多用户账号与 RBAC（v4 · 前后端联动）· **已交付（待 v1.0.0 tag）**
+**OPT-P2-10** P2 多用户账号与 RBAC（v4 · 前后端联动）· **已交付（v1.0.0）**
 
 #### Plombery 对照
 
@@ -497,7 +497,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 
-**验收：**见 [RBAC v4 详设](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html) · [交付状态](交付状态与路线图.html)。**待** `git tag v1.0.0`。
+**验收：**见 [RBAC v4 详设](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html) · [交付状态](交付状态与路线图.html)。已打 `git tag v1.0.0`。
 
 **OPT-P2-11** P2 依赖分层升级（RFC）
 
@@ -533,7 +533,7 @@ OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 | --- | --- | --- | --- |
 | **Phase A** | 1–2 周 | 全部 OPT-P0-01 ~ 05 | **v0.1.0 已交付** |
 | **Phase B** | 3–6 周 | OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…） | **部分已交付**：01/02/07 + UI A′+B1（**v0.2.0**）；其余见 [交付状态](交付状态与路线图.html) |
-| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、**依赖升级 RFC（P2-11）**、OAuth、metrics… | P2-11 Tier 0–2 **v0.2.0**；OPT-P2-10 RBAC **已交付 · 待 v1.0.0 tag**；Tier 3+ / OAuth 等未开始 |
+| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、**依赖升级 RFC（P2-11）**、OAuth、metrics… | P2-11 Tier 0–2 **v0.2.0**；OPT-P2-10 RBAC **已交付**；Tier 3+ / OAuth 等未开始 |
 
 ### 优先级总览表
 
@@ -555,8 +555,8 @@ OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 | OPT-P1-06 | OpenAPI | P1 | 未开始 | — |
 | OPT-P1-07 | 模板 partial（nav） | P1 | 已交付 | v0.2.0 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 未开始 | — |
-| OPT-P1-09 | 管理操作审计 | P1 | 已交付 · 待 tag | v1.0.0 |
-| OPT-P2-10 | 多用户 RBAC | P2 | 已交付 · 待 tag | v1.0.0 |
+| OPT-P1-09 | 管理操作审计 | P1 | 已交付 | v1.0.0 |
+| OPT-P2-10 | 多用户 RBAC | P2 | 已交付 | v1.0.0 |
 | OPT-P2-11 | 依赖分层升级 | P2 | Tier 0–2 已交付 | v0.2.0 |
 | OPT-P2-01~09 | SSE/图表/OAuth… | P2 | 未开始 | — |
 

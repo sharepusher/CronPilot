@@ -57,7 +57,7 @@ bash scripts/run_production.sh                             # ② 启动（前台
 |----|-----|
 | 管理端 | `http://<IP>:5860/` |
 | 文档 | `http://<IP>:5860/docs/` |
-| 默认密码 | `changeme`（改 `conf.ini` → `login_pwd`） |
+| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启） |
 
 ---
 
@@ -212,7 +212,7 @@ docker compose up --build -d
 |----|-----|
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认密码 | `changeme`（改挂载的 `conf.ini` → `login_pwd`） |
+| 默认登录 | 用户名 `admin` · 密码 `changeme`（改挂载的 `conf.ini` → `login_pwd` 后重启） |
 | 数据持久化 | 宿主机 `./datas` 挂载到容器 |
 
 ### 步骤 2 — 查看日志 / 停止

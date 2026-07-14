@@ -123,7 +123,7 @@ gunicorn -c gun.py manage:app
     <h3>4.3 访问地址</h3>
     <table>
       <tr><th>用途</th><th>URL</th><th>认证</th></tr>
-      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td><code>login_pwd</code></td></tr>
+      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td>用户名 + 密码（种子 <code>admin</code> / <code>login_pwd</code>）；三角色 RBAC</td></tr>
       <tr><td>REST API</td><td><code>http://&lt;IP&gt;:5860/api/...</code></td><td><code>api_access_token</code> 等</td></tr>
       <tr><td>HTML 技术文档</td><td><code>http://&lt;IP&gt;:5860/docs/</code></td><td><strong>无登录</strong></td></tr>
     </table>

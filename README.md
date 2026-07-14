@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v0.2.0**（P1 可观测 + 依赖 Tier 0–2 + 管理端 UI）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
+当前版本 **v1.0.0**（多用户 RBAC + 任务生命周期 + 操作审计）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v1.0.0** | 三角色 RBAC（始终分权）、用户管理 / 审计；`operation_log`；无人工删除 + `cron:retire`；`log_id` 必填；404 友好页 |
 | **v0.2.0** | P1 执行 status / 失败规则；UI 执行记录 A′、导航统一；依赖 Tier 0–2；Docker Py 3.10 |
 | **v0.1.1** | 文档 `/docs/`、Python 3.8–3.11 自动匹配、CI |
 | **v0.1.0** | P0：SQL ORM 化、密码哈希、SSRF、JSON 契约、校验/service 统一 |
@@ -58,12 +59,13 @@ bash scripts/cronpilot.sh start
 
 仅当自动检测不符合预期时，可临时覆盖：`PY=python3.9 bash scripts/cronpilot.sh start`
 
-浏览器打开：`http://127.0.0.1:5001/`，密码为 `conf.ini` 中的 `login_pwd`。
+浏览器打开：`http://127.0.0.1:5001/`。Web 登录为 **用户名 + 密码**（空库自动种子用户名 `admin`，初始密码为 `conf.ini` 的 `login_pwd`，默认示例多为 `changeme`）。
 
 ### 4. 测试
 
 ```bash
-python -m unittest tests.test_p0_phase_a -v
+bash scripts/cronpilot.sh test
+# 或：python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 ```
 
 手工冒烟与用例表见：**[doc/P0测试用例与验收手册.html](doc/P0测试用例与验收手册.html)**
@@ -83,7 +85,7 @@ docker compose up --build -d
 |----|-----|
 | 管理端 | `http://<宿主机IP>:5860/` |
 | 文档 | `http://<宿主机IP>:5860/docs/` |
-| 默认密码 | `changeme`（改 `conf.ini` → `login_pwd`） |
+| 默认登录 | 用户名 `admin` · 密码 `changeme`（改 `conf.ini` → `login_pwd` 后重启；空库种子 `admin`） |
 
 - 数据目录：宿主机 `./datas` 挂载进容器
 - 改配置：`nano conf.ini` → `docker compose restart`
@@ -156,7 +158,7 @@ bash scripts/run_production.sh
 
 | 入口 | URL | 认证 |
 |------|-----|------|
-| Web 管理端 | `http://<服务器IP>:5860/` | `conf.ini` → `login_pwd` |
+| Web 管理端 | `http://<服务器IP>:5860/` | 用户名 + 密码（种子 `admin` / `login_pwd`）；三角色 RBAC |
 | REST API | `http://<服务器IP>:5860/api/...` | `api_access_token` 等 |
 | **HTML 技术文档** | `http://<服务器IP>:5860/docs/` | **无登录**（见下方安全说明） |
 
@@ -222,7 +224,7 @@ server {
 
 ### 安全建议
 
-1. 生产务必使用 **强密码** 或 `pbkdf2` 哈希，勿暴露默认 `login_pwd`。
+1. 生产务必使用 **强密码** 或 `pbkdf2` 哈希写入 `login_pwd`，并尽快在「用户管理」中改掉种子账号；勿暴露默认 `changeme`。
 2. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
 3. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
 4. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
@@ -238,7 +240,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — **v0.1.0**（2026-05-29）Phase A 变更说明。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v1.0.0**（RBAC / 生命周期 / operation_log）；历史含 v0.2.0、v0.1.x。
 
 ## 技术文档（HTML + Markdown）
 
@@ -269,7 +271,7 @@ GitHub Actions：
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
 | **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 矩阵 **3.9 / 3.10 / 3.11** 验证全量依赖 |
 
-文档含：**[INSTALL.md](INSTALL.md)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
+文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
 ## AI / 协作规范（Cursor）
 
@@ -280,14 +282,15 @@ GitHub Actions：
 ```
 .cursor/rules/       # Cursor 项目规范（.mdc）
 app/
-  services/          # cron_validator、cron_service、url_security、job_log_service
+  services/          # cron_validator、cron_service、url_security、job_log_service、operation_log_service
   auth/              # 密码哈希校验
+  rbac/              # 三角色策略、登录、has_perm、require_permission
   main/              # Web 管理端
   docs/              # /docs/ 静态 HTML 文档路由
   api/               # REST API
-doc/                 # 技术文档源文件（HTML）
-tests/               # P0 单元测试
-scripts/             # 本地启动、密码哈希工具
+doc/                 # 技术文档源文件（HTML + 同步 MD）
+tests/               # 单测（P0 / RBAC / operation_log 等）
+scripts/             # 本地启动、验收、密码哈希工具
 ```
 
 ## 回调与 API 约定
@@ -301,13 +304,15 @@ scripts/             # 本地启动、密码哈希工具
 
 长任务进度回传：`POST /api/cron/add_log`，必传 `cronpilot_log_id`、`content`。
 
-## 配置项（P0 新增）
+## 配置项（节选）
 
 | 键 | 默认 | 说明 |
 |----|------|------|
+| `login_pwd` | （必填） | 种子用户 `admin` 的初始密码；推荐 `pbkdf2` 哈希 |
 | `block_private_ip` | `1` | 禁止回调内网/本机/元数据地址 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |
+| `operation_log_counts` | `5000` | 业务操作记录保留条数上限 |
 
 ## 许可证
 

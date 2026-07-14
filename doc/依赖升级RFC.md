@@ -232,7 +232,7 @@ RBAC v2 详设见 [RBAC 架构设计方案](RBAC架构设计方案.html)。本�
 | JSON 契约 | `json_response` / `web_api_return` | 是 |
 | 新表 `rbac_users`、`rbac_audit_logs` | Flask-SQLAlchemy 2.4 + SA 1.3/1.4 | 是（Tier 1 后更佳） |
 | 库表迁移 | Flask-Migrate + alembic（锁版本） | 是（**Tier 0** 后） |
-| `rbac_enable=0` 兼容 | 无新依赖 | 是 |
+| 三角色分权（始终启用） | 无新依赖 | 是 |
 | API `access_token` 不变 | 不升级 `app/api/views.py` | 是（设计约束） |
 
 ### 7.3 推荐排期（耦合从弱到强 × RBAC）
@@ -248,7 +248,7 @@ RBAC v2 详设见 [RBAC 架构设计方案](RBAC架构设计方案.html)。本�
 RBAC 插入点（推荐）:
   Tier 0 完成
     → RBAC 实现 + db migrate（可与 Tier 1 并行）
-    → RBAC 验收（rbac_enable=0/1）
+    → RBAC 验收（三角色矩阵始终启用）
     → Tier 2（gevent）/ 侧车安全补丁
 
 侧车（任意时刻）:
@@ -273,10 +273,9 @@ RBAC 插入点（推荐）:
 
 在**不升级 Flask 主版本**前提下，RBAC 发布除 [RBAC 详设 §验收](RBAC架构设计方案.html) 外，还须满足：
 
-- `rbac_enable=0`：`bash scripts/cronpilot.sh test` 与 Phase A 行为一致。
-- `rbac_enable=1`：角色矩阵单测（`tests/test_rbac_phase.py`）通过。
+- 三角色矩阵单测（`tests/test_rbac_phase.py`）通过；分权**始终启用**（无旁路）。
 - 建表：目标环境执行 `db upgrade` 成功，或文档记录 `ensure_rbac_tables` 使用条件与限制（不替代 Alembic 历史时的局限须写清）。
-- 配置：仅 `conf.ini` 的 `rbac_enable`；修改后重启（与现网配置纪律一致）。
+- 无 `rbac_enable` 配置项。
 
 ### 7.6 不必因 RBAC 而升级的内容
 

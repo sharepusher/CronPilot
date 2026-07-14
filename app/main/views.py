@@ -221,7 +221,7 @@ def cron_retire():
 
 
 @main.route('/operation_log_list', methods=['GET', 'POST'])
-@require_permission('audit:read')
+@require_permission('operation:read')
 def operation_log_list():
     from datas.model.operation_log import OperationLog
     from app.services.operation_log_service import (

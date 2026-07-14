@@ -41,9 +41,6 @@ def configs(key = None):
         url_allow_hosts = cp.get('default', 'url_allow_hosts')
     if cp.has_option('default', 'url_ssrf_observe_only'):
         url_ssrf_observe_only = cp.get('default', 'url_ssrf_observe_only')
-    rbac_enable = '0'
-    if cp.has_option('default', 'rbac_enable'):
-        rbac_enable = cp.get('default', 'rbac_enable')
 
     pz = {
         'qywechat_corpid':qywechat_corpid,
@@ -70,7 +67,6 @@ def configs(key = None):
         'block_private_ip': block_private_ip,
         'url_allow_hosts': url_allow_hosts,
         'url_ssrf_observe_only': url_ssrf_observe_only,
-        'rbac_enable': rbac_enable,
     }
 
     return pz

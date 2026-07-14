@@ -53,8 +53,8 @@
     <tr><th>版本</th><th>说明</th></tr>
     <tr><td>v2</td><td>真实 Flask 源码；三角色；<code>rbac_users</code> 单表；<code>@require_permission</code>；API <code>access_token</code> 不变</td></tr>
     <tr><td>v3</td><td>登录身份子阶段：<code>/rbac/login</code>、<code>app_context_processor</code>、<code>_nav.html</code>、按钮级权限、Ajax/页面 403 分流</td></tr>
-    <tr><td><strong>v4</strong></td><td><code>make_has_perm</code> 防 N+1；<code>get_rbac_enabled</code> 进程缓存；<code>next</code>+<code>full_path</code>；307 运维清单；format-guard 规则</td></tr>
-    <tr><td>v0.3.0</td><td>阶段 1～7 已交付：三角色、用户/审计、无 <code>legacy_admin</code>、种子 <code>admin</code>；待打 tag</td></tr>
+    <tr><td><strong>v4</strong></td><td><code>make_has_perm</code> 防 N+1；分权始终启用；<code>next</code>+<code>full_path</code>；307 运维清单；format-guard 规则</td></tr>
+    <tr><td>v0.3.0</td><td>阶段 1～7 + OPT-P1-09：三角色、<code>operation:read</code>（operator 看操作记录）/ <code>audit:read</code>（仅 admin 看 RBAC 审计）、无 <code>legacy_admin</code>、种子 <code>admin</code>；待打 tag</td></tr>
   </table>
 
   <h2>一、现状与前端约束</h2>
@@ -72,7 +72,7 @@
   <h3>1.2 导航与前端事实（对齐 v0.2.0 已交付项）</h3>
   <table>
     <tr><th>项</th><th>现状（真实代码）</th></tr>
-    <tr><td>主 Tab 导航</td><td><strong>已交付</strong> <code>rbac/_nav.html</code>（由 v0.2.0 <code>_admin_nav</code> 迁入）+ <code>has_perm</code> 菜单；用户管理 / 审计 Tab</td></tr>
+    <tr><td>主 Tab 导航</td><td><strong>已交付</strong> <code>rbac/_nav.html</code> + <code>has_perm</code>；「操作记录」(<code>operation:read</code>)、「用户管理」「审计」按角色裁剪</td></tr>
     <tr><td>子页导航</td><td><code>job_log_list</code>、<code>job_log_item_list</code> 为单 Tab「运行记录」子视图，非主 Tab</td></tr>
     <tr><td>登录页</td><td><code>rbac/login.html</code>：用户名+密码<strong>必填</strong>；<code>/check_pass</code> 仅转发；无空用户名 / <code>legacy_admin</code></td></tr>
   </table>
@@ -89,7 +89,6 @@
   <h2>二、端到端链路</h2>
   <pre>用户 → @require_permission(perm)
   ├─ 无 is_login → redirect /rbac/login?next={full_path}     ← v4
-  ├─ rbac_enable=0 → 仅 is_login 检查，与现网一致
   └─ has_permission(role, perm) → 视图 | 403（Ajax JSON / 页面 forbidden.html）
 
 /rbac/login POST
@@ -98,36 +97,45 @@
   → redirect(next)
 
 每请求：app_context_processor → current_user, has_perm()
-模板：{% if has_perm('cron:delete') %} ... {% endif %}</pre>
+模板：{% if has_perm('cron:write') %} ... {% endif %}</pre>
 
   <h2>三、角色与权限</h2>
   <h3>3.1 三内置角色</h3>
   <table>
     <tr><th>role</th><th>说明</th></tr>
-    <tr><td><code>viewer</code></td><td>只读任务与执行日志</td></tr>
-    <tr><td><code>operator</code></td><td>可写任务、删日志；不可删任务、不可管用户</td></tr>
-    <tr><td><code>admin</code></td><td>全部 Web 权限 + 用户管理 + 审计查看</td></tr>
+    <tr><td><code>viewer</code></td><td>只读任务与执行日志；<strong>不可</strong>见操作记录、用户管理、RBAC 审计</td></tr>
+    <tr><td><code>operator</code></td><td>可写任务 + <strong>可看操作记录</strong>（配置变更历史）；不可下线、不可管用户、<strong>不可</strong>看 RBAC 审计</td></tr>
+    <tr><td><code>admin</code></td><td>全部 Web 权限 + 下线 + 用户管理 + 操作记录 + RBAC 审计</td></tr>
   </table>
 
   <h3>3.2 权限点与路由</h3>
   <table>
-    <tr><th>permission</th><th>路由（main）</th></tr>
-    <tr><td><code>cron:read</code></td><td><code>cron_list</code>、<code>api_doc</code></td></tr>
-    <tr><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code>（暂停/运行）</td></tr>
-    <tr><td><code>cron:retire</code></td><td><code>cron_retire</code>（下线，不可逆；仅 admin）</td></tr>
-    <tr><td><code>log:read</code></td><td><code>job_log_list</code>、<code>job_log_item_list</code>、<code>job_log_all_list</code>、<code>job_log_detail</code></td></tr>
-    <tr><td><code>user:manage</code></td><td><code>/rbac/users*</code>（新 Blueprint）</td></tr>
-    <tr><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code>；远期 P1 <code>operation_log_list</code></td></tr>
+    <tr><th>permission</th><th>路由</th><th>角色</th></tr>
+    <tr><td><code>cron:read</code></td><td><code>cron_list</code>、<code>api_doc</code></td><td>viewer+</td></tr>
+    <tr><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code></td><td>operator+</td></tr>
+    <tr><td><code>cron:retire</code></td><td><code>cron_retire</code>（下线，不可逆）</td><td>admin</td></tr>
+    <tr><td><code>log:read</code></td><td><code>job_log_*</code> 执行记录</td><td>viewer+</td></tr>
+    <tr><td><code>operation:read</code></td><td><code>/operation_log_list</code>（任务配置变更）</td><td>operator+admin</td></tr>
+    <tr><td><code>user:manage</code></td><td><code>/rbac/users*</code></td><td>admin</td></tr>
+    <tr><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code>（登录/权限拒绝）</td><td>admin</td></tr>
   </table>
-  <p><strong>废弃：</strong><code>cron:delete</code>、<code>log:delete</code>（产品禁止人工删除任务/流水）。生命周期见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>。</p>
-  <p><code>check_pass</code>、<code>logout</code>（main 旧路由）不挂权限装饰器。</p>
+  <p><strong>废弃：</strong><code>cron:delete</code>、<code>log:delete</code>。生命周期见 <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>。</p>
+  <p><code>check_pass</code>、<code>logout</code> 不挂权限装饰器。</p>
+
+  <h3>3.2.1 审计可见性（权威对照）</h3>
+  <table>
+    <tr><th>页面</th><th>数据</th><th>viewer</th><th>operator</th><th>admin</th><th>备注</th></tr>
+    <tr><td>操作记录</td><td><code>operation_log</code></td><td>✗</td><td>✓</td><td>✓</td><td>权限 <code>operation:read</code></td></tr>
+    <tr><td>审计</td><td><code>rbac_audit_logs</code></td><td>✗</td><td>✗</td><td>✓</td><td>权限 <code>audit:read</code></td></tr>
+    <tr><td>用户管理</td><td><code>rbac_users</code></td><td>✗</td><td>✗</td><td>✓</td><td>权限 <code>user:manage</code></td></tr>
+  </table>
 
   <h3>3.3 <code>app/rbac/policy.py</code></h3>
   <pre>ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
     'admin':    {'cron:read', 'cron:write', 'cron:retire',
-                 'log:read', 'user:manage', 'audit:read'},
+                 'log:read', 'operation:read', 'user:manage', 'audit:read'},
 }
 
 def has_permission(role: str, permission: str) -> bool:
@@ -169,7 +177,7 @@ flask --app manage:app db upgrade</pre>
 
   <h3>4.5 首次启用与种子管理员</h3>
   <p><strong>已取消</strong>空用户名 → <code>legacy_admin</code> 登录。<code>rbac_users</code> 为空且 <code>login_pwd</code> 已配置时，启动/登录时自动种子用户名 <code>admin</code>（密码=login_pwd）。此后 Web 登录<strong>必须</strong>填写用户名 + 密码。</p>
-  <p><code>rbac_enable=0</code> 时仍须用账号登录，但权限旁路（全权限）；用户/审计管理页隐藏。</p>
+  <p><strong>分权始终启用</strong>：三角色权限矩阵始终生效，无配置旁路。<code>conf.ini</code> 中遗留的 <code>rbac_enable</code> 键已废弃，存在亦忽略。</p>
 
   <h2>五、目录结构</h2>
   <pre>app/rbac/
@@ -177,7 +185,7 @@ flask --app manage:app db upgrade</pre>
   policy.py
   decorators.py     require_permission（v4 next）
   context.py        get_current_user, make_has_perm（v4）
-  services.py       authenticate_user, get_rbac_enabled, CRUD, audit
+  services.py       authenticate_user, CRUD, audit
   views.py          login, logout, users, audit-logs
 
 app/templates/rbac/
@@ -205,9 +213,7 @@ from . import views  # noqa</pre>
             if 'is_login' not in session:
                 next_url = request.full_path.rstrip('?')  # v4：保留 query
                 return redirect(f'/rbac/login?next={next_url}')
-            if not get_rbac_enabled():
-                return func(*args, **kwargs)
-            role = session.get('role', 'admin')
+            role = session.get('role') or ''
             if not has_permission(role, permission):
                 write_audit_log(..., status='deny')
                 return _forbidden_response(permission)
@@ -266,23 +272,16 @@ def check_pass():
 
   <h3>7.1 权限闭包性能</h3>
   <div class="v4box">
-    <strong>根因：</strong><code>configs()</code> 每次读盘；v3 若在 <code>_has_perm</code> 内调 <code>get_rbac_enabled()</code>，列表 100 行 × 2 按钮 ≈ 200 次 I/O 风险。<br>
-    <strong>修正：</strong>闭包<strong>创建时</strong>一次性取 <code>rbac_enabled</code> 与 <code>user_perms</code>；闭包内仅 <code>in</code> 判断。
+    <strong>根因：</strong>v3 若在每行按钮内重复查权限集，列表 100 行 × 2 按钮有 N+1 风险。<br>
+    <strong>修正：</strong>闭包<strong>创建时</strong>一次性取 <code>user_perms</code>；闭包内仅 <code>in</code> 判断。分权始终启用，无旁路分支。
   </div>
   <pre>def make_has_perm():
-    from .services import get_rbac_enabled, get_role_permission_set
-    rbac_enabled = get_rbac_enabled()
-    role = session.get('role', '')
-    user_perms = get_role_permission_set(role) if rbac_enabled else None
+    role = session.get('role') or ''
+    user_perms = get_role_permission_set(role)
     def _has_perm(permission):
-        if not rbac_enabled:
-            return True
         return permission in user_perms
     return _has_perm
 
-@lru_cache(maxsize=1)
-def get_rbac_enabled():
-    return configs().get('rbac_enable', '0') == '1'
 
 def get_role_permission_set(role):
     return ROLE_PERMISSIONS.get(role, set())</pre>
@@ -323,10 +322,10 @@ def get_role_permission_set(role):
   <p>装饰器权限字符串与模板 <code>has_perm('...')</code> 必须完全一致。<strong>无</strong>删除按钮（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）。</p>
 
   <h3>8.4 <code>rbac/users.html</code>（阶段 6a · 已交付）</h3>
-  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。路由：<code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code>。无物理删除；禁停用当前登录账号与最后一名启用中 admin。<code>rbac_enable=0</code> 时导航隐藏且路由重定向任务列表。</p>
+  <p>复用 <code>admin_page.html</code> 分页、<code>js-ajax-form</code>；角色下拉 viewer/operator/admin。路由：<code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code>。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 <code>user:manage</code> 裁剪。</p>
 
   <h3>8.4b <code>rbac/audit_logs.html</code>（阶段 6b · 已交付）</h3>
-  <p>只读分页 <code>/rbac/audit-logs</code>，权限 <code>audit:read</code>。列：时间 / 用户 / 动作 / 资源 / IP / 结果。与 P1-09 <code>operation_log</code> 分表；关 RBAC 时隐藏导航并重定向。</p>
+  <p>只读分页 <code>/rbac/audit-logs</code>，权限 <code>audit:read</code>（仅 admin）。列：时间 / 用户 / 动作 / 资源 / IP / 结果。与「操作记录」<code>operation_log</code>（权限 <code>operation:read</code>，operator+admin）分表分权。</p>
 
   <h3>8.5 <code>rbac/forbidden.html</code></h3>
   <p>展示 <code>current_user</code>、<code>permission</code>；返回任务列表链接。</p>
@@ -340,16 +339,12 @@ def get_role_permission_set(role):
   <p><code>smoke_http_not_found</code> 纳入黄金路径；部署后须重启进程。</p>
 
   <h2>九、配置</h2>
-  <pre>[default]
-rbac_enable=0   ; 0=默认单密码全权限  1=三角色多账号</pre>
-  <p>修改后重启进程（与现网配置纪律一致）。</p>
+  <p>三角色分权<strong>始终启用</strong>，无 <code>rbac_enable</code> 开关。空表种子用户角色为 <code>admin</code>（见 <code>conf.ini.example</code> 注释）。</p>
 
   <h2>十、验收标准</h2>
   <ul>
-    <li><code>rbac_enable=0</code>：P0 单测全绿；UI/登录与 v0.2.0 一致</li>
-    <li><code>rbac_enable=1</code>：viewer 不可写/删任务；operator 不可删任务；admin 可 <code>/rbac/users</code></li>
+    <li>三角色矩阵：viewer 不可写任务、不可见操作记录与 RBAC 管理面；operator 可见操作记录、不可下线/管用户/看 RBAC 审计；admin 全覆盖</li>
     <li><code>next</code> 保留 query（如 <code>/cron_list?task_name=x</code>）</li>
-    <li>列表页：<code>get_rbac_enabled</code> 读盘 ≤1 次/请求</li>
     <li>Ajax 403 → JSON 弹窗；页面 403 → forbidden 页；404 → 品牌化错误页（非纯文本）</li>
     <li>API <code>access_token</code> 不变；无新依赖</li>
   </ul>
@@ -357,7 +352,7 @@ rbac_enable=0   ; 0=默认单密码全权限  1=三角色多账号</pre>
   <h2>十一、测试</h2>
   <pre>bash scripts/cronpilot.sh test   # 含 tests.test_rbac_phase
 source scripts/smoke_http.sh &amp;&amp; smoke_http_suite "http://127.0.0.1:5001" "changeme"</pre>
-  <p>用例：<code>has_permission</code> 边界；<code>rbac_enable=0</code> 旁路；404 登录态分流；<code>smoke_http_not_found</code> 检测未重启旧 handler。</p>
+  <p>用例：<code>has_permission</code> 边界；三角色真实登录矩阵；404 登录态分流；<code>smoke_http_not_found</code> 检测未重启旧 handler。</p>
 
   <h2>十二、实施与发布</h2>
   <p>分阶段任务、PR 切分、Release 前文档梳理见 <strong><a href="RBAC落地路线.html">RBAC落地路线 v4</a></strong>。建议目标版本 <strong>v0.3.0</strong>。</p>

@@ -9,7 +9,7 @@
 | `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由                    |
 | `cronpilot-documentation.mdc`  | HTML+Markdown 双格式文档与 CI 同步                   |
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI                    |
-| `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、rbac_enable；见详设） |
+| `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；见详设） |
 
 
 **协作闭环**：设计确认 → 实现 → 验证 → 文档 → commit（任一步失败则修复后重验并重更文档）。详 `.cursor/rules/cronpilot-project.mdc`「交付闭环」。

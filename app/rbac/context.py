@@ -1,6 +1,6 @@
 from flask import session
 
-from .services import get_rbac_enabled, get_role_permission_set
+from .services import get_role_permission_set
 
 
 def get_current_user():
@@ -8,19 +8,17 @@ def get_current_user():
         return None
     return {
         'username': session.get('username', ''),
-        'role': session.get('role', 'admin'),
+        'role': session.get('role', ''),
         'user_id': session.get('user_id'),
     }
 
 
 def make_has_perm():
-    rbac_enabled = get_rbac_enabled()
-    role = session.get('role', '')
-    user_perms = get_role_permission_set(role) if rbac_enabled else None
+    """按 Session 角色裁剪模板；分权始终启用。"""
+    role = session.get('role') or ''
+    user_perms = get_role_permission_set(role)
 
     def _has_perm(permission):
-        if not rbac_enabled:
-            return True
         return permission in user_perms
 
     return _has_perm

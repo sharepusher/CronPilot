@@ -33,14 +33,14 @@ alwaysApply: false
 | 职责 | 位置 | 说明 |
 |------|------|------|
 | 权限判断 | `app/rbac/policy.py` | `ROLE_PERMISSIONS`、`has_permission`；**纯函数，不依赖** Flask request/session |
-| 装饰器 | `app/rbac/decorators.py` | `require_permission`；未登录 → `/rbac/login?next={full_path}`；`rbac_enable=0` 不做权限分支 |
-| 模板上下文 | `app/rbac/context.py` | `make_has_perm()` **v4**：闭包外层预加载权限集；`get_rbac_enabled()` 用 `@lru_cache(maxsize=1)` |
+| 装饰器 | `app/rbac/decorators.py` | `require_permission`；未登录 → `/rbac/login?next={full_path}`；分权始终启用 |
+| 模板上下文 | `app/rbac/context.py` | `make_has_perm()` **v4**：闭包外层预加载权限集 |
 | RBAC 路由 | `app/rbac/views.py` | `/rbac/login`、`/logout`、`/users`、`/audit-logs` |
-| 用户/审计 | `app/rbac/services.py` | CRUD、`write_audit_log`、`get_rbac_enabled`、`resolve_role_for_legacy_login` |
+| 用户/审计 | `app/rbac/services.py` | CRUD、`write_audit_log`、`resolve_role_for_legacy_login` |
 | Blueprint | `app/rbac/__init__.py` | 注册 views |
 | 数据模型 | `datas/model/rbac_user.py`、`rbac_audit_log.py` | 表 `rbac_users`、`rbac_audit_logs` |
 
-`decorators.py` 实现建议：抽取 `_ensure_logged_in()`（与 `app/decorated.py` 的 `login_required` 同逻辑），`require_permission` 先调它，再在 `rbac_enable=1` 时调 `has_permission`；**勿**复制第三份 session 判断。
+`decorators.py` 实现建议：抽取 `_ensure_logged_in()`（与 `app/decorated.py` 的 `login_required` 同逻辑），`require_permission` 先调它，再调 `has_permission`；**勿**复制第三份 session 判断。
 
 ## 允许改动白名单
 
@@ -52,8 +52,7 @@ alwaysApply: false
 | `app/main/views.py` → `check_pass` | 保留路由；GET/POST 转发 `/rbac/login`（307 保留 POST）；透传 `next` 与装饰器格式一致 |
 | `app/templates/rbac/**` | 新增 `login.html`、`_nav.html`（自 `_admin_nav` 演进）、`users.html`、`forbidden.html` |
 | `app/templates/*.html`（5 主页面） | <code>_admin_nav</code> → <code>rbac/_nav.html</code>；按钮级 <code>{% if has_perm(...) %}` |
-| `configs.py` | 追加 `rbac_enable` 读取入 `pz` |
-| `conf.ini.example` | 追加 `rbac_enable=0` 注释 |
+| `conf.ini.example` | RBAC 分权说明注释（始终启用） |
 | `app/__init__.py` | 仅追加 Blueprint 注册（2 行） |
 | `tests/test_rbac_phase.py` | 新增单测 |
 | `RELEASE_NOTES.md`、`doc/RBAC*.html` | 行为变更时同步 |
@@ -66,9 +65,9 @@ alwaysApply: false
 # app/rbac/policy.py
 ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read', 'log:delete'},
-    'admin':    {'cron:read', 'cron:write', 'cron:delete',
-                 'log:read', 'log:delete', 'user:manage', 'audit:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'operation:read', 'user:manage', 'audit:read'},
 }
 
 def has_permission(role: str, permission: str) -> bool:
@@ -81,23 +80,26 @@ def has_permission(role: str, permission: str) -> bool:
 |-------------|------------|
 | `cron_list`、`api_doc` | `cron:read` |
 | `cron_add`、`cron_edit`、`update_status` | `cron:write` |
-| `cron_del`、`cron_batch_del` | `cron:delete` |
-| `job_log_list`、`job_log_item_list`、`job_log_all_list` | `log:read` |
-| `job_log_delete`、`job_batch_delete` | `log:delete` |
-| `check_pass`、`logout` | **不改装饰器**；`check_pass` 改为转发壳，登录逻辑在 `/rbac/login` |
+| `cron_retire` | `cron:retire` |
+| `operation_log_list` | `operation:read`（operator+admin） |
+| `job_log_list`、`job_log_item_list`、`job_log_all_list`、`job_log_detail` | `log:read` |
+| 已废弃删除路由 | 返回 410；勿挂 `cron:delete` / `log:delete` |
+| `check_pass`、`logout` | **不改装饰器**；`check_pass` 为转发壳 |
 
-RBAC 管理端：`/rbac/users*` → `user:manage`；`/rbac/audit-logs` → `audit:read`（P1 `/operation_log_list` 亦 `audit:read`）。
+RBAC 管理端：`/rbac/users*` → `user:manage`；`/rbac/audit-logs` → `audit:read`（仅 admin）。
+
+可见性：viewer **不可**见操作记录与 RBAC 管理面；operator 可看操作记录、不可看 RBAC 审计/用户管理；admin 全覆盖。权威表见 `doc/RBAC架构设计方案.html` §3.2.1。
 
 ## Session 与审计分工
 
 - 保留 `session['is_login']`。
-- `rbac_enable=1`：`session['role']`；匹配 `rbac_users` 时写 `user_id`、`username`。
-- P1 `operation_log`：业务变更（增删改任务）；`operator_*` 来自 Session 快照。
-- `rbac_audit_logs`：RBAC 管理、权限拒绝（`status=deny`）；**不**替代 `operation_log`。
+- 登录成功写 `session['role']`；匹配 `rbac_users` 时写 `user_id`、`username`。
+- `operation_log`（`operation:read`）：业务配置变更。
+- `rbac_audit_logs`（`audit:read`）：登录/用户管理/权限拒绝；**不**替代 `operation_log`。
 
 ## 配置与密码
 
-- 开关：`conf.ini` → `rbac_enable=0|1`（默认 `0`）；经 `configs.py` → `pz['rbac_enable']`。
+- 三角色分权**始终启用**；遗留 无 `rbac_enable` 配置项。
 - **禁止** `.env`、`AUTH_MODE` 等环境变量读 RBAC 配置。
 - 密码：复用 `app/auth/password.py` 的 `hash_password` / `verify_login_password`。
 - **禁止** jsonwebtoken、bcrypt、flask-login 等新依赖。
@@ -109,10 +111,10 @@ RBAC 管理端：`/rbac/users*` → `user:manage`；`/rbac/audit-logs` → `audi
 - **禁止**手写一次性 SQL 替代 migrate（除非用户明确要求）。
 - RBAC **不依赖** gevent / Flask 2 / SQLAlchemy 2.0 升级。
 
-## 兼容性硬约束（最高优先级）
+## 验收
 
-- `rbac_enable=0`（默认）时，所有 `@require_permission` 行为必须与改造前 `@login_required` **行为一致**（同一 session 检查、同一 redirect、无权限分支）。
 - 验收：`python -m unittest tests.test_p0_phase_a tests.test_rbac_phase -v` 全绿。
+- 三角色矩阵始终生效；无 `rbac_enable` / `get_rbac_enabled`。
 
 ## 注册
 
@@ -124,8 +126,8 @@ app.register_blueprint(rbac_blueprint)
 
 ## 测试（`tests/test_rbac_phase.py`）
 
-- `has_permission`：viewer 不可 write；operator 不可 delete；admin 全覆盖。
-- `rbac_enable=0`：已登录用户不被权限拦截。
+- `has_permission`：viewer 不可 write / operation / audit；operator 有 `operation:read`、不可 retire/audit/user:manage；admin 全覆盖。
+- 无 `get_rbac_enabled` / `rbac_enable`。
 - 可选：拒绝时写入 `rbac_audit_logs`。
 
 ## 禁止事项
@@ -138,6 +140,7 @@ app.register_blueprint(rbac_blueprint)
 - ❌ 修改 `cron_service.py` 塞权限逻辑（除非仅读 Session 供 P1 审计）
 - ❌ 引入 pytest 或新 pip 依赖（除非用户确认）
 - ❌ 新响应 JSON 格式；非 `json_response` / `web_api_return` 体系
+- ❌ 恢复 `rbac_enable=0` 权限旁路
 
 ## 发布
 

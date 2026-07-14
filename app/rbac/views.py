@@ -17,18 +17,10 @@ from .services import (
     audit_status_label,
     authenticate_user,
     create_user,
-    get_rbac_enabled,
     get_user_by_id,
     update_user,
     write_audit_log,
 )
-
-
-def _rbac_feature_or_redirect():
-    """rbac_enable=0 时用户/审计管理面不可用（装饰器会旁路权限，须额外闸门）。"""
-    if not get_rbac_enabled():
-        return redirect('/cron_list')
-    return None
 
 
 def _wants_ajax_json():
@@ -88,9 +80,6 @@ def logout():
 @rbac.route('/users', methods=['GET'])
 @require_permission('user:manage')
 def users_list():
-    blocked = _rbac_feature_or_redirect()
-    if blocked is not None:
-        return blocked
     page = int(request.args.get('page') or 1)
     page_data = (
         db.session.query(RbacUser)
@@ -103,9 +92,6 @@ def users_list():
 @rbac.route('/users/add', methods=['GET', 'POST'])
 @require_permission('user:manage')
 def users_add():
-    blocked = _rbac_feature_or_redirect()
-    if blocked is not None:
-        return blocked
     if request.method == 'GET':
         return render_template('rbac/users_add.html', roles=sorted(VALID_ROLES))
     result = create_user(
@@ -123,9 +109,6 @@ def users_add():
 @rbac.route('/users/edit', methods=['GET', 'POST'])
 @require_permission('user:manage')
 def users_edit():
-    blocked = _rbac_feature_or_redirect()
-    if blocked is not None:
-        return blocked
     user_id = request.values.get('id')
     try:
         user_id = int(user_id)
@@ -164,9 +147,6 @@ def users_edit():
 @rbac.route('/audit-logs', methods=['GET'])
 @require_permission('audit:read')
 def audit_logs():
-    blocked = _rbac_feature_or_redirect()
-    if blocked is not None:
-        return blocked
     page = int(request.args.get('page') or 1)
     page_data = (
         db.session.query(RbacAuditLog)

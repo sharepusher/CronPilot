@@ -89,10 +89,13 @@
   <h3>3.3 RBAC</h3>
   <pre>ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
     'admin':    {'cron:read', 'cron:write', 'cron:retire',
-                 'log:read', 'user:manage', 'audit:read'},
-}</pre>
+                 'log:read', 'operation:read', 'user:manage', 'audit:read'},
+  }
+  # cron:write = 添加/编辑/启停；cron:retire = 下线（仅 admin）
+  # operation:read = 操作记录（operator+admin）；audit:read = RBAC 审计（仅 admin）
+  # 废弃 cron:delete / log:delete</pre>
   <p><code>cron:write</code> = 添加/编辑/启停；<code>cron:retire</code> = 下线（仅 admin）。<strong>废弃</strong> <code>cron:delete</code>、<code>log:delete</code>。</p>
 
   <h2 id="lifecycle-2">四、LIFECYCLE-2 · 元数据与下线可追溯（已落地 · 待 v0.3.0 tag）</h2>
@@ -163,7 +166,7 @@
     <li>旧删除 URL → 410</li>
     <li>暂停 ⇄ 运行；下线后不可运行/编辑；列表显示已下线</li>
     <li>下线后流水仍可查；同类需求走添加（新 task_name）</li>
-    <li><code>rbac_enable=1</code>：operator 可暂停不可下线；admin 可下线</li>
+    <li>三角色分权：operator 可暂停不可下线；admin 可下线</li>
     <li>自动日志裁剪仍可按配置工作</li>
   </ol>
   <h3>6.2 LIFECYCLE-2（实现后）</h3>

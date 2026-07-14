@@ -8,7 +8,6 @@ from flask import Flask
 from sqlalchemy import select
 
 from app.main import main as main_blueprint
-from app.rbac.services import get_rbac_enabled
 from app.services.operation_log_service import (
     OperatorContext,
     build_cron_diff,
@@ -72,7 +71,6 @@ class TestResolveOperator(unittest.TestCase):
 
 class TestOperationLogListAndWrite(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -101,16 +99,45 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def test_operator_forbidden_on_list(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with self.client.session_transaction() as sess:
-                sess['is_login'] = True
-                sess['role'] = 'operator'
-                sess['username'] = 'op'
-            self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'viewer'
+            sess['username'] = 'view'
+        self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
+
+    def test_operator_can_list_rows(self):
+        from app import db
+        from datas.model.operation_log import OperationLog
+
+        with self.app.app_context():
+            db.session.add(
+                OperationLog(
+                    create_time='2026-07-14 10:00:00',
+                    action='create_cron',
+                    channel='web',
+                    operator_type='user',
+                    operator_id='2',
+                    operator_name='op',
+                    operator_roles_json='["operator"]',
+                    operator_permissions_json='[]',
+                    task_name='daily',
+                    detail_json='{"hour":"9"}',
+                    result='ok',
+                )
+            )
+            db.session.commit()
+
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'operator'
+            sess['username'] = 'op'
+            sess['user_id'] = 2
+        resp = self.client.get('/operation_log_list')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn('创建任务', html)
+        self.assertIn('daily', html)
 
     def test_admin_lists_rows(self):
         from app import db
@@ -134,45 +161,42 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             )
             db.session.commit()
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.context.get_rbac_enabled', return_value=True):
-                with self.client.session_transaction() as sess:
-                    sess['is_login'] = True
-                    sess['role'] = 'admin'
-                    sess['username'] = 'admin'
-                    sess['user_id'] = 1
-                resp = self.client.get('/operation_log_list')
-                self.assertEqual(resp.status_code, 200)
-                html = resp.get_data(as_text=True)
-                self.assertIn('创建任务', html)
-                self.assertIn('daily', html)
-                self.assertIn('admin', html)
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'admin'
+            sess['user_id'] = 1
+        resp = self.client.get('/operation_log_list')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn('创建任务', html)
+        self.assertIn('daily', html)
+        self.assertIn('admin', html)
 
     def test_web_create_writes_operation_log(self):
         from app import db
         from datas.model.operation_log import OperationLog
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.services.cron_service.scheduler') as sch:
-                sch.add_job.return_value = None
-                with self.client.session_transaction() as sess:
-                    sess['is_login'] = True
-                    sess['role'] = 'admin'
-                    sess['username'] = 'admin'
-                    sess['user_id'] = 1
-                resp = self.client.post(
-                    '/cron_add',
-                    data={
-                        'task_name': 'op-log-create',
-                        'task_keyword': '备注说明足够长',
-                        'hour': '9',
-                        'minute': '0',
-                        'req_url': 'https://example.com/hook',
-                    },
-                )
-                self.assertEqual(resp.status_code, 200)
-                payload = resp.get_json()
-                self.assertEqual(payload.get('errcode'), 0, payload)
+        with patch('app.services.cron_service.scheduler') as sch:
+            sch.add_job.return_value = None
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'admin'
+                sess['username'] = 'admin'
+                sess['user_id'] = 1
+            resp = self.client.post(
+                '/cron_add',
+                data={
+                    'task_name': 'op-log-create',
+                    'task_keyword': '备注说明足够长',
+                    'hour': '9',
+                    'minute': '0',
+                    'req_url': 'https://example.com/hook',
+                },
+            )
+            self.assertEqual(resp.status_code, 200)
+            payload = resp.get_json()
+            self.assertEqual(payload.get('errcode'), 0, payload)
 
         with self.app.app_context():
             row = db.session.scalars(
@@ -202,19 +226,18 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             db.session.commit()
             cron_id = cif.id
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.services.cron_service.scheduler') as sch:
-                sch.remove_job.side_effect = Exception('no job')
-                with self.client.session_transaction() as sess:
-                    sess['is_login'] = True
-                    sess['role'] = 'admin'
-                    sess['username'] = 'admin'
-                    sess['user_id'] = 1
-                resp = self.client.post(
-                    '/cron_retire',
-                    data={'id': str(cron_id), 'reason': '业务下线审计'},
-                )
-                self.assertEqual(resp.status_code, 200)
+        with patch('app.services.cron_service.scheduler') as sch:
+            sch.remove_job.side_effect = Exception('no job')
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'admin'
+                sess['username'] = 'admin'
+                sess['user_id'] = 1
+            resp = self.client.post(
+                '/cron_retire',
+                data={'id': str(cron_id), 'reason': '业务下线审计'},
+            )
+            self.assertEqual(resp.status_code, 200)
 
         with self.app.app_context():
             row = db.session.scalars(

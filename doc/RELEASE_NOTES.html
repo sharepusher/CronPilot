@@ -65,7 +65,8 @@
   <table>
     <tr><th>变更</th><th>说明</th></tr>
     <tr><td>登录</td><td>用户名+密码必填；空表种子 <code>admin</code>（密码=<code>login_pwd</code>）；无 <code>legacy_admin</code></td></tr>
-    <tr><td><code>rbac_enable</code></td><td>0=权限旁路；1=三角色；均须账号登录</td></tr>
+    <tr><td>默认行为</td><td>三角色分权<strong>始终启用</strong>；登录须 <code>rbac_users</code>；空表种子 <code>admin</code></td></tr>
+    <tr><td>分权</td><td>三角色<strong>始终启用</strong>；已移除旁路开关 <code>rbac_enable</code></td></tr>
     <tr><td>冒烟</td><td><code>username=admin&amp;password=…</code></td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
@@ -74,7 +75,7 @@
   <table>
     <tr><th>变更</th><th>说明</th></tr>
     <tr><td>写入</td><td><code>create_cron</code> / <code>update_cron</code> / <code>toggle_status</code> / <code>retire_cron</code>（Web+API）；系统对账下线</td></tr>
-    <tr><td>管理页</td><td><code>/operation_log_list</code>；权限 <code>audit:read</code>；与 RBAC「审计」分表</td></tr>
+    <tr><td>管理页</td><td><code>/operation_log_list</code>；权限 <code>operation:read</code>（operator+admin）；RBAC「审计」为 <code>audit:read</code>（仅 admin）</td></tr>
     <tr><td>保留</td><td><code>operation_log_counts</code>（默认 5000）；<code>cron_del_operation_log</code></td></tr>
   </table>
 

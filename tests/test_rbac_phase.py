@@ -7,7 +7,7 @@ from flask import Flask, render_template, session
 from app.main import main as main_blueprint
 from app.rbac.context import make_has_perm
 from app.rbac.policy import has_permission
-from app.rbac.services import get_rbac_enabled, get_role_permission_set
+from app.rbac.services import get_role_permission_set
 
 
 class TestCheckPassForward(unittest.TestCase):
@@ -54,7 +54,6 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class TestRbacLogin(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -75,9 +74,6 @@ class TestRbacLogin(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def test_login_get_renders(self):
         resp = self.client.get('/rbac/login')
         self.assertEqual(resp.status_code, 200)
@@ -86,9 +82,8 @@ class TestRbacLogin(unittest.TestCase):
     def test_seed_admin_login_redirects_to_next(self):
         with patch(
             'app.rbac.services.configs',
-            return_value={'login_pwd': 'changeme', 'rbac_enable': '0'},
+            return_value={'login_pwd': 'changeme'},
         ):
-            get_rbac_enabled.cache_clear()
             resp = self.client.post(
                 '/rbac/login',
                 data={
@@ -103,9 +98,8 @@ class TestRbacLogin(unittest.TestCase):
     def test_empty_username_rejected(self):
         with patch(
             'app.rbac.services.configs',
-            return_value={'login_pwd': 'changeme', 'rbac_enable': '0'},
+            return_value={'login_pwd': 'changeme'},
         ):
-            get_rbac_enabled.cache_clear()
             resp = self.client.post(
                 '/rbac/login',
                 data={'password': 'changeme', 'next': '/cron_list'},
@@ -128,7 +122,6 @@ class TestRbacLogin(unittest.TestCase):
 
 class TestR3Permissions(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -148,34 +141,28 @@ class TestR3Permissions(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def _login_as(self, role):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = role
 
     def test_viewer_cron_write_routes_return_403(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            self._login_as('viewer')
-            for path in ('/cron_add', '/cron_edit?id=1', '/update_status?id=1'):
-                resp = self.client.get(path)
-                self.assertEqual(resp.status_code, 403, path)
+        self._login_as('viewer')
+        for path in ('/cron_add', '/cron_edit?id=1', '/update_status?id=1'):
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 403, path)
 
     def test_viewer_log_delete_returns_410(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            self._login_as('viewer')
-            resp = self.client.post('/job_log_delete', data={'job_log_id': '1'})
-            self.assertEqual(resp.status_code, 410)
-            resp = self.client.post('/job_batch_delete', data={'id': '1'})
-            self.assertEqual(resp.status_code, 410)
+        self._login_as('viewer')
+        resp = self.client.post('/job_log_delete', data={'job_log_id': '1'})
+        self.assertEqual(resp.status_code, 410)
+        resp = self.client.post('/job_batch_delete', data={'id': '1'})
+        self.assertEqual(resp.status_code, 410)
 
     def test_viewer_cron_retire_returns_403(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            self._login_as('viewer')
-            resp = self.client.get('/cron_retire?id=1')
-            self.assertEqual(resp.status_code, 403)
+        self._login_as('viewer')
+        resp = self.client.get('/cron_retire?id=1')
+        self.assertEqual(resp.status_code, 403)
 
     def test_unauthenticated_redirects_to_rbac_login_with_next(self):
         resp = self.client.get('/cron_list')
@@ -187,7 +174,6 @@ class TestR3Permissions(unittest.TestCase):
 
 class TestLifecycleNoDelete(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -203,26 +189,21 @@ class TestLifecycleNoDelete(unittest.TestCase):
         app.register_blueprint(rbac_blueprint)
         self.client = app.test_client()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def test_operator_cron_del_returns_410(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with self.client.session_transaction() as sess:
-                sess['is_login'] = True
-                sess['role'] = 'operator'
-            resp = self.client.post('/cron_batch_del', data={'id': '1'})
-            self.assertEqual(resp.status_code, 410)
-            resp = self.client.get('/cron_del?id=1')
-            self.assertEqual(resp.status_code, 410)
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'operator'
+        resp = self.client.post('/cron_batch_del', data={'id': '1'})
+        self.assertEqual(resp.status_code, 410)
+        resp = self.client.get('/cron_del?id=1')
+        self.assertEqual(resp.status_code, 410)
 
     def test_operator_cannot_retire(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with self.client.session_transaction() as sess:
-                sess['is_login'] = True
-                sess['role'] = 'operator'
-            resp = self.client.get('/cron_retire?id=1')
-            self.assertEqual(resp.status_code, 403)
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'operator'
+        resp = self.client.get('/cron_retire?id=1')
+        self.assertEqual(resp.status_code, 403)
 
     def test_admin_retire_requires_reason_and_writes_fields(self):
         from app import db
@@ -242,25 +223,24 @@ class TestLifecycleNoDelete(unittest.TestCase):
             db.session.commit()
             cron_id = cif.id
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.services.cron_service.scheduler') as sch:
-                sch.remove_job.side_effect = Exception('no job')
-                with self.client.session_transaction() as sess:
-                    sess['is_login'] = True
-                    sess['role'] = 'admin'
-                resp = self.client.post(
-                    '/cron_retire',
-                    data={'id': str(cron_id)},
-                )
-                self.assertEqual(resp.status_code, 200)
-                payload = resp.get_json()
-                self.assertEqual(payload.get('errmsg'), '请填写下线原因')
+        with patch('app.services.cron_service.scheduler') as sch:
+            sch.remove_job.side_effect = Exception('no job')
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'admin'
+            resp = self.client.post(
+                '/cron_retire',
+                data={'id': str(cron_id)},
+            )
+            self.assertEqual(resp.status_code, 200)
+            payload = resp.get_json()
+            self.assertEqual(payload.get('errmsg'), '请填写下线原因')
 
-                resp = self.client.post(
-                    '/cron_retire',
-                    data={'id': str(cron_id), 'reason': '测试下线'},
-                )
-                self.assertEqual(resp.status_code, 200)
+            resp = self.client.post(
+                '/cron_retire',
+                data={'id': str(cron_id), 'reason': '测试下线'},
+            )
+            self.assertEqual(resp.status_code, 200)
 
         with self.client.application.app_context():
             row = db.session.get(CronInfos, cron_id)
@@ -282,14 +262,12 @@ class TestNavHasPerm(unittest.TestCase):
         app.register_blueprint(rbac_blueprint)
         self.app = app
 
-    def _render_nav(self, role, rbac_enabled=True):
+    def _render_nav(self, role):
         with self.app.app_context():
             with self.app.test_request_context():
                 session['is_login'] = True
                 session['role'] = role
-                with patch('app.rbac.context.get_rbac_enabled', return_value=rbac_enabled):
-                    with patch('app.rbac.services.get_rbac_enabled', return_value=rbac_enabled):
-                        return render_template('rbac/_nav.html', active='cron_list')
+                return render_template('rbac/_nav.html', active='cron_list')
 
     def test_viewer_nav_hides_cron_add(self):
         html = self._render_nav('viewer')
@@ -303,23 +281,23 @@ class TestNavHasPerm(unittest.TestCase):
         self.assertIn('任务添加', html)
         self.assertNotIn('用户管理', html)
 
-    def test_admin_nav_shows_users_when_rbac_on(self):
-        html = self._render_nav('admin', rbac_enabled=True)
+    def test_admin_nav_shows_users_and_audit(self):
+        html = self._render_nav('admin')
         self.assertIn('用户管理', html)
         self.assertIn('审计', html)
         self.assertIn('操作记录', html)
 
-    def test_admin_nav_hides_users_when_rbac_off(self):
-        html = self._render_nav('admin', rbac_enabled=False)
-        self.assertNotIn('用户管理', html)
+    def test_operator_nav_hides_audit(self):
+        html = self._render_nav('operator')
         self.assertNotIn('审计', html)
-        # rbac 关时 has_perm 旁路，操作记录仍对登录用户可见
+        self.assertNotIn('用户管理', html)
         self.assertIn('操作记录', html)
 
-    def test_operator_nav_hides_audit(self):
-        html = self._render_nav('operator', rbac_enabled=True)
-        self.assertNotIn('审计', html)
+    def test_viewer_nav_hides_operation_and_rbac(self):
+        html = self._render_nav('viewer')
         self.assertNotIn('操作记录', html)
+        self.assertNotIn('用户管理', html)
+        self.assertNotIn('审计', html)
 
 
 class TestNotFound(unittest.TestCase):
@@ -356,7 +334,6 @@ class TestNotFound(unittest.TestCase):
 
 class TestRbacUsersManage(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -378,9 +355,6 @@ class TestRbacUsersManage(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def _login(self, role='admin', user_id=None):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
@@ -390,60 +364,41 @@ class TestRbacUsersManage(unittest.TestCase):
                 sess['user_id'] = user_id
 
     def test_operator_users_list_403(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                self._login('operator')
-                resp = self.client.get('/rbac/users')
-                self.assertEqual(resp.status_code, 403)
-
-    def test_rbac_off_users_redirects_even_for_admin(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=False):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=False):
-                self._login('admin')
-                resp = self.client.get('/rbac/users')
-                self.assertEqual(resp.status_code, 302)
-                self.assertIn('/cron_list', resp.headers['Location'])
+        self._login('operator')
+        resp = self.client.get('/rbac/users')
+        self.assertEqual(resp.status_code, 403)
 
     def test_admin_create_and_list_users(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin')
-                    resp = self.client.post(
-                        '/rbac/users/add',
-                        data={'username': 'alice', 'password': 'secret', 'role': 'viewer'},
-                        headers={'X-Requested-With': 'XMLHttpRequest'},
-                    )
-                    self.assertEqual(resp.status_code, 200)
-                    payload = resp.get_json()
-                    self.assertEqual(payload.get('errcode'), 0)
-                    self.assertEqual(payload.get('url'), '/rbac/users')
-                    resp = self.client.get('/rbac/users')
-                    self.assertEqual(resp.status_code, 200)
-                    self.assertIn('alice', resp.get_data(as_text=True))
+        self._login('admin')
+        resp = self.client.post(
+            '/rbac/users/add',
+            data={'username': 'alice', 'password': 'secret', 'role': 'viewer'},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 0)
+        self.assertEqual(payload.get('url'), '/rbac/users')
+        resp = self.client.get('/rbac/users')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('alice', resp.get_data(as_text=True))
 
     def test_add_form_has_ajax_submit_button(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin')
-                    resp = self.client.get('/rbac/users/add')
-                    body = resp.get_data(as_text=True)
-                    self.assertIn('js-ajax-form', body)
-                    self.assertIn('js-ajax-submit', body)
+        self._login('admin')
+        resp = self.client.get('/rbac/users/add')
+        body = resp.get_data(as_text=True)
+        self.assertIn('js-ajax-form', body)
+        self.assertIn('js-ajax-submit', body)
 
     def test_native_post_add_redirects_to_list(self):
         """无 Ajax 头时成功应 302 回列表，避免浏览器落在裸 JSON 页。"""
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin')
-                    resp = self.client.post(
-                        '/rbac/users/add',
-                        data={'username': 'bob', 'password': 'secret', 'role': 'viewer'},
-                    )
-                    self.assertEqual(resp.status_code, 302)
-                    self.assertIn('/rbac/users', resp.headers['Location'])
+        self._login('admin')
+        resp = self.client.post(
+            '/rbac/users/add',
+            data={'username': 'bob', 'password': 'secret', 'role': 'viewer'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/rbac/users', resp.headers['Location'])
 
     def test_cannot_disable_last_admin(self):
         from datas.model.rbac_user import RbacUser
@@ -455,17 +410,14 @@ class TestRbacUsersManage(unittest.TestCase):
             self.db.session.commit()
             admin_id = admin.id
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin', user_id=999)
-                    resp = self.client.post(
-                        '/rbac/users/edit',
-                        data={'id': str(admin_id), 'role': 'viewer', 'is_active': '1'},
-                        headers={'X-Requested-With': 'XMLHttpRequest'},
-                    )
-                    self.assertEqual(resp.status_code, 200)
-                    self.assertIn('最后一名', resp.get_json().get('errmsg', ''))
+        self._login('admin', user_id=999)
+        resp = self.client.post(
+            '/rbac/users/edit',
+            data={'id': str(admin_id), 'role': 'viewer', 'is_active': '1'},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('最后一名', resp.get_json().get('errmsg', ''))
 
     def test_cannot_disable_self(self):
         from datas.model.rbac_user import RbacUser
@@ -479,22 +431,18 @@ class TestRbacUsersManage(unittest.TestCase):
             self.db.session.commit()
             self_id = a1.id
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin', user_id=self_id)
-                    resp = self.client.post(
-                        '/rbac/users/edit',
-                        data={'id': str(self_id), 'role': 'admin', 'is_active': '0'},
-                        headers={'X-Requested-With': 'XMLHttpRequest'},
-                    )
-                    self.assertEqual(resp.status_code, 200)
-                    self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
+        self._login('admin', user_id=self_id)
+        resp = self.client.post(
+            '/rbac/users/edit',
+            data={'id': str(self_id), 'role': 'admin', 'is_active': '0'},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
 
 
 class TestRbacAuditLogs(unittest.TestCase):
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -515,9 +463,6 @@ class TestRbacAuditLogs(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def _login(self, role='admin'):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
@@ -525,19 +470,9 @@ class TestRbacAuditLogs(unittest.TestCase):
             sess['username'] = role
 
     def test_operator_audit_logs_403(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                self._login('operator')
-                resp = self.client.get('/rbac/audit-logs')
-                self.assertEqual(resp.status_code, 403)
-
-    def test_rbac_off_audit_redirects(self):
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=False):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=False):
-                self._login('admin')
-                resp = self.client.get('/rbac/audit-logs')
-                self.assertEqual(resp.status_code, 302)
-                self.assertIn('/cron_list', resp.headers['Location'])
+        self._login('operator')
+        resp = self.client.get('/rbac/audit-logs')
+        self.assertEqual(resp.status_code, 403)
 
     def test_admin_lists_audit_rows(self):
         from datas.model.rbac_audit_log import RbacAuditLog
@@ -556,19 +491,16 @@ class TestRbacAuditLogs(unittest.TestCase):
             )
             self.db.session.commit()
 
-        with patch('app.rbac.decorators.get_rbac_enabled', return_value=True):
-            with patch('app.rbac.views.get_rbac_enabled', return_value=True):
-                with patch('app.rbac.services.get_rbac_enabled', return_value=True):
-                    self._login('admin')
-                    resp = self.client.get('/rbac/audit-logs')
-                    self.assertEqual(resp.status_code, 200)
-                    body = resp.get_data(as_text=True)
-                    self.assertIn('登录', body)
-                    self.assertIn('用户 ID', body)
-                    self.assertIn('账号 admin', body)
-                    self.assertIn('<td>1</td>', body)
-                    self.assertNotIn('js-ajax-form', body)
-                    self.assertNotIn('legacy_admin', body)
+        self._login('admin')
+        resp = self.client.get('/rbac/audit-logs')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.get_data(as_text=True)
+        self.assertIn('登录', body)
+        self.assertIn('用户 ID', body)
+        self.assertIn('账号 admin', body)
+        self.assertIn('<td>1</td>', body)
+        self.assertNotIn('js-ajax-form', body)
+        self.assertNotIn('legacy_admin', body)
 
     def test_audit_labels_unit(self):
         from app.rbac.services import (
@@ -586,10 +518,9 @@ class TestRbacAuditLogs(unittest.TestCase):
 
 
 class TestRbacTriangularAcceptance(unittest.TestCase):
-    """阶段 7：viewer / operator / admin 真实登录矩阵（rbac_enable=1）。"""
+    """阶段 7：viewer / operator / admin 真实登录矩阵。"""
 
     def setUp(self):
-        get_rbac_enabled.cache_clear()
         app = Flask(
             __name__,
             template_folder=os.path.join(ROOT, 'app', 'templates'),
@@ -622,9 +553,6 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
                 db.session.add(u)
             db.session.commit()
 
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
     def _login(self, username, password):
         with self.client.session_transaction() as sess:
             sess.clear()
@@ -634,46 +562,39 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         )
 
     def test_viewer_operator_admin_route_matrix(self):
-        patches = (
-            patch('app.rbac.decorators.get_rbac_enabled', return_value=True),
-            patch('app.rbac.views.get_rbac_enabled', return_value=True),
-            patch('app.rbac.services.get_rbac_enabled', return_value=True),
-            patch('app.rbac.context.get_rbac_enabled', return_value=True),
-        )
-        for p in patches:
-            p.start()
-        try:
-            # viewer：只读
-            self.assertEqual(self._login('tri_view', 'view-pass').status_code, 302)
-            self.assertEqual(self.client.get('/cron_list').status_code, 200)
-            self.assertEqual(self.client.get('/cron_add').status_code, 403)
-            self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
-            self.assertEqual(self.client.get('/rbac/users').status_code, 403)
-            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
-            self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
+        # viewer：只读
+        self.assertEqual(self._login('tri_view', 'view-pass').status_code, 302)
+        self.assertEqual(self.client.get('/cron_list').status_code, 200)
+        self.assertEqual(self.client.get('/cron_add').status_code, 403)
+        self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
+        self.assertEqual(self.client.get('/rbac/users').status_code, 403)
+        self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+        self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
 
-            # operator：可写任务，不可退休/管用户/审计
-            self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
-            self.assertEqual(self.client.get('/cron_list').status_code, 200)
-            self.assertEqual(self.client.get('/cron_add').status_code, 200)
-            self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
-            self.assertEqual(self.client.get('/rbac/users').status_code, 403)
-            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
-            self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
+        # operator：可写任务 + 操作记录；不可退休/管用户/RBAC 审计
+        self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
+        self.assertEqual(self.client.get('/cron_list').status_code, 200)
+        self.assertEqual(self.client.get('/cron_add').status_code, 200)
+        self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
+        self.assertEqual(self.client.get('/rbac/users').status_code, 403)
+        self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+        self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
 
-            # admin：用户管理 + 审计
-            self.assertEqual(self._login('tri_admin', 'admin-pass').status_code, 302)
-            self.assertEqual(self.client.get('/cron_add').status_code, 200)
-            self.assertEqual(self.client.get('/rbac/users').status_code, 200)
-            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 200)
-            self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
-            list_html = self.client.get('/cron_list').get_data(as_text=True)
-            self.assertIn('用户管理', list_html)
-            self.assertIn('审计', list_html)
-            self.assertIn('操作记录', list_html)
-        finally:
-            for p in patches:
-                p.stop()
+        # admin：用户管理 + RBAC 审计 + 操作记录
+        self.assertEqual(self._login('tri_admin', 'admin-pass').status_code, 302)
+        self.assertEqual(self.client.get('/cron_add').status_code, 200)
+        self.assertEqual(self.client.get('/rbac/users').status_code, 200)
+        self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 200)
+        self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
+        list_html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('用户管理', list_html)
+        self.assertIn('审计', list_html)
+        self.assertIn('操作记录', list_html)
+        self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
+        op_list = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('操作记录', op_list)
+        self.assertNotIn('用户管理', op_list)
+        self.assertNotIn('/rbac/audit-logs', op_list)
 
 
 class TestRbacPolicy(unittest.TestCase):
@@ -692,54 +613,50 @@ class TestRbacPolicy(unittest.TestCase):
     def test_admin_has_audit_read(self):
         self.assertTrue(has_permission('admin', 'audit:read'))
 
+    def test_operator_has_operation_read_not_audit(self):
+        self.assertTrue(has_permission('operator', 'operation:read'))
+        self.assertFalse(has_permission('operator', 'audit:read'))
+        self.assertFalse(has_permission('operator', 'user:manage'))
+
+    def test_viewer_no_operation_or_audit(self):
+        self.assertFalse(has_permission('viewer', 'operation:read'))
+        self.assertFalse(has_permission('viewer', 'audit:read'))
+        self.assertFalse(has_permission('viewer', 'user:manage'))
+
     def test_no_delete_permissions(self):
         self.assertFalse(has_permission('admin', 'cron:delete'))
         self.assertFalse(has_permission('operator', 'log:delete'))
 
 
 class TestMakeHasPerm(unittest.TestCase):
-    def setUp(self):
-        get_rbac_enabled.cache_clear()
-
-    def tearDown(self):
-        get_rbac_enabled.cache_clear()
-
-    def test_rbac_disabled_always_true(self):
+    def test_has_perm_respects_role(self):
         app = Flask(__name__)
         app.secret_key = 'test'
         with app.test_request_context():
-            with patch('app.rbac.context.get_rbac_enabled', return_value=False) as mocked:
-                has_perm = make_has_perm()
-                for _ in range(200):
-                    self.assertTrue(has_perm('cron:retire'))
-                mocked.assert_called_once()
+            session['role'] = 'viewer'
+            has_perm = make_has_perm()
+            self.assertTrue(has_perm('cron:read'))
+            self.assertFalse(has_perm('cron:write'))
+            self.assertFalse(has_perm('cron:retire'))
 
     def test_rbac_enabled_uses_preloaded_set(self):
         app = Flask(__name__)
         app.secret_key = 'test'
         with app.test_request_context():
             session['role'] = 'viewer'
-            with patch('app.rbac.context.get_rbac_enabled', return_value=True) as mocked_enabled:
-                with patch('app.rbac.context.get_role_permission_set', return_value={'cron:read'}) as mocked_perms:
-                    has_perm = make_has_perm()
-                    self.assertTrue(has_perm('cron:read'))
-                    self.assertFalse(has_perm('cron:write'))
-                    for _ in range(198):
-                        has_perm('cron:read')
-                    mocked_enabled.assert_called_once()
-                    mocked_perms.assert_called_once_with('viewer')
+            with patch('app.rbac.context.get_role_permission_set', return_value={'cron:read'}) as mocked_perms:
+                has_perm = make_has_perm()
+                self.assertTrue(has_perm('cron:read'))
+                self.assertFalse(has_perm('cron:write'))
+                for _ in range(198):
+                    has_perm('cron:read')
+                mocked_perms.assert_called_once_with('viewer')
 
-    def test_get_rbac_enabled_uses_process_cache(self):
-        get_rbac_enabled.cache_clear()
-        with patch('app.rbac.services.configs', return_value={'rbac_enable': '1'}) as mocked:
-            self.assertTrue(get_rbac_enabled())
-            self.assertTrue(get_rbac_enabled())
-            mocked.assert_called_once()
-        get_rbac_enabled.cache_clear()
-
+    def test_admin_permission_set(self):
         perms = get_role_permission_set('admin')
         self.assertIn('user:manage', perms)
-        self.assertEqual(perms, get_role_permission_set('admin'))
+        self.assertIn('operation:read', perms)
+        self.assertIn('audit:read', perms)
 
 
 if __name__ == '__main__':

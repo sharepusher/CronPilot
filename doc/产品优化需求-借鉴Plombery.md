@@ -340,7 +340,7 @@ React 组件复用 `PageLayout`、`Breadcrumbs`，无重复布局。
 
 #### 已交付摘要
 
-表 `operation_log`；服务 `operation_log_service`；路由 `/operation_log_list`（`audit:read`）；写入 create/update/toggle/retire（Web+API）及系统对账下线；配置 `operation_log_counts`。详 [架构 §6.5](架构设计文档.html#op-audit-detail) · [交付状态](交付状态与路线图.html)。
+表 `operation_log`；服务 `operation_log_service`；路由 `/operation_log_list`（权限 `operation:read`，operator+admin；viewer 不可见）；RBAC「审计」仍为 `audit:read`（仅 admin）。写入 create/update/toggle/retire；配置 `operation_log_counts`。详 [架构 §6.5](架构设计文档.html#op-audit-detail) · [RBAC §3.2.1](RBAC架构设计方案.html)。
 
 #### Plombery 对照
 
@@ -488,7 +488,7 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 #### 已交付摘要（v0.3.0）
 
 1. 表：`rbac_users`、`rbac_audit_logs`；空表种子 `admin`（密码=`login_pwd`）。
-2. `rbac_enable=0|1`；`app/rbac/` + `has_perm` / `@require_permission`。
+2. 三角色分权**始终启用**；`app/rbac/` + `has_perm` / `@require_permission`；无 `rbac_enable` 配置项。
 3. 登录：`/rbac/login` 用户名+密码**必填**；无 `legacy_admin`；`check_pass` 转发 + `next`。
 4. 导航 `rbac/_nav.html`；用户管理 / 审计列表（6a/6b）；无删除 · `cron:retire`。
 5. API `access_token` **未改**；三角色验收单测已纳入 `cronpilot.sh test`。

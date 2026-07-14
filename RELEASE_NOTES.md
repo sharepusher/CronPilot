@@ -21,7 +21,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 阶段 | 状态 | 交付摘要 |
 |------|------|----------|
-| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`rbac_enable`；`ensure_sqlite_tables` 建表 + 种子 |
+| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`ensure_sqlite_tables` 建表 + 种子 |
 | 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services、`make_has_perm`、`require_permission` |
 | 2.5 登录身份 | ✅ | `/rbac/login`；用户名+密码必填；空表种子 `admin`（密码=`login_pwd`）；**无** `legacy_admin` |
 | 3 导航迁移 | ✅ | `rbac/_nav.html` + `has_perm` 菜单裁剪 |
@@ -34,10 +34,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
-| 默认行为 | `rbac_enable=0`：权限旁路；登录仍须 `rbac_users`；空表种子 `admin` |
+| 默认行为 | 三角色分权**始终启用**；登录须 `rbac_users`；空表种子 `admin` |
+| 分权 | 三角色**始终启用**；已移除旁路开关 `rbac_enable` |
 | 登录入口 | `/rbac/login`；`/check_pass` 仅转发；冒烟 `username=admin&password=…` |
 | 未登录跳转 | 仅受保护路由；`/docs/*`、`/api/*` 独立 |
-| `cron:write` / `cron:retire` / `log:read` | 写=启停编辑；下线仅 admin；**废弃** delete |
+| `cron:write` / `cron:retire` / `operation:read` / `audit:read` | 写=启停编辑；下线仅 admin；操作记录 operator+admin；RBAC 审计仅 admin；**废弃** delete |
 | 测试 | `tests/test_rbac_phase.py`、`tests/test_ajax_form_guard.py` 并入 `cronpilot.sh test` |
 
 ### RBAC 6a · `/rbac/users`
@@ -64,7 +65,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 表 | `operation_log`（业务库）；SQLite `ensure_sqlite_tables` 自动建表 |
 | 写入 | `create_cron` / `update_cron` / `toggle_status` / `retire_cron`（Web + API）；系统对账下线 |
 | 操作人 | Web=`user`（Session）；API=`api_client`；无请求=`system`；角色/权限快照 JSON |
-| 管理页 | `/operation_log_list`；筛选任务名/操作人/类型/渠道/时间；权限 `audit:read` |
+| 管理页 | `/operation_log_list`；权限 `operation:read`（operator+admin）；与 RBAC「审计」`audit:read`（仅 admin）分权分表 |
 | 保留 | `operation_log_counts`（默认 5000）；`cron_del_operation_log` 每 8 小时裁剪 |
 | 测试 | `tests/test_operation_log.py` 并入 `cronpilot.sh test` |
 
@@ -102,7 +103,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 1. 安装/重启：`bash scripts/cronpilot.sh restart`（模板与鉴权变更须重启）。
 2. Web 登录改为 **用户名 + 密码**；空库自动种子 `admin`（密码=`login_pwd`）。
-3. 可选：`rbac_enable=1` 启用三角色；`0` 仍须账号登录但权限旁路。
+3. 三角色分权始终启用（已无 `rbac_enable` 旁路）。
 4. 可选：`operation_log_counts=5000`（未配置时默认 5000）。
 5. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
 

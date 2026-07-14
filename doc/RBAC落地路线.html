@@ -59,7 +59,7 @@
   <table>
     <tr><th>阶段</th><th>交付物</th><th>估时</th><th>可发布</th></tr>
     <tr><td><strong>0</strong> 工程防护</td><td>format-guard 规则（已完成可跳过）</td><td>5 min</td><td>—</td></tr>
-    <tr><td><strong>1</strong> 数据层</td><td>模型 + migrate + <code>rbac_enable</code> 配置读取</td><td>0.5–1 d</td><td class="status-ok">已交付</td></tr>
+    <tr><td><strong>1</strong> 数据层</td><td>模型 + migrate</td><td>0.5–1 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>2</strong> RBAC 核心</td><td><code>app/rbac/</code> policy/services/decorators/context（v4 性能）</td><td>1–1.5 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>2.5</strong> 登录身份</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发、logout</td><td>0.5 d</td><td class="status-ok">已交付</td></tr>
     <tr><td><strong>3</strong> 导航迁移</td><td><code>_admin_nav</code> → <code>rbac/_nav.html</code> + <code>has_perm</code> 菜单</td><td>0.25 d</td><td class="status-ok">已交付</td></tr>
@@ -82,20 +82,19 @@
   <ul>
     <li>新增 <code>datas/model/rbac_user.py</code>、<code>rbac_audit_log.py</code></li>
     <li><code>flask --app manage:app db migrate -m "add rbac tables"</code> + <code>upgrade</code></li>
-    <li><code>configs.py</code> + <code>conf.ini.example</code> 增加 <code>rbac_enable=0</code></li>
   </ul>
   <div class="gate"><strong>门禁：</strong><code>bash scripts/cronpilot.sh test</code>（含 <code>tests.test_rbac_phase</code>）；migrate / <code>ensure_sqlite_tables</code> 在 SQLite 可重复执行。</div>
 
   <h3>阶段 2 — RBAC 核心模块（v4 性能实现）</h3>
   <ul>
     <li><code>policy.py</code> — <code>ROLE_PERMISSIONS</code> + <code>has_permission</code></li>
-    <li><code>services.py</code> — <code>get_rbac_enabled</code>（<code>@lru_cache</code>）、<code>get_role_permission_set</code>、<code>write_audit_log</code></li>
+    <li><code>services.py</code> — <code>get_role_permission_set</code>、<code>write_audit_log</code></li>
     <li><code>context.py</code> — <code>make_has_perm</code> 闭包外层预加载（v4 §8.1）</li>
     <li><code>decorators.py</code> — <code>require_permission</code> + <code>full_path</code> next + Ajax/页面 403 分流</li>
     <li><code>__init__.py</code> — Blueprint + <code>app_context_processor</code></li>
     <li><code>app/__init__.py</code> 注册 Blueprint（+2 行）</li>
   </ul>
-  <div class="gate"><strong>门禁：</strong><code>tests/test_rbac_phase.py</code>（policy + legacy 旁路 + <code>cache_clear</code> + 404）；已并入 <code>bash scripts/cronpilot.sh test</code>。</div>
+  <div class="gate"><strong>门禁：</strong><code>tests/test_rbac_phase.py</code>（policy + 404）；已并入 <code>bash scripts/cronpilot.sh test</code>。</div>
 
   <h3>阶段 2.5 — 登录身份子阶段</h3>
   <ul>
@@ -119,7 +118,7 @@
   <p>每批人工检查：</p>
   <pre>git diff app/templates/cron_list.html app/templates/cron_add.html app/templates/cron_edit.html
 git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
-  <div class="gate"><strong>门禁：</strong>仅 include 路径变化 + <code>rbac/_nav.html</code> 内 <code>has_perm</code>；<code>rbac_enable=0</code> 菜单与 v0.2.0 一致。<strong>已验收。</strong></div>
+  <div class="gate"><strong>门禁：</strong>仅 include 路径变化 + <code>rbac/_nav.html</code> 内 <code>has_perm</code> 按角色裁剪菜单。<strong>已验收。</strong></div>
 
   <h3>阶段 2.6 — 404 友好页（R2.5）</h3>
   <ul>
@@ -137,8 +136,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
     <tr><td>3</td><td><code>cron:retire</code></td><td><code>cron_retire</code></td><td>下线按钮（替代已废弃的 delete）</td></tr>
     <tr><td>4</td><td><code>log:read</code></td><td>三个 <code>job_log_*_list</code> + <code>job_log_detail</code> ✅</td><td>—</td></tr>
     <tr><td>5</td><td><del><code>log:delete</code></del></td><td colspan="2"><strong>废弃</strong>：禁止人工删除流水（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）</td></tr>
-    <tr><td>6</td><td><code>user:manage</code></td><td><code>/rbac/users*</code></td><td>用户管理页（阶段 6）</td></tr>
-    <tr><td>7</td><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code></td><td>审计列表（阶段 6）</td></tr>
+    <tr><td>6</td><td><code>user:manage</code></td><td><code>/rbac/users*</code></td><td>用户管理页（阶段 6）；仅 admin</td></tr>
+    <tr><td>7</td><td><code>audit:read</code></td><td><code>/rbac/audit-logs</code></td><td>RBAC 审计（阶段 6）；仅 admin</td></tr>
+    <tr><td>8</td><td><code>operation:read</code></td><td><code>/operation_log_list</code></td><td>操作记录（OPT-P1-09）；operator+admin</td></tr>
   </table>
   <p><strong>废弃权限：</strong><code>cron:delete</code>、<code>log:delete</code>。任务终点为<strong>下线</strong>（<code>status=-1</code>），非物理删除。</p>
   <div class="gate"><strong>门禁：</strong>每步 <code>unittest</code> + 手工：viewer / operator / admin 三角验证；Ajax 403 弹窗、页面 403 友好页。</div>
@@ -147,7 +147,6 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
   <ul>
     <li><code>/rbac/users</code>、<code>/users/add</code>、<code>/users/edit</code> + <code>create_user</code> / <code>update_user</code></li>
     <li>无物理删除；禁停用当前登录账号；保护最后一名启用中 admin</li>
-    <li><code>rbac_enable=0</code>：导航隐藏「用户管理」，直达路由重定向 <code>/cron_list</code></li>
     <li>首次空表：种子 <code>admin</code>（密码=<code>login_pwd</code>）；**无** legacy_admin</li>
     <li><code>test_rbac_phase.TestRbacUsersManage</code> + 导航用例</li>
   </ul>
@@ -155,9 +154,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
 
   <h3>阶段 6b — 审计列表（已交付）</h3>
   <ul>
-    <li><code>/rbac/audit-logs</code> 只读分页；<code>@require_permission('audit:read')</code></li>
-    <li>导航「审计」：仅 <code>rbac_enable=1</code> 且 <code>has_perm('audit:read')</code></li>
-    <li>与 P1-09 <code>operation_log</code> 分表；关 RBAC 时路由重定向 <code>/cron_list</code></li>
+    <li><code>/rbac/audit-logs</code> 只读分页；<code>@require_permission('audit:read')</code>（仅 admin）</li>
+    <li>导航「审计」：仅 <code>has_perm('audit:read')</code>（admin）；viewer/operator 不可见</li>
+    <li>与「操作记录」分工：业务变更走 <code>operation:read</code> / <code>/operation_log_list</code>（operator+admin）</li>
     <li><code>test_rbac_phase.TestRbacAuditLogs</code></li>
   </ul>
   <div class="gate"><strong>门禁：</strong>operator/viewer 403；admin 可见登录等审计行；页面无 <code>js-ajax-form</code>。</div>
@@ -175,7 +174,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
   <h2>四、建议 PR 切分</h2>
   <table>
     <tr><th>PR</th><th>阶段</th><th>说明</th></tr>
-    <tr><td>PR-R1</td><td>1 + 2</td><td>模型 + 核心模块 + 单测骨架；<code>rbac_enable=0</code> 无行为变化</td></tr>
+    <tr><td>PR-R1</td><td>1 + 2</td><td>模型 + 核心模块 + 单测骨架；分权始终启用</td></tr>
     <tr><td>PR-R2</td><td>2.5 + 3</td><td>登录页 + <code>rbac/_nav</code> 迁移（3+2）；可独立灰度</td></tr>
     <tr><td>PR-R3</td><td>4 + 5</td><td>装饰器 + 模板（可按 permission 再拆 2–3 个 PR）</td></tr>
     <tr><td>PR-R4</td><td>6 + 7</td><td>用户管理 + 文档 + Release</td></tr>
@@ -190,10 +189,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
     <tr><td>OAuth（P2-07）</td><td>独立后续；v4 不展开</td></tr>
   </table>
 
-  <h2>六、风险与回退</h2>
+  <h2>六、风险与运维</h2>
   <ul>
-    <li><strong>回退：</strong><code>rbac_enable=0</code> + 重启 → 与 v0.2.0 行为一致</li>
-    <li><strong>性能：</strong>列表页须验证 <code>get_rbac_enabled</code> 每请求 ≤1 次读盘（v4）</li>
+    <li><strong>分权：</strong>三角色矩阵始终生效；无 <code>rbac_enable</code> 配置项</li>
     <li><strong>体验：</strong><code>next</code> 与 <code>check_pass</code> 格式须与装饰器一致；改错误页/模板后<strong>必须重启</strong>长驻进程</li>
   </ul>
 

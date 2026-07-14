@@ -39,7 +39,7 @@
                             <option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ r }}</option>
                             {% endfor %}
                         </select>
-                        <span style="color:#64748b">viewer 只读；operator 可写任务；admin 含用户管理与下线</span>
+                        <span style="color:#64748b">viewer 只读；operator 可写任务+看操作记录；admin 含用户管理/RBAC审计/下线</span>
                     </div>
                 </div>
                 <div class="form-actions">

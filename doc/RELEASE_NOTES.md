@@ -38,7 +38,8 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 变更 | 说明 |
 | --- | --- |
 | 登录 | 用户名+密码必填；空表种子 `admin`（密码=`login_pwd`）；无 `legacy_admin` |
-| `rbac_enable` | 0=权限旁路；1=三角色；均须账号登录 |
+| 默认行为 | 三角色分权**始终启用**；登录须 `rbac_users`；空表种子 `admin` |
+| 分权 | 三角色**始终启用**；已移除旁路开关 `rbac_enable` |
 | 冒烟 | `username=admin&password=…` |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
@@ -48,7 +49,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | 变更 | 说明 |
 | --- | --- |
 | 写入 | `create_cron` / `update_cron` / `toggle_status` / `retire_cron`（Web+API）；系统对账下线 |
-| 管理页 | `/operation_log_list`；权限 `audit:read`；与 RBAC「审计」分表 |
+| 管理页 | `/operation_log_list`；权限 `operation:read`（operator+admin）；RBAC「审计」为 `audit:read`（仅 admin） |
 | 保留 | `operation_log_counts`（默认 5000）；`cron_del_operation_log` |
 
 ### 任务生命周期 / LIFECYCLE-2 / 404 / log\_id

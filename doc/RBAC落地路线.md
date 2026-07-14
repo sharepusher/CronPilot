@@ -29,7 +29,7 @@ OPT-P2-10路线v4
 | 阶段 | 交付物 | 估时 | 可发布 |
 | --- | --- | --- | --- |
 | **0** 工程防护 | format-guard 规则（已完成可跳过） | 5 min | — |
-| **1** 数据层 | 模型 + migrate + `rbac_enable` 配置读取 | 0.5–1 d | 已交付 |
+| **1** 数据层 | 模型 + migrate | 0.5–1 d | 已交付 |
 | **2** RBAC 核心 | `app/rbac/` policy/services/decorators/context（v4 性能） | 1–1.5 d | 已交付 |
 | **2.5** 登录身份 | `/rbac/login`、`check_pass` 转发、logout | 0.5 d | 已交付 |
 | **3** 导航迁移 | `_admin_nav` → `rbac/_nav.html` + `has_perm` 菜单 | 0.25 d | 已交付 |
@@ -54,20 +54,19 @@ OPT-P2-10路线v4
 
 - 新增 `datas/model/rbac_user.py`、`rbac_audit_log.py`
 - `flask --app manage:app db migrate -m "add rbac tables"` + `upgrade`
-- `configs.py` + `conf.ini.example` 增加 `rbac_enable=0`
 
 **门禁：**`bash scripts/cronpilot.sh test`（含 `tests.test_rbac_phase`）；migrate / `ensure_sqlite_tables` 在 SQLite 可重复执行。
 
 ### 阶段 2 — RBAC 核心模块（v4 性能实现）
 
 - `policy.py` — `ROLE_PERMISSIONS` + `has_permission`
-- `services.py` — `get_rbac_enabled`（`@lru_cache`）、`get_role_permission_set`、`write_audit_log`
+- `services.py` — `get_role_permission_set`、`write_audit_log`
 - `context.py` — `make_has_perm` 闭包外层预加载（v4 §8.1）
 - `decorators.py` — `require_permission` + `full_path` next + Ajax/页面 403 分流
 - `__init__.py` — Blueprint + `app_context_processor`
 - `app/__init__.py` 注册 Blueprint（+2 行）
 
-**门禁：**`tests/test_rbac_phase.py`（policy + legacy 旁路 + `cache_clear` + 404）；已并入 `bash scripts/cronpilot.sh test`。
+**门禁：**`tests/test_rbac_phase.py`（policy + 404）；已并入 `bash scripts/cronpilot.sh test`。
 
 ### 阶段 2.5 — 登录身份子阶段
 
@@ -96,7 +95,7 @@ git diff app/templates/cron_list.html app/templates/cron_add.html app/templates/
 git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 ```
 
-**门禁：**仅 include 路径变化 + `rbac/_nav.html` 内 `has_perm`；`rbac_enable=0` 菜单与 v0.2.0 一致。**已验收。**
+**门禁：**仅 include 路径变化 + `rbac/_nav.html` 内 `has_perm` 按角色裁剪菜单。**已验收。**
 
 ### 阶段 2.6 — 404 友好页（R2.5）
 
@@ -116,8 +115,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 | 3 | `cron:retire` | `cron_retire` | 下线按钮（替代已废弃的 delete） |
 | 4 | `log:read` | 三个 `job_log_*_list` + `job_log_detail` ✅ | — |
 | 5 | ~~`log:delete`~~ | **废弃**：禁止人工删除流水（见 [生命周期设计](任务生命周期与无删除设计.html)） | |
-| 6 | `user:manage` | `/rbac/users*` | 用户管理页（阶段 6） |
-| 7 | `audit:read` | `/rbac/audit-logs` | 审计列表（阶段 6） |
+| 6 | `user:manage` | `/rbac/users*` | 用户管理页（阶段 6）；仅 admin |
+| 7 | `audit:read` | `/rbac/audit-logs` | RBAC 审计（阶段 6）；仅 admin |
+| 8 | `operation:read` | `/operation_log_list` | 操作记录（OPT-P1-09）；operator+admin |
 
 **废弃权限：**`cron:delete`、`log:delete`。任务终点为**下线**（`status=-1`），非物理删除。
 
@@ -127,7 +127,6 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 - `/rbac/users`、`/users/add`、`/users/edit` + `create_user` / `update_user`
 - 无物理删除；禁停用当前登录账号；保护最后一名启用中 admin
-- `rbac_enable=0`：导航隐藏「用户管理」，直达路由重定向 `/cron_list`
 - 首次空表：种子 `admin`（密码=`login_pwd`）；\*\*无\*\* legacy\_admin
 - `test_rbac_phase.TestRbacUsersManage` + 导航用例
 
@@ -135,9 +134,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 ### 阶段 6b — 审计列表（已交付）
 
-- `/rbac/audit-logs` 只读分页；`@require_permission('audit:read')`
-- 导航「审计」：仅 `rbac_enable=1` 且 `has_perm('audit:read')`
-- 与 P1-09 `operation_log` 分表；关 RBAC 时路由重定向 `/cron_list`
+- `/rbac/audit-logs` 只读分页；`@require_permission('audit:read')`（仅 admin）
+- 导航「审计」：仅 `has_perm('audit:read')`（admin）；viewer/operator 不可见
+- 与「操作记录」分工：业务变更走 `operation:read` / `/operation_log_list`（operator+admin）
 - `test_rbac_phase.TestRbacAuditLogs`
 
 **门禁：**operator/viewer 403；admin 可见登录等审计行；页面无 `js-ajax-form`。
@@ -155,7 +154,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 | PR | 阶段 | 说明 |
 | --- | --- | --- |
-| PR-R1 | 1 + 2 | 模型 + 核心模块 + 单测骨架；`rbac_enable=0` 无行为变化 |
+| PR-R1 | 1 + 2 | 模型 + 核心模块 + 单测骨架；分权始终启用 |
 | PR-R2 | 2.5 + 3 | 登录页 + `rbac/_nav` 迁移（3+2）；可独立灰度 |
 | PR-R3 | 4 + 5 | 装饰器 + 模板（可按 permission 再拆 2–3 个 PR） |
 | PR-R4 | 6 + 7 | 用户管理 + 文档 + Release |
@@ -169,10 +168,9 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 | P1-09 `operation_log` | RBAC Session 字段为 P1 审计预留；可后接 |
 | OAuth（P2-07） | 独立后续；v4 不展开 |
 
-## 六、风险与回退
+## 六、风险与运维
 
-- **回退：**`rbac_enable=0` + 重启 → 与 v0.2.0 行为一致
-- **性能：**列表页须验证 `get_rbac_enabled` 每请求 ≤1 次读盘（v4）
+- **分权：**三角色矩阵始终生效；无 `rbac_enable` 配置项
 - **体验：**`next` 与 `check_pass` 格式须与装饰器一致；改错误页/模板后**必须重启**长驻进程
 
 CronPilot · RBAC 落地路线 v4 ·

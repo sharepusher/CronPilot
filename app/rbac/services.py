@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from flask import request, session
 from sqlalchemy import func, select
 
@@ -55,11 +53,6 @@ def audit_resource_label(action, resource):
     if action == 'permission:deny':
         return '缺少权限 %s' % resource if resource else '权限不足'
     return resource
-
-
-@lru_cache(maxsize=1)
-def get_rbac_enabled():
-    return configs().get('rbac_enable', '0') == '1'
 
 
 def get_role_permission_set(role):
@@ -123,8 +116,6 @@ def authenticate_user(username, password):
 
 
 def write_audit_log(action='', resource='', status='allow', user_id=None, username=None, ip=None):
-    if not get_rbac_enabled():
-        return
     try:
         entry = RbacAuditLog(
             user_id=user_id if user_id is not None else session.get('user_id'),

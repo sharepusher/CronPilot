@@ -538,9 +538,9 @@ gunicorn -c gun.py manage:app</pre>
     <h3>17.1 角色与 <code>ROLE_PERMISSIONS</code></h3>
     <pre>ROLE_PERMISSIONS = {
     'viewer':   {'cron:read', 'log:read'},
-    'operator': {'cron:read', 'cron:write', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
     'admin':    {'cron:read', 'cron:write', 'cron:retire',
-                 'log:read', 'user:manage', 'audit:read'},
+                 'log:read', 'operation:read', 'user:manage', 'audit:read'},
 }</pre>
 
     <h3>17.2 Session 字段（RBAC 启用后）</h3>
@@ -552,11 +552,7 @@ gunicorn -c gun.py manage:app</pre>
     </table>
 
     <h3>17.3 <code>require_permission</code> 行为</h3>
-    <table>
-      <tr><th><code>rbac_enable</code></th><th>行为</th></tr>
-      <tr><td><code>0</code>（默认）</td><td>等同 <code>@login_required</code>，已登录即放行</td></tr>
-      <tr><td><code>1</code></td><td>校验 <code>has_permission(session['role'], perm)</code>；拒绝 → <code>web_api_return</code> 或 redirect</td></tr>
-    </table>
+    <p>分权<strong>始终启用</strong>：已登录用户须通过 <code>has_permission(session['role'], perm)</code>；拒绝 → <code>web_api_return</code> 或 redirect。无 <code>rbac_enable</code> 配置项。</p>
 
     <h3>17.4 路由装饰器映射</h3>
     <p>见 RBAC 文档 §六–§八；<code>/rbac/login</code> 替代登录渲染；<code>check_pass</code> 转发壳 + <code>next</code> 透传；<code>api/views.py</code> 不改。</p>
@@ -564,12 +560,11 @@ gunicorn -c gun.py manage:app</pre>
     <h3>17.5 迁移与配置</h3>
     <ul style="margin-left:1.2rem;font-size:.9rem">
       <li><code>flask --app manage:app db migrate</code> / <code>db upgrade</code>（<strong>Tier 0 已交付</strong>；排期见 <a href="依赖升级RFC.html">依赖升级 RFC</a> §七）</li>
-      <li><code>conf.ini.example</code> 增加 <code>rbac_enable=0</code></li>
-      <li><code>configs.py</code> → <code>pz['rbac_enable']</code></li>
+      <li><code>conf.ini.example</code> 注明分权始终启用</li>
     </ul>
 
     <h3>17.6 测试</h3>
-    <p><code>tests/test_rbac_phase.py</code>：<code>has_permission</code>、legacy 旁路、三角色边界。</p>
+    <p><code>tests/test_rbac_phase.py</code>：<code>has_permission</code>、三角色边界。</p>
   </section>
 
   <!-- 16 -->

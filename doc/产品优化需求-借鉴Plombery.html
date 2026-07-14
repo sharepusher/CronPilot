@@ -357,7 +357,7 @@
       <div class="opt-h"><strong>OPT-P1-09</strong> <span class="p1">P1</span> 管理操作审计（operation_log + 操作记录页）· <strong>已交付（待 v0.3.0 tag）</strong></div>
       <div class="opt-b">
         <h4>已交付摘要</h4>
-        <p style="font-size:.9rem">表 <code>operation_log</code>；服务 <code>operation_log_service</code>；路由 <code>/operation_log_list</code>（<code>audit:read</code>）；写入 create/update/toggle/retire（Web+API）及系统对账下线；配置 <code>operation_log_counts</code>。详 <a href="架构设计文档.html#op-audit-detail">架构 §6.5</a> · <a href="交付状态与路线图.html">交付状态</a>。</p>
+        <p style="font-size:.9rem">表 <code>operation_log</code>；服务 <code>operation_log_service</code>；路由 <code>/operation_log_list</code>（权限 <code>operation:read</code>，operator+admin；viewer 不可见）；RBAC「审计」仍为 <code>audit:read</code>（仅 admin）。写入 create/update/toggle/retire；配置 <code>operation_log_counts</code>。详 <a href="架构设计文档.html#op-audit-detail">架构 §6.5</a> · <a href="RBAC架构设计方案.html">RBAC §3.2.1</a>。</p>
         <h4>Plombery 对照</h4>
         <p class="ref">Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元数据分离。</p>
         <h4>记录范围</h4>
@@ -490,7 +490,7 @@
         <h4>已交付摘要（v0.3.0）</h4>
         <ol style="margin-left:1.2rem;font-size:.9rem">
           <li>表：<code>rbac_users</code>、<code>rbac_audit_logs</code>；空表种子 <code>admin</code>（密码=<code>login_pwd</code>）。</li>
-          <li><code>rbac_enable=0|1</code>；<code>app/rbac/</code> + <code>has_perm</code> / <code>@require_permission</code>。</li>
+          <li>三角色分权<strong>始终启用</strong>；<code>app/rbac/</code> + <code>has_perm</code> / <code>@require_permission</code>；无 <code>rbac_enable</code> 配置项。</li>
           <li>登录：<code>/rbac/login</code> 用户名+密码<strong>必填</strong>；无 <code>legacy_admin</code>；<code>check_pass</code> 转发 + <code>next</code>。</li>
           <li>导航 <code>rbac/_nav.html</code>；用户管理 / 审计列表（6a/6b）；无删除 · <code>cron:retire</code>。</li>
           <li>API <code>access_token</code> <strong>未改</strong>；三角色验收单测已纳入 <code>cronpilot.sh test</code>。</li>

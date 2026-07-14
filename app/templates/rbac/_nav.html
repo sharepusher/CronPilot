@@ -15,7 +15,7 @@
         <a{% if active != 'job_log' %} href="{{ url_for('main.job_log_all_list') }}"{% endif %}>任务执行记录</a>
     </li>
     {% endif %}
-    {% if has_perm('audit:read') %}
+    {% if has_perm('operation:read') %}
     <li{% if active == 'operation_log' %} class="active"{% endif %}>
         <a{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>操作记录</a>
     </li>
@@ -25,12 +25,12 @@
         <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
     </li>
     {% endif %}
-    {% if rbac_enabled and has_perm('user:manage') %}
+    {% if has_perm('user:manage') %}
     <li{% if active == 'users' %} class="active"{% endif %}>
         <a{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>用户管理</a>
     </li>
     {% endif %}
-    {% if rbac_enabled and has_perm('audit:read') %}
+    {% if has_perm('audit:read') %}
     <li{% if active == 'audit' %} class="active"{% endif %}>
         <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>审计</a>
     </li>

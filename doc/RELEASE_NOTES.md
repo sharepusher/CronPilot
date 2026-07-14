@@ -114,7 +114,7 @@ v0.1.0 2026-05-29 · Phase A（P0）
 | --- | --- |
 | 执行记录列表 | 「返回的内容」一格两行：HTTP 状态 + 正文截断 |
 | 查看详情 | 替代「更详细的执行记录」；展示 `job_log` 完整 HTTP 响应/异常 |
-| `http_status` | `cron_do` 写入；SQLite `ensure_sqlite_tables.py` 补列 |
+| `http_status` | `cron_do` 写入；已有库经 `ensure_business_tables.py` 补列（当时名 `ensure_sqlite_tables.py`） |
 | Cron 分钟 B1 | 添加/编辑页：`*/1` = 每分钟 |
 
 设计说明：[管理端 UI 优化设计](管理端UI优化设计.html)

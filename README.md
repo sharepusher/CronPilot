@@ -133,6 +133,7 @@ cd CronPilot
 sudo bash scripts/install_linux.sh --production
 # 编辑 conf.ini 中 cron_db_url（MySQL）后：
 bash scripts/run_production.sh
+# （内含 ensure_business_tables：MySQL/SQLite 自动建表补列）
 ```
 
 脚本自动创建 `.venv-py*` 虚拟环境，**一般无需** `source activate`。

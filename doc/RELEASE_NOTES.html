@@ -136,7 +136,7 @@
     <tr><th>变更</th><th>说明</th></tr>
     <tr><td>执行记录列表</td><td>「返回的内容」一格两行：HTTP 状态 + 正文截断</td></tr>
     <tr><td>查看详情</td><td>替代「更详细的执行记录」；展示 <code>job_log</code> 完整 HTTP 响应/异常</td></tr>
-    <tr><td><code>http_status</code></td><td><code>cron_do</code> 写入；SQLite <code>ensure_sqlite_tables.py</code> 补列</td></tr>
+    <tr><td><code>http_status</code></td><td><code>cron_do</code> 写入；已有库经 <code>ensure_business_tables.py</code> 补列（当时名 <code>ensure_sqlite_tables.py</code>）</td></tr>
     <tr><td>Cron 分钟 B1</td><td>添加/编辑页：<code>*/1</code> = 每分钟</td></tr>
   </table>
   <p>设计说明：<a href="管理端UI优化设计.html">管理端 UI 优化设计</a></p>

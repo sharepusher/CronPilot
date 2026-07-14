@@ -12,7 +12,7 @@ alwaysApply: false
 
 1. `cp conf.ini.example conf.ini` → 配置 DB、`login_pwd`（推荐 `scripts/hash_login_password.py`）、Redis、`block_private_ip`。
 2. `bash scripts/cronpilot.sh install` 或 `bash scripts/install_core_deps.sh`（自动 `.venv-py*`） 或 `PY=python3.9 bash scripts/install_core_deps.sh`；生产再 `pip install -r requirements.txt`
-3. 生产：`export FLASK_CONFIG=production` → `gunicorn -c gun.py manage:app`（`0.0.0.0:5860`）。
+3. 生产：`bash scripts/run_production.sh`（内含 `ensure_business_tables.sh`：MySQL/SQLite 建表补列）或 `export FLASK_CONFIG=production` → `gunicorn -c gun.py manage:app`（`0.0.0.0:5860`）。
 4. 本地冒烟：`bash scripts/start_local.sh`（默认 `127.0.0.1:5001`）；远程调试改 `host='0.0.0.0'`。
 
 ## 访问入口

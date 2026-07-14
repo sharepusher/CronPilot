@@ -110,6 +110,8 @@ bash scripts/cronpilot.sh exec python scripts/hash_login_password.py '你的管�
 bash scripts/run_production.sh
 ```
 
+启动前会调用 `scripts/ensure_business_tables.sh`，对 **MySQL / SQLite** 自动创建缺失业务表并补列（Scope / RBAC 等）。亦可单独执行该脚本做 schema 就绪检查。
+
 ### 步骤 5 — 放行端口
 
 ```bash

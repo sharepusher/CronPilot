@@ -70,7 +70,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 阶段 | 状态 | 交付摘要 |
 |------|------|----------|
-| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`ensure_sqlite_tables` 建表 + 种子 |
+| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`ensure_business_tables`（当时名 `ensure_sqlite_tables`）建表 + 种子 |
 | 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services、`make_has_perm`、`require_permission` |
 | 2.5 登录身份 | ✅ | `/rbac/login`；用户名+密码必填；空表种子 `admin`（密码=`login_pwd`）；**无** `legacy_admin` |
 | 3 导航迁移 | ✅ | `rbac/_nav.html` + `has_perm` 菜单裁剪 |
@@ -112,7 +112,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 | 变更 | 说明 |
 |------|------|
-| 表 | `operation_log`（业务库）；SQLite `ensure_sqlite_tables` 自动建表 |
+| 表 | `operation_log`（业务库）；`ensure_business_tables` 自动建表（当时脚本名 `ensure_sqlite_tables`） |
 | 写入 | `create_cron` / `update_cron` / `toggle_status` / `retire_cron`（Web + API）；系统对账下线 |
 | 操作人 | Web=`user`（Session）；API=`api_client`；无请求=`system`；角色/权限快照 JSON |
 | 管理页 | `/operation_log_list`；权限 `operation:read`（operator+admin）；与 RBAC「审计」`audit:read`（仅 admin）分权分表 |
@@ -181,7 +181,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 1. `bash scripts/cronpilot.sh install` 或 `pip install -r requirements.txt`（依赖版本见上表）。
 2. **Docker**：`docker compose build --no-cache && docker compose up -d`（镜像 Python **3.9 → 3.10**）。
 3. **conf.ini**：勿用 `conf.ci.ini` 挂载生产；试用请 `python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths`。
-4. SQLite 已有库：启动时 `ensure_sqlite_tables.py` 补 `http_status`、`status`、`fail_reason` 列。
+4. 已有库：启动时 `ensure_business_tables.py`（当时名 `ensure_sqlite_tables.py`）补 `http_status`、`status`、`fail_reason` 列。
 5. 新配置项：`fail_on_http_4xx_5xx=1`（见 `conf.ini.example`）。
 6. 验证：`bash scripts/cronpilot.sh test`；Docker 建议 `bash scripts/verify_docker_compose.sh`。
 
@@ -190,7 +190,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 |------|------|
 | 执行记录列表 | 「返回的内容」一格两行：① HTTP 状态/异常 ② 响应正文截断；**不加新列** |
 | 查看详情 | 替代原「更详细的执行记录」；弹窗展示 `job_log` 完整 HTTP 响应/异常（非空白 add_log 表） |
-| `job_log.http_status` | `cron_do` 成功时写入状态码；SQLite 已有库经 `ensure_sqlite_tables.py` ALTER 补列；**不新增索引** |
+| `job_log.http_status` | `cron_do` 成功时写入状态码；已有库经 `ensure_business_tables.py` ALTER 补列（当时名 `ensure_sqlite_tables.py`）；**不新增索引** |
 | Cron 分钟提示 B1 | 添加/编辑任务页分钟字段行尾灰字：`*/1` = 每分钟，`1` = 每小时第 1 分 |
 | 测试 | `tests/test_job_log_display.py` 并入 `bash scripts/cronpilot.sh test` |
 

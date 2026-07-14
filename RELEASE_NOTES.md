@@ -7,7 +7,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。
+下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。建议下一优化：**OPT-P1-09** 管理操作审计 `operation_log`（与 `/rbac/audit-logs` 分表）。
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 

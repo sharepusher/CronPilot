@@ -373,7 +373,7 @@ Pipeline/Trigger 变更可追溯；Run 历史与配置变更多为 UI + DB 元�
 
 **验收：**Web 改任务后审计行含 `operator_name`、`operator_roles_json`；API 行为 `operator_type=api_client`；列表可按操作人筛选；P2 接 `users` 后 `operator_id` 可对齐用户主键无需改表。
 
-**单密码过渡期：**`operator_type=legacy_admin`，`operator_name=管理员`，`roles=["admin"]`；细粒度 RBAC 在 P2（见 [RBAC v4 详设](RBAC架构设计方案.html)、[落地路线](RBAC落地路线.html)）落地，P1 先把列和快照机制建好。
+**操作人：**RBAC 已落地后 Web 写审计用 `operator_type=user`（Session `user_id`/`username`/`role`）；API 用 `api_client`。`legacy_admin` 已取消，勿再设计该分支。
 
 ## P2 需求（体验与规模化）
 
@@ -497,36 +497,25 @@ Plombery 在代码里写 CronTrigger，不面向运维配 cron 字段；我方 W
 
 降低误配；减少 support。优先级低于「成败可见」类需求。
 
-**OPT-P2-10** P2 多用户账号与 RBAC（v4 · 前后端联动）
+**OPT-P2-10** P2 多用户账号与 RBAC（v4 · 前后端联动）· **已交付（待 v0.3.0 tag）**
 
 #### Plombery 对照
 
-生产可选 OAuth + Session；角色边界在应用层。CronPilot P1 已在 `operation_log` 预留 `operator_*`，P2 基于真实 Flask 源码落地 RBAC（**废弃** v1.1 中间件误判方案）。
+生产可选 OAuth + Session；角色边界在应用层。CronPilot 业务配置审计仍归 OPT-P1-09 `operation_log`；RBAC 事件写 `rbac_audit_logs`（**废弃** v1.1 中间件误判方案）。
 
-#### CronPilot 现状与不足
+#### 已交付摘要（v0.3.0）
 
-|  |  |
-| --- | --- |
-| 现状 | 全站单一 `login_pwd`；`@login_required` 仅查 `session['is_login']`；API 三处重复 `access_token` 比对。 |
-| 不足 | 多人共密无法问责；无法只读/调度分权；企业采购常要求账号与角色。 |
-
-#### 优化方案（v4）
-
-1. 表：`rbac_users`、`rbac_audit_logs`；Flask-Migrate（**Tier 0** 已交付）。
-2. `conf.ini`：`rbac_enable=0|1`；`app/rbac/` + `context_processor` 注入 `has_perm`。
-3. 登录：`/rbac/login`（用户名可选）；`check_pass` 转发 + `next` 透传（v4）。
-4. `main/views.py` 仅换装饰器；5 主页面 `_admin_nav` → `rbac/_nav.html` + 按钮级 `has_perm`。
-5. API `access_token` **保持不变**。
+1. 表：`rbac_users`、`rbac_audit_logs`；空表种子 `admin`（密码=`login_pwd`）。
+2. `rbac_enable=0|1`；`app/rbac/` + `has_perm` / `@require_permission`。
+3. 登录：`/rbac/login` 用户名+密码**必填**；无 `legacy_admin`；`check_pass` 转发 + `next`。
+4. 导航 `rbac/_nav.html`；用户管理 / 审计列表（6a/6b）；无删除 · `cron:retire`。
+5. API `access_token` **未改**；三角色验收单测已纳入 `cronpilot.sh test`。
 
 #### 与 OPT-P2-07（OAuth）关系
 
-OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联动。
+OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 
-#### 价值与意义
-
-最小 diff；操作审计可精确到人；不破坏 API 契约。
-
-**验收：**见 [RBAC v4 详设 §十](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)。**设计稿待确认后实施**（建议 v0.3.0）。
+**验收：**见 [RBAC v4 详设](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html) · [交付状态](交付状态与路线图.html)。**待** `git tag v0.3.0`。
 
 **OPT-P2-11** P2 依赖分层升级（RFC）
 
@@ -562,7 +551,7 @@ OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联
 | --- | --- | --- | --- |
 | **Phase A** | 1–2 周 | 全部 OPT-P0-01 ~ 05 | **v0.1.0 已交付** |
 | **Phase B** | 3–6 周 | OPT-P1-01 ~ 09（状态、详情、立即执行、OpenAPI、操作审计…） | **部分已交付**：01/02/07 + UI A′+B1（**v0.2.0**）；其余见 [交付状态](交付状态与路线图.html) |
-| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、**依赖升级 RFC（P2-11）**、OAuth、metrics… | P2-11 Tier 0–2 **v0.2.0 已交付**；RBAC / Tier 3+ 未开始 |
+| **Phase C** | 按需 | OPT-P2 中选：SSE、仪表盘、**RBAC（P2-10）**、**依赖升级 RFC（P2-11）**、OAuth、metrics… | P2-11 Tier 0–2 **v0.2.0**；OPT-P2-10 RBAC **已交付 · 待 v0.3.0 tag**；Tier 3+ / OAuth 等未开始 |
 
 ### 优先级总览表
 
@@ -585,7 +574,7 @@ OAuth 为后续扩展；v4 先交付本地多用户 + 装饰器 RBAC + 模板联
 | OPT-P1-07 | 模板 partial（nav） | P1 | 已交付 | v0.2.0 |
 | OPT-P1-08 | 启动清理悬空 Run | P1 | 未开始 | — |
 | OPT-P1-09 | 管理操作审计 | P1 | 未开始 | — |
-| OPT-P2-10 | 多用户 RBAC | P2 | 设计稿 v4 · 待确认 | 计划 v0.3.0 |
+| OPT-P2-10 | 多用户 RBAC | P2 | 已交付 · 待 tag | v0.3.0 |
 | OPT-P2-11 | 依赖分层升级 | P2 | Tier 0–2 已交付 | v0.2.0 |
 | OPT-P2-01~09 | SSE/图表/OAuth… | P2 | 未开始 | — |
 

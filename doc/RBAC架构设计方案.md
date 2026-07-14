@@ -9,7 +9,7 @@ OPT-P2-10RBACv4
 
 前后端联动 · 三角色 · Flask 装饰器 + Jinja2 `has_perm` · v4 性能与体验修正
 
-状态：**实施中 · v0.3.0 待发布** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
+状态：**已交付 · v0.3.0 待打 tag** · 落地路线见 [RBAC落地路线 v4](RBAC落地路线.html)
 
 **废弃方案：**v1.0/v1.1（Node/Express、`init_rbac`、`route_registry`、JWT、四角色 `superadmin`）不适用本仓库。
 
@@ -22,6 +22,7 @@ OPT-P2-10RBACv4
 | v2 | 真实 Flask 源码；三角色；`rbac_users` 单表；`@require_permission`；API `access_token` 不变 |
 | v3 | 登录身份子阶段：`/rbac/login`、`app_context_processor`、`_nav.html`、按钮级权限、Ajax/页面 403 分流 |
 | **v4** | `make_has_perm` 防 N+1；`get_rbac_enabled` 进程缓存；`next`+`full_path`；307 运维清单；format-guard 规则 |
+| v0.3.0 | 阶段 1～7 已交付：三角色、用户/审计、无 `legacy_admin`、种子 `admin`；待打 tag |
 
 ## 一、现状与前端约束
 
@@ -33,17 +34,16 @@ OPT-P2-10RBACv4
 | ORM | SQLAlchemy 1.4.52 + FSA 2.5.1（Tier 1 已交付） |
 | 前端 | Jinja2 SSR + jQuery；`common.js` 约定 `js-ajax-form`、`js-ajax-delete` |
 | 配置 | `conf.ini`；`configs()` 每次读盘、无缓存 |
-| Web 鉴权 | 单密码 `login_pwd` → `session['is_login']`；`@login_required` |
+| Web 鉴权 | **已交付**：`/rbac/login` 用户名+密码；`@require_permission`；空表种子 `admin`（密码=`login_pwd`）；无 `legacy_admin` |
 | API 鉴权 | 各路由内 `api_access_token` 比对（三处重复） |
 
 ### 1.2 导航与前端事实（对齐 v0.2.0 已交付项）
 
 | 项 | 现状（真实代码） |
 | --- | --- |
-| 主 Tab 导航 | **v0.2.0 已交付** `_admin_nav.html`（OPT-P1-07）；5 页 `include`：`cron_list`、`cron_add`、`cron_edit`、`job_log_all_list`、`api_doc` |
-| RBAC 导航目标 | 迁入 `rbac/_nav.html`，在 partial 内加 `has_perm`（用户管理 Tab、条件菜单）；参数仍用 `active` |
-| 子页导航 | `job_log_list`、`job_log_item_list` 为单 Tab「运行记录」子视图，**非**主 Tab，本阶段不改 |
-| 登录页 | `check_pass.html` 仅密码；RBAC 新增 `rbac/login.html`（用户名可选） |
+| 主 Tab 导航 | **已交付** `rbac/_nav.html`（由 v0.2.0 `_admin_nav` 迁入）+ `has_perm` 菜单；用户管理 / 审计 Tab |
+| 子页导航 | `job_log_list`、`job_log_item_list` 为单 Tab「运行记录」子视图，非主 Tab |
+| 登录页 | `rbac/login.html`：用户名+密码**必填**；`/check_pass` 仅转发；无空用户名 / `legacy_admin` |
 
 **纠正 v3 初稿：**主站导航并非 7 文件硬编码 `<ul class="nav nav-tabs">`；RBAC 阶段 3 是 **`_admin_nav` → `rbac/_nav`** 迁移 + 权限菜单，而非从零抽取。
 
@@ -238,24 +238,24 @@ def login():
     session['is_login'] = True
     session['username'] = result['username']
     session['role'] = result['role']
+    session['user_id'] = result['user_id']
     write_audit_log(action='user:login', resource=result['username'])
     return redirect(next_url)
 ```
 
-### 6.4 `authenticate_user`（服务层）
+### 6.4 `authenticate_user`（服务层 · 交付后）
 
 ```
 def authenticate_user(username, password):
+    # 用户名必填；无 legacy_admin；空表由 ensure_seed_admin() 写入 admin
     if not username:
-        if verify_login_password(password, configs().get('login_pwd', '')):
-            return {'ok': True, 'role': 'admin', 'username': 'legacy_admin', 'msg': ''}
-        return {'ok': False, ..., 'msg': '密码有误'}
-    # 用 select + session.scalars，禁止 Model.query
+        return {'ok': False, 'msg': '请输入用户名'}
     user = session.scalars(select(RbacUser).where(
         RbacUser.username == username, RbacUser.is_active == 1)).first()
     if user and user.check_password(password):
-        return {'ok': True, 'role': user.role, 'username': user.username, ...}
-    return {'ok': False, ..., 'msg': '用户名或密码有误'}
+        return {'ok': True, 'role': user.role, 'username': user.username,
+                'user_id': user.id, 'msg': ''}
+    return {'ok': False, 'msg': '用户名或密码有误'}
 ```
 
 ### 6.5 `check_pass` 兼容壳（v4 · 仅改函数体）

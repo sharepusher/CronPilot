@@ -303,7 +303,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><td><code>action</code></td><td>VARCHAR(32)</td><td><code>create_cron</code> <code>update_cron</code> <code>delete_cron</code> <code>toggle_status</code> <code>batch_delete_cron</code> <code>delete_job_log</code> …</td></tr>
       <tr><td><code>channel</code></td><td>VARCHAR(8)</td><td><code>web</code> | <code>api</code> | <code>system</code></td></tr>
       <tr><td colspan="3"><strong>操作人（预留多用户 / RBAC，P1 建列、P2 接账号体系）</strong></td></tr>
-      <tr><td><code>operator_type</code></td><td>VARCHAR(16)</td><td><code>user</code> | <code>api_client</code> | <code>system</code> | <code>legacy_admin</code>（单密码过渡期）</td></tr>
+      <tr><td><code>operator_type</code></td><td>VARCHAR(16)</td><td><code>user</code> | <code>api_client</code> | <code>system</code>（不再使用 <code>legacy_admin</code>；Web 一律走 <code>rbac_users</code>）</td></tr>
       <tr><td><code>operator_id</code></td><td>VARCHAR(64)</td><td>稳定主体 ID：未来 <code>users.id</code>；API 为 client/token 哈希；legacy 为 session 哈希；system 为空</td></tr>
       <tr><td><code>operator_name</code></td><td>VARCHAR(120)</td><td>展示名快照：用户名、邮箱、<code>API集成</code>、<code>系统</code>、<code>管理员</code>（删用户后仍可读）</td></tr>
       <tr><td><code>operator_roles_json</code></td><td>TEXT</td><td>操作时角色快照 JSON 数组，如 <code>["admin"]</code>、<code>["operator","viewer"]</code></td></tr>
@@ -381,14 +381,14 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 @dataclass
 class OperatorContext:
     """从当前请求解析；写入 operation_log 时为快照，不随用户后续改角色而变。"""
-    operator_type: str       # user | api_client | system | legacy_admin
-    operator_id: str = ''    # users.id / api client hash / session hash
+    operator_type: str       # user | api_client | system
+    operator_id: str = ''    # users.id / api client hash
     operator_name: str = '' # 展示名
     roles: list[str] | None = None         # 如 ["admin"]
-    permissions: list[str] | None = None   # 如 ["cron:write", "cron:delete"]
+    permissions: list[str] | None = None   # 如 ["cron:write", "cron:retire"]
 
 def resolve_operator_from_request() -> OperatorContext:
-    """Web：legacy_admin + session 哈希；API：api_client；内置任务：system。"""
+    """Web：session user_id/username/role；API：api_client；内置任务：system。"""
 
 def record_operation(
     *,
@@ -422,9 +422,8 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
     <p><strong>原则：</strong>审计行保存<strong>操作当时</strong>的主体与授权态，不存 live 外键到当前用户表（用户删改角色后历史仍可读）。P2 接入 <code>users</code> / RBAC 后，<code>operator_id</code> 对齐用户主键即可。</p>
     <table>
       <tr><th>来源</th><th>channel</th><th>operator_type</th><th>operator_id / name</th><th>roles / permissions（快照）</th></tr>
-      <tr><td>Web Session（单密码过渡期）</td><td><code>web</code></td><td><code>legacy_admin</code></td><td>id=session 哈希；name=<code>管理员</code> 或 conf <code>admin_display_name</code></td><td><code>["admin"]</code> / <code>["*"]</code></td></tr>
-      <tr><td>Web Session（P2 多用户）</td><td><code>web</code></td><td><code>user</code></td><td>id=<code>users.id</code>；name=用户名或邮箱</td><td>当前用户角色列表 + 展开后的 permission 码</td></tr>
-      <tr><td>REST API <code>access_token</code></td><td><code>api</code></td><td><code>api_client</code></td><td>id=token 或 client_id 哈希；name=<code>API集成</code> 或配置名</td><td><code>["api_scheduler"]</code> + <code>["cron:write",…]</code></td></tr>
+      <tr><td>Web Session（RBAC 用户）</td><td><code>web</code></td><td><code>user</code></td><td>id=<code>rbac_users.id</code>；name=用户名</td><td>当前角色列表 + 权限快照</td></tr>
+      <tr><td>REST API <code>access_token</code></td><td><code>api</code></td><td><code>api_client</code></td><td>id=token 哈希；name=<code>API集成</code></td><td><code>["api_scheduler"]</code> + <code>["cron:write",…]</code></td></tr>
       <tr><td>内置任务 <code>cron_check</code> 等</td><td><code>system</code></td><td><code>system</code></td><td>id 空；name=<code>系统</code></td><td><code>["system"]</code> / <code>["*"]</code></td></tr>
     </table>
     <h4>权限码草案（与 P2 RBAC v2 对齐，P1 可先落常量）</h4>
@@ -441,7 +440,7 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
     <p>P2 由 <code>app/rbac/decorators.require_permission</code> 在路由装饰器层校验（<code>rbac_enable=1</code> 时生效）；失败可写 <code>rbac_audit_logs</code>（<code>status=deny</code>）。业务变更仍写 P1 <code>operation_log</code>。</p>
 
     <h4>6.5.6 P2 预留：用户与角色（概要）</h4>
-    <p>完整 v4 详设见 <strong><a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a></strong>；摘要见 <strong><a href="#rbac-arch">§15</a></strong>、<strong><a href="#rbac-detail">§6.6</a></strong>。与 <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> 绑定，<strong>设计稿待确认后实施</strong>。</p>
+    <p>完整 v4 详设见 <strong><a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a></strong>；摘要见 <strong><a href="#rbac-arch">§15</a></strong>、<strong><a href="#rbac-detail">§6.6</a></strong>。与 <a href="产品优化需求-借鉴Plombery.html#opt-p2-10">OPT-P2-10</a> 绑定，<strong>已交付 · 待 v0.3.0 tag</strong>。</p>
     <pre class="diagram">rbac_users（P2）── session[user_id, username, role]
                               │
 operation_log（P1）◄──────────┘  operator_* 快照（业务变更审计）
@@ -493,7 +492,7 @@ API access_token ──► 独立轨道，operator_type=api（P1 规划）</pre>
     </ul>
 
     <h3 id="rbac-detail">6.6 P2 多用户与 RBAC（OPT-P2-10 · v4）</h3>
-    <p>权威文档：<a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a>（设计稿 · 待确认实施）。</p>
+    <p>权威文档：<a href="RBAC架构设计方案.html">RBAC架构设计方案 v4</a>（<strong>已交付 · 待 v0.3.0 tag</strong>）。</p>
 
     <h4>6.6.1 设计目标</h4>
     <table>
@@ -501,7 +500,7 @@ API access_token ──► 独立轨道，operator_type=api（P1 规划）</pre>
       <tr><td>多用户</td><td>单表 <code>rbac_users</code>（username + role）；复用 <code>hash_password</code></td></tr>
       <tr><td>RBAC</td><td>三角色；<code>@require_permission</code> 替换 <code>@login_required</code>（仅装饰器，函数体不动）</td></tr>
       <tr><td>可审计</td><td><code>rbac_audit_logs</code> 记 RBAC 事件；P1 <code>operation_log</code> 记业务变更，共用 Session <code>user_id</code>/<code>role</code></td></tr>
-      <tr><td>可回退</td><td><code>rbac_enable=0</code>（默认）与现网逐字节一致</td></tr>
+      <tr><td>可回退</td><td><code>rbac_enable=0</code>（默认）权限旁路；登录仍须 <code>rbac_users</code>（空表种子 <code>admin</code>）</td></tr>
     </table>
 
     <h4>6.6.2 数据模型</h4>

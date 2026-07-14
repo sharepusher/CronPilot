@@ -85,7 +85,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | 1 | **Tier 0** ✓ | Flask-Script → Flask 原生 CLI | 最弱 | **v0.2.0 已交付** |
 | 2 | **Tier 1** ✓ | SQLAlchemy 1.3 → **1.4**（过渡版） | 弱–中 | **v0.2.0 已交付** |
 | ∥ | *侧车* ✓ | HTTP 安全补丁（requests / urllib3） | 最弱 | **v0.2.0 已交付**（RFC-S.1 + RFC-S.2） |
-| ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | 详设已有；**实施待确认**（见 [交付状态](交付状态与路线图.html)） |
+| ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | **已交付 · 待 v0.3.0 tag**（见 [交付状态](交付状态与路线图.html)） |
 | 3 | **Tier 2** ✓ | gevent / gunicorn / APScheduler + Python 上限 | 强 | **v0.2.0 已交付**（RFC-2.1～2.5） |
 | 4 | **Tier 3** | SA 1.4 查询写法收束 → SA 2.0 | 高 | `Model.query` 已清零；升 SA 2 前须处理 `records` 裸 SQL |
 | 5 | **Tier 4** | Flask 1.1 → 2.x | 高 | Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑 |

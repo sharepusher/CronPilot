@@ -7,94 +7,92 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。目标版本 **v0.3.0 · OPT-P2-10 RBAC v4**（实施中，尚未打 tag）。
+下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
-### OPT-P2-10 · RBAC v4（实施中 · 计划 v0.3.0）
+---
+
+## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录
+
+交付 **OPT-P2-10 RBAC v4**（含用户管理/审计）、**LIFECYCLE-1/2 无删除与元数据**、**执行记录 log_id 必填**、**404 友好页**。打 tag 前请再跑全量验收。
+
+### OPT-P2-10 · RBAC v4
 
 | 阶段 | 状态 | 交付摘要 |
 |------|------|----------|
-| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs` 模型；`rbac_enable=0` 配置；`ensure_sqlite_tables` 建表 |
-| 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services（`@lru_cache`）、`make_has_perm`、`require_permission`、Blueprint 注入 `has_perm` |
-| 2.5 登录身份 | ✅ | `/rbac/login` GET/POST、`/rbac/logout`；`check_pass` 转发 + `next` 透传；`rbac/login.html`、`forbidden.html` |
-| 3 导航迁移 | ✅ | 5 主页面 `{% include "rbac/_nav.html" %}`；`rbac/_nav.html` 内 `has_perm` 菜单裁剪 |
-| 4+5 权限 | ✅ | 全路由 `@require_permission`；**无删除**；`cron:retire` 下线（仅 admin） |
-| 生命周期 | ✅ | 见 [任务生命周期与无删除](doc/任务生命周期与无删除设计.html)：暂停 ≠ 下线；禁人工删任务/流水；`cron:retire` |
-| 6a 用户管理 | ✅ | `/rbac/users` 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；`rbac_enable=0` 隐藏入口并重定向 |
-| 6b 审计列表 | ✅ | `/rbac/audit-logs` 只读分页；`audit:read`；关 RBAC 隐藏入口 |
-| 7 发布 | ⏳ | `rbac_enable=1` 三角角色验收、打 tag — 未开始 |
+| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`rbac_enable`；`ensure_sqlite_tables` 建表 + 种子 |
+| 2 RBAC 核心 | ✅ | `app/rbac/`：policy、services、`make_has_perm`、`require_permission` |
+| 2.5 登录身份 | ✅ | `/rbac/login`；用户名+密码必填；空表种子 `admin`（密码=`login_pwd`）；**无** `legacy_admin` |
+| 3 导航迁移 | ✅ | `rbac/_nav.html` + `has_perm` 菜单裁剪 |
+| 4+5 权限 | ✅ | `@require_permission`；**无删除**；`cron:retire` |
+| 6a 用户管理 | ✅ | `/rbac/users*`；最后一名 admin / 禁停用自己；Ajax 表单门禁 |
+| 6b 审计列表 | ✅ | `/rbac/audit-logs`；中文动作/用户 ID 列 |
+| 7 验收 | ✅ | 三角色真实登录矩阵单测 `TestRbacTriangularAcceptance` |
 
 设计说明：[doc/RBAC架构设计方案.html](doc/RBAC架构设计方案.html) · [doc/RBAC落地路线.html](doc/RBAC落地路线.html)
 
 | 变更 | 说明 |
 |------|------|
-| 默认行为 | `rbac_enable=0`：权限旁路；登录仍须 `rbac_users`（空表种子 `admin`，密码=`login_pwd`）；**无** `legacy_admin` / 空用户名登录 |
-| 登录入口 | `/rbac/login`：用户名+密码必填；旧 `/check_pass` 仅转发 |
-| 未登录跳转 | **仅**带 `@login_required` / `@require_permission` 的路由跳转登录；`/docs/*`、`/api/*`（`access_token`）保持公开/独立鉴权 |
+| 默认行为 | `rbac_enable=0`：权限旁路；登录仍须 `rbac_users`；空表种子 `admin` |
+| 登录入口 | `/rbac/login`；`/check_pass` 仅转发；冒烟 `username=admin&password=…` |
+| 未登录跳转 | 仅受保护路由；`/docs/*`、`/api/*` 独立 |
 | `cron:write` / `cron:retire` / `log:read` | 写=启停编辑；下线仅 admin；**废弃** delete |
-| 测试 | `tests/test_rbac_phase.py` 并入 `bash scripts/cronpilot.sh test` |
-| 冒烟 | `smoke_http` 使用 `username=admin&password=…` |
+| 测试 | `tests/test_rbac_phase.py`、`tests/test_ajax_form_guard.py` 并入 `cronpilot.sh test` |
 
-### RBAC 6a · `/rbac/users`（已落地 · 待 v0.3.0 tag）
-
-| 变更 | 说明 |
-|------|------|
-| 路由 | `GET /rbac/users`、`/users/add`、`/users/edit`；`@require_permission('user:manage')` |
-| 能力 | 添加用户、改角色/启停、可选重置密码；**无物理删除** |
-| 安全 | 禁停用当前登录账号；禁停用/降权最后一名启用中 admin |
-| 开关 | `rbac_enable=0`：导航隐藏；直达路由重定向 `/cron_list` |
-| 表单 | 提交按钮须 `js-ajax-submit`（与任务添加一致）；Ajax 成功跳转列表；非 Ajax POST 302 回列表 |
-| 测试 | `TestRbacUsersManage`（含按钮类名、原生 POST 302） |
-| 防再发 | 静态门禁 `tests.test_ajax_form_guard`；去掉 `api_doc` / `job_log_*` 无提交的空壳 `js-ajax-form` |
-
-### RBAC 6b · `/rbac/audit-logs`（已落地 · 待 v0.3.0 tag）
+### RBAC 6a · `/rbac/users`
 
 | 变更 | 说明 |
 |------|------|
-| 路由 | `GET /rbac/audit-logs`；`@require_permission('audit:read')` |
-| 能力 | 只读分页：时间 / 用户 / 动作 / 资源 / IP / 结果 |
-| 分工 | RBAC 审计 ≠ P1-09 `operation_log`（任务配置变更） |
-| 开关 | `rbac_enable=0`：导航隐藏；直达重定向 `/cron_list` |
-| 展示 | 「用户 ID」独立列（`rbac_users.id`）；动作/结果中文；说明列可读文案 |
+| 路由 | 列表 / 添加 / 编辑；`user:manage` |
+| 安全 | 无物理删除；禁停用自己与最后一名启用中 admin |
+| 表单 | `js-ajax-submit`；非 Ajax 成功 302 |
+| 防再发 | `test_ajax_form_guard`；去掉空壳 `js-ajax-form` |
 
-### 任务生命周期 · 无删除（产品约束）
+### RBAC 6b · `/rbac/audit-logs`
+
+| 变更 | 说明 |
+|------|------|
+| 路由 | 只读分页；`audit:read` |
+| 展示 | 用户 ID 独立列；动作/结果中文；说明列可读文案 |
+| 分工 | ≠ OPT-P1-09 `operation_log` |
+
+### 任务生命周期 · 无删除
 
 | 变更 | 说明 |
 |------|------|
 | 暂停 vs 下线 | `status=0` 可恢复；`status=-1` 不可逆终点 |
-| 无人工删除 | 退役任务/日志删除路由与 UI；同类需求**新建**任务 |
-| 系统裁剪 | 保留 `job_log_counts` 自动裁剪（容量策略） |
-| 设计 | [doc/任务生命周期与无删除设计.html](doc/任务生命周期与无删除设计.html) |
+| 无人工删除 | 旧删除路由 410；同类需求新建 |
+| 设计 | [任务生命周期与无删除](doc/任务生命周期与无删除设计.html) |
 
-### LIFECYCLE-2 · 元数据与下线可追溯（已落地 · 待 v0.3.0 tag）
+### LIFECYCLE-2 · 元数据与下线可追溯
 
 | 变更 | 说明 |
 |------|------|
-| `task_keyword` | 新建/编辑**必填**，VARCHAR(500)，1～500 字 |
-| `created_at` / `updated_at` | 创建只写一次；仅配置编辑刷新 `updated_at`（启停/下线不刷） |
-| `retire_reason` / `retired_at` | 人工下线必填原因；系统路径写固定文案；**无** `retired_by` |
-| Web | `/cron_retire` 表单填原因后 POST；列表展示下线时间与原因摘要 |
-| API | `/api/cron/retire` 必传 `reason` |
-| Schema | `ensure_sqlite_tables.py` 为已有库补列 |
+| `task_keyword` | 新建/编辑必填，VARCHAR(500) |
+| `created_at` / `updated_at` | 创建一次；仅配置编辑刷新 updated |
+| `retire_reason` / `retired_at` | 人工必填；系统固定文案；无 `retired_by` |
 | 设计 | [生命周期 §四](doc/任务生命周期与无删除设计.html#lifecycle-2) |
 
 ### 管理端 · 404 友好页（R2.5）
 
 | 变更 | 说明 |
 |------|------|
-| `errors/404.html` | 已登录：含 `rbac/_nav.html` +「返回任务列表」；HTTP **404** |
-| `errors/404_guest.html` | 未登录：极简页 +「前往登录」；不强制跳登录（无效 URL 语义） |
-| `smoke_http_not_found` | `smoke_http_suite` 断言 guest/logged-in 404 页面；检测旧进程纯文本 `page not found` |
-| 部署注意 | 改 `errors.py` / 模板后须 **重启进程**（`cronpilot.sh restart` 或 Docker `--force-recreate`），否则冒烟失败 |
+| `errors/404*.html` | 登录态/访客分流；HTTP 404 |
+| `smoke_http_not_found` | 黄金路径断言；改错误页后须重启 |
 
-### 执行记录 log_id 必填（可追溯）
+### 执行记录 log_id 必填
 
 | 变更 | 说明 |
 |------|------|
-| `cron_do` | 每次触发开始即生成 `cronpilot_log_id`；预检失败 / HTTP / 异常均写入同一 `job_log.log_id` |
-| `_save_job_log` | 若调用方未传 `log_id` 则自动补 UUID，禁止空串落库 |
-| 追溯 | 列表 `log_id` 可与回调 query、`/api/cron/add_log`、error.log 中 `log_id=` 对照 |
+| `cron_do` / `_save_job_log` | 每次执行必有 `job_log.log_id`（UUID） |
+
+### 升级说明（自 v0.2.0）
+
+1. 安装/重启：`bash scripts/cronpilot.sh restart`（模板与鉴权变更须重启）。
+2. Web 登录改为 **用户名 + 密码**；空库自动种子 `admin`（密码=`login_pwd`）。
+3. 可选：`rbac_enable=1` 启用三角色；`0` 仍须账号登录但权限旁路。
+4. 验证：`bash scripts/cronpilot.sh test`；`bash scripts/verify_golden_path.sh`。
 
 ---
 

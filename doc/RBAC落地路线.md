@@ -38,7 +38,7 @@ OPT-P2-10路线v4
 | **5** 模板按钮 | 各页 `has_perm` 包裹（与阶段 4 同权限点配对） | 1 d | 已交付 |
 | **6a** 用户管理 | `/rbac/users` CRUD、单测 | 0.5–1 d | 已交付 |
 | **6b** 审计列表 | `/rbac/audit-logs`、单测 | 0.5 d | 已交付 |
-| **7** 发布 | 文档、`RELEASE_NOTES`、交付状态、运维清单 | 0.5 d | 打 tag |
+| **7** 发布 | 三角色验收、文档、Release Notes v0.3.0 | 0.5 d | 文档/验收已齐 · 待 tag |
 
 **合计：**约 5–7 个工作日（12–16 h 净编码 + 分批人工 `git diff` 约 30–40 min）。
 
@@ -142,13 +142,14 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 
 **门禁：**operator/viewer 403；admin 可见登录等审计行；页面无 `js-ajax-form`。
 
-### 阶段 7 — 发布（Release 前文档梳理）
+### 阶段 7 — 发布（文档与验收已齐 · 待打 tag）
 
-1. `bash scripts/cronpilot.sh test`
-2. 更新 `RELEASE_NOTES.md` → **v0.3.0** 节；清空/更新 `[Unreleased]`
-3. 更新 [交付状态与路线图](交付状态与路线图.html)：OPT-P2-10 → 已交付 v0.3.0
+1. `bash scripts/cronpilot.sh test`（含 `TestRbacTriangularAcceptance`）
+2. `RELEASE_NOTES` 已下沉 **v0.3.0** 节；`[Unreleased]` 清空为占位
+3. [交付状态与路线图](交付状态与路线图.html)：OPT-P2-10 / LIFECYCLE → 已交付 v0.3.0（待 tag）
 4. `python scripts/html_docs_to_markdown.py --check`
-5. 运维：监控 `/check_pass` 307、通知外部 POST 调用方迁移（v4 §8.3）
+5. 运维：监控 `/check_pass` 307；登录须 `username=admin&password=…`
+6. 确认后：`git tag v0.3.0` + GitHub Release（不自动执行）
 
 ## 四、建议 PR 切分
 

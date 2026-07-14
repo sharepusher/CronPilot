@@ -30,7 +30,9 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v0.2.0</span> 2026-06-10 · P1 可观测 / Tier 0–2 / UI
+    <span class="tag new">v0.3.0</span> 2026-07-14 · RBAC / 生命周期 / log_id
+    &nbsp;|&nbsp;
+    <span class="tag">v0.2.0</span> 2026-06-10 · P1 可观测 / Tier 0–2 / UI
     &nbsp;|&nbsp;
     <span class="tag">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
     &nbsp;|&nbsp;
@@ -44,86 +46,40 @@
 
 <h2>[Unreleased]</h2>
   <div class="card">
-    <p>目标版本 <strong>v0.3.0 · OPT-P2-10 RBAC v4</strong>（实施中，尚未打 tag）。总览见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
-    <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。</p>
+    <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
+    <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。</p>
   </div>
 
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-10 · RBAC v4（实施中）</h3>
+<h2 class="new">[0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录</h2>
+  <div class="card highlight">
+    <p>交付 <strong>OPT-P2-10 RBAC v4</strong>（用户管理/审计）、<strong>LIFECYCLE-1/2</strong>、<strong>log_id 必填</strong>、<strong>404 友好页</strong>。升级须重启；登录改为用户名+密码（空表种子 <code>admin</code>）。</p>
+  </div>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-10 · RBAC v4</h3>
   <table>
     <tr><th>阶段</th><th>状态</th><th>摘要</th></tr>
-    <tr><td>1 数据层</td><td>✅</td><td><code>rbac_users</code> / <code>rbac_audit_logs</code>；<code>rbac_enable=0</code></td></tr>
-    <tr><td>2 核心模块</td><td>✅</td><td><code>app/rbac/</code> policy/services/context/decorators；<code>make_has_perm</code> 闭包预加载</td></tr>
-    <tr><td>2.5 登录</td><td>✅</td><td><code>/rbac/login</code>、<code>check_pass</code> 转发 + <code>next</code></td></tr>
-    <tr><td>3 导航</td><td>✅</td><td>5 主页面 <code>rbac/_nav.html</code>；<code>has_perm</code> 菜单裁剪</td></tr>
-    <tr><td>4+5 权限</td><td>✅</td><td>全路由 <code>@require_permission</code>；无删除；<code>cron:retire</code></td></tr>
-    <tr><td>6a 用户管理</td><td>✅</td><td><code>/rbac/users</code> 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；关 RBAC 隐藏入口</td></tr>
-    <tr><td>6b 审计列表</td><td>✅</td><td><code>/rbac/audit-logs</code> 只读分页；关 RBAC 隐藏入口</td></tr>
+    <tr><td>1～5</td><td>✅</td><td>模型、核心、登录、导航、权限；无删除；<code>cron:retire</code></td></tr>
+    <tr><td>6a 用户管理</td><td>✅</td><td><code>/rbac/users*</code>；最后 admin 保护；Ajax 门禁</td></tr>
+    <tr><td>6b 审计</td><td>✅</td><td><code>/rbac/audit-logs</code>；中文动作 / 用户 ID 列</td></tr>
+    <tr><td>7 验收</td><td>✅</td><td>三角色真实登录矩阵 <code>TestRbacTriangularAcceptance</code></td></tr>
   </table>
   <table>
     <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>默认行为</td><td><code>rbac_enable=0</code>：权限旁路；登录仍须 <code>rbac_users</code>（空表种子 <code>admin</code>）；无 <code>legacy_admin</code></td></tr>
-    <tr><td>登录</td><td>用户名+密码必填；冒烟用 <code>username=admin&amp;password=…</code></td></tr>
-    <tr><td>未登录跳转</td><td>仅受保护路由跳登录；<code>/docs/*</code>、<code>/api/*</code> 独立</td></tr>
+    <tr><td>登录</td><td>用户名+密码必填；空表种子 <code>admin</code>（密码=<code>login_pwd</code>）；无 <code>legacy_admin</code></td></tr>
+    <tr><td><code>rbac_enable</code></td><td>0=权限旁路；1=三角色；均须账号登录</td></tr>
+    <tr><td>冒烟</td><td><code>username=admin&amp;password=…</code></td></tr>
   </table>
   <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
 
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">RBAC 6a · <code>/rbac/users</code>（已落地）</h3>
+  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 / LIFECYCLE-2 / 404 / log_id</h3>
   <table>
     <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>路由</td><td>列表 / 添加 / 编辑；权限 <code>user:manage</code></td></tr>
-    <tr><td>能力</td><td>角色与启停、可选重置密码；无物理删除</td></tr>
-    <tr><td>安全</td><td>禁停用自己；保护最后一名启用中 admin；关 RBAC 隐藏入口</td></tr>
-    <tr><td>表单</td><td>按钮 <code>js-ajax-submit</code>；Ajax 跳转列表；非 Ajax 成功 302</td></tr>
-    <tr><td>防再发</td><td>静态门禁 <code>tests.test_ajax_form_guard</code>；去掉 <code>api_doc</code> / <code>job_log_*</code> 空壳 <code>js-ajax-form</code></td></tr>
+    <tr><td>无删除</td><td>下线替代删除；旧删除路由 410</td></tr>
+    <tr><td>LIFECYCLE-2</td><td>强制备注；下线原因/时间；<code>created_at</code>/<code>updated_at</code></td></tr>
+    <tr><td>404</td><td>登录态/访客友好页；须重启后冒烟</td></tr>
+    <tr><td>log_id</td><td>每次执行必有 <code>job_log.log_id</code></td></tr>
   </table>
 
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">RBAC 6b · <code>/rbac/audit-logs</code>（已落地）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>路由</td><td>只读分页；权限 <code>audit:read</code></td></tr>
-    <tr><td>字段</td><td>时间 / 用户 / 动作 / 资源 / IP / 结果</td></tr>
-    <tr><td>分工</td><td>RBAC 审计 ≠ P1-09 <code>operation_log</code></td></tr>
-    <tr><td>开关</td><td><code>rbac_enable=0</code> 隐藏入口并重定向任务列表</td></tr>
-    <tr><td>展示</td><td>「用户 ID」独立列；动作/结果中文；说明列可读文案</td></tr>
-  </table>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 · 无删除</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>暂停 vs 下线</td><td><code>status=0</code> 可恢复；<code>status=-1</code> 不可逆</td></tr>
-    <tr><td>无人工删除</td><td>旧删除路由返回 410；同类需求新建</td></tr>
-    <tr><td><code>cron:retire</code></td><td>Web <code>/cron_retire</code> + API <code>/api/cron/retire</code>（仅 admin）</td></tr>
-    <tr><td>设计</td><td><a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a></td></tr>
-  </table>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">LIFECYCLE-2 · 元数据与下线可追溯（已落地）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>task_keyword</code></td><td>新建/编辑必填，VARCHAR(500)</td></tr>
-    <tr><td><code>created_at</code> / <code>updated_at</code></td><td>创建只写一次；仅配置编辑刷新 updated</td></tr>
-    <tr><td><code>retire_reason</code> / <code>retired_at</code></td><td>人工必填原因；系统固定文案；无 <code>retired_by</code></td></tr>
-    <tr><td>Web / API</td><td>下线表单；<code>/api/cron/retire</code> 必传 <code>reason</code></td></tr>
-    <tr><td>设计</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a></td></tr>
-  </table>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 · 404 友好页（R2.5）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>errors/404.html</code></td><td>已登录：导航 + 返回任务列表；HTTP 404</td></tr>
-    <tr><td><code>errors/404_guest.html</code></td><td>未登录极简页；无效 URL 不强制跳登录</td></tr>
-    <tr><td><code>smoke_http_not_found</code></td><td>黄金路径断言 404 页面；检测未重启旧 handler</td></tr>
-  </table>
-  <p><strong>部署：</strong>改错误页后须重启进程或 Docker <code>--force-recreate</code>。</p>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">执行记录 log_id 必填（可追溯）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>cron_do</code></td><td>每次触发开始即生成 UUID；预检失败 / HTTP / 异常共用同一 <code>job_log.log_id</code></td></tr>
-    <tr><td><code>_save_job_log</code></td><td>未传则自动补 UUID，禁止空串落库</td></tr>
-    <tr><td>追溯</td><td>可与回调 query、<code>add_log</code>、error.log 中 <code>log_id=</code> 对照</td></tr>
-  </table>
-
-<h2 class="new">[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
+<h2>[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
   <div class="card highlight">
     <p>在 v0.1.1 上交付 <strong>P1 OPT-P1-01/02</strong>、<strong>UI A′+B1+OPT-P1-07</strong>、<strong>Tier 0/1/2（RFC-2.1～2.5）</strong>、侧车 HTTP/PyMySQL。<strong>无 API 协议变更。</strong></p>
     <p><strong>升级要点：</strong>Docker 镜像 Python <strong>3.10</strong>；<code>fail_on_http_4xx_5xx</code> 新配置；勿用 <code>conf.ci.ini</code> 作生产挂载。</p>

@@ -581,6 +581,93 @@ class TestRbacAuditLogs(unittest.TestCase):
         self.assertEqual(audit_action_label('unknown:x'), 'unknown:x')
 
 
+class TestRbacTriangularAcceptance(unittest.TestCase):
+    """阶段 7：viewer / operator / admin 真实登录矩阵（rbac_enable=1）。"""
+
+    def setUp(self):
+        get_rbac_enabled.cache_clear()
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        app.config['CRON_CONFIG'] = {'is_dev': '0'}
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.cron_infos import CronInfos  # noqa: F401
+            db.create_all()
+            for name, role, pwd in (
+                ('tri_admin', 'admin', 'admin-pass'),
+                ('tri_op', 'operator', 'op-pass'),
+                ('tri_view', 'viewer', 'view-pass'),
+            ):
+                u = RbacUser(username=name, role=role, is_active=1, create_time='t')
+                u.set_password(pwd)
+                db.session.add(u)
+            db.session.commit()
+
+    def tearDown(self):
+        get_rbac_enabled.cache_clear()
+
+    def _login(self, username, password):
+        with self.client.session_transaction() as sess:
+            sess.clear()
+        return self.client.post(
+            '/rbac/login',
+            data={'username': username, 'password': password, 'next': '/cron_list'},
+        )
+
+    def test_viewer_operator_admin_route_matrix(self):
+        patches = (
+            patch('app.rbac.decorators.get_rbac_enabled', return_value=True),
+            patch('app.rbac.views.get_rbac_enabled', return_value=True),
+            patch('app.rbac.services.get_rbac_enabled', return_value=True),
+            patch('app.rbac.context.get_rbac_enabled', return_value=True),
+        )
+        for p in patches:
+            p.start()
+        try:
+            # viewer：只读
+            self.assertEqual(self._login('tri_view', 'view-pass').status_code, 302)
+            self.assertEqual(self.client.get('/cron_list').status_code, 200)
+            self.assertEqual(self.client.get('/cron_add').status_code, 403)
+            self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
+            self.assertEqual(self.client.get('/rbac/users').status_code, 403)
+            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+
+            # operator：可写任务，不可退休/管用户/审计
+            self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
+            self.assertEqual(self.client.get('/cron_list').status_code, 200)
+            self.assertEqual(self.client.get('/cron_add').status_code, 200)
+            self.assertEqual(self.client.get('/cron_retire?id=1').status_code, 403)
+            self.assertEqual(self.client.get('/rbac/users').status_code, 403)
+            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
+
+            # admin：用户管理 + 审计
+            self.assertEqual(self._login('tri_admin', 'admin-pass').status_code, 302)
+            self.assertEqual(self.client.get('/cron_add').status_code, 200)
+            self.assertEqual(self.client.get('/rbac/users').status_code, 200)
+            self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 200)
+            list_html = self.client.get('/cron_list').get_data(as_text=True)
+            self.assertIn('用户管理', list_html)
+            self.assertIn('审计', list_html)
+        finally:
+            for p in patches:
+                p.stop()
+
+
 class TestRbacPolicy(unittest.TestCase):
     def test_viewer_cannot_write(self):
         self.assertFalse(has_permission('viewer', 'cron:write'))

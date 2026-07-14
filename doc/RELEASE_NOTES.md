@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v0.3.0 2026-07-14 · RBAC / 生命周期 / log\_id
+ | 
 v0.2.0 2026-06-10 · P1 可观测 / Tier 0–2 / UI
  | 
 v0.1.1 2026-06-01 · 文档 / 部署 / 多版本 Python
@@ -16,86 +18,39 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 ## [Unreleased]
 
-目标版本 **v0.3.0 · OPT-P2-10 RBAC v4**（实施中，尚未打 tag）。总览见 [**交付状态与路线图**](交付状态与路线图.html)。
+下一版计划见 [**交付状态与路线图**](交付状态与路线图.html)。
 
-**维护约定：**未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
+**维护约定：**未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。
 
-### OPT-P2-10 · RBAC v4（实施中）
+## [0.3.0] — 2026-07-14 · RBAC v4、任务生命周期、可追溯执行记录
+
+交付 **OPT-P2-10 RBAC v4**（用户管理/审计）、**LIFECYCLE-1/2**、**log\_id 必填**、**404 友好页**。升级须重启；登录改为用户名+密码（空表种子 `admin`）。
+
+### OPT-P2-10 · RBAC v4
 
 | 阶段 | 状态 | 摘要 |
 | --- | --- | --- |
-| 1 数据层 | ✅ | `rbac_users` / `rbac_audit_logs`；`rbac_enable=0` |
-| 2 核心模块 | ✅ | `app/rbac/` policy/services/context/decorators；`make_has_perm` 闭包预加载 |
-| 2.5 登录 | ✅ | `/rbac/login`、`check_pass` 转发 + `next` |
-| 3 导航 | ✅ | 5 主页面 `rbac/_nav.html`；`has_perm` 菜单裁剪 |
-| 4+5 权限 | ✅ | 全路由 `@require_permission`；无删除；`cron:retire` |
-| 6a 用户管理 | ✅ | `/rbac/users` 列表/添加/编辑；无物理删除；禁停用自己与最后一名 admin；关 RBAC 隐藏入口 |
-| 6b 审计列表 | ✅ | `/rbac/audit-logs` 只读分页；关 RBAC 隐藏入口 |
+| 1～5 | ✅ | 模型、核心、登录、导航、权限；无删除；`cron:retire` |
+| 6a 用户管理 | ✅ | `/rbac/users*`；最后 admin 保护；Ajax 门禁 |
+| 6b 审计 | ✅ | `/rbac/audit-logs`；中文动作 / 用户 ID 列 |
+| 7 验收 | ✅ | 三角色真实登录矩阵 `TestRbacTriangularAcceptance` |
 
 | 变更 | 说明 |
 | --- | --- |
-| 默认行为 | `rbac_enable=0`：权限旁路；登录仍须 `rbac_users`（空表种子 `admin`）；无 `legacy_admin` |
-| 登录 | 用户名+密码必填；冒烟用 `username=admin&password=…` |
-| 未登录跳转 | 仅受保护路由跳登录；`/docs/*`、`/api/*` 独立 |
+| 登录 | 用户名+密码必填；空表种子 `admin`（密码=`login_pwd`）；无 `legacy_admin` |
+| `rbac_enable` | 0=权限旁路；1=三角色；均须账号登录 |
+| 冒烟 | `username=admin&password=…` |
 
 详设：[RBAC v4](RBAC架构设计方案.html) · [落地路线](RBAC落地路线.html)
 
-### RBAC 6a · `/rbac/users`（已落地）
+### 任务生命周期 / LIFECYCLE-2 / 404 / log\_id
 
 | 变更 | 说明 |
 | --- | --- |
-| 路由 | 列表 / 添加 / 编辑；权限 `user:manage` |
-| 能力 | 角色与启停、可选重置密码；无物理删除 |
-| 安全 | 禁停用自己；保护最后一名启用中 admin；关 RBAC 隐藏入口 |
-| 表单 | 按钮 `js-ajax-submit`；Ajax 跳转列表；非 Ajax 成功 302 |
-| 防再发 | 静态门禁 `tests.test_ajax_form_guard`；去掉 `api_doc` / `job_log_*` 空壳 `js-ajax-form` |
-
-### RBAC 6b · `/rbac/audit-logs`（已落地）
-
-| 变更 | 说明 |
-| --- | --- |
-| 路由 | 只读分页；权限 `audit:read` |
-| 字段 | 时间 / 用户 / 动作 / 资源 / IP / 结果 |
-| 分工 | RBAC 审计 ≠ P1-09 `operation_log` |
-| 开关 | `rbac_enable=0` 隐藏入口并重定向任务列表 |
-| 展示 | 「用户 ID」独立列；动作/结果中文；说明列可读文案 |
-
-### 任务生命周期 · 无删除
-
-| 变更 | 说明 |
-| --- | --- |
-| 暂停 vs 下线 | `status=0` 可恢复；`status=-1` 不可逆 |
-| 无人工删除 | 旧删除路由返回 410；同类需求新建 |
-| `cron:retire` | Web `/cron_retire` + API `/api/cron/retire`（仅 admin） |
-| 设计 | [任务生命周期与无删除](任务生命周期与无删除设计.html) |
-
-### LIFECYCLE-2 · 元数据与下线可追溯（已落地）
-
-| 变更 | 说明 |
-| --- | --- |
-| `task_keyword` | 新建/编辑必填，VARCHAR(500) |
-| `created_at` / `updated_at` | 创建只写一次；仅配置编辑刷新 updated |
-| `retire_reason` / `retired_at` | 人工必填原因；系统固定文案；无 `retired_by` |
-| Web / API | 下线表单；`/api/cron/retire` 必传 `reason` |
-| 设计 | [生命周期 §四](任务生命周期与无删除设计.html#lifecycle-2) |
-
-### 管理端 · 404 友好页（R2.5）
-
-| 变更 | 说明 |
-| --- | --- |
-| `errors/404.html` | 已登录：导航 + 返回任务列表；HTTP 404 |
-| `errors/404_guest.html` | 未登录极简页；无效 URL 不强制跳登录 |
-| `smoke_http_not_found` | 黄金路径断言 404 页面；检测未重启旧 handler |
-
-**部署：**改错误页后须重启进程或 Docker `--force-recreate`。
-
-### 执行记录 log\_id 必填（可追溯）
-
-| 变更 | 说明 |
-| --- | --- |
-| `cron_do` | 每次触发开始即生成 UUID；预检失败 / HTTP / 异常共用同一 `job_log.log_id` |
-| `_save_job_log` | 未传则自动补 UUID，禁止空串落库 |
-| 追溯 | 可与回调 query、`add_log`、error.log 中 `log_id=` 对照 |
+| 无删除 | 下线替代删除；旧删除路由 410 |
+| LIFECYCLE-2 | 强制备注；下线原因/时间；`created_at`/`updated_at` |
+| 404 | 登录态/访客友好页；须重启后冒烟 |
+| log\_id | 每次执行必有 `job_log.log_id` |
 
 ## [0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI
 

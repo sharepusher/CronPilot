@@ -42,7 +42,7 @@ OPT-P2-10RBACv4
 | 项 | 现状（真实代码） |
 | --- | --- |
 | 主 Tab 导航 | **已交付** `rbac/_nav.html` + `has_perm`；「操作记录」(`operation:read`)、「用户管理」「审计」按角色裁剪；退出已移至顶栏 |
-| 顶栏身份 | **已交付** `admin_base` → `rbac/_topbar.html`：右侧聚焦（用户名 / 角色 / 退出）；种子显示「系统管理员」，其它 admin「业务管理员」；非 admin 显示业务组/未分配；退出 `/rbac/logout` |
+| 顶栏身份 | **已交付** `admin_base` → `rbac/_topbar.html`：右侧聚焦（用户名 / 角色 / 退出）；种子「系统管理员」、其它 admin「业务管理员」、`operator`/`viewer` 英文码；非 admin 显示业务组/未分配；退出 `/rbac/logout` |
 | 子页导航 | `job_log_list`、`job_log_item_list` 为单 Tab「运行记录」子视图，非主 Tab |
 | 登录页 | `rbac/login.html`：用户名+密码**必填**；`/check_pass` 仅转发；无空用户名 / `legacy_admin` |
 
@@ -332,7 +332,7 @@ def get_role_permission_set(role):
 
 ### 8.0 `rbac/_topbar.html`（身份条 · 已交付）
 
-`admin_base.html` 在 `{% block content %}` 前渲染顶栏（右侧身份簇）：用户名、角色中文名（种子「系统管理员」/ 其它 admin「业务管理员」）、非 admin 业务组、退出 `/rbac/logout`。导航 tab 不再重复「退出」。
+`admin_base.html` 在 `{% block content %}` 前渲染顶栏（右侧身份簇）：用户名、角色展示名（种子「系统管理员」/ 其它 admin「业务管理员」/ `operator`·`viewer` 英文码）、非 admin 业务组、退出 `/rbac/logout`。导航 tab 不再重复「退出」。
 
 ### 8.1 `rbac/_nav.html`（自 `_admin_nav.html` 演进）
 

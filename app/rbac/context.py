@@ -5,8 +5,8 @@ from .services import get_role_permission_set
 
 ROLE_DISPLAY = {
     'admin': '业务管理员',
-    'operator': '操作员',
-    'viewer': '只读',
+    'operator': 'operator',
+    'viewer': 'viewer',
 }
 
 SEED_ADMIN_DISPLAY = '系统管理员'

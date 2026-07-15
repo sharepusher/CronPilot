@@ -962,10 +962,11 @@ class TestUserTopbar(unittest.TestCase):
         self._login('operator', 'op1', group_ids=[self.group_id])
         resp = self.client.get('/rbac/password')
         body = resp.get_data(as_text=True)
-        self.assertIn('操作员', body)
+        self.assertIn('operator', body)
         self.assertIn('支付业务', body)
         self.assertNotIn('全局可见', body)
         self.assertNotIn('未分配业务组', body)
+        self.assertNotIn('操作员', body)
 
     def test_operator_without_groups_warns(self):
         self._login('operator', 'op2', group_ids=[])

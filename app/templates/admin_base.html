@@ -32,6 +32,60 @@
         .table-list {
             margin-bottom: 0px;
         }
+
+        .rbac-topbar {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 6px 15px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-height: 36px;
+        }
+        .rbac-topbar .topbar-identity {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .rbac-topbar .topbar-sep {
+            color: #7f8c8d;
+            margin: 0 2px;
+        }
+        .rbac-topbar a {
+            color: #ecf0f1;
+            text-decoration: none;
+        }
+        .rbac-topbar a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+        .rbac-topbar .label {
+            font-size: 12px;
+            vertical-align: middle;
+        }
+        .rbac-topbar .topbar-role {
+            border: 0;
+            font-weight: 600;
+            color: #fff;
+        }
+        /* 深色顶栏上避免灰蓝 primary，按角色用清晰色相 */
+        .rbac-topbar .topbar-role-seed {
+            background-color: #e67e22;
+        }
+        .rbac-topbar .topbar-role-admin {
+            background-color: #2980b9;
+        }
+        .rbac-topbar .topbar-role-operator {
+            background-color: #16a085;
+        }
+        .rbac-topbar .topbar-role-viewer {
+            background-color: #27ae60;
+        }
+        .rbac-topbar .topbar-role-default {
+            background-color: #3498db;
+        }
     </style>
     {% block css %} {% endblock %}
     <!--[if IE 7]>
@@ -56,6 +110,9 @@
     </script>
 </head>
 <body>
+{% block topbar %}
+{% include "rbac/_topbar.html" %}
+{% endblock %}
 {% block content %}{% endblock %}
 <script src="{{ url_for('static',filename='js/md5.js') }}"></script>
 <script src="{{ url_for('static',filename='js/signs.js') }}"></script>

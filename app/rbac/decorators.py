@@ -17,7 +17,8 @@ def require_permission(permission):
                 next_url = request.full_path.rstrip('?')
                 return redirect(f'/rbac/login?next={next_url}')
             role = session.get('role') or ''
-            if not has_permission(role, permission):
+            username = session.get('username') or ''
+            if not has_permission(role, permission, username=username):
                 write_audit_log(action='permission:deny', resource=permission, status='deny')
                 return _forbidden_response(permission)
             return func(*args, **kwargs)
@@ -57,6 +58,7 @@ def authorize_resource(permission, resource):
             permission,
             resource,
             group_ids=session_group_ids(),
+            username=session.get('username') or '',
         )
     except AuthorizationError as err:
         action = 'scope:deny' if err.kind == 'scope' else 'permission:deny'

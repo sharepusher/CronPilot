@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 ACTION_LABELS = {
     'create_cron': '创建任务',
     'update_cron': '修改任务',
-    'toggle_status': '启停任务',
+    'toggle_status': '启动/暂停',  # 列表默认；有 detail 时按新旧 status 显示「启动任务」或「暂停任务」
     'retire_cron': '下线任务',
 }
 CHANNEL_LABELS = {
@@ -29,6 +29,13 @@ CHANNEL_LABELS = {
 RESULT_LABELS = {
     'ok': '成功',
     'fail': '失败',
+}
+
+# cron_infos.status：0=已暂停，1=运行中，-1=已下线
+STATUS_RUN_LABELS = {
+    0: '已暂停',
+    1: '运行中',
+    -1: '已下线',
 }
 
 CRON_SNAPSHOT_FIELDS = (
@@ -56,8 +63,44 @@ class OperatorContext:
     permissions: list = field(default_factory=list)
 
 
-def operation_action_label(action):
+def _parse_detail(detail_json):
+    try:
+        detail = json.loads(detail_json) if detail_json else {}
+    except (TypeError, ValueError):
+        return {}
+    return detail if isinstance(detail, dict) else {}
+
+
+def _status_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def toggle_status_verb(detail):
+    """根据 status 新旧值返回「启动」或「暂停」；无法判断时返回空串。"""
+    if not isinstance(detail, dict):
+        return ''
+    change = detail.get('status') or {}
+    if not isinstance(change, dict):
+        return ''
+    old_s = _status_int(change.get('old'))
+    new_s = _status_int(change.get('new'))
+    if old_s == 0 and new_s == 1:
+        return '启动'
+    if old_s == 1 and new_s == 0:
+        return '暂停'
+    return ''
+
+
+def operation_action_label(action, detail_json=None):
+    """动作中文名。toggle_status 有详情时区分「启动任务」「暂停任务」。"""
     action = action or ''
+    if action == 'toggle_status' and detail_json is not None:
+        verb = toggle_status_verb(_parse_detail(detail_json))
+        if verb:
+            return '%s任务' % verb
     return ACTION_LABELS.get(action, action)
 
 
@@ -220,12 +263,16 @@ def trim_operation_logs(keep_count):
 
 def format_detail_summary(action, detail_json):
     """列表「详情」短文案。"""
-    try:
-        detail = json.loads(detail_json) if detail_json else {}
-    except (TypeError, ValueError):
-        return detail_json or ''
-    if not isinstance(detail, dict):
-        return str(detail)
+    if detail_json in (None, ''):
+        detail = {}
+    else:
+        try:
+            parsed = json.loads(detail_json) if not isinstance(detail_json, dict) else detail_json
+        except (TypeError, ValueError):
+            return detail_json or ''
+        if not isinstance(parsed, dict):
+            return str(parsed)
+        detail = parsed
     if action == 'create_cron':
         parts = []
         for key in ('hour', 'minute', 'req_url'):
@@ -241,9 +288,18 @@ def format_detail_summary(action, detail_json):
     if action == 'toggle_status':
         change = detail.get('status') or {}
         if isinstance(change, dict):
-            return 'status %s→%s' % (change.get('old'), change.get('new'))
-        return '启停'
+            old_s = _status_int(change.get('old'))
+            new_s = _status_int(change.get('new'))
+            old_label = STATUS_RUN_LABELS.get(old_s, change.get('old'))
+            new_label = STATUS_RUN_LABELS.get(new_s, change.get('new'))
+            verb = toggle_status_verb(detail)
+            if verb:
+                return '%s：%s → %s' % (verb, old_label, new_label)
+            return '%s → %s' % (old_label, new_label)
+        return ''
     if action == 'retire_cron':
         reason = detail.get('reason') or ''
         return ('下线：%s' % reason) if reason else '下线'
-    return json.dumps(detail, ensure_ascii=False)[:120]
+    if detail:
+        return json.dumps(detail, ensure_ascii=False)[:120]
+    return ''

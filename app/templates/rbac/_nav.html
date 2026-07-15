@@ -45,5 +45,4 @@
     <li{% if active == 'password' %} class="active"{% endif %}>
         <a{% if active != 'password' %} href="{{ url_for('rbac.change_password') }}"{% endif %}>修改密码</a>
     </li>
-    <li><a href="{{ url_for('main.logout') }}">退出</a></li>
 </ul>

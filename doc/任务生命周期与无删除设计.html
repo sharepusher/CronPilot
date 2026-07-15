@@ -77,7 +77,7 @@
   <ul>
     <li>退役 <code>/cron_del</code>、<code>/cron_batch_del</code>、<code>/job_log_delete</code>、<code>/job_batch_delete</code>（返回 410）</li>
     <li>新增 <code>/cron_retire</code>：写 <code>status=-1</code> + <code>remove_job</code>；<strong>不删</strong> <code>cron_infos</code> / <code>job_log</code></li>
-    <li>列表：运行中/已暂停显示「下线」；已下线仅展示状态，无启停/编辑/下线</li>
+    <li>列表：运行中/已暂停对<strong>所有角色</strong>展示「下线」入口；仅具备 <code>cron:retire</code> 的账号可进入下线表单并执行；其它角色（含种子 <code>admin</code>）点击弹出「权限不足：当前账号不可下线任务」。已下线仅展示状态，无启动/暂停/编辑/下线</li>
     <li>已下线禁止 <code>update_status</code>、<code>cron_edit</code></li>
   </ul>
   <h3>3.2 API</h3>
@@ -93,10 +93,10 @@
     'admin':    {'cron:read', 'cron:write', 'cron:retire',
                  'log:read', 'operation:read', 'user:manage', 'audit:read'},
   }
-  # cron:write = 添加/编辑/启停；cron:retire = 下线（仅 admin）
+  # cron:write = 添加/编辑/启动/暂停；cron:retire = 下线（仅 admin）
   # operation:read = 操作记录（operator+admin）；audit:read = RBAC 审计（仅 admin）
   # 废弃 cron:delete / log:delete</pre>
-  <p><code>cron:write</code> = 添加/编辑/启停；<code>cron:retire</code> = 下线（仅 admin）。<strong>废弃</strong> <code>cron:delete</code>、<code>log:delete</code>。</p>
+  <p><code>cron:write</code> = 添加/编辑/启动/暂停；<code>cron:retire</code> = 下线（仅 admin）。<strong>废弃</strong> <code>cron:delete</code>、<code>log:delete</code>。</p>
 
   <h2 id="lifecycle-2">四、LIFECYCLE-2 · 元数据与下线可追溯（已落地 · v1.0.0）</h2>
   <p>目标：列表/详情可直接查阅下线原因与时间、任务备注与创建/最后编辑时间。<strong>不新建</strong>「任务更新日志」表；完整「谁改了什么」仍走 <a href="架构设计文档.html#op-audit-detail">OPT-P1-09 <code>operation_log</code></a>。</p>

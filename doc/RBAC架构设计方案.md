@@ -41,7 +41,8 @@ OPT-P2-10RBACv4
 
 | 项 | 现状（真实代码） |
 | --- | --- |
-| 主 Tab 导航 | **已交付** `rbac/_nav.html` + `has_perm`；「操作记录」(`operation:read`)、「用户管理」「审计」按角色裁剪 |
+| 主 Tab 导航 | **已交付** `rbac/_nav.html` + `has_perm`；「操作记录」(`operation:read`)、「用户管理」「审计」按角色裁剪；退出已移至顶栏 |
+| 顶栏身份 | **已交付** `admin_base` → `rbac/_topbar.html`：右侧聚焦（用户名 / 角色 / 退出）；种子显示「系统管理员」，其它 admin「业务管理员」；非 admin 显示业务组/未分配；退出 `/rbac/logout` |
 | 子页导航 | `job_log_list`、`job_log_item_list` 为单 Tab「运行记录」子视图，非主 Tab |
 | 登录页 | `rbac/login.html`：用户名+密码**必填**；`/check_pass` 仅转发；无空用户名 / `legacy_admin` |
 
@@ -66,8 +67,9 @@ OPT-P2-10RBACv4
   └─ 失败 → 请填写用户名 / 用户名或密码有误
   → redirect(next)
 
-每请求：app_context_processor → current_user, has_perm()
+每请求：app_context_processor → current_user, has_perm(), current_user_groups
 模板：{% if has_perm('cron:write') %} ... {% endif %}
+顶栏：{% if current_user %} rbac/_topbar.html（身份 / Scope / 退出）{% endif %}
 ```
 
 ## 三、角色与权限
@@ -168,6 +170,8 @@ CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 
 **已取消**空用户名 → `legacy_admin` 登录。`rbac_users` 为空且 `login_pwd` 已配置时，启动/登录时自动种子用户名 `admin`（密码=login\_pwd，明文或 pbkdf2 均可）。此后 Web 登录**必须**填写用户名 + 密码。
 
+**种子权限：**用户名 `admin` 角色仍为 `admin`（可绕过 Scope 查看全库），但能力裁剪为 `user:manage` + 只读（无 `cron:write` / `cron:retire`）。日常任务写操作须由种子在「用户管理」中创建的其它 `admin` 角色账号执行。
+
 | 场景 | 做法 |
 | --- | --- |
 | 首次部署（空表） | 在 conf.ini 配置 `login_pwd`（推荐 `scripts/hash_login_password.py`）→ 启动 → 用 `admin` + 该密码登录 |
@@ -185,12 +189,12 @@ app/rbac/
   __init__.py       Blueprint + app_context_processor
   policy.py
   decorators.py     require_permission（v4 next）
-  context.py        get_current_user, make_has_perm（v4）
+  context.py        get_current_user, make_has_perm, get_current_user_groups
   services.py       authenticate_user, CRUD, audit
   views.py          login, logout, users, audit-logs
 
 app/templates/rbac/
-  login.html, _nav.html, users.html, forbidden.html
+  login.html, _nav.html, _topbar.html, users.html, forbidden.html
 
 datas/model/rbac_user.py, rbac_audit_log.py
 ```
@@ -204,8 +208,12 @@ rbac = Blueprint('rbac', __name__, url_prefix='/rbac')
 
 @rbac.app_context_processor
 def inject_rbac_context():
-    from .context import get_current_user, make_has_perm
-    return {'current_user': get_current_user(), 'has_perm': make_has_perm()}
+    from .context import get_current_user, make_has_perm, get_current_user_groups
+    return {
+        'current_user': get_current_user(),
+        'has_perm': make_has_perm(),
+        'current_user_groups': get_current_user_groups(),
+    }
 
 from . import views  # noqa
 ```
@@ -322,9 +330,13 @@ def get_role_permission_set(role):
 
 ## 八、前端设计
 
+### 8.0 `rbac/_topbar.html`（身份条 · 已交付）
+
+`admin_base.html` 在 `{% block content %}` 前渲染顶栏（右侧身份簇）：用户名、角色中文名（种子「系统管理员」/ 其它 admin「业务管理员」）、非 admin 业务组、退出 `/rbac/logout`。导航 tab 不再重复「退出」。
+
 ### 8.1 `rbac/_nav.html`（自 `_admin_nav.html` 演进）
 
-5 个主页面 `{% include "rbac/_nav.html" %}`（保留 `{% with active='...' %}`）。**已实施** `has_perm` 菜单裁剪：
+主页面 `{% include "rbac/_nav.html" %}`（保留 `{% with active='...' %}`）。**已实施** `has_perm` 菜单裁剪；末尾含「修改密码」，退出已移至顶栏：
 
 ```
 {% if has_perm('cron:read') %}...任务列表、API文档...{% endif %}

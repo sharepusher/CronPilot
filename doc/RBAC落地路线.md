@@ -111,7 +111,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html
 | 顺序 | permission | 视图 | 模板触点 |
 | --- | --- | --- | --- |
 | 1 | `cron:read` | `cron_list`、`api_doc` ✅ | —（基线） |
-| 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` ✅ | 编辑、添加入口、启停 ✅ |
+| 2 | `cron:write` | `cron_add`、`cron_edit`、`update_status` ✅ | 编辑、添加入口、启动/暂停 ✅ |
 | 3 | `cron:retire` | `cron_retire` | 下线按钮（替代已废弃的 delete） |
 | 4 | `log:read` | 三个 `job_log_*_list` + `job_log_detail` ✅ | — |
 | 5 | ~~`log:delete`~~ | **废弃**：禁止人工删除流水（见 [生命周期设计](任务生命周期与无删除设计.html)） | |

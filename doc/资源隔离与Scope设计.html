@@ -102,11 +102,12 @@ Allow / Deny（403）</pre>
     <li><code>authorize(role, permission, resource, group_ids)</code> — 失败抛 <code>AuthorizationError</code></li>
     <li><code>authorize_resource(permission, resource)</code>（装饰器辅助）— 写 <code>scope:deny</code> 审计；403</li>
   </ul>
-  <p>登录成功写入 <code>session['group_ids']</code>。<strong>用户组变更后需重新登录</strong>生效。</p>
+  <p>登录成功写入 <code>session['group_ids']</code>。<strong>用户组变更后需重新登录</strong>生效。管理端顶栏 <code>current_user_groups</code> 亦只解析 Session 中的组 ID（与列表 Scope 同源）；admin 顶栏不展示 Scope 标签。</p>
   <p><code>admin</code> ∈ <code>SCOPE_BYPASS_ROLES</code>，不增第四角色。</p>
 
   <h2>五、UI 契约</h2>
   <ul>
+    <li>顶栏：登录后展示当前用户与可见范围（组名或「全局可见」/「未分配业务组」）；退出走 <code>/rbac/logout</code></li>
     <li>任务添加/编辑：<strong>非 admin</strong> 强制「所属业务组」可见（不可选 GLOBAL）；仅一组成员时只读展示；多组时仅可选本人所属组。admin 可创建 GLOBAL 或指定任意组</li>
     <li>导航「业务组」：<code>/rbac/groups*</code>（<code>user:manage</code>）</li>
     <li>用户编辑：多选绑定业务组（非 admin 必选）</li>
@@ -114,7 +115,7 @@ Allow / Deny（403）</pre>
 
   <h2>六、安全要求</h2>
   <ul>
-    <li>列表 Scope Filter + GET/PUT/启停/下线 单资源 <code>authorize</code></li>
+    <li>列表 Scope Filter + GET/PUT/启动·暂停/下线 单资源 <code>authorize</code></li>
     <li>越权 → <strong>403</strong>（非 500）；审计 <code>scope:deny</code></li>
     <li>禁止 Handler/Service/DAO 散落 <code>if group_id</code>；统一走 <code>authorize</code> / <code>build_scope_filter_clause</code></li>
     <li><code>cron_service</code> 仅透传 <code>scope_type</code>/<code>group_id</code>，不判角色</li>

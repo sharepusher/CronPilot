@@ -71,9 +71,9 @@
     <h3>1.1 建设目标</h3>
     <table>
       <tr><th>编号</th><th>目标</th><th>验收标准</th></tr>
-      <tr><td>G1</td><td>任务统一管理</td><td>Web 列表、搜索、启停、下线（无物理删除）</td></tr>
+      <tr><td>G1</td><td>任务统一管理</td><td>Web 列表、搜索、启动/暂停、下线（无物理删除）</td></tr>
       <tr><td>G2</td><td>Crontab 兼容</td><td>支持日/周/时/分/秒及 */n、列表、区间</td></tr>
-      <tr><td>G3</td><td>开放集成</td><td>REST API 增改任务、启停、上传执行明细</td></tr>
+      <tr><td>G3</td><td>开放集成</td><td>REST API 增改任务、启动/暂停、上传执行明细</td></tr>
       <tr><td>G4</td><td>集群安全</td><td>多节点部署时同一任务不重复执行</td></tr>
       <tr><td>G5</td><td>故障可达</td><td>异常/关键词命中推送企微、钉钉、WebHook</td></tr>
     </table>
@@ -89,7 +89,7 @@
       <tr><td class="req">002</td><td>任务列表分页（20 条/页），按任务名模糊搜索</td><td><code>/cron_list</code></td></tr>
       <tr><td class="req">003</td><td>新增任务：一次性 / Cron 模式切换</td><td><code>/cron_add</code></td></tr>
       <tr><td class="req">004</td><td>编辑任务，任务名唯一（排除自身）</td><td><code>/cron_edit?id=</code></td></tr>
-      <tr><td class="req">005</td><td>单任务启停（pause/resume；暂停 ≠ 下线）</td><td><code>/update_status?id=</code></td></tr>
+      <tr><td class="req">005</td><td>单任务启动/暂停（pause/resume；暂停 ≠ 下线）</td><td><code>/update_status?id=</code></td></tr>
       <tr><td class="req">006</td><td>任务下线（status=-1，不可逆；保留行与日志；LIFECYCLE-2 强制原因与时间）</td><td><code>/cron_retire</code> · <code>/api/cron/retire</code></td></tr>
       <tr><td class="req">007</td><td>单任务执行记录弹窗</td><td><code>/job_log_list?id=</code> iframe</td></tr>
       <tr><td class="req">008</td><td>全局执行记录：任务名、时间范围筛选</td><td><code>/job_log_all_list</code></td></tr>
@@ -101,7 +101,7 @@
     <table>
       <tr><th>需求 ID</th><th>描述</th><th>端点</th></tr>
       <tr><td class="req">101</td><td>按 task_name upsert 任务</td><td><code>POST /api/cron</code></td></tr>
-      <tr><td class="req">102</td><td>启停任务（可 toggle 或指定 status）</td><td><code>POST /api/cron/status</code></td></tr>
+      <tr><td class="req">102</td><td>启动/暂停任务（可 toggle 或指定 status）</td><td><code>POST /api/cron/status</code></td></tr>
       <tr><td class="req">103</td><td>业务方上传执行进度</td><td><code>POST /api/cron/add_log</code></td></tr>
       <tr><td class="req">104</td><td>access_token 可选强校验</td><td>conf.ini api_access_token</td></tr>
     </table>

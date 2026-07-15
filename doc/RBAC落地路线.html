@@ -132,7 +132,7 @@ git diff app/templates/job_log_all_list.html app/templates/api_doc.html</pre>
   <table>
     <tr><th>顺序</th><th>permission</th><th>视图</th><th>模板触点</th></tr>
     <tr><td>1</td><td><code>cron:read</code></td><td><code>cron_list</code>、<code>api_doc</code> ✅</td><td>—（基线）</td></tr>
-    <tr><td>2</td><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code> ✅</td><td>编辑、添加入口、启停 ✅</td></tr>
+    <tr><td>2</td><td><code>cron:write</code></td><td><code>cron_add</code>、<code>cron_edit</code>、<code>update_status</code> ✅</td><td>编辑、添加入口、启动/暂停 ✅</td></tr>
     <tr><td>3</td><td><code>cron:retire</code></td><td><code>cron_retire</code></td><td>下线按钮（替代已废弃的 delete）</td></tr>
     <tr><td>4</td><td><code>log:read</code></td><td>三个 <code>job_log_*_list</code> + <code>job_log_detail</code> ✅</td><td>—</td></tr>
     <tr><td>5</td><td><del><code>log:delete</code></del></td><td colspan="2"><strong>废弃</strong>：禁止人工删除流水（见 <a href="任务生命周期与无删除设计.html">生命周期设计</a>）</td></tr>

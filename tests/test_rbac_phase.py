@@ -339,6 +339,82 @@ class TestLifecycleNoDelete(unittest.TestCase):
             self.assertTrue(row.retired_at)
 
 
+class TestCronListRetireButtonVisibility(unittest.TestCase):
+    """未下线任务对所有角色展示「下线」；仅 admin 可进表单，其它角色为提示入口。"""
+
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.cron_infos import CronInfos  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            db.create_all()
+            cif = CronInfos(
+                task_name='visible-retire',
+                task_keyword='说明',
+                req_url='https://example.com/r',
+                status=1,
+                created_at='t',
+                updated_at='t',
+            )
+            db.session.add(cif)
+            db.session.commit()
+
+    def _login(self, role):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = role
+            # 全权限 admin 不得用种子用户名 admin（种子无 cron:write/retire）
+            sess['username'] = 'ops_admin' if role == 'admin' else role
+            sess['group_ids'] = []
+
+    def test_operator_sees_retire_denied_tip_not_form_link(self):
+        self._login('operator')
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('>下线<', html)
+        self.assertIn('class="js-retire-denied"', html)
+        self.assertIn('当前账号不可下线', html)
+        self.assertNotIn('/cron_retire?', html)
+
+    def test_viewer_sees_retire_denied_tip(self):
+        self._login('viewer')
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('>下线<', html)
+        self.assertIn('class="js-retire-denied"', html)
+
+    def test_admin_sees_retire_form_link(self):
+        self._login('admin')
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('>下线<', html)
+        self.assertIn('/cron_retire?', html)
+        self.assertNotIn('class="js-retire-denied"', html)
+
+    def test_seed_admin_sees_retire_denied_tip(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'admin'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('>下线<', html)
+        self.assertIn('class="js-retire-denied"', html)
+        self.assertNotIn('/cron_retire?', html)
+
+
 class TestNavHasPerm(unittest.TestCase):
     def setUp(self):
         app = Flask(
@@ -783,13 +859,141 @@ class TestMakeHasPerm(unittest.TestCase):
                 self.assertFalse(has_perm('cron:write'))
                 for _ in range(198):
                     has_perm('cron:read')
-                mocked_perms.assert_called_once_with('viewer')
+                mocked_perms.assert_called_once_with('viewer', username='')
 
     def test_admin_permission_set(self):
         perms = get_role_permission_set('admin')
         self.assertIn('user:manage', perms)
         self.assertIn('operation:read', perms)
         self.assertIn('audit:read', perms)
+        self.assertIn('cron:write', perms)
+
+
+class TestSeedAdminPermissions(unittest.TestCase):
+    """种子用户名 admin：只读 + 用户管理；任务写/下线须非种子的 admin 角色用户。"""
+
+    def test_seed_username_strips_write_and_retire(self):
+        from app.rbac.policy import has_permission
+
+        self.assertTrue(has_permission('admin', 'user:manage', username='admin'))
+        self.assertTrue(has_permission('admin', 'cron:read', username='admin'))
+        self.assertTrue(has_permission('admin', 'audit:read', username='admin'))
+        self.assertFalse(has_permission('admin', 'cron:write', username='admin'))
+        self.assertFalse(has_permission('admin', 'cron:retire', username='admin'))
+
+    def test_created_admin_keeps_full_matrix(self):
+        from app.rbac.policy import has_permission
+
+        self.assertTrue(has_permission('admin', 'cron:write', username='ops_admin'))
+        self.assertTrue(has_permission('admin', 'cron:retire', username='ops_admin'))
+        self.assertTrue(has_permission('admin', 'user:manage', username='ops_admin'))
+
+
+class TestUserTopbar(unittest.TestCase):
+    """管理端顶栏：身份 / 角色 / Scope / 退出。"""
+
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.resource_group import ResourceGroup
+            db.create_all()
+            g = ResourceGroup(
+                name='支付业务',
+                code='pay',
+                description='',
+                create_time='t',
+            )
+            db.session.add(g)
+            db.session.commit()
+            self.group_id = g.id
+
+    def _login(self, role='admin', username='u1', group_ids=None):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = username
+            sess['role'] = role
+            sess['user_id'] = 1
+            sess['group_ids'] = list(group_ids or [])
+
+    def test_admin_shows_no_scope_labels(self):
+        self._login('admin', 'summer', group_ids=[self.group_id])
+        resp = self.client.get('/rbac/password')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.get_data(as_text=True)
+        self.assertIn('rbac-topbar', body)
+        self.assertIn('topbar-identity', body)
+        self.assertIn('summer', body)
+        self.assertIn('业务管理员', body)
+        self.assertIn('topbar-role-admin', body)
+        self.assertNotIn('系统管理员', body)
+        self.assertNotIn('全局可见', body)
+        self.assertNotIn('支付业务', body)
+        self.assertNotIn('未分配业务组', body)
+        self.assertIn('/rbac/logout', body)
+        self.assertEqual(body.count('退出'), 1)
+        self.assertNotIn('href="/logout"', body)
+
+    def test_seed_admin_shows_system_admin_label(self):
+        self._login('admin', 'admin', group_ids=[])
+        resp = self.client.get('/rbac/password')
+        body = resp.get_data(as_text=True)
+        self.assertIn('系统管理员', body)
+        self.assertIn('topbar-role-seed', body)
+        self.assertNotIn('业务管理员', body)
+
+    def test_operator_with_groups_shows_names(self):
+        self._login('operator', 'op1', group_ids=[self.group_id])
+        resp = self.client.get('/rbac/password')
+        body = resp.get_data(as_text=True)
+        self.assertIn('操作员', body)
+        self.assertIn('支付业务', body)
+        self.assertNotIn('全局可见', body)
+        self.assertNotIn('未分配业务组', body)
+
+    def test_operator_without_groups_warns(self):
+        self._login('operator', 'op2', group_ids=[])
+        resp = self.client.get('/rbac/password')
+        body = resp.get_data(as_text=True)
+        self.assertIn('未分配业务组', body)
+        self.assertNotIn('全局可见', body)
+
+    def test_guest_404_has_no_topbar(self):
+        resp = self.client.get('/no-such-page-xyz')
+        self.assertEqual(resp.status_code, 404)
+        body = resp.get_data(as_text=True)
+        self.assertNotIn('class="rbac-topbar"', body)
+        self.assertIn('前往登录', body)
+
+    def test_get_current_user_groups_uses_session_ids(self):
+        from app.rbac.context import get_current_user_groups
+
+        with self.app.test_request_context():
+            session['is_login'] = True
+            session['role'] = 'operator'
+            session['group_ids'] = [self.group_id]
+            groups = get_current_user_groups()
+            self.assertEqual(len(groups), 1)
+            self.assertEqual(groups[0]['name'], '支付业务')
+            # 请求内缓存
+            session['group_ids'] = []
+            self.assertEqual(get_current_user_groups()[0]['name'], '支付业务')
 
 
 if __name__ == '__main__':

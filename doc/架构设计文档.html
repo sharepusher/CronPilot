@@ -219,7 +219,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
 
     <h3>5.2 Web 管理端调用链（与 APScheduler 的关系）</h3>
     <div class="card warn">
-      <p><strong>结论：</strong>管理页面（任务添加/编辑、执行时间、启停、删除等）<strong>不会</strong>由浏览器直接调用 APScheduler 或 Flask-APScheduler 接口。前端仅通过 HTML 表单 / Ajax 请求 Flask 的 <code>main</code> 蓝图路由；服务端在 <code>cron_service</code> 或 <code>main/views.py</code> 内完成校验、写 <code>cron_infos</code>，再调用 <code>scheduler.add_job</code> / <code>pause_job</code> / <code>resume_job</code> / <code>remove_job</code>。</p>
+      <p><strong>结论：</strong>管理页面（任务添加/编辑、执行时间、启动/暂停、删除等）<strong>不会</strong>由浏览器直接调用 APScheduler 或 Flask-APScheduler 接口。前端仅通过 HTML 表单 / Ajax 请求 Flask 的 <code>main</code> 蓝图路由；服务端在 <code>cron_service</code> 或 <code>main/views.py</code> 内完成校验、写 <code>cron_infos</code>，再调用 <code>scheduler.add_job</code> / <code>pause_job</code> / <code>resume_job</code> / <code>remove_job</code>。</p>
     </div>
     <pre class="diagram">┌─────────────── 浏览器（jQuery + common.js）────────────────────────────┐
 │  cron_add.html / cron_edit.html  →  js-ajax-form  →  POST Flask 路由    │
@@ -292,7 +292,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <tr><th>记录类型</th><th>表</th><th>记录什么</th><th>现状</th></tr>
       <tr><td>任务执行</td><td><code>job_log</code></td><td>到点 GET 回调的响应、耗时、UUID</td><td>✅ 已有，管理端「任务执行记录」</td></tr>
       <tr><td>执行进度</td><td><code>job_log_items</code></td><td>业务 <code>POST /api/cron/add_log</code></td><td>✅ 已有</td></tr>
-      <tr><td>配置变更审计</td><td><code>operation_log</code></td><td>添加/编辑/启停/下线、API 改配置</td><td>✅ 已交付（v1.0.0）</td></tr>
+      <tr><td>配置变更审计</td><td><code>operation_log</code></td><td>添加/编辑/启动/暂停/下线、API 改配置</td><td>✅ 已交付（v1.0.0）</td></tr>
       <tr><td>服务端异常</td><td><code>datas/logs/error.log</code></td><td>未捕获异常栈</td><td>✅ 有，非结构化、非按任务检索</td></tr>
     </table>
     <h4>表结构草案（<code>cron_job_log_db</code>）</h4>
@@ -349,7 +349,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
                         ▼      ▼
                     ┌──────┐  ┌──────────────┐
                     │ 0停止 │  │ -1 已结束     │
-                    └──────┘  │ (不可再启停)  │
+                    └──────┘  │ (不可再启动/暂停)  │
                               └──────────────┘
                         ▲
                         │ cron_check 发现 JobStore 无对应 job</pre>
@@ -359,7 +359,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <h4>6.5.1 设计目标与边界</h4>
     <table>
       <tr><th>要记录</th><th>不记录</th></tr>
-      <tr><td>任务配置的增删改、启停（Web + API）</td><td>到点 HTTP 回调执行（已有 <code>job_log</code>）</td></tr>
+      <tr><td>任务配置的增删改、启动/暂停（Web + API）</td><td>到点 HTTP 回调执行（已有 <code>job_log</code>）</td></tr>
       <tr><td>操作时间、渠道、结果、字段级 diff</td><td>登录成功/失败（首批可不做，避免噪音）</td></tr>
       <tr><td><strong>操作人</strong>、<strong>角色与权限快照</strong>（操作时态）</td><td>只读查询（列表、看执行记录）</td></tr>
       <tr><td>删任务后的历史（靠冗余 <code>task_name</code>）</td><td>—</td></tr>
@@ -431,7 +431,7 @@ def build_cron_diff(before: CronInfos, after_fields: dict) -> dict: ...</pre>
     <table>
       <tr><th>permission</th><th>含义</th><th>典型角色</th></tr>
       <tr><td><code>cron:read</code></td><td>查看任务列表、API 文档</td><td>viewer+</td></tr>
-      <tr><td><code>cron:write</code></td><td>新增/编辑/启停任务</td><td>operator+</td></tr>
+      <tr><td><code>cron:write</code></td><td>新增/编辑/启动/暂停任务</td><td>operator+</td></tr>
       <tr><td><code>cron:retire</code></td><td>下线任务（不可逆）</td><td>admin</td></tr>
       <tr><td><code>log:read</code></td><td>查看执行日志</td><td>viewer+</td></tr>
       <tr><td><code>operation:read</code></td><td>查看操作记录（配置变更）</td><td>operator+admin</td></tr>
@@ -626,7 +626,7 @@ API /api/* → access_token 不变（独立轨道）</pre>
      │                      │                  │──INSERT──────────────────────────►│
      │                      │◄──update next_run│                  │                │</pre>
 
-    <h3>9.2 Web 管理端操作（创建 / 编辑 / 启停）</h3>
+    <h3>9.2 Web 管理端操作（创建 / 编辑 / 启动/暂停）</h3>
     <pre class="diagram">Browser          main.views          cron_service       cron_infos      APScheduler
   │                    │                    │                  │                │
   │──POST /cron_add───►│──add_cron_web─────►│──validate───────►│                │

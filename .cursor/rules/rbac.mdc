@@ -33,7 +33,7 @@ alwaysApply: false
 | `datas/model/resource_group.py`、`user_group.py`、`cron_infos.py`（Scope 列） | 模型 |
 | `app/main/views.py` | `@require_permission` + load 后 **`authorize_resource` / `build_scope_filter_clause`**；禁止散落 `if group_id` |
 | `app/services/cron_service.py` | **仅**透传 `scope_type`/`group_id` 落库，**禁止**角色/组判断 |
-| `app/templates/cron_*.html`、`rbac/groups*.html`、`rbac/users_*.html`、`rbac/_nav.html` | Scope UI |
+| `app/templates/cron_*.html`、`rbac/groups*.html`、`rbac/users_*.html`、`rbac/_nav.html`、`rbac/_topbar.html` | Scope UI / 顶栏身份 |
 | `tests/test_rbac_scope.py` | Scope 单测 |
 | `scripts/ensure_business_tables.py` | SQLite **与 MySQL** 建表/补列（旧名 `ensure_sqlite_tables` 仍转发） |
 | 文档 | `doc/资源隔离*.html`、`RELEASE_NOTES`、`交付状态与路线图` |
@@ -50,9 +50,12 @@ ROLE_PERMISSIONS = {
                  'log:read', 'operation:read', 'user:manage', 'audit:read'},
 }
 SCOPE_BYPASS_ROLES = frozenset({'admin'})
+SEED_ADMIN_USERNAME = 'admin'  # 种子账号仅 user:manage + 只读；无 cron:write/retire
 ```
 
 业务组管理复用 **`user:manage`**（不新增 `group:manage`）。Role **不得**绑定 Group。
+
+种子账号 `admin`：角色仍为 `admin`（保留 Scope 绕过以便查看全库），但 `has_permission(..., username=)` 裁剪为 `SEED_ADMIN_PERMISSIONS`。任务写/下线由种子创建的其它 `admin` 角色用户执行。
 
 ## Session
 

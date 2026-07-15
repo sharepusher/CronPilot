@@ -50,6 +50,36 @@
   <div class="card">
     <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
     <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。</p>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">操作记录用语：启动 / 暂停</h3>
+    <table>
+      <tr><th>变更</th><th>说明</th></tr>
+      <tr><td>操作记录</td><td><code>toggle_status</code> 展示为 <strong>启动任务</strong> 或 <strong>暂停任务</strong>（依 <code>status</code> 新旧值）；详情如「启动：已暂停 → 运行中」</td></tr>
+      <tr><td>任务列表</td><td>操作链「运行」改为「启动」，与「暂停」对称</td></tr>
+      <tr><td>接口提示</td><td>成功「已启动」/「已暂停」；下线任务「不能启动或暂停」</td></tr>
+      <tr><td>筛选</td><td>筛选项「启动/暂停」（库内仍为 <code>action=toggle_status</code>）</td></tr>
+    </table>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端顶栏：登录用户信息</h3>
+    <table>
+      <tr><th>变更</th><th>说明</th></tr>
+      <tr><td>位置</td><td><code>admin_base.html</code> 全局 <code>{% block topbar %}</code>（<code>rbac/_topbar.html</code>）；与 <code>nav-tabs</code> 分层</td></tr>
+      <tr><td>展示</td><td>右侧聚焦：用户名、角色标签与退出同组；种子 <code>admin</code> 显示「系统管理员」，其它 admin 显示「业务管理员」；非 admin 另示业务组或「未分配业务组」；角色标签用橙/蓝/青/绿语义色（避免灰色 primary）</td></tr>
+      <tr><td>数据</td><td><code>current_user_groups</code> 由 <code>session['group_ids']</code> 解析组名（与授权同源；组变更须重新登录）</td></tr>
+      <tr><td>退出</td><td>顶栏统一 <code>/rbac/logout</code>（写审计）；导航 tab 移除重复「退出」；「修改密码」仍在导航</td></tr>
+    </table>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">种子账号 <code>admin</code> 权限收窄</h3>
+    <table>
+      <tr><th>变更</th><th>说明</th></tr>
+      <tr><td>种子</td><td>用户名固定 <code>admin</code>：保留 <code>user:manage</code> + 只读（<code>cron:read</code> / <code>log:read</code> / <code>operation:read</code> / <code>audit:read</code>）与 Scope 绕过</td></tr>
+      <tr><td>禁止</td><td>种子无 <code>cron:write</code> / <code>cron:retire</code>（不可添加/编辑/启动暂停/下线任务）</td></tr>
+      <tr><td>运维</td><td>任务操作须由种子创建的其它 <strong>admin 角色</strong>用户执行（非第四角色）</td></tr>
+    </table>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务列表「下线」入口可见性</h3>
+    <table>
+      <tr><th>变更</th><th>说明</th></tr>
+      <tr><td>展示</td><td>未下线任务对所有登录角色显示「下线」</td></tr>
+      <tr><td>权限</td><td>仅具备 <code>cron:retire</code> 的账号可进入下线表单并执行（普通 admin；种子 <code>admin</code> 无此权限）</td></tr>
+      <tr><td>非 admin</td><td>点击弹出「权限不足：当前账号不可下线任务」，不发起下线请求；直达 <code>/cron_retire</code> 仍为 403</td></tr>
+    </table>
   </div>
 
 <h2 class="new" id="110">[1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简</h2>

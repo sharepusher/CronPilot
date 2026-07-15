@@ -287,7 +287,7 @@
       <tr><td>秒级调度</td><td><code>is_dev=0</code> 时启用 second 字段；体验版禁用</td><td><code>conf.example.ini</code>、<code>cron_add.html</code></td></tr>
       <tr><td>一次性任务</td><td><code>trigger=date</code> + <code>run_date</code></td><td><code>app/crons.py</code>、views</td></tr>
       <tr><td>集群部署</td><td>Redis 分布式锁 + portalocker 文件锁 + MySQL JobStore</td><td><code>app/common/functions.py</code>、<code>CuBackgroundScheduler.py</code></td></tr>
-      <tr><td>API 动态管理</td><td><code>/api/cron</code> 增改、<code>/api/cron/status</code> 启停</td><td><code>app/api/views.py</code></td></tr>
+      <tr><td>API 动态管理</td><td><code>/api/cron</code> 增改、<code>/api/cron/status</code> 启动/暂停</td><td><code>app/api/views.py</code></td></tr>
       <tr><td>执行日志</td><td>主日志 <code>job_log</code> + 明细 <code>job_log_items</code></td><td><code>datas/model/</code></td></tr>
       <tr><td>多渠道告警</td><td>企业微信 / WebHook / 钉钉</td><td><code>app/common/functions.py</code></td></tr>
       <tr><td>回调签名</td><td><code>cronpilot_sign</code> MD5 签名校验</td><td><code>get_cronpilot_sign()</code></td></tr>
@@ -411,7 +411,7 @@
       <tr><td><code>/check_pass</code></td><td>GET/POST</td><td>登录</td><td>无</td></tr>
       <tr><td><code>/logout</code></td><td>GET</td><td>退出</td><td>无</td></tr>
       <tr><td><code>/api/cron</code></td><td>GET/POST</td><td>API 增改任务</td><td>access_token</td></tr>
-      <tr><td><code>/api/cron/status</code></td><td>GET/POST</td><td>API 启停</td><td>access_token</td></tr>
+      <tr><td><code>/api/cron/status</code></td><td>GET/POST</td><td>API 启动/暂停</td><td>access_token</td></tr>
       <tr><td><code>/api/cron/retire</code></td><td>GET/POST</td><td>API 下线（不可逆；LIFECYCLE-2 必传 reason）</td><td>access_token</td></tr>
       <tr><td><code>/api/cron/add_log</code></td><td>GET/POST</td><td>上传执行明细</td><td>access_token</td></tr>
     </tbody>
@@ -569,7 +569,7 @@
   -d "hour=2" -d "minute=0" \
   -d "req_url=https://api.example.com/cron/cleanup"</pre>
 
-  <h3>6.2 /api/cron/status — 启停任务</h3>
+  <h3>6.2 /api/cron/status — 启动/暂停任务</h3>
   <table>
     <thead><tr><th>参数</th><th>说明</th></tr></thead>
     <tbody>
@@ -743,8 +743,8 @@ flask db upgrade</pre>
   </div>
   <div class="page-spec">
     <strong>数据：</strong>page_data.items，每页 20 条，按 status DESC、task_name DESC<br>
-    <strong>状态：</strong>0 已停止 / 1 运行中 / -1 已结束（仅显示记录，无启停）<br>
-    <strong>Ajax：</strong>启停、删除使用 js-ajax-dialog-btn / js-ajax-delete
+    <strong>状态：</strong>0 已停止 / 1 运行中 / -1 已结束（仅显示记录，无启动/暂停）<br>
+    <strong>Ajax：</strong>启动/暂停、删除使用 js-ajax-dialog-btn / js-ajax-delete
   </div>
 
   <h4>（3）任务添加/编辑 — cron_add.html / cron_edit.html</h4>
@@ -856,7 +856,7 @@ flask db upgrade</pre>
     <ul>
       <li><strong>布局：</strong>左侧固定导航（任务 / 日志 / API / 设置）+ 顶栏用户信息</li>
       <li><strong>任务表单：</strong>可视化 Cron 构建器（分 / 时 / 日 / 月 / 周 五列下拉），实时预览下次执行时间</li>
-      <li><strong>列表：</strong>状态徽章 + 快捷启停 Switch + URL 省略号 Tooltip</li>
+      <li><strong>列表：</strong>状态徽章 + 快捷启动/暂停 Switch + URL 省略号 Tooltip</li>
       <li><strong>日志：</strong>主从抽屉：点击行展开 job_log_items 时间线</li>
       <li><strong>仪表盘：</strong>今日执行次数、失败率、平均耗时图表（需新增统计 API）</li>
     </ul>

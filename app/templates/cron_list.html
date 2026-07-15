@@ -67,14 +67,17 @@
                             {% if has_perm('cron:write') %}
                             |
                             {% if item.status == 0 %}
-                             <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn">运行</a> |
+                             <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn" data-msg="确定启动该任务？">启动</a> |
                             {% elif item.status == 1 %}
-                            <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn">暂停</a> |
+                            <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn" data-msg="确定暂停该任务？">暂停</a> |
                             {% endif%}
                             <a href="{{ url_for('main.cron_edit',id=item.id) }}">编辑</a>
                             {% endif %}
+                            |
                             {% if has_perm('cron:retire') %}
-                            | <a href="{{ url_for('main.cron_retire',id=item.id) }}">下线</a>
+                            <a href="{{ url_for('main.cron_retire',id=item.id) }}">下线</a>
+                            {% else %}
+                            <a href="javascript:;" class="js-retire-denied" data-msg="权限不足：当前账号不可下线任务">下线</a>
                             {% endif %}
                             {% endif %}
                         </td>
@@ -86,4 +89,21 @@
             {{ pg.page(page_data,'main.cron_list',keyword) }}
         </div>
     </div>
+{% endblock %}
+
+{% block js %}
+<script>
+$('.js-retire-denied').on('click', function (e) {
+    e.preventDefault();
+    var msg = $(this).data('msg') || '权限不足：当前账号不可下线任务';
+    Wind.use('artDialog', function () {
+        art.dialog({
+            title: false,
+            icon: 'warning',
+            content: msg,
+            ok: true
+        });
+    });
+});
+</script>
 {% endblock %}

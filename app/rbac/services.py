@@ -7,12 +7,9 @@ from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 from datas.utils.times import get_now_time
 
-from .policy import ROLE_PERMISSIONS
+from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions
 
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
-
-# 空表种子：首个管理员固定用户名（Web 登录不再支持空用户名 / legacy_admin）
-SEED_ADMIN_USERNAME = 'admin'
 
 # 审计列表展示（码 → 中文）；未知码原样回退
 AUDIT_ACTION_LABELS = {
@@ -53,7 +50,7 @@ def audit_resource_label(action, resource):
     if action == 'user:create':
         return '新建账号 %s' % resource if resource else '新建账号'
     if action == 'user:update':
-        return '账号 %s（角色/启停/密码等）' % resource if resource else '账号变更'
+        return '账号 %s（角色/启用停用/密码等）' % resource if resource else '账号变更'
     if action == 'user:password':
         return '账号 %s 修改密码' % resource if resource else '修改密码'
     if action == 'permission:deny':
@@ -67,13 +64,14 @@ def audit_resource_label(action, resource):
     return resource
 
 
-def get_role_permission_set(role):
-    return ROLE_PERMISSIONS.get(role, set())
+def get_role_permission_set(role, username=None):
+    return set(effective_permissions(role, username))
 
 
 def ensure_seed_admin():
     """rbac_users 为空且 conf 有 login_pwd 时，种子用户名 admin（密码=login_pwd）。
 
+    种子账号仅用于建用户/组与只读查看；任务写/下线须由种子创建的其它 admin 角色用户完成。
     不再提供空用户名 → legacy_admin 登录；首次部署依赖此种子或管理端手动建用户。
     """
     from app.auth.password import is_hashed_password

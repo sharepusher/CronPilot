@@ -11,6 +11,40 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
+### 操作记录用语：启动 / 暂停
+
+| 变更 | 说明 |
+|------|------|
+| 操作记录 | `toggle_status` 展示为 **启动任务** 或 **暂停任务**（依 `status` 新旧值）；详情如「启动：已暂停 → 运行中」 |
+| 任务列表 | 操作链文案「运行」改为「启动」，与「暂停」对称 |
+| 接口提示 | 成功返回「已启动」/「已暂停」；下线任务提示「不能启动或暂停」 |
+| 筛选 | 操作类型筛选项为「启动/暂停」（仍对应库内 `action=toggle_status`） |
+
+### 管理端顶栏：登录用户信息
+
+| 变更 | 说明 |
+|------|------|
+| 位置 | `admin_base.html` 全局 `{% block topbar %}`（`rbac/_topbar.html`）；与 `nav-tabs` 分层 |
+| 展示 | 右侧聚焦：用户名、角色标签与退出同组；种子 `admin` 显示「系统管理员」，其它 admin 显示「业务管理员」；非 admin 另示业务组或「未分配业务组」；角色标签用橙/蓝/青/绿语义色（避免灰色 primary） |
+| 数据 | `current_user_groups` 由 `session['group_ids']` 解析组名（与授权同源；组变更须重新登录） |
+| 退出 | 顶栏统一指向 `/rbac/logout`（写审计）；导航 tab 移除重复「退出」；「修改密码」仍在导航 |
+
+### 种子账号 `admin` 权限收窄
+
+| 变更 | 说明 |
+|------|------|
+| 种子 | 用户名固定 `admin`：保留 `user:manage` + 只读（`cron:read` / `log:read` / `operation:read` / `audit:read`）与 Scope 绕过 |
+| 禁止 | 种子无 `cron:write` / `cron:retire`（不可添加/编辑/启动暂停/下线任务） |
+| 运维 | 任务操作须由种子创建的其它 **admin 角色**用户执行（非第四角色） |
+
+### 任务列表「下线」入口可见性
+
+| 变更 | 说明 |
+|------|------|
+| 展示 | 未下线任务对所有登录角色显示「下线」 |
+| 权限 | 仅具备 `cron:retire` 的账号可进入下线表单并执行（普通 admin；种子 `admin` 无此权限） |
+| 非 admin | 点击弹出提示「权限不足：当前账号不可下线任务」，**不发起**下线请求；直达 `/cron_retire` 仍为 403 |
+
 ---
 
 ## [1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简
@@ -88,7 +122,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 分权 | 三角色**始终启用**；已移除旁路开关 `rbac_enable` |
 | 登录入口 | `/rbac/login`；`/check_pass` 仅转发；冒烟 `username=admin&password=…` |
 | 未登录跳转 | 仅受保护路由；`/docs/*`、`/api/*` 独立 |
-| `cron:write` / `cron:retire` / `operation:read` / `audit:read` | 写=启停编辑；下线仅 admin；操作记录 operator+admin；RBAC 审计仅 admin；**废弃** delete |
+| `cron:write` / `cron:retire` / `operation:read` / `audit:read` | 写=启动/暂停/编辑；下线仅 admin；操作记录 operator+admin；RBAC 审计仅 admin；**废弃** delete |
 | 测试 | `tests/test_rbac_phase.py`、`tests/test_ajax_form_guard.py` 并入 `cronpilot.sh test` |
 
 ### RBAC 6a · `/rbac/users`

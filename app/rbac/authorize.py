@@ -12,13 +12,13 @@ class AuthorizationError(Exception):
         super(AuthorizationError, self).__init__(message)
 
 
-def authorize(role, permission, resource, group_ids=None):
+def authorize(role, permission, resource, group_ids=None, username=None):
     """
     鉴权成功返回 None；失败抛 AuthorizationError。
     resource 为 None 时仅检查 Permission（无 Scope）。
     """
     role = role or ''
-    if not has_permission(role, permission):
+    if not has_permission(role, permission, username=username):
         raise AuthorizationError(
             'permission',
             '权限不足，需要 %s' % permission,

@@ -15,9 +15,27 @@ ROLE_PERMISSIONS = {
 # OPT-P2-12：admin 绕过 Resource Scope（不增第四角色）
 SCOPE_BYPASS_ROLES = frozenset({'admin'})
 
+# 空表种子账号固定用户名：仅建用户/组 + 只读全库，无任务写/下线
+SEED_ADMIN_USERNAME = 'admin'
+SEED_ADMIN_PERMISSIONS = frozenset({
+    'cron:read', 'log:read', 'operation:read', 'user:manage', 'audit:read',
+})
 
-def has_permission(role, permission):
-    return permission in ROLE_PERMISSIONS.get(role, set())
+
+def is_seed_admin_username(username):
+    return (username or '') == SEED_ADMIN_USERNAME
+
+
+def effective_permissions(role, username=None):
+    """角色权限；种子用户名 admin 裁剪为 SEED_ADMIN_PERMISSIONS。"""
+    base = ROLE_PERMISSIONS.get(role or '', set())
+    if is_seed_admin_username(username):
+        return frozenset(base & SEED_ADMIN_PERMISSIONS)
+    return frozenset(base)
+
+
+def has_permission(role, permission, username=None):
+    return permission in effective_permissions(role, username)
 
 
 def role_bypasses_scope(role):

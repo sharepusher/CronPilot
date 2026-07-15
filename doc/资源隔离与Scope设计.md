@@ -79,19 +79,20 @@ Allow / Deny（403）
 - `authorize(role, permission, resource, group_ids)` — 失败抛 `AuthorizationError`
 - `authorize_resource(permission, resource)`（装饰器辅助）— 写 `scope:deny` 审计；403
 
-登录成功写入 `session['group_ids']`。**用户组变更后需重新登录**生效。
+登录成功写入 `session['group_ids']`。**用户组变更后需重新登录**生效。管理端顶栏 `current_user_groups` 亦只解析 Session 中的组 ID（与列表 Scope 同源）；admin 顶栏不展示 Scope 标签。
 
 `admin` ∈ `SCOPE_BYPASS_ROLES`，不增第四角色。
 
 ## 五、UI 契约
 
+- 顶栏：登录后展示当前用户与可见范围（组名或「全局可见」/「未分配业务组」）；退出走 `/rbac/logout`
 - 任务添加/编辑：**非 admin** 强制「所属业务组」可见（不可选 GLOBAL）；仅一组成员时只读展示；多组时仅可选本人所属组。admin 可创建 GLOBAL 或指定任意组
 - 导航「业务组」：`/rbac/groups*`（`user:manage`）
 - 用户编辑：多选绑定业务组（非 admin 必选）
 
 ## 六、安全要求
 
-- 列表 Scope Filter + GET/PUT/启停/下线 单资源 `authorize`
+- 列表 Scope Filter + GET/PUT/启动·暂停/下线 单资源 `authorize`
 - 越权 → **403**（非 500）；审计 `scope:deny`
 - 禁止 Handler/Service/DAO 散落 `if group_id`；统一走 `authorize` / `build_scope_filter_clause`
 - `cron_service` 仅透传 `scope_type`/`group_id`，不判角色

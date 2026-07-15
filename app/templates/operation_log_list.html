@@ -15,7 +15,7 @@
         {% endwith %}
 
         <p style="color:#64748b;margin:8px 0">
-            本页为<strong>任务配置变更</strong>审计（创建/编辑/启停/下线）。
+            本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / <strong>启动</strong> / <strong>暂停</strong> / 下线）。
             登录与权限事件见{% if has_perm('audit:read') %}
             <a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。
         </p>
@@ -27,7 +27,7 @@
                 <option value="">操作类型</option>
                 <option value="create_cron"{% if keywords.get('action') == 'create_cron' %} selected{% endif %}>创建任务</option>
                 <option value="update_cron"{% if keywords.get('action') == 'update_cron' %} selected{% endif %}>修改任务</option>
-                <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启停任务</option>
+                <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启动/暂停</option>
                 <option value="retire_cron"{% if keywords.get('action') == 'retire_cron' %} selected{% endif %}>下线任务</option>
             </select>
             <select name="channel">
@@ -58,7 +58,7 @@
             {% for item in page_data.items %}
             <tr>
                 <td>{{ item.create_time }}</td>
-                <td title="{{ item.action }}">{{ operation_action_label(item.action) }}</td>
+                <td title="{{ item.action }}">{{ operation_action_label(item.action, item.detail_json) }}</td>
                 <td>{{ item.operator_name }}</td>
                 <td style="color:#64748b;font-size:12px">{{ item.operator_roles_json }}</td>
                 <td>{{ item.task_name }}</td>

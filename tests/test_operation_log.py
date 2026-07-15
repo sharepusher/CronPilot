@@ -24,6 +24,11 @@ class TestOperationLogHelpers(unittest.TestCase):
     def test_action_label(self):
         self.assertEqual(operation_action_label('create_cron'), '创建任务')
         self.assertEqual(operation_action_label('unknown_x'), 'unknown_x')
+        self.assertEqual(operation_action_label('toggle_status'), '启动/暂停')
+        resume = json.dumps({'status': {'old': 0, 'new': 1}})
+        pause = json.dumps({'status': {'old': 1, 'new': 0}})
+        self.assertEqual(operation_action_label('toggle_status', resume), '启动任务')
+        self.assertEqual(operation_action_label('toggle_status', pause), '暂停任务')
 
     def test_build_cron_diff(self):
         diff = build_cron_diff({'hour': '9', 'minute': '0'}, {'hour': '10', 'minute': '0'})
@@ -33,6 +38,12 @@ class TestOperationLogHelpers(unittest.TestCase):
         detail = json.dumps({'hour': {'old': '9', 'new': '10'}}, ensure_ascii=False)
         self.assertIn('hour', format_detail_summary('update_cron', detail))
         self.assertIn('9→10', format_detail_summary('update_cron', detail))
+
+    def test_format_detail_summary_toggle(self):
+        resume = json.dumps({'status': {'old': 0, 'new': 1}}, ensure_ascii=False)
+        pause = json.dumps({'status': {'old': 1, 'new': 0}}, ensure_ascii=False)
+        self.assertEqual(format_detail_summary('toggle_status', resume), '启动：已暂停 → 运行中')
+        self.assertEqual(format_detail_summary('toggle_status', pause), '暂停：运行中 → 已暂停')
 
 
 class TestResolveOperator(unittest.TestCase):
@@ -183,7 +194,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'admin'
-            sess['username'] = 'admin'
+            sess['username'] = 'ops_admin'
             sess['user_id'] = 1
         resp = self.client.get('/operation_log_list')
         self.assertEqual(resp.status_code, 200)
@@ -201,7 +212,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             with self.client.session_transaction() as sess:
                 sess['is_login'] = True
                 sess['role'] = 'admin'
-                sess['username'] = 'admin'
+                sess['username'] = 'ops_admin'
                 sess['user_id'] = 1
             resp = self.client.post(
                 '/cron_add',
@@ -224,7 +235,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             self.assertIsNotNone(row)
             self.assertEqual(row.action, 'create_cron')
             self.assertEqual(row.channel, 'web')
-            self.assertEqual(row.operator_name, 'admin')
+            self.assertEqual(row.operator_name, 'ops_admin')
             self.assertEqual(row.operator_type, 'user')
 
     def test_retire_writes_operation_log(self):
@@ -250,7 +261,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             with self.client.session_transaction() as sess:
                 sess['is_login'] = True
                 sess['role'] = 'admin'
-                sess['username'] = 'admin'
+                sess['username'] = 'ops_admin'
                 sess['user_id'] = 1
             resp = self.client.post(
                 '/cron_retire',

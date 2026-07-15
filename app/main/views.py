@@ -310,7 +310,7 @@ def update_status():
     if denied:
         return denied
     if cif.status == -1:
-        return web_api_return(code=1, msg='任务已下线，不能启停；请新建任务')
+        return web_api_return(code=1, msg='任务已下线，不能启动或暂停；请新建任务')
     status = cif.status
     _status = 0
     if status == 0:
@@ -327,7 +327,8 @@ def update_status():
         task_name=cif.task_name or '',
         detail={'status': {'old': status, 'new': _status}},
     )
-    return web_api_return(code=0, msg='操作成功')
+    msg = '已启动' if _status == 1 else '已暂停'
+    return web_api_return(code=0, msg=msg)
 
 
 @main.route('/cron_retire', methods=['GET', 'POST'])

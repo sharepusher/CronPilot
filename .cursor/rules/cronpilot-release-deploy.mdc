@@ -48,4 +48,8 @@ alwaysApply: false
 ## 生产安全
 
 - `/docs/` 不对公网裸奔；管理端强密码；`block_private_ip=1`。
+## 本地 / Docker 预览与进程
+
+- 本地 `start_local_full.sh`：**不**开 Flask reloader；改 `app/` / 模板后须 `bash scripts/cronpilot.sh restart --daemon`，禁止只刷新浏览器（详项目总则「本地进程与热更新」）。
+- Docker：改代码或重建镜像后须 `docker compose restart`（或 `--build`），与本地 `:5001` 进程无关。
 - 勿对 `0.0.0.0` 开 Flask `debug=True`。

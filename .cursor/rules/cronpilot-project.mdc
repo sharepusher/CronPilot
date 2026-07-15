@@ -62,12 +62,39 @@ alwaysApply: true
 | 变更类型 | 最低验收 |
 |----------|----------|
 | 后端 / API / 服务层 | `bash scripts/cronpilot.sh test` + `bash scripts/verify_golden_path.sh` |
-| **管理端表单 / 导航 / 可见交互** | 上表 **外加**：① 静态门禁 `tests.test_ajax_form_guard`（`js-ajax-form` 块内须有 `js-ajax-submit`，已并入 `cronpilot.sh test`）；② **浏览器或等价会话**走通「打开页 → 提交 → 落在 HTML 目标页（非裸 `application/json`）」；仅测 JSON API **不算** UI 交付 |
+| **管理端表单 / 导航 / 可见交互** | 上表 **外加**：① 静态门禁 `tests.test_ajax_form_guard`；② **浏览器或等价会话**走通目标路径；③ **必须先 `cronpilot.sh restart`（见下「本地进程与热更新」）再验收 HTML**，禁止只让用户「刷新浏览器」 |
 | 依赖升级（Tier N） / `requirements*.txt` 侧车补丁 | `cronpilot.sh test` + **`docker compose up --build -d` 后容器内确认 pin**（如 `pip show requests urllib3`）+ **`smoke_http_suite` 或 `verify_all.sh --docker-only --with-compose`**；**通过前不得 commit** |
 | 部署 / 启动脚本 | `verify_install_flow.sh` 或 `verify_all.sh` 中对应节 |
 | 仅文档 | `html_docs_to_markdown.py --check` + `check_pending_sync.sh`（无代码则可不跑服务） |
 
 **禁止**：无提交按钮的空壳 `js-ajax-form`（历史删除流勿再套）；缺 `js-ajax-submit` 会导致浏览器整页 POST 落在裸 JSON。
+
+### 本地进程与热更新（强制 · 防「刷新无效」）
+
+**事实**：`scripts/start_local_full.sh` 以 `app.run(..., debug=False, use_reloader=False)` 常驻。Flask `DEBUG=False` 时 **Jinja 默认不按 mtime 重载模板**；Python 模块亦只在进程启动时 import 一次。因此改 `app/**/*.py` 或 `app/templates/**` 后，**浏览器刷新不能加载新代码**。
+
+**根因复盘（2026-07 顶栏/角色色事故）**：
+
+| 失误 | 后果 |
+|------|------|
+| Agent 改完模板/文案后只提示用户「刷新」 | 用户连到旧进程，以为改动未交付 |
+| `stop`/`kill` 在沙箱或端口残留失败后仍 `curl` 验收 | curl 命中旧 PID，验收假绿或假红 |
+| `start \| tail` 阻塞或未 `--force` 启动失败却未察觉 | 旧进程继续服务 |
+| 与 Docker `:5860` / 本地 `:5001` 混淆 | 改了裸机、看的是容器（或反过来） |
+
+**强制策略（Agent 与人工同等遵守）**：
+
+1. **任一**会影响管理端 HTML/行为的改动（`app/templates/`、`app/rbac/`、`app/main/views.py`、静态 CSS 注入进 base 等）→ 对外宣称「请看效果」**之前**必须：
+   ```bash
+   bash scripts/cronpilot.sh restart --daemon
+   # 确认新进程在听：
+   lsof -nP -iTCP:5001 -sTCP:LISTEN
+   ```
+   若 `stop`/`kill` 因权限失败，**申请 `all` 权限重跑**，不得带着占用端口继续验收。
+2. **验收证据**：登录会话下 `curl`/`浏览器` 断言 **本轮新增标记**（如新 class、新中文/英文文案）；**禁止**仅凭单测通过就让用户刷新。
+3. 回复用户时写清端口：本地默认 **`http://127.0.0.1:5001/`**；Docker 默认 **`:5860`**。两者进程独立，改一侧须在对应侧 restart / `compose restart`。
+4. **禁止话术**：「刷新即可看到」——除非已完成步骤 1–2 且 curl 已见新标记。正确话术：「已 `restart`，请硬刷新（Cmd+Shift+R）`http://127.0.0.1:5001/`」。
+5. Docker 路径同理：改挂载/镜像内代码后须 `docker compose restart`（或 rebuild），**不要**只刷新浏览器。
 
 大批量改写（如查询 backlog）建议 **单文件（或单模块）→ 验收 → 文档**，避免多文件改完才测。
 

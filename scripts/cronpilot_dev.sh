@@ -11,7 +11,7 @@ usage() {
 命令:
   start [--daemon|-d]   启动本地开发 (127.0.0.1:5001)
   stop                  停止本地开发
-  restart [--daemon|-d] 先停后启（推荐，避免端口占用）
+  restart [--daemon|-d] 先停后启（推荐，默认 --force 避免端口占用留下旧进程）
   status                查看本地 / 生产端口
 
 与 cronpilot.sh 共用: install | test | check | python | exec

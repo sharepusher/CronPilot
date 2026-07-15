@@ -13,7 +13,7 @@ usage() {
 命令（均自动选择 Python 3.8–3.11，无需 export PY）:
   start [--daemon|-d]   启动本地开发服务 (127.0.0.1:5001)
   stop                  停止本地开发服务
-  restart [--daemon|-d] 先停后启（解决端口占用）
+  restart [--daemon|-d] 先停后启（默认强制释放端口，解决旧进程占口）
   status                查看本地 / 生产端口占用
   install               创建/更新虚拟环境并安装核心依赖
   test                  运行 P0 单元测试

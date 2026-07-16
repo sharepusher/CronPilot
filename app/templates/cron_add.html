@@ -123,8 +123,18 @@
                 <div class="control-group">
                     <label class="control-label">回调URL以及参数</label>
                     <div class="controls">
-                        <input type="text" name="req_url">
-                        统一GET请求;当返回内容包含自定义错误关键词里面就会推送错误;配置里面自行配置;系统默认会拼上参数cronpilot_log_id一起传过去。
+                        <select name="req_method" style="width:70px;margin-right:4px;">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                        </select>
+                        <input type="text" name="req_url" style="width:85%;">
+                        系统默认会拼上参数cronpilot_log_id一起传过去。
+                    </div>
+                </div>
+                <div class="control-group" id="req_body_div" style="display:none;">
+                    <label class="control-label">请求 JSON Body（POST 时）</label>
+                    <div class="controls">
+                        <textarea name="req_body" rows="4" style="width:85%;" placeholder='{"task_name": "SlikSearchCenter"}'></textarea>
                     </div>
                 </div>
             </fieldset>
@@ -146,6 +156,13 @@
             }else {
                 $('#run_date').hide()
                 $('#cron_div').show()
+            }
+        });
+        $('select[name=req_method]').change(function () {
+            if ($(this).val() == 'POST') {
+                $('#req_body_div').show();
+            } else {
+                $('#req_body_div').hide();
             }
         });
         function syncScopeGroupRow() {

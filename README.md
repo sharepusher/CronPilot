@@ -1,6 +1,6 @@
 # CronPilot
 
-中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET，支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
+中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
 当前版本 **v1.2.0**（顶栏身份 + 种子权限收窄 + 启停用语）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
 

@@ -161,15 +161,36 @@ def cron_do(cron_id):
                                 parmas['cronpilot_log_id'] = cronpilot_log_id
                                 cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
 
-                                req = requests.get(
-                                    req_url,
-                                    params={
-                                        'cronpilot_log_id': cronpilot_log_id,
-                                        'cronpilot_sign': cronpilot_sign,
-                                    },
-                                    timeout=2 * 60,
-                                    headers={'user-agent': 'CronPilot'},
-                                )
+                                req_method = (cif.req_method or 'GET').upper()
+                                if req_method == 'POST':
+                                    # 从用户配置的 req_body 解析 JSON 作为基础 body
+                                    if cif.req_body:
+                                        import json as _json
+                                        parsed_body = _json.loads(cif.req_body)
+                                        post_body = parsed_body if isinstance(parsed_body, dict) else {}
+                                    else:
+                                        post_body = {}
+                                    # 注入 cronpilot 参数（不覆盖用户已定义的字段）
+                                    if 'cronpilot_log_id' not in post_body:
+                                        post_body['cronpilot_log_id'] = cronpilot_log_id
+                                    if 'cronpilot_sign' not in post_body:
+                                        post_body['cronpilot_sign'] = cronpilot_sign
+                                    req = requests.post(
+                                        req_url,
+                                        json=post_body,
+                                        timeout=2 * 60,
+                                        headers={'user-agent': 'CronPilot'},
+                                    )
+                                else:
+                                    req = requests.get(
+                                        req_url,
+                                        params={
+                                            'cronpilot_log_id': cronpilot_log_id,
+                                            'cronpilot_sign': cronpilot_sign,
+                                        },
+                                        timeout=2 * 60,
+                                        headers={'user-agent': 'CronPilot'},
+                                    )
 
                                 ret = req.text
                                 try:

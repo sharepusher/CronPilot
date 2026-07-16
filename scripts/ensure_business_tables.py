@@ -49,7 +49,7 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
-        _ensure_cron_infos_columns()
+        _ensure_cron_infos_columns(backend=backend)
         from app.rbac.services import ensure_seed_admin
         ensure_seed_admin()
     print('OK: %s 业务表已就绪 ->' % backend, uri)
@@ -81,7 +81,7 @@ def _ensure_job_log_columns():
     ))
 
 
-def _ensure_cron_infos_columns():
+def _ensure_cron_infos_columns(backend=''):
     """LIFECYCLE-2 + Scope：已有库补列。"""
     from sqlalchemy import inspect, text
 
@@ -102,6 +102,14 @@ def _ensure_cron_infos_columns():
         alters.append("ALTER TABLE cron_infos ADD COLUMN scope_type VARCHAR(16) DEFAULT 'GLOBAL'")
     if 'group_id' not in cols:
         alters.append('ALTER TABLE cron_infos ADD COLUMN group_id INTEGER')
+    if 'req_method' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN req_method VARCHAR(10) DEFAULT 'GET'")
+    if 'req_body' not in cols:
+        if backend == 'mysql':
+            # MySQL 5.7 不支持 TEXT/BLOB DEFAULT，避免升级补列失败。
+            alters.append("ALTER TABLE cron_infos ADD COLUMN req_body TEXT")
+        else:
+            alters.append("ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT ''")
     if not alters:
         return
     with db.engine.begin() as conn:

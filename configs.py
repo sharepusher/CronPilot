@@ -1,18 +1,39 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
-from configparser import ConfigParser
+import os
+from configparser import ConfigParser, NoOptionError, NoSectionError
+
+
+_proj_root = os.path.dirname(os.path.abspath(__file__))
+
+
+def _resolve_sqlite_url(url):
+    """SQLite 相对路径转为绝对路径，避免 Flask-SQLAlchemy 路径解析问题"""
+    if url.startswith('sqlite:///') and not url.startswith('sqlite:////'):
+        path = url[10:]  # 去掉 'sqlite:///'
+        if path and not path.startswith('/'):
+            abs_path = os.path.join(_proj_root, path)
+            return 'sqlite:///' + abs_path
+    return url
+
 
 def configs(key = None):
     cp = ConfigParser()
     cp.read('conf.ini',encoding='utf-8')
     if key:
-        return cp.get('default',key)
+        try:
+            val = cp.get('default', key)
+        except (NoOptionError, NoSectionError):
+            return ''
+        if key in ('cron_db_url', 'cron_job_log_db_url'):
+            val = _resolve_sqlite_url(val)
+        return val
     is_single = cp.get('default','is_single')
     redis_host = cp.get('default', 'redis_host')
     redis_pwd = cp.get('default', 'redis_pwd')
     redis_db = cp.get('default','redis_db')
-    cron_db_url = cp.get('default','cron_db_url')
-    cron_job_log_db_url = cp.get('default','cron_job_log_db_url')
+    cron_db_url = _resolve_sqlite_url(cp.get('default', 'cron_db_url'))
+    cron_job_log_db_url = _resolve_sqlite_url(cp.get('default', 'cron_job_log_db_url'))
     redis_port = cp.get('default','redis_port')
     login_pwd = cp.get('default','login_pwd')
     job_log_counts = cp.get('default','job_log_counts')

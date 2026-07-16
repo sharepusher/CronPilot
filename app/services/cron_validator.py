@@ -179,6 +179,20 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
     if not url_ok:
         return url_msg, None
 
+    req_method = (datas.get('req_method') or 'GET').upper().strip()
+    if req_method not in ('GET', 'POST'):
+        return '回调请求方式只能为 GET 或 POST', None
+
+    req_body = (datas.get('req_body') or '').strip()
+    if req_body:
+        import json
+        try:
+            parsed = json.loads(req_body)
+        except ValueError:
+            return '请求 body 格式有误，须为合法的 JSON 字符串', None
+        if not isinstance(parsed, dict):
+            return '请求 body 须为 JSON 对象（object）', None
+
     if int(is_dev) == 1:
         second = ''
 
@@ -192,6 +206,8 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         'minute': minute,
         'second': second,
         'req_url': req_url,
+        'req_method': req_method,
+        'req_body': req_body,
     }
 
 

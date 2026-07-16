@@ -69,25 +69,7 @@ class TestPassword(unittest.TestCase):
 
 
 def _load_cron_validator():
-    import types
-    if 'app.services.cron_validator' in sys.modules:
-        return sys.modules['app.services.cron_validator']
-    app = types.ModuleType('app')
-    services = types.ModuleType('app.services')
-    app.services = services
-    services.url_security = url_security
-    sys.modules['app'] = app
-    sys.modules['app.services'] = services
-    sys.modules['app.services.url_security'] = url_security
-    path = os.path.join(ROOT, 'app/services/cron_validator.py')
-    spec = importlib.util.spec_from_file_location(
-        'app.services.cron_validator', path
-    )
-    mod = importlib.util.module_from_spec(spec)
-    services.cron_validator = mod
-    sys.modules['app.services.cron_validator'] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    return importlib.import_module('app.services.cron_validator')
 
 
 class TestCronValidator(unittest.TestCase):
@@ -186,6 +168,59 @@ class TestCronValidator(unittest.TestCase):
         )
         self.assertIsNone(err, err)
         self.assertEqual(norm['req_url'], 'http://8.8.8.8/cb')
+
+    def test_reject_invalid_req_method(self):
+        cfg = {'block_private_ip': '0'}
+        err, _ = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-method',
+                'task_keyword': '备注Method',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'PUT',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('GET 或 POST', err)
+
+    def test_reject_non_object_req_body(self):
+        cfg = {'block_private_ip': '0'}
+        err, _ = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-body',
+                'task_keyword': '备注Body',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'POST',
+                'req_body': '["a", "b"]',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('JSON 对象', err)
+
+    def test_accept_post_with_object_req_body(self):
+        cfg = {'block_private_ip': '0'}
+        err, norm = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-post',
+                'task_keyword': '备注Post',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'post',
+                'req_body': '{"k":"v"}',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNone(err, err)
+        self.assertEqual(norm['req_method'], 'POST')
 
 
 class TestJsonContract(unittest.TestCase):

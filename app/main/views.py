@@ -27,6 +27,7 @@ from app.services.cron_service import add_cron_web, edit_cron_web
 from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
 from app.services.job_log_filter import job_log_outcome_clause
 from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
+from app.services.pagination import PageQuery, paginate_select
 
 
 def _parse_log_outcome_param():
@@ -289,16 +290,17 @@ def api_doc():
 def job_log_list():
     keywords = request.args.to_dict()
 
-    page = int(request.args.get('page') or 1)
+    page_query = PageQuery.from_args(request.args)
     id = request.args.get('id')
     cif = db.session.get(CronInfos, id) if id else None
     if id:
         if not cif:
-            page_data = (
-                db.session.query(JobLog)
-                .filter(JobLog.cron_info_id == -1)
-                .order_by(db.desc(JobLog.id))
-                .paginate(page=page, per_page=20)
+            page_data = paginate_select(
+                db.session,
+                select(JobLog)
+                .where(JobLog.cron_info_id == -1)
+                .order_by(db.desc(JobLog.id)),
+                page_query,
             )
             if 'page' in keywords:
                 del keywords['page']
@@ -324,10 +326,14 @@ def job_log_list():
         else:
             outcome = 'all'
     outcome_clause = job_log_outcome_clause(outcome)
-    q = db.session.query(JobLog).filter(JobLog.cron_info_id == id)
+    stmt = select(JobLog).where(JobLog.cron_info_id == id)
     if outcome_clause is not None:
-        q = q.filter(outcome_clause)
-    page_data = q.order_by(db.desc(JobLog.id)).paginate(page=page, per_page=20)
+        stmt = stmt.where(outcome_clause)
+    page_data = paginate_select(
+        db.session,
+        stmt.order_by(db.desc(JobLog.id)),
+        page_query,
+    )
     if 'page' in keywords:
         del keywords['page']
     keywords['outcome'] = outcome
@@ -384,7 +390,7 @@ def job_log_detail():
 def job_log_all_list():
     keywords = request.args.to_dict()
 
-    page = int(request.args.get('page') or 1)
+    page_query = PageQuery.from_args(request.args)
     outcome = _parse_log_outcome_param()
 
     filter_arr = []
@@ -405,12 +411,27 @@ def job_log_all_list():
     if outcome_clause is not None:
         filter_arr.append(outcome_clause)
 
-    page_data = (
-        db.session.query(JobLog, CronInfos)
+    stmt = (
+        select(JobLog, CronInfos)
         .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-        .filter(*filter_arr)
-        .order_by(db.desc(JobLog.id))
-        .paginate(page=page, per_page=20)
+    )
+    if filter_arr:
+        stmt = stmt.where(*filter_arr)
+    stmt = stmt.order_by(db.desc(JobLog.id))
+    # 以 JobLog 为主表计数，避免联表 count 语义漂移
+    count_stmt = (
+        select(func.count())
+        .select_from(JobLog)
+        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+    )
+    if filter_arr:
+        count_stmt = count_stmt.where(*filter_arr)
+    page_data = paginate_select(
+        db.session,
+        stmt,
+        page_query,
+        scalars=False,
+        count_stmt=count_stmt,
     )
 
     if 'page' in keywords:

@@ -1,10 +1,11 @@
 from urllib.parse import quote
 
 from flask import redirect, render_template, request, session
-from sqlalchemy import desc
+from sqlalchemy import desc, select
 
 from app import db
 from app.common.functions import web_api_return
+from app.services.pagination import PageQuery, paginate_select
 from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 
@@ -162,11 +163,11 @@ def change_password():
 @rbac.route('/users', methods=['GET'])
 @require_permission('user:manage')
 def users_list():
-    page = int(request.args.get('page') or 1)
-    page_data = (
-        db.session.query(RbacUser)
-        .order_by(desc(RbacUser.id))
-        .paginate(page=page, per_page=20)
+    page_query = PageQuery.from_args(request.args)
+    page_data = paginate_select(
+        db.session,
+        select(RbacUser).order_by(desc(RbacUser.id)),
+        page_query,
     )
     return render_template('rbac/users.html', page_data=page_data)
 
@@ -409,11 +410,11 @@ def groups_edit():
 @rbac.route('/audit-logs', methods=['GET'])
 @require_permission('audit:read')
 def audit_logs():
-    page = int(request.args.get('page') or 1)
-    page_data = (
-        db.session.query(RbacAuditLog)
-        .order_by(desc(RbacAuditLog.id))
-        .paginate(page=page, per_page=20)
+    page_query = PageQuery.from_args(request.args)
+    page_data = paginate_select(
+        db.session,
+        select(RbacAuditLog).order_by(desc(RbacAuditLog.id)),
+        page_query,
     )
     return render_template(
         'rbac/audit_logs.html',

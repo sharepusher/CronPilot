@@ -69,25 +69,7 @@ class TestPassword(unittest.TestCase):
 
 
 def _load_cron_validator():
-    import types
-    if 'app.services.cron_validator' in sys.modules:
-        return sys.modules['app.services.cron_validator']
-    app = types.ModuleType('app')
-    services = types.ModuleType('app.services')
-    app.services = services
-    services.url_security = url_security
-    sys.modules['app'] = app
-    sys.modules['app.services'] = services
-    sys.modules['app.services.url_security'] = url_security
-    path = os.path.join(ROOT, 'app/services/cron_validator.py')
-    spec = importlib.util.spec_from_file_location(
-        'app.services.cron_validator', path
-    )
-    mod = importlib.util.module_from_spec(spec)
-    services.cron_validator = mod
-    sys.modules['app.services.cron_validator'] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    return importlib.import_module('app.services.cron_validator')
 
 
 class TestCronValidator(unittest.TestCase):

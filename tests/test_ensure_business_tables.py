@@ -3,6 +3,8 @@ import importlib.util
 import os
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:

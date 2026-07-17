@@ -14,7 +14,7 @@
 
 **协作闭环**：设计确认 → 实现 → 验证 → 文档 → commit（任一步失败则修复后重验并重更文档）。详 `.cursor/rules/cronpilot-project.mdc`「交付闭环」。
 
-依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0 `flask db` → Tier 1 SA 1.4 → Tier 2 gevent → Tier 3/4；RBAC 在 Tier 0 后可并行。
+依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0–2 ✓ → **Tier 3 前置 ✓**（去 records）→ Tier 3a SA 2.0 → Tier 4 Flask 2；RBAC 在 Tier 0 后可并行。
 
 **交付总览**：`doc/交付状态与路线图.html` — 已发布版本、已完成 OPT/RFC 与未完成项对照。
 

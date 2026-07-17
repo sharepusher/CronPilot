@@ -38,7 +38,6 @@ pip-licenses --format=markdown --with-urls --order=license
 | zope.event | 4.5.0 | ZPL-2.1 |
 | portalocker | 2.6.0 | BSD-3-Clause |
 | openpyxl | 2.4.11 | MIT |
-| records | 0.5.3 | ISC |
 | docopt | 0.6.2 | MIT |
 | six | 1.15.0 | MIT |
 | tablib | 2.0.0 | MIT |

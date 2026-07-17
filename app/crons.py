@@ -6,7 +6,6 @@ import time
 import traceback
 import uuid
 
-import records
 import requests
 from flask import current_app
 from sqlalchemy import func, select, text
@@ -21,6 +20,7 @@ from app.services.job_log_outcome import (
     should_alert,
 )
 from app.services.job_log_service import trim_job_logs_for_cron
+from app.services.scheduler_db import fetch_apscheduler_job_ids
 from app.services.url_security import validate_callback_url
 from configs import configs
 from datas.model.cron_infos import CronInfos
@@ -288,24 +288,12 @@ def cron_do(cron_id):
 def cron_check():
     with scheduler.app.app_context():
         try:
-            def dbs():
-                url = current_app.config.get('CRON_DB_URL')
-                db = records.Database(url)
-                db = db.get_connection()  # 新加
-                return db
-
-            job_db = dbs()
-            job_arr = []
-            jobs = job_db.query("select id from apscheduler_jobs").all()
-            if jobs:
-                for item in jobs:
-                    job_arr.append(item.id)
-
+            job_ids = fetch_apscheduler_job_ids(current_app.config.get('CRON_DB_URL'))
             cifs = db.session.scalars(select(CronInfos)).all()
 
             if cifs:
                 for item in cifs:
-                    if "cron_%s" % item.id not in job_arr:
+                    if "cron_%s" % item.id not in job_ids:
                         if item.status == -1:
                             continue
                         from app.services.cron_service import (

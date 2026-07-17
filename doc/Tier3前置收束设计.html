@@ -30,10 +30,10 @@
 <body>
 <header class="hero">
   <a href="index.html" style="color:#fecaca;font-size:.9rem">← 文档索引</a>
-  <span class="tag">依赖升级</span><span class="tag">Tier 3 前置</span><span class="tag">待确认</span>
+  <span class="tag">依赖升级</span><span class="tag">Tier 3 前置</span><span class="tag">已交付</span>
   <h1>Tier 3 前置收束设计</h1>
   <p>移除 <code>records</code> 裸 SQL · 为 SQLAlchemy 2.0 铺路</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：Draft v1 · 待确认 · 2026-06-24</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：Confirmed · 已交付 · 2026-07-17（设计稿 2026-06-24）</p>
 </header>
 
 <main class="layout">
@@ -183,14 +183,16 @@ cron_check (每 30min, @single_task)
     <tr><td>Tier 3a SA 2.0</td><td><strong>必须</strong>在本设计 T1～T3 完成并回归后</td></tr>
   </table>
 
-  <h2>十、待确认</h2>
-  <ul>
-    <li>☐ <code>update_cron_info</code> 采用方案 <strong>S1</strong>（app_context + ORM）</li>
-    <li>☐ <code>cron_check</code> 采用方案 <strong>S2</strong>（独立 engine + <code>text()</code>）</li>
-    <li>☐ <code>CuGeventScheduler.py</code>：同步修改 vs 删除废弃文件</li>
-    <li>☐ PR 拆分：<strong>T1 → T2 → T3</strong> 三提交（推荐）</li>
-    <li>☐ 是否抽 <code>app/services/scheduler_db.py</code> 公共模块</li>
-  </ul>
+  <h2>十、确认记录</h2>
+  <div class="ok-box">
+    <p><strong>2026-07-17 已确认并落地：</strong></p>
+    <ul>
+      <li>☑ <code>update_cron_info</code> 采用方案 <strong>S1</strong>（app_context + ORM / <code>apply_retire</code>）</li>
+      <li>☑ <code>cron_check</code> 采用方案 <strong>S2</strong>（独立 engine + <code>text()</code>，经 <code>app/services/scheduler_db.py</code>）</li>
+      <li>☑ <code>CuGeventScheduler.py</code>：<strong>同步改法</strong>（与 Background 同口径，避免漂移）</li>
+      <li>☑ 实现顺序：T1 → T2 → T3（同里程碑交付）；抽 <code>scheduler_db</code> 公共模块</li>
+    </ul>
+  </div>
 
   <p>
     <a href="依赖升级RFC.html">依赖升级 RFC · Tier 3</a> ·
@@ -198,6 +200,6 @@ cron_check (每 30min, @single_task)
     <a href="index.html">文档索引</a>
   </p>
 </main>
-<footer>CronPilot · Tier 3 前置收束 · Draft v1 · <a href="Tier3前置收束设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+<footer>CronPilot · Tier 3 前置收束 · 已交付 · <a href="Tier3前置收束设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
 </body>
 </html>

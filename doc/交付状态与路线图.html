@@ -36,6 +36,10 @@
   <span class="tag">权威</span><span class="tag">路线图</span>
   <h1>交付状态与路线图</h1>
   <p>当前发行版文档已收录：<strong>v2.0.0</strong>（2026-07-17，任务中心 / POST 触发 / 账户生命周期）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
+  <div class="note">
+    <strong>2026-07-17 架构与版本复审：</strong>稳定栈（Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11）维持，无需紧急跳级。
+    <strong>Tier 3 前置</strong>（去 <code>records</code>）已落地；下一依赖里程碑为 <strong>Tier 3a</strong>（SA 2.0 + FSA 3.x + <code>.paginate()</code>）。详见 <a href="依赖升级RFC.html">依赖升级 RFC</a> DEC-006。
+  </div>
 </header>
 
 <main class="layout">
@@ -127,11 +131,11 @@
     <tr><td>侧车 RFC-S.1 · requests/urllib3/certifi</td><td class="s-done">已交付</td><td>v0.2.0</td><td>HTTP 安全补丁</td></tr>
     <tr><td>侧车 RFC-S.2 · PyMySQL 1.1.2</td><td class="s-done">已交付</td><td>v0.2.0</td><td>MySQL 驱动</td></tr>
     <tr><td>Tier 2 · RFC-2.1～2.5（gevent/gunicorn/APS/Docker Py/CI）</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="依赖升级RFC.html">依赖升级 RFC §Tier 2</a></td></tr>
-    <tr><td>Tier 3 前置 · 去 <code>records</code> 裸 SQL</td><td class="s-draft">设计待确认</td><td>—</td><td><a href="Tier3前置收束设计.html">Tier 3 前置设计</a></td></tr>
-    <tr><td>Tier 3 · SQLAlchemy 2.0 + FSA 3.x</td><td class="s-todo">未开始</td><td>—</td><td>前置：records 清零</td></tr>
+    <tr><td>Tier 3 前置 · 去 <code>records</code> 裸 SQL</td><td class="s-done">已交付</td><td>Unreleased</td><td><a href="Tier3前置收束设计.html">Tier 3 前置设计</a> · S1/S2</td></tr>
+    <tr><td>Tier 3 · SQLAlchemy 2.0 + FSA 3.x</td><td class="s-todo">未开始</td><td>—</td><td>下一子阶段 <strong>3a</strong>：pin + <code>.paginate()</code>（见 RFC）</td></tr>
     <tr><td>Tier 4 · Flask 2.x</td><td class="s-future">远期</td><td>—</td><td>晚于 Tier 3</td></tr>
-    <tr><td><code>records</code> 裸 SQL（调度器）</td><td class="s-todo">未改</td><td>—</td><td><code>CuBackgroundScheduler</code>、<code>cron_check</code></td></tr>
-    <tr><td><code>main/views</code> <code>.paginate()</code></td><td class="s-todo">未改</td><td>—</td><td>SA 1.4 可用；升 SA 2 前须改</td></tr>
+    <tr><td><code>records</code> 裸 SQL（调度器）</td><td class="s-done">已清除</td><td>Unreleased</td><td><code>CuBackgroundScheduler</code> / <code>cron_check</code> / <code>scheduler_db</code></td></tr>
+    <tr><td><code>main/views</code> · <code>rbac/views</code> <code>.paginate()</code></td><td class="s-todo">未改</td><td>—</td><td>SA 1.4 可用；升 SA 2 前须改（Tier 3a 硬门）</td></tr>
   </table>
 
   <h2>四、运维与工程（非 OPT 编号）</h2>
@@ -166,10 +170,10 @@
     <li><strong>P1-03</strong> — 独立执行详情页（P1-04 列表侧已随 v2.0.0 交付）</li>
     <li><strong>P1-01b</strong> — 徽章/HTTP 展示统一（01c 已随 v2.0.0）</li>
     <li><strong>Metric 条 / 异常榜 UI</strong> — OPT-P2-13 暂隐项按需恢复</li>
-    <li><strong>Tier 3 前置</strong> — 去 records（解锁 SA 2.0）</li>
+    <li><strong>Tier 3a</strong> — SA 2.0 + FSA 3.x + Alembic pin；改写 <code>.paginate()</code>（前置去 records 已完成）</li>
     <li><strong>Scope S6</strong> — API 按组隔离 / 默认 GROUP（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>）</li>
     <li><strong>P1-06</strong> OpenAPI — 按运维需求排期</li>
-    <li><strong>Tier 3/4</strong> — 独立里程碑</li>
+    <li><strong>Tier 3b/3c · Tier 4</strong> — 迁移重放 / 生产校验 → Flask 2.x</li>
   </ol>
 
   <h2>六、文档维护约定</h2>

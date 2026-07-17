@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from threading import TIMEOUT_MAX
 
 import portalocker
-import records
 import six
 from apscheduler.events import JobSubmissionEvent, EVENT_JOB_MAX_INSTANCES, EVENT_JOB_SUBMITTED
 from apscheduler.executors.base import MaxInstancesReachedError
@@ -13,37 +12,38 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.base import STATE_PAUSED
 from apscheduler.util import timedelta_seconds
 
-from configs import configs
-
 
 class CuBackgroundScheduler(BackgroundScheduler):
 
-    def _dbs(self):
-        url = configs('cron_job_log_db_url')
-        db = records.Database(url)
-        db = db.get_connection()
-        return db
-
     def update_cron_info(self, cron_id, reason=''):
+        """一次性任务结束 / 执行器异常移除时，将业务库 cron_infos 标为下线。"""
         try:
-            from app.services.cron_service import RETIRE_REASON_ONE_SHOT
-            from datas.utils.times import get_now_time
+            cron_pk = int(str(cron_id).split('_')[-1])
+        except (TypeError, ValueError):
+            return
+        try:
+            from app import db, scheduler
+            from app.services.cron_service import RETIRE_REASON_ONE_SHOT, apply_retire
+            from datas.model.cron_infos import CronInfos
 
-            cron_id = cron_id.split('_')[-1]
             reason = reason or RETIRE_REASON_ONE_SHOT
-            # reason 仅系统常量，不含用户输入
-            now = get_now_time()
-            self._dbs().query(
-                "update cron_infos set status=-1, retire_reason=:r, retired_at=:t, "
-                "last_operator_name=:op, last_operated_at=:t where id=:id",
-                r=reason, t=now, op='系统', id=cron_id,
-            )
+            with scheduler.app.app_context():
+                try:
+                    cif = db.session.get(CronInfos, cron_pk)
+                    if cif and cif.status != -1:
+                        apply_retire(cif, reason)
+                        db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    try:
+                        cif = db.session.get(CronInfos, cron_pk)
+                        if cif and cif.status != -1:
+                            cif.status = -1
+                            db.session.commit()
+                    except Exception:
+                        db.session.rollback()
         except Exception:
-            try:
-                cron_id = str(cron_id).split('_')[-1]
-                self._dbs().query("update cron_infos set status=-1 where id='%s'" % cron_id)
-            except Exception:
-                pass
+            pass
 
     def _process_jobs(self):
         """

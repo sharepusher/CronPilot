@@ -3,13 +3,13 @@
 > HTML 版：[Tier3前置收束设计.html](Tier3前置收束设计.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-依赖升级Tier 3 前置待确认
+依赖升级Tier 3 前置已交付
 
 # Tier 3 前置收束设计
 
 移除 `records` 裸 SQL · 为 SQLAlchemy 2.0 铺路
 
-状态：Draft v1 · 待确认 · 2026-06-24
+状态：Confirmed · 已交付 · 2026-07-17（设计稿 2026-06-24）
 
 **定位：**[依赖升级 RFC](依赖升级RFC.html) Tier 2 已签收；本设计是 **Tier 3（SA 2.0）** 的**前置清债**，**不升级** SQLAlchemy / Flask 主版本。完成后再开 Tier 3a（`SQLAlchemy==2.0.x` + FSA 3.x）。
 
@@ -148,19 +148,20 @@ cron\_check (每 30min, @single\_task)
 | RBAC 首期 | **可并行**；RBAC 新代码禁止再用 `records` |
 | Tier 3a SA 2.0 | **必须**在本设计 T1～T3 完成并回归后 |
 
-## 十、待确认
+## 十、确认记录
 
-- ☐ `update_cron_info` 采用方案 **S1**（app\_context + ORM）
-- ☐ `cron_check` 采用方案 **S2**（独立 engine + `text()`）
-- ☐ `CuGeventScheduler.py`：同步修改 vs 删除废弃文件
-- ☐ PR 拆分：**T1 → T2 → T3** 三提交（推荐）
-- ☐ 是否抽 `app/services/scheduler_db.py` 公共模块
+**2026-07-17 已确认并落地：**
+
+- ☑ `update_cron_info` 采用方案 **S1**（app\_context + ORM / `apply_retire`）
+- ☑ `cron_check` 采用方案 **S2**（独立 engine + `text()`，经 `app/services/scheduler_db.py`）
+- ☑ `CuGeventScheduler.py`：**同步改法**（与 Background 同口径，避免漂移）
+- ☑ 实现顺序：T1 → T2 → T3（同里程碑交付）；抽 `scheduler_db` 公共模块
 
 [依赖升级 RFC · Tier 3](依赖升级RFC.html) ·
 [架构设计文档](架构设计文档.html) ·
 [文档索引](index.html)
 
-CronPilot · Tier 3 前置收束 · Draft v1 · [Markdown](Tier3前置收束设计.md) · [索引](index.html)
+CronPilot · Tier 3 前置收束 · 已交付 · [Markdown](Tier3前置收束设计.md) · [索引](index.html)
 
 ---
 

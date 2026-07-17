@@ -47,7 +47,13 @@
 
   <div class="note">
     <strong>定位：</strong>本文是<strong>决策与排期</strong>文档，不替代 <a href="详细技术方案.html">详细技术方案</a> 的功能规格，也不在本 RFC 合并时自动修改 <code>requirements.txt</code>。实施每一 Tier 须单独 PR、<code>RELEASE_NOTES</code> 条目与回归清单。<br>
-    <strong>已交付版本：</strong>Tier 0–2 见 <strong>v0.2.0</strong> · 总览 <a href="交付状态与路线图.html">交付状态与路线图</a>。
+    <strong>已交付版本：</strong>Tier 0–2 见 <strong>v0.2.0</strong>；<strong>Tier 3 前置</strong>（去 <code>records</code>）见 <a href="交付状态与路线图.html">交付状态与路线图</a> / <a href="../RELEASE_NOTES.md">RELEASE_NOTES [Unreleased]</a>。
+  </div>
+
+  <div class="ok-box" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0">
+    <strong>2026-07-17 架构与版本复审：</strong>当前 <strong>v2.0.0</strong> 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
+    <strong>Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11</strong> 仍成立，<strong>无需紧急跳级</strong>升级 Flask 2 / SA 2 / Python 3.12+。
+    下一依赖动作：<strong>Tier 3 前置已落地</strong> → 再开 <strong>Tier 3a</strong>（SA 2.0 + FSA 3.x + Alembic，含 <code>.paginate()</code> 改写）→ Tier 4 Flask 2.x。
   </div>
 
   <div class="warn">
@@ -77,12 +83,12 @@
   <table>
     <tr><th>层级</th><th>包</th><th>版本</th><th>备注</th></tr>
     <tr><td>Web</td><td>Flask / Werkzeug / Jinja2</td><td>1.1.2 / 1.0.1 / 2.11.2</td><td>Flask 1.x 已停止演进</td></tr>
-    <tr><td>ORM</td><td>SQLAlchemy / Flask-SQLAlchemy</td><td>1.4.52 / 2.5.1</td><td><strong>Tier 1 已交付</strong>；全站 <code>Model.query</code> 已迁移；<code>records</code> 裸 SQL 留 Tier 3</td></tr>
+    <tr><td>ORM</td><td>SQLAlchemy / Flask-SQLAlchemy</td><td>1.4.52 / 2.5.1</td><td><strong>Tier 1 已交付</strong>；全站 <code>Model.query</code> 已迁移；<strong>Tier 3 前置已去 records</strong></td></tr>
     <tr><td>迁移</td><td>Flask-Migrate / alembic</td><td>2.5.3 / 1.4.3</td><td><strong>Tier 0 已交付</strong>：<code>flask db</code>（Click）；Flask-Script 已移除</td></tr>
     <tr><td>调度</td><td>APScheduler / Flask-APScheduler</td><td><strong>3.10.4</strong> / 1.11.0</td><td><code>SQLAlchemyJobStore</code> + SA 1.4</td></tr>
     <tr><td>WSGI</td><td>gunicorn / gevent</td><td><strong>22.0.0</strong> / <strong>23.9.1</strong></td><td><code>gun.py</code> 启动即 monkey patch</td></tr>
-    <tr><td>HTTP</td><td>requests / urllib3</td><td>2.24.0 / 1.25.10</td><td>存在已知 CVE，与 Flask 弱耦合</td></tr>
-    <tr><td>辅助</td><td>records / redis / PyMySQL</td><td>0.5.3 / 3.5.3 / <strong>1.1.2</strong></td><td><code>CuBackgroundScheduler</code> 用 records 裸 SQL</td></tr>
+    <tr><td>HTTP</td><td>requests / urllib3</td><td><strong>2.31.0</strong> / <strong>1.26.19</strong></td><td>侧车 RFC-S.1 已交付</td></tr>
+    <tr><td>辅助</td><td>redis / PyMySQL</td><td>3.5.3 / <strong>1.1.2</strong></td><td><code>records</code> 已移除（Tier 3 前置）</td></tr>
   </table>
 
   <h3>2.2 开发与 CI 分工</h3>
@@ -124,8 +130,9 @@
     <tr><td>∥</td><td><em>侧车</em> ✓</td><td>HTTP 安全补丁（requests / urllib3）</td><td class="ok">最弱</td><td><strong>v0.2.0 已交付</strong>（RFC-S.1 + RFC-S.2）</td></tr>
     <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td><strong>已交付</strong>（见 <a href="交付状态与路线图.html">交付状态</a>）</td></tr>
     <tr><td>3</td><td><strong>Tier 2</strong> ✓</td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td><strong>v0.2.0 已交付</strong>（RFC-2.1～2.5）</td></tr>
-    <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 查询写法收束 → SA 2.0</td><td class="risk">高</td><td><code>Model.query</code> 已清零；升 SA 2 前须处理 <code>records</code> 裸 SQL</td></tr>
-    <tr><td>5</td><td><strong>Tier 4</strong></td><td>Flask 1.1 → 2.x</td><td class="risk">高</td><td>Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后或 3a 子阶段与 SA 2 同里程碑</td></tr>
+    <tr><td>3.5</td><td><strong>Tier 3 前置</strong> ✓</td><td>去 <code>records</code> 裸 SQL（S1 ORM / S2 <code>text()</code>）</td><td class="warn">中</td><td><strong>已交付</strong>（2026-07-17；见 <a href="Tier3前置收束设计.html">前置设计</a>）</td></tr>
+    <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 → SA 2.0 + FSA 3.x</td><td class="risk">高</td><td>前置已清零；下一子阶段 <strong>3a</strong>（pin + <code>.paginate()</code>）</td></tr>
+    <tr><td>5</td><td><strong>Tier 4</strong></td><td>Flask 1.1 → 2.x</td><td class="risk">高</td><td>Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后</td></tr>
   </table>
 
   <h3>4.1 代码触点与耦合（盘点表）</h3>
@@ -135,7 +142,8 @@
     <tr><td><code>db.session.execute("裸 SQL")</code></td><td><code>app/crons.py</code></td><td class="warn">中</td><td>—</td><td class="ok">改为 <code>text()</code>（小 PR）</td><td>—</td><td>必须完成</td></tr>
     <tr><td><code>Model.query.filter / paginate</code></td><td><code>main/views.py</code> 等</td><td class="warn">中</td><td>—</td><td class="ok">✅ 已改</td><td>—</td><td>—</td></tr>
     <tr><td><code>SQLAlchemyJobStore</code></td><td><code>config.py</code></td><td class="warn">中</td><td>—</td><td class="ok">验证 1.4</td><td class="warn">随 APS 升级</td><td>—</td></tr>
-    <tr><td><code>records</code> 裸 SQL</td><td><code>CuBackgroundScheduler.py</code></td><td class="warn">中</td><td>—</td><td>—</td><td>—</td><td>与 SQL 整改一并</td></tr>
+    <tr><td><code>records</code> 裸 SQL</td><td><code>CuBackgroundScheduler</code> / <code>cron_check</code></td><td class="ok">已清</td><td>—</td><td>—</td><td>—</td><td class="ok">Tier 3 前置 ✓</td></tr>
+    <tr><td><code>db.session.query(...).paginate()</code></td><td><code>main/views.py</code>、<code>rbac/views.py</code></td><td class="warn">中</td><td>—</td><td class="ok">SA 1.4 可用</td><td>—</td><td>Tier 3a 硬门</td></tr>
     <tr><td><code>gevent.monkey.patch_all()</code></td><td><code>gun.py</code></td><td class="risk">强</td><td>—</td><td>—</td><td class="warn">升级</td><td>—</td></tr>
     <tr><td>Flask / Jinja SSR</td><td><code>decorated.py</code>、模板</td><td class="risk">强</td><td>—</td><td>—</td><td>—</td><td>Flask 2</td></tr>
   </table>
@@ -217,18 +225,34 @@
   </div>
 
   <div class="tier t3">
+    <h3>Tier 3 前置 — 去 <code>records</code>（代码清债，不升主版本）<span style="font-size:.85rem;font-weight:600;color:var(--ok);margin-left:.5rem">· 已交付（2026-07-17）</span></h3>
+    <p>设计确认：S1（<code>update_cron_info</code> → <code>app_context</code> + ORM）、S2（<code>cron_check</code> → 独立 engine + <code>text()</code>）；
+      <code>CuGeventScheduler</code> 同步改法；抽 <code>app/services/scheduler_db.py</code>。详 <a href="Tier3前置收束设计.html">Tier 3 前置收束设计</a>。</p>
+  </div>
+
+  <div class="tier t3">
     <h3>Tier 3 — SQLAlchemy 2.0 + 查询写法收束（数周，耦合高）</h3>
-    <p><strong>前置条件：</strong>Tier 1 的 <code>Model.query</code> 已清零；升 SA 2 前须将 <code>records</code> 裸 SQL（<code>CuBackgroundScheduler</code>、<code>crons.cron_check</code> 等）改为 ORM 或 <code>text()</code>。</p>
+    <p><strong>前置条件：</strong>Tier 1 的 <code>Model.query</code> 已清零；<strong>Tier 3 前置已去 <code>records</code></strong>。本阶段才允许 bump SA / FSA / Alembic。</p>
     <table>
-      <tr><th>子阶段</th><th>内容</th></tr>
-      <tr><td>3a</td><td><code>SQLAlchemy==2.0.x</code> + <code>Flask-SQLAlchemy==3.x</code>；Alembic 升到与 SA 2 匹配版本</td></tr>
-      <tr><td>3b</td><td><code>records</code> 裸 SQL → ORM / <code>text()</code>；迁移脚本重放验证</td></tr>
-      <tr><td>3c</td><td>生产库备份 → upgrade → 任务与 <code>job_log</code> 只读校验</td></tr>
+      <tr><th>子阶段</th><th>内容</th><th>状态</th></tr>
+      <tr><td>前置</td><td><code>records</code> → ORM / <code>text()</code>（调度热路径）</td><td class="ok">✓ 已交付</td></tr>
+      <tr><td><strong>3a</strong></td><td>
+        目标 pin（规划，尚未落地）：<code>SQLAlchemy==2.0.x</code>（建议锁定最新 2.0 稳定补丁线）+
+        <code>Flask-SQLAlchemy==3.x</code> + 与 SA 2 匹配的 <code>alembic</code>（解除 1.4.3 锁时须同 PR 指定）。
+        <strong>硬门：</strong>改写全部 <code>db.session.query(...).paginate()</code>：
+        <ul style="margin:.35rem 0 0 1rem;padding:0">
+          <li><code>app/main/views.py</code>：任务中心、job_log（含 cron_info_id=-1 / outcome 筛选 / 全局）、operation_log（约 5 处）</li>
+          <li><code>app/rbac/views.py</code>：用户列表、审计日志（约 2 处）</li>
+        </ul>
+        改为 <code>select()</code> + 手动 offset/limit 或 FSA 3 推荐分页；行为（页码、per_page=20）不变。
+      </td><td>未开始</td></tr>
+      <tr><td>3b</td><td>迁移脚本重放验证；残余 SA 1.4 兼容写法收束</td><td>未开始</td></tr>
+      <tr><td>3c</td><td>生产库备份 → upgrade → JobStore / <code>job_log</code> 只读校验</td><td>未开始</td></tr>
     </table>
     <h4>验收标准</h4>
     <ul>
-      <li>Phase A 单测 + P0 手册 + Docker 全绿。</li>
-      <li><code>THIRD_PARTY_NOTICES.md</code> 更新。</li>
+      <li>Phase A 单测 + P0 手册 + Docker 全绿；分页列表与 RBAC 列表回归。</li>
+      <li><code>THIRD_PARTY_NOTICES.md</code> 与 pin 同步。</li>
     </ul>
   </div>
 
@@ -251,9 +275,9 @@
     <tr><td>gevent 20</td><td>Py3.11 编译失败</td><td><strong>Tier 2 RFC-2.1</strong></td><td><strong>已升</strong> gevent 23.9.1 + greenlet 3.1.1</td></tr>
     <tr><td>gunicorn 20</td><td>旧版维护线</td><td><strong>Tier 2 RFC-2.2</strong></td><td><strong>已升</strong> gunicorn 22.0.0</td></tr>
     <tr><td>APScheduler 3.6</td><td>旧 bug</td><td><strong>Tier 2 RFC-2.3</strong></td><td><strong>已升</strong> APScheduler 3.10.4</td></tr>
-    <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td><code>records</code> 裸 SQL 清零后</td></tr>
-    <tr><td>Flask 1.1</td><td>无新补丁</td><td><strong>Tier 4</strong></td><td>晚于 Tier 2</td></tr>
-    <tr><td>records 0.5.3</td><td>裸 SQL</td><td>Tier 3 或 SQL 整改</td><td>与 OPT 安全项对齐</td></tr>
+    <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td>前置（records）已清零；下一动作为 3a pin + paginate</td></tr>
+    <tr><td>Flask 1.1</td><td>无新补丁</td><td><strong>Tier 4</strong></td><td>晚于 Tier 3</td></tr>
+    <tr><td>records 0.5.3</td><td>裸 SQL</td><td><strong>Tier 3 前置</strong></td><td class="ok">已移除</td></tr>
   </table>
 
   <h2>七、与 RBAC（OPT-P2-10）的关系</h2>
@@ -359,7 +383,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 SA 2.0] → [Tier 4 Flask 2]
+                      [Tier 3 前置去 records ✓] → [Tier 3a SA 2.0] → [Tier 4 Flask 2]
   </pre>
 
   <h2>十、决策记录</h2>
@@ -370,10 +394,12 @@ RBAC 插入点（推荐）:
     <tr><td>DEC-003</td><td>RBAC 不依赖 Tier 2+；仅需 Tier 0（推荐）或与 Tier 1 并行</td><td>功能交付不等待 gevent</td><td>2026-06</td></tr>
     <tr><td>DEC-004</td><td>迁移依赖须锁 alembic，禁止解析到 SA 2.x</td><td>本地 venv 实测</td><td>2026-06</td></tr>
     <tr><td>DEC-005</td><td>RBAC 允许 <code>ensure_rbac_tables</code> 作 Tier 0 未完成时的退化</td><td>与 RBAC v2 详设一致</td><td>2026-06</td></tr>
+    <tr><td>DEC-006</td><td>2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+</td><td>架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解</td><td>2026-07-17</td></tr>
   </table>
 
   <h2>十一、参考</h2>
   <ul>
+    <li><a href="Tier3前置收束设计.html">Tier 3 前置收束设计</a> — 去 records（已交付）</li>
     <li><a href="RBAC架构设计方案.html">RBAC 架构设计方案 v2</a> — OPT-P2-10 权威详设</li>
     <li><a href="详细技术方案.html#t15">详细技术方案 §15 风险与演进路线</a></li>
     <li><a href="技术方案与前端设计.html">技术方案与前端设计</a> — P0 依赖升级意向</li>

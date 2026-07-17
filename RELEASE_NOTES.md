@@ -11,6 +11,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
+### Tier 3 前置 · 去 `records` 裸 SQL（OPT-P2-11）
+
+- **架构/版本复审（2026-07-17）**：维持 Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11 稳定栈；不跳级升 Flask 2 / SA 2 / Python 3.12+。
+- `CuBackgroundScheduler` / `CuGeventScheduler`：`update_cron_info` 改为 `app_context` + ORM（`apply_retire`），去掉 `records`。
+- `cron_check`：经 `app/services/scheduler_db.fetch_apscheduler_job_ids` 读 JobStore（`text()` + 绑定），双库边界不变。
+- 从 `requirements.txt` / `requirements-core.txt` 移除 `records==0.5.3`；更新 `THIRD_PARTY_NOTICES.md`。
+- 单测：`tests.test_scheduler_db`。
+- **未纳入本项**：SQLAlchemy 2.0 / Flask-SQLAlchemy 3.x / Alembic 解锁；`main/views` 与 `rbac/views` 的 `.paginate()`（挂 Tier 3a）。
+
 ---
 
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期

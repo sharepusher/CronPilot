@@ -28,6 +28,14 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 **维护约定：**未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。
 
+### Tier 3 前置 · 去 `records` 裸 SQL（OPT-P2-11）
+
+- **架构/版本复审（2026-07-17）：**维持 Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11 稳定栈；不跳级升 Flask 2 / SA 2 / Python 3.12+。
+- `CuBackgroundScheduler` / `CuGeventScheduler`：`update_cron_info` 改为 `app_context` + ORM（`apply_retire`）。
+- `cron_check`：经 `app/services/scheduler_db.fetch_apscheduler_job_ids` 读 JobStore（`text()`）；双库边界不变。
+- 移除 `records==0.5.3`；更新 `THIRD_PARTY_NOTICES.md`；单测 `tests.test_scheduler_db`。
+- **未纳入：**SA 2.0 / FSA 3.x / Alembic 解锁；`.paginate()` 改写（Tier 3a）。
+
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期
 
 任务中心规模化 IA、触发请求支持 POST JSON Body、强制改密与用户启停缘由等。升级须跑 `ensure_business_tables`（**SQLite / MySQL** 补列）并**重启**。

@@ -198,7 +198,7 @@ flask --app manage:app db upgrade</pre>
   <h3 id="account-session">4.6 登录会话：现状与可优化项</h3>
   <p>Web 登录态基于 Flask <strong>signed cookie session</strong>（写入 <code>is_login</code> / <code>username</code> / <code>role</code> / <code>user_id</code> / <code>group_ids</code>）。登录代码<strong>未</strong>设置 <code>session.permanent = True</code>，也<strong>未</strong>配置 <code>PERMANENT_SESSION_LIFETIME</code>；亦无按「最后活跃时间」强制登出的中间件。</p>
   <table>
-    <tr><th>项</th><th>现状（v2.0.0 准备）</th></tr>
+    <tr><th>项</th><th>现状（v2.0.0）</th></tr>
     <tr><td>闲置超时自动退出</td><td><strong>无</strong>：浏览器保持打开且 Cookie 仍在 → 会话持续有效</td></tr>
     <tr><td>Cookie 类型</td><td>默认浏览器会话 Cookie（关闭浏览器后通常失效；具体行为依浏览器「恢复会话」设置）</td></tr>
     <tr><td>主动失效</td><td>顶栏「退出」；自助改密成功后 <code>session.clear()</code>；服务端 <code>SECRET_KEY</code> 变更导致验签失败</td></tr>

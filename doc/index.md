@@ -11,8 +11,8 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
-| **交付状态与路线图（权威）** | 已交付 vs 待确认 vs 未开始 · 发行版 **v1.2.0** · 下一版 **v2.0.0 准备** | [HTML](交付状态与路线图.html) | [MD](交付状态与路线图.md) |
-| **Release Notes** | 版本变更日志（含 Unreleased → v2.0.0 准备 / v1.2.0 / v1.1.0 / v1.0.0） | [HTML](RELEASE_NOTES.html) | [doc MD](RELEASE_NOTES.md) · [仓库根](../RELEASE_NOTES.md) |
+| **交付状态与路线图（权威）** | 已交付 vs 待确认 vs 未开始 · 发行版 **v2.0.0** | [HTML](交付状态与路线图.html) | [MD](交付状态与路线图.md) |
+| **Release Notes** | 版本变更日志（含 v2.0.0 / v1.2.0 / v1.1.0 / v1.0.0） | [HTML](RELEASE_NOTES.html) | [doc MD](RELEASE_NOTES.md) · [仓库根](../RELEASE_NOTES.md) |
 | 项目总览与技术文档 | 定位、架构图、模块导航（推荐首读） | [HTML](项目总览与技术文档.html) | [MD](项目总览与技术文档.md) |
 | 仓库拆分与 Git 方案 | 独立仓库与发布说明 | [HTML](新建项目与分支合并方案.html) | [MD](新建项目与分支合并方案.md) |
 

@@ -191,7 +191,7 @@ CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 
 Web 登录态基于 Flask **signed cookie session**（写入 `is_login` / `username` / `role` / `user_id` / `group_ids`）。登录代码**未**设置 `session.permanent = True`，也**未**配置 `PERMANENT_SESSION_LIFETIME`；亦无按「最后活跃时间」强制登出的中间件。
 
-| 项 | 现状（v2.0.0 准备） |
+| 项 | 现状（v2.0.0） |
 | --- | --- |
 | 闲置超时自动退出 | **无**：浏览器保持打开且 Cookie 仍在 → 会话持续有效 |
 | Cookie 类型 | 默认浏览器会话 Cookie（关闭浏览器后通常失效；具体行为依浏览器「恢复会话」设置） |

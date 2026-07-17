@@ -89,6 +89,7 @@ Allow / Deny（403）
 - 任务添加/编辑：**非 admin** 强制「所属业务组」可见（不可选 GLOBAL）；仅一组成员时只读展示；多组时仅可选本人所属组。admin 可创建 GLOBAL 或指定任意组
 - 导航「业务组」：`/rbac/groups*`（`user:manage`）
 - 用户编辑：多选绑定业务组（非 admin 必选）
+- 任务列表按角色密度的 Scope 二次过滤（admin 侧栏 / 1～2 组水平 Segment 等）：权威规格见 [规模化信息架构设计 OPT-P2-13](规模化信息架构设计.html)；线框 Demo 见 [Scope UX 专章](规模化Scope过滤与角色差异化设计.html)（确认实现前未落地）
 
 ## 六、安全要求
 

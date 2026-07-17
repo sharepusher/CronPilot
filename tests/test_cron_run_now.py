@@ -1,0 +1,185 @@
+# -*- coding:utf-8 -*-
+"""任务列表「立即执行」接口。"""
+import os
+import unittest
+from unittest.mock import patch
+
+from flask import Flask
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+from app.main.views import main as main_blueprint
+
+
+class TestCronRunNow(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.cron_infos import CronInfos
+            db.create_all()
+            self.active = CronInfos(
+                task_name='run-now-ok',
+                task_keyword='说明',
+                req_url='https://example.com/run',
+                status=1,
+                created_at='t',
+                updated_at='t',
+            )
+            self.retired = CronInfos(
+                task_name='run-now-retired',
+                task_keyword='说明',
+                req_url='https://example.com/old',
+                status=-1,
+                created_at='t',
+                updated_at='t',
+            )
+            self.no_url = CronInfos(
+                task_name='run-now-empty',
+                task_keyword='说明',
+                req_url='',
+                status=1,
+                created_at='t',
+                updated_at='t',
+            )
+            db.session.add_all([self.active, self.retired, self.no_url])
+            db.session.commit()
+            self.active_id = self.active.id
+            self.retired_id = self.retired.id
+            self.no_url_id = self.no_url.id
+
+    def _login_admin(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'ops_admin'
+            sess['group_ids'] = []
+
+    @patch('app.crons.cron_do', return_value=42)
+    def test_admin_run_now_success(self, mock_do):
+        self._login_admin()
+        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 0)
+        self.assertIn('/job_log_detail?id=42', payload.get('url') or '')
+        mock_do.assert_called_once_with(self.active_id)
+
+    def test_retired_task_rejected(self):
+        self._login_admin()
+        resp = self.client.get('/cron_run_now?id=%s' % self.retired_id)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 1)
+        self.assertIn('下线', payload.get('errmsg') or '')
+
+    def test_paused_task_rejected(self):
+        with self.app.app_context():
+            from datas.model.cron_infos import CronInfos
+            paused = CronInfos(
+                task_name='run-now-paused',
+                task_keyword='说明',
+                req_url='https://example.com/paused',
+                status=0,
+                created_at='t',
+                updated_at='t',
+            )
+            self.db.session.add(paused)
+            self.db.session.commit()
+            paused_id = paused.id
+        self._login_admin()
+        resp = self.client.get('/cron_run_now?id=%s' % paused_id)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 1)
+        self.assertIn('运行中', payload.get('errmsg') or '')
+
+    def test_missing_url_rejected(self):
+        self._login_admin()
+        resp = self.client.get('/cron_run_now?id=%s' % self.no_url_id)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 1)
+        self.assertIn('URL', payload.get('errmsg') or '')
+
+    @patch('app.crons.cron_do', return_value=None)
+    def test_busy_task_rejected(self, _mock_do):
+        self._login_admin()
+        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        payload = resp.get_json()
+        self.assertEqual(payload.get('errcode'), 1)
+        self.assertIn('执行中', payload.get('errmsg') or '')
+
+    def test_viewer_forbidden(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'viewer'
+            sess['username'] = 'viewer'
+            sess['group_ids'] = []
+        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        self.assertEqual(resp.status_code, 403)
+
+
+class TestCronListRunNowButton(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.client = app.test_client()
+        with app.app_context():
+            from datas.model.cron_infos import CronInfos
+            db.create_all()
+            cif = CronInfos(
+                task_name='btn-task',
+                task_keyword='说明',
+                req_url='https://example.com/btn',
+                status=1,
+                created_at='t',
+                updated_at='t',
+            )
+            db.session.add(cif)
+            db.session.commit()
+
+    def test_list_shows_run_now_for_admin(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'ops_admin'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('立即执行', html)
+        self.assertIn('/cron_run_now?', html)
+        self.assertIn('health-dot', html)
+        self.assertIn('jumbotron', html)
+
+    def test_viewer_no_run_now_button(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'viewer'
+            sess['username'] = 'viewer'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertNotIn('/cron_run_now?', html)
+
+
+if __name__ == '__main__':
+    unittest.main()

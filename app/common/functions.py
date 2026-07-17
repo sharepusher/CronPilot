@@ -40,8 +40,8 @@ def wechat_info_err(titile,content=''):
     except Exception as e:
         current_app.logger.error("推送有BUG【%s】" % str(e))
 
-def web_api_return(code, msg='ok', url=''):
-    resp, _status = json_response(errcode=code, errmsg=msg, url=url or None)
+def web_api_return(code, msg='ok', url='', data=None):
+    resp, _status = json_response(errcode=code, errmsg=msg, url=url or None, data=data)
     return resp
 
 def dict2string(dict_data,separator = "&&"):

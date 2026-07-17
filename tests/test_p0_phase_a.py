@@ -97,7 +97,7 @@ class TestCronValidator(unittest.TestCase):
 
     def test_valid_cron_fields(self):
         cfg = {'block_private_ip': '0'}
-        err, norm = self.validator.validate_cron_form(
+        err, norm, _field = self.validator.validate_cron_form(
             {
                 'task_name': 'job-a',
                 'task_keyword': '备注A',
@@ -113,9 +113,26 @@ class TestCronValidator(unittest.TestCase):
         self.assertEqual(norm['hour'], '8')
         self.assertEqual(norm['task_keyword'], '备注A')
 
+    def test_reject_empty_schedule_fields(self):
+        cfg = {'block_private_ip': '0'}
+        err, _, field = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-empty',
+                'task_keyword': '备注',
+                'ds_ms': '2',
+                'req_url': 'https://example.com/cb',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('定时模式', err)
+        self.assertEqual(field, 'cron_div')
+
     def test_reject_empty_task_keyword(self):
         cfg = {'block_private_ip': '0'}
-        err, _ = self.validator.validate_cron_form(
+        err, _, _field = self.validator.validate_cron_form(
             {
                 'task_name': 'job-kw',
                 'task_keyword': '  ',
@@ -140,7 +157,7 @@ class TestCronValidator(unittest.TestCase):
 
     def test_api_weekday_names(self):
         cfg = {'block_private_ip': '0'}
-        err, norm = self.validator.validate_cron_form(
+        err, norm, _field = self.validator.validate_cron_form(
             {
                 'task_name': 'job-b',
                 'task_keyword': '备注B',
@@ -158,7 +175,7 @@ class TestCronValidator(unittest.TestCase):
 
     def test_reject_ssrf_url(self):
         cfg = {'block_private_ip': '1', 'url_allow_hosts': ''}
-        err, _ = self.validator.validate_cron_form(
+        err, _, _field = self.validator.validate_cron_form(
             {
                 'task_name': 'job-c',
                 'task_keyword': '备注C',
@@ -173,7 +190,7 @@ class TestCronValidator(unittest.TestCase):
 
     def test_valid_with_public_ip_url(self):
         cfg = {'block_private_ip': '1', 'url_allow_hosts': ''}
-        err, norm = self.validator.validate_cron_form(
+        err, norm, _field = self.validator.validate_cron_form(
             {
                 'task_name': 'job-d',
                 'task_keyword': '备注D',
@@ -186,6 +203,62 @@ class TestCronValidator(unittest.TestCase):
         )
         self.assertIsNone(err, err)
         self.assertEqual(norm['req_url'], 'http://8.8.8.8/cb')
+
+    def test_reject_invalid_req_method(self):
+        cfg = {'block_private_ip': '0'}
+        err, _, field = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-method',
+                'task_keyword': '备注Method',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'PUT',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('GET 或 POST', err)
+        self.assertEqual(field, 'req_method')
+
+    def test_reject_non_object_req_body(self):
+        cfg = {'block_private_ip': '0'}
+        err, _, field = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-body',
+                'task_keyword': '备注Body',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'POST',
+                'req_body': '["a", "b"]',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNotNone(err)
+        self.assertIn('JSON 对象', err)
+        self.assertEqual(field, 'req_body')
+
+    def test_accept_post_with_object_req_body(self):
+        cfg = {'block_private_ip': '0'}
+        err, norm, _field = self.validator.validate_cron_form(
+            {
+                'task_name': 'job-post',
+                'task_keyword': '备注Post',
+                'hour': '2',
+                'req_url': 'https://example.com/cb',
+                'req_method': 'post',
+                'req_body': '{"k":"v"}',
+            },
+            0,
+            cfg,
+            mode='add',
+        )
+        self.assertIsNone(err, err)
+        self.assertEqual(norm['req_method'], 'POST')
+        self.assertEqual(norm['req_body'], '{"k":"v"}')
 
 
 class TestJsonContract(unittest.TestCase):

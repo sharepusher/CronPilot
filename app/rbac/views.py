@@ -11,6 +11,7 @@ from datas.model.rbac_user import RbacUser
 from . import rbac
 from .decorators import require_login, require_permission
 from .services import (
+    DEFAULT_USER_PASSWORD,
     VALID_ROLES,
     audit_action_label,
     audit_resource_label,
@@ -24,10 +25,13 @@ from .services import (
     get_user_group_ids_for_user,
     list_resource_groups,
     set_user_groups,
+    trigger_password_reset,
     update_resource_group,
     update_user,
+    user_must_reset_password,
     validate_groups_for_role,
     write_audit_log,
+    set_user_active,
 )
 
 
@@ -47,6 +51,37 @@ def _users_form_response(ok, msg, url='/rbac/users', template=None, **ctx):
     if template:
         return render_template(template, form_msg=msg, roles=sorted(VALID_ROLES), **ctx)
     return redirect(url)
+
+
+def _password_force_reset(user_id=None):
+    return user_must_reset_password(
+        user_id if user_id is not None else session.get('user_id')
+    )
+
+
+def _force_reset_allowed_path(path):
+    if path.startswith('/static/'):
+        return True
+    if path in ('/rbac/password', '/rbac/logout', '/rbac/login'):
+        return True
+    return False
+
+
+@rbac.before_app_request
+def enforce_password_reset():
+    """待重置用户访问受保护页时强制改密；实时读库，管理员触发后立即生效。"""
+    if 'is_login' not in session:
+        return None
+    path = request.path or ''
+    if _force_reset_allowed_path(path):
+        return None
+    if not _password_force_reset():
+        return None
+    reset_url = '/rbac/password'
+    msg = '请先修改密码后再继续使用'
+    if _wants_ajax_json():
+        return web_api_return(code=1, msg=msg, url=reset_url)
+    return redirect(reset_url)
 
 
 @rbac.route('/login', methods=['GET', 'POST'])
@@ -77,6 +112,8 @@ def login():
         session.pop('user_id', None)
         session['group_ids'] = []
     write_audit_log(action='user:login', resource=result['username'])
+    if result.get('must_reset_password'):
+        return redirect('/rbac/password')
     return redirect(next_url)
 
 
@@ -92,8 +129,12 @@ def logout():
 @require_login
 def change_password():
     """任意已登录用户修改自己的密码；成功后清空会话并要求重新登录。"""
+    force_reset = _password_force_reset()
     if request.method == 'GET':
-        return render_template('rbac/change_password.html')
+        return render_template(
+            'rbac/change_password.html',
+            force_reset=force_reset,
+        )
     result = change_own_password(
         session.get('user_id'),
         request.values.get('old_password', ''),
@@ -111,7 +152,11 @@ def change_password():
         )
     if result['ok']:
         return redirect(login_url)
-    return render_template('rbac/change_password.html', form_msg=result['msg'])
+    return render_template(
+        'rbac/change_password.html',
+        form_msg=result['msg'],
+        force_reset=force_reset,
+    )
 
 
 @rbac.route('/users', methods=['GET'])
@@ -135,6 +180,7 @@ def users_add():
             'rbac/users_add.html',
             roles=sorted(VALID_ROLES),
             groups=groups,
+            default_password=DEFAULT_USER_PASSWORD,
         )
     role = request.values.get('role', 'viewer')
     group_ids = request.values.getlist('group_ids')
@@ -145,6 +191,7 @@ def users_add():
             groups_err,
             template='rbac/users_add.html',
             groups=groups,
+            default_password=DEFAULT_USER_PASSWORD,
         )
     if not groups and role != 'admin':
         return _users_form_response(
@@ -152,10 +199,10 @@ def users_add():
             '请先创建业务组，再添加非管理员用户',
             template='rbac/users_add.html',
             groups=groups,
+            default_password=DEFAULT_USER_PASSWORD,
         )
     result = create_user(
         request.values.get('username', ''),
-        request.values.get('password', ''),
         role,
     )
     if result.get('ok') and result.get('user_id'):
@@ -173,12 +220,14 @@ def users_add():
                 bound['msg'],
                 template='rbac/users_add.html',
                 groups=groups,
+                default_password=DEFAULT_USER_PASSWORD,
             )
     return _users_form_response(
         result['ok'],
         result['msg'],
         template='rbac/users_add.html',
         groups=groups,
+        default_password=DEFAULT_USER_PASSWORD,
     )
 
 
@@ -193,6 +242,12 @@ def users_edit():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    session_uid = session.get('user_id')
+    if session_uid is not None and int(session_uid) == int(user.id):
+        msg = '不能在用户管理中编辑自己的账号；请使用「修改密码」调整密码'
+        if _wants_ajax_json():
+            return web_api_return(code=1, msg=msg, url='/rbac/password')
+        return redirect('/rbac/password')
     groups = list_resource_groups()
     if request.method == 'GET':
         return render_template(
@@ -201,8 +256,8 @@ def users_edit():
             roles=sorted(VALID_ROLES),
             groups=groups,
             user_group_ids=get_user_group_ids_for_user(user.id),
+            default_password=DEFAULT_USER_PASSWORD,
         )
-    password = request.values.get('password', '')
     new_role = request.values.get('role', user.role)
     group_ids = request.values.getlist('group_ids')
     groups_err = validate_groups_for_role(new_role, group_ids)
@@ -214,12 +269,12 @@ def users_edit():
             user=user,
             groups=groups,
             user_group_ids=get_user_group_ids_for_user(user.id),
+            default_password=DEFAULT_USER_PASSWORD,
         )
     result = update_user(
         user_id,
         role=new_role,
         is_active=request.values.get('is_active', user.is_active),
-        password=password if password else None,
     )
     if result['ok']:
         bound = set_user_groups(user_id, group_ids, role=new_role)
@@ -238,6 +293,57 @@ def users_edit():
         user=user,
         groups=groups,
         user_group_ids=get_user_group_ids_for_user(user.id),
+        default_password=DEFAULT_USER_PASSWORD,
+    )
+
+
+@rbac.route('/users/reset_password', methods=['GET', 'POST'])
+@require_permission('user:manage')
+def users_reset_password():
+    user_id = request.values.get('id')
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/users')
+    result = trigger_password_reset(user_id, actor_user_id=session.get('user_id'))
+    return _users_form_response(
+        result['ok'],
+        result['msg'],
+        url='/rbac/users',
+    )
+
+
+@rbac.route('/users/set_active', methods=['GET', 'POST'])
+@require_permission('user:manage')
+def users_set_active():
+    user_id = request.values.get('id')
+    try:
+        user_id = int(user_id)
+        is_active = int(request.values.get('is_active'))
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/users')
+    user = get_user_by_id(user_id)
+    if not user:
+        return _users_form_response(False, '用户不存在', url='/rbac/users')
+    if request.method == 'GET':
+        return render_template(
+            'rbac/users_set_active.html',
+            user=user,
+            target_active=is_active,
+        )
+    result = set_user_active(
+        user_id,
+        is_active,
+        reason=request.values.get('reason', ''),
+        actor_user_id=session.get('user_id'),
+    )
+    return _users_form_response(
+        result['ok'],
+        result['msg'],
+        url='/rbac/users',
+        template='rbac/users_set_active.html',
+        user=user,
+        target_active=is_active,
     )
 
 

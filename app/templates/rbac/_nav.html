@@ -2,7 +2,7 @@
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
-        <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务列表</a>
+        <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务中心</a>
     </li>
     {% endif %}
     {% if has_perm('cron:write') %}

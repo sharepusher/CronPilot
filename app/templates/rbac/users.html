@@ -16,28 +16,66 @@
 
         <p>
             <a href="{{ url_for('rbac.users_add') }}" class="btn btn-primary">添加用户</a>
-            <span style="color:#64748b;margin-left:8px">无物理删除；停用即可。须保留至少一名启用中的管理员。</span>
+            <span style="color:#64748b;margin-left:8px">无物理删除；停用/启用须填写缘由。须保留至少一名启用中的管理员。新建用户默认密码 changeme，首次登录须改密。</span>
         </p>
-        <table class="table table-hover table-bordered">
+        <table class="table table-hover table-bordered rbac-users-table">
             <thead>
             <tr>
                 <th>ID</th>
                 <th>用户名</th>
                 <th>角色</th>
                 <th>状态</th>
+                <th>密码状态</th>
                 <th>创建时间</th>
-                <th width="100">操作</th>
+                <th style="width:240px">操作</th>
             </tr>
             </thead>
             <tbody>
             {% for item in page_data.items %}
-            <tr>
+            {% set is_self = current_user and current_user.user_id == item.id %}
+            <tr class="{% if not item.is_active %}user-row-inactive{% elif item.must_reset_password %}user-row-reset{% endif %}">
                 <td>{{ item.id }}</td>
-                <td>{{ item.username }}</td>
+                <td>
+                    {{ item.username }}
+                    {% if is_self %}<span class="user-self-tag">当前</span>{% endif %}
+                </td>
                 <td>{{ item.role }}</td>
-                <td>{% if item.is_active %}启用{% else %}停用{% endif %}</td>
+                <td>
+                    {% if item.is_active %}
+                    <span class="user-status user-status-on">启用</span>
+                    {% else %}
+                    <span class="user-status user-status-off">停用</span>
+                    {% endif %}
+                    {% if item.status_reason %}
+                    <div class="user-status-reason" title="{{ item.status_reason|e }}">{% if item.status_reason|length > 28 %}{{ item.status_reason[:28] }}…{% else %}{{ item.status_reason }}{% endif %}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.must_reset_password %}
+                    <span class="user-status user-status-reset">待重置</span>
+                    {% else %}
+                    <span class="user-status user-status-ok">正常</span>
+                    {% endif %}
+                </td>
                 <td>{{ item.create_time }}</td>
-                <td><a href="{{ url_for('rbac.users_edit', id=item.id) }}">编辑</a></td>
+                <td class="user-ops" style="white-space:nowrap">
+                    {% if is_self %}
+                    <a class="btn btn-mini btn-primary" href="{{ url_for('rbac.change_password') }}">修改密码</a>
+                    <span class="user-ops-hint">账号/角色/业务组不可自改</span>
+                    {% else %}
+                    <a class="btn btn-mini btn-warning js-ajax-dialog-btn"
+                       href="{{ url_for('rbac.users_reset_password') }}?id={{ item.id }}"
+                       data-msg="确定触发重置用户「{{ item.username }}」的密码？密码将恢复为 changeme，且须改密后才能继续使用。">重置密码</a>
+                    {% if item.is_active %}
+                    <a class="btn btn-mini btn-danger"
+                       href="{{ url_for('rbac.users_set_active', id=item.id, is_active=0) }}">停用</a>
+                    {% else %}
+                    <a class="btn btn-mini btn-success"
+                       href="{{ url_for('rbac.users_set_active', id=item.id, is_active=1) }}">恢复启用</a>
+                    {% endif %}
+                    <a class="btn btn-mini btn-info" href="{{ url_for('rbac.users_edit', id=item.id) }}">编辑</a>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -46,4 +84,66 @@
             {{ pg.page(page_data, 'rbac.users_list') }}
         </div>
     </div>
+{% endblock %}
+
+{% block css %}
+<style>
+.rbac-users-table .user-row-inactive td {
+    color: #94a3b8;
+    background: #f8fafc;
+}
+.rbac-users-table .user-row-reset td {
+    background: #fffbeb;
+}
+.rbac-users-table .user-self-tag {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 4px;
+    font-size: 10px;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-radius: 3px;
+    vertical-align: middle;
+}
+.rbac-users-table .user-status {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 3px;
+}
+.rbac-users-table .user-status-on {
+    color: #166534;
+    background: #dcfce7;
+}
+.rbac-users-table .user-status-off {
+    color: #64748b;
+    background: #e2e8f0;
+}
+.rbac-users-table .user-status-reset {
+    color: #b45309;
+    background: #ffedd5;
+}
+.rbac-users-table .user-status-ok {
+    color: #475569;
+    background: #f1f5f9;
+}
+.rbac-users-table .user-status-reason {
+    margin-top: 3px;
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+    max-width: 180px;
+}
+.rbac-users-table .user-ops .btn-mini {
+    margin: 0 2px 2px 0;
+}
+.rbac-users-table .user-ops-hint {
+    display: inline-block;
+    margin-left: 4px;
+    color: #94a3b8;
+    font-size: 11px;
+    vertical-align: middle;
+}
+</style>
 {% endblock %}

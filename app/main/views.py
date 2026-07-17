@@ -1,25 +1,44 @@
 # -*- coding:utf-8 -*-
 import traceback
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 
 from app import scheduler, db
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.job_log_items import JobLogItems
+from datas.model.job_health import JobHealth
 from datas.utils.json import json_response
+from datas.utils.times import get_today
 from . import main
-from flask import render_template, request, redirect, session, current_app
+from flask import render_template, request, redirect, session, current_app, url_for
 
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
 from app.rbac.policy import role_bypasses_scope
 from app.rbac.scope import (
+    SCOPE_GLOBAL,
+    SCOPE_GROUP,
     build_scope_filter_clause,
     normalize_scope_fields,
     user_can_assign_group,
 )
 from app.rbac.services import list_resource_groups
 from app.services.cron_service import add_cron_web, edit_cron_web
+from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
+from app.services.job_log_filter import job_log_outcome_clause
+from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
+
+
+def _parse_log_outcome_param():
+    """无 outcome 参数时默认 not_success（排障优先）；outcome=all 表示全部。"""
+    if 'outcome' not in request.args:
+        return 'not_success'
+    raw = (request.args.get('outcome') or '').strip().lower()
+    if raw in ('', 'all'):
+        return 'all'
+    if raw in ('success', 'fail', 'error', 'not_success', 'unknown'):
+        return raw
+    return 'not_success'
 
 from ..common.functions import wechat_info_err, web_api_return
 
@@ -35,6 +54,60 @@ def _scope_groups_for_form():
         return all_groups
     allowed = set(session_group_ids())
     return [g for g in all_groups if g.id in allowed]
+
+
+def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
+    """可视范围内的二次过滤；越权 group_id 回退 all。返回 (scope_view, group_id, clause|None)。"""
+    sv = (scope_view or 'all').strip().lower()
+    if sv not in ('all', 'global', 'group'):
+        sv = 'all'
+    gid = None
+    if sv == 'group':
+        try:
+            gid = int(group_id_raw)
+        except (TypeError, ValueError):
+            return 'all', None, None
+        if not role_bypasses_scope(role) and gid not in set(group_ids or []):
+            return 'all', None, None
+        return sv, gid, and_(
+            CronInfos.scope_type == SCOPE_GROUP,
+            CronInfos.group_id == gid,
+        )
+    if sv == 'global':
+        return sv, None, CronInfos.scope_type == SCOPE_GLOBAL
+    return 'all', None, None
+
+
+def _cron_list_metrics(base_filters):
+    """在已有权限+UI 过滤上统计 Metric。"""
+    q = db.session.query(CronInfos).filter(*base_filters)
+    total = q.count()
+    running = q.filter(CronInfos.status == 1).count()
+    failing_q = (
+        db.session.query(func.count(JobHealth.cron_info_id))
+        .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
+        .filter(*base_filters)
+        .filter(JobHealth.health_status == HEALTH_FAILING)
+    )
+    failing = failing_q.scalar() or 0
+    today = get_today()
+    today_fail = (
+        db.session.query(func.count(JobLog.id))
+        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+        .filter(*base_filters)
+        .filter(JobLog.create_time.like(today + '%'))
+        .filter(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
+        .scalar()
+    ) or 0
+    return {
+        'total': total,
+        'running': running,
+        'failing': int(failing),
+        'today_fail_runs': int(today_fail),
+        'failing_threshold': get_failing_threshold(
+            current_app.config.get('CRON_CONFIG')
+        ),
+    }
 
 
 def _scope_form_context():
@@ -93,24 +166,116 @@ def cron_list():
     keyword = request.args.to_dict()
     page = int(request.args.get('page') or 1)
     task_name = keyword.get('task_name')
+    role = session.get('role') or ''
+    group_ids = session_group_ids()
     filter_arr = []
     if task_name:
         filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
-    scope_clause = build_scope_filter_clause(
-        session.get('role') or '',
-        session_group_ids(),
-    )
+    scope_clause = build_scope_filter_clause(role, group_ids)
     if scope_clause is not None:
         filter_arr.append(scope_clause)
 
-    page_data = (
-        db.session.query(CronInfos)
-        .filter(*filter_arr)
-        .order_by(db.desc(CronInfos.status), db.desc(CronInfos.task_name))
-        .paginate(page=page, per_page=20)
+    scope_view, scope_group_id, ui_scope_clause = _parse_ui_scope_view(
+        role,
+        group_ids,
+        keyword.get('scope_view'),
+        keyword.get('group_id'),
     )
-    if 'page' in keyword: del keyword['page']
-    return render_template("cron_list.html", page_data=page_data, keyword=keyword)
+    if ui_scope_clause is not None:
+        filter_arr.append(ui_scope_clause)
+
+    life_status = keyword.get('status')
+    if life_status in ('0', '1', '-1'):
+        filter_arr.append(CronInfos.status == int(life_status))
+
+    health = (keyword.get('health') or '').strip().lower()
+    query = db.session.query(CronInfos)
+    if health == 'failing':
+        query = (
+            query.join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
+            .filter(JobHealth.health_status == HEALTH_FAILING)
+        )
+    elif health == 'today_fail':
+        today = get_today()
+        today_fail_ids = (
+            db.session.query(JobLog.cron_info_id)
+            .filter(JobLog.create_time.like(today + '%'))
+            .filter(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
+            .distinct()
+        )
+        query = query.filter(CronInfos.id.in_(today_fail_ids))
+    if filter_arr:
+        query = query.filter(*filter_arr)
+
+    metrics = _cron_list_metrics(list(filter_arr))
+    page_data = query.order_by(
+        db.desc(CronInfos.status), db.desc(CronInfos.task_name)
+    ).paginate(page=page, per_page=20)
+
+    health_by_id = {}
+    ids = [item.id for item in page_data.items]
+    if ids:
+        for h in db.session.scalars(
+            select(JobHealth).where(JobHealth.cron_info_id.in_(ids))
+        ).all():
+            health_by_id[h.cron_info_id] = h
+
+    scope_groups = _scope_groups_for_form()
+    group_name_by_id = {g.id: g.name for g in scope_groups}
+    # admin 侧栏需要全量组名；非 admin 仅所属组
+    if role_bypasses_scope(role):
+        try:
+            group_name_by_id = {g.id: g.name for g in list_resource_groups()}
+            scope_groups = list_resource_groups()
+        except Exception:
+            pass
+
+    if 'page' in keyword:
+        del keyword['page']
+    keyword['scope_view'] = scope_view
+    if scope_group_id is not None:
+        keyword['group_id'] = str(scope_group_id)
+    elif 'group_id' in keyword and scope_view != 'group':
+        keyword.pop('group_id', None)
+
+    failing_tasks = (
+        db.session.query(CronInfos, JobHealth)
+        .join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
+        .filter(*filter_arr)
+        .filter(JobHealth.health_status == HEALTH_FAILING)
+        .order_by(db.desc(JobHealth.consecutive_failures), db.desc(JobHealth.last_fail_at))
+        .limit(5)
+        .all()
+    )
+    recent_ok_tasks = (
+        db.session.query(CronInfos, JobHealth)
+        .join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
+        .filter(*filter_arr)
+        .filter(JobHealth.last_run_status == STATUS_SUCCESS)
+        .order_by(db.desc(JobHealth.last_run_at))
+        .limit(5)
+        .all()
+    )
+
+    return render_template(
+        "cron_list.html",
+        page_data=page_data,
+        keyword=keyword,
+        metrics=metrics,
+        health_by_id=health_by_id,
+        scope_groups=scope_groups,
+        group_name_by_id=group_name_by_id,
+        scope_view=scope_view,
+        scope_group_id=scope_group_id,
+        scope_nav_mode=(
+            'sidebar' if role_bypasses_scope(role) or len(scope_groups) >= 5
+            else ('segment' if scope_groups else 'none')
+        ),
+        is_admin_scope=role_bypasses_scope(role),
+        list_role=role,
+        failing_tasks=failing_tasks,
+        recent_ok_tasks=recent_ok_tasks,
+    )
 
 
 @main.route('/api_doc', methods=['GET', 'POST'])
@@ -137,21 +302,43 @@ def job_log_list():
             )
             if 'page' in keywords:
                 del keywords['page']
-            return render_template("job_log_list.html", page_data=page_data, keywords=keywords)
+            return render_template(
+                "job_log_list.html",
+                page_data=page_data,
+                keywords=keywords,
+                outcome='all',
+            )
         denied = authorize_resource('log:read', cif)
         if denied:
             return denied
 
-    page_data = (
-        db.session.query(JobLog)
-        .filter(JobLog.cron_info_id == id)
-        .order_by(db.desc(JobLog.id))
-        .paginate(page=page, per_page=20)
-    )
+    # 单任务 iframe：缺省全部；仅 URL 显式带 outcome 时筛选
+    if 'outcome' not in request.args:
+        outcome = 'all'
+    else:
+        raw = (request.args.get('outcome') or '').strip().lower()
+        if raw in ('', 'all'):
+            outcome = 'all'
+        elif raw in ('success', 'fail', 'error', 'not_success', 'unknown'):
+            outcome = raw
+        else:
+            outcome = 'all'
+    outcome_clause = job_log_outcome_clause(outcome)
+    q = db.session.query(JobLog).filter(JobLog.cron_info_id == id)
+    if outcome_clause is not None:
+        q = q.filter(outcome_clause)
+    page_data = q.order_by(db.desc(JobLog.id)).paginate(page=page, per_page=20)
     if 'page' in keywords:
         del keywords['page']
+    keywords['outcome'] = outcome
+    keywords['id'] = id
 
-    return render_template("job_log_list.html", page_data=page_data, keywords=keywords)
+    return render_template(
+        "job_log_list.html",
+        page_data=page_data,
+        keywords=keywords,
+        outcome=outcome,
+    )
 
 @main.route('/job_log_item_list', methods=['GET', 'POST'])
 @require_permission('log:read')
@@ -198,6 +385,7 @@ def job_log_all_list():
     keywords = request.args.to_dict()
 
     page = int(request.args.get('page') or 1)
+    outcome = _parse_log_outcome_param()
 
     filter_arr = []
     task_name = keywords.get('task_name')
@@ -213,6 +401,9 @@ def job_log_all_list():
     )
     if scope_clause is not None:
         filter_arr.append(scope_clause)
+    outcome_clause = job_log_outcome_clause(outcome)
+    if outcome_clause is not None:
+        filter_arr.append(outcome_clause)
 
     page_data = (
         db.session.query(JobLog, CronInfos)
@@ -224,8 +415,14 @@ def job_log_all_list():
 
     if 'page' in keywords:
         del keywords['page']
+    keywords['outcome'] = outcome
 
-    return render_template("job_log_all_list.html", page_data=page_data, keywords=keywords)
+    return render_template(
+        "job_log_all_list.html",
+        page_data=page_data,
+        keywords=keywords,
+        outcome=outcome,
+    )
 
 
 @main.route('/job_log_delete', methods=['GET', 'POST'])
@@ -252,9 +449,10 @@ def cron_add():
             scope_err = _apply_scope_from_form(datas)
             if scope_err:
                 return web_api_return(code=1, msg=scope_err)
-            err = add_cron_web(datas, is_dev, CRON_CONFIG)
+            err, field = add_cron_web(datas, is_dev, CRON_CONFIG)
             if err:
-                return web_api_return(code=1, msg=err)
+                payload = {'field': field} if field else None
+                return web_api_return(code=1, msg=err, data=payload)
             return web_api_return(code=0, msg='添加成功', url='/cron_list')
         except Exception as e:
             trace_info = traceback.format_exc()
@@ -285,9 +483,10 @@ def cron_edit():
     if request.method == 'POST':
         # 编辑不改作用域（表单亦不展示）；创建/更新时间只读且不展示
         datas = request.values.to_dict()
-        err = edit_cron_web(datas, is_dev, CRON_CONFIG, id)
+        err, field = edit_cron_web(datas, is_dev, CRON_CONFIG, id)
         if err:
-            return web_api_return(code=1, msg=err)
+            payload = {'field': field} if field else None
+            return web_api_return(code=1, msg=err, data=payload)
         return web_api_return(code=0, msg='修改成功！', url='/cron_list')
 
     return render_template(
@@ -331,6 +530,34 @@ def update_status():
     return web_api_return(code=0, msg=msg)
 
 
+@main.route('/cron_run_now', methods=['GET', 'POST'])
+@require_permission('cron:write')
+def cron_run_now():
+    from app.crons import cron_do
+
+    id = request.args.get('id')
+    cif = db.session.get(CronInfos, id)
+    if not cif:
+        return web_api_return(code=1, msg='任务不存在', url='/cron_list')
+    denied = authorize_resource('cron:write', cif)
+    if denied:
+        return denied
+    if cif.status == -1:
+        return web_api_return(code=1, msg='任务已下线，不能执行')
+    if cif.status != 1:
+        return web_api_return(code=1, msg='任务未在运行中，不能立即执行')
+    if not cif.req_url:
+        return web_api_return(code=1, msg='未配置触发 URL，不能执行')
+    job_log_id = cron_do(int(id))
+    if not job_log_id:
+        return web_api_return(code=1, msg='任务正在执行中，请稍后再试')
+    return web_api_return(
+        code=0,
+        msg='执行完成',
+        url=url_for('main.job_log_detail', id=job_log_id),
+    )
+
+
 @main.route('/cron_retire', methods=['GET', 'POST'])
 @require_permission('cron:retire')
 def cron_retire():
@@ -362,18 +589,25 @@ def operation_log_list():
     from app.services.operation_log_service import (
         format_detail_summary,
         operation_action_label,
-        operation_channel_label,
         operation_result_label,
     )
 
     keywords = request.args.to_dict()
     page = int(request.args.get('page') or 1)
+    role = session.get('role') or ''
+    group_ids = session_group_ids()
     task_name = (keywords.get('task_name') or '').strip()
     operator_name = (keywords.get('operator_name') or '').strip()
     action = (keywords.get('action') or '').strip()
-    channel = (keywords.get('channel') or '').strip()
     beg_time = (keywords.get('beg_time') or '').strip()
     end_time = (keywords.get('end_time') or '').strip()
+
+    scope_view, scope_group_id, ui_scope_clause = _parse_ui_scope_view(
+        role,
+        group_ids,
+        keywords.get('scope_view'),
+        keywords.get('group_id'),
+    )
 
     filters = []
     if task_name:
@@ -382,16 +616,13 @@ def operation_log_list():
         filters.append(OperationLog.operator_name.like('%{}%'.format(operator_name)))
     if action:
         filters.append(OperationLog.action == action)
-    if channel:
-        filters.append(OperationLog.channel == channel)
     if beg_time:
         filters.append(OperationLog.create_time >= beg_time)
     if end_time:
         filters.append(OperationLog.create_time <= end_time)
 
-    role = session.get('role') or ''
     if not role_bypasses_scope(role):
-        scope_clause = build_scope_filter_clause(role, session_group_ids())
+        scope_clause = build_scope_filter_clause(role, group_ids)
         visible_ids = select(CronInfos.id)
         if scope_clause is not None:
             visible_ids = visible_ids.where(scope_clause)
@@ -401,6 +632,14 @@ def operation_log_list():
                 OperationLog.target_id.in_(visible_ids),
             )
         )
+    elif ui_scope_clause is not None:
+        cron_ids = select(CronInfos.id).where(ui_scope_clause)
+        filters.append(
+            and_(
+                OperationLog.target_type == 'cron',
+                OperationLog.target_id.in_(cron_ids),
+            )
+        )
 
     page_data = (
         db.session.query(OperationLog)
@@ -408,14 +647,45 @@ def operation_log_list():
         .order_by(db.desc(OperationLog.id))
         .paginate(page=page, per_page=20)
     )
+
+    cron_by_id = {}
+    target_ids = [
+        r.target_id for r in page_data.items
+        if r.target_type == 'cron' and r.target_id
+    ]
+    if target_ids:
+        for cif in db.session.scalars(
+            select(CronInfos).where(CronInfos.id.in_(target_ids))
+        ).all():
+            cron_by_id[cif.id] = cif
+
+    scope_groups = _scope_groups_for_form()
+    group_name_by_id = {g.id: g.name for g in scope_groups}
+    if role_bypasses_scope(role):
+        try:
+            scope_groups = list_resource_groups()
+            group_name_by_id = {g.id: g.name for g in scope_groups}
+        except Exception:
+            pass
+
     if 'page' in keywords:
         del keywords['page']
+    keywords['scope_view'] = scope_view
+    if scope_group_id is not None:
+        keywords['group_id'] = str(scope_group_id)
+    elif 'group_id' in keywords and scope_view != 'group':
+        keywords.pop('group_id', None)
+
     return render_template(
         'operation_log_list.html',
         page_data=page_data,
         keywords=keywords,
+        scope_view=scope_view,
+        scope_group_id=scope_group_id,
+        scope_groups=scope_groups,
+        group_name_by_id=group_name_by_id,
+        cron_by_id=cron_by_id,
         operation_action_label=operation_action_label,
-        operation_channel_label=operation_channel_label,
         operation_result_label=operation_result_label,
         format_detail_summary=format_detail_summary,
     )

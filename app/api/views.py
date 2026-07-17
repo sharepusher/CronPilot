@@ -30,6 +30,8 @@ hour
 minute
 second
 req_url
+req_method
+req_body
 '''
 @api.route('/cron/add',methods=['GET','POST'])
 @api.route('/cron',methods=['GET','POST'])

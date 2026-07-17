@@ -20,6 +20,7 @@ class TestJobLogAlwaysHasLogId(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.job_log import JobLog  # noqa: F401
+            from datas.model.job_health import JobHealth  # noqa: F401
             db.create_all()
 
     def test_save_job_log_generates_log_id_when_missing(self):

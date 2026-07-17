@@ -32,8 +32,9 @@ class CuGeventScheduler(GeventScheduler):
             reason = reason or RETIRE_REASON_ONE_SHOT
             now = get_now_time()
             self._dbs().query(
-                "update cron_infos set status=-1, retire_reason=:r, retired_at=:t where id=:id",
-                r=reason, t=now, id=cron_id,
+                "update cron_infos set status=-1, retire_reason=:r, retired_at=:t, "
+                "last_operator_name=:op, last_operated_at=:t where id=:id",
+                r=reason, t=now, op='系统', id=cron_id,
             )
         except Exception:
             try:

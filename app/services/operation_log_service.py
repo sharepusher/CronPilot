@@ -48,6 +48,8 @@ CRON_SNAPSHOT_FIELDS = (
     'minute',
     'second',
     'req_url',
+    'req_method',
+    'req_body',
     'status',
     'scope_type',
     'group_id',

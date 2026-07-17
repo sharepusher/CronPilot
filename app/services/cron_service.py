@@ -13,6 +13,15 @@ RETIRE_REASON_EXECUTOR = '调度执行器异常移除（系统）'
 RETIRE_REASON_ORPHAN = 'JobStore 无对应任务，系统对账下线'
 
 
+def stamp_last_operator(cif, operator=None):
+    """写入最近发布/编辑/下线操作人（列表「发布人」列）。"""
+    from app.services.operation_log_service import resolve_operator_from_request
+
+    op = operator if operator is not None else resolve_operator_from_request()
+    cif.last_operator_name = (getattr(op, 'operator_name', None) or '')[:120]
+    cif.last_operated_at = get_now_time()
+
+
 def build_scheduler_kwargs(normalized):
     cron_datas = {}
     run_date = normalized.get('run_date') or ''
@@ -37,7 +46,12 @@ def build_scheduler_kwargs(normalized):
 
 def register_cron_job(cron_id, normalized):
     from app.crons import cron_do
+    from app.services.cron_schedule_display import schedule_configured_from_normalized
 
+    run_date = normalized.get('run_date') or ''
+    ds_ms = '1' if run_date else '2'
+    if not schedule_configured_from_normalized(normalized, ds_ms):
+        raise ValueError('未配置调度策略，无法注册任务')
     cron_datas = build_scheduler_kwargs(normalized)
     scheduler.add_job(
         'cron_%s' % cron_id,
@@ -58,7 +72,8 @@ def apply_normalized_to_model(cif, normalized):
     cif.minute = normalized['minute']
     cif.second = normalized['second']
     cif.req_url = normalized['req_url']
-    cif.status = 1
+    cif.req_method = normalized.get('req_method', 'GET')
+    cif.req_body = normalized.get('req_body', '')
     cif.updated_at = get_now_time()
     if 'scope_type' in normalized:
         cif.scope_type = normalized['scope_type'] or 'GLOBAL'
@@ -80,12 +95,15 @@ def create_cron(normalized):
         minute=normalized['minute'],
         second=normalized['second'],
         req_url=normalized['req_url'],
+        req_method=normalized.get('req_method', 'GET'),
+        req_body=normalized.get('req_body', ''),
         status=1,
         created_at=now,
         updated_at=now,
         scope_type=normalized.get('scope_type') or 'GLOBAL',
         group_id=normalized.get('group_id'),
     )
+    stamp_last_operator(cif)
     db.session.add(cif)
     db.session.commit()
     register_cron_job(cif.id, normalized)
@@ -98,7 +116,7 @@ def create_cron(normalized):
     return cif
 
 
-def update_cron(cif, normalized):
+def update_cron(cif, normalized, resume_after_save=False):
     from app.services.operation_log_service import (
         build_cron_diff,
         record_operation,
@@ -106,10 +124,19 @@ def update_cron(cif, normalized):
     )
 
     before = snapshot_cron(cif)
+    was_paused = cif.status == 0
     apply_normalized_to_model(cif, normalized)
+    if resume_after_save and was_paused:
+        cif.status = 1
+    stamp_last_operator(cif)
     db.session.add(cif)
     db.session.commit()
     register_cron_job(cif.id, normalized)
+    if cif.status == 0:
+        try:
+            scheduler.pause_job('cron_%s' % cif.id)
+        except Exception:
+            pass
     record_operation(
         action='update_cron',
         target_id=cif.id,
@@ -119,11 +146,12 @@ def update_cron(cif, normalized):
     return cif
 
 
-def apply_retire(cif, reason):
+def apply_retire(cif, reason, operator=None):
     """将任务标为下线并写原因/时间；调用方负责 remove_job 与 commit。"""
     cif.status = -1
     cif.retire_reason = reason
     cif.retired_at = get_now_time()
+    stamp_last_operator(cif, operator=operator)
     db.session.add(cif)
 
 
@@ -193,7 +221,7 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
     API /cron 添加或更新：按 task_name 查找。
     返回 (error_msg, cif)；error_msg 为 None 表示成功。
     """
-    err, normalized = validate_cron_form(
+    err, normalized, _field = validate_cron_form(
         datas, is_dev, cron_config, mode='add', api_mode=True
     )
     if err:
@@ -213,9 +241,9 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
 
 
 def add_cron_web(datas, is_dev, cron_config):
-    err, normalized = validate_cron_form(datas, is_dev, cron_config, mode='add')
+    err, normalized, field = validate_cron_form(datas, is_dev, cron_config, mode='add')
     if err:
-        return err
+        return err, field
     if 'scope_type' in datas:
         normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
         normalized['group_id'] = datas.get('group_id')
@@ -223,17 +251,17 @@ def add_cron_web(datas, is_dev, cron_config):
         select(CronInfos).where(CronInfos.task_name == normalized['task_name'])
     ).first()
     if exists:
-        return '任务名称已存在'
+        return '任务名称「%s」已被占用，请更换名称' % normalized['task_name'], 'task_name'
     create_cron(normalized)
-    return None
+    return None, None
 
 
 def edit_cron_web(datas, is_dev, cron_config, cron_id):
-    err, normalized = validate_cron_form(
+    err, normalized, field = validate_cron_form(
         datas, is_dev, cron_config, mode='edit', cron_id=cron_id
     )
     if err:
-        return err
+        return err, field
     if 'scope_type' in datas:
         normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
         normalized['group_id'] = datas.get('group_id')
@@ -244,12 +272,13 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
         )
     ).first()
     if dup:
-        return '任务名称已存在已存在'
+        return '任务名称「%s」已被占用，请更换名称' % normalized['task_name'], 'task_name'
     cif = db.session.get(CronInfos, cron_id)
     if not cif:
-        return '任务不存在'
+        return '任务不存在', None
     if cif.status == -1:
-        return '任务已下线，不能编辑；请新建任务'
-    update_cron(cif, normalized)
-    return None
+        return '任务已下线，不能编辑；请新建任务', None
+    resume = (datas.get('resume_after_save') or '').strip() in ('1', 'on', 'true', 'True')
+    update_cron(cif, normalized, resume_after_save=resume)
+    return None, None
 

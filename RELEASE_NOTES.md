@@ -5,11 +5,56 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
-## [Unreleased]
+## [Unreleased] · v2.0.0 准备（代码已验收 · 未打 tag）
 
-下一版计划见 **[交付状态与路线图](doc/交付状态与路线图.html)**。
+下一版目标版本号：**v2.0.0**。正式发版时将本节下沉为 `[2.0.0]`，并同步 README、文档索引与 [交付状态与路线图](doc/交付状态与路线图.html)。
 
-**维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
+**升级**：部署启动须跑 `ensure_business_tables`（**SQLite / MySQL** 均补列）并**重启**进程。
+
+### Schema（SQLite / MySQL）
+
+| 对象 | 变更 | 说明 |
+|------|------|------|
+| `job_health` | 新表（`create_all`） | 连续失败 / 最近结果等健康快照 |
+| `cron_infos` | `last_operator_name` / `last_operated_at` | 最近发布人与时间 |
+| `cron_infos` | `req_method` / `req_body` | 触发请求 GET/POST；POST JSON Body（MySQL 补列 `req_body` 无 DEFAULT） |
+| `rbac_users` | `must_reset_password` / `status_reason` | 强制改密标记；启停缘由 |
+| 配置 | `health_failing_threshold`（默认 3） | 连续失败≥N 视为「连续失败」 |
+
+其它方言打印 `SKIP`，需自行维护 schema。
+
+### 触发请求：GET / POST（JSON Body）
+
+- 任务可配置 `req_method=GET|POST`（默认 GET，兼容既有任务）。
+- **GET**：与既有行为一致，query 附加 `cronpilot_log_id` / `cronpilot_sign`。
+- **POST**：`Content-Type: application/json`；以配置的 `req_body`（JSON 对象）为基，再注入 `cronpilot_log_id` / `cronpilot_sign`（**不覆盖**用户已写同名字段）；可空 body。
+- Web 添加/编辑：触发 URL 旁选择方法；选 POST 时展示 Body 文本框。API `/api/cron` 亦可传 `req_method` / `req_body`（经同一校验）。
+- 升级：`ensure_business_tables` 对 SQLite/MySQL 补列；现有任务默认 GET。
+
+### 任务中心与规模化 IA（OPT-P2-13）
+
+- **导航**：「任务列表」→「任务中心」。
+- **五列布局**：任务（健康圆点 + 名称/说明/URL）· 调度策略（人类可读 + Cron 原式）· 运行与发布（最近执行 / 最近发布）· 运行状态 · 操作。
+- **工具栏**：连续失败 / 今日失败 / 运行中 / 已暂停 / 全部 + 业务组 Scope + 任务名搜索；Metric 四格与异常榜/最近成功**暂不展示**（后端仍可算，过滤走工具栏）。
+- **操作**：平铺「运行记录」「立即执行」（仅运行中 + `cron:write` + 有 URL）；启停 / 编辑 / 下线收入「更多 ▾」；无下线权项灰色且前端拦截（`js-retire-denied`）。
+- **OPT-P1-04（列表侧）**：`/cron_run_now` + 列表确认后立即触发（独立详情页 OPT-P1-03 仍未交付）。
+- **OPT-P1-01c**：执行记录 `outcome` 筛选；全局默认「非成功」。
+- **表单**：默认定时模式；「触发 URL」；空调度不可发布；重名返回 `field=task_name` 并聚焦；编辑暂停任务默认保持暂停（勾选「保存后启动」才恢复）。
+- **操作记录**：筛选/列「渠道」改为「业务组」（`scope_view` / `group_id`）。
+
+### 账号与用户管理
+
+- **业务组保存修复**：`set_user_groups` 改为增量增删，避免同次 flush 触发 `(user_id, group_id)` 唯一约束冲突。
+- **强制首次改密**：新建用户默认密码 `changeme` + `must_reset_password=1`；须改密成功后方可继续；管理员不可代设密码，仅可**触发重置**（恢复 `changeme` + 强制改密）；不可重置自己；现有用户补列默认不强制。
+- **用户列表**：重置密码 / 停用·恢复（须填缘由 → `status_reason`）/ 编辑（末位 info）；停用与待重置行底色区分；当前用户不可经用户管理编辑自己，列表仅「修改密码」。
+- **登录会话（现状）**：Flask signed cookie；**无**闲置/绝对超时自动登出；关闭浏览器后会话 Cookie 通常失效；退出与改密成功会 `session.clear()`。详 [RBAC §4.6](doc/RBAC架构设计方案.html#account-session)。
+- **账户体系可优化（未排期）**：可配置会话超时、「记住登录」、会话吊销、忘记密码、密码策略增强、系统/业务管理员用户管理边界（待产品确认）、MFA/OAuth（远期）。
+
+### 本版明确不纳入
+
+- 系统管理员 vs 业务管理员的用户管理权限拆分（需求理解偏差，**已终止**，policy 仍统一 `user:manage`）。
+- 登录闲置超时自动退出（见上「可优化」；本版不实现）。
+- OPT-P1-03 独立执行详情页；Metric 条 / 异常榜 UI；API Scope 隔离（S6）。
 
 ---
 
@@ -89,7 +134,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 | 校验 | 当前密码正确；新密码 ≥6 位且与旧密码不同；确认一致 |
 | 会话 | 成功后 **清空会话**，跳转登录页提示「密码已修改，请重新登录」 |
 | 审计 | `user:password` |
-| 代改 | admin 仍可通过「用户管理 → 编辑 → 新密码」改他人密码（**不**强制对方下线） |
+| 代改 | v1.1.0：admin 可通过「用户管理 → 编辑 → 新密码」改他人密码（**不**强制对方下线）。**v2.0.0 起**改为仅「触发密码重置」（见本节上方 Unreleased），本节保留发版当时行为说明 |
 | 种子 | `login_pwd` 仅空表种子；有用户后改 conf **无效** |
 
 ### 任务编辑页精简

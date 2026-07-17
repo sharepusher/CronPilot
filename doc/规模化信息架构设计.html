@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 规模化信息架构设计（OPT-P2-13）</title>
+  <style>
+    :root{
+      --p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+      --accent:#0d9488;--violet:#7c3aed;--ok:#059669;--warn:#d97706;--danger:#dc2626;--sb:#2c3e50;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f766e 0%,#0d9488 35%,#4c1d95 100%);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1080px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.25rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    h4{font-size:.95rem;color:#475569;margin:1.1rem 0 .45rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.78rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;font-size:.9rem}
+    .toc ol{margin:.4rem 0 0;padding-left:1.3rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .status-draft{color:#b45309;font-weight:600}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
+    @media(max-width:800px){.grid2,.grid3{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem}
+    .card h4{margin:0 0 .5rem}
+    .pill{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:#ecfdf5;color:#065f46}
+    .pill-later{background:#f1f5f9;color:#475569}
+    .decided{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}
+    .decided li{margin:.25rem 0}
+    .flow{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;line-height:1.55;overflow:auto}
+    .demo-switch{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+    .demo-switch button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:.85rem}
+    .demo-switch button.active{background:#0f766e;color:#fff;border-color:#0f766e}
+    .demo-frame{border:2px dashed #94a3b8;border-radius:10px;overflow:hidden;background:#eef2f7;margin-bottom:1rem}
+    .demo-caption{font-size:.8rem;color:var(--muted);padding:.5rem .8rem;background:#f1f5f9;border-bottom:1px solid var(--border)}
+    .sb-top{background:var(--sb);color:#ecf0f1;padding:.45rem .9rem;font-size:.78rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center}
+    .sb-top .l{padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+    .l-admin{background:#c0392b;color:#fff}.l-op{background:#2980b9;color:#fff}.l-vw{background:#7f8c8d;color:#fff}.l-g{background:#3498db;color:#fff}
+    .sb-nav{background:#fff;padding:.4rem .9rem 0;border-bottom:1px solid #ddd;display:flex;gap:.15rem;flex-wrap:wrap;font-size:.8rem}
+    .sb-nav span{padding:.3rem .65rem;color:#666}
+    .sb-nav span.on{border:1px solid #ddd;border-bottom-color:#fff;border-radius:4px 4px 0 0;font-weight:600;color:#2c3e50;margin-bottom:-1px;background:#fff}
+    .sb-body{background:#fff;padding:.9rem;font-size:.8rem}
+    .sb-layout{display:flex;gap:.85rem}
+    .sb-side{width:160px;flex-shrink:0}
+    .sb-side .lg{border:1px solid #ddd;border-radius:4px;overflow:hidden}
+    .sb-side .lg div{padding:.45rem .55rem;border-bottom:1px solid #ddd;display:flex;justify-content:space-between}
+    .sb-side .lg div:last-child{border-bottom:none}
+    .sb-side .lg div.on{background:#e8f5e9;border-left:3px solid #0d9488;font-weight:600}
+    .sb-main{flex:1;min-width:0}
+    .metrics{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem}
+    .m{flex:1;min-width:100px;border:1px solid #ddd;border-radius:4px;padding:.45rem .55rem;background:#fafafa}
+    .m .n{font-size:1.25rem;font-weight:700;line-height:1.15}
+    .m .t{font-size:10px;color:#64748b}
+    .m.danger{border-color:#fca5a5;background:#fef2f2}.m.danger .n{color:#b91c1c}
+    .m.warn{border-color:#fcd34d;background:#fffbeb}
+    .m.cta{border-color:#93c5fd;background:#eff6ff}.m.cta .n{font-size:.95rem;color:#1d4ed8}
+    .seg{display:inline-flex;flex-wrap:wrap;border:1px solid #ddd;border-radius:4px;overflow:hidden;margin-bottom:.65rem;font-size:.78rem}
+    .seg span{padding:.35rem .6rem;border-right:1px solid #ddd}
+    .seg span:last-child{border-right:none}
+    .seg span.on{background:#0d9488;color:#fff}
+    .ctx{background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:.45rem .65rem;margin-bottom:.65rem;font-size:.78rem;color:#115e59}
+    .mini-t{width:100%;border-collapse:collapse;font-size:.75rem}
+    .mini-t th,.mini-t td{border:1px solid #ddd;padding:.28rem .38rem;text-align:left}
+    .mini-t th{background:#f9f9f9}
+    .badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px}
+    .b-fail{background:#fee2e2;color:#991b1b}.b-ok{background:#d1fae5;color:#065f46}
+    .b-run{background:#dbeafe;color:#1e40af}.b-g{background:#e0e7ff;color:#3730a3}.b-grp{background:#ccfbf1;color:#0f766e}
+    .hidden{display:none!important}
+    .checklist label{display:block;margin:.3rem 0}
+    @media(max-width:720px){.sb-layout{flex-direction:column}.sb-side{width:100%}}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P2-13</span><span class="tag">IA</span><span class="tag">设计稿 v2</span>
+  <h1>规模化信息架构设计</h1>
+  <p>任务运营 × 日志可观测 · L1/L2/L3 · job_health · 角色调制 · SimpleBoot 统一 · Scope 差异化</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">B0+B1 实现中</span>（G0 已确认）· 2026-07-15</p>
+</header>
+
+<main class="layout">
+
+  <div class="ok">
+    <strong>文档定位：</strong>本页为规模化改造<strong>权威设计稿</strong>（整合历次讨论）。
+    子文档：<a href="规模化Scope过滤与角色差异化设计.html">L2 Scope UX + Demo</a> ·
+    <a href="规模化双层IA与任务健康模型评审.html">评审归档</a>。
+    关联：<a href="资源隔离与Scope设计.html">OPT-P2-12</a> ·
+    <a href="P1可观测小步优化设计.html">OPT-P1-01c</a> ·
+    <a href="产品优化需求-借鉴Plombery.html">OPT-P2-02</a>。
+    <strong>确认前不改</strong> <code>app/templates/</code> / 业务模型。
+  </div>
+
+  <nav class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#s1">问题、双维目标与设计原则</a></li>
+      <li><a href="#s2">已拍板结论（讨论收束）</a></li>
+      <li><a href="#s3">L1 / L2 / L3 信息架构</a></li>
+      <li><a href="#s4">角色调制（运维 × 开发）</a></li>
+      <li><a href="#s5">L2 Scope 差异化（摘要）</a></li>
+      <li><a href="#s6">job_health 数据模型与写路径</a></li>
+      <li><a href="#s7">风格统一与交互契约</a></li>
+      <li><a href="#s8">合体线框 Demo</a></li>
+      <li><a href="#s9">分期、验收与非目标</a></li>
+      <li><a href="#s10">实现前确认项</a></li>
+      <li><a href="#s11">下一阶段完成计划布局</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="s1">一、问题、双维目标与设计原则</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>维度 A · 任务运营</h4>
+      <p style="font-size:.88rem;margin:0">对象：<code>cron_infos</code>。痛点：上百任务扁平平铺、跨 Scope 检索疲劳、启停路径长。解药：Scope 锚点、状态/健康快筛、行内操作。</p>
+    </div>
+    <div class="card">
+      <h4>维度 B · 日志可观测</h4>
+      <p style="font-size:.88rem;margin:0">对象：<code>job_log</code>（Run）。痛点：秒级任务几何膨胀淹没低频失败。解药：任务级健康聚合 → 再下钻 Run；全局流失败优先。</p>
+    </div>
+  </div>
+  <table>
+    <tr><th>原则</th><th>含义</th></tr>
+    <tr><td>Exception First（可调制）</td><td>运维默认放大异常；开发角色并陈「进 L2」与「最近成功」</td></tr>
+    <tr><td>隐藏无关、放大异常</td><td>过滤与聚合优先于加宽表、加翻页</td></tr>
+    <tr><td>配置 ≠ 健康 ≠ Run</td><td>L2 管配置生命周期；Health 管聚合；L3 管单次执行事实</td></tr>
+    <tr><td>预计算健康</td><td>列表/首页读 <code>job_health</code>，禁止每次扫全量日志算连续失败</td></tr>
+    <tr><td>风格一门</td><td>全程 SimpleBoot / 现有 badge·dialog，禁止 L1 单独大屏视觉</td></tr>
+    <tr><td>Scope 只收窄不放大</td><td>UI 二次过滤永远是 <code>build_scope_filter_clause</code> 可见集的子集</td></tr>
+  </table>
+
+  <h2 id="s2">二、已拍板结论（讨论收束）</h2>
+  <div class="decided">
+    <ol>
+      <li>采纳 <strong>L1/L2/L3 心智</strong>；B0 <strong>同页合体</strong>（L1 指标条挂 <code>cron_list</code>），不一次开三个门户。</li>
+      <li>L1 按 <code>admin</code> / <code>operator</code> / <code>viewer</code> <strong>模块权重调制</strong>；不新增 developer 角色。</li>
+      <li>L3 = 现有 <code>job_log</code> + 详情 / add_log；<strong>不新建 Execution 表</strong>；文案逐步改为「执行记录 / 运行实例」。</li>
+      <li>健康表名 <strong><code>job_health</code></strong>（勿用 <code>rbac_*</code>）；B0 窄字段；失败与状态翻转同步写，连续成功节流。</li>
+      <li>保留一级「执行记录」Tab；失败优先筛选与 OPT-P1-01c 对齐（可同波或紧随）。</li>
+      <li>L2 Scope：权限与查询参数仍按 Scope UX 矩阵；<strong>B0 列表落地</strong>为两段式工具栏内「业务组」下拉（统一替代侧栏/Pill 占位，见 §5.1 密度收拢），避免信息叠加撑高行高。</li>
+      <li>首期<strong>不做</strong> Facet Filter、Saved View、独立 <code>/dashboard</code>、Redis、完整 health_score / 24h 比率。</li>
+      <li>连续失败默认阈值 <strong>N=3</strong>（实现时允许 <code>conf.ini</code> 覆盖，默认 3）。</li>
+    </ol>
+  </div>
+
+  <h2 id="s3">三、L1 / L2 / L3 信息架构</h2>
+  <div class="flow">登录
+  │
+  ├─[B0] /cron_list = L1 指标条 + L2 任务表（同页）
+  │         │
+  │         ├─ 点击异常卡 / 连续失败快筛 → 同页过滤
+  │         └─ 行内「运行记录」→ L3 iframe job_log_list?id=
+  │                              └─ 查看详情 → job_log_detail（Run 附属 content/add_log）
+  │
+  └─ 顶栏「执行记录」→ 全局 job_log_all_list（建议默认 status=fail）
+         └─ 仍受 Scope 过滤
+
+[B2+] 可选拆分 /dashboard = 独立 L1（任务破千或运维明确要求）</div>
+
+  <div class="grid3">
+    <div class="card">
+      <h4>L1 健康概览 <span class="pill">B0 合体</span></h4>
+      <p style="font-size:.85rem;margin:0">Metric：可见任务数、运行中、连续失败任务数、今日失败 Run。异常榜 Top-N。admin 可有 Scope 矩阵块。</p>
+    </div>
+    <div class="card">
+      <h4>L2 任务管理 <span class="pill">B0</span></h4>
+      <p style="font-size:.85rem;margin:0">Scope 控件 + 生命周期/健康快筛 + 作用域列 + last_run / consecutive_failures + 既有启停编辑下线。</p>
+    </div>
+    <div class="card">
+      <h4>L3 执行中心 <span class="pill">心智升级</span></h4>
+      <p style="font-size:.85rem;margin:0">一次 JobLog = 一次 Run。日志文本为附属。不做空壳 Timeline/Retry；未来可增强单次详情。</p>
+    </div>
+  </div>
+
+  <h2 id="s4">四、角色调制（运维 × 开发）</h2>
+  <table>
+    <tr><th>模块</th><th>admin（运维）</th><th>operator（开发兼维护）</th><th>viewer（只读开发）</th></tr>
+    <tr><td>异常 Metric / 异常榜</td><td>主导焦点</td><td>必显（可见 Scope）</td><td>必显只读</td></tr>
+    <tr><td>Scope 健康矩阵</td><td>必显</td><td>G≥2 显；G=1 用上下文条</td><td>同 operator</td></tr>
+    <tr><td>「任务管理」主 CTA</td><td>次要</td><td><strong>主按钮</strong>（锚到表区或高亮 L2）</td><td>进只读列表</td></tr>
+    <tr><td>我组最近执行（成功摘要）</td><td>可选</td><td><strong>推荐</strong></td><td>推荐</td></tr>
+    <tr><td>行内写操作</td><td>按 perm</td><td>cron:write / retire</td><td>无</td></tr>
+  </table>
+  <div class="note">角色调制 Demo 亦可对照 <a href="规模化双层IA与任务健康模型评审.html#demo">评审稿 §六</a>。本页 §八 提供 B0 合体线框。</div>
+
+  <h2 id="s5">五、L2 Scope 差异化（摘要）</h2>
+  <table>
+    <tr><th>条件</th><th>可见桶（权限）</th><th>B0 列表控件（落地）</th></tr>
+    <tr><td>admin</td><td>全部 / GLOBAL / 各组</td><td rowspan="4">工具栏「业务组」<code>&lt;select&gt;</code> + URL 切换（与快筛、搜索同行）</td></tr>
+    <tr><td>非 admin · G=0</td><td>实质仅 GLOBAL；顶栏警告</td></tr>
+    <tr><td>非 admin · G=1～2</td><td>全部 / 本组(们) / GLOBAL</td></tr>
+    <tr><td>非 admin · G≥5</td><td>全部 / 本人组 / GLOBAL</td></tr>
+  </table>
+  <p>查询参数：<code>scope_view=all|global|group</code> + <code>group_id</code>；先权限过滤再 UI 过滤。矩阵心智与历史线框 → <a href="规模化Scope过滤与角色差异化设计.html">Scope UX 设计</a>；列表视觉以 §5.1 为准。</p>
+
+  <h3 id="s5-1">5.1 列表密度收拢（信息叠加治理）</h3>
+  <p>多租户标签 + 健康信号 + RBAC 提示叠进宽行后会「垂直炸开」。B0 落地约束（不换 Bootstrap 3 / SimpleBoot）：</p>
+  <ul>
+    <li><strong>健康圆点静默</strong>：连续失败 ≥N 显示红底 <code>×N</code>；未达阈值橙点；最近成功绿点（无「成功」文案）；尚无执行<strong>不渲染</strong>指示（勿写「未跑」）。</li>
+    <li><strong>双行内聚</strong>：任务名加粗一行（悬停可见 <code>title=ID</code>）；Scope / 备注 / last_run / URL 淡灰缩字号共占第二行；<strong>无 ID 列</strong>。</li>
+    <li><strong>两段式工具栏</strong>：左 = 连续失败 / 今日失败 / 全部 / 运行中 / 已暂停 + 业务组下拉 + 搜索；右 = 唯一主行动「+ 新建任务」（需 <code>cron:write</code>）。</li>
+    <li><strong>Metric 分轨</strong>：工具栏「连续失败」(<code>health=failing</code>) / 「今日失败」(<code>health=today_fail</code>)；四格 Metric 条与待处理榜<strong>暂隐</strong>（可恢复）。</li>
+    <li><strong>操作列色义</strong>：有权限 — 运行记录 info / 立即执行 success / 启停·编辑·下线在「更多 ▾」；无下线权 — 灰色项 + <code>js-retire-denied</code> 前端拦截提示。</li>
+    <li><strong>操作列平铺</strong>：运行记录 / 启停 / 编辑 / 下线（含 <code>js-retire-denied</code>），不折叠进「更多」。</li>
+    <li>表格使用 <code>table-condensed</code>；列收为 任务 / 周期 / 状态 / 操作；导航文案为「任务中心」。</li>
+  </ul>
+
+  <h2 id="s6">六、job_health 数据模型与写路径</h2>
+  <h3>6.1 表结构（B0）</h3>
+  <pre>job_health
+  cron_info_id          INTEGER PK  -- FK cron_infos.id
+  last_run_at           VARCHAR(25) -- 最近一次触发完成时间
+  last_run_status       VARCHAR(16) -- success|fail|error|null
+  last_run_log_id       VARCHAR(65) -- 可选，便于直达 L3
+  last_success_at       VARCHAR(25)
+  last_fail_at          VARCHAR(25)
+  consecutive_failures  INTEGER NOT NULL DEFAULT 0
+  health_status         VARCHAR(16) -- ok|failing|unknown
+  updated_at            VARCHAR(25)</pre>
+  <p><span class="pill-later" style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">B2+</span>
+  <code>failure_rate_24h</code> / <code>avg_duration_ms</code> / <code>health_score</code> 批算或物化；非 B0。</p>
+
+  <h3>6.2 什么是 N？为什么需要 N？（连续失败阈值）</h3>
+  <div class="note">
+    <p><strong>N</strong> = 判定任务进入「连续失败 / failing」所需的<strong>最近连续失败（或异常）次数</strong>。</p>
+    <p>每次任务跑完会记一次结果（success / fail / error）。字段 <code>consecutive_failures</code> 记录「当前连续失败了几次」：</p>
+    <ul>
+      <li>本次失败/异常 → 计数 +1</li>
+      <li>本次成功 → 计数清零</li>
+    </ul>
+    <p>当 <code>consecutive_failures &gt;= N</code> 时，将该任务标为 <code>health_status=failing</code>，并出现在「连续失败」Metric / 快筛里。</p>
+  </div>
+  <table>
+    <tr><th>例子（N=3）</th><th>连续失败计数</th><th>是否进入「连续失败」榜</th></tr>
+    <tr><td>偶发一次网络失败，下次成功</td><td>1 → 0</td><td>否（短暂抖动，不打扰）</td></tr>
+    <tr><td>连续失败 2 次后又成功</td><td>2 → 0</td><td>否</td></tr>
+    <tr><td>连续失败 3 次仍未恢复</td><td>3</td><td><strong>是</strong>（需要人处理）</td></tr>
+  </table>
+  <p><strong>为什么不设 N=1：</strong>秒级/分钟级任务偶发超时很常见，N=1 会让异常榜长期刷屏，运维疲劳。<br>
+     <strong>为什么推荐 N=3：</strong>兼顾「别太敏感」与「别拖太久才看见」；业界熔断/告警常用「连续 K 次」而非「单次」。<br>
+     <strong>配置：</strong>默认 <code>N=3</code>；<code>conf.ini</code> 项 <code>health_failing_threshold</code>（正整数，缺省 3）。</p>
+  <table>
+    <tr><th>health_status</th><th>规则（B0）</th></tr>
+    <tr><td><code>failing</code></td><td><code>consecutive_failures &gt;= N</code></td></tr>
+    <tr><td><code>ok</code></td><td>最近一次为 success，且连续失败计数为 0</td></tr>
+    <tr><td><code>unknown</code></td><td>从未执行或尚无有效 outcome</td></tr>
+  </table>
+  <p>注意：任务「运行中/已暂停」是 <code>cron_infos.status</code> 生命周期，与 <code>health_status</code> 正交；列表两列或两套快筛共存。行内仍可展示 <code>consecutive_failures</code>（即使尚未 ≥N），便于观察趋势。</p>
+
+  <h3>6.3 写路径（防行锁）</h3>
+  <pre>cron_do 完成并写入 job_log 后 → update_job_health(cron_id, outcome, log_id, at):
+  if outcome in (fail, error):
+      consecutive_failures += 1
+      last_fail_at / last_run_* / last_run_log_id 更新
+      health_status = failing if consecutive_failures &gt;= N else ok|failing(按阈值)
+      与 job_log 同事务同步提交（失败必须实时可见）
+  if outcome == success:
+      if consecutive_failures &gt; 0 or last_run_status != 'success':
+          # 翻转：同步清零并标记 ok
+          consecutive_failures = 0; last_success_at=...; health_status=ok
+      else:
+          # 连续成功：节流写 last_run_at（如间隔&gt;=10s 才 UPDATE），或跳过
+          pass</pre>
+  <div class="warn">
+    <strong>隐阱：</strong>秒级任务禁止「每次 SUCCESS 都 UPDATE」。日志裁剪（<code>job_log_counts</code>）后<strong>禁止</strong>靠残缺日志重算连续失败——以 <code>job_health</code> 为准。
+    首期不引入 Redis；多 worker 热点任务若观测到锁争用，再单独立项依赖评审。
+  </div>
+
+  <h3>6.4 读路径</h3>
+  <ul>
+    <li>L1 Metric / 异常榜：对可见 <code>cron_info_id</code> 集 join/filter <code>job_health.health_status='failing'</code></li>
+    <li>L2 行内：left join <code>job_health</code> 展示 last_run / consecutive_failures</li>
+    <li>聚合必须先注入 Scope（防 L1 见 B 组任务 → L2 403）</li>
+  </ul>
+
+  <h2 id="s7">七、风格统一与交互契约</h2>
+  <table>
+    <tr><th>项</th><th>约定</th></tr>
+    <tr><td>壳层</td><td><code>admin_base</code> + <code>rbac/_topbar</code> + <code>rbac/_nav</code>；不另起 CSS 框架</td></tr>
+    <tr><td>Metric</td><td>边框数字格 / well，色系对齐现有 fail/success badge</td></tr>
+    <tr><td>过滤交互</td><td>B0 整页 GET（保留 query）；不做 Ajax 换 tbody</td></tr>
+    <tr><td>启停</td><td>保持 <code>js-ajax-dialog-btn</code> + art.dialog 二次确认</td></tr>
+    <tr><td>L3</td><td><code>open_iframe_dialog</code>；可选直达 <code>job_log_detail?id=</code> 若带 last_run_log 的 DB id</td></tr>
+    <tr><td>禁止</td><td>emoji 主视觉；L1 渐变大屏卡；首期 Saved View / Facet</td></tr>
+  </table>
+
+  <h2 id="s8">八、合体线框 Demo（B0）</h2>
+  <p>切换角色查看<strong>同壳层</strong>下 L1 权重 + L2 Scope 形态差异（示意数据）。</p>
+  <div class="demo-switch">
+    <button type="button" class="active" data-demo="admin">admin</button>
+    <button type="button" data-demo="one">operator · 1 Scope</button>
+    <button type="button" data-demo="two">operator · 2 Scope</button>
+    <button type="button" data-demo="viewer">viewer</button>
+  </div>
+
+  <div class="demo-frame" data-panel="admin">
+    <div class="demo-caption">admin · L1 异常主导 + 左侧 Scope 侧栏（L2）</div>
+    <div class="sb-top"><span>admin</span><span class="l l-admin">管理员</span></div>
+    <div class="sb-nav"><span class="on">任务列表</span><span>任务添加</span><span>执行记录</span><span>用户管理</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m"><div class="n">128</div><div class="t">全部任务</div></div>
+        <div class="m"><div class="n">96</div><div class="t">运行中</div></div>
+        <div class="m danger"><div class="n">3</div><div class="t">连续失败</div></div>
+        <div class="m warn"><div class="n">7</div><div class="t">今日失败 Run</div></div>
+      </div>
+      <div class="sb-layout">
+        <aside class="sb-side"><div class="lg">
+          <div class="on">全部 <span>128</span></div>
+          <div>全局共享 <span>12</span></div>
+          <div>数据控制 <span>20</span></div>
+          <div>金融风控 <span>45</span></div>
+        </div></aside>
+        <div class="sb-main">
+          <div class="seg"><span class="on">全部</span><span>运行中</span><span style="background:#dc2626;color:#fff">连续失败 (3)</span><span>已暂停</span></div>
+          <table class="mini-t">
+            <tr><th>ID</th><th>任务</th><th>作用域</th><th>生命周期</th><th>健康</th><th>操作</th></tr>
+            <tr><td>101</td><td>风控日终</td><td><span class="badge b-grp">金融风控</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-fail">失败×5</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+            <tr><td>12</td><td>全局心跳</td><td><span class="badge b-g">GLOBAL</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-frame hidden" data-panel="one">
+    <div class="demo-caption">operator · 1 Scope · 无侧栏 · 异常 + 主 CTA + 最近成功（开发向）</div>
+    <div class="sb-top"><span>alice</span><span class="l l-op">operator</span><span class="l l-g">数据控制组</span></div>
+    <div class="sb-nav"><span class="on">任务列表</span><span>任务添加</span><span>执行记录</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m danger"><div class="n">1</div><div class="t">连续失败</div></div>
+        <div class="m"><div class="n">20</div><div class="t">本组任务</div></div>
+        <div class="m cta"><div class="n">↓ 任务表</div><div class="t">主工作台 L2</div></div>
+      </div>
+      <div class="ctx">可见范围：全局共享 · 数据控制组</div>
+      <div class="seg"><span class="on">全部 (32)</span><span>本组 (20)</span><span>仅全局 (12)</span></div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>作用域</th><th>健康</th><th>操作</th></tr>
+        <tr><td>质量校验（日批）</td><td><span class="badge b-grp">数据控制</span></td><td><span class="badge b-fail">失败×3</span></td><td>运行记录 | 编辑</td></tr>
+        <tr><td>数仓分钟同步</td><td><span class="badge b-grp">数据控制</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停</td></tr>
+      </table>
+      <p style="margin:.65rem 0 .25rem;font-weight:600;font-size:.8rem">我组最近执行</p>
+      <table class="mini-t">
+        <tr><th>任务</th><th>结果</th><th>时间</th></tr>
+        <tr><td>数仓分钟同步</td><td><span class="badge b-ok">成功</span></td><td>14:26:01</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="demo-frame hidden" data-panel="two">
+    <div class="demo-caption">operator · 2 Scope · 水平 Pill，无侧栏</div>
+    <div class="sb-top"><span>bob</span><span class="l l-op">operator</span><span class="l l-g">数据控制</span><span class="l l-g">金融风控</span></div>
+    <div class="sb-nav"><span class="on">任务列表</span><span>执行记录</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m danger"><div class="n">2</div><div class="t">连续失败</div></div>
+        <div class="m cta"><div class="n">↓ 任务表</div><div class="t">主工作台</div></div>
+      </div>
+      <div class="seg"><span class="on">全部</span><span>数据控制</span><span>金融风控</span><span>全局</span></div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>作用域</th><th>健康</th></tr>
+        <tr><td>风控日终</td><td><span class="badge b-grp">金融风控</span></td><td><span class="badge b-fail">失败×5</span></td></tr>
+        <tr><td>数仓同步</td><td><span class="badge b-grp">数据控制</span></td><td><span class="badge b-ok">成功</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="demo-frame hidden" data-panel="viewer">
+    <div class="demo-caption">viewer · 只读 · 异常 + 搜索直达执行记录</div>
+    <div class="sb-top"><span>carol</span><span class="l l-vw">viewer</span><span class="l l-g">金融风控组</span></div>
+    <div class="sb-nav"><span class="on">任务列表</span><span>执行记录</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m danger"><div class="n">1</div><div class="t">连续失败</div></div>
+        <div class="m" style="opacity:.55"><div class="n">—</div><div class="t">无写权限</div></div>
+      </div>
+      <div style="margin-bottom:.65rem"><input placeholder="按任务名查找" style="padding:3px 8px"> <button type="button" disabled>搜索</button></div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>健康</th><th>操作</th></tr>
+        <tr><td>风控日终</td><td><span class="badge b-fail">失败×5</span></td><td>查看运行记录</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="s9">九、分期、验收与非目标</h2>
+  <table>
+    <tr><th>波次</th><th>交付</th><th>验收要点</th></tr>
+    <tr>
+      <td><strong>B0</strong></td>
+      <td><code>job_health</code> + cron_do 挂钩；cron_list 顶 Metric；Scope/健康快筛；作用域列与 last_run；Scope 按矩阵渲染</td>
+      <td>单测 + golden path；三角色浏览器路径；改模板后 <code>cronpilot.sh restart</code>；Scope 越权不放大</td>
+    </tr>
+    <tr>
+      <td><strong>B1</strong></td>
+      <td>角色调制区块完整；执行记录默认失败（OPT-P1-01c）；异常榜强化</td>
+      <td>operator 首屏可见「进 L2」与最近成功；viewer 无写入口</td>
+    </tr>
+    <tr>
+      <td><strong>B2</strong></td>
+      <td>比率/均耗时批算；与 OPT-P2-02 趋势图衔接；可选 /metrics</td>
+      <td>不拖垮 DB；文档同步</td>
+    </tr>
+    <tr>
+      <td><strong>B3</strong></td>
+      <td>独立 <code>/dashboard</code>；Saved View / Facet（若仍需要）</td>
+      <td>任务规模或明确运维需求触发</td>
+    </tr>
+  </table>
+  <p><strong>非目标（本设计明确不做）：</strong>DAG 拓扑、第四角色 developer、新建 Execution 表、L1 独立现代大屏皮肤、首期 Redis、Tags 体系（另项）。</p>
+
+  <h2 id="s10">十、实现前确认项</h2>
+  <div class="ok">
+    <strong>G0 已确认（2026-07-15）：</strong>启动 B0 实现。
+    <ul style="margin:.4rem 0 0">
+      <li><strong>N（连续失败阈值）</strong> = 默认 3，含义见 §6.2；写入 <code>conf.ini</code> 的 <code>health_failing_threshold</code>（可改）</li>
+      <li><strong>不捆绑</strong> OPT-P1-01c（可作后续 B0.5 / B1）；本波专注 job_health + Scope + Metric 合体</li>
+    </ul>
+  </div>
+  <div class="note checklist">
+    <label><input type="checkbox" checked disabled> （讨论已收束）L1/L2/L3 心智 + B0 同页合体</label>
+    <label><input type="checkbox" checked disabled> （讨论已收束）角色调制；L3=job_log；job_health 窄表</label>
+    <label><input type="checkbox" checked disabled> （讨论已收束）Scope 矩阵（admin 侧栏 / G=1·2 Segment）</label>
+    <label><input type="checkbox" checked disabled> <strong>已确认启动 B0 实现</strong></label>
+    <label><input type="checkbox" checked disabled> N=3 默认 + conf <code>health_failing_threshold</code> 可配</label>
+    <label><input type="checkbox" checked disabled> 本波不捆绑 OPT-P1-01c</label>
+  </div>
+
+  <h2 id="s11">十一、下一阶段完成计划布局</h2>
+  <div class="ok">
+    <strong>下一阶段主交付 = OPT-P2-13 · B0</strong>（建议目标版本 <code>v1.3.x</code>）。
+    B1+ 不进入本阶段承诺范围。P1-03/04、Tier 3 前置为旁路项。
+  </div>
+
+  <h3>11.1 泳道关系</h3>
+  <table>
+    <tr><th>泳道</th><th>内容</th><th>与 B0 关系</th></tr>
+    <tr><td><strong>主路径</strong></td><td>job_health → Scope 过滤 → Metric / 快筛 / 行内健康 → 验收 → Release</td><td>必须完成</td></tr>
+    <tr><td><strong>可选捆绑</strong></td><td>OPT-P1-01c 执行记录失败筛选</td><td>同波或紧随 B0.5（推荐同波，避免日志维度断层）</td></tr>
+    <tr><td>旁路 A</td><td>OPT-P1-03/04 详情页 / 立即执行</td><td>不挡 B0；另确认</td></tr>
+    <tr><td>旁路 B</td><td>Tier 3 前置（去 records）</td><td>依赖轨；可与 IA 并行评审，不并入 B0 commit</td></tr>
+  </table>
+
+  <h3>11.2 B0 切片顺序（强制 · 不可跳步宣称交付）</h3>
+  <table>
+    <tr><th>切片</th><th>产出</th><th>主要落点</th><th>粗估人日</th></tr>
+    <tr>
+      <td><strong>G0</strong> 闸门</td>
+      <td>书面确认：启动 B0、N=3、conf 可否、是否捆 P1-01c</td>
+      <td>本页 §十勾选</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><strong>S1</strong> 模型</td>
+      <td><code>job_health</code> 表；ORM；ensure/建表；读写 service</td>
+      <td><code>datas/model/</code> · migrations 或 <code>ensure_business_tables</code> · <code>app/services/</code></td>
+      <td>0.5–1</td>
+    </tr>
+    <tr>
+      <td><strong>S2</strong> 写路径</td>
+      <td><code>cron_do</code> 完成后更新健康：失败同步、翻转同步、连续成功节流；单测覆盖</td>
+      <td><code>app/crons.py</code> · health service · <code>tests/</code></td>
+      <td>1–1.5</td>
+    </tr>
+    <tr>
+      <td><strong>S3</strong> Scope L2</td>
+      <td><code>scope_view</code>/<code>group_id</code> 二次过滤；矩阵 UI；作用域列；越权不放大</td>
+      <td><code>views.cron_list</code> · <code>cron_list.html</code> · 可选 <code>_scope_filter.html</code></td>
+      <td>1–1.5</td>
+    </tr>
+    <tr>
+      <td><strong>S4</strong> L1 合体</td>
+      <td>列表顶 Metric；健康快筛；行内 last_run / consecutive_failures；admin 可无完整角色调制（留给 B1）</td>
+      <td><code>cron_list.html</code> · 聚合查询（读 health 表）</td>
+      <td>1–1.5</td>
+    </tr>
+    <tr>
+      <td><strong>S5</strong> 验证</td>
+      <td><code>cronpilot.sh test</code> · golden path · 三角色会话路径 · <code>restart</code> 后 curl/浏览器断言新标记</td>
+      <td>脚本 + 手工清单</td>
+      <td>0.5–1</td>
+    </tr>
+    <tr>
+      <td><strong>S6</strong> 闭环</td>
+      <td>RELEASE_NOTES · 交付状态标已交付 · 设计稿状态更新 · <code>html_docs_to_markdown --check</code> · 用户要求时再 commit</td>
+      <td><code>doc/</code> · <code>RELEASE_NOTES.md</code></td>
+      <td>0.5</td>
+    </tr>
+    <tr>
+      <td><strong>B0.5</strong> 可选</td>
+      <td>OPT-P1-01c：全局执行记录 <code>status</code> 失败筛选</td>
+      <td><code>job_log_all_list</code> + P1 小步设计</td>
+      <td>+0.5–1</td>
+    </tr>
+  </table>
+  <p>合计粗估（单人、不含旁路）：约 <strong>5～8 人日</strong>；捆 P1-01c 则约 <strong>6～9 人日</strong>。</p>
+
+  <h3>11.3 每周节奏建议（示例）</h3>
+  <table>
+    <tr><th>日历</th><th>目标</th></tr>
+    <tr><td>第 1 段（1～2 天）</td><td>G0 确认 → S1+S2 合入（健康表可跑、失败可见于 DB）</td></tr>
+    <tr><td>第 2 段（2～3 天）</td><td>S3+S4 管理端可见（Scope + Metric）；每日 <code>restart</code> 验收</td></tr>
+    <tr><td>第 3 段（1～2 天）</td><td>S5+S6；可选 B0.5；发布说明与路线图同步</td></tr>
+  </table>
+
+  <h3>11.4 完成定义（DoD）</h3>
+  <ul>
+    <li>admin：工具栏业务组切换 + 连续失败快筛可用；Metric 数字与可见 Scope 一致；行内「更多」可编辑/下线</li>
+    <li>operator（1/2 组）：同构工具栏；越权 group_id 被拒；无空洞侧栏</li>
+    <li>viewer：只读路径完整；无写入口泄露</li>
+    <li>秒级任务连续成功不导致 health 行锁告警（节流生效，可用测试或压测说明）</li>
+    <li>文档闭环与 <code>--check</code> 绿；无「只改代码不更交付状态」</li>
+  </ul>
+
+  <div class="warn">
+    <strong>本阶段明确不做：</strong>独立 <code>/dashboard</code>、Facet/Saved View、Redis、health_score、新建 Execution 表、Tags、P1-03/04（除非另开确认）。
+  </div>
+
+</main>
+<footer>
+  <a href="index.html">文档索引</a> ·
+  <a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a> ·
+  <a href="规模化双层IA与任务健康模型评审.html">评审归档</a> ·
+  <a href="交付状态与路线图.html">交付状态</a> ·
+  Markdown 版：<a href="规模化信息架构设计.md">规模化信息架构设计.md</a>
+ · <a href="规模化信息架构设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+<script>
+(function(){
+  var btns=document.querySelectorAll('.demo-switch button');
+  var panels=document.querySelectorAll('[data-panel]');
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      var id=b.getAttribute('data-demo');
+      btns.forEach(function(x){x.classList.toggle('active',x===b);});
+      panels.forEach(function(p){p.classList.toggle('hidden',p.getAttribute('data-panel')!==id);});
+    });
+  });
+})();
+</script>
+</body>
+</html>

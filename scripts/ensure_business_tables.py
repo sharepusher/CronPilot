@@ -19,6 +19,7 @@ from app import create_app, db  # noqa: E402
 from datas.model.cron_infos import CronInfos  # noqa: F401,E402
 from datas.model.job_log import JobLog  # noqa: F401,E402
 from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
+from datas.model.job_health import JobHealth  # noqa: F401,E402
 from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
 from datas.model.rbac_user import RbacUser  # noqa: F401,E402
 from datas.model.operation_log import OperationLog  # noqa: F401,E402
@@ -49,7 +50,8 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
-        _ensure_cron_infos_columns()
+        _ensure_cron_infos_columns(backend=backend)
+        _ensure_rbac_users_columns()
         from app.rbac.services import ensure_seed_admin
         ensure_seed_admin()
     print('OK: %s 业务表已就绪 ->' % backend, uri)
@@ -81,8 +83,8 @@ def _ensure_job_log_columns():
     ))
 
 
-def _ensure_cron_infos_columns():
-    """LIFECYCLE-2 + Scope：已有库补列。"""
+def _ensure_cron_infos_columns(backend=''):
+    """LIFECYCLE-2 + Scope + POST 触发请求：已有库补列。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -102,12 +104,55 @@ def _ensure_cron_infos_columns():
         alters.append("ALTER TABLE cron_infos ADD COLUMN scope_type VARCHAR(16) DEFAULT 'GLOBAL'")
     if 'group_id' not in cols:
         alters.append('ALTER TABLE cron_infos ADD COLUMN group_id INTEGER')
+    if 'req_method' not in cols:
+        alters.append("ALTER TABLE cron_infos ADD COLUMN req_method VARCHAR(10) DEFAULT 'GET'")
+    if 'req_body' not in cols:
+        if backend == 'mysql':
+            # MySQL 5.7 不支持 TEXT/BLOB DEFAULT，避免升级补列失败。
+            alters.append("ALTER TABLE cron_infos ADD COLUMN req_body TEXT")
+        else:
+            alters.append("ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT ''")
+    if 'last_operator_name' not in cols:
+        alters.append(
+            "ALTER TABLE cron_infos ADD COLUMN last_operator_name VARCHAR(120) DEFAULT ''"
+        )
+    if 'last_operated_at' not in cols:
+        alters.append(
+            "ALTER TABLE cron_infos ADD COLUMN last_operated_at VARCHAR(25) DEFAULT ''"
+        )
     if not alters:
         return
     with db.engine.begin() as conn:
         for sql in alters:
             conn.execute(text(sql))
     print('OK: cron_infos 列已补全 ->', ', '.join(a.split()[5] for a in alters))
+
+
+def _ensure_rbac_users_columns():
+    """强制改密 / 启停缘由：已有库补列。现有用户默认 must_reset_password=0。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('rbac_users'):
+        return
+    cols = {c['name'] for c in insp.get_columns('rbac_users')}
+    alters = []
+    if 'must_reset_password' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN must_reset_password '
+            'SMALLINT NOT NULL DEFAULT 0'
+        )
+    if 'status_reason' not in cols:
+        alters.append(
+            "ALTER TABLE rbac_users ADD COLUMN status_reason "
+            "VARCHAR(500) NOT NULL DEFAULT ''"
+        )
+    if not alters:
+        return
+    with db.engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+    print('OK: rbac_users 列已补全 ->', ', '.join(a.split()[5] for a in alters))
 
 
 def _ensure_job_log_http_status_column():

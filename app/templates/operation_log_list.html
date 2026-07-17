@@ -30,11 +30,17 @@
                 <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启动/暂停</option>
                 <option value="retire_cron"{% if keywords.get('action') == 'retire_cron' %} selected{% endif %}>下线任务</option>
             </select>
-            <select name="channel">
-                <option value="">渠道</option>
-                <option value="web"{% if keywords.get('channel') == 'web' %} selected{% endif %}>管理端</option>
-                <option value="api"{% if keywords.get('channel') == 'api' %} selected{% endif %}>API</option>
-                <option value="system"{% if keywords.get('channel') == 'system' %} selected{% endif %}>系统</option>
+            <span style="color:#64748b;font-size:12px;margin:0 4px">业务组</span>
+            <select name="scope_view" onchange="if(this.form){this.form.group_id.value='';}">
+                <option value="all"{% if scope_view=='all' %} selected{% endif %}>全部（可见）</option>
+                <option value="global"{% if scope_view=='global' %} selected{% endif %}>全局共享</option>
+                <option value="group"{% if scope_view=='group' %} selected{% endif %}>指定业务组</option>
+            </select>
+            <select name="group_id" id="oplog_group_id" {% if scope_view != 'group' %}style="display:none"{% endif %}>
+                <option value="">请选择业务组</option>
+                {% for g in scope_groups %}
+                <option value="{{ g.id }}" {% if scope_view=='group' and scope_group_id==g.id %}selected{% endif %}>{{ g.name }}</option>
+                {% endfor %}
             </select>
             <input type="text" name="beg_time" class="js-datetime" value="{{ keywords.get('beg_time') or '' }}" placeholder="开始时间"> --
             <input type="text" name="end_time" class="js-datetime" value="{{ keywords.get('end_time') or '' }}" placeholder="结束时间">
@@ -49,20 +55,29 @@
                 <th>操作人</th>
                 <th>角色</th>
                 <th>任务名称</th>
-                <th>渠道</th>
+                <th>业务组</th>
                 <th>结果</th>
                 <th>详情</th>
             </tr>
             </thead>
             <tbody>
             {% for item in page_data.items %}
+            {% set cif = cron_by_id.get(item.target_id) %}
             <tr>
                 <td>{{ item.create_time }}</td>
                 <td title="{{ item.action }}">{{ operation_action_label(item.action, item.detail_json) }}</td>
                 <td>{{ item.operator_name }}</td>
                 <td style="color:#64748b;font-size:12px">{{ item.operator_roles_json }}</td>
                 <td>{{ item.task_name }}</td>
-                <td title="{{ item.channel }}">{{ operation_channel_label(item.channel) }}</td>
+                <td>
+                    {% if cif and (cif.scope_type == 'GLOBAL' or not cif.group_id) %}
+                    全局
+                    {% elif cif and cif.group_id %}
+                    {{ group_name_by_id.get(cif.group_id, '组#' ~ cif.group_id) }}
+                    {% else %}
+                    <span style="color:#94a3b8">—</span>
+                    {% endif %}
+                </td>
                 <td title="{{ item.result }}">{{ operation_result_label(item.result) }}</td>
                 <td title="{{ item.detail_json }}">{{ format_detail_summary(item.action, item.detail_json) }}</td>
             </tr>
@@ -75,4 +90,22 @@
             {{ pg.page(page_data, 'main.operation_log_list', keywords) }}
         </div>
     </div>
+{% endblock %}
+
+{% block js %}
+<script>
+(function () {
+    var $scope = $('select[name=scope_view]');
+    var $group = $('#oplog_group_id');
+    function syncGroupSelect() {
+        if ($scope.val() === 'group') {
+            $group.show();
+        } else {
+            $group.hide();
+        }
+    }
+    $scope.on('change', syncGroupSelect);
+    syncGroupSelect();
+})();
+</script>
 {% endblock %}

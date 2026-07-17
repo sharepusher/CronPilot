@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 规模化 Scope 过滤与角色差异化设计</title>
+  <style>
+    :root{
+      --p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+      --accent:#0d9488;--ok:#059669;--warn:#d97706;--danger:#dc2626;
+      --sb-nav:#2c3e50;--sb-bg:#fff;--sb-border:#ddd;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC","Segoe UI",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f766e,#0d9488 45%,#2563eb);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1100px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.25rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    h4{font-size:.95rem;margin:1.1rem 0 .45rem;color:#475569}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.78rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;font-size:.9rem}
+    .toc ol{margin:.4rem 0 0;padding-left:1.3rem}
+    .checklist label{display:block;margin:.35rem 0;cursor:pointer}
+    .status-draft{color:#b45309;font-weight:600}
+
+    /* —— Demo shell (SimpleBoot-ish) —— */
+    .demo-switch{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0 1.25rem}
+    .demo-switch button{
+      border:1px solid var(--border);background:#fff;border-radius:6px;padding:.45rem .85rem;
+      cursor:pointer;font-size:.88rem;color:var(--text);
+    }
+    .demo-switch button.active{background:#0f766e;color:#fff;border-color:#0f766e}
+    .demo-frame{
+      border:2px dashed #94a3b8;border-radius:10px;overflow:hidden;background:#eef2f7;
+      margin:0 0 1.5rem;box-shadow:0 0 0 1px rgba(15,23,42,.04);
+    }
+    .demo-caption{font-size:.82rem;color:var(--muted);padding:.55rem .85rem;background:#f1f5f9;border-bottom:1px solid var(--border)}
+    .sb-topbar{background:var(--sb-nav);color:#ecf0f1;padding:.55rem 1rem;font-size:.82rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+    .sb-topbar .lbl{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600}
+    .sb-topbar .lbl-role-admin{background:#c0392b;color:#fff}
+    .sb-topbar .lbl-role-op{background:#2980b9;color:#fff}
+    .sb-topbar .lbl-group{background:#3498db;color:#fff}
+    .sb-topbar .lbl-warn{background:#c0392b;color:#fff}
+    .sb-jumbo{background:#fff;text-align:center;padding:1rem;border-bottom:1px solid var(--sb-border)}
+    .sb-jumbo h3{margin:0;font-size:1.15rem;color:#2c3e50}
+    .sb-jumbo p{margin:.25rem 0 0;color:#7f8c8d;font-size:.85rem}
+    .sb-tabs{background:#fff;padding:.5rem 1rem 0;border-bottom:1px solid var(--sb-border);display:flex;gap:.25rem;flex-wrap:wrap}
+    .sb-tabs span{padding:.4rem .75rem;font-size:.85rem;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;color:#555}
+    .sb-tabs span.on{background:#fff;border-color:var(--sb-border);color:#2c3e50;font-weight:600;margin-bottom:-1px}
+    .sb-body{background:#fff;padding:1rem;min-height:280px}
+    .sb-layout{display:flex;gap:1rem;align-items:stretch}
+    .sb-side{width:180px;flex-shrink:0}
+    .sb-side .lg{border:1px solid var(--sb-border);border-radius:4px;overflow:hidden;font-size:.82rem}
+    .sb-side .lg a{
+      display:flex;justify-content:space-between;align-items:center;padding:.55rem .7rem;
+      border-bottom:1px solid var(--sb-border);color:#333;text-decoration:none;background:#fff;
+    }
+    .sb-side .lg a:last-child{border-bottom:none}
+    .sb-side .lg a:hover{background:#f8fafc}
+    .sb-side .lg a.active{background:#e8f5e9;border-left:3px solid #0d9488;font-weight:600}
+    .sb-side .lg .cnt{color:var(--muted);font-size:11px}
+    .sb-main{flex:1;min-width:0}
+    .ctx-bar{
+      background:#f0fdfa;border:1px solid #99f6e4;border-radius:4px;padding:.55rem .75rem;
+      font-size:.82rem;margin-bottom:.75rem;color:#115e59;
+    }
+    .ctx-bar .chip{display:inline-block;background:#fff;border:1px solid #5eead4;border-radius:3px;padding:0 6px;margin:0 3px;font-size:11px}
+    .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--sb-border);border-radius:4px;overflow:hidden;margin-bottom:.75rem;font-size:.82rem}
+    .seg button{
+      border:none;border-right:1px solid var(--sb-border);background:#fff;padding:.4rem .7rem;cursor:pointer;color:#333;
+    }
+    .seg button:last-child{border-right:none}
+    .seg button.on{background:#0d9488;color:#fff}
+    .qtabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;font-size:.82rem}
+    .qtabs button{
+      border:1px solid var(--sb-border);background:#f8fafc;border-radius:999px;padding:.25rem .65rem;cursor:pointer;color:#334155;
+    }
+    .qtabs button.on{background:#1e293b;color:#fff;border-color:#1e293b}
+    .qtabs .danger.on{background:#dc2626;border-color:#dc2626}
+    .well{background:#f5f5f5;border:1px solid #e3e3e3;border-radius:4px;padding:.55rem .75rem;margin-bottom:.75rem;font-size:.82rem}
+    .well input{padding:2px 6px;margin:0 6px 0 0}
+    table.demo-t{width:100%;border-collapse:collapse;font-size:.78rem;margin:0}
+    table.demo-t th,table.demo-t td{border:1px solid #ddd;padding:.35rem .45rem;text-align:left}
+    table.demo-t th{background:#f9f9f9}
+    .badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px}
+    .b-run{background:#dbeafe;color:#1e40af}
+    .b-pause{background:#f1f5f9;color:#475569}
+    .b-ok{background:#d1fae5;color:#065f46}
+    .b-fail{background:#fee2e2;color:#991b1b}
+    .b-scope-g{background:#e0e7ff;color:#3730a3}
+    .b-scope-grp{background:#ccfbf1;color:#0f766e}
+    .hidden{display:none !important}
+    .legend{font-size:.8rem;color:var(--muted);margin-top:.5rem}
+    @media (max-width:720px){
+      .sb-layout{flex-direction:column}
+      .sb-side{width:100%}
+    }
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
+  <span class="tag">IA</span><span class="tag">Scope UX</span><span class="tag">OPT-P2-13 子文档</span>
+  <h1>规模化 Scope 过滤与角色差异化设计</h1>
+  <p>管理员跨组下钻 · 非管理员 1～2 Scope 轻量展示 · HTML Demo · L2 专章</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">设计稿 v2 · 讨论已收束</span> · 权威总稿见
+    <a href="规模化信息架构设计.html" style="color:#e0f2fe">规模化信息架构设计（OPT-P2-13）</a> · 2026-07-15</p>
+</header>
+
+<main class="layout">
+
+  <div class="note">
+    <strong>定位：</strong>本页为 <a href="规模化信息架构设计.html">OPT-P2-13 总设计</a> 的 <strong>L2 Scope 专章</strong>（含可切换角色 Demo）。
+    后端鉴权不变（仍走 <code>build_scope_filter_clause</code> / <code>authorize</code>）；本设计只新增<strong>可视范围内的二次过滤</strong>与<strong>按可滤桶数量适配的控件</strong>。
+    总稿已拍板结论见总设计 §二；B0/B1 已落地，列表视觉见总设计 <a href="规模化信息架构设计.html#s5-1">§5.1</a>。
+  </div>
+
+  <div class="ok">
+    <strong>B0 落地形态（相对本节历史侧栏 / Pill Demo）：</strong>
+    任务列表将 Scope 收拢进两段式工具栏「业务组」下拉，与健康/生命周期快筛同行；可见桶仍为矩阵语义（全部 / GLOBAL / 可见组），
+    UI 不再按 G 数切换侧栏占位，以避免与健康徽标、操作列叠加造成行高爆炸。交互参数不变：<code>scope_view</code> + <code>group_id</code>。
+  </div>
+
+  <nav class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#s1">问题与目标</a></li>
+      <li><a href="#s2">角色 × Scope 数量决策矩阵</a></li>
+      <li><a href="#s3">查询契约与安全边界</a></li>
+      <li><a href="#s4">交互契约（页面行为）</a></li>
+      <li><a href="#s5">HTML Demo（可切换角色）</a></li>
+      <li><a href="#s6">线框细则：Admin / 1 Scope / 2 Scopes</a></li>
+      <li><a href="#s7">与任务健康板、全局日志的衔接</a></li>
+      <li><a href="#s8">实现落点与分期</a></li>
+      <li><a href="#s9">验收清单</a></li>
+      <li><a href="#s10">确认项</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="s1">一、问题与目标</h2>
+  <table>
+    <tr><th>角色场景</th><th>现状痛点</th><th>目标体验</th></tr>
+    <tr>
+      <td><strong>admin</strong>（可见全库）</td>
+      <td>数十～数百任务跨多业务组平铺；无 <code>group_id</code> / Scope 列与筛选；顶栏不展示组</td>
+      <td>一键按 Scope 下钻；默认「全部」；可单看 GLOBAL 或某业务组</td>
+    </tr>
+    <tr>
+      <td><strong>非 admin · 1 组</strong></td>
+      <td>后端已限 GLOBAL+本组，但列表不区分；若照搬左侧大侧栏会显得空洞且多余</td>
+      <td><strong>不出现侧栏</strong>；顶栏上下文 + 轻量「全部 / 本组 / 全局」三分段，减少 GLOBAL 干扰</td>
+    </tr>
+    <tr>
+      <td><strong>非 admin · 2 组</strong></td>
+      <td>两组任务混排难辨；也装不下 admin 级侧栏</td>
+      <td>水平 Pill：全部 | 组 A | 组 B | 全局；无侧栏</td>
+    </tr>
+    <tr>
+      <td><strong>非 admin · 0 组</strong></td>
+      <td>仅见 GLOBAL；顶栏已警告「未分配业务组」</td>
+      <td>保持警告；仅「全部/全局」等价；禁止伪装成某组过滤</td>
+    </tr>
+  </table>
+  <div class="warn">
+    <strong>原则：控件密度随「可滤选项数量」缩放，不随角色名缩放。</strong>
+    admin 与「绑定 8 个组的 operator」都可能需要侧栏；「仅 1 组的 operator」绝不使用空侧栏撑布局。
+  </div>
+
+  <h2 id="s2">二、角色 × Scope 数量决策矩阵</h2>
+  <p>令 <code>G = 用户 session 内业务组数</code>（admin 视为「可浏览全库组列表」）。过滤控件按 <code>可滤桶数</code> 选择形态：</p>
+  <table>
+    <tr><th>条件</th><th>可滤桶</th><th>推荐控件</th><th>禁止</th></tr>
+    <tr>
+      <td>admin</td>
+      <td>全部 + GLOBAL + 每个 <code>resource_groups</code></td>
+      <td><strong>左侧 list-group 侧栏</strong>（组数 ≥ 8 时侧栏顶加搜索框）</td>
+      <td>把 Scope 只藏在「高级查询」里且无计数</td>
+    </tr>
+    <tr>
+      <td>非 admin · G = 0</td>
+      <td>（实质仅 GLOBAL）</td>
+      <td>顶栏危险标签；列表<strong>无</strong> Scope 过滤器；文案提示联系管理员绑组</td>
+      <td>假侧栏 / 可选空下拉</td>
+    </tr>
+    <tr>
+      <td>非 admin · G = 1</td>
+      <td>全部 · 本组 · GLOBAL（3）</td>
+      <td><strong>上下文条 + 水平分段控件（Segment）</strong>；无侧栏</td>
+      <td>单元素侧栏；强制「业务组下拉」多一步</td>
+    </tr>
+    <tr>
+      <td>非 admin · G = 2</td>
+      <td>全部 · 组1 · 组2 · GLOBAL（4）</td>
+      <td><strong>水平 Pill / Segment</strong>（一行排开）；无侧栏</td>
+      <td>为 2 项引入 180px 侧栏</td>
+    </tr>
+    <tr>
+      <td>非 admin · G = 3～4</td>
+      <td>全部 + 各组 + GLOBAL</td>
+      <td>可换行 Pill；仍优先水平</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>非 admin · G ≥ 5</td>
+      <td>同上</td>
+      <td>与 admin 同构<strong>侧栏</strong>（仅列出本人组 + GLOBAL），避免 Pill 换行爆炸</td>
+      <td>把别人不可见的组渲染进 UI（即使点了会 403）</td>
+    </tr>
+  </table>
+  <div class="ok">
+    <strong>与创建表单对齐：</strong><a href="资源隔离与Scope设计.html">Scope 设计 §五</a> 已规定「仅一组成员时只读展示；多组时下拉」。
+    列表过滤沿用同一密度哲学：<strong>1 组只读上下文 + 轻滤；多组才给选择器；admin 全量导航</strong>。
+  </div>
+
+  <h3>2.1 默认选中</h3>
+  <table>
+    <tr><th>角色</th><th>默认 Scope 滤镜</th><th>理由</th></tr>
+    <tr><td>admin</td><td><code>scope_view=all</code>（全部）</td><td>运维总览；异常任务可能跨组</td></tr>
+    <tr><td>非 admin · G≥1</td><td><code>scope_view=all</code>（含 GLOBAL + 所属组）</td><td>与现网后端可见集合一致，避免升级后「突然少了全局任务」</td></tr>
+    <tr><td>可选增强</td><td>记住上次选择（localStorage <code>cronpilot.scope_view</code>）</td><td>二次进入更快；清除缓存即回默认</td></tr>
+  </table>
+
+  <h3>2.2 「全部」语义（关键）</h3>
+  <ul>
+    <li><strong>admin 的全部</strong> = 库内所有任务（等价于今日无 Scope WHERE）。</li>
+    <li><strong>非 admin 的全部</strong> = 仍应用 <code>build_scope_filter_clause</code> 后的集合（GLOBAL ∪ 所属组），<strong>不是</strong>突破隔离。</li>
+    <li>UI 文案：非 admin 写作「全部（可见范围）」或「全部」，旁注灰字「含全局共享 + 我的业务组」。</li>
+  </ul>
+
+  <h2 id="s3">三、查询契约与安全边界</h2>
+  <h3>3.1 查询参数</h3>
+  <pre>GET /cron_list
+  ?task_name=      # 已有，保留
+  &amp;page=           # 已有
+  &amp;status=         # 可选 Wave：lifecycle 0|1|-1；空=全部
+  &amp;health=         # 可选 Wave：failing|ok|unknown；连续失败等（维度 B）
+  &amp;scope_view=     # 新增：all | global | group
+  &amp;group_id=       # 当 scope_view=group 时必填；仅允许 session 可见组（admin 任意组）</pre>
+
+  <h3>3.2 服务端校验（强制）</h3>
+  <table>
+    <tr><th>规则</th><th>行为</th></tr>
+    <tr><td>非 admin 传入其它 <code>group_id</code></td><td>忽略或 403；写 <code>scope:deny</code> 审计（与单资源越权一致）</td></tr>
+    <tr><td><code>scope_view=group</code> 缺 <code>group_id</code></td><td>回退 <code>all</code> 或返回 400 + 表单错误</td></tr>
+    <tr><td>先 Scope 权限过滤，再套 <code>scope_view</code></td><td>UI 过滤永远是可见集的子集，不能扩大可见性</td></tr>
+    <tr><td>列表 SQL 仍经 <code>build_scope_filter_clause</code></td><td>禁止在 views 里手写 <code>if role == admin</code> 旁路</td></tr>
+  </table>
+
+  <h3>3.3 Scope 过滤 SQL 语义</h3>
+  <pre># 在已有 scope_clause（权限）之上追加 UI 过滤：
+scope_view=all     → 不追加
+scope_view=global  → CronInfos.scope_type == 'GLOBAL'
+scope_view=group   → CronInfos.scope_type == 'GROUP' AND group_id == :id</pre>
+
+  <h2 id="s4">四、交互契约</h2>
+  <table>
+    <tr><th>项</th><th>约定</th></tr>
+    <tr><td>页面形态</td><td><strong>普通 GET 跳转</strong>（保留 query：<code>task_name</code> / <code>status</code> / <code>health</code> / <code>scope_view</code> / <code>group_id</code> / <code>page</code>）。首期<strong>不做</strong>无刷换 tbody，降低与分页宏耦合风险。</td></tr>
+    <tr><td>切换 Scope</td><td>点击侧栏或 Segment → 导航到带参 URL，<code>page</code> 重置为 1。</td></tr>
+    <tr><td>与搜索组合</td><td>「高级查询」提交时原样带回当前 Scope 参数（hidden 或 URL 拼装）。</td></tr>
+    <tr><td>启停 / 下线</td><td>沿用 <code>js-ajax-dialog-btn</code> / 下线表单；本设计不改写。</td></tr>
+    <tr><td>运行记录</td><td>沿用 <code>open_iframe_dialog(job_log_list?id=)</code>；建议详情默认可带 <code>status=fail</code>（后期）。</td></tr>
+    <tr><td>列表列</td><td>新增「作用域」列：GLOBAL 徽章 或 组名徽章（admin 与多组用户尤其需要）。</td></tr>
+    <tr><td>顶栏</td><td>非 admin 继续展示组名标签；admin 仍可不在顶栏堆组名（侧栏已承载）。</td></tr>
+  </table>
+
+  <h2 id="s5">五、HTML Demo（可切换角色）</h2>
+  <p>下列 Demo 为静态原型，点击角色按钮切换布局；Scope / 状态按钮仅改变示意表格高亮，便于评审。实现时改为真实 GET。</p>
+
+  <div class="demo-switch" role="tablist" aria-label="演示角色">
+    <button type="button" class="active" data-demo="admin">Admin · 多组侧栏</button>
+    <button type="button" data-demo="one">Operator · 1 个 Scope</button>
+    <button type="button" data-demo="two">Operator · 2 个 Scope</button>
+    <button type="button" data-demo="zero">Operator · 未绑组</button>
+  </div>
+
+  <!-- ===== ADMIN DEMO ===== -->
+  <div class="demo-frame" data-panel="admin">
+    <div class="demo-caption">Demo A · Admin — 左侧 Scope 锚点 + 健康/生命周期快筛 · 默认「全部」</div>
+    <div class="sb-topbar">
+      <span><i></i> admin</span>
+      <span class="lbl lbl-role-admin">管理员</span>
+      <span style="margin-left:auto;opacity:.85">退出</span>
+    </div>
+    <div class="sb-jumbo"><h3>CronPilot 定时调度平台</h3><p>方便、统一、自由</p></div>
+    <div class="sb-tabs">
+      <span class="on">任务列表</span><span>任务添加</span><span>任务执行记录</span><span>操作记录</span><span>用户管理</span>
+    </div>
+    <div class="sb-body">
+      <div class="sb-layout">
+        <aside class="sb-side">
+          <div class="lg" id="demo-admin-scope">
+            <a href="javascript:;" class="active" data-sv="all">全部 <span class="cnt">128</span></a>
+            <a href="javascript:;" data-sv="global">全局共享 <span class="cnt">12</span></a>
+            <a href="javascript:;" data-sv="g1">数据控制组 <span class="cnt">20</span></a>
+            <a href="javascript:;" data-sv="g2">金融风控组 <span class="cnt">45</span></a>
+            <a href="javascript:;" data-sv="g3">增长运营组 <span class="cnt">51</span></a>
+          </div>
+          <p class="legend">list-group · 计数为该桶任务数（示意）</p>
+        </aside>
+        <div class="sb-main">
+          <div class="qtabs" id="demo-admin-q">
+            <button type="button" class="on" data-q="all">全部 (128)</button>
+            <button type="button" data-q="run">运行中 (96)</button>
+            <button type="button" data-q="pause">已暂停 (17)</button>
+            <button type="button" class="danger" data-q="fail">连续失败 (3)</button>
+            <button type="button" data-q="off">已下线 (15)</button>
+          </div>
+          <div class="well">高级查询： <input placeholder="任务名称" disabled> <button type="button" disabled>搜索</button></div>
+          <table class="demo-t">
+            <thead>
+              <tr><th>ID</th><th>任务名称</th><th>作用域</th><th>运行状态</th><th>最近执行</th><th>操作</th></tr>
+            </thead>
+            <tbody id="demo-admin-rows">
+              <tr data-scope="g2"><td>101</td><td>风控日终对账</td><td><span class="badge b-scope-grp">金融风控组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-fail">失败</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+              <tr data-scope="g1"><td>88</td><td>数仓分钟同步</td><td><span class="badge b-scope-grp">数据控制组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+              <tr data-scope="global"><td>12</td><td>全局心跳探测</td><td><span class="badge b-scope-g">GLOBAL</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+              <tr data-scope="g3"><td>55</td><td>运营报表周任务</td><td><span class="badge b-scope-grp">增长运营组</span></td><td><span class="badge b-pause">已暂停</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 启动 | 编辑</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ONE SCOPE DEMO ===== -->
+  <div class="demo-frame hidden" data-panel="one">
+    <div class="demo-caption">Demo B · Operator · 仅隶属「数据控制组」— <strong>无侧栏</strong> · 上下文条 + 三分段 · 可把 GLOBAL 挡在视线外</div>
+    <div class="sb-topbar">
+      <span>alice</span>
+      <span class="lbl lbl-role-op">操作员</span>
+      <span class="lbl lbl-group">数据控制组</span>
+      <span style="margin-left:auto;opacity:.85">退出</span>
+    </div>
+    <div class="sb-jumbo"><h3>CronPilot 定时调度平台</h3><p>方便、统一、自由</p></div>
+    <div class="sb-tabs">
+      <span class="on">任务列表</span><span>任务添加</span><span>任务执行记录</span>
+    </div>
+    <div class="sb-body">
+      <div class="ctx-bar">
+        当前可见范围：
+        <span class="chip">全局共享</span>
+        <span class="chip">数据控制组</span>
+        <span style="color:#64748b;margin-left:.5rem">后端隔离已生效；下方可在可见范围内再筛选</span>
+      </div>
+      <div class="seg" id="demo-one-seg">
+        <button type="button" class="on" data-sv="all">全部 (32)</button>
+        <button type="button" data-sv="mine">本组 · 数据控制 (20)</button>
+        <button type="button" data-sv="global">仅全局共享 (12)</button>
+      </div>
+      <div class="qtabs">
+        <button type="button" class="on">全部</button>
+        <button type="button">运行中</button>
+        <button type="button" class="danger">连续失败 (1)</button>
+      </div>
+      <div class="well">高级查询： <input placeholder="任务名称" disabled> <button type="button" disabled>搜索</button></div>
+      <table class="demo-t">
+        <thead>
+          <tr><th>ID</th><th>任务名称</th><th>作用域</th><th>运行状态</th><th>最近执行</th><th>操作</th></tr>
+        </thead>
+        <tbody id="demo-one-rows">
+          <tr data-scope="mine"><td>88</td><td>数仓分钟同步</td><td><span class="badge b-scope-grp">数据控制组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+          <tr data-scope="mine"><td>90</td><td>质量校验（日批）</td><td><span class="badge b-scope-grp">数据控制组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-fail">失败</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+          <tr data-scope="global"><td>12</td><td>全局心跳探测</td><td><span class="badge b-scope-g">GLOBAL</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停</td></tr>
+        </tbody>
+      </table>
+      <p class="legend">为何保留「仅全局」：1 组成员仍要消费 GLOBAL 任务，也需要一键隐藏它们以便专注本组排障。</p>
+    </div>
+  </div>
+
+  <!-- ===== TWO SCOPE DEMO ===== -->
+  <div class="demo-frame hidden" data-panel="two">
+    <div class="demo-caption">Demo C · Operator · 隶属 2 组 — 水平 Pill（全部 | 组A | 组B | 全局），仍无侧栏</div>
+    <div class="sb-topbar">
+      <span>bob</span>
+      <span class="lbl lbl-role-op">操作员</span>
+      <span class="lbl lbl-group">数据控制组</span>
+      <span class="lbl lbl-group">金融风控组</span>
+      <span style="margin-left:auto;opacity:.85">退出</span>
+    </div>
+    <div class="sb-jumbo"><h3>CronPilot 定时调度平台</h3><p>方便、统一、自由</p></div>
+    <div class="sb-tabs">
+      <span class="on">任务列表</span><span>任务添加</span><span>任务执行记录</span>
+    </div>
+    <div class="sb-body">
+      <div class="ctx-bar">可见业务组：<span class="chip">数据控制组</span><span class="chip">金融风控组</span> · 另含全局共享任务</div>
+      <div class="seg" id="demo-two-seg">
+        <button type="button" class="on" data-sv="all">全部 (77)</button>
+        <button type="button" data-sv="g1">数据控制 (20)</button>
+        <button type="button" data-sv="g2">金融风控 (45)</button>
+        <button type="button" data-sv="global">全局共享 (12)</button>
+      </div>
+      <div class="qtabs">
+        <button type="button" class="on">全部</button>
+        <button type="button" class="danger">连续失败 (2)</button>
+        <button type="button">已暂停</button>
+      </div>
+      <table class="demo-t">
+        <thead>
+          <tr><th>ID</th><th>任务名称</th><th>作用域</th><th>运行状态</th><th>最近执行</th><th>操作</th></tr>
+        </thead>
+        <tbody id="demo-two-rows">
+          <tr data-scope="g1"><td>88</td><td>数仓分钟同步</td><td><span class="badge b-scope-grp">数据控制组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+          <tr data-scope="g2"><td>101</td><td>风控日终对账</td><td><span class="badge b-scope-grp">金融风控组</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-fail">失败</span></td><td>运行记录 | 暂停 | 编辑</td></tr>
+          <tr data-scope="global"><td>12</td><td>全局心跳探测</td><td><span class="badge b-scope-g">GLOBAL</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录 | 暂停</td></tr>
+        </tbody>
+      </table>
+      <p class="legend">与创建页一致：2 组时用户「选组」心智已建立，列表用同构水平选择，无需学习侧栏。</p>
+    </div>
+  </div>
+
+  <!-- ===== ZERO GROUP DEMO ===== -->
+  <div class="demo-frame hidden" data-panel="zero">
+    <div class="demo-caption">Demo D · 未绑定业务组 — 仅 GLOBAL · 无过滤器 · 保留顶栏告警</div>
+    <div class="sb-topbar">
+      <span>carol</span>
+      <span class="lbl lbl-role-op">查看者</span>
+      <span class="lbl lbl-warn">未分配业务组</span>
+      <span style="margin-left:auto;opacity:.85">退出</span>
+    </div>
+    <div class="sb-jumbo"><h3>CronPilot 定时调度平台</h3><p>方便、统一、自由</p></div>
+    <div class="sb-tabs"><span class="on">任务列表</span><span>任务执行记录</span></div>
+    <div class="sb-body">
+      <div class="ctx-bar" style="background:#fff7ed;border-color:#fdba74;color:#9a3412">
+        当前账号未绑定业务组，仅可见<strong>全局共享</strong>任务。创建分组任务请联系管理员分配业务组。
+      </div>
+      <table class="demo-t">
+        <thead>
+          <tr><th>ID</th><th>任务名称</th><th>作用域</th><th>运行状态</th><th>最近执行</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>12</td><td>全局心跳探测</td><td><span class="badge b-scope-g">GLOBAL</span></td><td><span class="badge b-run">运行中</span></td><td><span class="badge b-ok">成功</span></td><td>运行记录</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="s6">六、线框细则</h2>
+
+  <h3>6.1 Admin</h3>
+  <ul>
+    <li>主内容区改为「左 180px Scope + 右表格」；顶栏 Tab 布局不变。</li>
+    <li>侧栏第一项「全部」恒在；第二项固定「全局共享」；其后按组名排序列出全部 <code>resource_groups</code>。</li>
+    <li>每项右侧弱化任务计数（可选；可用一次聚合查询或缓存）。</li>
+    <li>组数 ≥ 8：侧栏顶部增加 <code>&lt;input placeholder="筛选业务组"&gt;</code> 前端过滤侧栏锚点（不请求服务器）。</li>
+    <li>表格必显「作用域」列。</li>
+  </ul>
+
+  <h3>6.2 非 admin · 1 Scope</h3>
+  <ul>
+    <li><strong>不渲染侧栏</strong>，避免「只有一个组却占 180px」的空洞感。</li>
+    <li>内容区顶部<strong>上下文条</strong>：只读芯片展示「全局共享 + 本组名」（与顶栏组标签信息呼应，列表页更完整）。</li>
+    <li>其下<strong>三段 Segment</strong>：全部 | 本组 · {name} | 仅全局共享。</li>
+    <li>「本组」点击 → <code>scope_view=group&amp;group_id={唯一组id}</code>。</li>
+    <li>权限上仍可读 GLOBAL；不能在 UI 上「假装」去掉 GLOBAL 的可读性——只能过滤列表视图。</li>
+  </ul>
+
+  <h3>6.3 非 admin · 2 Scopes</h3>
+  <ul>
+    <li>无侧栏；水平四个桶：全部 | 组1 | 组2 | 全局。</li>
+    <li>组名过长时截断 + <code>title</code> 悬停全称（Bootstrap 3 无 tooltip 插件亦可用原生 title）。</li>
+    <li>创建任务页已是「下拉选组」；列表用 Segment 比再造下拉更适合「翻阅」。</li>
+  </ul>
+
+  <h3>6.4 文案与无障碍</h3>
+  <ul>
+    <li>当前选中项：<code>aria-current="page"</code>（侧栏链接）或 Segment <code>aria-pressed="true"</code>。</li>
+    <li>勿用 emoji 作状态主视觉；沿用 Font Awesome / <code>label</code> / 本 Demo 的 badge 色。</li>
+  </ul>
+
+  <h2 id="s7">七、与任务健康板、全局日志的衔接</h2>
+  <p>本设计主交付<strong>维度 A（任务运营）</strong>的 Scope 维；维度 B 的健康信号共用同一查询轴：</p>
+  <table>
+    <tr><th>入口</th><th>行为</th></tr>
+    <tr><td>快筛「连续失败」</td><td>保持当前 <code>scope_view</code>，追加 <code>health=failing</code>；避免切健康时丢掉 Scope 上下文</td></tr>
+    <tr><td>全局执行记录</td><td>同样按矩阵渲染 Scope 控件；默认建议可切「仅失败」（OPT-P1-01c）；过滤在可见集内</td></tr>
+    <tr><td>任务看板 Metric</td><td>卡片点击带上同一 <code>scope_view</code> 跳进列表（后期 Wave）</td></tr>
+  </table>
+  <div class="note">
+    <strong>秒级日志淹没：</strong>Scope 过滤不能单独解决；须配合「任务行最近执行」与「失败优先」。但 Scope 下钻可在 admin 场景先把问题缩到某业务线，再进该任务日志，形成「组 → 任务 → Run」的三级穿透。
+  </div>
+
+  <h2 id="s8">八、实现落点与分期</h2>
+  <table>
+    <tr><th>波次</th><th>内容</th><th>主要文件</th></tr>
+    <tr>
+      <td><strong>S1</strong>（本设计确认后）</td>
+      <td>查询参数 + 服务端二次过滤 + 列表作用域列；按矩阵渲染侧栏 / Segment / 警告条</td>
+      <td><code>app/main/views.py</code> · <code>cron_list.html</code> · 可选 <code>rbac/_scope_filter.html</code> partial</td>
+    </tr>
+    <tr>
+      <td><strong>S2</strong></td>
+      <td>生命周期 / 连续失败 Quick Filters；侧栏计数</td>
+      <td>同上 + 聚合查询 service</td>
+    </tr>
+    <tr>
+      <td><strong>S3</strong></td>
+      <td>执行记录页同构 Scope 控件；Metric strip</td>
+      <td><code>job_log_all_list.html</code> 等</td>
+    </tr>
+  </table>
+  <p>Bootstrap / 原生 JS：侧栏用 <code>.list-group</code> 风格自写；Segment 用按钮组；<strong>不引入</strong>前端脚手架。</p>
+
+  <h2 id="s9">九、验收清单</h2>
+  <ol>
+    <li>admin：侧栏切换 GLOBAL / 某组后，表格仅含对应任务；「全部」恢复全库；URL 可复制分享。</li>
+    <li>operator（1 组）：页面<strong>无</strong>左侧栏；三段切换工作正常；越权 <code>group_id</code> 被拒绝。</li>
+    <li>operator（2 组）：四段 Pill；只能落到自己的两个 <code>group_id</code>。</li>
+    <li>未绑组：仅 GLOBAL；无 Scope 过滤器；顶栏危险提示保留。</li>
+    <li><code>bash scripts/cronpilot.sh test</code> + 静态门禁如有模板改动；浏览器路径覆盖三角色；改模板后须 <code>cronpilot.sh restart</code> 再验。</li>
+  </ol>
+
+  <h2 id="s10">十、确认项（已收束至总设计）</h2>
+  <div class="ok">
+    下列项已在 <a href="规模化信息架构设计.html#s2">规模化信息架构设计 §二</a> 收束为拍板结论：
+    按可滤桶数量选控件；非 admin「全部」= 权限可见集；G=1 三分段；首期整页 GET；列表作用域列；与 S2 健康快筛分期。
+    <strong>实现启动</strong>请在总设计 <a href="规模化信息架构设计.html#s10">§十</a> 勾选确认。
+  </div>
+
+</main>
+<footer>
+  <a href="index.html">文档索引</a> ·
+  <a href="规模化信息架构设计.html">总设计 OPT-P2-13</a> ·
+  <a href="资源隔离与Scope设计.html">Resource Scope</a> ·
+  Markdown 版：<a href="规模化Scope过滤与角色差异化设计.md">规模化Scope过滤与角色差异化设计.md</a>
+ · <a href="规模化Scope过滤与角色差异化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+
+<script>
+(function () {
+  var switchBtns = document.querySelectorAll('.demo-switch button');
+  var panels = document.querySelectorAll('[data-panel]');
+  switchBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-demo');
+      switchBtns.forEach(function (b) { b.classList.toggle('active', b === btn); });
+      panels.forEach(function (p) {
+        p.classList.toggle('hidden', p.getAttribute('data-panel') !== id);
+      });
+    });
+  });
+
+  function bindScopeFilter(rootSel, rowSel) {
+    var root = document.querySelector(rootSel);
+    if (!root) return;
+    var links = root.querySelectorAll('[data-sv]');
+    var rows = document.querySelectorAll(rowSel + ' tr');
+    links.forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        links.forEach(function (x) { x.classList.remove('active'); x.classList.remove('on'); });
+        a.classList.add(a.tagName === 'A' ? 'active' : 'on');
+        var sv = a.getAttribute('data-sv');
+        rows.forEach(function (tr) {
+          var sc = tr.getAttribute('data-scope');
+          var show = (sv === 'all') ||
+            (sv === 'global' && sc === 'global') ||
+            (sv === 'mine' && sc === 'mine') ||
+            (sv === sc);
+          tr.style.display = show ? '' : 'none';
+        });
+      });
+    });
+  }
+  bindScopeFilter('#demo-admin-scope', '#demo-admin-rows');
+  bindScopeFilter('#demo-one-seg', '#demo-one-rows');
+  bindScopeFilter('#demo-two-seg', '#demo-two-rows');
+
+  var adminQ = document.querySelector('#demo-admin-q');
+  if (adminQ) {
+    adminQ.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        adminQ.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 from datas.utils.times import get_now_time
 
 from .url_security import validate_callback_url
+from .cron_schedule_display import schedule_configured_from_normalized
 
 _WEEK_NAMES = frozenset(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
 
@@ -105,84 +106,116 @@ def _validate_part(value, label, value_range, out_of_range_msg=None):
 def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, api_mode=False):
     """
     校验并规范化任务表单。
-    成功返回 (None, normalized_dict)；失败返回 (error_message, None)。
+    成功返回 (None, normalized_dict, None)；失败返回 (error_message, None, field_key)。
+    field_key 供前端定位表单项（如 task_name、hour、cron_div）。
     """
+    def _fail(msg, field=None):
+        return msg, None, field
+
     task_name = (datas.get('task_name') or '').strip()
     if not task_name:
-        return '任务名称不能为空', None
+        return _fail('请填写任务名称', 'task_name')
 
     task_keyword = (datas.get('task_keyword') or '').strip()
     if not task_keyword:
-        return '任务说明不能为空', None
+        return _fail('请填写任务说明（用途、需求链接或特殊情况）', 'task_keyword')
     if len(task_keyword) > 500:
-        return '任务说明不能超过500字', None
+        return _fail('任务说明不能超过 500 字', 'task_keyword')
 
     run_date = datas.get('run_date') or ''
     ds_ms = (datas.get('ds_ms') or '').strip()
+    if not api_mode:
+        if ds_ms and ds_ms not in ('1', '2'):
+            return _fail('请选择定时方式：「定时模式」或「具体时间」', 'ds_ms')
+        if not ds_ms:
+            # Web 表单通常必传；缺省时按是否有具体时间推断，兼容旧调用
+            ds_ms = '1' if str(run_date).strip() else '2'
 
     if mode == 'edit' and ds_ms == '2':
         run_date = ''
 
     if run_date and run_date < get_now_time('%Y-%m-%d %H:%M'):
-        return '设置的时间已过期，请重新设置', None
+        return _fail('具体时间已过期，请重新选择未来的执行时刻', 'run_date')
 
     day = datas.get('day') or ''
     if day:
         if day.isdigit() and int(day) not in range(1, 32):
-            return '日（号）不在范围内，请检查！', None
+            return _fail('「日(号)」须在 1～31 之间', 'day')
         ok, msg, day = _validate_part(day, '日', (1, 31))
         if not ok:
-            return msg, None
+            return _fail(msg, 'day')
 
     day_of_week = datas.get('day_of_week') or ''
     if day_of_week:
         ok, msg, day_of_week = _validate_day_of_week(day_of_week)
         if not ok:
-            return msg, None
+            return _fail(msg, 'day_of_week')
 
     hour = datas.get('hour') or ''
     if hour:
         ok, msg, hour = _validate_part(hour, '小时', (0, 23))
         if not ok:
-            return msg, None
+            return _fail(msg, 'hour')
 
     minute = datas.get('minute') or ''
     if minute:
         ok, msg, minute = _validate_part(minute, '分', (0, 59))
         if not ok:
-            return msg, None
+            return _fail(msg, 'minute')
 
     second = datas.get('second') or ''
     if second:
         ok, msg, second = _validate_part(second, '秒', (0, 59))
         if not ok:
-            return msg, None
+            return _fail(msg, 'second')
 
-    incomplete_msg = '信息请完整填写！' if api_mode else '请完整填写！'
+    schedule_incomplete_msg = (
+        '定时模式需至少填写「小时」「分钟」「星期」或「日(号)」中的一项；'
+        '或改选「具体时间」并填写执行时刻'
+    )
+    if api_mode:
+        schedule_incomplete_msg = 'API：' + schedule_incomplete_msg
+
     if mode == 'add':
         if ds_ms == '1':
             if not run_date:
-                return '时间没设置呢！', None
+                return _fail('已选择「具体时间」，请填写下方的执行时刻', 'run_date')
         elif not run_date:
             if not day_of_week and not day and not hour and not minute and not second:
-                return incomplete_msg, None
+                return _fail(schedule_incomplete_msg, 'cron_div')
     else:
         if ds_ms == '1':
             if not run_date:
-                return '时间没设置呢！', None
+                return _fail('已选择「具体时间」，请填写下方的执行时刻', 'run_date')
         elif not run_date:
             if not day_of_week and not day and not hour and not minute and not second:
-                return incomplete_msg, None
+                return _fail(schedule_incomplete_msg, 'cron_div')
 
     req_url = (datas.get('req_url') or '').strip()
+    if not req_url:
+        return _fail('请填写触发 URL（到点由调度器发起 GET/POST 请求）', 'req_url')
     url_ok, url_msg = validate_callback_url(req_url, cron_config)
     if not url_ok:
-        return url_msg, None
+        return _fail(url_msg, 'req_url')
+
+    req_method = (datas.get('req_method') or 'GET').upper().strip()
+    if req_method not in ('GET', 'POST'):
+        return _fail('请求方式只能为 GET 或 POST', 'req_method')
+
+    req_body = (datas.get('req_body') or '').strip()
+    if req_body:
+        import json
+        try:
+            parsed = json.loads(req_body)
+        except ValueError:
+            return _fail('请求 body 格式有误，须为合法的 JSON 字符串', 'req_body')
+        if not isinstance(parsed, dict):
+            return _fail('请求 body 须为 JSON 对象（object）', 'req_body')
 
     if int(is_dev) == 1:
         second = ''
 
-    return None, {
+    normalized = {
         'task_name': task_name,
         'task_keyword': task_keyword,
         'run_date': run_date,
@@ -192,7 +225,13 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         'minute': minute,
         'second': second,
         'req_url': req_url,
+        'req_method': req_method,
+        'req_body': req_body,
     }
+    if not schedule_configured_from_normalized(normalized, ds_ms):
+        return _fail(schedule_incomplete_msg, 'cron_div')
+
+    return None, normalized, None
 
 
 def validate_retire_reason(reason):

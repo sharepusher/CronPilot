@@ -16,6 +16,8 @@ class CronInfos(db.Model):
     minute = db.Column(db.String(10),default='',doc='分钟')
     second = db.Column(db.String(10),default='',doc='秒')
     req_url = db.Column(db.String(200),default='')
+    req_method = db.Column(db.String(10),default='GET',doc='触发请求方式: GET/POST')
+    req_body = db.Column(db.TEXT,default='',doc='POST 时的 JSON body')
     status = db.Column(db.SMALLINT,default=True,doc='运行状态，0停止1运行中-1结束任务')
     created_at = db.Column(db.String(25), default='', doc='创建时间')
     updated_at = db.Column(db.String(25), default='', doc='最后配置编辑时间')
@@ -33,4 +35,16 @@ class CronInfos(db.Model):
         nullable=True,
         default=None,
         doc='scope_type=GROUP 时所属 resource_groups.id；GLOBAL 时为 NULL',
+    )
+    last_operator_name = db.Column(
+        db.String(120),
+        nullable=False,
+        default='',
+        doc='最近发布/编辑/下线操作人展示名',
+    )
+    last_operated_at = db.Column(
+        db.String(25),
+        nullable=False,
+        default='',
+        doc='最近发布/编辑/下线时间',
     )

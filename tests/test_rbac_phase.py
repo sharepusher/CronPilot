@@ -208,6 +208,7 @@ class TestChangeOwnPassword(unittest.TestCase):
             u = self.db.session.get(RbacUser, self.user_id)
             self.assertTrue(u.check_password('newpass1'))
             self.assertFalse(u.check_password('oldpass1'))
+            self.assertEqual(u.must_reset_password, 0)
 
 
 class TestR3Permissions(unittest.TestCase):
@@ -385,7 +386,7 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
     def test_operator_sees_retire_denied_tip_not_form_link(self):
         self._login('operator')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('>下线<', html)
+        self.assertIn('下线</a>', html)
         self.assertIn('class="js-retire-denied"', html)
         self.assertIn('当前账号不可下线', html)
         self.assertNotIn('/cron_retire?', html)
@@ -393,13 +394,13 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
     def test_viewer_sees_retire_denied_tip(self):
         self._login('viewer')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('>下线<', html)
+        self.assertIn('下线</a>', html)
         self.assertIn('class="js-retire-denied"', html)
 
     def test_admin_sees_retire_form_link(self):
         self._login('admin')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('>下线<', html)
+        self.assertIn('下线</a>', html)
         self.assertIn('/cron_retire?', html)
         self.assertNotIn('class="js-retire-denied"', html)
 
@@ -410,7 +411,7 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             sess['username'] = 'admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('>下线<', html)
+        self.assertIn('下线</a>', html)
         self.assertIn('class="js-retire-denied"', html)
         self.assertNotIn('/cron_retire?', html)
 
@@ -437,7 +438,7 @@ class TestNavHasPerm(unittest.TestCase):
 
     def test_viewer_nav_hides_cron_add(self):
         html = self._render_nav('viewer')
-        self.assertIn('任务列表', html)
+        self.assertIn('任务中心', html)
         self.assertIn('任务执行记录', html)
         self.assertNotIn('任务添加', html)
         self.assertNotIn('用户管理', html)
@@ -499,7 +500,7 @@ class TestNotFound(unittest.TestCase):
         body = resp.get_data(as_text=True)
         self.assertIn('页面不存在', body)
         self.assertIn('前往登录', body)
-        self.assertNotIn('任务列表', body)
+        self.assertNotIn('任务中心', body)
 
     def test_logged_in_404_renders_nav_and_home_link(self):
         with self.client.session_transaction() as sess:
@@ -508,8 +509,8 @@ class TestNotFound(unittest.TestCase):
         self.assertEqual(resp.status_code, 404)
         body = resp.get_data(as_text=True)
         self.assertIn('页面不存在', body)
-        self.assertIn('返回任务列表', body)
-        self.assertIn('任务列表', body)
+        self.assertIn('返回任务中心', body)
+        self.assertIn('任务中心', body)
 
 
 class TestRbacUsersManage(unittest.TestCase):
@@ -565,7 +566,6 @@ class TestRbacUsersManage(unittest.TestCase):
             '/rbac/users/add',
             data={
                 'username': 'alice',
-                'password': 'secret',
                 'role': 'viewer',
                 'group_ids': str(self.group_id),
             },
@@ -577,7 +577,19 @@ class TestRbacUsersManage(unittest.TestCase):
         self.assertEqual(payload.get('url'), '/rbac/users')
         resp = self.client.get('/rbac/users')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn('alice', resp.get_data(as_text=True))
+        body = resp.get_data(as_text=True)
+        self.assertIn('alice', body)
+        self.assertIn('待重置', body)
+        with self.app.app_context():
+            from sqlalchemy import select
+            from datas.model.rbac_user import RbacUser
+            from app.rbac.services import DEFAULT_USER_PASSWORD
+            alice = self.db.session.scalars(
+                select(RbacUser).where(RbacUser.username == 'alice')
+            ).first()
+            self.assertIsNotNone(alice)
+            self.assertEqual(alice.must_reset_password, 1)
+            self.assertTrue(alice.check_password(DEFAULT_USER_PASSWORD))
 
     def test_add_form_has_ajax_submit_button(self):
         self._login('admin')
@@ -585,6 +597,8 @@ class TestRbacUsersManage(unittest.TestCase):
         body = resp.get_data(as_text=True)
         self.assertIn('js-ajax-form', body)
         self.assertIn('js-ajax-submit', body)
+        self.assertIn('changeme', body)
+        self.assertNotIn('name="password"', body)
 
     def test_native_post_add_redirects_to_list(self):
         """无 Ajax 头时成功应 302 回列表，避免浏览器落在裸 JSON 页。"""
@@ -593,13 +607,47 @@ class TestRbacUsersManage(unittest.TestCase):
             '/rbac/users/add',
             data={
                 'username': 'bob',
-                'password': 'secret',
                 'role': 'viewer',
                 'group_ids': str(self.group_id),
             },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/rbac/users', resp.headers['Location'])
+
+    def test_edit_role_keeps_existing_group_without_unique_conflict(self):
+        from sqlalchemy import select
+        from datas.model.rbac_user import RbacUser
+        from datas.model.user_group import UserGroup
+
+        with self.app.app_context():
+            user = RbacUser(username='davy', role='viewer', is_active=1, create_time='t')
+            user.set_password('x')
+            self.db.session.add(user)
+            self.db.session.commit()
+            user_id = user.id
+            self.db.session.add(UserGroup(user_id=user_id, group_id=self.group_id))
+            self.db.session.commit()
+
+        self._login('admin', user_id=999)
+        resp = self.client.post(
+            '/rbac/users/edit',
+            data={
+                'id': str(user_id),
+                'role': 'operator',
+                'is_active': '1',
+                'group_ids': str(self.group_id),
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            user = self.db.session.get(RbacUser, user_id)
+            rows = self.db.session.scalars(
+                select(UserGroup).where(UserGroup.user_id == user_id)
+            ).all()
+            self.assertEqual(user.role, 'operator')
+            self.assertEqual([row.group_id for row in rows], [self.group_id])
 
     def test_cannot_disable_last_admin(self):
         from datas.model.rbac_user import RbacUser
@@ -638,12 +686,399 @@ class TestRbacUsersManage(unittest.TestCase):
             self_id = a1.id
 
         self._login('admin', user_id=self_id)
-        resp = self.client.post(
+        edit = self.client.post(
             '/rbac/users/edit',
             data={'id': str(self_id), 'role': 'admin', 'is_active': '0'},
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
+        self.assertEqual(edit.status_code, 200)
+        self.assertIn('修改密码', edit.get_json().get('errmsg', ''))
+        resp = self.client.post(
+            '/rbac/users/set_active',
+            data={'id': str(self_id), 'is_active': '0', 'reason': '自测停用'},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
         self.assertEqual(resp.status_code, 200)
+        self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
+
+
+class TestForcedPasswordReset(unittest.TestCase):
+    """新建用户强制改密 + 管理员触发重置。"""
+
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.user_group import UserGroup  # noqa: F401
+            db.create_all()
+            g = ResourceGroup(
+                name='Default',
+                code='default',
+                description='',
+                create_time='t',
+            )
+            db.session.add(g)
+            admin = RbacUser(
+                username='mgr',
+                role='admin',
+                is_active=1,
+                must_reset_password=0,
+                create_time='t',
+            )
+            admin.set_password('admin-pass')
+            existing = RbacUser(
+                username='oldie',
+                role='viewer',
+                is_active=1,
+                must_reset_password=0,
+                create_time='t',
+            )
+            existing.set_password('oldie-pass')
+            db.session.add_all([admin, existing])
+            db.session.commit()
+            self.group_id = g.id
+            self.admin_id = admin.id
+            self.existing_id = existing.id
+
+    def _login_session(self, username, role, user_id, group_ids=None):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = username
+            sess['role'] = role
+            sess['user_id'] = user_id
+            sess['group_ids'] = list(group_ids or [])
+
+    def test_existing_user_not_migrated_to_force_reset(self):
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.existing_id)
+            self.assertEqual(u.must_reset_password, 0)
+        resp = self.client.post(
+            '/rbac/login',
+            data={'username': 'oldie', 'password': 'oldie-pass', 'next': '/cron_list'},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/cron_list', resp.headers['Location'])
+
+    def test_new_user_login_forces_password_change(self):
+        from app.rbac.services import DEFAULT_USER_PASSWORD
+
+        self._login_session('mgr', 'admin', self.admin_id)
+        resp = self.client.post(
+            '/rbac/users/add',
+            data={
+                'username': 'newbie',
+                'role': 'viewer',
+                'group_ids': str(self.group_id),
+                'password': 'ignored-secret',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.get_json().get('errcode'), 0)
+        with self.client.session_transaction() as sess:
+            sess.clear()
+        login = self.client.post(
+            '/rbac/login',
+            data={
+                'username': 'newbie',
+                'password': DEFAULT_USER_PASSWORD,
+                'next': '/cron_list',
+            },
+        )
+        self.assertEqual(login.status_code, 302)
+        self.assertIn('/rbac/password', login.headers['Location'])
+        blocked = self.client.get('/cron_list')
+        self.assertEqual(blocked.status_code, 302)
+        self.assertIn('/rbac/password', blocked.headers['Location'])
+        form = self.client.get('/rbac/password')
+        self.assertEqual(form.status_code, 200)
+        body = form.get_data(as_text=True)
+        self.assertIn('须先修改密码', body)
+        self.assertNotIn('返回任务中心', body)
+
+    def test_failed_reset_keeps_force_and_success_clears(self):
+        from app.rbac.services import DEFAULT_USER_PASSWORD, create_user, set_user_groups
+
+        with self.app.app_context():
+            created = create_user('force_me', 'viewer')
+            self.assertTrue(created['ok'])
+            set_user_groups(created['user_id'], [self.group_id], role='viewer')
+            user_id = created['user_id']
+
+        login = self.client.post(
+            '/rbac/login',
+            data={'username': 'force_me', 'password': DEFAULT_USER_PASSWORD},
+        )
+        self.assertIn('/rbac/password', login.headers['Location'])
+        fail = self.client.post(
+            '/rbac/password',
+            data={
+                'old_password': 'wrong',
+                'new_password': 'newpass1',
+                'confirm_password': 'newpass1',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(fail.get_json().get('errcode'), 1)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, user_id)
+            self.assertEqual(u.must_reset_password, 1)
+        blocked = self.client.get('/cron_list')
+        self.assertEqual(blocked.status_code, 302)
+        self.assertIn('/rbac/password', blocked.headers['Location'])
+
+        ok = self.client.post(
+            '/rbac/password',
+            data={
+                'old_password': DEFAULT_USER_PASSWORD,
+                'new_password': 'newpass1',
+                'confirm_password': 'newpass1',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(ok.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, user_id)
+            self.assertEqual(u.must_reset_password, 0)
+            self.assertTrue(u.check_password('newpass1'))
+        relogin = self.client.post(
+            '/rbac/login',
+            data={'username': 'force_me', 'password': 'newpass1', 'next': '/cron_list'},
+        )
+        self.assertEqual(relogin.status_code, 302)
+        self.assertIn('/cron_list', relogin.headers['Location'])
+        self.assertEqual(self.client.get('/cron_list').status_code, 200)
+
+    def test_admin_trigger_reset_restricts_active_session(self):
+        from app.rbac.services import DEFAULT_USER_PASSWORD
+
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            target = RbacUser(
+                username='session_user',
+                role='operator',
+                is_active=1,
+                must_reset_password=0,
+                create_time='t',
+            )
+            target.set_password('live-pass')
+            self.db.session.add(target)
+            self.db.session.commit()
+            target_id = target.id
+
+        self._login_session('session_user', 'operator', target_id, [self.group_id])
+        self.assertEqual(self.client.get('/cron_list').status_code, 200)
+
+        admin_client = self.app.test_client()
+        with admin_client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = 'mgr'
+            sess['role'] = 'admin'
+            sess['user_id'] = self.admin_id
+            sess['group_ids'] = []
+        reset = admin_client.get(
+            '/rbac/users/reset_password?id=%s' % target_id,
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(reset.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, target_id)
+            self.assertEqual(u.must_reset_password, 1)
+            self.assertTrue(u.check_password(DEFAULT_USER_PASSWORD))
+            self.assertFalse(u.check_password('live-pass'))
+
+        blocked = self.client.get('/cron_list')
+        self.assertEqual(blocked.status_code, 302)
+        self.assertIn('/rbac/password', blocked.headers['Location'])
+        ajax_blocked = self.client.get(
+            '/cron_list',
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(ajax_blocked.get_json().get('errcode'), 1)
+        self.assertIn('/rbac/password', ajax_blocked.get_json().get('url', ''))
+
+    def test_admin_cannot_reset_self(self):
+        self._login_session('mgr', 'admin', self.admin_id)
+        resp = self.client.get(
+            '/rbac/users/reset_password?id=%s' % self.admin_id,
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
+
+    def test_edit_ignores_password_field(self):
+        self._login_session('mgr', 'admin', self.admin_id)
+        resp = self.client.post(
+            '/rbac/users/edit',
+            data={
+                'id': str(self.existing_id),
+                'role': 'viewer',
+                'is_active': '1',
+                'group_ids': str(self.group_id),
+                'password': 'hacked-pass',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.existing_id)
+            self.assertTrue(u.check_password('oldie-pass'))
+            self.assertFalse(u.check_password('hacked-pass'))
+            self.assertEqual(u.must_reset_password, 0)
+
+    def test_users_list_shows_reset_and_reactivate_actions(self):
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            disabled = RbacUser(
+                username='paused',
+                role='viewer',
+                is_active=0,
+                must_reset_password=1,
+                status_reason='请假停用',
+                create_time='t',
+            )
+            disabled.set_password('x')
+            self.db.session.add(disabled)
+            self.db.session.commit()
+            disabled_id = disabled.id
+
+        self._login_session('mgr', 'admin', self.admin_id)
+        html = self.client.get('/rbac/users').get_data(as_text=True)
+        self.assertIn('重置密码', html)
+        self.assertIn('/rbac/users/reset_password?id=', html)
+        self.assertIn('恢复启用', html)
+        self.assertTrue(
+            ('/rbac/users/set_active?id=%s&is_active=1' % disabled_id) in html
+            or ('/rbac/users/set_active?id=%s&amp;is_active=1' % disabled_id) in html
+        )
+        self.assertIn('user-row-inactive', html)
+        self.assertIn('user-status-reset', html)
+        self.assertIn('待重置', html)
+        self.assertIn('请假停用', html)
+        self.assertIn('btn-info', html)
+        # 编辑在操作列末尾（他人行）；当前用户仅「修改密码」
+        reset_pos = html.find('重置密码')
+        edit_pos = html.rfind('>编辑</a>')
+        self.assertGreater(edit_pos, reset_pos)
+        self.assertIn('修改密码', html)
+        self.assertIn('/rbac/password', html)
+        self.assertIn('账号/角色/业务组不可自改', html)
+
+    def test_cannot_edit_self_via_users_edit(self):
+        self._login_session('mgr', 'admin', self.admin_id)
+        resp = self.client.get(
+            '/rbac/users/edit?id=%s' % self.admin_id,
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        self.assertIn('修改密码', resp.get_json().get('errmsg', ''))
+        self.assertIn('/rbac/password', resp.get_json().get('url', ''))
+        post = self.client.post(
+            '/rbac/users/edit',
+            data={
+                'id': str(self.admin_id),
+                'role': 'viewer',
+                'is_active': '1',
+                'group_ids': str(self.group_id),
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(post.get_json().get('errcode'), 1)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.admin_id)
+            self.assertEqual(u.role, 'admin')
+
+    def test_set_active_requires_reason_and_can_reactivate(self):
+        self._login_session('mgr', 'admin', self.admin_id)
+        form = self.client.get(
+            '/rbac/users/set_active?id=%s&is_active=0' % self.existing_id
+        )
+        self.assertEqual(form.status_code, 200)
+        body = form.get_data(as_text=True)
+        self.assertIn('停用缘由', body)
+        self.assertIn('js-ajax-submit', body)
+
+        missing = self.client.post(
+            '/rbac/users/set_active',
+            data={'id': str(self.existing_id), 'is_active': '0', 'reason': ''},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(missing.get_json().get('errcode'), 1)
+        self.assertIn('缘由', missing.get_json().get('errmsg', ''))
+
+        disable = self.client.post(
+            '/rbac/users/set_active',
+            data={
+                'id': str(self.existing_id),
+                'is_active': '0',
+                'reason': '违规操作暂停',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(disable.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            from datas.model.rbac_audit_log import RbacAuditLog
+            from sqlalchemy import select
+            u = self.db.session.get(RbacUser, self.existing_id)
+            self.assertEqual(u.is_active, 0)
+            self.assertEqual(u.status_reason, '违规操作暂停')
+            row = self.db.session.scalars(
+                select(RbacAuditLog).where(RbacAuditLog.action == 'user:disable')
+            ).first()
+            self.assertIsNotNone(row)
+            self.assertIn('违规操作暂停', row.resource or '')
+
+        enable = self.client.post(
+            '/rbac/users/set_active',
+            data={
+                'id': str(self.existing_id),
+                'is_active': '1',
+                'reason': '问题已处理，恢复使用',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(enable.get_json().get('errcode'), 0)
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.existing_id)
+            self.assertEqual(u.is_active, 1)
+            self.assertEqual(u.status_reason, '问题已处理，恢复使用')
+
+    def test_cannot_disable_self_via_set_active(self):
+        self._login_session('mgr', 'admin', self.admin_id)
+        resp = self.client.post(
+            '/rbac/users/set_active',
+            data={
+                'id': str(self.admin_id),
+                'is_active': '0',
+                'reason': '自测停用',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.get_json().get('errcode'), 1)
         self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
 
 

@@ -28,9 +28,15 @@
                     </div>
                 </div>
                 <div class="control-group">
-                    <label class="control-label">新密码</label>
+                    <label class="control-label">密码状态</label>
                     <div class="controls">
-                        <input type="password" name="password" />留空则不修改
+                        {% if user.must_reset_password %}
+                        <span style="color:#b45309;font-weight:600">待重置</span>
+                        <span style="color:#64748b;margin-left:8px">下次访问须用默认密码 {{ default_password or 'changeme' }} 登录并完成改密</span>
+                        {% else %}
+                        <span style="color:#15803d;font-weight:600">正常</span>
+                        <span style="color:#64748b;margin-left:8px">管理员不可直接指定密码，仅可触发重置</span>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="control-group">
@@ -46,11 +52,26 @@
                 <div class="control-group">
                     <label class="control-label">状态</label>
                     <div class="controls">
-                        <select name="is_active">
-                            <option value="1"{% if user.is_active %} selected{% endif %}>启用</option>
-                            <option value="0"{% if not user.is_active %} selected{% endif %}>停用</option>
-                        </select>
-                        <span style="color:#64748b">不能停用当前登录账号；须保留至少一名启用中的管理员</span>
+                        {% if user.is_active %}
+                        <span style="color:#166534;font-weight:600">启用</span>
+                        {% else %}
+                        <span style="color:#64748b;font-weight:600">停用</span>
+                        {% endif %}
+                        {% if user.status_reason %}
+                        <span style="color:#64748b;margin-left:8px">缘由：{{ user.status_reason }}</span>
+                        {% endif %}
+                        {% if current_user and current_user.user_id != user.id %}
+                        <div style="margin-top:6px">
+                            {% if user.is_active %}
+                            <a class="btn btn-mini btn-danger" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=0) }}">停用（须填缘由）</a>
+                            {% else %}
+                            <a class="btn btn-mini btn-success" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=1) }}">恢复启用（须填缘由）</a>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <span style="color:#64748b;margin-left:8px">当前登录账号不可在此停用</span>
+                        {% endif %}
+                        <input type="hidden" name="is_active" value="{{ 1 if user.is_active else 0 }}" />
                     </div>
                 </div>
                 <div class="control-group">
@@ -74,5 +95,16 @@
                 </div>
             </fieldset>
         </form>
+
+        {% if current_user and current_user.user_id != user.id %}
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0">
+            <p style="color:#64748b;font-size:12px;margin:0 0 8px">
+                触发重置会将密码恢复为 <strong>{{ default_password or 'changeme' }}</strong>，并要求该用户下次访问前完成改密。
+            </p>
+            <a class="btn btn-warning js-ajax-dialog-btn"
+               href="{{ url_for('rbac.users_reset_password') }}?id={{ user.id }}"
+               data-msg="确定触发重置用户「{{ user.username }}」的密码？密码将恢复为 {{ default_password or 'changeme' }}，且须改密后才能继续使用。">触发密码重置</a>
+        </div>
+        {% endif %}
     </div>
 {% endblock %}

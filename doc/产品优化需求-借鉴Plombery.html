@@ -134,7 +134,7 @@
         <p class="ref">任务在进程内执行，<strong>不存在</strong>「平台替用户请求任意 URL」模型；SSRF 风险主要在用户代码自身。</p>
         <h4>CronPilot 现状与不足</h4>
         <table>
-          <tr class="gap"><th>现状</th><td>仅校验 <code>req_url</code> 含 http/https；保存后 <code>cron_do</code> 由服务器发起 GET，可指向 <code>127.0.0.1</code>、云元数据 <code>169.254.169.254</code>、内网 Redis 等。</td></tr>
+          <tr class="gap"><th>现状</th><td>校验 <code>req_url</code> 含 http/https 并经 SSRF 策略；保存后 <code>cron_do</code> 由服务器发起 GET 或 POST（v2.0.0），仍须防指向 <code>127.0.0.1</code>、云元数据 <code>169.254.169.254</code>、内网等。</td></tr>
           <tr class="gap"><th>不足</th><td>恶意或误配任务可导致<strong>内网扫描、云凭证窃取</strong>；多租户场景下属于严重事故面。Plombery 无此攻击面，但这是 CronPilot <strong>模式固有风险</strong>，必须补。</td></tr>
           <tr><th>为何 P0</th><td>属于架构型高危，与「能填 URL」的产品能力绑定，不修则无法对外宣传企业级。</td></tr>
         </table>
@@ -402,6 +402,7 @@
         <h4>价值</h4>
         <p>管理可视化；对多任务运维场景提升决策效率。Chart.js + 一个聚合 API 即可，无需 Plombery 全量前端。</p>
         <p><strong>依赖：</strong>OPT-P1-01 status 字段。</p>
+        <p><strong>与规模化 IA：</strong>任务级健康预计算与 L1 指标条见 <a href="规模化信息架构设计.html">OPT-P2-13</a>（B0 <code>job_health</code>）；本项图表/趋势对应 OPT-P2-13 的 B2+。</p>
       </div>
     </article>
 

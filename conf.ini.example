@@ -15,6 +15,8 @@ login_pwd=请改为强密码或使用 scripts/hash_login_password.py 生成 pbkd
 # 日常改密：admin 登录 → 用户管理 → 编辑用户 → 「新密码」（留空则不改）
 # Web 登录须填用户名+密码；三角色分权始终启用（无旁路开关）；种子角色为 admin
 job_log_counts=1000
+# 连续失败达到 N 次时任务标为 failing（OPT-P2-13）；默认 3。偶发 1～2 次失败不进异常榜
+health_failing_threshold=3
 # 管理操作审计保留条数（OPT-P1-09）；0=不裁剪；内置任务每 8 小时按 id 删最旧
 operation_log_counts=5000
 api_access_token=

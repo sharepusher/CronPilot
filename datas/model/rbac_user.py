@@ -12,6 +12,8 @@ class RbacUser(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='viewer')
     is_active = db.Column(db.SMALLINT, nullable=False, default=1)
+    must_reset_password = db.Column(db.SMALLINT, nullable=False, default=0)
+    status_reason = db.Column(db.String(500), nullable=False, default='')
     create_time = db.Column(db.String(25), nullable=False, default='')
 
     def set_password(self, plain):

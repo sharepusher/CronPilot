@@ -97,7 +97,7 @@
   <h3>OPT-P0-03 · SSRF 防护</h3>
   <table>
     <tr><th>TC-P0-03-04</th><td colspan="3">Web 添加任务 <code>req_url=http://127.0.0.1/x</code></td></tr>
-    <tr><th>预期</th><td colspan="3">JSON <code>errcode:1</code>，msg 含「不允许回调本机」</td></tr>
+    <tr><th>预期</th><td colspan="3">JSON <code>errcode:1</code>，msg 含「不允许触发本机」或「本机」</td></tr>
     <tr><th>TC-P0-03-03</th><td colspan="3"><code>url_allow_hosts=8.8.8.8</code> 时仅允许该主机</td></tr>
     <tr><th>TC-P0-03-05</th><td colspan="3">若绕过保存（历史数据），触发执行后 job_log 记录「安全校验未通过」</td></tr>
   </table>

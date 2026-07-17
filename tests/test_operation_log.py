@@ -238,6 +238,29 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             self.assertEqual(row.operator_name, 'ops_admin')
             self.assertEqual(row.operator_type, 'user')
 
+    def test_duplicate_task_name_returns_field(self):
+        with patch('app.services.cron_service.scheduler') as sch:
+            sch.add_job.return_value = None
+            with self.client.session_transaction() as sess:
+                sess['is_login'] = True
+                sess['role'] = 'admin'
+                sess['username'] = 'ops_admin'
+                sess['user_id'] = 1
+            data = {
+                'task_name': 'dup-name-job',
+                'task_keyword': '备注说明足够长',
+                'hour': '9',
+                'minute': '0',
+                'req_url': 'https://example.com/hook',
+            }
+            resp1 = self.client.post('/cron_add', data=data)
+            self.assertEqual(resp1.get_json().get('errcode'), 0)
+            resp2 = self.client.post('/cron_add', data=data)
+            payload = resp2.get_json()
+            self.assertEqual(payload.get('errcode'), 1)
+            self.assertIn('已被占用', payload.get('errmsg') or '')
+            self.assertEqual((payload.get('data') or {}).get('field'), 'task_name')
+
     def test_retire_writes_operation_log(self):
         from app import db
         from datas.model.cron_infos import CronInfos

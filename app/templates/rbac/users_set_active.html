@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='users' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        {% if form_msg %}
+        <div style="color:red;margin:8px 0">{{ form_msg }}</div>
+        {% endif %}
+
+        {% set enabling = target_active|int == 1 %}
+        <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.users_set_active') }}">
+            <input type="hidden" name="id" value="{{ user.id }}" />
+            <input type="hidden" name="is_active" value="{{ target_active }}" />
+            <fieldset>
+                <legend>{% if enabling %}恢复启用用户{% else %}停用用户{% endif %}</legend>
+                <div class="control-group">
+                    <label class="control-label">用户名</label>
+                    <div class="controls">
+                        <span>{{ user.username }}</span>
+                        <span style="color:#64748b;margin-left:8px">角色 {{ user.role }}</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">当前状态</label>
+                    <div class="controls">
+                        {% if user.is_active %}启用{% else %}停用{% endif %}
+                        {% if user.status_reason %}
+                        <span style="color:#64748b;margin-left:8px">上次缘由：{{ user.status_reason }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="control-group" data-field="reason">
+                    <label class="control-label">{% if enabling %}启用缘由{% else %}停用缘由{% endif %}</label>
+                    <div class="controls">
+                        <textarea name="reason" rows="3" style="width:80%;max-width:480px" maxlength="500" required></textarea>
+                        <span class="help-block" style="color:#64748b">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn {% if enabling %}btn-success{% else %}btn-danger{% endif %} js-ajax-submit">{% if enabling %}确认启用{% else %}确认停用{% endif %}</button>
+                    <a class="btn" href="{{ url_for('rbac.users_list') }}">取消</a>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+{% endblock %}

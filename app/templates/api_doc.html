@@ -44,13 +44,25 @@
                                 <td>req_url</td>
                                 <td>string</td>
                                 <td>是</td>
-                                <td>回调请求地址</td>
+                                <td>触发 URL（到点由调度器请求的地址）</td>
+                            </tr>
+                            <tr>
+                                <td>req_method</td>
+                                <td>string</td>
+                                <td>否</td>
+                                <td>请求方式：GET（默认）或 POST</td>
+                            </tr>
+                            <tr>
+                                <td>req_body</td>
+                                <td>string</td>
+                                <td>否</td>
+                                <td>POST 时的 JSON 对象字符串；系统会注入 cronpilot_log_id / cronpilot_sign（不覆盖已有同名字段）</td>
                             </tr>
                             <tr>
                                 <td>task_keyword</td>
                                 <td>string</td>
                                 <td>是</td>
-                                <td>任务说明/备注，1～500 字</td>
+                                <td>任务说明，1～500 字（需求链接、用途、特殊情况等）</td>
                             </tr>
                             <tr>
                                 <td>run_date</td>
@@ -150,7 +162,7 @@
                                 <td>cronpilot_log_id</td>
                                 <td>string</td>
                                 <td>是</td>
-                                <td>这个参数会在系统请求您自定义的回调URL的时候，一起传过去。</td>
+                                <td>这个参数会在系统请求您自定义的触发 URL 时一起传过去。</td>
                             </tr>
                             <tr>
                                 <td>content</td>

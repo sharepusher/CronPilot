@@ -326,7 +326,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
       <li>路由：<code>GET /operation_log_list</code>；权限 <code>@require_permission('operation:read')</code>（operator+admin；viewer 不可见）</li>
       <li>RBAC「审计」页用 <code>audit:read</code>（仅 admin），与本页分表分权</li>
       <li>筛选：任务名、<code>action</code>、<strong>操作人</strong>、时间范围、<code>channel</code></li>
-      <li>列表列：时间、操作、<strong>操作人</strong>、<strong>角色</strong>、任务名、渠道、结果、详情</li>
+      <li>列表列：时间、操作、<strong>操作人</strong>、<strong>角色</strong>、任务名、业务组、结果、详情</li>
       <li>导航：与「任务执行记录」并列；按 <code>operation:read</code> 裁剪（operator+admin）</li>
       <li>保留：配置项 <code>operation_log_counts</code>，超限按 id 删最旧</li>
     </ul>
@@ -360,7 +360,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     <table>
       <tr><th>要记录</th><th>不记录</th></tr>
       <tr><td>任务配置的增删改、启动/暂停（Web + API）</td><td>到点 HTTP 回调执行（已有 <code>job_log</code>）</td></tr>
-      <tr><td>操作时间、渠道、结果、字段级 diff</td><td>登录成功/失败（首批可不做，避免噪音）</td></tr>
+      <tr><td>操作时间、业务组、结果、字段级 diff</td><td>登录成功/失败（首批可不做，避免噪音）</td></tr>
       <tr><td><strong>操作人</strong>、<strong>角色与权限快照</strong>（操作时态）</td><td>只读查询（列表、看执行记录）</td></tr>
       <tr><td>删任务后的历史（靠冗余 <code>task_name</code>）</td><td>—</td></tr>
     </table>
@@ -463,9 +463,9 @@ API access_token ──► 独立轨道，operator_type=api（P1 规划）</pre>
     <h4>6.5.8 管理页线框（operation_log_list.html）</h4>
     <pre>任务列表 | 任务添加 | 任务执行记录 | 操作记录 | API文档 | 退出
 
-任务名称 [____]  操作人 [____]  操作类型 [▼]  渠道 [▼]  时间 [____]—[____]  [搜索]
+任务名称 [____]  操作人 [____]  操作类型 [▼]  业务组 [▼]  时间 [____]—[____]  [搜索]
 
-| 时间           | 操作     | 操作人     | 角色        | 任务名称  | 渠道 | 结果 | 详情       |
+| 时间           | 操作     | 操作人     | 角色        | 任务名称  | 业务组 | 结果 | 详情       |
 |----------------|----------|------------|-------------|-----------|------|------|------------|
 | 2026-06-10 ... | 修改任务 | 张三       | admin       | daily_job | web  | 成功 | hour 9→10  |
 | 2026-06-09 ... | 删除任务 | API集成    | api_scheduler | old_task| api  | 成功 | [快照]     |

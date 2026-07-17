@@ -28,8 +28,8 @@ smoke_http_cron_list() {
     echo "FAIL cron_list (body contains system err)"
     return 1
   fi
-  if ! echo "$body" | grep -q '任务列表'; then
-    echo "FAIL cron_list (missing 任务列表 in body)"
+  if ! echo "$body" | grep -q '任务中心'; then
+    echo "FAIL cron_list (missing 任务中心 in body)"
     return 1
   fi
   echo "PASS cron_list (page OK)"
@@ -74,12 +74,12 @@ smoke_http_not_found() {
     echo "FAIL not_found_logged_in (missing 页面不存在 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q '返回任务列表'; then
-    echo "FAIL not_found_logged_in (missing 返回任务列表 in body)"
+  if ! echo "$body" | grep -q '返回任务中心'; then
+    echo "FAIL not_found_logged_in (missing 返回任务中心 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q '任务列表'; then
-    echo "FAIL not_found_logged_in (missing nav 任务列表 in body)"
+  if ! echo "$body" | grep -q '任务中心'; then
+    echo "FAIL not_found_logged_in (missing nav 任务中心 in body)"
     return 1
   fi
   echo "PASS not_found (guest + logged-in 404 page OK)"

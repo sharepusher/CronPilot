@@ -1,7 +1,7 @@
 {# active: cron_list | cron_add | job_log | api_doc #}
 <ul class="nav nav-tabs">
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
-        <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务列表</a>
+        <a{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>任务中心</a>
     </li>
     <li{% if active == 'cron_add' %} class="active"{% endif %}>
         <a{% if active != 'cron_add' %} href="{{ url_for('main.cron_add') }}"{% endif %}>任务添加</a>

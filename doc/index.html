@@ -5,174 +5,395 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CronPilot · 技术文档索引</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 4rem auto; padding: 0 1.5rem; color: #1e293b; line-height: 1.6; }
-    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-    .sub { color: #64748b; margin-bottom: 1rem; }
-    .fmt-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 2rem; font-size: .9rem; }
-    .fmt-banner a { color: #1d4ed8; }
-    .cards { display: flex; flex-direction: column; gap: 1rem; }
-    .card {
-      padding: 1.25rem 1.5rem; border: 1px solid #e2e8f0; border-radius: 12px;
-      transition: box-shadow .2s, border-color .2s;
+    :root {
+      --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --bg: #f8fafc;
+      --p: #2563eb; --ok: #059669; --warn: #b45309; --card: #fff;
     }
-    .card:hover { border-color: #2563eb; box-shadow: 0 4px 12px rgba(37,99,235,.12); }
-    .card h2 { margin: 0 0 0.35rem; font-size: 1.15rem; }
-    .card h2 a { color: #2563eb; text-decoration: none; }
-    .card h2 a:hover { text-decoration: underline; }
-    .card p { margin: 0; font-size: 0.9rem; color: #64748b; }
-    .card .formats { margin-top: .6rem; font-size: .8rem; }
-    .card .formats a { color: #0d9488; margin-right: .75rem; }
-    .tag { font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; padding: 0.15rem 0.5rem; border-radius: 4px; margin-right: 0.35rem; }
-    .featured { border-color: #0d9488; background: linear-gradient(135deg,#f0fdfa,#eff6ff); }
-    footer { margin-top: 3rem; font-size: 0.85rem; color: #94a3b8; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, "PingFang SC", sans-serif;
+      max-width: 920px; margin: 0 auto; padding: 2rem 1.5rem 3rem;
+      color: var(--text); line-height: 1.6; background: var(--bg);
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+    .sub { color: var(--muted); margin: 0 0 1.25rem; font-size: .95rem; }
+    .fmt-banner {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+      padding: .75rem 1rem; margin-bottom: 1.25rem; font-size: .88rem;
+    }
+    .fmt-banner a { color: #1d4ed8; }
+    /* 快捷入口 */
+    .quick {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: .65rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 720px) { .quick { grid-template-columns: 1fr 1fr; } }
+    .quick a {
+      display: block; text-decoration: none; color: var(--text);
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: .75rem .85rem; font-size: .82rem; transition: border-color .15s;
+    }
+    .quick a:hover { border-color: var(--p); }
+    .quick strong { display: block; font-size: .9rem; color: var(--p); margin-bottom: .2rem; }
+    .quick span { color: var(--muted); font-size: .75rem; }
+    /* 章节导航 */
+    .toc {
+      display: flex; flex-wrap: wrap; gap: .4rem .75rem;
+      font-size: .82rem; margin-bottom: 1.75rem; padding: .75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc a { color: var(--muted); text-decoration: none; }
+    .toc a:hover { color: var(--p); }
+    /* 分维区块 */
+    section.dim { margin-bottom: 2rem; }
+    section.dim > h2 {
+      font-size: 1.05rem; margin: 0 0 .35rem; padding-left: .65rem;
+      border-left: 4px solid var(--p); color: #0f172a;
+    }
+    section.dim > .dim-desc {
+      margin: 0 0 .75rem; font-size: .82rem; color: var(--muted); padding-left: .85rem;
+    }
+    section.dim[data-tone="progress"] > h2 { border-color: #4338ca; }
+    section.dim[data-tone="arch"] > h2 { border-color: #0d9488; }
+    section.dim[data-tone="design"] > h2 { border-color: #b45309; }
+    section.dim[data-tone="done"] > h2 { border-color: #059669; }
+    section.dim[data-tone="ops"] > h2 { border-color: #2563eb; }
+    section.dim[data-tone="product"] > h2 { border-color: #7c3aed; }
+    section.dim[data-tone="qa"] > h2 { border-color: #64748b; }
+    /* 紧凑列表 */
+    .doc-list {
+      list-style: none; margin: 0; padding: 0;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden;
+    }
+    .doc-list li {
+      display: grid; grid-template-columns: 1fr auto; gap: .5rem 1rem;
+      align-items: baseline; padding: .7rem 1rem;
+      border-bottom: 1px solid var(--border); font-size: .88rem;
+    }
+    .doc-list li:last-child { border-bottom: none; }
+    .doc-list .title { font-weight: 600; }
+    .doc-list .title a { color: var(--text); text-decoration: none; }
+    .doc-list .title a:hover { color: var(--p); }
+    .doc-list .blurb { display: block; font-weight: 400; font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+    .doc-list .links { font-size: .78rem; white-space: nowrap; }
+    .doc-list .links a { color: #0d9488; margin-left: .55rem; text-decoration: none; }
+    .doc-list .links a:first-child { margin-left: 0; }
+    .doc-list .links a:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block; font-size: .68rem; font-weight: 600;
+      padding: .1rem .4rem; border-radius: 4px; margin-right: .3rem;
+      vertical-align: middle;
+    }
+    .b-done { background: #d1fae5; color: #065f46; }
+    .b-wip { background: #dbeafe; color: #1e40af; }
+    .b-draft { background: #fef3c7; color: #92400e; }
+    .b-auth { background: #e0e7ff; color: #3730a3; }
+    .b-sub { background: #f1f5f9; color: #475569; }
+    .nest {
+      margin: .35rem 0 0; padding: 0 0 0 0.9rem; list-style: none;
+      border-left: 2px solid #e2e8f0;
+    }
+    .nest li {
+      display: block; padding: .25rem 0; border: none; font-size: .8rem; font-weight: 400;
+    }
+    .nest a { color: #0d9488; text-decoration: none; }
+    .nest a:hover { text-decoration: underline; }
+    footer { margin-top: 2.5rem; font-size: .85rem; color: #94a3b8; text-align: center; }
   </style>
 </head>
 <body>
   <h1>CronPilot</h1>
-  <p class="sub">HTTP 定时回调调度台 · 技术文档中心</p>
-  <p class="fmt-banner">每份文档提供 <strong>HTML</strong> 与 <strong>Markdown</strong> 两种格式。
-    <a href="index.md">Markdown 文档索引</a> · 在线路径 <code>/docs/*.md</code></p>
-  <div class="cards">
-    <div class="card featured" style="border-color:#4338ca;background:linear-gradient(135deg,#eef2ff,#eff6ff)">
-      <h2><a href="交付状态与路线图.html">交付状态与路线图（v1.2.0）</a></h2>
-      <p><span class="tag">权威</span><span class="tag">已交付 vs 未完成</span></p>
-      <p>按版本汇总已发布优化；OPT / RFC 状态与对应设计稿链接。</p>
-      <p class="formats"><a href="交付状态与路线图.html">HTML</a><a href="交付状态与路线图.md">Markdown</a></p>
-    </div>
-    <div class="card featured">
-      <h2><a href="项目总览与技术文档.html">项目总览与技术文档（入口）</a></h2>
-      <p><span class="tag">推荐首读</span><span class="tag">架构</span><span class="tag">Phase A</span></p>
-      <p>定位、逻辑架构图、已交付模块、文档导航与演进路线。</p>
-      <p class="formats"><a href="项目总览与技术文档.html">HTML</a><a href="项目总览与技术文档.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="架构设计文档.html">架构设计文档</a></h2>
-      <p><span class="tag">C4</span><span class="tag">部署拓扑</span></p>
-      <p>系统上下文、容器/组件、数据架构、集群双锁。</p>
-      <p class="formats"><a href="架构设计文档.html">HTML</a><a href="架构设计文档.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="RBAC架构设计方案.html">RBAC 详细设计方案 v4</a></h2>
-      <p><span class="tag">安全</span><span class="tag">P2</span><span class="tag">v4</span></p>
-      <p>三角色、<code>/rbac/login</code>、<code>has_perm</code>；含 <code>cron:retire</code>，无 delete。</p>
-      <p class="formats"><a href="RBAC架构设计方案.html">详设 HTML</a><a href="RBAC架构设计方案.md">详设 MD</a><a href="RBAC落地路线.html">落地路线</a></p>
-    </div>
-    <div class="card featured" style="border-color:#0d9488">
-      <h2><a href="资源隔离与Scope设计.html">Resource Scope 资源隔离（OPT-P2-12）</a></h2>
-      <p><span class="tag">安全</span><span class="tag">Scope</span><span class="tag">v1.1.0</span></p>
-      <p>业务组可见范围；列表过滤 + 单资源鉴权防 IDOR；admin 绕过 Scope。</p>
-      <p class="formats"><a href="资源隔离与Scope设计.html">详设 HTML</a><a href="资源隔离与Scope设计.md">详设 MD</a><a href="资源隔离落地路线.html">落地路线</a></p>
-    </div>
-    <div class="card featured" style="border-color:#0d9488">
-      <h2><a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a></h2>
-      <p><span class="tag">产品</span><span class="tag">生命周期</span></p>
-      <p>暂停 ≠ 下线；禁止人工删除；LIFECYCLE-2：下线原因/时间、备注必填、创建与编辑时间戳（已落地）。</p>
-      <p class="formats"><a href="任务生命周期与无删除设计.html">HTML</a><a href="任务生命周期与无删除设计.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="详细技术方案.html">详细技术方案</a></h2>
-      <p><span class="tag">功能规格</span><span class="tag">API</span></p>
-      <p>需求说明、模块设计、接口契约、运维与安全。</p>
-      <p class="formats"><a href="详细技术方案.html">HTML</a><a href="详细技术方案.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="依赖升级RFC.html">依赖升级 RFC</a></h2>
-      <p><span class="tag">RFC</span><span class="tag">依赖</span><span class="tag">P2</span></p>
-      <p>Flask / SQLAlchemy / gevent 分层升级（耦合从弱到强）、与 RBAC 排期、验收标准。</p>
-      <p class="formats"><a href="依赖升级RFC.html">HTML</a><a href="依赖升级RFC.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#dc2626">
-      <h2><a href="Tier3前置收束设计.html">Tier 3 前置收束（去 records · 待确认）</a></h2>
-      <p><span class="tag">Tier 3</span><span class="tag">SQLAlchemy</span><span class="tag">待确认</span></p>
-      <p>调度器与 cron_check 去除 records 裸 SQL，为 SA 2.0 铺路。</p>
-      <p class="formats"><a href="Tier3前置收束设计.html">HTML</a><a href="Tier3前置收束设计.md">Markdown</a></p>
-    </div>
+  <p class="sub">HTTP 定时回调调度台 · 技术文档中心（按管理 / 进度 / 架构等维度整理）</p>
+  <p class="fmt-banner">每份文档提供 <strong>HTML</strong> 与 <strong>Markdown</strong>。
+    <a href="index.md">Markdown 索引</a> · 在线 <code>/docs/</code></p>
 
-    <div class="card featured" style="border-color:#059669">
-      <h2><a href="linux安装与运行.md">Linux 安装与运行（Ubuntu + CentOS）</a></h2>
-      <p><span class="tag">运维</span><span class="tag">venv</span><span class="tag">一键安装</span></p>
-      <p>install_linux.sh、虚拟环境、MySQL 生产 / SQLite 试用、Docker 验收。</p>
-      <p class="formats"><a href="linux安装与运行.md">总览</a><a href="ubuntu安装与运行.md">Ubuntu</a><a href="centos安装与运行.md">CentOS</a><a href="../INSTALL.md">INSTALL</a></p>
-    </div>
-    <div class="card featured" style="border-color:#2563eb">
-      <h2><a href="Docker部署指南.html">Docker 部署指南</a></h2>
-      <p><span class="tag">运维</span><span class="tag">Docker</span><span class="tag">compose</span></p>
-      <p>运行镜像、docker-compose、Mac/Linux 验收脚本与数据卷说明。</p>
-      <p class="formats"><a href="Docker部署指南.html">HTML</a><a href="Docker部署指南.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#ea580c">
-      <h2><a href="非Docker部署指南.html">非 Docker 部署指南</a></h2>
-      <p><span class="tag">运维</span><span class="tag">远程访问</span></p>
-      <p>裸机安装、Gunicorn、systemd、Nginx、<code>/docs/</code> 远程访问。</p>
-      <p class="formats"><a href="非Docker部署指南.html">HTML</a><a href="非Docker部署指南.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a></h2>
-      <p><span class="tag">P0/P1/P2</span></p>
-      <p>Plombery 对照、价值、优先级与验收。</p>
-      <p class="formats"><a href="产品优化需求-借鉴Plombery.html">HTML</a><a href="产品优化需求-借鉴Plombery.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="Plombery深度对比分析.html">Plombery 深度对比分析</a></h2>
-      <p><span class="tag">前端</span><span class="tag">API</span></p>
-      <p>全维度对照与守正出奇结论。</p>
-      <p class="formats"><a href="Plombery深度对比分析.html">HTML</a><a href="Plombery深度对比分析.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="P0测试用例与验收手册.html">P0 测试用例与验收手册</a></h2>
-      <p><span class="tag">自动化</span><span class="tag">冒烟</span></p>
-      <p>Phase A 全量用例、curl 脚本、发布签字表。</p>
-      <p class="formats"><a href="P0测试用例与验收手册.html">HTML</a><a href="P0测试用例与验收手册.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="新建项目与分支合并方案.html">仓库拆分与 Git 方案</a></h2>
-      <p><span class="tag">CronPilot</span></p>
-      <p>独立仓库与 Git 发布说明。</p>
-      <p class="formats"><a href="新建项目与分支合并方案.html">HTML</a><a href="新建项目与分支合并方案.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#0d9488">
-      <h2><a href="管理端UI优化设计.html">管理端 UI 优化设计（A′+B1 已交付）</a></h2>
-      <p><span class="tag">UI</span><span class="tag">线框</span><span class="tag">已交付</span></p>
-      <p>执行记录交互、Cron 周期说明；方案 A′ + B1 线框原型与验收清单。</p>
-      <p class="formats"><a href="管理端UI优化设计.html">HTML</a><a href="管理端UI优化设计.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#7c3aed">
-      <h2><a href="P1可观测优化设计.html">P1 可观测优化设计（OPT-P1-01/02 已交付）</a></h2>
-      <p><span class="tag">P1</span><span class="tag">已交付</span></p>
-      <p>执行 status、HTTP 失败规则、列表徽章。</p>
-      <p class="formats"><a href="P1可观测优化设计.html">HTML</a><a href="P1可观测优化设计.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#7c3aed">
-      <h2><a href="P1可观测小步优化设计.html">P1 可观测小步优化（筛选 + 展示统一 · 待确认）</a></h2>
-      <p><span class="tag">P1</span><span class="tag">小步</span><span class="tag">待确认</span></p>
-      <p>失败筛选 <code>outcome</code>、徽章与 HTTP 行统一（OPT-P1-01 follow-up）。</p>
-      <p class="formats"><a href="P1可观测小步优化设计.html">HTML</a><a href="P1可观测小步优化设计.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#0d9488">
-      <h2><a href="P1执行详情与立即执行设计.html">P1 执行详情与立即执行（OPT-P1-03/04 · 待确认）</a></h2>
-      <p><span class="tag">P1</span><span class="tag">线框</span><span class="tag">待确认</span></p>
-      <p>独立详情 URL <code>/job_log/&lt;id&gt;</code>、任务列表「立即执行」。</p>
-      <p class="formats"><a href="P1执行详情与立即执行设计.html">HTML</a><a href="P1执行详情与立即执行设计.md">Markdown</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="技术方案与前端设计.html">技术方案与前端设计</a></h2>
-      <p><span class="tag">线框</span><span class="tag">UI</span></p>
-      <p>Web 页面设计与界面演进建议。</p>
-      <p class="formats"><a href="技术方案与前端设计.html">HTML</a><a href="技术方案与前端设计.md">Markdown</a></p>
-    </div>
-    <div class="card featured" style="border-color:#4338ca">
-      <h2><a href="RELEASE_NOTES.html">Release Notes（v1.2.0）</a></h2>
-      <p><span class="tag">变更日志</span><span class="tag">v1.2.0</span><span class="tag">v1.1.0</span><span class="tag">v1.0.0</span></p>
-      <p>v1.2.0：顶栏身份、种子权限收窄、启停用语；v1.1.0：Scope / 自助改密；v1.0.0：RBAC、生命周期、operation_log。</p>
-      <p class="formats"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">Markdown</a><a href="../RELEASE_NOTES.md">仓库根目录 MD</a></p>
-    </div>
-    <div class="card">
-      <h2><a href="LICENSE-AUDIT.html">License Audit 报告</a></h2>
-      <p><span class="tag">合规</span><span class="tag">Apache-2.0</span></p>
-      <p>上游许可风险、依赖归类与整改清单。</p>
-      <p class="formats"><a href="LICENSE-AUDIT.html">HTML</a><a href="LICENSE-AUDIT.md">Markdown</a></p>
-    </div>
+  <div class="quick" aria-label="快捷入口">
+    <a href="交付状态与路线图.html"><strong>进度总览</strong><span>发行版 v1.2.0 · 下一版 v2.0.0 准备</span></a>
+    <a href="项目总览与技术文档.html"><strong>项目入门</strong><span>定位 · 架构图 · 模块</span></a>
+    <a href="规模化信息架构设计.html"><strong>当前焦点</strong><span>OPT-P2-13 规模化 IA</span></a>
+    <a href="Docker部署指南.html"><strong>部署运维</strong><span>Docker / 裸机 / Linux</span></a>
   </div>
-  <footer>CronPilot · 技术文档 · HTML + Markdown</footer>
+
+  <nav class="toc" aria-label="维度导航">
+    <a href="#pm">① 项目管理与进度</a>
+    <a href="#arch">② 架构与安全</a>
+    <a href="#wip">③ 设计中（待确认）</a>
+    <a href="#delivered">④ 已交付设计</a>
+    <a href="#product">⑤ 产品与对照</a>
+    <a href="#deps">⑥ 依赖演进</a>
+    <a href="#ops">⑦ 部署运维</a>
+    <a href="#qa">⑧ 验收与合规</a>
+  </nav>
+
+  <!-- ① 项目管理与进度 -->
+  <section class="dim" id="pm" data-tone="progress">
+    <h2>① 项目管理与进度</h2>
+    <p class="dim-desc">版本、变更、仓库边界与「先看哪里」——推荐从进度总览进入。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-auth">权威</span>
+          <a href="交付状态与路线图.html">交付状态与路线图</a>
+          <span class="blurb">按版本汇总已发布 OPT/RFC；区分已交付 / 设计待确认 / 未开始</span>
+        </div>
+        <div class="links"><a href="交付状态与路线图.html">HTML</a><a href="交付状态与路线图.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="RELEASE_NOTES.html">Release Notes</a>
+          <span class="blurb"><span class="badge b-wip">v2.0.0 准备</span><span class="badge b-done">v1.2.0</span><span class="badge b-done">v1.1.0</span><span class="badge b-done">v1.0.0</span>任务中心、强制改密、顶栏身份、Scope、RBAC 等变更日志</span>
+        </div>
+        <div class="links"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">MD</a><a href="../RELEASE_NOTES.md">仓库根</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="项目总览与技术文档.html">项目总览与技术文档</a>
+          <span class="blurb">定位、逻辑架构、已交付模块、文档导航与演进路线（推荐首读）</span>
+        </div>
+        <div class="links"><a href="项目总览与技术文档.html">HTML</a><a href="项目总览与技术文档.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="新建项目与分支合并方案.html">仓库拆分与 Git 方案</a>
+          <span class="blurb">CronPilot 独立仓库与发布说明</span>
+        </div>
+        <div class="links"><a href="新建项目与分支合并方案.html">HTML</a><a href="新建项目与分支合并方案.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ② 架构与安全 -->
+  <section class="dim" id="arch" data-tone="arch">
+    <h2>② 架构与安全（已落地）</h2>
+    <p class="dim-desc">系统如何构成、权限如何判定、资源如何隔离——实现以这些为准。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <a href="架构设计文档.html">架构设计文档</a>
+          <span class="blurb">C4 上下文/容器/组件、数据架构、集群双锁</span>
+        </div>
+        <div class="links"><a href="架构设计文档.html">HTML</a><a href="架构设计文档.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="详细技术方案.html">详细技术方案</a>
+          <span class="blurb">功能规格、模块设计、接口契约、运维与安全</span>
+        </div>
+        <div class="links"><a href="详细技术方案.html">HTML</a><a href="详细技术方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">v1.0.0</span>
+          <a href="RBAC架构设计方案.html">RBAC 详细设计方案 v4</a>
+          <span class="blurb">三角色 · login · has_perm · cron:retire（无 delete）</span>
+          <ul class="nest">
+            <li><a href="RBAC落地路线.html">RBAC 落地路线</a>（阶段记录）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="RBAC架构设计方案.html">HTML</a><a href="RBAC架构设计方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">v1.1.0</span>
+          <a href="资源隔离与Scope设计.html">Resource Scope 资源隔离（OPT-P2-12）</a>
+          <span class="blurb">业务组可见范围 · 列表过滤 + 单资源鉴权 · 防 IDOR</span>
+          <ul class="nest">
+            <li><a href="资源隔离落地路线.html">资源隔离落地路线</a></li>
+          </ul>
+        </div>
+        <div class="links"><a href="资源隔离与Scope设计.html">HTML</a><a href="资源隔离与Scope设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>
+          <span class="blurb">暂停 ≠ 下线 · 禁人工删除 · LIFECYCLE-2 元数据可追溯</span>
+        </div>
+        <div class="links"><a href="任务生命周期与无删除设计.html">HTML</a><a href="任务生命周期与无删除设计.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ③ 设计中 -->
+  <section class="dim" id="wip" data-tone="design">
+    <h2>③ 设计中（待确认 · 实现前）</h2>
+    <p class="dim-desc">规格已写、须用户确认后再改代码。子文档挂在权威总稿下，避免平行阅读混乱。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-draft">待确认</span>
+          <span class="badge b-auth">权威</span>
+          <a href="规模化信息架构设计.html">规模化信息架构（OPT-P2-13）</a>
+          <span class="blurb">L1/L2/L3 · job_health · 角色调制 · B0 合体 · 当前产品焦点</span>
+          <ul class="nest">
+            <li><span class="badge b-sub">L2 专章</span> <a href="规模化Scope过滤与角色差异化设计.html">Scope 过滤与角色差异化</a>（含 Demo）</li>
+            <li><span class="badge b-sub">归档</span> <a href="规模化双层IA与任务健康模型评审.html">L1/L2/L3 评审记录</a>（结论已收束至总稿）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="规模化信息架构设计.html">HTML</a><a href="规模化信息架构设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-draft">待确认</span>
+          <a href="P1可观测小步优化设计.html">P1 可观测小步（OPT-P1-01b/c）</a>
+          <span class="blurb">失败筛选 · 徽章/HTTP 展示统一 · 可与 P2-13 B0/B1 衔接</span>
+        </div>
+        <div class="links"><a href="P1可观测小步优化设计.html">HTML</a><a href="P1可观测小步优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-draft">待确认</span>
+          <a href="P1执行详情与立即执行设计.html">P1 执行详情与立即执行（OPT-P1-03/04）</a>
+          <span class="blurb">独立详情 URL · 任务列表「立即执行」</span>
+        </div>
+        <div class="links"><a href="P1执行详情与立即执行设计.html">HTML</a><a href="P1执行详情与立即执行设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-draft">待确认</span>
+          <a href="Tier3前置收束设计.html">Tier 3 前置收束（去 records）</a>
+          <span class="blurb">调度器/cron_check 去除裸 SQL，为 SA 2.0 铺路</span>
+        </div>
+        <div class="links"><a href="Tier3前置收束设计.html">HTML</a><a href="Tier3前置收束设计.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ④ 已交付设计 -->
+  <section class="dim" id="delivered" data-tone="done">
+    <h2>④ 已交付设计（归档可查）</h2>
+    <p class="dim-desc">历史设计稿保留溯源；行为以当前代码与 Release Notes 为准。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="管理端UI优化设计.html">管理端 UI 优化（A′+B1）</a>
+          <span class="blurb">执行记录单列两行 · Cron 分钟提示 · v0.2.0</span>
+        </div>
+        <div class="links"><a href="管理端UI优化设计.html">HTML</a><a href="管理端UI优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="P1可观测优化设计.html">P1 可观测优化（OPT-P1-01/02）</a>
+          <span class="blurb">执行 status · HTTP 失败规则 · 列表徽章 · v0.2.0</span>
+        </div>
+        <div class="links"><a href="P1可观测优化设计.html">HTML</a><a href="P1可观测优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="技术方案与前端设计.html">技术方案与前端设计</a>
+          <span class="blurb">早期 Web 线框与界面演进建议（参考，非当前验收基线）</span>
+        </div>
+        <div class="links"><a href="技术方案与前端设计.html">HTML</a><a href="技术方案与前端设计.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ⑤ 产品 -->
+  <section class="dim" id="product" data-tone="product">
+    <h2>⑤ 产品需求与竞品对照</h2>
+    <p class="dim-desc">OPT 编号、优先级与外部产品对照；排期以交付状态表为准。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <a href="产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a>
+          <span class="blurb">P0/P1/P2 价值、优先级与验收；含 OPT-P2-02 等</span>
+        </div>
+        <div class="links"><a href="产品优化需求-借鉴Plombery.html">HTML</a><a href="产品优化需求-借鉴Plombery.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="Plombery深度对比分析.html">Plombery 深度对比分析</a>
+          <span class="blurb">全维度对照与「守正出奇」结论</span>
+        </div>
+        <div class="links"><a href="Plombery深度对比分析.html">HTML</a><a href="Plombery深度对比分析.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ⑥ 依赖 -->
+  <section class="dim" id="deps" data-tone="ops">
+    <h2>⑥ 依赖演进（RFC）</h2>
+    <p class="dim-desc">运行时栈升级路线；与功能 OPT 可并行，但 Tier 顺序受约束。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-auth">权威</span>
+          <a href="依赖升级RFC.html">依赖升级 RFC</a>
+          <span class="blurb">Tier 0–2 已交付 · Tier 3/4 未开始 · 与 RBAC 排期关系</span>
+          <ul class="nest">
+            <li><span class="badge b-draft">待确认</span> <a href="Tier3前置收束设计.html">Tier 3 前置收束</a>（见「设计中」）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="依赖升级RFC.html">HTML</a><a href="依赖升级RFC.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ⑦ 运维 -->
+  <section class="dim" id="ops" data-tone="ops">
+    <h2>⑦ 部署与运维</h2>
+    <p class="dim-desc">如何装、如何跑、如何从外网打开 <code>/docs/</code>。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <a href="Docker部署指南.html">Docker 部署指南</a>
+          <span class="blurb">compose · 镜像 · 验收脚本 · 数据卷</span>
+        </div>
+        <div class="links"><a href="Docker部署指南.html">HTML</a><a href="Docker部署指南.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="非Docker部署指南.html">非 Docker 部署指南</a>
+          <span class="blurb">裸机 · Gunicorn · systemd · Nginx · 远程文档</span>
+        </div>
+        <div class="links"><a href="非Docker部署指南.html">HTML</a><a href="非Docker部署指南.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="linux安装与运行.md">Linux 安装与运行</a>
+          <span class="blurb">一键安装 · venv · MySQL/SQLite</span>
+          <ul class="nest">
+            <li><a href="ubuntu安装与运行.md">Ubuntu</a> · <a href="centos安装与运行.md">CentOS</a> · <a href="../INSTALL.md">INSTALL.md</a></li>
+            <li><a href="windows部署文档.md">Windows 部署（遗留）</a></li>
+          </ul>
+        </div>
+        <div class="links"><a href="linux安装与运行.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ⑧ 验收与合规 -->
+  <section class="dim" id="qa" data-tone="qa">
+    <h2>⑧ 验收、工程与合规</h2>
+    <p class="dim-desc">怎么验、文档怎么同步、许可边界。</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <a href="P0测试用例与验收手册.html">P0 测试用例与验收手册</a>
+          <span class="blurb">Phase A 用例 · curl/冒烟 · 发布签字</span>
+        </div>
+        <div class="links"><a href="P0测试用例与验收手册.html">HTML</a><a href="P0测试用例与验收手册.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="LICENSE-AUDIT.html">License Audit 报告</a>
+          <span class="blurb">Apache-2.0 · 依赖归类与整改清单</span>
+        </div>
+        <div class="links"><a href="LICENSE-AUDIT.html">HTML</a><a href="LICENSE-AUDIT.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="文档同步说明.md">文档同步说明</a>
+          <span class="blurb">HTML↔MD · CI · pending_sync（工程向）</span>
+        </div>
+        <div class="links"><a href="文档同步说明.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <footer>CronPilot · 技术文档 · HTML + Markdown · 发行版 v1.2.0 · 下一版 v2.0.0 准备</footer>
 </body>
 </html>

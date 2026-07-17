@@ -94,7 +94,7 @@ Plombery 运行元数据均经 SQLAlchemy Repository 写入，删除/查询走 O
 
 |  |  |
 | --- | --- |
-| 现状 | 仅校验 `req_url` 含 http/https；保存后 `cron_do` 由服务器发起 GET，可指向 `127.0.0.1`、云元数据 `169.254.169.254`、内网 Redis 等。 |
+| 现状 | 校验 `req_url` 含 http/https 并经 SSRF 策略；保存后 `cron_do` 由服务器发起 GET 或 POST（v2.0.0），仍须防指向 `127.0.0.1`、云元数据 `169.254.169.254`、内网等。 |
 | 不足 | 恶意或误配任务可导致**内网扫描、云凭证窃取**；多租户场景下属于严重事故面。Plombery 无此攻击面，但这是 CronPilot **模式固有风险**，必须补。 |
 | 为何 P0 | 属于架构型高危，与「能填 URL」的产品能力绑定，不修则无法对外宣传企业级。 |
 
@@ -393,6 +393,8 @@ Plombery 有 RunsStatusChart、RunsDurationChart（Tremor）。
 管理可视化；对多任务运维场景提升决策效率。Chart.js + 一个聚合 API 即可，无需 Plombery 全量前端。
 
 **依赖：**OPT-P1-01 status 字段。
+
+**与规模化 IA：**任务级健康预计算与 L1 指标条见 [OPT-P2-13](规模化信息架构设计.html)（B0 `job_health`）；本项图表/趋势对应 OPT-P2-13 的 B2+。
 
 **OPT-P2-03** P2 APScheduler coalesce 可配置
 

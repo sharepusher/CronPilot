@@ -71,6 +71,25 @@ def _save_job_log(
     )
     db.session.add(jl)
     db.session.commit()
+    try:
+        from app.services.job_health_service import update_job_health
+        update_job_health(
+            cron_id,
+            status,
+            nows,
+            log_id=log_id,
+            cron_config=current_app.config.get('CRON_CONFIG'),
+        )
+    except Exception:
+        current_app.logger.exception(
+            'update_job_health failed cron_id=%s log_id=%s',
+            cron_id,
+            log_id,
+        )
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
     if task_name:
         _notify_job_outcome(task_name, content, status)
     return jl
@@ -91,6 +110,7 @@ def cron_check_db_sleep():
 '''
 @single_task()
 def cron_do(cron_id):
+    saved_jl = None
     with scheduler.app.app_context():
         # 一次触发一个 log_id：预检失败 / HTTP / 异常共用，保证可追溯
         cronpilot_log_id = str(uuid.uuid1())
@@ -105,7 +125,7 @@ def cron_do(cron_id):
             cif = db.session.get(CronInfos, cron_id)
 
             if not cif:
-                _save_job_log(
+                saved_jl = _save_job_log(
                     cron_id,
                     "定时任务不存在",
                     nows,
@@ -116,7 +136,7 @@ def cron_do(cron_id):
                 req_url = cif.req_url
                 task_name = cif.task_name
                 if not req_url:
-                    _save_job_log(
+                    saved_jl = _save_job_log(
                         cron_id,
                         "请求链接不存在",
                         nows,
@@ -126,7 +146,7 @@ def cron_do(cron_id):
                     )
                 else:
                     if req_url.find('http') == -1:
-                        _save_job_log(
+                        saved_jl = _save_job_log(
                             cron_id,
                             "请求链接有误，请检查一下",
                             nows,
@@ -137,7 +157,7 @@ def cron_do(cron_id):
                     else:
                         url_ok, url_msg = validate_callback_url(req_url, CRON_CONFIG)
                         if not url_ok:
-                            _save_job_log(
+                            saved_jl = _save_job_log(
                                 cron_id,
                                 '回调URL安全校验未通过: %s' % url_msg,
                                 nows,
@@ -161,15 +181,36 @@ def cron_do(cron_id):
                                 parmas['cronpilot_log_id'] = cronpilot_log_id
                                 cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
 
-                                req = requests.get(
-                                    req_url,
-                                    params={
-                                        'cronpilot_log_id': cronpilot_log_id,
-                                        'cronpilot_sign': cronpilot_sign,
-                                    },
-                                    timeout=2 * 60,
-                                    headers={'user-agent': 'CronPilot'},
-                                )
+                                req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
+                                if req_method == 'POST':
+                                    # 从用户配置的 req_body 解析 JSON 作为基础 body
+                                    if cif.req_body:
+                                        import json as _json
+                                        parsed_body = _json.loads(cif.req_body)
+                                        post_body = parsed_body if isinstance(parsed_body, dict) else {}
+                                    else:
+                                        post_body = {}
+                                    # 注入 cronpilot 参数（不覆盖用户已定义的字段）
+                                    if 'cronpilot_log_id' not in post_body:
+                                        post_body['cronpilot_log_id'] = cronpilot_log_id
+                                    if 'cronpilot_sign' not in post_body:
+                                        post_body['cronpilot_sign'] = cronpilot_sign
+                                    req = requests.post(
+                                        req_url,
+                                        json=post_body,
+                                        timeout=2 * 60,
+                                        headers={'user-agent': 'CronPilot'},
+                                    )
+                                else:
+                                    req = requests.get(
+                                        req_url,
+                                        params={
+                                            'cronpilot_log_id': cronpilot_log_id,
+                                            'cronpilot_sign': cronpilot_sign,
+                                        },
+                                        timeout=2 * 60,
+                                        headers={'user-agent': 'CronPilot'},
+                                    )
 
                                 ret = req.text
                                 try:
@@ -186,7 +227,7 @@ def cron_do(cron_id):
                                     CRON_CONFIG.get('error_keyword'),
                                     CRON_CONFIG.get('fail_on_http_4xx_5xx'),
                                 )
-                                _save_job_log(
+                                saved_jl = _save_job_log(
                                     cron_id,
                                     ret,
                                     nows,
@@ -199,7 +240,7 @@ def cron_do(cron_id):
                                 )
                             except Exception as e:
                                 err_content = "发生严重错误:%s" % str(e)
-                                _save_job_log(
+                                saved_jl = _save_job_log(
                                     cron_id,
                                     err_content,
                                     nows,
@@ -214,7 +255,7 @@ def cron_do(cron_id):
             print(str(e))
             db.session.rollback()
             try:
-                _save_job_log(
+                saved_jl = _save_job_log(
                     cron_id,
                     "发生严重错误:%s" % str(e),
                     nows,
@@ -241,7 +282,7 @@ def cron_do(cron_id):
                 'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
             )
 
-    return "ok"
+    return saved_jl.id if saved_jl else None
 
 @single_task()
 def cron_check():
@@ -276,7 +317,16 @@ def cron_check():
                             record_operation,
                             snapshot_cron,
                         )
-                        apply_retire(item, RETIRE_REASON_ORPHAN)
+                        apply_retire(
+                            item,
+                            RETIRE_REASON_ORPHAN,
+                            operator=OperatorContext(
+                                operator_type='system',
+                                operator_name='系统',
+                                roles=['system'],
+                                permissions=['*'],
+                            ),
+                        )
                         db.session.commit()
                         record_operation(
                             action='retire_cron',

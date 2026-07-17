@@ -132,6 +132,8 @@ class RbacUser(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='viewer')
     is_active = db.Column(db.SMALLINT, nullable=False, default=1)
+    must_reset_password = db.Column(db.SMALLINT, nullable=False, default=0)
+    status_reason = db.Column(db.String(500), nullable=False, default='')
     create_time = db.Column(db.String(25), nullable=False, default='')
 
     def set_password(self, plain):
@@ -176,11 +178,37 @@ CLI 不可用时：`ensure_rbac_tables(app)` 限定 `create_all` 至两模型。
 | --- | --- |
 | 首次部署（空表） | 在 conf.ini 配置 `login_pwd`（推荐 `scripts/hash_login_password.py`）→ 启动 → 用 `admin` + 该密码登录 |
 | 自助修改自己的密码 | 任意已登录用户 → 导航 **修改密码**（`/rbac/password`）→ 当前密码 + 新密码（≥6 位）；审计 `user:password`；成功后**强制重新登录**；无需 `user:manage` |
-| 管理员修改他人密码 | admin → **用户管理** → 编辑 →「新密码」（留空则不改）→ 保存（`user:manage`） |
+| 新建用户 / 强制首次改密 | 管理员创建用户时**不可指定密码**，默认 `changeme` 并置 `must_reset_password=1`；首次登录忽略 `next`，强制进入改密；改密失败则标记保留，成功后清除。现有用户补列默认 `0`，不强制迁移 |
+| 管理员触发重置 | admin → **用户管理** →「触发密码重置」：恢复默认密码 `changeme` 并强制改密；审计 `user:password_reset`；不可重置当前登录账号；目标用户已有会话在下一次访问受保护页时立即受限 |
+| 停用 / 恢复启用 | 须填写缘由（1～500 字）；写 `status_reason`；审计 `user:disable` / `user:enable`；列表与编辑页展示最近缘由；不可无缘由直接切换 |
+| 不可自改账号配置 | 当前登录用户在用户管理中不可编辑自己的角色/业务组/启停；列表仅「修改密码」；直链 `/rbac/users/edit?id=自己` 会被拒绝并导向改密页 |
 | 改 conf.ini `login_pwd` | 表**已有**用户时：重启也**不会**更新库内 `password_hash`；勿当作改密手段 |
-| 产品未提供 | 登录页「忘记密码」 |
+| 产品未提供 | 登录页「忘记密码」；管理员直接指定他人密码；闲置/绝对会话超时自动登出 |
 
 **分权始终启用**：三角色权限矩阵始终生效，无配置旁路。`conf.ini` 中遗留的 `rbac_enable` 键已废弃，存在亦忽略。
+
+### 4.6 登录会话：现状与可优化项
+
+Web 登录态基于 Flask **signed cookie session**（写入 `is_login` / `username` / `role` / `user_id` / `group_ids`）。登录代码**未**设置 `session.permanent = True`，也**未**配置 `PERMANENT_SESSION_LIFETIME`；亦无按「最后活跃时间」强制登出的中间件。
+
+| 项 | 现状（v2.0.0 准备） |
+| --- | --- |
+| 闲置超时自动退出 | **无**：浏览器保持打开且 Cookie 仍在 → 会话持续有效 |
+| Cookie 类型 | 默认浏览器会话 Cookie（关闭浏览器后通常失效；具体行为依浏览器「恢复会话」设置） |
+| 主动失效 | 顶栏「退出」；自助改密成功后 `session.clear()`；服务端 `SECRET_KEY` 变更导致验签失败 |
+| 强制改密 / 停用 | 下次访问受保护页时拦截（改密墙 / 登录失败），不依赖会话超时 |
+
+**可优化（设计待确认 · 未排期实现）：**
+
+1. **可配置会话超时** — 如 `session_idle_minutes` / 绝对寿命；滑动续期；超时后跳登录并保留 `next`。
+2. **「记住登录」与严格模式分轨** — 默认短会话；可选更长 `permanent` Cookie（须明示风险）。
+3. **会话吊销** — 管理员触发重置/停用时可选作废该用户全部会话（今日依赖「下次请求校验」）。
+4. **忘记密码 / 自助找回** — 产品尚未提供；需邮件或一次性令牌方案。
+5. **密码策略增强** — 复杂度、历史密码、定期强制轮换（在首次改密之上）。
+6. **系统/业务管理员用户管理边界** — 需单独产品确认后再设计（曾误启动的 Membership 拆分已终止，不作为已定方案）。
+7. **MFA / OAuth** — 见 PRD Phase C（远期）。
+
+实现前须按交付闭环出设计稿并获确认；勿在未确认时改 `app/rbac/` 会话行为。
 
 ## 五、目录结构
 
@@ -365,7 +393,7 @@ def get_role_permission_set(role):
 
 ### 8.4 `rbac/users.html`（阶段 6a · 已交付）
 
-复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`。编辑页含「新密码」字段（留空不修改）。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 `user:manage` 裁剪。**这是日常改密的唯一管理端入口**（含改种子 `admin` 密码）。
+复用 `admin_page.html` 分页、`js-ajax-form`；角色下拉 viewer/operator/admin。路由：`/rbac/users`、`/users/add`、`/users/edit`、`/users/reset_password`。创建页不提供密码输入（默认 `changeme` + 强制首次改密）；编辑页展示密码状态并提供「触发密码重置」（不可重置自己）。列表含「密码状态」列。无物理删除；禁停用当前登录账号与最后一名启用中 admin。导航与路由按 `user:manage` 裁剪。
 
 ### 8.4b `rbac/audit_logs.html`（阶段 6b · 已交付）
 

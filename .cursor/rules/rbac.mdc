@@ -59,8 +59,10 @@ SEED_ADMIN_USERNAME = 'admin'  # 种子账号仅 user:manage + 只读；无 cron
 
 ## Session
 
-- 登录写 `role`、`user_id`、`group_ids`
+- 登录写 `role`、`user_id`、`group_ids`（Flask signed cookie；**未**设 `session.permanent` / `PERMANENT_SESSION_LIFETIME`）
+- **无**闲置/绝对超时自动登出；关闭浏览器后会话 Cookie 通常失效；退出与改密成功会 `session.clear()`
 - 用户组变更后须**重新登录**生效
+- 会话超时等增强见 `doc/RBAC架构设计方案.html#account-session`（设计待确认，勿未确认实现）
 
 ## 禁止事项
 

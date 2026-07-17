@@ -56,11 +56,11 @@ def _resolve_host_ips(hostname):
 
 def validate_callback_url(req_url, cron_config=None):
     """
-    校验回调 URL。
+    校验触发 URL（调度器到点发起的 GET 目标地址）。
     返回 (ok: bool, message: str)
     """
     if not req_url:
-        return False, '回调URL必填！'
+        return False, '触发 URL 必填！'
 
     req_url = req_url.strip()
     lower = req_url.lower()
@@ -77,11 +77,11 @@ def validate_callback_url(req_url, cron_config=None):
 
     allow_hosts = _parse_allow_hosts(cron_config)
     if allow_hosts is not None and hostname not in allow_hosts:
-        return False, '回调主机不在白名单内（url_allow_hosts）'
+        return False, '触发 URL 主机不在白名单内（url_allow_hosts）'
 
     if _block_private_ip_enabled(cron_config):
         if hostname in ('127.0.0.1', '0.0.0.0', '::1'):
-            return _fail_or_observe(cron_config, '不允许回调本机地址（127.0.0.1 / ::1）')
+            return _fail_or_observe(cron_config, '不允许触发本机地址（127.0.0.1 / ::1）')
 
         if hostname.startswith('169.254.'):
             return _fail_or_observe(cron_config, '不允许访问链路本地 / 云元数据地址段')
@@ -89,7 +89,7 @@ def validate_callback_url(req_url, cron_config=None):
         try:
             ip = ipaddress.ip_address(hostname)
             if _is_private_or_reserved_ip(str(ip)):
-                return _fail_or_observe(cron_config, '不允许回调内网或保留 IP 地址')
+                return _fail_or_observe(cron_config, '不允许触发内网或保留 IP 地址')
         except ValueError:
             ips = _resolve_host_ips(hostname)
             if ips is None:

@@ -12,12 +12,17 @@ from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
 
 # 审计列表展示（码 → 中文）；未知码原样回退
+DEFAULT_USER_PASSWORD = 'changeme'
+
 AUDIT_ACTION_LABELS = {
     'user:login': '登录',
     'user:logout': '登出',
     'user:create': '创建用户',
     'user:update': '更新用户',
     'user:password': '修改密码',
+    'user:password_reset': '触发密码重置',
+    'user:disable': '停用用户',
+    'user:enable': '启用用户',
     'permission:deny': '权限拒绝',
     'scope:deny': '作用域拒绝',
     'group:create': '创建业务组',
@@ -53,6 +58,12 @@ def audit_resource_label(action, resource):
         return '账号 %s（角色/启用停用/密码等）' % resource if resource else '账号变更'
     if action == 'user:password':
         return '账号 %s 修改密码' % resource if resource else '修改密码'
+    if action == 'user:password_reset':
+        return '账号 %s 触发密码重置' % resource if resource else '触发密码重置'
+    if action == 'user:disable':
+        return '停用账号 %s' % resource if resource else '停用账号'
+    if action == 'user:enable':
+        return '启用账号 %s' % resource if resource else '启用账号'
     if action == 'permission:deny':
         return '缺少权限 %s' % resource if resource else '权限不足'
     if action == 'scope:deny':
@@ -120,9 +131,17 @@ def authenticate_user(username, password):
             'role': user.role,
             'username': user.username,
             'user_id': user.id,
+            'must_reset_password': bool(getattr(user, 'must_reset_password', 0)),
             'msg': '',
         }
-    return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '用户名或密码有误'}
+    return {
+        'ok': False,
+        'role': '',
+        'username': '',
+        'user_id': None,
+        'must_reset_password': False,
+        'msg': '用户名或密码有误',
+    }
 
 
 def write_audit_log(action='', resource='', status='allow', user_id=None, username=None, ip=None):
@@ -191,14 +210,23 @@ def validate_groups_for_role(role, group_ids):
     return ''
 
 
-def create_user(username, password, role='viewer'):
+def user_must_reset_password(user_id):
+    """实时查询用户是否仍须强制改密。"""
+    if user_id is None:
+        return False
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return False
+    return bool(getattr(user, 'must_reset_password', 0))
+
+
+def create_user(username, role='viewer'):
+    """创建用户：默认密码 changeme，并标记首次登录须改密。"""
     username = _normalize_username(username)
     if not username:
         return {'ok': False, 'msg': '用户名不能为空'}
     if len(username) > 64:
         return {'ok': False, 'msg': '用户名最长 64 字符'}
-    if not password:
-        return {'ok': False, 'msg': '密码不能为空'}
     err = _validate_role(role)
     if err:
         return {'ok': False, 'msg': err}
@@ -211,9 +239,10 @@ def create_user(username, password, role='viewer'):
         username=username,
         role=role,
         is_active=1,
+        must_reset_password=1,
         create_time=get_now_time(),
     )
-    user.set_password(password)
+    user.set_password(DEFAULT_USER_PASSWORD)
     try:
         db.session.add(user)
         db.session.commit()
@@ -224,7 +253,8 @@ def create_user(username, password, role='viewer'):
     return {'ok': True, 'msg': '创建成功', 'user_id': user.id}
 
 
-def update_user(user_id, role=None, is_active=None, password=None):
+def update_user(user_id, role=None, is_active=None):
+    """更新角色/启用状态；管理员不可在此设置密码。"""
     user = db.session.get(RbacUser, user_id)
     if not user:
         return {'ok': False, 'msg': '用户不存在'}
@@ -243,8 +273,6 @@ def update_user(user_id, role=None, is_active=None, password=None):
     )
     if losing_admin and _count_active_admins(exclude_id=user.id) < 1:
         return {'ok': False, 'msg': '不能停用或降权最后一名启用中的管理员'}
-    if password:
-        user.set_password(password)
     user.role = new_role
     user.is_active = new_active
     try:
@@ -256,8 +284,79 @@ def update_user(user_id, role=None, is_active=None, password=None):
     return {'ok': True, 'msg': '保存成功'}
 
 
+def validate_status_reason(reason):
+    """停用/启用缘由：trim 后 1～500 字。成功返回 ('', reason)，失败返回 (msg, '')。"""
+    text = (reason or '').strip()
+    if not text:
+        return '请填写缘由', ''
+    if len(text) > 500:
+        return '缘由最长 500 字', ''
+    return '', text
+
+
+def set_user_active(user_id, is_active, reason='', actor_user_id=None):
+    """启用或停用用户。须填写缘由；不可停用自己；不可停用最后一名启用中的管理员。"""
+    user = db.session.get(RbacUser, user_id)
+    if not user:
+        return {'ok': False, 'msg': '用户不存在'}
+    err, reason = validate_status_reason(reason)
+    if err:
+        return {'ok': False, 'msg': err}
+    actor_id = actor_user_id if actor_user_id is not None else session.get('user_id')
+    want_active = 1 if int(is_active) else 0
+    if want_active == 0 and actor_id is not None and int(actor_id) == int(user.id):
+        return {'ok': False, 'msg': '不能停用当前登录账号'}
+    if (
+        want_active == 0
+        and user.role == 'admin'
+        and user.is_active == 1
+        and _count_active_admins(exclude_id=user.id) < 1
+    ):
+        return {'ok': False, 'msg': '不能停用最后一名启用中的管理员'}
+    if int(user.is_active or 0) == want_active:
+        return {
+            'ok': True,
+            'msg': '用户已是%s状态' % ('启用' if want_active else '停用'),
+        }
+    user.is_active = want_active
+    user.status_reason = reason
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败'}
+    action = 'user:enable' if want_active else 'user:disable'
+    write_audit_log(
+        action=action,
+        resource='%s：%s' % (user.username, reason),
+    )
+    return {
+        'ok': True,
+        'msg': '已%s用户「%s」' % (('启用' if want_active else '停用'), user.username),
+    }
+
+
+def trigger_password_reset(user_id, actor_user_id=None):
+    """管理员触发重置：恢复默认密码并标记强制改密。不可重置自己。"""
+    user = db.session.get(RbacUser, user_id)
+    if not user:
+        return {'ok': False, 'msg': '用户不存在'}
+    actor_id = actor_user_id if actor_user_id is not None else session.get('user_id')
+    if actor_id is not None and int(actor_id) == int(user.id):
+        return {'ok': False, 'msg': '不能重置当前登录账号密码，请使用「修改密码」'}
+    user.set_password(DEFAULT_USER_PASSWORD)
+    user.must_reset_password = 1
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '触发重置失败'}
+    write_audit_log(action='user:password_reset', resource=user.username)
+    return {'ok': True, 'msg': '已触发密码重置，默认密码为 %s' % DEFAULT_USER_PASSWORD}
+
+
 def change_own_password(user_id, old_password, new_password, confirm_password):
-    """登录用户修改自己的密码。须校验旧密码；成功后写审计。"""
+    """登录用户修改自己的密码。须校验旧密码；成功后清除强制改密标记并写审计。"""
     if user_id is None:
         return {'ok': False, 'msg': '未登录'}
     user = db.session.get(RbacUser, user_id)
@@ -278,6 +377,7 @@ def change_own_password(user_id, old_password, new_password, confirm_password):
     if old_password == new_password:
         return {'ok': False, 'msg': '新密码不能与当前密码相同'}
     user.set_password(new_password)
+    user.must_reset_password = 0
     try:
         db.session.commit()
     except Exception:
@@ -417,9 +517,12 @@ def set_user_groups(user_id, group_ids, role=None):
         existing = db.session.scalars(
             select(UserGroup).where(UserGroup.user_id == user_id)
         ).all()
+        existing_group_ids = {row.group_id for row in existing}
+        desired_group_ids = set(cleaned)
         for row in existing:
-            db.session.delete(row)
-        for gid in cleaned:
+            if row.group_id not in desired_group_ids:
+                db.session.delete(row)
+        for gid in desired_group_ids - existing_group_ids:
             db.session.add(UserGroup(user_id=user_id, group_id=gid))
         db.session.commit()
     except Exception:

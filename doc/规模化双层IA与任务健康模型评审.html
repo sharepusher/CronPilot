@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · L1/L2/L3 与任务健康模型评审</title>
+  <style>
+    :root{
+      --p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+      --accent:#7c3aed;--ok:#059669;--warn:#d97706;--danger:#dc2626;--sb:#2c3e50;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#4c1d95,#7c3aed 50%,#2563eb);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1100px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.25rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    h4{font-size:.95rem;color:#475569;margin:1.1rem 0 .45rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.78rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .bad{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;font-size:.9rem}
+    .toc ol{margin:.4rem 0 0;padding-left:1.3rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .status-draft{color:#b45309;font-weight:600}
+    .score{display:inline-block;font-weight:700;padding:.1rem .45rem;border-radius:4px;font-size:.85rem}
+    .s-high{background:#d1fae5;color:#065f46}
+    .s-mid{background:#fef3c7;color:#92400e}
+    .s-low{background:#fee2e2;color:#991b1b}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
+    @media(max-width:800px){.grid3{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem}
+    .card h4{margin-top:0}
+    .demo-switch{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+    .demo-switch button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:.45rem .85rem;cursor:pointer;font-size:.88rem}
+    .demo-switch button.active{background:#4c1d95;color:#fff;border-color:#4c1d95}
+    .demo-frame{border:2px dashed #94a3b8;border-radius:10px;overflow:hidden;background:#eef2f7;margin-bottom:1.25rem}
+    .demo-caption{font-size:.82rem;color:var(--muted);padding:.55rem .85rem;background:#f1f5f9;border-bottom:1px solid var(--border)}
+    .sb-top{background:var(--sb);color:#ecf0f1;padding:.5rem 1rem;font-size:.8rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+    .sb-top .l{padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
+    .l-admin{background:#c0392b;color:#fff}
+    .l-op{background:#2980b9;color:#fff}
+    .l-vw{background:#7f8c8d;color:#fff}
+    .l-g{background:#3498db;color:#fff}
+    .sb-nav{background:#fff;padding:.45rem 1rem 0;border-bottom:1px solid #ddd;display:flex;gap:.2rem;flex-wrap:wrap;font-size:.82rem}
+    .sb-nav span{padding:.35rem .7rem;color:#666}
+    .sb-nav span.on{border:1px solid #ddd;border-bottom-color:#fff;border-radius:4px 4px 0 0;color:#2c3e50;font-weight:600;margin-bottom:-1px;background:#fff}
+    .sb-body{background:#fff;padding:1rem;font-size:.82rem}
+    .metrics{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.85rem}
+    .m{flex:1;min-width:110px;border:1px solid #ddd;border-radius:4px;padding:.55rem .65rem;background:#fafafa}
+    .m .n{font-size:1.35rem;font-weight:700;line-height:1.2}
+    .m .t{color:#64748b;font-size:11px}
+    .m.danger{border-color:#fca5a5;background:#fef2f2}
+    .m.danger .n{color:#b91c1c}
+    .m.warn{border-color:#fcd34d;background:#fffbeb}
+    .m.ok{border-color:#86efac;background:#f0fdf4}
+    .m.muted{opacity:.55}
+    .section-t{font-weight:600;margin:.6rem 0 .35rem;font-size:.85rem;color:#334155}
+    .mini-t{width:100%;border-collapse:collapse;font-size:.78rem}
+    .mini-t th,.mini-t td{border:1px solid #ddd;padding:.3rem .4rem;text-align:left}
+    .mini-t th{background:#f9f9f9}
+    .badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px}
+    .b-fail{background:#fee2e2;color:#991b1b}
+    .b-ok{background:#d1fae5;color:#065f46}
+    .b-run{background:#dbeafe;color:#1e40af}
+    .hidden{display:none!important}
+    .checklist label{display:block;margin:.35rem 0;cursor:pointer}
+    .verdict{font-size:1.05rem}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#e9d5ff;font-size:.9rem">← 文档索引</a>
+  <span class="tag">IA</span><span class="tag">评审归档</span><span class="tag">OPT-P2-13</span>
+  <h1>L1 / L2 / L3 与 Job Health Model 评审</h1>
+  <p>运维 × 开发关注差异 · SimpleBoot 风格统一 · 优劣势与工程隐阱 · 角色调制 Demo</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<strong style="color:#fde68a">评审归档 · 结论已收束</strong> · 权威实现规格见
+    <a href="规模化信息架构设计.html" style="color:#e9d5ff">规模化信息架构设计（OPT-P2-13）</a> · 2026-07-15</p>
+</header>
+
+<main class="layout">
+
+  <div class="ok">
+    <strong>归档说明：</strong>本页保留讨论期的专业评审、角色 Demo 与隐阱分析。
+    <strong>实现以总设计为准</strong>：<a href="规模化信息架构设计.html">规模化信息架构设计.html</a>。
+    Scope 控件细则：<a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a>。
+  </div>
+
+  <div class="note">
+    <strong>原评审对象：</strong>「双层 IA」实为 <strong>L1 健康中心 · L2 任务管理 · L3 执行中心</strong> 三层，并引入异步维护的 Job Health Model。
+    结论：<strong>方向正确、须角色调制与风格收束、Health Model 值得做但命名/写路径要改、Facet/Saved View 后置</strong>。
+  </div>
+
+  <nav class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#v">总评与打分</a></li>
+      <li><a href="#p">人设：运维 vs 开发，三角色如何对准</a></li>
+      <li><a href="#ia">L1/L2/L3 合理性与修正</a></li>
+      <li><a href="#hm">Job Health Model：值得做 vs 隐阱</a></li>
+      <li><a href="#style">页面风格统一约束</a></li>
+      <li><a href="#demo">角色调制 Demo</a></li>
+      <li><a href="#phase">落地分期（对 CronPilot 现实）</a></li>
+      <li><a href="#confirm">确认项</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="v">一、总评与打分</h2>
+  <p class="verdict"><span class="score s-high">总体采纳 · 有条件</span>
+    信息解耦（配置 / 健康 / 执行实例）与「异常优先」专业且对症；原文对行锁、租户穿透的警告正确。
+    主要修正：<strong>① 角色调制 L1，勿强迫开发者只看异常首页；② L3 对齐现有 JobLog，勿另造 Instance 实体；③ 风格锁在 SimpleBoot；④ Facet/Saved View / 完整 health_score 后置；⑤ 表名勿叫 rbac_*</strong>。
+  </p>
+  <table>
+    <tr><th>模块</th><th>专业性</th><th>与 CronPilot 契合</th><th>首期是否落地</th></tr>
+    <tr><td>L1 Exception First</td><td><span class="score s-high">高</span></td><td><span class="score s-mid">中高</span>（须按角色裁剪模块）</td><td>指标条 + 异常榜，非独立大屏</td></tr>
+    <tr><td>L2 Scope / 快筛</td><td><span class="score s-high">高</span></td><td><span class="score s-high">高</span>（已有 Scope UX 设计）</td><td>是（与 Scope 设计合并）</td></tr>
+    <tr><td>Facet / Saved View</td><td><span class="score s-mid">中</span></td><td><span class="score s-low">偏低</span>（SSR 成本高）</td><td>否，P2+</td></tr>
+    <tr><td>L3 Run 中心（非日志一级）</td><td><span class="score s-high">高</span></td><td><span class="score s-high">高</span>（JobLog≈Run 已存在）</td><td>心智升级 + UI 文案，少新建表</td></tr>
+    <tr><td>Job Health Model</td><td><span class="score s-high">高</span></td><td><span class="score s-mid">中高</span>（写放大需控）</td><td>窄表同步失败路径；成功率批写</td></tr>
+  </table>
+
+  <h2 id="p">二、人设：运维 vs 开发，能否「各看所需」</h2>
+  <p>CronPilot 现网三角色（非独立「开发者」角色）：</p>
+  <table>
+    <tr><th>角色</th><th>典型真人</th><th>核心心理</th><th>若 L1 仅「异常优先」会怎样</th></tr>
+    <tr>
+      <td><code>admin</code></td>
+      <td>平台/运维负责人</td>
+      <td>「全站有没有火、谁的锅」</td>
+      <td>契合；L1 应做默认首页</td>
+    </tr>
+    <tr>
+      <td><code>operator</code></td>
+      <td>业务开发 + 值班兼维护</td>
+      <td>「我组任务稳不稳；我刚改的那个成没成；要编辑/启停」</td>
+      <td><strong>半契合</strong>：需要异常区，也需要「我的任务 / 最近更新」入口，否则天天点进空异常榜再绕去 L2</td>
+    </tr>
+    <tr>
+      <td><code>viewer</code></td>
+      <td>只读开发 / 协作方</td>
+      <td>「某任务上次跑没跑、失败原因」</td>
+      <td>异常榜有用但只读；更常要<strong>按任务名直达 L3</strong></td>
+    </tr>
+  </table>
+
+  <div class="warn">
+    <strong>结论：</strong>「不同角色关注不同」必须做成 <strong>同一壳层下的模块可见性差异</strong>，而不是三套产品。
+    不建议为此新增第四角色「developer」——用 <code>operator</code>/<code>viewer</code> + Scope 已覆盖多数开发协作；若未来要「我创建的任务」，用 <code>created_by</code> 字段比再裂角色更经济。
+  </div>
+
+  <h3>2.1 推荐：角色调制的 L1 模块矩阵</h3>
+  <table>
+    <tr><th>L1 模块</th><th>admin</th><th>operator</th><th>viewer</th></tr>
+    <tr><td>全局/可见域 Metric（失败任务数、连续失败）</td><td>必显 · 默认焦点</td><td>必显（Scope 内）</td><td>必显（只读）</td></tr>
+    <tr><td>异常任务榜 Top-N</td><td>必显</td><td>必显</td><td>必显</td></tr>
+    <tr><td>Scope 健康矩阵</td><td>必显</td><td>G≥2 时显；G=1 折叠为上下文</td><td>同 operator</td></tr>
+    <tr><td>「快速进入任务管理」主按钮</td><td>次要</td><td><strong>主 CTA</strong></td><td>主 CTA（只读列表）</td></tr>
+    <tr><td>最近成功 / 我组运行中摘要</td><td>可选</td><td><strong>推荐显</strong>（安抚开发「没坏」）</td><td>推荐</td></tr>
+    <tr><td>SLA / 熔断配置入口</td><td>后期</td><td>无</td><td>无</td></tr>
+    <tr><td>用户/组管理快捷</td><td>可链到现有 RBAC 页</td><td>无</td><td>无</td></tr>
+  </table>
+  <p>落地默认路由建议（可配置）：</p>
+  <ul>
+    <li><code>admin</code> → L1 健康摘要（可与 <code>/cron_list</code> 顶栏合体，见分期）</li>
+    <li><code>operator</code> / <code>viewer</code> → 仍可进 L1，但<strong>首屏一半给「任务管理快捷 + 最近执行」</strong>，异常区不独占全部 fold</li>
+    <li>任何人可在顶栏 Tab 固定进入 L2；偏好可后来再做（Saved View 之后）</li>
+  </ul>
+
+  <h2 id="ia">三、L1 / L2 / L3 合理性与修正</h2>
+  <div class="grid3">
+    <div class="card">
+      <h4>L1 Health Center</h4>
+      <p><span class="score s-high">采纳</span></p>
+      <p style="font-size:.88rem">异常优先对运维正确。修正：不是「看不见健康任务」，而是「默认折叠健康噪声」；开发角色保留「安抚性」成功摘要。</p>
+    </div>
+    <div class="card">
+      <h4>L2 Task Management</h4>
+      <p><span class="score s-high">采纳</span></p>
+      <p style="font-size:.88rem">Scope + 状态快筛与既有设计一致。Facet / Saved View 概念对，<strong>首期砍掉</strong>以免 SSR 复杂化与风格漂移。</p>
+    </div>
+    <div class="card">
+      <h4>L3 Execution Center</h4>
+      <p><span class="score s-high">采纳心智</span></p>
+      <p style="font-size:.88rem"><strong>不要新建 Execution 表</strong>：现有 <code>job_log</code> 一行即一次 Run；<code>log_id</code> 即 run 关联键；详情已挂 add_log。将导航文案从「日志」改为「执行记录 / 运行实例」即可。</p>
+    </div>
+  </div>
+
+  <h3>3.1 与「日志不再一级入口」</h3>
+  <table>
+    <tr><th>原文主张</th><th>评审</th></tr>
+    <tr><td>去掉一级「任务执行记录」Tab</td><td><span class="score s-mid">慎重</span>：运维仍需「全站失败流」监察页。建议保留 Tab，但默认 <code>status=fail</code>，并改名「执行记录」；从 L2 行进入带 <code>cron_info_id</code> 的任务内 Run 列表更优先。</td></tr>
+    <tr><td>Stdout/Stderr 属 Instance 附属</td><td><span class="score s-high">正确</span>：对齐现 <code>job_log_detail</code> 的 content / add_log 折叠。</td></tr>
+    <tr><td>Timeline / Retry</td><td>CronPilot 当前无多步 DAG、无内置 Retry 状态机；Timeline 可简化为「单次 Run 时间线（请求→响应→add_log）」；Retry 待产品确认后再做，勿空画。</td></tr>
+  </table>
+
+  <h3>3.2 L1→L2→L3 穿透一致性</h3>
+  <div class="ok">
+    原文「看板聚合必须注入 Scope」完全正确。规则：
+    <ul>
+      <li>一切列表/聚合先 <code>build_scope_filter_clause</code>，再算 Health。</li>
+      <li>L1 链接必须带可复现 query：<code>scope_view</code> / <code>group_id</code> / <code>health=failing</code> / <code>id=</code>。</li>
+      <li>禁止 L1 展示不可点击进 L2/L3 的资源（避免 403 体验漏洞）。</li>
+    </ul>
+  </div>
+
+  <h2 id="hm">四、Job Health Model：值得做 vs 隐阱</h2>
+  <h3>4.1 优势（成立）</h3>
+  <ul>
+    <li>列表/首页 O(可见任务数) 读宽表，避免每次扫 <code>job_log</code> 算连续失败。</li>
+    <li><code>consecutive_failures</code> 是告警/熔断自然语言。</li>
+    <li>为 OPT-P2-02 / Prometheus 暴露提供稳定维度（任务级 gauge）。</li>
+  </ul>
+
+  <h3>4.2 必须修正的设计细节</h3>
+  <table>
+    <tr><th>原文点</th><th>修正</th></tr>
+    <tr><td>表名 <code>rbac_job_health</code></td><td><strong>改为 <code>job_health</code> 或 <code>cron_job_health</code></strong>。健康态不属于 RBAC 子系统，避免概念污染。</td></tr>
+    <tr><td>字段一口气上齐 health_score / avg_duration / failure_rate_24h</td><td>首期仅：<code>cron_info_id</code> PK、`last_run_*`、`last_success_at`、`last_fail_at`、`consecutive_failures`、`health_status`（ok|failing|unknown）。比率与均耗时二期批算或物化。</td></tr>
+    <tr><td>每次 Run 都 UPDATE 健康表</td><td>采纳原文防线：<strong>失败/状态翻转同步写</strong>；纯 SUCCESS 可节流（每 N 秒或每 K 次）或「仅更新 last_run_at 的低频写」。秒级任务是行锁主因。</td></tr>
+    <tr><td>Redis 必选</td><td>CronPilot 默认无 Redis 依赖；首期用「进程内不合适（多 worker）」→ 优先 <strong>DB 条件更新 + 失败同步</strong>；确有多实例热点再引 Redis（需新依赖评审）。</td></tr>
+    <tr><td>与 trim 日志的一致性</td><td><code>job_log_counts</code> 裁剪旧日志后，连续失败计数<strong>不得</strong>靠重扫残缺日志重算；必须以健康表为准，或裁剪时保留「足够窗口」。</td></tr>
+  </table>
+
+  <h3>4.3 写路径建议（B0）</h3>
+  <pre>cron_do 完成 → 写 job_log（已有）
+        → update_job_health(cron_id, outcome):
+             if fail/error:
+                 consecutive_failures += 1
+                 last_fail_* = now; health_status = failing
+                 同步 COMMIT（与 job_log 同事务更佳）
+             if success:
+                 if consecutive_failures &gt; 0 or last_status != success:
+                     # 翻转：同步写
+                     consecutive_failures = 0; health_status = ok; last_success_*
+                 else:
+                     # 连续成功：可选跳过或节流写 last_run_at
+                     pass</pre>
+
+  <h2 id="style">五、页面风格统一约束</h2>
+  <div class="bad">
+    <strong>反模式：</strong>L1 做成现代大屏（渐变卡、圆角阴影、独立 CSS），L2 仍是 SimpleBoot 表格——用户会感觉「两个产品」。
+  </div>
+  <table>
+    <tr><th>约束</th><th>要求</th></tr>
+    <tr><td>壳层</td><td>沿用 <code>admin_base</code> + 顶栏 + <code>rbac/_nav.html</code> Tab；L1/L2 都是 Tab 或同一页区块，不另起 Vue/React 壳</td></tr>
+    <tr><td>组件</td><td>Metric 用 Bootstrap/SimpleBoot <code>well</code> / 边框数字格（见 Demo）；异常榜用现有 table；Scope 控件见 Scope UX 设计</td></tr>
+    <tr><td>色彩</td><td>失败红 / 运行蓝 / 成功绿 与现有 job_log badge 宏一致；禁止 emoji 主视觉</td></tr>
+    <tr><td>对话框</td><td>L3 继续 <code>open_iframe_dialog</code> + art.dialog；勿突然改成全屏 SPA</td></tr>
+    <tr><td>文案</td><td>全局统一「执行记录」「运行实例」称谓，逐步弱化「日志地狱」式入口名</td></tr>
+  </table>
+
+  <h2 id="demo">六、角色调制 Demo（风格：SimpleBoot 指标条）</h2>
+  <p>同一视觉语言下，仅模块权重不同——请切换角色对比。</p>
+  <div class="demo-switch">
+    <button type="button" class="active" data-role="admin">admin · 运维</button>
+    <button type="button" data-role="operator">operator · 开发兼维护</button>
+    <button type="button" data-role="viewer">viewer · 只读开发</button>
+  </div>
+
+  <div class="demo-frame" data-role-panel="admin">
+    <div class="demo-caption">admin — Exception First 主导；Scope 矩阵暴露；CTA 弱化</div>
+    <div class="sb-top"><span>admin</span><span class="l l-admin">管理员</span></div>
+    <div class="sb-nav"><span class="on">健康概览</span><span>任务列表</span><span>执行记录</span><span>用户管理</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m"><div class="n">128</div><div class="t">可见任务</div></div>
+        <div class="m"><div class="n">96</div><div class="t">运行中</div></div>
+        <div class="m danger"><div class="n">3</div><div class="t">连续失败</div></div>
+        <div class="m warn"><div class="n">7</div><div class="t">今日失败 Run</div></div>
+      </div>
+      <div class="section-t">异常任务榜（跨 Scope）</div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>Scope</th><th>连续失败</th><th>操作</th></tr>
+        <tr><td>风控日终对账</td><td>金融风控</td><td><span class="badge b-fail">5</span></td><td>查看执行 · 打开任务</td></tr>
+        <tr><td>数仓分钟同步</td><td>数据控制</td><td><span class="badge b-fail">3</span></td><td>查看执行 · 打开任务</td></tr>
+      </table>
+      <div class="section-t">Scope 健康矩阵</div>
+      <div class="metrics">
+        <div class="m danger"><div class="n">风控</div><div class="t">1 失败 · 45 任务</div></div>
+        <div class="m ok"><div class="n">数据</div><div class="t">0 失败 · 20 任务</div></div>
+        <div class="m"><div class="n">GLOBAL</div><div class="t">0 失败 · 12 任务</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-frame hidden" data-role-panel="operator">
+    <div class="demo-caption">operator — 异常区仍在，但「进入任务管理」与「我组最近执行」并排，服务开发日常</div>
+    <div class="sb-top"><span>alice</span><span class="l l-op">operator</span><span class="l l-g">数据控制组</span></div>
+    <div class="sb-nav"><span class="on">健康概览</span><span>任务列表</span><span>执行记录</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m"><div class="n">32</div><div class="t">可见任务</div></div>
+        <div class="m danger"><div class="n">1</div><div class="t">本组连续失败</div></div>
+        <div class="m ok"><div class="n">19</div><div class="t">本组运行正常</div></div>
+        <div class="m" style="border-color:#93c5fd;background:#eff6ff;cursor:pointer"><div class="n" style="font-size:1rem;color:#1d4ed8">→ 任务管理</div><div class="t">主工作台（L2）</div></div>
+      </div>
+      <div class="section-t">需要处理</div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>最近执行</th><th>操作</th></tr>
+        <tr><td>质量校验（日批）</td><td><span class="badge b-fail">失败 ×3</span></td><td>执行记录 | 编辑</td></tr>
+      </table>
+      <div class="section-t">我组最近执行（安抚 / 发布核对）</div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>结果</th><th>时间</th></tr>
+        <tr><td>数仓分钟同步</td><td><span class="badge b-ok">成功</span></td><td>14:26:01</td></tr>
+        <tr><td>全局心跳探测</td><td><span class="badge b-ok">成功</span></td><td>14:26:00</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="demo-frame hidden" data-role-panel="viewer">
+    <div class="demo-caption">viewer — 只读；强调搜索直达与执行下钻，无写操作</div>
+    <div class="sb-top"><span>carol</span><span class="l l-vw">viewer</span><span class="l l-g">金融风控组</span></div>
+    <div class="sb-nav"><span class="on">健康概览</span><span>任务列表</span><span>执行记录</span></div>
+    <div class="sb-body">
+      <div class="metrics">
+        <div class="m danger"><div class="n">1</div><div class="t">可见连续失败</div></div>
+        <div class="m muted"><div class="n">—</div><div class="t">无写权限</div></div>
+      </div>
+      <div style="margin:.5rem 0 .75rem">
+        <input placeholder="按任务名查找…" style="padding:4px 8px;width:60%;max-width:280px">
+        <button type="button" disabled>搜索</button>
+      </div>
+      <div class="section-t">异常（只读）</div>
+      <table class="mini-t">
+        <tr><th>任务</th><th>连续失败</th><th>操作</th></tr>
+        <tr><td>风控日终对账</td><td><span class="badge b-fail">5</span></td><td>查看执行记录</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="phase">七、落地分期（对 CronPilot 现实）</h2>
+  <table>
+    <tr><th>波次</th><th>内容</th><th>不做</th></tr>
+    <tr>
+      <td><strong>B0</strong></td>
+      <td>
+        <code>job_health</code> 窄表 + cron_do 失败/翻转同步；
+        <code>cron_list</code> 顶栏 Metric + 异常入口（L1 合体）；
+        Scope/状态快筛（接 Scope UX）；
+        行内 last_run / consecutive_failures；
+        「运行记录」心智标为 L3（仍 iframe）
+      </td>
+      <td>独立 <code>/dashboard</code>；Facet；Saved View；Redis；health_score；拆掉执行记录 Tab</td>
+    </tr>
+    <tr>
+      <td><strong>B1</strong></td>
+      <td>角色调制 L1 区块；执行记录默认失败；可选独立健康 Tab</td>
+      <td>熔断配置大屏</td>
+    </tr>
+    <tr>
+      <td><strong>B2</strong></td>
+      <td>failure_rate_24h / avg_duration 批算；OPT-P2-02 趋势；/metrics 导出</td>
+      <td>为健康单独上 Elasticsearch</td>
+    </tr>
+    <tr>
+      <td><strong>B3</strong></td>
+      <td>Saved View / 丰富 Facet；真正独立 Dashboard（任务破千或明确需求）</td>
+      <td>—</td>
+    </tr>
+  </table>
+  <div class="note">
+    原文「第一期物理合并交付」与本仓库策略一致：优先合体到 <code>cron_list</code>，避免三套路由三套 CSS。
+    第二期再拆 <code>/dashboard</code>——附条件：RBAC/Scope 稳定 + 任务规模或运维明确要求。
+  </div>
+
+  <h2 id="confirm">八、确认项（已收束）</h2>
+  <div class="ok">
+    §八原勾选项已全部纳入 <a href="规模化信息架构设计.html#s2">总设计 §二已拍板结论</a>。
+    启动实现请确认 <a href="规模化信息架构设计.html#s10">总设计 §十</a>。
+  </div>
+
+</main>
+<footer>
+  <a href="index.html">文档索引</a> ·
+  <a href="规模化信息架构设计.html">总设计 OPT-P2-13</a> ·
+  <a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a> ·
+  Markdown 版：<a href="规模化双层IA与任务健康模型评审.md">规模化双层IA与任务健康模型评审.md</a>
+ · <a href="规模化双层IA与任务健康模型评审.md">Markdown</a> · <a href="index.html">索引</a></footer>
+<script>
+(function(){
+  var btns=document.querySelectorAll('.demo-switch button');
+  var panels=document.querySelectorAll('[data-role-panel]');
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      var r=b.getAttribute('data-role');
+      btns.forEach(function(x){x.classList.toggle('active',x===b);});
+      panels.forEach(function(p){p.classList.toggle('hidden',p.getAttribute('data-role-panel')!==r);});
+    });
+  });
+})();
+</script>
+</body>
+</html>

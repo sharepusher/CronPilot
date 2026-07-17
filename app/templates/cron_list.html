@@ -15,71 +15,161 @@
         {% with active='cron_list' %}
         {% include "rbac/_nav.html" %}
         {% endwith %}
-        <form class="well form-search" method="get" action="{{ url_for('main.cron_list') }}">高级查询：
-            <input type="text" placeholder="任务名称" name="task_name" value="{{ keyword.get("task_name","") }}">
-            <input type="submit" class="btn btn-primary" value="搜索"/>
-            <a href="{{ url_for('main.cron_list') }}" class="btn btn-danger" >重置</a>
+
+        {% if list_role == 'viewer' %}
+        <p class="opt-p2-13-viewer-hint" style="color:#64748b;font-size:12px;margin:0 0 8px">只读账号：可查任务与运行记录，不可启停/编辑/下线。</p>
+        {% endif %}
+
+        <form class="well well-small cron-list-toolbar" method="get" action="{{ url_for('main.cron_list') }}" style="padding:8px 10px;margin:0 0 10px;overflow:hidden">
+            <div class="cron-toolbar-left">
+                <span class="cron-filter-label">异常</span>
+                <div class="btn-group cron-filter-group">
+                    <a class="btn btn-mini cron-chip-fail {% if keyword.get('health')=='failing' %}active{% endif %}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">连续失败</a>
+                    <a class="btn btn-mini cron-chip-warn {% if keyword.get('health')=='today_fail' %}active{% endif %}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">今日失败</a>
+                </div>
+                <span class="cron-filter-sep">|</span>
+                <span class="cron-filter-label">状态</span>
+                <div class="btn-group cron-filter-group">
+                    <a class="btn btn-mini cron-chip-run {% if keyword.get('status')=='1' %}active{% endif %}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">运行中</a>
+                    <a class="btn btn-mini cron-chip-pause {% if keyword.get('status')=='0' %}active{% endif %}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">已暂停</a>
+                    <a class="btn btn-mini cron-chip-all {% if not keyword.get('health') and not keyword.get('status') %}active{% endif %}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">全部</a>
+                </div>
+                <span class="cron-filter-sep">|</span>
+                <span class="cron-toolbar-label">业务组</span>
+                <select class="cron-toolbar-select" onchange="if(this.value){location.href=this.value}">
+                    <option value="{{ url_for('main.cron_list', scope_view='all', task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='all' %}selected{% endif %}>全部（可见）</option>
+                    <option value="{{ url_for('main.cron_list', scope_view='global', task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='global' %}selected{% endif %}>全局共享</option>
+                    {% for g in scope_groups %}
+                    <option value="{{ url_for('main.cron_list', scope_view='group', group_id=g.id, task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='group' and scope_group_id==g.id %}selected{% endif %}>{{ g.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="scope_view" value="{{ scope_view }}">
+                {% if scope_view == 'group' and scope_group_id %}<input type="hidden" name="group_id" value="{{ scope_group_id }}">{% endif %}
+                {% if keyword.get('status') %}<input type="hidden" name="status" value="{{ keyword.get('status') }}">{% endif %}
+                {% if keyword.get('health') %}<input type="hidden" name="health" value="{{ keyword.get('health') }}">{% endif %}
+            </div>
+            <div class="cron-toolbar-search">
+                <span class="cron-search-label">任务名</span>
+                <input type="text" name="task_name" placeholder="模糊匹配" value="{{ keyword.get('task_name','') }}">
+                <button type="submit" class="btn btn-primary">搜索</button>
+                <a href="{{ url_for('main.cron_list') }}" class="btn">重置</a>
+            </div>
+            <div class="cron-toolbar-right">
+                {% if has_perm('cron:write') %}
+                <a class="btn btn-primary btn-mini cron-add-btn" href="{{ url_for('main.cron_add') }}">+ 新建任务</a>
+                {% endif %}
+            </div>
         </form>
-            <table class="table table-hover table-bordered">
+
+            <table id="cron-task-table" class="table table-hover table-bordered table-condensed cron-list-refined" style="font-size:12px;margin-bottom:8px;table-layout:fixed;width:100%">
                 <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>任务名称</th>
-                    <th>备注</th>
-                    <th>创建时间</th>
-                    <th>具体时间</th>
-                    <th>星期</th>
-                    <th>日</th>
-                    <th>小时</th>
-                    <th>分钟</th>
-                    <th>秒</th>
-                    <th>URL</th>
-                    <th>运行状态</th>
-                    <th width="160">操作事项</th>
+                    <th style="width:42%">任务</th>
+                    <th style="width:15%">调度策略</th>
+                    <th style="width:15%">运行与发布</th>
+                    <th style="width:8%">运行状态</th>
+                    <th style="width:20%">操作</th>
                 </tr>
                 </thead>
                 <tbody>
                     {% for item in page_data.items %}
+                    {% set h = health_by_id.get(item.id) %}
                     <tr>
-                        <td>{{ item.id }}</td>
-                        <td>{{ item.task_name }}</td>
-                        <td>{{ item.task_keyword }}</td>
-                        <td>{{ item.created_at or '' }}</td>
-                        <td>{{ item.run_date }}</td>
-                        <td>{{ item.day_of_week }}</td>
-                        <td>{{ item.day }}</td>
-                        <td>{{ item.hour }}</td>
-                        <td>{{ item.minute }}</td>
-                        <td>{{ item.second }}</td>
-                        <td>{{ item.req_url }}</td>
-                        <td>
-                            {% if item.status == 0 %}
-                            已暂停
-                            {% elif item.status == 1 %}
-                            运行中
-                            {% else %}
-                            已下线{% if item.retired_at %}<br><span style="color:#64748b;font-size:12px">{{ item.retired_at }}</span>{% endif %}{% if item.retire_reason %}<br><span style="color:#64748b;font-size:12px" title="{{ item.retire_reason }}">{% if item.retire_reason|length > 40 %}{{ item.retire_reason[:40] }}…{% else %}{{ item.retire_reason }}{% endif %}</span>{% endif %}
-                            {% endif%}
+                        <td style="vertical-align:middle" class="cron-task-cabin">
+                            <div class="cabin-row">
+                                {% if h and h.health_status == 'failing' %}
+                                <span class="health-dot health-dot-fail" title="连续失败 ×{{ h.consecutive_failures }}"></span>
+                                {% elif h and h.last_run_status in ('fail', 'error') %}
+                                <span class="health-dot health-dot-warn" title="最近失败{% if h.consecutive_failures %} ×{{ h.consecutive_failures }}{% endif %}"></span>
+                                {% elif h and h.last_run_status == 'success' %}
+                                <span class="health-dot health-dot-ok" title="最近成功"></span>
+                                {% else %}
+                                <span class="health-dot health-dot-none" title="尚无执行记录"></span>
+                                {% endif %}
+                                <div class="cabin-main">
+                                    <div class="cabin-title-line">
+                                        {% if item.scope_type == 'GLOBAL' or not item.group_id %}
+                                        <span class="label cabin-scope">全局</span>
+                                        {% else %}
+                                        <span class="label label-info cabin-scope">{{ group_name_by_id.get(item.group_id, '组#' ~ item.group_id) }}</span>
+                                        {% endif %}
+                                        <strong class="cabin-name">{{ item.task_name }}</strong>
+                                        {% if item.task_keyword %}
+                                        <a href="javascript:;" class="cabin-desc-tip" data-toggle="tooltip" data-placement="top" title="{{ item.task_keyword|e }}"><i class="fa fa-question-circle"></i></a>
+                                        {% endif %}
+                                    </div>
+                                    {% if item.req_url %}
+                                    <div class="cabin-url-secondary" title="{{ item.req_url|e }}">{% if item.req_url|length > 72 %}{{ item.req_url[:72] }}…{% else %}{{ item.req_url }}{% endif %}</div>
+                                    {% else %}
+                                    <div class="cabin-url-missing">未配置触发 URL</div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </td>
-                        <td>
-                            <a href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_list',id=item.id) }}','运行记录查看')">运行记录</a>
-                            {% if item.status != -1 %}
-                            {% if has_perm('cron:write') %}
-                            |
+                        <td style="vertical-align:middle" class="cron-sched-cell">
+                            <div class="sched-human">{{ item|humanize_schedule }}</div>
+                            {% set expr = item|format_cron_expression %}
+                            {% if item.run_date %}
+                            <code class="sched-expr">date {{ item.run_date }}</code>
+                            {% elif expr %}
+                            <code class="sched-expr">{{ expr }}</code>
+                            {% endif %}
+                        </td>
+                        <td style="vertical-align:middle" class="cron-audit-cell">
+                            <div class="audit-line">
+                                <span class="audit-k">最近执行</span>
+                                {% if h and h.last_run_at %}<span class="audit-v">{{ h.last_run_at }}</span>{% else %}<span class="audit-muted">—</span>{% endif %}
+                            </div>
+                            {% if not h or not h.last_run_at %}
+                            {% set empty_hint = item|schedule_empty_hint(item.status) %}
+                            {% if empty_hint %}
+                            <div class="audit-hint">{{ empty_hint }}</div>
+                            {% endif %}
+                            {% endif %}
+                            <div class="audit-line">
+                                <span class="audit-k">最近发布</span>
+                                {% if item.last_operator_name %}<span class="audit-v">{{ item.last_operator_name }}{% if item.last_operated_at %} · {{ item.last_operated_at }}{% endif %}</span>{% else %}<span class="audit-muted">未记录</span>{% endif %}
+                            </div>
+                        </td>
+                        <td style="vertical-align:middle" class="cron-life-cell">
                             {% if item.status == 0 %}
-                             <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn" data-msg="确定启动该任务？">启动</a> |
+                            <span class="label label-pause">已暂停</span>
                             {% elif item.status == 1 %}
-                            <a href="{{ url_for('main.update_status',id=item.id) }}" class="js-ajax-dialog-btn" data-msg="确定暂停该任务？">暂停</a> |
-                            {% endif%}
-                            <a href="{{ url_for('main.cron_edit',id=item.id) }}">编辑</a>
-                            {% endif %}
-                            |
-                            {% if has_perm('cron:retire') %}
-                            <a href="{{ url_for('main.cron_retire',id=item.id) }}">下线</a>
+                            <span class="label label-info">运行中</span>
                             {% else %}
-                            <a href="javascript:;" class="js-retire-denied" data-msg="权限不足：当前账号不可下线任务">下线</a>
+                            <span class="label label-retired">已下线</span>
                             {% endif %}
+                        </td>
+                        <td style="vertical-align:middle;white-space:nowrap" class="cron-ops-cell">
+                            <a class="btn btn-mini btn-info" href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_list',id=item.id) }}','运行记录查看')">运行记录</a>
+                            {% if item.status == 1 and has_perm('cron:write') and item.req_url %}
+                            <a class="btn btn-mini btn-success js-ajax-dialog-btn" href="{{ url_for('main.cron_run_now',id=item.id) }}" data-msg="确定立即执行该任务？执行过程可能等待至多 2 分钟。">立即执行</a>
                             {% endif %}
+                            <div class="btn-group">
+                                <a class="btn btn-mini btn-default cron-more-toggle dropdown-toggle" data-toggle="dropdown" href="#">更多 <span class="caret"></span></a>
+                                <ul class="dropdown-menu pull-right cron-more-menu">
+                                    {% if item.status != -1 and has_perm('cron:write') %}
+                                    {% if item.status == 0 %}
+                                    <li><a class="js-ajax-dialog-btn" href="{{ url_for('main.update_status',id=item.id) }}" data-msg="确定启动该任务？"><i class="fa fa-play"></i> 启动</a></li>
+                                    {% elif item.status == 1 %}
+                                    <li><a class="js-ajax-dialog-btn" href="{{ url_for('main.update_status',id=item.id) }}" data-msg="确定暂停该任务？"><i class="fa fa-pause"></i> 暂停</a></li>
+                                    {% endif %}
+                                    <li><a href="{{ url_for('main.cron_edit',id=item.id) }}"><i class="fa fa-pencil"></i> 编辑</a></li>
+                                    {% endif %}
+                                    {% if item.status != -1 %}
+                                    {% if has_perm('cron:retire') %}
+                                    <li class="divider"></li>
+                                    <li><a class="cron-menu-danger" href="{{ url_for('main.cron_retire',id=item.id) }}"><i class="fa fa-ban"></i> 下线</a></li>
+                                    {% else %}
+                                    <li class="divider"></li>
+                                    <li><a class="js-retire-denied" href="javascript:;" data-msg="权限不足：当前账号不可下线任务"><i class="fa fa-ban"></i> 下线</a></li>
+                                    {% endif %}
+                                    {% endif %}
+                                    {% if item.status == -1 %}
+                                    <li class="disabled"><a href="javascript:;">已下线</a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
@@ -89,6 +179,311 @@
             {{ pg.page(page_data,'main.cron_list',keyword) }}
         </div>
     </div>
+{% endblock %}
+
+{% block css %}
+<style>
+.cron-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+.cron-toolbar-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.cron-toolbar-search {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+.cron-search-label {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 30px;
+}
+.cron-toolbar-search input[type="text"] {
+    width: 150px;
+    margin-bottom: 0;
+}
+.cron-toolbar-search .btn {
+    margin-bottom: 0;
+}
+.cron-toolbar-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.cron-filter-label,
+.cron-toolbar-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 2px;
+    line-height: 28px;
+}
+.cron-filter-sep {
+    color: #cbd5e1;
+    margin: 0 2px;
+    font-size: 12px;
+    line-height: 28px;
+}
+.cron-toolbar-select,
+.cron-toolbar-btn {
+    font-size: 12px;
+    margin: 0;
+    height: 28px;
+    line-height: 26px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+.cron-add-btn {
+    margin: 0;
+    height: 28px;
+    line-height: 26px;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+.cron-filter-group .btn-mini {
+    font-weight: 600;
+    text-shadow: none;
+    border-width: 1px;
+    height: 28px;
+    line-height: 26px;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+.cron-chip-fail {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fca5a5;
+}
+.cron-chip-fail.active, .cron-chip-fail:hover {
+    color: #fff;
+    background: #dc2626;
+    border-color: #b91c1c;
+}
+.cron-chip-warn {
+    color: #b45309;
+    background: #fffbeb;
+    border-color: #fcd34d;
+}
+.cron-chip-warn.active, .cron-chip-warn:hover {
+    color: #fff;
+    background: #f59e0b;
+    border-color: #d97706;
+}
+.cron-chip-all {
+    color: #334155;
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+.cron-chip-all.active, .cron-chip-all:hover {
+    color: #fff;
+    background: #475569;
+    border-color: #334155;
+}
+.cron-chip-run {
+    color: #1d4ed8;
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+.cron-chip-run.active, .cron-chip-run:hover {
+    color: #fff;
+    background: #2563eb;
+    border-color: #1d4ed8;
+}
+.cron-chip-pause {
+    color: #57534e;
+    background: #f5f5f4;
+    border-color: #d6d3d1;
+}
+.cron-chip-pause.active, .cron-chip-pause:hover {
+    color: #fff;
+    background: #78716c;
+    border-color: #57534e;
+}
+.cron-list-refined td { padding: 6px 8px; }
+.cron-list-refined .cabin-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.cron-list-refined .health-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+}
+.cron-list-refined .health-dot-fail { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
+.cron-list-refined .health-dot-warn { background: #f59e0b; box-shadow: 0 0 0 2px #fde68a; }
+.cron-list-refined .health-dot-ok { background: #16a34a; box-shadow: 0 0 0 2px #bbf7d0; }
+.cron-list-refined .health-dot-none { background: #cbd5e1; }
+.cron-list-refined .cabin-main { min-width: 0; flex: 1; }
+.cron-list-refined .cabin-title-line { line-height: 1.45; margin-bottom: 2px; }
+.cron-list-refined .cabin-scope {
+    font-size: 10px;
+    padding: 0 4px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.cron-list-refined .cabin-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    vertical-align: middle;
+}
+.cron-list-refined .cabin-desc-tip {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-left: 3px;
+    text-decoration: none;
+    vertical-align: middle;
+}
+.cron-list-refined .cabin-desc-tip:hover { color: #2563eb; }
+.cron-list-refined .cabin-url-secondary {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+    word-break: break-all;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+.cron-list-refined .cabin-url-missing {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+}
+.cron-list-refined .sched-human {
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+}
+.cron-list-refined .sched-expr {
+    display: inline-block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    word-break: break-all;
+}
+.cron-list-refined .audit-line {
+    font-size: 11px;
+    line-height: 1.45;
+}
+.cron-list-refined .audit-v {
+    color: #64748b;
+    font-weight: 400;
+}
+.cron-list-refined .audit-hint {
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.35;
+    margin: 1px 0 3px;
+}
+.cron-list-refined .audit-k {
+    color: #475569;
+    font-weight: 600;
+    margin-right: 2px;
+}
+.cron-list-refined .audit-muted { color: #94a3b8; }
+.cron-list-refined .cron-life-cell {
+    text-align: left;
+    padding-left: 8px;
+    padding-right: 4px;
+}
+.cron-list-refined .cron-life-cell .label {
+    font-size: 11px;
+    padding: 2px 6px;
+    display: inline-block;
+}
+.cron-list-refined .cron-ops-cell {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+.cron-list-refined .cron-ops-cell .btn-mini {
+    margin: 0 2px 2px 0;
+    padding: 2px 7px;
+    font-size: 11px;
+}
+.cron-list-refined .cron-ops-cell .cron-more-toggle {
+    color: #1e293b;
+    background-color: #fff;
+    border-color: #94a3b8;
+    text-shadow: none;
+    font-weight: 600;
+}
+.cron-list-refined .cron-ops-cell .cron-more-toggle .caret {
+    border-top-color: #475569;
+}
+.cron-list-refined .cron-ops-cell .btn-group.open .cron-more-toggle {
+    background-color: #f8fafc;
+    background-image: none;
+    color: #0f172a;
+    border-color: #64748b;
+    box-shadow: none;
+}
+.cron-list-refined .label-pause {
+    background: #fef3c7;
+    color: #92400e;
+    border: 0;
+}
+.cron-list-refined .label-retired {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 0;
+}
+.cron-list-refined .cron-more-menu {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    padding: 4px 0;
+    min-width: 120px;
+}
+.cron-list-refined .cron-more-menu > li > a {
+    color: #334155;
+    padding: 6px 14px;
+    background: transparent;
+    background-image: none;
+    filter: none;
+}
+.cron-list-refined .cron-more-menu > li > a:hover,
+.cron-list-refined .cron-more-menu > li > a:focus {
+    background: #f1f5f9;
+    background-image: none;
+    color: #0f172a;
+    filter: none;
+}
+.cron-list-refined .cron-more-menu > li > a i {
+    width: 14px;
+    margin-right: 4px;
+    color: #64748b;
+}
+.cron-list-refined .cron-more-menu .cron-menu-danger { color: #b91c1c; }
+.cron-list-refined .cron-more-menu .cron-menu-danger:hover,
+.cron-list-refined .cron-more-menu .cron-menu-danger:focus {
+    background: #fef2f2;
+    background-image: none;
+    color: #991b1b;
+}
+.cron-list-refined .cron-more-menu .js-retire-denied { color: #94a3b8; }
+.cron-list-refined .cron-more-menu .divider {
+    background-color: #e2e8f0;
+    margin: 4px 0;
+}
+</style>
 {% endblock %}
 
 {% block js %}

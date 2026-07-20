@@ -53,7 +53,7 @@
   <div class="ok-box" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0">
     <strong>2026-07-17 架构与版本复审：</strong>当前 <strong>v2.0.0</strong> 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
     <strong>Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11</strong> 仍成立，<strong>无需紧急跳级</strong>升级 Flask 2 / SA 2 / Python 3.12+。
-    下一依赖动作：<strong>Phase D0 已确认（DEC-008）</strong> → <strong>D1 pin bump</strong>（Flask 2.3 链 + SA 2 + FSA 3.1 + Alembic 同窗）→ D2 Mapped → D3 矩阵。
+    下一依赖动作：<strong>Phase D1 pin 已落地</strong>（Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1）→ <strong>D2 Mapped[]</strong> → <strong>D3</strong> Docker 矩阵 → Tier 3b/3c 生产校验。
   </div>
 
   <div class="warn">
@@ -246,10 +246,10 @@
         模板 <code>admin_page.html</code> 零改动；<strong>不 bump pin</strong>。
       </td><td class="ok">✓ 已交付（2026-07-20）</td></tr>
       <tr><td><strong>3a · pin bump</strong></td><td>
-        目标 pin（规划，尚未落地）：<code>SQLAlchemy==2.0.x</code> +
-        <code>Flask-SQLAlchemy==3.x</code> + 与 SA 2 匹配的 <code>alembic</code>（解除 1.4.3 锁时须同 PR 指定）。
-        <strong>阻塞：</strong>FSA 3.x 要求 Flask ≥ 2.2.5，须与 <strong>Tier 4 / Framework Generation</strong> 同窗或紧随；前置 Phase A–C 建议完成后再 bump。
-      </td><td>未开始</td></tr>
+        已落地（2026-07-20 / Phase D1）：<code>SQLAlchemy==2.0.36</code> +
+        <code>Flask-SQLAlchemy==3.1.1</code> + <code>alembic==1.14.1</code> + <code>Flask-Migrate==4.0.7</code>，
+        与 <strong>Flask 2.3.3</strong> 链同窗（DEC-008 B1）。
+      </td><td class="ok">✓ 已交付</td></tr>
       <tr><td>3b</td><td>迁移脚本重放验证；残余 SA 1.4 兼容写法收束</td><td>未开始</td></tr>
       <tr><td>3c</td><td>生产库备份 → upgrade → JobStore / <code>job_log</code> 只读校验</td><td>未开始</td></tr>
     </table>
@@ -400,7 +400,7 @@ RBAC 插入点（推荐）:
     <tr><td>DEC-005</td><td>RBAC 允许 <code>ensure_rbac_tables</code> 作 Tier 0 未完成时的退化</td><td>与 RBAC v2 详设一致</td><td>2026-06</td></tr>
     <tr><td>DEC-006</td><td>2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+</td><td>架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解</td><td>2026-07-17</td></tr>
     <tr><td>DEC-007</td><td>Phase A 与 Tier 3a <strong>pin bump 解耦</strong>：Query Contract + 分页硬门可在 SA 1.4 下交付；SA 2 / FSA 3 pin 须等 Flask 2 前提，并入 Framework Generation</td><td>FSA 3.x 硬依赖 Flask ≥ 2.2.5；避免无 Flask 2 的半升状态</td><td>2026-07-20</td></tr>
-    <tr><td>DEC-008</td><td>Phase D0 确认：Python <strong>3.9–3.11</strong>（弃 3.8）；目标线 <strong>Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）；不做 Flask 3 首跳、不做 Login/WTF、不默认 3.12+、本窗不 bump gevent 主版本。详见 <a href="PhaseD0-Framework-Generation决策.html">D0 决策</a></td><td>FSA3 须 Flask≥2.2.5；Flask 3 首跳面过大；弃 3.8 简化矩阵并为将来 Flask 3 留空间</td><td>2026-07-20</td></tr>
+    <tr><td>DEC-008</td><td>Phase D0 确认：Python <strong>3.9–3.11</strong>（弃 3.8）；目标线 <strong>Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）。选 B1 因回归面可控且已满足 FSA3；<strong>非</strong>因「Flask 3 不支持 3.8」（Flask 3.0 仍支持 3.8；仅 3.1+ 丢 3.8）。不做 Flask 3 首跳、Login/WTF、默认 3.12+。详见 <a href="PhaseD0-Framework-Generation决策.html">D0 决策</a></td><td>FSA3 须 Flask≥2.2.5；Flask 3 首跳叠加 Werkzeug 3 成本高；弃 3.8 简化矩阵</td><td>2026-07-20</td></tr>
   </table>
 
   <h2>十一、参考</h2>

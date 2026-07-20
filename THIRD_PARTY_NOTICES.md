@@ -13,23 +13,24 @@ pip-licenses --format=markdown --with-urls --order=license
 | Component | Version (pinned) | License (SPDX / PyPI) |
 |-----------|------------------|------------------------|
 | APScheduler | 3.10.4 | MIT |
-| Flask | 1.1.2 | BSD-3-Clause |
-| Flask-APScheduler | 1.11.0 | Apache-2.0 |
-| Flask-Migrate | 2.5.3 | MIT |
-| Flask-SQLAlchemy | 2.5.1 | BSD-3-Clause |
-| Jinja2 | 2.11.2 | BSD-3-Clause |
-| SQLAlchemy | 1.4.52 | MIT |
-| Werkzeug | 1.0.1 | BSD-3-Clause |
+| Flask | 2.3.3 | BSD-3-Clause |
+| Flask-APScheduler | 1.13.1 | Apache-2.0 |
+| Flask-Migrate | 4.0.7 | MIT |
+| Flask-SQLAlchemy | 3.1.1 | BSD-3-Clause |
+| Jinja2 | 3.1.6 | BSD-3-Clause |
+| SQLAlchemy | 2.0.36 | MIT |
+| Werkzeug | 2.3.8 | BSD-3-Clause |
 | gevent | 23.9.1 | MIT |
 | gunicorn | 22.0.0 | MIT |
 | requests | 2.31.0 | Apache-2.0 |
 | urllib3 | 1.26.19 | MIT |
 | redis | 3.5.3 | MIT |
 | PyMySQL | 1.1.2 | MIT |
-| alembic | 1.4.3 | MIT |
-| click | 7.1.2 | BSD-3-Clause |
-| itsdangerous | 1.1.0 | BSD-3-Clause |
-| MarkupSafe | 1.1.1 | BSD-3-Clause |
+| alembic | 1.14.1 | MIT |
+| click | 8.1.8 | BSD-3-Clause |
+| itsdangerous | 2.2.0 | BSD-3-Clause |
+| MarkupSafe | 2.1.5 | BSD-3-Clause |
+| blinker | 1.8.2 | MIT |
 | python-dateutil | 2.8.1 | Apache-2.0 / BSD |
 | pytz | 2020.1 | MIT |
 | certifi | 2024.8.30 | MPL-2.0 |

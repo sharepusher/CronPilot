@@ -35,7 +35,7 @@
   <span class="tag">依赖演进</span><span class="tag">Phase D0</span><span class="tag">已确认</span>
   <h1>Phase D0 · Framework Generation 决策</h1>
   <p>Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：Confirmed · 2026-07-20 · <strong>D1 pin bump 尚未开始</strong></p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：Confirmed · 2026-07-20 · <strong>D1 pin bump 已交付</strong>（Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1）</p>
 </header>
 
 <main class="layout">
@@ -47,7 +47,7 @@
       <li><strong>B1</strong> — <strong>Flask 2.3.x</strong> + Werkzeug/Jinja/Click 对齐 + <strong>SQLAlchemy 2.0.x</strong> + <strong>Flask-SQLAlchemy 3.1.x</strong> + 匹配 Alembic/Flask-Migrate</li>
       <li><strong>同窗 bump</strong> — Flask 链与 SA2/FSA3/Alembic 在同一 D1 依赖 PR（或紧密连续、不可单独合入的半升状态）</li>
       <li><strong>§5.1 不做</strong> — 无 Flask-Login/WTF；无 3.12+；本窗不 bump gevent/gunicorn/APS 主版本</li>
-      <li>记入 <a href="依赖升级RFC.html">依赖升级 RFC</a> <strong>DEC-008</strong>；下一步为 <strong>D1 pin bump</strong>（另开）</li>
+      <li>记入 <a href="依赖升级RFC.html">依赖升级 RFC</a> <strong>DEC-008</strong>；<strong>D1 pin 已落地</strong>；下一步 <strong>D2 Mapped[]</strong> / <strong>D3</strong></li>
     </ul>
   </div>
 
@@ -68,7 +68,7 @@
     <tr>
       <td>Python</td>
       <td>官方 ≥3.8；与本仓 <strong>3.9–3.11</strong> 完全兼容</td>
-      <td>3.0 仍可 3.8+；<strong>3.1 丢弃 3.8</strong>（本仓已弃 3.8，故 B2 技术可行）</td>
+      <td>3.0.x 仍支持 3.8；<strong>仅 3.1+</strong>丢弃 3.8。本仓已弃 3.8，故 B2 技术可行，但非选 B1 的主因</td>
     </tr>
     <tr>
       <td>Werkzeug</td>
@@ -101,7 +101,7 @@
   <ul>
     <li>CronPilot 现为 <strong>Flask 1.1.2</strong>：无论 2.3 还是 3，都要过「去掉 1.x 废弃用法 + 会话/JSON/蓝图」回归。</li>
     <li>自研 RBAC + signed cookie，不用 Flask-Login；表单不用 WTF——Flask 3 的「清理」对业务价值有限，却放大 Werkzeug 3 回归面。</li>
-    <li><strong>B1</strong> 已能解锁 FSA 3.1 + SA 2（本里程碑真正目标）；B2 不增加「能否升 ORM」能力，只增加代际成本。</li>
+    <li><strong>B1</strong> 已能解锁 FSA 3.1 + SA 2（本里程碑真正目标）；B2（Flask 3）不增加「能否升 ORM」能力。选 B1 是为控制 <strong>Werkzeug 3 / 弃用清理</strong> 的回归面，<strong>不是</strong>因为「Flask 3 全家不支持 Python 3.8」（3.0 仍支持 3.8；3.1+ 才丢 3.8）。</li>
   </ul>
   <div class="warn">
     安全说明：Flask 2.3.2+ 含会话 Cookie 相关修复；D1 锁定具体补丁版时应取 <strong>2.3 线最新安全补丁</strong>（实施时再 pin，本 D0 不写死小版本）。

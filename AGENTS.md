@@ -14,7 +14,7 @@
 
 **协作闭环**：设计确认 → 实现 → 验证 → 文档 → commit（任一步失败则修复后重验并重更文档）。详 `.cursor/rules/cronpilot-project.mdc`「交付闭环」。
 
-依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0–2 ✓ → Tier 3 前置 ✓ → Phase A/B/C ✓ → **D0 DEC-008 ✓**（Py 3.9–3.11；Flask 2.3+SA2+FSA3 同窗）→ **D1 pin** 未开始。
+依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → D0 DEC-008 ✓ → **D1 pin ✓**（Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1）→ D2 Mapped / D3 未开始。
 
 **交付总览**：`doc/交付状态与路线图.html` — 已发布版本、已完成 OPT/RFC 与未完成项对照。
 

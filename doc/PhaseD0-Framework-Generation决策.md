@@ -9,7 +9,7 @@
 
 Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 
-状态：Confirmed · 2026-07-20 · **D1 pin bump 尚未开始**
+状态：Confirmed · 2026-07-20 · **D1 pin bump 已交付**（Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1）
 
 **已确认包（2026-07-20）：**
 
@@ -17,7 +17,7 @@ Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 - **B1** — **Flask 2.3.x** + Werkzeug/Jinja/Click 对齐 + **SQLAlchemy 2.0.x** + **Flask-SQLAlchemy 3.1.x** + 匹配 Alembic/Flask-Migrate
 - **同窗 bump** — Flask 链与 SA2/FSA3/Alembic 在同一 D1 依赖 PR（或紧密连续、不可单独合入的半升状态）
 - **§5.1 不做** — 无 Flask-Login/WTF；无 3.12+；本窗不 bump gevent/gunicorn/APS 主版本
-- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；下一步为 **D1 pin bump**（另开）
+- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；**D1 pin 已落地**；下一步 **D2 Mapped[]** / **D3**
 
 **定位：**Framework Generation 的**决策闸门**。前置 Phase A/B/C 已交付。本页确认后仍**不自动改** `requirements*.txt` 中的 Flask/SA pin——那是 **D1**。
 
@@ -28,7 +28,7 @@ Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 | 维度 | Flask 2.3.x（B1） | Flask 3.x / 3.1（B2） |
 | --- | --- | --- |
 | 相对本仓库 | 从 **1.1.2** 升到 2.3：一次「代际跳跃」，但官方仍维护 2.3 行为模型 | 再跨一层主版本：清理 2.3 已弃用 API + Werkzeug 3 硬依赖 |
-| Python | 官方 ≥3.8；与本仓 **3.9–3.11** 完全兼容 | 3.0 仍可 3.8+；**3.1 丢弃 3.8**（本仓已弃 3.8，故 B2 技术可行） |
+| Python | 官方 ≥3.8；与本仓 **3.9–3.11** 完全兼容 | 3.0.x 仍支持 3.8；**仅 3.1+**丢弃 3.8。本仓已弃 3.8，故 B2 技术可行，但非选 B1 的主因 |
 | Werkzeug | 2.3.x 线 | **≥3.0**（与 Flask 3 强绑定；URL/路由/异常栈变化更多） |
 | Jinja2 / Click / itsdangerous | 3.1+ / 8.1+ / 2.1+（随 2.3 抬升） | 继续抬升，与 Werkzeug 3 同生态 |
 | 相对 1.1 的破坏面 | 已去掉：`FLASK_ENV`、`before_first_request`、旧 JSON 配置键、部分 `app.` 属性快捷方式等（2.3 已删） | 在 2.3 基础上再删：`_app_ctx_stack` / `_request_ctx_stack`、`flask.escape`/`Markup` 再导出、`locked_cached_property`、`signals_available` 等 |
@@ -39,7 +39,7 @@ Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 
 - CronPilot 现为 **Flask 1.1.2**：无论 2.3 还是 3，都要过「去掉 1.x 废弃用法 + 会话/JSON/蓝图」回归。
 - 自研 RBAC + signed cookie，不用 Flask-Login；表单不用 WTF——Flask 3 的「清理」对业务价值有限，却放大 Werkzeug 3 回归面。
-- **B1** 已能解锁 FSA 3.1 + SA 2（本里程碑真正目标）；B2 不增加「能否升 ORM」能力，只增加代际成本。
+- **B1** 已能解锁 FSA 3.1 + SA 2（本里程碑真正目标）；B2（Flask 3）不增加「能否升 ORM」能力。选 B1 是为控制 **Werkzeug 3 / 弃用清理** 的回归面，**不是**因为「Flask 3 全家不支持 Python 3.8」（3.0 仍支持 3.8；3.1+ 才丢 3.8）。
 
 安全说明：Flask 2.3.2+ 含会话 Cookie 相关修复；D1 锁定具体补丁版时应取 **2.3 线最新安全补丁**（实施时再 pin，本 D0 不写死小版本）。
 

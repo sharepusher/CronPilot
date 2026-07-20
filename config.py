@@ -8,14 +8,12 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 redis_host = configs('redis_host')
 
 class Config:
-    JSON_AS_ASCII = False
-    JSONIFY_PRETTYPRINT_REGULAR = False
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
     SQLALCHEMY_COMMIT_ON_TEARDOWN = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_POOL_RECYCLE = 3000
-    # Tier 1 (SA 1.4)：保持 1.x 行为，Tier 3 升 2.0 前不改 future 默认
-    SQLALCHEMY_ENGINE_OPTIONS = {'future': False}
+    # Phase D1：SA 2.0 默认 future 语义；池回收仍经 ENGINE_OPTIONS
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_recycle': 3000}
 
     SCHEDULER_API_ENABLED = False
 

@@ -13,7 +13,7 @@ alwaysApply: true
 
 ## 技术栈约束
 
-- Python **3.9～3.11**（勿默认 3.12+；弃 3.8，见 DEC-008；当前运行时仍为 Flask 1.1 + SA 1.4，D1 前不 bump）。
+- Python **3.9～3.11**（勿默认 3.12+；弃 3.8，DEC-008）。运行时栈：**Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1 + gevent 23**（Phase D1）。
 - 许可：**Apache-2.0**（`LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md`）；新增依赖需可合规分发。
 - 配置：仅提交 `conf.ini.example`；**勿提交** `conf.ini`、`.venv*`、`datas/*.db`、本地日志。
 

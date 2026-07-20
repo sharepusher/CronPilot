@@ -81,6 +81,13 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - 附带：`cron_do` 在 `app_context` 内读取 `JobLog.id`，避免 SA 2.0 detach 后访问主键报错。
 - **未纳入：**Docker 全矩阵（Phase D3）；Tier 3b/3c；Flask 3。
 
+### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
+
+- 设计稿：[Phase D3 · Docker pin 矩阵](PhaseD3-Docker-pin矩阵设计.html)。
+- **D3-1 ✓：**`scripts/assert_framework_pins.py` / `.sh` — 本地 venv 8/8 通过。
+- **D3-2 脚本已挂入**；**compose 实测暂缓**（2026-07-20：Docker 有问题，先不验）。
+- **Phase D3 整体未交付**；恢复 Docker 后补跑再做 D3-3。
+
 ### 协作规范 · 设计先行与编号读法
 
 - 优化/功能：完整设计（分批+验收）→ 用户确认 → 再实现；见 `.cursor/rules/cronpilot-project.mdc`。

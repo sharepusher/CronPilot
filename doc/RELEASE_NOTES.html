@@ -107,6 +107,13 @@
       <li>附带：<code>cron_do</code> 在 <code>app_context</code> 内读取 <code>JobLog.id</code>，避免 SA 2.0 detach 后访问主键报错。</li>
       <li><strong>未纳入：</strong>Docker 全矩阵（Phase D3）；Tier 3b/3c；Flask 3。</li>
     </ul>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付</h3>
+    <ul>
+      <li>设计稿：<a href="PhaseD3-Docker-pin矩阵设计.html">Phase D3 · Docker pin 矩阵</a>。</li>
+      <li><strong>D3-1 ✓：</strong><code>scripts/assert_framework_pins.py</code> / <code>.sh</code> — 本地 venv 8/8 通过。</li>
+      <li><strong>D3-2 脚本已挂入</strong>；<strong>compose 实测暂缓</strong>（2026-07-20：Docker 有问题，先不验）。</li>
+      <li><strong>Phase D3 整体未交付</strong>；恢复 Docker 后补跑再做 D3-3。</li>
+    </ul>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">协作规范 · 设计先行与编号读法</h3>
     <ul>
       <li>优化/功能：完整设计（分批+验收）→ 用户确认 → 再实现；见 <code>.cursor/rules/cronpilot-project.mdc</code>。</li>

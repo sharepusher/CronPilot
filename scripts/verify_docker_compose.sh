@@ -32,7 +32,14 @@ esac
 done
 
 if ! docker info >/dev/null 2>&1; then
+  # Docker Desktop on macOS often uses ~/.docker/run/docker.sock
+  if [[ -S "${HOME}/.docker/run/docker.sock" ]]; then
+    export DOCKER_HOST="unix://${HOME}/.docker/run/docker.sock"
+  fi
+fi
+if ! docker info >/dev/null 2>&1; then
   echo "ERROR: Docker daemon not reachable" >&2
+  echo "提示: 请先启动 Docker Desktop，然后重试本脚本。" >&2
   exit 1
 fi
 
@@ -90,6 +97,14 @@ docker compose exec -T cronpilot bash -c 'cd /opt/cronpilot && export FLASK_CONF
 echo "=== HTTP smoke (login + cron_list) ==="
 ext_fail=0
 smoke_http_suite "$BASE" "$LOGIN_PWD" || ext_fail=$?
+
+echo "=== Framework Generation pins (Phase D3) ==="
+  docker compose exec -T cronpilot bash -c \
+    'cd /opt/cronpilot && source scripts/lib/python.sh && cronpilot_load_runtime && \
+     "$CRONPILOT_VENV/bin/python" scripts/assert_framework_pins.py \
+       --python "$CRONPILOT_VENV/bin/python" \
+       --requirements /opt/cronpilot/requirements.txt' \
+    || ext_fail=$((ext_fail + 1))
 
 echo "=== gevent / gunicorn (container) ==="
   docker compose exec -T cronpilot bash -c 'cd /opt/cronpilot && source scripts/lib/python.sh && cronpilot_load_runtime && "$CRONPILOT_VENV/bin/python" -c "import gevent, gunicorn, apscheduler; print(gevent.__version__, gunicorn.__version__, apscheduler.__version__)"' || ext_fail=$((ext_fail + 1))

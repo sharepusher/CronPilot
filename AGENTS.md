@@ -38,6 +38,7 @@ bash scripts/verify_docker_compose.sh --keep-running   # docker compose 黄金�
 bash scripts/verify_all.sh               # 全量验收（含黄金路径）
 bash scripts/verify_all.sh --local-only
 bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒烟
+bash scripts/assert_framework_pins.sh   # Phase D3：断言 Framework pin 与 requirements.txt 一致
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```

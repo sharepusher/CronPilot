@@ -65,10 +65,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 附带：`cron_do` 在 `app_context` 内读取 `JobLog.id` 再返回，避免 SA 2.0 detach 后访问主键报错。
 - **未纳入本项**：Docker 全矩阵（Phase D3）；Tier 3b/3c 生产迁移校验；Flask 3。
 
-### 协作规范 · 设计先行与编号读法
+### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
 
-- 优化/功能开发：**完整设计（分批+验收）→ 用户确认 → 再实现**；见 `.cursor/rules/cronpilot-project.mdc`。
-- 编号规范：`doc/需求编号与缩写规范.html`（OPT / Tier / Phase / DEC 四轨；路线图须全称）。
+- 设计稿：[Phase D3 · Docker pin 矩阵](doc/PhaseD3-Docker-pin矩阵设计.html)。
+- **D3-1 ✓：** `scripts/assert_framework_pins.py` / `.sh` — 从 `requirements.txt` 解析 Framework pin，经 `pip show` 精确比对；本地 venv 8/8 通过。
+- **D3-2 脚本已挂入** `verify_docker_compose.sh`；**compose 实测暂缓**（2026-07-20：Docker 环境问题，用户确认先不验）。
+- **Phase D3 整体未交付**；恢复 Docker 后补跑 `--rebuild`，再做 D3-3（NOTICE + 路线图标已交付）。
 
 ---
 

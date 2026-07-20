@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · Phase D0 · Framework Generation 决策</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0f766e;--ok:#059669}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#134e4a,#0f766e 55%,#2dd4bf);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .ok-box{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .confirm{background:#f0fdfa;border:2px solid #5eead4;border-radius:8px;padding:1rem 1.1rem;font-size:.9rem;margin:1.5rem 0}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+    .flow{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.8rem;font-family:ui-monospace,monospace;white-space:pre-wrap;line-height:1.6}
+    .rec{color:var(--ok);font-weight:600}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#ccfbf1;font-size:.9rem">← 文档索引</a>
+  <span class="tag">依赖演进</span><span class="tag">Phase D0</span><span class="tag">已确认</span>
+  <h1>Phase D0 · Framework Generation 决策</h1>
+  <p>Python 3.9–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：Confirmed · 2026-07-20 · <strong>D1 pin bump 尚未开始</strong></p>
+</header>
+
+<main class="layout">
+
+  <div class="ok-box">
+    <strong>已确认包（2026-07-20）：</strong>
+    <ul style="margin:.35rem 0 0 1.1rem;padding:0">
+      <li><strong>A2</strong> — Python <strong>3.9–3.11</strong>（不支持 3.8；不默认 3.12+）</li>
+      <li><strong>B1</strong> — <strong>Flask 2.3.x</strong> + Werkzeug/Jinja/Click 对齐 + <strong>SQLAlchemy 2.0.x</strong> + <strong>Flask-SQLAlchemy 3.1.x</strong> + 匹配 Alembic/Flask-Migrate</li>
+      <li><strong>同窗 bump</strong> — Flask 链与 SA2/FSA3/Alembic 在同一 D1 依赖 PR（或紧密连续、不可单独合入的半升状态）</li>
+      <li><strong>§5.1 不做</strong> — 无 Flask-Login/WTF；无 3.12+；本窗不 bump gevent/gunicorn/APS 主版本</li>
+      <li>记入 <a href="依赖升级RFC.html">依赖升级 RFC</a> <strong>DEC-008</strong>；下一步为 <strong>D1 pin bump</strong>（另开）</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <strong>定位：</strong>Framework Generation 的<strong>决策闸门</strong>。前置 Phase A/B/C 已交付。本页确认后仍<strong>不自动改</strong> <code>requirements*.txt</code> 中的 Flask/SA pin——那是 <strong>D1</strong>。
+  </div>
+
+  <h2>一、Flask 2.3 与 Flask 3 的区别（为何选 B1）</h2>
+
+  <h3>1.1 版本线定位</h3>
+  <table>
+    <tr><th>维度</th><th>Flask 2.3.x（B1）</th><th>Flask 3.x / 3.1（B2）</th></tr>
+    <tr>
+      <td>相对本仓库</td>
+      <td>从 <strong>1.1.2</strong> 升到 2.3：一次「代际跳跃」，但官方仍维护 2.3 行为模型</td>
+      <td>再跨一层主版本：清理 2.3 已弃用 API + Werkzeug 3 硬依赖</td>
+    </tr>
+    <tr>
+      <td>Python</td>
+      <td>官方 ≥3.8；与本仓 <strong>3.9–3.11</strong> 完全兼容</td>
+      <td>3.0 仍可 3.8+；<strong>3.1 丢弃 3.8</strong>（本仓已弃 3.8，故 B2 技术可行）</td>
+    </tr>
+    <tr>
+      <td>Werkzeug</td>
+      <td>2.3.x 线</td>
+      <td><strong>≥3.0</strong>（与 Flask 3 强绑定；URL/路由/异常栈变化更多）</td>
+    </tr>
+    <tr>
+      <td>Jinja2 / Click / itsdangerous</td>
+      <td>3.1+ / 8.1+ / 2.1+（随 2.3 抬升）</td>
+      <td>继续抬升，与 Werkzeug 3 同生态</td>
+    </tr>
+    <tr>
+      <td>相对 1.1 的破坏面</td>
+      <td>已去掉：<code>FLASK_ENV</code>、<code>before_first_request</code>、旧 JSON 配置键、部分 <code>app.</code> 属性快捷方式等（2.3 已删）</td>
+      <td>在 2.3 基础上再删：<code>_app_ctx_stack</code> / <code>_request_ctx_stack</code>、<code>flask.escape</code>/<code>Markup</code> 再导出、<code>locked_cached_property</code>、<code>signals_available</code> 等</td>
+    </tr>
+    <tr>
+      <td>与 FSA 3.1</td>
+      <td>满足 <code>Flask≥2.2.5</code>，可配 SA 2</td>
+      <td>同样满足，但多一层 Flask/Werkzeug 回归</td>
+    </tr>
+    <tr>
+      <td>风险/工期</td>
+      <td class="rec">中（推荐首跳）</td>
+      <td>高（建议稳定运行 B1 后再评估）</td>
+    </tr>
+  </table>
+
+  <h3>1.2 对本仓库的实际含义</h3>
+  <ul>
+    <li>CronPilot 现为 <strong>Flask 1.1.2</strong>：无论 2.3 还是 3，都要过「去掉 1.x 废弃用法 + 会话/JSON/蓝图」回归。</li>
+    <li>自研 RBAC + signed cookie，不用 Flask-Login；表单不用 WTF——Flask 3 的「清理」对业务价值有限，却放大 Werkzeug 3 回归面。</li>
+    <li><strong>B1</strong> 已能解锁 FSA 3.1 + SA 2（本里程碑真正目标）；B2 不增加「能否升 ORM」能力，只增加代际成本。</li>
+  </ul>
+  <div class="warn">
+    安全说明：Flask 2.3.2+ 含会话 Cookie 相关修复；D1 锁定具体补丁版时应取 <strong>2.3 线最新安全补丁</strong>（实施时再 pin，本 D0 不写死小版本）。
+  </div>
+
+  <h2>二、「Flask 链与 SA2/FSA3/Alembic 同窗 bump」是什么意思</h2>
+
+  <h3>2.1 一句话</h3>
+  <p><strong>同窗 bump</strong> = 把互相硬依赖的一组包，在<strong>同一个可发布单元</strong>（通常一个依赖 PR / 一次发布候选）里一起升到兼容集合，中间状态不允许合入 <code>main</code> 或打生产 tag。</p>
+
+  <h3>2.2 为何不能拆开升</h3>
+  <table>
+    <tr><th>若只升…</th><th>结果</th></tr>
+    <tr>
+      <td>只升 SA 2，Flask 仍 1.1 + FSA 2.5</td>
+      <td>FSA 2.5 与 SA 2 组合脆弱；官方推荐路径断裂</td>
+    </tr>
+    <tr>
+      <td>只升 FSA 3.1，Flask 仍 1.1</td>
+      <td><strong>装不上/跑不起来</strong>：FSA 3.1 要求 Flask ≥ 2.2.5（DEC-007）</td>
+    </tr>
+    <tr>
+      <td>只升 Flask 2.3，SA/FSA 仍旧</td>
+      <td>可临时跑，但本里程碑目标（ORM 2.0）未达成；易长期停在「半代际」</td>
+    </tr>
+    <tr>
+      <td>升 SA2+FSA3，Alembic 仍锁 1.4.3</td>
+      <td>迁移工具与 SA 2 不匹配；<code>flask db</code> / 生产 upgrade 风险</td>
+    </tr>
+  </table>
+
+  <h3>2.3 「Flask 链」指哪些包</h3>
+  <pre>Flask 2.3.x
+  ├─ Werkzeug 2.3.x
+  ├─ Jinja2 3.1.x
+  ├─ Click 8.1.x
+  ├─ itsdangerous 2.x
+  ├─ MarkupSafe 2.x
+  └─ blinker（Flask 2.3+ 硬依赖）
+
+同窗一并：
+  SQLAlchemy 2.0.x
+  Flask-SQLAlchemy 3.1.x
+  alembic（匹配 SA 2 的版本）
+  Flask-Migrate（匹配 FSA3 / Flask2）</pre>
+
+  <h3>2.4 同窗的操作定义（D1 门禁）</h3>
+  <ul>
+    <li><strong>允许：</strong>一个 commit/PR 改 <code>requirements-core.txt</code> + <code>requirements.txt</code> 中上表全部 pin；或「Flask 链 PR」与「SA/FSA/Alembic PR」在同一天合并且中间 <code>main</code> 不发布。</li>
+    <li><strong>禁止：</strong>合并后 <code>main</code> 上出现「FSA 3 + Flask 1.1」或「SA 2 + alembic 1.4.3」等半升组合并持续 &gt;0 个发布点。</li>
+    <li><strong>验收：</strong>同窗 PR 必须一次性通过 <code>cronpilot.sh test</code> + <code>verify_all --local-only</code>；Docker 路径在 D3 补全。</li>
+    <li><strong>不在同窗：</strong>gevent / gunicorn / APS（已 Tier 2）；功能轨 OPT；<code>Mapped[]</code> 大批量（属 D2）。</li>
+  </ul>
+
+  <div class="flow">错误（半升）:
+  main ──► 只合 FSA3 ──► 炸 / 或装不上
+
+正确（同窗）:
+  main ──► [Flask2.3链 + SA2 + FSA3.1 + Alembic] 一次绿 ──► tag/发布候选</div>
+
+  <h2>三、决策记录（已确认）</h2>
+  <table>
+    <tr><th>项</th><th>选择</th><th>状态</th></tr>
+    <tr><td>Python</td><td>A2 · 3.9–3.11（弃 3.8）</td><td class="rec">已确认</td></tr>
+    <tr><td>框架线</td><td>B1 · Flask 2.3 + SA2 + FSA3.1</td><td class="rec">已确认</td></tr>
+    <tr><td>同窗 bump</td><td>是</td><td class="rec">已确认</td></tr>
+    <tr><td>§5.1 不做项</td><td>是</td><td class="rec">已确认</td></tr>
+    <tr><td>DEC</td><td>DEC-008</td><td class="rec">已写入 RFC</td></tr>
+    <tr><td>D1 pin</td><td>未开始</td><td>下一步</td></tr>
+  </table>
+
+  <h2>四、子阶段（确认后）</h2>
+  <div class="flow">D0 ✓ 决策（本页）
+  → D1 pin bump（Flask2.3 链 + SA2 + FSA3.1 + Alembic 同窗）
+  → D2 Mapped[] 分批
+  → D3 全矩阵 / Docker / NOTICE
+  → Tier 3b/3c 生产迁移校验</div>
+
+  <h2>五、验收契约（D1+）</h2>
+  <table>
+    <tr><th>#</th><th>门禁</th></tr>
+    <tr><td>1</td><td><code>cronpilot.sh test</code>（含 AST / Phase B views 门禁）</td></tr>
+    <tr><td>2</td><td><code>verify_all.sh --local-only</code></td></tr>
+    <tr><td>3</td><td>CI Unit tests 矩阵 <strong>3.9–3.11</strong></td></tr>
+    <tr><td>4</td><td>Docker compose 路径 + <code>pip show</code> 断言 pin（D3）</td></tr>
+    <tr><td>5</td><td>登录 / Ajax / 任务中心 / JobStore / 双库回归</td></tr>
+    <tr><td>6</td><td>文档 + <code>THIRD_PARTY_NOTICES</code> + <code>html_docs_to_markdown.py --check</code></td></tr>
+  </table>
+
+  <p>
+    <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
+    <a href="交付状态与路线图.html">交付状态与路线图</a> ·
+    <a href="index.html">文档索引</a>
+  </p>
+</main>
+<footer>CronPilot · Phase D0 Framework Generation 决策 · 已确认 2026-07-20 · <a href="PhaseD0-Framework-Generation决策.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

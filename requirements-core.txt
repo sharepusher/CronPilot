@@ -1,5 +1,6 @@
-# 本地开发 / 单元测试核心依赖（Python 3.8–3.11，不含 gevent）
+# 本地开发 / 单元测试核心依赖（Python 3.9–3.11，不含 gevent；DEC-008）
 # 生产 Gunicorn + gevent 请用 requirements.txt
+# 注：Flask/SA pin 仍为 1.1 / 1.4，待 Phase D1 同窗 bump
 Flask==1.1.2
 Flask-SQLAlchemy==2.5.1
 Flask-Migrate==2.5.3

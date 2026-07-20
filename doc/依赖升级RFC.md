@@ -16,7 +16,7 @@ RFC依赖运维P2
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Phase A / B / C 已落地** → **Tier 3a pin**（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
+下一依赖动作：**Phase D0 已确认（DEC-008）** → **D1 pin bump**（Flask 2.3 链 + SA 2 + FSA 3.1 + Alembic 同窗）→ D2 Mapped → D3 矩阵。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -323,7 +323,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase B Repo ✓] → [Phase C AST ✓] → [Tier 3a pin + Tier 4 Flask 2]
+                      [Phase A/B/C ✓] → [Phase D0 DEC-008 ✓] → [D1 Flask2.3+SA2+FSA3 同窗] → [D2 Mapped] → [D3 矩阵]
 ```
 
 ## 十、决策记录
@@ -337,6 +337,7 @@ RBAC 插入点（推荐）:
 | DEC-005 | RBAC 允许 `ensure_rbac_tables` 作 Tier 0 未完成时的退化 | 与 RBAC v2 详设一致 | 2026-06 |
 | DEC-006 | 2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+ | 架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解 | 2026-07-17 |
 | DEC-007 | Phase A 与 Tier 3a **pin bump 解耦**：Query Contract + 分页硬门可在 SA 1.4 下交付；SA 2 / FSA 3 pin 须等 Flask 2 前提，并入 Framework Generation | FSA 3.x 硬依赖 Flask ≥ 2.2.5；避免无 Flask 2 的半升状态 | 2026-07-20 |
+| DEC-008 | Phase D0 确认：Python **3.9–3.11**（弃 3.8）；目标线 **Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic** **同窗 bump**（B1）；不做 Flask 3 首跳、不做 Login/WTF、不默认 3.12+、本窗不 bump gevent 主版本。详见 [D0 决策](PhaseD0-Framework-Generation决策.html) | FSA3 须 Flask≥2.2.5；Flask 3 首跳面过大；弃 3.8 简化矩阵并为将来 Flask 3 留空间 | 2026-07-20 |
 
 ## 十一、参考
 

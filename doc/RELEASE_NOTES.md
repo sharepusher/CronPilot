@@ -58,6 +58,12 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - 门禁：`tests.test_repositories_phase_b`；AST L3 收窄为仅拦 `Query.paginate`（允许 Repo.`paginate`）。
 - **未纳入：**写路径全面迁 Repo；pin bump（Phase D）。
 
+### Phase D0 · Framework Generation 决策（OPT-P2-11）
+
+- **DEC-008：**Python 支持 **3.9–3.11**（弃 3.8）；目标线 **Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic** **同窗 bump**（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。
+- 设计稿：[Phase D0 · Framework Generation 决策](PhaseD0-Framework-Generation决策.html)。
+- **未纳入：**D1 实际 pin 变更（Flask/SA 仍为 1.1 / 1.4）。
+
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期
 
 任务中心规模化 IA、触发请求支持 POST JSON Body、强制改密与用户启停缘由等。升级须跑 `ensure_business_tables`（**SQLite / MySQL** 补列）并**重启**。

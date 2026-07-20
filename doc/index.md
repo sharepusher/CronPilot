@@ -43,6 +43,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| Phase D0 · Framework Generation 决策 | DEC-008 · Py 3.9–3.11 · Flask 2.3 + SA2/FSA3 同窗 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
 | Phase C · ORM Legacy AST 门禁 | AST 禁止 Legacy ORM 回潮 · CI · Unreleased | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
 | 管理端 UI 优化（A′+B1） | 执行记录交互 · v0.2.0 | [HTML](管理端UI优化设计.html) | [MD](管理端UI优化设计.md) |
 | P1 可观测 OPT-P1-01/02 | status / 失败规则 · v0.2.0 | [HTML](P1可观测优化设计.html) | [MD](P1可观测优化设计.md) |
@@ -59,8 +60,9 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
-| **依赖升级 RFC** | Tier 0–2 已交付 · Phase A/B/C ✓ · Tier 3a pin / Tier 4 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
+| **依赖升级 RFC** | Tier 0–2 · Phase A/B/C · D0 DEC-008 ✓ · D1 pin 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
 | ↳ Phase C · AST 门禁 | 已交付 | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
+| ↳ Phase D0 · 框架代际决策 | 已确认 DEC-008 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
 
 ## ⑦ 部署与运维
 

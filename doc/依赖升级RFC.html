@@ -53,7 +53,7 @@
   <div class="ok-box" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0">
     <strong>2026-07-17 架构与版本复审：</strong>当前 <strong>v2.0.0</strong> 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
     <strong>Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11</strong> 仍成立，<strong>无需紧急跳级</strong>升级 Flask 2 / SA 2 / Python 3.12+。
-    下一依赖动作：<strong>Phase A（Query Contract / 分页硬门）已落地</strong> → <strong>Phase B</strong>（薄 BaseRepository）→ <strong>Phase C</strong>（AST Legacy 门禁）→ <strong>Tier 3a pin</strong>（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
+    下一依赖动作：<strong>Phase A / Phase C 已落地</strong> → <strong>Phase B</strong>（薄 BaseRepository，可选）→ <strong>Tier 3a pin</strong>（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
   </div>
 
   <div class="warn">
@@ -387,7 +387,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase B Repo] → [Phase C AST] → [Tier 3a pin + Tier 4 Flask 2]
+                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase C AST ✓] → [Phase B Repo] → [Tier 3a pin + Tier 4 Flask 2]
   </pre>
 
   <h2>十、决策记录</h2>

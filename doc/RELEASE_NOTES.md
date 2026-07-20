@@ -44,6 +44,13 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - 单测：`tests.test_pagination`（13 例）；全量 `cronpilot.sh test` + `verify_all.sh --local-only` 通过。
 - **未纳入：**pin bump（SA 2 / FSA 3）、`BaseRepository`（Phase B）、AST Legacy 门禁（Phase C）。见 DEC-007。
 
+### Phase C · ORM Legacy AST 门禁（OPT-P2-11）
+
+- 新增 `tests/test_orm_legacy_guard.py`：AST 扫描 `app/**/*.py`，禁止 L1 `Model.query`、L2 `session.query`、L3 `.paginate`（允许 `paginate_select`）；Allowlist 空。
+- 挂载：`scripts/cronpilot.sh test`；CI `unit-tests.yml` 追加本 guard 与 `tests.test_ajax_form_guard`（C-CI-A）。
+- 设计稿：[Phase C · ORM Legacy AST 门禁](PhaseC-ORM-Legacy-AST门禁设计.html)。
+- **未纳入：**C-CI-B（CI 全量 `cronpilot.sh test`）、Phase B Repo、Phase D pin bump。
+
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期
 
 任务中心规模化 IA、触发请求支持 POST JSON Body、强制改密与用户启停缘由等。升级须跑 `ensure_business_tables`（**SQLite / MySQL** 补列）并**重启**。

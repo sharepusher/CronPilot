@@ -52,6 +52,6 @@ jobs:
       - name: Prepare conf.ini (SQLite, no external DB)
         run: cp conf.ci.ini conf.ini
 
-      - name: Run P0 and sign unit tests
+      - name: Run P0, sign, and static guards
         run: |
-          python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
+          python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign tests.test_ajax_form_guard tests.test_orm_legacy_guard -v

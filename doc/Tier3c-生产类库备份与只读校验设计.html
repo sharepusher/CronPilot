@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · Tier 3c · 生产类库备份与只读校验设计</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#b45309;--ok:#059669}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#78350f,#b45309 55%,#fbbf24);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.86rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .confirm{background:#fff7ed;border:2px solid #fdba74;border-radius:8px;padding:1rem 1.1rem;font-size:.9rem;margin:1.5rem 0}
+    .ok-box{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#ffedd5;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P2-11</span><span class="tag">Tier 3c</span><span class="tag">设计待确认</span>
+  <h1>Tier 3c · 生产类库备份与只读校验</h1>
+  <p>双库（JobStore + 业务）在 SA 2.0 栈上经 ensure 后的可运维证明</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：设计待确认 · 2026-07-20 · 前置 Tier 3b-A ✓ · 不依赖 Phase D3 compose</p>
+</header>
+
+<main class="layout">
+
+  <div class="confirm">
+    <strong>请确认后再实现。</strong>本页为架构轨 <strong>OPT-P2-11 · Tier 3c</strong>。
+    编号见 <a href="需求编号与缩写规范.html">需求编号与缩写规范</a>。
+    确认前<strong>不</strong>写校验脚本、不改生产入口、不宣称 Tier 3c 已交付。
+  </div>
+
+  <div class="note">
+    <strong>定位：</strong>RFC 原文「生产库备份 → upgrade/ensure → JobStore / job_log 只读校验」。
+    结合 Tier 3b-A 契约：业务 schema 主路径是 <code>ensure_business_tables</code>，
+    <strong>不是</strong> <code>flask db upgrade</code>（仓库无强制 Alembic 树）。
+    <strong>不做功能 OPT</strong>；可与 Phase D3（Docker pin）并行排期。
+  </div>
+
+  <h2>一、问题 / 根因 / 方案</h2>
+  <table>
+    <tr><th>项</th><th>内容</th></tr>
+    <tr>
+      <td>问题</td>
+      <td>Tier 3b 已证明<strong>空库</strong> ensure 可重放；尚未证明：带历史数据的<strong>双库</strong>
+      （<code>cron_db_url</code> JobStore + <code>cron_job_log_db_url</code> 业务）在 SA 2.0 / Flask 2.3 栈上
+      跑 ensure 后，调度元数据与执行日志仍可读、schema 关键。</td>
+    </tr>
+    <tr>
+      <td>根因</td>
+      <td>空库测试不覆盖旧列/旧行；直连生产 DDL 风险高；双库边界易在「升级脚本」里被混为一谈；
+      RFC 写的「upgrade」易被误读成 Alembic。</td>
+    </tr>
+    <tr>
+      <td>方案（推荐）</td>
+      <td><strong>3c-A · 夹具/类生产副本路径</strong>：先备份 → 在<strong>副本</strong>上跑 ensure →
+      JobStore / 业务表<strong>只读断言</strong> →（可选）短时进程冒烟。真实生产仅提供运维清单，默认不自动触达。</td>
+    </tr>
+  </table>
+
+  <div class="warn">
+    <strong>双库事实：</strong>
+    JobStore = <code>cron_db_url</code> → <code>apscheduler_jobs</code>（<code>scheduler_db.fetch_apscheduler_job_ids</code>）；
+    业务 = <code>cron_job_log_db_url</code> → <code>cron_infos</code> / <code>job_log</code> / RBAC 等（ensure 只动业务库）。
+    ensure <strong>不</strong>改 JobStore 表结构；3c 对 JobStore 仅做连通与只读 SELECT。
+  </div>
+
+  <h2>二、范围</h2>
+  <table>
+    <tr><th>做</th><th>不做</th></tr>
+    <tr>
+      <td>
+        <ul style="margin:0;padding-left:1.1rem">
+          <li>备份清单（SQLite 文件拷贝 / MySQL <code>mysqldump</code> 要点）</li>
+          <li>夹具目录约定（如 <code>datas/_tier3c_fixture/</code>，gitignore）</li>
+          <li>脚本：指向副本 conf → <code>ensure_business_tables</code> → 只读校验</li>
+          <li>断言：业务关键表/列存在；<code>job_log</code> COUNT 可执行；JobStore <code>SELECT id</code> 可执行</li>
+          <li>RELEASE / 路线图 / RFC 在<strong>实现通过后</strong>标 Tier 3c</li>
+        </ul>
+      </td>
+      <td>
+        <ul style="margin:0;padding-left:1.1rem">
+          <li>默认对<strong>线上生产</strong>自动 DDL / 自动备份上传</li>
+          <li>引入 Alembic revision 树（属 3b-B）</li>
+          <li>Phase D3 compose / Flask 3 / 默认 Py 3.12+</li>
+          <li>OPT-P1-* 功能；改双库边界或合并库</li>
+          <li>破坏性写校验（删任务、改 job_state）</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+
+  <h2>三、推荐方案 vs 备选</h2>
+  <table>
+    <tr><th></th><th>推荐 · 3c-A（夹具/副本）</th><th>备选 · 3c-B（真实生产窗口）</th></tr>
+    <tr>
+      <td>做法</td>
+      <td>从本地/试用/脱敏 dump 复制双库 → 临时 conf → ensure → 只读脚本</td>
+      <td>运维窗口：备份 → 停服 → ensure → 只读核对 → 启服；脚本仅 checklist</td>
+    </tr>
+    <tr>
+      <td>风险</td>
+      <td>低；可进 CI/本地重复跑</td>
+      <td>高；须人工确认目标 URI，禁止默认 conf 指向生产</td>
+    </tr>
+    <tr>
+      <td>与 3b 关系</td>
+      <td>3b=空库；3c=有数据副本</td>
+      <td>同左，但目标库是真生产</td>
+    </tr>
+    <tr>
+      <td>本窗建议</td>
+      <td><strong>采用</strong></td>
+      <td>文档附录即可；实现须另确认</td>
+    </tr>
+  </table>
+
+  <h2>四、分批与验收（确认后按批落地）</h2>
+  <table>
+    <tr><th>批</th><th>内容</th><th>验收</th></tr>
+    <tr>
+      <td><strong>3c-1</strong></td>
+      <td>运维清单写入本设计附录 + 非 Docker 部署指南短节（备份命令、禁止事项）。</td>
+      <td>文档可读；无代码。</td>
+    </tr>
+    <tr>
+      <td><strong>3c-2</strong></td>
+      <td><code>scripts/verify_tier3c_fixture.sh</code>（或 py）：复制/挂载夹具双库、写临时 conf、跑 ensure。</td>
+      <td>对仓库内样例或 CI 生成夹具 exit 0；不碰用户真实 <code>datas/*.sqlite</code>（除非显式参数）。</td>
+    </tr>
+    <tr>
+      <td><strong>3c-3</strong></td>
+      <td>只读校验：inspect 业务列；<code>fetch_apscheduler_job_ids</code>；业务 <code>SELECT COUNT(*)</code> on <code>job_log</code>/<code>cron_infos</code>。</td>
+      <td>单测或脚本断言；故意缺列夹具应失败。</td>
+    </tr>
+    <tr>
+      <td><strong>3c-4</strong></td>
+      <td>RELEASE / 交付状态 / RFC 标 Tier 3c（3c-A）已交付；<code>html_docs_to_markdown.py --check</code>。</td>
+      <td>与脚本同一轮；不把 D3/3b-B 偷标完成。</td>
+    </tr>
+  </table>
+
+  <h3>建议夹具最小内容</h3>
+  <ul>
+    <li>业务库：至少 1 行 <code>cron_infos</code>、若干 <code>job_log</code>（可从 golden path 或本地脱敏拷贝生成）。</li>
+    <li>JobStore：允许空表；若有行则 id 集合可读即可。</li>
+    <li>故意缺列夹具（负例）：去掉 <code>req_method</code> 等，ensure 后应变齐。</li>
+  </ul>
+
+  <h2>五、验收标准（整窗）</h2>
+  <table>
+    <tr><th>#</th><th>标准</th></tr>
+    <tr><td>1</td><td>文档明确：3c 默认跑<strong>副本</strong>；生产须显式确认 + 备份</td></tr>
+    <tr><td>2</td><td>ensure 只针对业务 URI；JobStore 只读</td></tr>
+    <tr><td>3</td><td>夹具路径可重复：ensure 幂等 + 只读断言绿</td></tr>
+    <tr><td>4</td><td><code>cronpilot.sh test</code> 仍绿；不引入对生产 URI 的硬编码</td></tr>
+  </table>
+
+  <h2>六、与 Tier 3b / Phase D3 的关系</h2>
+  <pre>Tier 3b-A ✓  空库 ensure 重放
+Tier 3c（本页）有数据副本 + 双库只读
+Phase D3      Docker pin（compose 暂缓，另轨）</pre>
+
+  <h2>七、附录 · 备份要点（实现时可落部署指南）</h2>
+  <table>
+    <tr><th>方言</th><th>建议</th></tr>
+    <tr>
+      <td>SQLite</td>
+      <td>停写或短停服后拷贝 <code>*.sqlite</code>；或 <code>sqlite3 file ".backup 'copy.sqlite'"</code>。
+      业务与 JobStore <strong>两个文件分别</strong>备份。</td>
+    </tr>
+    <tr>
+      <td>MySQL</td>
+      <td><code>mysqldump</code> 分库（scheduler / job_log）；保留例程/触发器按需。
+      恢复到<strong>非生产</strong>实例再跑 ensure 验收。</td>
+    </tr>
+  </table>
+
+  <div class="warn">
+    <strong>确认方式：</strong>请回复「按 Tier 3c 设计（3c-A）执行」或「改用 3c-B 生产窗口」或列出修改点。
+    未确认前不实现脚本。
+  </div>
+
+  <p>
+    <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b</a> ·
+    <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
+    <a href="PhaseD3-Docker-pin矩阵设计.html">Phase D3</a> ·
+    <a href="交付状态与路线图.html">交付状态</a> ·
+    <a href="需求编号与缩写规范.html">编号规范</a>
+  </p>
+</main>
+<footer>CronPilot · Tier 3c 设计 · 待确认 2026-07-20 · <a href="index.html">索引</a> · <a href="Tier3c-生产类库备份与只读校验设计.md">Markdown</a></footer>
+</body>
+</html>

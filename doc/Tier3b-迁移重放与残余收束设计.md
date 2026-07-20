@@ -82,7 +82,7 @@ Tier 3c —— 备份真实/类生产库 → upgrade/ensure → JobStore 只读�
 [交付状态](交付状态与路线图.html) ·
 [编号规范](需求编号与缩写规范.html)
 
-CronPilot · Tier 3b 设计 · 待确认 2026-07-20 · [索引](index.html)
+CronPilot · Tier 3b 设计 · 待确认 2026-07-20 · [索引](index.html) · [Markdown](Tier3b-迁移重放与残余收束设计.md) · [索引](index.html)
 
 ---
 

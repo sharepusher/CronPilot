@@ -54,7 +54,21 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - **同窗 pin（DEC-008 / B1）：** `Flask==2.3.3`、`Werkzeug==2.3.8`、`Jinja2==3.1.6`、`click==8.1.8`、`itsdangerous==2.2.0`、`MarkupSafe==2.1.5`、`blinker==1.8.2`、`SQLAlchemy==2.0.36`、`Flask-SQLAlchemy==3.1.1`、`Flask-Migrate==4.0.7`、`alembic==1.14.1`；`Flask-APScheduler==1.13.1`（适配 Flask 2.3）。
 - 配置：移除已删除的 `JSON_AS_ASCII` / `JSONIFY_PRETTYPRINT_REGULAR`；`SQLALCHEMY_ENGINE_OPTIONS` 改为池选项（SA 2.0）。
 - 验收：`cronpilot.sh test`（198）+ `verify_all.sh --local-only`；D0 表述澄清：Flask **3.0** 仍支持 Py3.8，仅 **3.1+** 丢 3.8；Python 口径统一为 **3.8–3.11**（CI matrix 含 3.8）。
-- **未纳入本项**：`Mapped[]` 分批（D2）；Docker 全矩阵断言（D3）；gevent/gunicorn/APS 主版本；Flask 3。
+- **未纳入本项**：`Mapped[]` 分批（D2，见下节）；Docker 全矩阵断言（D3）；gevent/gunicorn/APS 主版本；Flask 3。
+
+### Phase D2 · Mapped[] 模型迁移（OPT-P2-11）
+
+- `datas/model/` 九表改为 `Mapped[...]` + `mapped_column`（仍继承 `db.Model`）；不改表结构 / API / UI。
+- 门禁：`tests/test_mapped_model_guard.py`；挂 `cronpilot.sh test` 与 CI `unit-tests.yml`。
+- 设计稿：[Phase D2 · Mapped 模型迁移](doc/PhaseD2-Mapped模型迁移.html)。
+- 验收：`cronpilot.sh test`（199）+ `verify_all.sh --local-only` 4/4。
+- 附带：`cron_do` 在 `app_context` 内读取 `JobLog.id` 再返回，避免 SA 2.0 detach 后访问主键报错。
+- **未纳入本项**：Docker 全矩阵（Phase D3）；Tier 3b/3c 生产迁移校验；Flask 3。
+
+### 协作规范 · 设计先行与编号读法
+
+- 优化/功能开发：**完整设计（分批+验收）→ 用户确认 → 再实现**；见 `.cursor/rules/cronpilot-project.mdc`。
+- 编号规范：`doc/需求编号与缩写规范.html`（OPT / Tier / Phase / DEC 四轨；路线图须全称）。
 
 ---
 

@@ -12,6 +12,7 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **交付状态与路线图（权威）** | 已交付 vs 待确认 vs 未开始 · 发行版 **v2.0.0** | [HTML](交付状态与路线图.html) | [MD](交付状态与路线图.md) |
+| **需求编号与缩写规范（权威）** | OPT / Tier / Phase / DEC 四轨读法 | [HTML](需求编号与缩写规范.html) | [MD](需求编号与缩写规范.md) |
 | **Release Notes** | 版本变更日志（含 v2.0.0 / v1.2.0 / v1.1.0 / v1.0.0） | [HTML](RELEASE_NOTES.html) | [doc MD](RELEASE_NOTES.md) · [仓库根](../RELEASE_NOTES.md) |
 | 项目总览与技术文档 | 定位、架构图、模块导航（推荐首读） | [HTML](项目总览与技术文档.html) | [MD](项目总览与技术文档.md) |
 | 仓库拆分与 Git 方案 | 独立仓库与发布说明 | [HTML](新建项目与分支合并方案.html) | [MD](新建项目与分支合并方案.md) |
@@ -43,6 +44,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| Phase D2 · Mapped 模型迁移 | datas/model 九表 Mapped[] · test_mapped_model_guard · Unreleased | [HTML](PhaseD2-Mapped模型迁移.html) | [MD](PhaseD2-Mapped模型迁移.md) |
 | Phase D0 · Framework Generation 决策 | DEC-008 · Py 3.8–3.11 · Flask 2.3 + SA2/FSA3 同窗 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
 | Phase C · ORM Legacy AST 门禁 | AST 禁止 Legacy ORM 回潮 · CI · Unreleased | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
 | 管理端 UI 优化（A′+B1） | 执行记录交互 · v0.2.0 | [HTML](管理端UI优化设计.html) | [MD](管理端UI优化设计.md) |
@@ -63,6 +65,7 @@
 | **依赖升级 RFC** | Tier 0–2 · Phase A/B/C · D0 DEC-008 ✓ · D1 pin 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
 | ↳ Phase C · AST 门禁 | 已交付 | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
 | ↳ Phase D0 · 框架代际决策 | 已确认 DEC-008 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
+| ↳ Phase D2 · Mapped[] | 已交付 | [HTML](PhaseD2-Mapped模型迁移.html) | [MD](PhaseD2-Mapped模型迁移.md) |
 
 ## ⑦ 部署与运维
 

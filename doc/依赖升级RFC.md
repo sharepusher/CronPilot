@@ -11,12 +11,12 @@ RFC依赖运维P2
 
 状态：Draft v1.1 · 2026-06 · 按「耦合从弱到强」重排 Tier；SA 1.4 渐进策略
 
-**定位：**本文是**决策与排期**文档，不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier 须单独 PR、`RELEASE_NOTES` 条目与回归清单。  
-**已交付版本：**Tier 0–2 见 **v0.2.0**；**Tier 3 前置**（去 `records`）见 [交付状态与路线图](交付状态与路线图.html) / [RELEASE\_NOTES [Unreleased]](../RELEASE_NOTES.md)。
+**定位：**本文是**决策与排期**文档，归属需求编号 **OPT-P2-11**（依赖升级）。不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier / Phase 须单独确认设计、`RELEASE_NOTES` 与回归清单。编号读法见 [需求编号与缩写规范](需求编号与缩写规范.html)。  
+**已交付版本：**Tier 0–2 见 **v0.2.0**；**Tier 3 前置**（去 `records`）及 Phase D0–D2 见 [交付状态与路线图](交付状态与路线图.html) / [RELEASE\_NOTES [Unreleased]](../RELEASE_NOTES.md)。
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Phase D1 pin 已落地**（Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1）→ **D2 Mapped[]** → **D3** Docker 矩阵 → Tier 3b/3c 生产校验。
+下一依赖动作：**Phase D2 Mapped[] 已落地** → **Phase D3（OPT-P2-11 · Docker 矩阵）** → Tier 3b/3c 生产校验。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -192,6 +192,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | 前置 | `records` → ORM / `text()`（调度热路径） | ✓ 已交付 |
 | **3a 前置 · Phase A** | **Query Contract**（`app/services/pagination.py`）：`PageQuery` / `PaginationResult` / `paginate_select`。 改写全部管理端列表 `db.session.query(...).paginate()` 与列表路径 `session.query`：  - `app/main/views.py`：任务中心、job\_log、operation\_log（7 处） - `app/rbac/views.py`：用户列表、审计日志（2 处）  模板 `admin_page.html` 零改动；**不 bump pin**。 | ✓ 已交付（2026-07-20） |
 | **3a · pin bump** | 已落地（2026-07-20 / Phase D1）：`SQLAlchemy==2.0.36` + `Flask-SQLAlchemy==3.1.1` + `alembic==1.14.1` + `Flask-Migrate==4.0.7`， 与 **Flask 2.3.3** 链同窗（DEC-008 B1）。 | ✓ 已交付 |
+| **D2 · Mapped[]** | 已落地（2026-07-20）：`datas/model` 九表 `Mapped`/`mapped_column`； `test_mapped_model_guard`。见 [D2](PhaseD2-Mapped模型迁移.html)。 | ✓ 已交付 |
 | 3b | 迁移脚本重放验证；残余 SA 1.4 兼容写法收束 | 未开始 |
 | 3c | 生产库备份 → upgrade → JobStore / `job_log` 只读校验 | 未开始 |
 
@@ -323,7 +324,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Phase A/B/C ✓] → [Phase D0 DEC-008 ✓] → [D1 Flask2.3+SA2+FSA3 同窗] → [D2 Mapped] → [D3 矩阵]
+                      [Phase A/B/C ✓] → [Phase D0 DEC-008 ✓] → [D1 Flask2.3+SA2+FSA3 同窗 ✓] → [D2 Mapped ✓] → [D3 矩阵]
 ```
 
 ## 十、决策记录

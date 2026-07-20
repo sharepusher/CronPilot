@@ -17,9 +17,9 @@ Python 3.8–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 - **B1** — **Flask 2.3.x** + Werkzeug/Jinja/Click 对齐 + **SQLAlchemy 2.0.x** + **Flask-SQLAlchemy 3.1.x** + 匹配 Alembic/Flask-Migrate
 - **同窗 bump** — Flask 链与 SA2/FSA3/Alembic 在同一 D1 依赖 PR（或紧密连续、不可单独合入的半升状态）
 - **§5.1 不做** — 无 Flask-Login/WTF；无 3.12+；本窗不 bump gevent/gunicorn/APS 主版本
-- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；**D1 pin 已落地**；下一步 **D2 Mapped[]** / **D3**
+- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；**Phase D1 / D2 已落地**；下一步 **Phase D3（OPT-P2-11）**
 
-**定位：**Framework Generation 的**决策闸门**。前置 Phase A/B/C 已交付。本页确认后仍**不自动改** `requirements*.txt` 中的 Flask/SA pin——那是 **D1**。
+**定位：**本页属 **OPT-P2-11** 下 Framework Generation 的**决策闸门**（Phase D0）。编号读法见 [需求编号与缩写规范](需求编号与缩写规范.html)。前置 Phase A/B/C 已交付。本页确认后仍**不自动改** `requirements*.txt` 中的 Flask/SA pin——那是 **Phase D1**。
 
 ## 一、Flask 2.3 与 Flask 3 的区别（为何选 B1）
 
@@ -102,8 +102,8 @@ main ──► [Flask2.3链 + SA2 + FSA3.1 + Alembic] 一次绿 ──► tag/�
 ## 四、子阶段（确认后）
 
 D0 ✓ 决策（本页）
-→ D1 pin bump（Flask2.3 链 + SA2 + FSA3.1 + Alembic 同窗）
-→ D2 Mapped[] 分批
+→ D1 pin bump ✓
+→ D2 Mapped[] ✓
 → D3 全矩阵 / Docker / NOTICE
 → Tier 3b/3c 生产迁移校验
 

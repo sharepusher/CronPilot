@@ -282,7 +282,8 @@ def cron_do(cron_id):
                 'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
             )
 
-    return saved_jl.id if saved_jl else None
+        # SA 2.0：离开 app_context 后实例可能 detach，须在块内取主键
+        return saved_jl.id if saved_jl else None
 
 @single_task()
 def cron_check():

@@ -26,7 +26,7 @@
 
 ```bash
 sudo bash scripts/install_linux.sh --production   # Linux 裸机
-bash scripts/cronpilot.sh start --daemon   # 自动匹配 Python 3.9–3.11
+bash scripts/cronpilot.sh start --daemon   # 自动匹配 Python 3.8–3.11
 bash scripts/cronpilot.sh restart --daemon # 改代码/模板后必跑（先停后启，默认 --force）
 bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test

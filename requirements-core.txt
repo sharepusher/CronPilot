@@ -1,4 +1,4 @@
-# 本地开发 / 单元测试核心依赖（Python 3.9–3.11，不含 gevent；DEC-008 / Phase D1）
+# 本地开发 / 单元测试核心依赖（Python 3.8–3.11，不含 gevent；DEC-008 / Phase D1）
 # 生产 Gunicorn + gevent 请用 requirements.txt
 # Framework Generation D1：Flask 2.3 链 + SA 2.0 + FSA 3.1 + Alembic 同窗
 Flask==2.3.3

@@ -400,7 +400,7 @@ RBAC 插入点（推荐）:
     <tr><td>DEC-005</td><td>RBAC 允许 <code>ensure_rbac_tables</code> 作 Tier 0 未完成时的退化</td><td>与 RBAC v2 详设一致</td><td>2026-06</td></tr>
     <tr><td>DEC-006</td><td>2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+</td><td>架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解</td><td>2026-07-17</td></tr>
     <tr><td>DEC-007</td><td>Phase A 与 Tier 3a <strong>pin bump 解耦</strong>：Query Contract + 分页硬门可在 SA 1.4 下交付；SA 2 / FSA 3 pin 须等 Flask 2 前提，并入 Framework Generation</td><td>FSA 3.x 硬依赖 Flask ≥ 2.2.5；避免无 Flask 2 的半升状态</td><td>2026-07-20</td></tr>
-    <tr><td>DEC-008</td><td>Phase D0 确认：Python <strong>3.9–3.11</strong>（弃 3.8）；目标线 <strong>Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）。选 B1 因回归面可控且已满足 FSA3；<strong>非</strong>因「Flask 3 不支持 3.8」（Flask 3.0 仍支持 3.8；仅 3.1+ 丢 3.8）。不做 Flask 3 首跳、Login/WTF、默认 3.12+。详见 <a href="PhaseD0-Framework-Generation决策.html">D0 决策</a></td><td>FSA3 须 Flask≥2.2.5；Flask 3 首跳叠加 Werkzeug 3 成本高；弃 3.8 简化矩阵</td><td>2026-07-20</td></tr>
+    <tr><td>DEC-008</td><td>Phase D0 确认：Python <strong>3.8–3.11</strong>（A1；与安装脚本一致）；目标线 <strong>Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）。选 B1 因回归面可控且已满足 FSA3；<strong>非</strong>因「Flask 3 不支持 3.8」（Flask 3.0 仍支持 3.8；仅 3.1+ 丢 3.8）。不做 Flask 3 首跳、Login/WTF、默认 3.12+。修订：撤回曾记的「弃 3.8」。详见 <a href="PhaseD0-Framework-Generation决策.html">D0 决策</a></td><td>FSA3 须 Flask≥2.2.5；Flask 3 首跳叠加 Werkzeug 3 成本高；D1 pin 均 ≥3.8</td><td>2026-07-20</td></tr>
   </table>
 
   <h2>十一、参考</h2>

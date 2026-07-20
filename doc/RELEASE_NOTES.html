@@ -86,15 +86,16 @@
     </ul>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D0 · Framework Generation 决策（OPT-P2-11）</h3>
     <ul>
-      <li><strong>DEC-008：</strong>Python 支持 <strong>3.9–3.11</strong>（弃 3.8）；目标线 <strong>Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。</li>
+      <li><strong>DEC-008：</strong>Python 支持 <strong>3.8–3.11</strong>（与安装脚本一致；不默认 3.12+）；目标线 <strong>Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic</strong> <strong>同窗 bump</strong>（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。</li>
       <li>设计稿：<a href="PhaseD0-Framework-Generation决策.html">Phase D0 · Framework Generation 决策</a>。</li>
-      <li><strong>未纳入：</strong>D1 实际 pin 变更（Flask/SA 仍为 1.1 / 1.4）。</li>
+      <li><strong>修订（2026-07-20）：</strong>曾短暂记为「弃 3.8 / 3.9–3.11」；因 D1 pin 均兼容 ≥3.8，改回 <strong>A1 · 3.8–3.11</strong>。</li>
+      <li><strong>未纳入：</strong>D1 实际 pin 变更（见下节 Phase D1）。</li>
     </ul>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D1 · Framework Generation pin bump（OPT-P2-11）</h3>
     <ul>
       <li><strong>同窗 pin（DEC-008 / B1）：</strong><code>Flask==2.3.3</code>、<code>Werkzeug==2.3.8</code>、<code>Jinja2==3.1.6</code>、<code>click==8.1.8</code>、<code>itsdangerous==2.2.0</code>、<code>MarkupSafe==2.1.5</code>、<code>blinker==1.8.2</code>、<code>SQLAlchemy==2.0.36</code>、<code>Flask-SQLAlchemy==3.1.1</code>、<code>Flask-Migrate==4.0.7</code>、<code>alembic==1.14.1</code>；<code>Flask-APScheduler==1.13.1</code>。</li>
       <li>配置：移除已删除的 JSON 配置键；<code>SQLALCHEMY_ENGINE_OPTIONS</code> 改为池选项（SA 2.0）。</li>
-      <li>验收：<code>cronpilot.sh test</code>（198）+ <code>verify_all.sh --local-only</code>；澄清 Flask <strong>3.0</strong> 仍支持 Py3.8，仅 <strong>3.1+</strong> 丢 3.8。</li>
+      <li>验收：<code>cronpilot.sh test</code>（198）+ <code>verify_all.sh --local-only</code>；澄清 Flask <strong>3.0</strong> 仍支持 Py3.8，仅 <strong>3.1+</strong> 丢 3.8；Python 口径统一为 <strong>3.8–3.11</strong>（CI matrix 含 3.8）。</li>
       <li><strong>未纳入：</strong>Mapped 分批（D2）；Docker 全矩阵（D3）；gevent 主版本；Flask 3。</li>
     </ul>
   </div>

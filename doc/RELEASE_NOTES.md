@@ -60,15 +60,16 @@ v0.1.0 2026-05-29 · Phase A（P0）
 
 ### Phase D0 · Framework Generation 决策（OPT-P2-11）
 
-- **DEC-008：**Python 支持 **3.9–3.11**（弃 3.8）；目标线 **Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic** **同窗 bump**（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。
+- **DEC-008：**Python 支持 **3.8–3.11**（与安装脚本一致；不默认 3.12+）；目标线 **Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic** **同窗 bump**（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。
 - 设计稿：[Phase D0 · Framework Generation 决策](PhaseD0-Framework-Generation决策.html)。
-- **未纳入：**D1 实际 pin 变更（Flask/SA 仍为 1.1 / 1.4）。
+- **修订（2026-07-20）：**曾短暂记为「弃 3.8 / 3.9–3.11」；因 D1 pin 均兼容 ≥3.8，改回 **A1 · 3.8–3.11**。
+- **未纳入：**D1 实际 pin 变更（见下节 Phase D1）。
 
 ### Phase D1 · Framework Generation pin bump（OPT-P2-11）
 
 - **同窗 pin（DEC-008 / B1）：**`Flask==2.3.3`、`Werkzeug==2.3.8`、`Jinja2==3.1.6`、`click==8.1.8`、`itsdangerous==2.2.0`、`MarkupSafe==2.1.5`、`blinker==1.8.2`、`SQLAlchemy==2.0.36`、`Flask-SQLAlchemy==3.1.1`、`Flask-Migrate==4.0.7`、`alembic==1.14.1`；`Flask-APScheduler==1.13.1`。
 - 配置：移除已删除的 JSON 配置键；`SQLALCHEMY_ENGINE_OPTIONS` 改为池选项（SA 2.0）。
-- 验收：`cronpilot.sh test`（198）+ `verify_all.sh --local-only`；澄清 Flask **3.0** 仍支持 Py3.8，仅 **3.1+** 丢 3.8。
+- 验收：`cronpilot.sh test`（198）+ `verify_all.sh --local-only`；澄清 Flask **3.0** 仍支持 Py3.8，仅 **3.1+** 丢 3.8；Python 口径统一为 **3.8–3.11**（CI matrix 含 3.8）。
 - **未纳入：**Mapped 分批（D2）；Docker 全矩阵（D3）；gevent 主版本；Flask 3。
 
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期

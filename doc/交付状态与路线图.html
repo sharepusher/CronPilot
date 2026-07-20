@@ -174,14 +174,15 @@
 
   <h2>五、建议实施顺序（未交付）</h2>
   <ol>
+    <li><strong>Tier 3b（OPT-P2-11）</strong> — 迁移重放与残余收束：设计待确认（见 <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b 设计</a>）</li>
     <li><strong>Phase D3（OPT-P2-11 · Framework Generation）</strong> — Docker / <code>pip show</code> 矩阵：D3-1 ✓；compose 实测与收尾<strong>暂缓</strong>（Docker 环境）</li>
+    <li><strong>Tier 3c（OPT-P2-11）</strong> — 生产/类生产库备份 → upgrade/ensure → JobStore 只读校验</li>
     <li><strong>账户会话超时（可选）</strong> — 可配置闲置/绝对超时；须先设计确认（见 <a href="RBAC架构设计方案.html#account-session">RBAC §4.6</a>）</li>
     <li><strong>OPT-P1-03</strong> — 独立执行详情页（OPT-P1-04 列表侧已随 v2.0.0 交付）</li>
     <li><strong>OPT-P1-01b</strong> — 徽章/HTTP 展示统一（OPT-P1-01c 已随 v2.0.0）</li>
     <li><strong>Metric 条 / 异常榜 UI</strong> — OPT-P2-13 暂隐项按需恢复</li>
     <li><strong>Scope S6</strong> — API 按组隔离 / 默认 GROUP（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>）</li>
     <li><strong>OPT-P1-06</strong> — OpenAPI 可交互文档（按运维需求排期）</li>
-    <li><strong>Tier 3b / Tier 3c（OPT-P2-11）</strong> — 迁移重放 / 生产校验</li>
   </ol>
 
   <h2>六、文档维护约定</h2>

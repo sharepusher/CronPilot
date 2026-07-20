@@ -129,7 +129,7 @@ bash scripts/cronpilot.sh test
 | 2 | `bash scripts/cronpilot.sh test` 含该模块且全绿 |
 | 3 | CI 按确认方案跑到该测（矩阵 3.8–3.11） |
 | 4 | 故意违例 → 红；移除 → 绿（本地证明） |
-| 5 | 文档：本页标「已交付」；[交付状态](交付状态与路线图.html) / [RELEASE\_NOTES [Unreleased]](RELEASE_NOTES.html) / RFC 同步；`html_docs_to_markdown.py --check` |
+| 5 | 文档：本页标「已交付」；[交付状态](交付状态与路线图.html) / [RELEASE\_NOTES [2.1.0]](RELEASE_NOTES.html#210) / RFC 同步；`html_docs_to_markdown.py --check` |
 
 ## 八、与 Phase B / D 关系
 
@@ -154,7 +154,7 @@ C 不依赖 B；B 可与 C 并行或稍后。D 之前有 C，避免升级窗口�
 [Tier 3 前置](Tier3前置收束设计.html) ·
 [文档索引](index.html)
 
-CronPilot · Phase C ORM Legacy AST 门禁 · 已交付 2026-07-20 · [Markdown](PhaseC-ORM-Legacy-AST门禁设计.md) · [索引](index.html)
+CronPilot · Phase C ORM Legacy AST 门禁 · 已交付 v2.1.0 · [Markdown](PhaseC-ORM-Legacy-AST门禁设计.md) · [索引](index.html)
 
 ---
 

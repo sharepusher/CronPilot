@@ -506,7 +506,7 @@ gunicorn -c gun.py manage:app</pre>
       <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
       <tr><td>依赖版本陈旧</td><td>CVE、Py3.11 上 gevent/Flask-Script 受限</td><td>按 <a href="依赖升级RFC.html">依赖升级 RFC</a> 分层：Tier 0 Flask CLI → Tier 1 SA 1.4 渐进 → Tier 2 gevent → Tier 3/4 SA2/Flask2</td></tr>
       <tr><td>多 Scheduler 实例</td><td>锁失效时重复执行</td><td>监控 + 单 worker 调度可选方案</td></tr>
-      <tr><td>GET 触发无 body（历史）</td><td>复杂参数受限</td><td><strong>v2.0.0 准备已交付</strong>：任务可选 GET/POST；POST 发 JSON Body（见 Release Notes Unreleased）</td></tr>
+      <tr><td>GET 触发无 body（历史）</td><td>复杂参数受限</td><td><strong>v2.0.0 已交付</strong>：任务可选 GET/POST；POST 发 JSON Body（见 <a href="RELEASE_NOTES.html#200">Release Notes [2.0.0]</a>）</td></tr>
       <tr><td>无审计日志</td><td>谁改了任务不可追溯</td><td>增加 <code>operation_log</code>（含操作人、角色/权限快照，见 OPT-P1-09）</td></tr>
     </table>
     <h3>15.2 演进路线图</h3>

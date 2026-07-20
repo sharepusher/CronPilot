@@ -9,7 +9,7 @@
 
 datas/model 经典 Column → Mapped / mapped\_column（SA 2.0 声明式）
 
-状态：已交付 · 2026-07-20 · 前置 D1 pin ✓
+状态：已交付 · v2.1.0 · 2026-07-20 · 前置 D1 pin ✓
 
 **已交付（2026-07-20）：**
 `datas/model/` 九表全部改为 `Mapped[...]` + `mapped_column`；
@@ -52,7 +52,7 @@ datas/model 经典 Column → Mapped / mapped\_column（SA 2.0 声明式）
 [交付状态](交付状态与路线图.html) ·
 [D0](PhaseD0-Framework-Generation决策.html)
 
-CronPilot · Phase D2 Mapped 模型迁移 · 已交付 2026-07-20 · [索引](index.html) · [Markdown](PhaseD2-Mapped模型迁移.md) · [索引](index.html)
+CronPilot · Phase D2 Mapped 模型迁移 · 已交付 v2.1.0 · [索引](index.html) · [Markdown](PhaseD2-Mapped模型迁移.md)
 
 ---
 

@@ -11,79 +11,88 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **维护约定**：未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节，并同步更新交付状态总览页。
 
+### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 待收尾
+
+- **D3-1** 已随 **v2.1.0** 交付（`assert_framework_pins`）；**D3-2 compose 实测**与 **D3-3**（NOTICE/路线图收尾）仍待 Docker 环境恢复后补跑。
+- 设计稿：[Phase D3 · Docker pin 矩阵](doc/PhaseD3-Docker-pin矩阵设计.html)。
+
+---
+
+## [2.1.0] — 2026-07-20 · Framework Generation（Flask 2.3 + SA 2.0）
+
+依赖轨 **OPT-P2-11** 绿场闭环：去 `records` → Query Contract / Repo / AST 门禁 → DEC-008 同窗 pin（Flask 2.3.3 + SQLAlchemy 2.0.36 + FSA 3.1.1）→ Mapped[] → ensure 空库重放。Python 支持 **3.8–3.11**。无强制 schema 迁移（`ensure_business_tables` 主路径）；**不**含 Flask 3 / 默认 3.12+ / Alembic 基线 / Tier 3c（搁置）。
+
+### 亮点摘要
+
+| 主题 | 说明 |
+|------|------|
+| 运行时栈 | Flask **2.3.3** · Werkzeug 2.3.8 · SQLAlchemy **2.0.36** · Flask-SQLAlchemy **3.1.1** · Alembic 1.14.1 · Flask-Migrate 4.0.7 |
+| ORM 现代化 | 列表 `paginate_select` + 薄 Repo；AST 禁止 Legacy `Model.query` / `session.query` / `Query.paginate` |
+| 模型 | 九表 `Mapped[]` + `mapped_column`；`test_mapped_model_guard` |
+| Schema 契约 | 业务库主路径 = `ensure_business_tables`；空库重放单测；无强制 `migrations/` |
+| 工程 | `assert_framework_pins`（D3-1）；设计先行 + OPT/Tier/Phase 编号规范 |
+
 ### Tier 3 前置 · 去 `records` 裸 SQL（OPT-P2-11）
 
-- **架构/版本复审（2026-07-17）**：维持 Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11 稳定栈；不跳级升 Flask 2 / SA 2 / Python 3.12+。
 - `CuBackgroundScheduler` / `CuGeventScheduler`：`update_cron_info` 改为 `app_context` + ORM（`apply_retire`），去掉 `records`。
 - `cron_check`：经 `app/services/scheduler_db.fetch_apscheduler_job_ids` 读 JobStore（`text()` + 绑定），双库边界不变。
 - 从 `requirements.txt` / `requirements-core.txt` 移除 `records==0.5.3`；更新 `THIRD_PARTY_NOTICES.md`。
 - 单测：`tests.test_scheduler_db`。
-- **未纳入本项**：SQLAlchemy 2.0 / Flask-SQLAlchemy 3.x / Alembic 解锁（挂 Tier 3a pin，须 Flask 2）。
 
 ### Phase A · Query Contract / 分页硬门（OPT-P2-11）
 
 - 新增 `app/services/pagination.py`：`PageQuery`、`PaginationResult`、`paginate_select`（与 FSA `Pagination` 解耦，模板 `admin_page.html` 零改动）。
 - 管理端 7 处列表迁移：`rbac/users`、`rbac/audit-logs`、`job_log_list`、`job_log_all_list`、`operation_log_list`、`cron_list`（含 health 过滤、metrics、sidebar）。
 - `app/main/views.py` 与 `app/rbac/views.py` 内无 `.paginate(`、无列表路径 `session.query`。
-- 单测：`tests.test_pagination`（13 例）；全量 `cronpilot.sh test` + `verify_all.sh --local-only` 通过。
-- **未纳入本项**：pin bump（SA 2 / FSA 3）、`BaseRepository`（Phase B）、AST Legacy 门禁（Phase C）。见 DEC-007。
-
-### Phase C · ORM Legacy AST 门禁（OPT-P2-11）
-
-- 新增 `tests/test_orm_legacy_guard.py`：AST 扫描 `app/**/*.py`，禁止 L1 `Model.query`、L2 `session.query`、L3 `.paginate`（允许 `paginate_select`）；Allowlist 空。
-- 挂载：`scripts/cronpilot.sh test`；CI `unit-tests.yml` 追加本 guard 与 `tests.test_ajax_form_guard`（C-CI-A）。
-- 设计稿：[Phase C · ORM Legacy AST 门禁](doc/PhaseC-ORM-Legacy-AST门禁设计.html)。
-- **未纳入本项**：C-CI-B（CI 全量 `cronpilot.sh test`）、Phase B Repo、Phase D pin bump。
+- 单测：`tests.test_pagination`；见 DEC-007。
 
 ### Phase B · 薄 BaseRepository（OPT-P2-11）
 
-- 新增 `app/repositories/`：`BaseRepository`（会话原语 + `paginate` 委托 `paginate_select`，默认不 commit）及具体 Repo：`CronRepository`、`JobLogRepository`、`OperationLogRepository`、`RbacUserRepository`、`RbacAuditLogRepository`。
-- 管理端 7 处列表与 cron 指标/侧栏查询迁出 `main/views` / `rbac/views`；views 仅解析请求与 Scope，调用具名 Repo 方法。
-- 门禁：`tests.test_repositories_phase_b`（views 不得直接 `paginate_select`）；AST L3 收窄为仅拦 `Query.paginate`（允许 `self.paginate` / Repo.paginate）。
-- **未纳入本项**：写路径全面迁 Repo（`cron_service` / `rbac/services` 仍负责 commit）；pin bump（Phase D）。
+- 新增 `app/repositories/`：`BaseRepository` 及 `CronRepository`、`JobLogRepository`、`OperationLogRepository`、`RbacUserRepository`、`RbacAuditLogRepository`。
+- 管理端 7 处列表与 cron 指标/侧栏查询迁出 views；门禁 `tests.test_repositories_phase_b`。
+
+### Phase C · ORM Legacy AST 门禁（OPT-P2-11）
+
+- `tests/test_orm_legacy_guard.py`：禁止 L1 `Model.query`、L2 `session.query`、L3 `Query.paginate`；挂 `cronpilot.sh test` 与 CI（C-CI-A）。
+- 设计稿：[Phase C · ORM Legacy AST 门禁](doc/PhaseC-ORM-Legacy-AST门禁设计.html)。
 
 ### Phase D0 · Framework Generation 决策（OPT-P2-11）
 
-- **DEC-008**：Python 支持 **3.8–3.11**（与安装脚本一致；不默认 3.12+）；目标线 **Flask 2.3.x + SQLAlchemy 2.0.x + Flask-SQLAlchemy 3.1.x + Alembic** **同窗 bump**（B1）；不做 Flask 3 首跳 / Login / WTF / 默认 3.12+。
+- **DEC-008**：Python **3.8–3.11**；目标线 Flask 2.3.x + SA 2.0.x + FSA 3.1.x + Alembic **同窗 bump**（B1）；不做 Flask 3 首跳 / 默认 3.12+。
 - 设计稿：[Phase D0 · Framework Generation 决策](doc/PhaseD0-Framework-Generation决策.html)。
-- **修订（2026-07-20）**：曾短暂记为「弃 3.8 / 3.9–3.11」；因 D1 pin 均兼容 ≥3.8，改回 **A1 · 3.8–3.11** 统一口径。
-- **未纳入本项**：D1 实际 pin 变更（见下节 Phase D1）。
 
 ### Phase D1 · Framework Generation pin bump（OPT-P2-11）
 
-- **同窗 pin（DEC-008 / B1）：** `Flask==2.3.3`、`Werkzeug==2.3.8`、`Jinja2==3.1.6`、`click==8.1.8`、`itsdangerous==2.2.0`、`MarkupSafe==2.1.5`、`blinker==1.8.2`、`SQLAlchemy==2.0.36`、`Flask-SQLAlchemy==3.1.1`、`Flask-Migrate==4.0.7`、`alembic==1.14.1`；`Flask-APScheduler==1.13.1`（适配 Flask 2.3）。
-- 配置：移除已删除的 `JSON_AS_ASCII` / `JSONIFY_PRETTYPRINT_REGULAR`；`SQLALCHEMY_ENGINE_OPTIONS` 改为池选项（SA 2.0）。
-- 验收：`cronpilot.sh test`（198）+ `verify_all.sh --local-only`；D0 表述澄清：Flask **3.0** 仍支持 Py3.8，仅 **3.1+** 丢 3.8；Python 口径统一为 **3.8–3.11**（CI matrix 含 3.8）。
-- **未纳入本项**：`Mapped[]` 分批（D2，见下节）；Docker 全矩阵断言（D3）；gevent/gunicorn/APS 主版本；Flask 3。
+- **同窗 pin：** `Flask==2.3.3`、`Werkzeug==2.3.8`、`Jinja2==3.1.6`、`click==8.1.8`、`itsdangerous==2.2.0`、`MarkupSafe==2.1.5`、`blinker==1.8.2`、`SQLAlchemy==2.0.36`、`Flask-SQLAlchemy==3.1.1`、`Flask-Migrate==4.0.7`、`alembic==1.14.1`；`Flask-APScheduler==1.13.1`。
+- 配置：移除已删 JSON 键；`SQLALCHEMY_ENGINE_OPTIONS` 改为池选项（SA 2.0）。
+- Tier 4（Flask 2.x）**并入本项**，不再单独发版。
 
 ### Phase D2 · Mapped[] 模型迁移（OPT-P2-11）
 
-- `datas/model/` 九表改为 `Mapped[...]` + `mapped_column`（仍继承 `db.Model`）；不改表结构 / API / UI。
-- 门禁：`tests/test_mapped_model_guard.py`；挂 `cronpilot.sh test` 与 CI `unit-tests.yml`。
+- `datas/model/` 九表 `Mapped[...]` + `mapped_column`；门禁 `tests/test_mapped_model_guard.py`。
+- `cron_do` 在 `app_context` 内读取 `JobLog.id`，避免 SA 2.0 detach 后访问主键报错。
 - 设计稿：[Phase D2 · Mapped 模型迁移](doc/PhaseD2-Mapped模型迁移.html)。
-- 验收：`cronpilot.sh test`（199）+ `verify_all.sh --local-only` 4/4。
-- 附带：`cron_do` 在 `app_context` 内读取 `JobLog.id` 再返回，避免 SA 2.0 detach 后访问主键报错。
-- **未纳入本项**：Docker 全矩阵（Phase D3）；Tier 3c 生产库校验；Flask 3。
 
 ### Tier 3b · ensure 重放与残余收束（OPT-P2-11 · 3b-A）
 
-- **契约**：业务 schema 演进主路径正式定为 `scripts/ensure_business_tables`（`create_all` + 条件 ALTER）；`flask db` 仍可用，但仓库**无**强制 Alembic `migrations/` 树。
-- **验收**：`tests.test_ensure_business_tables.TestEnsureEmptyDbReplay` — 空 SQLite 建表后 ensure 补列可重放且幂等。
-- **残余盘点**：`Model.query` / `session.query` / `Query.paginate` 已由 Phase A/B/C 门禁覆盖；本窗无必须改动的运行时残余。未采用 3b-B Alembic 基线。
-- 设计稿：[Tier 3b · 迁移重放与残余收束](doc/Tier3b-迁移重放与残余收束设计.html)。
-- **未纳入本项**：Alembic 初始 revision（3b-B）；Tier 3c 生产库备份校验；Phase D3 compose。
+- 业务 schema 主路径 = `ensure_business_tables`；`TestEnsureEmptyDbReplay` 空库重放+幂等。
+- 未采用 Alembic 基线（3b-B）。设计稿：[Tier 3b](doc/Tier3b-迁移重放与残余收束设计.html)。
 
-### Tier 3c · 生产类库备份与只读校验（OPT-P2-11）· 搁置
+### Phase D3-1 · Framework pin 断言（OPT-P2-11）
 
-- **决策（2026-07-20）：**无存量升级问题 → **不实现**脚本；设计稿保留备查。
-- 设计稿：[Tier 3c · 生产类库备份与只读校验](doc/Tier3c-生产类库备份与只读校验设计.html)。
+- `scripts/assert_framework_pins.py` / `.sh`；挂入 `verify_docker_compose.sh`。
+- **compose 实测与 D3 整体收尾仍属 Unreleased**（Docker 暂缓）。
 
-### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
+### 明确未纳入 / 搁置
 
-- 设计稿：[Phase D3 · Docker pin 矩阵](doc/PhaseD3-Docker-pin矩阵设计.html)。
-- **D3-1 ✓：** `scripts/assert_framework_pins.py` / `.sh` — 从 `requirements.txt` 解析 Framework pin，经 `pip show` 精确比对；本地 venv 8/8 通过。
-- **D3-2 脚本已挂入** `verify_docker_compose.sh`；**compose 实测暂缓**（2026-07-20：Docker 环境问题，用户确认先不验）。
-- **Phase D3 整体未交付**；恢复 Docker 后补跑 `--rebuild`，再做 D3-3（NOTICE + 路线图标已交付）。
+| 项 | 说明 |
+|----|------|
+| Tier 3c | 无存量升级 → **搁置**（[设计备查](doc/Tier3c-生产类库备份与只读校验设计.html)） |
+| Phase D3-2/3 | compose 实测 + NOTICE 收尾 → 待 Docker |
+| Flask 3 / 默认 Py 3.12+ / Alembic 全量基线 | DEC-008 明确不做 |
+| OPT-P1-* 功能轨 | 不在本版 |
+
+升级建议：拉取本版后重建/更新 venv（`pip install -r requirements.txt`），跑 `bash scripts/ensure_business_tables.sh` 后 **重启**进程。无破坏性表结构变更。
 
 ---
 

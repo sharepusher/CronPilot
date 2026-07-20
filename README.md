@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v2.0.0**（任务中心 + POST 触发 + 强制改密等）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
+当前版本 **v2.1.0**（Framework Generation：Flask 2.3 + SA 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。**已交付 vs 未完成**一览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v2.1.0** | OPT-P2-11：Flask **2.3.3** + SQLAlchemy **2.0.36** + FSA 3.1.1；Query Contract / Repo / AST 门禁；Mapped[]；ensure 空库重放；D3-1 pin 断言 |
 | **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；操作记录业务组筛选；**触发请求 GET/POST + JSON Body** |
 | **v1.2.0** | 管理端顶栏身份（系统/业务管理员）；种子 `admin` 仅建用户+只读；启停用语统一；下线入口提示 |
 | **v1.1.0** | Resource Scope 业务组隔离；自助改密（成功后强制重新登录）；任务编辑页精简 |
@@ -251,7 +252,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.0.0**（任务中心 / POST 触发 / 账户生命周期）；历史含 v1.2.0、v1.1.0、v1.0.0、v0.2.0、v0.1.x。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.1.0**（Framework Generation）；历史含 v2.0.0、v1.2.0、v1.1.0、v1.0.0、v0.2.0、v0.1.x。
 
 ## 技术文档（HTML + Markdown）
 

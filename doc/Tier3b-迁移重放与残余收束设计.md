@@ -9,7 +9,7 @@ OPT-P2-11Tier 3b已交付 · 3b-A
 
 SA 2.0 栈上的 schema 演进可复现性 + 残余 1.4 兼容写法清理
 
-状态：已交付（3b-A）· 2026-07-20 · 不依赖 Docker
+状态：已交付（3b-A）· v2.1.0 · 2026-07-20 · 不依赖 Docker
 
 **已确认并交付（2026-07-20 · 3b-A）：**
 schema 主路径契约写入 RFC / 非 Docker 部署指南；
@@ -95,7 +95,7 @@ Tier 3c —— 备份真实/类生产库 → upgrade/ensure → JobStore 只读�
 [交付状态](交付状态与路线图.html) ·
 [编号规范](需求编号与缩写规范.html)
 
-CronPilot · Tier 3b · 已交付（3b-A）2026-07-20 · [索引](index.html) · [Markdown](Tier3b-迁移重放与残余收束设计.md)
+CronPilot · Tier 3b · 已交付（3b-A）v2.1.0 · [索引](index.html) · [Markdown](Tier3b-迁移重放与残余收束设计.md)
 
 ---
 

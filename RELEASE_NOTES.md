@@ -18,7 +18,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - `cron_check`：经 `app/services/scheduler_db.fetch_apscheduler_job_ids` 读 JobStore（`text()` + 绑定），双库边界不变。
 - 从 `requirements.txt` / `requirements-core.txt` 移除 `records==0.5.3`；更新 `THIRD_PARTY_NOTICES.md`。
 - 单测：`tests.test_scheduler_db`。
-- **未纳入本项**：SQLAlchemy 2.0 / Flask-SQLAlchemy 3.x / Alembic 解锁；`main/views` 与 `rbac/views` 的 `.paginate()`（挂 Tier 3a）。
+- **未纳入本项**：SQLAlchemy 2.0 / Flask-SQLAlchemy 3.x / Alembic 解锁（挂 Tier 3a pin，须 Flask 2）。
+
+### Phase A · Query Contract / 分页硬门（OPT-P2-11）
+
+- 新增 `app/services/pagination.py`：`PageQuery`、`PaginationResult`、`paginate_select`（与 FSA `Pagination` 解耦，模板 `admin_page.html` 零改动）。
+- 管理端 7 处列表迁移：`rbac/users`、`rbac/audit-logs`、`job_log_list`、`job_log_all_list`、`operation_log_list`、`cron_list`（含 health 过滤、metrics、sidebar）。
+- `app/main/views.py` 与 `app/rbac/views.py` 内无 `.paginate(`、无列表路径 `session.query`。
+- 单测：`tests.test_pagination`（13 例）；全量 `cronpilot.sh test` + `verify_all.sh --local-only` 通过。
+- **未纳入本项**：pin bump（SA 2 / FSA 3）、`BaseRepository`（Phase B）、AST Legacy 门禁（Phase C）。见 DEC-007。
 
 ---
 

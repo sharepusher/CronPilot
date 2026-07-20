@@ -53,7 +53,7 @@
   <div class="ok-box" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0">
     <strong>2026-07-17 架构与版本复审：</strong>当前 <strong>v2.0.0</strong> 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
     <strong>Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11</strong> 仍成立，<strong>无需紧急跳级</strong>升级 Flask 2 / SA 2 / Python 3.12+。
-    下一依赖动作：<strong>Tier 3 前置已落地</strong> → 再开 <strong>Tier 3a</strong>（SA 2.0 + FSA 3.x + Alembic，含 <code>.paginate()</code> 改写）→ Tier 4 Flask 2.x。
+    下一依赖动作：<strong>Phase A（Query Contract / 分页硬门）已落地</strong> → <strong>Phase B</strong>（薄 BaseRepository）→ <strong>Phase C</strong>（AST Legacy 门禁）→ <strong>Tier 3a pin</strong>（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
   </div>
 
   <div class="warn">
@@ -131,7 +131,7 @@
     <tr><td>∥</td><td><em>功能</em></td><td>RBAC（OPT-P2-10）</td><td class="ok">弱</td><td><strong>已交付</strong>（见 <a href="交付状态与路线图.html">交付状态</a>）</td></tr>
     <tr><td>3</td><td><strong>Tier 2</strong> ✓</td><td>gevent / gunicorn / APScheduler + Python 上限</td><td class="warn">强</td><td><strong>v0.2.0 已交付</strong>（RFC-2.1～2.5）</td></tr>
     <tr><td>3.5</td><td><strong>Tier 3 前置</strong> ✓</td><td>去 <code>records</code> 裸 SQL（S1 ORM / S2 <code>text()</code>）</td><td class="warn">中</td><td><strong>已交付</strong>（2026-07-17；见 <a href="Tier3前置收束设计.html">前置设计</a>）</td></tr>
-    <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 → SA 2.0 + FSA 3.x</td><td class="risk">高</td><td>前置已清零；下一子阶段 <strong>3a</strong>（pin + <code>.paginate()</code>）</td></tr>
+    <tr><td>4</td><td><strong>Tier 3</strong></td><td>SA 1.4 → SA 2.0 + FSA 3.x</td><td class="risk">高</td><td>Phase A 硬门 ✓；下一子阶段 <strong>3a</strong>（pin bump，须 Flask 2 前提）</td></tr>
     <tr><td>5</td><td><strong>Tier 4</strong></td><td>Flask 1.1 → 2.x</td><td class="risk">高</td><td>Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后</td></tr>
   </table>
 
@@ -143,7 +143,7 @@
     <tr><td><code>Model.query.filter / paginate</code></td><td><code>main/views.py</code> 等</td><td class="warn">中</td><td>—</td><td class="ok">✅ 已改</td><td>—</td><td>—</td></tr>
     <tr><td><code>SQLAlchemyJobStore</code></td><td><code>config.py</code></td><td class="warn">中</td><td>—</td><td class="ok">验证 1.4</td><td class="warn">随 APS 升级</td><td>—</td></tr>
     <tr><td><code>records</code> 裸 SQL</td><td><code>CuBackgroundScheduler</code> / <code>cron_check</code></td><td class="ok">已清</td><td>—</td><td>—</td><td>—</td><td class="ok">Tier 3 前置 ✓</td></tr>
-    <tr><td><code>db.session.query(...).paginate()</code></td><td><code>main/views.py</code>、<code>rbac/views.py</code></td><td class="warn">中</td><td>—</td><td class="ok">SA 1.4 可用</td><td>—</td><td>Tier 3a 硬门</td></tr>
+    <tr><td><code>db.session.query(...).paginate()</code></td><td><code>main/views.py</code>、<code>rbac/views.py</code></td><td class="warn">中</td><td>—</td><td class="ok">SA 1.4 可用</td><td>—</td><td class="ok">Phase A ✓（<code>paginate_select</code>）</td></tr>
     <tr><td><code>gevent.monkey.patch_all()</code></td><td><code>gun.py</code></td><td class="risk">强</td><td>—</td><td>—</td><td class="warn">升级</td><td>—</td></tr>
     <tr><td>Flask / Jinja SSR</td><td><code>decorated.py</code>、模板</td><td class="risk">强</td><td>—</td><td>—</td><td>—</td><td>Flask 2</td></tr>
   </table>
@@ -181,7 +181,7 @@
     <h4>SA 1.4 渐进策略（核心）</h4>
     <div class="note">
       <ul style="margin:.25rem 0;padding-left:1.25rem">
-        <li><strong>已完成：</strong><code>Model.query</code> 全站迁移；<code>main/views.py</code> 分页仍用 <code>db.session.query(...).paginate()</code>（SA 1.4 兼容）。</li>
+        <li><strong>已完成：</strong><code>Model.query</code> 全站迁移；管理端列表分页已迁 <code>select()</code> + <code>paginate_select</code>（Phase A / Query Contract）。</li>
         <li><strong>新代码要求：</strong>RBAC 模型、operation_log、任何新 PR 中避免新增裸字符串 <code>execute</code> 与 <code>Model.query</code>。</li>
         <li><strong>分批 PR：</strong>已按模块（<code>crons</code> → <code>job_log_service</code> → <code>main/views</code> → <code>cron_service</code> → <code>api/views</code>）合并，每 PR 跑全量单测 + 冒烟。</li>
         <li><strong>不做什么：</strong>本 Tier <strong>不</strong>升 SQLAlchemy 2.0、<strong>不</strong>升 Flask-SQLAlchemy 3.x。</li>
@@ -236,15 +236,19 @@
     <table>
       <tr><th>子阶段</th><th>内容</th><th>状态</th></tr>
       <tr><td>前置</td><td><code>records</code> → ORM / <code>text()</code>（调度热路径）</td><td class="ok">✓ 已交付</td></tr>
-      <tr><td><strong>3a</strong></td><td>
-        目标 pin（规划，尚未落地）：<code>SQLAlchemy==2.0.x</code>（建议锁定最新 2.0 稳定补丁线）+
-        <code>Flask-SQLAlchemy==3.x</code> + 与 SA 2 匹配的 <code>alembic</code>（解除 1.4.3 锁时须同 PR 指定）。
-        <strong>硬门：</strong>改写全部 <code>db.session.query(...).paginate()</code>：
+      <tr><td><strong>3a 前置 · Phase A</strong></td><td>
+        <strong>Query Contract</strong>（<code>app/services/pagination.py</code>）：<code>PageQuery</code> / <code>PaginationResult</code> / <code>paginate_select</code>。
+        改写全部管理端列表 <code>db.session.query(...).paginate()</code> 与列表路径 <code>session.query</code>：
         <ul style="margin:.35rem 0 0 1rem;padding:0">
-          <li><code>app/main/views.py</code>：任务中心、job_log（含 cron_info_id=-1 / outcome 筛选 / 全局）、operation_log（约 5 处）</li>
-          <li><code>app/rbac/views.py</code>：用户列表、审计日志（约 2 处）</li>
+          <li><code>app/main/views.py</code>：任务中心、job_log、operation_log（7 处）</li>
+          <li><code>app/rbac/views.py</code>：用户列表、审计日志（2 处）</li>
         </ul>
-        改为 <code>select()</code> + 手动 offset/limit 或 FSA 3 推荐分页；行为（页码、per_page=20）不变。
+        模板 <code>admin_page.html</code> 零改动；<strong>不 bump pin</strong>。
+      </td><td class="ok">✓ 已交付（2026-07-20）</td></tr>
+      <tr><td><strong>3a · pin bump</strong></td><td>
+        目标 pin（规划，尚未落地）：<code>SQLAlchemy==2.0.x</code> +
+        <code>Flask-SQLAlchemy==3.x</code> + 与 SA 2 匹配的 <code>alembic</code>（解除 1.4.3 锁时须同 PR 指定）。
+        <strong>阻塞：</strong>FSA 3.x 要求 Flask ≥ 2.2.5，须与 <strong>Tier 4 / Framework Generation</strong> 同窗或紧随；前置 Phase A–C 建议完成后再 bump。
       </td><td>未开始</td></tr>
       <tr><td>3b</td><td>迁移脚本重放验证；残余 SA 1.4 兼容写法收束</td><td>未开始</td></tr>
       <tr><td>3c</td><td>生产库备份 → upgrade → JobStore / <code>job_log</code> 只读校验</td><td>未开始</td></tr>
@@ -275,7 +279,7 @@
     <tr><td>gevent 20</td><td>Py3.11 编译失败</td><td><strong>Tier 2 RFC-2.1</strong></td><td><strong>已升</strong> gevent 23.9.1 + greenlet 3.1.1</td></tr>
     <tr><td>gunicorn 20</td><td>旧版维护线</td><td><strong>Tier 2 RFC-2.2</strong></td><td><strong>已升</strong> gunicorn 22.0.0</td></tr>
     <tr><td>APScheduler 3.6</td><td>旧 bug</td><td><strong>Tier 2 RFC-2.3</strong></td><td><strong>已升</strong> APScheduler 3.10.4</td></tr>
-    <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td>前置（records）已清零；下一动作为 3a pin + paginate</td></tr>
+    <tr><td>SQLAlchemy 2.0</td><td>—</td><td><strong>Tier 3</strong></td><td>Phase A 分页硬门 ✓；下一动作为 Phase B/C 后 3a pin（须 Flask 2）</td></tr>
     <tr><td>Flask 1.1</td><td>无新补丁</td><td><strong>Tier 4</strong></td><td>晚于 Tier 3</td></tr>
     <tr><td>records 0.5.3</td><td>裸 SQL</td><td><strong>Tier 3 前置</strong></td><td class="ok">已移除</td></tr>
   </table>
@@ -383,7 +387,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 前置去 records ✓] → [Tier 3a SA 2.0] → [Tier 4 Flask 2]
+                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase B Repo] → [Phase C AST] → [Tier 3a pin + Tier 4 Flask 2]
   </pre>
 
   <h2>十、决策记录</h2>
@@ -395,6 +399,7 @@ RBAC 插入点（推荐）:
     <tr><td>DEC-004</td><td>迁移依赖须锁 alembic，禁止解析到 SA 2.x</td><td>本地 venv 实测</td><td>2026-06</td></tr>
     <tr><td>DEC-005</td><td>RBAC 允许 <code>ensure_rbac_tables</code> 作 Tier 0 未完成时的退化</td><td>与 RBAC v2 详设一致</td><td>2026-06</td></tr>
     <tr><td>DEC-006</td><td>2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+</td><td>架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解</td><td>2026-07-17</td></tr>
+    <tr><td>DEC-007</td><td>Phase A 与 Tier 3a <strong>pin bump 解耦</strong>：Query Contract + 分页硬门可在 SA 1.4 下交付；SA 2 / FSA 3 pin 须等 Flask 2 前提，并入 Framework Generation</td><td>FSA 3.x 硬依赖 Flask ≥ 2.2.5；避免无 Flask 2 的半升状态</td><td>2026-07-20</td></tr>
   </table>
 
   <h2>十一、参考</h2>

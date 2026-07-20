@@ -34,7 +34,15 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - `CuBackgroundScheduler` / `CuGeventScheduler`：`update_cron_info` 改为 `app_context` + ORM（`apply_retire`）。
 - `cron_check`：经 `app/services/scheduler_db.fetch_apscheduler_job_ids` 读 JobStore（`text()`）；双库边界不变。
 - 移除 `records==0.5.3`；更新 `THIRD_PARTY_NOTICES.md`；单测 `tests.test_scheduler_db`。
-- **未纳入：**SA 2.0 / FSA 3.x / Alembic 解锁；`.paginate()` 改写（Tier 3a）。
+- **未纳入：**SA 2.0 / FSA 3.x / Alembic 解锁（挂 Tier 3a pin，须 Flask 2）。
+
+### Phase A · Query Contract / 分页硬门（OPT-P2-11）
+
+- 新增 `app/services/pagination.py`：`PageQuery`、`PaginationResult`、`paginate_select`（与 FSA `Pagination` 解耦；模板 `admin_page.html` 零改动）。
+- 管理端 7 处列表迁移：`rbac/users`、`rbac/audit-logs`、`job_log_list`、`job_log_all_list`、`operation_log_list`、`cron_list`（含 health 过滤、metrics、sidebar）。
+- `app/main/views.py` 与 `app/rbac/views.py` 内无 `.paginate(`、无列表路径 `session.query`。
+- 单测：`tests.test_pagination`（13 例）；全量 `cronpilot.sh test` + `verify_all.sh --local-only` 通过。
+- **未纳入：**pin bump（SA 2 / FSA 3）、`BaseRepository`（Phase B）、AST Legacy 门禁（Phase C）。见 DEC-007。
 
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期
 

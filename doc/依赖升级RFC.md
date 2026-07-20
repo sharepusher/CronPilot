@@ -16,7 +16,7 @@ RFC依赖运维P2
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Tier 3 前置已落地** → 再开 **Tier 3a**（SA 2.0 + FSA 3.x + Alembic，含 `.paginate()` 改写）→ Tier 4 Flask 2.x。
+下一依赖动作：**Phase A（Query Contract / 分页硬门）已落地** → **Phase B**（薄 BaseRepository）→ **Phase C**（AST Legacy 门禁）→ **Tier 3a pin**（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -92,7 +92,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | ∥ | *功能* | RBAC（OPT-P2-10） | 弱 | **已交付**（见 [交付状态](交付状态与路线图.html)） |
 | 3 | **Tier 2** ✓ | gevent / gunicorn / APScheduler + Python 上限 | 强 | **v0.2.0 已交付**（RFC-2.1～2.5） |
 | 3.5 | **Tier 3 前置** ✓ | 去 `records` 裸 SQL（S1 ORM / S2 `text()`） | 中 | **已交付**（2026-07-17；见 [前置设计](Tier3前置收束设计.html)） |
-| 4 | **Tier 3** | SA 1.4 → SA 2.0 + FSA 3.x | 高 | 前置已清零；下一子阶段 **3a**（pin + `.paginate()`） |
+| 4 | **Tier 3** | SA 1.4 → SA 2.0 + FSA 3.x | 高 | Phase A 硬门 ✓；下一子阶段 **3a**（pin bump，须 Flask 2 前提） |
 | 5 | **Tier 4** | Flask 1.1 → 2.x | 高 | Werkzeug/Jinja/click 连锁；宜在 SA 2.0 稳定后 |
 
 ### 4.1 代码触点与耦合（盘点表）
@@ -104,7 +104,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | `Model.query.filter / paginate` | `main/views.py` 等 | 中 | — | ✅ 已改 | — | — |
 | `SQLAlchemyJobStore` | `config.py` | 中 | — | 验证 1.4 | 随 APS 升级 | — |
 | `records` 裸 SQL | `CuBackgroundScheduler` / `cron_check` | 已清 | — | — | — | Tier 3 前置 ✓ |
-| `db.session.query(...).paginate()` | `main/views.py`、`rbac/views.py` | 中 | — | SA 1.4 可用 | — | Tier 3a 硬门 |
+| `db.session.query(...).paginate()` | `main/views.py`、`rbac/views.py` | 中 | — | SA 1.4 可用 | — | Phase A ✓（`paginate_select`） |
 | `gevent.monkey.patch_all()` | `gun.py` | 强 | — | — | 升级 | — |
 | Flask / Jinja SSR | `decorated.py`、模板 | 强 | — | — | — | Flask 2 |
 
@@ -140,7 +140,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 
 #### SA 1.4 渐进策略（核心）
 
-- **已完成：**`Model.query` 全站迁移；`main/views.py` 分页仍用 `db.session.query(...).paginate()`（SA 1.4 兼容）。
+- **已完成：**`Model.query` 全站迁移；管理端列表分页已迁 `select()` + `paginate_select`（Phase A / Query Contract）。
 - **新代码要求：**RBAC 模型、operation\_log、任何新 PR 中避免新增裸字符串 `execute` 与 `Model.query`。
 - **分批 PR：**已按模块（`crons` → `job_log_service` → `main/views` → `cron_service` → `api/views`）合并，每 PR 跑全量单测 + 冒烟。
 - **不做什么：**本 Tier **不**升 SQLAlchemy 2.0、**不**升 Flask-SQLAlchemy 3.x。
@@ -190,7 +190,8 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | 子阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | 前置 | `records` → ORM / `text()`（调度热路径） | ✓ 已交付 |
-| **3a** | 目标 pin（规划，尚未落地）：`SQLAlchemy==2.0.x`（建议锁定最新 2.0 稳定补丁线）+ `Flask-SQLAlchemy==3.x` + 与 SA 2 匹配的 `alembic`（解除 1.4.3 锁时须同 PR 指定）。 **硬门：**改写全部 `db.session.query(...).paginate()`：  - `app/main/views.py`：任务中心、job\_log（含 cron\_info\_id=-1 / outcome 筛选 / 全局）、operation\_log（约 5 处） - `app/rbac/views.py`：用户列表、审计日志（约 2 处）  改为 `select()` + 手动 offset/limit 或 FSA 3 推荐分页；行为（页码、per\_page=20）不变。 | 未开始 |
+| **3a 前置 · Phase A** | **Query Contract**（`app/services/pagination.py`）：`PageQuery` / `PaginationResult` / `paginate_select`。 改写全部管理端列表 `db.session.query(...).paginate()` 与列表路径 `session.query`：  - `app/main/views.py`：任务中心、job\_log、operation\_log（7 处） - `app/rbac/views.py`：用户列表、审计日志（2 处）  模板 `admin_page.html` 零改动；**不 bump pin**。 | ✓ 已交付（2026-07-20） |
+| **3a · pin bump** | 目标 pin（规划，尚未落地）：`SQLAlchemy==2.0.x` + `Flask-SQLAlchemy==3.x` + 与 SA 2 匹配的 `alembic`（解除 1.4.3 锁时须同 PR 指定）。 **阻塞：**FSA 3.x 要求 Flask ≥ 2.2.5，须与 **Tier 4 / Framework Generation** 同窗或紧随；前置 Phase A–C 建议完成后再 bump。 | 未开始 |
 | 3b | 迁移脚本重放验证；残余 SA 1.4 兼容写法收束 | 未开始 |
 | 3c | 生产库备份 → upgrade → JobStore / `job_log` 只读校验 | 未开始 |
 
@@ -217,7 +218,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | gevent 20 | Py3.11 编译失败 | **Tier 2 RFC-2.1** | **已升** gevent 23.9.1 + greenlet 3.1.1 |
 | gunicorn 20 | 旧版维护线 | **Tier 2 RFC-2.2** | **已升** gunicorn 22.0.0 |
 | APScheduler 3.6 | 旧 bug | **Tier 2 RFC-2.3** | **已升** APScheduler 3.10.4 |
-| SQLAlchemy 2.0 | — | **Tier 3** | 前置（records）已清零；下一动作为 3a pin + paginate |
+| SQLAlchemy 2.0 | — | **Tier 3** | Phase A 分页硬门 ✓；下一动作为 Phase B/C 后 3a pin（须 Flask 2） |
 | Flask 1.1 | 无新补丁 | **Tier 4** | 晚于 Tier 3 |
 | records 0.5.3 | 裸 SQL | **Tier 3 前置** | 已移除 |
 
@@ -322,7 +323,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 前置去 records ✓] → [Tier 3a SA 2.0] → [Tier 4 Flask 2]
+                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase B Repo] → [Phase C AST] → [Tier 3a pin + Tier 4 Flask 2]
 ```
 
 ## 十、决策记录
@@ -335,6 +336,7 @@ RBAC 插入点（推荐）:
 | DEC-004 | 迁移依赖须锁 alembic，禁止解析到 SA 2.x | 本地 venv 实测 | 2026-06 |
 | DEC-005 | RBAC 允许 `ensure_rbac_tables` 作 Tier 0 未完成时的退化 | 与 RBAC v2 详设一致 | 2026-06 |
 | DEC-006 | 2026-07-17 复审：维持 Flask 1.1 + SA 1.4 稳定栈；先落地 Tier 3 前置再开 3a；禁止跳级 Flask 2 / Python 3.12+ | 架构健康；Flask 1 无补丁属已知中风险，由侧车与 P0 契约缓解 | 2026-07-17 |
+| DEC-007 | Phase A 与 Tier 3a **pin bump 解耦**：Query Contract + 分页硬门可在 SA 1.4 下交付；SA 2 / FSA 3 pin 须等 Flask 2 前提，并入 Framework Generation | FSA 3.x 硬依赖 Flask ≥ 2.2.5；避免无 Flask 2 的半升状态 | 2026-07-20 |
 
 ## 十一、参考
 

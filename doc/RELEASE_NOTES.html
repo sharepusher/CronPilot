@@ -60,7 +60,15 @@
       <li><code>CuBackgroundScheduler</code> / <code>CuGeventScheduler</code>：<code>update_cron_info</code> 改为 <code>app_context</code> + ORM（<code>apply_retire</code>）。</li>
       <li><code>cron_check</code>：经 <code>app/services/scheduler_db.fetch_apscheduler_job_ids</code> 读 JobStore（<code>text()</code>）；双库边界不变。</li>
       <li>移除 <code>records==0.5.3</code>；更新 <code>THIRD_PARTY_NOTICES.md</code>；单测 <code>tests.test_scheduler_db</code>。</li>
-      <li><strong>未纳入：</strong>SA 2.0 / FSA 3.x / Alembic 解锁；<code>.paginate()</code> 改写（Tier 3a）。</li>
+      <li><strong>未纳入：</strong>SA 2.0 / FSA 3.x / Alembic 解锁（挂 Tier 3a pin，须 Flask 2）。</li>
+    </ul>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase A · Query Contract / 分页硬门（OPT-P2-11）</h3>
+    <ul>
+      <li>新增 <code>app/services/pagination.py</code>：<code>PageQuery</code>、<code>PaginationResult</code>、<code>paginate_select</code>（与 FSA <code>Pagination</code> 解耦；模板 <code>admin_page.html</code> 零改动）。</li>
+      <li>管理端 7 处列表迁移：<code>rbac/users</code>、<code>rbac/audit-logs</code>、<code>job_log_list</code>、<code>job_log_all_list</code>、<code>operation_log_list</code>、<code>cron_list</code>（含 health 过滤、metrics、sidebar）。</li>
+      <li><code>app/main/views.py</code> 与 <code>app/rbac/views.py</code> 内无 <code>.paginate(</code>、无列表路径 <code>session.query</code>。</li>
+      <li>单测：<code>tests.test_pagination</code>（13 例）；全量 <code>cronpilot.sh test</code> + <code>verify_all.sh --local-only</code> 通过。</li>
+      <li><strong>未纳入：</strong>pin bump（SA 2 / FSA 3）、<code>BaseRepository</code>（Phase B）、AST Legacy 门禁（Phase C）。见 DEC-007。</li>
     </ul>
   </div>
 

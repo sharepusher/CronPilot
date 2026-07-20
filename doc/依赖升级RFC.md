@@ -16,7 +16,7 @@ RFC依赖运维P2
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Tier 3b-A 已交付** → **Tier 3c（设计待确认）** → **Phase D3 compose（暂缓）**。
+下一依赖动作：**Tier 3b-A 已交付** · Tier 3c **搁置**（无存量升级）→ **Phase D3 compose（暂缓）**。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -194,7 +194,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | **3a · pin bump** | 已落地（2026-07-20 / Phase D1）：`SQLAlchemy==2.0.36` + `Flask-SQLAlchemy==3.1.1` + `alembic==1.14.1` + `Flask-Migrate==4.0.7`， 与 **Flask 2.3.3** 链同窗（DEC-008 B1）。 | ✓ 已交付 |
 | **D2 · Mapped[]** | 已落地（2026-07-20）：`datas/model` 九表 `Mapped`/`mapped_column`； `test_mapped_model_guard`。见 [D2](PhaseD2-Mapped模型迁移.html)。 | ✓ 已交付 |
 | **3b · ensure 重放 + 残余收束（3b-A）** | 业务 schema 主路径正式定为 `ensure_business_tables`；空库重放验收； 残余 SA 1.4 写法以 Phase A/B/C AST 门禁为准盘点。见 [Tier 3b 设计](Tier3b-迁移重放与残余收束设计.html)。 | ✓ 已交付（2026-07-20） |
-| **3c · 生产类库备份与只读校验** | 设计待确认（推荐 3c-A 夹具/副本）。见 [Tier 3c 设计](Tier3c-生产类库备份与只读校验设计.html)。 | 设计中 |
+| **3c · 生产类库备份与只读校验** | **搁置**（2026-07-20）：无存量升级问题；不实现脚本。设计稿备查： [Tier 3c](Tier3c-生产类库备份与只读校验设计.html)。 | 搁置 |
 
 #### 验收标准
 

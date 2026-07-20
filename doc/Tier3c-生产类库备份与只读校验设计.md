@@ -3,22 +3,21 @@
 > HTML 版：[Tier3c-生产类库备份与只读校验设计.html](Tier3c-生产类库备份与只读校验设计.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-OPT-P2-11Tier 3c设计待确认
+OPT-P2-11Tier 3c搁置 · 无存量升级
 
 # Tier 3c · 生产类库备份与只读校验
 
 双库（JobStore + 业务）在 SA 2.0 栈上经 ensure 后的可运维证明
 
-状态：设计待确认 · 2026-07-20 · 前置 Tier 3b-A ✓ · 不依赖 Phase D3 compose
+状态：搁置 · 2026-07-20 · 用户确认无存量升级问题 · 不实现脚本
 
-**请确认后再实现。**本页为架构轨 **OPT-P2-11 · Tier 3c**。
-编号见 [需求编号与缩写规范](需求编号与缩写规范.html)。
-确认前**不**写校验脚本、不改生产入口、不宣称 Tier 3c 已交付。
+**决策（2026-07-20）：**用户确认**没有存量升级问题**。
+Tier 3c 的边际价值（有数据副本上的 ensure + JobStore 只读彩排）对本仓库当前路径**不必要**；
+**不实现**校验脚本，亦不宣称交付。设计稿保留备查；若日后出现真实存量库迁栈，再重新开窗确认。
 
-**定位：**RFC 原文「生产库备份 → upgrade/ensure → JobStore / job\_log 只读校验」。
-结合 Tier 3b-A 契约：业务 schema 主路径是 `ensure_business_tables`，
-**不是** `flask db upgrade`（仓库无强制 Alembic 树）。
-**不做功能 OPT**；可与 Phase D3（Docker pin）并行排期。
+**定位（历史）：**属 **OPT-P2-11** · **Tier 3c**
+（RFC：生产库备份 → ensure → JobStore / job\_log 只读）。
+前置 [Tier 3b-A](Tier3b-迁移重放与残余收束设计.html) 空库重放已交付，已覆盖新部署/空库路径。
 
 ## 一、问题 / 根因 / 方案
 
@@ -87,8 +86,7 @@ Phase D3      Docker pin（compose 暂缓，另轨）
 | SQLite | 停写或短停服后拷贝 `*.sqlite`；或 `sqlite3 file ".backup 'copy.sqlite'"`。 业务与 JobStore **两个文件分别**备份。 |
 | MySQL | `mysqldump` 分库（scheduler / job\_log）；保留例程/触发器按需。 恢复到**非生产**实例再跑 ensure 验收。 |
 
-**确认方式：**请回复「按 Tier 3c 设计（3c-A）执行」或「改用 3c-B 生产窗口」或列出修改点。
-未确认前不实现脚本。
+**确认记录：**用户 2026-07-20 回复「没有存量升级问题」→ Tier 3c **搁置、不实现**。
 
 [Tier 3b](Tier3b-迁移重放与残余收束设计.html) ·
 [依赖升级 RFC](依赖升级RFC.html) ·
@@ -96,7 +94,7 @@ Phase D3      Docker pin（compose 暂缓，另轨）
 [交付状态](交付状态与路线图.html) ·
 [编号规范](需求编号与缩写规范.html)
 
-CronPilot · Tier 3c 设计 · 待确认 2026-07-20 · [索引](index.html) · [Markdown](Tier3c-生产类库备份与只读校验设计.md)
+CronPilot · Tier 3c · 搁置（无存量升级）2026-07-20 · [索引](index.html) · [Markdown](Tier3c-生产类库备份与只读校验设计.md)
 
 ---
 

@@ -37,7 +37,6 @@
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](规模化Scope过滤与角色差异化设计.html) | [MD](规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](规模化双层IA与任务健康模型评审.html) | [MD](规模化双层IA与任务健康模型评审.md) |
 | P1 可观测小步 OPT-P1-01b/c | 失败筛选 · 展示统一 | [HTML](P1可观测小步优化设计.html) | [MD](P1可观测小步优化设计.md) |
-| Tier 3c · 生产类库备份与只读校验 OPT-P2-11 | 双库副本 · ensure · JobStore 只读 · 设计待确认 | [HTML](Tier3c-生产类库备份与只读校验设计.html) | [MD](Tier3c-生产类库备份与只读校验设计.md) |
 | P1 执行详情与立即执行 OPT-P1-03/04 | 独立详情 URL · 立即执行 | [HTML](P1执行详情与立即执行设计.html) | [MD](P1执行详情与立即执行设计.md) |
 | Tier 3 前置收束 | 去 `records` 裸 SQL | [HTML](Tier3前置收束设计.html) | [MD](Tier3前置收束设计.md) |
 
@@ -45,6 +44,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| Tier 3c · 生产类库备份与只读校验 OPT-P2-11 | **搁置**（无存量升级 · 不实现） | [HTML](Tier3c-生产类库备份与只读校验设计.html) | [MD](Tier3c-生产类库备份与只读校验设计.md) |
 | Tier 3b · 迁移重放与残余收束 OPT-P2-11 | ensure 空库重放 · 3b-A · Unreleased | [HTML](Tier3b-迁移重放与残余收束设计.html) | [MD](Tier3b-迁移重放与残余收束设计.md) |
 | Phase D2 · Mapped 模型迁移 | datas/model 九表 Mapped[] · test_mapped_model_guard · Unreleased | [HTML](PhaseD2-Mapped模型迁移.html) | [MD](PhaseD2-Mapped模型迁移.md) |
 | Phase D0 · Framework Generation 决策 | DEC-008 · Py 3.8–3.11 · Flask 2.3 + SA2/FSA3 同窗 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |

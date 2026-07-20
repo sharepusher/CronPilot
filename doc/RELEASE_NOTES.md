@@ -89,6 +89,11 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - 设计稿：[Tier 3b · 迁移重放与残余收束](Tier3b-迁移重放与残余收束设计.html)。
 - **未纳入：**Alembic 初始 revision（3b-B）；Tier 3c；Phase D3 compose。
 
+### Tier 3c · 生产类库备份与只读校验（OPT-P2-11）· 搁置
+
+- **决策（2026-07-20）：**无存量升级问题 → **不实现**脚本；设计稿保留备查。
+- 设计稿：[Tier 3c · 生产类库备份与只读校验](Tier3c-生产类库备份与只读校验设计.html)。
+
 ### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
 
 - 设计稿：[Phase D3 · Docker pin 矩阵](PhaseD3-Docker-pin矩阵设计.html)。

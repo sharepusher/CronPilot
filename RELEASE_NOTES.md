@@ -73,6 +73,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 设计稿：[Tier 3b · 迁移重放与残余收束](doc/Tier3b-迁移重放与残余收束设计.html)。
 - **未纳入本项**：Alembic 初始 revision（3b-B）；Tier 3c 生产库备份校验；Phase D3 compose。
 
+### Tier 3c · 生产类库备份与只读校验（OPT-P2-11）· 搁置
+
+- **决策（2026-07-20）：**无存量升级问题 → **不实现**脚本；设计稿保留备查。
+- 设计稿：[Tier 3c · 生产类库备份与只读校验](doc/Tier3c-生产类库备份与只读校验设计.html)。
+
 ### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
 
 - 设计稿：[Phase D3 · Docker pin 矩阵](doc/PhaseD3-Docker-pin矩阵设计.html)。

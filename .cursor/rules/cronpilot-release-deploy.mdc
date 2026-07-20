@@ -25,9 +25,9 @@ alwaysApply: false
 
 ## 发布检查清单
 
-按 **设计 → 实现 → 验证 → 文档 → commit → 打 tag / Release** 顺序（详 `.cursor/rules/cronpilot-project.mdc`）：
+按 **设计（分批+验收）→ 用户确认 → 实现 → 验证 → 文档 → commit → 打 tag / Release** 顺序（详 `.cursor/rules/cronpilot-project.mdc`）：
 
-- [ ] 设计已确认（UI/行为变更）
+- [ ] 设计已确认（优化与功能开发均须；含分批与可执行验收；**确认前无实现 diff**）
 - [ ] **验证通过**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`
 - [ ] **Release 前文档梳理**（打 tag / 发 GitHub Release **之前**必做）：
   - [ ] 更新 `doc/交付状态与路线图.html`：每项 OPT/RFC/Tier 标「已交付 + 版本」或「设计待确认 / 未开始」

@@ -11,7 +11,7 @@ alwaysApply: false
 ## 范围声明
 
 - OPT-P2-10（三角色 Capability）与 OPT-P2-12（Resource Scope Visibility）均须用户明确要求后演进；**勿**未确认越级实现 S6（API Scope / Tenant）。
-- 遵守 `cronpilot-project.mdc` 交付闭环与最小 diff。
+- 遵守 `cronpilot-project.mdc` **设计先行**与交付闭环：确认前不写实现；最小 diff。
 
 ## 分层约定
 

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 需求编号与缩写规范</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#4338ca;--ok:#059669}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#1e1b4b,#4338ca 55%,#818cf8);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.86rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .ok-box{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="index.html" style="color:#e0e7ff;font-size:.9rem">← 文档索引</a>
+  <span class="tag">规范</span><span class="tag">编号</span><span class="tag">权威</span>
+  <h1>需求编号与缩写规范</h1>
+  <p>OPT / Tier / Phase / DEC 四轨并存时的书写与解读约定</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：已生效 · 2026-07-20</p>
+</header>
+
+<main class="layout">
+
+  <div class="ok-box">
+    <strong>一句话：</strong>「P1」「Tier 1」「D1」不是同一套编号。
+    对外与路线图须写<strong>带前缀的全称</strong>；简称仅在同页已定义后可用。
+  </div>
+
+  <div class="note">
+    权威落点：本页 · <a href="交付状态与路线图.html">交付状态与路线图</a> ·
+    <a href="依赖升级RFC.html">依赖升级 RFC</a>（OPT-P2-11）·
+    仓库 <code>.cursor/rules/cronpilot-project.mdc</code>。
+  </div>
+
+  <h2>一、四条轨道（必须分清）</h2>
+  <table>
+    <tr><th>轨道</th><th>正式写法</th><th>含义</th><th>权威出处</th></tr>
+    <tr>
+      <td>产品优先级</td>
+      <td>优先级 <strong>P0 / P1 / P2</strong></td>
+      <td>安全 → 可观测 → 增强；描述<strong>一类</strong>工作的先后，不是单条需求 ID</td>
+      <td><a href="产品优化需求-借鉴Plombery.html">产品 PRD</a></td>
+    </tr>
+    <tr>
+      <td>功能需求</td>
+      <td><strong>OPT-P1-03</strong></td>
+      <td><code>OPT</code> + 优先级 + 序号；单条可交付需求</td>
+      <td>PRD · <a href="交付状态与路线图.html">交付状态 §二</a></td>
+    </tr>
+    <tr>
+      <td>依赖大阶段</td>
+      <td><strong>Tier 0～4</strong>（属 <strong>OPT-P2-11</strong>）</td>
+      <td>Flask / SQLAlchemy / gevent 等依赖升级分层</td>
+      <td><a href="依赖升级RFC.html">依赖升级 RFC</a></td>
+    </tr>
+    <tr>
+      <td>ORM / 框架子阶段</td>
+      <td><strong>Phase A/B/C</strong>、<strong>Phase D0～D3</strong></td>
+      <td>Tier 3/4 下的实施切片（分页、Repo、AST、pin、Mapped、Docker）</td>
+      <td>RFC · <a href="PhaseD0-Framework-Generation决策.html">Phase D0</a></td>
+    </tr>
+    <tr>
+      <td>RFC 决策</td>
+      <td><strong>DEC-008</strong></td>
+      <td>依赖 RFC 内的决策记录编号</td>
+      <td>依赖升级 RFC §决策表</td>
+    </tr>
+    <tr>
+      <td>生命周期专项</td>
+      <td><strong>LIFECYCLE-2</strong></td>
+      <td>任务元数据 / 下线可追溯等</td>
+      <td><a href="任务生命周期与无删除设计.html">生命周期设计</a></td>
+    </tr>
+  </table>
+
+  <h2>二、书写强制格式</h2>
+  <table>
+    <tr><th>场景</th><th>正确</th><th>禁止 / 避免</th></tr>
+    <tr>
+      <td>路线图、RELEASE、聊天标题</td>
+      <td><code>OPT-P1-03（执行详情页）</code></td>
+      <td>单独用「P1-03」「P1」指该需求</td>
+    </tr>
+    <tr>
+      <td>依赖子阶段</td>
+      <td><code>Phase D3（OPT-P2-11 · Framework Generation · Docker 矩阵）</code></td>
+      <td>跨文档仅写「D3」且无归属</td>
+    </tr>
+    <tr>
+      <td>依赖大阶段</td>
+      <td><code>Tier 3b（OPT-P2-11 · 迁移重放）</code></td>
+      <td>与 OPT 序号混称（如「做完 Tier1 再做 P1」不说明轨道）</td>
+    </tr>
+    <tr>
+      <td>同页二次提及</td>
+      <td>首次全称后可用 <code>Phase D3</code> / <code>OPT-P1-03</code></td>
+      <td>首次就裸写 D1 / P1</td>
+    </tr>
+  </table>
+
+  <h3>推荐句式</h3>
+  <pre>下一依赖动作：Phase D3（OPT-P2-11 · Framework Generation · Docker / pip show 矩阵）
+下一功能项：OPT-P1-03（独立执行详情页）——设计待确认
+依赖大阶段：Tier 2（OPT-P2-11）已随 v0.2.0 交付</pre>
+
+  <h2>三、易混别名（历史）</h2>
+  <table>
+    <tr><th>写法</th><th>易误解为</th><th>实际</th></tr>
+    <tr>
+      <td>Phase A（P0）· v0.1.0 发行用语</td>
+      <td>现行 ORM Phase A</td>
+      <td>产品优先级 P0 安全包（SQL/密码/SSRF 等）；<strong>≠</strong> Phase A Query Contract</td>
+    </tr>
+    <tr>
+      <td>Phase A · Query Contract</td>
+      <td>产品 P0</td>
+      <td>OPT-P2-11 下 ORM 子阶段（分页硬门）</td>
+    </tr>
+    <tr>
+      <td>B1（DEC-008）</td>
+      <td>UI 设计 B1</td>
+      <td>Flask 2.3 + SA2 同窗方案；UI 稿另有 B1，须写「DEC-008 B1」或「UI B1」</td>
+    </tr>
+    <tr>
+      <td>A′ / B1（管理端 UI）</td>
+      <td>Tier / Phase</td>
+      <td>仅 UI 设计稿内部方案代号</td>
+    </tr>
+    <tr>
+      <td>口头「P1」</td>
+      <td>OPT-P1-xx</td>
+      <td>仅「优先级 P1」；单条需求必须带 OPT-</td>
+    </tr>
+  </table>
+
+  <div class="warn">
+    <strong>不强制</strong> bulk 改写历史 Release Notes / 旧设计稿正文中的简称；
+    新文档与路线图「建议实施顺序」须遵守本规范。读旧文时以本表「易混别名」为准。
+  </div>
+
+  <h2>四、与交付状态的对应</h2>
+  <ul>
+    <li>§二 <strong>功能优化（OPT-*）</strong> — 产品功能轨</li>
+    <li>§三 <strong>依赖升级（OPT-P2-11 · Tier / Phase）</strong> — 依赖与 ORM/框架子阶段</li>
+    <li>§五 建议顺序 — 每条须含 <code>OPT-…</code> 或 <code>Phase …（OPT-P2-11）</code> 或 <code>Tier …</code></li>
+  </ul>
+
+  <p>
+    <a href="交付状态与路线图.html">交付状态与路线图</a> ·
+    <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
+    <a href="index.html">文档索引</a>
+  </p>
+</main>
+<footer>CronPilot · 需求编号与缩写规范 · 2026-07-20 · <a href="index.html">索引</a> · <a href="需求编号与缩写规范.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

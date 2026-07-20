@@ -35,6 +35,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 设计稿：[Phase C · ORM Legacy AST 门禁](doc/PhaseC-ORM-Legacy-AST门禁设计.html)。
 - **未纳入本项**：C-CI-B（CI 全量 `cronpilot.sh test`）、Phase B Repo、Phase D pin bump。
 
+### Phase B · 薄 BaseRepository（OPT-P2-11）
+
+- 新增 `app/repositories/`：`BaseRepository`（会话原语 + `paginate` 委托 `paginate_select`，默认不 commit）及具体 Repo：`CronRepository`、`JobLogRepository`、`OperationLogRepository`、`RbacUserRepository`、`RbacAuditLogRepository`。
+- 管理端 7 处列表与 cron 指标/侧栏查询迁出 `main/views` / `rbac/views`；views 仅解析请求与 Scope，调用具名 Repo 方法。
+- 门禁：`tests.test_repositories_phase_b`（views 不得直接 `paginate_select`）；AST L3 收窄为仅拦 `Query.paginate`（允许 `self.paginate` / Repo.paginate）。
+- **未纳入本项**：写路径全面迁 Repo（`cron_service` / `rbac/services` 仍负责 commit）；pin bump（Phase D）。
+
 ---
 
 ## [2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期

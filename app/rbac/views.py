@@ -1,13 +1,11 @@
 from urllib.parse import quote
 
 from flask import redirect, render_template, request, session
-from sqlalchemy import desc, select
-
 from app import db
 from app.common.functions import web_api_return
-from app.services.pagination import PageQuery, paginate_select
-from datas.model.rbac_audit_log import RbacAuditLog
-from datas.model.rbac_user import RbacUser
+from app.services.pagination import PageQuery
+from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+from app.repositories.rbac_user_repository import RbacUserRepository
 
 from . import rbac
 from .decorators import require_login, require_permission
@@ -164,11 +162,7 @@ def change_password():
 @require_permission('user:manage')
 def users_list():
     page_query = PageQuery.from_args(request.args)
-    page_data = paginate_select(
-        db.session,
-        select(RbacUser).order_by(desc(RbacUser.id)),
-        page_query,
-    )
+    page_data = RbacUserRepository(db.session).paginate_all(page_query)
     return render_template('rbac/users.html', page_data=page_data)
 
 
@@ -411,11 +405,7 @@ def groups_edit():
 @require_permission('audit:read')
 def audit_logs():
     page_query = PageQuery.from_args(request.args)
-    page_data = paginate_select(
-        db.session,
-        select(RbacAuditLog).order_by(desc(RbacAuditLog.id)),
-        page_query,
-    )
+    page_data = RbacAuditLogRepository(db.session).paginate_all(page_query)
     return render_template(
         'rbac/audit_logs.html',
         page_data=page_data,

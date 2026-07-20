@@ -38,7 +38,7 @@ CI 方案 **C-CI-A**（`unit-tests.yml` 追加 `test_orm_legacy_guard` + `test_a
 | --- | --- | --- | --- |
 | **L1** | `Model.query`（Declarative 遗留属性） | `Attribute(attr='query')`，且 value 为 Name/Attribute（排除 `paginate_select` 等无关名） | `db.session.get` / `select(...)` + `scalars` |
 | **L2** | `session.query(` / `db.session.query(` | `Call` → `func` 为 `Attribute(attr='query')`，且链式 value 含 `session` | `select(...)` + `session.execute` / `scalars` |
-| **L3** | Query 扩展 `.paginate(` | `Call` → `Attribute(attr='paginate')`；**排除** Name/Attribute 名为 `paginate_select` | `paginate_select(session, stmt, page_query, ...)` |
+| **L3** | Query 扩展 `.paginate(` | `Call` → `Attribute(attr='paginate')`，且接收者为 `.query(...)` Call 或 `.query` Attribute；**允许** `paginate_select`、`BaseRepository.paginate` / `self.paginate` | `paginate_select(...)` 或 Repo.`paginate` |
 
 ### 2.1 明确允许（非例外清单，而是合法 API）
 

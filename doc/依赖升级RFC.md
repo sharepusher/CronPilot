@@ -16,7 +16,7 @@ RFC依赖运维P2
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Phase A / Phase C 已落地** → **Phase B**（薄 BaseRepository，可选）→ **Tier 3a pin**（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
+下一依赖动作：**Phase A / B / C 已落地** → **Tier 3a pin**（SA 2.0 + FSA 3.x + Alembic，须与 Flask 2 同窗或紧随）→ Tier 4 Flask 2.x。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -323,7 +323,7 @@ RBAC 插入点（推荐）:
                       [Tier 2 gevent + Py 上限]
                                 │
                                 ▼
-                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase C AST ✓] → [Phase B Repo] → [Tier 3a pin + Tier 4 Flask 2]
+                      [Tier 3 前置去 records ✓] → [Phase A Query Contract ✓] → [Phase B Repo ✓] → [Phase C AST ✓] → [Tier 3a pin + Tier 4 Flask 2]
 ```
 
 ## 十、决策记录

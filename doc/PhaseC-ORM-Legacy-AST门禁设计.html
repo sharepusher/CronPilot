@@ -94,8 +94,8 @@
     <tr>
       <td><strong>L3</strong></td>
       <td>Query 扩展 <code>.paginate(</code></td>
-      <td><code>Call</code> → <code>Attribute(attr='paginate')</code>；<strong>排除</strong> Name/Attribute 名为 <code>paginate_select</code></td>
-      <td><code>paginate_select(session, stmt, page_query, ...)</code></td>
+      <td><code>Call</code> → <code>Attribute(attr='paginate')</code>，且接收者为 <code>.query(...)</code> Call 或 <code>.query</code> Attribute；<strong>允许</strong> <code>paginate_select</code>、<code>BaseRepository.paginate</code> / <code>self.paginate</code></td>
+      <td><code>paginate_select(...)</code> 或 Repo.<code>paginate</code></td>
     </tr>
   </table>
 

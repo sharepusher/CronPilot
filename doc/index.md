@@ -59,7 +59,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
-| **依赖升级 RFC** | Tier 0–2 已交付 · Phase A/C ✓ · Tier 3a pin / Tier 4 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
+| **依赖升级 RFC** | Tier 0–2 已交付 · Phase A/B/C ✓ · Tier 3a pin / Tier 4 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
 | ↳ Phase C · AST 门禁 | 已交付 | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
 
 ## ⑦ 部署与运维

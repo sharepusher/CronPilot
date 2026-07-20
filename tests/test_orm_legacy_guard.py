@@ -77,14 +77,24 @@ def find_violations(source, filename='<string>'):
                         filename, node.lineno, 'L2', snippet,
                     ))
             if base == 'paginate' and isinstance(func, ast.Attribute):
-                # 排除 paginate_select(...)
-                parent_names = _attr_chain_names(func)
-                if parent_names and parent_names[-1] == 'paginate':
-                    if 'paginate_select' not in parent_names:
-                        snippet = '.'.join(parent_names) + '(...)'
-                        violations.append(Violation(
-                            filename, node.lineno, 'L3', snippet,
-                        ))
+                # 仅拦 Query.paginate：session.query(...).paginate / Model.query.paginate
+                # 允许 BaseRepository.paginate / repo.paginate / paginate_select
+                recv = func.value
+                is_query_paginate = False
+                if (
+                    isinstance(recv, ast.Call)
+                    and isinstance(recv.func, ast.Attribute)
+                    and recv.func.attr == 'query'
+                ):
+                    is_query_paginate = True
+                elif isinstance(recv, ast.Attribute) and recv.attr == 'query':
+                    is_query_paginate = True
+                if is_query_paginate:
+                    parent_names = _attr_chain_names(func)
+                    snippet = '.'.join(parent_names) + '(...)' if parent_names else '….paginate(...)'
+                    violations.append(Violation(
+                        filename, node.lineno, 'L3', snippet,
+                    ))
             elif isinstance(func, ast.Name) and func.id == 'paginate':
                 # 裸 paginate(...) 极少见，仍拦
                 violations.append(Violation(
@@ -158,6 +168,11 @@ class TestOrmLegacyGuard(unittest.TestCase):
         rules = set(v.rule_id for v in vs)
         self.assertTrue('L2' in rules or 'L3' in rules)
         self.assertIn('L3', rules)
+
+    def test_detector_allows_repo_paginate(self):
+        src = 'page_data = self.paginate(stmt, page_query)\n'
+        vs = find_violations(src, filename='fixture.py')
+        self.assertEqual(vs, [])
 
     def test_detector_allows_paginate_select(self):
         src = (

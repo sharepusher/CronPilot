@@ -54,7 +54,7 @@ case "$cmd" in
     export FLASK_CONFIG=development
     cp -n conf.ini.example conf.ini 2>/dev/null || true
     bash "$ROOT/scripts/check_pending_sync.sh"
-    "$CRONPILOT_VENV/bin/python" -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign tests.test_job_log_display tests.test_job_log_outcome tests.test_job_log_id tests.test_job_health tests.test_job_log_outcome_filter tests.test_check_conf_production tests.test_ensure_business_tables tests.test_rbac_phase tests.test_rbac_scope tests.test_ajax_form_guard tests.test_orm_legacy_guard tests.test_operation_log tests.test_cron_edit_status tests.test_cron_schedule_display tests.test_cron_run_now tests.test_scheduler_db tests.test_pagination -v
+    "$CRONPILOT_VENV/bin/python" -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign tests.test_job_log_display tests.test_job_log_outcome tests.test_job_log_id tests.test_job_health tests.test_job_log_outcome_filter tests.test_check_conf_production tests.test_ensure_business_tables tests.test_rbac_phase tests.test_rbac_scope tests.test_ajax_form_guard tests.test_orm_legacy_guard tests.test_repositories_phase_b tests.test_operation_log tests.test_cron_edit_status tests.test_cron_schedule_display tests.test_cron_run_now tests.test_scheduler_db tests.test_pagination -v
     ;;
   check)
     exec bash "$ROOT/scripts/check_python.sh"

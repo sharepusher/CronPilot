@@ -1,15 +1,12 @@
 # -*- coding:utf-8 -*-
 import traceback
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_
 
 from app import scheduler, db
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
-from datas.model.job_log_items import JobLogItems
-from datas.model.job_health import JobHealth
 from datas.utils.json import json_response
-from datas.utils.times import get_today
 from . import main
 from flask import render_template, request, redirect, session, current_app, url_for
 
@@ -24,10 +21,11 @@ from app.rbac.scope import (
 )
 from app.rbac.services import list_resource_groups
 from app.services.cron_service import add_cron_web, edit_cron_web
-from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
 from app.services.job_log_filter import job_log_outcome_clause
-from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
-from app.services.pagination import PageQuery, paginate_select
+from app.services.pagination import PageQuery
+from app.repositories.cron_repository import CronRepository
+from app.repositories.job_log_repository import JobLogRepository
+from app.repositories.operation_log_repository import OperationLogRepository
 
 
 def _parse_log_outcome_param():
@@ -42,6 +40,18 @@ def _parse_log_outcome_param():
     return 'not_success'
 
 from ..common.functions import wechat_info_err, web_api_return
+
+
+def _cron_repo():
+    return CronRepository(db.session)
+
+
+def _job_log_repo():
+    return JobLogRepository(db.session)
+
+
+def _operation_log_repo():
+    return OperationLogRepository(db.session)
 
 
 def _scope_groups_for_form():
@@ -77,49 +87,6 @@ def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
     if sv == 'global':
         return sv, None, CronInfos.scope_type == SCOPE_GLOBAL
     return 'all', None, None
-
-
-def _cron_list_metrics(base_filters):
-    """在已有权限+UI 过滤上统计 Metric。"""
-    total_stmt = select(func.count()).select_from(CronInfos)
-    running_stmt = (
-        select(func.count())
-        .select_from(CronInfos)
-        .where(CronInfos.status == 1)
-    )
-    failing_stmt = (
-        select(func.count())
-        .select_from(JobHealth)
-        .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
-        .where(JobHealth.health_status == HEALTH_FAILING)
-    )
-    today = get_today()
-    today_fail_stmt = (
-        select(func.count())
-        .select_from(JobLog)
-        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-        .where(JobLog.create_time.like(today + '%'))
-        .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
-    )
-    if base_filters:
-        total_stmt = total_stmt.where(*base_filters)
-        running_stmt = running_stmt.where(*base_filters)
-        failing_stmt = failing_stmt.where(*base_filters)
-        today_fail_stmt = today_fail_stmt.where(*base_filters)
-
-    total = db.session.scalar(total_stmt) or 0
-    running = db.session.scalar(running_stmt) or 0
-    failing = db.session.scalar(failing_stmt) or 0
-    today_fail = db.session.scalar(today_fail_stmt) or 0
-    return {
-        'total': int(total),
-        'running': int(running),
-        'failing': int(failing),
-        'today_fail_runs': int(today_fail),
-        'failing_threshold': get_failing_threshold(
-            current_app.config.get('CRON_CONFIG')
-        ),
-    }
 
 
 def _scope_form_context():
@@ -201,40 +168,14 @@ def cron_list():
         filter_arr.append(CronInfos.status == int(life_status))
 
     health = (keyword.get('health') or '').strip().lower()
-    stmt = select(CronInfos)
-    if health == 'failing':
-        stmt = (
-            stmt.join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
-            .where(JobHealth.health_status == HEALTH_FAILING)
-        )
-    elif health == 'today_fail':
-        today = get_today()
-        today_fail_ids = (
-            select(JobLog.cron_info_id)
-            .where(JobLog.create_time.like(today + '%'))
-            .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
-            .distinct()
-        )
-        stmt = stmt.where(CronInfos.id.in_(today_fail_ids))
-    if filter_arr:
-        stmt = stmt.where(*filter_arr)
-
-    metrics = _cron_list_metrics(list(filter_arr))
-    page_data = paginate_select(
-        db.session,
-        stmt.order_by(
-            db.desc(CronInfos.status), db.desc(CronInfos.task_name)
-        ),
-        page_query,
+    repo = _cron_repo()
+    metrics = repo.metrics(
+        list(filter_arr),
+        cron_config=current_app.config.get('CRON_CONFIG'),
     )
+    page_data = repo.paginate_list(page_query, filters=filter_arr, health=health)
 
-    health_by_id = {}
-    ids = [item.id for item in page_data.items]
-    if ids:
-        for h in db.session.scalars(
-            select(JobHealth).where(JobHealth.cron_info_id.in_(ids))
-        ).all():
-            health_by_id[h.cron_info_id] = h
+    health_by_id = repo.health_by_cron_ids([item.id for item in page_data.items])
 
     scope_groups = _scope_groups_for_form()
     group_name_by_id = {g.id: g.name for g in scope_groups}
@@ -254,29 +195,8 @@ def cron_list():
     elif 'group_id' in keyword and scope_view != 'group':
         keyword.pop('group_id', None)
 
-    failing_stmt = (
-        select(CronInfos, JobHealth)
-        .join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
-        .where(JobHealth.health_status == HEALTH_FAILING)
-    )
-    if filter_arr:
-        failing_stmt = failing_stmt.where(*filter_arr)
-    failing_tasks = db.session.execute(
-        failing_stmt.order_by(
-            db.desc(JobHealth.consecutive_failures),
-            db.desc(JobHealth.last_fail_at),
-        ).limit(5)
-    ).all()
-    recent_ok_stmt = (
-        select(CronInfos, JobHealth)
-        .join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
-        .where(JobHealth.last_run_status == STATUS_SUCCESS)
-    )
-    if filter_arr:
-        recent_ok_stmt = recent_ok_stmt.where(*filter_arr)
-    recent_ok_tasks = db.session.execute(
-        recent_ok_stmt.order_by(db.desc(JobHealth.last_run_at)).limit(5)
-    ).all()
+    failing_tasks = repo.top_failing(filter_arr, limit=5)
+    recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
 
     return render_template(
         "cron_list.html",
@@ -312,16 +232,11 @@ def job_log_list():
 
     page_query = PageQuery.from_args(request.args)
     id = request.args.get('id')
+    repo = _job_log_repo()
     cif = db.session.get(CronInfos, id) if id else None
     if id:
         if not cif:
-            page_data = paginate_select(
-                db.session,
-                select(JobLog)
-                .where(JobLog.cron_info_id == -1)
-                .order_by(db.desc(JobLog.id)),
-                page_query,
-            )
+            page_data = repo.paginate_empty(page_query)
             if 'page' in keywords:
                 del keywords['page']
             return render_template(
@@ -345,15 +260,7 @@ def job_log_list():
             outcome = raw
         else:
             outcome = 'all'
-    outcome_clause = job_log_outcome_clause(outcome)
-    stmt = select(JobLog).where(JobLog.cron_info_id == id)
-    if outcome_clause is not None:
-        stmt = stmt.where(outcome_clause)
-    page_data = paginate_select(
-        db.session,
-        stmt.order_by(db.desc(JobLog.id)),
-        page_query,
-    )
+    page_data = repo.paginate_for_cron(page_query, id, outcome=outcome)
     if 'page' in keywords:
         del keywords['page']
     keywords['outcome'] = outcome
@@ -370,18 +277,15 @@ def job_log_list():
 @require_permission('log:read')
 def job_log_item_list():
     log_id = request.args.get('log_id')
-    jl = db.session.scalars(
-        select(JobLog).where(JobLog.log_id == log_id)
-    ).first()
+    repo = _job_log_repo()
+    jl = repo.get_by_log_id(log_id)
     if not jl:
         return render_template("job_log_item_list.html", page_data=[])
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
-    page_data = db.session.scalars(
-        select(JobLogItems).where(JobLogItems.log_id == log_id)
-    ).all()
+    page_data = repo.items_for_log_id(log_id)
 
     return render_template("job_log_item_list.html", page_data=page_data)
 
@@ -390,18 +294,15 @@ def job_log_item_list():
 @require_permission('log:read')
 def job_log_detail():
     job_log_id = request.args.get('id')
-    jl = db.session.get(JobLog, job_log_id)
+    repo = _job_log_repo()
+    jl = repo.get(JobLog, job_log_id)
     if not jl:
         return render_template("job_log_detail.html", jl=None, cif=None, items=[])
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
-    items = []
-    if jl.log_id:
-        items = db.session.scalars(
-            select(JobLogItems).where(JobLogItems.log_id == jl.log_id)
-        ).all()
+    items = repo.items_for_log_id(jl.log_id) if jl.log_id else []
     return render_template("job_log_detail.html", jl=jl, cif=cif, items=items)
 
 
@@ -431,28 +332,7 @@ def job_log_all_list():
     if outcome_clause is not None:
         filter_arr.append(outcome_clause)
 
-    stmt = (
-        select(JobLog, CronInfos)
-        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-    )
-    if filter_arr:
-        stmt = stmt.where(*filter_arr)
-    stmt = stmt.order_by(db.desc(JobLog.id))
-    # 以 JobLog 为主表计数，避免联表 count 语义漂移
-    count_stmt = (
-        select(func.count())
-        .select_from(JobLog)
-        .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-    )
-    if filter_arr:
-        count_stmt = count_stmt.where(*filter_arr)
-    page_data = paginate_select(
-        db.session,
-        stmt,
-        page_query,
-        scalars=False,
-        count_stmt=count_stmt,
-    )
+    page_data = _job_log_repo().paginate_all(page_query, filters=filter_arr)
 
     if 'page' in keywords:
         del keywords['page']
@@ -626,7 +506,6 @@ def cron_retire():
 @main.route('/operation_log_list', methods=['GET', 'POST'])
 @require_permission('operation:read')
 def operation_log_list():
-    from datas.model.operation_log import OperationLog
     from app.services.operation_log_service import (
         format_detail_summary,
         operation_action_label,
@@ -650,57 +529,26 @@ def operation_log_list():
         keywords.get('group_id'),
     )
 
-    filters = []
-    if task_name:
-        filters.append(OperationLog.task_name.like('%{}%'.format(task_name)))
-    if operator_name:
-        filters.append(OperationLog.operator_name.like('%{}%'.format(operator_name)))
-    if action:
-        filters.append(OperationLog.action == action)
-    if beg_time:
-        filters.append(OperationLog.create_time >= beg_time)
-    if end_time:
-        filters.append(OperationLog.create_time <= end_time)
-
+    scope_clause = None
     if not role_bypasses_scope(role):
         scope_clause = build_scope_filter_clause(role, group_ids)
-        visible_ids = select(CronInfos.id)
-        if scope_clause is not None:
-            visible_ids = visible_ids.where(scope_clause)
-        filters.append(
-            and_(
-                OperationLog.target_type == 'cron',
-                OperationLog.target_id.in_(visible_ids),
-            )
-        )
-    elif ui_scope_clause is not None:
-        cron_ids = select(CronInfos.id).where(ui_scope_clause)
-        filters.append(
-            and_(
-                OperationLog.target_type == 'cron',
-                OperationLog.target_id.in_(cron_ids),
-            )
-        )
 
-    stmt = select(OperationLog)
-    if filters:
-        stmt = stmt.where(*filters)
-    page_data = paginate_select(
-        db.session,
-        stmt.order_by(db.desc(OperationLog.id)),
+    page_data = _operation_log_repo().paginate_list(
         page_query,
+        task_name=task_name or None,
+        operator_name=operator_name or None,
+        action=action or None,
+        beg_time=beg_time or None,
+        end_time=end_time or None,
+        scope_clause=scope_clause,
+        ui_scope_clause=ui_scope_clause,
+        bypass_scope=role_bypasses_scope(role),
     )
 
-    cron_by_id = {}
-    target_ids = [
+    cron_by_id = _cron_repo().map_by_ids([
         r.target_id for r in page_data.items
         if r.target_type == 'cron' and r.target_id
-    ]
-    if target_ids:
-        for cif in db.session.scalars(
-            select(CronInfos).where(CronInfos.id.in_(target_ids))
-        ).all():
-            cron_by_id[cif.id] = cif
+    ])
 
     scope_groups = _scope_groups_for_form()
     group_name_by_id = {g.id: g.name for g in scope_groups}

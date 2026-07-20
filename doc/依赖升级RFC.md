@@ -16,7 +16,7 @@ RFC依赖运维P2
 
 **2026-07-17 架构与版本复审：**当前 **v2.0.0** 架构（HTTP 回调调度台 · 双库 · 三角色 RBAC · gevent/gunicorn）与稳定栈
 **Flask 1.1 + SA 1.4 + gevent 23 + Python 3.8–3.11** 仍成立，**无需紧急跳级**升级 Flask 2 / SA 2 / Python 3.12+。
-下一依赖动作：**Phase D2 Mapped[] 已落地** → **Phase D3（OPT-P2-11 · Docker 矩阵）** → Tier 3b/3c 生产校验。
+下一依赖动作：**Tier 3b-A 已交付** → **Phase D3 compose（暂缓）** → **Tier 3c** 生产校验。
 
 **交付纪律（每一 Tier / 优化项）：**
 
@@ -44,7 +44,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | --- | --- | --- | --- |
 | Web | Flask / Werkzeug / Jinja2 | 1.1.2 / 1.0.1 / 2.11.2 | Flask 1.x 已停止演进 |
 | ORM | SQLAlchemy / Flask-SQLAlchemy | 1.4.52 / 2.5.1 | **Tier 1 已交付**；全站 `Model.query` 已迁移；**Tier 3 前置已去 records** |
-| 迁移 | Flask-Migrate / alembic | 2.5.3 / 1.4.3 | **Tier 0 已交付**：`flask db`（Click）；Flask-Script 已移除 |
+| 迁移 | Flask-Migrate / alembic | 4.0.7 / 1.14.1 | **Tier 0** 交付 `flask db` CLI；业务 schema **当前主路径**为 `ensure_business_tables`（见 Tier 3b）；仓库无强制 Alembic revision 树 |
 | 调度 | APScheduler / Flask-APScheduler | **3.10.4** / 1.11.0 | `SQLAlchemyJobStore` + SA 1.4 |
 | WSGI | gunicorn / gevent | **22.0.0** / **23.9.1** | `gun.py` 启动即 monkey patch |
 | HTTP | requests / urllib3 | **2.31.0** / **1.26.19** | 侧车 RFC-S.1 已交付 |
@@ -193,8 +193,8 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | **3a 前置 · Phase A** | **Query Contract**（`app/services/pagination.py`）：`PageQuery` / `PaginationResult` / `paginate_select`。 改写全部管理端列表 `db.session.query(...).paginate()` 与列表路径 `session.query`：  - `app/main/views.py`：任务中心、job\_log、operation\_log（7 处） - `app/rbac/views.py`：用户列表、审计日志（2 处）  模板 `admin_page.html` 零改动；**不 bump pin**。 | ✓ 已交付（2026-07-20） |
 | **3a · pin bump** | 已落地（2026-07-20 / Phase D1）：`SQLAlchemy==2.0.36` + `Flask-SQLAlchemy==3.1.1` + `alembic==1.14.1` + `Flask-Migrate==4.0.7`， 与 **Flask 2.3.3** 链同窗（DEC-008 B1）。 | ✓ 已交付 |
 | **D2 · Mapped[]** | 已落地（2026-07-20）：`datas/model` 九表 `Mapped`/`mapped_column`； `test_mapped_model_guard`。见 [D2](PhaseD2-Mapped模型迁移.html)。 | ✓ 已交付 |
-| 3b | 迁移脚本重放验证；残余 SA 1.4 兼容写法收束 | 未开始 |
-| 3c | 生产库备份 → upgrade → JobStore / `job_log` 只读校验 | 未开始 |
+| **3b · ensure 重放 + 残余收束（3b-A）** | 业务 schema 主路径正式定为 `ensure_business_tables`；空库重放验收； 残余 SA 1.4 写法以 Phase A/B/C AST 门禁为准盘点。见 [Tier 3b 设计](Tier3b-迁移重放与残余收束设计.html)。 | ✓ 已交付（2026-07-20） |
+| 3c | 生产库备份 → upgrade/ensure → JobStore / `job_log` 只读校验 | 未开始 |
 
 #### 验收标准
 

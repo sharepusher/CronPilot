@@ -3,17 +3,18 @@
 > HTML 版：[Tier3b-迁移重放与残余收束设计.html](Tier3b-迁移重放与残余收束设计.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-OPT-P2-11Tier 3b设计待确认
+OPT-P2-11Tier 3b已交付 · 3b-A
 
 # Tier 3b · 迁移重放与残余收束
 
 SA 2.0 栈上的 schema 演进可复现性 + 残余 1.4 兼容写法清理
 
-状态：设计待确认 · 2026-07-20 · 不依赖 Docker · 前置 Phase D1/D2 ✓ · Phase D3 部分
+状态：已交付（3b-A）· 2026-07-20 · 不依赖 Docker
 
-**请确认后再实现。**本页为架构轨选项 B。编号见
-[需求编号与缩写规范](需求编号与缩写规范.html)。
-确认前**不**改 migrations / ensure 脚本行为 / 宣称 Tier 3b 已交付。
+**已确认并交付（2026-07-20 · 3b-A）：**
+schema 主路径契约写入 RFC / 非 Docker 部署指南；
+`TestEnsureEmptyDbReplay` 空库重放+幂等；
+残余盘点见下「七」。未采用 3b-B Alembic 基线。
 
 **定位：**属 **OPT-P2-11** · **Tier 3b**
 （见 [依赖升级 RFC](依赖升级RFC.html)：迁移脚本重放；残余 SA 1.4 兼容写法收束）。
@@ -75,14 +76,26 @@ Phase D3（Docker pin）——环境就绪后另做
 Tier 3c —— 备份真实/类生产库 → upgrade/ensure → JobStore 只读校验（另设计）
 ```
 
-**确认方式：**请回复「按 Tier 3b 设计（3b-A）执行」或「改用 3b-B Alembic 基线」或列出修改点。
+## 七、残余写法盘点（3b-3 · 2026-07-20）
+
+| 项 | 结论 |
+| --- | --- |
+| `Model.query` / `session.query` / `Query.paginate` | Phase A/B/C 已清；`test_orm_legacy_guard` 门禁。本窗**无新增债**。 |
+| `session.execute` + `text()` | 合法 SA2 用法（`scheduler_db`、`crons` ping、`ensure_*` ALTER）。无需改。 |
+| `future=False` 引擎选项 | Phase D1 已移除；现用池选项。无需改。 |
+| 仓库 `migrations/` | **不存在**；不假装有 Alembic 历史。3b-B 另立项。 |
+| 历史文档中的 `JobLog.query` 字样 | 仅旧手册/Release 叙述；代码已 ORM delete。本窗不 bulk 改历史 Release。 |
+
+**本窗代码清理：**无必须改动的运行时残余；以契约 + 重放测试 + 盘点表收束。
+
+**确认记录：**用户 2026-07-20 回复「按 Tier 3b 设计（3b-A）执行」。
 
 [依赖升级 RFC](依赖升级RFC.html) ·
 [Phase D3](PhaseD3-Docker-pin矩阵设计.html) ·
 [交付状态](交付状态与路线图.html) ·
 [编号规范](需求编号与缩写规范.html)
 
-CronPilot · Tier 3b 设计 · 待确认 2026-07-20 · [索引](index.html) · [Markdown](Tier3b-迁移重放与残余收束设计.md) · [索引](index.html)
+CronPilot · Tier 3b · 已交付（3b-A）2026-07-20 · [索引](index.html) · [Markdown](Tier3b-迁移重放与残余收束设计.md)
 
 ---
 

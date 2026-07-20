@@ -79,7 +79,15 @@ v0.1.0 2026-05-29 · Phase A（P0）
 - 设计稿：[Phase D2 · Mapped 模型迁移](PhaseD2-Mapped模型迁移.html)。
 - 验收：`cronpilot.sh test`（199）+ `verify_all.sh --local-only` 4/4。
 - 附带：`cron_do` 在 `app_context` 内读取 `JobLog.id`，避免 SA 2.0 detach 后访问主键报错。
-- **未纳入：**Docker 全矩阵（Phase D3）；Tier 3b/3c；Flask 3。
+- **未纳入：**Docker 全矩阵（Phase D3）；Tier 3c；Flask 3。
+
+### Tier 3b · ensure 重放与残余收束（OPT-P2-11 · 3b-A）
+
+- **契约：**业务 schema 演进主路径正式定为 `scripts/ensure_business_tables`（`create_all` + 条件 ALTER）；`flask db` 仍可用，但仓库**无**强制 Alembic `migrations/` 树。
+- **验收：**`tests.test_ensure_business_tables.TestEnsureEmptyDbReplay` — 空 SQLite 建表后 ensure 补列可重放且幂等。
+- **残余盘点：**`Model.query` / `session.query` / `Query.paginate` 已由 Phase A/B/C 门禁覆盖；本窗无必须改动的运行时残余。未采用 3b-B Alembic 基线。
+- 设计稿：[Tier 3b · 迁移重放与残余收束](Tier3b-迁移重放与残余收束设计.html)。
+- **未纳入：**Alembic 初始 revision（3b-B）；Tier 3c；Phase D3 compose。
 
 ### Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付
 

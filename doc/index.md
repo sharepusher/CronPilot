@@ -37,7 +37,6 @@
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](规模化Scope过滤与角色差异化设计.html) | [MD](规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](规模化双层IA与任务健康模型评审.html) | [MD](规模化双层IA与任务健康模型评审.md) |
 | P1 可观测小步 OPT-P1-01b/c | 失败筛选 · 展示统一 | [HTML](P1可观测小步优化设计.html) | [MD](P1可观测小步优化设计.md) |
-| Tier 3b · 迁移重放与残余收束 OPT-P2-11 | ensure 空库重放 · 残余 SA 写法 · 设计待确认 | [HTML](Tier3b-迁移重放与残余收束设计.html) | [MD](Tier3b-迁移重放与残余收束设计.md) |
 | P1 执行详情与立即执行 OPT-P1-03/04 | 独立详情 URL · 立即执行 | [HTML](P1执行详情与立即执行设计.html) | [MD](P1执行详情与立即执行设计.md) |
 | Tier 3 前置收束 | 去 `records` 裸 SQL | [HTML](Tier3前置收束设计.html) | [MD](Tier3前置收束设计.md) |
 
@@ -45,6 +44,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| Tier 3b · 迁移重放与残余收束 OPT-P2-11 | ensure 空库重放 · 3b-A · Unreleased | [HTML](Tier3b-迁移重放与残余收束设计.html) | [MD](Tier3b-迁移重放与残余收束设计.md) |
 | Phase D2 · Mapped 模型迁移 | datas/model 九表 Mapped[] · test_mapped_model_guard · Unreleased | [HTML](PhaseD2-Mapped模型迁移.html) | [MD](PhaseD2-Mapped模型迁移.md) |
 | Phase D0 · Framework Generation 决策 | DEC-008 · Py 3.8–3.11 · Flask 2.3 + SA2/FSA3 同窗 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
 | Phase C · ORM Legacy AST 门禁 | AST 禁止 Legacy ORM 回潮 · CI · Unreleased | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
@@ -63,10 +63,11 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
-| **依赖升级 RFC** | Tier 0–2 · Phase A/B/C · D0 DEC-008 ✓ · D1 pin 未开始 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
+| **依赖升级 RFC** | Tier 0–2 · Phase A/B/C/D1/D2 · Tier 3b-A ✓ · D3 部分 | [HTML](依赖升级RFC.html) | [MD](依赖升级RFC.md) |
 | ↳ Phase C · AST 门禁 | 已交付 | [HTML](PhaseC-ORM-Legacy-AST门禁设计.html) | [MD](PhaseC-ORM-Legacy-AST门禁设计.md) |
 | ↳ Phase D0 · 框架代际决策 | 已确认 DEC-008 | [HTML](PhaseD0-Framework-Generation决策.html) | [MD](PhaseD0-Framework-Generation决策.md) |
 | ↳ Phase D2 · Mapped[] | 已交付 | [HTML](PhaseD2-Mapped模型迁移.html) | [MD](PhaseD2-Mapped模型迁移.md) |
+| ↳ Tier 3b · ensure 重放（3b-A） | 已交付 | [HTML](Tier3b-迁移重放与残余收束设计.html) | [MD](Tier3b-迁移重放与残余收束设计.md) |
 
 ## ⑦ 部署与运维
 

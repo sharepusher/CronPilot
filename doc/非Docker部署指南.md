@@ -199,7 +199,7 @@ server {
 | 现象 | 处理 |
 | --- | --- |
 | `pip install gevent` 失败 | 换 3.9/3.10；或本地用 `bash scripts/start_local.sh`（core 依赖）。长期方案：[依赖升级 RFC](依赖升级RFC.html) Tier 2 |
-| 数据库迁移 CLI | `export FLASK_APP=manage:app` 后 `flask db migrate` / `flask db upgrade`（Py3.11 可用；见 [依赖升级 RFC](依赖升级RFC.html) Tier 0） |
+| 数据库 schema 演进 | **主路径**：`bash scripts/ensure_business_tables.sh`（启动/`run_production` 已调用；SQLite/MySQL 建表补列）。 `flask db migrate/upgrade` 可用（Tier 0 CLI），但仓库**当前无**强制 Alembic revision 树；勿假设已有 `migrations/`。见 [Tier 3b](Tier3b-迁移重放与残余收束设计.html) / [依赖升级 RFC](依赖升级RFC.html) |
 | 外网无法访问 | 确认 Gunicorn `0.0.0.0`、防火墙、云安全组放行 5860 |
 | `/docs/` 404 | 确认已部署含 `app/docs/` 的版本并重启进程 |
 | 调度不触发 | 检查 `cron_db_url`、APScheduler 库表、`is_single` / Redis |

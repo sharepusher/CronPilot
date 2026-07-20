@@ -203,7 +203,8 @@ sudo systemctl status cronpilot</pre>
     <table>
       <tr><th>现象</th><th>处理</th></tr>
       <tr><td><code>pip install gevent</code> 失败</td><td>换 3.9/3.10；或本地用 <code>bash scripts/start_local.sh</code>（core 依赖）。长期方案：<a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 2</td></tr>
-      <tr><td>数据库迁移 CLI</td><td><code>export FLASK_APP=manage:app</code> 后 <code>flask db migrate</code> / <code>flask db upgrade</code>（Py3.11 可用；见 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0）</td></tr>
+      <tr><td>数据库 schema 演进</td><td><strong>主路径</strong>：<code>bash scripts/ensure_business_tables.sh</code>（启动/<code>run_production</code> 已调用；SQLite/MySQL 建表补列）。
+        <code>flask db migrate/upgrade</code> 可用（Tier 0 CLI），但仓库<strong>当前无</strong>强制 Alembic revision 树；勿假设已有 <code>migrations/</code>。见 <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b</a> / <a href="依赖升级RFC.html">依赖升级 RFC</a></td></tr>
       <tr><td>外网无法访问</td><td>确认 Gunicorn <code>0.0.0.0</code>、防火墙、云安全组放行 5860</td></tr>
       <tr><td><code>/docs/</code> 404</td><td>确认已部署含 <code>app/docs/</code> 的版本并重启进程</td></tr>
       <tr><td>调度不触发</td><td>检查 <code>cron_db_url</code>、APScheduler 库表、<code>is_single</code> / Redis</td></tr>

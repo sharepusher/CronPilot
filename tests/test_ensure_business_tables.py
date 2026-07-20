@@ -219,5 +219,60 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         self.assertNotIn("ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT ''", sql_text)
 
 
+class TestEnsureEmptyDbReplay(unittest.TestCase):
+    """Tier 3b-A：空库 create_all + ensure 补列可重放且幂等。"""
+
+    REQUIRED_TABLES = (
+        'cron_infos',
+        'job_log',
+        'job_log_items',
+        'job_health',
+        'rbac_users',
+        'rbac_audit_logs',
+        'operation_log',
+        'resource_groups',
+        'user_groups',
+    )
+
+    def test_empty_sqlite_replay_idempotent(self):
+        from flask import Flask
+        from sqlalchemy import inspect
+
+        from app import db
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
+        with app.app_context():
+            db.create_all()
+            for _ in range(2):
+                mod._ensure_job_log_columns()
+                mod._ensure_cron_infos_columns(backend='sqlite')
+                mod._ensure_rbac_users_columns()
+            insp = inspect(db.engine)
+            for table in self.REQUIRED_TABLES:
+                self.assertTrue(insp.has_table(table), 'missing table %s' % table)
+            cron_cols = {c['name'] for c in insp.get_columns('cron_infos')}
+            for col in (
+                'req_method',
+                'req_body',
+                'scope_type',
+                'group_id',
+                'last_operator_name',
+                'last_operated_at',
+                'created_at',
+                'retire_reason',
+            ):
+                self.assertIn(col, cron_cols)
+            jl_cols = {c['name'] for c in insp.get_columns('job_log')}
+            for col in ('http_status', 'status', 'fail_reason'):
+                self.assertIn(col, jl_cols)
+            rbac_cols = {c['name'] for c in insp.get_columns('rbac_users')}
+            self.assertIn('must_reset_password', rbac_cols)
+            self.assertIn('status_reason', rbac_cols)
+
+
 if __name__ == '__main__':
     unittest.main()

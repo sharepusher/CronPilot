@@ -105,7 +105,15 @@
       <li>设计稿：<a href="PhaseD2-Mapped模型迁移.html">Phase D2 · Mapped 模型迁移</a>。</li>
       <li>验收：<code>cronpilot.sh test</code>（199）+ <code>verify_all.sh --local-only</code> 4/4。</li>
       <li>附带：<code>cron_do</code> 在 <code>app_context</code> 内读取 <code>JobLog.id</code>，避免 SA 2.0 detach 后访问主键报错。</li>
-      <li><strong>未纳入：</strong>Docker 全矩阵（Phase D3）；Tier 3b/3c；Flask 3。</li>
+      <li><strong>未纳入：</strong>Docker 全矩阵（Phase D3）；Tier 3c；Flask 3。</li>
+    </ul>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 3b · ensure 重放与残余收束（OPT-P2-11 · 3b-A）</h3>
+    <ul>
+      <li><strong>契约：</strong>业务 schema 演进主路径正式定为 <code>scripts/ensure_business_tables</code>（<code>create_all</code> + 条件 ALTER）；<code>flask db</code> 仍可用，但仓库<strong>无</strong>强制 Alembic <code>migrations/</code> 树。</li>
+      <li><strong>验收：</strong><code>tests.test_ensure_business_tables.TestEnsureEmptyDbReplay</code> — 空 SQLite 建表后 ensure 补列可重放且幂等。</li>
+      <li><strong>残余盘点：</strong><code>Model.query</code> / <code>session.query</code> / <code>Query.paginate</code> 已由 Phase A/B/C 门禁覆盖；本窗无必须改动的运行时残余。未采用 3b-B Alembic 基线。</li>
+      <li>设计稿：<a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b · 迁移重放与残余收束</a>。</li>
+      <li><strong>未纳入：</strong>Alembic 初始 revision（3b-B）；Tier 3c；Phase D3 compose。</li>
     </ul>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 部分交付</h3>
     <ul>

@@ -30,9 +30,10 @@ alwaysApply: false
 - [ ] 设计已确认（优化与功能开发均须；含分批与可执行验收；**确认前无实现 diff**）
 - [ ] **验证通过**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`
 - [ ] **Release 前文档梳理**（打 tag / 发 GitHub Release **之前**必做）：
-  - [ ] 更新 `doc/交付状态与路线图.html`：每项 OPT/RFC/Tier 标「已交付 + 版本」或「设计待确认 / 未开始」
-  - [ ] `RELEASE_NOTES.md`：`[Unreleased]` 仅保留下一版草稿；已发布内容下沉到版本节
-  - [ ] 相关设计稿页眉（如 P1/UI/RFC）与 `doc/产品优化需求`、`doc/依赖升级RFC`、`doc/详细技术方案` 版本列一致
+  - [ ] `RELEASE_NOTES.md` / `doc/RELEASE_NOTES.html`：对外专业表述（变更要点 + 升级步骤）；**无**内部编号与进度板口吻；`[Unreleased]` 仅占位，细节在交付状态页
+  - [ ] `README` 版本摘要与 Release Notes 口径一致（同样避免 OPT/Tier/Phase）
+  - [ ] 更新 `doc/交付状态与路线图.html`：每项 OPT/RFC/Tier 标「已交付 + 版本」或「设计待确认 / 未开始」（**内部**进度权威）
+  - [ ] 相关设计稿页眉与 `doc/产品优化需求`、`doc/依赖升级RFC`、`doc/详细技术方案` 版本列一致
   - [ ] `doc/index.html` / `index.md` 入口与 README 版本表对齐
 - [ ] **文档已同步**：`RELEASE_NOTES` + 相关 `doc/*.html`；`html_docs_to_markdown.py --check` 通过
 - [ ] **同一 commit** 含代码与文档（除非用户要求拆 PR）
@@ -43,7 +44,7 @@ alwaysApply: false
 
 - 远程：`sharepusher/CronPilot`（`main`）
 - CI：**Unit tests**、**Docker install verify**（Ubuntu/Rocky8/CentOS7）（矩阵 3.8–3.11 + core 依赖）、**install-full**（矩阵 3.9/3.10/3.11 全量）、**Docs sync**
-- Release 文案可从 `RELEASE_NOTES.md` 摘录；Full Changelog 用 compare 链接
+- Release 文案从 `RELEASE_NOTES.md` **对外章节**摘录（勿贴交付状态/RFC 进度表）；Full Changelog 用 compare 链接
 
 ## 生产安全
 

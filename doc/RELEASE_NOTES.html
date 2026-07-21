@@ -22,29 +22,30 @@
     th{background:#f1f5f9}
     pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.82rem}
     code{background:#f1f5f9;padding:.08rem .3rem;border-radius:3px;font-size:.88em}
-    ul{margin:.4rem 0 .6rem 1.2rem}
+    ul,ol{margin:.4rem 0 .6rem 1.2rem}
     footer{text-align:center;padding:2rem;color:var(--muted);font-size:.82rem}
+    .muted{color:var(--muted);font-size:.9rem}
   </style>
 </head>
 <body>
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v2.1.0</span> 2026-07-20 · Framework Generation（Flask 2.3 + SA 2.0）
+    <span class="tag new">v2.1.0</span> 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
     &nbsp;|&nbsp;
     <span class="tag">v2.0.0</span> 2026-07-17 · 任务中心 / POST 触发 / 账户生命周期
     &nbsp;|&nbsp;
     <span class="tag">v1.2.0</span> 2026-07-15 · 顶栏身份 / 种子权限 / 启停用语
     &nbsp;|&nbsp;
-    <span class="tag">v1.1.0</span> 2026-07-14 · Scope 资源隔离 / 自助改密 / 编辑页精简
+    <span class="tag">v1.1.0</span> 2026-07-14 · 业务组隔离 / 自助改密
     &nbsp;|&nbsp;
-    <span class="tag">v1.0.0</span> 2026-07-14 · RBAC / 生命周期 / operation_log
+    <span class="tag">v1.0.0</span> 2026-07-14 · 多用户权限 / 生命周期 / 操作审计
     &nbsp;|&nbsp;
-    <span class="tag">v0.2.0</span> 2026-06-10 · P1 可观测 / Tier 0–2 / UI
+    <span class="tag">v0.2.0</span> 2026-06-10 · 执行可观测 / 依赖与部署加固
     &nbsp;|&nbsp;
     <span class="tag">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
     &nbsp;|&nbsp;
-    <span class="tag">v0.1.0</span> 2026-05-29 · Phase A（P0）
+    <span class="tag">v0.1.0</span> 2026-05-29 · 首发
   </p>
 </div>
 <div class="layout">
@@ -54,370 +55,120 @@
 
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
-    <p>下一版计划见 <a href="交付状态与路线图.html"><strong>交付状态与路线图</strong></a>。</p>
-    <p><strong>维护约定：</strong>未交付项进入开发时，在本节起草条目；发布时下沉到对应版本节。</p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D3 · Docker / pip show 矩阵（OPT-P2-11）· 待收尾</h3>
-    <ul>
-      <li><strong>D3-1</strong> 已随 <strong>v2.1.0</strong> 交付（<code>assert_framework_pins</code>）；<strong>D3-2 compose 实测</strong>与 <strong>D3-3</strong> 仍待 Docker 环境恢复后补跑。</li>
-      <li>设计稿：<a href="PhaseD3-Docker-pin矩阵设计.html">Phase D3 · Docker pin 矩阵</a>。</li>
-    </ul>
+    <p>开发中、尚未随正式版本发布的变更将写在本节。</p>
+    <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
   </div>
 
-<h2 class="new" id="210">[2.1.0] — 2026-07-20 · Framework Generation（Flask 2.3 + SA 2.0）</h2>
+<h2 class="new" id="210">[2.1.0] — 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)</h2>
   <div class="card highlight">
-    <p>依赖轨 <strong>OPT-P2-11</strong> 绿场闭环：去 <code>records</code> → Query Contract / Repo / AST 门禁 → DEC-008 同窗 pin（Flask <strong>2.3.3</strong> + SQLAlchemy <strong>2.0.36</strong> + FSA <strong>3.1.1</strong>）→ Mapped[] → ensure 空库重放。Python <strong>3.8–3.11</strong>。无强制 Alembic 树；Tier 3c 搁置；Phase D3 compose 仍待收尾。</p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">亮点摘要</h3>
-    <table>
-      <tr><th>主题</th><th>说明</th></tr>
-      <tr><td>运行时栈</td><td>Flask 2.3.3 · Werkzeug 2.3.8 · SQLAlchemy 2.0.36 · Flask-SQLAlchemy 3.1.1 · Alembic 1.14.1 · Flask-Migrate 4.0.7</td></tr>
-      <tr><td>ORM</td><td><code>paginate_select</code> + 薄 Repo；AST 禁止 Legacy query/paginate</td></tr>
-      <tr><td>模型</td><td>九表 <code>Mapped[]</code>；<code>test_mapped_model_guard</code></td></tr>
-      <tr><td>Schema</td><td>主路径 <code>ensure_business_tables</code>；空库重放单测</td></tr>
-      <tr><td>工程</td><td><code>assert_framework_pins</code>（D3-1）；设计先行 + 编号规范</td></tr>
-    </table>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 3 前置 · 去 <code>records</code></h3>
+    <p>本版本升级 CronPilot 的应用与 ORM 运行时。<strong>任务调度行为、管理端与 HTTP 回调 / 进度回传 API 保持兼容</strong>（按文档安装与升级路径即可）。支持的 Python 仍为 <strong>3.8–3.11</strong>。</p>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">What's new</h3>
     <ul>
-      <li>调度器 <code>update_cron_info</code> 改 ORM；<code>scheduler_db.fetch_apscheduler_job_ids</code>；移除 <code>records</code>。</li>
+      <li><strong>Web 栈：</strong>Flask <strong>2.3.3</strong>、Werkzeug <strong>2.3.8</strong>、Jinja2 <strong>3.1.6</strong> 及同线依赖。</li>
+      <li><strong>数据库层：</strong>SQLAlchemy <strong>2.0.36</strong>、Flask-SQLAlchemy <strong>3.1.1</strong>；模型与列表查询已按 2.x 方式调整。</li>
+      <li><strong>调度持久化：</strong>移除 <code>records</code>；JobStore 巡检与下线更新改走 SQLAlchemy / 应用 ORM。双库布局不变。</li>
+      <li><strong>Schema 工具：</strong>业务表与补列仍通过 <code>scripts/ensure_business_tables</code>（SQLite / MySQL）；日常升级<strong>不要求</strong> Alembic <code>migrations/</code> 树。</li>
+      <li><strong>质量门禁：</strong>加强 ORM 用法与框架版本 pin 的自动检查。</li>
     </ul>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase A / B / C</h3>
-    <ul>
-      <li>A：<code>pagination.py</code> + 7 列表迁 <code>paginate_select</code>。</li>
-      <li>B：<code>app/repositories/</code>；列表迁出 views。</li>
-      <li>C：<code>test_orm_legacy_guard</code> + CI C-CI-A。设计：<a href="PhaseC-ORM-Legacy-AST门禁设计.html">Phase C</a>。</li>
-    </ul>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Phase D0 / D1 / D2 / Tier 3b / D3-1</h3>
-    <ul>
-      <li>D0 DEC-008：见 <a href="PhaseD0-Framework-Generation决策.html">D0</a>。</li>
-      <li>D1 同窗 pin（含原 Tier 4 Flask 2）；D2 Mapped[]（<a href="PhaseD2-Mapped模型迁移.html">D2</a>）；<code>cron_do</code> 防 detach。</li>
-      <li>3b-A：ensure 契约 + <code>TestEnsureEmptyDbReplay</code>（<a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b</a>）。</li>
-      <li>D3-1：<code>assert_framework_pins</code>；compose 实测仍属 Unreleased。</li>
-    </ul>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">未纳入 / 搁置</h3>
-    <ul>
-      <li>Tier 3c（无存量升级）；Flask 3 / 默认 3.12+ / Alembic 基线；功能 OPT-P1-*。</li>
-    </ul>
-    <p>升级：更新 venv → <code>ensure_business_tables</code> → <strong>重启</strong>。无破坏性表结构变更。</p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">协作规范</h3>
-    <ul>
-      <li>设计先行；编号见 <a href="需求编号与缩写规范.html">需求编号与缩写规范</a>。</li>
-    </ul>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Upgrade</h3>
+    <ol>
+      <li>更新虚拟环境：<code>pip install -r requirements.txt</code></li>
+      <li>执行 <code>bash scripts/ensure_business_tables.sh</code></li>
+      <li><strong>重启</strong> CronPilot 进程</li>
+    </ol>
+    <p>本版本<strong>不含</strong>破坏性删表或强制数据迁移。Flask 3.x 与默认 Python 3.12+ 不在本版本范围。</p>
   </div>
 
 <h2 id="200">[2.0.0] — 2026-07-17 · 任务中心、触发 GET/POST、账户生命周期</h2>
   <div class="card highlight">
-    <p>任务中心规模化 IA、触发请求支持 POST JSON Body、强制改密与用户启停缘由等。升级须跑 <code>ensure_business_tables</code>（<strong>SQLite / MySQL</strong> 补列）并<strong>重启</strong>。</p>
-
+    <p>任务中心布局与健康筛选、触发请求支持 POST JSON Body、强制首次改密与用户启停缘由等。升级须跑 <code>ensure_business_tables</code> 并<strong>重启</strong>。</p>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Schema（SQLite / MySQL）</h3>
     <table>
       <tr><th>对象</th><th>变更</th><th>说明</th></tr>
-      <tr><td><code>job_health</code></td><td>新表（<code>create_all</code>）</td><td>连续失败 / 最近结果等健康快照</td></tr>
-      <tr><td><code>cron_infos</code></td><td><code>last_operator_name</code> / <code>last_operated_at</code></td><td>最近发布人与时间</td></tr>
-      <tr><td><code>cron_infos</code></td><td><code>req_method</code> / <code>req_body</code></td><td>触发请求 GET/POST；POST JSON Body（MySQL 补列 <code>req_body</code> 无 DEFAULT）</td></tr>
-      <tr><td><code>rbac_users</code></td><td><code>must_reset_password</code> / <code>status_reason</code></td><td>强制改密标记；启停缘由</td></tr>
-      <tr><td>配置</td><td><code>health_failing_threshold</code>（默认 3）</td><td>连续失败≥N 视为「连续失败」</td></tr>
+      <tr><td><code>job_health</code></td><td>新表</td><td>连续失败 / 最近结果等健康快照</td></tr>
+      <tr><td><code>cron_infos</code></td><td><code>last_operator_*</code> / <code>req_method</code> / <code>req_body</code></td><td>最近发布人；GET/POST 与 JSON Body</td></tr>
+      <tr><td><code>rbac_users</code></td><td><code>must_reset_password</code> / <code>status_reason</code></td><td>强制改密；启停缘由</td></tr>
+      <tr><td>配置</td><td><code>health_failing_threshold</code></td><td>默认 3</td></tr>
     </table>
-    <p>其它方言打印 <code>SKIP</code>，需自行维护 schema。</p>
-
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">触发请求：GET / POST（JSON Body）</h3>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">触发请求与任务中心</h3>
     <ul>
-      <li>任务可配置 <code>req_method=GET|POST</code>（默认 GET，兼容既有任务）。</li>
-      <li><strong>GET：</strong>与既有行为一致，query 附加 <code>cronpilot_log_id</code> / <code>cronpilot_sign</code>。</li>
-      <li><strong>POST：</strong><code>Content-Type: application/json</code>；以配置的 <code>req_body</code>（JSON 对象）为基，再注入 <code>cronpilot_log_id</code> / <code>cronpilot_sign</code>（<strong>不覆盖</strong>用户已写同名字段）；可空 body。</li>
-      <li>Web 添加/编辑：触发 URL 旁选择方法；选 POST 时展示 Body 文本框。API <code>/api/cron</code> 亦可传 <code>req_method</code> / <code>req_body</code>。</li>
-      <li>升级：<code>ensure_business_tables</code> 对 SQLite/MySQL 补列；现有任务默认 GET。</li>
+      <li>任务可配置 GET/POST；POST 发送 JSON Body 并注入签名字段。</li>
+      <li>任务中心五列布局、健康快筛、列表「立即执行」、执行结果筛选。</li>
+      <li>新建用户强制首次改密；启停须填缘由；会话无闲置超时自动登出。</li>
     </ul>
+    <p class="muted">本版未包含：独立执行详情页、Metric/异常榜 UI、API 按组隔离、可配置会话超时。</p>
+  </div>
 
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务中心与规模化 IA（OPT-P2-13）</h3>
+<h2 id="120">[1.2.0] — 2026-07-15 · 顶栏身份、种子权限、启停用语</h2>
+  <div class="card">
     <ul>
-      <li><strong>导航：</strong>「任务列表」→「任务中心」。</li>
-      <li><strong>五列布局：</strong>任务（健康圆点 + 名称/说明/URL）· 调度策略（人类可读 + Cron 原式）· 运行与发布（最近执行 / 最近发布）· 运行状态 · 操作。</li>
-      <li><strong>工具栏：</strong>连续失败 / 今日失败 / 运行中 / 已暂停 / 全部 + 业务组 Scope + 任务名搜索；Metric 四格与异常榜/最近成功<strong>暂不展示</strong>（过滤走工具栏）。</li>
-      <li><strong>操作：</strong>平铺「运行记录」「立即执行」（仅运行中 + <code>cron:write</code> + 有 URL）；启停 / 编辑 / 下线收入「更多 ▾」；无下线权灰色拦截（<code>js-retire-denied</code>）。</li>
-      <li><strong>OPT-P1-04（列表侧）：</strong><code>/cron_run_now</code> + 列表确认后立即触发（独立详情页 OPT-P1-03 仍未交付）。</li>
-      <li><strong>OPT-P1-01c：</strong>执行记录 <code>outcome</code> 筛选；全局默认「非成功」。</li>
-      <li><strong>表单：</strong>默认定时模式；「触发 URL」；空调度不可发布；重名返回 <code>field=task_name</code> 并聚焦；编辑暂停任务默认保持暂停。</li>
-      <li><strong>操作记录：</strong>筛选/列「渠道」改为「业务组」（<code>scope_view</code> / <code>group_id</code>）。</li>
-    </ul>
-
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">账号与用户管理</h3>
-    <ul>
-      <li><strong>业务组保存修复：</strong><code>set_user_groups</code> 增量增删，避免同次 flush 触发 <code>(user_id, group_id)</code> 唯一约束冲突。</li>
-      <li><strong>强制首次改密：</strong>新建默认 <code>changeme</code> + <code>must_reset_password=1</code>；管理员不可代设密码，仅可触发重置；不可重置自己；现有用户补列默认不强制。</li>
-      <li><strong>用户列表：</strong>重置密码 / 停用·恢复（须填缘由）/ 编辑（末位 info）；当前用户不可经用户管理编辑自己，列表仅「修改密码」。</li>
-      <li><strong>登录会话（现状）：</strong>Flask signed cookie；<strong>无</strong>闲置/绝对超时自动登出；关闭浏览器后会话 Cookie 通常失效；退出与改密成功会 <code>session.clear()</code>。详 <a href="RBAC架构设计方案.html#account-session">RBAC §4.6</a>。</li>
-      <li><strong>账户体系可优化（未排期）：</strong>可配置会话超时、「记住登录」、会话吊销、忘记密码、密码策略增强、系统/业务管理员用户管理边界（待产品确认）、MFA/OAuth（远期）。</li>
-    </ul>
-
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">本版明确不纳入</h3>
-    <ul>
-      <li>系统管理员 vs 业务管理员的用户管理权限拆分（需求理解偏差，<strong>已终止</strong>，policy 仍统一 <code>user:manage</code>）。</li>
-      <li>登录闲置超时自动退出（见上「可优化」；本版不实现）。</li>
-      <li>OPT-P1-03 独立执行详情页；Metric 条 / 异常榜 UI；API Scope 隔离（S6）。</li>
+      <li>全局顶栏展示用户名、角色与退出；种子 <code>admin</code> 为「系统管理员」。</li>
+      <li>种子账号不可写任务；任务写操作需其它 admin 用户。</li>
+      <li>界面统一「启动 / 暂停」；下线入口按权限拦截。</li>
     </ul>
   </div>
 
-<h2 id="120">[1.2.0] — 2026-07-15 · 顶栏身份、种子权限收窄、启停用语</h2>
+<h2 id="110">[1.1.0] — 2026-07-14 · 业务组隔离、自助改密、编辑页精简</h2>
   <div class="card">
-    <p>管理端身份可见性与种子运维边界；任务启停文案统一。升级须<strong>重启</strong>（模板 / policy）。</p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端顶栏：登录用户信息</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>位置</td><td><code>admin_base.html</code> 全局 <code>{% block topbar %}</code>（<code>rbac/_topbar.html</code>）；与 <code>nav-tabs</code> 分层</td></tr>
-      <tr><td>展示</td><td>右侧聚焦：用户名、角色标签与退出同组；种子 <code>admin</code> →「系统管理员」，其它 admin →「业务管理员」，<code>operator</code> / <code>viewer</code> 顶栏直接显示英文角色码；非 admin 另示业务组或「未分配业务组」；角色标签用橙/蓝/青/绿语义色</td></tr>
-      <tr><td>数据</td><td><code>current_user_groups</code> 由 <code>session['group_ids']</code> 解析组名（与授权同源；组变更须重新登录）</td></tr>
-      <tr><td>退出</td><td>顶栏统一 <code>/rbac/logout</code>（写审计）；导航 tab 移除重复「退出」；「修改密码」仍在导航</td></tr>
-    </table>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">种子账号 <code>admin</code> 权限收窄</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>种子</td><td>用户名固定 <code>admin</code>：保留 <code>user:manage</code> + 只读（<code>cron:read</code> / <code>log:read</code> / <code>operation:read</code> / <code>audit:read</code>）与 Scope 绕过</td></tr>
-      <tr><td>禁止</td><td>种子无 <code>cron:write</code> / <code>cron:retire</code>（不可添加/编辑/启动暂停/下线任务）</td></tr>
-      <tr><td>运维</td><td>任务操作须由种子创建的其它 <strong>admin 角色</strong>用户（业务管理员）执行（非第四角色）</td></tr>
-    </table>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">操作记录用语：启动 / 暂停</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>操作记录</td><td><code>toggle_status</code> 展示为 <strong>启动任务</strong> 或 <strong>暂停任务</strong>（依 <code>status</code> 新旧值）；详情如「启动：已暂停 → 运行中」</td></tr>
-      <tr><td>任务列表</td><td>操作链「运行」改为「启动」，与「暂停」对称</td></tr>
-      <tr><td>接口提示</td><td>成功「已启动」/「已暂停」；下线任务「不能启动或暂停」</td></tr>
-      <tr><td>筛选</td><td>筛选项「启动/暂停」（库内仍为 <code>action=toggle_status</code>）</td></tr>
-    </table>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务列表「下线」入口可见性</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>展示</td><td>未下线任务对所有登录角色显示「下线」</td></tr>
-      <tr><td>权限</td><td>仅具备 <code>cron:retire</code> 的账号可进入下线表单并执行（业务管理员；种子 <code>admin</code> 无此权限）</td></tr>
-      <tr><td>无下线权限</td><td>点击弹出「权限不足：当前账号不可下线任务」，不发起下线请求；直达 <code>/cron_retire</code> 仍为 403</td></tr>
-    </table>
+    <ul>
+      <li>业务组可见性隔离；非 admin 任务须绑定所属组；admin 不受限。</li>
+      <li>自助「修改密码」；成功后需重新登录。</li>
+      <li>任务编辑页精简（作用域仅添加时设置）。</li>
+    </ul>
+    <p>升级：<code>ensure_business_tables</code> + <strong>重启</strong>。</p>
   </div>
 
-<h2 id="110">[1.1.0] — 2026-07-14 · Resource Scope、自助改密、编辑页精简</h2>
+<h2 id="100">[1.0.0] — 2026-07-14 · 多用户权限、任务生命周期、操作审计</h2>
   <div class="card">
-    <p>在 v1.0.0 RBAC 之上交付 <strong>OPT-P2-12 资源隔离</strong>，并完善账号自助与任务编辑体验。升级须<strong>重启</strong>。</p>
-    <table>
-      <tr><th>库</th><th>升级动作</th></tr>
-      <tr><td><strong>SQLite / MySQL</strong></td><td>部署启动时 <code>ensure_business_tables.py</code>（<code>run_production.sh</code> / <code>cronpilot.sh start</code>）：<code>create_all</code> 建缺失表（含业务组），并对已有 <code>cron_infos</code> / <code>job_log</code> 按需 <code>ALTER</code> 补列。旧名 <code>ensure_sqlite_tables.*</code> 仍转发</td></tr>
-      <tr><td>其它方言</td><td>打印 <code>SKIP</code>；需自行维护 schema</td></tr>
-    </table>
-    <p>前提：MySQL 库与账号已存在且 <code>cron_db_url</code> 可连；脚本<strong>不会</strong>删表或改已有列类型。手写 DDL（设计 §十）仍作备用。脚本已更名为 <strong><code>ensure_business_tables</code></strong>（旧名 <code>ensure_sqlite_tables</code> 仍转发）。<code>login_pwd</code> 仍仅空表种子。</p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-12 · Resource Scope</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>数据</td><td><code>resource_groups</code> / <code>user_groups</code>；<code>cron_infos.scope_type</code>（默认 GLOBAL）/ <code>group_id</code>；SQLite/MySQL 均由 <code>ensure_business_tables</code> 自动补齐</td></tr>
-      <tr><td>鉴权</td><td>列表 Scope 过滤 + 单资源 <code>authorize</code>；admin 绕过；越权 403 + <code>scope:deny</code></td></tr>
-      <tr><td>管理端</td><td><code>/rbac/groups*</code>（编码由名称自动生成）；用户绑组（非 admin 至少一组）；<strong>任务添加</strong>时可设作用域；日志继承可见性</td></tr>
-      <tr><td>非 admin 任务</td><td>强制 <code>GROUP</code>、仅可选本人所属组；不可设 GLOBAL</td></tr>
-      <tr><td>API</td><td>首期未改（部署级 token 全库；S6 远期）</td></tr>
-      <tr><td>测试</td><td><code>tests/test_rbac_scope.py</code></td></tr>
-    </table>
-    <p>详设：<a href="资源隔离与Scope设计.html">Scope 设计</a> · <a href="资源隔离落地路线.html">落地路线</a></p>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">自助修改密码</h3>
-    <table>
-      <tr><th>变更</th><th>说明</th></tr>
-      <tr><td>入口</td><td>导航「修改密码」→ <code>/rbac/password</code>（任意已登录角色；不需 <code>user:manage</code>）</td></tr>
-      <tr><td>校验</td><td>当前密码；新密码 ≥6 位且不同于旧密码</td></tr>
-      <tr><td>会话</td><td>成功后清空会话，跳转登录页提示重新登录</td></tr>
-      <tr><td>审计</td><td><code>user:password</code></td></tr>
-      <tr><td>代改</td><td>v1.1.0：admin「用户管理 → 编辑」仍可改他人密码（不强制对方下线）。<strong>v2.0.0 起</strong>改为仅「触发密码重置」（见 <a href="#200">2.0.0</a>），本节保留发版当时行为说明</td></tr>
-    </table>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务编辑页精简</h3>
     <ul>
-      <li>导航显示「任务编辑」（不再高亮「任务添加」）</li>
-      <li>不展示创建时间、上次编辑、作用域/可见范围；保存时作用域保持原值</li>
+      <li>三角色权限始终启用；用户名+密码登录；空库种子 <code>admin</code>。</li>
+      <li>任务下线替代删除；操作记录与权限审计分权。</li>
+      <li>每次执行必有 <code>job_log.log_id</code>；友好 404 页。</li>
+    </ul>
+    <p><code>login_pwd</code> 仅用于空表种子；有用户后改 conf 不会改登录密码。</p>
+  </div>
+
+<h2 id="020">[0.2.0] — 2026-06-10 · 执行可观测、依赖与部署加固</h2>
+  <div class="card">
+    <ul>
+      <li>执行 <code>status</code> / <code>fail_reason</code> / <code>http_status</code>；可配置 HTTP 失败判定。</li>
+      <li>统一导航与执行记录详情体验。</li>
+      <li>SQLAlchemy 1.4.52、gevent 23、gunicorn 22、APScheduler 3.10；Docker Python 3.10；HTTP/PyMySQL 安全升级；<code>flask db</code> 替代 Flask-Script。</li>
+    </ul>
+    <p><strong>回调协议不变。</strong></p>
+  </div>
+
+<h2 id="011">[0.1.1] — 2026-06-01 · 文档、部署与多版本 Python</h2>
+  <div class="card">
+    <ul>
+      <li>同端口 <code>/docs/</code>；HTML + Markdown 双格式。</li>
+      <li><code>cronpilot.sh</code> 自动匹配 Python 3.8–3.11。</li>
+      <li>Linux 安装 / 生产启动脚本；CI 与 Docker 安装验收。</li>
     </ul>
   </div>
 
-<h2>[1.0.0] — 2026-07-14 · 重大版本：多用户 RBAC、任务生命周期、操作审计</h2>
+<h2 id="010">[0.1.0] — 2026-05-29 · 首发</h2>
   <div class="card">
-    <p>首个 <strong>1.x</strong> 里程碑：交付 <strong>OPT-P2-10 RBAC v4</strong>（三角色始终分权）、<strong>OPT-P1-09 <code>operation_log</code></strong>、<strong>LIFECYCLE-1/2</strong>、<strong>log_id 必填</strong>、<strong>404 友好页</strong>。升级须重启；登录为用户名+密码（空表种子 <code>admin</code>）。</p>
-  </div>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P2-10 · RBAC v4</h3>
-  <table>
-    <tr><th>阶段</th><th>状态</th><th>摘要</th></tr>
-    <tr><td>1～5</td><td>✅</td><td>模型、核心、登录、导航、权限；无删除；<code>cron:retire</code></td></tr>
-    <tr><td>6a 用户管理</td><td>✅</td><td><code>/rbac/users*</code>；最后 admin 保护；Ajax 门禁</td></tr>
-    <tr><td>6b 审计</td><td>✅</td><td><code>/rbac/audit-logs</code>；中文动作 / 用户 ID 列</td></tr>
-    <tr><td>7 验收</td><td>✅</td><td>三角色真实登录矩阵 <code>TestRbacTriangularAcceptance</code></td></tr>
-  </table>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>登录 / 密码</td><td>用户名+密码；空表种子 <code>admin</code>（初始密码=<code>login_pwd</code>）。日常改密：用户管理 → 编辑 → 新密码；有用户后改 <code>login_pwd</code> 无效。无忘记密码。（自助改密见 v1.1.0）</td></tr>
-    <tr><td>默认行为</td><td>三角色分权<strong>始终启用</strong>；登录须 <code>rbac_users</code>；空表种子 <code>admin</code></td></tr>
-    <tr><td>分权</td><td>三角色<strong>始终启用</strong>；已移除旁路开关 <code>rbac_enable</code></td></tr>
-    <tr><td>冒烟</td><td><code>username=admin&amp;password=…</code></td></tr>
-  </table>
-  <p>详设：<a href="RBAC架构设计方案.html">RBAC v4</a> · <a href="RBAC落地路线.html">落地路线</a></p>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">OPT-P1-09 · 操作记录 <code>operation_log</code></h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>写入</td><td><code>create_cron</code> / <code>update_cron</code> / <code>toggle_status</code> / <code>retire_cron</code>（Web+API）；系统对账下线</td></tr>
-    <tr><td>管理页</td><td><code>/operation_log_list</code>；权限 <code>operation:read</code>（operator+admin）；RBAC「审计」为 <code>audit:read</code>（仅 admin）</td></tr>
-    <tr><td>保留</td><td><code>operation_log_counts</code>（默认 5000）；<code>cron_del_operation_log</code></td></tr>
-  </table>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">任务生命周期 / LIFECYCLE-2 / 404 / log_id</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>无删除</td><td>下线替代删除；旧删除路由 410</td></tr>
-    <tr><td>LIFECYCLE-2</td><td>强制备注；下线原因/时间；<code>created_at</code>/<code>updated_at</code></td></tr>
-    <tr><td>404</td><td>登录态/访客友好页；须重启后冒烟</td></tr>
-    <tr><td>log_id</td><td>每次执行必有 <code>job_log.log_id</code></td></tr>
-  </table>
-
-<h2>[0.2.0] — 2026-06-10 · P1 可观测、依赖 Tier 0–2、管理端 UI</h2>
-  <div class="card highlight">
-    <p>在 v0.1.1 上交付 <strong>P1 OPT-P1-01/02</strong>、<strong>UI A′+B1+OPT-P1-07</strong>、<strong>Tier 0/1/2（RFC-2.1～2.5）</strong>、侧车 HTTP/PyMySQL。<strong>无 API 协议变更。</strong></p>
-    <p><strong>升级要点：</strong>Docker 镜像 Python <strong>3.10</strong>；<code>fail_on_http_4xx_5xx</code> 新配置；勿用 <code>conf.ci.ini</code> 作生产挂载。</p>
-  </div>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI（A′ + B1）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>执行记录列表</td><td>「返回的内容」一格两行：HTTP 状态 + 正文截断</td></tr>
-    <tr><td>查看详情</td><td>替代「更详细的执行记录」；展示 <code>job_log</code> 完整 HTTP 响应/异常</td></tr>
-    <tr><td><code>http_status</code></td><td><code>cron_do</code> 写入；已有库经 <code>ensure_business_tables.py</code> 补列（当时名 <code>ensure_sqlite_tables.py</code>）</td></tr>
-    <tr><td>Cron 分钟 B1</td><td>添加/编辑页：<code>*/1</code> = 每分钟</td></tr>
-  </table>
-  <p>设计说明：<a href="管理端UI优化设计.html">管理端 UI 优化设计</a></p>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">管理端 UI · OPT-P1-07 导航栏 partial</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>_admin_nav.html</code></td><td>统一 5 项 Tab：任务列表 / 任务添加 / 任务执行记录 / API文档 / 退出</td></tr>
-    <tr><td>修复</td><td><code>cron_add</code>、<code>cron_edit</code> 此前仅 2 项导航，进入添加页后其余 Tab 消失</td></tr>
-    <tr><td>引用页</td><td><code>cron_list</code>、<code>cron_add</code>、<code>cron_edit</code>、<code>job_log_all_list</code>、<code>api_doc</code></td></tr>
-  </table>
-  <p>设计说明：<a href="产品优化需求-借鉴Plombery.html">产品 PRD OPT-P1-07</a> · <a href="技术方案与前端设计.html">技术方案与前端设计</a></p>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">P1 可观测（OPT-P1-01/02）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>status</code> / <code>fail_reason</code></td><td><code>success</code> / <code>fail</code> / <code>error</code> + 短标签</td></tr>
-    <tr><td><code>fail_on_http_4xx_5xx</code></td><td>默认 <code>1</code>；4xx/5xx 记 fail 并告警</td></tr>
-    <tr><td>UI</td><td>A′ 列表增加状态徽章；详情展示 <code>fail_reason</code></td></tr>
-  </table>
-  <p>设计说明：<a href="P1可观测优化设计.html">P1 可观测优化设计</a></p>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">侧车 PyMySQL（RFC-S.2）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>PyMySQL</code> 1.1.2</td><td>0.10.1 → 1.1.2；<code>mysql+pymysql://</code> URL 不变</td></tr>
-  </table>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 2 · RFC-2.1 / RFC-2.2 / RFC-2.3</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>gevent</code> 23.9.1</td><td>20.9.0 → 23.9.1；Py 3.8–3.11</td></tr>
-    <tr><td><code>greenlet</code> 3.1.1</td><td>与 gevent 23 配套</td></tr>
-    <tr><td><code>gunicorn</code> 22.0.0</td><td>20.0.4 → 22.0.0；gevent worker + Docker 金路径已验收</td></tr>
-    <tr><td><code>APScheduler</code> 3.10.4</td><td>3.6.3 → 3.10.4；<code>SQLAlchemyJobStore</code> + SA 1.4；Docker compose 冒烟通过</td></tr>
-    <tr><td><strong>RFC-2.4</strong></td><td>Docker <strong>3.10</strong> + <code>install-full</code> matrix <strong>3.9 / 3.10 / 3.11</strong></td></tr>
-  </table>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">依赖升级 Tier 0 / Tier 1 / 侧车 HTTP</h3>
-  <div class="card">
-    <p><strong>Tier 0：</strong>退役 Flask-Script；迁移 CLI 改为 <code>flask db</code>（Python 3.11 可用）。<br>
-    <strong>Tier 1：</strong>SQLAlchemy 1.4.52 + Flask-SQLAlchemy 2.5.1；全站 <code>Model.query</code> 已迁移为 SA 1.4 推荐写法。<br>
-    <strong>侧车 RFC-S.1：</strong><code>requests</code> 2.31.0、<code>urllib3</code> 1.26.19、<code>certifi</code> 2024.8.30。</p>
-  </div>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 0</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>Flask-Script 移除</td><td><code>manage.py</code> 注册 Click <code>db</code> 子命令</td></tr>
-    <tr><td><code>requirements-core.txt</code></td><td>锁定 <code>Flask-Migrate</code>、<code>alembic==1.4.3</code></td></tr>
-  </table>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Tier 1</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td>SQLAlchemy 1.4.52</td><td>过渡版；全站 <code>Model.query</code> 已迁移</td></tr>
-    <tr><td>Flask-SQLAlchemy 2.5.1</td><td>SA 1.4 兼容（2.4.x URL API 不兼容）</td></tr>
-    <tr><td><code>config.py</code></td><td><code>SQLALCHEMY_ENGINE_OPTIONS = {'future': False}</code></td></tr>
-    <tr><td>查询改写</td><td><code>job_log_service</code>、<code>main/views</code>、<code>cron_service</code>、<code>api/views</code>、<code>crons</code></td></tr>
-    <tr><td>Docker 验收</td><td><code>write_sqlite_conf.py --container-paths</code>；<code>reset_datas_sqlite.sh</code></td></tr>
-    <tr><td>留 Tier 3</td><td><code>records</code> 裸 SQL（<code>CuBackgroundScheduler</code> 等）</td></tr>
-  </table>
-  <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">侧车 HTTP（RFC-S.1）</h3>
-  <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>requests</code> 2.31.0</td><td>收敛已知 CVE；回归回调与 SSRF</td></tr>
-    <tr><td><code>urllib3</code> 1.26.19</td><td>与 requests 2.31 配套</td></tr>
-    <tr><td><code>certifi</code> 2024.8.30</td><td>CA 根证书同步</td></tr>
-  </table>
-  <pre>export FLASK_APP=manage:app
-flask db migrate -m "描述"
-flask db upgrade</pre>
-  <p>详 <a href="依赖升级RFC.html">依赖升级 RFC</a> Tier 0–1；本地试用 <code>conf.local.sqlite.example</code>。</p>
-
-  <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0">
-
-  <h2 class="new">[0.1.1] — 2026-06-01</h2>
-  <div class="card highlight">
-    <p>工程化与运维增强，<strong>无 API 协议变更</strong>。</p>
+    <p>HTTP 定时回调调度、Web/API 管理、基础安全与质量、技术文档与 Apache-2.0。</p>
+    <table>
+      <tr><th>参数 / 接口</th><th>说明</th></tr>
+      <tr><td><code>cronpilot_log_id</code></td><td>每次触发的执行 UUID</td></tr>
+      <tr><td><code>cronpilot_sign</code></td><td>回调签名（MD5）</td></tr>
+      <tr><td><code>POST /api/cron/add_log</code></td><td>进度回传</td></tr>
+    </table>
+    <ul>
+      <li>ORM / 参数化访问、密码哈希、SSRF 防护、统一 JSON、校验与服务层。</li>
+    </ul>
   </div>
 
-  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">文档与在线访问</h3>
+  <h2>版本一览</h2>
   <table>
-    <tr><th>变更</th><th>说明</th></tr>
-    <tr><td><code>/docs/</code></td><td>技术文档 HTML 与 <code>/docs/*.md</code> 同端口访问</td></tr>
-    <tr><td>双格式</td><td>各文档 HTML + Markdown；<code>doc/index.md</code> 索引</td></tr>
-    <tr><td>同步工具</td><td><code>scripts/html_docs_to_markdown.py --check</code></td></tr>
-    <tr><td>部署指南</td><td><a href="非Docker部署指南.html">非 Docker 部署指南</a></td></tr>
-    <tr><td>协作规范</td><td><code>.cursor/rules/</code>、<code>AGENTS.md</code></td></tr>
+    <tr><th>版本</th><th>说明</th></tr>
+    <tr><td><strong>2.1.0</strong></td><td>Flask 2.3 + SQLAlchemy 2.0 运行时</td></tr>
+    <tr><td>2.0.0</td><td>任务中心、POST 触发、账户生命周期</td></tr>
+    <tr><td>1.2.0 – 1.0.0</td><td>权限、业务组、生命周期、操作审计</td></tr>
+    <tr><td>0.2.0 – 0.1.0</td><td>可观测、工程化、首发</td></tr>
   </table>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">Python 3.8–3.11 自动匹配</h3>
-  <ul>
-    <li>自动探测并复用 <code>.venv-py*</code>，<strong>无需</strong>手动 <code>export PY=</code></li>
-    <li>统一入口：<code>bash scripts/cronpilot.sh start|install|test|check</code></li>
-    <li><code>requirements-core.txt</code> 用于本地与 CI 单测</li>
-  </ul>
-  <pre>bash scripts/cronpilot.sh start
-bash scripts/cronpilot.sh test</pre>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">CI</h3>
-  <ul>
-    <li>Docs HTML ↔ Markdown sync</li>
-    <li>Unit tests 矩阵 3.8 / 3.9 / 3.10 / 3.11</li>
-    <li>install-full（3.10 全量依赖）</li>
-  </ul>
-
-  <h3 style="font-size:1rem;color:#334155;margin:1.25rem 0 .5rem">升级（自 v0.1.0）</h3>
-  <ul>
-    <li><code>bash scripts/cronpilot.sh install</code></li>
-    <li>改 HTML 后运行 <code>html_docs_to_markdown.py</code></li>
-    <li>重启后访问 <code>/docs/</code></li>
-  </ul>
-
-  <hr style="border:none;border-top:1px solid var(--border);margin:2.5rem 0">
-
-  <h2>[0.1.0] — 2026-05-29 · Phase A（P0）首发</h2>
-  <div class="card">
-    <p>HTTP 定时回调调度、Web/API 管理、P0 安全与质量、技术文档与 Apache-2.0 许可。</p>
-  </div>
-
-  <h2>回调与 API 协议</h2>
-  <table>
-    <tr><th>参数 / 接口</th><th>说明</th></tr>
-    <tr><td><code>cronpilot_log_id</code></td><td>每次触发的执行 UUID</td></tr>
-    <tr><td><code>cronpilot_sign</code></td><td>回调签名（MD5）</td></tr>
-    <tr><td><code>POST /api/cron/add_log</code></td><td>进度回传</td></tr>
-  </table>
-  <pre>GET /your/callback?cronpilot_log_id=&lt;UUID&gt;&amp;cronpilot_sign=&lt;MD5&gt;
-POST /api/cron/add_log  cronpilot_log_id=&lt;UUID&gt;&amp;content=...</pre>
-
-  <h2>Phase A（P0）</h2>
-  <table>
-    <tr><th>ID</th><th>内容</th></tr>
-    <tr><td>P0-01</td><td>SQL ORM 化 · <code>job_log_service</code></td></tr>
-    <tr><td>P0-02</td><td>密码 pbkdf2 哈希</td></tr>
-    <tr><td>P0-03</td><td>SSRF 防护配置项</td></tr>
-    <tr><td>P0-04</td><td>JSON <code>errcode</code> 数字类型</td></tr>
-    <tr><td>P0-05</td><td><code>cron_validator</code> + <code>cron_service</code></td></tr>
-  </table>
-
-  <h2>文档与许可</h2>
-  <p>见 <a href="index.html">文档索引</a>；许可 <a href="LICENSE-AUDIT.html">LICENSE-AUDIT</a>（Apache-2.0）。</p>
-
-  <h2>测试</h2>
-  <pre>bash scripts/cronpilot.sh test</pre>
-
-  <h2>后续版本</h2>
-  <p>P1/P2 见 <a href="产品优化需求-借鉴Plombery.html">PRD</a>；计划 <code>0.2.x</code> 对应 P1。</p>
 </div>
 <footer>CronPilot · Release Notes · <a href="RELEASE_NOTES.md">Markdown</a> · <a href="index.html">索引</a></footer>
 </body>

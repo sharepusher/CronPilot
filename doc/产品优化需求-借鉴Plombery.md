@@ -549,9 +549,9 @@ OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 | OPT-P0-03 | SSRF 防护 | P0 | 已交付 | v0.1.0 |
 | OPT-P0-04 | 统一 JSON 契约 | P0 | 已交付 | v0.1.0 |
 | OPT-P0-05 | 校验/service 抽取 | P0 | 已交付 | v0.1.0 |
-| OPT-P0-09 | 集群 Redis 锁原子化 | P0 | 已交付 | Unreleased |
-| OPT-P0-10 | 生产 SECRET\_KEY fail-fast | P0 | 已交付 | Unreleased |
-| OPT-P0-11 | 管理端 CSRF | P0 | 已交付 | Unreleased |
+| OPT-P0-09 | 集群 Redis 锁原子化 | P0 | 已交付 | v2.1.1 |
+| OPT-P0-10 | 生产 SECRET\_KEY fail-fast | P0 | 已交付 | v2.1.1 |
+| OPT-P0-11 | 管理端 CSRF | P0 | 已交付 | v2.1.1 |
 | UI-A′+B1 | 执行记录 + Cron 分钟提示 | P1 | 已交付 | v0.2.0 |
 | OPT-P1-01 | 执行 status | P1 | 已交付 | v0.2.0 |
 | OPT-P1-02 | 失败判定规则 | P1 | 已交付 | v0.2.0 |

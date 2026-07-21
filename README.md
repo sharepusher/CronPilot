@@ -2,13 +2,14 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v2.1.0**（Flask 2.3 + SQLAlchemy 2.0 运行时）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v2.1.1**（安全加固：集群锁 / SECRET_KEY / CSRF；运行时仍为 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
-| **v2.1.0** | 升级至 Flask **2.3.3** + SQLAlchemy **2.0.36**；移除 `records`；列表查询与模型适配 2.x；业务库仍用 `ensure_business_tables` |
+| **v2.1.1** | 集群 Redis 锁原子化；生产 `SECRET_KEY` fail-fast；管理端写操作 CSRF（POST + token） |
+| v2.1.0 | 升级至 Flask **2.3.3** + SQLAlchemy **2.0.36**；移除 `records`；列表查询与模型适配 2.x；业务库仍用 `ensure_business_tables` |
 | **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；操作记录业务组筛选；**触发请求 GET/POST + JSON Body** |
 | **v1.2.0** | 管理端顶栏身份（系统/业务管理员）；种子 `admin` 仅建用户+只读；启停用语统一；下线入口提示 |
 | **v1.1.0** | 业务组资源隔离；自助改密（成功后强制重新登录）；任务编辑页精简 |
@@ -254,7 +255,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.1.0**（Flask 2.3 + SQLAlchemy 2.0）；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.1.1**（安全加固）；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

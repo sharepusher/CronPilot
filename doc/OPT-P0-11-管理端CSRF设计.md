@@ -3,13 +3,13 @@
 > HTML 版：[OPT-P0-11-管理端CSRF设计.html](OPT-P0-11-管理端CSRF设计.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-OPT-P0-11R3已交付
+OPT-P0-11R3已交付v2.1.1
 
 # 管理端 CSRF 防护设计
 
 堵住 Session Cookie 下「跨站诱导状态变更」；不引入 Flask-WTF 全量表单栈
 
-状态：已确认并交付 · 2026-07-21
+状态：已确认并交付 · v2.1.1 · 2026-07-21
 
 **交付结论：**Session Token + meta 注入；写操作 `POST` + `@csrf_protect`；
 `js-ajax-dialog-btn` 改为 POST 并附带 token；`/api/*` 豁免。

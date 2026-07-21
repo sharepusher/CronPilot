@@ -7,6 +7,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
+
+---
+
+## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)
+
+Hardens cluster mutex, production session signing, and admin write CSRF. **Scheduling callbacks and `/api/*` contracts are unchanged.** Supported Python remains **3.8–3.11**.
+
 ### Security & reliability
 
 - **Cluster mutex:** When `is_single` is not single-node mode, task execution locks use atomic Redis `SET NX EX` and release only the holder’s token (avoids a race that could run the same job on two nodes, and avoids deleting another node’s lock after TTL expiry).
@@ -19,8 +27,6 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 2. Restart CronPilot after upgrade; **hard-refresh** the admin UI (CSRF meta tokens are embedded in pages).
 3. Single-node trial (`is_single=1`) behavior is unchanged for Redis locking.
 4. Do not use bookmark/GET URLs for pause/resume or run-now; those routes are POST-only.
-
-Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
 ---
 
@@ -256,7 +262,8 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | 版本 | 说明 |
 |------|------|
-| **2.1.0** | Flask 2.3 + SQLAlchemy 2.0 运行时 |
+| **2.1.1** | 集群锁原子化、生产 SECRET_KEY、管理端 CSRF |
+| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
 | 2.0.0 | 任务中心、POST 触发、账户生命周期 |
 | 1.2.0 | 顶栏身份、种子权限、启停用语 |
 | 1.1.0 | 业务组隔离、自助改密 |

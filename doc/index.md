@@ -11,7 +11,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
-| **交付状态与路线图（权威）** | 已交付 vs 待确认 vs 未开始 · 发行版 **v2.1.0** | [HTML](交付状态与路线图.html) | [MD](交付状态与路线图.md) |
+| **交付状态与路线图（权威）** | 已交付 vs 待确认 vs 未开始 · 发行版 **v2.1.1** | [HTML](交付状态与路线图.html) | [MD](交付状态与路线图.md) |
 | **需求编号与缩写规范（权威）** | OPT / Tier / Phase / DEC 四轨读法 | [HTML](需求编号与缩写规范.html) | [MD](需求编号与缩写规范.md) |
 | **Release Notes** | 版本变更日志（面向用户 / 运维） | [HTML](RELEASE_NOTES.html) | [doc MD](RELEASE_NOTES.md) · [仓库根](../RELEASE_NOTES.md) |
 | 项目总览与技术文档 | 定位、架构图、模块导航（推荐首读） | [HTML](项目总览与技术文档.html) | [MD](项目总览与技术文档.md) |
@@ -28,8 +28,8 @@
 | **Resource Scope OPT-P2-12**（v1.1.0） | 业务组隔离 · 防 IDOR | [HTML](资源隔离与Scope设计.html) | [MD](资源隔离与Scope设计.md) |
 | ↳ 资源隔离落地路线 | 落地阶段记录 | [HTML](资源隔离落地路线.html) | [MD](资源隔离落地路线.md) |
 | **任务生命周期与无删除**（已交付） | 暂停≠下线 · LIFECYCLE-2 | [HTML](任务生命周期与无删除设计.html) | [MD](任务生命周期与无删除设计.md) |
-| **OPT-P0-09/10 锁与密钥**（Unreleased） | Redis SET NX EX · 生产 SECRET_KEY fail-fast | [HTML](OPT-P0-09-10-锁与密钥设计.html) | [MD](OPT-P0-09-10-锁与密钥设计.md) |
-| **OPT-P0-11 管理端 CSRF**（Unreleased） | 写操作 POST + Session Token | [HTML](OPT-P0-11-管理端CSRF设计.html) | [MD](OPT-P0-11-管理端CSRF设计.md) |
+| **OPT-P0-09/10 锁与密钥**（v2.1.1） | Redis SET NX EX · 生产 SECRET_KEY fail-fast | [HTML](OPT-P0-09-10-锁与密钥设计.html) | [MD](OPT-P0-09-10-锁与密钥设计.md) |
+| **OPT-P0-11 管理端 CSRF**（v2.1.1） | 写操作 POST + Session Token | [HTML](OPT-P0-11-管理端CSRF设计.html) | [MD](OPT-P0-11-管理端CSRF设计.md) |
 
 ## ③ 设计中（待确认 · 实现前）
 

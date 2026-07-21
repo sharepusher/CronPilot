@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v2.1.1 2026-07-21 · Security hardening (lock / SECRET\_KEY / CSRF)
+ | 
 v2.1.0 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
  | 
 v2.0.0 2026-07-17 · 任务中心 / POST 触发 / 账户生命周期
@@ -26,7 +28,13 @@ v0.1.0 2026-05-29 · 首发
 
 ## [Unreleased]
 
-Security 集群互斥锁与生产会话密钥加固（尚未打正式版本号）。
+维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
+
+## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET\_KEY, CSRF)
+
+加固集群互斥锁、生产会话签名与管理端写操作 CSRF。**调度回调与 `/api/*` 契约不变**。支持的 Python 仍为 **3.8–3.11**。
+
+### Security & reliability
 
 - **集群互斥：**非单机模式下，任务执行锁改为原子 Redis `SET NX EX`，且仅持有者 token 可释放（避免双节点同跑，以及 TTL 过期后误删后继锁）。
 - **会话签名：**生产（`FLASK_CONFIG=production`）拒绝缺失 / 默认 / 过短的 `SECRET_KEY`。请设置
@@ -40,8 +48,6 @@ Security 集群互斥锁与生产会话密钥加固（尚未打正式版本号�
 2. 升级后**重启** CronPilot，并对管理端**硬刷新**（CSRF token 嵌入页面）。
 3. 单机试用（`is_single=1`）的 Redis 锁路径行为不变。
 4. 启停 / 立即执行勿再用 GET 书签；相关路由仅为 POST。
-
-维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
 ## [2.1.0] — 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
 
@@ -136,7 +142,8 @@ HTTP 定时回调调度、Web/API 管理、基础安全与质量、技术文档�
 
 | 版本 | 说明 |
 | --- | --- |
-| **2.1.0** | Flask 2.3 + SQLAlchemy 2.0 运行时 |
+| **2.1.1** | 集群锁原子化、生产 SECRET\_KEY、管理端 CSRF |
+| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
 | 2.0.0 | 任务中心、POST 触发、账户生命周期 |
 | 1.2.0 – 1.0.0 | 权限、业务组、生命周期、操作审计 |
 | 0.2.0 – 0.1.0 | 可观测、工程化、首发 |

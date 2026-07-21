@@ -31,7 +31,9 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v2.1.0</span> 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
+    <span class="tag new">v2.1.1</span> 2026-07-21 · Security hardening (lock / SECRET_KEY / CSRF)
+    &nbsp;|&nbsp;
+    <span class="tag">v2.1.0</span> 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
     &nbsp;|&nbsp;
     <span class="tag">v2.0.0</span> 2026-07-17 · 任务中心 / POST 触发 / 账户生命周期
     &nbsp;|&nbsp;
@@ -54,8 +56,14 @@
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
 <h2 id="unreleased">[Unreleased]</h2>
+  <div class="card">
+    <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
+  </div>
+
+<h2 class="new" id="211">[2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)</h2>
   <div class="card highlight">
-    <p><span class="tag new">Security</span> 集群互斥锁与生产会话密钥加固（尚未打正式版本号）。</p>
+    <p>加固集群互斥锁、生产会话签名与管理端写操作 CSRF。<strong>调度回调与 <code>/api/*</code> 契约不变</strong>。支持的 Python 仍为 <strong>3.8–3.11</strong>。</p>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Security &amp; reliability</h3>
     <ul>
       <li><strong>集群互斥：</strong>非单机模式下，任务执行锁改为原子 Redis <code>SET NX EX</code>，且仅持有者 token 可释放（避免双节点同跑，以及 TTL 过期后误删后继锁）。</li>
       <li><strong>会话签名：</strong>生产（<code>FLASK_CONFIG=production</code>）拒绝缺失 / 默认 / 过短的 <code>SECRET_KEY</code>。请设置
@@ -70,10 +78,9 @@
       <li>单机试用（<code>is_single=1</code>）的 Redis 锁路径行为不变。</li>
       <li>启停 / 立即执行勿再用 GET 书签；相关路由仅为 POST。</li>
     </ol>
-    <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
   </div>
 
-<h2 class="new" id="210">[2.1.0] — 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)</h2>
+<h2 id="210">[2.1.0] — 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)</h2>
   <div class="card highlight">
     <p>本版本升级 CronPilot 的应用与 ORM 运行时。<strong>任务调度行为、管理端与 HTTP 回调 / 进度回传 API 保持兼容</strong>（按文档安装与升级路径即可）。支持的 Python 仍为 <strong>3.8–3.11</strong>。</p>
     <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">What's new</h3>
@@ -178,7 +185,8 @@
   <h2>版本一览</h2>
   <table>
     <tr><th>版本</th><th>说明</th></tr>
-    <tr><td><strong>2.1.0</strong></td><td>Flask 2.3 + SQLAlchemy 2.0 运行时</td></tr>
+    <tr><td><strong>2.1.1</strong></td><td>集群锁原子化、生产 SECRET_KEY、管理端 CSRF</td></tr>
+    <tr><td>2.1.0</td><td>Flask 2.3 + SQLAlchemy 2.0 运行时</td></tr>
     <tr><td>2.0.0</td><td>任务中心、POST 触发、账户生命周期</td></tr>
     <tr><td>1.2.0 – 1.0.0</td><td>权限、业务组、生命周期、操作审计</td></tr>
     <tr><td>0.2.0 – 0.1.0</td><td>可观测、工程化、首发</td></tr>

@@ -7,6 +7,7 @@ import json
 import os
 import time
 import urllib
+import uuid
 from functools import wraps
 
 import redis
@@ -16,6 +17,30 @@ from flask import current_app
 from configs import configs
 from datas.utils.json import json_response
 from datas.utils.times import get_now_time
+
+# OPT-P0-09：仅当 value 仍为本持有者 token 时删除，避免 TTL 过期后误删后继锁
+_RELEASE_LOCK_LUA = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] then "
+    "return redis.call('del', KEYS[1]) else return 0 end"
+)
+
+TASK_LOCK_TTL_SECONDS = 2 * 60
+
+
+def acquire_task_lock(r, task_name, ttl_seconds=TASK_LOCK_TTL_SECONDS):
+    """原子抢锁：SET key token NX EX。成功返回 token，失败返回 None。"""
+    token = str(uuid.uuid4())
+    ok = r.set(task_name, token, nx=True, ex=ttl_seconds)
+    if ok:
+        return token
+    return None
+
+
+def release_task_lock(r, task_name, token):
+    """仅释放本持有者的锁（Lua compare-and-del）。"""
+    if not token:
+        return 0
+    return r.eval(_RELEASE_LOCK_LUA, 1, task_name, token)
 
 '''
 md5加密
@@ -186,6 +211,7 @@ def send_text(content):
     dd_push(content=content)
 
 # 单节点任务装饰器，被装饰的任务在分布式多节点下同一时间只能运行一次
+# OPT-P0-09：SET NX EX 原子抢锁 + token 安全释放（替代 GET+SET 竞态）
 def single_task():
     def wrap(func):
         @wraps(func)
@@ -209,20 +235,14 @@ def single_task():
 
                 task_id = args[0] if args else ''
 
-                task_name = "task:%s:%s" % (task,task_id)
-                _result = r.get(task_name)
-
-                if not _result:
-                    r.set(task_name,1,ex=2*60)
-                    try:
-                        result = func(*args, **kwargs)
-                        return result
-                    except Exception as e:
-                        raise e
-                    finally:
-                        r.delete(task_name)
-                else:
+                task_name = "task:%s:%s" % (task, task_id)
+                token = acquire_task_lock(r, task_name)
+                if not token:
                     return
+                try:
+                    return func(*args, **kwargs)
+                finally:
+                    release_task_lock(r, task_name, token)
             else:
                 result = func(*args, **kwargs)
                 return result

@@ -462,6 +462,9 @@ gunicorn -c gun.py manage:app</pre>
     <table>
       <tr><th>威胁</th><th>现状</th><th>加固建议</th></tr>
       <tr><td>未授权访问 Web</td><td>RBAC 用户名密码 + Session</td><td>HTTPS、强初始 <code>login_pwd</code>、用户管理改密、失败锁定（未做）</td></tr>
+      <tr><td>会话伪造</td><td>生产拒绝弱 <code>SECRET_KEY</code>（OPT-P0-10）；试用可由 <code>run_production.sh</code> 写入 <code>datas/.flask_secret_key</code></td><td>多节点共用同一密钥；勿提交密钥文件</td></tr>
+      <tr><td>集群双跑</td><td>Redis <code>SET NX EX</code> + token 释放（OPT-P0-09）</td><td>保持 <code>is_single</code> 与 Redis 配置正确</td></tr>
+      <tr><td>管理端 CSRF</td><td>写操作 <code>POST</code> + Session Token（OPT-P0-11）；<code>js-ajax-dialog-btn</code> 附带 meta token；<code>/api/*</code> 豁免</td><td>升级后硬刷新管理端；勿保留书签式 GET 变更</td></tr>
       <tr><td>API 滥用</td><td>access_token 明文配置</td><td>环境变量、IP 白名单、速率限制</td></tr>
       <tr><td>伪造回调</td><td>可选 MD5 签名</td><td>业务方强制验签 + 时间戳防重放</td></tr>
       <tr><td>SQL 注入</td><td>部分 execute 字符串拼接</td><td>改为 ORM / 参数化</td></tr>
@@ -478,7 +481,9 @@ gunicorn -c gun.py manage:app</pre>
       <tr><th>模块</th><th>用例</th></tr>
       <tr><td>cron_validator</td><td>各字段合法/非法组合、中英文逗号</td></tr>
       <tr><td>get_cronpilot_sign</td><td>参数排序、空值、api_key 边界</td></tr>
-      <tr><td>single_task</td><td>Redis 互斥、TTL 过期</td></tr>
+      <tr><td>single_task</td><td>SET NX EX 原子抢锁、token 释放、is_single=1 不碰 Redis（见 <code>tests.test_single_task_lock</code>）</td></tr>
+      <tr><td>csrf</td><td>弱/错/正确 token；GET 写路由 405；登录页 meta（见 <code>tests.test_csrf</code>）</td></tr>
+      <tr><td>SECRET_KEY</td><td>生产弱密钥拒启（见 <code>tests.test_secret_key</code> / <code>check_conf_production</code>）</td></tr>
     </table>
     <h3>14.2 集成测试</h3>
     <table>

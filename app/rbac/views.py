@@ -9,6 +9,7 @@ from app.repositories.rbac_user_repository import RbacUserRepository
 
 from . import rbac
 from .decorators import require_login, require_permission
+from app.security.csrf import csrf_protect, ensure_csrf_token
 from .services import (
     DEFAULT_USER_PASSWORD,
     VALID_ROLES,
@@ -84,6 +85,7 @@ def enforce_password_reset():
 
 
 @rbac.route('/login', methods=['GET', 'POST'])
+@csrf_protect
 def login():
     if request.method == 'GET':
         return render_template(
@@ -110,6 +112,9 @@ def login():
     else:
         session.pop('user_id', None)
         session['group_ids'] = []
+    # Rotate CSRF after privilege change
+    session.pop('csrf_token', None)
+    ensure_csrf_token()
     write_audit_log(action='user:login', resource=result['username'])
     if result.get('must_reset_password'):
         return redirect('/rbac/password')
@@ -126,6 +131,7 @@ def logout():
 
 @rbac.route('/password', methods=['GET', 'POST'])
 @require_login
+@csrf_protect
 def change_password():
     """任意已登录用户修改自己的密码；成功后清空会话并要求重新登录。"""
     force_reset = _password_force_reset()
@@ -168,6 +174,7 @@ def users_list():
 
 @rbac.route('/users/add', methods=['GET', 'POST'])
 @require_permission('user:manage')
+@csrf_protect
 def users_add():
     groups = list_resource_groups()
     if request.method == 'GET':
@@ -228,6 +235,7 @@ def users_add():
 
 @rbac.route('/users/edit', methods=['GET', 'POST'])
 @require_permission('user:manage')
+@csrf_protect
 def users_edit():
     user_id = request.values.get('id')
     try:
@@ -292,8 +300,9 @@ def users_edit():
     )
 
 
-@rbac.route('/users/reset_password', methods=['GET', 'POST'])
+@rbac.route('/users/reset_password', methods=['POST'])
 @require_permission('user:manage')
+@csrf_protect
 def users_reset_password():
     user_id = request.values.get('id')
     try:
@@ -310,6 +319,7 @@ def users_reset_password():
 
 @rbac.route('/users/set_active', methods=['GET', 'POST'])
 @require_permission('user:manage')
+@csrf_protect
 def users_set_active():
     user_id = request.values.get('id')
     try:
@@ -353,6 +363,7 @@ def groups_list():
 
 @rbac.route('/groups/add', methods=['GET', 'POST'])
 @require_permission('user:manage')
+@csrf_protect
 def groups_add():
     if request.method == 'GET':
         return render_template('rbac/groups_add.html')
@@ -373,6 +384,7 @@ def groups_add():
 
 @rbac.route('/groups/edit', methods=['GET', 'POST'])
 @require_permission('user:manage')
+@csrf_protect
 def groups_edit():
     group_id = request.values.get('id')
     try:

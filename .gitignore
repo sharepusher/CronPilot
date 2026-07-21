@@ -19,6 +19,7 @@ conf.ini
 .venv311/
 .venv-md/
 datas/*.db
+datas/.flask_secret_key
 *.db
 
 # doc/_pending_sync：仅跟踪目录说明与归档，忽略临时全文副本

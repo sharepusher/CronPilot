@@ -51,6 +51,12 @@ docker compose up --build -d
 
 也可 `cp conf.local.sqlite.example conf.ini` 后把路径改为容器内 `/opt/cronpilot/datas/*.sqlite`。若省略 `conf.ini`，Docker 可能把其挂载成目录导致启动失败。
 
+**SECRET\_KEY：**容器以 `FLASK_CONFIG=production` 启动。未设置环境变量时，
+`run_production.sh` 会在挂载的 `./datas/.flask_secret_key` 首次生成强密钥。
+也可在 `docker-compose.yml` 中注入 `SECRET_KEY`。多副本须共用同一密钥。
+
+**CSRF（OPT-P0-11）：**管理端写操作需页面内 Session Token。升级镜像后请硬刷新浏览器；勿用 GET 书签触发启停/立即执行。
+
 | 项 | 值 |
 | --- | --- |
 | 管理端 | `http://<宿主机IP>:5860/` |

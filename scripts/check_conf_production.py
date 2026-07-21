@@ -1,10 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8
-"""Block production when conf.ini uses SQLite :memory: (CI / unittest only)."""
+"""Block production when conf.ini uses SQLite :memory: or SECRET_KEY is weak."""
 import configparser
 import os
 import sys
 from pathlib import Path
+
+# Keep in sync with config.DEFAULT_SECRET_KEY / MIN_SECRET_KEY_LEN / is_weak_secret_key
+# (do not import config.py here — it loads SQLAlchemy JobStore + conf.ini side effects)
+DEFAULT_SECRET_KEY = 'hard to guess string'
+MIN_SECRET_KEY_LEN = 16
+
+
+def is_weak_secret_key(key):
+    if key is None:
+        return True
+    text = str(key).strip()
+    if not text:
+        return True
+    if text == DEFAULT_SECRET_KEY:
+        return True
+    if len(text) < MIN_SECRET_KEY_LEN:
+        return True
+    return False
 
 
 def check_conf(conf_path) -> int:
@@ -39,10 +57,32 @@ def check_conf(conf_path) -> int:
     return 0
 
 
+def check_secret_key(environ=None) -> int:
+    """OPT-P0-10: reject missing / default / short SECRET_KEY for production start."""
+    env = environ if environ is not None else os.environ
+    key = env.get('SECRET_KEY')
+    # Unset → Flask config falls back to DEFAULT_SECRET_KEY (weak)
+    effective = key if key is not None else DEFAULT_SECRET_KEY
+    if is_weak_secret_key(effective):
+        print('ERROR: production requires a strong SECRET_KEY environment variable',
+              file=sys.stderr)
+        print('  Rejected: empty, the built-in default (%r), or length < %d'
+              % (DEFAULT_SECRET_KEY, MIN_SECRET_KEY_LEN), file=sys.stderr)
+        print('  Generate: python -c "import secrets; print(secrets.token_hex(32))"',
+              file=sys.stderr)
+        print('  Or run via scripts/run_production.sh (auto-writes datas/.flask_secret_key)',
+              file=sys.stderr)
+        return 1
+    return 0
+
+
 def main():
     root = Path(__file__).resolve().parent.parent
     conf_path = Path(os.environ.get('CRONPILOT_CONF', root / 'conf.ini'))
-    return check_conf(conf_path)
+    rc = check_conf(conf_path)
+    if rc:
+        return rc
+    return check_secret_key()
 
 
 if __name__ == '__main__':

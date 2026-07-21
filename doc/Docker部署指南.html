@@ -77,6 +77,10 @@ python3 scripts/write_sqlite_conf.py \
 
 docker compose up --build -d</pre>
     <p>也可 <code>cp conf.local.sqlite.example conf.ini</code> 后把路径改为容器内 <code>/opt/cronpilot/datas/*.sqlite</code>。若省略 <code>conf.ini</code>，Docker 可能把其挂载成目录导致启动失败。</p>
+    <p class="note"><strong>SECRET_KEY：</strong>容器以 <code>FLASK_CONFIG=production</code> 启动。未设置环境变量时，
+      <code>run_production.sh</code> 会在挂载的 <code>./datas/.flask_secret_key</code> 首次生成强密钥。
+      也可在 <code>docker-compose.yml</code> 中注入 <code>SECRET_KEY</code>。多副本须共用同一密钥。</p>
+    <p class="note"><strong>CSRF（OPT-P0-11）：</strong>管理端写操作需页面内 Session Token。升级镜像后请硬刷新浏览器；勿用 GET 书签触发启停/立即执行。</p>
     <table>
       <tr><th>项</th><th>值</th></tr>
       <tr><td>管理端</td><td><code>http://&lt;宿主机IP&gt;:5860/</code></td></tr>

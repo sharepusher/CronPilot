@@ -63,6 +63,14 @@ Python 3.8～3.11；`run_production.sh` 自动使用 venv。
 
 必改项：`login_pwd`（**仅**空库种子 `admin` 的初始密码）、`cron_db_url`、`cron_job_log_db_url`、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 `login_pwd`。
 
+**会话密钥 `SECRET_KEY`（勿写入 conf.ini）：**生产必须设置强密钥（长度 ≥ 16，且非源码默认值）。推荐：
+
+```
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+# 或直接 bash scripts/run_production.sh —— 首次自动写入 datas/.flask_secret_key
+# 多节点必须共用同一 SECRET_KEY
+```
+
 生成**初始**密码哈希（写入 `login_pwd`，须在空库首次启动前）：
 
 ```
@@ -149,6 +157,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/cronpilot/CronPilot
 Environment=FLASK_CONFIG=production
+# Environment=SECRET_KEY=请替换为 secrets.token_hex(32) 的输出（多节点须一致）
 ExecStart=/opt/cronpilot/CronPilot/.venv-py311/bin/gunicorn -c gun.py manage:app
 Restart=on-failure
 
@@ -190,6 +199,8 @@ server {
 ## 8. 安全建议
 
 - 生产必须使用**强密码**或 `pbkdf2` 哈希，禁止默认口令。
+- 生产必须配置强 `SECRET_KEY`（环境变量或 `run_production.sh` 生成的 `datas/.flask_secret_key`）；直接 gunicorn 且使用默认密钥会拒绝启动。
+- 管理端写操作已启用 CSRF（OPT-P0-11）：升级后**硬刷新**；勿用 GET 书签触发启停/立即执行。
 - `/docs/` **无需登录**，含架构与 API 细节；公网请用 Nginx 白名单 / Basic Auth / 仅内网。
 - 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
 - 勿对 `0.0.0.0` 使用 `debug=True` 的 Flask 内置服务器。
@@ -198,6 +209,8 @@ server {
 
 | 现象 | 处理 |
 | --- | --- |
+| 启动报 SECRET\_KEY | 设置环境变量 `SECRET_KEY`，或用 `bash scripts/run_production.sh`（自动生成 `datas/.flask_secret_key`） |
+| 启停/立即执行失败（CSRF） | 硬刷新管理端；确认页面有 `csrf-token` meta；勿用旧 GET 书签 |
 | `pip install gevent` 失败 | 换 3.9/3.10；或本地用 `bash scripts/start_local.sh`（core 依赖）。长期方案：[依赖升级 RFC](依赖升级RFC.html) Tier 2 |
 | 数据库 schema 演进 | **主路径**：`bash scripts/ensure_business_tables.sh`（启动/`run_production` 已调用；SQLite/MySQL 建表补列）。 `flask db migrate/upgrade` 可用（Tier 0 CLI），但仓库**当前无**强制 Alembic revision 树；勿假设已有 `migrations/`。见 [Tier 3b](Tier3b-迁移重放与残余收束设计.html) / [依赖升级 RFC](依赖升级RFC.html) |
 | 外网无法访问 | 确认 Gunicorn `0.0.0.0`、防火墙、云安全组放行 5860 |

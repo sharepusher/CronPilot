@@ -28,6 +28,8 @@
 | **Resource Scope OPT-P2-12**（v1.1.0） | 业务组隔离 · 防 IDOR | [HTML](资源隔离与Scope设计.html) | [MD](资源隔离与Scope设计.md) |
 | ↳ 资源隔离落地路线 | 落地阶段记录 | [HTML](资源隔离落地路线.html) | [MD](资源隔离落地路线.md) |
 | **任务生命周期与无删除**（已交付） | 暂停≠下线 · LIFECYCLE-2 | [HTML](任务生命周期与无删除设计.html) | [MD](任务生命周期与无删除设计.md) |
+| **OPT-P0-09/10 锁与密钥**（Unreleased） | Redis SET NX EX · 生产 SECRET_KEY fail-fast | [HTML](OPT-P0-09-10-锁与密钥设计.html) | [MD](OPT-P0-09-10-锁与密钥设计.md) |
+| **OPT-P0-11 管理端 CSRF**（Unreleased） | 写操作 POST + Session Token | [HTML](OPT-P0-11-管理端CSRF设计.html) | [MD](OPT-P0-11-管理端CSRF设计.md) |
 
 ## ③ 设计中（待确认 · 实现前）
 

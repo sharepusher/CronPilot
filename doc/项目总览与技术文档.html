@@ -73,6 +73,8 @@
     <table>
       <tr><th>模块</th><th>路径</th><th>说明</th></tr>
       <tr><td>URL 安全</td><td><code>app/services/url_security.py</code></td><td>SSRF / 内网 / 白名单</td></tr>
+      <tr><td>会话 / CSRF</td><td><code>SECRET_KEY</code>（OPT-P0-10）· <code>app/security/csrf.py</code>（OPT-P0-11）</td><td>生产强密钥；管理端写操作 POST + token</td></tr>
+      <tr><td>集群互斥</td><td><code>single_task</code>（OPT-P0-09）</td><td>Redis <code>SET NX EX</code> + token 释放</td></tr>
       <tr><td>Cron 校验</td><td><code>app/services/cron_validator.py</code></td><td>Web + API 共用</td></tr>
       <tr><td>任务写入</td><td><code>app/services/cron_service.py</code></td><td>入库 + 注册调度</td></tr>
       <tr><td>日志清理</td><td><code>app/services/job_log_service.py</code></td><td>ORM 删除/裁剪</td></tr>

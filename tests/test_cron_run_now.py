@@ -19,6 +19,7 @@ class TestCronRunNow(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -70,7 +71,7 @@ class TestCronRunNow(unittest.TestCase):
     @patch('app.crons.cron_do', return_value=42)
     def test_admin_run_now_success(self, mock_do):
         self._login_admin()
-        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        resp = self.client.post('/cron_run_now?id=%s' % self.active_id)
         self.assertEqual(resp.status_code, 200)
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 0)
@@ -79,7 +80,7 @@ class TestCronRunNow(unittest.TestCase):
 
     def test_retired_task_rejected(self):
         self._login_admin()
-        resp = self.client.get('/cron_run_now?id=%s' % self.retired_id)
+        resp = self.client.post('/cron_run_now?id=%s' % self.retired_id)
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 1)
         self.assertIn('下线', payload.get('errmsg') or '')
@@ -99,14 +100,14 @@ class TestCronRunNow(unittest.TestCase):
             self.db.session.commit()
             paused_id = paused.id
         self._login_admin()
-        resp = self.client.get('/cron_run_now?id=%s' % paused_id)
+        resp = self.client.post('/cron_run_now?id=%s' % paused_id)
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 1)
         self.assertIn('运行中', payload.get('errmsg') or '')
 
     def test_missing_url_rejected(self):
         self._login_admin()
-        resp = self.client.get('/cron_run_now?id=%s' % self.no_url_id)
+        resp = self.client.post('/cron_run_now?id=%s' % self.no_url_id)
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 1)
         self.assertIn('URL', payload.get('errmsg') or '')
@@ -114,7 +115,7 @@ class TestCronRunNow(unittest.TestCase):
     @patch('app.crons.cron_do', return_value=None)
     def test_busy_task_rejected(self, _mock_do):
         self._login_admin()
-        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        resp = self.client.post('/cron_run_now?id=%s' % self.active_id)
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 1)
         self.assertIn('执行中', payload.get('errmsg') or '')
@@ -125,7 +126,7 @@ class TestCronRunNow(unittest.TestCase):
             sess['role'] = 'viewer'
             sess['username'] = 'viewer'
             sess['group_ids'] = []
-        resp = self.client.get('/cron_run_now?id=%s' % self.active_id)
+        resp = self.client.post('/cron_run_now?id=%s' % self.active_id)
         self.assertEqual(resp.status_code, 403)
 
 
@@ -137,6 +138,7 @@ class TestCronListRunNowButton(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db

@@ -67,4 +67,7 @@ def create_app(config_name):
     from .rbac import rbac as rbac_blueprint
     app.register_blueprint(rbac_blueprint)
 
+    from app.security.csrf import inject_csrf_context
+    app.context_processor(inject_csrf_context)
+
     return app

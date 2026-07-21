@@ -26,7 +26,20 @@ v0.1.0 2026-05-29 · 首发
 
 ## [Unreleased]
 
-开发中、尚未随正式版本发布的变更将写在本节。
+Security 集群互斥锁与生产会话密钥加固（尚未打正式版本号）。
+
+- **集群互斥：**非单机模式下，任务执行锁改为原子 Redis `SET NX EX`，且仅持有者 token 可释放（避免双节点同跑，以及 TTL 过期后误删后继锁）。
+- **会话签名：**生产（`FLASK_CONFIG=production`）拒绝缺失 / 默认 / 过短的 `SECRET_KEY`。请设置
+  `export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"`，
+  或通过 `scripts/run_production.sh` 首次写入 `datas/.flask_secret_key`。多节点须共用同一密钥。
+- **管理端 CSRF：**写操作须 `POST` + Session Token（页面 meta / 表单字段）；对话框启停与立即执行已改为 POST。无 token 或仍用 GET 变更状态会失败。请硬刷新后再操作。
+
+### Upgrade notes
+
+1. 若生产直接启动 Gunicorn（不经 `run_production.sh`），升级前须在环境 / systemd 中配置强 `SECRET_KEY`，否则将 fail-fast。
+2. 升级后**重启** CronPilot，并对管理端**硬刷新**（CSRF token 嵌入页面）。
+3. 单机试用（`is_single=1`）的 Redis 锁路径行为不变。
+4. 启停 / 立即执行勿再用 GET 书签；相关路由仅为 POST。
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 

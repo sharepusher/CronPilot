@@ -20,6 +20,7 @@ from app.rbac.scope import (
     user_can_assign_group,
 )
 from app.rbac.services import list_resource_groups
+from app.security.csrf import csrf_protect
 from app.services.cron_service import add_cron_web, edit_cron_web
 from app.services.job_log_filter import job_log_outcome_clause
 from app.services.pagination import PageQuery
@@ -360,6 +361,7 @@ def job_batch_delete():
 
 @main.route('/cron_add', methods=['GET', 'POST'])
 @require_permission('cron:write')
+@csrf_protect
 def cron_add():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
@@ -389,6 +391,7 @@ def cron_add():
 
 @main.route('/cron_edit', methods=['GET', 'POST'])
 @require_permission('cron:write')
+@csrf_protect
 def cron_edit():
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
@@ -417,12 +420,13 @@ def cron_edit():
     )
 
 
-@main.route('/update_status', methods=['GET', 'POST'])
+@main.route('/update_status', methods=['POST'])
 @require_permission('cron:write')
+@csrf_protect
 def update_status():
     from app.services.operation_log_service import record_operation
 
-    id = request.args.get('id')
+    id = request.values.get('id') or request.args.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='项目不存在',url='/cron_list')
@@ -451,12 +455,13 @@ def update_status():
     return web_api_return(code=0, msg=msg)
 
 
-@main.route('/cron_run_now', methods=['GET', 'POST'])
+@main.route('/cron_run_now', methods=['POST'])
 @require_permission('cron:write')
+@csrf_protect
 def cron_run_now():
     from app.crons import cron_do
 
-    id = request.args.get('id')
+    id = request.values.get('id') or request.args.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
         return web_api_return(code=1, msg='任务不存在', url='/cron_list')
@@ -481,6 +486,7 @@ def cron_run_now():
 
 @main.route('/cron_retire', methods=['GET', 'POST'])
 @require_permission('cron:retire')
+@csrf_protect
 def cron_retire():
     from app.services.cron_service import retire_cron_by_id
 

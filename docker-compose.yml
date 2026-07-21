@@ -11,4 +11,6 @@ services:
     environment:
       FLASK_CONFIG: production
       PYTHONIOENCODING: utf-8
+      # 可选：显式注入；未设置时 run_production.sh 会写入 datas/.flask_secret_key
+      # SECRET_KEY: ${SECRET_KEY}
     restart: unless-stopped

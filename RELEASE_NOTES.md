@@ -7,7 +7,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-Changes in development for a future release will appear here when ready.
+### Security & reliability
+
+- **Cluster mutex:** When `is_single` is not single-node mode, task execution locks use atomic Redis `SET NX EX` and release only the holder’s token (avoids a race that could run the same job on two nodes, and avoids deleting another node’s lock after TTL expiry).
+- **Session signing:** Production (`FLASK_CONFIG=production`) refuses to start with a missing, default, or short `SECRET_KEY`. Set `export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"`, or start via `scripts/run_production.sh` (first run writes `datas/.flask_secret_key`). Multi-node deployments must share the same key.
+- **Admin CSRF:** State-changing admin actions require `POST` plus a session CSRF token (page meta / form field). Dialog actions such as pause/resume and run-now use POST. Hard-refresh the admin UI after upgrade.
+
+### Upgrade notes
+
+1. Before upgrading a production host that starts Gunicorn **without** `run_production.sh`, set a strong `SECRET_KEY` in the environment (or systemd unit); otherwise the process will fail fast on purpose.
+2. Restart CronPilot after upgrade; **hard-refresh** the admin UI (CSRF meta tokens are embedded in pages).
+3. Single-node trial (`is_single=1`) behavior is unchanged for Redis locking.
+4. Do not use bookmark/GET URLs for pause/resume or run-now; those routes are POST-only.
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 

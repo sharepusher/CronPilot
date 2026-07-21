@@ -304,8 +304,16 @@
                         return true;
                     },
                     ok: function () {
+                        var csrfToken = $('meta[name=csrf-token]').attr('content');
+                        var csrfParam = $('meta[name=csrf-param]').attr('content') || 'csrf_token';
+                        var data = {};
+                        if (csrfToken) {
+                            data[csrfParam] = csrfToken;
+                        }
                         requests({
                             url: href,
+                            type: 'POST',
+                            data: data,
                             success: function (errmsg, data, url) {
                                 if (url) {
                                     location.href = url;

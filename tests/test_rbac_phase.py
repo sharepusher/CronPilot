@@ -14,6 +14,7 @@ class TestCheckPassForward(unittest.TestCase):
     def setUp(self):
         app = Flask(__name__)
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.register_blueprint(main_blueprint)
         self.client = app.test_client()
 
@@ -60,6 +61,7 @@ class TestRbacLogin(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -128,6 +130,7 @@ class TestChangeOwnPassword(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -219,6 +222,7 @@ class TestR3Permissions(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -239,9 +243,11 @@ class TestR3Permissions(unittest.TestCase):
 
     def test_viewer_cron_write_routes_return_403(self):
         self._login_as('viewer')
-        for path in ('/cron_add', '/cron_edit?id=1', '/update_status?id=1'):
+        for path in ('/cron_add', '/cron_edit?id=1'):
             resp = self.client.get(path)
             self.assertEqual(resp.status_code, 403, path)
+        resp = self.client.post('/update_status?id=1')
+        self.assertEqual(resp.status_code, 403)
 
     def test_viewer_log_delete_returns_410(self):
         self._login_as('viewer')
@@ -271,6 +277,7 @@ class TestLifecycleNoDelete(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -350,6 +357,7 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -424,6 +432,7 @@ class TestNavHasPerm(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -489,6 +498,7 @@ class TestNotFound(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -521,6 +531,7 @@ class TestRbacUsersManage(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -712,6 +723,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -895,7 +907,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             sess['role'] = 'admin'
             sess['user_id'] = self.admin_id
             sess['group_ids'] = []
-        reset = admin_client.get(
+        reset = admin_client.post(
             '/rbac/users/reset_password?id=%s' % target_id,
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
@@ -919,7 +931,7 @@ class TestForcedPasswordReset(unittest.TestCase):
 
     def test_admin_cannot_reset_self(self):
         self._login_session('mgr', 'admin', self.admin_id)
-        resp = self.client.get(
+        resp = self.client.post(
             '/rbac/users/reset_password?id=%s' % self.admin_id,
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
@@ -1090,6 +1102,7 @@ class TestRbacAuditLogs(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -1168,6 +1181,7 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
@@ -1276,6 +1290,7 @@ class TestMakeHasPerm(unittest.TestCase):
     def test_has_perm_respects_role(self):
         app = Flask(__name__)
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         with app.test_request_context():
             session['role'] = 'viewer'
             has_perm = make_has_perm()
@@ -1286,6 +1301,7 @@ class TestMakeHasPerm(unittest.TestCase):
     def test_rbac_enabled_uses_preloaded_set(self):
         app = Flask(__name__)
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         with app.test_request_context():
             session['role'] = 'viewer'
             with patch('app.rbac.context.get_role_permission_set', return_value={'cron:read'}) as mocked_perms:
@@ -1334,6 +1350,7 @@ class TestUserTopbar(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db

@@ -223,7 +223,7 @@ create_app() ◄── manage.py (Gunicorn entry: manage:app)
     </div>
     <pre class="diagram">┌─────────────── 浏览器（jQuery + common.js）────────────────────────────┐
 │  cron_add.html / cron_edit.html  →  js-ajax-form  →  POST Flask 路由    │
-│  cron_list.html  →  js-ajax-dialog-btn / js-ajax-delete  →  GET 路由     │
+│  cron_list.html  →  js-ajax-dialog-btn（POST + CSRF token）→ 写路由     │
 │  ❌ 无 apscheduler SDK；❌ 不请求 /api/cron（管理 UI 走 main，不走 api）   │
 └───────────────────────────────┬────────────────────────────────────────┘
                                 ▼
@@ -605,10 +605,10 @@ API /api/* → access_token 不变（独立轨道）</pre>
     <table>
       <tr><th>层级</th><th>机制</th><th>解决的问题</th></tr>
       <tr><td>L1 进程间</td><td>portalocker + scheduler.lock</td><td>同机多 Gunicorn worker 重复 poll due jobs</td></tr>
-      <tr><td>L2 节点间</td><td>Redis SET NX EX + @single_task</td><td>多机同时执行同一 cron_do</td></tr>
+      <tr><td>L2 节点间</td><td>Redis <code>SET NX EX</code> + token Lua 释放（<code>@single_task</code> / OPT-P0-09）</td><td>多机同时执行同一 cron_do</td></tr>
     </table>
     <div class="card warn">
-      <p>局限：非强一致 Leader 选举；Redis 锁 TTL 120s 内进程崩溃可能导致短暂空窗或重复（取决于崩溃时机）。生产环境建议监控 Redis 与调度延迟。</p>
+      <p>局限：非强一致 Leader 选举；Redis 锁 TTL 120s 内进程崩溃可能导致短暂空窗（锁过期前其它节点无法抢占）。token 释放避免「执行超时后误删后继持有者锁」。生产环境建议监控 Redis 与调度延迟。</p>
     </div>
   </section>
 
@@ -784,7 +784,7 @@ CREATE TABLE rbac_audit_logs (
       <tr><td>ADR-02</td><td>HTTP GET 回调而非 Agent 拉取</td><td>集成简单，防火墙友好</td><td>无请求体、幂等需业务保证</td></tr>
       <tr><td>ADR-03</td><td>双数据库 URL</td><td>JobStore 与业务 schema 解耦</td><td>运维需维护两套连接</td></tr>
       <tr><td>ADR-04</td><td>SSR 管理台而非 SPA</td><td>2019 前后主流、部署简单</td><td>前端体验与可维护性弱</td></tr>
-      <tr><td>ADR-05</td><td>portalocker + Redis 双锁</td><td>渐进式支持集群</td><td>语义复杂，调试难度大</td></tr>
+      <tr><td>ADR-05</td><td>portalocker + Redis 双锁</td><td>渐进式支持集群</td><td>语义复杂，调试难度大；Redis 层须 <code>SET NX EX</code> 原子抢锁 + token 安全释放（OPT-P0-09），禁止 GET+SET</td></tr>
       <tr><td>ADR-06</td><td>应用内 RBAC + 审计权限快照</td><td>轻量部署、与 operation_log 契合</td><td>大企业需 SSO；见 <a href="#rbac-arch">§15</a></td></tr>
     </table>
   </section>

@@ -9,6 +9,9 @@ redis_db=0
 cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
 cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
 login_pwd=请改为强密码或使用 scripts/hash_login_password.py 生成 pbkdf2 哈希
+# 会话签名密钥（勿写入本文件）：生产必须设置环境变量 SECRET_KEY（长度≥16，且非源码默认值）
+#   export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+#   或由 scripts/run_production.sh 首次自动写入 datas/.flask_secret_key（多节点须共用同一 SECRET_KEY）
 # login_pwd 用途（v1.0+）：
 #   - 仅当 rbac_users 为空时，作为自动种子用户 admin 的初始密码（明文或 pbkdf2 均可）
 #   - 表中已有用户后，改本项并重启不会更新任何账号密码

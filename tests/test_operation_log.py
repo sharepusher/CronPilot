@@ -50,6 +50,7 @@ class TestResolveOperator(unittest.TestCase):
     def setUp(self):
         app = Flask(__name__)
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         self.app = app
 
     def test_no_request_is_system(self):
@@ -88,6 +89,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['CRON_CONFIG'] = {

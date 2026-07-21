@@ -54,8 +54,22 @@
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
 <h2 id="unreleased">[Unreleased]</h2>
-  <div class="card">
-    <p>开发中、尚未随正式版本发布的变更将写在本节。</p>
+  <div class="card highlight">
+    <p><span class="tag new">Security</span> 集群互斥锁与生产会话密钥加固（尚未打正式版本号）。</p>
+    <ul>
+      <li><strong>集群互斥：</strong>非单机模式下，任务执行锁改为原子 Redis <code>SET NX EX</code>，且仅持有者 token 可释放（避免双节点同跑，以及 TTL 过期后误删后继锁）。</li>
+      <li><strong>会话签名：</strong>生产（<code>FLASK_CONFIG=production</code>）拒绝缺失 / 默认 / 过短的 <code>SECRET_KEY</code>。请设置
+        <code>export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"</code>，
+        或通过 <code>scripts/run_production.sh</code> 首次写入 <code>datas/.flask_secret_key</code>。多节点须共用同一密钥。</li>
+      <li><strong>管理端 CSRF：</strong>写操作须 <code>POST</code> + Session Token（页面 meta / 表单字段）；对话框启停与立即执行已改为 POST。无 token 或仍用 GET 变更状态会失败。请硬刷新后再操作。</li>
+    </ul>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Upgrade notes</h3>
+    <ol>
+      <li>若生产直接启动 Gunicorn（不经 <code>run_production.sh</code>），升级前须在环境 / systemd 中配置强 <code>SECRET_KEY</code>，否则将 fail-fast。</li>
+      <li>升级后<strong>重启</strong> CronPilot，并对管理端<strong>硬刷新</strong>（CSRF token 嵌入页面）。</li>
+      <li>单机试用（<code>is_single=1</code>）的 Redis 锁路径行为不变。</li>
+      <li>启停 / 立即执行勿再用 GET 书签；相关路由仅为 POST。</li>
+    </ol>
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
   </div>
 

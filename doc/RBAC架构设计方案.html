@@ -201,7 +201,7 @@ flask --app manage:app db upgrade</pre>
     <tr><th>项</th><th>现状（v2.0.0）</th></tr>
     <tr><td>闲置超时自动退出</td><td><strong>无</strong>：浏览器保持打开且 Cookie 仍在 → 会话持续有效</td></tr>
     <tr><td>Cookie 类型</td><td>默认浏览器会话 Cookie（关闭浏览器后通常失效；具体行为依浏览器「恢复会话」设置）</td></tr>
-    <tr><td>主动失效</td><td>顶栏「退出」；自助改密成功后 <code>session.clear()</code>；服务端 <code>SECRET_KEY</code> 变更导致验签失败</td></tr>
+    <tr><td>主动失效</td><td>顶栏「退出」；自助改密成功后 <code>session.clear()</code>；服务端 <code>SECRET_KEY</code> 变更导致验签失败。生产须强 <code>SECRET_KEY</code>（OPT-P0-10），勿用源码默认值</td></tr>
     <tr><td>强制改密 / 停用</td><td>下次访问受保护页时拦截（改密墙 / 登录失败），不依赖会话超时</td></tr>
   </table>
   <p><strong>可优化（设计待确认 · 未排期实现）：</strong></p>

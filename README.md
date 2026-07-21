@@ -237,9 +237,11 @@ server {
 ### 安全建议
 
 1. **初始密码**：空库前用强明文或 `pbkdf2` 写入 `login_pwd`；首次启动种子 `admin`。**已有用户后**改密请走导航「修改密码」或「用户管理 → 编辑 → 新密码」，勿再依赖改 `login_pwd`。
-2. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
-3. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
-4. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
+2. **会话密钥 `SECRET_KEY`**：生产必须设置（勿写入 `conf.ini`）。`export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"`，或使用 `scripts/run_production.sh`（首次写入 `datas/.flask_secret_key`）。多节点须共用同一密钥。
+3. **管理端 CSRF**：升级后请硬刷新；启停 / 立即执行等写操作须为 POST 并携带页面 CSRF token（勿使用旧书签 GET）。
+4. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
+5. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
+6. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
 
 ### 健康检查
 
@@ -321,6 +323,7 @@ scripts/             # 本地启动、验收、密码哈希工具
 | 键 | 默认 | 说明 |
 |----|------|------|
 | `login_pwd` | （必填） | **仅**空表时种子 `admin` 的初始密码（明文或 `pbkdf2`）；有用户后改此项无效于登录 |
+| `SECRET_KEY`（环境变量） | 开发有默认；生产必强 | 会话签名；勿写入 conf.ini。生产可用 `run_production.sh` 生成 `datas/.flask_secret_key` |
 | `block_private_ip` | `1` | 禁止回调内网/本机/元数据地址 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |

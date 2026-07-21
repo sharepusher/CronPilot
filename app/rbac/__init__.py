@@ -13,7 +13,8 @@ def inject_rbac_context():
         role_badge_class,
         role_display_name,
     )
-    return {
+    from app.security.csrf import inject_csrf_context
+    ctx = {
         'current_user': get_current_user(),
         'has_perm': make_has_perm(),
         'current_group_ids': get_current_group_ids(),
@@ -21,6 +22,8 @@ def inject_rbac_context():
         'role_display_name': role_display_name,
         'role_badge_class': role_badge_class,
     }
+    ctx.update(inject_csrf_context())
+    return ctx
 
 
 from . import views  # noqa: E402,F401

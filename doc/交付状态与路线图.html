@@ -43,6 +43,8 @@
     <br>
     <strong>2026-07-20 Tier 3c（OPT-P2-11）：</strong><strong>搁置</strong>（无存量升级问题，不实现）。详见 <a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a>。
     <br>
+    <strong>2026-07-21 Unreleased（OPT-P0-09 / OPT-P0-10 / OPT-P0-11）：</strong>集群 Redis 锁原子化、生产 <code>SECRET_KEY</code> fail-fast、管理端 CSRF（写操作 POST + Session Token）。详见 <a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <a href="OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <a href="RELEASE_NOTES.html#unreleased">Release Notes [Unreleased]</a>。
+    <br>
     <strong>2026-07-20 Phase D2（OPT-P2-11）：</strong><code>datas/model</code> 九表已迁 <strong>Mapped[]</strong>；门禁 <code>test_mapped_model_guard</code>。下一依赖动作 <strong>Phase D3 compose</strong>（暂缓）。详见 <a href="PhaseD2-Mapped模型迁移.html">Phase D2</a> / <a href="依赖升级RFC.html">RFC</a> / <a href="需求编号与缩写规范.html">编号规范</a>。
     <br>
     <strong>2026-07-20 Phase D1（OPT-P2-11 · DEC-008）：</strong>已同窗 bump <strong>Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1 + Alembic 1.14.1</strong>；Python 支持 <strong>3.8–3.11</strong>。
@@ -116,6 +118,9 @@
     <tr><td>OPT-P0-03</td><td>SSRF 防护</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
     <tr><td>OPT-P0-04</td><td>统一 JSON 契约</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
     <tr><td>OPT-P0-05</td><td>校验 / service 抽取</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-09</td><td>集群 Redis 互斥锁原子化（SET NX EX + token 释放）</td><td class="s-done">已交付</td><td>Unreleased</td><td><a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>single_task</code></td></tr>
+    <tr><td>OPT-P0-10</td><td>生产 SECRET_KEY fail-fast</td><td class="s-done">已交付</td><td>Unreleased</td><td><a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>run_production.sh</code> / <code>datas/.flask_secret_key</code></td></tr>
+    <tr><td>OPT-P0-11</td><td>管理端 CSRF 防护（写操作 POST + Session Token）</td><td class="s-done">已交付</td><td>Unreleased</td><td><a href="OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <code>app/security/csrf.py</code></td></tr>
     <tr><td>UI-A′</td><td>执行记录单列两行 + 查看详情 + <code>http_status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>UI-B1</td><td>Cron 分钟 <code>*/1</code> 灰字提示</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>OPT-P1-01</td><td>执行 <code>status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="P1可观测优化设计.html">P1 可观测设计</a></td></tr>
@@ -184,6 +189,9 @@
     <tr><td><code>ensure_business_tables</code> 补列：<code>must_reset_password</code> / <code>status_reason</code> / <code>last_operator_*</code> / <code>req_method</code> / <code>req_body</code> / <code>job_health</code>（SQLite+MySQL）</td><td class="s-done">已交付</td><td>v2.0.0</td></tr>
     <tr><td>触发请求支持 POST + JSON Body（默认仍 GET）</td><td class="s-done">已交付</td><td>v2.0.0</td></tr>
     <tr><td>登录会话：无闲置超时（浏览器会话 Cookie；退出/改密清会话）</td><td class="s-done">已文档化</td><td>v2.0.0</td></tr>
+    <tr><td>集群 Redis 互斥锁原子化（OPT-P0-09）</td><td class="s-done">已交付</td><td>Unreleased</td></tr>
+    <tr><td>生产 SECRET_KEY fail-fast（OPT-P0-10）</td><td class="s-done">已交付</td><td>Unreleased</td></tr>
+    <tr><td>管理端 CSRF：写操作 POST + Session Token（OPT-P0-11）</td><td class="s-done">已交付</td><td>Unreleased</td></tr>
   </table>
 
   <h2>五、建议实施顺序（未交付）</h2>
@@ -200,7 +208,7 @@
   <h2>六、文档维护约定</h2>
   <ul>
     <li>每次<strong>发布版本</strong>：更新 <a href="../RELEASE_NOTES.md">RELEASE_NOTES.md</a>、本页「按版本汇总」、相关设计稿页眉状态；将 <code>[Unreleased]</code> 中已交付条目下沉到对应版本节。</li>
-    <li>每项<strong>新优化 / 功能</strong>：先出<strong>清晰完整准确</strong>的设计稿（须含<strong>分批</strong>与<strong>验收</strong>）→ <strong>经确认</strong> → 再实现 → 验收 → 本页标「已交付」+ 版本号 → Release Notes。<strong>确认前不写实现代码</strong>；「请完成 XX」不等于设计已确认。详仓库 <code>.cursor/rules/cronpilot-project.mdc</code>「设计先行」。</li>
+    <li>每项<strong>新优化 / 功能</strong>：先出<strong>清晰完整准确</strong>的设计稿（须含<strong>分批</strong>与<strong>验收</strong>）→ <strong>经确认</strong> → 再实现 → 验收 → <strong>可验证本地环境</strong>（restart + URL/登录/步骤/断言 + Agent 自证；默认保持服务运行）→ 本页标「已交付」+ 版本号 → Release Notes。<strong>确认前不写实现代码</strong>；「请完成 XX」不等于设计已确认。详仓库 <code>.cursor/rules/cronpilot-project.mdc</code>「设计先行」「交付后可验证本地环境」。</li>
     <li><strong>下一版待交付</strong>：在 <a href="RELEASE_NOTES.html">Release Notes [Unreleased]</a> 维护草稿条目，与本页「建议实施顺序」及设计稿链接对齐；勿用「Unreleased」指<strong>已发布</strong>内容。</li>
   </ul>
 

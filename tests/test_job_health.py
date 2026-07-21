@@ -88,6 +88,7 @@ class TestCronListHealthFilters(unittest.TestCase):
             static_folder=os.path.join(ROOT, 'app', 'static'),
         )
         app.secret_key = 'test'
+        app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         app.config['CRON_CONFIG'] = {

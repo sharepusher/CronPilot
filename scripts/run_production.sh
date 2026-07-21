@@ -25,6 +25,23 @@ VENV="$CRONPILOT_VENV"
 export FLASK_CONFIG="${FLASK_CONFIG:-production}"
 PROD_PORT="${PROD_PORT:-5860}"
 
+# OPT-P0-10：生产须强 SECRET_KEY；未设置时从 datas/.flask_secret_key 读取或首次生成
+if [ "$FLASK_CONFIG" = "production" ] && [ -z "${SECRET_KEY:-}" ]; then
+  SECRET_FILE="$ROOT/datas/.flask_secret_key"
+  if [ -f "$SECRET_FILE" ]; then
+    # trim trailing newline
+    SECRET_KEY="$(tr -d '\r\n' < "$SECRET_FILE")"
+    export SECRET_KEY
+  else
+    mkdir -p "$ROOT/datas"
+    SECRET_KEY="$("$VENV/bin/python" -c 'import secrets; print(secrets.token_hex(32))')"
+    umask 077
+    printf '%s\n' "$SECRET_KEY" > "$SECRET_FILE"
+    export SECRET_KEY
+    echo "已生成 datas/.flask_secret_key（多节点请改用统一环境变量 SECRET_KEY）"
+  fi
+fi
+
 if [ "$FLASK_CONFIG" = "production" ]; then
   if ! "$VENV/bin/python" "$ROOT/scripts/check_conf_production.py"; then
     exit 1

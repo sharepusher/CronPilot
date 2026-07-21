@@ -114,6 +114,27 @@
     <tr><th>TC-P0-05-03 反例</th><td colspan="3">API 提交 <code>req_url=http://127.0.0.1</code> → <code>errcode:1</code></td></tr>
   </table>
 
+  <h3>OPT-P0-09 · 集群 Redis 锁原子化</h3>
+  <table>
+    <tr><th>TC-P0-09-01</th><td colspan="3"><code>tests.test_single_task_lock</code>：二次 acquire 失败；错误 token 不能释放；<code>is_single=1</code> 不访问 Redis</td></tr>
+    <tr><th>预期</th><td colspan="3">单测全部通过；单机试用行为不变</td></tr>
+  </table>
+
+  <h3>OPT-P0-10 · 生产 SECRET_KEY fail-fast</h3>
+  <table>
+    <tr><th>TC-P0-10-01</th><td colspan="3"><code>FLASK_CONFIG=production</code> + 默认/过短 <code>SECRET_KEY</code> → 启动拒绝（<code>ProductionConfig.init_app</code> / <code>check_conf_production</code>）</td></tr>
+    <tr><th>TC-P0-10-02</th><td colspan="3"><code>run_production.sh</code> 未设环境变量时可生成 <code>datas/.flask_secret_key</code> 后启动</td></tr>
+    <tr><th>预期</th><td colspan="3">见 <code>tests.test_secret_key</code>、<code>tests.test_check_conf_production</code></td></tr>
+  </table>
+
+  <h3>OPT-P0-11 · 管理端 CSRF</h3>
+  <table>
+    <tr><th>TC-P0-11-01</th><td colspan="3">登录页与管理端骨架含 <code>csrf-token</code> / <code>csrf_token</code> meta 或隐藏域</td></tr>
+    <tr><th>TC-P0-11-02</th><td colspan="3"><code>GET /update_status</code> → HTTP 405</td></tr>
+    <tr><th>TC-P0-11-03</th><td colspan="3">具备 <code>cron:write</code> 的会话：无 token / 错 token 的 POST → JSON 含「CSRF」；正确 token 可变更（或业务层合理拒绝如任务不存在）</td></tr>
+    <tr><th>预期</th><td colspan="3"><code>tests.test_csrf</code> + 硬刷新后对话框启停/立即执行可用；种子 <code>admin</code> 无写权限属预期</td></tr>
+  </table>
+
   <h2>已执行冒烟记录（2026-05-29）</h2>
   <div class="card">
     <table>

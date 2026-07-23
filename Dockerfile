@@ -30,7 +30,7 @@ USER cronpilot
 
 # 构建期健康检查（与 scripts/docker/Dockerfile.ubuntu 一致）
 RUN bash -euc 'source scripts/lib/python.sh && cronpilot_load_runtime; \
-    export FLASK_CONFIG=production; mkdir -p datas/logs; \
+    export FLASK_CONFIG=production; mkdir -p datas/logs datas/prometheus_tmp; chmod 700 datas/prometheus_tmp; \
     export SECRET_KEY="${SECRET_KEY:-$(python3 -c "import secrets; print(secrets.token_hex(32))")}"; \
     "$CRONPILOT_VENV/bin/gunicorn" -b 0.0.0.0:5860 -w 1 -k gevent -c gun.py manage:app & pid=$!; \
     sleep 8; \

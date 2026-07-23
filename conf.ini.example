@@ -41,3 +41,8 @@ url_ssrf_observe_only=0
 # 结构化日志（可选；默认 JSON 输出，适合 ELK / Loki 接入）
 # log_level=INFO
 # log_json_enabled=1
+
+# Prometheus /metrics 端点 Bearer Token（可选）
+# 留空时仅允许已登录 Web 用户访问；填写后 Prometheus server 可用 bearer_token 无会话抓取
+# 生成示例：python -c "import secrets; print(secrets.token_hex(32))"
+# metrics_token=

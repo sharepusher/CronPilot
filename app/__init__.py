@@ -65,15 +65,33 @@ def create_app(config_name):
 
 
 def _register_metrics_endpoint(app):
-    """Expose /metrics for Prometheus scraping (login-required, multiprocess-aware)."""
+    """Expose /metrics for Prometheus scraping (login-required, multiprocess-aware).
+
+    Auth precedence:
+    1. Authorization: Bearer <metrics_token> — for Prometheus server scrape (no cookie needed).
+    2. session['is_login'] — for web users browsing /metrics directly.
+    If neither matches, returns 403.
+    metrics_token is read from conf.ini [default] metrics_token; empty string disables token auth.
+    """
     try:
         import prometheus_client
-        from flask import Response, abort, session
+        from flask import Response, abort, request as _req, session
 
         @app.route('/metrics')
         def metrics():
-            if not session.get('is_login'):
-                abort(403)
+            from configs import configs as _configs
+            _token = _configs('metrics_token') or ''
+            # Bearer token check (Prometheus server path)
+            if _token:
+                auth_header = _req.headers.get('Authorization', '')
+                if auth_header == 'Bearer ' + _token:
+                    pass  # authorised
+                elif not session.get('is_login'):
+                    abort(403)
+            else:
+                if not session.get('is_login'):
+                    abort(403)
+
             prom_dir = __import__('os').environ.get('PROMETHEUS_MULTIPROC_DIR')
             if prom_dir:
                 from prometheus_client import CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST

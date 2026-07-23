@@ -63,6 +63,10 @@ def configs(key = None):
     if cp.has_option('default', 'url_ssrf_observe_only'):
         url_ssrf_observe_only = cp.get('default', 'url_ssrf_observe_only')
 
+    metrics_token = ''
+    if cp.has_option('default', 'metrics_token'):
+        metrics_token = cp.get('default', 'metrics_token').strip()
+
     pz = {
         'qywechat_corpid':qywechat_corpid,
         'qywechat_corpsecret':qywechat_corpsecret,
@@ -88,6 +92,7 @@ def configs(key = None):
         'block_private_ip': block_private_ip,
         'url_allow_hosts': url_allow_hosts,
         'url_ssrf_observe_only': url_ssrf_observe_only,
+        'metrics_token': metrics_token,
     }
 
     return pz

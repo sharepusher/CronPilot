@@ -57,6 +57,7 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - **`app/common/functions.py`** — `single_task` decorator records enqueue timestamp in `_ctx_enqueue_time` ContextVar before invoking the wrapped function.
 - **`gun.py`** — sets `PROMETHEUS_MULTIPROC_DIR` (`datas/prometheus_tmp/`) so per-worker mmap files are aggregated correctly by `MultiProcessCollector` in Gunicorn multiprocess mode.
 - **`/metrics` endpoint** — registered in `create_app`; requires authenticated login; uses `MultiProcessCollector` when `PROMETHEUS_MULTIPROC_DIR` is set, falls back to `generate_latest()` for single-process (local) mode.
+- **Bearer Token auth** — `conf.ini` optional `metrics_token`; when set, Prometheus server can scrape `/metrics` via `Authorization: Bearer <token>` without a browser session. Falls back to session-based auth when token is empty.
 - **Dependencies:** `prometheus_client==0.20.0`, `prometheus-flask-exporter==0.23.1` added to `requirements.txt` (Apache-2.0).
 
 ---

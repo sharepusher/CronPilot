@@ -97,7 +97,8 @@ fi
 if [ "$USE_SQLITE" -eq 1 ]; then
   echo "==> 配置 SQLite（单机试用）…"
   DATA_DIR="$ROOT/datas"
-  mkdir -p "$DATA_DIR/logs"
+  mkdir -p "$DATA_DIR/logs" "$DATA_DIR/prometheus_tmp"
+  chmod 700 "$DATA_DIR/prometheus_tmp" 2>/dev/null || true
   chown -R "$APP_USER:$APP_USER" "$DATA_DIR"
   sudo -u "$APP_USER" bash <<EOSQL
 set -e
@@ -124,7 +125,8 @@ PY
 EOSQL
 fi
 
-mkdir -p "$ROOT/datas/logs"
+mkdir -p "$ROOT/datas/logs" "$ROOT/datas/prometheus_tmp"
+chmod 700 "$ROOT/datas/prometheus_tmp" 2>/dev/null || true
 chown -R "$APP_USER:$APP_USER" "$ROOT/datas" 2>/dev/null || true
 
 echo ""

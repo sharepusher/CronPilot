@@ -14,6 +14,8 @@
 
 **协作闭环（强制）**：**清晰完整准确的设计（含分批 + 验收）→ 经用户确认 → 再实现 → 验证 → 可验证本地环境 → 文档 → commit**。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
 
+**Bug 修复复盘（强制）**：每次修复用户报告的 bug，必须在交付回复中包含：Bug 定位 → 根因 → 测试漏洞分析 → 修复 → 防护测试 → 同类排查。测试分层须明确（单元 / 集成 / E2E），集成或 E2E 层的 bug 必须在对应层新增测试（`tests/test_*_integration.py`）。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
+
 **编号读法**：OPT（功能）/ Tier（依赖大阶段）/ Phase（ORM·框架子阶段）/ DEC（RFC 决策）不是同一套号。权威页：`doc/需求编号与缩写规范.html`。对外须写全称，如 `OPT-P1-03`、`Phase D3（OPT-P2-11）`。
 
 依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → Phase D0/D1/D2 ✓ → **下一依赖动作 Phase D3** → Tier 3b/3c。

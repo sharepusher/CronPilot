@@ -66,6 +66,13 @@ class _ContextInjectFilter(logging.Filter):
 class _CronPilotJsonFormatter(jsonlogger.JsonFormatter):
     """Stable-field-order JSON formatter for ELK / Loki ingestion."""
 
+    def formatTime(self, record, datefmt=None):
+        import datetime
+        ct = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc)
+        if datefmt:
+            return ct.strftime(datefmt)
+        return ct.isoformat()
+
     def add_fields(
         self,
         log_record: dict,

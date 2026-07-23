@@ -165,6 +165,12 @@
                             url: $btn.data('action') ? $btn.data('action') : $form.attr('action'), //按钮上是否自定义提交地址(多按钮情况)
                             dataType: 'json',
                             beforeSubmit: function (arr, $form, options) {
+                                // Inject CSRF token from meta tag into every AJAX form submission
+                                var csrfToken = $('meta[name=csrf-token]').attr('content');
+                                var csrfParam = $('meta[name=csrf-param]').attr('content') || 'csrf_token';
+                                if (csrfToken) {
+                                    arr.push({name: csrfParam, value: csrfToken});
+                                }
 
                                 $btn.data("loading", true);
                                 var text = $btn.text();

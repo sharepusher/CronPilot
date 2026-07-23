@@ -9,6 +9,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+---
+
+## [2.2.0] — 2026-07-23 · 可观测性（结构化日志 + Prometheus 指标）
+
 ### Structured JSON logging
 
 - **JSON log format:** Both `datas/logs/info.log` and `datas/logs/error.log` now emit one JSON object per line, enabling direct ingestion by Filebeat / Promtail for ELK or Loki.

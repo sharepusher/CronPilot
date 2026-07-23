@@ -83,9 +83,8 @@ def _save_job_log(
         )
     except Exception:
         current_app.logger.exception(
-            'update_job_health failed cron_id=%s log_id=%s',
-            cron_id,
-            log_id,
+            'health update failed',
+            extra={"event": "health.update_failed"},
         )
         try:
             db.session.rollback()
@@ -135,6 +134,10 @@ def cron_do(cron_id):
                     0,
                     log_id=cronpilot_log_id,
                 )
+                current_app.logger.warning(
+                    "cron task not found",
+                    extra={"event": "cron.not_found"},
+                )
             else:
                 req_url = cif.req_url
                 task_name = cif.task_name
@@ -148,6 +151,10 @@ def cron_do(cron_id):
                         task_name=task_name,
                         log_id=cronpilot_log_id,
                     )
+                    current_app.logger.warning(
+                        "cron url missing",
+                        extra={"event": "cron.url_missing"},
+                    )
                 else:
                     if req_url.find('http') == -1:
                         saved_jl = _save_job_log(
@@ -157,6 +164,10 @@ def cron_do(cron_id):
                             0,
                             task_name=task_name,
                             log_id=cronpilot_log_id,
+                        )
+                        current_app.logger.warning(
+                            "cron url invalid scheme",
+                            extra={"event": "cron.url_invalid", "url": req_url},
                         )
                     else:
                         url_ok, url_msg = validate_callback_url(req_url, CRON_CONFIG)
@@ -168,6 +179,10 @@ def cron_do(cron_id):
                                 0,
                                 task_name=task_name,
                                 log_id=cronpilot_log_id,
+                            )
+                            current_app.logger.warning(
+                                "cron ssrf validation failed",
+                                extra={"event": "cron.ssrf_blocked", "url": req_url, "reason": url_msg},
                             )
                         else:
                             try:
@@ -242,6 +257,20 @@ def cron_do(cron_id):
                                     status=run_status,
                                     fail_reason=fail_reason,
                                 )
+                                if run_status == STATUS_ERROR:
+                                    current_app.logger.error(
+                                        "cron http callback failed",
+                                        extra={
+                                            "event": "cron.http_error",
+                                            "http_status": req.status_code,
+                                            "fail_reason": fail_reason,
+                                        },
+                                    )
+                                else:
+                                    current_app.logger.info(
+                                        "cron http callback ok",
+                                        extra={"event": "cron.http_ok", "http_status": req.status_code},
+                                    )
                             except Exception as e:
                                 err_content = "发生严重错误:%s" % str(e)
                                 saved_jl = _save_job_log(
@@ -253,6 +282,14 @@ def cron_do(cron_id):
                                     log_id=cronpilot_log_id,
                                     status=STATUS_ERROR,
                                     fail_reason=exception_fail_reason(e),
+                                )
+                                current_app.logger.error(
+                                    "cron http request exception",
+                                    extra={
+                                        "event": "cron.exception",
+                                        "error": str(e),
+                                        "exc_type": type(e).__name__,
+                                    },
                                 )
 
         except Exception as e:
@@ -270,16 +307,15 @@ def cron_do(cron_id):
                 )
             except Exception:
                 pass
-            trace_info = traceback.format_exc()
-            current_app.logger.error("==============")
             current_app.logger.error(
-                "cron_do cron_id=%s log_id=%s err=%s",
-                cron_id,
-                cronpilot_log_id,
-                str(e),
+                "cron_do fatal exception",
+                extra={
+                    "event": "cron.fatal",
+                    "error": str(e),
+                    "exc_type": type(e).__name__,
+                    "traceback": traceback.format_exc(),
+                },
             )
-            current_app.logger.error(trace_info)
-            current_app.logger.error("==============")
             wechat_info_err(
                 '定时任务发生严重错误',
                 'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
@@ -344,11 +380,15 @@ def cron_check():
                         )
         except Exception as e:
             db.session.rollback()
-            trace_info = traceback.format_exc()
-            current_app.logger.error("==============")
-            current_app.logger.error(str(e))
-            current_app.logger.error(trace_info)
-            current_app.logger.error("==============")
+            current_app.logger.error(
+                "cron_check exception",
+                extra={
+                    "event": "cron_check.exception",
+                    "error": str(e),
+                    "exc_type": type(e).__name__,
+                    "traceback": traceback.format_exc(),
+                },
+            )
             wechat_info_err('定时任务发生严重错误', '返回信息:%s' % str(e))
     return "ok"
 
@@ -373,11 +413,15 @@ def cron_del_job_log():
                         db.session.commit()
         except Exception as e:
             db.session.rollback()
-            trace_info = traceback.format_exc()
-            current_app.logger.error("==============")
-            current_app.logger.error(str(e))
-            current_app.logger.error(trace_info)
-            current_app.logger.error("==============")
+            current_app.logger.error(
+                "cron_del_job_log exception",
+                extra={
+                    "event": "cron_del_job_log.exception",
+                    "error": str(e),
+                    "exc_type": type(e).__name__,
+                    "traceback": traceback.format_exc(),
+                },
+            )
     return "ok"
 
 
@@ -393,9 +437,13 @@ def cron_del_operation_log():
                 db.session.commit()
         except Exception as e:
             db.session.rollback()
-            trace_info = traceback.format_exc()
-            current_app.logger.error("==============")
-            current_app.logger.error(str(e))
-            current_app.logger.error(trace_info)
-            current_app.logger.error("==============")
+            current_app.logger.error(
+                "cron_del_operation_log exception",
+                extra={
+                    "event": "cron_del_operation_log.exception",
+                    "error": str(e),
+                    "exc_type": type(e).__name__,
+                    "traceback": traceback.format_exc(),
+                },
+            )
     return "ok"

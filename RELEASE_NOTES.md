@@ -31,6 +31,13 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - Removed a debug `print(request.values.to_dict())` from the `/api/test` endpoint.
 - Replaced `print(req.json())` in the DingTalk webhook helper with `current_app.logger.info(...)` so DingTalk responses appear in the structured JSON log.
 
+### Structured log events in scheduler jobs
+
+- Introduced a `event` field (via Python `logging` `extra=` dict) on all scheduler log calls in `app/crons.py`, enabling exact-match alerting rules in ELK/Loki without fragile `message` substring matching.
+- Event enum: `cron.not_found` / `cron.url_missing` / `cron.url_invalid` / `cron.ssrf_blocked` / `cron.http_ok` / `cron.http_error` / `cron.exception` / `cron.fatal` / `health.update_failed` / `cron_check.exception` / `cron_del_job_log.exception` / `cron_del_operation_log.exception`.
+- Variable context (e.g. `error`, `exc_type`, `http_status`, `fail_reason`, `traceback`, `url`, `reason`) is carried as sibling JSON fields alongside `event`.
+- Removed all `logger.error("==============")` separator lines — JSON records are self-contained and don't need visual delimiters.
+
 ### Docker image pin verification
 
 - **Compose verify:** `bash scripts/verify_docker_compose.sh --rebuild` asserts that Framework packages inside the image match `requirements.txt` (Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker).

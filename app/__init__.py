@@ -65,16 +65,14 @@ def create_app(config_name):
 
 
 def _register_metrics_endpoint(app):
-    """Expose /metrics for Prometheus scraping (admin-only, multiprocess-aware)."""
+    """Expose /metrics for Prometheus scraping (login-required, multiprocess-aware)."""
     try:
         import prometheus_client
-        from flask import Response, abort
-        from flask_login import current_user
+        from flask import Response, abort, session
 
         @app.route('/metrics')
         def metrics():
-            # Only allow logged-in admin users to scrape metrics.
-            if not current_user.is_authenticated:
+            if not session.get('is_login'):
                 abort(403)
             prom_dir = __import__('os').environ.get('PROMETHEUS_MULTIPROC_DIR')
             if prom_dir:

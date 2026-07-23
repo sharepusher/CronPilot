@@ -216,6 +216,8 @@ def single_task():
     def wrap(func):
         @wraps(func)
         def inner(*args, **kwargs):
+            from app.metrics import _ctx_enqueue_time
+            _ctx_enqueue_time.set(time.time())
             task = func.__name__
 
             config = configs()

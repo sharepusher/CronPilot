@@ -59,4 +59,33 @@ def create_app(config_name):
     from app.security.csrf import inject_csrf_context
     app.context_processor(inject_csrf_context)
 
+    _register_metrics_endpoint(app)
+
     return app
+
+
+def _register_metrics_endpoint(app):
+    """Expose /metrics for Prometheus scraping (admin-only, multiprocess-aware)."""
+    try:
+        import prometheus_client
+        from flask import Response, abort
+        from flask_login import current_user
+
+        @app.route('/metrics')
+        def metrics():
+            # Only allow logged-in admin users to scrape metrics.
+            if not current_user.is_authenticated:
+                abort(403)
+            prom_dir = __import__('os').environ.get('PROMETHEUS_MULTIPROC_DIR')
+            if prom_dir:
+                from prometheus_client import CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
+                from prometheus_client.multiprocess import MultiProcessCollector
+                registry = CollectorRegistry()
+                MultiProcessCollector(registry)
+                data = generate_latest(registry)
+            else:
+                from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+                data = generate_latest()
+            return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    except ImportError:
+        pass

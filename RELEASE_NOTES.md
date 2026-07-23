@@ -44,6 +44,21 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - **Build & run fixes:** image build-time health check supplies a strong `SECRET_KEY`; compose verify writes container SQLite paths into `conf.ini` and tolerates host `datas/` ownership for the `cronpilot` user.
 - **Smoke reliability:** HTTP smoke checks use UTF-8 locale and avoid `pipefail` false failures when grepping large HTML pages.
 
+### Prometheus metrics (OPT-P1-can — RFC: doc/P1可观测性-Prometheus指标RFC.html)
+
+- **`app/metrics.py`** — centralised metric declarations; five metrics:
+  - `cronpilot_job_total` (Counter, labels `task_name`/`status`)
+  - `cronpilot_job_duration_seconds` (Histogram, labels `task_name`/`status`)
+  - `cronpilot_job_trigger_delay_seconds` (Histogram, label `task_name`)
+  - `cronpilot_job_log_write_bytes` (Histogram — content-size distribution)
+  - `cronpilot_jobs_active` (Gauge, label `state`: `active`/`retired`)
+  - NoOp fallback silently absorbs all calls if `prometheus_client` is absent.
+- **`app/crons.py`** — `cron_do` observes `JOB_DURATION`, `JOB_TOTAL`, `JOB_LOG_WRITE_BYTES`, and `TRIGGER_DELAY` (enqueue→start delay via `_ctx_enqueue_time`); `cron_check` updates `JOBS_ACTIVE` gauge after each reconciliation cycle.
+- **`app/common/functions.py`** — `single_task` decorator records enqueue timestamp in `_ctx_enqueue_time` ContextVar before invoking the wrapped function.
+- **`gun.py`** — sets `PROMETHEUS_MULTIPROC_DIR` (`datas/prometheus_tmp/`) so per-worker mmap files are aggregated correctly by `MultiProcessCollector` in Gunicorn multiprocess mode.
+- **`/metrics` endpoint** — registered in `create_app`; requires authenticated login; uses `MultiProcessCollector` when `PROMETHEUS_MULTIPROC_DIR` is set, falls back to `generate_latest()` for single-process (local) mode.
+- **Dependencies:** `prometheus_client==0.20.0`, `prometheus-flask-exporter==0.23.1` added to `requirements.txt` (Apache-2.0).
+
 ---
 
 ## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)

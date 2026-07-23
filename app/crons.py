@@ -11,6 +11,7 @@ from flask import current_app
 from sqlalchemy import func, select, text
 
 from app.logging_config import _ctx_cron_id, _ctx_duration_ms, _ctx_status, _ctx_task_name, _ctx_trace_id
+from app.metrics import JOB_DURATION, JOB_LOG_WRITE_BYTES, JOB_TOTAL, TRIGGER_DELAY, _ctx_enqueue_time, JOBS_ACTIVE
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
 from app.services.job_log_outcome import (
@@ -322,9 +323,22 @@ def cron_do(cron_id):
             )
 
         finally:
-            _ctx_duration_ms.set(int((time.time() - t0) * 1000))
+            elapsed = time.time() - t0
+            _ctx_duration_ms.set(int(elapsed * 1000))
+            prom_status = 'error' if getattr(saved_jl, 'status', None) == STATUS_ERROR else 'ok'
+            prom_task = task_name or 'unknown'
             if saved_jl is not None:
-                _ctx_status.set('error' if getattr(saved_jl, 'status', None) == STATUS_ERROR else 'ok')
+                _ctx_status.set(prom_status)
+                JOB_DURATION.labels(task_name=prom_task, status=prom_status).observe(elapsed)
+                JOB_TOTAL.labels(task_name=prom_task, status=prom_status).inc()
+                content_bytes = len((saved_jl.content or '').encode('utf-8'))
+                if content_bytes > 0:
+                    JOB_LOG_WRITE_BYTES.observe(content_bytes)
+            enqueue_t = _ctx_enqueue_time.get()
+            if enqueue_t > 0:
+                delay = t0 - enqueue_t
+                if delay >= 0:
+                    TRIGGER_DELAY.labels(task_name=prom_task).observe(delay)
 
         # SA 2.0：离开 app_context 后实例可能 detach，须在块内取主键
         return saved_jl.id if saved_jl else None
@@ -378,6 +392,12 @@ def cron_check():
                                 'snapshot': snapshot_cron(item),
                             },
                         )
+            # Update active/retired gauge for Prometheus after reconciliation
+            all_cifs = db.session.scalars(select(CronInfos)).all()
+            active_count = sum(1 for c in all_cifs if c.status != -1)
+            retired_count = len(all_cifs) - active_count
+            JOBS_ACTIVE.labels(state='active').set(active_count)
+            JOBS_ACTIVE.labels(state='retired').set(retired_count)
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(

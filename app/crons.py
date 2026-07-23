@@ -326,7 +326,8 @@ def cron_do(cron_id):
             elapsed = time.time() - t0
             _ctx_duration_ms.set(int(elapsed * 1000))
             prom_status = 'error' if getattr(saved_jl, 'status', None) == STATUS_ERROR else 'ok'
-            prom_task = task_name or 'unknown'
+            # Truncate task_name to prevent high-cardinality if dynamic names are used.
+            prom_task = (task_name or 'unknown')[:50]
             if saved_jl is not None:
                 _ctx_status.set(prom_status)
                 JOB_DURATION.labels(task_name=prom_task, status=prom_status).observe(elapsed)

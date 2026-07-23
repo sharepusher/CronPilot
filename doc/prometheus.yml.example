@@ -1,0 +1,88 @@
+# CronPilot — Prometheus 接入示例
+#
+# 用途：将本文件内容合并到你的 prometheus.yml（global + scrape_configs 节）
+#       或作为独立配置文件启动 Prometheus：
+#         prometheus --config.file=doc/prometheus.yml.example
+#
+# 前提：
+#   1. 在 conf.ini [default] 节填写 metrics_token（随机字符串）
+#      生成示例：python -c "import secrets; print(secrets.token_hex(32))"
+#   2. 重启 CronPilot（本地 `bash scripts/cronpilot.sh restart --daemon`
+#      或 Docker `docker compose restart`）
+#   3. 确认 http://<host>:5860/metrics 使用 Bearer Token 可正常访问
+
+global:
+  scrape_interval:     30s
+  evaluation_interval: 30s
+  external_labels:
+    app: 'cronpilot'
+    env: 'production'
+
+scrape_configs:
+  # ------------------------------------------------------------------ #
+  # CronPilot 调度器指标                                                  #
+  # ------------------------------------------------------------------ #
+  - job_name: 'cronpilot'
+    # 将下面的 <YOUR_METRICS_TOKEN> 替换为 conf.ini 中的 metrics_token 值
+    bearer_token: '<YOUR_METRICS_TOKEN>'
+    static_configs:
+      - targets:
+          - 'localhost:5860'   # 裸机部署
+          # - 'cronpilot:5860' # Docker Compose（服务名）
+
+    # 可选：重写 instance label，避免暴露内网 IP
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'cronpilot-prod'
+
+# ------------------------------------------------------------------ #
+# 推荐告警规则（另存为 alerts/cronpilot.yml，在 rule_files 中引用）     #
+# ------------------------------------------------------------------ #
+# rule_files:
+#   - alerts/cronpilot.yml
+#
+# alerts/cronpilot.yml 示例：
+#
+# groups:
+#   - name: cronpilot
+#     rules:
+#       - alert: CronJobFailureRateHigh
+#         expr: |
+#           rate(cronpilot_job_total{status="error"}[5m])
+#           / rate(cronpilot_job_total[5m]) > 0.1
+#         for: 5m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "任务失败率超过 10%（task_name={{ $labels.task_name }}）"
+#
+#       - alert: CronJobDurationSlow
+#         expr: |
+#           histogram_quantile(0.95,
+#             rate(cronpilot_job_duration_seconds_bucket[10m])
+#           ) > 60
+#         for: 10m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "P95 执行耗时超过 60 s（task_name={{ $labels.task_name }}）"
+#
+#       - alert: CronTriggerDelayHigh
+#         expr: |
+#           histogram_quantile(0.95,
+#             rate(cronpilot_job_trigger_delay_seconds_bucket[10m])
+#           ) > 10
+#         for: 5m
+#         labels:
+#           severity: warning
+#         annotations:
+#           summary: "调度延迟 P95 超过 10 s（可能 gevent worker 过载）"
+#
+#       - alert: CronActiveJobsZero
+#         expr: cronpilot_jobs_active{state="active"} == 0
+#         for: 15m
+#         labels:
+#           severity: critical
+#         annotations:
+#           summary: "无活跃任务，调度器可能异常"

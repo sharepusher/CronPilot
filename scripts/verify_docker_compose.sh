@@ -43,13 +43,42 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -f conf.ini ]]; then
-  echo "=== conf.ini 不存在，生成 SQLite Docker 配置 ==="
-  python3 "$ROOT/scripts/write_sqlite_conf.py" \
-    --out "$ROOT/conf.ini" \
-    --datas-dir "$ROOT/datas" \
-    --container-paths \
-    --template "$ROOT/conf.local.sqlite.example"
+# compose 挂载 ./datas → /opt/cronpilot/datas；宿主机绝对路径在容器内不可用
+LOGIN_PWD_FOR_CONF="$(python3 - <<'PY'
+import configparser
+from pathlib import Path
+cp = configparser.ConfigParser()
+p = Path('conf.ini')
+if p.is_file():
+    cp.read(p, encoding='utf-8')
+    print(cp.get('default', 'login_pwd', fallback='changeme'))
+else:
+    print('changeme')
+PY
+)"
+echo "=== 写入 Docker SQLite 容器路径到 conf.ini ==="
+python3 "$ROOT/scripts/write_sqlite_conf.py" \
+  --out "$ROOT/conf.ini" \
+  --datas-dir "$ROOT/datas" \
+  --login-pwd "$LOGIN_PWD_FOR_CONF" \
+  --container-paths \
+  --template "$ROOT/conf.local.sqlite.example"
+
+# 容器内 USER=cronpilot；宿主机挂载目录常属当前用户，需可写（SQLite/WAL）
+chmod -R a+rwX datas 2>/dev/null || true
+
+# 与 run_production.sh 一致：宿主机校验 / 容器启动均需强 SECRET_KEY
+if [[ -z "${SECRET_KEY:-}" ]]; then
+  SECRET_FILE="$ROOT/datas/.flask_secret_key"
+  mkdir -p "$ROOT/datas"
+  if [[ -f "$SECRET_FILE" ]]; then
+    SECRET_KEY="$(tr -d '\r\n' < "$SECRET_FILE")"
+  else
+    SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+    printf '%s\n' "$SECRET_KEY" > "$SECRET_FILE"
+    echo "=== 已生成 datas/.flask_secret_key ==="
+  fi
+  export SECRET_KEY
 fi
 
 if ! python3 "$ROOT/scripts/check_conf_production.py"; then

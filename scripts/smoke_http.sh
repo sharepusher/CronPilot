@@ -1,6 +1,23 @@
 # CronPilot HTTP 冒烟辅助
 # shellcheck shell=bash
 
+# macOS 默认/CI 常为 LC_ALL=C：BSD grep 无法匹配页面中的 UTF-8 中文标记
+if ! locale charmap 2>/dev/null | grep -qi 'utf-8'; then
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
+fi
+
+# 在 set -o pipefail 下，对大 HTML 用 echo|grep -q 会因 grep 早退触发 SIGPIPE 假失败
+smoke_http_body_has() {
+  local body="$1" needle="$2"
+  grep -Fq -- "$needle" <<<"$body"
+}
+
+smoke_http_body_has_i() {
+  local body="$1" needle="$2"
+  grep -Fiq -- "$needle" <<<"$body"
+}
+
 # GET login → extract csrf_token → POST login (OPT-P0-11)
 smoke_http_extract_csrf() {
   local html="$1"
@@ -58,15 +75,15 @@ smoke_http_cron_list() {
   fi
   body=$(curl -s -b "$jar" -L "$base/cron_list" 2>/dev/null || true)
   rm -f "$jar"
-  if echo "$body" | grep -qi 'system err'; then
+  if smoke_http_body_has_i "$body" 'system err'; then
     echo "FAIL cron_list (body contains system err)"
     return 1
   fi
-  if ! echo "$body" | grep -q '任务中心'; then
+  if ! smoke_http_body_has "$body" '任务中心'; then
     echo "FAIL cron_list (missing 任务中心 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q 'csrf-token'; then
+  if ! smoke_http_body_has "$body" 'csrf-token'; then
     echo "FAIL cron_list (missing csrf-token meta)"
     return 1
   fi
@@ -85,15 +102,15 @@ smoke_http_not_found() {
     echo "FAIL not_found_guest (got HTTP $code, want 404; restart server after deploy?)"
     return 1
   fi
-  if echo "$body" | grep -q 'page not found'; then
+  if smoke_http_body_has "$body" 'page not found'; then
     echo "FAIL not_found_guest (old plain-text 404 handler — restart server?)"
     return 1
   fi
-  if ! echo "$body" | grep -q '页面不存在'; then
+  if ! smoke_http_body_has "$body" '页面不存在'; then
     echo "FAIL not_found_guest (missing 页面不存在 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q '前往登录'; then
+  if ! smoke_http_body_has "$body" '前往登录'; then
     echo "FAIL not_found_guest (missing 前往登录 in body)"
     return 1
   fi
@@ -113,15 +130,15 @@ smoke_http_not_found() {
     echo "FAIL not_found_logged_in (got HTTP $code, want 404)"
     return 1
   fi
-  if ! echo "$body" | grep -q '页面不存在'; then
+  if ! smoke_http_body_has "$body" '页面不存在'; then
     echo "FAIL not_found_logged_in (missing 页面不存在 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q '返回任务中心'; then
+  if ! smoke_http_body_has "$body" '返回任务中心'; then
     echo "FAIL not_found_logged_in (missing 返回任务中心 in body)"
     return 1
   fi
-  if ! echo "$body" | grep -q '任务中心'; then
+  if ! smoke_http_body_has "$body" '任务中心'; then
     echo "FAIL not_found_logged_in (missing nav 任务中心 in body)"
     return 1
   fi

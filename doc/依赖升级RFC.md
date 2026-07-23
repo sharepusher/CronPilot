@@ -12,11 +12,10 @@ RFC依赖运维P2
 状态：Draft v1.1 · 2026-06 · 按「耦合从弱到强」重排 Tier；SA 1.4 渐进策略
 
 **定位：**本文是**决策与排期**文档，归属需求编号 **OPT-P2-11**（依赖升级）。不替代 [详细技术方案](详细技术方案.html) 的功能规格，也不在本 RFC 合并时自动修改 `requirements.txt`。实施每一 Tier / Phase 须单独确认设计、`RELEASE_NOTES` 与回归清单。编号读法见 [需求编号与缩写规范](需求编号与缩写规范.html)。  
-**已交付版本：**Tier 0–2 见 **v0.2.0**；Tier 3 前置 + Phase A–D2 + Tier 3b-A + D3-1 见 **v2.1.0**（[Release Notes](RELEASE_NOTES.html#210) / [交付状态](交付状态与路线图.html)）。
+**已交付版本：**Tier 0–2 见 **v0.2.0**；Tier 3 前置 + Phase A–D3 + Tier 3b-A 见 **v2.1.0** 与后续 Unreleased（compose pin，2026-07-22）（[Release Notes](RELEASE_NOTES.html#210) / [交付状态](交付状态与路线图.html)）。
 
-**2026-07-20 发行版 v2.1.0：**绿场已升至
-**Flask 2.3.3 + SQLAlchemy 2.0.36 + FSA 3.1.1 + gevent 23 + Python 3.8–3.11**。
-下一依赖动作：Tier 3c **搁置** → **Phase D3 compose（暂缓，等 Docker）**；不做 Flask 3 / 默认 3.12+。
+**2026-07-22 Phase D3：**Docker compose 内 Framework pin 与 `requirements.txt` 对齐已实测通过。
+下一依赖动作：Tier 3c **搁置**；不做 Flask 3 / 默认 3.12+。
 
 **交付纪律（每一 Tier / 优化项）：**
 

@@ -9,6 +9,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### Docker image pin verification
+
+- **Compose verify:** `bash scripts/verify_docker_compose.sh --rebuild` asserts that Framework packages inside the image match `requirements.txt` (Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker).
+- **Build & run fixes:** image build-time health check supplies a strong `SECRET_KEY`; compose verify writes container SQLite paths into `conf.ini` and tolerates host `datas/` ownership for the `cronpilot` user.
+- **Smoke reliability:** HTTP smoke checks use UTF-8 locale and avoid `pipefail` false failures when grepping large HTML pages.
+
 ---
 
 ## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)
@@ -53,7 +59,6 @@ This release does **not** introduce breaking table drops or mandatory data migra
 ### Notes
 
 - Flask 3.x and a default Python 3.12+ support window are **not** part of this release.
-- End-to-end Docker Compose pin verification may still need to be run in environments where Docker is available; local / bare-metal installs are covered by the usual test and golden-path scripts.
 
 ---
 

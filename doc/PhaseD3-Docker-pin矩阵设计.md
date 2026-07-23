@@ -3,21 +3,18 @@
 > HTML 版：[PhaseD3-Docker-pin矩阵设计.html](PhaseD3-Docker-pin矩阵设计.html) · [文档索引](index.html) · [索引 Markdown](index.md)
 
 [← 文档索引](index.html)
-OPT-P2-11Phase D3部分交付
+OPT-P2-11Phase D3已交付
 
 # Phase D3 · Docker / pip show 矩阵
 
 Framework Generation 运行时硬门：容器内 pin 与 requirements 一致
 
-状态：D3-1 ✓ · D3-2/D3-3 **暂缓**（Docker 环境问题，2026-07-20 用户确认先不验 compose）
+状态：D3-1 / D3-2 / D3-3 **已交付**（2026-07-22 compose 实测 OK）
 
-**D3-1 已交付（2026-07-20）：**
-`scripts/assert_framework_pins.py` + `scripts/assert_framework_pins.sh`；
-本地 `.venv-py311` 8/8 pin OK；故意错版本路径返回 exit 1。
-
-**D3-2 / D3-3 暂缓（2026-07-20）：**用户确认本机 Docker 有问题，**先不进行 Docker / compose 验证**。
-pin 断言已挂入 `verify_docker_compose.sh`，但**不得**将 Phase D3 整体标为已交付，直至：
-`bash scripts/verify_docker_compose.sh --rebuild` 实测通过并完成 NOTICE/路线图收尾（D3-3）。
+**Phase D3 已交付（2026-07-22）：**
+D3-1 本地 pin 断言；D3-2 `bash scripts/verify_docker_compose.sh --rebuild --keep-running`
+日志含 Framework pins 8/8 OK + `COMPOSE_VERIFY: OK`；D3-3 NOTICE / RELEASE / 路线图 / RFC 已收尾。
+构建期 gunicorn 冒烟需 `SECRET_KEY`；verify 写入容器 SQLite 路径；冒烟在 `pipefail` 下对大 HTML 用 here-string 匹配中文标记。
 
 **定位：**属 **OPT-P2-11** · Framework Generation 子阶段 **Phase D3**
 （见 [Phase D0](PhaseD0-Framework-Generation决策.html) 验收契约 #4）。
@@ -59,8 +56,8 @@ pin 断言已挂入 `verify_docker_compose.sh`，但**不得**将 Phase D3 整�
 | 批 | 内容 | 可独立验收 |
 | --- | --- | --- |
 | **D3-1** ✓ | 新增 `scripts/assert_framework_pins.sh` / `.py`： 支持本地 venv；读 requirements → `pip show` → 失败打印 diff。 | 本地 venv：8/8 OK（2026-07-20） |
-| **D3-2** 暂缓 | 挂入 `verify_docker_compose.sh`（脚本已合入）。 *2026-07-20：用户确认 Docker 有问题，跳过 compose 实测。* | 恢复 Docker 后补跑 `--rebuild` |
-| **D3-3** 暂缓 | 核对 NOTICE；RELEASE / 交付状态 / D0·RFC 标 Phase D3 已交付； `html_docs_to_markdown.py --check`。依赖 D3-2 实测通过后才做。 | 待 D3-2 |
+| **D3-2** ✓ | 挂入 `verify_docker_compose.sh`；2026-07-22 `--rebuild --keep-running` 实测通过（pin 8/8 + HTTP smoke）。 | COMPOSE\_VERIFY: OK |
+| **D3-3** ✓ | 核对 NOTICE；RELEASE / 交付状态 / RFC 标 Phase D3 已交付； `html_docs_to_markdown.py --check`。 | 2026-07-22 |
 
 ## 五、验收门禁
 
@@ -78,15 +75,14 @@ pin 断言已挂入 `verify_docker_compose.sh`，但**不得**将 Phase D3 整�
 - 断言失败优先查：未 `--rebuild`、install 脚本装的是 core 而非 full、`CRONPILOT_VENV` 指错。
 - 不扩大到 centos/ubuntu 多 Dockerfile 全矩阵（那是可选加固，非本窗必达）。
 
-**确认方式：**请回复「按 Phase D3 设计执行」或列出修改点。
-确认前**不**新增断言脚本、不改 verify\_\*、不改「已交付」文档状态。
+**确认记录：**设计已确认并实现；2026-07-22 Docker 恢复后完成 D3-2/D3-3。
 
 [Phase D0](PhaseD0-Framework-Generation决策.html) ·
 [依赖升级 RFC](依赖升级RFC.html) ·
 [交付状态](交付状态与路线图.html) ·
 [编号规范](需求编号与缩写规范.html)
 
-CronPilot · Phase D3 设计 · 待确认 2026-07-20 · [索引](index.html) · [Markdown](PhaseD3-Docker-pin矩阵设计.md) · [索引](index.html)
+CronPilot · Phase D3 设计 · 已交付 2026-07-22 · [索引](index.html) · [Markdown](PhaseD3-Docker-pin矩阵设计.md)
 
 ---
 

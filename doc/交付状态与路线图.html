@@ -37,6 +37,8 @@
   <h1>交付状态与路线图</h1>
   <p>当前发行版文档已收录：<strong>v2.1.1</strong>（2026-07-21，安全加固）· <strong>v2.1.0</strong>（2026-07-20，Framework Generation · Flask 2.3 + SA 2.0）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
   <div class="note">
+    <strong>2026-07-22 Phase D3（OPT-P2-11）：</strong>Docker compose pin 矩阵已交付（<code>assert_framework_pins</code> + <code>verify_docker_compose.sh --rebuild</code>）。详见 <a href="PhaseD3-Docker-pin矩阵设计.html">Phase D3</a>。
+    <br>
     <strong>2026-07-21 v2.1.1（OPT-P0-09 / OPT-P0-10 / OPT-P0-11）：</strong>集群 Redis 锁原子化、生产 <code>SECRET_KEY</code> fail-fast、管理端 CSRF（写操作 POST + Session Token）。详见 <a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <a href="OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <a href="RELEASE_NOTES.html#211">Release Notes [2.1.1]</a>。
     <br>
     <strong>2026-07-20 v2.1.0（OPT-P2-11）：</strong>依赖轨绿场闭环已发布。详见 <a href="RELEASE_NOTES.html#210">Release Notes [2.1.0]</a>。
@@ -45,7 +47,7 @@
     <br>
     <strong>2026-07-20 Tier 3c（OPT-P2-11）：</strong><strong>搁置</strong>（无存量升级问题，不实现）。详见 <a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a>。
     <br>
-    <strong>2026-07-20 Phase D2（OPT-P2-11）：</strong><code>datas/model</code> 九表已迁 <strong>Mapped[]</strong>；门禁 <code>test_mapped_model_guard</code>。下一依赖动作 <strong>Phase D3 compose</strong>（暂缓）。详见 <a href="PhaseD2-Mapped模型迁移.html">Phase D2</a> / <a href="依赖升级RFC.html">RFC</a> / <a href="需求编号与缩写规范.html">编号规范</a>。
+    <strong>2026-07-20 Phase D2（OPT-P2-11）：</strong><code>datas/model</code> 九表已迁 <strong>Mapped[]</strong>；门禁 <code>test_mapped_model_guard</code>。详见 <a href="PhaseD2-Mapped模型迁移.html">Phase D2</a> / <a href="依赖升级RFC.html">RFC</a> / <a href="需求编号与缩写规范.html">编号规范</a>。
     <br>
     <strong>2026-07-20 Phase D1（OPT-P2-11 · DEC-008）：</strong>已同窗 bump <strong>Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1 + Alembic 1.14.1</strong>；Python 支持 <strong>3.8–3.11</strong>。
   </div>
@@ -158,7 +160,7 @@
     <tr><td>Phase D0 · Framework Generation 决策</td><td class="s-done">已确认</td><td>v2.1.0</td><td>DEC-008：Py 3.8–3.11；B1；见 <a href="PhaseD0-Framework-Generation决策.html">D0</a></td></tr>
     <tr><td>Phase D1 · pin bump（Flask 2.3 + SA2 + FSA3）</td><td class="s-done">已交付</td><td>v2.1.0</td><td>同窗 pin；见 <a href="RELEASE_NOTES.html#210">RELEASE_NOTES [2.1.0]</a></td></tr>
     <tr><td>Phase D2 · Mapped[] 模型迁移</td><td class="s-done">已交付</td><td>v2.1.0</td><td>九表 <code>Mapped</code>；<a href="PhaseD2-Mapped模型迁移.html">D2 设计</a> · <code>test_mapped_model_guard</code></td></tr>
-    <tr><td>Tier 3 · SQLAlchemy 2.0 + FSA 3.x</td><td class="s-done">3a+D2+3b 已交付</td><td>v2.1.0</td><td>余 Phase D3 compose；3c 搁置</td></tr>
+    <tr><td>Tier 3 · SQLAlchemy 2.0 + FSA 3.x</td><td class="s-done">3a+D2+3b+D3 已交付</td><td>v2.1.0+</td><td>3c 搁置；Flask 3 / 默认 3.12+ 未排期</td></tr>
     <tr><td>Tier 3c · 生产类库备份与只读校验</td><td class="s-draft">搁置（无存量升级）</td><td>—</td><td><a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a> · 不实现</td></tr>
     <tr><td>Tier 3b · ensure 重放 + 残余收束（3b-A）</td><td class="s-done">已交付</td><td>v2.1.0</td><td><a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b 设计</a> · <code>TestEnsureEmptyDbReplay</code></td></tr>
     <tr><td>Tier 4 · Flask 2.x</td><td class="s-done">已并入 D1</td><td>v2.1.0</td><td>Flask 2.3.3 与 Tier 3a 同窗</td></tr>
@@ -167,7 +169,7 @@
     <tr><td>Phase B · 薄 BaseRepository</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>app/repositories/</code>；列表查询迁出 views；<code>test_repositories_phase_b</code></td></tr>
     <tr><td>Phase C · ORM Legacy AST 门禁</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>test_orm_legacy_guard</code>；CI C-CI-A；见 <a href="PhaseC-ORM-Legacy-AST门禁设计.html">设计稿</a></td></tr>
     <tr><td><code>main/views</code> · <code>rbac/views</code> <code>.paginate()</code></td><td class="s-done">已清除</td><td>v2.1.0</td><td>并入 Phase A；升 SA 2 前硬门已满足</td></tr>
-    <tr><td>Phase D3-1 · <code>assert_framework_pins</code></td><td class="s-done">已交付</td><td>v2.1.0</td><td>compose 实测仍 Unreleased</td></tr>
+    <tr><td>Phase D3 · Docker pin 矩阵</td><td class="s-done">已交付</td><td>Unreleased</td><td>D3-1～D3-3；compose <code>--rebuild</code> 实测 OK（2026-07-22）</td></tr>
   </table>
 
   <h2>四、运维与工程（非 OPT 编号）</h2>
@@ -201,7 +203,7 @@
 
   <h2>五、建议实施顺序（未交付）</h2>
   <ol>
-    <li><strong>Phase D3（OPT-P2-11 · Framework Generation）</strong> — Docker / <code>pip show</code> 矩阵：D3-1 ✓；compose 实测与收尾<strong>暂缓</strong>（Docker 环境）</li>
+    <li><strong>依赖轨收尾：</strong>Phase D3 ✓；Tier 3c <strong>搁置</strong>。下一依赖动作不排 Flask 3 / 默认 Python 3.12+（除非另立项）</li>
     <li><strong>账户会话超时（可选）</strong> — 可配置闲置/绝对超时；须先设计确认（见 <a href="RBAC架构设计方案.html#account-session">RBAC §4.6</a>）</li>
     <li><strong>OPT-P1-03</strong> — 独立执行详情页（OPT-P1-04 列表侧已随 v2.0.0 交付）</li>
     <li><strong>OPT-P1-01b</strong> — 徽章/HTTP 展示统一（OPT-P1-01c 已随 v2.0.0）</li>

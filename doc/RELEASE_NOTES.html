@@ -58,6 +58,12 @@
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
+    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Docker image pin verification</h3>
+    <ul>
+      <li><strong>Compose verify：</strong><code>bash scripts/verify_docker_compose.sh --rebuild</code> 断言镜像内 Framework 包版本与 <code>requirements.txt</code> 一致（Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker）。</li>
+      <li><strong>构建与运行：</strong>镜像构建期健康检查注入强 <code>SECRET_KEY</code>；verify 写入容器 SQLite 路径，并放宽宿主机 <code>datas/</code> 对容器用户可写。</li>
+      <li><strong>冒烟稳定性：</strong>HTTP 冒烟在 UTF-8 locale 下匹配中文标记，并避免 <code>pipefail</code> 下对大 HTML 的假失败。</li>
+    </ul>
   </div>
 
 <h2 class="new" id="211">[2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)</h2>

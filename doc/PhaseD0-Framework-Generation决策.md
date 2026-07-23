@@ -17,7 +17,7 @@ Python 3.8–3.11 · Flask 2.3 线 + SA2/FSA3/Alembic 同窗 · DEC-008
 - **B1** — **Flask 2.3.x** + Werkzeug/Jinja/Click 对齐 + **SQLAlchemy 2.0.x** + **Flask-SQLAlchemy 3.1.x** + 匹配 Alembic/Flask-Migrate
 - **同窗 bump** — Flask 链与 SA2/FSA3/Alembic 在同一 D1 依赖 PR（或紧密连续、不可单独合入的半升状态）
 - **§5.1 不做** — 无 Flask-Login/WTF；无 3.12+；本窗不 bump gevent/gunicorn/APS 主版本
-- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；**Phase D1 / D2 已落地**；下一步 **Phase D3（OPT-P2-11）**
+- 记入 [依赖升级 RFC](依赖升级RFC.html) **DEC-008**；**Phase D1 / D2 / D3 已落地**
 
 **定位：**本页属 **OPT-P2-11** 下 Framework Generation 的**决策闸门**（Phase D0）。编号读法见 [需求编号与缩写规范](需求编号与缩写规范.html)。前置 Phase A/B/C 已交付。本页确认后仍**不自动改** `requirements*.txt` 中的 Flask/SA pin——那是 **Phase D1**。
 

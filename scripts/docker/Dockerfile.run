@@ -29,6 +29,7 @@ USER cronpilot
 
 RUN bash -euc 'source scripts/lib/python.sh && cronpilot_load_runtime; \
     export FLASK_CONFIG=production; mkdir -p datas/logs; \
+    export SECRET_KEY="${SECRET_KEY:-$(python3 -c "import secrets; print(secrets.token_hex(32))")}"; \
     "$CRONPILOT_VENV/bin/gunicorn" -b 0.0.0.0:5860 -w 1 -k gevent -c gun.py manage:app & pid=$!; \
     sleep 8; \
     curl -sf http://127.0.0.1:5860/docs/ | head -c 200 | grep -qi html; \

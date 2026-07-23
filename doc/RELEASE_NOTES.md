@@ -30,6 +30,12 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+### Docker image pin verification
+
+- **Compose verify：**`bash scripts/verify_docker_compose.sh --rebuild` 断言镜像内 Framework 包版本与 `requirements.txt` 一致（Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker）。
+- **构建与运行：**镜像构建期健康检查注入强 `SECRET_KEY`；verify 写入容器 SQLite 路径，并放宽宿主机 `datas/` 对容器用户可写。
+- **冒烟稳定性：**HTTP 冒烟在 UTF-8 locale 下匹配中文标记，并避免 `pipefail` 下对大 HTML 的假失败。
+
 ## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET\_KEY, CSRF)
 
 加固集群互斥锁、生产会话签名与管理端写操作 CSRF。**调度回调与 `/api/*` 契约不变**。支持的 Python 仍为 **3.8–3.11**。

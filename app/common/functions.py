@@ -201,7 +201,7 @@ def dd_push(content):
             'Content-Type': 'application/json'
         }
         req = requests.post(url=url, data=json.dumps(data), headers=headers)
-        print(req.json())
+        current_app.logger.info("dingding response: %s", req.json())
     except Exception as e:
         current_app.logger.exception(f"钉钉发送通知报错了:{str(e)}")
 

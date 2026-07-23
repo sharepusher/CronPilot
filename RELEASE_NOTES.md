@@ -9,6 +9,28 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### Structured JSON logging
+
+- **JSON log format:** Both `datas/logs/info.log` and `datas/logs/error.log` now emit one JSON object per line, enabling direct ingestion by Filebeat / Promtail for ELK or Loki.
+- **Structured fields:** Every record contains `timestamp` (ISO 8601), `level`, `logger`, `message`, `filename`, `lineno`, `thread`, and five context fields: `trace_id`, `cron_id`, `task_name`, `duration_ms`, `status` (null when not applicable).
+- **HTTP trace ID:** Each web request automatically receives a `trace_id` UUID4 (sourced from the `X-Request-Id` request header, or auto-generated). The ID propagates to all log records emitted during that request.
+- **Scheduler context:** `cron_do` injects `cron_id`, `task_name`, `duration_ms`, and execution `status` (`ok`/`error`) into every log record produced during the job run.
+- **Unified handler:** All module loggers (`getLogger(__name__)`) and APScheduler's internal logger now write to the same JSON file handlers via root-logger propagation, closing a previous blind-spot where module-level log calls were silently dropped.
+- **Configurable:** Add `log_level` (default `INFO`) and `log_json_enabled` (default `1`) to `conf.ini` `[default]` section to override at deploy time. Set `log_json_enabled=0` for plain-text output in local development.
+- **Dependency:** `python-json-logger==2.0.7` added to `requirements.txt` (Apache-2.0, no transitive dependencies).
+
+### Gunicorn JSON access log
+
+- **`app/gunicorn_logger.CronPilotLogger`:** Custom Gunicorn logger class that writes one JSON record per HTTP request to `datas/logs/access.log` (daily rotation, 7-day retention). Fields: `timestamp`, `level`, `logger`, `remote_addr`, `method`, `path`, `status`, `response_bytes`, `duration_ms`, `user_agent`, `referrer`.
+- **`gun.py`:** Activated via `logger_class = 'app.gunicorn_logger.CronPilotLogger'`. Applies to Gunicorn production mode (`:5860`) only; local Flask dev server (`:5001`) is unaffected.
+- Access log is independent of `info.log`/`error.log` and does not interfere with the JSON formatter or root-logger configuration.
+
+### Logging hygiene: print() removed
+
+- Removed a redundant `print(str(e))` from `cron_do`'s outer exception handler (the error is already emitted via `logger.error()`).
+- Removed a debug `print(request.values.to_dict())` from the `/api/test` endpoint.
+- Replaced `print(req.json())` in the DingTalk webhook helper with `current_app.logger.info(...)` so DingTalk responses appear in the structured JSON log.
+
 ### Docker image pin verification
 
 - **Compose verify:** `bash scripts/verify_docker_compose.sh --rebuild` asserts that Framework packages inside the image match `requirements.txt` (Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker).

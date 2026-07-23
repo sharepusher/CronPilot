@@ -10,6 +10,7 @@ import requests
 from flask import current_app
 from sqlalchemy import func, select, text
 
+from app.logging_config import _ctx_cron_id, _ctx_duration_ms, _ctx_status, _ctx_task_name, _ctx_trace_id
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
 from app.services.job_log_outcome import (
@@ -117,6 +118,8 @@ def cron_do(cron_id):
         nows = get_now_time()
         t0 = time.time()
         task_name = None
+        _ctx_trace_id.set(cronpilot_log_id)
+        _ctx_cron_id.set(str(cron_id))
 
         try:
 
@@ -135,6 +138,7 @@ def cron_do(cron_id):
             else:
                 req_url = cif.req_url
                 task_name = cif.task_name
+                _ctx_task_name.set(task_name or '')
                 if not req_url:
                     saved_jl = _save_job_log(
                         cron_id,
@@ -252,7 +256,6 @@ def cron_do(cron_id):
                                 )
 
         except Exception as e:
-            print(str(e))
             db.session.rollback()
             try:
                 saved_jl = _save_job_log(
@@ -281,6 +284,11 @@ def cron_do(cron_id):
                 '定时任务发生严重错误',
                 'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
             )
+
+        finally:
+            _ctx_duration_ms.set(int((time.time() - t0) * 1000))
+            if saved_jl is not None:
+                _ctx_status.set('error' if getattr(saved_jl, 'status', None) == STATUS_ERROR else 'ok')
 
         # SA 2.0：离开 app_context 后实例可能 detach，须在块内取主键
         return saved_jl.id if saved_jl else None

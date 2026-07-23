@@ -37,3 +37,7 @@ dingding_secret=
 block_private_ip=1
 url_allow_hosts=
 url_ssrf_observe_only=0
+
+# 结构化日志（可选；默认 JSON 输出，适合 ELK / Loki 接入）
+# log_level=INFO
+# log_json_enabled=1

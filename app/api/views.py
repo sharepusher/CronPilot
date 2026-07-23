@@ -15,7 +15,6 @@ from ..crons import cron_do
 @api.route('/test',methods=['GET','POST'])
 @api_deal_return
 def test():
-    print(request.values.to_dict())
     return 'test'
 
 '''

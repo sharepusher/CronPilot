@@ -6,3 +6,4 @@ bind = '0.0.0.0:5860'
 workers=2
 worker_class='gevent'
 x_forwarded_for_header = 'X-FORWARDED-FOR'
+logger_class = 'app.gunicorn_logger.CronPilotLogger'

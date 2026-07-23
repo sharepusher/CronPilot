@@ -17,9 +17,12 @@
             {% endif %}
         {% endif %}
         <span class="topbar-sep" aria-hidden="true">|</span>
-        <a class="topbar-logout" href="{{ url_for('rbac.logout') }}">
-            <i class="fa fa-sign-out"></i> 退出
-        </a>
+        <form class="topbar-logout-form" method="post" action="{{ url_for('rbac.logout') }}" style="display:inline;margin:0;padding:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="topbar-logout" style="background:none;border:none;padding:0;cursor:pointer;color:inherit;font:inherit;">
+                <i class="fa fa-sign-out"></i> 退出
+            </button>
+        </form>
     </div>
 </div>
 {% endif %}

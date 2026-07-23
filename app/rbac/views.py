@@ -122,6 +122,7 @@ def login():
 
 
 @rbac.route('/logout', methods=['GET', 'POST'])
+@csrf_protect
 def logout():
     if session.get('is_login'):
         write_audit_log(action='user:logout', resource=session.get('username', ''))

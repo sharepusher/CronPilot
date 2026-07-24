@@ -11,7 +11,18 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
-## [2.2.0] — 2026-07-23 · 可观测性（结构化日志 + Prometheus 指标）
+## [2.2.0] — 2026-07-24 · 可观测性（结构化日志 + Prometheus 指标）+ Bug 修复
+
+### Bug fixes (post-release patch, included in 2.2.0)
+
+- **CSRF token missing from AJAX form submissions (B-1):** `common.js` `js-ajax-form` handler called `$.ajaxSubmit()` without injecting the `csrf_token` in the `beforeSubmit` callback — every AJAX form submission (create group, add user, etc.) was rejected with "csrf校验失败". Fixed by adding CSRF token injection from `<meta name="csrf-token">` inside `beforeSubmit`. Added full-chain integration tests (`tests/test_csrf_integration.py`) using `requests.Session` to prevent regression.
+  - *Root cause:* The `js-ajax-dialog-btn` code path already had CSRF injection; the `js-ajax-form` path did not. Python unit tests operate via `test_client.post(data={csrf_param: token})` and bypass the JavaScript layer entirely, so the bug was invisible to the test suite.
+- **Timestamp `%f` literal in JSON logs (B-2):** `_CronPilotJsonFormatter` was initialised with `datefmt='%Y-%m-%dT%H:%M:%S.%f%z'`, but `logging.Formatter.formatTime()` calls `time.strftime()` internally — `%f` (microseconds) is a `datetime.strftime()` extension not supported by `time.strftime()`, causing the literal string `%f` to appear in every log timestamp. Fixed by overriding `formatTime()` in `_CronPilotJsonFormatter` to use `datetime.datetime.fromtimestamp()`. Added `tests/test_logging_format.py` asserting that the timestamp is free of `%f` literals and parseable via `datetime.fromisoformat()`.
+- **Logout CSRF (forced-logout attack):** `/rbac/logout` accepted unauthenticated `GET` and `POST` with no CSRF check, allowing an attacker to embed a cross-origin request that logs out the victim silently. Fixed by adding `@csrf_protect` to `/rbac/logout` and changing the topbar and force-reset logout UI from `<a href>` GET links to inline `<form method="post">` with `csrf_token`.
+
+### Post-release process note
+
+The original v2.2.0 tag (`20dd148`) was released before the above bugs were discovered and fixed. The tag has been moved to the current HEAD to include the three fixes above; all 219 unit tests pass on the re-tagged commit.
 
 ### Structured JSON logging
 

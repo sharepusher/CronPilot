@@ -11,6 +11,29 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
+## [2.3.0] — 2026-07-24 · API 契约规范化（OpenAPI 3.0 + Swagger UI）
+
+### API contract standardization (OPT-P1-CONTRACT)
+
+- **OpenAPI 3.0 + Swagger UI:** The API layer now auto-generates an OpenAPI 3.0 specification, served at `/api/openapi.json`. Interactive Swagger UI is accessible at `/api/swagger` (also embedded in the existing **API Documentation** management panel tab).
+- **Schema-based request validation:** `POST /api/cron`, `POST /api/cron/status`, `POST /api/cron/retire`, and `POST /api/cron/add_log` now validate required fields via marshmallow schemas before reaching business logic. Missing or invalid fields return HTTP 422 with a field-level error map: `{"errcode": 1, "errmsg": "参数校验失败", "data": {"fields": {...}}}`. The existing `{errcode, errmsg, data}` envelope is preserved for callers.
+- **Centralized access_token auth:** Token validation (`api_access_token` in `conf.ini`) is now enforced in a single Blueprint `before_request` hook instead of being scattered across each view function. Both `Authorization: Bearer <token>` header and legacy `access_token` query/form parameter are accepted.
+- **Backward-compatible legacy path:** `GET /api/cron/add` (the old dual-method route) continues to work unchanged for existing callers.
+- **Upgrade notes:** Added `apiflask==2.4.0` and its transitive dependencies (`marshmallow`, `webargs`, `flask-httpauth`, `flask-marshmallow`, `apispec`) to `requirements.txt`. No database schema changes. No configuration file changes required.
+
+### API documentation panel UI improvements
+
+- **Page header alignment:** The API documentation management panel (`/api_doc`) now includes the standard CronPilot jumbotron header ("CronPilot 定时调度平台 / 方便、统一、自由"), consistent with all other admin pages.
+- **Swagger UI clean-up (embedded view):** The embedded Swagger UI iframe now hides three redundant/developer-facing elements: the `/api/openapi.json` title link, the Servers dropdown, and the "CronPilot 1.0.0 OAS 3.0" block (already present in the jumbotron). These elements remain visible in the standalone `/api/swagger` URL for developer use.
+- **Empty Parameters section hidden:** When an API operation has no URL/query/header parameters (all input is in the request body), the "Parameters / No parameters" section is automatically hidden by a `MutationObserver`-based JavaScript injection, leaving only "Request body" and "Responses" visible. Implemented with DOM-verified selectors (`.parameters-container > .opblock-description-wrapper` + `textContent === "No parameters"`) and a 100 ms polling fallback for delayed React renders.
+- **Seamless iframe embed:** The iframe border is removed; Swagger UI content flows directly into the admin panel layout.
+
+### Engineering conventions
+
+- Added **DOM-first browser testing protocol** to `.cursor/rules/cronpilot-project.mdc`: before writing CSS selectors or JavaScript targeting third-party UI library DOM, use CDP `Runtime.evaluate` to inspect actual element structure; verify logic via dry-run query; require CDP `display:none` evidence before reporting a browser-side fix as complete.
+
+---
+
 ## [2.2.0] — 2026-07-24 · 可观测性（结构化日志 + Prometheus 指标）+ Bug 修复
 
 ### Bug fixes (post-release patch, included in 2.2.0)

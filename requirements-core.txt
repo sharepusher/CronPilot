@@ -22,4 +22,10 @@ tablib==2.0.0
 PyMySQL==1.1.2
 pytz==2020.1
 tzlocal==2.1
+apiflask==2.4.0
+apispec==6.10.0
+Flask-HTTPAuth==4.8.1
+flask-marshmallow==1.5.0
+marshmallow==4.3.0
+webargs==8.7.1
 setuptools>=40,<81

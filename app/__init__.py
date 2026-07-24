@@ -1,6 +1,6 @@
 import uuid as _uuid
 
-from flask import Flask
+from apiflask import APIFlask
 from flask_apscheduler import APScheduler
 from flask_sqlalchemy import SQLAlchemy
 
@@ -16,7 +16,15 @@ db = SQLAlchemy()
 isCreate = False
 
 def create_app(config_name):
-    app = Flask(__name__)
+    app = APIFlask(
+        __name__,
+        title='CronPilot',
+        version='1.0.0',
+        spec_path='/api/openapi.json',
+        docs_path='/api/swagger',
+        docs_oauth2_redirect_path='/api/swagger/oauth2-redirect',
+    )
+    app.config['SPEC_FORMAT'] = 'json'
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
 
@@ -60,8 +68,29 @@ def create_app(config_name):
     app.context_processor(inject_csrf_context)
 
     _register_metrics_endpoint(app)
+    _register_api_error_handlers(app)
 
     return app
+
+
+def _register_api_error_handlers(app):
+    """将 apiflask HTTPError（含 422 ValidationError）包装成现有 {errcode, errmsg, data} 信封。
+
+    apiflask 2.x 用 error_processor 而非 Flask 的 errorhandler(422) 来拦截所有 HTTPError。
+    调用方感知不变（errcode != 0 即失败），data.fields 提供字段级验证错误详情。
+    """
+    @app.error_processor
+    def _api_error_processor(error):
+        """统一将 apiflask HTTPError 格式化为 {errcode, errmsg, data} 信封。"""
+        detail = error.detail or {}
+        # 422 ValidationError: detail = {'json': {...}} 或 {'form': {...}}
+        fields = detail.get('form') or detail.get('json') or detail or {}
+        body = {
+            'errcode': 1,
+            'errmsg': error.message if error.status_code != 422 else '参数校验失败',
+            'data': {'fields': fields} if fields else '',
+        }
+        return body, error.status_code, error.headers
 
 
 def _register_metrics_endpoint(app):

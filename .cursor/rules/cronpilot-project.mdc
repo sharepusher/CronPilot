@@ -89,6 +89,29 @@ UI / 管理端另须补齐下表「交互契约」等行。
 
 当 bug 发生在集成或 E2E 层，必须在此层新增测试（`tests/test_*_integration.py`），而非只在单元层加断言。
 
+### 浏览器端 DOM / CSS / JS 修改（强制 · 防「用户反复空验收」）
+
+凡写 CSS 选择器、JavaScript 注入（包括 iframe 注入）或第三方 UI 组件定制，**必须遵守「DOM 优先」规程**：
+
+| 步骤 | 强制操作 | 禁止 |
+|---|---|---|
+| **1 · 查 DOM 再写选择器** | 先用 CDP `Runtime.evaluate` 或 `browser_cdp` 取真实 HTML（`innerHTML`、`querySelectorAll` 等），确认目标元素的**实际 class/标签**后再写代码 | 凭记忆或经验假设第三方库的类名（如 `.no-parameters`）直接写选择器 |
+| **2 · 干跑验证（dry-run）** | 用 CDP 在当前 DOM 上模拟 `hideEmptyParams(document.body)` 等函数，返回 `wouldHide: true/false`，确认逻辑正确 | 只写代码不跑 dry-run 就宣称逻辑正确 |
+| **3 · 端对端 CDP 断言** | restart 后导航到目标页，用 CDP 模拟用户操作（click → 等待 → 查 `style.display`），**取得 `display:none` 的断言证据** | 没有 CDP 断言证据就说「请你自行验证」 |
+| **4 · 截图** | 取得 `browser_take_screenshot` 截图附在交付回复中 | 仅文字描述，不附截图 |
+
+**iframe 内注入专项**：
+- iframe 内的第三方 JS 框架（如 React-based Swagger UI）使用合成事件，标准 `MouseEvent.dispatchEvent` 无法触发。**不要试图用 CDP click 展开 React 组件**；应改用对已展开组件的静态 DOM 检查，或先在独立页面（非 iframe）中展开再取 DOM。
+- 注入脚本失效的常见原因：选择器不存在、`onload` 时机过早、iframe `contentDocument` 为 `null`。每次应逐项 CDP 排查，不得连续换方案而不诊断失效原因。
+
+**典型失误（2026-07 API doc Parameters 隐藏事件）**：
+
+| 失误 | 教训 |
+|---|---|
+| 用了不存在的 `.no-parameters` class | 应先 `innerHTML` 取 DOM，再写选择器 |
+| 3 次改代码都让用户验证，未先 CDP 自证 | 自己先 dry-run，green 才告知用户 |
+| 隐藏了 `.opblock-section` 父级，把 Request body 也藏了 | 应先取 DOM 层级图再决定隐藏哪一层 |
+
 ### 交付闭环（强制顺序）
 
 任一步未通过则 **修复 → 重新验证 → 同步更新相关文档**，再进入下一步或 commit。

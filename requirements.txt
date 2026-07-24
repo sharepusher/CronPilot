@@ -1,4 +1,6 @@
 alembic==1.14.1
+apiflask==2.4.0
+apispec==6.10.0
 APScheduler==3.10.4
 blinker==1.8.2
 certifi==2024.8.30
@@ -9,6 +11,8 @@ docopt==0.6.2
 et-xmlfile==1.0.1
 Flask==2.3.3
 Flask-APScheduler==1.13.1
+Flask-HTTPAuth==4.8.1
+flask-marshmallow==1.5.0
 Flask-Migrate==4.0.7
 Flask-SQLAlchemy==3.1.1
 gevent==23.9.1
@@ -19,6 +23,7 @@ itsdangerous==2.2.0
 jdcal==1.4.1
 Jinja2==3.1.6
 Mako==1.3.5
+marshmallow==4.3.0
 MarkupSafe==2.1.5
 openpyxl==2.4.11
 portalocker==2.6.0
@@ -36,6 +41,7 @@ SQLAlchemy==2.0.36
 tablib==2.0.0
 tzlocal==2.1
 urllib3==1.26.19
+webargs==8.7.1
 Werkzeug==2.3.8
 zope.event==4.5.0
 zope.interface==5.1.0

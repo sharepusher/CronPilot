@@ -1,202 +1,105 @@
 {% extends "admin_base.html" %}
 
 {% block css %}
+<style>
+  .swagger-frame-wrap { margin-top: 4px; }
+  .swagger-frame-wrap iframe {
+    width: 100%;
+    height: calc(100vh - 240px);
+    min-height: 500px;
+    border: none;
+    display: block;
+  }
+  .swagger-tip { margin-bottom: 6px; color: #888; font-size: 13px; }
+  .swagger-tip a { color: #337ab7; }
+</style>
 {% endblock %}
-{% block content %}
-    <div class="wrap">
-        <div class="jumbotron">
-            <div style="text-align: center">
-                <h1 class="display-4">CronPilot 定时调度平台</h1>
-                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
-            </div>
-        </div>
 
-        {% with active='api_doc' %}
-        {% include "rbac/_nav.html" %}
-        {% endwith %}
-        <div class="control-group">
-                    <h3 id="urls"></h3>
-                    <h5>请求方式: GET,POST</h5>
-                    <h4>参数说明：</h4>
-                    <table class="table table-hover table-bordered">
-                        <thead>
-                        <tr>
-                            <th>参数</th>
-                            <th>类型</th>
-                            <th>是否必传</th>
-                            <th>说明</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>access_token</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>conf.ini配置,如果没配置，证明不验证</td>
-                            </tr>
-                            <tr>
-                                <td>task_name</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>任务名称，如果存在则修改，不存在则添加。</td>
-                            </tr>
-                            <tr>
-                                <td>req_url</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>触发 URL（到点由调度器请求的地址）</td>
-                            </tr>
-                            <tr>
-                                <td>req_method</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>请求方式：GET（默认）或 POST</td>
-                            </tr>
-                            <tr>
-                                <td>req_body</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>POST 时的 JSON 对象字符串；系统会注入 cronpilot_log_id / cronpilot_sign（不覆盖已有同名字段）</td>
-                            </tr>
-                            <tr>
-                                <td>task_keyword</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>任务说明，1～500 字（需求链接、用途、特殊情况等）</td>
-                            </tr>
-                            <tr>
-                                <td>run_date</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>执行时间，如果这个存在不为空，则任务模式就变成date模式</td>
-                            </tr>
-                            <tr>
-                                <td>day</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>天</td>
-                            </tr>
-                            <tr>
-                                <td>day_of_week</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>星期</td>
-                            </tr>
-                            <tr>
-                                <td>hour</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>小时</td>
-                            </tr>
-                            <tr>
-                                <td>minute</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>分钟</td>
-                            </tr>
-                            <tr>
-                                <td>second</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>秒</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="control-group">
-                    <h3 id="urls2"></h3>
-                    <h5>请求方式: GET,POST</h5>
-                    <h4>参数说明：</h4>
-                    <table class="table table-hover table-bordered">
-                        <thead>
-                        <tr>
-                            <th>参数</th>
-                            <th>类型</th>
-                            <th>是否必传</th>
-                            <th>说明</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>access_token</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>conf.ini配置,如果没配置，证明不验证</td>
-                            </tr>
-                            <tr>
-                                <td>task_name</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>任务名称</td>
-                            </tr>
-                            <tr>
-                                <td>status</td>
-                                <td>int</td>
-                                <td>否</td>
-                                <td>操作。0关闭1开启，如果没传或者空，系统会自动判断更改状态。比如现在状态是开启则会关闭，反之！</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="control-group">
-                    <h3 id="urls3"></h3>
-                    <h5>请求方式: GET,POST</h5>
-                    <h4>参数说明：</h4>
-                    <table class="table table-hover table-bordered">
-                        <thead>
-                        <tr>
-                            <th>参数</th>
-                            <th>类型</th>
-                            <th>是否必传</th>
-                            <th>说明</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>access_token</td>
-                                <td>string</td>
-                                <td>否</td>
-                                <td>conf.ini配置,如果没配置，证明不验证</td>
-                            </tr>
-                            <tr>
-                                <td>cronpilot_log_id</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>这个参数会在系统请求您自定义的触发 URL 时一起传过去。</td>
-                            </tr>
-                            <tr>
-                                <td>content</td>
-                                <td>string</td>
-                                <td>是</td>
-                                <td>内容</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+{% block content %}
+<div class="wrap">
+    <div class="jumbotron">
+        <div style="text-align: center">
+            <h1 class="display-4">CronPilot 定时调度平台</h1>
+            <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+        </div>
     </div>
+
+    {% with active='api_doc' %}
+    {% include "rbac/_nav.html" %}
+    {% endwith %}
+
+    <div class="swagger-frame-wrap">
+        <p class="swagger-tip">
+            以下为自动生成的 API 文档（OpenAPI 3.0）。
+            <a href="/api/swagger" target="_blank">在新标签页打开 &rarr;</a>
+            &nbsp;|&nbsp;
+            <a href="/api/openapi.json" target="_blank">下载 JSON Spec</a>
+        </p>
+        <iframe src="/api/swagger" title="CronPilot API 文档（Swagger UI）" allowfullscreen></iframe>
+    </div>
+</div>
 {% endblock %}
 
 {% block js %}
-    <script>
-        var HOST_URL = function(){
-            var url = window.location.href;
-            var port = location.port;
-            var hostUrl = "http://";
-            if (url.indexOf("https")!==-1) {
-                hostUrl = "https://";
+<script>
+(function () {
+    var frame = document.querySelector('.swagger-frame-wrap iframe');
+    if (!frame) return;
+    frame.addEventListener('load', function () {
+        try {
+            var doc = frame.contentDocument || frame.contentWindow.document;
+
+            /* static CSS: hide openapi.json link, servers, title block */
+            var style = doc.createElement('style');
+            style.textContent = [
+                '.swagger-ui .info .url { display: none !important; }',
+                '.swagger-ui .scheme-container { display: none !important; }',
+                '.swagger-ui .information-container { display: none !important; }',
+                '.swagger-ui .wrapper { padding-top: 10px !important; }'
+            ].join('\n');
+            doc.head.appendChild(style);
+
+            /* hide "Parameters / No parameters" section whenever it appears */
+            function hideEmptyParams(root) {
+                var containers = root.querySelectorAll ? root.querySelectorAll('.parameters-container') : [];
+                Array.from(containers).forEach(function (c) {
+                    var wrapper = c.querySelector('.opblock-description-wrapper');
+                    if (wrapper && wrapper.textContent.trim() === 'No parameters') {
+                        /* Hide only .parameters-container and its sibling
+                           .opblock-section-header; do NOT hide the parent
+                           .opblock-section itself (it also wraps Request body) */
+                        c.style.display = 'none';
+                        var parent = c.parentElement;
+                        if (parent) {
+                            var header = parent.querySelector(':scope > .opblock-section-header');
+                            if (header) header.style.display = 'none';
+                        }
+                    }
+                });
             }
-            if(port === 80){
-                hostUrl += location.hostname;
-            }else{
-                hostUrl += location.host;
-            }
-            return hostUrl;
-        }();
 
-        $('#urls').html("1、添加/更新任务： "+ HOST_URL +"/api/cron")
+            /* 1. initial scan (in case anything is pre-rendered) */
+            hideEmptyParams(doc.body);
 
-        $('#urls2').html("2、启动/暂停任务： "+ HOST_URL +"/api/cron/status")
+            /* 2. MutationObserver for React DOM inserts */
+            var observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (m) {
+                    m.addedNodes.forEach(function (node) {
+                        if (node.nodeType === 1) hideEmptyParams(node);
+                    });
+                });
+            });
+            observer.observe(doc.body, { childList: true, subtree: true });
 
-        $('#urls3').html("3、上传实时执行记录: " + HOST_URL + "/api/cron/add_log")
-    </script>
-{%  endblock %}
+            /* 3. polling fallback for 10 s (100 ms interval) */
+            var count = 0;
+            var poll = setInterval(function () {
+                hideEmptyParams(doc.body);
+                if (++count > 100) clearInterval(poll);
+            }, 100);
+
+        } catch (e) { /* cross-origin guard */ }
+    });
+}());
+</script>
+{% endblock %}

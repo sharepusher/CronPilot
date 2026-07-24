@@ -30,6 +30,13 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+### Internal: dead static asset cleanup (F0-a)
+
+- Removed `app/static/vue.js` (280 KB): a Vue 2.x library committed but never referenced by any template or Python file; its presence previously created a misleading impression that Vue was already integrated.
+- Removed additional unused static files confirmed to have zero template or CSS references: `images/mini_code.png`, `js/qrcode.min.js`, `js/artDialog/skins/blue.css` and the entire `blue/` skin directory (artDialog loads only the `default` skin), the entire `js/simpleboot/font-awesome/4.2.0/` directory (superseded by 4.4.0), and the entire `js/simpleboot/themes/bluesky/` directory (only the `flat` theme is in use).
+- No behavior change. All 219 existing tests pass.
+- F0-b (IE 8/9 `html5shiv` shim in `admin_base.html`) removed: confirmed no active IE 8/9 users; eliminates an external CDN dependency (`oss.maxcdn.com`) from the base template.
+
 ### Docker image pin verification
 
 - **Compose verify：**`bash scripts/verify_docker_compose.sh --rebuild` 断言镜像内 Framework 包版本与 `requirements.txt` 一致（Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker）。

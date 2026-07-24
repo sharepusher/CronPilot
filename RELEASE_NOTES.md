@@ -9,6 +9,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### Internal: dead static asset cleanup (F0-a)
+
+- Removed `app/static/vue.js` (280 KB): a Vue 2.x library that was committed but never referenced by any template or Python file; its presence previously created a misleading impression that Vue was already integrated.
+- Removed unused static files confirmed to have zero template or CSS references: `images/mini_code.png`, `js/qrcode.min.js`, `js/artDialog/skins/blue.css` and the entire `blue/` skin directory (artDialog loads only the `default` skin), the entire `js/simpleboot/font-awesome/4.2.0/` directory (superseded by 4.4.0 which is the only version referenced), and the entire `js/simpleboot/themes/bluesky/` directory (only the `flat` theme is in use).
+- No behavior change. All 219 existing tests pass.
+- F0-b (IE 8/9 `html5shiv` shim in `admin_base.html`) removed: confirmed no active IE 8/9 users; eliminates an external CDN dependency (`oss.maxcdn.com`) from the base template.
+
 ---
 
 ## [2.3.0] — 2026-07-24 · API 契约规范化（OpenAPI 3.0 + Swagger UI）

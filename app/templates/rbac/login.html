@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="csrf-param" content="{{ csrf_param }}">
     <link rel="stylesheet" href="{{ url_for('static',filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='js/simpleboot/font-awesome/4.4.0/css/font-awesome.min.css') }}">
     <script src="{{ url_for('static',filename='js/jquery.js') }}"></script>
     <script src="{{ url_for('static',filename='js/bootstrap.min.js') }}"></script>
 </head>
@@ -22,7 +23,8 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <input type="text" name="username" value="" placeholder="用户名" class="form-control" required>
-    <input type="password" name="password" value="" placeholder="密码" class="form-control" required>
+    <input type="password" name="password" value="" placeholder="密码" class="form-control" required id="login-pwd-input">
+    <button type="button" class="btn btn-default js-pwd-toggle" data-target="login-pwd-input" title="显示/隐藏密码" style="margin-left:4px"><i class="fa fa-eye"></i></button>
     <input type="submit" value="确定" class="btn btn-primary">
 </form>
     {% if msg %}
@@ -32,4 +34,13 @@
 {% endif %}
 </div>
 </body>
+<script>
+$(document).on('click', '.js-pwd-toggle', function() {
+    var id = $(this).data('target');
+    var $inp = $('#' + id);
+    var hidden = $inp.attr('type') === 'password';
+    $inp.attr('type', hidden ? 'text' : 'password');
+    $(this).find('i').toggleClass('fa-eye fa-eye-slash');
+});
+</script>
 </html>

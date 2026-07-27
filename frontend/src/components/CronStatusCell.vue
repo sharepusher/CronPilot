@@ -129,9 +129,12 @@ function onRunNow() {
       // props.runUrl 已由 Jinja url_for 生成并含 ?id=N，直接使用，不得再追加 ?id=
       const data = await csrfPost(props.runUrl)
       if (data.errcode === 0) {
-        artAlert(data.errmsg || '执行完成', 'succeed')
-        if (data.url) {
-          setTimeout(() => { window.location.href = data.url }, 1200)
+        if (data.url && window.open_iframe_dialog) {
+          open_iframe_dialog(data.url, '立即执行记录')
+        } else if (data.url) {
+          artAlert((data.errmsg || '执行完成') + ' <a href="' + data.url + '" target="_blank">查看记录</a>', 'succeed')
+        } else {
+          artAlert(data.errmsg || '执行完成', 'succeed')
         }
       } else {
         artAlert(data.errmsg || '执行失败', 'error')

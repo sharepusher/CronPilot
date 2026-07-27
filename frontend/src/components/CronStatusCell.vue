@@ -126,7 +126,8 @@ function onRunNow() {
     busy.value = true
     busyAction.value = 'run'
     try {
-      const data = await csrfPost(props.runUrl + '?id=' + props.cronId)
+      // props.runUrl 已由 Jinja url_for 生成并含 ?id=N，直接使用，不得再追加 ?id=
+      const data = await csrfPost(props.runUrl)
       if (data.errcode === 0) {
         artAlert(data.errmsg || '执行完成', 'succeed')
         if (data.url) {
@@ -151,7 +152,8 @@ function onToggle() {
     busy.value = true
     busyAction.value = 'toggle'
     try {
-      const data = await csrfPost(props.updateUrl + '?id=' + props.cronId)
+      // props.updateUrl 已由 Jinja url_for 生成并含 ?id=N，直接使用，不得再追加 ?id=
+      const data = await csrfPost(props.updateUrl)
       if (data.errcode === 0) {
         localStatus.value = localStatus.value === 0 ? 1 : 0
         updateSiblingBadge(localStatus.value)

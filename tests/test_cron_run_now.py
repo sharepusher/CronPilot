@@ -218,6 +218,31 @@ class TestCronListRunNowButton(unittest.TestCase):
         self.assertNotIn('/update_status?', html)
         self.assertNotIn('/cron_retire?', html)
 
+    def test_run_url_already_contains_id_param(self):
+        """data-run-url / data-update-url 由 url_for 生成时已含 ?id=N。
+        Vue 组件必须直接使用该 URL，不得再追加 ?id=。
+        本测试拦截"URL 双拼"bug（props.runUrl + '?id=' + cronId → id=1?id=1）。"""
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'ops_admin'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        import re
+        # data-run-url 值须包含 ?id= 且值中不能再出现第二个 ?
+        run_urls = re.findall(r'data-run-url="([^"]+)"', html)
+        self.assertTrue(run_urls, 'data-run-url 属性未找到')
+        for url in run_urls:
+            self.assertIn('?id=', url, 'data-run-url 应已含 ?id= 参数')
+            # URL 里不应出现两个 ?（双拼特征）
+            self.assertEqual(url.count('?'), 1, f'data-run-url 含多个 ?，疑似双拼: {url}')
+        # data-update-url 同样检查
+        update_urls = re.findall(r'data-update-url="([^"]+)"', html)
+        self.assertTrue(update_urls, 'data-update-url 属性未找到')
+        for url in update_urls:
+            self.assertIn('?id=', url)
+            self.assertEqual(url.count('?'), 1, f'data-update-url 含多个 ?，疑似双拼: {url}')
+
     def test_viewer_no_run_now_button(self):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True

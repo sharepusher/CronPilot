@@ -23,9 +23,9 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <input type="text" name="username" value="" placeholder="用户名" class="form-control" required>
-    <span class="input-group" style="display:inline-table;width:auto;vertical-align:middle">
-        <input type="password" name="password" value="" placeholder="密码" class="form-control" required id="login-pwd-input" style="width:160px">
-        <span class="input-group-addon js-pwd-toggle" data-target="login-pwd-input" title="显示/隐藏密码" style="cursor:pointer;background:#fff;border-left:none;color:#94a3b8"><i class="fa fa-eye"></i></span>
+    <span style="position:relative;display:inline-block;vertical-align:middle">
+        <input type="password" name="password" value="" placeholder="密码" class="form-control" required id="login-pwd-input" style="padding-right:34px">
+        <i class="fa fa-eye js-pwd-toggle" data-target="login-pwd-input" title="显示/隐藏密码" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#9ca3af;font-size:14px;line-height:1"></i>
     </span>
     <input type="submit" value="确定" class="btn btn-primary">
 </form>
@@ -41,9 +41,8 @@ $(document).on('click', '.js-pwd-toggle', function() {
     var id = $(this).data('target');
     var inp = document.getElementById(id);
     if (!inp) return;
-    var hidden = inp.type === 'password';
-    inp.type = hidden ? 'text' : 'password';
-    $(this).find('i').toggleClass('fa-eye fa-eye-slash');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    $(this).toggleClass('fa-eye fa-eye-slash');
 });
 </script>
 </html>

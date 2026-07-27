@@ -36,13 +36,13 @@
         <p class="help-block" style="margin-top:0">log_id: <code>{{ jl.log_id }}</code></p>
         {% endif %}
         {% if cif and cif.req_url %}
-        <p class="help-block" style="margin-top:0">回调: <code>{{ cif.req_url }}</code></p>
+        <p class="help-block" style="margin-top:0">触发 URL: <code>{{ cif.req_url }}</code></p>
         {% endif %}
         <pre style="max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;background:#f8fafc;border:1px solid #e2e8f0;padding:10px;font-size:12px">{{ jl.content }}</pre>
 
         {% if items %}
         <h4 style="font-size:14px;margin:1rem 0 .5rem">业务上报进度（{{ items|length }} 条）</h4>
-        <p class="help-block">由回调方 <code>POST /api/cron/add_log</code> 写入，与上方 HTTP 响应不同。</p>
+        <p class="help-block">由业务方上报（<code>POST /api/cron/add_log</code>），与上方 HTTP 响应不同。</p>
         <table class="table table-bordered table-hover">
             <tr><th>内容</th></tr>
             {% for item in items %}

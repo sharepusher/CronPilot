@@ -58,6 +58,10 @@
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
+  </div>
+
+<h2 class="new" id="240">[2.4.0] — 2026-07-27 · 前端现代化（Vite + Vue 3）+ 管理端 UX 优化</h2>
+  <div class="card highlight">
     <h3>Internal: dead static asset cleanup (F0-a)</h3>
     <ul>
       <li>Removed <code>app/static/vue.js</code> (280 KB): a Vue 2.x library committed but never referenced by any template or Python file; its presence previously created a misleading impression that Vue was already integrated.</li>
@@ -78,11 +82,48 @@
       <li><strong>CI gate (F1-c):</strong> New <code>.github/workflows/frontend-build.yml</code> runs <code>npm ci &amp;&amp; npm run build</code> on changes to <code>frontend/**</code> or <code>app/static/dist/**</code>, then fails if the committed dist file diverges from the freshly-built output.</li>
       <li><strong>Process guard:</strong> <code>.cursor/rules/cronpilot-format-guard.mdc</code> extended with explicit HTML visible-structure constraints (table headers, colspan, button text, CSS class additions) to prevent out-of-scope AI edits.</li>
     </ul>
-    <h3 style="font-size:1rem;color:#334155;margin:1rem 0 .5rem">Docker image pin verification</h3>
+    <h3>UX: password visibility toggle on all password fields</h3>
     <ul>
-      <li><strong>Compose verify：</strong><code>bash scripts/verify_docker_compose.sh --rebuild</code> 断言镜像内 Framework 包版本与 <code>requirements.txt</code> 一致（Flask / Werkzeug / Jinja2 / SQLAlchemy / Flask-SQLAlchemy / alembic / Flask-Migrate / blinker）。</li>
-      <li><strong>构建与运行：</strong>镜像构建期健康检查注入强 <code>SECRET_KEY</code>；verify 写入容器 SQLite 路径，并放宽宿主机 <code>datas/</code> 对容器用户可写。</li>
-      <li><strong>冒烟稳定性：</strong>HTTP 冒烟在 UTF-8 locale 下匹配中文标记，并避免 <code>pipefail</code> 下对大 HTML 的假失败。</li>
+      <li><strong>Login page</strong> and <strong>change-password page</strong> now show a Font Awesome eye icon absolutely-positioned inside each password input field.</li>
+      <li>Default state: <code>fa-eye-slash</code> + <code>type="password"</code> (password hidden). Click to toggle to <code>fa-eye</code> + <code>type="text"</code> (password visible).</li>
+      <li><strong>jQuery 1.8 compatibility:</strong> uses native DOM <code>inp.type = …</code> instead of jQuery <code>.attr('type', …)</code> which silently fails in all major browsers.</li>
+      <li>No new dependencies; uses Font Awesome 4.4.0 already loaded by the admin base template.</li>
+    </ul>
+  </div>
+
+<h2 class="new" id="230">[2.3.0] — 2026-07-24 · API 契约规范化（OpenAPI 3.0 + Swagger UI）</h2>
+  <div class="card highlight">
+    <h3>API contract standardization (OPT-P1-CONTRACT)</h3>
+    <ul>
+      <li><strong>OpenAPI 3.0 + Swagger UI:</strong> API 层自动生成 OpenAPI 3.0 规范，通过 <code>/api/openapi.json</code> 提供；交互式 Swagger UI 可通过 <code>/api/swagger</code> 访问（也嵌入已有的 API 文档管理面板 tab）。</li>
+      <li><strong>Schema-based request validation:</strong> <code>POST /api/cron</code>、<code>POST /api/cron/status</code>、<code>POST /api/cron/retire</code> 和 <code>POST /api/cron/add_log</code> 现在通过 marshmallow schemas 在业务逻辑前校验必填字段。缺少或无效字段返回 HTTP 422 及字段级错误映射：<code>{"errcode": 1, "errmsg": "参数校验失败", "data": {"fields": {...}}}</code>。</li>
+      <li><strong>Centralized access_token auth:</strong> Token 验证（<code>conf.ini</code> 中 <code>api_access_token</code>）现在集中在 Blueprint <code>before_request</code> 钩子中，而不是分散在各视图函数里。同时接受 <code>Authorization: Bearer &lt;token&gt;</code> 头和旧版 <code>access_token</code> 查询/表单参数。</li>
+      <li><strong>Backward-compatible legacy path:</strong> <code>GET /api/cron/add</code>（旧版双方法路由）继续正常工作。</li>
+      <li><strong>新依赖：</strong><code>apiflask==2.4.0</code> 及其传递依赖（marshmallow、webargs、flask-httpauth、flask-marshmallow、apispec）。无数据库 schema 变更。</li>
+    </ul>
+    <h3>API 文档面板 UI 改进</h3>
+    <ul>
+      <li>页面标题对齐、Swagger UI 内嵌精简（隐藏冗余 Servers/标题块）、无参数操作自动隐藏 "No parameters" 节。</li>
+    </ul>
+  </div>
+
+<h2 class="new" id="220">[2.2.0] — 2026-07-24 · 可观测性（结构化日志 + Prometheus 指标）+ Bug 修复</h2>
+  <div class="card highlight">
+    <h3>Bug fixes</h3>
+    <ul>
+      <li><strong>CSRF token missing from AJAX form submissions (B-1):</strong> <code>common.js</code> <code>js-ajax-form</code> 处理器调用 <code>$.ajaxSubmit()</code> 时未在 <code>beforeSubmit</code> 回调中注入 <code>csrf_token</code>，导致所有 AJAX 表单提交被拒绝。修复：在 <code>beforeSubmit</code> 内从 <code>&lt;meta name="csrf-token"&gt;</code> 注入。新增全链路集成测试 <code>tests/test_csrf_integration.py</code>。</li>
+      <li><strong>Timestamp <code>%f</code> literal in JSON logs (B-2):</strong> <code>_CronPilotJsonFormatter</code> 使用 <code>time.strftime()</code> 处理 <code>%f</code>（微秒），但该扩展仅 <code>datetime.strftime()</code> 支持，导致日志时间戳中出现字面量 <code>%f</code>。修复：覆写 <code>formatTime()</code>。</li>
+      <li><strong>Logout CSRF:</strong> <code>/rbac/logout</code> 接受无验证的 GET，允许跨域请求静默退出用户。修复：添加 <code>@csrf_protect</code>，顶栏和强制重置退出 UI 改为内联 <code>&lt;form method="post"&gt;</code>。</li>
+    </ul>
+    <h3>Structured JSON logging</h3>
+    <ul>
+      <li>两个日志文件均发出单行 JSON，包含 <code>timestamp</code>、<code>level</code>、<code>trace_id</code>、<code>cron_id</code>、<code>duration_ms</code> 等结构化字段。</li>
+      <li>HTTP 追踪 ID（<code>X-Request-Id</code> 或自动生成 UUID4）在请求期间的所有日志中传播。</li>
+      <li>新依赖：<code>python-json-logger==2.0.7</code>。</li>
+    </ul>
+    <h3>Prometheus metrics</h3>
+    <ul>
+      <li><code>/metrics</code> 端点（可配置 Bearer token 保护）暴露 <code>cronpilot_jobs_total</code>、<code>cronpilot_job_duration_seconds</code>、<code>cronpilot_active_jobs</code> 等指标，供 Prometheus 抓取。</li>
     </ul>
   </div>
 

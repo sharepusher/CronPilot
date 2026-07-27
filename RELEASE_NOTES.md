@@ -9,6 +9,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+---
+
+## [2.4.0] — 2026-07-27 · 前端现代化（Vite + Vue 3）+ 管理端 UX 优化
+
 ### Internal: dead static asset cleanup (F0-a)
 
 - Removed `app/static/vue.js` (280 KB): a Vue 2.x library that was committed but never referenced by any template or Python file; its presence previously created a misleading impression that Vue was already integrated.
@@ -28,6 +32,13 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - **Test coverage:** Added `test_vue_mount_point_data_attrs_present` asserting all 10 `data-*` props and the Vue bundle script tag are server-rendered in the cron list HTML. Existing permission tests updated to check `data-can-write` / `data-can-retire` attributes instead of jQuery-rendered button text. New integration test `test_cron_ops_integration.py` covers URL format, CSRF header validation, and RBAC permission enforcement via real HTTP session.
 - **CI gate (F1-c):** New `.github/workflows/frontend-build.yml` runs `npm ci && npm run build` on changes to `frontend/**` or `app/static/dist/**`, then fails if the committed dist file diverges from the freshly-built output.
 - **Process guard:** `.cursor/rules/cronpilot-format-guard.mdc` extended with explicit HTML visible-structure constraints (table headers, colspan, button text, CSS class additions) to prevent out-of-scope AI edits.
+
+### UX: password visibility toggle on all password fields
+
+- **Login page (`/rbac/login`)** and **change-password page (`/rbac/change_password`)** now show a Font Awesome eye-slash icon (`fa-eye-slash` / `fa-eye`) absolutely-positioned inside the password input field.
+- Default state: `fa-eye-slash` + `type="password"` (password hidden). Clicking toggles to `fa-eye` + `type="text"` (password visible), following standard UX convention.
+- **jQuery 1.8 compatibility note:** jQuery 1.8's `.attr('type', …)` silently fails to change an input's `type` attribute in all major browsers. The toggle uses native DOM `inp.type = …` instead.
+- No new dependencies; uses Font Awesome 4.4.0 already loaded via the admin base template.
 
 ---
 

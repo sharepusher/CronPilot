@@ -36,6 +36,9 @@ LOGIN_PASS = os.environ.get('CRONPILOT_PASS', 'changeme')
 # 用于创建测试任务的 operator 账号（需 cron:write；seed admin 无此权限）
 WRITER_USER = os.environ.get('CRONPILOT_WRITER_USER', 'op_testf1')
 WRITER_PASS = os.environ.get('CRONPILOT_WRITER_PASS', 'changeme')
+# viewer 账号（无 cron:write；用于权限拒绝断言）
+VIEWER_USER = os.environ.get('CRONPILOT_VIEWER_USER', 'integration-viewer')
+VIEWER_PASS = os.environ.get('CRONPILOT_VIEWER_PASS', 'changeme')
 
 _SKIP_REASON = None
 if not BASE_URL:
@@ -212,8 +215,7 @@ class TestUpdateStatusIntegration(unittest.TestCase):
 
     def test_viewer_cannot_toggle(self):
         """viewer 角色无 cron:write，update_status 应返回 403。"""
-        viewer_session = _login_session(user='viewer', password='changeme')
-        # viewer 的 cron_list 不含 data-update-url（防御层已过滤）
+        viewer_session = _login_session(user=VIEWER_USER, password=VIEWER_PASS)
         r = viewer_session.get(BASE_URL + '/cron_list', timeout=5)
         self.assertNotIn('data-update-url=', r.text,
                          'viewer 不应看到 data-update-url')

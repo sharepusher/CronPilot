@@ -394,23 +394,22 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
     def test_operator_sees_retire_denied_tip_not_form_link(self):
         self._login('operator')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('下线</a>', html)
-        self.assertIn('class="js-retire-denied"', html)
-        self.assertIn('当前账号不可下线', html)
+        self.assertIn('data-can-retire="false"', html)
+        self.assertNotIn('data-can-retire="true"', html)
         self.assertNotIn('/cron_retire?', html)
 
     def test_viewer_sees_retire_denied_tip(self):
         self._login('viewer')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('下线</a>', html)
-        self.assertIn('class="js-retire-denied"', html)
+        self.assertIn('data-can-retire="false"', html)
+        self.assertNotIn('data-can-retire="true"', html)
 
     def test_admin_sees_retire_form_link(self):
         self._login('admin')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('下线</a>', html)
+        self.assertIn('data-can-retire="true"', html)
         self.assertIn('/cron_retire?', html)
-        self.assertNotIn('class="js-retire-denied"', html)
+        self.assertNotIn('data-can-retire="false"', html)
 
     def test_seed_admin_sees_retire_denied_tip(self):
         with self.client.session_transaction() as sess:
@@ -419,8 +418,8 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             sess['username'] = 'admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('下线</a>', html)
-        self.assertIn('class="js-retire-denied"', html)
+        self.assertIn('data-can-retire="false"', html)
+        self.assertNotIn('data-can-retire="true"', html)
         self.assertNotIn('/cron_retire?', html)
 
 

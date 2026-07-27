@@ -26,3 +26,6 @@ datas/.flask_secret_key
 doc/_pending_sync/*
 !doc/_pending_sync/INDEX.md
 !doc/_pending_sync/已合并补丁记录.md
+
+# Frontend build toolchain
+frontend/node_modules/

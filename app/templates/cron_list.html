@@ -133,42 +133,29 @@
                         </td>
                         <td style="vertical-align:middle" class="cron-life-cell">
                             {% if item.status == 0 %}
-                            <span class="label label-pause">已暂停</span>
+                            <span class="label label-pause" id="status-badge-{{ item.id }}">已暂停</span>
                             {% elif item.status == 1 %}
-                            <span class="label label-info">运行中</span>
+                            <span class="label label-info" id="status-badge-{{ item.id }}">运行中</span>
                             {% else %}
-                            <span class="label label-retired">已下线</span>
+                            <span class="label label-retired" id="status-badge-{{ item.id }}">已下线</span>
                             {% endif %}
                         </td>
                         <td style="vertical-align:middle;white-space:nowrap" class="cron-ops-cell">
-                            <a class="btn btn-mini btn-info" href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_list',id=item.id) }}','运行记录查看')">运行记录</a>
-                            {% if item.status == 1 and has_perm('cron:write') and item.req_url %}
-                            <a class="btn btn-mini btn-success js-ajax-dialog-btn" href="{{ url_for('main.cron_run_now',id=item.id) }}" data-msg="确定立即执行该任务？执行过程可能等待至多 2 分钟。">立即执行</a>
-                            {% endif %}
-                            <div class="btn-group">
-                                <a class="btn btn-mini btn-default cron-more-toggle dropdown-toggle" data-toggle="dropdown" href="#">更多 <span class="caret"></span></a>
-                                <ul class="dropdown-menu pull-right cron-more-menu">
-                                    {% if item.status != -1 and has_perm('cron:write') %}
-                                    {% if item.status == 0 %}
-                                    <li><a class="js-ajax-dialog-btn" href="{{ url_for('main.update_status',id=item.id) }}" data-msg="确定启动该任务？"><i class="fa fa-play"></i> 启动</a></li>
-                                    {% elif item.status == 1 %}
-                                    <li><a class="js-ajax-dialog-btn" href="{{ url_for('main.update_status',id=item.id) }}" data-msg="确定暂停该任务？"><i class="fa fa-pause"></i> 暂停</a></li>
-                                    {% endif %}
-                                    <li><a href="{{ url_for('main.cron_edit',id=item.id) }}"><i class="fa fa-pencil"></i> 编辑</a></li>
-                                    {% endif %}
-                                    {% if item.status != -1 %}
-                                    {% if has_perm('cron:retire') %}
-                                    <li class="divider"></li>
-                                    <li><a class="cron-menu-danger" href="{{ url_for('main.cron_retire',id=item.id) }}"><i class="fa fa-ban"></i> 下线</a></li>
-                                    {% else %}
-                                    <li class="divider"></li>
-                                    <li><a class="js-retire-denied" href="javascript:;" data-msg="权限不足：当前账号不可下线任务"><i class="fa fa-ban"></i> 下线</a></li>
-                                    {% endif %}
-                                    {% endif %}
-                                    {% if item.status == -1 %}
-                                    <li class="disabled"><a href="javascript:;">已下线</a></li>
-                                    {% endif %}
-                                </ul>
+                            <div id="cron-ops-{{ item.id }}"
+                                 data-cron-id="{{ item.id }}"
+                                 data-status="{{ item.status }}"
+                                 data-can-write="{{ 'true' if has_perm('cron:write') else 'false' }}"
+                                 data-can-retire="{{ 'true' if has_perm('cron:retire') else 'false' }}"
+                                 data-has-url="{{ 'true' if item.req_url else 'false' }}"
+                                 data-log-url="{{ url_for('main.job_log_list', id=item.id) }}"
+                                 {% if has_perm('cron:write') %}
+                                 data-update-url="{{ url_for('main.update_status', id=item.id) }}"
+                                 data-run-url="{{ url_for('main.cron_run_now', id=item.id) }}"
+                                 data-edit-url="{{ url_for('main.cron_edit', id=item.id) }}"
+                                 {% endif %}
+                                 {% if has_perm('cron:retire') %}
+                                 data-retire-url="{{ url_for('main.cron_retire', id=item.id) }}"
+                                 {% endif %}>
                             </div>
                         </td>
                     </tr>
@@ -501,4 +488,5 @@ $('.js-retire-denied').on('click', function (e) {
     });
 });
 </script>
+<script src="{{ url_for('static', filename='dist/cron-status-cell.js') }}"></script>
 {% endblock %}

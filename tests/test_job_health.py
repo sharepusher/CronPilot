@@ -216,7 +216,7 @@ class TestCronListHealthFilters(unittest.TestCase):
         self.assertIn('>连续失败<', html)
         self.assertIn('>今日失败<', html)
         self.assertIn('运行与发布', html)
-        self.assertIn('更多', html)
+        self.assertIn('data-cron-id', html)
 
     def test_failing_filter_requires_health_status(self):
         self._login_admin()

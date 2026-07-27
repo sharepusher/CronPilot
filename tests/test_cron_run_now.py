@@ -168,10 +168,55 @@ class TestCronListRunNowButton(unittest.TestCase):
             sess['username'] = 'ops_admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('立即执行', html)
+        self.assertIn('data-can-write="true"', html)
         self.assertIn('/cron_run_now?', html)
         self.assertIn('health-dot', html)
         self.assertIn('jumbotron', html)
+
+    def test_vue_mount_point_data_attrs_present(self):
+        """Vue 挂载点 data-* 属性由服务端渲染，URL props 按权限条件出现。状态徽章由 Jinja 渲染。"""
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'admin'
+            sess['username'] = 'ops_admin'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        # 挂载点 id 前缀
+        self.assertIn('id="cron-ops-', html)
+        # 核心 props（所有角色均有）
+        self.assertIn('data-cron-id=', html)
+        self.assertIn('data-status=', html)
+        self.assertIn('data-can-write=', html)
+        self.assertIn('data-can-retire=', html)
+        self.assertIn('data-has-url=', html)
+        self.assertIn('data-log-url=', html)
+        # admin 有 cron:write → write URL props 存在
+        self.assertIn('data-update-url=', html)
+        self.assertIn('data-run-url=', html)
+        self.assertIn('data-edit-url=', html)
+        # admin 有 cron:retire → retire URL 存在
+        self.assertIn('data-retire-url=', html)
+        # Vue bundle 已引入
+        self.assertIn('dist/cron-status-cell.js', html)
+        # 状态徽章由 Jinja 渲染（id="status-badge-N"）
+        self.assertIn('id="status-badge-', html)
+
+    def test_vue_mount_point_viewer_no_write_or_retire_url(self):
+        """viewer 角色无 cron:write / cron:retire，write/retire URL props 不出现在 HTML。"""
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['role'] = 'viewer'
+            sess['username'] = 'viewer'
+            sess['group_ids'] = []
+        html = self.client.get('/cron_list').get_data(as_text=True)
+        self.assertIn('data-can-write="false"', html)
+        self.assertIn('data-can-retire="false"', html)
+        self.assertNotIn('data-update-url=', html)
+        self.assertNotIn('data-run-url=', html)
+        self.assertNotIn('data-edit-url=', html)
+        self.assertNotIn('data-retire-url=', html)
+        self.assertNotIn('/update_status?', html)
+        self.assertNotIn('/cron_retire?', html)
 
     def test_viewer_no_run_now_button(self):
         with self.client.session_transaction() as sess:
@@ -180,7 +225,8 @@ class TestCronListRunNowButton(unittest.TestCase):
             sess['username'] = 'viewer'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertNotIn('/cron_run_now?', html)
+        self.assertIn('data-can-write="false"', html)
+        self.assertNotIn('data-can-write="true"', html)
 
 
 if __name__ == '__main__':

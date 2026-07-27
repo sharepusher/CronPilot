@@ -1,0 +1,44 @@
+name: Frontend dist freshness
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'frontend/**'
+      - 'app/static/dist/**'
+      - '.github/workflows/frontend-build.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'app/static/dist/**'
+      - '.github/workflows/frontend-build.yml'
+
+jobs:
+  dist-freshness:
+    name: Verify dist is up to date with frontend/src
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend bundle
+        working-directory: frontend
+        run: npm run build
+
+      - name: Assert dist is committed and up to date
+        run: |
+          if ! git diff --exit-code app/static/dist/; then
+            echo "ERROR: app/static/dist/ is stale."
+            echo "Run 'cd frontend && npm ci && npm run build' locally and commit the updated dist file."
+            exit 1
+          fi
+          echo "OK: app/static/dist/ matches the current frontend/src build."

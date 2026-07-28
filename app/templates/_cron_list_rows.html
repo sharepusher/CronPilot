@@ -1,0 +1,88 @@
+{% for item in page_data.items %}
+{% set h = health_by_id.get(item.id) %}
+<tr>
+    <td style="vertical-align:middle" class="cron-task-cabin">
+        <div class="cabin-row">
+            {% if h and h.health_status == 'failing' %}
+            <span class="health-dot health-dot-fail" title="连续失败 ×{{ h.consecutive_failures }}"></span>
+            {% elif h and h.last_run_status in ('fail', 'error') %}
+            <span class="health-dot health-dot-warn" title="最近失败{% if h.consecutive_failures %} ×{{ h.consecutive_failures }}{% endif %}"></span>
+            {% elif h and h.last_run_status == 'success' %}
+            <span class="health-dot health-dot-ok" title="最近成功"></span>
+            {% else %}
+            <span class="health-dot health-dot-none" title="尚无执行记录"></span>
+            {% endif %}
+            <div class="cabin-main">
+                <div class="cabin-title-line">
+                    {% if item.scope_type == 'GLOBAL' or not item.group_id %}
+                    <span class="label cabin-scope">全局</span>
+                    {% else %}
+                    <span class="label label-info cabin-scope">{{ group_name_by_id.get(item.group_id, '组#' ~ item.group_id) }}</span>
+                    {% endif %}
+                    <strong class="cabin-name">{{ item.task_name }}</strong>
+                    {% if item.task_keyword %}
+                    <a href="javascript:;" class="cabin-desc-tip" data-toggle="tooltip" data-placement="top" title="{{ item.task_keyword|e }}"><i class="fa fa-question-circle"></i></a>
+                    {% endif %}
+                </div>
+                {% if item.req_url %}
+                <div class="cabin-url-secondary" title="{{ item.req_url|e }}">{% if item.req_url|length > 72 %}{{ item.req_url[:72] }}…{% else %}{{ item.req_url }}{% endif %}</div>
+                {% else %}
+                <div class="cabin-url-missing">未配置触发 URL</div>
+                {% endif %}
+            </div>
+        </div>
+    </td>
+    <td style="vertical-align:middle" class="cron-sched-cell">
+        <div class="sched-human">{{ item|humanize_schedule }}</div>
+        {% set expr = item|format_cron_expression %}
+        {% if item.run_date %}
+        <code class="sched-expr">date {{ item.run_date }}</code>
+        {% elif expr %}
+        <code class="sched-expr">{{ expr }}</code>
+        {% endif %}
+    </td>
+    <td style="vertical-align:middle" class="cron-audit-cell">
+        <div class="audit-line">
+            <span class="audit-k">最近执行</span>
+            {% if h and h.last_run_at %}<span class="audit-v">{{ h.last_run_at }}</span>{% else %}<span class="audit-muted">—</span>{% endif %}
+        </div>
+        {% if not h or not h.last_run_at %}
+        {% set empty_hint = item|schedule_empty_hint(item.status) %}
+        {% if empty_hint %}
+        <div class="audit-hint">{{ empty_hint }}</div>
+        {% endif %}
+        {% endif %}
+        <div class="audit-line">
+            <span class="audit-k">最近发布</span>
+            {% if item.last_operator_name %}<span class="audit-v">{{ item.last_operator_name }}{% if item.last_operated_at %} · {{ item.last_operated_at }}{% endif %}</span>{% else %}<span class="audit-muted">未记录</span>{% endif %}
+        </div>
+    </td>
+    <td style="vertical-align:middle" class="cron-life-cell">
+        {% if item.status == 0 %}
+        <span class="label label-pause" id="status-badge-{{ item.id }}">已暂停</span>
+        {% elif item.status == 1 %}
+        <span class="label label-info" id="status-badge-{{ item.id }}">运行中</span>
+        {% else %}
+        <span class="label label-retired" id="status-badge-{{ item.id }}">已下线</span>
+        {% endif %}
+    </td>
+    <td style="vertical-align:middle;white-space:nowrap" class="cron-ops-cell">
+        <div id="cron-ops-{{ item.id }}"
+             data-cron-id="{{ item.id }}"
+             data-status="{{ item.status }}"
+             data-can-write="{{ 'true' if has_perm('cron:write') else 'false' }}"
+             data-can-retire="{{ 'true' if has_perm('cron:retire') else 'false' }}"
+             data-has-url="{{ 'true' if item.req_url else 'false' }}"
+             data-log-url="{{ url_for('main.job_log_list', id=item.id) }}"
+             {% if has_perm('cron:write') %}
+             data-update-url="{{ url_for('main.update_status', id=item.id) }}"
+             data-run-url="{{ url_for('main.cron_run_now', id=item.id) }}"
+             data-edit-url="{{ url_for('main.cron_edit', id=item.id) }}"
+             {% endif %}
+             {% if has_perm('cron:retire') %}
+             data-retire-url="{{ url_for('main.cron_retire', id=item.id) }}"
+             {% endif %}>
+        </div>
+    </td>
+</tr>
+{% endfor %}

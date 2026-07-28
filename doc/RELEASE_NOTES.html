@@ -58,6 +58,15 @@
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
+    <h3>Frontend modernization: reactive filter bar + toast abstraction (OPT-P2-14 · F2)</h3>
+    <ul>
+      <li><strong>CronFilterBar Vue 3 component (F2-a):</strong> 任务列表筛选栏（原 <code>&lt;form method="GET"&gt;</code>）改为 Vue 3 组件，挂载在 <code>&lt;div id="cron-filter-bar"&gt;</code>。点击异常/状态 chip 或切换业务组，仅 fetch <code>GET /?partial=1&amp;…</code> 更新 <code>&lt;tbody&gt;</code> 与分页，通过 <code>history.replaceState</code> 更新 URL，无整页刷新。搜索输入防抖 150 ms。</li>
+      <li><strong>零视觉变化：</strong>Vue 组件模板与原服务端渲染的 form 使用完全相同的 HTML 结构和 CSS class（chip 样式、布局、按钮文案逐一对照）。</li>
+      <li><strong>后端 partial 端点：</strong><code>cron_list()</code> 在 <code>?partial=1</code> 时返回 <code>jsonify({'rows': …, 'pagination': …})</code>；行 HTML 提取为 <code>_cron_list_rows.html</code>，分页提取为 <code>_cron_pagination.html</code>；全页与局部路径共享同一查询/筛选逻辑。</li>
+      <li><strong>CronStatusCell 重挂载：</strong><code>cron-status-cell.js</code> 暴露 <code>window.CronStatusCell.mountAll()</code>（跳过已标记 <code>.cron-ops-mounted</code> 的元素）；FilterBar 每次 tbody 更新后调用，确保操作按钮在筛选结果上仍可用。</li>
+      <li><strong><code>useCronToast</code> composable (F2-b · B1):</strong> 将 <code>artConfirm</code> / <code>artAlert</code> 从 <code>CronStatusCell.vue</code> 提取为 <code>src/composables/useCronToast.js</code>；内部仍封装 <code>Wind.use('artDialog', …)</code> + 原生降级，零视觉变化，但 Vue 组件不再直接依赖全局 <code>Wind</code> 变量。</li>
+      <li><strong>双 bundle 构建：</strong><code>npm run build</code> 依次运行两个 Vite config，输出 <code>cron-status-cell.js</code>（68 KB）和 <code>cron-filter-bar.js</code>（70 KB）两个自包含 IIFE，均提交至 <code>app/static/dist/</code>。CI 门禁已更新。</li>
+    </ul>
   </div>
 
 <h2 class="new" id="240">[2.4.0] — 2026-07-27 · 前端现代化（Vite + Vue 3）+ 管理端 UX 优化</h2>

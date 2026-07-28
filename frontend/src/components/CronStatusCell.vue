@@ -39,6 +39,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useCronToast } from '../composables/useCronToast.js'
 
 const props = defineProps({
   cronId: { type: Number, required: true },
@@ -52,6 +53,8 @@ const props = defineProps({
   editUrl: { type: String, default: '' },
   retireUrl: { type: String, default: '' },
 })
+
+const { confirm: artConfirm, alert: artAlert } = useCronToast()
 
 const localStatus = ref(props.status)
 const menuOpen = ref(false)
@@ -79,32 +82,6 @@ function csrfPost(url) {
     method: 'POST',
     headers: { 'X-CSRFToken': getCsrfToken() }
   }).then(r => r.json())
-}
-
-function artConfirm(msg, onOk) {
-  if (window.Wind) {
-    Wind.use('artDialog', function() {
-      art.dialog({
-        title: false,
-        icon: 'question',
-        content: msg,
-        ok: function() { onOk(); return true },
-        cancel: true
-      })
-    })
-  } else if (confirm(msg)) {
-    onOk()
-  }
-}
-
-function artAlert(msg, icon) {
-  if (window.Wind) {
-    Wind.use('artDialog', function() {
-      art.dialog({ title: false, icon: icon || 'succeed', content: msg, ok: true })
-    })
-  } else {
-    alert(msg)
-  }
 }
 
 function closeMenu() {

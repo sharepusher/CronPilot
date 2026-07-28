@@ -9,6 +9,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### Frontend modernization: reactive filter bar + toast abstraction (OPT-P2-14 · F2)
+
+- **CronFilterBar Vue 3 component (F2-a):** The cron list filter toolbar (`<form method="GET">`) is replaced by a Vue 3 component (`CronFilterBar.vue`) mounted on `<div id="cron-filter-bar">`. Clicking health/status chips or changing the scope select now fetches only the `<tbody>` rows and pagination via `GET /?partial=1&…`, updates the DOM in-place, and pushes the URL via `history.replaceState` — no full page reload. Search input is debounced 150 ms.
+- **Zero visual change:** The Vue component renders the exact same HTML structure and CSS classes as the original server-rendered form. All chip styles (`cron-chip-fail`, `cron-chip-run`, etc.), layout, and button labels are preserved pixel-for-pixel.
+- **Server-side partial endpoint:** `cron_list()` view returns `jsonify({'rows': …, 'pagination': …})` when `?partial=1` is present. Row HTML extracted to `_cron_list_rows.html`; pagination to `_cron_pagination.html`. Full-page and partial paths share the same query/filter logic.
+- **CronStatusCell re-mount after DOM replace:** `cron-status-cell.js` now exposes `window.CronStatusCell.mountAll()` (skips elements already marked `.cron-ops-mounted`). `CronFilterBar` calls `mountAll()` after each `<tbody>` update so operation buttons remain functional on filtered results.
+- **`useCronToast` composable (F2-b · B1):** Extracted `artConfirm` / `artAlert` from `CronStatusCell.vue` into `src/composables/useCronToast.js`. Internally still wraps `Wind.use('artDialog', …)` with a native `confirm()/alert()` fallback — zero visual change, but Vue components no longer depend on the global `Wind` variable being present at import time.
+- **Dual-bundle build:** `package.json` build script now runs `vite build && vite build --config vite.config.filter-bar.js` producing two self-contained IIFEs: `cron-status-cell.js` (68 KB) and `cron-filter-bar.js` (70 KB). Both are committed to `app/static/dist/`. CI gate updated.
+
 ---
 
 ## [2.4.0] — 2026-07-27 · 前端现代化（Vite + Vue 3）+ 管理端 UX 优化

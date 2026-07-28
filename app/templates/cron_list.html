@@ -20,46 +20,17 @@
         <p class="opt-p2-13-viewer-hint" style="color:#64748b;font-size:12px;margin:0 0 8px">只读账号：可查任务与运行记录，不可启停/编辑/下线。</p>
         {% endif %}
 
-        <form class="well well-small cron-list-toolbar" method="get" action="{{ url_for('main.cron_list') }}" style="padding:8px 10px;margin:0 0 10px;overflow:hidden">
-            <div class="cron-toolbar-left">
-                <span class="cron-filter-label">异常</span>
-                <div class="btn-group cron-filter-group">
-                    <a class="btn btn-mini cron-chip-fail {% if keyword.get('health')=='failing' %}active{% endif %}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">连续失败</a>
-                    <a class="btn btn-mini cron-chip-warn {% if keyword.get('health')=='today_fail' %}active{% endif %}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">今日失败</a>
-                </div>
-                <span class="cron-filter-sep">|</span>
-                <span class="cron-filter-label">状态</span>
-                <div class="btn-group cron-filter-group">
-                    <a class="btn btn-mini cron-chip-run {% if keyword.get('status')=='1' %}active{% endif %}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">运行中</a>
-                    <a class="btn btn-mini cron-chip-pause {% if keyword.get('status')=='0' %}active{% endif %}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">已暂停</a>
-                    <a class="btn btn-mini cron-chip-all {% if not keyword.get('health') and not keyword.get('status') %}active{% endif %}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id if scope_view=='group' else None, task_name=keyword.get('task_name','')) }}">全部</a>
-                </div>
-                <span class="cron-filter-sep">|</span>
-                <span class="cron-toolbar-label">业务组</span>
-                <select class="cron-toolbar-select" onchange="if(this.value){location.href=this.value}">
-                    <option value="{{ url_for('main.cron_list', scope_view='all', task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='all' %}selected{% endif %}>全部（可见）</option>
-                    <option value="{{ url_for('main.cron_list', scope_view='global', task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='global' %}selected{% endif %}>全局共享</option>
-                    {% for g in scope_groups %}
-                    <option value="{{ url_for('main.cron_list', scope_view='group', group_id=g.id, task_name=keyword.get('task_name',''), status=keyword.get('status',''), health=keyword.get('health','')) }}" {% if scope_view=='group' and scope_group_id==g.id %}selected{% endif %}>{{ g.name }}</option>
-                    {% endfor %}
-                </select>
-                <input type="hidden" name="scope_view" value="{{ scope_view }}">
-                {% if scope_view == 'group' and scope_group_id %}<input type="hidden" name="group_id" value="{{ scope_group_id }}">{% endif %}
-                {% if keyword.get('status') %}<input type="hidden" name="status" value="{{ keyword.get('status') }}">{% endif %}
-                {% if keyword.get('health') %}<input type="hidden" name="health" value="{{ keyword.get('health') }}">{% endif %}
-            </div>
-            <div class="cron-toolbar-search">
-                <span class="cron-search-label">任务名</span>
-                <input type="text" name="task_name" placeholder="模糊匹配" value="{{ keyword.get('task_name','') }}">
-                <button type="submit" class="btn btn-primary">搜索</button>
-                <a href="{{ url_for('main.cron_list') }}" class="btn">重置</a>
-            </div>
-            <div class="cron-toolbar-right">
-                {% if has_perm('cron:write') %}
-                <a class="btn btn-primary btn-mini cron-add-btn" href="{{ url_for('main.cron_add') }}">+ 新建任务</a>
-                {% endif %}
-            </div>
-        </form>
+        <div id="cron-filter-bar"
+             data-list-url="{{ url_for('main.cron_list') }}"
+             data-add-url="{{ url_for('main.cron_add') }}"
+             data-can-create="{{ 'true' if has_perm('cron:write') else 'false' }}"
+             data-current-kw="{{ keyword.get('task_name','') }}"
+             data-current-status="{{ keyword.get('status','') }}"
+             data-current-health="{{ keyword.get('health','') }}"
+             data-current-scope="{{ scope_view }}"
+             data-current-group="{{ scope_group_id or '' }}"
+             data-scope-groups="{{ scope_groups_json }}">
+        </div>
 
             <table id="cron-task-table" class="table table-hover table-bordered table-condensed cron-list-refined" style="font-size:12px;margin-bottom:8px;table-layout:fixed;width:100%">
                 <thead>
@@ -71,98 +42,11 @@
                     <th style="width:20%">操作</th>
                 </tr>
                 </thead>
-                <tbody>
-                    {% for item in page_data.items %}
-                    {% set h = health_by_id.get(item.id) %}
-                    <tr>
-                        <td style="vertical-align:middle" class="cron-task-cabin">
-                            <div class="cabin-row">
-                                {% if h and h.health_status == 'failing' %}
-                                <span class="health-dot health-dot-fail" title="连续失败 ×{{ h.consecutive_failures }}"></span>
-                                {% elif h and h.last_run_status in ('fail', 'error') %}
-                                <span class="health-dot health-dot-warn" title="最近失败{% if h.consecutive_failures %} ×{{ h.consecutive_failures }}{% endif %}"></span>
-                                {% elif h and h.last_run_status == 'success' %}
-                                <span class="health-dot health-dot-ok" title="最近成功"></span>
-                                {% else %}
-                                <span class="health-dot health-dot-none" title="尚无执行记录"></span>
-                                {% endif %}
-                                <div class="cabin-main">
-                                    <div class="cabin-title-line">
-                                        {% if item.scope_type == 'GLOBAL' or not item.group_id %}
-                                        <span class="label cabin-scope">全局</span>
-                                        {% else %}
-                                        <span class="label label-info cabin-scope">{{ group_name_by_id.get(item.group_id, '组#' ~ item.group_id) }}</span>
-                                        {% endif %}
-                                        <strong class="cabin-name">{{ item.task_name }}</strong>
-                                        {% if item.task_keyword %}
-                                        <a href="javascript:;" class="cabin-desc-tip" data-toggle="tooltip" data-placement="top" title="{{ item.task_keyword|e }}"><i class="fa fa-question-circle"></i></a>
-                                        {% endif %}
-                                    </div>
-                                    {% if item.req_url %}
-                                    <div class="cabin-url-secondary" title="{{ item.req_url|e }}">{% if item.req_url|length > 72 %}{{ item.req_url[:72] }}…{% else %}{{ item.req_url }}{% endif %}</div>
-                                    {% else %}
-                                    <div class="cabin-url-missing">未配置触发 URL</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                        <td style="vertical-align:middle" class="cron-sched-cell">
-                            <div class="sched-human">{{ item|humanize_schedule }}</div>
-                            {% set expr = item|format_cron_expression %}
-                            {% if item.run_date %}
-                            <code class="sched-expr">date {{ item.run_date }}</code>
-                            {% elif expr %}
-                            <code class="sched-expr">{{ expr }}</code>
-                            {% endif %}
-                        </td>
-                        <td style="vertical-align:middle" class="cron-audit-cell">
-                            <div class="audit-line">
-                                <span class="audit-k">最近执行</span>
-                                {% if h and h.last_run_at %}<span class="audit-v">{{ h.last_run_at }}</span>{% else %}<span class="audit-muted">—</span>{% endif %}
-                            </div>
-                            {% if not h or not h.last_run_at %}
-                            {% set empty_hint = item|schedule_empty_hint(item.status) %}
-                            {% if empty_hint %}
-                            <div class="audit-hint">{{ empty_hint }}</div>
-                            {% endif %}
-                            {% endif %}
-                            <div class="audit-line">
-                                <span class="audit-k">最近发布</span>
-                                {% if item.last_operator_name %}<span class="audit-v">{{ item.last_operator_name }}{% if item.last_operated_at %} · {{ item.last_operated_at }}{% endif %}</span>{% else %}<span class="audit-muted">未记录</span>{% endif %}
-                            </div>
-                        </td>
-                        <td style="vertical-align:middle" class="cron-life-cell">
-                            {% if item.status == 0 %}
-                            <span class="label label-pause" id="status-badge-{{ item.id }}">已暂停</span>
-                            {% elif item.status == 1 %}
-                            <span class="label label-info" id="status-badge-{{ item.id }}">运行中</span>
-                            {% else %}
-                            <span class="label label-retired" id="status-badge-{{ item.id }}">已下线</span>
-                            {% endif %}
-                        </td>
-                        <td style="vertical-align:middle;white-space:nowrap" class="cron-ops-cell">
-                            <div id="cron-ops-{{ item.id }}"
-                                 data-cron-id="{{ item.id }}"
-                                 data-status="{{ item.status }}"
-                                 data-can-write="{{ 'true' if has_perm('cron:write') else 'false' }}"
-                                 data-can-retire="{{ 'true' if has_perm('cron:retire') else 'false' }}"
-                                 data-has-url="{{ 'true' if item.req_url else 'false' }}"
-                                 data-log-url="{{ url_for('main.job_log_list', id=item.id) }}"
-                                 {% if has_perm('cron:write') %}
-                                 data-update-url="{{ url_for('main.update_status', id=item.id) }}"
-                                 data-run-url="{{ url_for('main.cron_run_now', id=item.id) }}"
-                                 data-edit-url="{{ url_for('main.cron_edit', id=item.id) }}"
-                                 {% endif %}
-                                 {% if has_perm('cron:retire') %}
-                                 data-retire-url="{{ url_for('main.cron_retire', id=item.id) }}"
-                                 {% endif %}>
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
+                <tbody id="cron-tbody">
+                    {% include '_cron_list_rows.html' %}
                 </tbody>
             </table>
-        <div class="pagination">
+        <div id="cron-pagination" class="pagination">
             {{ pg.page(page_data,'main.cron_list',keyword) }}
         </div>
     </div>
@@ -489,4 +373,5 @@ $('.js-retire-denied').on('click', function (e) {
 });
 </script>
 <script src="{{ url_for('static', filename='dist/cron-status-cell.js') }}"></script>
+<script src="{{ url_for('static', filename='dist/cron-filter-bar.js') }}"></script>
 {% endblock %}

@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+import json
 import traceback
 
 from sqlalchemy import and_
@@ -8,7 +9,7 @@ from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.utils.json import json_response
 from . import main
-from flask import render_template, request, redirect, session, current_app, url_for
+from flask import render_template, request, redirect, session, current_app, url_for, jsonify
 
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
 from app.rbac.policy import role_bypasses_scope
@@ -199,6 +200,23 @@ def cron_list():
     failing_tasks = repo.top_failing(filter_arr, limit=5)
     recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
 
+    partial_ctx = dict(
+        page_data=page_data,
+        keyword=keyword,
+        health_by_id=health_by_id,
+        group_name_by_id=group_name_by_id,
+        scope_view=scope_view,
+        scope_group_id=scope_group_id,
+    )
+    if request.args.get('partial') == '1':
+        rows_html = render_template('_cron_list_rows.html', **partial_ctx)
+        pagination_html = render_template('_cron_pagination.html', **partial_ctx)
+        return jsonify({'rows': rows_html, 'pagination': pagination_html})
+
+    failing_tasks = repo.top_failing(filter_arr, limit=5)
+    recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
+    scope_groups_json = json.dumps([{'id': g.id, 'name': g.name} for g in scope_groups])
+
     return render_template(
         "cron_list.html",
         page_data=page_data,
@@ -206,6 +224,7 @@ def cron_list():
         metrics=metrics,
         health_by_id=health_by_id,
         scope_groups=scope_groups,
+        scope_groups_json=scope_groups_json,
         group_name_by_id=group_name_by_id,
         scope_view=scope_view,
         scope_group_id=scope_group_id,

@@ -213,8 +213,8 @@ class TestCronListHealthFilters(unittest.TestCase):
         self.assertNotIn('ok_today_clean', html)
         self.assertIn('health=today_fail', html)
         self.assertNotIn('opt-p2-13-metrics', html)
-        self.assertIn('>连续失败<', html)
-        self.assertIn('>今日失败<', html)
+        # filter chips are now Vue-rendered; server HTML carries data-current-health instead
+        self.assertIn('data-current-health="today_fail"', html)
         self.assertIn('运行与发布', html)
         self.assertIn('data-cron-id', html)
 

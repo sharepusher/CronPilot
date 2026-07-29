@@ -9,6 +9,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+---
+
+## [2.5.0] — 2026-07-29
+
 ### Per-task timeout configuration — Phase B2 (OPT-P1-01)
 
 ### 单任务超时配置 — Phase B2（OPT-P1-01）

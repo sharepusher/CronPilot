@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 """执行记录 outcome 筛选（OPT-P1-01c）。"""
 from datas.model.job_log import JobLog
-from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
+from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
 
 
 def job_log_outcome_clause(outcome):
@@ -16,7 +16,7 @@ def job_log_outcome_clause(outcome):
     if o == 'error':
         return JobLog.status == STATUS_ERROR
     if o == 'not_success':
-        return JobLog.status.in_((STATUS_FAIL, STATUS_ERROR))
+        return JobLog.status.in_((STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT))
     if o == 'unknown':
         return JobLog.status.is_(None)
     return None

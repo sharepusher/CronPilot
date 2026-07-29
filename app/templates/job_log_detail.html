@@ -9,14 +9,13 @@
         <p class="help-block">记录不存在。</p>
         {% else %}
         {% set badge = jl.status|job_log_badge if jl.status else (none, none) %}
+        {% set badge_cls = jl.status|job_log_status_badge_class if jl.status else 'label-default' %}
         {% set line = jl.http_status|job_log_status_line(jl.content) %}
         <p>
             {% if cif %}<strong>{{ cif.task_name }}</strong> · {% endif %}
             {{ jl.create_time }}
             {% if badge[0] %}
-            · {% if badge[1] == 'fail' %}<strong style="color:#b91c1c">{{ badge[0] }}</strong>
-            {% elif badge[1] == 'error' %}<strong style="color:#b45309">{{ badge[0] }}</strong>
-            {% else %}<strong style="color:#059669">{{ badge[0] }}</strong>{% endif %}
+            · <span class="label {{ badge_cls }}">{{ badge[0] }}</span>
             {% endif %}
             {% if line[1] == 'fail' %}
             · <strong style="color:#b91c1c">{{ line[0] }}</strong>
@@ -29,6 +28,13 @@
             {% endif %}
             {% if jl.take_time %} · 耗时 {{ jl.take_time }}s{% endif %}
         </p>
+        {% if jl.started_at or jl.finished_at %}
+        <p class="help-block" style="margin-top:0">
+            {% if jl.started_at %}开始执行：{{ jl.started_at }}{% endif %}
+            {% if jl.started_at and jl.finished_at %} · {% endif %}
+            {% if jl.finished_at %}完成时间：{{ jl.finished_at }}{% endif %}
+        </p>
+        {% endif %}
         {% if jl.fail_reason %}
         <p class="help-block" style="margin-top:0">失败原因：<code>{{ jl.fail_reason }}</code></p>
         {% endif %}

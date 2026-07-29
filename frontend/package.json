@@ -7,7 +7,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "vite build && vite build --config vite.config.filter-bar.js",
+    "build": "vite build && vite build --config vite.config.filter-bar.js && vite build --config vite.config.form-validator.js",
     "dev": "vite build --watch"
   },
   "devDependencies": {

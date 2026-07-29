@@ -58,6 +58,32 @@
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
+
+    <h3>执行状态机 — Phase B1（OPT-P1-01）</h3>
+    <ul>
+      <li><strong>4 终态 <code>job_log.status</code>（方案 B，单次写）：</strong><code>success | fail | timeout | error</code>。执行路径全程不写中间态 DB 记录，HTTP 完成后一次性落终态，保持与原方案相同的 DB 写放大系数（1 COMMIT/execution）。</li>
+      <li><strong><code>started_at</code> / <code>finished_at</code> 时间戳字段：</strong><code>started_at</code> 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。<code>finished_at</code> = 终态落库时刻。<code>timeout_sec</code> 字段记录本次超时上限（当前默认 120 s）。</li>
+      <li><strong><code>timeout</code> 状态区分：</strong><code>requests.Timeout</code>/<code>ConnectTimeout</code>/<code>ReadTimeout</code> 异常映射 <code>timeout</code>，其余映射 <code>error</code>；<code>fail_reason</code> 字段保留失败归因标签。</li>
+      <li><strong><code>ensure_business_tables</code> 补丁：</strong>幂等 DDL 添加 <code>started_at</code>、<code>finished_at</code>、<code>timeout_sec</code>；存量数据库安全升级。</li>
+      <li><strong><code>job_log_outcome.py</code>：</strong>新增 <code>STATUS_PENDING</code>、<code>STATUS_RUNNING</code>（供旧数据 badge 展示）、<code>STATUS_TIMEOUT</code> 常量；<code>is_timeout_exception()</code> 区分超时与连接异常。</li>
+      <li><strong>Badge 渲染：</strong><code>_job_log_result_cell.html</code> 与 <code>job_log_detail.html</code> 通过 <code>job_log_status_badge_class</code> Jinja filter 渲染 <code>&lt;span class="label label-*"&gt;</code>；详情页展示 <code>started_at</code>/<code>finished_at</code>。新增 <code>.label-timeout</code>（紫）、<code>.label-running</code>（蓝）、<code>.label-pending</code>（灰）全局样式。</li>
+      <li><strong>高并发设计选型：</strong>方案 B 单次终态写，DB 写次数不变，适合 90%+ 快响应业务场景。<code>pending</code>/<code>running</code> 常量及样式保留，便于历史记录展示或未来按需启用中间态。</li>
+      <li><strong>38 条新单元测试</strong>（<code>tests/test_b1_execution_status.py</code>）：状态常量、<code>evaluate_http_response</code>、超时路由、<code>should_alert</code>、badge 映射、模型列存在性。</li>
+      <li><strong>260 条测试全部通过</strong>，无回归。</li>
+    </ul>
+
+    <h3>Frontend modernization: real-time form validator (OPT-P2-14 · F3-a)</h3>
+    <ul>
+      <li><strong><code>CronFormValidator</code> Vue 3 组件：</strong>挂载在 <code>cron_add.html</code> 和 <code>cron_edit.html</code> 表单的 <code>&lt;div id="cron-form-validator"&gt;</code>。通过原生 DOM <code>input</code>/<code>change</code> 事件监听现有表单字段，实时更新插入在调度字段与 URL 字段之间的预览区。</li>
+      <li><strong>人性化调度预览：</strong>将 <code>cron_schedule_display.py</code> 的 <code>humanize_schedule()</code> 逻辑移植至 JavaScript；以绿色 pill 显示可读描述（"每天 09:30"、"每 5 分钟"、"每周一 08:00" 等）及组合表达式（<code>dow day hour:minute[:second]</code>）。全客户端，无后端请求。</li>
+      <li><strong>范围校验：</strong>对 <code>minute</code>（0–59）、<code>hour</code>（0–23）、<code>day</code>（1–31）、<code>second</code>（0–59）及 <code>*/n</code> 步进语法做即时合法性检查，非法时以红色 strip 提示。不替代 <code>cron_validator.py</code> 的服务端校验。</li>
+      <li><strong>URL 格式检查：</strong>实时校验 <code>req_url</code>，若不以 <code>http://</code> 或 <code>https://</code> 开头则显示行内错误。</li>
+      <li><strong>JSON Body 检查：</strong><code>req_method=POST</code> 时校验 <code>req_body</code> 是否为合法 JSON 对象，否则显示行内错误。</li>
+      <li><strong>CSS 提取：</strong><code>cron-form-validator.css</code>（&lt; 1 KB）提交至 <code>app/static/dist/</code>，通过 <code>&lt;link&gt;</code> 引入两个表单页；JS bundle（<code>cron-form-validator.js</code>，68 KB）为自包含 IIFE。</li>
+      <li><strong>零布局变化：</strong>挂载 <code>&lt;div&gt;</code> 插入在 <code>#cron_div</code> 和 URL 行之间；现有字段、标签、提交行为完全不变。组件为纯追加。</li>
+      <li><strong>三 bundle 构建：</strong><code>npm run build</code> 依次运行三个 Vite config（<code>cron-status-cell.js</code>、<code>cron-filter-bar.js</code>、<code>cron-form-validator.js</code>）。CI 门禁已更新（含 <code>cron-form-validator.css</code>）。</li>
+      <li><strong>222 单元测试全绿</strong>，无回归。</li>
+    </ul>
     <h3>Frontend modernization: reactive filter bar + toast abstraction (OPT-P2-14 · F2)</h3>
     <ul>
       <li><strong>CronFilterBar Vue 3 component (F2-a):</strong> 任务列表筛选栏（原 <code>&lt;form method="GET"&gt;</code>）改为 Vue 3 组件，挂载在 <code>&lt;div id="cron-filter-bar"&gt;</code>。点击异常/状态 chip 或切换业务组，仅 fetch <code>GET /?partial=1&amp;…</code> 更新 <code>&lt;tbody&gt;</code> 与分页，通过 <code>history.replaceState</code> 更新 URL，无整页刷新。搜索输入防抖 150 ms。</li>

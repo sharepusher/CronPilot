@@ -73,6 +73,12 @@ def _ensure_job_log_columns():
         alters.append("ALTER TABLE job_log ADD COLUMN status VARCHAR(16)")
     if 'fail_reason' not in cols:
         alters.append('ALTER TABLE job_log ADD COLUMN fail_reason VARCHAR(128)')
+    if 'started_at' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN started_at VARCHAR(25)")
+    if 'finished_at' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN finished_at VARCHAR(25)")
+    if 'timeout_sec' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN timeout_sec INTEGER")
     if not alters:
         return
     with db.engine.begin() as conn:

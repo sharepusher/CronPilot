@@ -9,6 +9,32 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### Execution state machine — Phase B1 (OPT-P1-01)
+
+### 执行状态机 — Phase B1（OPT-P1-01）
+
+- **4 终态 `job_log.status`（方案 B，单次写）：** `success | fail | timeout | error`。执行路径全程不写中间态 DB 记录，HTTP 完成后一次性落终态，保持与原方案相同的 DB 写放大系数（1 COMMIT/execution）。
+- **`started_at` / `finished_at` 时间戳字段：** `started_at` 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。`finished_at` = 终态落库时刻。`timeout_sec` 字段记录本次超时上限（当前默认 120 s）。
+- **`timeout` 状态区分：** `requests.Timeout`/`ConnectTimeout`/`ReadTimeout` 异常映射 `timeout`，其余映射 `error`；`fail_reason` 字段保留失败归因标签。
+- **`ensure_business_tables` 补丁：** 幂等 DDL 添加 `started_at`、`finished_at`、`timeout_sec`；存量数据库安全升级。
+- **`job_log_outcome.py`：** 新增 `STATUS_PENDING`、`STATUS_RUNNING`（供旧数据 badge 展示）、`STATUS_TIMEOUT` 常量；`is_timeout_exception()` 区分超时与连接异常。
+- **Badge 渲染：** `_job_log_result_cell.html` 与 `job_log_detail.html` 通过 `job_log_status_badge_class` Jinja filter 渲染 `<span class="label label-*">`；详情页展示 `started_at`/`finished_at`。新增 `.label-timeout`（紫）、`.label-running`（蓝）、`.label-pending`（灰）全局样式。
+- **高并发设计选型：** 方案 B 单次终态写，DB 写次数不变，适合 90%+ 快响应业务场景。`pending`/`running` 常量及样式保留，便于历史记录展示或未来按需启用中间态。
+- **38 条新单元测试**（`tests/test_b1_execution_status.py`）：状态常量、`evaluate_http_response`、超时路由、`should_alert`、badge 映射、模型列存在性。
+- **260 条测试全部通过**，无回归。
+
+### Frontend modernization: real-time form validator (OPT-P2-14 · F3-a)
+
+- **`CronFormValidator` Vue 3 component:** Mounts on `<div id="cron-form-validator">` in `cron_add.html` and `cron_edit.html`. Listens to form `input`/`change` events via the native DOM (no Jinja change needed) and reactively updates a preview strip placed between the cron scheduling fields and the URL field.
+- **Humanized schedule preview:** Ports `humanize_schedule()` logic from `app/services/cron_schedule_display.py` to JavaScript. Displays a green pill with the humanized description ("每天 09:30", "每 5 分钟", "每周一 08:00", etc.) alongside the assembled cron expression (`dow day hour:minute[:second]`). Zero backend round-trips — all client-side.
+- **Inline range validation:** Validates `minute` (0–59), `hour` (0–23), `day` (1–31), `second` (0–59) against their legal ranges and `*/n` step syntax. Shows a red error strip on invalid input. Does not duplicate or replace the existing server-side validation in `cron_validator.py`.
+- **URL format check:** Validates `req_url` on the fly; shows an inline error if the value does not start with `http://` or `https://`.
+- **JSON Body check:** When `req_method=POST`, validates `req_body` is a valid JSON object; shows inline error for malformed or non-object JSON.
+- **CSS extracted:** `cron-form-validator.css` (< 1 KB) is committed to `app/static/dist/` and linked from both form pages; the JS bundle (`cron-form-validator.js`, 68 KB) is self-contained IIFE.
+- **Zero layout change:** The mount `<div>` is inserted between `#cron_div` and the URL control-group; all existing form fields, labels, and submit behavior are untouched. The validator is purely additive.
+- **Triple-bundle build:** `package.json` now runs three sequential `vite build` commands (`cron-status-cell.js`, `cron-filter-bar.js`, `cron-form-validator.js`). CI gate updated to mention all four output files (3 JS + 1 CSS).
+- **222 unit tests pass** — no regressions.
+
 ### Frontend modernization: reactive filter bar + toast abstraction (OPT-P2-14 · F2)
 
 - **CronFilterBar Vue 3 component (F2-a):** The cron list filter toolbar (`<form method="GET">`) is replaced by a Vue 3 component (`CronFilterBar.vue`) mounted on `<div id="cron-filter-bar">`. Clicking health/status chips or changing the scope select now fetches only the `<tbody>` rows and pagination via `GET /?partial=1&…`, updates the DOM in-place, and pushes the URL via `history.replaceState` — no full page reload. Search input is debounced 150 ms.

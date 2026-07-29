@@ -1,6 +1,7 @@
 {% extends "admin_base.html" %}
 
 {% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/cron-form-validator.css') }}">
 <style>
 .form-horizontal .control-group { margin-bottom: 16px; }
 .form-horizontal .controls > input[type="text"],
@@ -195,6 +196,12 @@
                     </div>
                 </div>
                 </div>
+                <div class="control-group" style="margin-top:-8px;margin-bottom:8px">
+                  <label class="control-label"></label>
+                  <div class="controls">
+                    <div id="cron-form-validator"></div>
+                  </div>
+                </div>
 
                 <div class="control-group" data-field="req_url">
                     <label class="control-label">触发 URL</label>
@@ -344,4 +351,5 @@
             });
         })();
     </script>
+    <script src="{{ url_for('static', filename='dist/cron-form-validator.js') }}"></script>
 {% endblock %}

@@ -8,7 +8,7 @@ from __future__ import absolute_import
 
 from configs import configs
 from app import db
-from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
+from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
 from datas.model.job_health import JobHealth
 
 HEALTH_OK = 'ok'
@@ -63,7 +63,7 @@ def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron
     """根据单次 Run outcome 更新 job_health；返回 JobHealth 或 None。"""
     if not cron_info_id:
         return None
-    if outcome not in (STATUS_SUCCESS, STATUS_FAIL, STATUS_ERROR):
+    if outcome not in (STATUS_SUCCESS, STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT):
         return None
 
     n = threshold if threshold is not None else get_failing_threshold(cron_config)
@@ -76,7 +76,7 @@ def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron
         )
         db.session.add(row)
 
-    if outcome in (STATUS_FAIL, STATUS_ERROR):
+    if outcome in (STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT):
         row.consecutive_failures = int(row.consecutive_failures or 0) + 1
         row.last_fail_at = at or ''
         row.last_run_at = at or ''

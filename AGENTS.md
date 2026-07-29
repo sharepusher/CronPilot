@@ -6,7 +6,7 @@
 | 规则文件                           | 作用                                           |
 | ------------------------------ | -------------------------------------------- |
 | `cronpilot-project.mdc`        | 项目定位、仓库边界、路线图、Git/测试总则（始终生效）                 |
-| `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由                    |
+| `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由；**新增枚举值扩展检查清单**（强制）|
 | `cronpilot-documentation.mdc`  | HTML+Markdown 双格式文档与 CI 同步                   |
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI                    |
 | `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；见详设） |

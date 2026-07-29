@@ -6,6 +6,9 @@ import requests
 STATUS_SUCCESS = 'success'
 STATUS_FAIL = 'fail'
 STATUS_ERROR = 'error'
+STATUS_TIMEOUT = 'timeout'
+STATUS_PENDING = 'pending'
+STATUS_RUNNING = 'running'
 
 
 def fail_on_http_4xx_5xx_enabled(flag):
@@ -56,6 +59,10 @@ def exception_fail_reason(exc):
     return 'internal'
 
 
+def is_timeout_exception(exc):
+    return isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout))
+
+
 def pre_request_outcome(content):
     """未发起 HTTP 请求时的 status / fail_reason。"""
     text = (content or '').strip()
@@ -69,4 +76,4 @@ def pre_request_outcome(content):
 
 
 def should_alert(status):
-    return status in (STATUS_FAIL, STATUS_ERROR)
+    return status in (STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT)

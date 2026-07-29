@@ -43,6 +43,28 @@ alwaysApply: false
 - `cron_service` 注册任务时对 `cron_do` **延迟 import**。
 - 日志裁剪逻辑放在 `job_log_service`，勿从 `crons` 再引回 service 形成环。
 
+## 新增枚举值 / 状态常量扩展检查清单（强制）
+
+**每当向 `STATUS_*`、`HEALTH_*` 或其他枚举集合新增一个值，必须在同一轮实现中完成以下全部检查，缺一不可：**
+
+| 步骤 | 操作 | 典型文件 |
+|------|------|---------|
+| 1 · 全局搜索消费点 | `rg "STATUS_FAIL, STATUS_ERROR"` + `rg "\.in_\(.*STATUS_"` + `rg "not in \(.*STATUS_"` | 全局 `app/`、`tests/` |
+| 2 · 守卫白名单 | 所有 `if x not in (A, B): return None` 形式的守卫必须包含新值 | `job_health_service.py` |
+| 3 · 过滤集合 | 所有 `.in_([A, B])` / `.in_((A, B))` 形式的 ORM 过滤必须包含新值 | `cron_repository.py`, `job_log_filter.py` |
+| 4 · 告警判断 | `should_alert()` 等所有"需告警"集合须审查新值是否纳入 | `job_log_outcome.py` |
+| 5 · 健康状态写入 | `update_job_health` 的 `outcome` 守卫和 `fail` 分支须覆盖新值 | `job_health_service.py` |
+| 6 · UI 样式映射 | CSS class 名与 Python 返回值须一一对应；**在 `admin_base.html` 定义 `.label-X`，`job_log_display.py` 就返回 `label-X`**，禁止用不同名 | `job_log_display.py`, `admin_base.html` |
+| 7 · 测试覆盖 | 每个消费点新增一条断言（不只测试定义点）；尤其是过滤、健康更新、告警三处 | `tests/test_b1_execution_status.py` |
+
+**禁止**：只在定义文件里加常量就宣称完成；不做全局搜索就提交。
+
+**根因备忘（2026-07 B1 事件）**：新增 `STATUS_TIMEOUT` 时，只更新了 `job_log_outcome.py`（定义）和 `crons.py`（路由），未审计 `job_health_service`、`cron_repository`、`job_log_filter`、`should_alert`、CSS 映射，导致 Bugbot 发现 5 个 High/Medium 缺陷。Bugbot 在 commit 前运行发现了问题，但若在**实现时**就遵守本清单，可在零额外时间内消灭全部漏洞。
+
+## Bug 修复复盘（强制 · 用户报告 **及** Bugbot / Review 发现）
+
+**扩展说明**：复盘触发条件不限于用户报告 — 凡 Bugbot、Security Review、代码 Review 工具发现的缺陷，同等适用「`cronpilot-project.mdc` Bug 修复复盘」六要素。每轮 review 后如有修复，须在交付回复里写完整复盘（可引用本次 B1 复盘格式为模板）。
+
 ## 静态文档路由
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。

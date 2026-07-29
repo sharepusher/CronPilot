@@ -45,9 +45,9 @@
                     <span class="user-status user-status-on">启用</span>
                     {% else %}
                     <span class="user-status user-status-off">停用</span>
-                    {% endif %}
                     {% if item.status_reason %}
                     <div class="user-status-reason" title="{{ item.status_reason|e }}">{% if item.status_reason|length > 28 %}{{ item.status_reason[:28] }}…{% else %}{{ item.status_reason }}{% endif %}</div>
+                    {% endif %}
                     {% endif %}
                 </td>
                 <td>

@@ -16,8 +16,12 @@ from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
 from app.services.job_log_outcome import (
     STATUS_ERROR,
+    STATUS_FAIL,
+    STATUS_SUCCESS,
+    STATUS_TIMEOUT,
     evaluate_http_response,
     exception_fail_reason,
+    is_timeout_exception,
     pre_request_outcome,
     should_alert,
 )
@@ -45,6 +49,38 @@ def _notify_job_outcome(task_name, content, status):
         )
 
 
+def _create_pending_log(cron_id, nows, log_id, timeout_sec=None):
+    """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
+    raise NotImplementedError("_create_pending_log removed in Plan-B: use _save_job_log with terminal status directly")
+
+
+def _update_log_running(jl, started_at):
+    """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
+    raise NotImplementedError("_update_log_running removed in Plan-B: started_at passed directly to _save_job_log")
+    db.session.add(jl)
+    db.session.commit()
+    try:
+        from app.services.job_health_service import update_job_health
+        update_job_health(
+            jl.cron_info_id,
+            status,
+            jl.create_time,
+            log_id=jl.log_id,
+            cron_config=current_app.config.get('CRON_CONFIG'),
+        )
+    except Exception:
+        current_app.logger.exception(
+            'health update failed',
+            extra={"event": "health.update_failed"},
+        )
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    if task_name:
+        _notify_job_outcome(task_name, content, status)
+
+
 def _save_job_log(
     cron_id,
     content,
@@ -55,6 +91,8 @@ def _save_job_log(
     http_status=None,
     status=None,
     fail_reason=None,
+    started_at=None,
+    timeout_sec=None,
 ):
     if status is None:
         status, fail_reason = pre_request_outcome(content)
@@ -70,6 +108,9 @@ def _save_job_log(
         http_status=http_status,
         status=status,
         fail_reason=fail_reason,
+        started_at=started_at,
+        finished_at=get_now_time(),
+        timeout_sec=timeout_sec,
     )
     db.session.add(jl)
     db.session.commit()
@@ -120,6 +161,9 @@ def cron_do(cron_id):
         task_name = None
         _ctx_trace_id.set(cronpilot_log_id)
         _ctx_cron_id.set(str(cron_id))
+
+        # 默认超时（秒）
+        _DEFAULT_TIMEOUT_SEC = 120
 
         try:
 
@@ -186,6 +230,9 @@ def cron_do(cron_id):
                                 extra={"event": "cron.ssrf_blocked", "url": req_url, "reason": url_msg},
                             )
                         else:
+                            # 预检通过：记录 started_at，HTTP 结束后一次终态写入（方案 B：1-write）
+                            timeout_sec = _DEFAULT_TIMEOUT_SEC
+                            started_at = get_now_time()
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
                                 parmas = {}
@@ -202,15 +249,14 @@ def cron_do(cron_id):
                                 cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
 
                                 req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
+
                                 if req_method == 'POST':
-                                    # 从用户配置的 req_body 解析 JSON 作为基础 body
                                     if cif.req_body:
                                         import json as _json
                                         parsed_body = _json.loads(cif.req_body)
                                         post_body = parsed_body if isinstance(parsed_body, dict) else {}
                                     else:
                                         post_body = {}
-                                    # 注入 cronpilot 参数（不覆盖用户已定义的字段）
                                     if 'cronpilot_log_id' not in post_body:
                                         post_body['cronpilot_log_id'] = cronpilot_log_id
                                     if 'cronpilot_sign' not in post_body:
@@ -218,7 +264,7 @@ def cron_do(cron_id):
                                     req = requests.post(
                                         req_url,
                                         json=post_body,
-                                        timeout=2 * 60,
+                                        timeout=timeout_sec,
                                         headers={'user-agent': 'CronPilot'},
                                     )
                                 else:
@@ -228,7 +274,7 @@ def cron_do(cron_id):
                                             'cronpilot_log_id': cronpilot_log_id,
                                             'cronpilot_sign': cronpilot_sign,
                                         },
-                                        timeout=2 * 60,
+                                        timeout=timeout_sec,
                                         headers={'user-agent': 'CronPilot'},
                                     )
 
@@ -257,6 +303,8 @@ def cron_do(cron_id):
                                     http_status=req.status_code,
                                     status=run_status,
                                     fail_reason=fail_reason,
+                                    started_at=started_at,
+                                    timeout_sec=timeout_sec,
                                 )
                                 if run_status == STATUS_ERROR:
                                     current_app.logger.error(
@@ -274,6 +322,7 @@ def cron_do(cron_id):
                                     )
                             except Exception as e:
                                 err_content = "发生严重错误:%s" % str(e)
+                                fin_status = STATUS_TIMEOUT if is_timeout_exception(e) else STATUS_ERROR
                                 saved_jl = _save_job_log(
                                     cron_id,
                                     err_content,
@@ -281,8 +330,10 @@ def cron_do(cron_id):
                                     time.time() - t0,
                                     task_name=task_name,
                                     log_id=cronpilot_log_id,
-                                    status=STATUS_ERROR,
+                                    status=fin_status,
                                     fail_reason=exception_fail_reason(e),
+                                    started_at=started_at,
+                                    timeout_sec=timeout_sec,
                                 )
                                 current_app.logger.error(
                                     "cron http request exception",
@@ -296,16 +347,17 @@ def cron_do(cron_id):
         except Exception as e:
             db.session.rollback()
             try:
-                saved_jl = _save_job_log(
-                    cron_id,
-                    "发生严重错误:%s" % str(e),
-                    nows,
-                    time.time() - t0,
-                    task_name=task_name,
-                    log_id=cronpilot_log_id,
-                    status=STATUS_ERROR,
-                    fail_reason=exception_fail_reason(e),
-                )
+                if saved_jl is None:
+                    saved_jl = _save_job_log(
+                        cron_id,
+                        "发生严重错误:%s" % str(e),
+                        nows,
+                        time.time() - t0,
+                        task_name=task_name,
+                        log_id=cronpilot_log_id,
+                        status=STATUS_ERROR,
+                        fail_reason=exception_fail_reason(e),
+                    )
             except Exception:
                 pass
             current_app.logger.error(
@@ -325,7 +377,7 @@ def cron_do(cron_id):
         finally:
             elapsed = time.time() - t0
             _ctx_duration_ms.set(int(elapsed * 1000))
-            prom_status = 'error' if getattr(saved_jl, 'status', None) == STATUS_ERROR else 'ok'
+            prom_status = 'error' if getattr(saved_jl, 'status', None) in (STATUS_ERROR, STATUS_TIMEOUT, STATUS_FAIL) else 'ok'
             # Truncate task_name to prevent high-cardinality if dynamic names are used.
             prom_task = (task_name or 'unknown')[:50]
             if saved_jl is not None:

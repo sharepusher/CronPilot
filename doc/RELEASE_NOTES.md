@@ -30,6 +30,30 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+### 执行状态机 — Phase B1（OPT-P1-01）
+
+- **4 终态 `job_log.status`（方案 B，单次写）：**`success | fail | timeout | error`。执行路径全程不写中间态 DB 记录，HTTP 完成后一次性落终态，保持与原方案相同的 DB 写放大系数（1 COMMIT/execution）。
+- **`started_at` / `finished_at` 时间戳字段：**`started_at` 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。`finished_at` = 终态落库时刻。`timeout_sec` 字段记录本次超时上限（当前默认 120 s）。
+- **`timeout` 状态区分：**`requests.Timeout`/`ConnectTimeout`/`ReadTimeout` 异常映射 `timeout`，其余映射 `error`；`fail_reason` 字段保留失败归因标签。
+- **`ensure_business_tables` 补丁：**幂等 DDL 添加 `started_at`、`finished_at`、`timeout_sec`；存量数据库安全升级。
+- **`job_log_outcome.py`：**新增 `STATUS_PENDING`、`STATUS_RUNNING`（供旧数据 badge 展示）、`STATUS_TIMEOUT` 常量；`is_timeout_exception()` 区分超时与连接异常。
+- **Badge 渲染：**`_job_log_result_cell.html` 与 `job_log_detail.html` 通过 `job_log_status_badge_class` Jinja filter 渲染 `<span class="label label-*">`；详情页展示 `started_at`/`finished_at`。新增 `.label-timeout`（紫）、`.label-running`（蓝）、`.label-pending`（灰）全局样式。
+- **高并发设计选型：**方案 B 单次终态写，DB 写次数不变，适合 90%+ 快响应业务场景。`pending`/`running` 常量及样式保留，便于历史记录展示或未来按需启用中间态。
+- **38 条新单元测试**（`tests/test_b1_execution_status.py`）：状态常量、`evaluate_http_response`、超时路由、`should_alert`、badge 映射、模型列存在性。
+- **260 条测试全部通过**，无回归。
+
+### Frontend modernization: real-time form validator (OPT-P2-14 · F3-a)
+
+- **`CronFormValidator` Vue 3 组件：**挂载在 `cron_add.html` 和 `cron_edit.html` 表单的 `<div id="cron-form-validator">`。通过原生 DOM `input`/`change` 事件监听现有表单字段，实时更新插入在调度字段与 URL 字段之间的预览区。
+- **人性化调度预览：**将 `cron_schedule_display.py` 的 `humanize_schedule()` 逻辑移植至 JavaScript；以绿色 pill 显示可读描述（"每天 09:30"、"每 5 分钟"、"每周一 08:00" 等）及组合表达式（`dow day hour:minute[:second]`）。全客户端，无后端请求。
+- **范围校验：**对 `minute`（0–59）、`hour`（0–23）、`day`（1–31）、`second`（0–59）及 `*/n` 步进语法做即时合法性检查，非法时以红色 strip 提示。不替代 `cron_validator.py` 的服务端校验。
+- **URL 格式检查：**实时校验 `req_url`，若不以 `http://` 或 `https://` 开头则显示行内错误。
+- **JSON Body 检查：**`req_method=POST` 时校验 `req_body` 是否为合法 JSON 对象，否则显示行内错误。
+- **CSS 提取：**`cron-form-validator.css`（< 1 KB）提交至 `app/static/dist/`，通过 `<link>` 引入两个表单页；JS bundle（`cron-form-validator.js`，68 KB）为自包含 IIFE。
+- **零布局变化：**挂载 `<div>` 插入在 `#cron_div` 和 URL 行之间；现有字段、标签、提交行为完全不变。组件为纯追加。
+- **三 bundle 构建：**`npm run build` 依次运行三个 Vite config（`cron-status-cell.js`、`cron-filter-bar.js`、`cron-form-validator.js`）。CI 门禁已更新（含 `cron-form-validator.css`）。
+- **222 单元测试全绿**，无回归。
+
 ### Frontend modernization: reactive filter bar + toast abstraction (OPT-P2-14 · F2)
 
 - **CronFilterBar Vue 3 component (F2-a):** 任务列表筛选栏（原 `<form method="GET">`）改为 Vue 3 组件，挂载在 `<div id="cron-filter-bar">`。点击异常/状态 chip 或切换业务组，仅 fetch `GET /?partial=1&…` 更新 `<tbody>` 与分页，通过 `history.replaceState` 更新 URL，无整页刷新。搜索输入防抖 150 ms。

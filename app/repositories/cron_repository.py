@@ -9,7 +9,7 @@ from datas.utils.times import get_today
 
 from app.repositories.base import BaseRepository
 from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
-from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS
+from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
 
 
 class CronRepository(BaseRepository):
@@ -33,7 +33,7 @@ class CronRepository(BaseRepository):
             today_fail_ids = (
                 select(JobLog.cron_info_id)
                 .where(JobLog.create_time.like(today + '%'))
-                .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
+                .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT]))
                 .distinct()
             )
             stmt = stmt.where(CronInfos.id.in_(today_fail_ids))
@@ -63,7 +63,7 @@ class CronRepository(BaseRepository):
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
             .where(JobLog.create_time.like(today + '%'))
-            .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR]))
+            .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT]))
         )
         if base_filters:
             total_stmt = total_stmt.where(*base_filters)

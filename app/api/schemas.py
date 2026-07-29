@@ -52,6 +52,12 @@ class CronUpsertIn(Schema):
     hour = String(required=False, load_default='', metadata={'description': '小时（0-23），支持 * */n a-b a,b'})
     minute = String(required=False, load_default='', metadata={'description': '分钟（0-59），支持 * */n a-b a,b'})
     second = String(required=False, load_default='', metadata={'description': '秒（0-59），支持 * */n a-b a,b'})
+    timeout_sec = Integer(
+        required=False,
+        load_default=None,
+        validate=Range(min=1, max=120),
+        metadata={'description': '单任务 HTTP 超时（秒），1-120；不传则使用系统默认 5s'},
+    )
 
 
 class CronStatusIn(Schema):

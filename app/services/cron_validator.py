@@ -212,6 +212,16 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         if not isinstance(parsed, dict):
             return _fail('请求 body 须为 JSON 对象（object）', 'req_body')
 
+    timeout_sec_raw = (datas.get('timeout_sec') or '').strip()
+    timeout_sec = None
+    if timeout_sec_raw:
+        try:
+            timeout_sec = int(timeout_sec_raw)
+        except (ValueError, TypeError):
+            return _fail('超时（秒）必须是整数', 'timeout_sec')
+        if timeout_sec < 1 or timeout_sec > 120:
+            return _fail('超时（秒）须在 1～120 之间', 'timeout_sec')
+
     if int(is_dev) == 1:
         second = ''
 
@@ -227,6 +237,7 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         'req_url': req_url,
         'req_method': req_method,
         'req_body': req_body,
+        'timeout_sec': timeout_sec,
     }
     if not schedule_configured_from_normalized(normalized, ds_ms):
         return _fail(schedule_incomplete_msg, 'cron_div')

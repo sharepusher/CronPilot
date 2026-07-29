@@ -72,3 +72,9 @@ class CronInfos(db.Model):
         default='',
         doc='最近发布/编辑/下线时间',
     )
+    timeout_sec: Mapped[Optional[int]] = mapped_column(
+        db.Integer,
+        nullable=True,
+        default=None,
+        doc='单任务 HTTP 超时（秒）；NULL = 系统默认 5s；有效范围 1–120',
+    )

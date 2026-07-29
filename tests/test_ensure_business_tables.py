@@ -127,10 +127,11 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         with patch.object(mod, 'db', fake_db), patch('sqlalchemy.inspect', return_value=fake_inspector):
             mod._ensure_cron_infos_columns()
 
-        self.assertEqual(len(executed_sql), 2)
+        self.assertEqual(len(executed_sql), 3)
         sql_text = '\n'.join(executed_sql)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN req_method VARCHAR(10) DEFAULT', sql_text)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT', sql_text)
+        self.assertIn('ALTER TABLE cron_infos ADD COLUMN timeout_sec INTEGER', sql_text)
 
     def test_does_nothing_when_columns_already_exist(self):
         from types import SimpleNamespace
@@ -167,6 +168,7 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
                 {'name': 'req_body'},
                 {'name': 'last_operator_name'},
                 {'name': 'last_operated_at'},
+                {'name': 'timeout_sec'},
             ],
         )
 

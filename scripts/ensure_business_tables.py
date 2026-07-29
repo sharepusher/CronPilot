@@ -126,6 +126,8 @@ def _ensure_cron_infos_columns(backend=''):
         alters.append(
             "ALTER TABLE cron_infos ADD COLUMN last_operated_at VARCHAR(25) DEFAULT ''"
         )
+    if 'timeout_sec' not in cols:
+        alters.append('ALTER TABLE cron_infos ADD COLUMN timeout_sec INTEGER')
     if not alters:
         return
     with db.engine.begin() as conn:

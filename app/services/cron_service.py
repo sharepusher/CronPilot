@@ -74,6 +74,7 @@ def apply_normalized_to_model(cif, normalized):
     cif.req_url = normalized['req_url']
     cif.req_method = normalized.get('req_method', 'GET')
     cif.req_body = normalized.get('req_body', '')
+    cif.timeout_sec = normalized.get('timeout_sec')
     cif.updated_at = get_now_time()
     if 'scope_type' in normalized:
         cif.scope_type = normalized['scope_type'] or 'GLOBAL'
@@ -97,6 +98,7 @@ def create_cron(normalized):
         req_url=normalized['req_url'],
         req_method=normalized.get('req_method', 'GET'),
         req_body=normalized.get('req_body', ''),
+        timeout_sec=normalized.get('timeout_sec'),
         status=1,
         created_at=now,
         updated_at=now,

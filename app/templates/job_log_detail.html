@@ -27,6 +27,7 @@
             · <span style="color:#64748b">{{ line[0] }}</span>
             {% endif %}
             {% if jl.take_time %} · 耗时 {{ jl.take_time }}s{% endif %}
+            {% if jl.timeout_sec %} · 超时限制 {{ jl.timeout_sec }}s{% endif %}
         </p>
         {% if jl.started_at or jl.finished_at %}
         <p class="help-block" style="margin-top:0">

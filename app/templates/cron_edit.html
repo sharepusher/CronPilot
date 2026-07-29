@@ -169,6 +169,14 @@
                         <span class="field-hint">仅 POST 时生效；须为 JSON 对象。可留空，系统仍会注入 cronpilot_log_id / cronpilot_sign。</span>
                     </div>
                 </div>
+                <div class="control-group" data-field="timeout_sec">
+                    <label class="control-label">超时（秒）</label>
+                    <div class="controls">
+                        <input type="number" name="timeout_sec" min="1" max="120" style="width:80px;"
+                               value="{{ cif.timeout_sec if cif.timeout_sec else '' }}" placeholder="5">
+                        <span class="field-hint">留空使用默认 5s；有效范围 1–120。</span>
+                    </div>
+                </div>
                 {% if cif.status == 0 %}
                 <div class="control-group">
                     <label class="control-label">运行状态</label>

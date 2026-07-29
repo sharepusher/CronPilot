@@ -162,8 +162,8 @@ def cron_do(cron_id):
         _ctx_trace_id.set(cronpilot_log_id)
         _ctx_cron_id.set(str(cron_id))
 
-        # 默认超时（秒）
-        _DEFAULT_TIMEOUT_SEC = 120
+        # 默认超时（秒）；per-task 值在 cif 加载后覆盖
+        _DEFAULT_TIMEOUT_SEC = 5
 
         try:
 
@@ -231,7 +231,7 @@ def cron_do(cron_id):
                             )
                         else:
                             # 预检通过：记录 started_at，HTTP 结束后一次终态写入（方案 B：1-write）
-                            timeout_sec = _DEFAULT_TIMEOUT_SEC
+                            timeout_sec = int(cif.timeout_sec) if cif.timeout_sec else _DEFAULT_TIMEOUT_SEC
                             started_at = get_now_time()
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''

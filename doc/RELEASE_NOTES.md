@@ -30,10 +30,20 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+### 单任务超时配置 — Phase B2（OPT-P1-01）
+
+- **`CronInfos.timeout_sec` 字段（可空 INT）：**NULL 表示使用系统默认 5 s；有效范围 1–120 s。`ensure_business_tables` 幂等 DDL 补列，存量数据库安全升级。
+- **表单 UI：**新增/编辑任务表单新增"超时（秒）"输入框（留空使用默认 5 s，最大 120 s）。
+- **校验门禁（`cron_validator.py`）：**非空时校验 1≤timeout\_sec≤120，非整数/越界均返回 `timeout_sec` 字段错误。
+- **执行路径（`cron_do`）：**使用 `cif.timeout_sec or _DEFAULT_TIMEOUT_SEC` 动态读取 per-task 超时，默认值从 120 s 调整为 5 s。
+- **API schema（`CronUpsertIn`）：**新增可选 `timeout_sec` 整数字段（1–120），通过 APIFlask 文档自动暴露。
+- **详情页：**`job_log_detail.html` 新增"超时限制 Xs"展示，与耗时字段并排显示。
+- **14 条新单元测试（`tests/test_b2_timeout_config.py`）：**合法值、边界值、非法值（0/-1/121/非整数/浮点）、NULL 传播、service 写入，274 条测试全部通过。
+
 ### 执行状态机 — Phase B1（OPT-P1-01）
 
 - **4 终态 `job_log.status`（方案 B，单次写）：**`success | fail | timeout | error`。执行路径全程不写中间态 DB 记录，HTTP 完成后一次性落终态，保持与原方案相同的 DB 写放大系数（1 COMMIT/execution）。
-- **`started_at` / `finished_at` 时间戳字段：**`started_at` 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。`finished_at` = 终态落库时刻。`timeout_sec` 字段记录本次超时上限（当前默认 120 s）。
+- **`started_at` / `finished_at` 时间戳字段：**`started_at` 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。`finished_at` = 终态落库时刻。`timeout_sec` 字段记录本次执行所用超时阈值。
 - **`timeout` 状态区分：**`requests.Timeout`/`ConnectTimeout`/`ReadTimeout` 异常映射 `timeout`，其余映射 `error`；`fail_reason` 字段保留失败归因标签。
 - **`ensure_business_tables` 补丁：**幂等 DDL 添加 `started_at`、`finished_at`、`timeout_sec`；存量数据库安全升级。
 - **`job_log_outcome.py`：**新增 `STATUS_PENDING`、`STATUS_RUNNING`（供旧数据 badge 展示）、`STATUS_TIMEOUT` 常量；`is_timeout_exception()` 区分超时与连接异常。

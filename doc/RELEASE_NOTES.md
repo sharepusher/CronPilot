@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v2.6.0 2026-07-30 · 前端颜色收编 + API access\_token 加固
+ | 
 v2.1.1 2026-07-21 · Security hardening (lock / SECRET\_KEY / CSRF)
  | 
 v2.1.0 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
@@ -29,6 +31,36 @@ v0.1.0 2026-05-29 · 首发
 ## [Unreleased]
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
+
+## [2.6.0] — 2026-07-30
+
+### 前端颜色收编与可维护性加固
+
+191 处硬编码十六进制颜色（21 个文件 / 57 个独立色值）全部收编为 CSS Custom Properties（`var(--cp-*)`）。替换前后视觉效果完全一致。
+
+- **`app/static/css/console-theme.css`（新增）：**60 个语义 CSS 变量，覆盖文字、背景、边框、强调、成功/危险/警告色系、执行状态、角色徽标、Topbar 等。`--cp-*` 前缀避免与 simpleboot 冲突。
+- **20 个 Jinja2 模板收编：**`admin_base.html`（15 处）、`cron_list.html`（68 处）、`cron_add/edit.html`（29 处）及其余 16 个模板。
+- **Vue 组件收编：**`CronFormValidator.vue` 10 处颜色替换为 CSS 变量；构建产物已更新。
+- **语义类外迁：**角色徽标（`.topbar-role-*`）与执行状态标签（`.label-timeout/running/pending/danger`）迁移到 `console-theme.css`。
+- **死文件清理：**删除零引用的 `_admin_nav.html`。
+
+### 审计工具与 CI 门禁
+
+- **`scripts/audit_hardcoded_colors.py`（新增）：**全量扫描硬编码颜色。`--check`（CI 模式）、`--mapping`（映射表）、`--csv`（导出）。
+- **`.github/workflows/color-audit.yml`（新增）：**PR 含硬编码颜色自动阻断。
+- **`tests/test_form_name_guard.py`（新增）：**3 个守护测试，防止表单 `name` 属性被意外修改。
+
+### API access\_token 加固（Scope 最小止损）
+
+- 新增 opt-in 配置 `api_access_token_required`（默认 `0`，零行为变化）。设为 `1` 时，生产启动若 `api_access_token` 为空将 fail-fast。
+- API token 校验失败写审计（`rbac_audit_logs`，`action='api:deny'`）。
+- 详见 [RBAC 与群组权限管理评审报告](RBAC与群组权限管理评审报告.html)。
+
+### 部署文档
+
+- 非 Docker 部署指南新增 §3「前端开发环境」（Node.js/nvm）。README 新增 §2.1。
+
+290 个单元测试全部通过。
 
 ## [2.5.0] — 2026-07-29
 
@@ -248,7 +280,8 @@ HTTP 定时回调调度、Web/API 管理、基础安全与质量、技术文档�
 
 | 版本 | 说明 |
 | --- | --- |
-| **2.1.1** | 集群锁原子化、生产 SECRET\_KEY、管理端 CSRF |
+| **2.6.0** | 前端颜色收编（191 处→CSS 变量）、API access\_token 加固、颜色审计 CI 门禁 |
+| 2.1.1 | 集群锁原子化、生产 SECRET\_KEY、管理端 CSRF |
 | 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
 | 2.0.0 | 任务中心、POST 触发、账户生命周期 |
 | 1.2.0 – 1.0.0 | 权限、业务组、生命周期、操作审计 |

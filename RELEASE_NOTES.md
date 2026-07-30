@@ -11,6 +11,41 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
+## [2.6.0] — 2026-07-30
+
+### 前端颜色收编与可维护性加固
+
+**核心改进：** 191 处硬编码十六进制颜色（分布在 21 个文件 / 57 个独立色值）全部收编为 CSS Custom Properties（`var(--cp-*)`）。替换前后视觉效果完全一致，颜色修改从"搜 21 个文件 191 处"简化为"改 `console-theme.css` 1 个变量"。
+
+- **`app/static/css/console-theme.css`（新增）：** 60 个语义 CSS 变量，覆盖文字层级、背景/表面、边框、强调色、成功/危险/警告色系、执行状态机、角色徽标、Topbar、已下线 chip、链接色。`--cp-*` 前缀避免与 simpleboot/Bootstrap 冲突。
+- **20 个 Jinja2 模板收编：** `admin_base.html`（15 处）、`cron_list.html`（68 处）、`cron_add.html`（15 处）、`cron_edit.html`（14 处）及其余 16 个模板文件，全部替换为 `var(--cp-*)` 引用。
+- **Vue 组件收编：** `CronFormValidator.vue` 10 处硬编码颜色替换为 CSS 变量；构建产物 `cron-form-validator.css` 已更新。
+- **语义类外迁：** `admin_base.html` 中的角色徽标（`.topbar-role-*`）与执行状态标签（`.label-timeout/running/pending/danger`）定义迁移到 `console-theme.css`，消除重复。
+- **死文件清理：** 删除零引用的 `app/templates/_admin_nav.html`。
+
+### 审计工具与 CI 门禁
+
+- **`scripts/audit_hardcoded_colors.py`（新增）：** 全量扫描模板和 Vue 组件中的硬编码颜色。支持 `--check`（CI 模式，exit 1）、`--mapping`（色值→令牌映射表）、`--csv`（导出）。内置 57 色值 100% 映射。
+- **`.github/workflows/color-audit.yml`（新增）：** CI 门禁，PR 中含硬编码颜色自动阻断。
+- **`tests/test_form_name_guard.py`（新增）：** 3 个静态守护测试，防止表单迁移时意外修改 `CronFormValidator.vue` 依赖的 `name` 属性（`day_of_week`/`day`/`hour`/`minute`/`second`/`req_url`/`req_method`/`req_body`）。
+
+### API access_token hardening (minimal Scope mitigation)
+
+- New opt-in `conf.ini` setting `api_access_token_required` (default `0`, no behavior change). When set to `1`, production startup now fails fast if `api_access_token` is empty (`scripts/check_conf_production.py` + `config.ProductionConfig.init_app`), preventing unnoticed unauthenticated `/api/*` access.
+- Failed API token checks now write an audit trail (`rbac_audit_logs`, `action='api:deny'`) for traceability.
+- See [RBAC 与群组权限管理评审报告](doc/RBAC与群组权限管理评审报告.html) for the underlying review and [资源隔离与Scope设计 §七](doc/资源隔离与Scope设计.html#future) for scope/limitations (still a shared deployment-level token; per-group API tokens remain a future RFC).
+
+### 部署文档
+
+- **非 Docker 部署指南**新增 §3「前端开发环境」：Node.js 仅开发时需要、nvm 安装、Node.js 与 Python 环境隔离对比。
+- **README.md** 新增 §2.1「前端开发环境（可选）」。
+
+### 测试
+
+- 290 个单元测试全部通过（287 + 3 新增守护测试）。
+
+---
+
 ## [2.5.0] — 2026-07-29
 
 ### Per-task timeout configuration — Phase B2 (OPT-P1-01)

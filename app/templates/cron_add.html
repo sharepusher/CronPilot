@@ -8,54 +8,54 @@
 .form-horizontal .controls > select {
     margin-right: 8px;
     vertical-align: middle;
-    color: #0f172a;
+    color: var(--cp-ink);
 }
 .form-horizontal .controls > input[type="text"]::placeholder {
-    color: #94a3b8;
+    color: var(--cp-faint);
 }
 .form-horizontal .controls > input[type="text"]:disabled {
-    color: #64748b;
+    color: var(--cp-muted);
 }
 .form-horizontal .field-hint {
     display: inline-block;
-    color: #64748b;
+    color: var(--cp-muted);
     margin-left: 4px;
     vertical-align: middle;
     line-height: 1.4;
 }
 .cron-form-alert {
     display: none;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-left: 4px solid #d97706;
-    color: #78350f;
+    background: var(--cp-warn-bg);
+    border: 1px solid var(--cp-warn-border);
+    border-left: 4px solid var(--cp-warn-accent);
+    color: var(--cp-warn-dark);
     padding: 10px 14px;
     margin: 0 0 14px;
     border-radius: 4px;
     font-size: 13px;
     line-height: 1.5;
 }
-.cron-form-alert .fa { margin-right: 6px; color: #d97706; }
+.cron-form-alert .fa { margin-right: 6px; color: var(--cp-warn-accent); }
 .cron-form-alert-goto {
     margin-left: 8px;
-    color: #1d4ed8;
+    color: var(--cp-accent-blue);
     text-decoration: underline;
     font-weight: 600;
 }
 .form-horizontal .control-group.cron-field-error .control-label {
-    color: #b45309;
+    color: var(--cp-warn);
     font-weight: 600;
 }
 .form-horizontal .control-group.cron-field-error input[type="text"],
 .form-horizontal .control-group.cron-field-error select {
-    border-color: #f59e0b;
+    border-color: var(--cp-warn-icon);
     box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
 }
 #cron_div.cron-field-error {
-    border: 1px dashed #f59e0b;
+    border: 1px dashed var(--cp-warn-icon);
     border-radius: 4px;
     padding: 8px 8px 2px;
-    background: #fffbeb;
+    background: var(--cp-warn-bg);
 }
 </style>
 {% endblock %}
@@ -109,7 +109,7 @@
                         </select>
                         <span class="field-hint">仅可选本人所属业务组；不可创建全局任务</span>
                         {% else %}
-                        <span style="color:#b45309">当前账号未绑定业务组，请联系管理员后再创建任务</span>
+                        <span style="color:var(--cp-warn)">当前账号未绑定业务组，请联系管理员后再创建任务</span>
                         {% endif %}
                     </div>
                 </div>

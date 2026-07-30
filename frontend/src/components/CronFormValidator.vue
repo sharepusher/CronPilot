@@ -227,24 +227,24 @@ onUnmounted(function() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: var(--cp-success-bg);
+  border: 1px solid var(--cp-success-border);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
-  color: #166534;
+  color: var(--cp-success-text);
   margin-top: 4px;
 }
 .cron-preview-icon {
-  color: #16a34a;
+  color: var(--cp-success-icon);
   flex-shrink: 0;
 }
 .cron-preview-text {
   font-weight: 600;
 }
 .cron-preview-expr {
-  background: #dcfce7;
-  color: #14532d;
+  background: var(--cp-success-bg-2);
+  color: var(--cp-success-dark);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 11px;
@@ -253,16 +253,16 @@ onUnmounted(function() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: var(--cp-danger);
+  background: var(--cp-danger-bg);
+  border: 1px solid var(--cp-danger-border);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: 12px;
   margin-top: 4px;
 }
 .cron-field-inline-error {
-  color: #b91c1c;
+  color: var(--cp-danger);
   font-size: 12px;
   margin-top: 4px;
   display: flex;

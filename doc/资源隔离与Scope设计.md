@@ -102,6 +102,11 @@ Allow / Deny（403）
 
 `/api/*` 仍使用部署级 `api_access_token`，可操作全库任务。按组 token / 调用方身份挂 Scope 见 §八 远期。
 
+**最小止损（已交付，见 [RBAC与群组权限管理评审报告](RBAC与群组权限管理评审报告.html)）：**该缺口本身尚未消除（仍是部署级单一密钥，无按组隔离），但已补齐两项止损：
+
+- **opt-in 生产 fail-fast：**conf.ini 新增 `api_access_token_required`（默认 `0`，零行为变化）。设为 `1` 且 `api_access_token` 为空时，生产启动路径（`scripts/check_conf_production.py` 预检 + `config.ProductionConfig.init_app`）拒绝启动，防止"空 token 裸奔"未被察觉。
+- **鉴权失败留痕：**`app/api/__init__.py::_api_token_guard` 校验失败时写 `rbac_audit_logs`（`action='api:deny'`，含请求路径与来源 IP），此前完全没有审计。
+
 ## 八、远期（S6，本迭代不实现）
 
 - 新任务默认 `GROUP`（配置项）

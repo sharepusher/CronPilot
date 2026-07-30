@@ -16,7 +16,7 @@
 
         <p>
             <a href="{{ url_for('rbac.users_add') }}" class="btn btn-primary">添加用户</a>
-            <span style="color:#64748b;margin-left:8px">无物理删除；停用/启用须填写缘由。须保留至少一名启用中的管理员。新建用户默认密码 changeme，首次登录须改密。</span>
+            <span style="color:var(--cp-muted);margin-left:8px">无物理删除；停用/启用须填写缘由。须保留至少一名启用中的管理员。新建用户默认密码 changeme，首次登录须改密。</span>
         </p>
         <table class="table table-hover table-bordered rbac-users-table">
             <thead>
@@ -89,19 +89,19 @@
 {% block css %}
 <style>
 .rbac-users-table .user-row-inactive td {
-    color: #94a3b8;
-    background: #f8fafc;
+    color: var(--cp-faint);
+    background: var(--cp-surface-3);
 }
 .rbac-users-table .user-row-reset td {
-    background: #fffbeb;
+    background: var(--cp-warn-bg);
 }
 .rbac-users-table .user-self-tag {
     display: inline-block;
     margin-left: 4px;
     padding: 0 4px;
     font-size: 10px;
-    color: #1d4ed8;
-    background: #dbeafe;
+    color: var(--cp-accent-blue);
+    background: var(--cp-accent-bg-2);
     border-radius: 3px;
     vertical-align: middle;
 }
@@ -113,25 +113,25 @@
     border-radius: 3px;
 }
 .rbac-users-table .user-status-on {
-    color: #166534;
-    background: #dcfce7;
+    color: var(--cp-success-text);
+    background: var(--cp-success-bg-2);
 }
 .rbac-users-table .user-status-off {
-    color: #64748b;
-    background: #e2e8f0;
+    color: var(--cp-muted);
+    background: var(--cp-border);
 }
 .rbac-users-table .user-status-reset {
-    color: #b45309;
-    background: #ffedd5;
+    color: var(--cp-warn);
+    background: var(--cp-warn-bg-3);
 }
 .rbac-users-table .user-status-ok {
-    color: #475569;
-    background: #f1f5f9;
+    color: var(--cp-ink-2);
+    background: var(--cp-surface-2);
 }
 .rbac-users-table .user-status-reason {
     margin-top: 3px;
     font-size: 11px;
-    color: #64748b;
+    color: var(--cp-muted);
     line-height: 1.35;
     max-width: 180px;
 }
@@ -141,7 +141,7 @@
 .rbac-users-table .user-ops-hint {
     display: inline-block;
     margin-left: 4px;
-    color: #94a3b8;
+    color: var(--cp-faint);
     font-size: 11px;
     vertical-align: middle;
 }

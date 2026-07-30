@@ -28,8 +28,8 @@
                 <div class="control-group">
                     <label class="control-label">初始密码</label>
                     <div class="controls">
-                        <span style="color:#0f172a;font-weight:600">{{ default_password or 'changeme' }}</span>
-                        <span style="color:#64748b;margin-left:8px">管理员不可指定密码；用户首次登录必须修改后才能继续使用</span>
+                        <span style="color:var(--cp-ink);font-weight:600">{{ default_password or 'changeme' }}</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">管理员不可指定密码；用户首次登录必须修改后才能继续使用</span>
                     </div>
                 </div>
                 <div class="control-group">
@@ -40,7 +40,7 @@
                             <option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ r }}</option>
                             {% endfor %}
                         </select>
-                        <span style="color:#64748b">viewer 只读；operator 可写任务+看操作记录；admin 含用户管理/RBAC审计/下线</span>
+                        <span style="color:var(--cp-muted)">viewer 只读；operator 可写任务+看操作记录；admin 含用户管理/RBAC审计/下线</span>
                     </div>
                 </div>
                 <div class="control-group">
@@ -52,9 +52,9 @@
                             <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
                             {% endfor %}
                         </select>
-                        <span style="color:#64748b">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个业务组；仅 admin 可不选</span>
+                        <span style="color:var(--cp-muted)">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个业务组；仅 admin 可不选</span>
                         {% else %}
-                        <span style="color:#64748b">暂无业务组，请先在「业务组」创建</span>
+                        <span style="color:var(--cp-muted)">暂无业务组，请先在「业务组」创建</span>
                         {% endif %}
                     </div>
                 </div>

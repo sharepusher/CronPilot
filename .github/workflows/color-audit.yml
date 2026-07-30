@@ -1,0 +1,32 @@
+name: Hardcoded color audit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/templates/**'
+      - 'frontend/src/**'
+      - 'app/static/css/console-theme.css'
+      - 'scripts/audit_hardcoded_colors.py'
+      - '.github/workflows/color-audit.yml'
+  pull_request:
+    paths:
+      - 'app/templates/**'
+      - 'frontend/src/**'
+      - 'app/static/css/console-theme.css'
+      - 'scripts/audit_hardcoded_colors.py'
+      - '.github/workflows/color-audit.yml'
+
+jobs:
+  color-check:
+    name: No hardcoded hex colors in templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Audit hardcoded colors
+        run: python scripts/audit_hardcoded_colors.py --check

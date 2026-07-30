@@ -27,6 +27,7 @@ AUDIT_ACTION_LABELS = {
     'scope:deny': '作用域拒绝',
     'group:create': '创建业务组',
     'group:update': '更新业务组',
+    'api:deny': 'API 鉴权失败',
 }
 AUDIT_STATUS_LABELS = {
     'allow': '允许',
@@ -72,6 +73,8 @@ def audit_resource_label(action, resource):
         return '业务组 %s' % resource if resource else '新建业务组'
     if action == 'group:update':
         return '业务组 %s' % resource if resource else '业务组变更'
+    if action == 'api:deny':
+        return '接口 %s 鉴权失败' % resource if resource else 'API 鉴权失败'
     return resource
 
 

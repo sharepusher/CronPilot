@@ -14,7 +14,7 @@
         {% include "rbac/_nav.html" %}
         {% endwith %}
 
-        <p style="color:#64748b;margin:8px 0">
+        <p style="color:var(--cp-muted);margin:8px 0">
             本页为 <strong>RBAC 身份与权限审计</strong>（登录/登出、用户管理、权限拒绝）。
             「用户 ID」对应 <code>rbac_users.id</code>。
             任务添加/编辑等业务变更不在此表，请到「操作记录」页（<code>/operation_log_list</code>）查看。
@@ -38,14 +38,14 @@
                 <td>{{ item.id }}</td>
                 <td>{{ item.create_time }}</td>
                 <td>{{ item.username }}</td>
-                <td>{% if item.user_id is not none %}{{ item.user_id }}{% else %}<span style="color:#64748b">—</span>{% endif %}</td>
+                <td>{% if item.user_id is not none %}{{ item.user_id }}{% else %}<span style="color:var(--cp-muted)">—</span>{% endif %}</td>
                 <td title="{{ item.action }}">{{ audit_action_label(item.action) }}</td>
                 <td title="{{ item.resource }}">{{ audit_resource_label(item.action, item.resource) }}</td>
                 <td>{{ item.ip }}</td>
                 <td title="{{ item.status }}">{{ audit_status_label(item.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="color:#64748b">暂无审计记录</td></tr>
+            <tr><td colspan="8" style="color:var(--cp-muted)">暂无审计记录</td></tr>
             {% endfor %}
             </tbody>
         </table>

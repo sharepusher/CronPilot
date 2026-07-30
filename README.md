@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v2.1.1**（安全加固：集群锁 / SECRET_KEY / CSRF；运行时仍为 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v2.6.0**（前端颜色收编 + API access_token 加固；运行时仍为 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v2.6.0** | 前端颜色收编（191 处→CSS 变量）；API access_token 加固；颜色审计 CI 门禁；表单 name 守护测试 |
 | **v2.1.1** | 集群 Redis 锁原子化；生产 `SECRET_KEY` fail-fast；管理端写操作 CSRF（POST + token） |
 | v2.1.0 | 升级至 Flask **2.3.3** + SQLAlchemy **2.0.36**；移除 `records`；列表查询与模型适配 2.x；业务库仍用 `ensure_business_tables` |
 | **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；操作记录业务组筛选；**触发请求 GET/POST + JSON Body** |
@@ -54,6 +55,27 @@ bash scripts/cronpilot.sh test       # 自动 venv 下跑单测
 | `requirements.txt` | 生产 Gunicorn + gevent 全量依赖 |
 
 生产环境在自动创建的 venv 中：`source .venv-py*/bin/activate` → `pip install -r requirements.txt`
+
+### 2.1 前端开发环境（可选 — 仅修改 Vue 组件时需要）
+
+**生产环境不需要 Node.js**。Vue 构建产物（`app/static/js/*.js`）已提交到仓库，Flask 直接托管。
+
+仅在修改 `frontend/src/` 下 Vue 组件源码后，需要 Node.js 重新构建：
+
+```bash
+# 推荐用 nvm 管理 Node.js 版本（类似 pyenv）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install --lts
+
+cd frontend
+npm install        # 依赖装到 frontend/node_modules/（项目级隔离，不污染系统）
+npm run build      # 产物输出到 app/static/js/
+```
+
+| 环境 | Python | Node.js |
+|------|--------|---------|
+| 生产 | 3.8～3.11 | **不需要** |
+| 开发（改 Vue 时） | 3.8～3.11 | 18+ LTS |
 
 ### 3. 启动
 

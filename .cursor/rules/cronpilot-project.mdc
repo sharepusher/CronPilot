@@ -232,5 +232,14 @@ UI / 管理端另须补齐下表「交互契约」等行。
 - 单元测试：`python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v` 或 `bash scripts/cronpilot.sh test`
 - 集成冒烟：`bash scripts/verify_golden_path.sh`；全量 `bash scripts/verify_all.sh`（Docker 用 `--docker-only --with-compose`）
 - 用例应覆盖真实行为（SSRF、密码、校验、JSON、签名），不写无意义断言。
-- CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**；改 `doc/*.html` 后须 `--check` 通过。
+- CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**、**Hardcoded color audit**、**Frontend dist freshness**；改 `doc/*.html` 后须 `--check` 通过。
 - **顺序**：见上文「交付闭环」5 步。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。
+
+## 颜色规范（强制）
+
+- **禁止**在 `app/templates/**/*.html` 和 `frontend/src/**/*.vue` 中硬编码十六进制颜色（`#xxxxxx`）。
+- 所有颜色必须使用 `app/static/css/console-theme.css` 中定义的 CSS 变量（`var(--cp-*)`）。
+- 新增颜色需求：先在 `console-theme.css` 的 `:root` 中定义语义变量（`--cp-新语义名: #色值;`），再在模板/组件中引用 `var(--cp-新语义名)`。
+- CI 门禁：`python scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
+- Vue 组件改动后须 `cd frontend && npm run build`，构建产物须随源码一起提交（CI `frontend-build.yml` 检查）。
+- 审计工具：`python scripts/audit_hardcoded_colors.py`（完整报告）/ `--mapping`（映射表）/ `--csv`（导出）。

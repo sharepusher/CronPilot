@@ -23,6 +23,13 @@ health_failing_threshold=3
 # 管理操作审计保留条数（OPT-P1-09）；0=不裁剪；内置任务每 8 小时按 id 删最旧
 operation_log_counts=5000
 api_access_token=
+# 为空时 /api/* 不做 token 校验（放行所有请求）；生产环境务必配置非空 token。
+# api_access_token 是部署级单一密钥，无法按业务组区分调用方，Web 端 Resource Scope
+# 隔离在 API 层不生效（已知缺口，见 doc/资源隔离与Scope设计.html §七）。
+# api_access_token_required=1 时：若 api_access_token 为空，生产环境启动将 fail-fast
+# （run_production.sh / verify_docker_compose.sh 预检 + ProductionConfig.init_app 双重校验）。
+# 默认 0（未设置同等于 0），开启前请确保已给所有 API 调用方配置好 token，避免误锁生产。
+api_access_token_required=0
 api_key=
 error_keyword=fail,error
 fail_on_http_4xx_5xx=1

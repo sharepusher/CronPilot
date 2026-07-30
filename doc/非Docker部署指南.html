@@ -63,8 +63,50 @@
   </section>
 
   <section>
-    <h2>3. 安装步骤</h2>
-    <h3>3.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）</h3>
+    <h2>3. 前端开发环境（可选）</h2>
+    <div class="card">
+      <p><strong>生产环境不需要 Node.js</strong>——Vue 构建产物（<code>app/static/js/*.js</code>）已提交到仓库，Flask 直接托管。仅在修改 <code>frontend/src/</code> 下 Vue 组件源码时，需要 Node.js 重新构建。</p>
+    </div>
+
+    <h3>3.1 架构说明</h3>
+    <p>CronPilot 采用 <strong>Islands Architecture</strong>（岛屿架构）：主体由 Flask + Jinja2 服务端渲染，少量交互组件（<code>CronFilterBar</code>、<code>CronFormValidator</code>、<code>CronStatusCell</code>）用 Vue 3 + Vite 构建后输出到 <code>app/static/js/</code>，由 Flask 同进程托管。</p>
+
+    <table>
+      <tr><th>环境</th><th>Python</th><th>Node.js</th></tr>
+      <tr><td>生产（裸机 / Docker）</td><td>3.8～3.11</td><td><strong>不需要</strong></td></tr>
+      <tr><td>开发（修改 Vue 组件时）</td><td>3.8～3.11</td><td>18+ LTS（推荐 20/22）</td></tr>
+      <tr><td>CI</td><td>3.11</td><td>仅 <code>frontend-build.yml</code> 检查时</td></tr>
+    </table>
+
+    <h3>3.2 安装 Node.js（推荐 nvm）</h3>
+    <p>使用 <strong>nvm</strong>（Node Version Manager）管理 Node.js 版本，与 Python 的 pyenv 理念一致，不污染系统环境。</p>
+    <pre># 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc   # 或 ~/.zshrc
+
+# 安装 Node.js LTS
+nvm install --lts
+
+# 安装前端依赖 &amp; 构建
+cd frontend
+npm install          # 依赖安装到 frontend/node_modules/（项目级隔离）
+npm run build        # 构建产物输出到 app/static/js/</pre>
+
+    <h3>3.3 Node.js 与 Python 环境隔离对比</h3>
+    <table>
+      <tr><th>维度</th><th>Python (venv)</th><th>Node.js (node_modules)</th></tr>
+      <tr><td>隔离机制</td><td><code>python -m venv .venv</code></td><td>项目级 <code>node_modules/</code>，天然隔离</td></tr>
+      <tr><td>依赖清单</td><td><code>requirements.txt</code></td><td><code>package.json</code> + <code>package-lock.json</code></td></tr>
+      <tr><td>全局污染风险</td><td>高（不用 venv 装到系统）</td><td>低（<code>npm install</code> 默认装到当前目录）</td></tr>
+      <tr><td>版本管理器</td><td>pyenv</td><td>nvm / fnm / volta</td></tr>
+      <tr><td>需要"激活"</td><td><code>source .venv/bin/activate</code></td><td>不需要（<code>npx</code> / <code>npm run</code> 自动解析）</td></tr>
+    </table>
+    <p style="color:var(--muted);font-size:.9rem">Node.js 不需要 Python 式的虚拟环境——<code>node_modules/</code> 等价于 <code>.venv</code>，已在 <code>.gitignore</code> 中。</p>
+  </section>
+
+  <section>
+    <h2>4. 安装步骤</h2>
+    <h3>4.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）</h3>
     <p>自动识别发行版、<strong>自动创建虚拟环境</strong>（<code>.venv-py*</code>）。生产用 MySQL；试用加 <code>--sqlite</code>。</p>
     <table>
       <tr><th>场景</th><th>命令</th></tr>
@@ -76,13 +118,13 @@
 cd CronPilot
 sudo bash scripts/install_linux.sh --production
 bash scripts/run_production.sh</pre>
-    <h3>3.2 手动安装（macOS / 自定义）</h3>
+    <h3>4.2 手动安装（macOS / 自定义）</h3>
     <pre>bash scripts/cronpilot.sh install
 bash scripts/install_production_deps.sh
 cp conf.ini.example conf.ini</pre>
     <p style="color:var(--muted);font-size:.9rem">Python 3.8～3.11；<code>run_production.sh</code> 自动使用 venv。</p>
 
-    <h3>3.3 配置 conf.ini</h3>
+    <h3>4.3 配置 conf.ini</h3>
     <div class="card">
       <p>必改项：<code>login_pwd</code>（<strong>仅</strong>空库种子 <code>admin</code> 的初始密码）、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 <code>login_pwd</code>。</p>
       <p><strong>会话密钥 <code>SECRET_KEY</code>（勿写入 conf.ini）：</strong>生产必须设置强密钥（长度 ≥ 16，且非源码默认值）。推荐：</p>
@@ -94,7 +136,7 @@ cp conf.ini.example conf.ini</pre>
 # 将输出写入 conf.ini 的 login_pwd=</pre>
     </div>
 
-    <h3>3.4 MySQL 示例</h3>
+    <h3>4.4 MySQL 示例</h3>
     <pre>[default]
 is_single=1
 cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
@@ -105,15 +147,15 @@ url_allow_hosts=
 url_ssrf_observe_only=0</pre>
     <p style="color:var(--muted);font-size:.9rem">升级 <strong>OPT-P2-12</strong>：<code>bash scripts/run_production.sh</code>（或单独 <code>bash scripts/ensure_business_tables.sh</code>）会对 <strong>MySQL / SQLite</strong> 自动建业务组表并补 <code>scope_type</code>/<code>group_id</code>。需库已存在且账号有 DDL 权限。手写 SQL 备用见 <a href="资源隔离与Scope设计.html">资源隔离与 Scope 设计 §十</a>。</p>
 
-    <h3>3.5 SQLite 单机试用</h3>
+    <h3>4.5 SQLite 单机试用</h3>
     <pre>cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
 cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite</pre>
     <p style="color:var(--muted);font-size:.9rem">路径请使用<strong>绝对路径</strong>（四个斜杠 <code>sqlite:////</code>）。</p>
   </section>
 
   <section>
-    <h2>4. 启动服务</h2>
-    <h3>4.1 生产（Gunicorn，监听外网）</h3>
+    <h2>5. 启动服务</h2>
+    <h3>5.1 生产（Gunicorn，监听外网）</h3>
     <pre>cd /opt/cronpilot/CronPilot
 bash scripts/run_production.sh
 export FLASK_CONFIG=production
@@ -121,11 +163,11 @@ export FLASK_CONFIG=production
 gunicorn -c gun.py manage:app
 # gun.py 已配置 bind = '0.0.0.0:5860'</pre>
 
-    <h3>4.2 本地冒烟</h3>
+    <h3>5.2 本地冒烟</h3>
     <pre>bash scripts/start_local.sh
 # 默认 127.0.0.1:5001；远程调试可改 host 为 0.0.0.0</pre>
 
-    <h3>4.3 访问地址</h3>
+    <h3>5.3 访问地址</h3>
     <table>
       <tr><th>用途</th><th>URL</th><th>认证</th></tr>
       <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td>用户名 + 密码（<code>rbac_users</code>）。空库种子 <code>admin</code>/<code>login_pwd</code>；日常改密：用户管理 → 编辑 → 新密码</td></tr>
@@ -136,7 +178,7 @@ gunicorn -c gun.py manage:app
   </section>
 
   <section>
-    <h2>5. 防火墙与健康检查</h2>
+    <h2>6. 防火墙与健康检查</h2>
     <pre>sudo ufw allow 5860/tcp
 
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
@@ -146,7 +188,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v</pre>
   </section>
 
   <section>
-    <h2>6. systemd（可选）</h2>
+    <h2>7. systemd（可选）</h2>
     <p>文件 <code>/etc/systemd/system/cronpilot.service</code>：</p>
     <pre>[Unit]
 Description=CronPilot scheduler admin
@@ -169,7 +211,7 @@ sudo systemctl status cronpilot</pre>
   </section>
 
   <section>
-    <h2>7. Nginx 反代 + HTTPS</h2>
+    <h2>8. Nginx 反代 + HTTPS</h2>
     <pre>server {
     listen 443 ssl;
     server_name cron.example.com;
@@ -192,7 +234,7 @@ sudo systemctl status cronpilot</pre>
   </section>
 
   <section>
-    <h2>8. 安全建议</h2>
+    <h2>9. 安全建议</h2>
     <div class="card warn">
       <ul>
         <li>生产必须使用<strong>强密码</strong>或 <code>pbkdf2</code> 哈希，禁止默认口令。</li>
@@ -206,7 +248,7 @@ sudo systemctl status cronpilot</pre>
   </section>
 
   <section>
-    <h2>9. 常见问题</h2>
+    <h2>10. 常见问题</h2>
     <table>
       <tr><th>现象</th><th>处理</th></tr>
       <tr><td>启动报 SECRET_KEY</td><td>设置环境变量 <code>SECRET_KEY</code>，或用 <code>bash scripts/run_production.sh</code>（自动生成 <code>datas/.flask_secret_key</code>）</td></tr>
@@ -221,7 +263,7 @@ sudo systemctl status cronpilot</pre>
   </section>
 
   <section>
-    <h2>10. 相关文档</h2>
+    <h2>11. 相关文档</h2>
     <div class="card">
       <ul>
         <li><a href="index.html">文档索引</a></li>

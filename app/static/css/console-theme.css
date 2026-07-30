@@ -1,0 +1,130 @@
+/*
+ * CronPilot Console Theme — 颜色变量统一定义
+ * ================================================
+ * 唯一权威颜色来源。所有模板与 Vue 组件中的硬编码十六进制色值
+ * 应替换为此文件定义的 CSS 变量，保持视觉效果与现状完全一致。
+ *
+ * 审计工具: python3 scripts/audit_hardcoded_colors.py --check
+ * 映射参考: python3 scripts/audit_hardcoded_colors.py --mapping
+ *
+ * 原则:
+ *   1. 纯收编——变量值取自现有代码中的实际色值，不引入新颜色
+ *   2. 不改变视觉效果——替换前后用户看到的颜色完全一致
+ *   3. 不引入主题切换——仅提供单一变量定义层
+ *   4. --cp-* 前缀避免与 simpleboot/bootstrap 冲突
+ *
+ * 覆盖范围: 57 个独立色值 / 191 处硬编码 / 21 个文件
+ */
+
+:root {
+  /* ====== 文字层级 ====== */
+  --cp-ink:       #0f172a;   /* 标题/正文主色 — cron_add/edit/list 的 headings */
+  --cp-ink-alt:   #1e293b;   /* 深色文字变体 — label-pending 文字色 */
+  --cp-ink-2:     #475569;   /* 次标题/筛选项文字 — cron_list chip 选中态、users 表格 (slate-600) */
+  --cp-ink-3:     #334155;   /* 筛选项文字 — cron_list chip 默认态 (slate-700) */
+  --cp-muted:     #64748b;   /* 次要文字/帮助提示 — 全站最高频色，50 处 (slate-500) */
+  --cp-faint:     #94a3b8;   /* 禁用态/占位符文字 — label-pending 底色 (slate-400) */
+  --cp-neutral:   #9ca3af;   /* 图标/开关默认态 — change_password 密码眼睛图标 (gray-400) */
+
+  /* ====== 背景/表面 ====== */
+  --cp-surface:   #ffffff;   /* 卡片/面板/topbar hover — admin_base topbar a:hover */
+  --cp-surface-2: #f1f5f9;   /* 次级面板/斑马行 — cron_list chip 默认底、users 筛选底 (slate-100) */
+  --cp-surface-3: #f8fafc;   /* 极浅背景 — cron_list 状态提示底、users 停用行底 (slate-50) */
+
+  /* ====== 边框/分割线 ====== */
+  --cp-border:        #e2e8f0;   /* 默认边框 — users_edit 分割线、job_log_detail pre 边框 (slate-200) */
+  --cp-border-strong: #cbd5e1;   /* 强调边框/禁用边框 — cron_list 禁用 chip 文字 (slate-300) */
+
+  /* ====== 强调色 ====== */
+  --cp-accent:         #0891b2;  /* 主强调色/信号青 — 设计系统核心色 */
+  --cp-accent-blue:    #1d4ed8;  /* 蓝色强调 — cron_list 运行中 chip 选中态、field-hint a 色 (blue-700) */
+  --cp-accent-blue-2:  #2563eb;  /* 蓝色强调变体 — cron_list 运行中 chip 底色 (blue-600) */
+  --cp-accent-bg:      #eff6ff;  /* 强调底色 — cron_list 运行中 chip 未选中底 (blue-50) */
+  --cp-accent-bg-2:    #dbeafe;  /* 强调底色变体 — users 角色 admin 徽标底 (blue-100) */
+  --cp-accent-border:  #93c5fd;  /* 强调边框 — cron_list 运行中 chip 未选中边框 (blue-300) */
+
+  /* ====== 成功色系 ====== */
+  --cp-success:        #059669;  /* 成功主色 — _job_log_result_cell 成功文字 (emerald-600) */
+  --cp-success-text:   #166534;  /* 成功文字（浅底上） — CronFormValidator 预览文字、users 活跃色 (green-800) */
+  --cp-success-dark:   #14532d;  /* 成功深色文字 — CronFormValidator 表达式 tag (green-900) */
+  --cp-success-icon:   #16a34a;  /* 成功图标 — CronFormValidator 预览图标 (green-600) */
+  --cp-success-alt:    #15803d;  /* 启用状态文字 — users_edit 启用 span (green-700) */
+  --cp-success-bg:     #f0fdf4;  /* 成功提示底色 — CronFormValidator 预览条底 (green-50) */
+  --cp-success-bg-2:   #dcfce7;  /* 成功 tag 底色 — CronFormValidator 表达式 tag 底、users 活跃底 (green-100) */
+  --cp-success-border: #bbf7d0;  /* 成功提示边框 — CronFormValidator 预览条边框 (green-200) */
+
+  /* ====== 危险色系 ====== */
+  --cp-danger:              #b91c1c;  /* 危险主色/错误文字 — cron_list 异常 chip、CronFormValidator 错误 (red-700) */
+  --cp-danger-fill:         #dc2626;  /* 危险填充 — cron_list 异常 chip 选中底 (red-600) */
+  --cp-danger-dark:         #991b1b;  /* 深危险/hover — cron_list 菜单 danger hover (red-800) */
+  --cp-danger-bg:           #fef2f2;  /* 危险提示底色 — cron_list 异常 chip 未选中底、CronFormValidator 错误底 (red-50) */
+  --cp-danger-border:       #fecaca;  /* 危险提示边框 — CronFormValidator 错误边框 (red-200) */
+  --cp-danger-border-light: #fca5a5;  /* 浅危险边框 — cron_list 异常 chip 未选中边框 (red-300) */
+  --cp-label-danger:        #c0392b;  /* label-danger 覆写 — simpleboot 恢复语义红 */
+
+  /* ====== 警告色系 ====== */
+  --cp-warn:           #b45309;  /* 警告主色/文字 — cron_add/edit 提示文字、operation_log 8 处 (amber-700) */
+  --cp-warn-accent:    #d97706;  /* 警告强调/左边框 — cron_add/edit 提示条左边框 (amber-600) */
+  --cp-warn-icon:      #f59e0b;  /* 警告图标/虚线边框 — cron_add/edit 输入框虚线、cron_list chip (amber-500) */
+  --cp-warn-dark:      #78350f;  /* 警告深色文字 — cron_add/edit 提示条文字 (amber-900) */
+  --cp-warn-dark-2:    #92400e;  /* 警告深色变体 — cron_list 警告提示文字 (amber-800) */
+  --cp-warn-bg:        #fffbeb;  /* 警告提示底色 — cron_add/edit/list 警告条底色 (amber-50) */
+  --cp-warn-bg-2:      #fef3c7;  /* 次级警告底色 — cron_list scope 提示底 (amber-100) */
+  --cp-warn-bg-3:      #ffedd5;  /* 三级警告底色 — users 角色 seed 徽标底 (orange-100) */
+  --cp-warn-border:    #fcd34d;  /* 警告边框 — cron_add/edit 提示条边框 (yellow-300) */
+  --cp-warn-border-2:  #fde68a;  /* 次级警告边框 — cron_list 警告指示条 (yellow-200) */
+
+  /* ====== 执行状态机 (admin_base.html label 覆写) ====== */
+  --cp-state-running:      #0284c7;  /* 执行中 (sky-600) */
+  --cp-state-pending:      #94a3b8;  /* 待执行底色 (slate-400) */
+  --cp-state-pending-text: #1e293b;  /* 待执行文字 (slate-800) */
+  --cp-state-timeout:      #9333ea;  /* 超时 (purple-600) */
+
+  /* ====== 角色徽标 (rbac/_topbar.html) ====== */
+  --cp-role-admin:    #2980b9;  /* 管理员 */
+  --cp-role-operator: #16a085;  /* 运维 */
+  --cp-role-viewer:   #27ae60;  /* 观察者 */
+  --cp-role-seed:     #e67e22;  /* 种子账号 */
+  --cp-role-default:  #3498db;  /* 默认/未知角色 */
+
+  /* ====== Topbar (Flat UI 遗留色，侧边栏重构后可废弃) ====== */
+  --cp-topbar-bg:    #2c3e50;  /* topbar 背景 (Flat UI midnight blue) */
+  --cp-topbar-text:  #ecf0f1;  /* topbar 文字 (Flat UI silver) */
+  --cp-topbar-muted: #7f8c8d;  /* topbar 分隔符 (Flat UI asbestos) */
+
+  /* ====== 已下线 chip (cron_list stone 色板) ====== */
+  --cp-retired-text:   #57534e;  /* 已下线文字 (stone-600) */
+  --cp-retired-bg:     #f5f5f4;  /* 已下线底色 (stone-100) */
+  --cp-retired-fill:   #78716c;  /* 已下线选中底 (stone-500) */
+  --cp-retired-border: #d6d3d1;  /* 已下线边框 (stone-300) */
+
+  /* ====== 链接 (simpleboot/Bootstrap 遗留) ====== */
+  --cp-link: #337ab7;  /* Bootstrap 默认链接蓝 */
+}
+
+/* ============================================================
+   语义覆写类（从 admin_base.html inline <style> 迁移）
+   ============================================================
+   以下类定义可替代 admin_base.html 中的硬编码样式块。
+   迁移方式：引入本文件后，删除 admin_base.html 对应的
+   inline 样式规则即可，视觉效果完全不变。
+   ============================================================ */
+
+/* 执行状态徽标 */
+.label-timeout { background-color: var(--cp-state-timeout); }
+.label-running { background-color: var(--cp-state-running); }
+.label-pending { background-color: var(--cp-state-pending); color: var(--cp-state-pending-text); }
+.label-danger  { background-color: var(--cp-label-danger); }
+
+/* 角色徽标（保持 .rbac-topbar 前缀以匹配原始特异性） */
+.rbac-topbar .topbar-role-seed     { background-color: var(--cp-role-seed); }
+.rbac-topbar .topbar-role-admin    { background-color: var(--cp-role-admin); }
+.rbac-topbar .topbar-role-operator { background-color: var(--cp-role-operator); }
+.rbac-topbar .topbar-role-viewer   { background-color: var(--cp-role-viewer); }
+.rbac-topbar .topbar-role-default  { background-color: var(--cp-role-default); }
+
+/* Topbar 容器 */
+.rbac-topbar { background-color: var(--cp-topbar-bg); color: var(--cp-topbar-text); }
+.rbac-topbar .topbar-sep { color: var(--cp-topbar-muted); }
+.rbac-topbar a { color: var(--cp-topbar-text); }
+.rbac-topbar a:hover { color: var(--cp-surface); }

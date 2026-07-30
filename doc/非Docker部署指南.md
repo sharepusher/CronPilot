@@ -29,9 +29,53 @@ Gunicorn ──► MySQL（或 SQLite） + Redis（集群时）
 | Redis | 可选 | 多实例集群锁；单机设 `is_single=1` |
 | 端口 | **5860** | `gun.py` 默认；本地脚本常用 5001 |
 
-## 3. 安装步骤
+## 3. 前端开发环境（可选）
 
-### 3.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）
+**生产环境不需要 Node.js**——Vue 构建产物（`app/static/js/*.js`）已提交到仓库，Flask 直接托管。仅在修改 `frontend/src/` 下 Vue 组件源码时，需要 Node.js 重新构建。
+
+### 3.1 架构说明
+
+CronPilot 采用 **Islands Architecture**（岛屿架构）：主体由 Flask + Jinja2 服务端渲染，少量交互组件（`CronFilterBar`、`CronFormValidator`、`CronStatusCell`）用 Vue 3 + Vite 构建后输出到 `app/static/js/`，由 Flask 同进程托管。
+
+| 环境 | Python | Node.js |
+| --- | --- | --- |
+| 生产（裸机 / Docker） | 3.8～3.11 | **不需要** |
+| 开发（修改 Vue 组件时） | 3.8～3.11 | 18+ LTS（推荐 20/22） |
+| CI | 3.11 | 仅 `frontend-build.yml` 检查时 |
+
+### 3.2 安装 Node.js（推荐 nvm）
+
+使用 **nvm**（Node Version Manager）管理 Node.js 版本，与 Python 的 pyenv 理念一致，不污染系统环境。
+
+```
+# 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc   # 或 ~/.zshrc
+
+# 安装 Node.js LTS
+nvm install --lts
+
+# 安装前端依赖 & 构建
+cd frontend
+npm install          # 依赖安装到 frontend/node_modules/（项目级隔离）
+npm run build        # 构建产物输出到 app/static/js/
+```
+
+### 3.3 Node.js 与 Python 环境隔离对比
+
+| 维度 | Python (venv) | Node.js (node\_modules) |
+| --- | --- | --- |
+| 隔离机制 | `python -m venv .venv` | 项目级 `node_modules/`，天然隔离 |
+| 依赖清单 | `requirements.txt` | `package.json` + `package-lock.json` |
+| 全局污染风险 | 高（不用 venv 装到系统） | 低（`npm install` 默认装到当前目录） |
+| 版本管理器 | pyenv | nvm / fnm / volta |
+| 需要"激活" | `source .venv/bin/activate` | 不需要（`npx` / `npm run` 自动解析） |
+
+Node.js 不需要 Python 式的虚拟环境——`node_modules/` 等价于 `.venv`，已在 `.gitignore` 中。
+
+## 4. 安装步骤
+
+### 4.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）
 
 自动识别发行版、**自动创建虚拟环境**（`.venv-py*`）。生产用 MySQL；试用加 `--sqlite`。
 
@@ -49,7 +93,7 @@ sudo bash scripts/install_linux.sh --production
 bash scripts/run_production.sh
 ```
 
-### 3.2 手动安装（macOS / 自定义）
+### 4.2 手动安装（macOS / 自定义）
 
 ```
 bash scripts/cronpilot.sh install
@@ -59,7 +103,7 @@ cp conf.ini.example conf.ini
 
 Python 3.8～3.11；`run_production.sh` 自动使用 venv。
 
-### 3.3 配置 conf.ini
+### 4.3 配置 conf.ini
 
 必改项：`login_pwd`（**仅**空库种子 `admin` 的初始密码）、`cron_db_url`、`cron_job_log_db_url`、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 `login_pwd`。
 
@@ -78,7 +122,7 @@ python scripts/hash_login_password.py '你的强密码'
 # 将输出写入 conf.ini 的 login_pwd=
 ```
 
-### 3.4 MySQL 示例
+### 4.4 MySQL 示例
 
 ```
 [default]
@@ -93,7 +137,7 @@ url_ssrf_observe_only=0
 
 升级 **OPT-P2-12**：`bash scripts/run_production.sh`（或单独 `bash scripts/ensure_business_tables.sh`）会对 **MySQL / SQLite** 自动建业务组表并补 `scope_type`/`group_id`。需库已存在且账号有 DDL 权限。手写 SQL 备用见 [资源隔离与 Scope 设计 §十](资源隔离与Scope设计.html)。
 
-### 3.5 SQLite 单机试用
+### 4.5 SQLite 单机试用
 
 ```
 cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
@@ -102,9 +146,9 @@ cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite
 
 路径请使用**绝对路径**（四个斜杠 `sqlite:////`）。
 
-## 4. 启动服务
+## 5. 启动服务
 
-### 4.1 生产（Gunicorn，监听外网）
+### 5.1 生产（Gunicorn，监听外网）
 
 ```
 cd /opt/cronpilot/CronPilot
@@ -115,14 +159,14 @@ gunicorn -c gun.py manage:app
 # gun.py 已配置 bind = '0.0.0.0:5860'
 ```
 
-### 4.2 本地冒烟
+### 5.2 本地冒烟
 
 ```
 bash scripts/start_local.sh
 # 默认 127.0.0.1:5001；远程调试可改 host 为 0.0.0.0
 ```
 
-### 4.3 访问地址
+### 5.3 访问地址
 
 | 用途 | URL | 认证 |
 | --- | --- | --- |
@@ -132,7 +176,7 @@ bash scripts/start_local.sh
 
 文档索引：`/docs/` → `doc/index.html`；子页如 `/docs/架构设计文档.html`。
 
-## 5. 防火墙与健康检查
+## 6. 防火墙与健康检查
 
 ```
 sudo ufw allow 5860/tcp
@@ -143,7 +187,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
 python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 ```
 
-## 6. systemd（可选）
+## 7. systemd（可选）
 
 文件 `/etc/systemd/system/cronpilot.service`：
 
@@ -171,7 +215,7 @@ sudo systemctl enable --now cronpilot
 sudo systemctl status cronpilot
 ```
 
-## 7. Nginx 反代 + HTTPS
+## 8. Nginx 反代 + HTTPS
 
 ```
 server {
@@ -196,7 +240,7 @@ server {
 
 对外仅暴露 443，Gunicorn 只监听 `127.0.0.1:5860` 更安全。
 
-## 8. 安全建议
+## 9. 安全建议
 
 - 生产必须使用**强密码**或 `pbkdf2` 哈希，禁止默认口令。
 - 生产必须配置强 `SECRET_KEY`（环境变量或 `run_production.sh` 生成的 `datas/.flask_secret_key`）；直接 gunicorn 且使用默认密钥会拒绝启动。
@@ -205,7 +249,7 @@ server {
 - 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
 - 勿对 `0.0.0.0` 使用 `debug=True` 的 Flask 内置服务器。
 
-## 9. 常见问题
+## 10. 常见问题
 
 | 现象 | 处理 |
 | --- | --- |
@@ -217,7 +261,7 @@ server {
 | `/docs/` 404 | 确认已部署含 `app/docs/` 的版本并重启进程 |
 | 调度不触发 | 检查 `cron_db_url`、APScheduler 库表、`is_single` / Redis |
 
-## 10. 相关文档
+## 11. 相关文档
 
 - [文档索引](index.html)
 - [依赖升级 RFC](依赖升级RFC.html)（Tier 0～4 分层路线、与 RBAC 排期）

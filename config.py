@@ -26,6 +26,18 @@ def is_weak_secret_key(key):
     return False
 
 
+def is_api_token_required_but_missing(required_flag, token):
+    """API 层最小 Scope 止损（见 doc/RBAC与群组权限管理评审报告.html）：
+
+    opt-in 开关；仅当 conf.ini 显式设置 api_access_token_required=1 时，
+    才要求 api_access_token 非空，默认（0/未设置）保持向后兼容、零行为变化。
+    """
+    flag = str(required_flag or '').strip().lower()
+    if flag not in ('1', 'true', 'yes'):
+        return False
+    return not str(token or '').strip()
+
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or DEFAULT_SECRET_KEY
     SQLALCHEMY_COMMIT_ON_TEARDOWN = False
@@ -139,6 +151,14 @@ class ProductionConfig(Config):
                 'Generate one: python -c "import secrets; print(secrets.token_hex(32))" '
                 'Or let scripts/run_production.sh bootstrap datas/.flask_secret_key.'
                 % MIN_SECRET_KEY_LEN
+            )
+        if is_api_token_required_but_missing(
+            configs('api_access_token_required'), configs('api_access_token')
+        ):
+            raise RuntimeError(
+                'conf.ini sets api_access_token_required=1 but api_access_token is empty. '
+                'Configure a non-empty api_access_token and share it with all API callers, '
+                'or set api_access_token_required back to 0.'
             )
 
 

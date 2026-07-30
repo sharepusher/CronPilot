@@ -14,7 +14,7 @@
         {% include "rbac/_nav.html" %}
         {% endwith %}
 
-        <p style="color:#64748b;margin:8px 0">
+        <p style="color:var(--cp-muted);margin:8px 0">
             本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / <strong>启动</strong> / <strong>暂停</strong> / 下线）。
             登录与权限事件见{% if has_perm('audit:read') %}
             <a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。
@@ -30,7 +30,7 @@
                 <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启动/暂停</option>
                 <option value="retire_cron"{% if keywords.get('action') == 'retire_cron' %} selected{% endif %}>下线任务</option>
             </select>
-            <span style="color:#64748b;font-size:12px;margin:0 4px">业务组</span>
+            <span style="color:var(--cp-muted);font-size:12px;margin:0 4px">业务组</span>
             <select name="scope_view" onchange="if(this.form){this.form.group_id.value='';}">
                 <option value="all"{% if scope_view=='all' %} selected{% endif %}>全部（可见）</option>
                 <option value="global"{% if scope_view=='global' %} selected{% endif %}>全局共享</option>
@@ -67,7 +67,7 @@
                 <td>{{ item.create_time }}</td>
                 <td title="{{ item.action }}">{{ operation_action_label(item.action, item.detail_json) }}</td>
                 <td>{{ item.operator_name }}</td>
-                <td style="color:#64748b;font-size:12px">{{ item.operator_roles_json }}</td>
+                <td style="color:var(--cp-muted);font-size:12px">{{ item.operator_roles_json }}</td>
                 <td>{{ item.task_name }}</td>
                 <td>
                     {% if cif and (cif.scope_type == 'GLOBAL' or not cif.group_id) %}
@@ -75,14 +75,14 @@
                     {% elif cif and cif.group_id %}
                     {{ group_name_by_id.get(cif.group_id, '组#' ~ cif.group_id) }}
                     {% else %}
-                    <span style="color:#94a3b8">—</span>
+                    <span style="color:var(--cp-faint)">—</span>
                     {% endif %}
                 </td>
                 <td title="{{ item.result }}">{{ operation_result_label(item.result) }}</td>
                 <td title="{{ item.detail_json }}">{{ format_detail_summary(item.action, item.detail_json) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="color:#64748b">暂无操作记录</td></tr>
+            <tr><td colspan="8" style="color:var(--cp-muted)">暂无操作记录</td></tr>
             {% endfor %}
             </tbody>
         </table>

@@ -27,6 +27,7 @@
 | ↳ RBAC 落地路线 | 阶段实施记录 | [HTML](RBAC落地路线.html) | [MD](RBAC落地路线.md) |
 | **Resource Scope OPT-P2-12**（v1.1.0） | 业务组隔离 · 防 IDOR | [HTML](资源隔离与Scope设计.html) | [MD](资源隔离与Scope设计.md) |
 | ↳ 资源隔离落地路线 | 落地阶段记录 | [HTML](资源隔离落地路线.html) | [MD](资源隔离落地路线.md) |
+| ↳ **RBAC 与群组权限管理评审报告**（评审稿 2026-07-29） | API 层 Scope 缺口再评级 · 登录限流/Cookie 安全等增补建议 | [HTML](RBAC与群组权限管理评审报告.html) | [MD](RBAC与群组权限管理评审报告.md) |
 | **任务生命周期与无删除**（已交付） | 暂停≠下线 · LIFECYCLE-2 | [HTML](任务生命周期与无删除设计.html) | [MD](任务生命周期与无删除设计.md) |
 | **OPT-P0-09/10 锁与密钥**（v2.1.1） | Redis SET NX EX · 生产 SECRET_KEY fail-fast | [HTML](OPT-P0-09-10-锁与密钥设计.html) | [MD](OPT-P0-09-10-锁与密钥设计.md) |
 | **OPT-P0-11 管理端 CSRF**（v2.1.1） | 写操作 POST + Session Token | [HTML](OPT-P0-11-管理端CSRF设计.html) | [MD](OPT-P0-11-管理端CSRF设计.md) |

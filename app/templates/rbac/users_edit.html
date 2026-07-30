@@ -24,18 +24,18 @@
                     <label class="control-label">用户名</label>
                     <div class="controls">
                         <input type="text" value="{{ user.username }}" disabled />
-                        <span style="color:#64748b">创建后不可改</span>
+                        <span style="color:var(--cp-muted)">创建后不可改</span>
                     </div>
                 </div>
                 <div class="control-group">
                     <label class="control-label">密码状态</label>
                     <div class="controls">
                         {% if user.must_reset_password %}
-                        <span style="color:#b45309;font-weight:600">待重置</span>
-                        <span style="color:#64748b;margin-left:8px">下次访问须用默认密码 {{ default_password or 'changeme' }} 登录并完成改密</span>
+                        <span style="color:var(--cp-warn);font-weight:600">待重置</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">下次访问须用默认密码 {{ default_password or 'changeme' }} 登录并完成改密</span>
                         {% else %}
-                        <span style="color:#15803d;font-weight:600">正常</span>
-                        <span style="color:#64748b;margin-left:8px">管理员不可直接指定密码，仅可触发重置</span>
+                        <span style="color:var(--cp-success-alt);font-weight:600">正常</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">管理员不可直接指定密码，仅可触发重置</span>
                         {% endif %}
                     </div>
                 </div>
@@ -53,12 +53,12 @@
                     <label class="control-label">状态</label>
                     <div class="controls">
                         {% if user.is_active %}
-                        <span style="color:#166534;font-weight:600">启用</span>
+                        <span style="color:var(--cp-success-text);font-weight:600">启用</span>
                         {% else %}
-                        <span style="color:#64748b;font-weight:600">停用</span>
+                        <span style="color:var(--cp-muted);font-weight:600">停用</span>
                         {% endif %}
                         {% if user.status_reason %}
-                        <span style="color:#64748b;margin-left:8px">缘由：{{ user.status_reason }}</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">缘由：{{ user.status_reason }}</span>
                         {% endif %}
                         {% if current_user and current_user.user_id != user.id %}
                         <div style="margin-top:6px">
@@ -69,7 +69,7 @@
                             {% endif %}
                         </div>
                         {% else %}
-                        <span style="color:#64748b;margin-left:8px">当前登录账号不可在此停用</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">当前登录账号不可在此停用</span>
                         {% endif %}
                         <input type="hidden" name="is_active" value="{{ 1 if user.is_active else 0 }}" />
                     </div>
@@ -83,9 +83,9 @@
                             <option value="{{ g.id }}"{% if g.id in (user_group_ids or []) %} selected{% endif %}>{{ g.name }} ({{ g.code }})</option>
                             {% endfor %}
                         </select>
-                        <span style="color:#64748b">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个；仅 admin 可不选。变更后该用户需重新登录生效</span>
+                        <span style="color:var(--cp-muted)">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个；仅 admin 可不选。变更后该用户需重新登录生效</span>
                         {% else %}
-                        <span style="color:#64748b">暂无业务组，请先在「业务组」创建</span>
+                        <span style="color:var(--cp-muted)">暂无业务组，请先在「业务组」创建</span>
                         {% endif %}
                     </div>
                 </div>
@@ -97,8 +97,8 @@
         </form>
 
         {% if current_user and current_user.user_id != user.id %}
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0">
-            <p style="color:#64748b;font-size:12px;margin:0 0 8px">
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--cp-border)">
+            <p style="color:var(--cp-muted);font-size:12px;margin:0 0 8px">
                 触发重置会将密码恢复为 <strong>{{ default_password or 'changeme' }}</strong>，并要求该用户下次访问前完成改密。
             </p>
             <a class="btn btn-warning js-ajax-dialog-btn"

@@ -17,7 +17,7 @@
         {% endwith %}
 
         {% if list_role == 'viewer' %}
-        <p class="opt-p2-13-viewer-hint" style="color:#64748b;font-size:12px;margin:0 0 8px">只读账号：可查任务与运行记录，不可启停/编辑/下线。</p>
+        <p class="opt-p2-13-viewer-hint" style="color:var(--cp-muted);font-size:12px;margin:0 0 8px">只读账号：可查任务与运行记录，不可启停/编辑/下线。</p>
         {% endif %}
 
         <div id="cron-filter-bar"
@@ -77,7 +77,7 @@
     flex: 0 0 auto;
 }
 .cron-search-label {
-    color: #64748b;
+    color: var(--cp-muted);
     font-size: 12px;
     line-height: 30px;
 }
@@ -95,14 +95,14 @@
 }
 .cron-filter-label,
 .cron-toolbar-label {
-    color: #64748b;
+    color: var(--cp-muted);
     font-size: 11px;
     font-weight: 600;
     margin-right: 2px;
     line-height: 28px;
 }
 .cron-filter-sep {
-    color: #cbd5e1;
+    color: var(--cp-border-strong);
     margin: 0 2px;
     font-size: 12px;
     line-height: 28px;
@@ -134,54 +134,54 @@
     box-sizing: border-box;
 }
 .cron-chip-fail {
-    color: #b91c1c;
-    background: #fef2f2;
-    border-color: #fca5a5;
+    color: var(--cp-danger);
+    background: var(--cp-danger-bg);
+    border-color: var(--cp-danger-border-light);
 }
 .cron-chip-fail.active, .cron-chip-fail:hover {
     color: #fff;
-    background: #dc2626;
-    border-color: #b91c1c;
+    background: var(--cp-danger-fill);
+    border-color: var(--cp-danger);
 }
 .cron-chip-warn {
-    color: #b45309;
-    background: #fffbeb;
-    border-color: #fcd34d;
+    color: var(--cp-warn);
+    background: var(--cp-warn-bg);
+    border-color: var(--cp-warn-border);
 }
 .cron-chip-warn.active, .cron-chip-warn:hover {
     color: #fff;
-    background: #f59e0b;
-    border-color: #d97706;
+    background: var(--cp-warn-icon);
+    border-color: var(--cp-warn-accent);
 }
 .cron-chip-all {
-    color: #334155;
-    background: #f1f5f9;
-    border-color: #cbd5e1;
+    color: var(--cp-ink-3);
+    background: var(--cp-surface-2);
+    border-color: var(--cp-border-strong);
 }
 .cron-chip-all.active, .cron-chip-all:hover {
     color: #fff;
-    background: #475569;
-    border-color: #334155;
+    background: var(--cp-ink-2);
+    border-color: var(--cp-ink-3);
 }
 .cron-chip-run {
-    color: #1d4ed8;
-    background: #eff6ff;
-    border-color: #93c5fd;
+    color: var(--cp-accent-blue);
+    background: var(--cp-accent-bg);
+    border-color: var(--cp-accent-border);
 }
 .cron-chip-run.active, .cron-chip-run:hover {
     color: #fff;
-    background: #2563eb;
-    border-color: #1d4ed8;
+    background: var(--cp-accent-blue-2);
+    border-color: var(--cp-accent-blue);
 }
 .cron-chip-pause {
-    color: #57534e;
-    background: #f5f5f4;
-    border-color: #d6d3d1;
+    color: var(--cp-retired-text);
+    background: var(--cp-retired-bg);
+    border-color: var(--cp-retired-border);
 }
 .cron-chip-pause.active, .cron-chip-pause:hover {
     color: #fff;
-    background: #78716c;
-    border-color: #57534e;
+    background: var(--cp-retired-fill);
+    border-color: var(--cp-retired-text);
 }
 .cron-list-refined td { padding: 6px 8px; }
 .cron-list-refined .cabin-row {
@@ -196,10 +196,10 @@
     border-radius: 50%;
     margin-top: 6px;
 }
-.cron-list-refined .health-dot-fail { background: #dc2626; box-shadow: 0 0 0 2px #fecaca; }
-.cron-list-refined .health-dot-warn { background: #f59e0b; box-shadow: 0 0 0 2px #fde68a; }
-.cron-list-refined .health-dot-ok { background: #16a34a; box-shadow: 0 0 0 2px #bbf7d0; }
-.cron-list-refined .health-dot-none { background: #cbd5e1; }
+.cron-list-refined .health-dot-fail { background: var(--cp-danger-fill); box-shadow: 0 0 0 2px var(--cp-danger-border); }
+.cron-list-refined .health-dot-warn { background: var(--cp-warn-icon); box-shadow: 0 0 0 2px var(--cp-warn-border-2); }
+.cron-list-refined .health-dot-ok { background: var(--cp-success-icon); box-shadow: 0 0 0 2px var(--cp-success-border); }
+.cron-list-refined .health-dot-none { background: var(--cp-border-strong); }
 .cron-list-refined .cabin-main { min-width: 0; flex: 1; }
 .cron-list-refined .cabin-title-line { line-height: 1.45; margin-bottom: 2px; }
 .cron-list-refined .cabin-scope {
@@ -211,40 +211,40 @@
 .cron-list-refined .cabin-name {
     font-size: 14px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--cp-ink);
     vertical-align: middle;
 }
 .cron-list-refined .cabin-desc-tip {
-    color: #94a3b8;
+    color: var(--cp-faint);
     font-size: 12px;
     margin-left: 3px;
     text-decoration: none;
     vertical-align: middle;
 }
-.cron-list-refined .cabin-desc-tip:hover { color: #2563eb; }
+.cron-list-refined .cabin-desc-tip:hover { color: var(--cp-accent-blue-2); }
 .cron-list-refined .cabin-url-secondary {
     font-size: 11px;
-    color: #64748b;
+    color: var(--cp-muted);
     line-height: 1.35;
     word-break: break-all;
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 .cron-list-refined .cabin-url-missing {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--cp-faint);
     font-style: italic;
 }
 .cron-list-refined .sched-human {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--cp-ink-alt);
     line-height: 1.35;
 }
 .cron-list-refined .sched-expr {
     display: inline-block;
     margin-top: 3px;
     font-size: 11px;
-    color: #64748b;
-    background: #f1f5f9;
+    color: var(--cp-muted);
+    background: var(--cp-surface-2);
     padding: 1px 5px;
     border-radius: 3px;
     word-break: break-all;
@@ -254,21 +254,21 @@
     line-height: 1.45;
 }
 .cron-list-refined .audit-v {
-    color: #64748b;
+    color: var(--cp-muted);
     font-weight: 400;
 }
 .cron-list-refined .audit-hint {
     font-size: 10px;
-    color: #94a3b8;
+    color: var(--cp-faint);
     line-height: 1.35;
     margin: 1px 0 3px;
 }
 .cron-list-refined .audit-k {
-    color: #475569;
+    color: var(--cp-ink-2);
     font-weight: 600;
     margin-right: 2px;
 }
-.cron-list-refined .audit-muted { color: #94a3b8; }
+.cron-list-refined .audit-muted { color: var(--cp-faint); }
 .cron-list-refined .cron-life-cell {
     text-align: left;
     padding-left: 8px;
@@ -289,42 +289,42 @@
     font-size: 11px;
 }
 .cron-list-refined .cron-ops-cell .cron-more-toggle {
-    color: #1e293b;
+    color: var(--cp-ink-alt);
     background-color: #fff;
-    border-color: #94a3b8;
+    border-color: var(--cp-faint);
     text-shadow: none;
     font-weight: 600;
 }
 .cron-list-refined .cron-ops-cell .cron-more-toggle .caret {
-    border-top-color: #475569;
+    border-top-color: var(--cp-ink-2);
 }
 .cron-list-refined .cron-ops-cell .btn-group.open .cron-more-toggle {
-    background-color: #f8fafc;
+    background-color: var(--cp-surface-3);
     background-image: none;
-    color: #0f172a;
-    border-color: #64748b;
+    color: var(--cp-ink);
+    border-color: var(--cp-muted);
     box-shadow: none;
 }
 .cron-list-refined .label-pause {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--cp-warn-bg-2);
+    color: var(--cp-warn-dark-2);
     border: 0;
 }
 .cron-list-refined .label-retired {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--cp-surface-2);
+    color: var(--cp-muted);
     border: 0;
 }
 .cron-list-refined .cron-more-menu {
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--cp-border);
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
     padding: 4px 0;
     min-width: 120px;
 }
 .cron-list-refined .cron-more-menu > li > a {
-    color: #334155;
+    color: var(--cp-ink-3);
     padding: 6px 14px;
     background: transparent;
     background-image: none;
@@ -332,26 +332,26 @@
 }
 .cron-list-refined .cron-more-menu > li > a:hover,
 .cron-list-refined .cron-more-menu > li > a:focus {
-    background: #f1f5f9;
+    background: var(--cp-surface-2);
     background-image: none;
-    color: #0f172a;
+    color: var(--cp-ink);
     filter: none;
 }
 .cron-list-refined .cron-more-menu > li > a i {
     width: 14px;
     margin-right: 4px;
-    color: #64748b;
+    color: var(--cp-muted);
 }
-.cron-list-refined .cron-more-menu .cron-menu-danger { color: #b91c1c; }
+.cron-list-refined .cron-more-menu .cron-menu-danger { color: var(--cp-danger); }
 .cron-list-refined .cron-more-menu .cron-menu-danger:hover,
 .cron-list-refined .cron-more-menu .cron-menu-danger:focus {
-    background: #fef2f2;
+    background: var(--cp-danger-bg);
     background-image: none;
-    color: #991b1b;
+    color: var(--cp-danger-dark);
 }
-.cron-list-refined .cron-more-menu .js-retire-denied { color: #94a3b8; }
+.cron-list-refined .cron-more-menu .js-retire-denied { color: var(--cp-faint); }
 .cron-list-refined .cron-more-menu .divider {
-    background-color: #e2e8f0;
+    background-color: var(--cp-border);
     margin: 4px 0;
 }
 </style>

@@ -22,3 +22,9 @@ alwaysApply: true
 | CSS class 的增删（影响视觉样式） | 须列出受影响元素与类名 |
 
 **自检要求**：交付前执行 `git diff -- app/templates/` 审查 diff，凡出现上表变更但设计稿中未列出者，须先向用户确认再提交。
+
+## 颜色约束（追加 2026-07）
+
+- **禁止**在模板和 Vue 组件中新增硬编码十六进制颜色（`#xxxxxx`），必须使用 `var(--cp-*)` 引用 `app/static/css/console-theme.css` 中的变量。
+- 交付前执行 `python scripts/audit_hardcoded_colors.py --check`，存在硬编码颜色则不得提交。
+- 需要新颜色时，先在 `console-theme.css` 的 `:root` 中添加语义变量定义，再引用。

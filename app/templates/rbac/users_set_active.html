@@ -27,7 +27,7 @@
                     <label class="control-label">用户名</label>
                     <div class="controls">
                         <span>{{ user.username }}</span>
-                        <span style="color:#64748b;margin-left:8px">角色 {{ user.role }}</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">角色 {{ user.role }}</span>
                     </div>
                 </div>
                 <div class="control-group">
@@ -35,7 +35,7 @@
                     <div class="controls">
                         {% if user.is_active %}启用{% else %}停用{% endif %}
                         {% if user.status_reason %}
-                        <span style="color:#64748b;margin-left:8px">上次缘由：{{ user.status_reason }}</span>
+                        <span style="color:var(--cp-muted);margin-left:8px">上次缘由：{{ user.status_reason }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                     <label class="control-label">{% if enabling %}启用缘由{% else %}停用缘由{% endif %}</label>
                     <div class="controls">
                         <textarea name="reason" rows="3" style="width:80%;max-width:480px" maxlength="500" required></textarea>
-                        <span class="help-block" style="color:#64748b">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
+                        <span class="help-block" style="color:var(--cp-muted)">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
                     </div>
                 </div>
                 <div class="form-actions">

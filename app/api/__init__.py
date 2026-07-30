@@ -36,9 +36,23 @@ def _api_token_guard():
 
     if token != api_access_token:
         from datas.utils.json import api_return
+        _write_api_deny_audit()
         return api_return(errcode=1, errmsg='access_token错误或缺失'), 401
 
     return None  # 鉴权通过
+
+
+def _write_api_deny_audit():
+    """记录 API 鉴权失败（rbac_audit_logs.action='api:deny'），便于异常调用追溯。
+
+    失败留痕是「API 层最小 Scope 止损」的一部分（见 doc/RBAC与群组权限管理评审报告.html）；
+    不影响主流程——审计写入异常时静默忽略，不阻塞 401 响应。
+    """
+    try:
+        from app.rbac.services import write_audit_log
+        write_audit_log(action='api:deny', resource=request.path, status='deny')
+    except Exception:
+        pass
 
 
 from . import views

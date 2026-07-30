@@ -35,7 +35,7 @@
   <a href="index.html" style="color:#c7d2fe;font-size:.9rem">← 文档索引</a>
   <span class="tag">权威</span><span class="tag">路线图</span>
   <h1>交付状态与路线图</h1>
-  <p>当前发行版文档已收录：<strong>v2.2.0</strong>（2026-07-24，可观测性：结构化日志 + Prometheus 指标 + Bug 修复）· <strong>v2.1.1</strong>（2026-07-21，安全加固）· <strong>v2.1.0</strong>（2026-07-20，Framework Generation · Flask 2.3 + SA 2.0）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
+  <p>当前发行版文档已收录：<strong>v2.6.0</strong>（2026-07-30，前端颜色收编 + API access_token 加固）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
   <div class="note">
     <strong>2026-07-24 v2.2.0（可观测性 + Bug 修复）：</strong>结构化 JSON 日志（python-json-logger）、Gunicorn JSON 访问日志、调度器 event 枚举、Prometheus 五指标（<code>/metrics</code> Bearer Token + session 双模认证）、Grafana Dashboard；补丁：AJAX 表单 CSRF token 注入修复、JSON 日志 timestamp <code>%f</code> 字面量修复、logout CSRF 保护。详见 <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a> · <a href="RELEASE_NOTES.html#220">Release Notes [2.2.0]</a>。
     <br>
@@ -101,6 +101,16 @@
       <td><a href="RELEASE_NOTES.html#120">Release Notes [1.2.0]</a></td>
     </tr>
     <tr>
+      <td><strong>v2.6.0</strong></td><td>2026-07-30</td>
+      <td>前端颜色收编（191 处→CSS 变量 60 个）；API access_token opt-in fail-fast + 审计；颜色审计 CI 门禁；表单 name 守护测试；死文件清理；非 Docker 部署指南增 Node.js 章节</td>
+      <td><a href="RELEASE_NOTES.html#v2-6-0">Release Notes [2.6.0]</a></td>
+    </tr>
+    <tr>
+      <td><strong>v2.5.0</strong></td><td>2026-07-29</td>
+      <td>Phase B1/B2：执行状态机（4 终态）+ 单任务超时配置 + CronFormValidator Vue 组件 + CronFilterBar/CronStatusCell</td>
+      <td><a href="RELEASE_NOTES.html#v2-5-0">Release Notes [2.5.0]</a></td>
+    </tr>
+    <tr>
       <td><strong>v2.2.0</strong></td><td>2026-07-24</td>
       <td>可观测性：结构化 JSON 日志（python-json-logger）、Gunicorn 访问日志、调度器 event 枚举、Prometheus 五指标（/metrics Bearer Token）、Grafana Dashboard；补丁：AJAX 表单 CSRF 注入修复、timestamp %f 修复、logout CSRF 保护</td>
       <td><a href="RELEASE_NOTES.html#220">Release Notes</a> · <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a></td>
@@ -146,7 +156,7 @@
     <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
     <tr><td>OPT-P1-09</td><td>管理操作审计 <code>operation_log</code></td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="架构设计文档.html#op-audit-detail">架构 §6.5</a> · <code>/operation_log_list</code></td></tr>
     <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="RBAC架构设计方案.html">详设 v4</a> · <a href="RBAC落地路线.html">落地路线</a> · 无删除 / <code>cron:retire</code> · 三角色验收</td></tr>
-    <tr><td>OPT-P2-12</td><td>Resource Scope 资源隔离</td><td class="s-done">已交付</td><td>v1.1.0</td><td><a href="资源隔离与Scope设计.html">Scope 详设</a> · <a href="资源隔离落地路线.html">落地路线</a> · 业务组 · 防 IDOR · API 首期除外</td></tr>
+    <tr><td>OPT-P2-12</td><td>Resource Scope 资源隔离</td><td class="s-done">已交付</td><td>v1.1.0</td><td><a href="资源隔离与Scope设计.html">Scope 详设</a> · <a href="资源隔离落地路线.html">落地路线</a> · 业务组 · 防 IDOR · API 首期除外（<a href="资源隔离与Scope设计.html#future">S6</a> 未实现；<a href="RBAC与群组权限管理评审报告.html">API 最小止损</a> 已交付 Unreleased）</td></tr>
     <tr><td>OPT-P2-13</td><td>规模化信息架构（L1/L2/L3 · job_health · Scope UX · 列表密度）</td><td class="s-done">五列任务中心 + 健康快筛已交付 · Metric 条暂隐</td><td>v2.0.0</td><td><a href="规模化信息架构设计.html">总设计</a>（含 <a href="规模化信息架构设计.html#s5-1">§5.1</a>）· <a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a>；与 OPT-P2-02 / P1-01c 衔接</td></tr>
     <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
     <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间（无 <code>retired_by</code>）；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
@@ -174,7 +184,7 @@
     <tr><td>Phase B · 薄 BaseRepository</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>app/repositories/</code>；列表查询迁出 views；<code>test_repositories_phase_b</code></td></tr>
     <tr><td>Phase C · ORM Legacy AST 门禁</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>test_orm_legacy_guard</code>；CI C-CI-A；见 <a href="PhaseC-ORM-Legacy-AST门禁设计.html">设计稿</a></td></tr>
     <tr><td><code>main/views</code> · <code>rbac/views</code> <code>.paginate()</code></td><td class="s-done">已清除</td><td>v2.1.0</td><td>并入 Phase A；升 SA 2 前硬门已满足</td></tr>
-    <tr><td>Phase D3 · Docker pin 矩阵</td><td class="s-done">已交付</td><td>Unreleased</td><td>D3-1～D3-3；compose <code>--rebuild</code> 实测 OK（2026-07-22）</td></tr>
+    <tr><td>Phase D3 · Docker pin 矩阵</td><td class="s-done">已交付</td><td>v2.6.0</td><td>D3-1～D3-3；compose <code>--rebuild</code> 实测 OK（2026-07-22）</td></tr>
   </table>
 
   <h2>四、运维与工程（非 OPT 编号）</h2>
@@ -210,7 +220,13 @@
     <tr><td>AJAX 表单 CSRF token 注入修复（common.js js-ajax-form 路径）+ 集成测试（test_csrf_integration.py）</td><td class="s-done">已交付</td><td>v2.2.0</td></tr>
     <tr><td>JSON 日志 timestamp %f 字面量修复（formatTime override）+ 格式测试（test_logging_format.py）</td><td class="s-done">已交付</td><td>v2.2.0</td></tr>
     <tr><td>logout CSRF 保护（@csrf_protect + 表单 POST 替换 GET 链接）</td><td class="s-done">已交付</td><td>v2.2.0</td></tr>
+    <tr><td>API 层最小 Scope 止损：<code>api_access_token_required</code> opt-in 生产 fail-fast + <code>api:deny</code> 鉴权失败审计</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
+    <tr><td>前端颜色收编：191 处硬编码→60 个 CSS 变量（<code>console-theme.css</code>）；20 模板 + 1 Vue 组件；语义类外迁；死文件清理</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
+    <tr><td>颜色审计工具（<code>audit_hardcoded_colors.py</code>）+ CI 门禁（<code>color-audit.yml</code>）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
+    <tr><td>表单 name 属性守护测试（<code>test_form_name_guard.py</code>）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
+    <tr><td>非 Docker 部署指南增 §3 前端开发环境（Node.js/nvm）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
   </table>
+  <p style="font-size:.85rem;color:var(--muted)">「API 层最小 Scope 止损」详见 <a href="RBAC与群组权限管理评审报告.html">RBAC与群组权限管理评审报告</a> 与 <a href="资源隔离与Scope设计.html#future">资源隔离与Scope设计 §七</a>；按组 Token / S6 完整方案仍未实现。</p>
 
   <h2>五、建议实施顺序（未交付）</h2>
   <ol>
@@ -219,7 +235,7 @@
     <li><strong>OPT-P1-03</strong> — 独立执行详情页（OPT-P1-04 列表侧已随 v2.0.0 交付）</li>
     <li><strong>OPT-P1-01b</strong> — 徽章/HTTP 展示统一（OPT-P1-01c 已随 v2.0.0）</li>
     <li><strong>Metric 条 / 异常榜 UI</strong> — OPT-P2-13 暂隐项按需恢复</li>
-    <li><strong>Scope S6</strong> — API 按组隔离 / 默认 GROUP（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>）</li>
+    <li><strong>Scope S6</strong> — API 按组隔离 / 默认 GROUP（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>；最小止损 opt-in fail-fast + 审计已交付，完整按组 Token 方案仍未排期）</li>
     <li><strong>OPT-P1-06</strong> — OpenAPI 可交互文档（按运维需求排期）</li>
   </ol>
 
@@ -237,6 +253,6 @@
     <a href="index.html">文档索引</a>
   </p>
 </main>
-<footer>CronPilot · 交付状态与路线图 · 发行版 v2.2.0 · <a href="交付状态与路线图.md">Markdown</a> · <a href="index.html">索引</a></footer>
+<footer>CronPilot · 交付状态与路线图 · 发行版 v2.6.0 · <a href="交付状态与路线图.md">Markdown</a> · <a href="index.html">索引</a></footer>
 </body>
 </html>

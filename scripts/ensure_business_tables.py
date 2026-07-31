@@ -155,6 +155,14 @@ def _ensure_rbac_users_columns():
             "ALTER TABLE rbac_users ADD COLUMN status_reason "
             "VARCHAR(500) NOT NULL DEFAULT ''"
         )
+    if 'api_token' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN api_token VARCHAR(64)'
+        )
+    if 'api_token_expires_at' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN api_token_expires_at VARCHAR(25)'
+        )
     if not alters:
         return
     with db.engine.begin() as conn:

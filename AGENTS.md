@@ -28,6 +28,8 @@
 
 **交付后可验证本地环境（强制）**：宣称交付前须 restart、给出 **URL + 登录方式 + 可执行验收步骤与期望断言**，并在回复中附 **Agent 自证输出**；默认**保持服务运行**供用户复验。禁止只报「单测通过」。详 `.cursor/rules/cronpilot-project.mdc`「交付后可验证本地环境」。
 
+**GitHub Release 文案（强制）**：Release title / notes 统一使用**专业英文**（结构化写 `What changed` / `Why` / `Validation` / `Compatibility & Risk`），禁止口语化或中英混杂标题。该规范已落库于 `.cursor/rules/cronpilot-project.mdc`。
+
 **颜色规范（强制）**：模板和 Vue 组件中**禁止硬编码十六进制颜色**（`#xxxxxx`），必须使用 `app/static/css/console-theme.css` 中定义的 CSS 变量（`var(--cp-*)`）。新增颜色需先在 `console-theme.css` 的 `:root` 中定义对应语义变量，再引用。CI 门禁 `scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 
 **快速命令**

@@ -22,6 +22,13 @@ class RbacUser(db.Model):
     status_reason: Mapped[str] = mapped_column(
         db.String(500), nullable=False, default=''
     )
+    # S6：用户级 API Token（按用户所属组隔离 + 自动过期）
+    api_token: Mapped[str] = mapped_column(
+        db.String(64), nullable=True, unique=True, index=True, default=None
+    )
+    api_token_expires_at: Mapped[str] = mapped_column(
+        db.String(25), nullable=True, default=None
+    )
     create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
 
     def set_password(self, plain):

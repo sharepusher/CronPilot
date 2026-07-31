@@ -96,15 +96,10 @@
             </fieldset>
         </form>
 
-        {% if current_user and current_user.user_id != user.id %}
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--cp-border)">
-            <p style="color:var(--cp-muted);font-size:12px;margin:0 0 8px">
-                触发重置会将密码恢复为 <strong>{{ default_password or 'changeme' }}</strong>，并要求该用户下次访问前完成改密。
+        <div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--cp-border)">
+            <p style="color:var(--cp-muted);font-size:12px;margin:0">
+                密码重置、API Token 重置请返回<a href="{{ url_for('rbac.users_list') }}">用户列表</a>，在对应用户的操作列中执行。
             </p>
-            <a class="btn btn-warning js-ajax-dialog-btn"
-               href="{{ url_for('rbac.users_reset_password') }}?id={{ user.id }}"
-               data-msg="确定触发重置用户「{{ user.username }}」的密码？密码将恢复为 {{ default_password or 'changeme' }}，且须改密后才能继续使用。">触发密码重置</a>
         </div>
-        {% endif %}
     </div>
 {% endblock %}

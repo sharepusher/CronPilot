@@ -1,7 +1,7 @@
 #!/usr/bin/python3 
 # -*- coding:utf-8 -*-
 from flask import request, current_app
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app import scheduler, db
 from app.decorated import api_deal_return, api_err_return
@@ -15,6 +15,88 @@ from .schemas import CronUpsertIn, CronStatusIn, CronRetireIn, AddLogIn
 from ..crons import cron_do
 
 
+def _parse_limit_offset(limit_default=20, limit_max=100):
+    """解析通用分页参数（limit/offset）。"""
+    try:
+        limit = int((request.args.get('limit') or '').strip() or str(limit_default))
+    except (TypeError, ValueError):
+        return None, None, 'limit 参数无效'
+    try:
+        offset = int((request.args.get('offset') or '').strip() or '0')
+    except (TypeError, ValueError):
+        return None, None, 'offset 参数无效'
+    if limit <= 0 or limit > limit_max:
+        return None, None, 'limit 必须在 1-%s 之间' % limit_max
+    if offset < 0:
+        return None, None, 'offset 必须大于等于 0'
+    return limit, offset, ''
+
+
+def _query_scope_context():
+    """提取当前 API 请求的角色与组（用于只读查询接口）。"""
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    if scope.get('role') == 'admin':
+        return 'admin', []
+    return scope.get('user_role', ''), scope.get('group_ids', [])
+
+
+# ---------------------------------------------------------------------------
+# S6 — /api/auth/token（用户名/密码 → 签发 API Token）
+# ---------------------------------------------------------------------------
+
+@api.post('/auth/token')
+@api.doc(
+    summary='获取/续签 API Token',
+    description=(
+        '用 HTTP Basic Auth（`Authorization: Basic base64(username:password)`）或 '
+        'form 参数 `username` + `password` 认证，签发有效期 30 天的 API Token。\n\n'
+        '**Token 过期后需重新调用此接口获取新 Token。**\n\n'
+        '返回 `{errcode:0, result: {token, expires_at}}`。'
+    ),
+    tags=['认证'],
+)
+def api_auth_token():
+    import base64
+
+    from datas.model.rbac_user import RbacUser
+    from app.rbac.services import issue_user_api_token
+
+    username = request.values.get('username', '')
+    password = request.values.get('password', '')
+
+    if not username:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Basic '):
+            try:
+                decoded = base64.b64decode(auth_header[6:].strip()).decode('utf-8')
+                if ':' in decoded:
+                    username, password = decoded.split(':', 1)
+            except Exception:
+                pass
+
+    if not username or not password:
+        return api_return(errcode=1, errmsg='缺少 username 或 password'), 401
+
+    user = db.session.scalars(
+        select(RbacUser).where(RbacUser.username == username)
+    ).first()
+    if not user or not user.check_password(password):
+        from . import _write_api_deny_audit
+        _write_api_deny_audit()
+        return api_return(errcode=1, errmsg='用户名或密码错误'), 401
+    if not user.is_active:
+        return api_return(errcode=1, errmsg='用户已停用'), 401
+
+    result = issue_user_api_token(user.id)
+    if not result['ok']:
+        return api_return(errcode=1, errmsg=result['msg']), 500
+
+    return api_return(errcode=0, errmsg='ok', data={
+        'token': result['token'],
+        'expires_at': result['expires_at'],
+    })
+
+
 # ---------------------------------------------------------------------------
 # Batch 4.1 — /api/test（无输入，验证迁移机制）
 # ---------------------------------------------------------------------------
@@ -23,6 +105,290 @@ from ..crons import cron_do
 @api.doc(summary='接口连通性测试', tags=['系统'])
 def test():
     return api_return(errcode=0, errmsg='test')
+
+
+# ---------------------------------------------------------------------------
+# 查询接口（只读语义）
+# ---------------------------------------------------------------------------
+
+@api.get('/cron/query')
+@api.doc(
+    summary='查询任务（只读）',
+    description=(
+        '按权限与 Scope 过滤查询任务。\n\n'
+        '支持参数：`task_name`（精确）、`keyword`（模糊）、`status`（-1/0/1）、`limit`、`offset`。'
+    ),
+    tags=['查询'],
+)
+def cron_query():
+    from app.rbac.scope import build_scope_filter_clause
+
+    limit, offset, err = _parse_limit_offset()
+    if err:
+        return api_return(errcode=1, errmsg=err)
+
+    task_name = (request.args.get('task_name') or '').strip()
+    keyword = (request.args.get('keyword') or '').strip()
+    status_raw = (request.args.get('status') or '').strip()
+    req_method = (request.args.get('req_method') or '').strip().upper()
+    updated_from = (request.args.get('updated_from') or '').strip()
+    updated_to = (request.args.get('updated_to') or '').strip()
+
+    filters = []
+    role, group_ids = _query_scope_context()
+    scope_clause = build_scope_filter_clause(role, group_ids, CronInfos)
+    if scope_clause is not None:
+        filters.append(scope_clause)
+    if task_name:
+        filters.append(CronInfos.task_name == task_name)
+    if keyword:
+        filters.append(CronInfos.task_name.like('%%%s%%' % keyword))
+    if status_raw != '':
+        try:
+            status = int(status_raw)
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='status 参数无效')
+        if status not in (-1, 0, 1):
+            return api_return(errcode=1, errmsg='status 参数无效')
+        filters.append(CronInfos.status == status)
+    scope_type = (request.args.get('scope_type') or '').strip().upper()
+    if scope_type:
+        if scope_type not in ('GLOBAL', 'GROUP'):
+            return api_return(errcode=1, errmsg='scope_type 参数无效')
+        filters.append(CronInfos.scope_type == scope_type)
+    group_id_raw = (request.args.get('group_id') or '').strip()
+    if group_id_raw:
+        try:
+            group_id = int(group_id_raw)
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='group_id 参数无效')
+        if group_id <= 0:
+            return api_return(errcode=1, errmsg='group_id 参数无效')
+        filters.append(CronInfos.group_id == group_id)
+    if req_method:
+        if req_method not in ('GET', 'POST'):
+            return api_return(errcode=1, errmsg='req_method 参数无效')
+        filters.append(CronInfos.req_method == req_method)
+    if updated_from:
+        filters.append(CronInfos.updated_at >= updated_from)
+    if updated_to:
+        filters.append(CronInfos.updated_at <= updated_to)
+
+    total = db.session.scalar(
+        select(func.count()).select_from(CronInfos).where(*filters)
+    ) or 0
+
+    rows = db.session.scalars(
+        select(CronInfos)
+        .where(*filters)
+        .order_by(CronInfos.id.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    items = [{
+        'id': row.id,
+        'task_name': row.task_name,
+        'status': row.status,
+        'scope_type': row.scope_type,
+        'group_id': row.group_id,
+        'req_method': row.req_method or 'GET',
+        'req_url': row.req_url or '',
+        'updated_at': row.updated_at or '',
+    } for row in rows]
+    return api_return(errcode=0, errmsg='ok', data={
+        'items': items,
+        'count': len(items),
+        'total': int(total),
+        'limit': limit,
+        'offset': offset,
+        'has_more': (offset + len(items)) < int(total),
+    })
+
+
+@api.get('/cron/logs')
+@api.doc(
+    summary='查询任务执行日志（只读）',
+    description=(
+        '按任务名称查询执行日志（倒序）。\n\n'
+        '需要参数：`task_name`；可选参数：`limit`、`offset`。'
+    ),
+    tags=['查询'],
+)
+def cron_logs():
+    from . import check_api_scope
+
+    task_name = (request.args.get('task_name') or '').strip()
+    if not task_name:
+        return api_return(errcode=1, errmsg='task_name 不能为空')
+
+    limit, offset, err = _parse_limit_offset()
+    if err:
+        return api_return(errcode=1, errmsg=err)
+
+    cron = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
+    if not cron:
+        return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(cron)
+    if denied is not None:
+        return denied
+    status_filter = (request.args.get('status') or '').strip().lower()
+    http_status_raw = (request.args.get('http_status') or '').strip()
+    beg_time = (request.args.get('beg_time') or '').strip()
+    end_time = (request.args.get('end_time') or '').strip()
+    allowed_status = {'success', 'fail', 'timeout', 'error', 'pending', 'running'}
+    if status_filter and status_filter not in allowed_status:
+        return api_return(errcode=1, errmsg='status 参数无效')
+
+    log_filters = [JobLog.cron_info_id == cron.id]
+    if status_filter:
+        log_filters.append(JobLog.status == status_filter)
+    if http_status_raw:
+        try:
+            http_status = int(http_status_raw)
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='http_status 参数无效')
+        log_filters.append(JobLog.http_status == http_status)
+    if beg_time:
+        log_filters.append(JobLog.create_time >= beg_time)
+    if end_time:
+        log_filters.append(JobLog.create_time <= end_time)
+    total = db.session.scalar(
+        select(func.count()).select_from(JobLog).where(*log_filters)
+    ) or 0
+    rows = db.session.scalars(
+        select(JobLog)
+        .where(*log_filters)
+        .order_by(JobLog.id.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    items = [{
+        'id': row.id,
+        'log_id': row.log_id or '',
+        'status': row.status or '',
+        'http_status': row.http_status,
+        'fail_reason': row.fail_reason or '',
+        'create_time': row.create_time or '',
+        'take_time': row.take_time or '',
+        'started_at': row.started_at or '',
+        'finished_at': row.finished_at or '',
+        'timeout_sec': row.timeout_sec,
+        'content_preview': (row.content or '')[:120],
+    } for row in rows]
+    return api_return(errcode=0, errmsg='ok', data={
+        'task_name': cron.task_name,
+        'items': items,
+        'count': len(items),
+        'total': int(total),
+        'limit': limit,
+        'offset': offset,
+        'has_more': (offset + len(items)) < int(total),
+    })
+
+
+@api.get('/cron/detail')
+@api.doc(
+    summary='查询单个任务详情（只读）',
+    description='按 `task_name`（或 `id`）查询单个任务详情，受 Scope 控制。',
+    tags=['查询'],
+)
+def cron_detail():
+    from . import check_api_scope
+
+    task_name = (request.args.get('task_name') or '').strip()
+    id_raw = (request.args.get('id') or '').strip()
+    if not task_name and not id_raw:
+        return api_return(errcode=1, errmsg='task_name 或 id 至少提供一个')
+    cron = None
+    if task_name:
+        cron = db.session.scalars(
+            select(CronInfos).where(CronInfos.task_name == task_name)
+        ).first()
+    elif id_raw:
+        try:
+            cron = db.session.get(CronInfos, int(id_raw))
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='id 参数无效')
+    if not cron:
+        return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(cron)
+    if denied is not None:
+        return denied
+    return api_return(errcode=0, errmsg='ok', data={
+        'id': cron.id,
+        'task_name': cron.task_name,
+        'task_keyword': cron.task_keyword or '',
+        'run_date': cron.run_date or '',
+        'day_of_week': cron.day_of_week or '',
+        'day': cron.day or '',
+        'hour': cron.hour or '',
+        'minute': cron.minute or '',
+        'second': cron.second or '',
+        'req_url': cron.req_url or '',
+        'req_method': cron.req_method or 'GET',
+        'req_body': cron.req_body or '',
+        'status': cron.status,
+        'scope_type': cron.scope_type,
+        'group_id': cron.group_id,
+        'created_at': cron.created_at or '',
+        'updated_at': cron.updated_at or '',
+        'retired_at': cron.retired_at or '',
+        'retire_reason': cron.retire_reason or '',
+        'timeout_sec': cron.timeout_sec,
+    })
+
+
+@api.get('/cron/log/detail')
+@api.doc(
+    summary='查询单条执行日志详情（只读）',
+    description='按 `id`（或 `log_id`）查询单条执行日志详情，受任务 Scope 控制。',
+    tags=['查询'],
+)
+def cron_log_detail():
+    from . import check_api_scope
+
+    id_raw = (request.args.get('id') or '').strip()
+    log_id = (request.args.get('log_id') or '').strip()
+    if not id_raw and not log_id:
+        return api_return(errcode=1, errmsg='id 或 log_id 至少提供一个')
+
+    log = None
+    if id_raw:
+        try:
+            log = db.session.get(JobLog, int(id_raw))
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='id 参数无效')
+    elif log_id:
+        log = db.session.scalars(
+            select(JobLog).where(JobLog.log_id == log_id)
+        ).first()
+    if not log:
+        return api_return(errcode=1, errmsg='任务不存在')
+
+    cron = db.session.get(CronInfos, log.cron_info_id)
+    if not cron:
+        return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(cron)
+    if denied is not None:
+        return denied
+
+    return api_return(errcode=0, errmsg='ok', data={
+        'id': log.id,
+        'log_id': log.log_id or '',
+        'task_name': cron.task_name,
+        'cron_info_id': log.cron_info_id,
+        'status': log.status or '',
+        'http_status': log.http_status,
+        'fail_reason': log.fail_reason or '',
+        'content': log.content or '',
+        'create_time': log.create_time or '',
+        'take_time': log.take_time or '',
+        'started_at': log.started_at or '',
+        'finished_at': log.finished_at or '',
+        'timeout_sec': log.timeout_sec,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -73,9 +439,19 @@ def cron_add_log(form_data):
 @api.input(CronRetireIn, location='form', arg_name='form_data')
 def cron_retire_api(form_data):
     from app.services.cron_service import retire_cron_by_task_name
+    from . import check_api_scope
 
     task_name = form_data.get('task_name')
     reason = form_data.get('reason')
+
+    ci = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
+    if not ci:
+        return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(ci)
+    if denied is not None:
+        return denied
 
     err, _ = retire_cron_by_task_name(task_name, reason)
     if err:
@@ -99,6 +475,8 @@ def cron_retire_api(form_data):
 )
 @api.input(CronStatusIn, location='form', arg_name='form_data')
 def cron_status(form_data):
+    from . import check_api_scope
+
     task_name = form_data.get('task_name')
     status = form_data.get('status')
 
@@ -109,6 +487,9 @@ def cron_status(form_data):
     ).first()
     if not ci:
         return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(ci)
+    if denied is not None:
+        return denied
 
     if ci.status == -1:
         return api_return(errcode=1, errmsg='任务已下线，不能再操作；请使用新的任务名称新建')
@@ -160,8 +541,20 @@ def cron_status(form_data):
 )
 @api.input(CronUpsertIn, location='form', arg_name='form_data')
 def crons(form_data):
+    from . import check_api_scope
+
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
+
+    task_name = form_data.get('task_name')
+    if task_name:
+        existing = db.session.scalars(
+            select(CronInfos).where(CronInfos.task_name == task_name)
+        ).first()
+        if existing:
+            denied = check_api_scope(existing)
+            if denied is not None:
+                return denied
 
     err, _cif = upsert_cron_by_task_name(form_data, is_dev, CRON_CONFIG)
     if err:
@@ -181,6 +574,8 @@ def crons_legacy():
     新调用方请使用 POST /api/cron。
     access_token 鉴权由 Blueprint before_request 统一处理。
     """
+    from . import check_api_scope
+
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
     datas = request.values.to_dict()
@@ -188,6 +583,14 @@ def crons_legacy():
 
     if not task_name:
         return api_err_return(msg='任务名称不能为空')
+
+    existing = db.session.scalars(
+        select(CronInfos).where(CronInfos.task_name == task_name)
+    ).first()
+    if existing:
+        denied = check_api_scope(existing)
+        if denied is not None:
+            return denied
 
     err, _cif = upsert_cron_by_task_name(datas, is_dev, CRON_CONFIG)
     if err:

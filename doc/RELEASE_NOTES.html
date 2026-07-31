@@ -61,6 +61,29 @@
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
   </div>
+  <div class="card">
+    <h3>RBAC / API Token 体验优化</h3>
+    <ul>
+      <li><strong>用户自助重置：</strong><code>/rbac/api_token</code> 页面新增「重置Token」按钮，用户无需等待管理员即可轮换当前凭证。</li>
+      <li><strong>新路由：</strong>新增 <code>POST /rbac/api_token/reset</code>（<code>require_login</code> + CSRF），重置当前登录用户 Token，并刷新 30 天有效期。</li>
+      <li><strong>兼容并存：</strong>管理员在用户列表中的「重置Token」能力保持不变。</li>
+      <li><strong>测试补强：</strong>新增 <code>test_user_can_reset_own_token_on_api_token_page</code>，校验 token 值确实变化且有效期存在。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>API 文档只读化与风格统一</h3>
+    <ul>
+      <li><strong>导航顺序调整：</strong>顶栏中 <code>API文档</code> 移动到 <code>API Token</code> 之后，先账号凭证、后文档浏览。</li>
+      <li><strong>页面风格统一：</strong><code>/api_doc</code> 重构为管理端原生卡片页面（不再依赖 Swagger iframe 交互），视觉样式与其它后台页面一致。</li>
+      <li><strong>查询语义白名单：</strong>只展示标记为“查询语义”的接口条目，不按 HTTP Method 粗暴筛选；写入/变更类接口不展示。</li>
+      <li><strong>权限内可见：</strong>按当前登录用户角色权限动态过滤接口，用户仅看到其权限范围内可用的查询接口。</li>
+      <li><strong>去空壳条目：</strong>摘要/路径/响应说明不完整的接口自动不展示，避免“点击无内容”问题。</li>
+      <li><strong>有效查询接口补齐：</strong>新增 <code>GET /api/cron/query</code>（任务查询）、<code>GET /api/cron/logs</code>（执行日志查询）、<code>GET /api/cron/detail</code>（任务详情）与 <code>GET /api/cron/log/detail</code>（单条日志详情），并按 Scope 做可见性控制。</li>
+      <li><strong>查询字段增强：</strong>查询接口返回补充 <code>total</code>、<code>has_more</code> 等分页元数据，日志查询支持 <code>status</code> 过滤并返回 <code>content_preview</code>。</li>
+      <li><strong>目录缓存：</strong>只读接口目录按权限集做进程内缓存，服务启动后复用；接口变更随发版重启生效。</li>
+      <li><strong>测试补强：</strong>新增 <code>test_any_role_nav_places_api_token_before_api_doc</code> 与 <code>test_api_doc_page_shows_query_semantic_docs_only</code>。</li>
+    </ul>
+  </div>
 
 <h2 id="v2-6-0">[2.6.0] — 2026-07-30</h2>
   <div class="card highlight">

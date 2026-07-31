@@ -1,6 +1,7 @@
 from urllib.parse import quote
 
 from flask import redirect, render_template, request, session
+from sqlalchemy import select
 from app import db
 from app.common.functions import web_api_return
 from app.services.pagination import PageQuery
@@ -12,6 +13,7 @@ from .decorators import require_login, require_permission
 from app.security.csrf import csrf_protect, ensure_csrf_token
 from .services import (
     DEFAULT_USER_PASSWORD,
+    ROLE_ORDER,
     VALID_ROLES,
     audit_action_label,
     audit_resource_label,
@@ -35,6 +37,22 @@ from .services import (
 )
 
 
+def _build_user_groups_map(user_ids):
+    """批量获取用户 → 业务组名列表映射，避免 N+1。"""
+    from datas.model.resource_group import ResourceGroup
+    from datas.model.user_group import UserGroup
+
+    rows = db.session.execute(
+        select(UserGroup.user_id, ResourceGroup.name)
+        .join(ResourceGroup, ResourceGroup.id == UserGroup.group_id)
+        .where(UserGroup.user_id.in_(user_ids))
+    ).all()
+    result = {}
+    for uid, gname in rows:
+        result.setdefault(uid, []).append(gname)
+    return result
+
+
 def _wants_ajax_json():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return True
@@ -49,7 +67,7 @@ def _users_form_response(ok, msg, url='/rbac/users', template=None, **ctx):
     if ok:
         return redirect(url)
     if template:
-        return render_template(template, form_msg=msg, roles=sorted(VALID_ROLES), **ctx)
+        return render_template(template, form_msg=msg, roles=ROLE_ORDER, **ctx)
     return redirect(url)
 
 
@@ -165,12 +183,45 @@ def change_password():
     )
 
 
+@rbac.route('/api_token', methods=['GET'])
+@require_login
+def api_token_page():
+    """展示当前用户的 API Token（独立页面）。"""
+    from datas.model.rbac_user import RbacUser
+    me = db.session.get(RbacUser, session.get('user_id'))
+    return render_template(
+        'rbac/api_token.html',
+        api_token=me.api_token if me else '',
+        api_token_expires_at=me.api_token_expires_at if me else '',
+    )
+
+
+@rbac.route('/api_token/reset', methods=['POST'])
+@require_login
+@csrf_protect
+def api_token_reset():
+    """当前登录用户自助重置 API Token。"""
+    from .services import issue_user_api_token
+    result = issue_user_api_token(session.get('user_id'))
+    return _users_form_response(
+        result['ok'],
+        result['msg'],
+        url='/rbac/api_token',
+    )
+
+
 @rbac.route('/users', methods=['GET'])
 @require_permission('user:manage')
 def users_list():
     page_query = PageQuery.from_args(request.args)
     page_data = RbacUserRepository(db.session).paginate_all(page_query)
-    return render_template('rbac/users.html', page_data=page_data)
+    user_ids = [u.id for u in page_data.items]
+    user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
+    return render_template(
+        'rbac/users.html',
+        page_data=page_data,
+        user_groups_map=user_groups_map,
+    )
 
 
 @rbac.route('/users/add', methods=['GET', 'POST'])
@@ -181,7 +232,7 @@ def users_add():
     if request.method == 'GET':
         return render_template(
             'rbac/users_add.html',
-            roles=sorted(VALID_ROLES),
+            roles=ROLE_ORDER,
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
         )
@@ -257,7 +308,7 @@ def users_edit():
         return render_template(
             'rbac/users_edit.html',
             user=user,
-            roles=sorted(VALID_ROLES),
+            roles=ROLE_ORDER,
             groups=groups,
             user_group_ids=get_user_group_ids_for_user(user.id),
             default_password=DEFAULT_USER_PASSWORD,
@@ -311,6 +362,26 @@ def users_reset_password():
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/users')
     result = trigger_password_reset(user_id, actor_user_id=session.get('user_id'))
+    return _users_form_response(
+        result['ok'],
+        result['msg'],
+        url='/rbac/users',
+    )
+
+
+@rbac.route('/users/reset_token', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def users_reset_token():
+    """管理员触发重置用户 API Token（S6）。"""
+    from .services import issue_user_api_token
+
+    user_id = request.values.get('id')
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/users')
+    result = issue_user_api_token(user_id)
     return _users_form_response(
         result['ok'],
         result['msg'],

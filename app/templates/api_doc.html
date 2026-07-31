@@ -2,16 +2,115 @@
 
 {% block css %}
 <style>
-  .swagger-frame-wrap { margin-top: 4px; }
-  .swagger-frame-wrap iframe {
-    width: 100%;
-    height: calc(100vh - 240px);
-    min-height: 500px;
-    border: none;
-    display: block;
+  .api-doc-card {
+    margin-top: 8px;
+    padding: 14px 16px;
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    border-radius: 8px;
   }
-  .swagger-tip { margin-bottom: 6px; color: #888; font-size: 13px; }
-  .swagger-tip a { color: var(--cp-link); }
+  .api-doc-card h4 {
+    margin: 0 0 6px 0;
+    color: var(--cp-ink);
+  }
+  .api-doc-tip {
+    margin: 0 0 10px 0;
+    color: var(--cp-muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .api-doc-tip a { color: var(--cp-link); }
+  .api-doc-list {
+    margin-top: 6px;
+    border: 1px solid var(--cp-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--cp-surface);
+  }
+  .api-doc-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--cp-border);
+  }
+  .api-doc-item:last-child {
+    border-bottom: 0;
+  }
+  .api-doc-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .api-doc-method {
+    display: inline-block;
+    min-width: 46px;
+    text-align: center;
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-size: 12px;
+    color: var(--cp-surface);
+    background: var(--cp-accent-blue);
+  }
+  .api-doc-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--cp-ink);
+    font-size: 13px;
+  }
+  .api-doc-summary {
+    color: var(--cp-ink);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .api-doc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .api-doc-pane {
+    min-width: 0;
+  }
+  .api-doc-pane-title {
+    color: var(--cp-ink-2);
+    font-size: 12px;
+    margin: 2px 0 4px 0;
+    font-weight: 600;
+  }
+  .api-doc-desc {
+    color: var(--cp-muted);
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .api-doc-meta {
+    color: var(--cp-muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .api-doc-empty {
+    margin-top: 8px;
+    padding: 12px 14px;
+    border: 1px dashed var(--cp-border-strong);
+    border-radius: 8px;
+    background: var(--cp-surface-3);
+    color: var(--cp-muted);
+    font-size: 13px;
+  }
+  .api-doc-example {
+    margin: 0;
+    background: var(--cp-surface-2);
+    border: 1px solid var(--cp-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--cp-ink);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (max-width: 1100px) {
+    .api-doc-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -28,78 +127,41 @@
     {% include "rbac/_nav.html" %}
     {% endwith %}
 
-    <div class="swagger-frame-wrap">
-        <p class="swagger-tip">
-            以下为自动生成的 API 文档（OpenAPI 3.0）。
-            <a href="/api/swagger" target="_blank">在新标签页打开 &rarr;</a>
-            &nbsp;|&nbsp;
-            <a href="/api/openapi.json" target="_blank">下载 JSON Spec</a>
+    <div class="api-doc-card">
+        <h4>API 查询文档（权限内）</h4>
+        <p class="api-doc-tip">
+            本页仅展示当前账号权限范围内、且具备“查询语义”的接口。写入/变更类接口不在此页展示与调试。
         </p>
-        <iframe src="/api/swagger" title="CronPilot API 文档（Swagger UI）" allowfullscreen></iframe>
+        {% if docs %}
+        <div class="api-doc-list">
+            {% for item in docs %}
+            <div class="api-doc-item">
+                <div class="api-doc-head">
+                    <span class="api-doc-method">{{ item.method }}</span>
+                    <span class="api-doc-path">{{ item.path }}</span>
+                </div>
+                <div class="api-doc-summary">{{ item.summary }}</div>
+                <div class="api-doc-grid">
+                    <div class="api-doc-pane">
+                        <div class="api-doc-desc">{{ item.description }}</div>
+                        <div class="api-doc-meta">
+                            <div><strong>参数：</strong>{% if item.params %}{{ item.params|join('；') }}{% else %}无{% endif %}</div>
+                            <div><strong>响应：</strong>{{ item.response }}</div>
+                        </div>
+                    </div>
+                    <div class="api-doc-pane">
+                        <div class="api-doc-pane-title">调用示例</div>
+                        <pre class="api-doc-example">{{ item.example or '无' }}</pre>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="api-doc-empty">
+            当前角色（{{ current_role or 'unknown' }}）暂无可展示的查询接口。
+        </div>
+        {% endif %}
     </div>
 </div>
-{% endblock %}
-
-{% block js %}
-<script>
-(function () {
-    var frame = document.querySelector('.swagger-frame-wrap iframe');
-    if (!frame) return;
-    frame.addEventListener('load', function () {
-        try {
-            var doc = frame.contentDocument || frame.contentWindow.document;
-
-            /* static CSS: hide openapi.json link, servers, title block */
-            var style = doc.createElement('style');
-            style.textContent = [
-                '.swagger-ui .info .url { display: none !important; }',
-                '.swagger-ui .scheme-container { display: none !important; }',
-                '.swagger-ui .information-container { display: none !important; }',
-                '.swagger-ui .wrapper { padding-top: 10px !important; }'
-            ].join('\n');
-            doc.head.appendChild(style);
-
-            /* hide "Parameters / No parameters" section whenever it appears */
-            function hideEmptyParams(root) {
-                var containers = root.querySelectorAll ? root.querySelectorAll('.parameters-container') : [];
-                Array.from(containers).forEach(function (c) {
-                    var wrapper = c.querySelector('.opblock-description-wrapper');
-                    if (wrapper && wrapper.textContent.trim() === 'No parameters') {
-                        /* Hide only .parameters-container and its sibling
-                           .opblock-section-header; do NOT hide the parent
-                           .opblock-section itself (it also wraps Request body) */
-                        c.style.display = 'none';
-                        var parent = c.parentElement;
-                        if (parent) {
-                            var header = parent.querySelector(':scope > .opblock-section-header');
-                            if (header) header.style.display = 'none';
-                        }
-                    }
-                });
-            }
-
-            /* 1. initial scan (in case anything is pre-rendered) */
-            hideEmptyParams(doc.body);
-
-            /* 2. MutationObserver for React DOM inserts */
-            var observer = new MutationObserver(function (mutations) {
-                mutations.forEach(function (m) {
-                    m.addedNodes.forEach(function (node) {
-                        if (node.nodeType === 1) hideEmptyParams(node);
-                    });
-                });
-            });
-            observer.observe(doc.body, { childList: true, subtree: true });
-
-            /* 3. polling fallback for 10 s (100 ms interval) */
-            var count = 0;
-            var poll = setInterval(function () {
-                hideEmptyParams(doc.body);
-                if (++count > 100) clearInterval(poll);
-            }, 100);
-
-        } catch (e) { /* cross-origin guard */ }
-    });
-}());
-</script>
 {% endblock %}

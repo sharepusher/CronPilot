@@ -9,6 +9,24 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
+### RBAC / API Token UX
+
+- Added a self-service token reset action on `GET /rbac/api_token` so users can rotate their own API token without waiting for admin operations.
+- Added `POST /rbac/api_token/reset` (`require_login` + CSRF) to reset the current user's token and refresh the 30-day expiry window.
+- Kept admin-side `users/reset_token` unchanged; both self-service and admin reset now coexist.
+- Added regression test `test_user_can_reset_own_token_on_api_token_page` to ensure token rotation and expiry refresh are enforced.
+
+### API documentation guardrails & visual alignment
+
+- Moved the `API文档` nav item behind `API Token` in the top nav so account/token operations appear before API reference browsing.
+- Rebuilt `GET /api_doc` as a native console-style card page (no Swagger iframe interaction), with layout and copy aligned to other admin pages.
+- Switched from HTTP-method filtering to query-semantic filtering: the page now shows only whitelist entries marked as query-oriented and hides write/change endpoints.
+- Added permission-aware filtering so each logged-in user only sees query entries within their role permissions, and auto-hides incomplete/empty entries.
+- Exposed practical read APIs for the new doc page: `GET /api/cron/query` (task query), `GET /api/cron/logs` (execution log query), `GET /api/cron/detail` (task detail), and `GET /api/cron/log/detail` (single log detail), all scope-aware.
+- Added response field enhancements for query APIs (`total`, `has_more`, status filtering, content preview) for easier integration.
+- Added in-process API doc catalog caching keyed by permission set, so docs are reused after service startup and only change on new release/restart.
+- Added tests to guard nav ordering and query-doc filtering (`test_any_role_nav_places_api_token_before_api_doc`, `test_api_doc_page_shows_query_semantic_docs_only`).
+
 ---
 
 ## [2.6.0] — 2026-07-30

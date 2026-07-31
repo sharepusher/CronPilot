@@ -36,7 +36,7 @@
   <span class="tag">评审报告</span><span class="tag">RBAC</span><span class="tag">Resource Scope</span>
   <h1>RBAC 与群组权限管理评审报告</h1>
   <p>基于代码通读的专业评审：能力模型（Permission）· 可见范围（Scope）· 账户与会话安全 · API 层缺口</p>
-  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">评审稿 · 2026-07-29</span> · <span class="status-draft">2026-07-30 增补</span>（API 最小止损已部分落地）· 面向 <a href="RBAC架构设计方案.html" style="color:#bae6fd">RBAC 详细设计方案 v4</a> 与 <a href="资源隔离与Scope设计.html" style="color:#bae6fd">资源隔离与 Scope 设计</a> 的现状核查与增补建议</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：<span class="status-draft">评审稿 · 2026-07-29</span> · <span class="status-draft">2026-07-30 增补</span>（API 最小止损 + S6 用户级 Token 完整方案已交付；Session Cookie 降级至 P1）· 面向 <a href="RBAC架构设计方案.html" style="color:#bae6fd">RBAC 详细设计方案 v4</a> 与 <a href="资源隔离与Scope设计.html" style="color:#bae6fd">资源隔离与 Scope 设计</a> 的现状核查与增补建议</p>
 </header>
 
 <main class="layout">
@@ -90,7 +90,7 @@
   <h3>3.2 问题与风险</h3>
   <table>
     <tr><th>严重度</th><th>问题</th><th>位置</th><th>说明</th></tr>
-    <tr><td class="sev-high">高</td><td>API 层完全不受 RBAC/Scope 约束</td><td><code>app/api/views.py</code>、<code>app/api/__init__.py</code></td><td>见第五节详述</td></tr>
+    <tr><td class="sev-low">已修复</td><td>API 层完全不受 RBAC/Scope 约束</td><td><code>app/api/views.py</code>、<code>app/api/__init__.py</code></td><td>✅ S6 完整方案已交付，见 §5.1</td></tr>
     <tr><td class="sev-mid">中</td><td>登录无失败次数限制/限流</td><td><code>app/rbac/views.py::login</code></td><td>暴力破解无防护；无失败锁定、验证码、退避</td></tr>
     <tr><td class="sev-mid">中</td><td>Session Cookie 未强制 <code>Secure</code>/<code>SameSite</code></td><td><code>config.py</code></td><td>未显式设置，若忘记在反代层强制 HTTPS，Cookie 可能明文传输</td></tr>
     <tr><td class="sev-mid">中</td><td>无会话超时/吊销机制（文档已自述，未实现）</td><td>设计 §4.6</td><td>停用/降权用户旧会话要等下一次访问受保护页才失效；改密之外无"立即踢下线"手段</td></tr>
@@ -134,16 +134,20 @@
   </ul>
   <p>这不是代码 bug——文档已明确标注为"S6 远期"未实现项，团队是知情的。但从专业评审角度，本报告认为<strong>其风险等级应从"已知远期缺口"提升为"应尽快评估的 P0 风险"</strong>：Web UI 上一个 operator 看不到别组任务、改不了别组任务，容易给人一种"隔离已经生效"的错觉，而只要对方知道（或猜到/泄露）那一个全局 token，Scope 的防护形同虚设。</p>
 
-  <h3>5.1 2026-07-30 增补：已落地的「最小止损」（仍非 S6 完整方案）</h3>
+  <h3>5.1 2026-07-30 增补：S6 完整方案已交付</h3>
   <div class="note">
-    评审稿发出后，仓库已交付 <strong>Unreleased</strong> 的前置止损（见 <a href="交付状态与路线图.html">交付状态与路线图</a>），<strong>不改变</strong>「API 不受 Resource Scope 约束」这一核心结论，但生产运维可 opt-in 加强：
+    评审稿发出后，仓库已完成 S6 完整方案（用户级 API Token + Scope 隔离），<strong>本节核心结论已解决</strong>。详细设计见 <a href="资源隔离与Scope设计.html">资源隔离与 Scope 设计 §八</a>。
   </div>
   <table>
     <tr><th>项</th><th>实现</th><th>状态</th></tr>
-    <tr><td>生产 opt-in fail-fast</td><td><code>conf.ini</code> 设 <code>api_access_token_required=1</code> 且 <code>api_access_token</code> 为空时，<code>ProductionConfig.init_app</code> 与 <code>scripts/check_conf_production.py</code> 拒绝启动</td><td>已交付 · 默认 <code>0</code>（向后兼容）</td></tr>
-    <tr><td>鉴权失败审计</td><td><code>_api_token_guard</code> 失败写 <code>rbac_audit_logs.action='api:deny'</code></td><td>已交付</td></tr>
-    <tr><td>单测</td><td><code>tests/test_api_scope_min.py</code></td><td>已交付</td></tr>
-    <tr><td>按业务组 Token / 目标 <code>group_id</code> 校验</td><td>S6 完整方案</td><td><strong>仍未实现</strong></td></tr>
+    <tr><td>生产 opt-in fail-fast</td><td><code>conf.ini</code> 设 <code>api_access_token_required=1</code> 且 <code>api_access_token</code> 为空时，<code>ProductionConfig.init_app</code> 与 <code>scripts/check_conf_production.py</code> 拒绝启动</td><td>✅ 已交付</td></tr>
+    <tr><td>鉴权失败审计</td><td><code>_api_token_guard</code> 失败写 <code>rbac_audit_logs.action='api:deny'</code></td><td>✅ 已交付</td></tr>
+    <tr><td>用户级 API Token</td><td>每个 <code>rbac_user</code> 自动生成 <code>api_token</code>（30 天过期）；<code>Authorization: Bearer &lt;token&gt;</code> 鉴权；密码/组变更自动重置 token</td><td>✅ 已交付</td></tr>
+    <tr><td>Token 获取端点</td><td><code>POST /api/auth/token</code>（Basic Auth 或表单）→ 返回 token + 过期时间</td><td>✅ 已交付</td></tr>
+    <tr><td>API Scope 隔离</td><td><code>check_api_scope</code> 根据 token 持有者的 <code>group_ids</code> 校验目标任务归属；反枚举（越权与不存在返回同一提示）</td><td>✅ 已交付</td></tr>
+    <tr><td>缓存与失效</td><td>进程内 <code>_SCOPE_CACHE</code>（120s TTL）+ 用户变更时主动失效</td><td>✅ 已交付</td></tr>
+    <tr><td>全局 token 兼容</td><td><code>conf.ini</code> 的 <code>api_access_token</code> 仍可用，优先级高于用户 token，admin 等效（全库访问）</td><td>✅ 已交付</td></tr>
+    <tr><td>测试</td><td><code>tests/test_api_scope_s6.py</code>（19 用例）+ <code>tests/test_api_scope_min.py</code></td><td>✅ 已交付</td></tr>
   </table>
 
   <h2>六、账户安全与会话管理评审</h2>
@@ -157,7 +161,7 @@
     <tr><td>SECRET_KEY</td><td>生产 fail-fast（<code>is_weak_secret_key</code>）</td><td>达标，OPT-P0-10 已交付</td></tr>
     <tr><td>登录失败反馈</td><td>用户名不存在与密码错误返回同一句提示</td><td>达标，防用户名枚举</td></tr>
     <tr><td>登录限流/防爆破</td><td class="sev-mid">无</td><td>缺失，见第三节</td></tr>
-    <tr><td>Cookie 安全属性</td><td class="sev-mid">未显式设置 Secure/SameSite</td><td>缺失，见第三节</td></tr>
+    <tr><td>Cookie 安全属性</td><td>未显式设置，但 Flask 2.3.3 默认 HTTPONLY=True, SAMESITE='Lax'</td><td>P1 · 建议显式声明以消除歧义；SECURE 需按部署环境条件开启</td></tr>
     <tr><td>会话闲置/绝对超时</td><td>无，仅退出/改密时清</td><td>文档已自述"待确认"，非本次新发现</td></tr>
     <tr><td>密码策略</td><td>仅要求 ≥6 位，无复杂度/历史密码要求</td><td>偏弱，内部管理后台可接受，非高优先级</td></tr>
   </table>
@@ -168,15 +172,10 @@
   <h3>P0（建议尽快评估，安全相关）</h3>
   <ol>
     <li>
-      <strong>API 层 Scope 完整方案（S6）</strong>——前置止损已部分交付，核心缺口仍在
+      <strong>✅ API 层 Scope 完整方案（S6）</strong>——<strong>已交付</strong>（2026-07-30）
       <ul>
-        <li>问题：默认空 token 仍全放行（<code>api_access_token_required=0</code> 时）；单一全局 token 无法区分业务线，Web 端 Scope 隔离在 API 侧仍形同虚设。</li>
-        <li>已交付（2026-07-30）：opt-in 生产 fail-fast（<code>api_access_token_required=1</code>）+ <code>api:deny</code> 审计 + <code>test_api_scope_min.py</code>。</li>
-        <li>仍建议（需设计稿定夺）：
-          <br>a. 启动/<code>/docs</code> 对「token 为空且未开启 required」给出醒目告警（fail-fast 已 opt-in，默认仍静默放行）；
-          <br>b. 中期：引入"按业务组的 API Token"（<code>resource_groups</code> 增加可选 token 列），<code>/api/cron/retire</code>、<code>/api/cron/status</code> 校验 token 对应组与目标任务 <code>group_id</code> 一致（admin token 除外）。
-        </li>
-        <li>影响面：<code>app/api/__init__.py</code>、<code>app/api/views.py</code>、<code>resource_groups</code> 表结构、文档。</li>
+        <li>用户级 API Token（30 天自动过期）+ Scope 隔离 + 反枚举 + 缓存失效，详见 §5.1。</li>
+        <li><code>tests/test_api_scope_s6.py</code>（19 用例）全部通过。</li>
       </ul>
     </li>
     <li>
@@ -186,17 +185,17 @@
         <li>影响面：<code>app/rbac/views.py::login</code>、<code>app/rbac/services.py::authenticate_user</code>。</li>
       </ul>
     </li>
-    <li>
-      <strong>Session Cookie 安全属性</strong>
-      <ul>
-        <li>建议 <code>config.py</code> 显式设置 <code>SESSION_COOKIE_SECURE = True</code>（生产）、<code>SESSION_COOKIE_SAMESITE = 'Lax'</code>、<code>SESSION_COOKIE_HTTPONLY = True</code>（显式声明避免歧义）。</li>
-        <li>需确认非 HTTPS 内网部署场景是否需要环境变量开关。</li>
-      </ul>
-    </li>
   </ol>
 
   <h3>P1（体验/工程债，建议纳入下一轮迭代）</h3>
-  <ol start="4">
+  <ol start="3">
+    <li>
+      <strong>Session Cookie 安全属性</strong>（原 P0，降级为 P1）
+      <ul>
+        <li><strong>降级理由</strong>：Flask 2.3.3 默认 <code>HTTPONLY=True</code>、<code>SAMESITE='Lax'</code>，两项最关键的 Cookie 安全属性已由框架默认值覆盖。唯一非默认安全的 <code>SECURE</code> 在 CronPilot 典型内网 HTTP 部署场景下不能强开（会导致无法登录），需要环境感知开关，属工程改进而非紧迫安全缺口。</li>
+        <li>建议 <code>config.py</code> 显式声明三项属性以消除歧义，<code>SECURE</code> 通过环境变量控制（<code>SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', '').lower() in ('1', 'true')</code>）。</li>
+      </ul>
+    </li>
     <li>
       <strong>业务组变更后旧会话仍生效的窗口期</strong>
       <ul>
@@ -218,7 +217,7 @@
   </ol>
 
   <h3>P2（远期/锦上添花）</h3>
-  <ol start="7">
+  <ol start="8">
     <li><strong><code>check_policy</code> 层要么落地要么移除</strong>：恒 <code>True</code> 的 stub 长期存在会增加理解成本；建议下一次真正引入对象级策略（如 Owner-based）时启用，或在文档中更明确标注"设计保留位，无迭代计划"。</li>
     <li><strong>密码复杂度与历史密码策略</strong>：如未来面向更大规模团队或纳入合规要求，可参考设计 §4.6 第 5 条排期。</li>
     <li><strong>MFA/OAuth</strong>：文档已归入 PRD Phase C 远期，本报告不重复展开。</li>
@@ -226,10 +225,11 @@
 
   <h2>八、与现有文档的一致性核查结论</h2>
   <p><a href="RBAC架构设计方案.html">RBAC架构设计方案.html</a>（v4）与 <a href="资源隔离与Scope设计.html">资源隔离与Scope设计.html</a>（v1.1.0）<strong>与代码实现高度一致</strong>——连"性能修正的根因""废弃方案版本""已知缺口"都如实记录，文档维护质量较高。本次评审未发现"文档说已实现但代码没有"的情况；反而代码部分细节比文档更完整（如业务组编码生成的 HTML 实体转义处理）。</p>
-  <p>本报告的新增价值主要是两类：</p>
+  <p>本报告的新增价值主要是三类：</p>
   <ul>
-    <li><strong>风险再评级</strong>：API 层缺口文档已知，但本报告认为其严重度应从"已知远期缺口"提升为"应尽快评估的 P0 风险"；</li>
-    <li><strong>文档未覆盖的细节</strong>：Cookie 安全属性、登录限流、组名唯一性——不在 RBAC/Scope 设计文档范围内（更偏通用 Web 安全基线），但应补充进项目安全清单。</li>
+    <li><strong>风险再评级与落地</strong>：API 层缺口从"已知远期缺口"提升为 P0 风险，并已交付 S6 完整方案（用户级 Token + Scope 隔离 + 30 天过期 + 反枚举）；</li>
+    <li><strong>Session Cookie 降级</strong>：原评为 P0，经复核 Flask 2.3.3 默认值已覆盖 <code>HTTPONLY</code> 和 <code>SAMESITE</code>，实际风险有限，降级为 P1；</li>
+    <li><strong>文档未覆盖的细节</strong>：登录限流、组名唯一性——不在 RBAC/Scope 设计文档范围内（更偏通用 Web 安全基线），但应补充进项目安全清单。</li>
   </ul>
 
 </main>

@@ -81,10 +81,14 @@ class TestEnsureRbacUsersColumns(unittest.TestCase):
             cols_after = {c['name'] for c in inspect(db.engine).get_columns('rbac_users')}
             self.assertIn('must_reset_password', cols_after)
             self.assertIn('status_reason', cols_after)
+            self.assertIn('api_token', cols_after)
+            self.assertIn('api_token_expires_at', cols_after)
             mod._ensure_rbac_users_columns()
             cols_again = {c['name'] for c in inspect(db.engine).get_columns('rbac_users')}
             self.assertIn('must_reset_password', cols_again)
             self.assertIn('status_reason', cols_again)
+            self.assertIn('api_token', cols_again)
+            self.assertIn('api_token_expires_at', cols_again)
 
 
 class TestEnsureCronInfosColumns(unittest.TestCase):
@@ -274,6 +278,54 @@ class TestEnsureEmptyDbReplay(unittest.TestCase):
             rbac_cols = {c['name'] for c in insp.get_columns('rbac_users')}
             self.assertIn('must_reset_password', rbac_cols)
             self.assertIn('status_reason', rbac_cols)
+            self.assertIn('api_token', rbac_cols)
+            self.assertIn('api_token_expires_at', rbac_cols)
+
+
+class TestModelMigrationSync(unittest.TestCase):
+    """防护测试：SA 模型列与迁移脚本同步。
+
+    根因：如果模型新增列但迁移脚本未补列，旧数据库启动后
+    所有涉及该模型的查询都会 OperationalError → 500 system err。
+    单元测试的 create_all() 永远不会暴露此问题。
+    """
+
+    def test_rbac_user_model_columns_covered_by_migration(self):
+        """rbac_users 的所有 SA 模型列都应在 ensure 迁移后出现。"""
+        from flask import Flask
+        from sqlalchemy import inspect
+
+        from app import db
+        from datas.model.rbac_user import RbacUser
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
+        with app.app_context():
+            # 模拟：只建最小列的旧表（不含任何后期新增列）
+            from sqlalchemy import text
+            db.session.execute(text(
+                'CREATE TABLE rbac_users ('
+                'id INTEGER PRIMARY KEY, '
+                'username VARCHAR(64) NOT NULL, '
+                'password_hash VARCHAR(255) NOT NULL, '
+                'role VARCHAR(20) NOT NULL, '
+                'is_active SMALLINT NOT NULL, '
+                "create_time VARCHAR(25) NOT NULL DEFAULT '')"
+            ))
+            db.session.commit()
+            # 执行迁移
+            mod._ensure_rbac_users_columns()
+            # 检查模型的所有列都存在于数据库
+            db_cols = {c['name'] for c in inspect(db.engine).get_columns('rbac_users')}
+            model_cols = {c.name for c in RbacUser.__table__.columns}
+            missing = model_cols - db_cols
+            self.assertEqual(
+                missing, set(),
+                'SA 模型列在数据库中缺失（ensure 迁移脚本未补列）：%s' % missing
+            )
 
 
 if __name__ == '__main__':

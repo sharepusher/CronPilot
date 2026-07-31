@@ -10,6 +10,8 @@ from datas.utils.times import get_now_time
 from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions
 
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
+# 用于表单下拉的角色排序（高频→低频）
+ROLE_ORDER = ['operator', 'viewer', 'admin']
 
 # 审计列表展示（码 → 中文）；未知码原样回退
 DEFAULT_USER_PASSWORD = 'changeme'
@@ -223,8 +225,17 @@ def user_must_reset_password(user_id):
     return bool(getattr(user, 'must_reset_password', 0))
 
 
+def _auto_issue_token(user):
+    """自动签发/重置 API Token（创建用户 / 改密码 / 改组时调用）。"""
+    import secrets
+    from datetime import datetime, timedelta
+
+    user.api_token = secrets.token_urlsafe(32)
+    user.api_token_expires_at = (datetime.now() + timedelta(days=API_TOKEN_TTL_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+
+
 def create_user(username, role='viewer'):
-    """创建用户：默认密码 changeme，并标记首次登录须改密。"""
+    """创建用户：默认密码 changeme，并标记首次登录须改密。自动签发 API Token。"""
     username = _normalize_username(username)
     if not username:
         return {'ok': False, 'msg': '用户名不能为空'}
@@ -246,6 +257,7 @@ def create_user(username, role='viewer'):
         create_time=get_now_time(),
     )
     user.set_password(DEFAULT_USER_PASSWORD)
+    _auto_issue_token(user)
     try:
         db.session.add(user)
         db.session.commit()
@@ -284,6 +296,7 @@ def update_user(user_id, role=None, is_active=None):
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
     write_audit_log(action='user:update', resource=user.username)
+    _invalidate_api_scope_cache(user_id)
     return {'ok': True, 'msg': '保存成功'}
 
 
@@ -333,6 +346,7 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
         action=action,
         resource='%s：%s' % (user.username, reason),
     )
+    _invalidate_api_scope_cache(user_id)
     return {
         'ok': True,
         'msg': '已%s用户「%s」' % (('启用' if want_active else '停用'), user.username),
@@ -349,12 +363,14 @@ def trigger_password_reset(user_id, actor_user_id=None):
         return {'ok': False, 'msg': '不能重置当前登录账号密码，请使用「修改密码」'}
     user.set_password(DEFAULT_USER_PASSWORD)
     user.must_reset_password = 1
+    _auto_issue_token(user)
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
         return {'ok': False, 'msg': '触发重置失败'}
     write_audit_log(action='user:password_reset', resource=user.username)
+    _invalidate_api_scope_cache(user_id)
     return {'ok': True, 'msg': '已触发密码重置，默认密码为 %s' % DEFAULT_USER_PASSWORD}
 
 
@@ -381,6 +397,7 @@ def change_own_password(user_id, old_password, new_password, confirm_password):
         return {'ok': False, 'msg': '新密码不能与当前密码相同'}
     user.set_password(new_password)
     user.must_reset_password = 0
+    _auto_issue_token(user)
     try:
         db.session.commit()
     except Exception:
@@ -488,6 +505,39 @@ def get_user_group_ids_for_user(user_id):
     return get_user_group_ids(user_id)
 
 
+API_TOKEN_TTL_DAYS = 30
+
+
+def issue_user_api_token(user_id):
+    """签发/重置用户 API Token（S6）。由 /api/auth/token 和 admin 重置按钮调用。
+
+    返回 {'ok': bool, 'msg': str, 'token': str, 'expires_at': str}。
+    """
+    user = db.session.get(RbacUser, user_id)
+    if not user:
+        return {'ok': False, 'msg': '用户不存在', 'token': '', 'expires_at': ''}
+    if not user.is_active:
+        return {'ok': False, 'msg': '用户已停用', 'token': '', 'expires_at': ''}
+    _auto_issue_token(user)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '签发失败', 'token': '', 'expires_at': ''}
+    _invalidate_api_scope_cache(user_id)
+    write_audit_log(action='user:update', resource='%s:api_token:issue' % user.username)
+    return {'ok': True, 'msg': 'Token 已重置', 'token': user.api_token, 'expires_at': user.api_token_expires_at}
+
+
+def _invalidate_api_scope_cache(user_id):
+    """事件驱动失效：用户角色/组/状态变更后清除该用户的 API scope 缓存。"""
+    try:
+        from app.api import invalidate_user_scope_cache
+        invalidate_user_scope_cache(user_id)
+    except Exception:
+        pass
+
+
 def set_user_groups(user_id, group_ids, role=None):
     """替换用户业务组绑定。group_ids 为 int 列表。组变更后需重新登录生效。
 
@@ -527,9 +577,12 @@ def set_user_groups(user_id, group_ids, role=None):
                 db.session.delete(row)
         for gid in desired_group_ids - existing_group_ids:
             db.session.add(UserGroup(user_id=user_id, group_id=gid))
+        if desired_group_ids != existing_group_ids:
+            _auto_issue_token(user)
         db.session.commit()
     except Exception:
         db.session.rollback()
         return {'ok': False, 'msg': '保存业务组失败'}
     write_audit_log(action='user:update', resource='%s:groups' % user.username)
+    _invalidate_api_scope_cache(user_id)
     return {'ok': True, 'msg': '保存成功'}

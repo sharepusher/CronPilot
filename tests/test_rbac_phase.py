@@ -473,6 +473,13 @@ class TestNavHasPerm(unittest.TestCase):
             html = self._render_nav(role)
             self.assertIn('修改密码', html, role)
 
+    def test_any_role_nav_places_api_token_before_api_doc(self):
+        for role in ('admin', 'operator', 'viewer'):
+            html = self._render_nav(role)
+            self.assertIn('API Token', html, role)
+            self.assertIn('API文档', html, role)
+            self.assertLess(html.find('API Token'), html.find('API文档'), role)
+
     def test_cron_edit_nav_shows_edit_not_add(self):
         with self.app.app_context():
             with self.app.test_request_context():
@@ -520,6 +527,62 @@ class TestNotFound(unittest.TestCase):
         self.assertIn('页面不存在', body)
         self.assertIn('返回任务中心', body)
         self.assertIn('任务中心', body)
+
+
+class TestApiDocReadonly(unittest.TestCase):
+    def setUp(self):
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        app.secret_key = 'test'
+        app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(app)
+        app.register_blueprint(main_blueprint)
+        from app.rbac import rbac as rbac_blueprint
+        app.register_blueprint(rbac_blueprint)
+        self.client = app.test_client()
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser
+            db.create_all()
+            user = RbacUser(
+                username='viewer',
+                role='viewer',
+                is_active=1,
+                must_reset_password=0,
+                create_time='t',
+            )
+            user.set_password('viewer-pass')
+            db.session.add(user)
+            db.session.commit()
+
+    def test_api_doc_page_shows_query_semantic_docs_only(self):
+        with self.client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = 'viewer'
+            sess['role'] = 'viewer'
+            sess['user_id'] = 1
+            sess['group_ids'] = []
+        resp = self.client.get('/api_doc')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.get_data(as_text=True)
+        self.assertIn('API 查询文档（权限内）', body)
+        self.assertIn('仅展示当前账号权限范围内、且具备“查询语义”的接口', body)
+        self.assertIn('/api/test', body)
+        self.assertIn('/api/openapi.json', body)
+        self.assertIn('/api/cron/query', body)
+        self.assertIn('/api/cron/logs', body)
+        self.assertIn('/api/cron/detail', body)
+        self.assertIn('/api/cron/log/detail', body)
+        self.assertIn('调用示例', body)
+        self.assertIn('Authorization: Bearer &lt;token&gt;', body)
+        self.assertNotIn('/api/auth/token', body)
+        self.assertNotIn('/api/cron/status', body)
+        self.assertNotIn('暂无可展示的查询接口', body)
 
 
 class TestRbacUsersManage(unittest.TestCase):
@@ -936,6 +999,33 @@ class TestForcedPasswordReset(unittest.TestCase):
         )
         self.assertEqual(resp.get_json().get('errcode'), 1)
         self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
+
+    def test_user_can_reset_own_token_on_api_token_page(self):
+        from app.rbac.services import issue_user_api_token
+
+        with self.app.app_context():
+            issued = issue_user_api_token(self.existing_id)
+            self.assertTrue(issued['ok'])
+            old_token = issued['token']
+
+        self._login_session('oldie', 'viewer', self.existing_id, [self.group_id])
+        page = self.client.get('/rbac/api_token')
+        self.assertEqual(page.status_code, 200)
+        body = page.get_data(as_text=True)
+        self.assertIn('重置Token', body)
+        self.assertIn('/rbac/api_token/reset', body)
+
+        reset = self.client.post(
+            '/rbac/api_token/reset',
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(reset.get_json().get('errcode'), 0)
+        self.assertIn('/rbac/api_token', reset.get_json().get('url', ''))
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            user = self.db.session.get(RbacUser, self.existing_id)
+            self.assertNotEqual(user.api_token, old_token)
+            self.assertTrue(bool(user.api_token_expires_at))
 
     def test_edit_ignores_password_field(self):
         self._login_session('mgr', 'admin', self.admin_id)

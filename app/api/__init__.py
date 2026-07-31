@@ -1,53 +1,176 @@
 #!/usr/bin/python3 
 # -*- coding:utf-8 -*-
+import time
+
 from apiflask import APIBlueprint
 from flask import request
 
 api = APIBlueprint('api', __name__, tag='CronPilot Open API')
 
+# ---------------------------------------------------------------------------
+# S6 用户级 Token Scope 缓存（进程内 + TTL 安全网 + 事件驱动失效）
+# ---------------------------------------------------------------------------
+_SCOPE_CACHE = {}   # api_token → {user_id, role, group_ids, is_active, username, ts}
+_CACHE_TTL = 120    # 秒（多 worker 安全网）
+
+
+def _get_cached_user_scope(token):
+    entry = _SCOPE_CACHE.get(token)
+    if entry and (time.time() - entry['ts']) < _CACHE_TTL:
+        return entry
+    return None
+
+
+def _set_cached_user_scope(token, user_id, role, group_ids, is_active, username):
+    _SCOPE_CACHE[token] = {
+        'user_id': user_id, 'role': role, 'group_ids': list(group_ids),
+        'is_active': is_active, 'username': username, 'ts': time.time(),
+    }
+
+
+def invalidate_user_scope_cache(user_id):
+    """事件驱动：清除该 user_id 的所有缓存条目。"""
+    to_remove = [k for k, v in _SCOPE_CACHE.items() if v.get('user_id') == user_id]
+    for k in to_remove:
+        del _SCOPE_CACHE[k]
+
+
+# ---------------------------------------------------------------------------
+# Token 提取与鉴权
+# ---------------------------------------------------------------------------
+
+def _extract_bearer_token():
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:].strip()
+        if token:
+            return token
+    return request.values.get('access_token', '')
+
 
 @api.before_request
 def _api_token_guard():
-    """统一 access_token 鉴权：替代各视图函数中的分散校验。
-    语义：
-      - conf.ini api_access_token 为空 → 放行所有请求（不做鉴权）。
-      - 非空时：先读 Authorization: Bearer <token>，再回退到 query/form 参数 access_token。
-      - 鉴权失败 → 返回 {errcode:1, errmsg:'access_token错误或缺失'}，HTTP 401。
-    /api/swagger 与 /api/openapi.json 不经过此 Blueprint，天然豁免。
+    """统一鉴权 + S6 用户级 Scope 解析。
+
+    优先级：
+      1. /api/auth/token 端点 → 豁免（用户通过 Basic Auth 获取 Token）
+      2. 全局 token（conf.ini api_access_token）→ admin scope
+      3. 用户 token（rbac_users.api_token，含过期检查）→ 用户 scope
+      4. 无匹配 → 401（api_access_token 为空时放行，向后兼容）
     """
+    if request.endpoint == 'api.api_auth_token':
+        return None
+
     try:
         from configs import configs as _configs
         api_access_token = _configs('api_access_token') or ''
     except Exception:
-        return None  # 配置读取异常时放行，不阻塞
+        request._api_scope = {'role': 'admin'}
+        return None
+
+    token = _extract_bearer_token()
+
+    if not api_access_token and not token:
+        request._api_scope = {'role': 'admin'}
+        return None
+
+    if token and api_access_token and token == api_access_token:
+        request._api_scope = {'role': 'admin'}
+        return None
+
+    if token:
+        user_scope = _resolve_user_token(token)
+        if user_scope is not None:
+            if not user_scope.get('is_active'):
+                from datas.utils.json import api_return
+                _write_api_deny_audit()
+                return api_return(errcode=1, errmsg='用户已停用'), 401
+            if user_scope.get('expired'):
+                from datas.utils.json import api_return
+                return api_return(errcode=1, errmsg='Token 已过期，请重新获取'), 401
+            request._api_scope = user_scope
+            return None
 
     if not api_access_token:
-        return None  # 未配置，放行所有
+        request._api_scope = {'role': 'admin'}
+        return None
 
-    # 优先读 Authorization: Bearer <token>
-    auth_header = request.headers.get('Authorization', '')
-    token = ''
-    if auth_header.startswith('Bearer '):
-        token = auth_header[7:].strip()
+    from datas.utils.json import api_return
+    _write_api_deny_audit()
+    return api_return(errcode=1, errmsg='access_token错误或缺失'), 401
 
-    # 回退：form / query 参数 access_token（向后兼容旧调用方）
+
+def _resolve_user_token(token):
+    """查 rbac_users.api_token，含缓存和过期检查。"""
     if not token:
-        token = request.values.get('access_token', '')
+        return None
 
-    if token != api_access_token:
-        from datas.utils.json import api_return
-        _write_api_deny_audit()
-        return api_return(errcode=1, errmsg='access_token错误或缺失'), 401
+    cached = _get_cached_user_scope(token)
+    if cached is not None:
+        return cached
 
-    return None  # 鉴权通过
+    try:
+        from datetime import datetime
+        from sqlalchemy import select
+        from app import db
+        from datas.model.rbac_user import RbacUser
+        from app.rbac.scope import get_user_group_ids
+
+        user = db.session.scalars(
+            select(RbacUser).where(RbacUser.api_token == token)
+        ).first()
+        if user is None:
+            return None
+
+        expired = False
+        if user.api_token_expires_at:
+            try:
+                exp = datetime.strptime(user.api_token_expires_at, '%Y-%m-%d %H:%M:%S')
+                if datetime.now() > exp:
+                    expired = True
+            except (ValueError, TypeError):
+                pass
+
+        group_ids = get_user_group_ids(user.id)
+        scope = {
+            'role': 'user',
+            'user_id': user.id,
+            'user_role': user.role or '',
+            'username': user.username or '',
+            'group_ids': group_ids,
+            'is_active': bool(user.is_active),
+            'expired': expired,
+        }
+        _set_cached_user_scope(token, user.id, user.role, group_ids, bool(user.is_active), user.username)
+        if expired:
+            scope_copy = dict(scope)
+            scope_copy['expired'] = True
+            _SCOPE_CACHE[token]['expired'] = True
+        return scope
+    except Exception:
+        return None
+
+
+def check_api_scope(cron_info):
+    """检查当前请求的 API Scope 是否允许操作目标任务。
+
+    成功返回 None；失败返回与「任务不存在」相同的错误响应（防枚举）。
+    """
+    from app.rbac.scope import has_scope
+
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    if scope.get('role') == 'admin':
+        return None
+    user_role = scope.get('user_role', '')
+    group_ids = scope.get('group_ids', [])
+    if has_scope(user_role, group_ids, cron_info):
+        return None
+    from datas.utils.json import api_return
+    return api_return(errcode=1, errmsg='任务不存在'), 200
 
 
 def _write_api_deny_audit():
-    """记录 API 鉴权失败（rbac_audit_logs.action='api:deny'），便于异常调用追溯。
-
-    失败留痕是「API 层最小 Scope 止损」的一部分（见 doc/RBAC与群组权限管理评审报告.html）；
-    不影响主流程——审计写入异常时静默忽略，不阻塞 401 响应。
-    """
+    """记录 API 鉴权失败（rbac_audit_logs.action='api:deny'）。"""
     try:
         from app.rbac.services import write_audit_log
         write_audit_log(action='api:deny', resource=request.path, status='deny')

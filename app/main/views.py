@@ -12,7 +12,7 @@ from . import main
 from flask import render_template, request, redirect, session, current_app, url_for, jsonify
 
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
-from app.rbac.policy import role_bypasses_scope
+from app.rbac.policy import effective_permissions, role_bypasses_scope
 from app.rbac.scope import (
     SCOPE_GLOBAL,
     SCOPE_GROUP,
@@ -242,7 +242,17 @@ def cron_list():
 @main.route('/api_doc', methods=['GET', 'POST'])
 @require_permission('cron:read')
 def api_doc():
-    return render_template("api_doc.html")
+    from app.api.doc_catalog import list_readonly_docs
+
+    role = session.get('role') or ''
+    username = session.get('username') or ''
+    permission_set = effective_permissions(role, username)
+    docs = list_readonly_docs(permission_set)
+    return render_template(
+        "api_doc.html",
+        docs=docs,
+        current_role=role,
+    )
 
 
 @main.route('/job_log_list', methods=['GET', 'POST'])

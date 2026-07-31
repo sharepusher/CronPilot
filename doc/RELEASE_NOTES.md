@@ -32,6 +32,25 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+### RBAC / API Token 体验优化
+
+- **用户自助重置：**`/rbac/api_token` 页面新增「重置Token」按钮，用户无需等待管理员即可轮换当前凭证。
+- **新路由：**新增 `POST /rbac/api_token/reset`（`require_login` + CSRF），重置当前登录用户 Token，并刷新 30 天有效期。
+- **兼容并存：**管理员在用户列表中的「重置Token」能力保持不变。
+- **测试补强：**新增 `test_user_can_reset_own_token_on_api_token_page`，校验 token 值确实变化且有效期存在。
+
+### API 文档只读化与风格统一
+
+- **导航顺序调整：**顶栏中 `API文档` 移动到 `API Token` 之后，先账号凭证、后文档浏览。
+- **页面风格统一：**`/api_doc` 重构为管理端原生卡片页面（不再依赖 Swagger iframe 交互），视觉样式与其它后台页面一致。
+- **查询语义白名单：**只展示标记为“查询语义”的接口条目，不按 HTTP Method 粗暴筛选；写入/变更类接口不展示。
+- **权限内可见：**按当前登录用户角色权限动态过滤接口，用户仅看到其权限范围内可用的查询接口。
+- **去空壳条目：**摘要/路径/响应说明不完整的接口自动不展示，避免“点击无内容”问题。
+- **有效查询接口补齐：**新增 `GET /api/cron/query`（任务查询）、`GET /api/cron/logs`（执行日志查询）、`GET /api/cron/detail`（任务详情）与 `GET /api/cron/log/detail`（单条日志详情），并按 Scope 做可见性控制。
+- **查询字段增强：**查询接口返回补充 `total`、`has_more` 等分页元数据，日志查询支持 `status` 过滤并返回 `content_preview`。
+- **目录缓存：**只读接口目录按权限集做进程内缓存，服务启动后复用；接口变更随发版重启生效。
+- **测试补强：**新增 `test_any_role_nav_places_api_token_before_api_doc` 与 `test_api_doc_page_shows_query_semantic_docs_only`。
+
 ## [2.6.0] — 2026-07-30
 
 ### 前端颜色收编与可维护性加固

@@ -1,4 +1,4 @@
-{# active: cron_list | cron_add | cron_edit | job_log | operation_log | api_doc | users | groups | audit | password #}
+{# active: cron_list | cron_add | cron_edit | job_log | operation_log | api_doc | users | groups | audit | password | api_token #}
 <ul class="nav nav-tabs">
     {% if has_perm('cron:read') %}
     <li{% if active == 'cron_list' %} class="active"{% endif %}>
@@ -24,11 +24,6 @@
         <a{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>操作记录</a>
     </li>
     {% endif %}
-    {% if has_perm('cron:read') %}
-    <li{% if active == 'api_doc' %} class="active"{% endif %}>
-        <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
-    </li>
-    {% endif %}
     {% if has_perm('user:manage') %}
     <li{% if active == 'users' %} class="active"{% endif %}>
         <a{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>用户管理</a>
@@ -45,4 +40,12 @@
     <li{% if active == 'password' %} class="active"{% endif %}>
         <a{% if active != 'password' %} href="{{ url_for('rbac.change_password') }}"{% endif %}>修改密码</a>
     </li>
+    <li{% if active == 'api_token' %} class="active"{% endif %}>
+        <a{% if active != 'api_token' %} href="{{ url_for('rbac.api_token_page') }}"{% endif %}>API Token</a>
+    </li>
+    {% if has_perm('cron:read') %}
+    <li{% if active == 'api_doc' %} class="active"{% endif %}>
+        <a{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>API文档</a>
+    </li>
+    {% endif %}
 </ul>

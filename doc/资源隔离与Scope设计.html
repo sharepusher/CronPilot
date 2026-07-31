@@ -122,20 +122,41 @@ Allow / Deny（403）</pre>
     <li><code>cron_service</code> 仅透传 <code>scope_type</code>/<code>group_id</code>，不判角色</li>
   </ul>
 
-  <h2>七、API 除外（已知缺口）</h2>
-  <div class="warn">
-    <code>/api/*</code> 仍使用部署级 <code>api_access_token</code>，可操作全库任务。按组 token / 调用方身份挂 Scope 见 §八 远期。
-  </div>
-  <p><strong>最小止损（已交付，见 <a href="RBAC与群组权限管理评审报告.html">RBAC与群组权限管理评审报告</a>）：</strong>该缺口本身尚未消除（仍是部署级单一密钥，无按组隔离），但已补齐两项止损：</p>
+  <h2>七、API Scope（S6：用户级 Token + 自动过期，已交付）</h2>
+  <p>API 层已支持<strong>用户级 Token + 自动过期</strong>（Unreleased）：</p>
+  <h3>7.1 Token 签发流程</h3>
+  <ol>
+    <li>调用方 <code>POST /api/auth/token</code>，用 HTTP Basic Auth 或 form 参数传入 <code>username</code> + <code>password</code></li>
+    <li>服务端验证密码（PBKDF2）→ 签发 Token（43 字符，<code>secrets.token_urlsafe(32)</code>）+ 有效期 30 天</li>
+    <li>返回 <code>{errcode:0, data: {token, expires_at}}</code></li>
+    <li>后续 API 请求携带 <code>Authorization: Bearer &lt;token&gt;</code></li>
+    <li>Token 过期后重新调用步骤 1 获取新 Token</li>
+  </ol>
+  <h3>7.2 鉴权优先级</h3>
+  <table>
+    <tr><th>Token 类型</th><th>解析</th><th>Scope</th></tr>
+    <tr><td>全局 Token（<code>conf.ini api_access_token</code>）</td><td>匹配全局配置</td><td>admin — 操作全库</td></tr>
+    <tr><td>用户 Token（<code>rbac_users.api_token</code>）</td><td>匹配某用户 + 过期检查</td><td>该用户角色 + 所属组 Scope（实时查库，组变更即时生效）</td></tr>
+    <tr><td>无 Token / 不匹配</td><td>—</td><td><code>api_access_token</code> 非空 → 401；为空 → 放行（向后兼容）</td></tr>
+  </table>
+  <h3>7.3 关键特性</h3>
   <ul>
-    <li><strong>opt-in 生产 fail-fast：</strong>conf.ini 新增 <code>api_access_token_required</code>（默认 <code>0</code>，零行为变化）。设为 <code>1</code> 且 <code>api_access_token</code> 为空时，生产启动路径（<code>scripts/check_conf_production.py</code> 预检 + <code>config.ProductionConfig.init_app</code>）拒绝启动，防止"空 token 裸奔"未被察觉。</li>
-    <li><strong>鉴权失败留痕：</strong><code>app/api/__init__.py::_api_token_guard</code> 校验失败时写 <code>rbac_audit_logs</code>（<code>action='api:deny'</code>，含请求路径与来源 IP），此前完全没有审计。</li>
+    <li><strong>透明</strong>：调用方仅需 username/password，无需管理独立 Token（Token 由 API 端点自动签发）。</li>
+    <li><strong>自动过期</strong>：Token 30 天后失效，限制泄露窗口。</li>
+    <li><strong>组变更即时生效</strong>：Token 不编码组信息，组归属在每次请求时实时查库（进程内缓存 120s + 事件驱动失效）。</li>
+    <li><strong>停用即失效</strong>：用户 <code>is_active=0</code> → Token 立即 401。</li>
+    <li><strong>管理端透明运维</strong>：用户可在 <code>/rbac/api_token</code> 自助查看并重置 Token；管理员仍可在用户列表执行重置。</li>
+    <li><strong>枚举防护</strong>：越权与「任务不存在」返回相同错误码。</li>
+    <li><strong>向后兼容</strong>：<code>api_access_token</code> 为空 → 全放行（不变）。</li>
+    <li><strong>审计</strong>：<code>api:deny</code> 审计 + <code>user:update:api_token:issue</code> 审计。</li>
   </ul>
+  <p>影响端点：<code>/api/cron/status</code>、<code>/api/cron/retire</code>、<code>/api/cron</code>（upsert，已有任务时校验）、<code>/api/cron/add</code>（legacy 兼容层）、<code>/api/cron/query</code>（任务查询）、<code>/api/cron/logs</code>（执行日志查询）。</p>
+  <p><code>/api/cron/add_log</code> 通过 <code>cronpilot_log_id</code> 绑定具体日志，无独立越权面，暂不加组 Scope 校验。</p>
+  <p>测试：<code>tests/test_api_scope_s6.py</code>（16 个用例）。</p>
 
-  <h2 id="future">八、远期（S6，本迭代不实现）</h2>
+  <h2 id="future">八、远期</h2>
   <ul>
     <li>新任务默认 <code>GROUP</code>（配置项）</li>
-    <li>API Scope / 每组凭证</li>
     <li>Policy：Owner、Environment</li>
     <li>抽象 Tenant / Workspace（仍不绑 Role）</li>
   </ul>

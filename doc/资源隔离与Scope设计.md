@@ -98,19 +98,46 @@ Allow / Deny（403）
 - 禁止 Handler/Service/DAO 散落 `if group_id`；统一走 `authorize` / `build_scope_filter_clause`
 - `cron_service` 仅透传 `scope_type`/`group_id`，不判角色
 
-## 七、API 除外（已知缺口）
+## 七、API Scope（S6：用户级 Token + 自动过期，已交付）
 
-`/api/*` 仍使用部署级 `api_access_token`，可操作全库任务。按组 token / 调用方身份挂 Scope 见 §八 远期。
+API 层已支持**用户级 Token + 自动过期**（Unreleased）：
 
-**最小止损（已交付，见 [RBAC与群组权限管理评审报告](RBAC与群组权限管理评审报告.html)）：**该缺口本身尚未消除（仍是部署级单一密钥，无按组隔离），但已补齐两项止损：
+### 7.1 Token 签发流程
 
-- **opt-in 生产 fail-fast：**conf.ini 新增 `api_access_token_required`（默认 `0`，零行为变化）。设为 `1` 且 `api_access_token` 为空时，生产启动路径（`scripts/check_conf_production.py` 预检 + `config.ProductionConfig.init_app`）拒绝启动，防止"空 token 裸奔"未被察觉。
-- **鉴权失败留痕：**`app/api/__init__.py::_api_token_guard` 校验失败时写 `rbac_audit_logs`（`action='api:deny'`，含请求路径与来源 IP），此前完全没有审计。
+1. 调用方 `POST /api/auth/token`，用 HTTP Basic Auth 或 form 参数传入 `username` + `password`
+2. 服务端验证密码（PBKDF2）→ 签发 Token（43 字符，`secrets.token_urlsafe(32)`）+ 有效期 30 天
+3. 返回 `{errcode:0, data: {token, expires_at}}`
+4. 后续 API 请求携带 `Authorization: Bearer <token>`
+5. Token 过期后重新调用步骤 1 获取新 Token
 
-## 八、远期（S6，本迭代不实现）
+### 7.2 鉴权优先级
+
+| Token 类型 | 解析 | Scope |
+| --- | --- | --- |
+| 全局 Token（`conf.ini api_access_token`） | 匹配全局配置 | admin — 操作全库 |
+| 用户 Token（`rbac_users.api_token`） | 匹配某用户 + 过期检查 | 该用户角色 + 所属组 Scope（实时查库，组变更即时生效） |
+| 无 Token / 不匹配 | — | `api_access_token` 非空 → 401；为空 → 放行（向后兼容） |
+
+### 7.3 关键特性
+
+- **透明**：调用方仅需 username/password，无需管理独立 Token（Token 由 API 端点自动签发）。
+- **自动过期**：Token 30 天后失效，限制泄露窗口。
+- **组变更即时生效**：Token 不编码组信息，组归属在每次请求时实时查库（进程内缓存 120s + 事件驱动失效）。
+- **停用即失效**：用户 `is_active=0` → Token 立即 401。
+- **管理端透明运维**：用户可在 `/rbac/api_token` 自助查看并重置 Token；管理员仍可在用户列表执行重置。
+- **枚举防护**：越权与「任务不存在」返回相同错误码。
+- **向后兼容**：`api_access_token` 为空 → 全放行（不变）。
+- **审计**：`api:deny` 审计 + `user:update:api_token:issue` 审计。
+
+影响端点：`/api/cron/status`、`/api/cron/retire`、`/api/cron`（upsert，已有任务时校验）、`/api/cron/add`（legacy 兼容层）、`/api/cron/query`（任务查询）、`/api/cron/logs`（执行日志查询）。
+
+`/api/cron/add_log` 通过 `cronpilot_log_id` 绑定具体日志，无独立越权面，暂不加组 Scope 校验。
+
+测试：`tests/test_api_scope_s6.py`（16 个用例）。
+
+## 八、远期
 
 - 新任务默认 `GROUP`（配置项）
-- API Scope / 每组凭证
 - Policy：Owner、Environment
 - 抽象 Tenant / Workspace（仍不绑 Role）
 

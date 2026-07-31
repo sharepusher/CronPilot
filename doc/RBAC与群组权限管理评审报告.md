@@ -9,7 +9,7 @@
 
 基于代码通读的专业评审：能力模型（Permission）· 可见范围（Scope）· 账户与会话安全 · API 层缺口
 
-状态：评审稿 · 2026-07-29 · 2026-07-30 增补（API 最小止损已部分落地）· 面向 [RBAC 详细设计方案 v4](RBAC架构设计方案.html) 与 [资源隔离与 Scope 设计](资源隔离与Scope设计.html) 的现状核查与增补建议
+状态：评审稿 · 2026-07-29 · 2026-07-30 增补（API 最小止损 + S6 用户级 Token 完整方案已交付；Session Cookie 降级至 P1）· 面向 [RBAC 详细设计方案 v4](RBAC架构设计方案.html) 与 [资源隔离与 Scope 设计](资源隔离与Scope设计.html) 的现状核查与增补建议
 
 **定位：**本报告不改变已交付的 RBAC v4 / Resource Scope（OPT-P2-12）架构，而是对现状代码做一次独立专业评审，核查其与设计文档的一致性，并提出设计文档尚未覆盖或优先级可再评估的问题。**本报告本身不构成实现设计稿**；其中列出的优化建议均需按仓库「设计先行」纪律另行出稿并经确认后才可改代码。
 
@@ -62,7 +62,7 @@
 
 | 严重度 | 问题 | 位置 | 说明 |
 | --- | --- | --- | --- |
-| 高 | API 层完全不受 RBAC/Scope 约束 | `app/api/views.py`、`app/api/__init__.py` | 见第五节详述 |
+| 已修复 | API 层完全不受 RBAC/Scope 约束 | `app/api/views.py`、`app/api/__init__.py` | ✅ S6 完整方案已交付，见 §5.1 |
 | 中 | 登录无失败次数限制/限流 | `app/rbac/views.py::login` | 暴力破解无防护；无失败锁定、验证码、退避 |
 | 中 | Session Cookie 未强制 `Secure`/`SameSite` | `config.py` | 未显式设置，若忘记在反代层强制 HTTPS，Cookie 可能明文传输 |
 | 中 | 无会话超时/吊销机制（文档已自述，未实现） | 设计 §4.6 | 停用/降权用户旧会话要等下一次访问受保护页才失效；改密之外无"立即踢下线"手段 |
@@ -105,16 +105,20 @@
 
 这不是代码 bug——文档已明确标注为"S6 远期"未实现项，团队是知情的。但从专业评审角度，本报告认为**其风险等级应从"已知远期缺口"提升为"应尽快评估的 P0 风险"**：Web UI 上一个 operator 看不到别组任务、改不了别组任务，容易给人一种"隔离已经生效"的错觉，而只要对方知道（或猜到/泄露）那一个全局 token，Scope 的防护形同虚设。
 
-### 5.1 2026-07-30 增补：已落地的「最小止损」（仍非 S6 完整方案）
+### 5.1 2026-07-30 增补：S6 完整方案已交付
 
-评审稿发出后，仓库已交付 **Unreleased** 的前置止损（见 [交付状态与路线图](交付状态与路线图.html)），**不改变**「API 不受 Resource Scope 约束」这一核心结论，但生产运维可 opt-in 加强：
+评审稿发出后，仓库已完成 S6 完整方案（用户级 API Token + Scope 隔离），**本节核心结论已解决**。详细设计见 [资源隔离与 Scope 设计 §八](资源隔离与Scope设计.html)。
 
 | 项 | 实现 | 状态 |
 | --- | --- | --- |
-| 生产 opt-in fail-fast | `conf.ini` 设 `api_access_token_required=1` 且 `api_access_token` 为空时，`ProductionConfig.init_app` 与 `scripts/check_conf_production.py` 拒绝启动 | 已交付 · 默认 `0`（向后兼容） |
-| 鉴权失败审计 | `_api_token_guard` 失败写 `rbac_audit_logs.action='api:deny'` | 已交付 |
-| 单测 | `tests/test_api_scope_min.py` | 已交付 |
-| 按业务组 Token / 目标 `group_id` 校验 | S6 完整方案 | **仍未实现** |
+| 生产 opt-in fail-fast | `conf.ini` 设 `api_access_token_required=1` 且 `api_access_token` 为空时，`ProductionConfig.init_app` 与 `scripts/check_conf_production.py` 拒绝启动 | ✅ 已交付 |
+| 鉴权失败审计 | `_api_token_guard` 失败写 `rbac_audit_logs.action='api:deny'` | ✅ 已交付 |
+| 用户级 API Token | 每个 `rbac_user` 自动生成 `api_token`（30 天过期）；`Authorization: Bearer <token>` 鉴权；密码/组变更自动重置 token | ✅ 已交付 |
+| Token 获取端点 | `POST /api/auth/token`（Basic Auth 或表单）→ 返回 token + 过期时间 | ✅ 已交付 |
+| API Scope 隔离 | `check_api_scope` 根据 token 持有者的 `group_ids` 校验目标任务归属；反枚举（越权与不存在返回同一提示） | ✅ 已交付 |
+| 缓存与失效 | 进程内 `_SCOPE_CACHE`（120s TTL）+ 用户变更时主动失效 | ✅ 已交付 |
+| 全局 token 兼容 | `conf.ini` 的 `api_access_token` 仍可用，优先级高于用户 token，admin 等效（全库访问） | ✅ 已交付 |
+| 测试 | `tests/test_api_scope_s6.py`（19 用例）+ `tests/test_api_scope_min.py` | ✅ 已交付 |
 
 ## 六、账户安全与会话管理评审
 
@@ -128,7 +132,7 @@
 | SECRET\_KEY | 生产 fail-fast（`is_weak_secret_key`） | 达标，OPT-P0-10 已交付 |
 | 登录失败反馈 | 用户名不存在与密码错误返回同一句提示 | 达标，防用户名枚举 |
 | 登录限流/防爆破 | 无 | 缺失，见第三节 |
-| Cookie 安全属性 | 未显式设置 Secure/SameSite | 缺失，见第三节 |
+| Cookie 安全属性 | 未显式设置，但 Flask 2.3.3 默认 HTTPONLY=True, SAMESITE='Lax' | P1 · 建议显式声明以消除歧义；SECURE 需按部署环境条件开启 |
 | 会话闲置/绝对超时 | 无，仅退出/改密时清 | 文档已自述"待确认"，非本次新发现 |
 | 密码策略 | 仅要求 ≥6 位，无复杂度/历史密码要求 | 偏弱，内部管理后台可接受，非高优先级 |
 
@@ -138,24 +142,18 @@
 
 ### P0（建议尽快评估，安全相关）
 
-1. **API 层 Scope 完整方案（S6）**——前置止损已部分交付，核心缺口仍在
-   - 问题：默认空 token 仍全放行（`api_access_token_required=0` 时）；单一全局 token 无法区分业务线，Web 端 Scope 隔离在 API 侧仍形同虚设。
-   - 已交付（2026-07-30）：opt-in 生产 fail-fast（`api_access_token_required=1`）+ `api:deny` 审计 + `test_api_scope_min.py`。
-   - 仍建议（需设计稿定夺）：
-       
-     a. 启动/`/docs` 对「token 为空且未开启 required」给出醒目告警（fail-fast 已 opt-in，默认仍静默放行）；
-       
-     b. 中期：引入"按业务组的 API Token"（`resource_groups` 增加可选 token 列），`/api/cron/retire`、`/api/cron/status` 校验 token 对应组与目标任务 `group_id` 一致（admin token 除外）。
-   - 影响面：`app/api/__init__.py`、`app/api/views.py`、`resource_groups` 表结构、文档。
+1. **✅ API 层 Scope 完整方案（S6）**——**已交付**（2026-07-30）
+   - 用户级 API Token（30 天自动过期）+ Scope 隔离 + 反枚举 + 缓存失效，详见 §5.1。
+   - `tests/test_api_scope_s6.py`（19 用例）全部通过。
 2. **登录暴力破解防护**
    - 建议按用户名+IP 维度做失败次数计数（可复用 `rbac_audit_logs` 中 `action='user:login', status='deny'` 记录做滑动窗口统计，避免为此单独引入新依赖）。
    - 影响面：`app/rbac/views.py::login`、`app/rbac/services.py::authenticate_user`。
-3. **Session Cookie 安全属性**
-   - 建议 `config.py` 显式设置 `SESSION_COOKIE_SECURE = True`（生产）、`SESSION_COOKIE_SAMESITE = 'Lax'`、`SESSION_COOKIE_HTTPONLY = True`（显式声明避免歧义）。
-   - 需确认非 HTTPS 内网部署场景是否需要环境变量开关。
 
 ### P1（体验/工程债，建议纳入下一轮迭代）
 
+3. **Session Cookie 安全属性**（原 P0，降级为 P1）
+   - **降级理由**：Flask 2.3.3 默认 `HTTPONLY=True`、`SAMESITE='Lax'`，两项最关键的 Cookie 安全属性已由框架默认值覆盖。唯一非默认安全的 `SECURE` 在 CronPilot 典型内网 HTTP 部署场景下不能强开（会导致无法登录），需要环境感知开关，属工程改进而非紧迫安全缺口。
+   - 建议 `config.py` 显式声明三项属性以消除歧义，`SECURE` 通过环境变量控制（`SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', '').lower() in ('1', 'true')`）。
 4. **业务组变更后旧会话仍生效的窗口期**
    - 建议参考"强制改密"已有的"实时查库拦截"模式：`rbac_users` 增加 `groups_version` 字段，登录时写入 session，受保护页对比库内版本号，不一致则要求重新登录。
    - 与文档 §4.6 提到的"会话吊销"是同一类问题，建议合并到一次设计中统一解决。
@@ -167,18 +165,19 @@
 
 ### P2（远期/锦上添花）
 
-7. **`check_policy` 层要么落地要么移除**：恒 `True` 的 stub 长期存在会增加理解成本；建议下一次真正引入对象级策略（如 Owner-based）时启用，或在文档中更明确标注"设计保留位，无迭代计划"。
-8. **密码复杂度与历史密码策略**：如未来面向更大规模团队或纳入合规要求，可参考设计 §4.6 第 5 条排期。
-9. **MFA/OAuth**：文档已归入 PRD Phase C 远期，本报告不重复展开。
+8. **`check_policy` 层要么落地要么移除**：恒 `True` 的 stub 长期存在会增加理解成本；建议下一次真正引入对象级策略（如 Owner-based）时启用，或在文档中更明确标注"设计保留位，无迭代计划"。
+9. **密码复杂度与历史密码策略**：如未来面向更大规模团队或纳入合规要求，可参考设计 §4.6 第 5 条排期。
+10. **MFA/OAuth**：文档已归入 PRD Phase C 远期，本报告不重复展开。
 
 ## 八、与现有文档的一致性核查结论
 
 <RBAC架构设计方案.html>（v4）与 <资源隔离与Scope设计.html>（v1.1.0）**与代码实现高度一致**——连"性能修正的根因""废弃方案版本""已知缺口"都如实记录，文档维护质量较高。本次评审未发现"文档说已实现但代码没有"的情况；反而代码部分细节比文档更完整（如业务组编码生成的 HTML 实体转义处理）。
 
-本报告的新增价值主要是两类：
+本报告的新增价值主要是三类：
 
-- **风险再评级**：API 层缺口文档已知，但本报告认为其严重度应从"已知远期缺口"提升为"应尽快评估的 P0 风险"；
-- **文档未覆盖的细节**：Cookie 安全属性、登录限流、组名唯一性——不在 RBAC/Scope 设计文档范围内（更偏通用 Web 安全基线），但应补充进项目安全清单。
+- **风险再评级与落地**：API 层缺口从"已知远期缺口"提升为 P0 风险，并已交付 S6 完整方案（用户级 Token + Scope 隔离 + 30 天过期 + 反枚举）；
+- **Session Cookie 降级**：原评为 P0，经复核 Flask 2.3.3 默认值已覆盖 `HTTPONLY` 和 `SAMESITE`，实际风险有限，降级为 P1；
+- **文档未覆盖的细节**：登录限流、组名唯一性——不在 RBAC/Scope 设计文档范围内（更偏通用 Web 安全基线），但应补充进项目安全清单。
 
 CronPilot · RBAC 与群组权限管理评审报告 · 2026-07-29 · 2026-07-30 增补 ·
 [RBAC 详设 v4](RBAC架构设计方案.html) ·

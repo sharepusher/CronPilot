@@ -26,8 +26,9 @@
                 <th>角色</th>
                 <th>状态</th>
                 <th>密码状态</th>
+                <th>业务组</th>
                 <th>创建时间</th>
-                <th style="width:240px">操作</th>
+                <th style="width:320px">操作</th>
             </tr>
             </thead>
             <tbody>
@@ -57,6 +58,16 @@
                     <span class="user-status user-status-ok">正常</span>
                     {% endif %}
                 </td>
+                <td class="user-groups-cell">
+                    {% set groups = user_groups_map.get(item.id, []) %}
+                    {% if groups %}
+                    {{ groups|join('、') }}
+                    {% elif item.role == 'admin' %}
+                    <span style="color:var(--cp-muted);font-size:11px">—</span>
+                    {% else %}
+                    <span style="color:var(--cp-warn);font-size:11px">未分组</span>
+                    {% endif %}
+                </td>
                 <td>{{ item.create_time }}</td>
                 <td class="user-ops" style="white-space:nowrap">
                     {% if is_self %}
@@ -66,6 +77,9 @@
                     <a class="btn btn-mini btn-warning js-ajax-dialog-btn"
                        href="{{ url_for('rbac.users_reset_password') }}?id={{ item.id }}"
                        data-msg="确定触发重置用户「{{ item.username }}」的密码？密码将恢复为 changeme，且须改密后才能继续使用。">重置密码</a>
+                    <a class="btn btn-mini btn-warning js-ajax-dialog-btn"
+                       href="{{ url_for('rbac.users_reset_token') }}?id={{ item.id }}"
+                       data-msg="确定重置用户「{{ item.username }}」的 API Token？当前 Token 将立即失效，调用方需重新获取。">重置Token</a>
                     {% if item.is_active %}
                     <a class="btn btn-mini btn-danger"
                        href="{{ url_for('rbac.users_set_active', id=item.id, is_active=0) }}">停用</a>
@@ -134,6 +148,11 @@
     color: var(--cp-muted);
     line-height: 1.35;
     max-width: 180px;
+}
+.rbac-users-table .user-groups-cell {
+    font-size: 12px;
+    max-width: 180px;
+    line-height: 1.35;
 }
 .rbac-users-table .user-ops .btn-mini {
     margin: 0 2px 2px 0;

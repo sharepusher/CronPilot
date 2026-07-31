@@ -218,6 +218,13 @@ UI / 管理端另须补齐下表「交互契约」等行。
 - [ ] `python scripts/html_docs_to_markdown.py --check` 通过
 - [ ] 若删除 `doc/_pending_sync/*`：`已合并补丁记录.md` 已记完整路径与原因
 
+### GitHub Release 发布文案规范（追加 2026-07）
+
+- 面向 GitHub 的发布说明（Release title / Release notes）统一使用**专业英文**，保持客观、简洁、可执行（包含影响范围、升级/回滚要点、验证摘要）。
+- 禁止口语化或中英混杂标题（例如“已修好/快看”）；禁止仅贴原始日志而不做结构化说明。
+- 发布文案至少覆盖：`What changed`、`Why`、`Validation`、`Compatibility/Risk` 四段。
+- 若本轮涉及发布流程调整，需同步更新 `RELEASE_NOTES.md` 与 `doc/RELEASE_NOTES.html`，避免“代码已改但发布文案规范未落库”。
+
 ## 路线图优先级（未明确要求不越级实现）
 
 | 阶段 | 范围 | 状态 |

@@ -14,8 +14,12 @@
         {% endwith %}
 
         <p style="margin:8px 0">
+            {% if can_create_group %}
             <a class="btn btn-primary" href="{{ url_for('rbac.groups_add') }}">新建业务组</a>
             <span style="color:var(--cp-muted);margin-left:8px">禁止删除业务组，避免悬挂任务引用</span>
+            {% else %}
+            <span style="color:var(--cp-muted)">按组管理员仅可查看和编辑所属业务组</span>
+            {% endif %}
         </p>
 
         <table class="table table-bordered table-hover">

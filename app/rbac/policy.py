@@ -39,7 +39,17 @@ def has_permission(role, permission, username=None):
 
 
 def role_bypasses_scope(role):
+    """Deprecated: 不区分种子/管理员；请用 user_bypasses_scope。"""
     return (role or '') in SCOPE_BYPASS_ROLES
+
+
+def user_bypasses_scope(role, username=None, group_ids=None):
+    """种子 admin 永远全局；管理员 admin 需看 group_ids。"""
+    if (role or '') not in SCOPE_BYPASS_ROLES:
+        return False
+    if is_seed_admin_username(username):
+        return True
+    return not group_ids
 
 
 def check_policy(role, permission, resource):

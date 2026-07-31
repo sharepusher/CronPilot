@@ -1,6 +1,6 @@
 from flask import g, session
 
-from .policy import is_seed_admin_username, role_bypasses_scope
+from .policy import is_seed_admin_username, role_bypasses_scope, user_bypasses_scope
 from .services import get_role_permission_set
 
 ROLE_DISPLAY = {
@@ -56,11 +56,11 @@ def get_current_user_groups():
         return []
 
     role = session.get('role') or ''
-    if role_bypasses_scope(role):
+    username = session.get('username') or ''
+    raw_ids = session.get('group_ids') or []
+    if user_bypasses_scope(role, username=username, group_ids=raw_ids):
         g._current_user_groups = []
         return []
-
-    raw_ids = session.get('group_ids') or []
     ids = []
     for gid in raw_ids:
         try:

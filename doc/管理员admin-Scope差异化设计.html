@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>管理员 admin Scope 差异化设计</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2em auto; line-height: 1.65; color: #333; padding: 0 16px; }
+    h1, h2, h3 { margin-top: 1.6em; }
+    h1 { border-bottom: 2px solid #ccc; padding-bottom: .3em; }
+    table { border-collapse: collapse; width: 100%; margin: .8em 0; }
+    th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+    th { background: #f5f5f5; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: .92em; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: .8em; background: #e8f5e9; color: #2e7d32; margin-right: 4px; }
+    .warn { background: #fff3e0; color: #e65100; }
+    .muted { color: #888; font-size: .9em; }
+    pre { background: #f8f8f8; padding: 10px 14px; border-radius: 6px; overflow-x: auto; font-size: .88em; }
+    ul, ol { padding-left: 20px; }
+    li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+<span class="tag">设计稿</span><span class="tag warn">待确认</span>
+<h1>管理员 admin Scope 差异化设计</h1>
+<p class="muted">编号：OPT-P2-12/ADMIN-SCOPE · 日期：2026-07-31 · 状态：<strong>待用户确认</strong></p>
+
+<!-- ================================================================== -->
+<h2>一、问题</h2>
+<p>当前系统中 <code>admin</code> 角色统一绕过 Scope（<code>role_bypasses_scope('admin') → True</code>），导致：</p>
+<ul>
+  <li><strong>管理员 admin 用户</strong>（非种子 <code>admin</code>）即使绑定了具体业务组，仍然能看到全量任务、日志、操作记录，业务组绑定形同虚设。</li>
+  <li>种子 <code>admin</code> 天然应全局可见（它是系统管理账号），但与管理员 admin 混用同一 bypass 逻辑，两者无法区分。</li>
+  <li>审计日志页（<code>/rbac/audit-logs</code>）对所有 admin 全量展示，无任何 Scope 过滤。</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2>二、根因</h2>
+<table>
+  <tr><th>位置</th><th>现状</th><th>问题</th></tr>
+  <tr>
+    <td><code>app/rbac/policy.py</code><br><code>SCOPE_BYPASS_ROLES</code></td>
+    <td><code>frozenset({'admin'})</code></td>
+    <td>按角色名 bypass，不区分种子/管理员；管理员 admin 绑定了业务组也被忽略</td>
+  </tr>
+  <tr>
+    <td><code>role_bypasses_scope(role)</code></td>
+    <td>仅看 <code>role in SCOPE_BYPASS_ROLES</code></td>
+    <td>不看 <code>username</code>，导致两类 admin 行为相同</td>
+  </tr>
+  <tr>
+    <td><code>validate_groups_for_role()</code></td>
+    <td><code>role != 'admin'</code> 时才要求绑组</td>
+    <td>管理员 admin 创建/编辑时允许不绑任何业务组，与你要求的"必选"不一致</td>
+  </tr>
+  <tr>
+    <td><code>build_scope_filter_clause()</code></td>
+    <td>admin → 返回 <code>None</code>（不追加过滤）</td>
+    <td>管理员 admin 绑了组也不过滤</td>
+  </tr>
+  <tr>
+    <td><code>audit_logs()</code> 路由</td>
+    <td>全量分页，无 Scope 过滤</td>
+    <td>审计日志不受 Scope 控制（注：审计日志与任务 Scope 的关联需单独讨论，见风险节）</td>
+  </tr>
+</table>
+
+<!-- ================================================================== -->
+<h2>三、方案</h2>
+
+<h3>3.1 两类 admin 的 Scope 模型</h3>
+<table>
+  <tr><th>账号类型</th><th>判定条件</th><th>业务组选择规则</th><th>Scope 行为</th></tr>
+  <tr>
+    <td><strong>种子 admin</strong></td>
+    <td><code>role='admin'</code> 且 <code>username='admin'</code></td>
+    <td>不可编辑业务组（永远全局）</td>
+    <td>绕过 Scope，全局可见</td>
+  </tr>
+  <tr>
+    <td><strong>管理员 admin</strong></td>
+    <td><code>role='admin'</code> 且 <code>username != 'admin'</code></td>
+    <td>必须选择「全部」<strong>或</strong>至少 1 个具体业务组（互斥）</td>
+    <td>选「全部」→ 全局可见；选具体组 → 仅 GLOBAL + 所属组资源</td>
+  </tr>
+</table>
+
+<h3>3.2 「全部」选项实现方式</h3>
+<ul>
+  <li>在创建/编辑用户的业务组多选中增加一个虚拟选项 <strong>「全部（全局权限）」</strong>，其 value 为特殊标记（建议 <code>__ALL__</code>）。</li>
+  <li>选择「全部」时，<code>user_groups</code> 表中<strong>不写入任何行</strong>（<code>group_ids = []</code>），含义为"不受组限制"。</li>
+  <li>与「具体组」互斥：前端用 JS 实现——选 <code>__ALL__</code> 后取消其它选中，选具体组后取消 <code>__ALL__</code>。</li>
+  <li>提交时后端校验：如果 <code>group_ids</code> 同时包含 <code>__ALL__</code> 和具体 id，返回错误。</li>
+</ul>
+
+<h3>3.3 Scope 判定逻辑改动</h3>
+<p>核心改动：<strong><code>role_bypasses_scope</code> 从「按角色」改为「按角色 + 用户名/组」</strong>。</p>
+<pre>
+# 改动前
+def role_bypasses_scope(role):
+    return (role or '') in SCOPE_BYPASS_ROLES
+
+# 改动后：新增 username 和 group_ids 参数
+def user_bypasses_scope(role, username=None, group_ids=None):
+    """种子 admin 永远全局；管理员 admin 需看 group_ids。"""
+    if (role or '') not in SCOPE_BYPASS_ROLES:
+        return False                # viewer / operator 不绕过
+    if is_seed_admin_username(username):
+        return True                 # 种子 admin 永远全局
+    # 管理员 admin：group_ids 为空 → 选了「全部」→ 全局；否则按组
+    return not group_ids
+</pre>
+<p class="muted">注：旧函数 <code>role_bypasses_scope(role)</code> 改为 <code>user_bypasses_scope(role, username, group_ids)</code>，所有调用点需一并适配。</p>
+
+<h3>3.4 受影响的调用点（逐一列出）</h3>
+<table>
+  <tr><th>#</th><th>文件</th><th>现状</th><th>改动</th></tr>
+  <tr><td>1</td><td><code>app/rbac/policy.py</code></td><td><code>role_bypasses_scope(role)</code></td><td>新增 <code>user_bypasses_scope(role, username, group_ids)</code>；保留旧函数作兼容别名（deprecated）</td></tr>
+  <tr><td>2</td><td><code>app/rbac/scope.py</code> — <code>build_scope_filter_clause</code></td><td>调用 <code>role_bypasses_scope(role)</code></td><td>改为接收 <code>username, group_ids</code> 或直接接收 bypass 布尔值</td></tr>
+  <tr><td>3</td><td><code>app/rbac/scope.py</code> — <code>has_scope</code></td><td>同上</td><td>同上</td></tr>
+  <tr><td>4</td><td><code>app/rbac/scope.py</code> — <code>user_can_assign_group</code></td><td>同上</td><td>同上</td></tr>
+  <tr><td>5</td><td><code>app/main/views.py</code> — <code>cron_list</code></td><td>多处 <code>role_bypasses_scope(role)</code></td><td>传入 <code>session username + group_ids</code></td></tr>
+  <tr><td>6</td><td><code>app/main/views.py</code> — <code>job_log_all_list</code></td><td><code>build_scope_filter_clause(role, group_ids)</code></td><td>传入 username</td></tr>
+  <tr><td>7</td><td><code>app/main/views.py</code> — <code>operation_log_list</code></td><td><code>role_bypasses_scope(role)</code></td><td>传入 username + group_ids</td></tr>
+  <tr><td>8</td><td><code>app/rbac/context.py</code> — <code>get_current_user_groups</code></td><td><code>role_bypasses_scope(role)</code> 返回 []</td><td>种子 admin 返回 []；管理员 admin 选「全部」返回 []、选具体组返回组列表</td></tr>
+  <tr><td>9</td><td><code>app/rbac/authorize.py</code> — <code>authorize</code></td><td>内部调 <code>has_scope(role, ...)</code></td><td>传入 username</td></tr>
+  <tr><td>10</td><td><code>app/api/__init__.py</code> — <code>check_api_scope</code></td><td><code>scope.get('role') == 'admin'</code> → 放行</td><td>对用户 token 改为看 <code>group_ids</code> 是否为空决定是否全局</td></tr>
+  <tr><td>11</td><td><code>app/api/views.py</code> — <code>_query_scope_context</code></td><td><code>scope.get('role') == 'admin'</code> → 放行</td><td>同上</td></tr>
+</table>
+
+<h3>3.5 管理员 admin 与「用户管理」的 Scope 规则</h3>
+
+<p>除了任务/日志/操作记录按组过滤外，「用户管理」功能本身也需要按 Scope 限制：</p>
+
+<table>
+  <tr><th>管理操作</th><th>种子 admin</th><th>管理员 admin（全部）</th><th>管理员 admin（按组）</th></tr>
+  <tr>
+    <td>用户列表可见范围</td>
+    <td>全部用户</td>
+    <td>全部用户</td>
+    <td><strong>仅能看到与自己存在组交集的用户</strong>（不含种子 admin）</td>
+  </tr>
+  <tr>
+    <td>创建用户</td>
+    <td>可创建任意角色（不含种子 admin）、任意组</td>
+    <td>可创建任意角色、任意组</td>
+    <td><strong>只能将新用户绑定到自己所属的组</strong>；角色不限（可创建 admin / operator / viewer）</td>
+  </tr>
+  <tr>
+    <td>编辑用户（角色/组/启停）</td>
+    <td>全部（不可编辑自己）</td>
+    <td>全部（不可编辑自己）</td>
+    <td><strong>仅能编辑与自己有组交集的用户</strong>；且只能在自己所属的组范围内调整用户的组绑定；不可编辑种子 admin</td>
+  </tr>
+  <tr>
+    <td>重置密码</td>
+    <td>全部（不可重置自己）</td>
+    <td>全部（不可重置自己）</td>
+    <td><strong>仅能重置与自己有组交集的用户</strong>（不可重置自己、不可重置种子 admin）</td>
+  </tr>
+  <tr>
+    <td>重置 API Token</td>
+    <td>全部</td>
+    <td>全部</td>
+    <td><strong>仅能重置与自己有组交集的用户</strong></td>
+  </tr>
+  <tr>
+    <td>停用 / 启用用户</td>
+    <td>全部（不可停用自己）</td>
+    <td>全部（不可停用自己）</td>
+    <td><strong>仅能操作与自己有组交集的用户</strong>（不可操作种子 admin、不可停用自己）</td>
+  </tr>
+  <tr>
+    <td>业务组管理（创建/编辑组）</td>
+    <td>可操作全部</td>
+    <td>可操作全部</td>
+    <td><strong>仅能查看和编辑自己所属的业务组</strong>；不能创建新组（创建新组 = 扩展自身权限，应由种子或全局 admin 操作）</td>
+  </tr>
+</table>
+
+<h4>「组交集」判定规则</h4>
+<ul>
+  <li>管理员 admin A 所属组为 <code>[1, 2]</code>，用户 B 所属组为 <code>[2, 3]</code> → 有交集（组 2） → A 可管理 B</li>
+  <li>管理员 admin A 所属组为 <code>[1, 2]</code>，用户 C 所属组为 <code>[3, 4]</code> → 无交集 → A <strong>不可见/不可管理</strong> C</li>
+  <li>管理员 admin A 所属组为 <code>[1, 2]</code>，用户 D（admin、全部）所属组为 <code>[]</code> → 无交集 → A <strong>不可见/不可管理</strong> D</li>
+  <li>种子 admin <strong>不展示</strong>在按组管理员的用户列表中（既不可操作也不可见）</li>
+</ul>
+
+<h4>实现要点</h4>
+<table>
+  <tr><th>#</th><th>文件</th><th>改动</th></tr>
+  <tr><td>U1</td><td><code>app/rbac/services.py</code></td><td>新增 <code>user_in_management_scope(actor_group_ids, target_user_id)</code> — 查 <code>user_groups</code> 判交集</td></tr>
+  <tr><td>U2</td><td><code>app/repositories/rbac_user_repository.py</code></td><td>新增 <code>paginate_by_groups(page_query, group_ids)</code> — JOIN <code>user_groups</code> 过滤；或追加 <code>scope_filter</code> 参数</td></tr>
+  <tr><td>U3</td><td><code>app/rbac/views.py</code> — <code>users_list</code></td><td>按组管理员：调 <code>paginate_by_groups</code>（而非 <code>paginate_all</code>）+ 加上种子 admin</td></tr>
+  <tr><td>U4</td><td><code>app/rbac/views.py</code> — <code>users_edit</code></td><td>编辑前校验 <code>user_in_management_scope</code>；业务组多选框仅展示当前 admin 所属的组</td></tr>
+  <tr><td>U5</td><td><code>app/rbac/views.py</code> — <code>users_reset_password</code> / <code>users_reset_token</code> / <code>users_set_active</code></td><td>操作前校验 <code>user_in_management_scope</code></td></tr>
+  <tr><td>U6</td><td><code>app/rbac/views.py</code> — <code>groups_list</code> / <code>groups_edit</code> / <code>groups_add</code></td><td>按组管理员：列表/编辑仅展示所属组；隐藏创建入口</td></tr>
+  <tr><td>U7</td><td><code>app/rbac/views.py</code> — <code>users_add</code></td><td>业务组多选框仅展示当前 admin 所属的组</td></tr>
+</table>
+
+<h3>3.6 创建/编辑用户页面交互</h3>
+<table>
+  <tr><th>场景</th><th>当前行为</th><th>改后行为</th></tr>
+  <tr>
+    <td>角色选 <code>admin</code> 时的业务组</td>
+    <td>允许不选（灰字提示"admin 可不选"）</td>
+    <td>必须选择「全部」或至少 1 个具体组；灰字提示改为"选择「全部」即全局权限；否则请至少选择一个业务组"</td>
+  </tr>
+  <tr>
+    <td>选了「全部」后再选具体组</td>
+    <td>N/A</td>
+    <td>JS 自动取消「全部」；反之亦然（互斥）</td>
+  </tr>
+  <tr>
+    <td>admin 不选任何组就提交</td>
+    <td>允许保存</td>
+    <td>后端拦截并返回"管理员必须选择「全部」或至少一个业务组"</td>
+  </tr>
+  <tr>
+    <td>编辑种子 <code>admin</code> 账号的业务组</td>
+    <td>种子不可在用户管理编辑自己</td>
+    <td>不变；种子永远全局，不显示业务组选择（如因故进入编辑页，业务组选择框显示为 disabled + "系统管理员始终为全局权限"）</td>
+  </tr>
+  <tr>
+    <td>按组管理员创建用户时的业务组可选范围</td>
+    <td>展示全部组</td>
+    <td>仅展示当前管理员所属的组（不含「全部」选项）；不可将用户绑定到超出自身 Scope 的组</td>
+  </tr>
+  <tr>
+    <td>按组管理员编辑用户时的业务组可选范围</td>
+    <td>展示全部组</td>
+    <td>仅展示当前管理员所属的组；该用户在 admin Scope 外的组绑定<strong>保留不变</strong>（不可增删 Scope 外的绑定）</td>
+  </tr>
+  <tr>
+    <td>按组管理员创建新 admin 用户</td>
+    <td>可创建</td>
+    <td>可创建，但新 admin 的业务组范围<strong>不超出</strong>创建者的组；不可选「全部」</td>
+  </tr>
+</table>
+
+<h3>3.7 <code>validate_groups_for_role</code> 服务层改动</h3>
+<pre>
+# 改动前
+def role_requires_groups(role):
+    return (role or '') != 'admin'
+
+# 改动后
+def role_requires_groups(role, username=None):
+    """所有角色都须选择业务组；种子 admin 豁免。"""
+    if is_seed_admin_username(username):
+        return False
+    return True
+</pre>
+<p><code>validate_groups_for_role</code> 改动：</p>
+<pre>
+def validate_groups_for_role(role, group_ids, username=None):
+    if not role_requires_groups(role, username):
+        return ''
+    # 检查是否含 __ALL__
+    has_all = '__ALL__' in [str(g) for g in (group_ids or [])]
+    real_ids = [g for g in (group_ids or []) if str(g) != '__ALL__']
+    if has_all and real_ids:
+        return '「全部」与具体业务组不能同时选择'
+    if has_all:
+        return ''   # 选了「全部」→ 合法（group_ids 清空为 []）
+    # 未选「全部」→ 至少选一个具体组
+    cleaned = []
+    for g in real_ids:
+        try:
+            cleaned.append(int(g))
+        except (TypeError, ValueError):
+            return '业务组参数无效'
+    if not cleaned:
+        return '管理员必须选择「全部」或至少一个业务组'
+    return ''
+</pre>
+
+<h3>3.8 <code>set_user_groups</code> 改动</h3>
+<ul>
+  <li>若 <code>group_ids</code> 包含 <code>__ALL__</code>：删除该用户所有 <code>user_groups</code> 行（表示全局）。</li>
+  <li>若 <code>group_ids</code> 为具体 id 列表：按现有逻辑 diff 写入。</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2>四、范围（改什么、不改什么）</h2>
+
+<h3>改</h3>
+<table>
+  <tr><th>路径</th><th>改动类型</th></tr>
+  <tr><td><code>app/rbac/policy.py</code></td><td>新增 <code>user_bypasses_scope()</code></td></tr>
+  <tr><td><code>app/rbac/scope.py</code></td><td>所有 bypass 判定改为接收 username/group_ids</td></tr>
+  <tr><td><code>app/rbac/services.py</code></td><td><code>validate_groups_for_role</code> + <code>set_user_groups</code> + <code>role_requires_groups</code> + 新增 <code>user_in_management_scope</code></td></tr>
+  <tr><td><code>app/rbac/views.py</code></td><td>创建/编辑用户路由传入 username；用户列表/编辑/重置/启停加 Scope 校验；业务组管理按组限制</td></tr>
+  <tr><td><code>app/repositories/rbac_user_repository.py</code></td><td>新增 <code>paginate_by_groups()</code> — 按组过滤用户列表</td></tr>
+  <tr><td><code>app/rbac/context.py</code></td><td><code>get_current_user_groups()</code> 改判定</td></tr>
+  <tr><td><code>app/rbac/authorize.py</code></td><td><code>authorize()</code> 传 username</td></tr>
+  <tr><td><code>app/main/views.py</code></td><td>所有 <code>role_bypasses_scope</code> 调用点适配</td></tr>
+  <tr><td><code>app/api/__init__.py</code></td><td><code>check_api_scope</code> 按 group_ids 判定</td></tr>
+  <tr><td><code>app/api/views.py</code></td><td><code>_query_scope_context</code> 适配</td></tr>
+  <tr><td><code>app/templates/rbac/users_add.html</code></td><td>增加「全部」选项 + JS 互斥</td></tr>
+  <tr><td><code>app/templates/rbac/users_edit.html</code></td><td>同上</td></tr>
+  <tr><td><code>tests/test_rbac_scope.py</code></td><td>覆盖两类 admin Scope 差异</td></tr>
+  <tr><td><code>tests/test_api_scope_s6.py</code></td><td>覆盖管理员 admin 用户 token 的 Scope</td></tr>
+</table>
+
+<h3>不改</h3>
+<ul>
+  <li>种子 admin 的 Permission 裁剪（<code>SEED_ADMIN_PERMISSIONS</code>）保持不变。</li>
+  <li>viewer / operator 的 Scope 逻辑保持不变。</li>
+  <li>任务 <code>scope_type</code> / <code>group_id</code> 字段与模型不变。</li>
+  <li>审计日志（<code>rbac_audit_logs</code>）Scope 过滤已在 OPT-P2-13 独立交付（方案 A · 按操作者组过滤）。</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2>五、分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收标准</th></tr>
+  <tr>
+    <td><strong>Batch 1</strong><br>后端鉴权</td>
+    <td>
+      <ul>
+        <li><code>policy.py</code>：<code>user_bypasses_scope()</code></li>
+        <li><code>scope.py</code>：所有 bypass 判定改签名</li>
+        <li><code>services.py</code>：<code>validate_groups_for_role</code> + <code>set_user_groups</code></li>
+        <li><code>authorize.py</code>：传 username</li>
+        <li><code>context.py</code>：顶栏组展示适配</li>
+        <li>测试：<code>test_rbac_scope.py</code> 新增两类 admin 用例</li>
+      </ul>
+    </td>
+    <td>
+      <code>bash scripts/cronpilot.sh test</code> 通过；<br>
+      新测试断言：种子 admin bypass=True、管理员 admin 无组 bypass=True、管理员 admin 有组 bypass=False
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Batch 2</strong><br>任务/日志 Web 视图</td>
+    <td>
+      <ul>
+        <li><code>main/views.py</code>：所有 <code>role_bypasses_scope</code> 替换（任务列表、执行日志、操作记录）</li>
+        <li><code>users_add.html</code> / <code>users_edit.html</code>：增加「全部」选项 + JS 互斥</li>
+        <li><code>rbac/views.py</code>：创建/编辑用户时传入 username + 校验 <code>__ALL__</code></li>
+      </ul>
+    </td>
+    <td>
+      <code>bash scripts/cronpilot.sh test</code> 通过；<br>
+      <code>restart</code> 后浏览器验收：管理员 admin 绑 1 组 → 只能看到该组 + GLOBAL 任务/日志/操作记录；选「全部」→ 全局可见
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Batch 3</strong><br>用户管理 Scope</td>
+    <td>
+      <ul>
+        <li><code>services.py</code>：新增 <code>user_in_management_scope()</code></li>
+        <li><code>rbac_user_repository.py</code>：新增 <code>paginate_by_groups()</code></li>
+        <li><code>rbac/views.py</code>：<code>users_list</code> 按组过滤；<code>users_edit</code>/<code>reset_password</code>/<code>reset_token</code>/<code>set_active</code> 加 Scope 校验</li>
+        <li><code>rbac/views.py</code>：<code>groups_list</code>/<code>groups_edit</code>/<code>groups_add</code> 按组管理员限制</li>
+        <li>测试：管理员 admin 只能看到/操作组交集内的用户</li>
+      </ul>
+    </td>
+    <td>
+      <code>bash scripts/cronpilot.sh test</code> 通过；<br>
+      管理员 admin（组 [1,2]）登录 → 用户列表仅展示组交集用户 + 种子 admin；无法编辑/重置无交集用户；业务组列表仅展示所属组
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Batch 4</strong><br>API 鉴权适配</td>
+    <td>
+      <ul>
+        <li><code>api/__init__.py</code>：<code>check_api_scope</code> 改判定</li>
+        <li><code>api/views.py</code>：<code>_query_scope_context</code> 适配</li>
+        <li><code>test_api_scope_s6.py</code>：新增管理员 admin token 的 Scope 用例</li>
+      </ul>
+    </td>
+    <td>
+      <code>bash scripts/cronpilot.sh test</code> 通过；<br>
+      管理员 admin 的 token 按组隔离；选「全部」的 admin token 全局可见
+    </td>
+  </tr>
+</table>
+
+<!-- ================================================================== -->
+<h2>六、验收</h2>
+
+<h3>6.1 角色 × 页面/API 权限矩阵（改后预期）</h3>
+<table>
+  <tr>
+    <th>页面 / 接口</th>
+    <th>种子 admin<br><code>username='admin'</code></th>
+    <th>管理员 admin（全部）<br><code>group_ids=[]</code></th>
+    <th>管理员 admin（按组）<br><code>group_ids=[1,2]</code></th>
+    <th>operator</th>
+    <th>viewer</th>
+  </tr>
+  <tr>
+    <td>任务列表</td>
+    <td>全局（只读）</td><td>全局</td><td>GLOBAL + 组 1,2</td><td>GLOBAL + 所属组</td><td>GLOBAL + 所属组</td>
+  </tr>
+  <tr>
+    <td>任务写/下线</td>
+    <td>❌ 无权限</td><td>✅ 全局</td><td>✅ 仅组 1,2 + GLOBAL</td><td>✅ 写（无下线）仅所属组</td><td>❌ 无权限</td>
+  </tr>
+  <tr>
+    <td>执行日志列表</td>
+    <td>全局（只读）</td><td>全局</td><td>GLOBAL + 组 1,2</td><td>GLOBAL + 所属组</td><td>GLOBAL + 所属组</td>
+  </tr>
+  <tr>
+    <td>操作记录</td>
+    <td>全局（只读）</td><td>全局</td><td>仅组 1,2 + GLOBAL 的任务记录</td><td>仅所属组 + GLOBAL</td><td>❌ 无权限</td>
+  </tr>
+  <tr>
+    <td>审计日志</td>
+    <td>全局</td><td>全局</td><td>全局（本批次不按组过滤，见风险）</td><td>❌ 无权限</td><td>❌ 无权限</td>
+  </tr>
+  <tr>
+    <td>用户管理 — 可见范围</td>
+    <td>全部用户</td><td>全部用户</td><td>仅组交集用户（不含种子 admin）</td><td>❌ 无权限</td><td>❌ 无权限</td>
+  </tr>
+  <tr>
+    <td>用户管理 — 可操作范围</td>
+    <td>全部（不可编辑自己）</td><td>全部（不可编辑自己）</td><td>仅组交集用户（不可操作种子 admin、不可操作无交集用户）</td><td>❌</td><td>❌</td>
+  </tr>
+  <tr>
+    <td>业务组管理</td>
+    <td>全部</td><td>全部</td><td>仅查看/编辑所属组；不可创建新组</td><td>❌</td><td>❌</td>
+  </tr>
+  <tr>
+    <td>API（用户 token）</td>
+    <td>N/A（种子不做 API 调用）</td><td>全局</td><td>仅 GLOBAL + 组 1,2</td><td>仅所属组</td><td>仅所属组</td>
+  </tr>
+</table>
+
+<h3>6.2 最低验收命令</h3>
+<ul>
+  <li><code>bash scripts/cronpilot.sh test</code></li>
+  <li><code>bash scripts/verify_golden_path.sh</code></li>
+  <li><code>python scripts/audit_hardcoded_colors.py --check</code></li>
+  <li><code>python scripts/html_docs_to_markdown.py --check</code></li>
+  <li><code>bash scripts/cronpilot.sh restart --daemon</code> → 浏览器走通上述矩阵关键路径</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2>七、风险</h2>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td><code>role_bypasses_scope</code> 改签名涉及 11+ 调用点</td>
+    <td>遗漏某处则该页面行为不一致</td>
+    <td>Batch 1 先改底层 + 测试覆盖；Batch 2 逐个视图替换并 restart 验收</td>
+  </tr>
+  <tr>
+    <td>存量管理员 admin 无业务组记录 → 默认行为变化</td>
+    <td>升级后这些 admin 变为"全局可见"（与之前一致），因为 <code>group_ids = []</code></td>
+    <td><strong>无破坏</strong>：与现行行为一致（之前也是全局）。种子创建新 admin 时才强制选组</td>
+  </tr>
+  <tr>
+    <td>审计日志（<code>rbac_audit_logs</code>）无 <code>group_id</code> 字段</td>
+    <td>本批次不做审计日志的 Scope 过滤；管理员 admin 即使绑了组，审计日志仍全局可见</td>
+    <td>如需限制审计日志，需新增 <code>rbac_audit_logs.scope_group_id</code>（或关联操作人组），作为独立 RFC 排期</td>
+  </tr>
+  <tr>
+    <td>Session 中 <code>group_ids</code> 在登录时写入</td>
+    <td>管理员 admin 的组变更后须重新登录才生效</td>
+    <td>与现有 viewer/operator 行为一致，无额外风险</td>
+  </tr>
+  <tr>
+    <td>按组管理员编辑用户时，被编辑用户可能同时属于 admin Scope 外的组</td>
+    <td>如不妥善处理，admin 可能误删用户在 Scope 外的组绑定</td>
+    <td>后端仅 diff admin 可见的组（<code>actor_group_ids ∩ target_group_ids</code>），<strong>保留</strong> Scope 外的绑定不变</td>
+  </tr>
+  <tr>
+    <td>按组管理员可创建新 admin，该 admin 可进一步管理用户</td>
+    <td>权限传递链：admin A → 创建 admin B → B 可管理 A 可见范围内的用户</td>
+    <td>B 的组范围不超出 A 的范围（后端强制校验）；权限传递在 Scope 内闭合</td>
+  </tr>
+</table>
+
+<!-- ================================================================== -->
+<h2>八、与现有文档的一致性</h2>
+<ul>
+  <li>改后需同步更新：<code>doc/资源隔离与Scope设计.html</code>、<code>doc/RBAC架构设计方案.html</code>、<code>AGENTS.md</code>、<code>.cursor/rules/rbac.mdc</code></li>
+  <li>路线图 <code>doc/交付状态与路线图.html</code> 增加本项条目</li>
+  <li>如纳入版本发布，更新 <code>RELEASE_NOTES.md</code></li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="管理员admin-Scope差异化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

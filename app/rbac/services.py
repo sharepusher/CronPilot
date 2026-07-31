@@ -7,7 +7,7 @@ from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
 from datas.utils.times import get_now_time
 
-from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions
+from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions, is_seed_admin_username
 
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
 # 用于表单下拉的角色排序（高频→低频）
@@ -149,6 +149,14 @@ def authenticate_user(username, password):
     }
 
 
+def _actor_group_ids_csv():
+    """当前 session 用户的 group_ids 转为逗号包围格式（如 ',1,3,'）。"""
+    ids = session.get('group_ids') or []
+    if not ids:
+        return ''
+    return ',' + ','.join(str(g) for g in ids) + ','
+
+
 def write_audit_log(action='', resource='', status='allow', user_id=None, username=None, ip=None):
     try:
         entry = RbacAuditLog(
@@ -159,6 +167,7 @@ def write_audit_log(action='', resource='', status='allow', user_id=None, userna
             ip=ip if ip is not None else (request.remote_addr or ''),
             status=status,
             create_time=get_now_time(),
+            actor_group_ids=_actor_group_ids_csv(),
         )
         db.session.add(entry)
         db.session.commit()
@@ -195,23 +204,35 @@ def _count_active_admins(exclude_id=None):
     return db.session.scalar(select(func.count()).select_from(RbacUser).where(*filters)) or 0
 
 
-def role_requires_groups(role):
-    """非 admin 必须绑定至少一个业务组。"""
-    return (role or '') != 'admin'
+GROUP_ALL_MARKER = '__ALL__'
 
 
-def validate_groups_for_role(role, group_ids):
+def role_requires_groups(role, username=None):
+    """所有角色都须选择业务组；种子 admin 豁免。"""
+    if is_seed_admin_username(username):
+        return False
+    return True
+
+
+def validate_groups_for_role(role, group_ids, username=None):
     """成功返回 ''；失败返回错误文案。"""
-    if not role_requires_groups(role):
+    if not role_requires_groups(role, username):
+        return ''
+    str_ids = [str(g) for g in (group_ids or [])]
+    has_all = GROUP_ALL_MARKER in str_ids
+    real_ids = [g for g in (group_ids or []) if str(g) != GROUP_ALL_MARKER]
+    if has_all and real_ids:
+        return '「全部」与具体业务组不能同时选择'
+    if has_all:
         return ''
     cleaned = []
-    for g in group_ids or []:
+    for g in real_ids:
         try:
             cleaned.append(int(g))
         except (TypeError, ValueError):
             return '业务组参数无效'
     if not cleaned:
-        return '非管理员用户必须至少选择一个业务组'
+        return '必须选择「全部」或至少一个业务组'
     return ''
 
 
@@ -538,10 +559,11 @@ def _invalidate_api_scope_cache(user_id):
         pass
 
 
-def set_user_groups(user_id, group_ids, role=None):
-    """替换用户业务组绑定。group_ids 为 int 列表。组变更后需重新登录生效。
+def set_user_groups(user_id, group_ids, role=None, username=None):
+    """替换用户业务组绑定。group_ids 为 int 列表（可含 __ALL__）。组变更后需重新登录生效。
 
-    role: 校验用角色；默认取用户当前角色。非 admin 不得空组。
+    role: 校验用角色；默认取用户当前角色。
+    username: 用于种子 admin 豁免校验。
     """
     from datas.model.resource_group import ResourceGroup
     from datas.model.user_group import UserGroup
@@ -550,15 +572,21 @@ def set_user_groups(user_id, group_ids, role=None):
     if not user:
         return {'ok': False, 'msg': '用户不存在'}
     check_role = role if role is not None else user.role
-    err = validate_groups_for_role(check_role, group_ids)
+    check_username = username if username is not None else user.username
+    err = validate_groups_for_role(check_role, group_ids, username=check_username)
     if err:
         return {'ok': False, 'msg': err}
+    str_ids = [str(g) for g in (group_ids or [])]
+    has_all = GROUP_ALL_MARKER in str_ids
     cleaned = []
-    for g in group_ids or []:
-        try:
-            cleaned.append(int(g))
-        except (TypeError, ValueError):
-            return {'ok': False, 'msg': '业务组参数无效'}
+    if not has_all:
+        for g in group_ids or []:
+            if str(g) == GROUP_ALL_MARKER:
+                continue
+            try:
+                cleaned.append(int(g))
+            except (TypeError, ValueError):
+                return {'ok': False, 'msg': '业务组参数无效'}
     cleaned = list(dict.fromkeys(cleaned))
     if cleaned:
         found = db.session.scalars(
@@ -586,3 +614,17 @@ def set_user_groups(user_id, group_ids, role=None):
     write_audit_log(action='user:update', resource='%s:groups' % user.username)
     _invalidate_api_scope_cache(user_id)
     return {'ok': True, 'msg': '保存成功'}
+
+
+def user_in_management_scope(actor_group_ids, target_user_id):
+    """按组管理员是否可管理目标用户——判组交集。
+
+    actor_group_ids: 当前登录 admin 的业务组 id 列表。
+    target_user_id: 被操作的用户 id。
+    返回 True 表示在 Scope 内（可管理）。
+    """
+    from .scope import get_user_group_ids
+
+    target_gids = set(get_user_group_ids(target_user_id))
+    actor_gids = set(int(g) for g in (actor_group_ids or []))
+    return bool(actor_gids & target_gids)

@@ -12,7 +12,7 @@ from . import main
 from flask import render_template, request, redirect, session, current_app, url_for, jsonify
 
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
-from app.rbac.policy import effective_permissions, role_bypasses_scope
+from app.rbac.policy import effective_permissions, role_bypasses_scope, user_bypasses_scope
 from app.rbac.scope import (
     SCOPE_GLOBAL,
     SCOPE_GROUP,
@@ -56,14 +56,22 @@ def _operation_log_repo():
     return OperationLogRepository(db.session)
 
 
+def _session_bypasses_scope():
+    """当前登录用户是否绕过 Scope（种子 admin 或全局管理员 admin）。"""
+    return user_bypasses_scope(
+        session.get('role') or '',
+        username=session.get('username') or '',
+        group_ids=session.get('group_ids') or [],
+    )
+
+
 def _scope_groups_for_form():
-    """admin 见全部组；其它用户仅见所属组。"""
-    role = session.get('role') or ''
+    """bypass 用户见全部组；其它用户仅见所属组。"""
     try:
         all_groups = list_resource_groups()
     except Exception:
         return []
-    if role_bypasses_scope(role):
+    if _session_bypasses_scope():
         return all_groups
     allowed = set(session_group_ids())
     return [g for g in all_groups if g.id in allowed]
@@ -80,7 +88,7 @@ def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
             gid = int(group_id_raw)
         except (TypeError, ValueError):
             return 'all', None, None
-        if not role_bypasses_scope(role) and gid not in set(group_ids or []):
+        if not _session_bypasses_scope() and gid not in set(group_ids or []):
             return 'all', None, None
         return sv, gid, and_(
             CronInfos.scope_type == SCOPE_GROUP,
@@ -95,7 +103,7 @@ def _scope_form_context():
     """非 admin：任务强制落在所属业务组，不可选 GLOBAL。"""
     role = session.get('role') or ''
     groups = _scope_groups_for_form()
-    locked = not role_bypasses_scope(role)
+    locked = not _session_bypasses_scope()
     return {
         'scope_groups': groups,
         'scope_locked': locked,
@@ -108,7 +116,7 @@ def _apply_scope_from_form(datas):
     role = session.get('role') or ''
     gids = session_group_ids()
     # 非 admin：强制 GROUP，且 group 必须属于本人
-    if not role_bypasses_scope(role):
+    if not _session_bypasses_scope():
         if not gids:
             return '当前账号未绑定业务组，无法创建/编辑任务'
         group_id = datas.get('group_id')
@@ -133,7 +141,7 @@ def _apply_scope_from_form(datas):
     )
     if err:
         return err
-    if not user_can_assign_group(role, gids, group_id):
+    if not user_can_assign_group(role, gids, group_id, username=session.get('username') or ''):
         return '不能将任务分配到未所属的业务组'
     datas['scope_type'] = scope_type
     datas['group_id'] = group_id
@@ -152,7 +160,8 @@ def cron_list():
     filter_arr = []
     if task_name:
         filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
-    scope_clause = build_scope_filter_clause(role, group_ids)
+    username = session.get('username') or ''
+    scope_clause = build_scope_filter_clause(role, group_ids, username=username)
     if scope_clause is not None:
         filter_arr.append(scope_clause)
 
@@ -181,8 +190,8 @@ def cron_list():
 
     scope_groups = _scope_groups_for_form()
     group_name_by_id = {g.id: g.name for g in scope_groups}
-    # admin 侧栏需要全量组名；非 admin 仅所属组
-    if role_bypasses_scope(role):
+    bypass = _session_bypasses_scope()
+    if bypass:
         try:
             group_name_by_id = {g.id: g.name for g in list_resource_groups()}
             scope_groups = list_resource_groups()
@@ -229,10 +238,10 @@ def cron_list():
         scope_view=scope_view,
         scope_group_id=scope_group_id,
         scope_nav_mode=(
-            'sidebar' if role_bypasses_scope(role) or len(scope_groups) >= 5
+            'sidebar' if bypass or len(scope_groups) >= 5
             else ('segment' if scope_groups else 'none')
         ),
-        is_admin_scope=role_bypasses_scope(role),
+        is_admin_scope=bypass,
         list_role=role,
         failing_tasks=failing_tasks,
         recent_ok_tasks=recent_ok_tasks,
@@ -355,6 +364,7 @@ def job_log_all_list():
     scope_clause = build_scope_filter_clause(
         session.get('role') or '',
         session_group_ids(),
+        username=session.get('username') or '',
     )
     if scope_clause is not None:
         filter_arr.append(scope_clause)
@@ -564,9 +574,11 @@ def operation_log_list():
         keywords.get('group_id'),
     )
 
+    bypass = _session_bypasses_scope()
     scope_clause = None
-    if not role_bypasses_scope(role):
-        scope_clause = build_scope_filter_clause(role, group_ids)
+    if not bypass:
+        username = session.get('username') or ''
+        scope_clause = build_scope_filter_clause(role, group_ids, username=username)
 
     page_data = _operation_log_repo().paginate_list(
         page_query,
@@ -577,7 +589,7 @@ def operation_log_list():
         end_time=end_time or None,
         scope_clause=scope_clause,
         ui_scope_clause=ui_scope_clause,
-        bypass_scope=role_bypasses_scope(role),
+        bypass_scope=bypass,
     )
 
     cron_by_id = _cron_repo().map_by_ids([
@@ -587,7 +599,7 @@ def operation_log_list():
 
     scope_groups = _scope_groups_for_form()
     group_name_by_id = {g.id: g.name for g in scope_groups}
-    if role_bypasses_scope(role):
+    if bypass:
         try:
             scope_groups = list_resource_groups()
             group_name_by_id = {g.id: g.name for g in scope_groups}

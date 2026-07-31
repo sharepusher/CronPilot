@@ -47,12 +47,13 @@
                     <label class="control-label">业务组</label>
                     <div class="controls">
                         {% if groups %}
-                        <select name="group_ids" multiple size="{% if groups|length < 4 %}{{ groups|length }}{% else %}4{% endif %}">
+                        <select name="group_ids" multiple size="{% if groups|length < 4 %}{{ groups|length + 1 }}{% else %}5{% endif %}" id="group-ids-select">
+                            <option value="__ALL__">全部（全局权限）</option>
                             {% for g in groups %}
                             <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
                             {% endfor %}
                         </select>
-                        <span style="color:var(--cp-muted)">下拉多选（Ctrl/Command 可多选）。viewer / operator <strong>必须</strong>至少选一个业务组；仅 admin 可不选</span>
+                        <span style="color:var(--cp-muted)">下拉多选（Ctrl/Command 可多选）。所有角色<strong>必须</strong>至少选一个业务组或选择「全部」</span>
                         {% else %}
                         <span style="color:var(--cp-muted)">暂无业务组，请先在「业务组」创建</span>
                         {% endif %}
@@ -65,4 +66,37 @@
             </fieldset>
         </form>
     </div>
+    <script>
+    (function(){
+        var sel = document.getElementById('group-ids-select');
+        if (!sel) return;
+        sel.addEventListener('change', function(){
+            var opts = sel.options;
+            var allOpt = opts[0];
+            var allSelected = allOpt.selected;
+            var anySpecific = false;
+            for (var i = 1; i < opts.length; i++) {
+                if (opts[i].selected) { anySpecific = true; break; }
+            }
+            if (allSelected && anySpecific) {
+                allOpt.selected = false;
+            }
+        });
+        sel.addEventListener('mousedown', function(e){
+            var target = e.target || e.srcElement;
+            if (target.tagName !== 'OPTION') return;
+            if (target.value === '__ALL__') {
+                setTimeout(function(){
+                    for (var i = 1; i < sel.options.length; i++) {
+                        sel.options[i].selected = false;
+                    }
+                }, 0);
+            } else {
+                setTimeout(function(){
+                    sel.options[0].selected = false;
+                }, 0);
+            }
+        });
+    })();
+    </script>
 {% endblock %}

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from flask import Flask
 
 from app.rbac.authorize import AuthorizationError, authorize
-from app.rbac.policy import has_permission, role_bypasses_scope
+from app.rbac.policy import has_permission, role_bypasses_scope, user_bypasses_scope
 from app.rbac.scope import (
     SCOPE_GLOBAL,
     SCOPE_GROUP,
@@ -47,16 +47,33 @@ class TestScopePure(unittest.TestCase):
         self.assertTrue(has_scope('viewer', [1], glob))
         self.assertTrue(has_scope('viewer', [1], ga))
         self.assertFalse(has_scope('viewer', [1], gb))
-        self.assertTrue(has_scope('admin', [], gb))
+        self.assertTrue(has_scope('admin', [], gb, username='admin'))
+        self.assertTrue(has_scope('admin', [], gb, username='mgr'))
+        self.assertFalse(has_scope('admin', [1], gb, username='mgr'))
+        self.assertTrue(has_scope('admin', [2], gb, username='mgr'))
         self.assertFalse(has_scope('operator', [], ga))
 
     def test_user_can_assign_group(self):
-        self.assertTrue(user_can_assign_group('admin', [], 9))
+        self.assertTrue(user_can_assign_group('admin', [], 9, username='admin'))
+        self.assertTrue(user_can_assign_group('admin', [], 9, username='mgr'))
+        self.assertFalse(user_can_assign_group('admin', [1], 9, username='mgr'))
+        self.assertTrue(user_can_assign_group('admin', [1, 9], 9, username='mgr'))
         self.assertTrue(user_can_assign_group('operator', [1, 2], 1))
         self.assertFalse(user_can_assign_group('operator', [1], 2))
 
     def test_build_scope_filter_admin_none(self):
-        self.assertIsNone(build_scope_filter_clause('admin', []))
+        self.assertIsNone(build_scope_filter_clause('admin', [], username='admin'))
+        self.assertIsNone(build_scope_filter_clause('admin', [], username='mgr'))
+        self.assertIsNotNone(build_scope_filter_clause('admin', [1], username='mgr'))
+
+    def test_user_bypasses_scope(self):
+        self.assertTrue(user_bypasses_scope('admin', username='admin', group_ids=[]))
+        self.assertTrue(user_bypasses_scope('admin', username='admin', group_ids=[1, 2]))
+        self.assertTrue(user_bypasses_scope('admin', username='mgr', group_ids=[]))
+        self.assertTrue(user_bypasses_scope('admin', username='mgr', group_ids=None))
+        self.assertFalse(user_bypasses_scope('admin', username='mgr', group_ids=[1]))
+        self.assertFalse(user_bypasses_scope('operator', username='op', group_ids=[]))
+        self.assertFalse(user_bypasses_scope('viewer', username='vw', group_ids=[]))
 
     def test_authorize_permission_then_scope(self):
         other = SimpleNamespace(scope_type='GROUP', group_id=2, id=9)
@@ -66,8 +83,16 @@ class TestScopePure(unittest.TestCase):
         with self.assertRaises(AuthorizationError) as cm2:
             authorize('operator', 'cron:write', other, group_ids=[1])
         self.assertEqual(cm2.exception.kind, 'scope')
-        authorize('admin', 'cron:write', other, group_ids=[])
+        authorize('admin', 'cron:write', other, group_ids=[], username='mgr_admin')
         authorize('operator', 'cron:write', SimpleNamespace(scope_type='GLOBAL', group_id=None, id=1), group_ids=[])
+
+    def test_authorize_manager_admin_scope(self):
+        other = SimpleNamespace(scope_type='GROUP', group_id=2, id=9)
+        authorize('admin', 'cron:write', other, group_ids=[], username='mgr')
+        authorize('admin', 'cron:write', other, group_ids=[2], username='mgr')
+        with self.assertRaises(AuthorizationError) as cm:
+            authorize('admin', 'cron:write', other, group_ids=[1], username='mgr')
+        self.assertEqual(cm.exception.kind, 'scope')
 
 
 class TestGroupCodeAndMembership(unittest.TestCase):
@@ -101,10 +126,19 @@ class TestGroupCodeAndMembership(unittest.TestCase):
     def test_non_admin_requires_groups(self):
         from app.rbac.services import validate_groups_for_role
 
-        self.assertEqual(validate_groups_for_role('admin', []), '')
+        self.assertEqual(validate_groups_for_role('admin', [], username='admin'), '')
+        self.assertIn('必须', validate_groups_for_role('admin', [], username='mgr_admin'))
+        self.assertEqual(validate_groups_for_role('admin', ['__ALL__'], username='mgr_admin'), '')
         self.assertIn('必须', validate_groups_for_role('viewer', []))
         self.assertIn('必须', validate_groups_for_role('operator', []))
         self.assertEqual(validate_groups_for_role('operator', [1]), '')
+
+    def test_validate_all_marker_mutual_exclusion(self):
+        from app.rbac.services import validate_groups_for_role
+
+        self.assertIn('不能同时', validate_groups_for_role('admin', ['__ALL__', '1'], username='mgr'))
+        self.assertEqual(validate_groups_for_role('admin', ['__ALL__'], username='mgr'), '')
+        self.assertEqual(validate_groups_for_role('admin', [1, 2], username='mgr'), '')
 
 
 class TestScopeIntegration(unittest.TestCase):
@@ -253,6 +287,189 @@ class TestScopeIntegration(unittest.TestCase):
             cif = self.db.session.get(CronInfos, self.global_id)
             self.assertEqual(cif.scope_type, 'GLOBAL')
             self.assertIsNone(cif.group_id)
+
+
+class TestAuditLogActorGroups(unittest.TestCase):
+    """OPT-P2-13 审计日志 actor_group_ids 写入 + 查询过滤验证。"""
+
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        self.app.config['TESTING'] = True
+        self.app.secret_key = 'test-audit-scope'
+
+        from app import db
+        self.db = db
+        db.init_app(self.app)
+
+        with self.app.app_context():
+            from datas.model.rbac_audit_log import RbacAuditLog
+            db.create_all()
+            self._seed_audit_data()
+
+    def _seed_audit_data(self):
+        """写入测试审计数据，覆盖各种 actor_group_ids 场景。"""
+        from datas.model.rbac_audit_log import RbacAuditLog
+
+        entries = [
+            RbacAuditLog(id=1, username='admin', action='user:login',
+                         resource='admin', actor_group_ids='',
+                         create_time='2026-07-31 10:00:00'),
+            RbacAuditLog(id=2, username='mgr_a', action='user:login',
+                         resource='mgr_a', actor_group_ids=',1,2,',
+                         create_time='2026-07-31 10:01:00'),
+            RbacAuditLog(id=3, username='mgr_b', action='user:password_reset',
+                         resource='user_x', actor_group_ids=',3,4,',
+                         create_time='2026-07-31 10:02:00'),
+            RbacAuditLog(id=4, username='user_x', action='user:login',
+                         resource='user_x', actor_group_ids=',1,3,',
+                         create_time='2026-07-31 10:03:00'),
+            RbacAuditLog(id=5, username='user_y', action='permission:deny',
+                         resource='cron:write', actor_group_ids=',2,',
+                         status='deny', create_time='2026-07-31 10:04:00'),
+            RbacAuditLog(id=6, username='old_user', action='user:login',
+                         resource='old_user', actor_group_ids='',
+                         create_time='2026-07-01 10:00:00'),
+        ]
+        for e in entries:
+            self.db.session.add(e)
+        self.db.session.commit()
+
+    def test_write_audit_log_records_actor_groups(self):
+        """write_audit_log 写入 actor_group_ids 逗号包围格式。"""
+        from datas.model.rbac_audit_log import RbacAuditLog
+        from app.rbac.services import write_audit_log
+
+        with self.app.test_request_context('/'):
+            from flask import session
+            session['user_id'] = 42
+            session['username'] = 'test_mgr'
+            session['group_ids'] = [1, 3]
+
+            write_audit_log(action='user:login', resource='test_mgr')
+
+            entry = self.db.session.query(RbacAuditLog).filter_by(
+                username='test_mgr'
+            ).first()
+            self.assertIsNotNone(entry)
+            self.assertEqual(entry.actor_group_ids, ',1,3,')
+            self.assertEqual(entry.username, 'test_mgr')
+
+    def test_write_audit_log_empty_groups(self):
+        """种子 admin 或未登录时 actor_group_ids 为空。"""
+        from datas.model.rbac_audit_log import RbacAuditLog
+        from app.rbac.services import write_audit_log
+
+        with self.app.test_request_context('/'):
+            from flask import session
+            session['user_id'] = 1
+            session['username'] = 'admin_seed_test'
+            session['group_ids'] = []
+
+            write_audit_log(action='user:login', resource='admin_seed_test')
+
+            entry = self.db.session.query(RbacAuditLog).filter_by(
+                username='admin_seed_test'
+            ).first()
+            self.assertIsNotNone(entry)
+            self.assertEqual(entry.actor_group_ids, '')
+
+    def test_actor_group_ids_csv_format(self):
+        """验证逗号包围格式。"""
+        from app.rbac.services import _actor_group_ids_csv
+
+        with self.app.test_request_context('/'):
+            from flask import session
+
+            session['group_ids'] = [5, 10, 20]
+            self.assertEqual(_actor_group_ids_csv(), ',5,10,20,')
+
+            session['group_ids'] = [7]
+            self.assertEqual(_actor_group_ids_csv(), ',7,')
+
+            session['group_ids'] = []
+            self.assertEqual(_actor_group_ids_csv(), '')
+
+            session.pop('group_ids', None)
+            self.assertEqual(_actor_group_ids_csv(), '')
+
+    def test_paginate_all_returns_everything(self):
+        """bypass 用户（种子/全局 admin）调 paginate_all 看到全部。"""
+        from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+        from app.services.pagination import PageQuery
+
+        with self.app.app_context():
+            repo = RbacAuditLogRepository(self.db.session)
+            pq = PageQuery(page=1, per_page=50)
+            page = repo.paginate_all(pq)
+            self.assertEqual(len(page.items), 6)
+
+    def test_paginate_by_scope_filters_by_group(self):
+        """按组管理员仅看到 actor_group_ids 有交集的记录。"""
+        from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+        from app.services.pagination import PageQuery
+
+        with self.app.app_context():
+            repo = RbacAuditLogRepository(self.db.session)
+            pq = PageQuery(page=1, per_page=50)
+
+            page = repo.paginate_by_scope(pq, [1, 2])
+            visible_ids = {item.id for item in page.items}
+            self.assertIn(2, visible_ids)
+            self.assertIn(4, visible_ids)
+            self.assertIn(5, visible_ids)
+            self.assertNotIn(1, visible_ids)
+            self.assertNotIn(3, visible_ids)
+            self.assertNotIn(6, visible_ids)
+
+    def test_paginate_by_scope_no_false_match(self):
+        """逗号包围格式不会误匹配（如 group_id=1 不应匹配 ',13,'）。"""
+        from datas.model.rbac_audit_log import RbacAuditLog
+        from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+        from app.services.pagination import PageQuery
+
+        with self.app.app_context():
+            tricky = RbacAuditLog(
+                id=100, username='tricky', action='user:login',
+                resource='tricky', actor_group_ids=',13,',
+                create_time='2026-07-31 11:00:00',
+            )
+            self.db.session.add(tricky)
+            self.db.session.commit()
+
+            repo = RbacAuditLogRepository(self.db.session)
+            pq = PageQuery(page=1, per_page=50)
+            page = repo.paginate_by_scope(pq, [1])
+            visible_ids = {item.id for item in page.items}
+            self.assertNotIn(100, visible_ids)
+
+            page2 = repo.paginate_by_scope(pq, [13])
+            visible_ids2 = {item.id for item in page2.items}
+            self.assertIn(100, visible_ids2)
+
+    def test_paginate_by_scope_empty_groups_returns_nothing(self):
+        """viewer_group_ids 为空 → 不返回任何记录。"""
+        from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+        from app.services.pagination import PageQuery
+
+        with self.app.app_context():
+            repo = RbacAuditLogRepository(self.db.session)
+            pq = PageQuery(page=1, per_page=50)
+            page = repo.paginate_by_scope(pq, [])
+            self.assertEqual(len(page.items), 0)
+
+    def test_historical_empty_actor_groups_invisible_to_scoped_admin(self):
+        """历史记录（actor_group_ids=''）对按组管理员不可见。"""
+        from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
+        from app.services.pagination import PageQuery
+
+        with self.app.app_context():
+            repo = RbacAuditLogRepository(self.db.session)
+            pq = PageQuery(page=1, per_page=50)
+            page = repo.paginate_by_scope(pq, [1, 2, 3, 4])
+            visible_ids = {item.id for item in page.items}
+            self.assertNotIn(1, visible_ids)
+            self.assertNotIn(6, visible_ids)
 
 
 if __name__ == '__main__':

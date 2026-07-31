@@ -52,6 +52,7 @@ def main():
         _ensure_job_log_columns()
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
+        _ensure_rbac_audit_logs_columns()
         from app.rbac.services import ensure_seed_admin
         ensure_seed_admin()
     print('OK: %s 业务表已就绪 ->' % backend, uri)
@@ -169,6 +170,28 @@ def _ensure_rbac_users_columns():
         for sql in alters:
             conn.execute(text(sql))
     print('OK: rbac_users 列已补全 ->', ', '.join(a.split()[5] for a in alters))
+
+
+def _ensure_rbac_audit_logs_columns():
+    """审计日志 Scope 过滤（OPT-P2-13）：已有库补列。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('rbac_audit_logs'):
+        return
+    cols = {c['name'] for c in insp.get_columns('rbac_audit_logs')}
+    alters = []
+    if 'actor_group_ids' not in cols:
+        alters.append(
+            "ALTER TABLE rbac_audit_logs ADD COLUMN actor_group_ids "
+            "VARCHAR(255) NOT NULL DEFAULT ''"
+        )
+    if not alters:
+        return
+    with db.engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+    print('OK: rbac_audit_logs 列已补全 ->', ', '.join(a.split()[5] for a in alters))
 
 
 def _ensure_job_log_http_status_column():

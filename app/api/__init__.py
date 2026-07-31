@@ -156,14 +156,18 @@ def check_api_scope(cron_info):
 
     成功返回 None；失败返回与「任务不存在」相同的错误响应（防枚举）。
     """
+    from app.rbac.policy import user_bypasses_scope
     from app.rbac.scope import has_scope
 
     scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
     if scope.get('role') == 'admin':
         return None
     user_role = scope.get('user_role', '')
+    username = scope.get('username', '')
     group_ids = scope.get('group_ids', [])
-    if has_scope(user_role, group_ids, cron_info):
+    if user_bypasses_scope(user_role, username=username, group_ids=group_ids):
+        return None
+    if has_scope(user_role, group_ids, cron_info, username=username):
         return None
     from datas.utils.json import api_return
     return api_return(errcode=1, errmsg='任务不存在'), 200

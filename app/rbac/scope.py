@@ -6,7 +6,7 @@ from app import db
 from datas.model.cron_infos import CronInfos
 from datas.model.user_group import UserGroup
 
-from .policy import role_bypasses_scope
+from .policy import role_bypasses_scope, user_bypasses_scope
 
 SCOPE_GLOBAL = 'GLOBAL'
 SCOPE_GROUP = 'GROUP'
@@ -45,20 +45,20 @@ def normalize_scope_fields(scope_type, group_id):
     return None, SCOPE_GROUP, group_id
 
 
-def user_can_assign_group(role, group_ids, group_id):
-    """非 admin 仅能把资源写入自身所属组；admin 可写任意组。"""
-    if role_bypasses_scope(role):
+def user_can_assign_group(role, group_ids, group_id, username=None):
+    """非 bypass 用户仅能把资源写入自身所属组；bypass 用户可写任意组。"""
+    if user_bypasses_scope(role, username=username, group_ids=group_ids):
         return True
     if group_id is None:
         return True
     return int(group_id) in set(int(g) for g in (group_ids or []))
 
 
-def has_scope(role, group_ids, resource):
+def has_scope(role, group_ids, resource, username=None):
     """resource 须暴露 scope_type / group_id（如 CronInfos）。"""
     if resource is None:
         return False
-    if role_bypasses_scope(role):
+    if user_bypasses_scope(role, username=username, group_ids=group_ids):
         return True
     scope_type = (getattr(resource, 'scope_type', None) or SCOPE_GLOBAL).upper()
     if scope_type == SCOPE_GLOBAL:
@@ -72,10 +72,10 @@ def has_scope(role, group_ids, resource):
     return int(gid) in allowed
 
 
-def build_scope_filter_clause(role, group_ids, model=None):
-    """返回 SQLAlchemy 条件；admin 返回 None（调用方不追加过滤）。"""
+def build_scope_filter_clause(role, group_ids, model=None, username=None):
+    """返回 SQLAlchemy 条件；bypass 用户返回 None（调用方不追加过滤）。"""
     model = model or CronInfos
-    if role_bypasses_scope(role):
+    if user_bypasses_scope(role, username=username, group_ids=group_ids):
         return None
     ids = [int(g) for g in (group_ids or [])]
     if not ids:

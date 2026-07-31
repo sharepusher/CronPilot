@@ -11,6 +11,7 @@ from app.repositories.rbac_user_repository import RbacUserRepository
 from . import rbac
 from .decorators import require_login, require_permission
 from app.security.csrf import csrf_protect, ensure_csrf_token
+from .policy import is_seed_admin_username, user_bypasses_scope
 from .services import (
     DEFAULT_USER_PASSWORD,
     ROLE_ORDER,
@@ -30,11 +31,34 @@ from .services import (
     trigger_password_reset,
     update_resource_group,
     update_user,
+    user_in_management_scope,
     user_must_reset_password,
     validate_groups_for_role,
     write_audit_log,
     set_user_active,
 )
+
+
+def _actor_bypasses_scope():
+    """当前登录管理员是否绕过 Scope（种子 admin 或全局管理员 admin）。"""
+    return user_bypasses_scope(
+        session.get('role') or '',
+        username=session.get('username') or '',
+        group_ids=session.get('group_ids') or [],
+    )
+
+
+def _check_management_scope(target_user_id):
+    """按组管理员是否可操作目标用户。返回 None 可操作；返回 Response 表示被拦截。"""
+    if _actor_bypasses_scope():
+        return None
+    target = get_user_by_id(target_user_id)
+    if target and is_seed_admin_username(target.username):
+        return _users_form_response(False, '按组管理员不可操作系统管理员账号', url='/rbac/users')
+    actor_gids = session.get('group_ids') or []
+    if not user_in_management_scope(actor_gids, target_user_id):
+        return _users_form_response(False, '该用户不在您的管理范围内', url='/rbac/users')
+    return None
 
 
 def _build_user_groups_map(user_ids):
@@ -214,7 +238,12 @@ def api_token_reset():
 @require_permission('user:manage')
 def users_list():
     page_query = PageQuery.from_args(request.args)
-    page_data = RbacUserRepository(db.session).paginate_all(page_query)
+    repo = RbacUserRepository(db.session)
+    if _actor_bypasses_scope():
+        page_data = repo.paginate_all(page_query)
+    else:
+        actor_gids = session.get('group_ids') or []
+        page_data = repo.paginate_by_groups(page_query, actor_gids)
     user_ids = [u.id for u in page_data.items]
     user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
     return render_template(
@@ -228,7 +257,12 @@ def users_list():
 @require_permission('user:manage')
 @csrf_protect
 def users_add():
-    groups = list_resource_groups()
+    bypass = _actor_bypasses_scope()
+    if bypass:
+        groups = list_resource_groups()
+    else:
+        actor_gids = set(session.get('group_ids') or [])
+        groups = [g for g in list_resource_groups() if g.id in actor_gids]
     if request.method == 'GET':
         return render_template(
             'rbac/users_add.html',
@@ -237,8 +271,9 @@ def users_add():
             default_password=DEFAULT_USER_PASSWORD,
         )
     role = request.values.get('role', 'viewer')
+    target_username = request.values.get('username', '').strip()
     group_ids = request.values.getlist('group_ids')
-    groups_err = validate_groups_for_role(role, group_ids)
+    groups_err = validate_groups_for_role(role, group_ids, username=target_username)
     if groups_err:
         return _users_form_response(
             False,
@@ -256,11 +291,11 @@ def users_add():
             default_password=DEFAULT_USER_PASSWORD,
         )
     result = create_user(
-        request.values.get('username', ''),
+        target_username,
         role,
     )
     if result.get('ok') and result.get('user_id'):
-        bound = set_user_groups(result['user_id'], group_ids, role=role)
+        bound = set_user_groups(result['user_id'], group_ids, role=role, username=target_username)
         if not bound['ok']:
             orphan = get_user_by_id(result['user_id'])
             if orphan:
@@ -297,13 +332,19 @@ def users_edit():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
     session_uid = session.get('user_id')
     if session_uid is not None and int(session_uid) == int(user.id):
         msg = '不能在用户管理中编辑自己的账号；请使用「修改密码」调整密码'
         if _wants_ajax_json():
             return web_api_return(code=1, msg=msg, url='/rbac/password')
         return redirect('/rbac/password')
-    groups = list_resource_groups()
+    bypass = _actor_bypasses_scope()
+    groups = list_resource_groups() if bypass else [
+        g for g in list_resource_groups() if g.id in set(session.get('group_ids') or [])
+    ]
     if request.method == 'GET':
         return render_template(
             'rbac/users_edit.html',
@@ -315,7 +356,7 @@ def users_edit():
         )
     new_role = request.values.get('role', user.role)
     group_ids = request.values.getlist('group_ids')
-    groups_err = validate_groups_for_role(new_role, group_ids)
+    groups_err = validate_groups_for_role(new_role, group_ids, username=user.username)
     if groups_err:
         return _users_form_response(
             False,
@@ -332,7 +373,7 @@ def users_edit():
         is_active=request.values.get('is_active', user.is_active),
     )
     if result['ok']:
-        bound = set_user_groups(user_id, group_ids, role=new_role)
+        bound = set_user_groups(user_id, group_ids, role=new_role, username=user.username)
         if not bound['ok']:
             result = bound
     if not result['ok']:
@@ -361,6 +402,9 @@ def users_reset_password():
         user_id = int(user_id)
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/users')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
     result = trigger_password_reset(user_id, actor_user_id=session.get('user_id'))
     return _users_form_response(
         result['ok'],
@@ -381,6 +425,9 @@ def users_reset_token():
         user_id = int(user_id)
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/users')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
     result = issue_user_api_token(user_id)
     return _users_form_response(
         result['ok'],
@@ -402,6 +449,9 @@ def users_set_active():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
     if request.method == 'GET':
         return render_template(
             'rbac/users_set_active.html',
@@ -427,9 +477,16 @@ def users_set_active():
 @rbac.route('/groups', methods=['GET'])
 @require_permission('user:manage')
 def groups_list():
+    bypass = _actor_bypasses_scope()
+    if bypass:
+        groups = list_resource_groups()
+    else:
+        actor_gids = set(session.get('group_ids') or [])
+        groups = [g for g in list_resource_groups() if g.id in actor_gids]
     return render_template(
         'rbac/groups.html',
-        groups=list_resource_groups(),
+        groups=groups,
+        can_create_group=bypass,
     )
 
 
@@ -437,6 +494,8 @@ def groups_list():
 @require_permission('user:manage')
 @csrf_protect
 def groups_add():
+    if not _actor_bypasses_scope():
+        return _users_form_response(False, '按组管理员不可创建新业务组', url='/rbac/groups')
     if request.method == 'GET':
         return render_template('rbac/groups_add.html')
     result = create_resource_group(
@@ -463,6 +522,10 @@ def groups_edit():
         group_id = int(group_id)
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/groups')
+    if not _actor_bypasses_scope():
+        actor_gids = set(session.get('group_ids') or [])
+        if group_id not in actor_gids:
+            return _users_form_response(False, '该业务组不在您的管理范围内', url='/rbac/groups')
     group = get_resource_group(group_id)
     if not group:
         return _users_form_response(False, '业务组不存在', url='/rbac/groups')
@@ -489,7 +552,12 @@ def groups_edit():
 @require_permission('audit:read')
 def audit_logs():
     page_query = PageQuery.from_args(request.args)
-    page_data = RbacAuditLogRepository(db.session).paginate_all(page_query)
+    repo = RbacAuditLogRepository(db.session)
+    if _actor_bypasses_scope():
+        page_data = repo.paginate_all(page_query)
+    else:
+        viewer_group_ids = session.get('group_ids') or []
+        page_data = repo.paginate_by_scope(page_query, viewer_group_ids)
     return render_template(
         'rbac/audit_logs.html',
         page_data=page_data,

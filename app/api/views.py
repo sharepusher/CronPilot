@@ -33,11 +33,19 @@ def _parse_limit_offset(limit_default=20, limit_max=100):
 
 
 def _query_scope_context():
-    """提取当前 API 请求的角色与组（用于只读查询接口）。"""
+    """提取当前 API 请求的角色、组与用户名（用于只读查询接口）。
+
+    返回 (role, group_ids, username)。
+    """
+    from app.rbac.policy import user_bypasses_scope
+
     scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
     if scope.get('role') == 'admin':
-        return 'admin', []
-    return scope.get('user_role', ''), scope.get('group_ids', [])
+        return 'admin', [], 'admin'
+    user_role = scope.get('user_role', '')
+    group_ids = scope.get('group_ids', [])
+    username = scope.get('username', '')
+    return user_role, group_ids, username
 
 
 # ---------------------------------------------------------------------------
@@ -135,8 +143,8 @@ def cron_query():
     updated_to = (request.args.get('updated_to') or '').strip()
 
     filters = []
-    role, group_ids = _query_scope_context()
-    scope_clause = build_scope_filter_clause(role, group_ids, CronInfos)
+    role, group_ids, username = _query_scope_context()
+    scope_clause = build_scope_filter_clause(role, group_ids, CronInfos, username=username)
     if scope_clause is not None:
         filters.append(scope_clause)
     if task_name:

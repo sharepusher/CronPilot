@@ -24,7 +24,7 @@ def authorize(role, permission, resource, group_ids=None, username=None):
             '权限不足，需要 %s' % permission,
             permission,
         )
-    if resource is not None and not has_scope(role, group_ids, resource):
+    if resource is not None and not has_scope(role, group_ids, resource, username=username):
         rid = getattr(resource, 'id', None)
         label = 'cron:%s' % rid if rid is not None else 'resource'
         raise AuthorizationError(

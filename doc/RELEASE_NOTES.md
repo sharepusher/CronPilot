@@ -4,7 +4,7 @@
 
 # CronPilot Release Notes
 
-v2.6.0 2026-07-30 · 前端颜色收编 + API access\_token 加固
+v2.6.0 2026-07-31 · 前端颜色收编 + API access\_token 加固 + S6/API 文档重构
  | 
 v2.1.1 2026-07-21 · Security hardening (lock / SECRET\_KEY / CSRF)
  | 
@@ -32,26 +32,14 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
-### RBAC / API Token 体验优化
+当前无草稿条目。
 
-- **用户自助重置：**`/rbac/api_token` 页面新增「重置Token」按钮，用户无需等待管理员即可轮换当前凭证。
-- **新路由：**新增 `POST /rbac/api_token/reset`（`require_login` + CSRF），重置当前登录用户 Token，并刷新 30 天有效期。
-- **兼容并存：**管理员在用户列表中的「重置Token」能力保持不变。
-- **测试补强：**新增 `test_user_can_reset_own_token_on_api_token_page`，校验 token 值确实变化且有效期存在。
+## [2.6.0] — 2026-07-31
 
-### API 文档只读化与风格统一
+### 版本覆盖范围（v2.5.0 之后全部提交）
 
-- **导航顺序调整：**顶栏中 `API文档` 移动到 `API Token` 之后，先账号凭证、后文档浏览。
-- **页面风格统一：**`/api_doc` 重构为管理端原生卡片页面（不再依赖 Swagger iframe 交互），视觉样式与其它后台页面一致。
-- **查询语义白名单：**只展示标记为“查询语义”的接口条目，不按 HTTP Method 粗暴筛选；写入/变更类接口不展示。
-- **权限内可见：**按当前登录用户角色权限动态过滤接口，用户仅看到其权限范围内可用的查询接口。
-- **去空壳条目：**摘要/路径/响应说明不完整的接口自动不展示，避免“点击无内容”问题。
-- **有效查询接口补齐：**新增 `GET /api/cron/query`（任务查询）、`GET /api/cron/logs`（执行日志查询）、`GET /api/cron/detail`（任务详情）与 `GET /api/cron/log/detail`（单条日志详情），并按 Scope 做可见性控制。
-- **查询字段增强：**查询接口返回补充 `total`、`has_more` 等分页元数据，日志查询支持 `status` 过滤并返回 `content_preview`。
-- **目录缓存：**只读接口目录按权限集做进程内缓存，服务启动后复用；接口变更随发版重启生效。
-- **测试补强：**新增 `test_any_role_nav_places_api_token_before_api_doc` 与 `test_api_doc_page_shows_query_semantic_docs_only`。
-
-## [2.6.0] — 2026-07-30
+- 本版本包含 `v2.5.0..v2.6.0` 的全部提交：`8f683ce` 与 `8979424`。
+- 覆盖：前端颜色收编、API access\_token 加固、S6 用户级 Token 体验收敛、只读 API 文档重构。
 
 ### 前端颜色收编与可维护性加固
 
@@ -75,11 +63,26 @@ v0.1.0 2026-05-29 · 首发
 - API token 校验失败写审计（`rbac_audit_logs`，`action='api:deny'`）。
 - 详见 [RBAC 与群组权限管理评审报告](RBAC与群组权限管理评审报告.html)。
 
+### S6 用户级 Token 与 RBAC 体验收敛
+
+- 新增独立页 `GET /rbac/api_token`，并将入口放在导航 `API文档` 之前。
+- 新增用户自助重置 `POST /rbac/api_token/reset`（`require_login` + CSRF），重置后刷新 30 天有效期。
+- 管理员在用户列表中的重置能力保持不变。
+- `tests/test_api_scope_s6.py` 覆盖签发、过期、Scope 隔离、缓存失效、密码/分组变更自动重置等路径。
+
+### API 文档只读化与查询接口补齐
+
+- `/api_doc` 重构为后台原生卡片页，不再依赖 Swagger iframe 交互。
+- 从“按 HTTP 方法”切换为“按查询语义 + 权限”过滤，并自动隐藏信息不完整条目。
+- 新增可见查询接口：`GET /api/cron/query`、`GET /api/cron/logs`、`GET /api/cron/detail`、`GET /api/cron/log/detail`。
+- 查询接口返回增强：`total`、`has_more`；日志查询支持 `status` / `http_status` / 时间区间过滤，并返回 `content_preview`。
+- 文档目录按权限集做进程内缓存（服务启动后复用，随发版重启刷新）。
+
 ### 部署文档
 
 - 非 Docker 部署指南新增 §3「前端开发环境」（Node.js/nvm）。README 新增 §2.1。
 
-290 个单元测试全部通过。
+322 个测试通过（覆盖颜色门禁、RBAC/S6、只读 API 文档与 Scope 查询接口）。
 
 ## [2.5.0] — 2026-07-29
 

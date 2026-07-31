@@ -9,27 +9,16 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
-### RBAC / API Token UX
-
-- Added a self-service token reset action on `GET /rbac/api_token` so users can rotate their own API token without waiting for admin operations.
-- Added `POST /rbac/api_token/reset` (`require_login` + CSRF) to reset the current user's token and refresh the 30-day expiry window.
-- Kept admin-side `users/reset_token` unchanged; both self-service and admin reset now coexist.
-- Added regression test `test_user_can_reset_own_token_on_api_token_page` to ensure token rotation and expiry refresh are enforced.
-
-### API documentation guardrails & visual alignment
-
-- Moved the `API文档` nav item behind `API Token` in the top nav so account/token operations appear before API reference browsing.
-- Rebuilt `GET /api_doc` as a native console-style card page (no Swagger iframe interaction), with layout and copy aligned to other admin pages.
-- Switched from HTTP-method filtering to query-semantic filtering: the page now shows only whitelist entries marked as query-oriented and hides write/change endpoints.
-- Added permission-aware filtering so each logged-in user only sees query entries within their role permissions, and auto-hides incomplete/empty entries.
-- Exposed practical read APIs for the new doc page: `GET /api/cron/query` (task query), `GET /api/cron/logs` (execution log query), `GET /api/cron/detail` (task detail), and `GET /api/cron/log/detail` (single log detail), all scope-aware.
-- Added response field enhancements for query APIs (`total`, `has_more`, status filtering, content preview) for easier integration.
-- Added in-process API doc catalog caching keyed by permission set, so docs are reused after service startup and only change on new release/restart.
-- Added tests to guard nav ordering and query-doc filtering (`test_any_role_nav_places_api_token_before_api_doc`, `test_api_doc_page_shows_query_semantic_docs_only`).
+- No draft items currently.
 
 ---
 
-## [2.6.0] — 2026-07-30
+## [2.6.0] — 2026-07-31
+
+### Release scope (all commits after v2.5.0)
+
+- Includes all commits in `v2.5.0..v2.6.0`: `8f683ce` and `8979424`.
+- This release combines color-system hardening, API access-token hardening, user-level token UX completion, and query-only API documentation redesign.
 
 ### 前端颜色收编与可维护性加固
 
@@ -53,6 +42,20 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - Failed API token checks now write an audit trail (`rbac_audit_logs`, `action='api:deny'`) for traceability.
 - See [RBAC 与群组权限管理评审报告](doc/RBAC与群组权限管理评审报告.html) for the underlying review and [资源隔离与Scope设计 §七](doc/资源隔离与Scope设计.html#future) for scope/limitations (still a shared deployment-level token; per-group API tokens remain a future RFC).
 
+### RBAC / API Token UX completion (S6)
+
+- Added standalone token page `GET /rbac/api_token` and moved the entry before `API文档` in top nav.
+- Added self-service reset `POST /rbac/api_token/reset` (`require_login` + CSRF) with 30-day expiry refresh, while keeping admin-side reset in user list.
+- Added/expanded S6 tests (`tests/test_api_scope_s6.py`) to cover issuance, expiry, scope isolation, cache invalidation, and auto-reset on password/group mutation.
+
+### API documentation redesign: query-only + permission-aware
+
+- Rebuilt `GET /api_doc` as a native console-style page; removed embedded Swagger interaction from this admin view.
+- Switched from HTTP-method filtering to query-semantic filtering and auto-hid incomplete entries.
+- Added permission-aware catalog rendering with in-process cache keyed by permission set.
+- Exposed read APIs for integrators: `GET /api/cron/query`, `GET /api/cron/logs`, `GET /api/cron/detail`, `GET /api/cron/log/detail`.
+- Query APIs now include `total`/`has_more`; logs API supports `status`/`http_status`/time-range filters and `content_preview`.
+
 ### 部署文档
 
 - **非 Docker 部署指南**新增 §3「前端开发环境」：Node.js 仅开发时需要、nvm 安装、Node.js 与 Python 环境隔离对比。
@@ -60,7 +63,7 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ### 测试
 
-- 290 个单元测试全部通过（287 + 3 新增守护测试）。
+- 322 个测试通过（覆盖颜色门禁、RBAC/S6、只读 API 文档目录与 Scope 查询接口）。
 
 ---
 
@@ -487,6 +490,8 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | 版本 | 说明 |
 |------|------|
+| **2.6.0** | 颜色系统收编 + API access_token 加固 + S6 用户级 Token + 查询式 API 文档 |
+| 2.5.0 | 执行状态机（B1）+ 单任务超时（B2） |
 | **2.1.1** | 集群锁原子化、生产 SECRET_KEY、管理端 CSRF |
 | 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
 | 2.0.0 | 任务中心、POST 触发、账户生命周期 |

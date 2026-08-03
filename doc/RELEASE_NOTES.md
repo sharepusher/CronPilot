@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v2.7.0 2026-08-03 · Admin scope differentiation + audit log scope filtering + version CI
+ | 
 v2.6.0 2026-07-31 · 前端颜色收编 + API access\_token 加固 + S6/API 文档重构
  | 
 v2.1.1 2026-07-21 · Security hardening (lock / SECRET\_KEY / CSRF)
@@ -33,6 +35,36 @@ v0.1.0 2026-05-29 · 首发
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
 当前无草稿条目。
+
+## [2.7.0] — 2026-08-03
+
+### Admin scope differentiation (OPT-P2-15)
+
+- **Seed admin vs. manager admin:** The built-in `admin` user (seed) now has global read-only scope. Non-seed admins ("manager admins") are scoped to explicitly assigned groups.
+- **Virtual `__ALL__` group:** Manager admins can be assigned `__ALL__` to bypass group scoping.
+- **User management scope:** Manager admins can only view/manage users within their group intersection. Seed admin is hidden from manager admin user lists.
+- **Group management:** Only bypass-scope admins (seed or `__ALL__`) can create new resource groups.
+
+### Audit log scope filtering (OPT-P2-16)
+
+- **`actor_group_ids` column:** New column on `rbac_audit_logs` storing actor's group IDs in comma-wrapped format (`,1,3,`). `ensure_business_tables` handles idempotent DDL.
+- **Scoped query:** Manager admins see only audit records with intersecting group IDs. Historical records without `actor_group_ids` are invisible to scoped admins.
+- **Bypass users:** Seed admin and `__ALL__` manager admins retain full audit log visibility.
+
+### Documentation quality audit and fixes
+
+- README: added missing v2.2.0–v2.5.0 to version table; expanded CI workflows, directory structure, config keys.
+- Delivery roadmap: added v2.3.0/v2.4.0 version rows; fixed OPT-P1-06 status; added OPT-P2-14/15/16 entries.
+- Numbering conflict resolution: OPT-P2-12/ADMIN-SCOPE → **OPT-P2-15**; OPT-P2-13/AUDIT-SCOPE → **OPT-P2-16**.
+
+### Version consistency CI
+
+- `scripts/check_version_consistency.py`: verifies git tags ↔ README/roadmap/RELEASE\_NOTES consistency. `--check` mode for CI.
+- `.github/workflows/version-consistency.yml`: CI workflow on version-related file changes.
+
+### Tests
+
+341 tests pass.
 
 ## [2.6.0] — 2026-07-31
 

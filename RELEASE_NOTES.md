@@ -13,6 +13,44 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
+## [2.7.0] — 2026-08-03
+
+### Admin scope differentiation (OPT-P2-15)
+
+- **Seed admin vs. manager admin:** The built-in `admin` user (seed) now has **global read-only** scope — full visibility across all groups but no task write/retire. Non-seed admins ("manager admins") are scoped to explicitly assigned groups.
+- **Virtual `__ALL__` group:** Manager admins can be assigned the virtual `__ALL__` marker to bypass group scoping, functioning as a global manager without seed privileges.
+- **User management scope:** Manager admins can only view and manage users within their group intersection. The seed admin is **hidden** from manager admin user lists entirely (neither visible nor operable).
+- **Group management:** Only bypass-scope admins (seed or `__ALL__` manager) can create new resource groups. Scoped manager admins see only their assigned groups.
+- **Group selection UI:** Add/edit user forms enforce mutual exclusion between `__ALL__` and individual groups via client-side JavaScript.
+
+### Audit log scope filtering (OPT-P2-16)
+
+- **`actor_group_ids` column:** New `VARCHAR(255)` column on `rbac_audit_logs`, storing the acting user's group IDs in comma-wrapped format (e.g., `,1,3,`) at write time. `ensure_business_tables` handles idempotent DDL for existing databases.
+- **Scoped query:** Manager admins see only audit records where the actor's groups intersect with their own, using `LIKE '%,<gid>,%'` filtering. Historical records without `actor_group_ids` are invisible to scoped admins.
+- **Bypass users:** Seed admin and `__ALL__` manager admins retain full audit log visibility via `paginate_all()`.
+
+### Documentation quality audit and fixes
+
+- **README version table:** Added missing v2.2.0, v2.3.0, v2.4.0, v2.5.0 entries; expanded v2.6.0 description; updated current version indicator; added 4 missing CI workflows to GitHub Actions table; expanded directory structure; added `api_access_token` / `api_access_token_required` to config table.
+- **Delivery roadmap (`doc/交付状态与路线图.html`):** Added missing v2.3.0 (API contract) and v2.4.0 (frontend modernization) version rows; fixed OPT-P1-06 status from "unstarted" to "delivered v2.3.0"; added OPT-P2-14/15/16 entries; added 10 delivery detail rows.
+- **Numbering conflict resolution:** OPT-P2-12/ADMIN-SCOPE → **OPT-P2-15** (OPT-P2-12 was already used for Resource Scope v1.1.0); OPT-P2-13/AUDIT-SCOPE → **OPT-P2-16** (OPT-P2-13 was already used for 规模化信息架构 v2.0.0).
+
+### Version consistency CI
+
+- **`scripts/check_version_consistency.py`:** New CI script that verifies all `vX.Y.Z` git tags have corresponding entries in README version table, delivery roadmap, and RELEASE_NOTES. Checks README "current version" matches latest tag. Supports `--check` mode (exit 1 on mismatch).
+- **`.github/workflows/version-consistency.yml`:** CI workflow triggered on push/PR when version-related files change; uses `fetch-depth: 0` for full tag access.
+
+### Release process hardening
+
+- **Release checklist** (`.cursor/rules/cronpilot-release-deploy.mdc`): Added explicit requirements for README version table update, roadmap version row, OPT/RFC status sync, and numbering collision pre-check.
+- **Project rules** (`.cursor/rules/cronpilot-project.mdc`): Added "版本一致性" enforcement section with CI gate and numbering allocation procedure.
+
+### Tests
+
+- 341 tests pass, covering admin scope differentiation, audit log scope filtering (write + query + false-positive prevention + historical data invisibility), and all prior features.
+
+---
+
 ## [2.6.0] — 2026-07-31
 
 ### Release scope (all commits after v2.5.0)

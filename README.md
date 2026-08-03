@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v2.6.0**（颜色收编 · API access_token 加固 · S6 用户级 Token · 查询式 API 文档；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v2.7.0**（管理员 Scope 差异化 · 审计日志 Scope 过滤 · 版本一致性 CI；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v2.7.0** | 管理员 Scope 差异化（种子只读 vs 管理员按组）；审计日志 Scope 过滤；版本一致性 CI；文档质量审计修复 |
 | **v2.6.0** | 前端颜色收编（191 处→CSS 变量）；API access_token 加固；用户级 Token（S6）；只读 API 文档重设计；颜色审计 CI 门禁 |
 | **v2.5.0** | 执行状态机 B1（4 终态 success/fail/timeout/error）；单任务超时配置 B2；表单实时校验（Vue 3） |
 | **v2.4.0** | 前端现代化 Vite + Vue 3（状态单元格、筛选栏、Toast 抽象）；管理端 UX 优化；死静态资源清理 |
@@ -281,7 +282,7 @@ bash scripts/cronpilot.sh test        # 全量单测（333+ 用例）
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.6.0**；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.7.0**；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

@@ -11,6 +11,8 @@
     2. doc/交付状态与路线图.html 已发布版本表（「<strong>vX.Y.Z</strong>」格式）
     3. README.md 概述行中的「当前版本」与最新 tag 一致
     4. RELEASE_NOTES.md 中各 tag 对应的章节存在
+    5. RELEASE_NOTES.md [Unreleased] 节无残留实质内容
+    6. RELEASE_NOTES.md 底部版本总览表涵盖所有已发布版本
 """
 import argparse
 import re
@@ -75,6 +77,47 @@ def extract_release_notes_versions(path):
     return set(re.findall(r'^## \[(\d+\.\d+\.\d+)\]', text, re.MULTILINE))
 
 
+def check_unreleased_residual(path):
+    """检查 [Unreleased] 节是否有实质性残留内容（### 小节或非注释列表项）。"""
+    if not path.exists():
+        return []
+    text = path.read_text(encoding='utf-8')
+    m = re.search(r'^## \[Unreleased\]\s*\n(.*?)(?=^## \[|\Z)',
+                  text, re.MULTILINE | re.DOTALL)
+    if not m:
+        return []
+    section = m.group(1)
+    subsections = re.findall(r'^### .+', section, re.MULTILINE)
+    list_items = re.findall(r'^- (?!No draft).+', section, re.MULTILINE)
+    issues = []
+    if subsections:
+        issues.append('Unreleased 节含 %d 个 ### 小节（疑似未合并到正式版本）：%s'
+                       % (len(subsections), ', '.join(s.strip() for s in subsections[:3])))
+    if list_items:
+        issues.append('Unreleased 节含 %d 个实质列表项（疑似未合并）' % len(list_items))
+    return issues
+
+
+def check_version_index_table(path, expected_versions):
+    """检查 RELEASE_NOTES.md 底部版本一览表是否涵盖所有已发布版本。"""
+    if not path.exists():
+        return []
+    text = path.read_text(encoding='utf-8')
+    m = re.search(r'^## Version index\s*\n(.*?)(?=^## |\Z)',
+                  text, re.MULTILINE | re.DOTALL)
+    if not m:
+        m = re.search(r'^## 版本一览\s*\n(.*?)(?=^## |\Z)',
+                      text, re.MULTILINE | re.DOTALL)
+    if not m:
+        return ['RELEASE_NOTES 中未找到 "Version index" / "版本一览" 表']
+    table_text = m.group(1)
+    table_versions = set(re.findall(r'\*?\*?(\d+\.\d+\.\d+)\*?\*?', table_text))
+    missing = expected_versions - table_versions
+    if missing:
+        return ['版本总览表缺少: %s' % ', '.join('v' + v for v in sorted(missing))]
+    return []
+
+
 def main():
     parser = argparse.ArgumentParser(description='检查版本一致性')
     parser.add_argument('--check', action='store_true',
@@ -117,6 +160,15 @@ def main():
     # 4. README 概述行「当前版本」vs 最新 tag
     if readme_current and readme_current != latest_tag:
         issues.append(('README 概述行', f'当前版本为 {readme_current}，最新 tag 为 {latest_tag}'))
+
+    # 5. Unreleased 节残留检查
+    for msg in check_unreleased_residual(RELEASE_NOTES):
+        issues.append(('RELEASE_NOTES [Unreleased]', msg))
+
+    # 6. 版本总览表完整性
+    rn_versions_raw = extract_release_notes_versions(RELEASE_NOTES)
+    for msg in check_version_index_table(RELEASE_NOTES, rn_versions_raw):
+        issues.append(('RELEASE_NOTES 版本总览', msg))
 
     # 输出
     if issues:

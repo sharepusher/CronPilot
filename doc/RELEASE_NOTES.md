@@ -4,9 +4,9 @@
 
 # CronPilot Release Notes
 
-v2.7.0 2026-08-03 · Admin scope differentiation + audit log scope filtering + version CI
+v2.7.0 2026-08-03 · Admin scope + audit scope + search + indexing + doc reorganization
  | 
-v2.6.0 2026-07-31 · 前端颜色收编 + API access\_token 加固 + S6/API 文档重构
+v2.6.0 2026-07-31 · Color consolidation + API access\_token hardening + S6/API docs redesign
  | 
 v2.1.1 2026-07-21 · Security hardening (lock / SECRET\_KEY / CSRF)
  | 
@@ -34,24 +34,7 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
-### Time-column index enforcement (OPT-P2-17)
-
-- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True`.
-- **Runtime index backfill:** `_ensure_time_column_indexes()` in `ensure_business_tables.py` idempotently creates `ix_<table>_<column>` indexes on startup.
-- **Norm:** `.cursor/rules/cronpilot-backend.mdc` → "时间列索引规范": new models missing `index=True` on time columns are review blockers.
-- **Tables covered:** `rbac_audit_logs`, `rbac_users`, `resource_groups`, `cron_infos` (×2), `job_log`, `job_health`, plus pre-existing `operation_log`.
-
-### User management & audit log search
-
-- User management: username fuzzy search.
-- Audit log: multi-dimensional search (username, action, status, time range).
-- UI style: search toolbars refactored to CSS classes; date inputs normalized; `btn-info` buttons.
-- Norms: query performance assessment mandatory for all new query features.
-- API token auto-issuance: `ensure_existing_users_have_token()` for pre-S6 users.
-
-### Tests
-
-333 tests pass.
+当前无草稿条目。
 
 ## [2.7.0] — 2026-08-03
 
@@ -79,59 +62,85 @@ v0.1.0 2026-05-29 · 首发
 - `scripts/check_version_consistency.py`: verifies git tags ↔ README/roadmap/RELEASE\_NOTES consistency. `--check` mode for CI.
 - `.github/workflows/version-consistency.yml`: CI workflow on version-related file changes.
 
+### Time-column index enforcement (OPT-P2-17)
+
+- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True`.
+- **Runtime index backfill:** `_ensure_time_column_indexes()` idempotently creates `ix_<table>_<column>` indexes on startup.
+- **Tables covered:** `rbac_audit_logs`, `rbac_users`, `resource_groups`, `cron_infos` (×2), `job_log`, `job_health`, plus pre-existing `operation_log`.
+
+### User management & audit log search
+
+- User management: username fuzzy search on the user list page.
+- Audit log: multi-dimensional search (username, action, status, time range).
+- API token auto-issuance: `ensure_existing_users_have_token()` for pre-S6 users.
+
+### Documentation reorganization
+
+- **Subdirectory structure:** `doc/` reorganized into 7 subdirectories (`arch/`, `design/`, `plan/`, `deps/`, `ops/`, `product/`, `qa/`). 80 files moved, 85 cross-references updated.
+- **Orphan cleanup:** Removed 11 orphaned/legacy files.
+- **`index.html` full refresh:** Updated to v2.7.0, added 4 missing design documents, all subdirectory links verified.
+- **`check_doc_completeness.py`:** New CI script ensuring all `doc/*.html` files are registered in `doc/index.html`.
+
+### Engineering norms
+
+- Time-column index norm: new models missing `index=True` on time columns are review blockers.
+- Query performance assessment: mandatory for all new query/search features during design phase.
+- UI style consistency: prohibits inline styles for layout; standard toolbar dimensions.
+- API path guard: `tests/test_api_path_guard.py` ensures all `/api/` paths in templates map to real routes.
+
 ### Tests
 
-341 tests pass.
+334 tests pass, covering admin scope differentiation, audit log scope filtering, time-column indexes, API path guard, and all prior features.
 
 ## [2.6.0] — 2026-07-31
 
-### 版本覆盖范围（v2.5.0 之后全部提交）
+### Release scope (all commits after v2.5.0)
 
-- 本版本包含 `v2.5.0..v2.6.0` 的全部提交：`8f683ce` 与 `8979424`。
-- 覆盖：前端颜色收编、API access\_token 加固、S6 用户级 Token 体验收敛、只读 API 文档重构。
+- Includes all commits in `v2.5.0..v2.6.0`: `8f683ce` and `8979424`.
+- Covers: frontend color consolidation, API access\_token hardening, S6 user-level token UX completion, and query-only API documentation redesign.
 
-### 前端颜色收编与可维护性加固
+### Frontend color consolidation and maintainability
 
-191 处硬编码十六进制颜色（21 个文件 / 57 个独立色值）全部收编为 CSS Custom Properties（`var(--cp-*)`）。替换前后视觉效果完全一致。
+191 hardcoded hex colors across 21 files (57 distinct values) consolidated into CSS Custom Properties (`var(--cp-*)`). Visual output is pixel-identical.
 
-- **`app/static/css/console-theme.css`（新增）：**60 个语义 CSS 变量，覆盖文字、背景、边框、强调、成功/危险/警告色系、执行状态、角色徽标、Topbar 等。`--cp-*` 前缀避免与 simpleboot 冲突。
-- **20 个 Jinja2 模板收编：**`admin_base.html`（15 处）、`cron_list.html`（68 处）、`cron_add/edit.html`（29 处）及其余 16 个模板。
-- **Vue 组件收编：**`CronFormValidator.vue` 10 处颜色替换为 CSS 变量；构建产物已更新。
-- **语义类外迁：**角色徽标（`.topbar-role-*`）与执行状态标签（`.label-timeout/running/pending/danger`）迁移到 `console-theme.css`。
-- **死文件清理：**删除零引用的 `_admin_nav.html`。
+- **`app/static/css/console-theme.css` (new):** 60 semantic CSS variables covering text, background, border, accent, success/danger/warning palettes, execution status, role badges, topbar, etc. `--cp-*` prefix avoids collisions with simpleboot.
+- **20 Jinja2 templates consolidated:** `admin_base.html` (15), `cron_list.html` (68), `cron_add/edit.html` (29), and 16 additional templates.
+- **Vue component consolidation:** `CronFormValidator.vue` — 10 hardcoded colors replaced with CSS variables; built assets updated.
+- **Semantic class extraction:** Role badges (`.topbar-role-*`) and execution status labels (`.label-timeout/running/pending/danger`) moved to `console-theme.css`.
+- **Dead file cleanup:** Removed zero-reference `_admin_nav.html`.
 
-### 审计工具与 CI 门禁
+### Audit tooling and CI gate
 
-- **`scripts/audit_hardcoded_colors.py`（新增）：**全量扫描硬编码颜色。`--check`（CI 模式）、`--mapping`（映射表）、`--csv`（导出）。
-- **`.github/workflows/color-audit.yml`（新增）：**PR 含硬编码颜色自动阻断。
-- **`tests/test_form_name_guard.py`（新增）：**3 个守护测试，防止表单 `name` 属性被意外修改。
+- **`scripts/audit_hardcoded_colors.py` (new):** Full scan for hardcoded colors. `--check` (CI mode), `--mapping` (value→token map), `--csv` (export).
+- **`.github/workflows/color-audit.yml` (new):** CI gate blocking PRs with hardcoded colors.
+- **`tests/test_form_name_guard.py` (new):** 3 guard tests preventing accidental form `name` attribute changes.
 
-### API access\_token 加固（Scope 最小止损）
+### API access\_token hardening (minimal Scope mitigation)
 
-- 新增 opt-in 配置 `api_access_token_required`（默认 `0`，零行为变化）。设为 `1` 时，生产启动若 `api_access_token` 为空将 fail-fast。
-- API token 校验失败写审计（`rbac_audit_logs`，`action='api:deny'`）。
-- 详见 [RBAC 与群组权限管理评审报告](RBAC与群组权限管理评审报告.html)。
+- New opt-in setting `api_access_token_required` (default `0`, no behavior change). When set to `1`, production startup fails fast if `api_access_token` is empty.
+- Failed API token checks write an audit trail (`rbac_audit_logs`, `action='api:deny'`).
+- See [RBAC review report](design/RBAC与群组权限管理评审报告.html).
 
-### S6 用户级 Token 与 RBAC 体验收敛
+### RBAC / API Token UX completion (S6)
 
-- 新增独立页 `GET /rbac/api_token`，并将入口放在导航 `API文档` 之前。
-- 新增用户自助重置 `POST /rbac/api_token/reset`（`require_login` + CSRF），重置后刷新 30 天有效期。
-- 管理员在用户列表中的重置能力保持不变。
-- `tests/test_api_scope_s6.py` 覆盖签发、过期、Scope 隔离、缓存失效、密码/分组变更自动重置等路径。
+- Added standalone token page `GET /rbac/api_token`, placed before "API Docs" in top nav.
+- Added self-service reset `POST /rbac/api_token/reset` (`require_login` + CSRF) with 30-day expiry refresh.
+- Admin-side reset in user list unchanged.
+- `tests/test_api_scope_s6.py` covers issuance, expiry, scope isolation, cache invalidation, and auto-reset on password/group mutation.
 
-### API 文档只读化与查询接口补齐
+### API documentation redesign: query-only + permission-aware
 
-- `/api_doc` 重构为后台原生卡片页，不再依赖 Swagger iframe 交互。
-- 从“按 HTTP 方法”切换为“按查询语义 + 权限”过滤，并自动隐藏信息不完整条目。
-- 新增可见查询接口：`GET /api/cron/query`、`GET /api/cron/logs`、`GET /api/cron/detail`、`GET /api/cron/log/detail`。
-- 查询接口返回增强：`total`、`has_more`；日志查询支持 `status` / `http_status` / 时间区间过滤，并返回 `content_preview`。
-- 文档目录按权限集做进程内缓存（服务启动后复用，随发版重启刷新）。
+- Rebuilt `/api_doc` as a native console-style page; removed embedded Swagger interaction.
+- Switched from HTTP-method filtering to query-semantic + permission-aware filtering; auto-hides incomplete entries.
+- Exposed read APIs: `GET /api/cron/query`, `GET /api/cron/logs`, `GET /api/cron/detail`, `GET /api/cron/log/detail`.
+- Query APIs include `total`/`has_more`; logs API supports `status`/`http_status`/time-range filters and `content_preview`.
+- Catalog cached in-process by permission set; refreshes on service restart.
 
-### 部署文档
+### Deployment docs
 
-- 非 Docker 部署指南新增 §3「前端开发环境」（Node.js/nvm）。README 新增 §2.1。
+- Non-Docker deployment guide added frontend development environment section (Node.js/nvm). README added corresponding section.
 
-322 个测试通过（覆盖颜色门禁、RBAC/S6、只读 API 文档与 Scope 查询接口）。
+322 tests pass (covering color audit gate, RBAC/S6, query-only API docs, and scope query endpoints).
 
 ## [2.5.0] — 2026-07-29
 
@@ -347,16 +356,25 @@ HTTP 定时回调调度、Web/API 管理、基础安全与质量、技术文档�
 
 - ORM / 参数化访问、密码哈希、SSRF 防护、统一 JSON、校验与服务层。
 
-## 版本一览
+## Version index
 
-| 版本 | 说明 |
+| Version | Highlights |
 | --- | --- |
-| **2.6.0** | 前端颜色收编（191 处→CSS 变量）、API access\_token 加固、颜色审计 CI 门禁 |
-| 2.1.1 | 集群锁原子化、生产 SECRET\_KEY、管理端 CSRF |
-| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
-| 2.0.0 | 任务中心、POST 触发、账户生命周期 |
-| 1.2.0 – 1.0.0 | 权限、业务组、生命周期、操作审计 |
-| 0.2.0 – 0.1.0 | 可观测、工程化、首发 |
+| **2.7.0** | Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization |
+| **2.6.0** | Color system consolidation, API access\_token hardening, S6 user-level token, query-only API docs |
+| 2.5.0 | Execution state machine (B1) + per-task timeout (B2) + frontend form validator (F3-a) |
+| 2.4.0 | Frontend modernization (Vite + Vue 3), reactive filter bar, password visibility toggle |
+| 2.3.0 | API contract standardization (OpenAPI 3.0 + Swagger UI) |
+| 2.2.0 | Structured JSON logging, Prometheus metrics, CSRF / timestamp bug fixes |
+| **2.1.1** | Cluster mutex atomicity, production SECRET\_KEY, admin CSRF |
+| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 runtime upgrade |
+| 2.0.0 | Task center, GET/POST trigger, account lifecycle |
+| 1.2.0 | Topbar identity, seed admin permissions, start/pause wording |
+| 1.1.0 | Resource group isolation, self-service password change |
+| 1.0.0 | Multi-user RBAC, task lifecycle, operation audit |
+| 0.2.0 | Execution observability, dependency & deployment hardening |
+| 0.1.1 | `/docs/` documentation portal, multi-version Python, CI |
+| 0.1.0 | Initial release |
 
 CronPilot · Release Notes · [Markdown](RELEASE_NOTES.md) · [索引](index.html)
 

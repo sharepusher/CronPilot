@@ -11,7 +11,7 @@ Python 3.8–3.11，自动创建 `.venv-py*`，无需手动 `source activate`。
 | `run_production.sh` | 启动 Gunicorn，监听 `:5860` | **会** — 进程需一直运行 |
 
 `install` = 准备环境（装软件）；`run` = 启动服务（跑起来）。  
-生产环境常把 `run` 交给 **systemd** 开机自启，见 [非Docker部署指南](doc/非Docker部署指南.html)。
+生产环境常把 `run` 交给 **systemd** 开机自启，见 [非Docker部署指南](doc/ops/非Docker部署指南.html)。
 
 ---
 
@@ -193,7 +193,7 @@ cp conf.ini.example conf.ini
 
 ## 路径 D：Docker 部署（推荐快速试用）
 
-> 完整说明：[doc/Docker部署指南.md](doc/Docker部署指南.md)
+> 完整说明：[doc/ops/Docker部署指南.md](doc/ops/Docker部署指南.md)
 
 适用：**不想在宿主机装 Python**、**apt/dpkg 有问题**、或 **快速验证**。  
 镜像基于 Ubuntu 22.04 + Python 3.9，容器内自动执行 `install_ubuntu.sh --production --sqlite`，**不依赖宿主机 PostgreSQL / deadsnakes**。
@@ -347,13 +347,13 @@ sudo bash -x /var/lib/dpkg/info/postgresql-common.postinst configure 2>&1 | tail
 | 未找到 python3.8 / Unable to locate package | **Ubuntu 16.04 默认源无 3.8**；`sudo bash scripts/install_python_ubuntu.sh`；或 **路径 C pyenv** |
 | Permission denied / dpkg lock | 所有 apt 命令前加 **sudo** |
 | `.venv-py39/bin/pip: No such file` | `rm -rf .venv-py* && bash scripts/bootstrap_venv.sh` |
-| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev`；或换 Python 3.9/3.10。长期见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html) Tier 2 |
-| 数据库迁移 CLI | `export FLASK_APP=manage:app` 后 `flask db migrate` / `flask db upgrade`（Py3.11 可用；见 [依赖升级 RFC](doc/依赖升级RFC.html) Tier 0） |
+| `pip install gevent` 失败 | 确认 `--production` 且已装 `libev-dev`；或换 Python 3.9/3.10。长期见 [doc/deps/依赖升级RFC.html](doc/deps/依赖升级RFC.html) Tier 2 |
+| 数据库迁移 CLI | `export FLASK_APP=manage:app` 后 `flask db migrate` / `flask db upgrade`（Py3.11 可用；见 [依赖升级 RFC](doc/deps/依赖升级RFC.html) Tier 0） |
 
 ---
 
 ## 分平台说明
 
-- [doc/linux安装与运行.md](doc/linux安装与运行.md)
-- [doc/ubuntu安装与运行.md](doc/ubuntu安装与运行.md)
-- [doc/centos安装与运行.md](doc/centos安装与运行.md)
+- [doc/ops/linux安装与运行.md](doc/ops/linux安装与运行.md)
+- [doc/ops/ubuntu安装与运行.md](doc/ops/ubuntu安装与运行.md)
+- [doc/ops/centos安装与运行.md](doc/ops/centos安装与运行.md)

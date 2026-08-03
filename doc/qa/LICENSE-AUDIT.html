@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>License Audit · CronPilot</title>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:920px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1e293b}
+    h1{font-size:1.5rem} h2{font-size:1.15rem;border-left:4px solid #2563eb;padding-left:.6rem;margin-top:2rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid #e2e8f0;padding:.45rem .55rem} th{background:#f1f5f9}
+    .crit{color:#b91c1c;font-weight:700}.ok{color:#059669}.warn{color:#b45309}
+    .card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0}
+    code{background:#f1f5f9;padding:.1rem .3rem;border-radius:3px}
+  </style>
+</head>
+<body>
+  <p><a href="../index.html">← 文档索引</a></p>
+  <h1>License Audit 报告</h1>
+  <p><strong>项目：</strong>CronPilot · <strong>审计日：</strong>2026-05-29 · <strong>范围：</strong>仓库声明、上游、Python 依赖、静态前端、文档引用</p>
+
+  <h2>1. 执行摘要</h2>
+  <div class="card">
+    <table>
+      <tr><th>维度</th><th>结论</th><th>风险</th></tr>
+      <tr><td>本仓库 LICENSE</td><td class="ok">已补充 Apache-2.0（整改后）</td><td>低</td></tr>
+      <tr><td>上游 CronPilot</td><td class="crit">GitHub <code>license: null</code>，无 LICENSE 文件</td><td>高</td></tr>
+      <tr><td>Python 直接依赖</td><td class="ok">以 MIT/BSD/Apache/ISC 为主</td><td>低～中</td></tr>
+      <tr><td>需关注依赖</td><td class="warn">chardet (LGPL)、certifi (MPL-2.0)</td><td>中</td></tr>
+      <tr><td>静态前端</td><td class="warn">jQuery/Bootstrap/FA 等未集中 NOTICE</td><td>中</td></tr>
+      <tr><td>商业闭源分发</td><td class="warn">可行但需 NOTICE + 上游权利确认</td><td>中</td></tr>
+    </table>
+  </div>
+
+  <h2>2. 本仓库（CronPilot）</h2>
+  <p><strong>整改前：</strong>无 LICENSE，README 写「沿用原项目开源协议」但上游无明确协议 → 法律上<strong>不可假定</strong>可自由再分发。</p>
+  <p><strong>整改后：</strong></p>
+  <ul>
+    <li><code>LICENSE</code> — Apache License 2.0（2026 CronPilot contributors）</li>
+    <li><code>NOTICE</code> — 上游来源声明与免责提示</li>
+    <li><code>THIRD_PARTY_NOTICES.md</code> — 依赖与静态资源清单</li>
+  </ul>
+  <p>Apache-2.0 仅覆盖<strong>本仓库贡献者</strong>享有版权的部分；自上游复制的代码块在上游未授权时，Apache 文件本身不能替代上游许可。</p>
+
+  <h2>3. 上游 aniu-lee/xiaoniu_cron</h2>
+  <ul>
+    <li>GitHub API：<code>"license": null</code></li>
+    <li>默认分支无 <code>LICENSE</code> / <code>LICENSE.txt</code></li>
+    <li><strong>建议：</strong>向作者确认许可（常见为 MIT）；或仅将上游作为内部参考、本仓库以净室新增文件为主</li>
+  </ul>
+
+  <h2>4. Python 依赖（requirements.txt）</h2>
+  <p>基于 PyPI 元数据与业界惯例归类（共 40 个直接依赖）：</p>
+  <table>
+    <tr><th>许可证族</th><th>代表包</th><th>商业使用</th></tr>
+    <tr><td>MIT</td><td>APScheduler, SQLAlchemy, gevent, redis, PyMySQL, …</td><td>允许，保留版权声明</td></tr>
+    <tr><td>BSD-3</td><td>Flask, Jinja2, Werkzeug, click, Flask-SQLAlchemy, …</td><td>允许，保留版权声明</td></tr>
+    <tr><td>Apache-2.0</td><td>requests, Flask-APScheduler, python-dateutil, …</td><td>允许，NOTICE + 专利授权条款</td></tr>
+    <tr><td>ISC</td><td>records</td><td>允许</td></tr>
+    <tr><td>ZPL-2.1</td><td>zope.interface, zope.event</td><td>允许（Zope Public License，类 BSD）</td></tr>
+    <tr><td>MPL-2.0</td><td>certifi</td><td>允许；修改 MPL 文件需回馈</td></tr>
+    <tr><td>LGPL-2.1+</td><td>chardet（经 requests 引入）</td><td>动态链接通常可接受；法务需确认分发形态</td></tr>
+  </table>
+  <p>未发现直接依赖<strong>强 Copyleft</strong>（GPL/AGPL）作为运行时必需项。</p>
+
+  <h2>5. 静态前端（app/static/）</h2>
+  <p>仓库内<strong>厂商自带</strong> jQuery、Vue、Bootstrap、Font Awesome、artDialog 等，多数为 MIT/BSD/OFL，但<strong>未随发行版附带完整许可证全文</strong>，不符合大型客户合规审计常见要求。</p>
+  <p><strong>建议：</strong>增加 <code>app/static/NOTICE-frontend.txt</code> 或构建时自动生成 SBOM/attribution 页面。</p>
+
+  <h2>6. 文档与参考实现</h2>
+  <p><code>doc/</code> 中对 <strong>Plombery</strong> 为分析性引用，未嵌入其源码 → MIT 文档引用无额外义务。若未来复制 Plombery 代码片段，需保留 MIT 声明。</p>
+
+  <h2>7. Docker / 系统层</h2>
+  <p><code>Dockerfile</code> 基于 <code>ubuntu:22.04</code> LTS，涉及 Canonical 镜像条款与系统包许可证，与 Python 包许可证审计正交。</p>
+
+  <h2>8. 合规行动清单</h2>
+  <table>
+    <tr><th>优先级</th><th>行动</th><th>状态</th></tr>
+    <tr><td>P0</td><td>添加 Apache-2.0 LICENSE + NOTICE</td><td class="ok">已完成</td></tr>
+    <tr><td>P0</td><td>THIRD_PARTY_NOTICES.md</td><td class="ok">已完成</td></tr>
+    <tr><td>P0</td><td>确认上游 CronPilot 书面许可</td><td>待办</td></tr>
+    <tr><td>P1</td><td>pip-licenses 纳入 CI 生成 SBOM</td><td>待办</td></tr>
+    <tr><td>P1</td><td>前端静态资源 NOTICE</td><td>待办</td></tr>
+    <tr><td>P2</td><td>升级 Dockerfile 基础镜像</td><td>待办</td></tr>
+  </table>
+
+  <h2>9. 免责声明</h2>
+  <p style="font-size:.9rem;color:#64748b">本报告为技术梳理，不构成法律意见。对外发布、SaaS 或政企投标前，请由法务基于实际分发形态（源码/二进制/Docker）终审。</p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="LICENSE-AUDIT.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

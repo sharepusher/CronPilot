@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · Docker 部署指南</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f172a,#1e3a8a 55%,#7c3aed);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .4rem;font-size:1.75rem}
+    .hero .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .nav-back{display:inline-block;margin-bottom:1rem;color:#bfdbfe;font-size:.9rem;text-decoration:none}
+    .layout{max-width:920px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.5rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.82rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .arch{background:#1e293b;color:#e2e8f0;padding:1.2rem;border-radius:10px;font-family:ui-monospace,monospace;font-size:.78rem;line-height:1.5;overflow:auto}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+    a{color:var(--p)}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a class="nav-back" href="../index.html">← 文档索引</a>
+  <span class="tag">运维</span>
+  <span class="tag">Docker</span>
+  <h1>Docker 部署指南</h1>
+  <p>Ubuntu 22.04 镜像 · Python 3.10 · 默认 SQLite 试用 · 端口 <code>5860</code></p>
+</header>
+
+<main class="layout">
+  <div class="note">
+    适用：<strong>快速试用</strong>、<strong>不在宿主机装 Python</strong>、或宿主机 <strong>apt/dpkg 异常</strong>（如 PostgreSQL 卡住）时。
+    镜像基于 Ubuntu 22.04 + Python 3.10，容器内自动执行 <code>install_ubuntu.sh --production --sqlite</code>。
+    裸机生产路径见 <a href="非Docker部署指南.html">非 Docker 部署指南</a>。
+  </div>
+
+  <section>
+    <h2>1. 部署拓扑</h2>
+    <div class="arch">宿主机 Docker
+  └── 容器 cronpilot (:5860)
+        ├── Gunicorn + gevent  →  Flask 管理端 + API
+        ├── /docs/             →  内置 HTML 技术文档
+        ├── ./datas  (volume)  →  SQLite + 日志
+        └── conf.ini (volume)  →  配置</div>
+    <p>与裸机一致：<strong>管理端与文档同一端口 <code>5860</code></strong>，无需 Nginx 即可内网访问。</p>
+  </section>
+
+  <section>
+    <h2>2. 环境要求</h2>
+    <table>
+      <tr><th>组件</th><th>要求</th></tr>
+      <tr><td>Docker</td><td>Docker Engine 20+ 或 Docker Desktop</td></tr>
+      <tr><td>Compose</td><td>Docker Compose v2（<code>docker compose</code>）</td></tr>
+      <tr><td>宿主机</td><td>无需安装 Python / MySQL（试用 SQLite）</td></tr>
+      <tr><td>端口</td><td>宿主机 <strong>5860</strong> 未被占用</td></tr>
+      <tr><td>运行时栈</td><td>镜像内 <strong>Python 3.10 + gunicorn 22.0.0 + gevent 23.9.1</strong>（勿期望 3.12+；Tier 2 已交付，见 <a href="../deps/依赖升级RFC.html">依赖升级 RFC</a>）</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. 快速开始（SQLite 试用）</h2>
+    <p class="note">首次启动前必须生成 <code>conf.ini</code>（<strong>勿</strong>直接 <code>cp conf.ci.ini</code>——其为内存库，Docker 下登录后会 <code>system error</code>）。推荐：</p>
+    <pre>git clone https://github.com/sharepusher/CronPilot.git
+cd CronPilot
+python3 scripts/write_sqlite_conf.py \
+  --out conf.ini --datas-dir datas --container-paths \
+  --template conf.local.sqlite.example
+
+docker compose up --build -d</pre>
+    <p>也可 <code>cp conf.local.sqlite.example conf.ini</code> 后把路径改为容器内 <code>/opt/cronpilot/datas/*.sqlite</code>。若省略 <code>conf.ini</code>，Docker 可能把其挂载成目录导致启动失败。</p>
+    <p class="note"><strong>SECRET_KEY：</strong>容器以 <code>FLASK_CONFIG=production</code> 启动。未设置环境变量时，
+      <code>run_production.sh</code> 会在挂载的 <code>./datas/.flask_secret_key</code> 首次生成强密钥。
+      也可在 <code>docker-compose.yml</code> 中注入 <code>SECRET_KEY</code>。多副本须共用同一密钥。</p>
+    <p class="note"><strong>CSRF（OPT-P0-11）：</strong>管理端写操作需页面内 Session Token。升级镜像后请硬刷新浏览器；勿用 GET 书签触发启停/立即执行。</p>
+    <table>
+      <tr><th>项</th><th>值</th></tr>
+      <tr><td>管理端</td><td><code>http://&lt;宿主机IP&gt;:5860/</code></td></tr>
+      <tr><td>技术文档</td><td><code>http://&lt;宿主机IP&gt;:5860/docs/</code></td></tr>
+      <tr><td>默认登录</td><td>用户名 <code>admin</code> · 初始密码 = <code>login_pwd</code>（常为 <code>changeme</code>，<strong>仅空库种子</strong>）</td></tr>
+      <tr><td>日常改密</td><td>管理端 <strong>用户管理 → 编辑 → 新密码</strong>；已有用户后改 <code>login_pwd</code> 并重启<strong>不会</strong>改库内密码</td></tr>
+    </table>
+    <pre>docker compose logs -f
+docker compose down</pre>
+  </section>
+
+  <section>
+    <h2>4. 配置与数据持久化</h2>
+    <p><code>docker-compose.yml</code> 默认挂载：</p>
+    <table>
+      <tr><th>宿主机路径</th><th>容器路径</th><th>说明</th></tr>
+      <tr><td><code>./datas</code></td><td><code>/opt/cronpilot/datas</code></td><td>SQLite 数据库、日志</td></tr>
+      <tr><td><code>./conf.ini</code></td><td><code>/opt/cronpilot/conf.ini</code></td><td>应用配置</td></tr>
+    </table>
+    <p>修改配置后重启：</p>
+    <pre>nano conf.ini
+docker compose restart</pre>
+  </section>
+
+  <section>
+    <h2>5. 生产：容器 + MySQL</h2>
+    <ol>
+      <li>在宿主机或独立服务器准备 MySQL，创建库与用户（见 <a href="../../INSTALL.md">INSTALL.md</a> 路径 B）。</li>
+      <li>编辑宿主机 <code>conf.ini</code>：</li>
+    </ol>
+    <pre>is_single=1
+cron_db_url=mysql+pymysql://cronpilot:密码@host.docker.internal:3306/cron_scheduler
+cron_job_log_db_url=mysql+pymysql://cronpilot:密码@host.docker.internal:3306/cron_job_log
+login_pwd=你的管理端初始密码（仅空库种子；日常改密走用户管理）</pre>
+    <p>执行 <code>docker compose up -d</code>。</p>
+    <h3>MySQL 地址说明</h3>
+    <table>
+      <tr><th>环境</th><th><code>cron_db_url</code> 主机</th></tr>
+      <tr><td>MySQL 在宿主机（Mac/Win Docker Desktop）</td><td><code>host.docker.internal</code></td></tr>
+      <tr><td>MySQL 在宿主机（Linux）</td><td>宿主机网桥 IP 或 <code>172.17.0.1</code></td></tr>
+      <tr><td>MySQL 在另一容器</td><td>Compose 服务名，如 <code>mysql</code></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. 手动构建（不用 compose）</h2>
+    <pre>docker build -t cronpilot:latest .
+docker run -d --name cronpilot \
+  -p 5860:5860 \
+  -v "$(pwd)/datas:/opt/cronpilot/datas" \
+  -v "$(pwd)/conf.ini:/opt/cronpilot/conf.ini" \
+  cronpilot:latest</pre>
+    <p>等价 Dockerfile 副本：<code>scripts/docker/Dockerfile.run</code>（<code>docker build -f scripts/docker/Dockerfile.run .</code>）。</p>
+  </section>
+
+  <section>
+    <h2>7. 镜像说明（v0.1.1+）</h2>
+    <table>
+      <tr><th>项目</th><th>说明</th></tr>
+      <tr><td>基础镜像</td><td><code>ubuntu:22.04</code></td></tr>
+      <tr><td>Python</td><td>3.10（deadsnakes PPA，容器内安装）</td></tr>
+      <tr><td>虚拟环境</td><td><code>.venv-py39</code>（构建期创建）</td></tr>
+      <tr><td>启动命令</td><td><code>bash scripts/run_production.sh</code></td></tr>
+      <tr><td>暴露端口</td><td><strong>5860</strong>（与裸机 <code>gun.py</code> 一致）</td></tr>
+    </table>
+    <p>构建期会自动跑健康检查（gunicorn 22 gevent worker）：<code>/docs/</code> 返回 HTML，<code>/</code> 返回 200 或 302。</p>
+    <p><code>docker_start.sh</code>、<code>docker_gun.py</code> 为旧 Supervisor 方案遗留，<strong>新镜像不再使用</strong>。</p>
+  </section>
+
+  <section>
+    <h2>8. 与旧版 Docker 的区别</h2>
+    <table>
+      <tr><th>旧版（已废弃）</th><th>v0.1.1+</th></tr>
+      <tr><td>Ubuntu 16.04 + Python 3.6</td><td>Ubuntu 22.04 + Python 3.10</td></tr>
+      <tr><td>容器 <code>:80</code> → 宿主机 <code>5002</code></td><td>统一 <strong><code>:5860</code></strong></td></tr>
+      <tr><td>Supervisor + <code>docker_start.sh</code></td><td>直接 <code>run_production.sh</code></td></tr>
+      <tr><td>豆瓣 pip 源</td><td>标准 <code>install_ubuntu.sh</code></td></tr>
+    </table>
+    <p><code>docker-compose.run.yml</code> 与 <code>docker-compose.yml</code> 内容相同，兼容旧命令 <code>-f docker-compose.run.yml</code>。</p>
+  </section>
+
+  <section>
+    <h2>9. 开发者：CI 与本地验收</h2>
+    <p><strong>Docker 声称「可用」须两条路径均通过</strong>（缺一不可）：</p>
+    <table>
+      <tr><th>路径</th><th>命令</th><th>验证什么</th></tr>
+      <tr><td>A · 隔离镜像</td><td><code>SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh</code></td><td>Dockerfile 构建 + 临时 conf</td></tr>
+      <tr><td>B · <strong>用户黄金路径</strong></td><td><code>bash scripts/verify_docker_compose.sh --keep-running</code></td><td><strong>宿主机 <code>conf.ini</code> volume + 登录 + cron_list</strong></td></tr>
+    </table>
+    <p>路径 B 才是 <code>docker compose up</code> 真实用法；路径 A 通过<strong>不能</strong>代替 B。</p>
+    <h3>裸机安装脚本验收（非运行镜像）</h3>
+    <p>在 Ubuntu / Rocky8 / CentOS7 容器内验证 <code>install_linux.sh</code> 链路：</p>
+    <pre>bash scripts/docker/verify_all.sh all</pre>
+    <p>GitHub Actions：<code>.github/workflows/docker-install-verify.yml</code>。</p>
+    <h3>Mac / 本地：compose 黄金路径（必跑）</h3>
+    <pre>bash scripts/verify_docker_compose.sh --keep-running</pre>
+    <p>使用仓库根目录 <code>conf.ini</code>（勿为 <code>:memory:</code>），<code>docker compose up</code> 后 login + cron_list 全量冒烟。</p>
+    <h3>隔离镜像验收（补充，不能代替 compose）</h3>
+    <pre>bash scripts/verify_cronpilot_docker_mac.sh</pre>
+    <p>扩展验收（含 login、cron_list、<code>flask db</code>、容器内 gevent/gunicorn 版本）：</p>
+    <pre>SMOKE_LEVEL=full bash scripts/verify_cronpilot_docker_mac.sh</pre>
+    <p>构建根目录 <code>Dockerfile</code>，生成<strong>临时 SQLite <code>conf.ini</code></strong>（不覆盖宿主机配置），启动容器并 curl <code>/docs/</code> 与 <code>/</code>。</p>
+  </section>
+
+  <section>
+    <h2>10. 常见问题</h2>
+    <table>
+      <tr><th>现象</th><th>处理</th></tr>
+      <tr><td>登录后页面 <code>system error</code> / 日志 <code>no such table: cron_infos</code></td><td><code>conf.ini</code> 误用 <code>conf.ci.ini</code>（<code>:memory:</code>）或路径不对；执行 <code>python3 scripts/write_sqlite_conf.py --out conf.ini --datas-dir datas --container-paths</code>，容器内 <code>bash scripts/ensure_business_tables.sh</code>，<code>docker compose restart</code></td></tr>
+      <tr><td><code>port is already allocated</code></td><td>改 <code>docker-compose.yml</code> 为 <code>"5861:5860"</code> 或释放 5860</td></tr>
+      <tr><td>容器启动后 502 / 无响应</td><td><code>docker compose logs</code>；确认 <code>conf.ini</code> 是文件且已正确挂载</td></tr>
+      <tr><td><code>conf.ini</code> 变成目录</td><td>删除该目录，<code>cp conf.ini.example conf.ini</code> 后重启</td></tr>
+      <tr><td>想清空试用数据</td><td><code>docker compose down</code> 后 <code>rm -rf datas/*.sqlite</code></td></tr>
+      <tr><td>宿主机 apt 坏了</td><td>Docker 路径<strong>不依赖</strong>宿主机 apt 装 Python</td></tr>
+      <tr><td>构建很慢</td><td>首次需 apt + pip，约 5–15 分钟；后续层有缓存</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>11. 相关文档</h2>
+    <ul>
+      <li><a href="../deps/依赖升级RFC.html">依赖升级 RFC</a> — Tier 0～4 分层路线、Docker/Python 栈约束</li>
+      <li><a href="../../INSTALL.md">INSTALL.md</a> — 路径 A/B/C/D 总览</li>
+      <li><a href="非Docker部署指南.html">非 Docker 部署指南</a> — 裸机生产、systemd、Nginx</li>
+      <li><a href="ubuntu安装与运行.md">ubuntu安装与运行.md</a> — Ubuntu 裸机分步</li>
+      <li><a href="linux安装与运行.md">linux安装与运行.md</a> — Linux 安装总览</li>
+    </ul>
+  </section>
+</main>
+<footer>
+  CronPilot · Docker 部署 · v0.1.1 ·
+  <a href="Docker部署指南.md">Markdown 版</a> ·
+  <a href="../index.html">文档索引</a>
+</footer>
+</body>
+</html>

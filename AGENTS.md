@@ -14,11 +14,11 @@
 
 **协作闭环（强制）**：**清晰完整准确的设计（含分批 + 验收）→ 经用户确认 → 再实现 → 验证 → 可验证本地环境 → 文档 → commit**。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
 
-**Bug 修复复盘（强制）**：每次修复用户报告的 bug，必须在交付回复中包含：Bug 定位 → 根因 → 测试漏洞分析 → 修复 → 防护测试 → 同类排查。测试分层须明确（单元 / 集成 / E2E），集成或 E2E 层的 bug 必须在对应层新增测试（`tests/test_*_integration.py`）。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
+**Bug 修复复盘（强制 · 所有问题修复）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 工具）。交付回复必须包含：Bug 定位 → 根因 → 测试漏洞分析 → 修复 → 防护测试 → 同类排查。批量同根因可合并复盘但不得省略。测试分层须明确（单元 / 集成 / E2E），集成或 E2E 层的 bug 必须在对应层新增测试（`tests/test_*_integration.py`）。**交付前自检**：本轮有修复动作 → 回复中是否有复盘？缺失则先补再发。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 
 **编号读法**：OPT（功能）/ Tier（依赖大阶段）/ Phase（ORM·框架子阶段）/ DEC（RFC 决策）不是同一套号。权威页：`doc/需求编号与缩写规范.html`。对外须写全称，如 `OPT-P1-03`、`Phase D3（OPT-P2-11）`。
 
-依赖升级路线（OPT-P2-11）：`doc/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → Phase D0/D1/D2 ✓ → **下一依赖动作 Phase D3** → Tier 3b/3c。
+依赖升级路线（OPT-P2-11）：`doc/deps/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → Phase D0/D1/D2 ✓ → **下一依赖动作 Phase D3** → Tier 3b/3c。
 
 **交付总览**：`doc/交付状态与路线图.html` — 已发布版本、已完成 OPT/RFC 与未完成项对照。
 
@@ -51,7 +51,10 @@ bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒�
 bash scripts/assert_framework_pins.sh   # Phase D3：断言 Framework pin 与 requirements.txt 一致
 python scripts/audit_hardcoded_colors.py --check  # 颜色审计：检查模板/Vue 中是否有硬编码颜色
 python scripts/audit_hardcoded_colors.py --mapping # 查看色值→令牌完整映射表
-python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES
+python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES + Unreleased 残留 + 版本总览表
+python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.html 是否在 index.html 中注册
+python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
+python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · Phase D3 · Docker pin 矩阵设计</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0369a1;--ok:#059669}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0c4a6e,#0369a1 55%,#38bdf8);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.86rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin:1rem 0}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .confirm{background:#f0f9ff;border:2px solid #7dd3fc;border-radius:8px;padding:1rem 1.1rem;font-size:.9rem;margin:1.5rem 0}
+    .ok-box{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="../index.html" style="color:#e0f2fe;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P2-11</span><span class="tag">Phase D3</span><span class="tag">已交付</span>
+  <h1>Phase D3 · Docker / pip show 矩阵</h1>
+  <p>Framework Generation 运行时硬门：容器内 pin 与 requirements 一致</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：D3-1 / D3-2 / D3-3 <strong>已交付</strong>（2026-07-22 compose 实测 OK）</p>
+</header>
+
+<main class="layout">
+
+  <div class="ok-box">
+    <strong>Phase D3 已交付（2026-07-22）：</strong>
+    D3-1 本地 pin 断言；D3-2 <code>bash scripts/verify_docker_compose.sh --rebuild --keep-running</code>
+    日志含 Framework pins 8/8 OK + <code>COMPOSE_VERIFY: OK</code>；D3-3 NOTICE / RELEASE / 路线图 / RFC 已收尾。
+    构建期 gunicorn 冒烟需 <code>SECRET_KEY</code>；verify 写入容器 SQLite 路径；冒烟在 <code>pipefail</code> 下对大 HTML 用 here-string 匹配中文标记。
+  </div>
+
+  <div class="note">
+    <strong>定位：</strong>属 <strong>OPT-P2-11</strong> · Framework Generation 子阶段 <strong>Phase D3</strong>
+   （见 <a href="PhaseD0-Framework-Generation决策.html">Phase D0</a> 验收契约 #4）。
+    闭合「声明 pin」与「Docker 镜像实际安装」之间的缺口。
+  </div>
+
+  <h2>一、问题 / 根因 / 方案</h2>
+  <table>
+    <tr><th>项</th><th>内容</th></tr>
+    <tr>
+      <td>问题</td>
+      <td>Phase D1 已 pin Flask 2.3.3 / SA 2.0.36 / FSA 3.1.1 等；本地 <code>cronpilot.sh test</code> 与 <code>verify_all --local-only</code> 已绿。
+      现有 <code>verify_docker_compose.sh</code> 只断言 gevent/gunicorn/apscheduler <strong>可 import</strong>，<strong>不比对</strong> Framework Generation 核心 pin。
+      镜像层缓存或安装路径漂移时，可能出现「文档已升、容器仍旧栈」。</td>
+    </tr>
+    <tr>
+      <td>根因</td>
+      <td>三套真相（requirements / 本地 venv / Docker 镜像）未焊死；D0 刻意把 compose + <code>pip show</code> 留到 D3，避免与 pin/Mapped 同窗。</td>
+    </tr>
+    <tr>
+      <td>方案</td>
+      <td>新增可复用的容器内 pin 断言（从 <code>requirements.txt</code> 读期望版本）→ 挂入 compose 黄金路径 →
+      核对 <code>THIRD_PARTY_NOTICES.md</code> → 文档标 Phase D3 已交付。</td>
+    </tr>
+  </table>
+
+  <h2>二、范围</h2>
+  <table>
+    <tr><th>做</th><th>不做</th></tr>
+    <tr>
+      <td>
+        <ul style="margin:0;padding-left:1.1rem">
+          <li>脚本：容器内 <code>pip show</code>（或等价）断言核心包版本</li>
+          <li>接入 <code>verify_docker_compose.sh</code>（建议 <code>--rebuild</code> 时必跑）</li>
+          <li><code>verify_all.sh --docker-only --with-compose</code> 路径覆盖该断言</li>
+          <li>核对/微调 <code>THIRD_PARTY_NOTICES.md</code> 与 pin 一致</li>
+          <li>RELEASE / 交付状态 / D0·RFC 状态更新</li>
+        </ul>
+      </td>
+      <td>
+        <ul style="margin:0;padding-left:1.1rem">
+          <li>Flask 3 / Python 3.12+ / 再 bump 主依赖</li>
+          <li>Tier 3b/3c 生产库迁移</li>
+          <li>OPT-P1-* 功能</li>
+          <li>强制改 Dockerfile 结构（仅当断言失败且根因在镜像安装时最小修复）</li>
+          <li>把 install-full 三发行版矩阵全部重跑（可选后续，非本窗必达）</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+
+  <h2>三、断言 pin 清单（D3 硬门）</h2>
+  <p>以仓库根 <code>requirements.txt</code> 为准（与 Phase D1 同窗集合）。容器内版本必须<strong>精确相等</strong>：</p>
+  <table>
+    <tr><th>包</th><th>期望（当前）</th></tr>
+    <tr><td>Flask</td><td>2.3.3</td></tr>
+    <tr><td>Werkzeug</td><td>2.3.8</td></tr>
+    <tr><td>Jinja2</td><td>3.1.6</td></tr>
+    <tr><td>SQLAlchemy</td><td>2.0.36</td></tr>
+    <tr><td>Flask-SQLAlchemy</td><td>3.1.1</td></tr>
+    <tr><td>alembic</td><td>1.14.1</td></tr>
+    <tr><td>Flask-Migrate</td><td>4.0.7</td></tr>
+    <tr><td>blinker</td><td>1.8.2</td></tr>
+  </table>
+  <p class="note">实现时从 <code>requirements.txt</code> <strong>解析</strong>上述包的 <code>==</code> 版本，避免脚本内再写死一份（防双源漂移）。包名列表可维护在脚本常量中。</p>
+
+  <h2>四、分批</h2>
+  <table>
+    <tr><th>批</th><th>内容</th><th>可独立验收</th></tr>
+    <tr>
+      <td><strong>D3-1</strong> ✓</td>
+      <td>新增 <code>scripts/assert_framework_pins.sh</code> / <code>.py</code>：
+      支持本地 venv；读 requirements → <code>pip show</code> → 失败打印 diff。</td>
+      <td>本地 venv：8/8 OK（2026-07-20）</td>
+    </tr>
+    <tr>
+      <td><strong>D3-2</strong> ✓</td>
+      <td>挂入 <code>verify_docker_compose.sh</code>；2026-07-22
+      <code>--rebuild --keep-running</code> 实测通过（pin 8/8 + HTTP smoke）。</td>
+      <td>COMPOSE_VERIFY: OK</td>
+    </tr>
+    <tr>
+      <td><strong>D3-3</strong> ✓</td>
+      <td>核对 NOTICE；RELEASE / 交付状态 / RFC 标 Phase D3 已交付；
+      <code>html_docs_to_markdown.py --check</code>。</td>
+      <td>2026-07-22</td>
+    </tr>
+  </table>
+
+  <h2>五、验收门禁</h2>
+  <table>
+    <tr><th>#</th><th>门禁</th></tr>
+    <tr><td>1</td><td>本地：<code>bash scripts/assert_framework_pins.sh</code>（或等价）对开发 venv 通过</td></tr>
+    <tr><td>2</td><td><code>bash scripts/verify_docker_compose.sh --rebuild --keep-running</code>（或 verify_all docker compose 节）通过，且日志含 pin 断言 OK</td></tr>
+    <tr><td>3</td><td>容器内抽查：<code>pip show Flask SQLAlchemy Flask-SQLAlchemy</code> 与 requirements 一致</td></tr>
+    <tr><td>4</td><td><code>THIRD_PARTY_NOTICES.md</code> 上述包版本一致</td></tr>
+    <tr><td>5</td><td>文档同步 + <code>html_docs_to_markdown.py --check</code></td></tr>
+  </table>
+
+  <h2>六、风险与注意</h2>
+  <ul>
+    <li>Docker 不可用时：D3-2 无法在本机完成 → 不得宣称 Phase D3 已交付；可只合 D3-1 并标明「compose 待 CI/有 Docker 的环境」。</li>
+    <li>断言失败优先查：未 <code>--rebuild</code>、install 脚本装的是 core 而非 full、<code>CRONPILOT_VENV</code> 指错。</li>
+    <li>不扩大到 centos/ubuntu 多 Dockerfile 全矩阵（那是可选加固，非本窗必达）。</li>
+  </ul>
+
+  <div class="ok-box">
+    <strong>确认记录：</strong>设计已确认并实现；2026-07-22 Docker 恢复后完成 D3-2/D3-3。
+  </div>
+
+  <p>
+    <a href="PhaseD0-Framework-Generation决策.html">Phase D0</a> ·
+    <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
+    <a href="../交付状态与路线图.html">交付状态</a> ·
+    <a href="../需求编号与缩写规范.html">编号规范</a>
+  </p>
+</main>
+<footer>CronPilot · Phase D3 设计 · 已交付 2026-07-22 · <a href="../index.html">索引</a> · <a href="PhaseD3-Docker-pin矩阵设计.md">Markdown</a></footer>
+</body>
+</html>

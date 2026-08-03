@@ -30,12 +30,17 @@ alwaysApply: false
 - [ ] 设计已确认（优化与功能开发均须；含分批与可执行验收；**确认前无实现 diff**）
 - [ ] **验证通过**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`
 - [ ] **Release 前文档梳理**（打 tag / 发 GitHub Release **之前**必做）：
-  - [ ] `RELEASE_NOTES.md` / `doc/RELEASE_NOTES.html`：对外专业表述（变更要点 + 升级步骤）；**无**内部编号与进度板口吻；`[Unreleased]` 仅占位，细节在交付状态页
+  - [ ] `RELEASE_NOTES.md` / `doc/RELEASE_NOTES.html`：对外专业英文表述（变更要点 + 升级步骤）；**无**内部编号与进度板口吻
+  - [ ] **Unreleased 归档**：将 `[Unreleased]` 节下所有实质内容合并到新版本节，Unreleased 节清空（仅保留占位说明）
+  - [ ] **双文件同步**：根目录 `RELEASE_NOTES.md` 与 `doc/RELEASE_NOTES.html` 的版本节数、子节标题、测试计数三项须一致
+  - [ ] **版本总览表更新**：底部 "Version index" 表须包含新版本行
+  - [ ] `python scripts/check_version_consistency.py --check` 通过（含 Unreleased 残留检查 + 版本总览表完整性）
   - [ ] **`README.md` 版本表**：新增版本行（版本号 + 一行能力摘要）；**行 5 概述**与最新版本一致
   - [ ] **`doc/交付状态与路线图.html`「已发布版本」表**：新增版本行（版本 + 日期 + 摘要 + RELEASE_NOTES 链接）；核查已交付 OPT/RFC 状态列是否已更新
   - [ ] **OPT/RFC 状态同步**：本版本交付的功能在路线图表中标为「已交付 + 版本号」，而非遗留「未开始」或「设计待确认」
   - [ ] 相关设计稿页眉与 `doc/产品优化需求`、`doc/依赖升级RFC`、`doc/详细技术方案` 版本列一致
-  - [ ] `doc/index.html` / `index.md` 入口与 README 版本表对齐
+  - [ ] `doc/index.html` / `index.md` 入口与 README 版本表对齐；新增设计文档须注册到 index
+  - [ ] `python scripts/check_doc_completeness.py --check` 通过（CI 门禁 `doc-completeness.yml`）
 - [ ] **编号分配检查**（新功能/RFC/设计稿）：分配 OPT/Phase/DEC 编号前，`grep 'OPT-P[0-2]-' doc/交付状态与路线图.html` 确认编号未被占用；权威编号登记在 `doc/需求编号与缩写规范.html`
 - [ ] **文档已同步**：`RELEASE_NOTES` + 相关 `doc/*.html`；`html_docs_to_markdown.py --check` 通过
 - [ ] **同一 commit** 含代码与文档（除非用户要求拆 PR）

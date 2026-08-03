@@ -37,17 +37,17 @@
   <h1>交付状态与路线图</h1>
   <p>当前发行版文档已收录：<strong>v2.7.0</strong>（2026-08-03，admin Scope 差异化 + 审计 Scope 过滤 + 版本一致性 CI）· <strong>v2.6.0</strong>（2026-07-31，颜色收编 + API 加固 + S6 Token + 查询式 API 文档）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.4.0</strong>（2026-07-27，前端现代化 Vite+Vue3）· <strong>v2.3.0</strong>（2026-07-24，API 契约 OpenAPI 3.0）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
   <div class="note">
-    <strong>2026-07-24 v2.2.0（可观测性 + Bug 修复）：</strong>结构化 JSON 日志（python-json-logger）、Gunicorn JSON 访问日志、调度器 event 枚举、Prometheus 五指标（<code>/metrics</code> Bearer Token + session 双模认证）、Grafana Dashboard；补丁：AJAX 表单 CSRF token 注入修复、JSON 日志 timestamp <code>%f</code> 字面量修复、logout CSRF 保护。详见 <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a> · <a href="RELEASE_NOTES.html#220">Release Notes [2.2.0]</a>。
+    <strong>2026-07-24 v2.2.0（可观测性 + Bug 修复）：</strong>结构化 JSON 日志（python-json-logger）、Gunicorn JSON 访问日志、调度器 event 枚举、Prometheus 五指标（<code>/metrics</code> Bearer Token + session 双模认证）、Grafana Dashboard；补丁：AJAX 表单 CSRF token 注入修复、JSON 日志 timestamp <code>%f</code> 字面量修复、logout CSRF 保护。详见 <a href="design/P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a> · <a href="RELEASE_NOTES.html#220">Release Notes [2.2.0]</a>。
     <br>
-    <strong>2026-07-21 v2.1.1（OPT-P0-09 / OPT-P0-10 / OPT-P0-11）：</strong>集群 Redis 锁原子化、生产 <code>SECRET_KEY</code> fail-fast、管理端 CSRF（写操作 POST + Session Token）。详见 <a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <a href="OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <a href="RELEASE_NOTES.html#211">Release Notes [2.1.1]</a>。
+    <strong>2026-07-21 v2.1.1（OPT-P0-09 / OPT-P0-10 / OPT-P0-11）：</strong>集群 Redis 锁原子化、生产 <code>SECRET_KEY</code> fail-fast、管理端 CSRF（写操作 POST + Session Token）。详见 <a href="arch/OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <a href="arch/OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <a href="RELEASE_NOTES.html#211">Release Notes [2.1.1]</a>。
     <br>
     <strong>2026-07-20 v2.1.0（OPT-P2-11）：</strong>依赖轨绿场闭环已发布。详见 <a href="RELEASE_NOTES.html#210">Release Notes [2.1.0]</a>。
     <br>
-    <strong>2026-07-20 Tier 3b-A（OPT-P2-11）：</strong>schema 主路径 = <code>ensure_business_tables</code>；空库重放单测已交付。详见 <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b</a>。
+    <strong>2026-07-20 Tier 3b-A（OPT-P2-11）：</strong>schema 主路径 = <code>ensure_business_tables</code>；空库重放单测已交付。详见 <a href="deps/Tier3b-迁移重放与残余收束设计.html">Tier 3b</a>。
     <br>
-    <strong>2026-07-20 Tier 3c（OPT-P2-11）：</strong><strong>搁置</strong>（无存量升级问题，不实现）。详见 <a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a>。
+    <strong>2026-07-20 Tier 3c（OPT-P2-11）：</strong><strong>搁置</strong>（无存量升级问题，不实现）。详见 <a href="deps/Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a>。
     <br>
-    <strong>2026-07-20 Phase D2（OPT-P2-11）：</strong><code>datas/model</code> 九表已迁 <strong>Mapped[]</strong>；门禁 <code>test_mapped_model_guard</code>。详见 <a href="PhaseD2-Mapped模型迁移.html">Phase D2</a> / <a href="依赖升级RFC.html">RFC</a> / <a href="需求编号与缩写规范.html">编号规范</a>。
+    <strong>2026-07-20 Phase D2（OPT-P2-11）：</strong><code>datas/model</code> 九表已迁 <strong>Mapped[]</strong>；门禁 <code>test_mapped_model_guard</code>。详见 <a href="deps/PhaseD2-Mapped模型迁移.html">Phase D2</a> / <a href="deps/依赖升级RFC.html">RFC</a> / <a href="需求编号与缩写规范.html">编号规范</a>。
     <br>
     <strong>2026-07-20 Phase D1（OPT-P2-11 · DEC-008）：</strong>已同窗 bump <strong>Flask 2.3.3 + SA 2.0.36 + FSA 3.1.1 + Alembic 1.14.1</strong>；Python 支持 <strong>3.8–3.11</strong>。
   </div>
@@ -73,7 +73,7 @@
     <tr>
       <td><strong>v0.1.0</strong></td><td>2026-05-29</td>
       <td>Phase A（P0）：SQL 参数化、密码哈希、SSRF、JSON 契约、校验/service 统一</td>
-      <td><a href="RELEASE_NOTES.html#010">Release Notes</a> · <a href="P0测试用例与验收手册.html">P0 验收</a></td>
+      <td><a href="RELEASE_NOTES.html#010">Release Notes</a> · <a href="qa/P0测试用例与验收手册.html">P0 验收</a></td>
     </tr>
     <tr>
       <td><strong>v0.1.1</strong></td><td>2026-06-01</td>
@@ -128,7 +128,7 @@
     <tr>
       <td><strong>v2.2.0</strong></td><td>2026-07-24</td>
       <td>可观测性：结构化 JSON 日志（python-json-logger）、Gunicorn 访问日志、调度器 event 枚举、Prometheus 五指标（/metrics Bearer Token）、Grafana Dashboard；补丁：AJAX 表单 CSRF 注入修复、timestamp %f 修复、logout CSRF 保护</td>
-      <td><a href="RELEASE_NOTES.html#220">Release Notes</a> · <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a></td>
+      <td><a href="RELEASE_NOTES.html#220">Release Notes</a> · <a href="design/P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a></td>
     </tr>
     <tr>
       <td><strong>v2.1.1</strong></td><td>2026-07-21</td>
@@ -150,36 +150,36 @@
   <h2>二、功能优化清单（OPT-*）</h2>
   <table>
     <tr><th>ID</th><th>名称</th><th>状态</th><th>版本</th><th>设计 / 说明</th></tr>
-    <tr><td>OPT-P0-01</td><td>SQL 参数化</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html#opt-p0-01">PRD</a></td></tr>
-    <tr><td>OPT-P0-02</td><td>密码哈希</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P0-03</td><td>SSRF 防护</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P0-04</td><td>统一 JSON 契约</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P0-05</td><td>校验 / service 抽取</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P0-09</td><td>集群 Redis 互斥锁原子化（SET NX EX + token 释放）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>single_task</code></td></tr>
-    <tr><td>OPT-P0-10</td><td>生产 SECRET_KEY fail-fast</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>run_production.sh</code> / <code>datas/.flask_secret_key</code></td></tr>
-    <tr><td>OPT-P0-11</td><td>管理端 CSRF 防护（写操作 POST + Session Token）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <code>app/security/csrf.py</code></td></tr>
-    <tr><td>UI-A′</td><td>执行记录单列两行 + 查看详情 + <code>http_status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
-    <tr><td>UI-B1</td><td>Cron 分钟 <code>*/1</code> 灰字提示</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
-    <tr><td>OPT-P1-01</td><td>执行 <code>status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="P1可观测优化设计.html">P1 可观测设计</a></td></tr>
-    <tr><td>OPT-P1-02</td><td>失败判定规则</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="P1可观测优化设计.html">P1 可观测设计</a></td></tr>
-    <tr><td>OPT-P1-07</td><td>导航栏 <code>_admin_nav.html</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="管理端UI优化设计.html">管理端 UI §十</a></td></tr>
-    <tr><td>OPT-P1-01b/c</td><td>徽章/HTTP 展示统一 + 失败筛选</td><td class="s-done">01c 已交付 · 01b 仍待确认</td><td>v2.0.0（01c）</td><td><a href="P1可观测小步优化设计.html">P1 小步设计</a> · outcome 筛选见执行记录页</td></tr>
-    <tr><td>OPT-P1-03</td><td>独立执行详情页 <code>/job_log/&lt;id&gt;</code></td><td class="s-draft">设计待确认</td><td>—</td><td><a href="P1执行详情与立即执行设计.html">P1-03/04 设计</a></td></tr>
-    <tr><td>OPT-P1-04</td><td>立即执行</td><td class="s-done">列表侧已交付 · 详情页联动仍待确认</td><td>v2.0.0</td><td><a href="P1执行详情与立即执行设计.html">P1-03/04 设计</a> · <code>/cron_run_now</code></td></tr>
-    <tr><td>OPT-P1-05</td><td>强化 add_log 结构化</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-01</td><td>SQL 参数化</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="product/产品优化需求-借鉴Plombery.html#opt-p0-01">PRD</a></td></tr>
+    <tr><td>OPT-P0-02</td><td>密码哈希</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-03</td><td>SSRF 防护</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-04</td><td>统一 JSON 契约</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-05</td><td>校验 / service 抽取</td><td class="s-done">已交付</td><td>v0.1.0</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P0-09</td><td>集群 Redis 互斥锁原子化（SET NX EX + token 释放）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>single_task</code></td></tr>
+    <tr><td>OPT-P0-10</td><td>生产 SECRET_KEY fail-fast</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>run_production.sh</code> / <code>datas/.flask_secret_key</code></td></tr>
+    <tr><td>OPT-P0-11</td><td>管理端 CSRF 防护（写操作 POST + Session Token）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <code>app/security/csrf.py</code></td></tr>
+    <tr><td>UI-A′</td><td>执行记录单列两行 + 查看详情 + <code>http_status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
+    <tr><td>UI-B1</td><td>Cron 分钟 <code>*/1</code> 灰字提示</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
+    <tr><td>OPT-P1-01</td><td>执行 <code>status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="plan/P1可观测优化设计.html">P1 可观测设计</a></td></tr>
+    <tr><td>OPT-P1-02</td><td>失败判定规则</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="plan/P1可观测优化设计.html">P1 可观测设计</a></td></tr>
+    <tr><td>OPT-P1-07</td><td>导航栏 <code>_admin_nav.html</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI §十</a></td></tr>
+    <tr><td>OPT-P1-01b/c</td><td>徽章/HTTP 展示统一 + 失败筛选</td><td class="s-done">01c 已交付 · 01b 仍待确认</td><td>v2.0.0（01c）</td><td><a href="plan/P1可观测小步优化设计.html">P1 小步设计</a> · outcome 筛选见执行记录页</td></tr>
+    <tr><td>OPT-P1-03</td><td>独立执行详情页 <code>/job_log/&lt;id&gt;</code></td><td class="s-draft">设计待确认</td><td>—</td><td><a href="plan/P1执行详情与立即执行设计.html">P1-03/04 设计</a></td></tr>
+    <tr><td>OPT-P1-04</td><td>立即执行</td><td class="s-done">列表侧已交付 · 详情页联动仍待确认</td><td>v2.0.0</td><td><a href="plan/P1执行详情与立即执行设计.html">P1-03/04 设计</a> · <code>/cron_run_now</code></td></tr>
+    <tr><td>OPT-P1-05</td><td>强化 add_log 结构化</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
     <tr><td>OPT-P1-06</td><td>OpenAPI 可交互文档</td><td class="s-done">已交付</td><td>v2.3.0</td><td>OPT-P1-CONTRACT：OpenAPI 3.0 + Swagger UI（<code>/api/swagger</code>）；v2.6.0 重设计为查询式只读页面</td></tr>
-    <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P1-09</td><td>管理操作审计 <code>operation_log</code></td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="架构设计文档.html#op-audit-detail">架构 §6.5</a> · <code>/operation_log_list</code></td></tr>
-    <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="RBAC架构设计方案.html">详设 v4</a> · <a href="RBAC落地路线.html">落地路线</a> · 无删除 / <code>cron:retire</code> · 三角色验收</td></tr>
-    <tr><td>OPT-P2-12</td><td>Resource Scope 资源隔离</td><td class="s-done">已交付</td><td>v1.1.0</td><td><a href="资源隔离与Scope设计.html">Scope 详设</a> · <a href="资源隔离落地路线.html">落地路线</a> · 业务组 · 防 IDOR · API 首期除外（<a href="资源隔离与Scope设计.html#future">S6</a> 用户级 Token 已交付；<a href="RBAC与群组权限管理评审报告.html">API 最小止损</a> 已交付）</td></tr>
-    <tr><td>OPT-P2-13</td><td>规模化信息架构（L1/L2/L3 · job_health · Scope UX · 列表密度）</td><td class="s-done">五列任务中心 + 健康快筛已交付 · Metric 条暂隐</td><td>v2.0.0</td><td><a href="规模化信息架构设计.html">总设计</a>（含 <a href="规模化信息架构设计.html#s5-1">§5.1</a>）· <a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a>；与 OPT-P2-02 / P1-01c 衔接</td></tr>
+    <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P1-09</td><td>管理操作审计 <code>operation_log</code></td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="arch/架构设计文档.html#op-audit-detail">架构 §6.5</a> · <code>/operation_log_list</code></td></tr>
+    <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="design/RBAC架构设计方案.html">详设 v4</a> · <a href="design/RBAC落地路线.html">落地路线</a> · 无删除 / <code>cron:retire</code> · 三角色验收</td></tr>
+    <tr><td>OPT-P2-12</td><td>Resource Scope 资源隔离</td><td class="s-done">已交付</td><td>v1.1.0</td><td><a href="design/资源隔离与Scope设计.html">Scope 详设</a> · <a href="design/资源隔离落地路线.html">落地路线</a> · 业务组 · 防 IDOR · API 首期除外（<a href="design/资源隔离与Scope设计.html#future">S6</a> 用户级 Token 已交付；<a href="design/RBAC与群组权限管理评审报告.html">API 最小止损</a> 已交付）</td></tr>
+    <tr><td>OPT-P2-13</td><td>规模化信息架构（L1/L2/L3 · job_health · Scope UX · 列表密度）</td><td class="s-done">五列任务中心 + 健康快筛已交付 · Metric 条暂隐</td><td>v2.0.0</td><td><a href="design/规模化信息架构设计.html">总设计</a>（含 <a href="design/规模化信息架构设计.html#s5-1">§5.1</a>）· <a href="design/规模化Scope过滤与角色差异化设计.html">Scope UX</a>；与 OPT-P2-02 / P1-01c 衔接</td></tr>
     <tr><td>OPT-P2-14</td><td>前端现代化（Vite + Vue 3 · F0/F1/F2/F3-a）</td><td class="s-done">已交付</td><td>v2.4.0 / v2.5.0</td><td>F0 死文件清理 · F1 CronStatusCell · F2 CronFilterBar+Toast · F3-a CronFormValidator</td></tr>
-    <tr><td>OPT-P2-15</td><td>管理员 admin Scope 差异化（种子 vs 管理员）</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="管理员admin-Scope差异化设计.html">设计稿</a>：种子全局只读 · 管理员按组 · <code>__ALL__</code> 虚拟组 · 用户列表隐藏种子</td></tr>
-    <tr><td>OPT-P2-16</td><td>审计日志 Scope 过滤</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="审计日志Scope过滤RFC.html">RFC</a>：方案 A（按操作者组过滤）· <code>actor_group_ids</code> 逗号包围 · LIKE 匹配</td></tr>
+    <tr><td>OPT-P2-15</td><td>管理员 admin Scope 差异化（种子 vs 管理员）</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="design/管理员admin-Scope差异化设计.html">设计稿</a>：种子全局只读 · 管理员按组 · <code>__ALL__</code> 虚拟组 · 用户列表隐藏种子</td></tr>
+    <tr><td>OPT-P2-16</td><td>审计日志 Scope 过滤</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="design/审计日志Scope过滤RFC.html">RFC</a>：方案 A（按操作者组过滤）· <code>actor_group_ids</code> 逗号包围 · LIKE 匹配</td></tr>
     <tr><td>OPT-P2-17</td><td>时间列索引规范 + 搜索/查询性能治理</td><td class="s-done">已交付</td><td>v2.7.x</td><td>7 表时间列补索引 · 用户管理/审计日志搜索 · 查询性能评估规范 · API Token 存量补签 · UI 搜索栏样式统一</td></tr>
-    <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
-    <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间（无 <code>retired_by</code>）；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
-    <tr><td>OPT-P2-01~09</td><td>SSE、图表、OAuth、metrics…</td><td class="s-future">远期 P2</td><td>—</td><td><a href="产品优化需求-借鉴Plombery.html">PRD Phase C</a></td></tr>
+    <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="design/任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
+    <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="design/任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间（无 <code>retired_by</code>）；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
+    <tr><td>OPT-P2-01~09</td><td>SSE、图表、OAuth、metrics…</td><td class="s-future">远期 P2</td><td>—</td><td><a href="product/产品优化需求-借鉴Plombery.html">PRD Phase C</a></td></tr>
   </table>
 
   <h2>三、依赖升级（OPT-P2-11 · Tier / Phase）</h2>
@@ -189,19 +189,19 @@
     <tr><td>Tier 1 · SA 1.4.52 + FSA 2.5.1</td><td class="s-done">已交付</td><td>v0.2.0</td><td><code>Model.query</code> 已迁移</td></tr>
     <tr><td>侧车 RFC-S.1 · requests/urllib3/certifi</td><td class="s-done">已交付</td><td>v0.2.0</td><td>HTTP 安全补丁</td></tr>
     <tr><td>侧车 RFC-S.2 · PyMySQL 1.1.2</td><td class="s-done">已交付</td><td>v0.2.0</td><td>MySQL 驱动</td></tr>
-    <tr><td>Tier 2 · RFC-2.1～2.5（gevent/gunicorn/APS/Docker Py/CI）</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="依赖升级RFC.html">依赖升级 RFC §Tier 2</a></td></tr>
-    <tr><td>Tier 3 前置 · 去 <code>records</code> 裸 SQL</td><td class="s-done">已交付</td><td>v2.1.0</td><td><a href="Tier3前置收束设计.html">Tier 3 前置设计</a> · S1/S2</td></tr>
-    <tr><td>Phase D0 · Framework Generation 决策</td><td class="s-done">已确认</td><td>v2.1.0</td><td>DEC-008：Py 3.8–3.11；B1；见 <a href="PhaseD0-Framework-Generation决策.html">D0</a></td></tr>
+    <tr><td>Tier 2 · RFC-2.1～2.5（gevent/gunicorn/APS/Docker Py/CI）</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="deps/依赖升级RFC.html">依赖升级 RFC §Tier 2</a></td></tr>
+    <tr><td>Tier 3 前置 · 去 <code>records</code> 裸 SQL</td><td class="s-done">已交付</td><td>v2.1.0</td><td><a href="deps/Tier3前置收束设计.html">Tier 3 前置设计</a> · S1/S2</td></tr>
+    <tr><td>Phase D0 · Framework Generation 决策</td><td class="s-done">已确认</td><td>v2.1.0</td><td>DEC-008：Py 3.8–3.11；B1；见 <a href="deps/PhaseD0-Framework-Generation决策.html">D0</a></td></tr>
     <tr><td>Phase D1 · pin bump（Flask 2.3 + SA2 + FSA3）</td><td class="s-done">已交付</td><td>v2.1.0</td><td>同窗 pin；见 <a href="RELEASE_NOTES.html#210">RELEASE_NOTES [2.1.0]</a></td></tr>
-    <tr><td>Phase D2 · Mapped[] 模型迁移</td><td class="s-done">已交付</td><td>v2.1.0</td><td>九表 <code>Mapped</code>；<a href="PhaseD2-Mapped模型迁移.html">D2 设计</a> · <code>test_mapped_model_guard</code></td></tr>
+    <tr><td>Phase D2 · Mapped[] 模型迁移</td><td class="s-done">已交付</td><td>v2.1.0</td><td>九表 <code>Mapped</code>；<a href="deps/PhaseD2-Mapped模型迁移.html">D2 设计</a> · <code>test_mapped_model_guard</code></td></tr>
     <tr><td>Tier 3 · SQLAlchemy 2.0 + FSA 3.x</td><td class="s-done">3a+D2+3b+D3 已交付</td><td>v2.1.0+</td><td>3c 搁置；Flask 3 / 默认 3.12+ 未排期</td></tr>
-    <tr><td>Tier 3c · 生产类库备份与只读校验</td><td class="s-draft">搁置（无存量升级）</td><td>—</td><td><a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a> · 不实现</td></tr>
-    <tr><td>Tier 3b · ensure 重放 + 残余收束（3b-A）</td><td class="s-done">已交付</td><td>v2.1.0</td><td><a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b 设计</a> · <code>TestEnsureEmptyDbReplay</code></td></tr>
+    <tr><td>Tier 3c · 生产类库备份与只读校验</td><td class="s-draft">搁置（无存量升级）</td><td>—</td><td><a href="deps/Tier3c-生产类库备份与只读校验设计.html">Tier 3c</a> · 不实现</td></tr>
+    <tr><td>Tier 3b · ensure 重放 + 残余收束（3b-A）</td><td class="s-done">已交付</td><td>v2.1.0</td><td><a href="deps/Tier3b-迁移重放与残余收束设计.html">Tier 3b 设计</a> · <code>TestEnsureEmptyDbReplay</code></td></tr>
     <tr><td>Tier 4 · Flask 2.x</td><td class="s-done">已并入 D1</td><td>v2.1.0</td><td>Flask 2.3.3 与 Tier 3a 同窗</td></tr>
     <tr><td><code>records</code> 裸 SQL（调度器）</td><td class="s-done">已清除</td><td>v2.1.0</td><td><code>CuBackgroundScheduler</code> / <code>cron_check</code> / <code>scheduler_db</code></td></tr>
     <tr><td>Phase A · Query Contract / 分页硬门</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>pagination.py</code>；7 列表迁 <code>paginate_select</code>；<code>main/rbac views</code> 无 <code>.paginate</code></td></tr>
     <tr><td>Phase B · 薄 BaseRepository</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>app/repositories/</code>；列表查询迁出 views；<code>test_repositories_phase_b</code></td></tr>
-    <tr><td>Phase C · ORM Legacy AST 门禁</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>test_orm_legacy_guard</code>；CI C-CI-A；见 <a href="PhaseC-ORM-Legacy-AST门禁设计.html">设计稿</a></td></tr>
+    <tr><td>Phase C · ORM Legacy AST 门禁</td><td class="s-done">已交付</td><td>v2.1.0</td><td><code>test_orm_legacy_guard</code>；CI C-CI-A；见 <a href="deps/PhaseC-ORM-Legacy-AST门禁设计.html">设计稿</a></td></tr>
     <tr><td><code>main/views</code> · <code>rbac/views</code> <code>.paginate()</code></td><td class="s-done">已清除</td><td>v2.1.0</td><td>并入 Phase A；升 SA 2 前硬门已满足</td></tr>
     <tr><td>Phase D3 · Docker pin 矩阵</td><td class="s-done">已交付</td><td>v2.6.0</td><td>D3-1～D3-3；compose <code>--rebuild</code> 实测 OK（2026-07-22）</td></tr>
   </table>
@@ -262,16 +262,16 @@
     <tr><td>用户管理搜索 + 审计日志多维搜索 + 搜索栏样式统一 + 查询性能评估规范</td><td class="s-done">已交付</td><td>v2.7.x</td></tr>
     <tr><td>API Token 存量用户自动补签（<code>ensure_existing_users_have_token()</code>）</td><td class="s-done">已交付</td><td>v2.7.x</td></tr>
   </table>
-  <p style="font-size:.85rem;color:var(--muted)">API S6 详见 <a href="资源隔离与Scope设计.html">资源隔离与Scope设计 §七</a>（用户级 Token + 端点 Scope 校验已交付）。</p>
+  <p style="font-size:.85rem;color:var(--muted)">API S6 详见 <a href="design/资源隔离与Scope设计.html">资源隔离与Scope设计 §七</a>（用户级 Token + 端点 Scope 校验已交付）。</p>
 
   <h2>五、建议实施顺序（未交付）</h2>
   <ol>
     <li><strong>依赖轨收尾：</strong>Phase D3 ✓；Tier 3c <strong>搁置</strong>。下一依赖动作不排 Flask 3 / 默认 Python 3.12+（除非另立项）</li>
-    <li><strong>账户会话超时（可选）</strong> — 可配置闲置/绝对超时；须先设计确认（见 <a href="RBAC架构设计方案.html#account-session">RBAC §4.6</a>）</li>
+    <li><strong>账户会话超时（可选）</strong> — 可配置闲置/绝对超时；须先设计确认（见 <a href="design/RBAC架构设计方案.html#account-session">RBAC §4.6</a>）</li>
     <li><strong>OPT-P1-03</strong> — 独立执行详情页（OPT-P1-04 列表侧已随 v2.0.0 交付）</li>
     <li><strong>OPT-P1-01b</strong> — 徽章/HTTP 展示统一（OPT-P1-01c 已随 v2.0.0）</li>
     <li><strong>Metric 条 / 异常榜 UI</strong> — OPT-P2-13 暂隐项按需恢复</li>
-    <li><strong>Scope 远期</strong> — 新任务默认 GROUP（配置项）/ Policy / Tenant 抽象（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>；S6 用户级 Token 已交付）</li>
+    <li><strong>Scope 远期</strong> — 新任务默认 GROUP（配置项）/ Policy / Tenant 抽象（见 <a href="design/资源隔离与Scope设计.html#future">Scope §八</a>；S6 用户级 Token 已交付）</li>
   </ol>
 
   <h2>六、文档维护约定</h2>
@@ -283,8 +283,8 @@
 
   <p>
     <a href="RELEASE_NOTES.html">Release Notes</a> ·
-    <a href="产品优化需求-借鉴Plombery.html">产品 PRD</a> ·
-    <a href="依赖升级RFC.html">依赖升级 RFC</a> ·
+    <a href="product/产品优化需求-借鉴Plombery.html">产品 PRD</a> ·
+    <a href="deps/依赖升级RFC.html">依赖升级 RFC</a> ·
     <a href="index.html">文档索引</a>
   </p>
 </main>

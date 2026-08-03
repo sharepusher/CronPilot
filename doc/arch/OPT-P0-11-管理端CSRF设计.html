@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · OPT-P0-11 管理端 CSRF 防护设计</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#b45309}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#7c2d12,#c2410c 55%,#fb923c);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="../index.html" style="color:#ffedd5;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P0-11</span><span class="tag">R3</span><span class="tag">已交付</span><span class="tag">v2.1.1</span>
+  <h1>管理端 CSRF 防护设计</h1>
+  <p>堵住 Session Cookie 下「跨站诱导状态变更」；不引入 Flask-WTF 全量表单栈</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：已确认并交付 · v2.1.1 · 2026-07-21</p>
+</header>
+
+<main class="layout">
+
+  <div class="note">
+    <strong>交付结论：</strong>Session Token + meta 注入；写操作 <code>POST</code> + <code>@csrf_protect</code>；
+    <code>js-ajax-dialog-btn</code> 改为 POST 并附带 token；<code>/api/*</code> 豁免。
+  </div>
+
+  <h2>一、问题</h2>
+  <table>
+    <tr><th>现象</th><th>用户 / 安全影响</th></tr>
+    <tr>
+      <td>管理端大量<strong>状态变更</strong>可通过 <code>GET</code> 触发（如 <code>/update_status</code>、<code>/cron_run_now</code>、用户启停等）</td>
+      <td>已登录管理员若访问恶意页，可被 <code>&lt;img src&gt;</code> / 链接诱导执行启停、立即执行等写操作</td>
+    </tr>
+    <tr>
+      <td><code>js-ajax-dialog-btn</code> → <code>requests.js</code> 默认 <code>type:'GET'</code></td>
+      <td>确认框后的 Ajax 仍是 GET，与「幂等读」语义不符</td>
+    </tr>
+    <tr>
+      <td><code>ajaxForm.js</code> 已读 <code>meta[name=csrf-token]</code>，但模板<strong>未注入</strong> meta</td>
+      <td>前端预留未接线，表单 POST 亦无服务端 CSRF 校验</td>
+    </tr>
+  </table>
+
+  <h2>二、根因</h2>
+  <ul>
+    <li>历史 simpleboot 风格：对话框操作走 GET + Session Cookie（浏览器自动带 Cookie）。</li>
+    <li>未采用同步器令牌（Synchronizer Token）；依赖「仅内网」假设不足。</li>
+    <li>依赖升级 RFC 明确<strong>本代不做 Flask-Login / Flask-WTF 全量迁移</strong>——故不应借 CSRF 顺手引入整套 WTForms。</li>
+  </ul>
+
+  <h2>三、方案（推荐）</h2>
+  <h3>3.1 选型</h3>
+  <table>
+    <tr><th>方案</th><th>优点</th><th>缺点</th><th>结论</th></tr>
+    <tr>
+      <td>A. Flask-WTF <code>CSRFProtect</code> only</td>
+      <td>成熟</td>
+      <td>新增依赖；易与「不做 WTF 迁移」叙事冲突；API 豁免配置易漏</td>
+      <td>备选</td>
+    </tr>
+    <tr>
+      <td><strong>B. 自研 Session Token（推荐）</strong></td>
+      <td>零新依赖（<code>secrets</code> + 现有 Session）；对齐已有 meta 约定；可控豁免</td>
+      <td>需自维护装饰器 / 校验函数</td>
+      <td><strong>采用</strong></td>
+    </tr>
+  </table>
+
+  <h3>3.2 机制</h3>
+  <pre>登录成功 / 首次需要时：
+  session['csrf_token'] = secrets.token_urlsafe(32)
+
+布局模板（base / 管理端骨架）：
+  &lt;meta name="csrf-token" content="{{ csrf_token }}"&gt;
+  &lt;meta name="csrf-param" content="csrf_token"&gt;
+  （context_processor 注入）
+
+状态变更请求（管理端 Session）：
+  仅允许 POST（或 PUT/DELETE，本期统一 POST）
+  校验：form / JSON / header X-CSRFToken / X-CSRF-Token
+       与 session['csrf_token'] 常量时间比较
+
+豁免：
+  /api/*（access_token 认证，非 Cookie Session）
+  /docs/*（只读静态）
+  纯展示 GET 列表 / 详情</pre>
+
+  <h3>3.3 前端契约</h3>
+  <table>
+    <tr><th>入口</th><th>改动</th></tr>
+    <tr>
+      <td><code>js-ajax-dialog-btn</code></td>
+      <td><code>requests({ type:'POST', data:{ csrf_token, ... } })</code>；禁止再默认 GET 改状态</td>
+    </tr>
+    <tr>
+      <td><code>js-ajax-form</code></td>
+      <td>已有 ajaxForm csrf 分支；注入 meta 后自动带上；服务端校验</td>
+    </tr>
+    <tr>
+      <td>普通表单（若有）</td>
+      <td>隐藏域 <code>&lt;input name="csrf_token"&gt;</code> 或依赖 Ajax 路径</td>
+    </tr>
+  </table>
+
+  <h3>3.4 后端契约</h3>
+  <ul>
+    <li>新增 <code>app/security/csrf.py</code>：<code>ensure_csrf_token()</code>、<code>validate_csrf()</code>、<code>csrf_protect</code> 装饰器（或 <code>before_request</code> 白名单模式，二选一；推荐<strong>装饰器挂在写路由</strong>，避免误伤只读 GET）。</li>
+    <li>下列路由改为 <code>methods=['POST']</code>（去掉 GET）并挂校验：至少
+      <code>update_status</code>、<code>cron_run_now</code>、<code>cron_retire</code>（若已是表单 POST 则补 token）、
+      RBAC <code>users/set_active</code>、<code>users/reset_password</code> 等对话框写操作；
+      以及现有 <code>js-ajax-form</code> POST 写接口。</li>
+    <li>参数仍可读 <code>request.form</code> / <code>request.args</code> 过渡：<strong>id 等业务参数</strong>可继续 query（POST URL 带 <code>?id=</code>），但<strong>方法必须是 POST</strong>。</li>
+    <li>失败：JSON <code>errcode≠0</code>，文案明确「CSRF 校验失败，请刷新页面重试」。</li>
+  </ul>
+
+  <h2>四、范围</h2>
+  <table>
+    <tr><th>做</th><th>不做</th></tr>
+    <tr>
+      <td>管理端 Session 写操作 CSRF；对话框改 POST；meta 注入；单测 + 浏览器验收</td>
+      <td>Flask-WTF / WTForms 全量；改 <code>/api/*</code> 契约；SameSite 全面策略大改（可另立小项）；回调重试（R4）</td>
+    </tr>
+  </table>
+
+  <h2>五、分批</h2>
+  <table>
+    <tr><th>批</th><th>内容</th><th>可独立验收</th></tr>
+    <tr><td><strong>R3-a</strong></td><td><code>csrf.py</code> + context_processor meta + 单测（token 缺失/错误/正确）</td><td>单元测试</td></tr>
+    <tr><td><strong>R3-b</strong></td><td>高危对话框：<code>update_status</code> / <code>cron_run_now</code> → POST + token；改 <code>common.js</code> / <code>requests</code> 调用</td><td>浏览器：启停、立即执行</td></tr>
+    <tr><td><strong>R3-c</strong></td><td>RBAC 对话框写操作 + 其余 <code>js-ajax-dialog-btn</code> 写路由扫尾</td><td>用户启停 / 重置密码路径</td></tr>
+    <tr><td><strong>R3-d</strong></td><td>确认 <code>js-ajax-form</code> 写路径均校验；补 <code>test_ajax_form_guard</code> 相关断言（若适用）</td><td>添加/编辑任务表单提交</td></tr>
+  </table>
+
+  <h2>六、验收</h2>
+  <pre>bash scripts/cronpilot.sh test
+bash scripts/verify_golden_path.sh
+bash scripts/cronpilot.sh restart --daemon
+# 本地：http://127.0.0.1:5001/  登录后：
+# 1) 无 token 的 GET /update_status?id=… → 405 或拒绝
+# 2) 无 token 的 POST → CSRF 失败 JSON
+# 3) 页面对话框「暂停/启动」「立即执行」→ 成功（带 token）
+# 4) Agent 自证 curl/会话输出写入交付回复；保持服务运行</pre>
+
+  <h2>七、风险</h2>
+  <ul>
+    <li>漏改某条对话框仍 GET → 405，表现为「按钮坏了」——用全库搜 <code>js-ajax-dialog-btn</code> + 写路由清单扫尾。</li>
+    <li>多标签页旧页面无 meta → 须刷新；文案引导「刷新重试」。</li>
+    <li>与 OPT-P0-10 强密钥配合：伪造 Session 难度已提高；CSRF 补的是「已登录会话被跨站滥用」。</li>
+  </ul>
+
+  <div class="note">
+    前置：<a href="OPT-P0-09-10-锁与密钥设计.html">OPT-P0-09/10</a> 已交付。
+    相关：<a href="../交付状态与路线图.html">交付状态</a> ·
+    <a href="../design/管理端UI优化设计.html">管理端 UI</a>
+  </div>
+
+</main>
+<footer>
+  <a href="OPT-P0-11-管理端CSRF设计.md">Markdown 版</a> ·
+  <a href="../index.html">文档索引</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,48 @@
+name: Documentation completeness check
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'doc/**'
+      - 'README.md'
+      - 'INSTALL.md'
+      - 'AGENTS.md'
+      - 'RELEASE_NOTES.md'
+      - '.cursor/rules/*.mdc'
+      - 'scripts/check_doc_completeness.py'
+      - 'scripts/check_doc_links.py'
+      - 'scripts/check_opt_consistency.py'
+      - '.github/workflows/doc-completeness.yml'
+  pull_request:
+    paths:
+      - 'doc/**'
+      - 'README.md'
+      - 'INSTALL.md'
+      - 'AGENTS.md'
+      - 'RELEASE_NOTES.md'
+      - '.cursor/rules/*.mdc'
+      - 'scripts/check_doc_completeness.py'
+      - 'scripts/check_doc_links.py'
+      - 'scripts/check_opt_consistency.py'
+      - '.github/workflows/doc-completeness.yml'
+
+jobs:
+  doc-check:
+    name: Documentation integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check doc completeness (index registration)
+        run: python scripts/check_doc_completeness.py --check
+
+      - name: Check doc links (cross-file reference integrity)
+        run: python scripts/check_doc_links.py --check
+
+      - name: Check OPT numbering consistency
+        run: python scripts/check_opt_consistency.py --check

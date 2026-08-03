@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · 非 Docker 部署指南</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#0d9488;--warn:#b45309}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#0f172a,#1e3a8a 55%,#0d9488);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .4rem;font-size:1.75rem}
+    .hero .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .nav-back{display:inline-block;margin-bottom:1rem;color:#bfdbfe;font-size:.9rem;text-decoration:none}
+    .nav-back:hover{text-decoration:underline}
+    .layout{max-width:920px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2.5rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1rem 0}
+    .warn{background:#fffbeb;border-color:#fcd34d;color:#78350f}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.82rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em;color:#0f172a}
+    .arch{background:#1e293b;color:#e2e8f0;padding:1.2rem;border-radius:10px;font-family:ui-monospace,monospace;font-size:.78rem;line-height:1.5;overflow:auto}
+    ul{margin:.5rem 0;padding-left:1.25rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a class="nav-back" href="../index.html">← 文档索引</a>
+  <span class="tag">运维</span>
+  <span class="tag">裸机 / VM</span>
+  <h1>非 Docker 部署指南</h1>
+  <p>在 Linux 或 macOS 上安装 CronPilot、远程访问管理端与 HTML 技术文档（<code>/docs/</code>）</p>
+</header>
+
+<main class="layout">
+  <section>
+    <h2>1. 部署拓扑</h2>
+    <div class="arch">
+ 浏览器 ──► Nginx :443 (可选 HTTPS / 文档鉴权)
+              │
+              ├── /        ──proxy──► Gunicorn 127.0.0.1:5860  (Flask 管理端 + API)
+              └── /docs/   ──proxy──► 同上（静态 HTML，内置路由）
+
+ Gunicorn ──► MySQL（或 SQLite）  +  Redis（集群时）
+    </div>
+    <p style="color:var(--muted);font-size:.9rem">不使用 Docker 时，推荐 <strong>Gunicorn + gevent</strong> 作为 WSGI 进程；文档与控制台<strong>同一端口</strong>，无需单独起静态服务。</p>
+  </section>
+
+  <section>
+    <h2>2. 环境要求</h2>
+    <table>
+      <tr><th>组件</th><th>要求</th><th>说明</th></tr>
+      <tr><td>Python</td><td><strong>3.8～3.11</strong></td><td>勿用 3.12+（gevent 23 栈；Tier 2 其余项见 <a href="../deps/依赖升级RFC.html">依赖升级 RFC</a>）</td></tr>
+      <tr><td>数据库</td><td>MySQL 5.7+ / 8</td><td>生产推荐；试用可用 SQLite</td></tr>
+      <tr><td>Redis</td><td>可选</td><td>多实例集群锁；单机设 <code>is_single=1</code></td></tr>
+      <tr><td>端口</td><td><strong>5860</strong></td><td><code>gun.py</code> 默认；本地脚本常用 5001</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. 前端开发环境（可选）</h2>
+    <div class="card">
+      <p><strong>生产环境不需要 Node.js</strong>——Vue 构建产物（<code>app/static/js/*.js</code>）已提交到仓库，Flask 直接托管。仅在修改 <code>frontend/src/</code> 下 Vue 组件源码时，需要 Node.js 重新构建。</p>
+    </div>
+
+    <h3>3.1 架构说明</h3>
+    <p>CronPilot 采用 <strong>Islands Architecture</strong>（岛屿架构）：主体由 Flask + Jinja2 服务端渲染，少量交互组件（<code>CronFilterBar</code>、<code>CronFormValidator</code>、<code>CronStatusCell</code>）用 Vue 3 + Vite 构建后输出到 <code>app/static/js/</code>，由 Flask 同进程托管。</p>
+
+    <table>
+      <tr><th>环境</th><th>Python</th><th>Node.js</th></tr>
+      <tr><td>生产（裸机 / Docker）</td><td>3.8～3.11</td><td><strong>不需要</strong></td></tr>
+      <tr><td>开发（修改 Vue 组件时）</td><td>3.8～3.11</td><td>18+ LTS（推荐 20/22）</td></tr>
+      <tr><td>CI</td><td>3.11</td><td>仅 <code>frontend-build.yml</code> 检查时</td></tr>
+    </table>
+
+    <h3>3.2 安装 Node.js（推荐 nvm）</h3>
+    <p>使用 <strong>nvm</strong>（Node Version Manager）管理 Node.js 版本，与 Python 的 pyenv 理念一致，不污染系统环境。</p>
+    <pre># 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc   # 或 ~/.zshrc
+
+# 安装 Node.js LTS
+nvm install --lts
+
+# 安装前端依赖 &amp; 构建
+cd frontend
+npm install          # 依赖安装到 frontend/node_modules/（项目级隔离）
+npm run build        # 构建产物输出到 app/static/js/</pre>
+
+    <h3>3.3 Node.js 与 Python 环境隔离对比</h3>
+    <table>
+      <tr><th>维度</th><th>Python (venv)</th><th>Node.js (node_modules)</th></tr>
+      <tr><td>隔离机制</td><td><code>python -m venv .venv</code></td><td>项目级 <code>node_modules/</code>，天然隔离</td></tr>
+      <tr><td>依赖清单</td><td><code>requirements.txt</code></td><td><code>package.json</code> + <code>package-lock.json</code></td></tr>
+      <tr><td>全局污染风险</td><td>高（不用 venv 装到系统）</td><td>低（<code>npm install</code> 默认装到当前目录）</td></tr>
+      <tr><td>版本管理器</td><td>pyenv</td><td>nvm / fnm / volta</td></tr>
+      <tr><td>需要"激活"</td><td><code>source .venv/bin/activate</code></td><td>不需要（<code>npx</code> / <code>npm run</code> 自动解析）</td></tr>
+    </table>
+    <p style="color:var(--muted);font-size:.9rem">Node.js 不需要 Python 式的虚拟环境——<code>node_modules/</code> 等价于 <code>.venv</code>，已在 <code>.gitignore</code> 中。</p>
+  </section>
+
+  <section>
+    <h2>4. 安装步骤</h2>
+    <h3>4.1 Linux 一键安装（Ubuntu / CentOS 7·8，推荐）</h3>
+    <p>自动识别发行版、<strong>自动创建虚拟环境</strong>（<code>.venv-py*</code>）。生产用 MySQL；试用加 <code>--sqlite</code>。</p>
+    <table>
+      <tr><th>场景</th><th>命令</th></tr>
+      <tr><td>生产 MySQL</td><td><code>sudo bash scripts/install_linux.sh --production</code> → 编辑 conf.ini → <code>bash scripts/run_production.sh</code></td></tr>
+      <tr><td>试用 SQLite</td><td><code>sudo bash scripts/install_linux.sh --production --sqlite</code> → <code>bash scripts/run_production.sh</code></td></tr>
+    </table>
+    <p class="formats" style="font-size:.88rem">速查：<a href="../../INSTALL.md">INSTALL.md</a> · <a href="linux安装与运行.md">linux</a> · <a href="ubuntu安装与运行.md">ubuntu</a> · <a href="centos安装与运行.md">centos</a></p>
+    <pre>git clone git@github.com:sharepusher/CronPilot.git
+cd CronPilot
+sudo bash scripts/install_linux.sh --production
+bash scripts/run_production.sh</pre>
+    <h3>4.2 手动安装（macOS / 自定义）</h3>
+    <pre>bash scripts/cronpilot.sh install
+bash scripts/install_production_deps.sh
+cp conf.ini.example conf.ini</pre>
+    <p style="color:var(--muted);font-size:.9rem">Python 3.8～3.11；<code>run_production.sh</code> 自动使用 venv。</p>
+
+    <h3>4.3 配置 conf.ini</h3>
+    <div class="card">
+      <p>必改项：<code>login_pwd</code>（<strong>仅</strong>空库种子 <code>admin</code> 的初始密码）、<code>cron_db_url</code>、<code>cron_job_log_db_url</code>、Redis（若集群）。日常改密见下表「认证」说明，勿在有用户后指望改 <code>login_pwd</code>。</p>
+      <p><strong>会话密钥 <code>SECRET_KEY</code>（勿写入 conf.ini）：</strong>生产必须设置强密钥（长度 ≥ 16，且非源码默认值）。推荐：</p>
+      <pre style="margin:.5rem 0;background:#f8fafc;color:#1e293b">export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+# 或直接 bash scripts/run_production.sh —— 首次自动写入 datas/.flask_secret_key
+# 多节点必须共用同一 SECRET_KEY</pre>
+      <p>生成<strong>初始</strong>密码哈希（写入 <code>login_pwd</code>，须在空库首次启动前）：</p>
+      <pre style="margin:.5rem 0;background:#f8fafc;color:#1e293b">python scripts/hash_login_password.py '你的强密码'
+# 将输出写入 conf.ini 的 login_pwd=</pre>
+    </div>
+
+    <h3>4.4 MySQL 示例</h3>
+    <pre>[default]
+is_single=1
+cron_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_scheduler
+cron_job_log_db_url=mysql+pymysql://user:pass@127.0.0.1:3306/cron_job_log
+login_pwd=pbkdf2:...
+block_private_ip=1
+url_allow_hosts=
+url_ssrf_observe_only=0</pre>
+    <p style="color:var(--muted);font-size:.9rem">升级 <strong>OPT-P2-12</strong>：<code>bash scripts/run_production.sh</code>（或单独 <code>bash scripts/ensure_business_tables.sh</code>）会对 <strong>MySQL / SQLite</strong> 自动建业务组表并补 <code>scope_type</code>/<code>group_id</code>。需库已存在且账号有 DDL 权限。手写 SQL 备用见 <a href="../design/资源隔离与Scope设计.html">资源隔离与 Scope 设计 §十</a>。</p>
+
+    <h3>4.5 SQLite 单机试用</h3>
+    <pre>cron_db_url=sqlite:////opt/cronpilot/datas/cron.sqlite
+cron_job_log_db_url=sqlite:////opt/cronpilot/datas/job_log.sqlite</pre>
+    <p style="color:var(--muted);font-size:.9rem">路径请使用<strong>绝对路径</strong>（四个斜杠 <code>sqlite:////</code>）。</p>
+  </section>
+
+  <section>
+    <h2>5. 启动服务</h2>
+    <h3>5.1 生产（Gunicorn，监听外网）</h3>
+    <pre>cd /opt/cronpilot/CronPilot
+bash scripts/run_production.sh
+export FLASK_CONFIG=production
+
+gunicorn -c gun.py manage:app
+# gun.py 已配置 bind = '0.0.0.0:5860'</pre>
+
+    <h3>5.2 本地冒烟</h3>
+    <pre>bash scripts/start_local.sh
+# 默认 127.0.0.1:5001；远程调试可改 host 为 0.0.0.0</pre>
+
+    <h3>5.3 访问地址</h3>
+    <table>
+      <tr><th>用途</th><th>URL</th><th>认证</th></tr>
+      <tr><td>Web 管理端</td><td><code>http://&lt;IP&gt;:5860/</code></td><td>用户名 + 密码（<code>rbac_users</code>）。空库种子 <code>admin</code>/<code>login_pwd</code>；日常改密：用户管理 → 编辑 → 新密码</td></tr>
+      <tr><td>REST API</td><td><code>http://&lt;IP&gt;:5860/api/...</code></td><td><code>api_access_token</code> 等</td></tr>
+      <tr><td>HTML 技术文档</td><td><code>http://&lt;IP&gt;:5860/docs/</code></td><td><strong>无登录</strong></td></tr>
+    </table>
+    <p>文档索引：<code>/docs/</code> → <code>doc/index.html</code>；子页如 <code>/docs/架构设计文档.html</code>。</p>
+  </section>
+
+  <section>
+    <h2>6. 防火墙与健康检查</h2>
+    <pre>sudo ufw allow 5860/tcp
+
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
+# 期望 200
+
+python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v</pre>
+  </section>
+
+  <section>
+    <h2>7. systemd（可选）</h2>
+    <p>文件 <code>/etc/systemd/system/cronpilot.service</code>：</p>
+    <pre>[Unit]
+Description=CronPilot scheduler admin
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/cronpilot/CronPilot
+Environment=FLASK_CONFIG=production
+# Environment=SECRET_KEY=请替换为 secrets.token_hex(32) 的输出（多节点须一致）
+ExecStart=/opt/cronpilot/CronPilot/.venv-py311/bin/gunicorn -c gun.py manage:app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target</pre>
+    <pre>sudo systemctl daemon-reload
+sudo systemctl enable --now cronpilot
+sudo systemctl status cronpilot</pre>
+  </section>
+
+  <section>
+    <h2>8. Nginx 反代 + HTTPS</h2>
+    <pre>server {
+    listen 443 ssl;
+    server_name cron.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5860;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /docs/ {
+        proxy_pass http://127.0.0.1:5860/docs/;
+        # 公网建议加鉴权，例如：
+        # auth_basic "CronPilot Docs";
+        # auth_basic_user_file /etc/nginx/.htpasswd-cronpilot-docs;
+    }
+}</pre>
+    <p>对外仅暴露 443，Gunicorn 只监听 <code>127.0.0.1:5860</code> 更安全。</p>
+  </section>
+
+  <section>
+    <h2>9. 安全建议</h2>
+    <div class="card warn">
+      <ul>
+        <li>生产必须使用<strong>强密码</strong>或 <code>pbkdf2</code> 哈希，禁止默认口令。</li>
+        <li>生产必须配置强 <code>SECRET_KEY</code>（环境变量或 <code>run_production.sh</code> 生成的 <code>datas/.flask_secret_key</code>）；直接 gunicorn 且使用默认密钥会拒绝启动。</li>
+        <li>管理端写操作已启用 CSRF（OPT-P0-11）：升级后<strong>硬刷新</strong>；勿用 GET 书签触发启停/立即执行。</li>
+        <li><code>/docs/</code> <strong>无需登录</strong>，含架构与 API 细节；公网请用 Nginx 白名单 / Basic Auth / 仅内网。</li>
+        <li>保持 <code>block_private_ip=1</code>，按需配置 <code>url_allow_hosts</code>。</li>
+        <li>勿对 <code>0.0.0.0</code> 使用 <code>debug=True</code> 的 Flask 内置服务器。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>10. 常见问题</h2>
+    <table>
+      <tr><th>现象</th><th>处理</th></tr>
+      <tr><td>启动报 SECRET_KEY</td><td>设置环境变量 <code>SECRET_KEY</code>，或用 <code>bash scripts/run_production.sh</code>（自动生成 <code>datas/.flask_secret_key</code>）</td></tr>
+      <tr><td>启停/立即执行失败（CSRF）</td><td>硬刷新管理端；确认页面有 <code>csrf-token</code> meta；勿用旧 GET 书签</td></tr>
+      <tr><td><code>pip install gevent</code> 失败</td><td>换 3.9/3.10；或本地用 <code>bash scripts/start_local.sh</code>（core 依赖）。长期方案：<a href="../deps/依赖升级RFC.html">依赖升级 RFC</a> Tier 2</td></tr>
+      <tr><td>数据库 schema 演进</td><td><strong>主路径</strong>：<code>bash scripts/ensure_business_tables.sh</code>（启动/<code>run_production</code> 已调用；SQLite/MySQL 建表补列）。
+        <code>flask db migrate/upgrade</code> 可用（Tier 0 CLI），但仓库<strong>当前无</strong>强制 Alembic revision 树；勿假设已有 <code>migrations/</code>。见 <a href="../deps/Tier3b-迁移重放与残余收束设计.html">Tier 3b</a> / <a href="../deps/依赖升级RFC.html">依赖升级 RFC</a></td></tr>
+      <tr><td>外网无法访问</td><td>确认 Gunicorn <code>0.0.0.0</code>、防火墙、云安全组放行 5860</td></tr>
+      <tr><td><code>/docs/</code> 404</td><td>确认已部署含 <code>app/docs/</code> 的版本并重启进程</td></tr>
+      <tr><td>调度不触发</td><td>检查 <code>cron_db_url</code>、APScheduler 库表、<code>is_single</code> / Redis</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>11. 相关文档</h2>
+    <div class="card">
+      <ul>
+        <li><a href="../index.html">文档索引</a></li>
+        <li><a href="../deps/依赖升级RFC.html">依赖升级 RFC</a>（Tier 0～4 分层路线、与 RBAC 排期）</li>
+        <li><a href="../arch/架构设计文档.html">架构设计文档</a>（部署拓扑、集群）</li>
+        <li><a href="../arch/详细技术方案.html">详细技术方案</a>（配置项、API）</li>
+        <li><a href="../qa/P0测试用例与验收手册.html">P0 测试与验收</a></li>
+        <li>仓库 <code>README.md</code> 快速开始章节</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<footer>CronPilot · 非 Docker 部署 · v0.1.0 · <a href="非Docker部署指南.md">Markdown 版</a> · <a href="../index.html">文档索引</a></footer>
+</body>
+</html>

@@ -33,14 +33,17 @@ def html_to_md(html_path: Path) -> str:
     text = md(body, heading_style='ATX', bullets='-', strip=['style', 'script'])
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
     base = html_path.name
+    # Compute relative prefix to doc/ root for subdirectory files
+    rel = html_path.parent.relative_to(DOC)
+    idx_prefix = '../' * len(rel.parts) if rel.parts else ''
     header = (
         f'# {title}\n\n'
-        f'> HTML 版：[{base}]({base}) · [文档索引](index.html) · [索引 Markdown](index.md)\n\n'
+        f'> HTML 版：[{base}]({base}) · [文档索引]({idx_prefix}index.html) · [索引 Markdown]({idx_prefix}index.md)\n\n'
     )
     footer = (
         f'\n\n---\n\n'
-        f'[← 文档索引（HTML）](index.html) · '
-        f'[← 文档索引（Markdown）](index.md)\n'
+        f'[← 文档索引（HTML）]({idx_prefix}index.html) · '
+        f'[← 文档索引（Markdown）]({idx_prefix}index.md)\n'
     )
     return header + text + footer
 
@@ -66,7 +69,7 @@ def inject_md_footer(html_path: Path) -> bool:
 
 
 def iter_html_sources():
-    for html_path in sorted(DOC.glob('*.html')):
+    for html_path in sorted(DOC.rglob('*.html')):
         if html_path.name == 'index.html':
             continue
         yield html_path

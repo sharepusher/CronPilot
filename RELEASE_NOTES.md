@@ -9,20 +9,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
-### Time-column index enforcement (OPT-P2-17)
-
-- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True` in their `mapped_column()` declaration.
-- **Runtime index backfill:** `scripts/ensure_business_tables.py` → `_ensure_time_column_indexes()` idempotently creates `ix_<table>_<column>` indexes on service startup for existing databases.
-- **Norm:** `.cursor/rules/cronpilot-backend.mdc` → "时间列索引规范" section: new models missing `index=True` on time columns are treated as review blockers.
-- **Tables covered:** `rbac_audit_logs.create_time`, `rbac_users.create_time`, `resource_groups.create_time`, `cron_infos.created_at`, `cron_infos.updated_at`, `job_log.create_time`, `job_health.updated_at` (plus pre-existing `operation_log.create_time`).
-
-### User management & audit log search (OPT-P2-17 prior items)
-
-- **User management search:** Username fuzzy search on the user list page.
-- **Audit log multi-dimensional search:** Filter by username (fuzzy), action, status, and time range.
-- **UI style consistency:** Search toolbars refactored to use CSS classes; date inputs normalized; search buttons use `btn-info`.
-- **Query performance norms:** `.cursor/rules/cronpilot-backend.mdc` → "查询性能评估" section mandates performance assessment for all new query features.
-- **API token auto-issuance:** `ensure_existing_users_have_token()` auto-issues tokens for pre-S6 users on startup.
+- No draft items currently.
 
 ---
 
@@ -58,9 +45,35 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - **Release checklist** (`.cursor/rules/cronpilot-release-deploy.mdc`): Added explicit requirements for README version table update, roadmap version row, OPT/RFC status sync, and numbering collision pre-check.
 - **Project rules** (`.cursor/rules/cronpilot-project.mdc`): Added "版本一致性" enforcement section with CI gate and numbering allocation procedure.
 
+### Time-column index enforcement (OPT-P2-17)
+
+- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True` in their `mapped_column()` declaration.
+- **Runtime index backfill:** `scripts/ensure_business_tables.py` → `_ensure_time_column_indexes()` idempotently creates `ix_<table>_<column>` indexes on service startup for existing databases.
+- **Tables covered:** `rbac_audit_logs`, `rbac_users`, `resource_groups`, `cron_infos` (×2), `job_log`, `job_health` (plus pre-existing `operation_log`).
+
+### User management & audit log search
+
+- **User management search:** Username fuzzy search on the user list page.
+- **Audit log multi-dimensional search:** Filter by username (fuzzy), action, status, and time range.
+- **API token auto-issuance:** `ensure_existing_users_have_token()` auto-issues tokens for pre-S6 users on startup.
+
+### Documentation reorganization
+
+- **Subdirectory structure:** `doc/` reorganized into 7 subdirectories: `arch/`, `design/`, `plan/`, `deps/`, `ops/`, `product/`, `qa/`. 80 files moved, 85 cross-references updated.
+- **Orphan cleanup:** Removed 11 orphaned/legacy files (screenshots, deprecated configs, old platform docs).
+- **`index.html` full refresh:** Updated to v2.7.0, added 4 missing design documents, all subdirectory links verified.
+- **`check_doc_completeness.py`:** New CI script ensuring all `doc/*.html` files are registered in `doc/index.html`.
+
+### Engineering norms
+
+- **Time-column index norm:** New models missing `index=True` on time columns are review blockers.
+- **Query performance assessment:** Mandatory for all new query/search features during design phase.
+- **UI style consistency:** Prohibits inline styles for layout; defines standard dimensions for toolbar elements.
+- **API path guard:** `tests/test_api_path_guard.py` ensures all `/api/` paths in templates map to real routes.
+
 ### Tests
 
-- 341 tests pass, covering admin scope differentiation, audit log scope filtering (write + query + false-positive prevention + historical data invisibility), and all prior features.
+- 334 tests pass, covering admin scope differentiation, audit log scope filtering, time-column indexes, API path guard, and all prior features.
 
 ---
 
@@ -71,27 +84,27 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - Includes all commits in `v2.5.0..v2.6.0`: `8f683ce` and `8979424`.
 - This release combines color-system hardening, API access-token hardening, user-level token UX completion, and query-only API documentation redesign.
 
-### 前端颜色收编与可维护性加固
+### Frontend color consolidation and maintainability
 
-**核心改进：** 191 处硬编码十六进制颜色（分布在 21 个文件 / 57 个独立色值）全部收编为 CSS Custom Properties（`var(--cp-*)`）。替换前后视觉效果完全一致，颜色修改从"搜 21 个文件 191 处"简化为"改 `console-theme.css` 1 个变量"。
+191 hardcoded hex colors across 21 files (57 distinct values) consolidated into CSS Custom Properties (`var(--cp-*)`). Visual output is pixel-identical; color changes now require editing a single variable in `console-theme.css`.
 
-- **`app/static/css/console-theme.css`（新增）：** 60 个语义 CSS 变量，覆盖文字层级、背景/表面、边框、强调色、成功/危险/警告色系、执行状态机、角色徽标、Topbar、已下线 chip、链接色。`--cp-*` 前缀避免与 simpleboot/Bootstrap 冲突。
-- **20 个 Jinja2 模板收编：** `admin_base.html`（15 处）、`cron_list.html`（68 处）、`cron_add.html`（15 处）、`cron_edit.html`（14 处）及其余 16 个模板文件，全部替换为 `var(--cp-*)` 引用。
-- **Vue 组件收编：** `CronFormValidator.vue` 10 处硬编码颜色替换为 CSS 变量；构建产物 `cron-form-validator.css` 已更新。
-- **语义类外迁：** `admin_base.html` 中的角色徽标（`.topbar-role-*`）与执行状态标签（`.label-timeout/running/pending/danger`）定义迁移到 `console-theme.css`，消除重复。
-- **死文件清理：** 删除零引用的 `app/templates/_admin_nav.html`。
+- **`app/static/css/console-theme.css` (new):** 60 semantic CSS variables covering text hierarchy, background/surface, border, accent, success/danger/warning palettes, execution status, role badges, topbar, retired chip, and link colors. `--cp-*` prefix avoids collisions with simpleboot/Bootstrap.
+- **20 Jinja2 templates consolidated:** `admin_base.html` (15), `cron_list.html` (68), `cron_add.html` (15), `cron_edit.html` (14), and 16 additional templates — all replaced with `var(--cp-*)` references.
+- **Vue component consolidation:** `CronFormValidator.vue` — 10 hardcoded colors replaced with CSS variables; built assets updated.
+- **Semantic class extraction:** Role badges (`.topbar-role-*`) and execution status labels (`.label-timeout/running/pending/danger`) moved from `admin_base.html` to `console-theme.css`, eliminating duplication.
+- **Dead file cleanup:** Removed zero-reference `app/templates/_admin_nav.html`.
 
-### 审计工具与 CI 门禁
+### Audit tooling and CI gate
 
-- **`scripts/audit_hardcoded_colors.py`（新增）：** 全量扫描模板和 Vue 组件中的硬编码颜色。支持 `--check`（CI 模式，exit 1）、`--mapping`（色值→令牌映射表）、`--csv`（导出）。内置 57 色值 100% 映射。
-- **`.github/workflows/color-audit.yml`（新增）：** CI 门禁，PR 中含硬编码颜色自动阻断。
-- **`tests/test_form_name_guard.py`（新增）：** 3 个静态守护测试，防止表单迁移时意外修改 `CronFormValidator.vue` 依赖的 `name` 属性（`day_of_week`/`day`/`hour`/`minute`/`second`/`req_url`/`req_method`/`req_body`）。
+- **`scripts/audit_hardcoded_colors.py` (new):** Full scan of templates and Vue components for hardcoded colors. Supports `--check` (CI mode, exit 1), `--mapping` (value→token map), `--csv` (export). Built-in 57-value 100% mapping.
+- **`.github/workflows/color-audit.yml` (new):** CI gate blocking PRs containing hardcoded colors.
+- **`tests/test_form_name_guard.py` (new):** 3 static guard tests preventing accidental modification of `CronFormValidator.vue` field `name` attributes (`day_of_week`/`day`/`hour`/`minute`/`second`/`req_url`/`req_method`/`req_body`).
 
 ### API access_token hardening (minimal Scope mitigation)
 
 - New opt-in `conf.ini` setting `api_access_token_required` (default `0`, no behavior change). When set to `1`, production startup now fails fast if `api_access_token` is empty (`scripts/check_conf_production.py` + `config.ProductionConfig.init_app`), preventing unnoticed unauthenticated `/api/*` access.
 - Failed API token checks now write an audit trail (`rbac_audit_logs`, `action='api:deny'`) for traceability.
-- See [RBAC 与群组权限管理评审报告](doc/RBAC与群组权限管理评审报告.html) for the underlying review and [资源隔离与Scope设计 §七](doc/资源隔离与Scope设计.html#future) for scope/limitations (still a shared deployment-level token; per-group API tokens remain a future RFC).
+- See [RBAC 与群组权限管理评审报告](doc/design/RBAC与群组权限管理评审报告.html) for the underlying review and [资源隔离与Scope设计 §七](doc/design/资源隔离与Scope设计.html#future) for scope/limitations (still a shared deployment-level token; per-group API tokens remain a future RFC).
 
 ### RBAC / API Token UX completion (S6)
 
@@ -107,22 +120,20 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - Exposed read APIs for integrators: `GET /api/cron/query`, `GET /api/cron/logs`, `GET /api/cron/detail`, `GET /api/cron/log/detail`.
 - Query APIs now include `total`/`has_more`; logs API supports `status`/`http_status`/time-range filters and `content_preview`.
 
-### 部署文档
+### Deployment docs
 
-- **非 Docker 部署指南**新增 §3「前端开发环境」：Node.js 仅开发时需要、nvm 安装、Node.js 与 Python 环境隔离对比。
-- **README.md** 新增 §2.1「前端开发环境（可选）」。
+- **Non-Docker deployment guide** added §3 "Frontend development environment": Node.js only required for development, nvm setup, Node.js vs Python environment isolation.
+- **README.md** added §2.1 "Frontend development environment (optional)".
 
-### 测试
+### Tests
 
-- 322 个测试通过（覆盖颜色门禁、RBAC/S6、只读 API 文档目录与 Scope 查询接口）。
+- 322 tests pass (covering color audit gate, RBAC/S6, query-only API doc catalog, and scope query endpoints).
 
 ---
 
 ## [2.5.0] — 2026-07-29
 
 ### Per-task timeout configuration — Phase B2 (OPT-P1-01)
-
-### 单任务超时配置 — Phase B2（OPT-P1-01）
 
 - **`CronInfos.timeout_sec` 字段（可空 INT）：** NULL 表示使用系统默认 5 s；有效范围 1–120 s。`ensure_business_tables` 幂等 DDL 补列，存量数据库安全升级。
 - **表单 UI：** 新增/编辑任务表单新增"超时（秒）"输入框（留空使用默认 5 s，最大 120 s）。
@@ -133,8 +144,6 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 - **测试（`test_b2_timeout_config.py`）：** 14 条新测试覆盖合法值、边界值、非法值（0/-1/121/非整数/浮点）、NULL 传播、service 写入。
 
 ### Execution state machine — Phase B1 (OPT-P1-01)
-
-### 执行状态机 — Phase B1（OPT-P1-01）
 
 - **4 终态 `job_log.status`（方案 B，单次写）：** `success | fail | timeout | error`。执行路径全程不写中间态 DB 记录，HTTP 完成后一次性落终态，保持与原方案相同的 DB 写放大系数（1 COMMIT/execution）。
 - **`started_at` / `finished_at` 时间戳字段：** `started_at` 在 HTTP 派发前赋值（本地变量），随终态记录一同落库。`finished_at` = 终态落库时刻。`timeout_sec` 字段记录本次执行所用超时阈值。
@@ -169,7 +178,7 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
-## [2.4.0] — 2026-07-27 · 前端现代化（Vite + Vue 3）+ 管理端 UX 优化
+## [2.4.0] — 2026-07-27 · Frontend modernization (Vite + Vue 3) + Admin UX improvements
 
 ### Internal: dead static asset cleanup (F0-a)
 
@@ -200,7 +209,7 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
-## [2.3.0] — 2026-07-24 · API 契约规范化（OpenAPI 3.0 + Swagger UI）
+## [2.3.0] — 2026-07-24 · API contract standardization (OpenAPI 3.0 + Swagger UI)
 
 ### API contract standardization (OPT-P1-CONTRACT)
 
@@ -223,7 +232,7 @@ Maintainer note: track unfinished work in [交付状态与路线图](doc/交付�
 
 ---
 
-## [2.2.0] — 2026-07-24 · 可观测性（结构化日志 + Prometheus 指标）+ Bug 修复
+## [2.2.0] — 2026-07-24 · Observability (structured logging + Prometheus metrics) + bug fixes
 
 ### Bug fixes (post-release patch, included in 2.2.0)
 
@@ -271,7 +280,7 @@ The original v2.2.0 tag (`20dd148`) was released before the above bugs were disc
 - **Build & run fixes:** image build-time health check supplies a strong `SECRET_KEY`; compose verify writes container SQLite paths into `conf.ini` and tolerates host `datas/` ownership for the `cronpilot` user.
 - **Smoke reliability:** HTTP smoke checks use UTF-8 locale and avoid `pipefail` false failures when grepping large HTML pages.
 
-### Prometheus metrics (OPT-P1-can — RFC: doc/P1可观测性-Prometheus指标RFC.html)
+### Prometheus metrics (OPT-P2-05 — RFC: doc/design/P1可观测性-Prometheus指标RFC.html)
 
 - **`app/metrics.py`** — centralised metric declarations; five metrics:
   - `cronpilot_job_total` (Counter, labels `task_name`/`status`)
@@ -537,18 +546,22 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 ---
 
-## 版本一览
+## Version index
 
-| 版本 | 说明 |
-|------|------|
-| **2.6.0** | 颜色系统收编 + API access_token 加固 + S6 用户级 Token + 查询式 API 文档 |
-| 2.5.0 | 执行状态机（B1）+ 单任务超时（B2） |
-| **2.1.1** | 集群锁原子化、生产 SECRET_KEY、管理端 CSRF |
-| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 运行时 |
-| 2.0.0 | 任务中心、POST 触发、账户生命周期 |
-| 1.2.0 | 顶栏身份、种子权限、启停用语 |
-| 1.1.0 | 业务组隔离、自助改密 |
-| 1.0.0 | 多用户权限、生命周期、操作审计 |
-| 0.2.0 | 执行可观测、依赖与部署加固 |
-| 0.1.1 | 文档 `/docs/`、多版本 Python、CI |
-| 0.1.0 | 首发 |
+| Version | Highlights |
+|---------|------------|
+| **2.7.0** | Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization |
+| **2.6.0** | Color system consolidation, API access_token hardening, S6 user-level token, query-only API docs |
+| 2.5.0 | Execution state machine (B1) + per-task timeout (B2) + frontend form validator (F3-a) |
+| 2.4.0 | Frontend modernization (Vite + Vue 3), reactive filter bar, password visibility toggle |
+| 2.3.0 | API contract standardization (OpenAPI 3.0 + Swagger UI) |
+| 2.2.0 | Structured JSON logging, Prometheus metrics, CSRF / timestamp bug fixes |
+| **2.1.1** | Cluster mutex atomicity, production SECRET_KEY, admin CSRF |
+| 2.1.0 | Flask 2.3 + SQLAlchemy 2.0 runtime upgrade |
+| 2.0.0 | Task center, GET/POST trigger, account lifecycle |
+| 1.2.0 | Topbar identity, seed admin permissions, start/pause wording |
+| 1.1.0 | Resource group isolation, self-service password change |
+| 1.0.0 | Multi-user RBAC, task lifecycle, operation audit |
+| 0.2.0 | Execution observability, dependency & deployment hardening |
+| 0.1.1 | `/docs/` documentation portal, multi-version Python, CI |
+| 0.1.0 | Initial release |

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot · OPT-P0-09/10 集群锁与 SECRET_KEY 设计</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--accent:#b45309;--ok:#059669}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg);margin:0}
+    .hero{background:linear-gradient(135deg,#7c2d12,#b45309 55%,#f59e0b);color:#fff;padding:2.5rem 2rem}
+    .hero h1{margin:0 0 .5rem;font-size:1.75rem}
+    .tag{display:inline-block;background:rgba(255,255,255,.15);padding:.2rem .6rem;border-radius:6px;font-size:.8rem;margin-right:.4rem}
+    .layout{max-width:1040px;margin:0 auto;padding:1.5rem 2rem 3rem}
+    h2{font-size:1.2rem;border-left:4px solid var(--accent);padding-left:.7rem;margin:2rem 0 1rem}
+    h3{font-size:1.05rem;color:#334155;margin:1.5rem 0 .6rem}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem .65rem;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5}
+    code{background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+    .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    .ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:.75rem 1rem;font-size:.9rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem}
+    a{color:var(--p)}
+  </style>
+</head>
+<body>
+<header class="hero">
+  <a href="../index.html" style="color:#ffedd5;font-size:.9rem">← 文档索引</a>
+  <span class="tag">OPT-P0-09</span><span class="tag">OPT-P0-10</span><span class="tag">已交付</span><span class="tag">v2.1.1</span>
+  <h1>集群 Redis 互斥锁原子化 · 生产 SECRET_KEY fail-fast</h1>
+  <p>Track R1/R2：不改调度拓扑（ADR-05），堵住正确性与会话签名硬伤</p>
+  <p style="margin-top:.5rem;font-size:.9rem;opacity:.95">状态：已确认并交付 · v2.1.1 · 2026-07-21</p>
+</header>
+
+<main class="layout">
+
+  <div class="ok">
+    <strong>交付结论：</strong>R1 将 <code>@single_task</code> 改为 <code>SET NX EX</code> + token Lua 释放；R2 在
+    <code>ProductionConfig.init_app</code> 与 <code>check_conf_production.py</code> 拒绝弱
+    <code>SECRET_KEY</code>；<code>run_production.sh</code> 可首次写入 <code>datas/.flask_secret_key</code>。
+  </div>
+
+  <h2>一、问题与根因</h2>
+  <table>
+    <tr><th>ID</th><th>问题</th><th>根因</th></tr>
+    <tr>
+      <td>OPT-P0-09</td>
+      <td>集群模式下同一任务可能被多节点并发执行</td>
+      <td><code>single_task</code> 使用 <code>GET</code> 再 <code>SET</code>（非原子）；无条件 <code>DELETE</code> 在 TTL 过期后可能误删后继持有者的锁</td>
+    </tr>
+    <tr>
+      <td>OPT-P0-10</td>
+      <td>生产漏配会话密钥时仍可静默启动</td>
+      <td><code>config.py</code> 对任意配置名回退到源码内公开默认值 <code>hard to guess string</code></td>
+    </tr>
+  </table>
+
+  <h2>二、方案</h2>
+  <h3>2.1 OPT-P0-09</h3>
+  <pre>acquire: token=uuid4(); SET key token NX EX 120 → 失败则跳过（语义不变）
+release: Lua GET==token 才 DEL</pre>
+  <p>实现：<code>app/common/functions.py</code> → <code>acquire_task_lock</code> / <code>release_task_lock</code> / <code>single_task</code>。
+  <code>is_single=1</code> 路径不访问 Redis。</p>
+
+  <h3>2.2 OPT-P0-10</h3>
+  <ul>
+    <li>弱密钥：空 / 默认字符串 / 长度 &lt; 16</li>
+    <li><code>FLASK_CONFIG=production</code>：<code>ProductionConfig.init_app</code> 抛 <code>RuntimeError</code></li>
+    <li><code>scripts/check_conf_production.py</code> 增加 <code>check_secret_key</code>（<code>run_production.sh</code> 已调用）</li>
+    <li>未设环境变量时：<code>run_production.sh</code> 读取或生成 <code>datas/.flask_secret_key</code>（已加入 <code>.gitignore</code>）</li>
+    <li>development / testing 仍允许默认密钥（本地 / CI）</li>
+  </ul>
+
+  <h2>三、范围</h2>
+  <table>
+    <tr><th>做</th><th>不做</th></tr>
+    <tr>
+      <td>锁原语、生产密钥门禁、单测、部署文档、ADR-05 补丁说明</td>
+      <td>回调重试、APS 4、进程拆分、redis 客户端大版本升级、Vault（CSRF 见 <a href="OPT-P0-11-管理端CSRF设计.html">OPT-P0-11</a>，已交付）</td>
+    </tr>
+  </table>
+
+  <h2>四、分批与验收</h2>
+  <table>
+    <tr><th>批</th><th>内容</th><th>验收</th></tr>
+    <tr><td>R1</td><td>原子锁 + token 释放</td><td><code>tests.test_single_task_lock</code></td></tr>
+    <tr><td>R2</td><td>fail-fast + 预检 + bootstrap</td><td><code>tests.test_secret_key</code> · <code>tests.test_check_conf_production</code></td></tr>
+  </table>
+  <pre>bash scripts/cronpilot.sh test
+bash scripts/verify_golden_path.sh</pre>
+
+  <h2>五、风险</h2>
+  <ul>
+    <li>直接 <code>gunicorn</code> 且未设 <code>SECRET_KEY</code> 的生产进程将拒绝启动——预期行为；请用 <code>run_production.sh</code> 或显式注入环境变量。</li>
+    <li>轮换 <code>SECRET_KEY</code> 会使既有 Session Cookie 全部失效。</li>
+    <li>多节点必须共用同一 <code>SECRET_KEY</code>（勿各节点各自生成 <code>.flask_secret_key</code>）。</li>
+  </ul>
+
+  <div class="note">
+    相关：<a href="架构设计文档.html">架构设计文档</a> ADR-05 ·
+    <a href="../交付状态与路线图.html">交付状态与路线图</a> ·
+    <a href="../ops/非Docker部署指南.html">非 Docker 部署指南</a>
+  </div>
+
+</main>
+<footer>
+  <a href="OPT-P0-09-10-锁与密钥设计.md">Markdown 版</a> ·
+  <a href="../index.html">文档索引</a>
+</footer>
+</body>
+</html>

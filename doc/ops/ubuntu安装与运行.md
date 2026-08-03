@@ -1,0 +1,149 @@
+# CronPilot · Ubuntu 安装与运行
+
+> HTML：[非Docker部署指南.html](非Docker部署指南.html) · **Docker**：[Docker部署指南.html](Docker部署指南.html)
+
+适用 **Ubuntu 20.04 / 22.04 / 24.04** 裸机部署。  
+**Docker 试用**（无需宿主机 Python）：[Docker部署指南.md](Docker部署指南.md)  
+**CentOS 7/8**：[centos安装与运行.md](centos安装与运行.md) · **自动识别**：[linux安装与运行.md](linux安装与运行.md)
+
+## Docker 一键（推荐快速试用）
+
+```bash
+git clone https://github.com/sharepusher/CronPilot.git
+cd CronPilot
+cp conf.ini.example conf.ini
+docker compose up --build -d
+```
+
+访问 `http://<IP>:5860/`，用户名 `admin` · 初始密码见 `login_pwd`（常 `changeme`）；改密走用户管理。详见 [Docker部署指南.md](Docker部署指南.md)。
+
+## 一、系统要求（裸机）
+
+| 项 | 要求 |
+|----|------|
+| Python | **3.8～3.11**（脚本自动选择；24.04 建议安装 `python3.11`） |
+| 数据库 | 试用：**SQLite**；生产：**MySQL** |
+| Redis | 集群多机时需要；单机 `is_single=1` 可省略 |
+| 端口 | 生产 **5860**（Gunicorn） |
+
+## 二、一键安装（裸机，推荐）
+
+**生产（MySQL）：**
+
+```bash
+sudo bash scripts/install_linux.sh --production
+# 编辑 conf.ini 中 cron_db_url → MySQL 后：
+bash scripts/run_production.sh
+```
+
+**试用（SQLite，无需 MySQL）：**
+
+```bash
+sudo bash scripts/install_linux.sh --production --sqlite
+bash scripts/run_production.sh
+```
+
+以上均**自动创建** `.venv-py*` 虚拟环境，无需手动 `source activate`。速查：[INSTALL.md](../../INSTALL.md)
+
+以部署用户（非 root）启动：
+
+```bash
+bash scripts/run_production.sh
+# 或开发冒烟（127.0.0.1:5001）
+bash scripts/start_local.sh
+```
+
+访问：
+
+- 管理端：`http://<服务器IP>:5860/`（用户名 `admin`；空库初始密码见 `login_pwd`，常为 `changeme`。日常请在 **用户管理** 改密，勿只改 `conf.ini`）
+- 文档：`http://<服务器IP>:5860/docs/`
+
+## 三、分步安装
+
+### 3.1 系统包（root）
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl build-essential libffi-dev libev-dev \
+  python3-venv python3-dev python3.11 python3.11-venv python3.11-dev
+# 22.04 可用 python3.10；20.04 可用 python3.8
+```
+
+### 3.2 Python 虚拟环境与依赖
+
+```bash
+cd CronPilot
+bash scripts/check_python.sh
+bash scripts/bootstrap_venv.sh          # 核心依赖 requirements-core.txt
+bash scripts/install_production_deps.sh  # 生产：requirements.txt（需 libev-dev）
+```
+
+### 3.3 配置
+
+```bash
+cp conf.ini.example conf.ini
+# 编辑 login_pwd、cron_db_url、cron_job_log_db_url
+
+bash scripts/cronpilot.sh exec python scripts/hash_login_password.py '强密码'
+```
+
+**SQLite 单机示例**（路径改为实际目录）：
+
+```ini
+cron_db_url=sqlite:////opt/cronpilot/CronPilot/datas/cron.sqlite
+cron_job_log_db_url=sqlite:////opt/cronpilot/CronPilot/datas/job_log.sqlite
+```
+
+### 3.4 启动与自检
+
+```bash
+mkdir -p datas/logs
+export FLASK_CONFIG=production
+bash scripts/run_production.sh
+
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5860/docs/
+bash scripts/cronpilot.sh test
+```
+
+## 四、systemd（开机自启）
+
+```bash
+# 编辑 WorkingDirectory、ExecStart 中的 .venv-py311 路径
+sudo cp scripts/systemd/cronpilot.service.example /etc/systemd/system/cronpilot.service
+sudo nano /etc/systemd/system/cronpilot.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now cronpilot
+sudo systemctl status cronpilot
+```
+
+## 五、防火墙
+
+```bash
+sudo ufw allow 5860/tcp
+```
+
+## 六、常见问题（Ubuntu）
+
+| 现象 | 处理 |
+|------|------|
+| `gevent` 编译失败 | `sudo apt-get install -y build-essential libev-dev python3.11-dev` |
+| 仅有 Python 3.12 | `sudo apt-get install -y python3.11 python3.11-venv` |
+| `Permission denied` venv | 勿用 `sudo pip`；用 `install_ubuntu.sh` 或部署用户执行 `bootstrap_venv.sh` |
+| 无法连 MySQL | 试用加 `--sqlite`；或检查 `cron_db_url` 与 MySQL 服务 |
+| `.venv-py39/bin/pip: No such file` | `sudo bash scripts/fix_broken_install.sh`；或 `sudo apt-get install -y python3.9-venv` 后 `rm -rf .venv-py39 && bash scripts/bootstrap_venv.sh` |
+| `redis-server is not configured` | `sudo dpkg --configure -a && sudo apt-get install -y -f`（单机试用可不装 Redis） |
+| `postgresql-* is not configured` | 阻塞 apt；见 [INSTALL.md](../../INSTALL.md) 或改用 **Docker** |
+| 5860 无法访问 | `ufw`/安全组放行；确认 `gun.py` 中 `0.0.0.0:5860` |
+
+## 七、脚本索引
+
+| 脚本 | 用途 |
+|------|------|
+| `scripts/install_ubuntu.sh` | Ubuntu 一键装系统包 + Python 依赖 |
+| `scripts/bootstrap_venv.sh` | 创建 venv + 核心依赖 |
+| `scripts/install_production_deps.sh` | Gunicorn + gevent |
+| `scripts/run_production.sh` | 生产启动 |
+| `scripts/cronpilot.sh` | 统一入口 start/test/install |
+| `scripts/start_local.sh` | 本地 5001 开发 |
+| `docker compose up` | Docker 试用（见 [Docker部署指南.md](Docker部署指南.md)） |

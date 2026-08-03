@@ -24,7 +24,7 @@
 | **v0.1.1** | 文档 `/docs/`、Python 3.8–3.11 自动匹配、CI |
 | **v0.1.0** | ORM 化访问、密码哈希、SSRF 防护、统一 JSON 契约、校验与服务层抽取 |
 
-后续路线图见 [doc/交付状态与路线图.html](doc/交付状态与路线图.html)（推荐）或 [doc/产品优化需求-借鉴Plombery.html](doc/产品优化需求-借鉴Plombery.html)。
+后续路线图见 [doc/交付状态与路线图.html](doc/交付状态与路线图.html)（推荐）或 [doc/product/产品优化需求-借鉴Plombery.html](doc/product/产品优化需求-借鉴Plombery.html)。
 
 ## 快速开始
 
@@ -107,7 +107,7 @@ bash scripts/cronpilot.sh test
 # 或：python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 ```
 
-手工冒烟与用例表见：**[doc/P0测试用例与验收手册.html](doc/P0测试用例与验收手册.html)**
+手工冒烟与用例表见：**[doc/qa/P0测试用例与验收手册.html](doc/qa/P0测试用例与验收手册.html)**
 
 ## Docker 部署（快速试用）
 
@@ -147,7 +147,7 @@ bash scripts/docker/verify_all.sh all
 
 | 组件 | 要求 |
 |------|------|
-| Python | **3.8～3.11**（勿用 3.12+；gevent 23 栈见 [doc/依赖升级RFC.html](doc/依赖升级RFC.html)） |
+| Python | **3.8～3.11**（勿用 3.12+；gevent 23 栈见 [doc/deps/依赖升级RFC.html](doc/deps/依赖升级RFC.html)） |
 | 数据库 | **MySQL**（推荐）或 SQLite（试用） |
 | Redis | 多节点集群时必需；单机可 `is_single=1` |
 | 端口 | 管理端默认 **5860**（`gun.py`）；本地脚本常用 **5001** |
@@ -202,7 +202,7 @@ bash scripts/run_production.sh
 | REST API | `http://<服务器IP>:5860/api/...` | `api_access_token` 等 |
 | **HTML 技术文档** | `http://<服务器IP>:5860/docs/` | **无登录**（见下方安全说明） |
 
-文档首页：`/docs/` → `doc/index.html`；子页面如 `/docs/架构设计文档.html`。
+文档首页：`/docs/` → `doc/index.html`；子页面如 `/docs/arch/架构设计文档.html`。
 
 ### 防火墙
 
@@ -318,7 +318,7 @@ GitHub Actions：
 | **Version consistency** | 校验 git tag 与 README/路线图/RELEASE_NOTES 版本列表一致 |
 | **Docker install verify** | Docker 环境安装脚本验证 |
 
-文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
+文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/design/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/deps/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/ops/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
 ## AI / 协作规范（Cursor）
 
@@ -371,4 +371,4 @@ scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 
 ## 许可证
 
-本项目采用 [Apache License 2.0](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；合规说明见 [doc/LICENSE-AUDIT.html](doc/LICENSE-AUDIT.html)。
+本项目采用 [Apache License 2.0](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；合规说明见 [doc/qa/LICENSE-AUDIT.html](doc/qa/LICENSE-AUDIT.html)。

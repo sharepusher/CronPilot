@@ -109,10 +109,10 @@
     <a href="index.md">Markdown 索引</a> · 在线 <code>/docs/</code></p>
 
   <div class="quick" aria-label="快捷入口">
-    <a href="交付状态与路线图.html"><strong>进度总览</strong><span>发行版 v2.1.1</span></a>
-    <a href="项目总览与技术文档.html"><strong>项目入门</strong><span>定位 · 架构图 · 模块</span></a>
-    <a href="规模化信息架构设计.html"><strong>当前焦点</strong><span>OPT-P2-13 规模化 IA</span></a>
-    <a href="Docker部署指南.html"><strong>部署运维</strong><span>Docker / 裸机 / Linux</span></a>
+    <a href="交付状态与路线图.html"><strong>进度总览</strong><span>发行版 v2.7.0</span></a>
+    <a href="arch/项目总览与技术文档.html"><strong>项目入门</strong><span>定位 · 架构图 · 模块</span></a>
+    <a href="design/规模化信息架构设计.html"><strong>当前焦点</strong><span>OPT-P2-13 规模化 IA</span></a>
+    <a href="ops/Docker部署指南.html"><strong>部署运维</strong><span>Docker / 裸机 / Linux</span></a>
   </div>
 
   <nav class="toc" aria-label="维度导航">
@@ -150,23 +150,23 @@
       <li>
         <div class="title">
           <a href="RELEASE_NOTES.html">Release Notes</a>
-          <span class="blurb"><span class="badge b-done">v2.1.1</span><span class="badge b-done">v2.1.0</span><span class="badge b-done">v2.0.0</span><span class="badge b-done">v1.2.0</span><span class="badge b-done">v1.1.0</span><span class="badge b-done">v1.0.0</span>安全加固、运行时升级、任务中心、权限与账户等变更日志</span>
+          <span class="blurb"><span class="badge b-done">v2.7.0</span><span class="badge b-done">v2.6.0</span><span class="badge b-done">v2.5.0</span><span class="badge b-done">v2.4.0</span><span class="badge b-done">v2.3.0</span><span class="badge b-done">v2.2.0</span><span class="badge b-done">v2.1.1</span><span class="badge b-done">v2.1.0</span><span class="badge b-done">v2.0.0</span> 完整版本变更日志</span>
         </div>
         <div class="links"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">MD</a><a href="../RELEASE_NOTES.md">仓库根</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="项目总览与技术文档.html">项目总览与技术文档</a>
+          <a href="arch/项目总览与技术文档.html">项目总览与技术文档</a>
           <span class="blurb">定位、逻辑架构、已交付模块、文档导航与演进路线（推荐首读）</span>
         </div>
-        <div class="links"><a href="项目总览与技术文档.html">HTML</a><a href="项目总览与技术文档.md">MD</a></div>
+        <div class="links"><a href="arch/项目总览与技术文档.html">HTML</a><a href="arch/项目总览与技术文档.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="新建项目与分支合并方案.html">仓库拆分与 Git 方案</a>
+          <a href="arch/新建项目与分支合并方案.html">仓库拆分与 Git 方案</a>
           <span class="blurb">CronPilot 独立仓库与发布说明</span>
         </div>
-        <div class="links"><a href="新建项目与分支合并方案.html">HTML</a><a href="新建项目与分支合并方案.md">MD</a></div>
+        <div class="links"><a href="arch/新建项目与分支合并方案.html">HTML</a><a href="arch/新建项目与分支合并方案.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -178,64 +178,64 @@
     <ul class="doc-list">
       <li>
         <div class="title">
-          <a href="架构设计文档.html">架构设计文档</a>
+          <a href="arch/架构设计文档.html">架构设计文档</a>
           <span class="blurb">C4 上下文/容器/组件、数据架构、集群双锁</span>
         </div>
-        <div class="links"><a href="架构设计文档.html">HTML</a><a href="架构设计文档.md">MD</a></div>
+        <div class="links"><a href="arch/架构设计文档.html">HTML</a><a href="arch/架构设计文档.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="详细技术方案.html">详细技术方案</a>
+          <a href="arch/详细技术方案.html">详细技术方案</a>
           <span class="blurb">功能规格、模块设计、接口契约、运维与安全</span>
         </div>
-        <div class="links"><a href="详细技术方案.html">HTML</a><a href="详细技术方案.md">MD</a></div>
+        <div class="links"><a href="arch/详细技术方案.html">HTML</a><a href="arch/详细技术方案.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">v1.0.0</span>
-          <a href="RBAC架构设计方案.html">RBAC 详细设计方案 v4</a>
+          <a href="design/RBAC架构设计方案.html">RBAC 详细设计方案 v4</a>
           <span class="blurb">三角色 · login · has_perm · cron:retire（无 delete）</span>
           <ul class="nest">
-            <li><a href="RBAC落地路线.html">RBAC 落地路线</a>（阶段记录）</li>
+            <li><a href="design/RBAC落地路线.html">RBAC 落地路线</a>（阶段记录）</li>
           </ul>
         </div>
-        <div class="links"><a href="RBAC架构设计方案.html">HTML</a><a href="RBAC架构设计方案.md">MD</a></div>
+        <div class="links"><a href="design/RBAC架构设计方案.html">HTML</a><a href="design/RBAC架构设计方案.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">v1.1.0</span>
-          <a href="资源隔离与Scope设计.html">Resource Scope 资源隔离（OPT-P2-12）</a>
+          <a href="design/资源隔离与Scope设计.html">Resource Scope 资源隔离（OPT-P2-12）</a>
           <span class="blurb">业务组可见范围 · 列表过滤 + 单资源鉴权 · 防 IDOR</span>
           <ul class="nest">
-            <li><a href="资源隔离落地路线.html">资源隔离落地路线</a></li>
-            <li><span class="badge b-draft">评审</span> <a href="RBAC与群组权限管理评审报告.html">RBAC 与群组权限管理评审报告</a>（2026-07-29：API 层 Scope 缺口再评级 · 会话/Cookie 安全建议）</li>
+            <li><a href="design/资源隔离落地路线.html">资源隔离落地路线</a></li>
+            <li><span class="badge b-draft">评审</span> <a href="design/RBAC与群组权限管理评审报告.html">RBAC 与群组权限管理评审报告</a>（2026-07-29：API 层 Scope 缺口再评级 · 会话/Cookie 安全建议）</li>
           </ul>
         </div>
-        <div class="links"><a href="资源隔离与Scope设计.html">HTML</a><a href="资源隔离与Scope设计.md">MD</a></div>
+        <div class="links"><a href="design/资源隔离与Scope设计.html">HTML</a><a href="design/资源隔离与Scope设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="任务生命周期与无删除设计.html">任务生命周期与无删除</a>
+          <a href="design/任务生命周期与无删除设计.html">任务生命周期与无删除</a>
           <span class="blurb">暂停 ≠ 下线 · 禁人工删除 · LIFECYCLE-2 元数据可追溯</span>
         </div>
-        <div class="links"><a href="任务生命周期与无删除设计.html">HTML</a><a href="任务生命周期与无删除设计.md">MD</a></div>
+        <div class="links"><a href="design/任务生命周期与无删除设计.html">HTML</a><a href="design/任务生命周期与无删除设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">v2.1.1</span>
-          <a href="OPT-P0-09-10-锁与密钥设计.html">集群锁原子化 · 生产 SECRET_KEY（OPT-P0-09/10）</a>
+          <a href="arch/OPT-P0-09-10-锁与密钥设计.html">集群锁原子化 · 生产 SECRET_KEY（OPT-P0-09/10）</a>
           <span class="blurb">SET NX EX + token 释放 · 生产 fail-fast / datas/.flask_secret_key</span>
         </div>
-        <div class="links"><a href="OPT-P0-09-10-锁与密钥设计.html">HTML</a><a href="OPT-P0-09-10-锁与密钥设计.md">MD</a></div>
+        <div class="links"><a href="arch/OPT-P0-09-10-锁与密钥设计.html">HTML</a><a href="arch/OPT-P0-09-10-锁与密钥设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">v2.1.1</span>
-          <a href="OPT-P0-11-管理端CSRF设计.html">管理端 CSRF 防护（OPT-P0-11）</a>
+          <a href="arch/OPT-P0-11-管理端CSRF设计.html">管理端 CSRF 防护（OPT-P0-11）</a>
           <span class="blurb">写操作 POST + Session Token · 不引入 Flask-WTF</span>
         </div>
-        <div class="links"><a href="OPT-P0-11-管理端CSRF设计.html">HTML</a><a href="OPT-P0-11-管理端CSRF设计.md">MD</a></div>
+        <div class="links"><a href="arch/OPT-P0-11-管理端CSRF设计.html">HTML</a><a href="arch/OPT-P0-11-管理端CSRF设计.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -249,38 +249,38 @@
         <div class="title">
           <span class="badge b-draft">待确认</span>
           <span class="badge b-auth">权威</span>
-          <a href="规模化信息架构设计.html">规模化信息架构（OPT-P2-13）</a>
+          <a href="design/规模化信息架构设计.html">规模化信息架构（OPT-P2-13）</a>
           <span class="blurb">L1/L2/L3 · job_health · 角色调制 · B0 合体 · 当前产品焦点</span>
           <ul class="nest">
-            <li><span class="badge b-sub">L2 专章</span> <a href="规模化Scope过滤与角色差异化设计.html">Scope 过滤与角色差异化</a>（含 Demo）</li>
-            <li><span class="badge b-sub">归档</span> <a href="规模化双层IA与任务健康模型评审.html">L1/L2/L3 评审记录</a>（结论已收束至总稿）</li>
+            <li><span class="badge b-sub">L2 专章</span> <a href="design/规模化Scope过滤与角色差异化设计.html">Scope 过滤与角色差异化</a>（含 Demo）</li>
+            <li><span class="badge b-sub">归档</span> <a href="design/规模化双层IA与任务健康模型评审.html">L1/L2/L3 评审记录</a>（结论已收束至总稿）</li>
           </ul>
         </div>
-        <div class="links"><a href="规模化信息架构设计.html">HTML</a><a href="规模化信息架构设计.md">MD</a></div>
+        <div class="links"><a href="design/规模化信息架构设计.html">HTML</a><a href="design/规模化信息架构设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-draft">待确认</span>
-          <a href="P1可观测小步优化设计.html">P1 可观测小步（OPT-P1-01b/c）</a>
+          <a href="plan/P1可观测小步优化设计.html">P1 可观测小步（OPT-P1-01b/c）</a>
           <span class="blurb">失败筛选 · 徽章/HTTP 展示统一 · 可与 P2-13 B0/B1 衔接</span>
         </div>
-        <div class="links"><a href="P1可观测小步优化设计.html">HTML</a><a href="P1可观测小步优化设计.md">MD</a></div>
+        <div class="links"><a href="plan/P1可观测小步优化设计.html">HTML</a><a href="plan/P1可观测小步优化设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-draft">待确认</span>
-          <a href="P1执行详情与立即执行设计.html">P1 执行详情与立即执行（OPT-P1-03/04）</a>
+          <a href="plan/P1执行详情与立即执行设计.html">P1 执行详情与立即执行（OPT-P1-03/04）</a>
           <span class="blurb">独立详情 URL · 任务列表「立即执行」</span>
         </div>
-        <div class="links"><a href="P1执行详情与立即执行设计.html">HTML</a><a href="P1执行详情与立即执行设计.md">MD</a></div>
+        <div class="links"><a href="plan/P1执行详情与立即执行设计.html">HTML</a><a href="plan/P1执行详情与立即执行设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-draft">待确认</span>
-          <a href="Tier3前置收束设计.html">Tier 3 前置收束（去 records）</a>
+          <a href="deps/Tier3前置收束设计.html">Tier 3 前置收束（去 records）</a>
           <span class="blurb">调度器/cron_check 去除裸 SQL，为 SA 2.0 铺路</span>
         </div>
-        <div class="links"><a href="Tier3前置收束设计.html">HTML</a><a href="Tier3前置收束设计.md">MD</a></div>
+        <div class="links"><a href="deps/Tier3前置收束设计.html">HTML</a><a href="deps/Tier3前置收束设计.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -292,66 +292,98 @@
     <ul class="doc-list">
       <li>
         <div class="title">
+          <span class="badge b-done">v2.7.0</span>
+          <a href="design/管理员admin-Scope差异化设计.html">管理员 admin Scope 差异化（OPT-P2-15）</a>
+          <span class="blurb">种子全局只读 · 管理员按组 · <code>__ALL__</code> 虚拟组 · 用户列表隐藏种子</span>
+        </div>
+        <div class="links"><a href="design/管理员admin-Scope差异化设计.html">HTML</a><a href="design/管理员admin-Scope差异化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">v2.7.0</span>
+          <a href="design/审计日志Scope过滤RFC.html">审计日志 Scope 过滤 RFC（OPT-P2-16）</a>
+          <span class="blurb">方案 A · <code>actor_group_ids</code> 按操作者组 LIKE 过滤</span>
+        </div>
+        <div class="links"><a href="design/审计日志Scope过滤RFC.html">HTML</a><a href="design/审计日志Scope过滤RFC.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">v2.2.0</span>
+          <a href="design/P1可观测性-Prometheus指标RFC.html">Prometheus 指标 RFC（OPT-P1-06）</a>
+          <span class="blurb">Prometheus 接入 · Grafana Dashboard · 告警规则示例</span>
+        </div>
+        <div class="links"><a href="design/P1可观测性-Prometheus指标RFC.html">HTML</a><a href="design/P1可观测性-Prometheus指标RFC.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">v2.1.0</span>
+          <a href="deps/PhaseD3-Docker-pin矩阵设计.html">Phase D3 · Docker pin 矩阵</a>
+          <span class="blurb">requirements-docker.txt · base/full 矩阵 · CI 断言</span>
+        </div>
+        <div class="links"><a href="deps/PhaseD3-Docker-pin矩阵设计.html">HTML</a><a href="deps/PhaseD3-Docker-pin矩阵设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <span class="badge b-draft">搁置</span>
-          <a href="Tier3c-生产类库备份与只读校验设计.html">Tier 3c · 生产类库备份与只读校验（OPT-P2-11）</a>
+          <a href="deps/Tier3c-生产类库备份与只读校验设计.html">Tier 3c · 生产类库备份与只读校验（OPT-P2-11）</a>
           <span class="blurb">无存量升级 · 不实现 · 设计备查</span>
         </div>
-        <div class="links"><a href="Tier3c-生产类库备份与只读校验设计.html">HTML</a><a href="Tier3c-生产类库备份与只读校验设计.md">MD</a></div>
+        <div class="links"><a href="deps/Tier3c-生产类库备份与只读校验设计.html">HTML</a><a href="deps/Tier3c-生产类库备份与只读校验设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b · 迁移重放与残余收束（OPT-P2-11）</a>
+          <a href="deps/Tier3b-迁移重放与残余收束设计.html">Tier 3b · 迁移重放与残余收束（OPT-P2-11）</a>
           <span class="blurb">ensure 空库重放 · 3b-A · v2.1.0</span>
         </div>
-        <div class="links"><a href="Tier3b-迁移重放与残余收束设计.html">HTML</a><a href="Tier3b-迁移重放与残余收束设计.md">MD</a></div>
+        <div class="links"><a href="deps/Tier3b-迁移重放与残余收束设计.html">HTML</a><a href="deps/Tier3b-迁移重放与残余收束设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="PhaseD2-Mapped模型迁移.html">Phase D2 · Mapped 模型迁移</a>
+          <a href="deps/PhaseD2-Mapped模型迁移.html">Phase D2 · Mapped 模型迁移</a>
           <span class="blurb">datas/model 九表 Mapped[] · test_mapped_model_guard · v2.1.0</span>
         </div>
-        <div class="links"><a href="PhaseD2-Mapped模型迁移.html">HTML</a><a href="PhaseD2-Mapped模型迁移.md">MD</a></div>
+        <div class="links"><a href="deps/PhaseD2-Mapped模型迁移.html">HTML</a><a href="deps/PhaseD2-Mapped模型迁移.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已确认</span>
-          <a href="PhaseD0-Framework-Generation决策.html">Phase D0 · Framework Generation 决策</a>
+          <a href="deps/PhaseD0-Framework-Generation决策.html">Phase D0 · Framework Generation 决策</a>
           <span class="blurb">DEC-008 · Py 3.8–3.11 · Flask 2.3 + SA2/FSA3 同窗 · v2.1.0</span>
         </div>
-        <div class="links"><a href="PhaseD0-Framework-Generation决策.html">HTML</a><a href="PhaseD0-Framework-Generation决策.md">MD</a></div>
+        <div class="links"><a href="deps/PhaseD0-Framework-Generation决策.html">HTML</a><a href="deps/PhaseD0-Framework-Generation决策.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="PhaseC-ORM-Legacy-AST门禁设计.html">Phase C · ORM Legacy AST 门禁</a>
+          <a href="deps/PhaseC-ORM-Legacy-AST门禁设计.html">Phase C · ORM Legacy AST 门禁</a>
           <span class="blurb">AST 禁止 session.query / Model.query / .paginate 回潮 · CI · v2.1.0</span>
         </div>
-        <div class="links"><a href="PhaseC-ORM-Legacy-AST门禁设计.html">HTML</a><a href="PhaseC-ORM-Legacy-AST门禁设计.md">MD</a></div>
+        <div class="links"><a href="deps/PhaseC-ORM-Legacy-AST门禁设计.html">HTML</a><a href="deps/PhaseC-ORM-Legacy-AST门禁设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="管理端UI优化设计.html">管理端 UI 优化（A′+B1）</a>
+          <a href="design/管理端UI优化设计.html">管理端 UI 优化（A′+B1）</a>
           <span class="blurb">执行记录单列两行 · Cron 分钟提示 · v0.2.0</span>
         </div>
-        <div class="links"><a href="管理端UI优化设计.html">HTML</a><a href="管理端UI优化设计.md">MD</a></div>
+        <div class="links"><a href="design/管理端UI优化设计.html">HTML</a><a href="design/管理端UI优化设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
-          <a href="P1可观测优化设计.html">P1 可观测优化（OPT-P1-01/02）</a>
+          <a href="plan/P1可观测优化设计.html">P1 可观测优化（OPT-P1-01/02）</a>
           <span class="blurb">执行 status · HTTP 失败规则 · 列表徽章 · v0.2.0</span>
         </div>
-        <div class="links"><a href="P1可观测优化设计.html">HTML</a><a href="P1可观测优化设计.md">MD</a></div>
+        <div class="links"><a href="plan/P1可观测优化设计.html">HTML</a><a href="plan/P1可观测优化设计.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="技术方案与前端设计.html">技术方案与前端设计</a>
+          <a href="design/技术方案与前端设计.html">技术方案与前端设计</a>
           <span class="blurb">早期 Web 线框与界面演进建议（参考，非当前验收基线）</span>
         </div>
-        <div class="links"><a href="技术方案与前端设计.html">HTML</a><a href="技术方案与前端设计.md">MD</a></div>
+        <div class="links"><a href="design/技术方案与前端设计.html">HTML</a><a href="design/技术方案与前端设计.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -363,17 +395,17 @@
     <ul class="doc-list">
       <li>
         <div class="title">
-          <a href="产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a>
+          <a href="product/产品优化需求-借鉴Plombery.html">产品优化需求（详版 PRD）</a>
           <span class="blurb">P0/P1/P2 价值、优先级与验收；含 OPT-P2-02 等</span>
         </div>
-        <div class="links"><a href="产品优化需求-借鉴Plombery.html">HTML</a><a href="产品优化需求-借鉴Plombery.md">MD</a></div>
+        <div class="links"><a href="product/产品优化需求-借鉴Plombery.html">HTML</a><a href="product/产品优化需求-借鉴Plombery.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="Plombery深度对比分析.html">Plombery 深度对比分析</a>
+          <a href="product/Plombery深度对比分析.html">Plombery 深度对比分析</a>
           <span class="blurb">全维度对照与「守正出奇」结论</span>
         </div>
-        <div class="links"><a href="Plombery深度对比分析.html">HTML</a><a href="Plombery深度对比分析.md">MD</a></div>
+        <div class="links"><a href="product/Plombery深度对比分析.html">HTML</a><a href="product/Plombery深度对比分析.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -386,17 +418,18 @@
       <li>
         <div class="title">
           <span class="badge b-auth">权威</span>
-          <a href="依赖升级RFC.html">依赖升级 RFC</a>
+          <a href="deps/依赖升级RFC.html">依赖升级 RFC</a>
           <span class="blurb">Tier 0–2 · Phase A–C · D0/D1/D2 ✓ · 余 D3 / 3b·3c · 与 RBAC 排期关系</span>
           <ul class="nest">
-            <li><span class="badge b-done">已交付</span> <a href="Tier3前置收束设计.html">Tier 3 前置收束</a></li>
-            <li><span class="badge b-done">已交付</span> <a href="PhaseC-ORM-Legacy-AST门禁设计.html">Phase C · AST 门禁</a></li>
-            <li><span class="badge b-done">已确认</span> <a href="PhaseD0-Framework-Generation决策.html">Phase D0 · 框架代际决策</a>（DEC-008）</li>
-            <li><span class="badge b-done">已交付</span> <a href="PhaseD2-Mapped模型迁移.html">Phase D2 · Mapped[]</a></li>
-            <li><span class="badge b-done">已交付</span> <a href="Tier3b-迁移重放与残余收束设计.html">Tier 3b · ensure 重放（3b-A）</a></li>
+            <li><span class="badge b-done">已交付</span> <a href="deps/Tier3前置收束设计.html">Tier 3 前置收束</a></li>
+            <li><span class="badge b-done">已交付</span> <a href="deps/PhaseC-ORM-Legacy-AST门禁设计.html">Phase C · AST 门禁</a></li>
+            <li><span class="badge b-done">已确认</span> <a href="deps/PhaseD0-Framework-Generation决策.html">Phase D0 · 框架代际决策</a>（DEC-008）</li>
+            <li><span class="badge b-done">已交付</span> <a href="deps/PhaseD2-Mapped模型迁移.html">Phase D2 · Mapped[]</a></li>
+            <li><span class="badge b-done">已交付</span> <a href="deps/Tier3b-迁移重放与残余收束设计.html">Tier 3b · ensure 重放（3b-A）</a></li>
+            <li><span class="badge b-done">已交付</span> <a href="deps/PhaseD3-Docker-pin矩阵设计.html">Phase D3 · Docker pin 矩阵</a></li>
           </ul>
         </div>
-        <div class="links"><a href="依赖升级RFC.html">HTML</a><a href="依赖升级RFC.md">MD</a></div>
+        <div class="links"><a href="deps/依赖升级RFC.html">HTML</a><a href="deps/依赖升级RFC.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -408,28 +441,27 @@
     <ul class="doc-list">
       <li>
         <div class="title">
-          <a href="Docker部署指南.html">Docker 部署指南</a>
+          <a href="ops/Docker部署指南.html">Docker 部署指南</a>
           <span class="blurb">compose · 镜像 · 验收脚本 · 数据卷</span>
         </div>
-        <div class="links"><a href="Docker部署指南.html">HTML</a><a href="Docker部署指南.md">MD</a></div>
+        <div class="links"><a href="ops/Docker部署指南.html">HTML</a><a href="ops/Docker部署指南.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="非Docker部署指南.html">非 Docker 部署指南</a>
+          <a href="ops/非Docker部署指南.html">非 Docker 部署指南</a>
           <span class="blurb">裸机 · Gunicorn · systemd · Nginx · 远程文档</span>
         </div>
-        <div class="links"><a href="非Docker部署指南.html">HTML</a><a href="非Docker部署指南.md">MD</a></div>
+        <div class="links"><a href="ops/非Docker部署指南.html">HTML</a><a href="ops/非Docker部署指南.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="linux安装与运行.md">Linux 安装与运行</a>
+          <a href="ops/linux安装与运行.md">Linux 安装与运行</a>
           <span class="blurb">一键安装 · venv · MySQL/SQLite</span>
           <ul class="nest">
-            <li><a href="ubuntu安装与运行.md">Ubuntu</a> · <a href="centos安装与运行.md">CentOS</a> · <a href="../INSTALL.md">INSTALL.md</a></li>
-            <li><a href="windows部署文档.md">Windows 部署（遗留）</a></li>
+            <li><a href="ops/ubuntu安装与运行.md">Ubuntu</a> · <a href="ops/centos安装与运行.md">CentOS</a> · <a href="../INSTALL.md">INSTALL.md</a></li>
           </ul>
         </div>
-        <div class="links"><a href="linux安装与运行.md">MD</a></div>
+        <div class="links"><a href="ops/linux安装与运行.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -441,28 +473,28 @@
     <ul class="doc-list">
       <li>
         <div class="title">
-          <a href="P0测试用例与验收手册.html">P0 测试用例与验收手册</a>
+          <a href="qa/P0测试用例与验收手册.html">P0 测试用例与验收手册</a>
           <span class="blurb">Phase A 用例 · curl/冒烟 · 发布签字</span>
         </div>
-        <div class="links"><a href="P0测试用例与验收手册.html">HTML</a><a href="P0测试用例与验收手册.md">MD</a></div>
+        <div class="links"><a href="qa/P0测试用例与验收手册.html">HTML</a><a href="qa/P0测试用例与验收手册.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="LICENSE-AUDIT.html">License Audit 报告</a>
+          <a href="qa/LICENSE-AUDIT.html">License Audit 报告</a>
           <span class="blurb">Apache-2.0 · 依赖归类与整改清单</span>
         </div>
-        <div class="links"><a href="LICENSE-AUDIT.html">HTML</a><a href="LICENSE-AUDIT.md">MD</a></div>
+        <div class="links"><a href="qa/LICENSE-AUDIT.html">HTML</a><a href="qa/LICENSE-AUDIT.md">MD</a></div>
       </li>
       <li>
         <div class="title">
-          <a href="文档同步说明.md">文档同步说明</a>
+          <a href="qa/文档同步说明.md">文档同步说明</a>
           <span class="blurb">HTML↔MD · CI · pending_sync（工程向）</span>
         </div>
-        <div class="links"><a href="文档同步说明.md">MD</a></div>
+        <div class="links"><a href="qa/文档同步说明.md">MD</a></div>
       </li>
     </ul>
   </section>
 
-  <footer>CronPilot · 技术文档 · HTML + Markdown · 发行版 v2.1.1</footer>
+  <footer>CronPilot · 技术文档 · HTML + Markdown · 发行版 v2.7.0</footer>
 </body>
 </html>

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot 详细技术方案</title>
+  <style>
+    :root{--p:#2563eb;--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;line-height:1.75;color:var(--text);background:var(--bg)}
+    header{background:linear-gradient(135deg,#134e4a,#0d9488 50%,#14b8a6);color:#fff;padding:2.5rem 2rem}
+    header h1{font-size:1.85rem} header p{opacity:.92;margin-top:.4rem}
+    .wrap{max-width:1080px;margin:0 auto;padding:2rem 1.5rem 4rem}
+    nav.toc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:2rem;position:sticky;top:0;z-index:10}
+    nav.toc h2{font-size:.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem}
+    nav.toc ol{columns:2;padding-left:1.2rem;font-size:.86rem}
+    nav.toc a{color:var(--p)}
+    section{margin-bottom:2.5rem}
+    section>h2{font-size:1.35rem;border-left:4px solid #0d9488;padding-left:.85rem;margin-bottom:1rem}
+    section>h3{font-size:1.05rem;margin:1.2rem 0 .55rem;color:#334155}
+  section>h4{font-size:.95rem;margin:.85rem 0 .4rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:.65rem 0}
+    table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.65rem 0}
+    th,td{border:1px solid var(--border);padding:.45rem .65rem}
+    th{background:#f1f5f9}
+    code,pre{font-family:ui-monospace,Consolas,monospace;font-size:.84rem}
+    code{background:#f1f5f9;padding:.1rem .3rem;border-radius:3px}
+    pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0}
+    .req::before{content:"REQ-";font-weight:700;color:#0d9488}
+    .back{color:var(--p);font-size:.9rem;display:inline-block;margin-bottom:1rem}
+    footer{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+    .must{color:#b91c1c;font-weight:600}
+  </style>
+</head>
+<body>
+<header>
+  <h1>CronPilot 详细技术方案</h1>
+  <p>功能规格 · 接口契约 · 数据设计 · 集成与运维实施手册</p>
+</header>
+<div class="wrap">
+  <a class="back" href="../index.html">← 文档索引</a> · <a class="back" href="架构设计文档.html">架构设计文档</a>
+
+  <nav class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#t1">1. 项目背景与目标</a></li>
+      <li><a href="#t2">2. 功能需求规格</a></li>
+      <li><a href="#t3">3. 非功能需求</a></li>
+      <li><a href="#t4">4. 技术选型说明</a></li>
+      <li><a href="#t5">5. 模块详细设计</a></li>
+      <li><a href="#t6">6. 数据库设计</a></li>
+      <li><a href="#t7">7. Cron 表达式规范</a></li>
+      <li><a href="#t8">8. 接口设计（Web + API）</a></li>
+      <li><a href="#t9">9. 回调集成规范</a></li>
+      <li><a href="#t10">10. 配置项完整说明</a></li>
+      <li><a href="#t11">11. 告警与可观测性</a></li>
+      <li><a href="#t12">12. 部署与运维</a></li>
+      <li><a href="#t13">13. 安全方案</a></li>
+      <li><a href="#t14">14. 测试方案</a></li>
+      <li><a href="#t15">15. 风险与演进路线</a></li>
+      <li><a href="#t16">16. 与 Plombery 的架构与技术方案对比</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="t1">
+    <h2>1. 项目背景与目标</h2>
+    <div class="card">
+      <p>企业在多服务、多环境中分散维护 crontab，存在<strong>不可视、难审计、无法 API 化、集群重复执行</strong>等问题。CronPilot 提供中心化调度台：统一配置周期规则，通过 HTTP 触发既有业务接口，并沉淀执行日志与失败通知。</p>
+    </div>
+    <h3>1.1 建设目标</h3>
+    <table>
+      <tr><th>编号</th><th>目标</th><th>验收标准</th></tr>
+      <tr><td>G1</td><td>任务统一管理</td><td>Web 列表、搜索、启动/暂停、下线（无物理删除）</td></tr>
+      <tr><td>G2</td><td>Crontab 兼容</td><td>支持日/周/时/分/秒及 */n、列表、区间</td></tr>
+      <tr><td>G3</td><td>开放集成</td><td>REST API 增改任务、启动/暂停、上传执行明细</td></tr>
+      <tr><td>G4</td><td>集群安全</td><td>多节点部署时同一任务不重复执行</td></tr>
+      <tr><td>G5</td><td>故障可达</td><td>异常/关键词命中推送企微、钉钉、WebHook</td></tr>
+    </table>
+  </section>
+
+  <!-- 2 -->
+  <section id="t2">
+    <h2>2. 功能需求规格</h2>
+    <h3>2.1 任务管理（Web）</h3>
+    <table>
+      <tr><th>需求 ID</th><th>描述</th><th>路由/实现</th></tr>
+      <tr><td class="req">001</td><td>密码登录，Session 保持</td><td><code>/check_pass</code></td></tr>
+      <tr><td class="req">002</td><td>任务列表分页（20 条/页），按任务名模糊搜索</td><td><code>/cron_list</code></td></tr>
+      <tr><td class="req">003</td><td>新增任务：一次性 / Cron 模式切换</td><td><code>/cron_add</code></td></tr>
+      <tr><td class="req">004</td><td>编辑任务，任务名唯一（排除自身）</td><td><code>/cron_edit?id=</code></td></tr>
+      <tr><td class="req">005</td><td>单任务启动/暂停（pause/resume；暂停 ≠ 下线）</td><td><code>/update_status?id=</code></td></tr>
+      <tr><td class="req">006</td><td>任务下线（status=-1，不可逆；保留行与日志；LIFECYCLE-2 强制原因与时间）</td><td><code>/cron_retire</code> · <code>/api/cron/retire</code></td></tr>
+      <tr><td class="req">007</td><td>单任务执行记录弹窗</td><td><code>/job_log_list?id=</code> iframe</td></tr>
+      <tr><td class="req">008</td><td>全局执行记录：任务名、时间范围筛选</td><td><code>/job_log_all_list</code></td></tr>
+      <tr><td class="req">009</td><td>执行明细查看（<strong>无</strong>人工删日志）</td><td><code>/job_log_item_list</code>、<code>/job_log_detail</code></td></tr>
+      <tr><td class="req">010</td><td>内嵌 API 文档页（动态 HOST）</td><td><code>/api_doc</code></td></tr>
+    </table>
+
+    <h3>2.2 任务管理（API）</h3>
+    <table>
+      <tr><th>需求 ID</th><th>描述</th><th>端点</th></tr>
+      <tr><td class="req">101</td><td>按 task_name upsert 任务</td><td><code>POST /api/cron</code></td></tr>
+      <tr><td class="req">102</td><td>启动/暂停任务（可 toggle 或指定 status）</td><td><code>POST /api/cron/status</code></td></tr>
+      <tr><td class="req">103</td><td>业务方上传执行进度</td><td><code>POST /api/cron/add_log</code></td></tr>
+      <tr><td class="req">104</td><td>access_token 可选强校验</td><td>conf.ini api_access_token</td></tr>
+    </table>
+
+    <h3>2.3 调度执行</h3>
+    <table>
+      <tr><th>需求 ID</th><th>描述</th><th>实现</th></tr>
+      <tr><td class="req">201</td><td>到期触发 HTTP GET 回调</td><td><code>crons.cron_do</code></td></tr>
+      <tr><td class="req">202</td><td>附带 cronpilot_log_id、cronpilot_sign</td><td>query params</td></tr>
+      <tr><td class="req">203</td><td>记录响应体与耗时</td><td>job_log 表</td></tr>
+      <tr><td class="req">204</td><td>响应含 error_keyword 则告警</td><td>不区分大小写子串匹配</td></tr>
+      <tr><td class="req">205</td><td>date 任务执行后 status=-1</td><td>CuBackgroundScheduler.remove_job</td></tr>
+    </table>
+
+    <h3>2.4 系统维护（自动）</h3>
+    <table>
+      <tr><th>需求 ID</th><th>周期</th><th>行为</th></tr>
+      <tr><td class="req">301</td><td>30 分钟</td><td>JobStore 与 cron_infos 一致性检查</td></tr>
+      <tr><td class="req">302</td><td>8 小时</td><td>按任务裁剪 job_log 至 job_log_counts 条</td></tr>
+      <tr><td class="req">303</td><td>15 秒</td><td>数据库 SELECT 1 探活</td></tr>
+    </table>
+  </section>
+
+  <!-- 3 -->
+  <section id="t3">
+    <h2>3. 非功能需求</h2>
+    <table>
+      <tr><th>类别</th><th>指标</th><th>当前实现</th></tr>
+      <tr><td>性能</td><td>单节点 30 线程并发执行</td><td>ThreadPoolExecutor max_workers=30</td></tr>
+      <tr><td>性能</td><td>回调超时 120s</td><td>requests timeout=2*60</td></tr>
+      <tr><td>可用性</td><td>进程崩溃自动重启</td><td>Supervisor autorestart</td></tr>
+      <tr><td>可扩展</td><td>水平多节点</td><td>is_single=0 + Redis + MySQL</td></tr>
+      <tr><td>可维护</td><td>日志保留</td><td>info 7×24h 轮转；error 15 天</td></tr>
+      <tr><td>兼容性</td><td>Python 3.6+</td><td>Docker 镜像 deadsnakes 3.6</td></tr>
+    </table>
+  </section>
+
+  <!-- 4 -->
+  <section id="t4">
+    <h2>4. 技术选型说明</h2>
+    <table>
+      <tr><th>组件</th><th>选型</th><th>说明</th></tr>
+      <tr><td>Web</td><td>Flask 1.1</td><td>轻量、与 APScheduler 集成成熟</td></tr>
+      <tr><td>调度</td><td>APScheduler 3.10 + Flask-APScheduler</td><td>持久化 JobStore、pause/resume</td></tr>
+      <tr><td>ORM</td><td>Flask-SQLAlchemy 2.4</td><td>业务表 CRUD</td></tr>
+      <tr><td>迁移</td><td>Flask-Migrate (Alembic)</td><td>docker_start.sh 自动 migrate</td></tr>
+      <tr><td>WSGI</td><td>Gunicorn + gevent</td><td>协程 worker 提高 IO 并发</td></tr>
+      <tr><td>前端</td><td>Jinja2 SSR + jQuery</td><td>无构建链，适合运维后台</td></tr>
+    </table>
+  </section>
+
+  <!-- 5 -->
+  <section id="t5">
+    <h2>5. 模块详细设计</h2>
+
+    <h3>5.1 应用工厂 create_app</h3>
+    <pre>create_app(config_name)
+  ├── app.config ← DevelopmentConfig / ProductionConfig
+  ├── logging → datas/logs/info.log (INFO filter), error.log (ERROR)
+  ├── db.init_app(app)
+  ├── scheduler.app = app; scheduler.init_app(app); scheduler.start()
+  ├── register_blueprint(main)
+  └── register_blueprint(api, url_prefix='/api')</pre>
+
+    <h3>5.2 cron_do 执行逻辑（伪代码）</h3>
+    <pre>def cron_do(cron_id):
+    with app.app_context():
+        cif = CronInfos.get(cron_id)
+        if not cif or invalid url: write job_log(error); return
+        log_id = uuid4()
+        sign = MD5(sorted_query_params + api_key)
+        t0 = now()
+        try:
+            resp = GET(cif.req_url, params={log_id, sign}, timeout=120)
+            body = resp.text or json
+            if any(kw in body.lower() for kw in error_keywords):
+                send_alert(task_name, body)
+            JobLog.create(cron_id, body, take_time=now-t0, log_id=log_id)
+        except Exception as e:
+            JobLog.create(error); send_alert(e)</pre>
+
+    <h3>5.3 Web 与 API 校验复用问题</h3>
+    <div class="card">
+      <p><code>main/views.py</code> 与 <code>api/views.py</code> 中 Cron 字段校验逻辑<strong>高度重复</strong>（约 300+ 行 ×2）。技术债务：应抽取 <code>services/cron_validator.py</code> 与 <code>services/cron_service.py</code>（add_or_update、toggle_status）。</p>
+    </div>
+
+    <h3>5.4 前端 Ajax 契约（Web）</h3>
+    <p>表单 class <code>js-ajax-form</code> 提交后期望 JSON：</p>
+    <pre>{ "errcode": 0, "errmsg": "操作成功", "url": "/cron_list" }</pre>
+    <p><code>errcode=1</code> 时 artDialog 提示错误；<code>url</code> 非空则跳转。</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="t6">
+    <h2>6. 数据库设计</h2>
+    <h3>6.1 逻辑 DDL（参考 ORM）</h3>
+    <pre>CREATE TABLE cron_infos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_name VARCHAR(120) NOT NULL,
+  task_keyword VARCHAR(500) DEFAULT '',  -- LIFECYCLE-2：新建/编辑必填 1～500
+  run_date VARCHAR(25) DEFAULT '',
+  day_of_week VARCHAR(10) DEFAULT '',
+  day VARCHAR(20) DEFAULT '',
+  hour VARCHAR(10) DEFAULT '',
+  minute VARCHAR(10) DEFAULT '',
+  second VARCHAR(10) DEFAULT '',
+  req_url VARCHAR(200) DEFAULT '',
+  status SMALLINT DEFAULT 1,  -- 0暂停 1运行 -1下线
+  created_at VARCHAR(25) DEFAULT '',     -- LIFECYCLE-2
+  updated_at VARCHAR(25) DEFAULT '',     -- 仅配置编辑刷新
+  retire_reason VARCHAR(500) DEFAULT '', -- 人工下线必填 1～500（与说明同长）
+  retired_at VARCHAR(25) DEFAULT ''
+);</pre>
+    <p>LIFECYCLE-2 字段与校验见 <a href="../design/任务生命周期与无删除设计.html#lifecycle-2">任务生命周期 §四</a>。完整变更历史走 OPT-P1-09 <code>operation_log</code>，不另建任务更新日志表。</p>
+    <pre>CREATE TABLE job_log (
+  id INTEGER PRIMARY KEY,
+  log_id VARCHAR(65) NOT NULL DEFAULT '',
+  cron_info_id INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  create_time VARCHAR(25) NOT NULL,
+  take_time VARCHAR(25) DEFAULT ''
+);
+CREATE INDEX ix_job_log_log_id ON job_log(log_id);
+CREATE INDEX ix_job_log_cron_info_id ON job_log(cron_info_id);
+
+CREATE TABLE job_log_items (
+  id INTEGER PRIMARY KEY,
+  log_id VARCHAR(65) NOT NULL,
+  content TEXT NOT NULL
+);</pre>
+    <p>APScheduler 自动维护 <code>apscheduler_jobs</code> 表（字段含 id、next_run_time、job_state 等），勿手工修改。</p>
+
+    <h3>6.2 索引与查询模式</h3>
+    <table>
+      <tr><th>场景</th><th>查询</th><th>索引</th></tr>
+      <tr><td>任务列表</td><td>task_name LIKE + ORDER BY status, task_name</td><td>建议 task_name 索引（当前无）</td></tr>
+      <tr><td>单任务日志</td><td>cron_info_id = ? ORDER BY id DESC</td><td>cron_info_id ✓</td></tr>
+      <tr><td>全局日志</td><td>JOIN cron_infos + 时间 between</td><td>create_time 无索引，大数据量需优化</td></tr>
+    </table>
+  </section>
+
+  <!-- 7 -->
+  <section id="t7">
+    <h2>7. Cron 表达式规范</h2>
+    <p>系统不存储标准 5 段 crontab 字符串，而是<strong>拆字段</strong>存入 cron_infos，由 APScheduler 组装。</p>
+    <table>
+      <tr><th>字段</th><th>合法值</th><th>扩展语法</th></tr>
+      <tr><td>day</td><td>1-31</td><td><code>1,15</code> · <code>1-5</code> · <code>*/3</code> · <code>*</code></td></tr>
+      <tr><td>day_of_week</td><td>0-6 或 mon..sun</td><td>同上；不可同时用 <code>,</code> 与 <code>-</code></td></tr>
+      <tr><td>hour</td><td>0-23</td><td>同上</td></tr>
+      <tr><td>minute</td><td>0-59</td><td>同上</td></tr>
+      <tr><td>second</td><td>0-59</td><td>同上；is_dev=1 强制忽略</td></tr>
+    </table>
+    <h3>7.1 示例</h3>
+    <table>
+      <tr><th>业务含义</th><th>字段配置</th></tr>
+      <tr><td>每天凌晨 2 点</td><td>hour=2, minute=0</td></tr>
+      <tr><td>每月 20 号 9 点</td><td>day=20, hour=9, minute=0</td></tr>
+      <tr><td>每 2 小时</td><td>hour=*/2</td></tr>
+      <tr><td>工作日 9、14、16 点</td><td>hour=9,14,16（或 day_of_week=mon-fri）</td></tr>
+      <tr><td>一次性 2026-12-31 23:59</td><td>run_date=2026-12-31 23:59（date 模式）</td></tr>
+    </table>
+  </section>
+
+  <!-- 8 -->
+  <section id="t8">
+    <h2>8. 接口设计（Web + API）</h2>
+
+    <h3>8.1 REST API 统一响应</h3>
+    <pre>// 成功
+{ "errcode": 0, "errmsg": "ok" | "success", "data": null | object }
+
+// 失败（api_err_return / 异常）
+{ "errcode": 1, "errmsg": "错误描述", "data": "" }</pre>
+
+    <h3>8.2 POST /api/cron — 添加或更新</h3>
+    <table>
+      <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+      <tr><td>access_token</td><td>string</td><td>配置后必填</td><td>与 conf.ini 一致</td></tr>
+      <tr><td>task_name</td><td>string</td><td class="must">是</td><td>唯一键</td></tr>
+      <tr><td>req_url</td><td>string</td><td class="must">是</td><td>须含 http:// 或 https://</td></tr>
+      <tr><td>run_date</td><td>string</td><td>二选一</td><td>yyyy-MM-dd HH:mm，非空则 date 模式</td></tr>
+      <tr><td>day, day_of_week, hour, minute, second</td><td>string</td><td>二选一</td><td>Cron 模式，至少填一项</td></tr>
+      <tr><td>task_keyword</td><td>string</td><td class="must">是</td><td>备注/说明（LIFECYCLE-2；1～500 字）</td></tr>
+    </table>
+    <pre>curl -X POST 'http://HOST/api/cron' \
+  -d 'access_token=YOUR_TOKEN' \
+  -d 'task_name=nightly_backup' \
+  -d 'task_keyword=夜间备份·运维' \
+  -d 'hour=2' -d 'minute=30' \
+  -d 'req_url=https://api.example.com/jobs/backup'</pre>
+
+    <h3>8.3 POST /api/cron/status</h3>
+    <table>
+      <tr><th>参数</th><th>说明</th></tr>
+      <tr><td>task_name</td><td>必填</td></tr>
+      <tr><td>status</td><td>可选：0 停止，1 开启；不传则 toggle</td></tr>
+    </table>
+    <p>status=-1 的任务返回错误「任务已结束，不能再操作」。</p>
+
+    <h3>8.3b POST /api/cron/retire</h3>
+    <table>
+      <tr><th>参数</th><th>必填</th><th>说明</th></tr>
+      <tr><td>task_name</td><td class="must">是</td><td>任务名称</td></tr>
+      <tr><td>reason</td><td class="must">是</td><td>下线原因（LIFECYCLE-2 · 1～500 字；与说明同长）</td></tr>
+    </table>
+    <p>写 <code>status=-1</code> 及 <code>retire_reason</code> / <code>retired_at</code>（无 <code>retired_by</code>）。见 <a href="../design/任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>。</p>
+
+    <h3>8.4 POST /api/cron/add_log</h3>
+    <table>
+      <tr><th>参数</th><th>说明</th></tr>
+      <tr><td>cronpilot_log_id</td><td>回调时收到的 log_id</td></tr>
+      <tr><td>content</td><td>明细文本，可多次提交</td></tr>
+    </table>
+
+    <h3>8.5 Web 路由与鉴权</h3>
+    <table>
+      <tr><th>路由</th><th>鉴权</th><th>响应类型</th></tr>
+      <tr><td>/check_pass</td><td>无（转发登录）</td><td>HTML / redirect</td></tr>
+      <tr><td>/rbac/login · 管理页</td><td>Session + <code>require_permission</code> / <code>has_perm</code></td><td>HTML / JSON（Ajax）</td></tr>
+      <tr><td>/api/*</td><td>access_token（可选）</td><td>JSON</td></tr>
+    </table>
+  </section>
+
+  <!-- 9 -->
+  <section id="t9">
+    <h2>9. 回调集成规范（业务方必读）</h2>
+
+    <h3>9.1 回调请求格式</h3>
+    <table>
+      <tr><th>项</th><th>值</th></tr>
+      <tr><td>Method</td><td>GET</td></tr>
+      <tr><td>Query 追加</td><td>cronpilot_log_id, cronpilot_sign</td></tr>
+      <tr><td>Header</td><td>User-Agent: CronPilot</td></tr>
+      <tr><td>Timeout</td><td>120 秒（超时记 job_log 异常并告警）</td></tr>
+    </table>
+
+    <h3>9.2 签名验证步骤</h3>
+    <ol style="margin-left:1.25rem">
+      <li>读取本次请求全部 query 参数（含 cronpilot_log_id，不含 sign）</li>
+      <li>按参数名字典序升序排列</li>
+      <li>拼接：<code>key1=val1&&key2=val2&&...&&api_key={conf.api_key}</code>（空值参数按源码跳过）</li>
+      <li>MD5(拼接串) 与 cronpilot_sign 比较</li>
+    </ol>
+    <pre>// Python 参考（与 get_cronpilot_sign 一致）
+def verify(params: dict, api_key: str, sign: str) -> bool:
+    keys = sorted(k for k in params if params[k])
+    s = "&&".join(f"{k}={params[k]}" for k in keys) + f"&&api_key={api_key}"
+    return hashlib.md5(s.encode()).hexdigest() == sign</pre>
+
+    <h3>9.3 业务方响应建议</h3>
+    <ul style="margin-left:1.25rem">
+      <li>快速返回：耗时 &lt; 120s，长任务应异步处理 + 调用 add_log 上报进度</li>
+      <li>避免响应体包含 error_keyword（默认 "fail"）除非确实失败</li>
+      <li>实现幂等：同一 log_id 重复回调不应产生副作用</li>
+      <li>验签失败应返回 403 并记录（当前系统仍记 200 响应体）</li>
+    </ul>
+
+    <h3>9.4 集成时序（长任务）</h3>
+    <pre>1. CronPilot → GET 业务 /task?cronpilot_log_id=UUID&amp;sign=...
+2. 业务立即返回 {"accepted":true}（&lt;1s）
+3. 业务异步执行，每步 POST /api/cron/add_log
+4. 最终状态写入 add_log 或让主日志 content 不含 fail 关键词</pre>
+  </section>
+
+  <!-- 10 -->
+  <section id="t10">
+    <h2>10. 配置项完整说明（conf.ini）</h2>
+    <table>
+      <tr><th>键</th><th>默认</th><th>说明</th></tr>
+      <tr><td>is_dev</td><td>0</td><td>1=体验版，禁用秒级；登录页可显示密码提示</td></tr>
+      <tr><td>is_single</td><td>1</td><td>1=单机；0=集群（必须 Redis + 建议 MySQL）</td></tr>
+      <tr><td>redis_host / redis_port / redis_db / redis_pwd</td><td>—</td><td>集群锁</td></tr>
+      <tr><td>cron_db_url</td><td>sqlite JobStore</td><td>mysql+pymysql://user:pass@host/db</td></tr>
+      <tr><td>cron_job_log_db_url</td><td>sqlite 业务库</td><td>可与上相同或分离</td></tr>
+      <tr><td>login_pwd</td><td>（必填）</td><td><strong>仅</strong> <code>rbac_users</code> 空表时种子用户 <code>admin</code> 的初始密码（明文或 pbkdf2）。有用户后改此项并重启<strong>不会</strong>改库内密码；日常改密见管理端「用户管理 → 编辑 → 新密码」</td></tr>
+      <tr><td>error_keyword</td><td>fail</td><td>逗号分隔，命中则告警</td></tr>
+      <tr><td>job_log_counts</td><td>1000</td><td>每任务保留日志条数，0=不清理</td></tr>
+      <tr><td>api_access_token</td><td>空</td><td>非空则 API 必传 access_token</td></tr>
+      <tr><td>api_key</td><td>空</td><td>回调签名密钥</td></tr>
+      <tr><td>qywechat_*</td><td>空</td><td>企业微信应用消息</td></tr>
+      <tr><td>error_web_hook</td><td>空</td><td>支持 {{content}} 模板</td></tr>
+      <tr><td>dingding_webhook / dingding_secret</td><td>空</td><td>钉钉自定义机器人</td></tr>
+    </table>
+    <p>环境变量 <code>FLASK_CONFIG</code>：development | production | testing（见 config.py）。</p>
+  </section>
+
+  <!-- 11 -->
+  <section id="t11">
+    <h2>11. 告警与可观测性</h2>
+    <h3>11.1 告警触发点</h3>
+    <table>
+      <tr><th>事件</th><th>函数</th></tr>
+      <tr><td>回调异常</td><td>wechat_info_err in cron_do except</td></tr>
+      <tr><td>error_keyword 命中</td><td>cron_do 循环 keyword</td></tr>
+      <tr><td>DB 探活失败</td><td>cron_check_db_sleep</td></tr>
+      <tr><td>对账/调度严重错误</td><td>cron_check except</td></tr>
+    </table>
+    <h3>11.2 日志文件</h3>
+    <table>
+      <tr><th>路径</th><th>级别</th><th>轮转</th></tr>
+      <tr><td>datas/logs/info.log</td><td>INFO</td><td>每小时，保留 7</td></tr>
+      <tr><td>datas/logs/error.log</td><td>ERROR</td><td>每天，保留 15</td></tr>
+      <tr><td>datas/logs/server.log</td><td>Supervisor stdout</td><td>100MB×3</td></tr>
+    </table>
+    <h3>11.3 建议外挂监控</h3>
+    <ul style="margin-left:1.25rem">
+      <li>HTTP 探活：GET /check_pass 或 /cron_list（需 cookie 则探活专用端点）</li>
+      <li>指标：job_log 失败率、take_time P99、Redis 锁等待</li>
+      <li>日志采集：error.log 关键字告警</li>
+    </ul>
+  </section>
+
+  <!-- 12 -->
+  <section id="t12">
+    <h2>12. 部署与运维</h2>
+
+    <h3>12.1 Docker 部署清单</h3>
+    <pre># 准备
+cp conf.example.ini conf.ini
+# 编辑 docker-compose volumes 与 ports
+
+# 启动
+docker-compose up --build -d
+
+# 库表升级（容器内；Python 与镜像一致，当前多为 3.10）
+docker exec -it &lt;container&gt; bash -c \
+  'cd /opt/cronpilot &amp;&amp; export FLASK_APP=manage:app &amp;&amp; flask db migrate -m "upgrade" &amp;&amp; flask db upgrade'</pre>
+
+    <h3>12.2 裸机 / Windows</h3>
+    <p>核心命令：</p>
+    <pre>pip install -r requirements.txt
+cp conf.example.ini conf.ini
+export FLASK_APP=manage:app
+flask db upgrade
+gunicorn -c gun.py manage:app</pre>
+
+    <h3>12.3 运维操作手册</h3>
+    <table>
+      <tr><th>操作</th><th>步骤</th></tr>
+      <tr><td>修改登录密码</td><td>admin → <strong>用户管理</strong> → 编辑对应用户 →「新密码」→ 保存。勿再改 conf.ini <code>login_pwd</code>（有用户后无效）</td></tr>
+      <tr><td>扩容节点</td><td>新节点相同 conf（is_single=0）、共享 MySQL+Redis</td></tr>
+      <tr><td>清理磁盘</td><td>调低 job_log_counts；检查 datas/logs 轮转</td></tr>
+      <tr><td>任务不触发</td><td>查 status=1、apscheduler_jobs 存在 cron_{id}、scheduler.lock 权限</td></tr>
+      <tr><td>重复执行</td><td>查 is_single、Redis 连通、多节点时钟同步</td></tr>
+    </table>
+
+    <h3>12.4 启动链（Docker）</h3>
+    <pre>supervisord → docker_start.sh
+  → [若无 migrations] flask db init
+  → flask db migrate &amp;&amp; upgrade
+  → gunicorn -c docker_gun.py manage:app  (4 gevent workers, :80)</pre>
+  </section>
+
+  <!-- 13 -->
+  <section id="t13">
+    <h2>13. 安全方案</h2>
+    <table>
+      <tr><th>威胁</th><th>现状</th><th>加固建议</th></tr>
+      <tr><td>未授权访问 Web</td><td>RBAC 用户名密码 + Session</td><td>HTTPS、强初始 <code>login_pwd</code>、用户管理改密、失败锁定（未做）</td></tr>
+      <tr><td>会话伪造</td><td>生产拒绝弱 <code>SECRET_KEY</code>（OPT-P0-10）；试用可由 <code>run_production.sh</code> 写入 <code>datas/.flask_secret_key</code></td><td>多节点共用同一密钥；勿提交密钥文件</td></tr>
+      <tr><td>集群双跑</td><td>Redis <code>SET NX EX</code> + token 释放（OPT-P0-09）</td><td>保持 <code>is_single</code> 与 Redis 配置正确</td></tr>
+      <tr><td>管理端 CSRF</td><td>写操作 <code>POST</code> + Session Token（OPT-P0-11）；<code>js-ajax-dialog-btn</code> 附带 meta token；<code>/api/*</code> 豁免</td><td>升级后硬刷新管理端；勿保留书签式 GET 变更</td></tr>
+      <tr><td>API 滥用</td><td>access_token 明文配置</td><td>环境变量、IP 白名单、速率限制</td></tr>
+      <tr><td>伪造回调</td><td>可选 MD5 签名</td><td>业务方强制验签 + 时间戳防重放</td></tr>
+      <tr><td>SQL 注入</td><td>部分 execute 字符串拼接</td><td>改为 ORM / 参数化</td></tr>
+      <tr><td>SSRF</td><td>req_url 任意</td><td>URL 白名单、禁止内网段</td></tr>
+      <tr><td>敏感信息泄露</td><td>体验模式显示密码</td><td>生产 is_dev=0</td></tr>
+    </table>
+  </section>
+
+  <!-- 14 -->
+  <section id="t14">
+    <h2>14. 测试方案</h2>
+    <h3>14.1 单元测试建议</h3>
+    <table>
+      <tr><th>模块</th><th>用例</th></tr>
+      <tr><td>cron_validator</td><td>各字段合法/非法组合、中英文逗号</td></tr>
+      <tr><td>get_cronpilot_sign</td><td>参数排序、空值、api_key 边界</td></tr>
+      <tr><td>single_task</td><td>SET NX EX 原子抢锁、token 释放、is_single=1 不碰 Redis（见 <code>tests.test_single_task_lock</code>）</td></tr>
+      <tr><td>csrf</td><td>弱/错/正确 token；GET 写路由 405；登录页 meta（见 <code>tests.test_csrf</code>）</td></tr>
+      <tr><td>SECRET_KEY</td><td>生产弱密钥拒启（见 <code>tests.test_secret_key</code> / <code>check_conf_production</code>）</td></tr>
+    </table>
+    <h3>14.2 集成测试</h3>
+    <table>
+      <tr><th>场景</th><th>验证</th></tr>
+      <tr><td>API 创建 cron 任务</td><td>apscheduler_jobs 有记录，到点回调 mock server</td></tr>
+      <tr><td>pause/resume</td><td>status 与不再触发</td></tr>
+      <tr><td>date 一次性</td><td>执行后 status=-1</td></tr>
+      <tr><td>add_log</td><td>job_log_items 条数</td></tr>
+      <tr><td>error_keyword</td><td>mock 响应含 fail → 告警通道被调用</td></tr>
+    </table>
+    <h3>14.3 手工检查清单</h3>
+    <ul style="margin-left:1.25rem">
+      <li>Web 登录失败/成功跳转</li>
+      <li>任务下线（保留配置与流水）；无人工删除</li>
+      <li>集群双节点同时只执行一次（查 job_log 时间戳）</li>
+      <li>docker-compose 端口映射访问</li>
+    </ul>
+  </section>
+
+  <!-- 15 -->
+  <section id="t15">
+    <h2>15. 风险与演进路线</h2>
+    <h3>15.1 已知风险</h3>
+    <table>
+      <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+      <tr><td>依赖版本陈旧</td><td>CVE、Py3.11 上 gevent/Flask-Script 受限</td><td>按 <a href="../deps/依赖升级RFC.html">依赖升级 RFC</a> 分层：Tier 0 Flask CLI → Tier 1 SA 1.4 渐进 → Tier 2 gevent → Tier 3/4 SA2/Flask2</td></tr>
+      <tr><td>多 Scheduler 实例</td><td>锁失效时重复执行</td><td>监控 + 单 worker 调度可选方案</td></tr>
+      <tr><td>GET 触发无 body（历史）</td><td>复杂参数受限</td><td><strong>v2.0.0 已交付</strong>：任务可选 GET/POST；POST 发 JSON Body（见 <a href="../RELEASE_NOTES.html#200">Release Notes [2.0.0]</a>）</td></tr>
+      <tr><td>无审计日志</td><td>谁改了任务不可追溯</td><td>增加 <code>operation_log</code>（含操作人、角色/权限快照，见 OPT-P1-09）</td></tr>
+    </table>
+    <h3>15.2 演进路线图</h3>
+    <table>
+      <tr><th>阶段</th><th>内容</th><th>优先级</th></tr>
+      <tr><td>Phase 1</td><td>安全加固（SQL 参数化、密码哈希、HTTPS）</td><td>P0</td></tr>
+      <tr><td>Phase 2</td><td>校验/服务层重构，消除 Web/API 重复</td><td>P1</td></tr>
+      <tr><td>Phase 3</td><td>Prometheus metrics + 仪表盘 API</td><td>P2</td></tr>
+      <tr><td>Phase 4</td><td>Vue3 管理台、Cron 可视化构建器</td><td>P3</td></tr>
+      <tr><td>Phase 5</td><td>任务依赖 DAG（POST 触发请求已随 v2.0.0 准备交付）</td><td>P4</td></tr>
+    </table>
+    <h3>15.3 依赖升级路线（权威）</h3>
+    <p>详述见 <a href="../deps/依赖升级RFC.html">依赖升级 RFC v1.1</a>。执行序按<strong>耦合从弱到强</strong>，禁止跳级：</p>
+    <table>
+      <tr><th>Tier</th><th>内容</th><th>与 RBAC</th></tr>
+      <tr><td>Tier 0</td><td>Flask-Script → <code>flask db</code> 原生 CLI</td><td><strong>v0.2.0 已交付</strong></td></tr>
+      <tr><td>Tier 1</td><td>SQLAlchemy 1.3 → <strong>1.4</strong>（<code>Model.query</code> 已迁移）</td><td><strong>v0.2.0 已交付</strong></td></tr>
+      <tr><td>侧车</td><td>requests / urllib3 安全补丁</td><td>独立 PR</td></tr>
+      <tr><td>Tier 2</td><td>gevent 23.9.1 + greenlet 3.1.1（RFC-2.1 ✓）；gunicorn 22.0.0（RFC-2.2 ✓）；APScheduler 3.10.4（RFC-2.3 ✓）；Docker Py 3.10 + install-full matrix（RFC-2.4 ✓）；Python 3.8–3.11 规则验收（RFC-2.5 ✓）</td><td><strong>v0.2.0 已交付</strong>；下一级 Tier 3 SA 2.0</td></tr>
+      <tr><td>Tier 3/4</td><td>SA 2.0 → Flask 2.x</td><td>单独立项，禁止与 RBAC 首期并行</td></tr>
+    </table>
+  </section>
+
+  <!-- 17 RBAC -->
+  <section id="t17">
+    <h2>17. RBAC 与多用户技术规格（OPT-P2-10 · v4）</h2>
+    <p>权威方案：<a href="../design/RBAC架构设计方案.html">RBAC架构设计方案 v4</a>；架构摘要：<a href="架构设计文档.html#rbac-arch">§15</a>。</p>
+
+    <h3>17.1 角色与 <code>ROLE_PERMISSIONS</code></h3>
+    <pre>ROLE_PERMISSIONS = {
+    'viewer':   {'cron:read', 'log:read'},
+    'operator': {'cron:read', 'cron:write', 'log:read', 'operation:read'},
+    'admin':    {'cron:read', 'cron:write', 'cron:retire',
+                 'log:read', 'operation:read', 'user:manage', 'audit:read'},
+}</pre>
+
+    <h3>17.2 Session 字段（RBAC 启用后）</h3>
+    <table>
+      <tr><th>键</th><th>说明</th></tr>
+      <tr><td><code>is_login</code></td><td>沿用现状</td></tr>
+      <tr><td><code>role</code></td><td><code>viewer</code> / <code>operator</code> / <code>admin</code></td></tr>
+      <tr><td><code>user_id</code>、<code>username</code></td><td>匹配 <code>rbac_users</code> 时写入；供 P1 <code>operation_log</code></td></tr>
+    </table>
+
+    <h3>17.3 <code>require_permission</code> 行为</h3>
+    <p>分权<strong>始终启用</strong>：已登录用户须通过 <code>has_permission(session['role'], perm)</code>；拒绝 → <code>web_api_return</code> 或 redirect。无 <code>rbac_enable</code> 配置项。</p>
+
+    <h3>17.4 路由装饰器映射</h3>
+    <p>见 RBAC 文档 §六–§八；<code>/rbac/login</code> 替代登录渲染；<code>check_pass</code> 转发壳 + <code>next</code> 透传；<code>api/views.py</code> 不改。</p>
+
+    <h3>17.5 迁移与配置</h3>
+    <ul style="margin-left:1.2rem;font-size:.9rem">
+      <li><code>flask --app manage:app db migrate</code> / <code>db upgrade</code>（<strong>Tier 0 已交付</strong>；排期见 <a href="../deps/依赖升级RFC.html">依赖升级 RFC</a> §七）</li>
+      <li><code>conf.ini.example</code> 注明分权始终启用</li>
+    </ul>
+
+    <h3>17.6 测试</h3>
+    <p><code>tests/test_rbac_phase.py</code>：<code>has_permission</code>、三角色边界。</p>
+  </section>
+
+  <!-- 16 -->
+  <section id="t16">
+    <h2>16. 与 Plombery 的架构与技术方案对比</h2>
+    <div class="card" style="border-left:4px solid #0d9488">
+      <p><strong>完整版（含页面级交互、代码路径、<a href="../product/Plombery深度对比分析.html#s17">§17 可借鉴优化</a>）：</strong>
+      <a href="../product/Plombery深度对比分析.html">Plombery深度对比分析.html</a></p>
+      <p>基于 <code>plombery/docs/architecture.html</code> 与双项目源码。以下为摘要。</p>
+    </div>
+    <div class="card">
+      <p>结论先行：</p>
+      <ul style="margin-left:1.25rem">
+        <li><strong>CronPilot</strong>：以“<strong>HTTP 回调触发</strong>”为中心的通用定时调度台，适合多语言业务系统的统一触发与审计。</li>
+        <li><strong>Plombery</strong>：以“<strong>Python Pipeline（代码即配置）</strong>”为中心的嵌入式调度框架，强调任务链、运行元数据、实时日志流。</li>
+      </ul>
+    </div>
+
+    <h3>16.1 定位与边界（Execution Model）</h3>
+    <table>
+      <tr><th>维度</th><th>CronPilot</th><th>Plombery</th></tr>
+      <tr>
+        <td>执行载体</td>
+        <td>外部系统（回调 URL 的业务服务）</td>
+        <td>本进程 Python 代码（<code>@task</code> 函数）</td>
+      </tr>
+      <tr>
+        <td>任务模型</td>
+        <td>“单个任务 = 一个触发器 + 一个 HTTP GET”</td>
+        <td>“Pipeline = 有序 Task 集合 + 触发器列表 + 可选 Pydantic 输入”</td>
+      </tr>
+      <tr>
+        <td>数据流</td>
+        <td>平台不传递任务输出给后续任务（只存日志）</td>
+        <td>上游 task 返回值 → 下游 task 第一个位置参数（线性流水线数据流）</td>
+      </tr>
+      <tr>
+        <td>面向对象</td>
+        <td>运维视角：任务与触发规则管理</td>
+        <td>开发者视角：把“任务编排”作为 Python 库嵌入应用</td>
+      </tr>
+    </table>
+
+    <h3>16.2 调度器与并发模型</h3>
+    <table>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
+      <tr><td>Web 框架</td><td>Flask (WSGI)</td><td>FastAPI (ASGI)</td></tr>
+      <tr><td>Scheduler</td><td>APScheduler 3.10 + 自定义 BackgroundScheduler</td><td>APScheduler 3.11 + AsyncIOScheduler</td></tr>
+      <tr><td>并发执行</td><td>ThreadPoolExecutor（<code>max_workers=30</code>）</td><td>AsyncIO（sync 任务用 <code>asyncio.to_thread</code>）</td></tr>
+      <tr><td>misfire_grace_time</td><td>50s</td><td>60s（文档）</td></tr>
+      <tr><td>coalesce</td><td>false（积压不合并）</td><td>true（积压合并一次）</td></tr>
+      <tr><td>水平扩展策略</td><td>允许多 worker/多节点：文件锁 + Redis 锁协调</td><td>明确建议单 worker/单副本；多副本会重复触发，需额外分布式锁</td></tr>
+    </table>
+
+    <h3>16.3 状态与审计（Run / Log / Output）</h3>
+    <table>
+      <tr><th>维度</th><th>CronPilot</th><th>Plombery</th></tr>
+      <tr>
+        <td>运行状态机</td>
+        <td>任务级：<code>status ∈ {1,0,-1}</code>；执行结果主要靠日志文本</td>
+        <td>运行级：<code>PENDING/RUNNING/COMPLETED/FAILED/CANCELLED</code>（PipelineRun）</td>
+      </tr>
+      <tr>
+        <td>日志</td>
+        <td>以回调响应体为主（TEXT）；另有 job_log_items 供业务回传进度</td>
+        <td>结构化 JSONL（<code>logs.jsonl</code>）+ WebSocket 实时推送（<code>logs.{run_id}</code>）</td>
+      </tr>
+      <tr>
+        <td>任务输出</td>
+        <td>平台不保存“业务输出对象”（只保存回调返回内容）</td>
+        <td>每个 task 输出落文件：<code>.data/runs/run_{id}/{task}.json</code>（DB 存元数据）</td>
+      </tr>
+      <tr>
+        <td>实时性</td>
+        <td>无实时流（页面刷新/分页查询）</td>
+        <td>Socket.IO：run-update、logs 流（UI 实时刷新）</td>
+      </tr>
+    </table>
+
+    <h3>16.4 安全与认证</h3>
+    <table>
+      <tr><th>项</th><th>CronPilot</th><th>Plombery</th></tr>
+      <tr><td>Web 认证</td><td>三角色 RBAC：用户名+密码校验 <code>rbac_users.password_hash</code> + Session（空表种子 <code>admin</code>/<code>login_pwd</code>）</td><td>可选 OAuth2（Google/Microsoft）+ Session（Authlib）</td></tr>
+      <tr><td>API 认证</td><td>可选 access_token（query/form）</td><td>NeedsAuth 依赖注入（启用 auth 时）</td></tr>
+      <tr><td>执行鉴权</td><td>回调签名：<code>cronpilot_sign</code>（MD5 + api_key）交由业务验签</td><td>任务在进程内执行；主要保护 UI/API 与 data 路径访问</td></tr>
+      <tr><td>SSRF 风险</td><td>高：req_url 可配置任意 URL（需加固白名单/禁内网段）</td><td>低：无外部回调执行模型（但仍有外部通知/HTTP 依赖）</td></tr>
+    </table>
+
+    <h3>16.5 通知与告警</h3>
+    <table>
+      <tr><th>维度</th><th>CronPilot</th><th>Plombery</th></tr>
+      <tr><td>触发策略</td><td>异常 + 响应体命中 error_keyword</td><td>按 PipelineRunStatus 匹配 NotificationRule</td></tr>
+      <tr><td>通道</td><td>企业微信 / 钉钉 / WebHook（固定实现）</td><td>Apprise（Slack/Email/Discord 等 80+，URL 配置化）</td></tr>
+      <tr><td>消息内容</td><td>纯文本 + 时间戳</td><td>可模板化（邮件 HTML 模板）</td></tr>
+    </table>
+
+    <h3>16.6 适用场景与选型建议</h3>
+    <table>
+      <tr><th>你要解决的问题</th><th>更适合</th><th>原因</th></tr>
+      <tr><td>多语言微服务统一“到点触发业务接口”</td><td>CronPilot</td><td>HTTP 回调天然跨语言；平台只做调度与审计</td></tr>
+      <tr><td>Python 脚本/数据管道，想要 UI + 运行元数据 + 实时日志</td><td>Plombery</td><td>Pipeline/Task 原生模型 + Socket.IO 实时观测</td></tr>
+      <tr><td>需要 DAG 分支/并行/复杂依赖与大规模分布式</td><td>两者都不理想</td><td>应考虑 Airflow/Prefect/Dagster 等专业编排器</td></tr>
+    </table>
+
+    <h3>16.7 迁移与共存策略（可落地）</h3>
+    <div class="card">
+      <h4>方案 A：CronPilot 继续做“触发层”，Plombery 做“执行层（Python 管道）”</h4>
+      <ul style="margin-left:1.25rem">
+        <li>在 Plombery 暴露一个受保护的 HTTP 端点（如 <code>/api/pipelines/{id}/run</code>）</li>
+        <li>CronPilot 的任务回调指向该端点，沿用现有 cron 管理与审计</li>
+        <li>优点：保留 CronPilot 对外统一入口；Python 复杂逻辑由 Plombery 管控</li>
+        <li>注意：要处理认证（token/签名）与幂等（按 log_id 去重）</li>
+      </ul>
+
+      <h4>方案 B：以 Plombery 替代 CronPilot（仅当你主要跑 Python 任务）</h4>
+      <ul style="margin-left:1.25rem">
+        <li>把每个 req_url 背后的“业务动作”实现成 Plombery 的 <code>@task</code>；多个步骤组成 pipeline</li>
+        <li>用 Plombery trigger 表达 cron；UI 查看 runs + logs</li>
+        <li>限制：部署需严格单 worker/单副本（或额外引入分布式锁/单调度实例）</li>
+      </ul>
+    </div>
+  </section>
+</div>
+<footer>CronPilot 详细技术方案 · 配套：<a href="架构设计文档.html">架构设计文档</a> · <a href="../index.html">索引</a> · <a href="详细技术方案.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

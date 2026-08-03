@@ -2,7 +2,7 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v2.6.0**（前端颜色收编 + API access_token 加固；运行时仍为 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v2.6.0**（颜色收编 · API access_token 加固 · S6 用户级 Token · 查询式 API 文档；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 主要能力
 
@@ -276,7 +276,7 @@ server {
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/docs/
 # 期望 200
 
-python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
+bash scripts/cronpilot.sh test        # 全量单测（333+ 用例）
 ```
 
 ## Release Notes
@@ -309,8 +309,12 @@ GitHub Actions：
 
 | 工作流 | 说明 |
 |--------|------|
+| **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt` |
+| **Install full** | 矩阵 **3.9 / 3.10 / 3.11** 验证全量依赖（`requirements.txt`） |
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
-| **Unit tests** | 矩阵 **3.8 / 3.9 / 3.10 / 3.11** + `requirements-core.txt`；另 **install-full** 矩阵 **3.9 / 3.10 / 3.11** 验证全量依赖 |
+| **Hardcoded color audit** | 检查模板/Vue 中是否有硬编码十六进制颜色（`audit_hardcoded_colors.py --check`） |
+| **Frontend dist freshness** | 校验 `app/static/dist/` 构建产物与 `frontend/src/` 源码一致 |
+| **Docker install verify** | Docker 环境安装脚本验证 |
 
 文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
@@ -324,14 +328,19 @@ GitHub Actions：
 .cursor/rules/       # Cursor 项目规范（.mdc）
 app/
   services/          # cron_validator、cron_service、url_security、job_log_service、operation_log_service
+  repositories/      # 薄 Repository 层（Phase B）：CronRepository、JobLogRepository、RbacUserRepository 等
   auth/              # 密码哈希校验
-  rbac/              # 三角色策略、登录、has_perm、require_permission
+  rbac/              # 三角色策略、登录、has_perm、require_permission、Scope 过滤
+  security/          # CSRF 防护
   main/              # Web 管理端
   docs/              # /docs/ 静态 HTML 文档路由
-  api/               # REST API
+  api/               # REST API + 用户级 Token 鉴权
+  static/css/        # console-theme.css（CSS 变量主题）
+  static/dist/       # Vue 构建产物（JS + CSS）
+frontend/            # Vue 3 组件源码（Vite 构建；生产无需 Node.js）
 doc/                 # 技术文档源文件（HTML + 同步 MD）
-tests/               # 单测（P0 / RBAC / operation_log 等）
-scripts/             # 本地启动、验收、密码哈希工具
+tests/               # 单测（P0 / RBAC / S6 / form guard 等，333+ 用例）
+scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 ```
 
 ## 回调与 API 约定
@@ -351,6 +360,8 @@ scripts/             # 本地启动、验收、密码哈希工具
 |----|------|------|
 | `login_pwd` | （必填） | **仅**空表时种子 `admin` 的初始密码（明文或 `pbkdf2`）；有用户后改此项无效于登录 |
 | `SECRET_KEY`（环境变量） | 开发有默认；生产必强 | 会话签名；勿写入 conf.ini。生产可用 `run_production.sh` 生成 `datas/.flask_secret_key` |
+| `api_access_token` | 空 | 全局 API Token（Bearer）；空且 `api_access_token_required=0` 时 API 免鉴权 |
+| `api_access_token_required` | `0` | `1` 时生产启动 fail-fast：`api_access_token` 为空则拒绝启动 |
 | `block_private_ip` | `1` | 禁止回调内网/本机/元数据地址 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |

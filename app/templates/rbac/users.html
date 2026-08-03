@@ -18,7 +18,7 @@
             <a href="{{ url_for('rbac.users_add') }}" class="btn btn-primary">添加用户</a>
             <form method="GET" action="{{ url_for('rbac.users_list') }}" class="rbac-search-form">
                 <input type="text" name="username" value="{{ search_username }}" placeholder="按用户名搜索…">
-                <button type="submit" class="btn btn-mini">搜索</button>
+                <button type="submit" class="btn btn-mini btn-info">搜索</button>
                 {% if search_username %}
                 <a href="{{ url_for('rbac.users_list') }}" class="btn btn-mini rbac-search-clear" title="清除搜索">✕</a>
                 {% endif %}

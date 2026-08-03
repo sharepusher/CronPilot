@@ -8,10 +8,14 @@
 
 | 版本 | 能力 |
 |------|------|
-| **v2.6.0** | 前端颜色收编（191 处→CSS 变量）；API access_token 加固；颜色审计 CI 门禁；表单 name 守护测试 |
+| **v2.6.0** | 前端颜色收编（191 处→CSS 变量）；API access_token 加固；用户级 Token（S6）；只读 API 文档重设计；颜色审计 CI 门禁 |
+| **v2.5.0** | 执行状态机 B1（4 终态 success/fail/timeout/error）；单任务超时配置 B2；表单实时校验（Vue 3） |
+| **v2.4.0** | 前端现代化 Vite + Vue 3（状态单元格、筛选栏、Toast 抽象）；管理端 UX 优化；死静态资源清理 |
+| **v2.3.0** | API 契约规范化（OpenAPI 3.0 + Swagger UI）；`/api/swagger` 交互文档 |
+| **v2.2.0** | 可观测性（结构化日志 + Prometheus 指标）；CSRF AJAX 表单修复；集成测试 |
 | **v2.1.1** | 集群 Redis 锁原子化；生产 `SECRET_KEY` fail-fast；管理端写操作 CSRF（POST + token） |
-| v2.1.0 | 升级至 Flask **2.3.3** + SQLAlchemy **2.0.36**；移除 `records`；列表查询与模型适配 2.x；业务库仍用 `ensure_business_tables` |
-| **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；操作记录业务组筛选；**触发请求 GET/POST + JSON Body** |
+| **v2.1.0** | 升级至 Flask **2.3.3** + SQLAlchemy **2.0.36**；移除 `records`；列表查询与模型适配 2.x |
+| **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；**触发请求 GET/POST + JSON Body** |
 | **v1.2.0** | 管理端顶栏身份（系统/业务管理员）；种子 `admin` 仅建用户+只读；启停用语统一；下线入口提示 |
 | **v1.1.0** | 业务组资源隔离；自助改密（成功后强制重新登录）；任务编辑页精简 |
 | **v1.0.0** | 三角色权限、用户管理 / 审计；操作记录；无人工删除 + 下线；回调 `log_id`；404 友好页 |
@@ -277,7 +281,7 @@ python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.1.1**（安全加固）；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.6.0**；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

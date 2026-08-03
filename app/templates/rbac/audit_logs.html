@@ -14,11 +14,33 @@
         {% include "rbac/_nav.html" %}
         {% endwith %}
 
-        <p style="color:var(--cp-muted);margin:8px 0">
+        <p style="color:var(--cp-muted);margin:8px 0 4px">
             本页为 <strong>RBAC 身份与权限审计</strong>（登录/登出、用户管理、权限拒绝）。
-            「用户 ID」对应 <code>rbac_users.id</code>。
-            任务添加/编辑等业务变更不在此表，请到「操作记录」页（<code>/operation_log_list</code>）查看。
+            任务添加/编辑等业务变更请到「操作记录」页查看。
         </p>
+
+        <form method="GET" action="{{ url_for('rbac.audit_logs') }}" class="audit-search-form" style="display:flex;align-items:center;gap:6px;margin:0 0 10px;flex-wrap:wrap">
+            <input type="text" name="username" value="{{ search.username or '' }}" placeholder="用户名" class="input-small" style="height:28px;padding:2px 6px;font-size:13px;width:120px">
+            <select name="action" style="height:28px;font-size:13px;width:130px">
+                <option value="">全部动作</option>
+                {% for code, label in AUDIT_ACTION_LABELS.items() %}
+                <option value="{{ code }}" {% if search.action == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" style="height:28px;font-size:13px;width:90px">
+                <option value="">全部结果</option>
+                <option value="allow" {% if search.status == 'allow' %}selected{% endif %}>允许</option>
+                <option value="deny" {% if search.status == 'deny' %}selected{% endif %}>拒绝</option>
+            </select>
+            <input type="date" name="time_from" value="{{ search.time_from or '' }}" style="height:28px;font-size:13px" title="起始日期">
+            <span style="color:var(--cp-muted);font-size:12px">至</span>
+            <input type="date" name="time_to" value="{{ search.time_to or '' }}" style="height:28px;font-size:13px" title="截止日期">
+            <button type="submit" class="btn btn-mini">搜索</button>
+            {% if search.username or search.action or search.status or search.time_from or search.time_to %}
+            <a href="{{ url_for('rbac.audit_logs') }}" class="btn btn-mini" title="清除搜索条件">✕</a>
+            {% endif %}
+        </form>
+
         <table class="table table-hover table-bordered">
             <thead>
             <tr>
@@ -50,7 +72,13 @@
             </tbody>
         </table>
         <div class="pagination">
-            {{ pg.page(page_data, 'rbac.audit_logs') }}
+            {% set pg_extra = {} %}
+            {% if search.username %}{% set _ = pg_extra.update({'username': search.username}) %}{% endif %}
+            {% if search.action %}{% set _ = pg_extra.update({'action': search.action}) %}{% endif %}
+            {% if search.status %}{% set _ = pg_extra.update({'status': search.status}) %}{% endif %}
+            {% if search.time_from %}{% set _ = pg_extra.update({'time_from': search.time_from}) %}{% endif %}
+            {% if search.time_to %}{% set _ = pg_extra.update({'time_to': search.time_to}) %}{% endif %}
+            {{ pg.page(page_data, 'rbac.audit_logs', pg_extra) }}
         </div>
     </div>
 {% endblock %}

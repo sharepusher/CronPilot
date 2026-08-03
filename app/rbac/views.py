@@ -13,6 +13,7 @@ from .decorators import require_login, require_permission
 from app.security.csrf import csrf_protect, ensure_csrf_token
 from .policy import is_seed_admin_username, user_bypasses_scope
 from .services import (
+    AUDIT_ACTION_LABELS,
     DEFAULT_USER_PASSWORD,
     ROLE_ORDER,
     VALID_ROLES,
@@ -238,18 +239,20 @@ def api_token_reset():
 @require_permission('user:manage')
 def users_list():
     page_query = PageQuery.from_args(request.args)
+    search_username = (request.args.get('username') or '').strip()
     repo = RbacUserRepository(db.session)
     if _actor_bypasses_scope():
-        page_data = repo.paginate_all(page_query)
+        page_data = repo.paginate_all(page_query, username=search_username or None)
     else:
         actor_gids = session.get('group_ids') or []
-        page_data = repo.paginate_by_groups(page_query, actor_gids)
+        page_data = repo.paginate_by_groups(page_query, actor_gids, username=search_username or None)
     user_ids = [u.id for u in page_data.items]
     user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
     return render_template(
         'rbac/users.html',
         page_data=page_data,
         user_groups_map=user_groups_map,
+        search_username=search_username,
     )
 
 
@@ -552,16 +555,25 @@ def groups_edit():
 @require_permission('audit:read')
 def audit_logs():
     page_query = PageQuery.from_args(request.args)
+    search = {
+        'username': (request.args.get('username') or '').strip() or None,
+        'action': (request.args.get('action') or '').strip() or None,
+        'status': (request.args.get('status') or '').strip() or None,
+        'time_from': (request.args.get('time_from') or '').strip() or None,
+        'time_to': (request.args.get('time_to') or '').strip() or None,
+    }
     repo = RbacAuditLogRepository(db.session)
     if _actor_bypasses_scope():
-        page_data = repo.paginate_all(page_query)
+        page_data = repo.paginate_all(page_query, **search)
     else:
         viewer_group_ids = session.get('group_ids') or []
-        page_data = repo.paginate_by_scope(page_query, viewer_group_ids)
+        page_data = repo.paginate_by_scope(page_query, viewer_group_ids, **search)
     return render_template(
         'rbac/audit_logs.html',
         page_data=page_data,
         audit_action_label=audit_action_label,
         audit_status_label=audit_status_label,
         audit_resource_label=audit_resource_label,
+        search=search,
+        AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,
     )

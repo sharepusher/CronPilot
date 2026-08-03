@@ -53,8 +53,9 @@ def main():
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
         _ensure_rbac_audit_logs_columns()
-        from app.rbac.services import ensure_seed_admin
+        from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token
         ensure_seed_admin()
+        ensure_existing_users_have_token()
     print('OK: %s 业务表已就绪 ->' % backend, uri)
     return 0
 

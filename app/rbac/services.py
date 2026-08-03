@@ -117,6 +117,28 @@ def ensure_seed_admin():
     return True
 
 
+def ensure_existing_users_have_token():
+    """为存量用户补签 API Token（S6 上线前创建的用户 api_token 为空）。
+
+    服务启动时由 ensure_business_tables 调用，幂等。
+    """
+    users = db.session.execute(
+        select(RbacUser).where(
+            RbacUser.is_active == 1,
+            (RbacUser.api_token == '') | (RbacUser.api_token.is_(None)),
+        )
+    ).scalars().all()
+    if not users:
+        return
+    for user in users:
+        _auto_issue_token(user)
+    try:
+        db.session.commit()
+        print('OK: 已为 %d 名存量用户补签 API Token' % len(users))
+    except Exception:
+        db.session.rollback()
+
+
 def authenticate_user(username, password):
     if not password:
         return {'ok': False, 'role': '', 'username': '', 'user_id': None, 'msg': '密码不能为空'}

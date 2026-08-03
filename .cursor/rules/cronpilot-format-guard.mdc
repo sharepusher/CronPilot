@@ -28,3 +28,21 @@ alwaysApply: true
 - **禁止**在模板和 Vue 组件中新增硬编码十六进制颜色（`#xxxxxx`），必须使用 `var(--cp-*)` 引用 `app/static/css/console-theme.css` 中的变量。
 - 交付前执行 `python scripts/audit_hardcoded_colors.py --check`，存在硬编码颜色则不得提交。
 - 需要新颜色时，先在 `console-theme.css` 的 `:root` 中添加语义变量定义，再引用。
+
+## 管理端 UI 样式一致性约束（追加 2026-08）
+
+**禁止在 HTML 模板中使用 inline style 设定尺寸/字号/间距等布局属性**（`height`、`width`、`font-size`、`padding`、`margin`、`gap` 等）。须提取为 CSS class，写在 `{% block css %}` 内或 `console-theme.css` 中。
+
+**工具栏/搜索栏标准样式规范**（对照 `cron_list.html` 和 `rbac/users.html`）：
+
+| 属性 | 标准值 |
+|---|---|
+| 输入框/选择器/按钮高度 | `height: 28px` |
+| 字号 | `font-size: 12px` |
+| 间距 | `gap: 6px`（表单内控件）/ `gap: 12px`（工具栏块间） |
+| 容器 | `display: flex; align-items: center; flex-wrap: wrap;` |
+| 统一类名 | 工具栏 `.rbac-toolbar` / 搜索 `.rbac-search-form` |
+| 辅助文字 | 使用 `color: var(--cp-muted); font-size: 12px;`，提取为类而非 inline |
+| 清除按钮 | `.rbac-search-clear`，不独创新样式 |
+
+**自检要求**：交付前 `git diff -- app/templates/` 若出现 `style="height:` / `style="font-size:` 等 inline 布局属性，须重构为 CSS class。

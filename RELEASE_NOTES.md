@@ -9,7 +9,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
-- No draft items currently.
+### User registration & approval (OPT-P1-10)
+
+- **Registration form** (`/rbac/register`): Email-based username extraction, job title (8 categories + custom "other"), nickname, password, role selection (operator/viewer; admin blocked with prompt), multi-group selection, reason field.
+- **Forgot password** (`/rbac/forgot_password`): Static hint page directing users to contact their group admin.
+- **Login page enhancements**: Registration/forgot-password links; automatic pending/rejected status display when a user with a matching application attempts to login.
+- **Approval management** (`/rbac/registration_review`): Status filtering (pending/approved/rejected/expired), pagination, approve/reject modals (consistent Bootstrap modal style), pending count badge in navigation.
+- **Security**: Concurrent registration prevention via `pending_username` UNIQUE index; lazy expiration on each new submission; admin role backend validation; CSRF protection on all forms.
+- **Anti-double-click**: Submit button disabled + "提交中…" text on form submission with 3-second auto-recovery.
+- **User list columns**: Added 花名 (nickname) and 岗位 (job title) columns to user management page.
+- **Integration tests**: 12 new HTTP-layer tests covering template rendering, form submissions, approval/rejection flows, and pagination macro correctness.
+
+**Tests:** 388 pass · **Design:** `doc/design/用户注册审批与忘记密码设计.html`
 
 ---
 

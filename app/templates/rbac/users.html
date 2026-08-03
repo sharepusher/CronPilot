@@ -30,6 +30,8 @@
             <tr>
                 <th>ID</th>
                 <th>用户名</th>
+                <th>花名</th>
+                <th>岗位</th>
                 <th>角色</th>
                 <th>状态</th>
                 <th>密码状态</th>
@@ -47,6 +49,8 @@
                     {{ item.username }}
                     {% if is_self %}<span class="user-self-tag">当前</span>{% endif %}
                 </td>
+                <td>{{ item.nickname or '-' }}</td>
+                <td>{% if item.job_title %}{% if item.job_title.startswith('other:') %}{{ item.job_title[6:] }}{% else %}{{ job_title_map.get(item.job_title, item.job_title) }}{% endif %}{% else %}-{% endif %}</td>
                 <td>{{ item.role }}</td>
                 <td>
                     {% if item.is_active %}

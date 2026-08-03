@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
 
+from typing import Optional
+
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app import db
@@ -28,6 +30,17 @@ class RbacUser(db.Model):
     )
     api_token_expires_at: Mapped[str] = mapped_column(
         db.String(25), nullable=True, default=None
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        db.String(128), nullable=True, index=True, default=None
+    )
+    # OPT-P1-10：岗位类型（tech/ops/qa/pm/proj_mgr/strategy/operation/other:xxx）
+    job_title: Mapped[Optional[str]] = mapped_column(
+        db.String(64), nullable=True, default=None
+    )
+    # OPT-P1-10：花名
+    nickname: Mapped[Optional[str]] = mapped_column(
+        db.String(64), nullable=True, default=None
     )
     create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
 

@@ -1,7 +1,11 @@
+import logging
+
 from flask import request, session
 from sqlalchemy import func, select
 
 from app import db
+
+logger = logging.getLogger(__name__)
 from configs import configs
 from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
@@ -30,6 +34,10 @@ AUDIT_ACTION_LABELS = {
     'group:create': '创建业务组',
     'group:update': '更新业务组',
     'api:deny': 'API 鉴权失败',
+    'user:register_apply': '注册申请',
+    'user:register_approve': '审批通过',
+    'user:register_reject': '审批拒绝',
+    'user:register_expire': '注册过期',
 }
 AUDIT_STATUS_LABELS = {
     'allow': '允许',
@@ -650,3 +658,275 @@ def user_in_management_scope(actor_group_ids, target_user_id):
     target_gids = set(get_user_group_ids(target_user_id))
     actor_gids = set(int(g) for g in (actor_group_ids or []))
     return bool(actor_gids & target_gids)
+
+
+# ---------------------------------------------------------------------------
+# 用户注册审批（OPT-P1-10）
+# ---------------------------------------------------------------------------
+
+REGISTRATION_ROLES = ['operator', 'viewer']
+REGISTRATION_EXPIRE_DAYS = 30
+
+# 岗位类型枚举（注册时下拉选择）
+JOB_TITLE_CHOICES = [
+    ('tech', '技术'),
+    ('ops', '运维'),
+    ('qa', '测试'),
+    ('pm', '产品'),
+    ('proj_mgr', '项目经理'),
+    ('strategy', '策略'),
+    ('operation', '运营'),
+    ('other', '其他'),
+]
+VALID_JOB_TITLES = frozenset(k for k, _ in JOB_TITLE_CHOICES)
+JOB_TITLE_OTHER_MAX_LEN = 20
+
+
+def _extract_username_from_email(email):
+    """从邮箱地址提取 @ 前部分作为用户名。"""
+    if not email or '@' not in email:
+        return ''
+    return email.split('@')[0].strip()
+
+
+def submit_registration(email, password, confirm_password, role, group_ids, reason,
+                        job_title='', nickname=''):
+    """提交注册申请。返回 {'ok': bool, 'msg': str}。"""
+    # 懒过期：每次提交申请时顺带清理超期 pending 记录
+    expire_stale_registrations()
+    email = (email or '').strip().lower()
+    if not email or '@' not in email:
+        return {'ok': False, 'msg': '请输入有效的邮箱地址'}
+    username = _extract_username_from_email(email)
+    if not username:
+        return {'ok': False, 'msg': '无法从邮箱提取用户名'}
+    if len(username) > 64:
+        return {'ok': False, 'msg': '用户名（邮箱前缀）最长 64 字符'}
+    if role not in REGISTRATION_ROLES:
+        return {'ok': False, 'msg': '仅可申请 operator 或 viewer 角色'}
+    password = password or ''
+    confirm_password = confirm_password or ''
+    if len(password) < 6:
+        return {'ok': False, 'msg': '密码至少 6 位'}
+    if password != confirm_password:
+        return {'ok': False, 'msg': '两次密码不一致'}
+    # 岗位类型校验
+    job_title = (job_title or '').strip()
+    if not job_title:
+        return {'ok': False, 'msg': '请选择岗位类型'}
+    if job_title.startswith('other:'):
+        custom_part = job_title[len('other:'):].strip()
+        if not custom_part:
+            return {'ok': False, 'msg': '选择"其他"时请填写具体岗位名称'}
+        if len(custom_part) > JOB_TITLE_OTHER_MAX_LEN:
+            return {'ok': False, 'msg': '自定义岗位名称最长 %d 字符' % JOB_TITLE_OTHER_MAX_LEN}
+        job_title = 'other:' + custom_part
+    elif job_title not in VALID_JOB_TITLES:
+        return {'ok': False, 'msg': '岗位类型无效'}
+    # 花名校验
+    nickname = (nickname or '').strip()
+    if not nickname:
+        return {'ok': False, 'msg': '请填写花名'}
+    if len(nickname) > 64:
+        return {'ok': False, 'msg': '花名最长 64 字符'}
+    reason = (reason or '').strip()
+    if not reason:
+        return {'ok': False, 'msg': '请填写申请缘由'}
+    if len(reason) > 500:
+        return {'ok': False, 'msg': '申请缘由最长 500 字'}
+    # 校验 group_ids
+    if not group_ids:
+        return {'ok': False, 'msg': '请至少选择一个业务组'}
+    cleaned_gids = []
+    for g in group_ids:
+        try:
+            cleaned_gids.append(int(g))
+        except (TypeError, ValueError):
+            return {'ok': False, 'msg': '业务组参数无效'}
+    if not cleaned_gids:
+        return {'ok': False, 'msg': '请至少选择一个业务组'}
+    gids_str = ','.join(str(g) for g in cleaned_gids)
+
+    # 检查用户名是否已存在于 rbac_users
+    exists = db.session.scalars(
+        select(RbacUser).where(RbacUser.username == username)
+    ).first()
+    if exists:
+        return {'ok': False, 'msg': '用户名"%s"已存在' % username}
+
+    # 检查是否有同 username 的 pending 申请
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+    pending = db.session.scalars(
+        select(RbacRegistrationRequest).where(
+            RbacRegistrationRequest.username == username,
+            RbacRegistrationRequest.status == 'pending',
+        )
+    ).first()
+    if pending:
+        return {'ok': False, 'msg': '该用户名已有待审批的申请，请等待审批结果'}
+
+    req = RbacRegistrationRequest(
+        email=email,
+        username=username,
+        role=role,
+        group_ids=gids_str,
+        job_title=job_title,
+        nickname=nickname,
+        reason=reason,
+        status='pending',
+        pending_username=username,
+        create_time=get_now_time(),
+    )
+    req.set_password(password)
+    try:
+        db.session.add(req)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        # 唯一索引冲突 = 并发竞态，另一条 pending 抢先入库
+        exc_str = str(exc).lower()
+        if 'unique' in exc_str or 'duplicate' in exc_str:
+            return {'ok': False, 'msg': '该用户名已有待审批的申请，请等待审批结果'}
+        logger.exception('submit_registration failed for email=%s', email)
+        return {'ok': False, 'msg': '提交失败，请稍后重试'}
+    write_audit_log(
+        action='user:register_apply',
+        resource=username,
+        user_id=0,
+        username='anonymous',
+        ip=request.remote_addr if request else '',
+    )
+    return {'ok': True, 'msg': '注册申请已提交，审批通过后使用注册账号密码登录'}
+
+
+def check_registration_status(username):
+    """登录失败时查询注册申请状态。返回 None 或 dict。"""
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+    req = db.session.scalars(
+        select(RbacRegistrationRequest).where(
+            RbacRegistrationRequest.username == username,
+            RbacRegistrationRequest.status.in_(['pending', 'rejected']),
+        ).order_by(RbacRegistrationRequest.id.desc())
+    ).first()
+    if not req:
+        return None
+    return {
+        'status': req.status,
+        'review_comment': req.review_comment or '',
+    }
+
+
+def approve_registration(request_id, reviewer_id=None):
+    """审批通过注册申请。自动创建用户 + 绑定业务组 + 签发 Token。"""
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+    from datas.model.user_group import UserGroup
+
+    req = db.session.get(RbacRegistrationRequest, request_id)
+    if not req:
+        return {'ok': False, 'msg': '申请不存在'}
+    if req.status != 'pending':
+        return {'ok': False, 'msg': '该申请已处理（%s）' % req.status}
+    # 再次检查用户名冲突
+    exists = db.session.scalars(
+        select(RbacUser).where(RbacUser.username == req.username)
+    ).first()
+    if exists:
+        req.status = 'rejected'
+        req.pending_username = None
+        req.review_comment = '用户名已被占用'
+        req.update_time = get_now_time()
+        db.session.commit()
+        return {'ok': False, 'msg': '用户名"%s"已被占用，申请已自动拒绝' % req.username}
+
+    # 创建用户
+    user = RbacUser(
+        username=req.username,
+        password_hash=req.password_hash,
+        email=req.email,
+        role=req.role,
+        job_title=req.job_title or None,
+        nickname=req.nickname or None,
+        is_active=1,
+        must_reset_password=0,
+        create_time=get_now_time(),
+    )
+    _auto_issue_token(user)
+    try:
+        db.session.add(user)
+        db.session.flush()
+        # 绑定业务组
+        gids = [int(g) for g in req.group_ids.split(',') if g.strip()]
+        for gid in gids:
+            db.session.add(UserGroup(user_id=user.id, group_id=gid))
+        # 更新申请状态
+        req.status = 'approved'
+        req.pending_username = None
+        req.reviewer_id = reviewer_id or session.get('user_id')
+        req.update_time = get_now_time()
+        db.session.commit()
+    except Exception:
+        logger.exception('approve_registration failed for request_id=%s', request_id)
+        db.session.rollback()
+        return {'ok': False, 'msg': '审批失败'}
+    write_audit_log(action='user:register_approve', resource=req.username)
+    return {'ok': True, 'msg': '已批准，用户 %s 可正常登录' % req.username}
+
+
+def reject_registration(request_id, comment=''):
+    """拒绝注册申请。"""
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+
+    req = db.session.get(RbacRegistrationRequest, request_id)
+    if not req:
+        return {'ok': False, 'msg': '申请不存在'}
+    if req.status != 'pending':
+        return {'ok': False, 'msg': '该申请已处理（%s）' % req.status}
+    req.status = 'rejected'
+    req.pending_username = None
+    req.reviewer_id = session.get('user_id')
+    req.review_comment = (comment or '').strip()[:500]
+    req.update_time = get_now_time()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '操作失败'}
+    write_audit_log(
+        action='user:register_reject',
+        resource=req.username,
+        status='deny',
+    )
+    return {'ok': True, 'msg': '已拒绝'}
+
+
+def expire_stale_registrations():
+    """将超过 REGISTRATION_EXPIRE_DAYS 天的 pending 申请标记为 expired。"""
+    from datetime import datetime, timedelta
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+
+    cutoff = (datetime.now() - timedelta(days=REGISTRATION_EXPIRE_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+    stale = db.session.scalars(
+        select(RbacRegistrationRequest).where(
+            RbacRegistrationRequest.status == 'pending',
+            RbacRegistrationRequest.create_time < cutoff,
+        )
+    ).all()
+    expired_names = []
+    for req in stale:
+        req.status = 'expired'
+        req.pending_username = None
+        req.update_time = get_now_time()
+        expired_names.append(req.username)
+    if expired_names:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return
+        for name in expired_names:
+            write_audit_log(
+                action='user:register_expire',
+                resource=name,
+                user_id=0,
+                username='system',
+            )

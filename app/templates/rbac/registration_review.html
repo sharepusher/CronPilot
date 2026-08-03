@@ -1,0 +1,159 @@
+{% extends "admin_base.html" %}
+
+{% import "admin_page.html" as pg %}
+{% block content %}
+    <div class="wrap js-check-wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='registration_review' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        <div class="rbac-toolbar">
+            <span style="font-weight:600;font-size:0.95em;color:var(--cp-ink)">状态筛选：</span>
+            <a href="{{ url_for('rbac.registration_review') }}" class="btn btn-mini{% if not status_filter %} btn-info{% endif %}">全部</a>
+            <a href="{{ url_for('rbac.registration_review', status='pending') }}" class="btn btn-mini{% if status_filter == 'pending' %} btn-info{% endif %}">待审批</a>
+            <a href="{{ url_for('rbac.registration_review', status='approved') }}" class="btn btn-mini{% if status_filter == 'approved' %} btn-info{% endif %}">已通过</a>
+            <a href="{{ url_for('rbac.registration_review', status='rejected') }}" class="btn btn-mini{% if status_filter == 'rejected' %} btn-info{% endif %}">已拒绝</a>
+            <a href="{{ url_for('rbac.registration_review', status='expired') }}" class="btn btn-mini{% if status_filter == 'expired' %} btn-info{% endif %}">已过期</a>
+        </div>
+
+        <table class="table table-hover table-bordered rbac-users-table">
+            <thead>
+            <tr>
+                <th style="width:50px">ID</th>
+                <th>邮箱</th>
+                <th style="width:100px">用户名</th>
+                <th style="width:80px">花名</th>
+                <th style="width:80px">岗位</th>
+                <th style="width:70px">角色</th>
+                <th>业务组</th>
+                <th style="max-width:180px">申请缘由</th>
+                <th style="width:130px">申请时间</th>
+                <th style="width:80px">状态</th>
+                <th style="width:130px">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for req in page_data.items %}
+            <tr>
+                <td>{{ req.id }}</td>
+                <td>{{ req.email }}</td>
+                <td>{{ req.username }}</td>
+                <td>{{ req.nickname or '-' }}</td>
+                <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
+                <td>{{ req.role }}</td>
+                <td>
+                    {% set gids = req.group_ids.split(',') if req.group_ids else [] %}
+                    {% for gid in gids %}{% if gid.strip() %}{{ group_name_map.get(gid|int, gid) }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}
+                </td>
+                <td title="{{ req.reason }}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ req.reason }}</td>
+                <td>{{ req.create_time[:16] if req.create_time else '' }}</td>
+                <td>
+                    {% if req.status == 'pending' %}
+                    <span class="label" style="background:var(--cp-warn-icon);color:var(--cp-surface)">待审批</span>
+                    {% elif req.status == 'approved' %}
+                    <span class="label" style="background:var(--cp-success);color:var(--cp-surface)">已通过</span>
+                    {% elif req.status == 'rejected' %}
+                    <span class="label" style="background:var(--cp-danger);color:var(--cp-surface)">已拒绝</span>
+                    {% elif req.status == 'expired' %}
+                    <span class="label" style="background:var(--cp-faint);color:var(--cp-surface)">已过期</span>
+                    {% else %}
+                    {{ req.status }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if req.status == 'pending' %}
+                    <button type="button" class="btn btn-mini btn-success js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✓ 批准</button>
+                    <button type="button" class="btn btn-mini btn-danger js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✗ 拒绝</button>
+                    {% elif req.status == 'rejected' and req.review_comment %}
+                    <span title="{{ req.review_comment }}" style="color:var(--cp-muted);cursor:help;font-size:0.85em"><i class="fa fa-comment-o"></i> {{ req.review_comment[:15] }}{% if req.review_comment|length > 15 %}...{% endif %}</span>
+                    {% else %}
+                    <span style="color:var(--cp-faint)">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not page_data.items %}
+            <tr><td colspan="11" style="text-align:center;color:var(--cp-muted);padding:20px">暂无注册申请</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+
+        {{ pg.page(page_data, 'rbac.registration_review', {'status': status_filter} if status_filter else {}) }}
+    </div>
+
+    {# 批准弹窗 #}
+    <div class="modal fade" id="approveModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ url_for('rbac.registration_approve') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="id" id="approve-request-id">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">批准注册申请</h4>
+                    </div>
+                    <div class="modal-body">
+                        <p>确认批准用户 <strong id="approve-username"></strong> 的注册申请？</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-success">确认批准</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# 拒绝弹窗 #}
+    <div class="modal fade" id="rejectModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form action="{{ url_for('rbac.registration_reject') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="id" id="reject-request-id">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">拒绝注册申请</h4>
+                    </div>
+                    <div class="modal-body">
+                        <p>拒绝用户 <strong id="reject-username"></strong> 的注册申请</p>
+                        <div class="form-group">
+                            <label>拒绝原因（可选）</label>
+                            <textarea name="comment" class="form-control" rows="3" maxlength="500" placeholder="请填写拒绝原因…"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-danger">确认拒绝</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    $(function() {
+        $(document).on('click', '.js-approve-btn', function() {
+            var id = $(this).data('id');
+            var username = $(this).data('username');
+            $('#approve-request-id').val(id);
+            $('#approve-username').text(username);
+            $('#approveModal').modal('show');
+        });
+        $(document).on('click', '.js-reject-btn', function() {
+            var id = $(this).data('id');
+            var username = $(this).data('username');
+            $('#reject-request-id').val(id);
+            $('#reject-username').text(username);
+            $('#rejectModal').modal('show');
+        });
+    });
+    </script>
+{% endblock %}

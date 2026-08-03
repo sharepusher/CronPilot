@@ -31,6 +31,9 @@
     <li{% if active == 'groups' %} class="active"{% endif %}>
         <a{% if active != 'groups' %} href="{{ url_for('rbac.groups_list') }}"{% endif %}>业务组</a>
     </li>
+    <li{% if active == 'registration_review' %} class="active"{% endif %}>
+        <a{% if active != 'registration_review' %} href="{{ url_for('rbac.registration_review') }}"{% endif %}>注册审批{% if pending_reg_count %} <span class="badge" style="background:var(--cp-danger-fill);color:var(--cp-surface)">{{ pending_reg_count }}</span>{% endif %}</a>
+    </li>
     {% endif %}
     {% if has_perm('audit:read') %}
     <li{% if active == 'audit' %} class="active"{% endif %}>

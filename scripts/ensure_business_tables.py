@@ -25,6 +25,7 @@ from datas.model.rbac_user import RbacUser  # noqa: F401,E402
 from datas.model.operation_log import OperationLog  # noqa: F401,E402
 from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
 from datas.model.user_group import UserGroup  # noqa: F401,E402
+from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401,E402
 
 
 def business_db_backend(uri):
@@ -52,11 +53,13 @@ def main():
         _ensure_job_log_columns()
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
+        _ensure_rbac_registration_requests_columns()
         _ensure_rbac_audit_logs_columns()
         _ensure_time_column_indexes()
-        from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token
+        from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
         ensure_existing_users_have_token()
+        expire_stale_registrations()
     print('OK: %s 业务表已就绪 ->' % backend, uri)
     return 0
 
@@ -166,12 +169,73 @@ def _ensure_rbac_users_columns():
         alters.append(
             'ALTER TABLE rbac_users ADD COLUMN api_token_expires_at VARCHAR(25)'
         )
+    if 'email' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN email VARCHAR(128)'
+        )
+    if 'job_title' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN job_title VARCHAR(64)'
+        )
+    if 'nickname' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN nickname VARCHAR(64)'
+        )
     if not alters:
         return
     with db.engine.begin() as conn:
         for sql in alters:
             conn.execute(text(sql))
     print('OK: rbac_users 列已补全 ->', ', '.join(a.split()[5] for a in alters))
+
+
+def _ensure_rbac_registration_requests_columns():
+    """注册申请表补列（OPT-P1-10：job_title / nickname）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('rbac_registration_requests'):
+        return
+    cols = {c['name'] for c in insp.get_columns('rbac_registration_requests')}
+    alters = []
+    if 'job_title' not in cols:
+        alters.append(
+            "ALTER TABLE rbac_registration_requests ADD COLUMN job_title "
+            "VARCHAR(64) NOT NULL DEFAULT ''"
+        )
+    if 'nickname' not in cols:
+        alters.append(
+            "ALTER TABLE rbac_registration_requests ADD COLUMN nickname "
+            "VARCHAR(64) NOT NULL DEFAULT ''"
+        )
+    need_backfill_pending = 'pending_username' not in cols
+    if need_backfill_pending:
+        alters.append(
+            'ALTER TABLE rbac_registration_requests ADD COLUMN pending_username '
+            'VARCHAR(64)'
+        )
+    if not alters:
+        return
+    with db.engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+        # 回填：已有 pending 记录需设置 pending_username
+        if need_backfill_pending:
+            conn.execute(text(
+                "UPDATE rbac_registration_requests "
+                "SET pending_username = username "
+                "WHERE status = 'pending'"
+            ))
+            # 添加唯一索引（分步执行，兼容 SQLite）
+            try:
+                conn.execute(text(
+                    'CREATE UNIQUE INDEX uix_reg_pending_username '
+                    'ON rbac_registration_requests(pending_username)'
+                ))
+            except Exception:
+                pass  # 索引已存在（idempotent）
+    print('OK: rbac_registration_requests 列已补全 ->',
+          ', '.join(a.split()[5] for a in alters))
 
 
 def _ensure_rbac_audit_logs_columns():

@@ -15,6 +15,8 @@ from .policy import is_seed_admin_username, user_bypasses_scope
 from .services import (
     AUDIT_ACTION_LABELS,
     DEFAULT_USER_PASSWORD,
+    JOB_TITLE_CHOICES,
+    REGISTRATION_ROLES,
     ROLE_ORDER,
     VALID_ROLES,
     audit_action_label,
@@ -22,6 +24,7 @@ from .services import (
     audit_status_label,
     authenticate_user,
     change_own_password,
+    check_registration_status,
     create_resource_group,
     create_user,
     get_resource_group,
@@ -29,6 +32,9 @@ from .services import (
     get_user_group_ids_for_user,
     list_resource_groups,
     set_user_groups,
+    approve_registration,
+    reject_registration,
+    submit_registration,
     trigger_password_reset,
     update_resource_group,
     update_user,
@@ -131,17 +137,31 @@ def enforce_password_reset():
 @csrf_protect
 def login():
     if request.method == 'GET':
+        # 检查注册状态提示
+        reg_status = None
+        msg = request.args.get('msg', '')
+        reg_username = request.args.get('reg_username', '')
+        if reg_username:
+            reg_status = check_registration_status(reg_username)
         return render_template(
             'rbac/login.html',
             next_url=request.args.get('next', '/cron_list'),
-            msg=request.args.get('msg', ''),
+            msg=msg,
+            reg_status=reg_status,
         )
+    username = request.values.get('username', '').strip()
     result = authenticate_user(
-        request.values.get('username', '').strip(),
+        username,
         request.values.get('password', ''),
     )
     next_url = request.values.get('next', '/cron_list')
     if not result['ok']:
+        # 检查是否有注册申请
+        reg_status = check_registration_status(username)
+        if reg_status:
+            return redirect(
+                '/rbac/login?reg_username=%s&next=%s' % (quote(username), quote(next_url))
+            )
         return redirect(
             '/rbac/login?msg=%s&next=%s' % (quote(result['msg']), quote(next_url))
         )
@@ -171,6 +191,51 @@ def logout():
         write_audit_log(action='user:logout', resource=session.get('username', ''))
     session.clear()
     return redirect('/rbac/login')
+
+
+@rbac.route('/register', methods=['GET', 'POST'])
+@csrf_protect
+def register():
+    """用户注册申请页面（OPT-P1-10）。"""
+    groups = list_resource_groups()
+    if request.method == 'GET':
+        return render_template(
+            'rbac/register.html',
+            roles=REGISTRATION_ROLES,
+            groups=groups,
+            job_title_choices=JOB_TITLE_CHOICES,
+        )
+    # 岗位类型：如果选了 "other"，拼接自定义内容
+    raw_job_title = request.values.get('job_title', '')
+    if raw_job_title == 'other':
+        custom = request.values.get('job_title_other', '').strip()
+        raw_job_title = 'other:' + custom
+    result = submit_registration(
+        email=request.values.get('email', ''),
+        password=request.values.get('password', ''),
+        confirm_password=request.values.get('confirm_password', ''),
+        role=request.values.get('role', 'viewer'),
+        group_ids=request.values.getlist('group_ids'),
+        reason=request.values.get('reason', ''),
+        job_title=raw_job_title,
+        nickname=request.values.get('nickname', ''),
+    )
+    if result['ok']:
+        return redirect('/rbac/login?msg=%s' % quote(result['msg']))
+    return render_template(
+        'rbac/register.html',
+        roles=REGISTRATION_ROLES,
+        groups=groups,
+        job_title_choices=JOB_TITLE_CHOICES,
+        form_msg=result['msg'],
+        form_data=request.values,
+    )
+
+
+@rbac.route('/forgot_password', methods=['GET'])
+def forgot_password():
+    """忘记密码提示页面（OPT-P1-10）。"""
+    return render_template('rbac/forgot_password.html')
 
 
 @rbac.route('/password', methods=['GET', 'POST'])
@@ -248,11 +313,13 @@ def users_list():
         page_data = repo.paginate_by_groups(page_query, actor_gids, username=search_username or None)
     user_ids = [u.id for u in page_data.items]
     user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
+    job_title_map = dict(JOB_TITLE_CHOICES)
     return render_template(
         'rbac/users.html',
         page_data=page_data,
         user_groups_map=user_groups_map,
         search_username=search_username,
+        job_title_map=job_title_map,
     )
 
 
@@ -576,4 +643,69 @@ def audit_logs():
         audit_resource_label=audit_resource_label,
         search=search,
         AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,
+    )
+
+
+@rbac.route('/registration_review', methods=['GET'])
+@require_permission('user:manage')
+def registration_review():
+    """注册审批管理页面（OPT-P1-10 Batch 3）。"""
+    from app.repositories.registration_request_repository import RegistrationRequestRepository
+
+    page_query = PageQuery.from_args(request.args)
+    status_filter = (request.args.get('status') or '').strip() or None
+    repo = RegistrationRequestRepository(db.session)
+
+    if _actor_bypasses_scope():
+        page_data = repo.paginate_all(page_query, status=status_filter)
+    else:
+        actor_gids = session.get('group_ids') or []
+        page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter)
+
+    # 获取业务组名映射
+    group_name_map = {}
+    for g in list_resource_groups():
+        group_name_map[g.id] = g.name
+
+    job_title_map = dict(JOB_TITLE_CHOICES)
+
+    return render_template(
+        'rbac/registration_review.html',
+        page_data=page_data,
+        status_filter=status_filter or '',
+        group_name_map=group_name_map,
+        job_title_map=job_title_map,
+    )
+
+
+@rbac.route('/registration_review/approve', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def registration_approve():
+    """批准注册申请。"""
+    request_id = request.values.get('id')
+    try:
+        request_id = int(request_id)
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/registration_review')
+    result = approve_registration(request_id)
+    return _users_form_response(
+        result['ok'], result['msg'], url='/rbac/registration_review',
+    )
+
+
+@rbac.route('/registration_review/reject', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def registration_reject():
+    """拒绝注册申请。"""
+    request_id = request.values.get('id')
+    try:
+        request_id = int(request_id)
+    except (TypeError, ValueError):
+        return _users_form_response(False, '参数错误', url='/rbac/registration_review')
+    comment = request.values.get('comment', '')
+    result = reject_registration(request_id, comment=comment)
+    return _users_form_response(
+        result['ok'], result['msg'], url='/rbac/registration_review',
     )

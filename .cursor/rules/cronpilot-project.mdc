@@ -266,3 +266,9 @@ UI / 管理端另须补齐下表「交互契约」等行。
 - CI 门禁：`python scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 - Vue 组件改动后须 `cd frontend && npm run build`，构建产物须随源码一起提交（CI `frontend-build.yml` 检查）。
 - 审计工具：`python scripts/audit_hardcoded_colors.py`（完整报告）/ `--mapping`（映射表）/ `--csv`（导出）。
+
+## 版本一致性（强制）
+
+- CI 门禁：`python scripts/check_version_consistency.py --check` 校验所有 `vX.Y.Z` git tag 在 README 版本表、`doc/交付状态与路线图.html` 已发布版本表、`RELEASE_NOTES.md` 中均有对应条目。
+- **发版必须同步更新**：① README 版本表行 ② README 概述行版本号 ③ 路线图版本行 ④ RELEASE_NOTES 章节 ⑤ 路线图中已交付 OPT/RFC 状态。
+- **编号分配前**须 `grep 'OPT-P[0-2]-' doc/交付状态与路线图.html` 确认编号未被占用。

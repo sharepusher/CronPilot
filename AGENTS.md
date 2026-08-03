@@ -51,6 +51,7 @@ bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒�
 bash scripts/assert_framework_pins.sh   # Phase D3：断言 Framework pin 与 requirements.txt 一致
 python scripts/audit_hardcoded_colors.py --check  # 颜色审计：检查模板/Vue 中是否有硬编码颜色
 python scripts/audit_hardcoded_colors.py --mapping # 查看色值→令牌完整映射表
+python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```

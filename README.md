@@ -314,6 +314,7 @@ GitHub Actions：
 | **Docs HTML ↔ Markdown sync** | PR 中校验 `doc/*.md` 与 HTML 一致（`doc/index.md` 手写，不参与自动生成） |
 | **Hardcoded color audit** | 检查模板/Vue 中是否有硬编码十六进制颜色（`audit_hardcoded_colors.py --check`） |
 | **Frontend dist freshness** | 校验 `app/static/dist/` 构建产物与 `frontend/src/` 源码一致 |
+| **Version consistency** | 校验 git tag 与 README/路线图/RELEASE_NOTES 版本列表一致 |
 | **Docker install verify** | Docker 环境安装脚本验证 |
 
 文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。

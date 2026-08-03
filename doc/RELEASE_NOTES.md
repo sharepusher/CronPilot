@@ -4,6 +4,8 @@
 
 # CronPilot Release Notes
 
+v2.7.1 2026-08-03 · Documentation reorganization + CI automation + post-mortem rule strengthening
+ | 
 v2.7.0 2026-08-03 · Admin scope + audit scope + search + indexing + doc reorganization
  | 
 v2.6.0 2026-07-31 · Color consolidation + API access\_token hardening + S6/API docs redesign
@@ -35,6 +37,32 @@ v0.1.0 2026-05-29 · 首发
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
 当前无草稿条目。
+
+## [2.7.1] — 2026-08-03
+
+### Documentation reorganization & CI automation
+
+- **Subdirectory structure:** Reorganized 40+ `doc/` files into 7 semantic subdirectories (`arch/`, `deps/`, `design/`, `ops/`, `plan/`, `product/`, `qa/`). All internal cross-references updated across 80+ HTML/MD files.
+- **Orphan cleanup:** Removed 8 legacy/orphan files (unused images, stale deployment docs, `supervisors.conf`).
+- **Index rewrite:** `doc/index.html` rebuilt with version timeline and quick-entry navigation.
+- **Broken link fixes:** Corrected 17 stale `doc/` paths in `README.md`, `INSTALL.md`, and `.cursor/rules/*.mdc`.
+- **OPT numbering fixes:** Corrected OPT-P2-12→15 and OPT-P2-13→16 references; updated Prometheus RFC (OPT-P2-05) status.
+- **RELEASE\_NOTES consistency:** Merged `[Unreleased]` into v2.7.0, corrected test count, translated Chinese headers, completed 15-version summary table.
+
+### New CI scripts (doc-completeness.yml)
+
+| Script | Check |
+| --- | --- |
+| `check_doc_completeness.py` | `doc/index.html` registration for all HTML files |
+| `check_doc_links.py` | Full-repo `doc/` reference reachability (583 refs) |
+| `check_opt_consistency.py` | OPT numbering consistency + design doc status alignment |
+| `check_version_consistency.py` | Enhanced: `[Unreleased]` residual + version table completeness |
+
+### Process improvement
+
+- **Post-mortem rule strengthened:** Trigger expanded to **all fixes** (including self-discovered). Added mandatory pre-delivery self-check.
+
+**Tests:** 334 pass · **CI gates:** all 5 documentation checks pass
 
 ## [2.7.0] — 2026-08-03
 
@@ -360,6 +388,7 @@ HTTP 定时回调调度、Web/API 管理、基础安全与质量、技术文档�
 
 | Version | Highlights |
 | --- | --- |
+| **2.7.1** | Documentation reorganization (7 subdirs), 3 new CI scripts, broken link/OPT fixes, post-mortem rule strengthening |
 | **2.7.0** | Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization |
 | **2.6.0** | Color system consolidation, API access\_token hardening, S6 user-level token, query-only API docs |
 | 2.5.0 | Execution state machine (B1) + per-task timeout (B2) + frontend form validator (F3-a) |

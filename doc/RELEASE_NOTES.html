@@ -31,7 +31,9 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v2.7.0</span> 2026-08-03 · Admin scope + audit scope + search + indexing + doc reorganization
+    <span class="tag new">v2.7.1</span> 2026-08-03 · Documentation reorganization + CI automation + post-mortem rule strengthening
+    &nbsp;|&nbsp;
+    <span class="tag">v2.7.0</span> 2026-08-03 · Admin scope + audit scope + search + indexing + doc reorganization
     &nbsp;|&nbsp;
     <span class="tag">v2.6.0</span> 2026-07-31 · Color consolidation + API access_token hardening + S6/API docs redesign
     &nbsp;|&nbsp;
@@ -65,7 +67,35 @@
     <p class="muted">当前无草稿条目。</p>
   </div>
 
-<h2 class="new" id="v2-7-0">[2.7.0] — 2026-08-03</h2>
+<h2 class="new" id="v2-7-1">[2.7.1] — 2026-08-03</h2>
+  <div class="card highlight">
+    <h3>Documentation reorganization &amp; CI automation</h3>
+    <ul>
+      <li><strong>Subdirectory structure:</strong> Reorganized 40+ <code>doc/</code> files into 7 semantic subdirectories (<code>arch/</code>, <code>deps/</code>, <code>design/</code>, <code>ops/</code>, <code>plan/</code>, <code>product/</code>, <code>qa/</code>). All internal cross-references updated across 80+ HTML/MD files.</li>
+      <li><strong>Orphan cleanup:</strong> Removed 8 legacy/orphan files (unused images, stale deployment docs, <code>supervisors.conf</code>).</li>
+      <li><strong>Index rewrite:</strong> <code>doc/index.html</code> rebuilt with version timeline and quick-entry navigation.</li>
+      <li><strong>Broken link fixes:</strong> Corrected 17 stale <code>doc/</code> paths in <code>README.md</code>, <code>INSTALL.md</code>, and <code>.cursor/rules/*.mdc</code>.</li>
+      <li><strong>OPT numbering fixes:</strong> Corrected OPT-P2-12→15 and OPT-P2-13→16 references; updated Prometheus RFC (OPT-P2-05) status.</li>
+      <li><strong>RELEASE_NOTES consistency:</strong> Merged <code>[Unreleased]</code> into v2.7.0, corrected test count, translated Chinese headers, completed 15-version summary table.</li>
+    </ul>
+
+    <h3>New CI scripts (doc-completeness.yml)</h3>
+    <table>
+      <tr><th>Script</th><th>Check</th></tr>
+      <tr><td><code>check_doc_completeness.py</code></td><td><code>doc/index.html</code> registration for all HTML files</td></tr>
+      <tr><td><code>check_doc_links.py</code></td><td>Full-repo <code>doc/</code> reference reachability (583 refs)</td></tr>
+      <tr><td><code>check_opt_consistency.py</code></td><td>OPT numbering consistency + design doc status alignment</td></tr>
+      <tr><td><code>check_version_consistency.py</code></td><td>Enhanced: <code>[Unreleased]</code> residual + version table completeness</td></tr>
+    </table>
+
+    <h3>Process improvement</h3>
+    <ul>
+      <li><strong>Post-mortem rule strengthened:</strong> Trigger expanded to <strong>all fixes</strong> (including self-discovered). Added mandatory pre-delivery self-check.</li>
+    </ul>
+    <p><strong>Tests:</strong> 334 pass · <strong>CI gates:</strong> all 5 documentation checks pass</p>
+  </div>
+
+<h2 id="v2-7-0">[2.7.0] — 2026-08-03</h2>
   <div class="card highlight">
     <h3>Admin scope differentiation (OPT-P2-15)</h3>
     <ul>
@@ -422,6 +452,7 @@
   <h2>Version index</h2>
   <table>
     <tr><th>Version</th><th>Highlights</th></tr>
+    <tr><td><strong>2.7.1</strong></td><td>Documentation reorganization (7 subdirs), 3 new CI scripts, broken link/OPT fixes, post-mortem rule strengthening</td></tr>
     <tr><td><strong>2.7.0</strong></td><td>Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization</td></tr>
     <tr><td><strong>2.6.0</strong></td><td>Color system consolidation, API access_token hardening, S6 user-level token, query-only API docs</td></tr>
     <tr><td>2.5.0</td><td>Execution state machine (B1) + per-task timeout (B2) + frontend form validator (F3-a)</td></tr>

@@ -44,7 +44,7 @@
         <p style="color:var(--cp-muted);font-size:.9rem;margin-bottom:6px">
             在 API 请求中通过 <code>Authorization</code> 头传递 Token：
         </p>
-        <pre style="background:var(--cp-surface-2);padding:10px 14px;border-radius:4px;font-size:.85rem;overflow-x:auto;color:var(--cp-ink)">curl -H "Authorization: Bearer {{ api_token }}" http://&lt;host&gt;/api/cron/list</pre>
+        <pre style="background:var(--cp-surface-2);padding:10px 14px;border-radius:4px;font-size:.85rem;overflow-x:auto;color:var(--cp-ink)">curl -H "Authorization: Bearer {{ api_token }}" http://&lt;host&gt;/api/cron/query</pre>
         <p style="color:var(--cp-muted);font-size:.85rem;margin-top:8px">
             也可通过 <code>POST /api/auth/token</code>（Basic Auth）重新获取 Token。
         </p>

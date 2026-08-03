@@ -34,7 +34,24 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
-当前无草稿条目。
+### Time-column index enforcement (OPT-P2-17)
+
+- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True`.
+- **Runtime index backfill:** `_ensure_time_column_indexes()` in `ensure_business_tables.py` idempotently creates `ix_<table>_<column>` indexes on startup.
+- **Norm:** `.cursor/rules/cronpilot-backend.mdc` → "时间列索引规范": new models missing `index=True` on time columns are review blockers.
+- **Tables covered:** `rbac_audit_logs`, `rbac_users`, `resource_groups`, `cron_infos` (×2), `job_log`, `job_health`, plus pre-existing `operation_log`.
+
+### User management & audit log search
+
+- User management: username fuzzy search.
+- Audit log: multi-dimensional search (username, action, status, time range).
+- UI style: search toolbars refactored to CSS classes; date inputs normalized; `btn-info` buttons.
+- Norms: query performance assessment mandatory for all new query features.
+- API token auto-issuance: `ensure_existing_users_have_token()` for pre-S6 users.
+
+### Tests
+
+333 tests pass.
 
 ## [2.7.0] — 2026-08-03
 

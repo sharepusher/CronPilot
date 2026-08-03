@@ -17,5 +17,5 @@ class RbacAuditLog(db.Model):
     resource: Mapped[str] = mapped_column(db.String(128), nullable=False, default='')
     ip: Mapped[str] = mapped_column(db.String(64), nullable=False, default='')
     status: Mapped[str] = mapped_column(db.String(16), nullable=False, default='allow')
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
     actor_group_ids: Mapped[str] = mapped_column(db.String(255), nullable=False, default='')

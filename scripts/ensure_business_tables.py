@@ -53,6 +53,7 @@ def main():
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
         _ensure_rbac_audit_logs_columns()
+        _ensure_time_column_indexes()
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token
         ensure_seed_admin()
         ensure_existing_users_have_token()
@@ -193,6 +194,43 @@ def _ensure_rbac_audit_logs_columns():
         for sql in alters:
             conn.execute(text(sql))
     print('OK: rbac_audit_logs 列已补全 ->', ', '.join(a.split()[5] for a in alters))
+
+
+def _ensure_time_column_indexes():
+    """为所有表的 create_time / update_time 类字段补建索引（幂等）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    index_targets = [
+        ('rbac_audit_logs', 'create_time'),
+        ('rbac_users', 'create_time'),
+        ('resource_groups', 'create_time'),
+        ('cron_infos', 'created_at'),
+        ('cron_infos', 'updated_at'),
+        ('job_log', 'create_time'),
+        ('job_health', 'updated_at'),
+    ]
+    created = []
+    for table, col in index_targets:
+        if not insp.has_table(table):
+            continue
+        cols = {c['name'] for c in insp.get_columns(table)}
+        if col not in cols:
+            continue
+        idx_name = 'ix_%s_%s' % (table, col)
+        existing = {idx['name'] for idx in insp.get_indexes(table)}
+        if idx_name in existing:
+            continue
+        try:
+            db.session.execute(
+                text('CREATE INDEX %s ON %s (%s)' % (idx_name, table, col))
+            )
+            db.session.commit()
+            created.append('%s.%s' % (table, col))
+        except Exception:
+            db.session.rollback()
+    if created:
+        print('OK: 时间列索引已创建 ->', ', '.join(created))
 
 
 def _ensure_job_log_http_status_column():

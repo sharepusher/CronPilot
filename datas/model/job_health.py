@@ -30,4 +30,4 @@ class JobHealth(db.Model):
         default='unknown',
         doc='ok | failing | unknown',
     )
-    updated_at: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    updated_at: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)

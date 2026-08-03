@@ -32,7 +32,7 @@ class JobLog(db.Model):
     fail_reason: Mapped[Optional[str]] = mapped_column(
         db.String(128), nullable=True, doc='失败原因短标签'
     )
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
     take_time: Mapped[Optional[str]] = mapped_column(
         db.String(25), default='', doc='耗时时间'
     )

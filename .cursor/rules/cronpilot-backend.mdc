@@ -86,6 +86,29 @@ alwaysApply: false
 | `cron_infos` | <500 行 | 低 | 已有 task_name LIKE：低风险 |
 | `job_log` | 可达百万行 | 高 | 已走 `cron_id` 精确匹配 + 分页：低风险 |
 
+## 时间列索引规范（强制 · 2026-08 追加）
+
+**所有业务表的 `create_time` / `update_time`（含 `created_at` / `updated_at` 变体）字段必须带索引。**
+
+| 规则 | 要求 |
+|---|---|
+| **新建表** | 在 `mapped_column(...)` 中声明 `index=True` |
+| **已有表** | `scripts/ensure_business_tables.py` 的 `_ensure_time_column_indexes()` 幂等补建索引 |
+| **命名** | 索引名格式 `ix_<table>_<column>`（如 `ix_job_log_create_time`），与 SQLAlchemy 自动命名一致 |
+| **代码审查** | 新增 model 文件时，若含 `create_time` / `update_time` / `created_at` / `updated_at` 列但缺少 `index=True`，视为 review blocker |
+
+**当前已覆盖索引清单**：
+
+| 表 | 字段 | 状态 |
+|---|---|---|
+| `operation_log` | `create_time` | ✅ 原有 |
+| `rbac_audit_logs` | `create_time` | ✅ 本轮新增 |
+| `rbac_users` | `create_time` | ✅ 本轮新增 |
+| `resource_groups` | `create_time` | ✅ 本轮新增 |
+| `cron_infos` | `created_at`, `updated_at` | ✅ 本轮新增 |
+| `job_log` | `create_time` | ✅ 本轮新增 |
+| `job_health` | `updated_at` | ✅ 本轮新增 |
+
 ## 静态文档路由
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。

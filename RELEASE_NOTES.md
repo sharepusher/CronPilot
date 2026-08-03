@@ -9,7 +9,20 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
 
-- No draft items currently.
+### Time-column index enforcement (OPT-P2-17)
+
+- **Model-level `index=True`:** All `create_time` / `update_time` / `created_at` / `updated_at` columns across 7 tables now carry `index=True` in their `mapped_column()` declaration.
+- **Runtime index backfill:** `scripts/ensure_business_tables.py` → `_ensure_time_column_indexes()` idempotently creates `ix_<table>_<column>` indexes on service startup for existing databases.
+- **Norm:** `.cursor/rules/cronpilot-backend.mdc` → "时间列索引规范" section: new models missing `index=True` on time columns are treated as review blockers.
+- **Tables covered:** `rbac_audit_logs.create_time`, `rbac_users.create_time`, `resource_groups.create_time`, `cron_infos.created_at`, `cron_infos.updated_at`, `job_log.create_time`, `job_health.updated_at` (plus pre-existing `operation_log.create_time`).
+
+### User management & audit log search (OPT-P2-17 prior items)
+
+- **User management search:** Username fuzzy search on the user list page.
+- **Audit log multi-dimensional search:** Filter by username (fuzzy), action, status, and time range.
+- **UI style consistency:** Search toolbars refactored to use CSS classes; date inputs normalized; search buttons use `btn-info`.
+- **Query performance norms:** `.cursor/rules/cronpilot-backend.mdc` → "查询性能评估" section mandates performance assessment for all new query features.
+- **API token auto-issuance:** `ensure_existing_users_have_token()` auto-issues tokens for pre-S6 users on startup.
 
 ---
 

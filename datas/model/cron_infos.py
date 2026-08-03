@@ -36,10 +36,10 @@ class CronInfos(db.Model):
         db.SMALLINT, default=True, doc='运行状态，0停止1运行中-1结束任务'
     )
     created_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), default='', doc='创建时间'
+        db.String(25), default='', index=True, doc='创建时间'
     )
     updated_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), default='', doc='最后配置编辑时间'
+        db.String(25), default='', index=True, doc='最后配置编辑时间'
     )
     retire_reason: Mapped[Optional[str]] = mapped_column(
         db.String(500), default='', doc='下线原因'

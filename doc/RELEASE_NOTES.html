@@ -62,7 +62,25 @@
 <h2 id="unreleased">[Unreleased]</h2>
   <div class="card">
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
-    <p class="muted">当前无草稿条目。</p>
+    <h3>Time-column index enforcement (OPT-P2-17)</h3>
+    <ul>
+      <li><strong>Model-level <code>index=True</code>:</strong> All <code>create_time</code> / <code>update_time</code> / <code>created_at</code> / <code>updated_at</code> columns across 7 tables now carry <code>index=True</code>.</li>
+      <li><strong>Runtime index backfill:</strong> <code>_ensure_time_column_indexes()</code> in <code>ensure_business_tables.py</code> idempotently creates <code>ix_&lt;table&gt;_&lt;column&gt;</code> indexes on startup.</li>
+      <li><strong>Norm:</strong> <code>.cursor/rules/cronpilot-backend.mdc</code> → "时间列索引规范": new models missing <code>index=True</code> on time columns are review blockers.</li>
+      <li><strong>Tables covered:</strong> <code>rbac_audit_logs</code>, <code>rbac_users</code>, <code>resource_groups</code>, <code>cron_infos</code> (×2), <code>job_log</code>, <code>job_health</code>, plus pre-existing <code>operation_log</code>.</li>
+    </ul>
+
+    <h3>User management &amp; audit log search</h3>
+    <ul>
+      <li>User management: username fuzzy search.</li>
+      <li>Audit log: multi-dimensional search (username, action, status, time range).</li>
+      <li>UI style: search toolbars refactored to CSS classes; date inputs normalized; <code>btn-info</code> buttons.</li>
+      <li>Norms: query performance assessment mandatory for all new query features.</li>
+      <li>API token auto-issuance: <code>ensure_existing_users_have_token()</code> for pre-S6 users.</li>
+    </ul>
+
+    <h3>Tests</h3>
+    <p>333 tests pass.</p>
   </div>
 
 <h2 class="new" id="v2-7-0">[2.7.0] — 2026-08-03</h2>

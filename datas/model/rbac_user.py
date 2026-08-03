@@ -29,7 +29,7 @@ class RbacUser(db.Model):
     api_token_expires_at: Mapped[str] = mapped_column(
         db.String(25), nullable=True, default=None
     )
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
 
     def set_password(self, plain):
         self.password_hash = hash_password(plain)

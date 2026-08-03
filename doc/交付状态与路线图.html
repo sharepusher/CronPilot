@@ -176,6 +176,7 @@
     <tr><td>OPT-P2-14</td><td>前端现代化（Vite + Vue 3 · F0/F1/F2/F3-a）</td><td class="s-done">已交付</td><td>v2.4.0 / v2.5.0</td><td>F0 死文件清理 · F1 CronStatusCell · F2 CronFilterBar+Toast · F3-a CronFormValidator</td></tr>
     <tr><td>OPT-P2-15</td><td>管理员 admin Scope 差异化（种子 vs 管理员）</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="管理员admin-Scope差异化设计.html">设计稿</a>：种子全局只读 · 管理员按组 · <code>__ALL__</code> 虚拟组 · 用户列表隐藏种子</td></tr>
     <tr><td>OPT-P2-16</td><td>审计日志 Scope 过滤</td><td class="s-done">已交付</td><td>v2.7.0</td><td><a href="审计日志Scope过滤RFC.html">RFC</a>：方案 A（按操作者组过滤）· <code>actor_group_ids</code> 逗号包围 · LIKE 匹配</td></tr>
+    <tr><td>OPT-P2-17</td><td>时间列索引规范 + 搜索/查询性能治理</td><td class="s-done">已交付</td><td>v2.7.x</td><td>7 表时间列补索引 · 用户管理/审计日志搜索 · 查询性能评估规范 · API Token 存量补签 · UI 搜索栏样式统一</td></tr>
     <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
     <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间（无 <code>retired_by</code>）；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
     <tr><td>OPT-P2-01~09</td><td>SSE、图表、OAuth、metrics…</td><td class="s-future">远期 P2</td><td>—</td><td><a href="产品优化需求-借鉴Plombery.html">PRD Phase C</a></td></tr>
@@ -257,6 +258,9 @@
     <tr><td>审计日志 Scope 过滤（OPT-P2-16）：<code>actor_group_ids</code> 按操作者组 LIKE 过滤 · 历史记录对组管理员不可见</td><td class="s-done">已交付</td><td>v2.7.0</td></tr>
     <tr><td>版本一致性 CI 门禁（<code>check_version_consistency.py</code> + <code>version-consistency.yml</code>）</td><td class="s-done">已交付</td><td>v2.7.0</td></tr>
     <tr><td>文档质量审计修复：README 补版本/CI 表/目录/配置；路线图补 v2.3.0/v2.4.0；编号冲突修正 OPT-P2-15/16</td><td class="s-done">已交付</td><td>v2.7.0</td></tr>
+    <tr><td>时间列索引规范（OPT-P2-17）：7 表 <code>create_time</code> / <code>update_time</code> 补 <code>index=True</code> + 启动幂等补建</td><td class="s-done">已交付</td><td>v2.7.x</td></tr>
+    <tr><td>用户管理搜索 + 审计日志多维搜索 + 搜索栏样式统一 + 查询性能评估规范</td><td class="s-done">已交付</td><td>v2.7.x</td></tr>
+    <tr><td>API Token 存量用户自动补签（<code>ensure_existing_users_have_token()</code>）</td><td class="s-done">已交付</td><td>v2.7.x</td></tr>
   </table>
   <p style="font-size:.85rem;color:var(--muted)">API S6 详见 <a href="资源隔离与Scope设计.html">资源隔离与Scope设计 §七</a>（用户级 Token + 端点 Scope 校验已交付）。</p>
 

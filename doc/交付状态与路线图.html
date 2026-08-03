@@ -35,7 +35,7 @@
   <a href="index.html" style="color:#c7d2fe;font-size:.9rem">← 文档索引</a>
   <span class="tag">权威</span><span class="tag">路线图</span>
   <h1>交付状态与路线图</h1>
-  <p>当前发行版文档已收录：<strong>v2.6.0</strong>（2026-07-31，前端颜色收编 + API access_token 加固 + S6 用户级 Token + 查询式 API 文档）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
+  <p>当前发行版文档已收录：<strong>v2.6.0</strong>（2026-07-31，颜色收编 + API 加固 + S6 Token + 查询式 API 文档）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.4.0</strong>（2026-07-27，前端现代化 Vite+Vue3）· <strong>v2.3.0</strong>（2026-07-24，API 契约 OpenAPI 3.0）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
   <div class="note">
     <strong>2026-07-24 v2.2.0（可观测性 + Bug 修复）：</strong>结构化 JSON 日志（python-json-logger）、Gunicorn JSON 访问日志、调度器 event 枚举、Prometheus 五指标（<code>/metrics</code> Bearer Token + session 双模认证）、Grafana Dashboard；补丁：AJAX 表单 CSRF token 注入修复、JSON 日志 timestamp <code>%f</code> 字面量修复、logout CSRF 保护。详见 <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a> · <a href="RELEASE_NOTES.html#220">Release Notes [2.2.0]</a>。
     <br>
@@ -111,6 +111,16 @@
       <td><a href="RELEASE_NOTES.html#v2-5-0">Release Notes [2.5.0]</a></td>
     </tr>
     <tr>
+      <td><strong>v2.4.0</strong></td><td>2026-07-27</td>
+      <td>前端现代化 Vite + Vue 3（F0 死文件清理 → F1 CronStatusCell 组件化 → F2 CronFilterBar + Toast 抽象）；管理端 UX 优化（密码页切换 Toggle）</td>
+      <td><a href="RELEASE_NOTES.html#v2-4-0">Release Notes [2.4.0]</a></td>
+    </tr>
+    <tr>
+      <td><strong>v2.3.0</strong></td><td>2026-07-24</td>
+      <td>API 契约规范化（OPT-P1-CONTRACT）：OpenAPI 3.0 自动生成 + Swagger UI（<code>/api/swagger</code>）；管理端 API 文档嵌入</td>
+      <td><a href="RELEASE_NOTES.html#v2-3-0">Release Notes [2.3.0]</a></td>
+    </tr>
+    <tr>
       <td><strong>v2.2.0</strong></td><td>2026-07-24</td>
       <td>可观测性：结构化 JSON 日志（python-json-logger）、Gunicorn 访问日志、调度器 event 枚举、Prometheus 五指标（/metrics Bearer Token）、Grafana Dashboard；补丁：AJAX 表单 CSRF 注入修复、timestamp %f 修复、logout CSRF 保护</td>
       <td><a href="RELEASE_NOTES.html#220">Release Notes</a> · <a href="P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a></td>
@@ -152,12 +162,15 @@
     <tr><td>OPT-P1-03</td><td>独立执行详情页 <code>/job_log/&lt;id&gt;</code></td><td class="s-draft">设计待确认</td><td>—</td><td><a href="P1执行详情与立即执行设计.html">P1-03/04 设计</a></td></tr>
     <tr><td>OPT-P1-04</td><td>立即执行</td><td class="s-done">列表侧已交付 · 详情页联动仍待确认</td><td>v2.0.0</td><td><a href="P1执行详情与立即执行设计.html">P1-03/04 设计</a> · <code>/cron_run_now</code></td></tr>
     <tr><td>OPT-P1-05</td><td>强化 add_log 结构化</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
-    <tr><td>OPT-P1-06</td><td>OpenAPI 可交互文档</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
+    <tr><td>OPT-P1-06</td><td>OpenAPI 可交互文档</td><td class="s-done">已交付</td><td>v2.3.0</td><td>OPT-P1-CONTRACT：OpenAPI 3.0 + Swagger UI（<code>/api/swagger</code>）；v2.6.0 重设计为查询式只读页面</td></tr>
     <tr><td>OPT-P1-08</td><td>启动清理悬空 Run</td><td class="s-todo">未开始</td><td>计划 v0.2.x+</td><td><a href="产品优化需求-借鉴Plombery.html">PRD</a></td></tr>
     <tr><td>OPT-P1-09</td><td>管理操作审计 <code>operation_log</code></td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="架构设计文档.html#op-audit-detail">架构 §6.5</a> · <code>/operation_log_list</code></td></tr>
     <tr><td>OPT-P2-10</td><td>多用户 RBAC</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="RBAC架构设计方案.html">详设 v4</a> · <a href="RBAC落地路线.html">落地路线</a> · 无删除 / <code>cron:retire</code> · 三角色验收</td></tr>
     <tr><td>OPT-P2-12</td><td>Resource Scope 资源隔离</td><td class="s-done">已交付</td><td>v1.1.0</td><td><a href="资源隔离与Scope设计.html">Scope 详设</a> · <a href="资源隔离落地路线.html">落地路线</a> · 业务组 · 防 IDOR · API 首期除外（<a href="资源隔离与Scope设计.html#future">S6</a> 用户级 Token 已交付；<a href="RBAC与群组权限管理评审报告.html">API 最小止损</a> 已交付）</td></tr>
     <tr><td>OPT-P2-13</td><td>规模化信息架构（L1/L2/L3 · job_health · Scope UX · 列表密度）</td><td class="s-done">五列任务中心 + 健康快筛已交付 · Metric 条暂隐</td><td>v2.0.0</td><td><a href="规模化信息架构设计.html">总设计</a>（含 <a href="规模化信息架构设计.html#s5-1">§5.1</a>）· <a href="规模化Scope过滤与角色差异化设计.html">Scope UX</a>；与 OPT-P2-02 / P1-01c 衔接</td></tr>
+    <tr><td>OPT-P2-14</td><td>前端现代化（Vite + Vue 3 · F0/F1/F2/F3-a）</td><td class="s-done">已交付</td><td>v2.4.0 / v2.5.0</td><td>F0 死文件清理 · F1 CronStatusCell · F2 CronFilterBar+Toast · F3-a CronFormValidator</td></tr>
+    <tr><td>OPT-P2-15</td><td>管理员 admin Scope 差异化（种子 vs 管理员）</td><td class="s-done">已交付</td><td>未发版</td><td><a href="管理员admin-Scope差异化设计.html">设计稿</a>：种子全局只读 · 管理员按组 · <code>__ALL__</code> 虚拟组 · 用户列表隐藏种子</td></tr>
+    <tr><td>OPT-P2-16</td><td>审计日志 Scope 过滤</td><td class="s-done">已交付</td><td>未发版</td><td><a href="审计日志Scope过滤RFC.html">RFC</a>：方案 A（按操作者组过滤）· <code>actor_group_ids</code> 逗号包围 · LIKE 匹配</td></tr>
     <tr><td>LIFECYCLE-1</td><td>任务生命周期 · 无删除</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html">生命周期设计</a>：暂停≠下线；禁人工删；<code>cron:retire</code></td></tr>
     <tr><td>LIFECYCLE-2</td><td>任务元数据 · 下线可追溯</td><td class="s-done">已交付</td><td>v1.0.0</td><td><a href="任务生命周期与无删除设计.html#lifecycle-2">生命周期 §四</a>：强制备注；下线原因/时间（无 <code>retired_by</code>）；<code>created_at</code>/<code>updated_at</code>；不另建更新日志（完整审计走 OPT-P1-09）</td></tr>
     <tr><td>OPT-P2-01~09</td><td>SSE、图表、OAuth、metrics…</td><td class="s-future">远期 P2</td><td>—</td><td><a href="产品优化需求-借鉴Plombery.html">PRD Phase C</a></td></tr>
@@ -228,6 +241,15 @@
     <tr><td>颜色审计工具（<code>audit_hardcoded_colors.py</code>）+ CI 门禁（<code>color-audit.yml</code>）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
     <tr><td>表单 name 属性守护测试（<code>test_form_name_guard.py</code>）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
     <tr><td>非 Docker 部署指南增 §3 前端开发环境（Node.js/nvm）</td><td class="s-done">已交付</td><td>v2.6.0</td></tr>
+    <tr><td>API 契约规范化：OpenAPI 3.0 自动生成 + Swagger UI（<code>/api/swagger</code>）（OPT-P1-CONTRACT / OPT-P1-06）</td><td class="s-done">已交付</td><td>v2.3.0</td></tr>
+    <tr><td>前端现代化 F0：死静态资源清理（<code>vue.js</code> 280 KB）</td><td class="s-done">已交付</td><td>v2.4.0</td></tr>
+    <tr><td>前端现代化 F1：CronStatusCell Vue 3 组件化 + Vite 构建</td><td class="s-done">已交付</td><td>v2.4.0</td></tr>
+    <tr><td>前端现代化 F2：CronFilterBar 响应式筛选 + Toast 抽象 + partial 端点</td><td class="s-done">已交付</td><td>v2.4.0</td></tr>
+    <tr><td>前端现代化 F3-a：CronFormValidator 实时表单校验（cron + URL + JSON Body）</td><td class="s-done">已交付</td><td>v2.5.0</td></tr>
+    <tr><td>执行状态机 Phase B1：4 终态（success/fail/timeout/error）+ started_at/finished_at</td><td class="s-done">已交付</td><td>v2.5.0</td></tr>
+    <tr><td>单任务超时配置 Phase B2：<code>timeout_sec</code>（1–120 s；NULL=默认 5 s）</td><td class="s-done">已交付</td><td>v2.5.0</td></tr>
+    <tr><td>管理员 admin Scope 差异化（OPT-P2-15）：种子全局只读 · 管理员按组 · <code>__ALL__</code> · 用户列表隐藏种子</td><td class="s-done">已交付</td><td>未发版</td></tr>
+    <tr><td>审计日志 Scope 过滤（OPT-P2-16）：<code>actor_group_ids</code> 按操作者组 LIKE 过滤 · 历史记录对组管理员不可见</td><td class="s-done">已交付</td><td>未发版</td></tr>
   </table>
   <p style="font-size:.85rem;color:var(--muted)">API S6 详见 <a href="资源隔离与Scope设计.html">资源隔离与Scope设计 §七</a>（用户级 Token + 端点 Scope 校验已交付）。</p>
 
@@ -239,7 +261,6 @@
     <li><strong>OPT-P1-01b</strong> — 徽章/HTTP 展示统一（OPT-P1-01c 已随 v2.0.0）</li>
     <li><strong>Metric 条 / 异常榜 UI</strong> — OPT-P2-13 暂隐项按需恢复</li>
     <li><strong>Scope 远期</strong> — 新任务默认 GROUP（配置项）/ Policy / Tenant 抽象（见 <a href="资源隔离与Scope设计.html#future">Scope §八</a>；S6 用户级 Token 已交付）</li>
-    <li><strong>OPT-P1-06</strong> — OpenAPI 可交互文档（按运维需求排期）</li>
   </ol>
 
   <h2>六、文档维护约定</h2>

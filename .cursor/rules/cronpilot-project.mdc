@@ -105,6 +105,44 @@ UI / 管理端另须补齐下表「交互契约」等行。
 
 当 bug 发生在集成或 E2E 层，必须在此层新增测试（`tests/test_*_integration.py`），而非只在单元层加断言。
 
+### 大文件修改前结构分析（强制 · 防「作用域误判」）
+
+**凡修改 300 行以上的 JS / Python / 模板文件，在决定插入或追加位置前必须：**
+
+| 步骤 | 强制操作 | 禁止 |
+|------|---------|------|
+| **1 · 结构扫描** | 用 AST（`node -e`、`python ast`）或手动追踪 `{ }` / `def` / `class` 嵌套，确认目标插入点的 **实际作用域**（全局 / IIFE / 函数体 / 类方法） | 仅看文件首尾 20 行就决定插入位置 |
+| **2 · 嵌套确认** | 对 JS：`node -c file.js` 验语法 + 用 brace depth 工具确认花括号归属。对 Python：确认 `def`/`class` 缩进层级 | 凭缩进「看上去像顶层」就插入 |
+| **3 · 运行时验证** | 插入后在真实环境（浏览器 CDP / `python -c import`）中确认新代码 **在预期时机执行**，不只是「存在于文件中」 | 静态 `grep` 检查通过就宣称完成 |
+
+**典型失误（2026-08 全局防重复提交事件）**：
+
+| 失误 | 后果 |
+|------|------|
+| 只看了 `common.js` 末尾的 `})` 和 `}`，认为是 IIFE 结尾 | 守卫代码被放进 `upload_file()` 函数体，仅调用该函数时才注册 |
+| 静态测试只检查 `cp-submitting` 字符串是否存在 | 假阳性 — 字符串存在但代码从未在页面加载时执行 |
+| 第一次实现未做 CDP 验证就宣称完成 | 用户触发浏览器验证后才发现根本无效 |
+
+### 策略变更影响分析（强制 · 防「策略断点遗漏」）
+
+**凡引入或修改业务策略（如"停用不可恢复"、权限提升限制、字段校验规则等），必须执行以下分析，不得仅在单一入口实现策略检查：**
+
+| 步骤 | 强制操作 | 禁止 |
+|------|---------|------|
+| **1 · 全路径枚举** | grep / 全局搜索策略影响的字段（如 `is_active`）在所有服务层函数中的**赋值点**，列出完整清单 | 只在"最显眼"的入口加策略，忽略间接修改路径 |
+| **2 · 逐点加固** | 每个赋值点都须加入策略检查或文档说明（为何豁免）；对同一实体有多个修改入口（如 `set_user_active` + `update_user`）的，每个入口独立覆盖 | 假设"UI 不暴露 → 不需要后端防护" |
+| **3 · 交叉测试** | 为每个修改入口编写独立测试用例，验证策略在该路径上生效 | 只测"主路径"就宣称策略已生效 |
+| **4 · 功能一致性** | 检查同类功能（如 `create_user` vs `approve_registration`）的冲突检查逻辑是否对齐 | 新旧函数独立开发、不交叉验证 |
+| **5 · 文档回溯** | grep 设计文档中策略相关关键词，逐项核实描述与实际行为一致 | 只改代码不更文档 |
+
+**典型失误（2026-08"停用不可恢复"事件）**：
+
+| 失误 | 后果 |
+|------|------|
+| 只在 `set_user_active()` 和视图层加了 `is_active=1` 拦截 | `update_user()` 通过 `is_active` 参数可绕过策略 |
+| `create_user()` 和 `submit_registration()` 的用户名冲突检查逻辑不一致 | 管理员手动创建同名用户被拒，但注册审批可通过 |
+| admin 角色注册变更只改了代码和测试 | 设计文档仍写着"admin 不能通过注册申请" |
+
 ### 浏览器端 DOM / CSS / JS 修改（强制 · 防「用户反复空验收」）
 
 凡写 CSS 选择器、JavaScript 注入（包括 iframe 注入）或第三方 UI 组件定制，**必须遵守「DOM 优先」规程**：
@@ -136,6 +174,7 @@ UI / 管理端另须补齐下表「交互契约」等行。
 |------|------|------|
 | 1 · **设计** | 按「设计必备要素」出稿（`doc/*.html` 或等价结构化回复） | **用户确认前不写实现代码** |
 | 2 · **实现** | 按已确认分批最小 diff；改 `app/` 前先读 `cron_validator` / `cron_service` / 现有 `views` | 不得超出已确认范围 |
+| 2.5 · **复盘**（仅 bug 修复） | 实现完成后、验证之前，**必须**在回复中写出 `## 复盘：<bug 名称>` + 6 要素表格（Bug 定位 / 根因 / 测试漏洞 / 修复 / 防护测试 / 同类排查）。**复盘必须在同一条回复中**，不得"下一轮补" | **缺少复盘标题或任一要素，视为交付不完整，不得进入验证步骤** |
 | 3 · **验证** | 按已确认验收项 + 下方「优化验收」表 | **未通过不得更新「已交付」文档、不得 commit** |
 | 4 · **可验证本地环境** | 见下「交付后可验证本地环境」：restart → 给出 URL/登录/步骤/断言 → Agent 自证 → **默认保持服务运行** | **未给出可访问入口与断言证据，不得宣称交付完成** |
 | 5 · **文档** | `RELEASE_NOTES.md` + 相关 `doc/*.html`（RFC、PRD、部署、UI 设计等）→ `html_docs_to_markdown.py --check`；**打 tag / Release 前**须同步 `doc/交付状态与路线图.html`（已交付 vs 未完成总览） | 与代码变更 **同一轮** 完成 |
@@ -231,7 +270,7 @@ UI / 管理端另须补齐下表「交互契约」等行。
    lsof -nP -iTCP:5001 -sTCP:LISTEN
    ```
    若 `stop`/`kill` 因权限失败，**申请 `all` 权限重跑**，不得带着占用端口继续验收。
-2. **验收证据**：登录会话下 `curl`/`浏览器` 断言 **本轮新增标记**（如新 class、新中文/英文文案）；**禁止**仅凭单测通过就让用户刷新。
+2. **验收证据**：登录会话下 `curl`/`浏览器` 断言 **本轮新增标记**（如新 class、新中文/英文文案）；**禁止**仅凭单测通过就让用户刷新。**重启后须先 `curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"` 确认 200**，排除 DB 表缺失等全局 500，再进入功能验收。
 3. 回复用户时写清端口：本地默认 **`http://127.0.0.1:5001/`**；Docker 默认 **`:5860`**。两者进程独立，改一侧须在对应侧 restart / `compose restart`。
 4. **禁止话术**：「刷新即可看到」——除非已完成步骤 1–2 且 curl 已见新标记。正确话术：「已 `restart`，请硬刷新（Cmd+Shift+R）`http://127.0.0.1:5001/`」。
 5. Docker 路径同理：改挂载/镜像内代码后须 `docker compose restart`（或 rebuild），**不要**只刷新浏览器。
@@ -274,6 +313,26 @@ UI / 管理端另须补齐下表「交互契约」等行。
 - CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**、**Hardcoded color audit**、**Frontend dist freshness**；改 `doc/*.html` 后须 `--check` 通过。
 - **顺序**：见上文「交付闭环」5 步。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。
 
+### 测试数据库隔离（强制 · 2026-08 system err 事故教训）
+
+**事故根因**：测试代码 `from manage import app, db` 将 `db` 绑定到开发数据库 `datas/job_log.sqlite`，`tearDown` 中 `db.drop_all()` 删除了全部 11 张业务表，导致服务启动后全站 500。测试套件本身因各自独立的内存数据库仍全部通过，掩盖了对磁盘数据库的破坏。
+
+**强制规范**：
+
+| 规则 | 要求 |
+|---|---|
+| **禁止 `from manage import`** | 测试文件中**严禁** `from manage import app` 或 `from manage import db`。`manage.py` 在模块级别执行 `create_app('development')`，导入即绑定开发数据库 |
+| **必须使用内存数据库** | 所有测试必须使用 `sqlite:///:memory:` 创建独立 Flask app；参考 `_make_app()` 工厂模式（`test_registration.py`） |
+| **`drop_all()` 仅在内存上下文** | `tearDown` 中的 `db.drop_all()` 必须在内存 app 的 `app_context()` 中调用 |
+| **测试后验证数据库完整性** | 改动测试文件后，须在测试完成后执行 `sqlite3 datas/job_log.sqlite ".tables"` 确认表未被破坏 |
+| **交付前端到端验证** | `cronpilot.sh test` 通过后，必须 `cronpilot.sh restart` → 浏览器登录（POST，非仅 GET）→ 确认主页正常加载 |
+
+**自检命令**：
+```bash
+# 测试文件中不应出现 from manage import
+grep -r "from manage import" tests/ && echo "FAIL: 测试禁止 from manage import" && exit 1
+```
+
 ## 颜色规范（强制）
 
 - **禁止**在 `app/templates/**/*.html` 和 `frontend/src/**/*.vue` 中硬编码十六进制颜色（`#xxxxxx`）。
@@ -282,6 +341,15 @@ UI / 管理端另须补齐下表「交互契约」等行。
 - CI 门禁：`python scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 - Vue 组件改动后须 `cd frontend && npm run build`，构建产物须随源码一起提交（CI `frontend-build.yml` 检查）。
 - 审计工具：`python scripts/audit_hardcoded_colors.py`（完整报告）/ `--mapping`（映射表）/ `--csv`（导出）。
+
+## 表单防重复提交（强制）
+
+- 所有 `method="post"` 的 `<form>` 必须有防重复提交保护。
+- **`js-ajax-form`**：已由 `common.js` 的 `btn.data("loading")` 守卫保护，无需额外处理。
+- **普通 POST 表单**（非 `js-ajax-form`）：由 `common.js` 底部的全局守卫自动保护——提交时禁用 submit 按钮 + 文案追加「中…」，3 秒后自动恢复。
+- **GET 搜索表单**：幂等操作，无需防重复提交。
+- **新增表单时**：确认使用了 `js-ajax-form` + `js-ajax-submit`（推荐）或确认全局守卫可覆盖；**禁止**新增无保护的 POST 表单。
+- **独立页面**（如 `register.html`、`login.html` 不继承 `admin_base.html`）：须确认引入了 `common.js`（含全局守卫），或自行实现等效保护。
 
 ## 版本一致性（强制）
 

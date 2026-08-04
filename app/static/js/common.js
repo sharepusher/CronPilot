@@ -777,3 +777,27 @@ function upload_file(self,input_id,upload_dir) {
     })
 
 }
+
+/* ── 全局防重复提交守卫 ──
+ * 对所有非 js-ajax-form 的 POST 表单：
+ *   提交时自动禁用 submit 按钮 + 文案追加"中…"，3 秒后自动恢复。
+ * js-ajax-form 已有 common.js 的 loading 守卫，不重复绑定。
+ */
+$(document).on('submit', 'form:not(.js-ajax-form)', function () {
+    var $form = $(this);
+    if ($form.attr('method') && $form.attr('method').toLowerCase() !== 'post') return;
+    var $btn = $form.find('[type="submit"]');
+    if (!$btn.length || $btn.data('cp-submitting')) return false;
+    $btn.data('cp-submitting', true);
+    var origText = $btn.is('input') ? $btn.val() : $btn.text();
+    if ($btn.is('input')) {
+        $btn.val(origText + '中…');
+    } else {
+        $btn.text(origText + '中…');
+    }
+    $btn.prop('disabled', true).addClass('disabled');
+    setTimeout(function () {
+        $btn.data('cp-submitting', false).prop('disabled', false).removeClass('disabled');
+        if ($btn.is('input')) { $btn.val(origText); } else { $btn.text(origText); }
+    }, 3000);
+});

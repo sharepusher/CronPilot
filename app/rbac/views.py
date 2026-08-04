@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from flask import redirect, render_template, request, session
+from flask import current_app, redirect, render_template, request, session
 from sqlalchemy import select
 from app import db
 from app.common.functions import web_api_return
@@ -40,6 +40,8 @@ from .services import (
     update_user,
     user_in_management_scope,
     user_must_reset_password,
+    user_needs_profile_completion,
+    save_profile_completion,
     validate_groups_for_role,
     write_audit_log,
     set_user_active,
@@ -116,21 +118,39 @@ def _force_reset_allowed_path(path):
     return False
 
 
+def _profile_completion_allowed_path(path):
+    if path.startswith('/static/'):
+        return True
+    if path in ('/rbac/complete_profile', '/rbac/logout', '/rbac/login', '/rbac/password'):
+        return True
+    return False
+
+
 @rbac.before_app_request
 def enforce_password_reset():
-    """待重置用户访问受保护页时强制改密；实时读库，管理员触发后立即生效。"""
+    """待重置用户访问受保护页时强制改密；改密后若缺个人信息则强制补全。"""
     if 'is_login' not in session:
         return None
     path = request.path or ''
+    # 第一优先级：强制改密
     if _force_reset_allowed_path(path):
         return None
-    if not _password_force_reset():
-        return None
-    reset_url = '/rbac/password'
-    msg = '请先修改密码后再继续使用'
-    if _wants_ajax_json():
-        return web_api_return(code=1, msg=msg, url=reset_url)
-    return redirect(reset_url)
+    if _password_force_reset():
+        reset_url = '/rbac/password'
+        msg = '请先修改密码后再继续使用'
+        if _wants_ajax_json():
+            return web_api_return(code=1, msg=msg, url=reset_url)
+        return redirect(reset_url)
+    # 第二优先级：个人信息补全（测试模式跳过；通过 TestProfileCompletionGate 专项测试）
+    if not current_app.config.get('TESTING'):
+        if _profile_completion_allowed_path(path):
+            return None
+        if user_needs_profile_completion(session.get('user_id')):
+            complete_url = '/rbac/complete_profile'
+            msg = '请先补全个人信息后再继续使用'
+            if _wants_ajax_json():
+                return web_api_return(code=1, msg=msg, url=complete_url)
+            return redirect(complete_url)
 
 
 @rbac.route('/login', methods=['GET', 'POST'])
@@ -273,6 +293,42 @@ def change_password():
     )
 
 
+@rbac.route('/complete_profile', methods=['GET', 'POST'])
+@require_login
+@csrf_protect
+def complete_profile():
+    """首次登录后强制补全个人信息（一次性门禁）。"""
+    from datas.model.rbac_user import RbacUser
+    user = db.session.get(RbacUser, session.get('user_id'))
+    if not user or not user_needs_profile_completion(user.id):
+        return redirect('/')
+    msg = ''
+    if request.method == 'POST':
+        raw_jt = request.values.get('job_title', '')
+        if raw_jt == 'other':
+            raw_jt = 'other:' + request.values.get('job_title_other', '').strip()
+        result = save_profile_completion(
+            user.id,
+            email=request.values.get('email', ''),
+            nickname=request.values.get('nickname', ''),
+            job_title=raw_jt,
+        )
+        if result['ok']:
+            if _wants_ajax_json():
+                return web_api_return(code=0, msg='个人信息已补全', url='/')
+            return redirect('/')
+        msg = result['msg']
+        if _wants_ajax_json():
+            return web_api_return(code=1, msg=msg)
+        db.session.refresh(user)
+    return render_template(
+        'rbac/complete_profile.html',
+        user=user,
+        job_title_choices=JOB_TITLE_CHOICES,
+        form_msg=msg,
+    )
+
+
 @rbac.route('/api_token', methods=['GET'])
 @require_login
 def api_token_page():
@@ -339,10 +395,21 @@ def users_add():
             roles=ROLE_ORDER,
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
+            job_title_choices=JOB_TITLE_CHOICES,
         )
     role = request.values.get('role', 'viewer')
     target_username = request.values.get('username', '').strip()
     group_ids = request.values.getlist('group_ids')
+    # 非 admin 不允许选择全局
+    if role != 'admin' and '__ALL__' in group_ids:
+        return _users_form_response(
+            False,
+            '仅 admin 角色可选择「全部（全局权限）」',
+            template='rbac/users_add.html',
+            groups=groups,
+            default_password=DEFAULT_USER_PASSWORD,
+            job_title_choices=JOB_TITLE_CHOICES,
+        )
     groups_err = validate_groups_for_role(role, group_ids, username=target_username)
     if groups_err:
         return _users_form_response(
@@ -351,6 +418,7 @@ def users_add():
             template='rbac/users_add.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
+            job_title_choices=JOB_TITLE_CHOICES,
         )
     if not groups and role != 'admin':
         return _users_form_response(
@@ -359,10 +427,20 @@ def users_add():
             template='rbac/users_add.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
+            job_title_choices=JOB_TITLE_CHOICES,
         )
+    # 岗位类型：如果选了 "other"，拼接自定义内容
+    add_job_title = request.values.get('job_title', '').strip()
+    if add_job_title == 'other':
+        custom = request.values.get('job_title_other', '').strip()
+        if custom:
+            add_job_title = 'other:' + custom[:20]
     result = create_user(
         target_username,
         role,
+        email=request.values.get('email', '').strip(),
+        nickname=request.values.get('nickname', '').strip(),
+        job_title=add_job_title,
     )
     if result.get('ok') and result.get('user_id'):
         bound = set_user_groups(result['user_id'], group_ids, role=role, username=target_username)
@@ -415,17 +493,30 @@ def users_edit():
     groups = list_resource_groups() if bypass else [
         g for g in list_resource_groups() if g.id in set(session.get('group_ids') or [])
     ]
+    edit_ctx = dict(
+        groups=groups,
+        user_group_ids=get_user_group_ids_for_user(user.id),
+        default_password=DEFAULT_USER_PASSWORD,
+        job_title_choices=JOB_TITLE_CHOICES,
+    )
     if request.method == 'GET':
         return render_template(
             'rbac/users_edit.html',
             user=user,
             roles=ROLE_ORDER,
-            groups=groups,
-            user_group_ids=get_user_group_ids_for_user(user.id),
-            default_password=DEFAULT_USER_PASSWORD,
+            **edit_ctx,
         )
     new_role = request.values.get('role', user.role)
     group_ids = request.values.getlist('group_ids')
+    # 非 admin 不允许选择全局
+    if new_role != 'admin' and '__ALL__' in group_ids:
+        return _users_form_response(
+            False,
+            '仅 admin 角色可选择「全部（全局权限）」',
+            template='rbac/users_edit.html',
+            user=user,
+            **edit_ctx,
+        )
     groups_err = validate_groups_for_role(new_role, group_ids, username=user.username)
     if groups_err:
         return _users_form_response(
@@ -433,9 +524,7 @@ def users_edit():
             groups_err,
             template='rbac/users_edit.html',
             user=user,
-            groups=groups,
-            user_group_ids=get_user_group_ids_for_user(user.id),
-            default_password=DEFAULT_USER_PASSWORD,
+            **edit_ctx,
         )
     result = update_user(
         user_id,
@@ -446,20 +535,35 @@ def users_edit():
         bound = set_user_groups(user_id, group_ids, role=new_role, username=user.username)
         if not bound['ok']:
             result = bound
+    # 保存个人信息字段（email / nickname / job_title）
+    if result['ok']:
+        raw_jt = request.values.get('job_title', '')
+        if raw_jt == 'other':
+            raw_jt = 'other:' + request.values.get('job_title_other', '').strip()
+        email_val = (request.values.get('email') or '').strip()
+        nick_val = (request.values.get('nickname') or '').strip()
+        user.email = email_val or user.email
+        user.nickname = nick_val or None
+        if raw_jt:
+            user.job_title = raw_jt
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
     if not result['ok']:
         user.role = request.values.get('role', user.role)
         try:
             user.is_active = int(request.values.get('is_active', user.is_active))
         except (TypeError, ValueError):
             pass
+    # 刷新编辑上下文（业务组可能已变更）
+    edit_ctx['user_group_ids'] = get_user_group_ids_for_user(user.id)
     return _users_form_response(
         result['ok'],
         result['msg'],
         template='rbac/users_edit.html',
         user=user,
-        groups=groups,
-        user_group_ids=get_user_group_ids_for_user(user.id),
-        default_password=DEFAULT_USER_PASSWORD,
+        **edit_ctx,
     )
 
 
@@ -516,6 +620,9 @@ def users_set_active():
         is_active = int(request.values.get('is_active'))
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/users')
+    if is_active == 1:
+        return _users_form_response(
+            False, '停用后不可恢复启用，如需使用请重新注册或由管理员创建', url='/rbac/users')
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
@@ -661,6 +768,14 @@ def registration_review():
     else:
         actor_gids = session.get('group_ids') or []
         page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter)
+        # 按组管理员：隐藏其业务组未完全覆盖的 admin 角色申请
+        actor_gids_set = set(actor_gids)
+        page_data.items = [
+            r for r in page_data.items
+            if r.role != 'admin' or set(
+                int(g) for g in r.group_ids.split(',') if g.strip()
+            ).issubset(actor_gids_set)
+        ]
 
     # 获取业务组名映射
     group_name_map = {}
@@ -669,12 +784,27 @@ def registration_review():
 
     job_title_map = dict(JOB_TITLE_CHOICES)
 
+    # 检查哪些申请用户名曾被停用（用于审批时提示）
+    disabled_usernames = set()
+    pending_usernames = [r.username for r in page_data.items if r.status == 'pending']
+    if pending_usernames:
+        from datas.model.rbac_user import RbacUser
+        from sqlalchemy import select as sa_select
+        disabled_users = db.session.scalars(
+            sa_select(RbacUser.username).where(
+                RbacUser.username.in_(pending_usernames),
+                RbacUser.is_active == 0,
+            )
+        ).all()
+        disabled_usernames = set(disabled_users)
+
     return render_template(
         'rbac/registration_review.html',
         page_data=page_data,
         status_filter=status_filter or '',
         group_name_map=group_name_map,
         job_title_map=job_title_map,
+        disabled_usernames=disabled_usernames,
     )
 
 

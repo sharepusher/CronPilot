@@ -278,19 +278,21 @@ class TestSubmitRegistration(unittest.TestCase):
             self.assertFalse(result['ok'])
             self.assertIn('邮箱', result['msg'])
 
-    def test_submit_admin_role_rejected(self):
+    def test_submit_admin_role_allowed(self):
+        """admin 角色可提交申请，由管理员审批。"""
         with self.app.test_request_context():
             from app.rbac.services import submit_registration
             result = submit_registration(
-                email='admin@corp.com',
+                email='adminreg@corp.com',
                 password='pass123',
                 confirm_password='pass123',
                 role='admin',
                 group_ids=[str(self.group_id)],
                 reason='Want admin',
+                job_title='tech',
+                nickname='AdminApplicant',
             )
-            self.assertFalse(result['ok'])
-            self.assertIn('operator 或 viewer', result['msg'])
+            self.assertTrue(result['ok'])
 
     def test_submit_password_mismatch(self):
         with self.app.test_request_context():
@@ -670,6 +672,344 @@ class TestApproveRejectRegistration(unittest.TestCase):
                 select(RbacUser).where(RbacUser.username == 'applicant')
             ).first()
             self.assertTrue(user.check_password('pass123'))
+
+    def _create_admin_pending_request(self, group_ids_str='1'):
+        """创建一条 admin 角色的 pending 申请，返回 request_id。"""
+        with self.app.app_context():
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
+            req = RbacRegistrationRequest(
+                email='admin_req@corp.com', username='admin_applicant',
+                password_hash='h', role='admin',
+                group_ids=group_ids_str,
+                job_title='tech', nickname='AdminReq',
+                reason='apply admin',
+                status='pending', pending_username='admin_applicant',
+                create_time='2026-08-03 10:00:00',
+            )
+            self.db.session.add(req)
+            self.db.session.commit()
+            return req.id
+
+    def test_seed_admin_can_approve_admin_request(self):
+        """种子 admin 可审批 admin 角色申请。"""
+        req_id = self._create_admin_pending_request(str(self.group_id))
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = 1
+            session['username'] = 'admin'
+            session['role'] = 'admin'
+            session['group_ids'] = []
+            from app.rbac.services import approve_registration
+            result = approve_registration(req_id)
+            self.assertTrue(result['ok'])
+
+    def test_manager_admin_superset_can_approve_admin_request(self):
+        """拥有超集业务组的 manager admin 可审批 admin 角色申请。"""
+        req_id = self._create_admin_pending_request(str(self.group_id))
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = 2
+            session['username'] = 'manager'
+            session['role'] = 'admin'
+            session['group_ids'] = [self.group_id, 999]
+            from app.rbac.services import approve_registration
+            result = approve_registration(req_id)
+            self.assertTrue(result['ok'])
+
+    def test_manager_admin_no_superset_cannot_approve_admin(self):
+        """业务组未覆盖的 manager admin 不可审批 admin 角色申请。"""
+        # 申请组 = group_id + 999, 审批者只有 group_id
+        req_id = self._create_admin_pending_request(
+            '%d,999' % self.group_id
+        )
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = 2
+            session['username'] = 'manager'
+            session['role'] = 'admin'
+            session['group_ids'] = [self.group_id]
+            from app.rbac.services import approve_registration
+            result = approve_registration(req_id)
+            self.assertFalse(result['ok'])
+            self.assertIn('不覆盖', result['msg'])
+
+    def test_operator_cannot_approve_admin_request(self):
+        """operator 不可审批 admin 角色申请。"""
+        req_id = self._create_admin_pending_request(str(self.group_id))
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = 3
+            session['username'] = 'op_user'
+            session['role'] = 'operator'
+            session['group_ids'] = [self.group_id]
+            from app.rbac.services import approve_registration
+            result = approve_registration(req_id)
+            self.assertFalse(result['ok'])
+            self.assertIn('管理员', result['msg'])
+
+
+class TestDisableNoReenable(unittest.TestCase):
+    """停用不可恢复：set_user_active 拒绝 is_active=1。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            from datas.model.rbac_audit_log import RbacAuditLog
+            self.db.create_all()
+            user = RbacUser(
+                username='disabled_user', role='operator',
+                is_active=0, create_time='2026-08-04 00:00:00',
+            )
+            user.set_password('pass123')
+            self.db.session.add(user)
+            admin = RbacUser(
+                username='admin', role='admin',
+                is_active=1, create_time='2026-08-04 00:00:00',
+            )
+            admin.set_password('changeme')
+            self.db.session.add(admin)
+            self.db.session.commit()
+            self.user_id = user.id
+            self.admin_id = admin.id
+
+    def test_reenable_rejected(self):
+        """尝试恢复启用应被拒绝。"""
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.admin_id
+            session['username'] = 'admin'
+            from app.rbac.services import set_user_active
+            result = set_user_active(self.user_id, 1, reason='想恢复')
+            self.assertFalse(result['ok'])
+            self.assertIn('不可恢复', result['msg'])
+
+    def test_reregister_after_disable_allowed(self):
+        """停用用户可用同一用户名重新注册。"""
+        with self.app.app_context():
+            from datas.model.resource_group import ResourceGroup
+            g = ResourceGroup(name='测试组', code='test', create_time='2026-08-04')
+            self.db.session.add(g)
+            self.db.session.commit()
+            gid = g.id
+        with self.app.test_request_context():
+            from app.rbac.services import submit_registration
+            result = submit_registration(
+                email='disabled_user@corp.com',
+                password='newpass123',
+                confirm_password='newpass123',
+                role='operator',
+                group_ids=[str(gid)],
+                reason='重新申请',
+                job_title='tech',
+                nickname='复活用户',
+            )
+            self.assertTrue(result['ok'])
+
+
+class TestDisabledUserFrozen(unittest.TestCase):
+    """停用用户：编辑页只读 + 密码重置被拒 + Token 已清空。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            self.db.create_all()
+            user = RbacUser(
+                username='frozen_user', role='operator',
+                is_active=1, create_time='2026-08-04 00:00:00',
+                api_token='old_token_value',
+                api_token_expires_at='2026-09-01 00:00:00',
+            )
+            user.set_password('pass123')
+            self.db.session.add(user)
+            admin = RbacUser(
+                username='admin', role='admin',
+                is_active=1, create_time='2026-08-04 00:00:00',
+            )
+            admin.set_password('changeme')
+            self.db.session.add(admin)
+            self.db.session.commit()
+            self.user_id = user.id
+            self.admin_id = admin.id
+
+    def test_disable_clears_token(self):
+        """停用时 API Token 应被清空。"""
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.admin_id
+            session['username'] = 'admin'
+            from app.rbac.services import set_user_active
+            result = set_user_active(self.user_id, 0, reason='测试停用清token')
+            self.assertTrue(result['ok'])
+            from datas.model.rbac_user import RbacUser
+            u = self.db.session.get(RbacUser, self.user_id)
+            self.assertIsNone(u.api_token)
+            self.assertIsNone(u.api_token_expires_at)
+
+    def test_password_reset_rejected_for_disabled(self):
+        """停用用户不可重置密码。"""
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.admin_id
+            session['username'] = 'admin'
+            # 先停用
+            from app.rbac.services import set_user_active
+            set_user_active(self.user_id, 0, reason='停用测试')
+            # 尝试重置密码
+            from app.rbac.services import trigger_password_reset
+            result = trigger_password_reset(self.user_id)
+            self.assertFalse(result['ok'])
+            self.assertIn('已停用', result['msg'])
+
+
+class TestUpdateUserNoReenable(unittest.TestCase):
+    """update_user() 也不可恢复启用已停用用户。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            self.db.create_all()
+            user = RbacUser(
+                username='disabled_user', role='operator',
+                is_active=0, create_time='2026-08-04 00:00:00',
+            )
+            user.set_password('pass123')
+            self.db.session.add(user)
+            admin = RbacUser(
+                username='admin', role='admin',
+                is_active=1, create_time='2026-08-04 00:00:00',
+            )
+            admin.set_password('changeme')
+            self.db.session.add(admin)
+            self.db.session.commit()
+            self.user_id = user.id
+            self.admin_id = admin.id
+
+    def test_update_user_cannot_reenable(self):
+        """update_user(is_active=1) 对已停用用户应被拒绝。"""
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.admin_id
+            session['username'] = 'admin'
+            from app.rbac.services import update_user
+            result = update_user(self.user_id, is_active=1)
+            self.assertFalse(result['ok'])
+            self.assertIn('不可恢复', result['msg'])
+
+
+class TestCreateUserReplacesDisabled(unittest.TestCase):
+    """create_user() 应能替换同名已停用用户。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            self.db.create_all()
+            old = RbacUser(
+                username='recycled', role='operator',
+                is_active=0, create_time='2026-07-01 00:00:00',
+            )
+            old.set_password('oldpass')
+            self.db.session.add(old)
+            admin = RbacUser(
+                username='admin', role='admin',
+                is_active=1, create_time='2026-08-04 00:00:00',
+            )
+            admin.set_password('changeme')
+            self.db.session.add(admin)
+            self.db.session.commit()
+            self.old_id = old.id
+            self.admin_id = admin.id
+
+    def test_create_user_replaces_disabled(self):
+        """管理员手动创建同名用户时应自动替换已停用记录。"""
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.admin_id
+            session['username'] = 'admin'
+            from app.rbac.services import create_user
+            result = create_user('recycled', 'operator')
+            self.assertTrue(result['ok'])
+            # 旧记录应被删除
+            from datas.model.rbac_user import RbacUser
+            old = self.db.session.get(RbacUser, self.old_id)
+            self.assertIsNone(old)
+
+
+class TestNonAdminCannotSelectGlobal(unittest.TestCase):
+    """非 admin 角色不得选择全局权限（__ALL__）。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.user_group import UserGroup  # noqa: F401
+            self.db.create_all()
+            admin = RbacUser(
+                username='admin', role='admin',
+                is_active=1, create_time='t',
+            )
+            admin.set_password('changeme')
+            self.db.session.add(admin)
+            g = ResourceGroup(name='测试组', code='test-g', create_time='t')
+            self.db.session.add(g)
+            self.db.session.commit()
+            self.admin_id = admin.id
+            self.group_id = g.id
+
+    def tearDown(self):
+        with self.app.app_context():
+            self.db.drop_all()
+
+    def _login_admin(self, client):
+        with client.session_transaction() as sess:
+            sess['is_login'] = True
+            sess['username'] = 'admin'
+            sess['role'] = 'admin'
+            sess['user_id'] = self.admin_id
+            sess['group_ids'] = [self.group_id]
+
+    def test_viewer_with_all_rejected_on_add(self):
+        """添加 viewer 用户时选择 __ALL__ 应被后端拒绝。"""
+        with self.app.test_client() as c:
+            self._login_admin(c)
+            resp = c.post('/rbac/users/add', data={
+                'username': 'newviewer',
+                'role': 'viewer',
+                'group_ids': '__ALL__',
+            })
+            self.assertEqual(resp.status_code, 200)
+            body = resp.get_data(as_text=True)
+            self.assertIn('admin', body.lower())
+
+    def test_operator_with_all_rejected_on_add(self):
+        """添加 operator 用户时选择 __ALL__ 应被后端拒绝。"""
+        with self.app.test_client() as c:
+            self._login_admin(c)
+            resp = c.post('/rbac/users/add', data={
+                'username': 'newop',
+                'role': 'operator',
+                'group_ids': '__ALL__',
+            })
+            self.assertEqual(resp.status_code, 200)
+            body = resp.get_data(as_text=True)
+            self.assertIn('admin', body.lower())
+
+    def test_admin_with_all_accepted_on_add(self):
+        """添加 admin 用户时选择 __ALL__ 应被接受。"""
+        with self.app.test_client() as c:
+            self._login_admin(c)
+            resp = c.post('/rbac/users/add', data={
+                'username': 'newadmin',
+                'role': 'admin',
+                'group_ids': '__ALL__',
+            })
+            # 创建成功后 JSON 或重定向
+            data = resp.get_data(as_text=True)
+            self.assertNotIn('仅 admin', data)
 
 
 class TestCheckRegistrationStatus(unittest.TestCase):
@@ -1071,11 +1411,11 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             }, follow_redirects=False)
             self.assertIn(resp.status_code, (302, 200))
 
-    def test_register_post_admin_rejected(self):
-        """POST /rbac/register 选择 admin 角色应被后端拒绝。"""
+    def test_register_post_admin_allowed(self):
+        """POST /rbac/register 选择 admin 角色可提交，由管理员审批。"""
         with self.app.test_client() as c:
             resp = c.post('/rbac/register', data={
-                'email': 'adminreg@corp.com',
+                'email': 'adminpost@corp.com',
                 'nickname': 'AdminTry',
                 'job_title': 'tech',
                 'password': 'Test1234',
@@ -1083,9 +1423,9 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
                 'role': 'admin',
                 'group_ids': str(self.group_id),
                 'reason': 'I want admin',
-            })
-            html = resp.data.decode()
-            self.assertIn('管理员', html)
+                'csrf_token': 'test',
+            }, follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
 
     # ── 登录页注册状态提示 ────────────────────────────
 
@@ -1108,6 +1448,124 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
         with self.app.test_client() as c:
             resp = c.get('/rbac/login?reg_username=pending_hint')
             self.assertEqual(resp.status_code, 200)
+
+
+class TestProfileCompletionGate(unittest.TestCase):
+    """OPT-P1-10: 首次登录后强制补全个人信息门禁。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            self.db.create_all()
+            from datas.model.rbac_user import RbacUser
+            # admin-created 用户：无 email/nickname/job_title
+            u = RbacUser(
+                username='newbie', role='operator', is_active=1,
+                must_reset_password=0, create_time='t',
+            )
+            u.set_password('pass')
+            self.db.session.add(u)
+            # 已完善用户：有全部信息
+            u2 = RbacUser(
+                username='complete', role='operator', is_active=1,
+                must_reset_password=0, create_time='t',
+                email='c@test.com', nickname='Complete', job_title='tech',
+            )
+            u2.set_password('pass')
+            self.db.session.add(u2)
+            self.db.session.commit()
+            self.newbie_id = u.id
+            self.complete_id = u2.id
+
+    def tearDown(self):
+        with self.app.app_context():
+            self.db.drop_all()
+
+    def test_user_needs_profile_completion_true(self):
+        """缺失个人信息字段时返回 True。"""
+        from app.rbac.services import user_needs_profile_completion
+        with self.app.app_context():
+            self.assertTrue(user_needs_profile_completion(self.newbie_id))
+
+    def test_user_needs_profile_completion_false(self):
+        """字段齐全时返回 False。"""
+        from app.rbac.services import user_needs_profile_completion
+        with self.app.app_context():
+            self.assertFalse(user_needs_profile_completion(self.complete_id))
+
+    def test_save_profile_completion_validates(self):
+        """缺必填字段时拒绝保存。"""
+        from app.rbac.services import save_profile_completion
+        with self.app.app_context():
+            r = save_profile_completion(self.newbie_id, '', '', '')
+            self.assertFalse(r['ok'])
+            self.assertIn('邮箱', r['msg'])
+
+    def test_save_profile_completion_success(self):
+        """全部字段填写后保存成功。"""
+        from app.rbac.services import (
+            save_profile_completion, user_needs_profile_completion,
+        )
+        with self.app.app_context():
+            r = save_profile_completion(
+                self.newbie_id, 'n@test.com', 'Nick', 'tech',
+            )
+            self.assertTrue(r['ok'])
+            self.assertFalse(user_needs_profile_completion(self.newbie_id))
+
+    def test_complete_profile_page_renders(self):
+        """GET /rbac/complete_profile 对缺信息用户返回表单。"""
+        # 临时关闭 TESTING 以触发拦截器
+        self.app.config['TESTING'] = False
+        try:
+            with self.app.test_client() as c:
+                with c.session_transaction() as sess:
+                    sess['is_login'] = True
+                    sess['username'] = 'newbie'
+                    sess['role'] = 'operator'
+                    sess['user_id'] = self.newbie_id
+                    sess['group_ids'] = []
+                resp = c.get('/rbac/complete_profile')
+                self.assertEqual(resp.status_code, 200)
+                html = resp.data.decode()
+                self.assertIn('补全', html)
+                self.assertIn('邮箱', html)
+        finally:
+            self.app.config['TESTING'] = True
+
+    def test_interceptor_redirects_to_complete_profile(self):
+        """缺信息用户访问普通页面被拦截到补全页面。"""
+        self.app.config['TESTING'] = False
+        try:
+            with self.app.test_client() as c:
+                with c.session_transaction() as sess:
+                    sess['is_login'] = True
+                    sess['username'] = 'newbie'
+                    sess['role'] = 'operator'
+                    sess['user_id'] = self.newbie_id
+                    sess['group_ids'] = []
+                resp = c.get('/')
+                self.assertEqual(resp.status_code, 302)
+                self.assertIn('/rbac/complete_profile', resp.headers['Location'])
+        finally:
+            self.app.config['TESTING'] = True
+
+    def test_complete_user_not_intercepted(self):
+        """已完善用户不被拦截。"""
+        self.app.config['TESTING'] = False
+        try:
+            with self.app.test_client() as c:
+                with c.session_transaction() as sess:
+                    sess['is_login'] = True
+                    sess['username'] = 'complete'
+                    sess['role'] = 'operator'
+                    sess['user_id'] = self.complete_id
+                    sess['group_ids'] = []
+                resp = c.get('/')
+                self.assertNotEqual(resp.status_code, 302,
+                                    'Complete user should not be redirected')
+        finally:
+            self.app.config['TESTING'] = True
 
 
 if __name__ == '__main__':

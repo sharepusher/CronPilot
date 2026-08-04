@@ -82,5 +82,46 @@ class TestAjaxFormGuard(unittest.TestCase):
             )
 
 
+POST_FORM = re.compile(
+    r'<form\b[^>]*\bmethod\s*=\s*["\']post["\'][^>]*>',
+    re.IGNORECASE,
+)
+
+
+class TestAntiDoubleSubmitGuard(unittest.TestCase):
+    """全局防重复提交门禁：所有含 POST 表单的模板必须加载 common.js。"""
+
+    def test_common_js_has_global_guard(self):
+        """common.js 须包含全局 POST 表单防重复提交守卫。"""
+        path = os.path.join(ROOT, 'app', 'static', 'js', 'common.js')
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.assertIn('cp-submitting', content,
+                      'common.js 须包含全局防重复提交守卫（cp-submitting 标记）')
+
+    def test_standalone_post_forms_include_common_js(self):
+        """不继承 admin_base.html 的 POST 表单页须显式引入 common.js。"""
+        failures = []
+        for path in _iter_html_templates():
+            basename = os.path.basename(path)
+            if basename.startswith('_'):
+                continue
+            with open(path, 'r', encoding='utf-8') as f:
+                html = f.read()
+            if not POST_FORM.search(html):
+                continue
+            if 'admin_base.html' in html or "extends" in html:
+                continue
+            if 'common.js' not in html:
+                rel = os.path.relpath(path, ROOT)
+                failures.append(rel)
+        self.assertEqual(
+            failures,
+            [],
+            '独立 POST 表单页须引入 common.js 以获得全局防重复提交保护：\n'
+            + '\n'.join(failures),
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

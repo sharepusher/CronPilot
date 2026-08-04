@@ -17,12 +17,11 @@
         <div style="color:red;margin:8px 0">{{ form_msg }}</div>
         {% endif %}
 
-        {% set enabling = target_active|int == 1 %}
         <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.users_set_active') }}">
             <input type="hidden" name="id" value="{{ user.id }}" />
             <input type="hidden" name="is_active" value="{{ target_active }}" />
             <fieldset>
-                <legend>{% if enabling %}恢复启用用户{% else %}停用用户{% endif %}</legend>
+                <legend>停用用户</legend>
                 <div class="control-group">
                     <label class="control-label">用户名</label>
                     <div class="controls">
@@ -33,21 +32,22 @@
                 <div class="control-group">
                     <label class="control-label">当前状态</label>
                     <div class="controls">
-                        {% if user.is_active %}启用{% else %}停用{% endif %}
+                        {% if user.is_active %}启用{% else %}已停用{% endif %}
                         {% if user.status_reason %}
                         <span style="color:var(--cp-muted);margin-left:8px">上次缘由：{{ user.status_reason }}</span>
                         {% endif %}
                     </div>
                 </div>
                 <div class="control-group" data-field="reason">
-                    <label class="control-label">{% if enabling %}启用缘由{% else %}停用缘由{% endif %}</label>
+                    <label class="control-label">停用缘由</label>
                     <div class="controls">
                         <textarea name="reason" rows="3" style="width:80%;max-width:480px" maxlength="500" required></textarea>
                         <span class="help-block" style="color:var(--cp-muted)">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
+                        <span class="help-block" style="color:var(--cp-warn-icon)">⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。</span>
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn {% if enabling %}btn-success{% else %}btn-danger{% endif %} js-ajax-submit">{% if enabling %}确认启用{% else %}确认停用{% endif %}</button>
+                    <button type="submit" class="btn btn-danger js-ajax-submit">确认停用</button>
                     <a class="btn" href="{{ url_for('rbac.users_list') }}">取消</a>
                 </div>
             </fieldset>

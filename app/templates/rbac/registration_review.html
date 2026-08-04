@@ -44,7 +44,7 @@
             <tr>
                 <td>{{ req.id }}</td>
                 <td>{{ req.email }}</td>
-                <td>{{ req.username }}</td>
+                <td>{{ req.username }}{% if req.username in disabled_usernames %}<br><span style="color:var(--cp-warn-icon);font-size:11px">⚠ 曾被停用</span>{% endif %}</td>
                 <td>{{ req.nickname or '-' }}</td>
                 <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
                 <td>{{ req.role }}</td>
@@ -101,6 +101,7 @@
                     </div>
                     <div class="modal-body">
                         <p>确认批准用户 <strong id="approve-username"></strong> 的注册申请？</p>
+                        <p id="approve-disabled-hint" style="display:none;color:var(--cp-warn-icon)">⚠ 注意：该用户名曾被停用，审批通过后旧账号记录将被替换。</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
@@ -145,6 +146,12 @@
             var username = $(this).data('username');
             $('#approve-request-id').val(id);
             $('#approve-username').text(username);
+            var disabledNames = {{ disabled_usernames|list|tojson }};
+            if (disabledNames.indexOf(username) >= 0) {
+                $('#approve-disabled-hint').show();
+            } else {
+                $('#approve-disabled-hint').hide();
+            }
             $('#approveModal').modal('show');
         });
         $(document).on('click', '.js-reject-btn', function() {

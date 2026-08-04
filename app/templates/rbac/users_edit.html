@@ -17,6 +17,62 @@
         <div style="color:red;margin:8px 0">{{ form_msg }}</div>
         {% endif %}
 
+        {% if not user.is_active %}
+        {# 停用用户：只读查看模式 #}
+        <div class="form-horizontal">
+            <fieldset>
+                <legend style="color:var(--cp-warn-icon)">⚠ 用户已停用（只读查看）</legend>
+                <div class="control-group">
+                    <label class="control-label">用户名</label>
+                    <div class="controls"><span>{{ user.username }}</span></div>
+                </div>
+                {% if user.email %}
+                <div class="control-group">
+                    <label class="control-label">邮箱</label>
+                    <div class="controls"><span>{{ user.email }}</span></div>
+                </div>
+                {% endif %}
+                {% if user.nickname %}
+                <div class="control-group">
+                    <label class="control-label">花名</label>
+                    <div class="controls"><span>{{ user.nickname }}</span></div>
+                </div>
+                {% endif %}
+                <div class="control-group">
+                    <label class="control-label">角色</label>
+                    <div class="controls"><span>{{ user.role }}</span></div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">状态</label>
+                    <div class="controls">
+                        <span style="color:var(--cp-warn-icon);font-weight:600">已停用（不可恢复）</span>
+                        {% if user.status_reason %}
+                        <br><span style="color:var(--cp-muted)">停用缘由：{{ user.status_reason }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">业务组</label>
+                    <div class="controls">
+                        {% set gids = user_group_ids or [] %}
+                        {% if gids %}
+                        {% for g in groups if g.id in gids %}{{ g.name }}{% if not loop.last %}、{% endif %}{% endfor %}
+                        {% else %}
+                        <span style="color:var(--cp-muted)">无</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">创建时间</label>
+                    <div class="controls"><span>{{ user.create_time }}</span></div>
+                </div>
+                <div class="form-actions">
+                    <a class="btn" href="{{ url_for('rbac.users_list') }}">返回列表</a>
+                </div>
+            </fieldset>
+        </div>
+        {% else %}
+        {# 启用用户：可编辑模式 #}
         <form method="post" class="form-horizontal js-ajax-form" action="{{ url_for('rbac.users_edit') }}">
             <input type="hidden" name="id" value="{{ user.id }}" />
             <fieldset>
@@ -25,6 +81,35 @@
                     <div class="controls">
                         <input type="text" value="{{ user.username }}" disabled />
                         <span style="color:var(--cp-muted)">创建后不可改</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">邮箱</label>
+                    <div class="controls">
+                        <input type="email" name="email" maxlength="128" value="{{ user.email or '' }}" style="width:280px" placeholder="user@company.com" />
+                        <span style="color:var(--cp-muted)">可选</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">花名</label>
+                    <div class="controls">
+                        <input type="text" name="nickname" maxlength="64" value="{{ user.nickname or '' }}" style="width:200px" />
+                        <span style="color:var(--cp-muted)">可选</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">岗位类型</label>
+                    <div class="controls">
+                        <select name="job_title" id="edit-job-title-select">
+                            <option value="">-- 未设置 --</option>
+                            {% for code, label in job_title_choices %}
+                            <option value="{{ code }}"{% if user.job_title == code or (code == 'other' and user.job_title and user.job_title.startswith('other:')) %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <span id="edit-job-title-other-wrap" style="display:{% if user.job_title and user.job_title.startswith('other:') %}inline{% else %}none{% endif %};margin-left:8px">
+                            <input type="text" name="job_title_other" maxlength="20" value="{% if user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="具体岗位" style="width:140px" />
+                        </span>
+                        <span style="color:var(--cp-muted)">可选</span>
                     </div>
                 </div>
                 <div class="control-group">
@@ -52,26 +137,15 @@
                 <div class="control-group">
                     <label class="control-label">状态</label>
                     <div class="controls">
-                        {% if user.is_active %}
                         <span style="color:var(--cp-success-text);font-weight:600">启用</span>
-                        {% else %}
-                        <span style="color:var(--cp-muted);font-weight:600">停用</span>
-                        {% endif %}
-                        {% if user.status_reason %}
-                        <span style="color:var(--cp-muted);margin-left:8px">缘由：{{ user.status_reason }}</span>
-                        {% endif %}
                         {% if current_user and current_user.user_id != user.id %}
                         <div style="margin-top:6px">
-                            {% if user.is_active %}
                             <a class="btn btn-mini btn-danger" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=0) }}">停用（须填缘由）</a>
-                            {% else %}
-                            <a class="btn btn-mini btn-success" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=1) }}">恢复启用（须填缘由）</a>
-                            {% endif %}
                         </div>
                         {% else %}
                         <span style="color:var(--cp-muted);margin-left:8px">当前登录账号不可在此停用</span>
                         {% endif %}
-                        <input type="hidden" name="is_active" value="{{ 1 if user.is_active else 0 }}" />
+                        <input type="hidden" name="is_active" value="1" />
                     </div>
                 </div>
                 <div class="control-group">
@@ -102,10 +176,12 @@
                 密码重置、API Token 重置请返回<a href="{{ url_for('rbac.users_list') }}">用户列表</a>，在对应用户的操作列中执行。
             </p>
         </div>
+        {% endif %}
     </div>
     <script>
     (function(){
         var sel = document.getElementById('group-ids-select');
+        var roleSel = document.querySelector('select[name="role"]');
         if (!sel) return;
         sel.addEventListener('change', function(){
             var opts = sel.options;
@@ -133,6 +209,29 @@
                     sel.options[0].selected = false;
                 }, 0);
             }
+        });
+        // 非 admin 隐藏「全部（全局权限）」
+        function toggleAllOption() {
+            if (!roleSel) return;
+            var allOpt = sel.options[0];
+            if (roleSel.value === 'admin') {
+                allOpt.style.display = '';
+            } else {
+                allOpt.style.display = 'none';
+                allOpt.selected = false;
+            }
+        }
+        if (roleSel) {
+            roleSel.addEventListener('change', toggleAllOption);
+            toggleAllOption();
+        }
+    })();
+    (function(){
+        var jtSel = document.getElementById('edit-job-title-select');
+        var jtWrap = document.getElementById('edit-job-title-other-wrap');
+        if (!jtSel || !jtWrap) return;
+        jtSel.addEventListener('change', function(){
+            jtWrap.style.display = (this.value === 'other') ? 'inline' : 'none';
         });
     })();
     </script>

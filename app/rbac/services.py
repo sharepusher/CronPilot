@@ -28,7 +28,7 @@ AUDIT_ACTION_LABELS = {
     'user:password': '修改密码',
     'user:password_reset': '触发密码重置',
     'user:disable': '停用用户',
-    'user:enable': '启用用户',
+    'user:enable': '启用用户',  # 保留：用于展示历史审计记录（"停用不可恢复"策略后不再产生新记录）
     'permission:deny': '权限拒绝',
     'scope:deny': '作用域拒绝',
     'group:create': '创建业务组',
@@ -73,7 +73,7 @@ def audit_resource_label(action, resource):
         return '账号 %s 触发密码重置' % resource if resource else '触发密码重置'
     if action == 'user:disable':
         return '停用账号 %s' % resource if resource else '停用账号'
-    if action == 'user:enable':
+    if action == 'user:enable':  # 保留：用于展示历史审计记录
         return '启用账号 %s' % resource if resource else '启用账号'
     if action == 'permission:deny':
         return '缺少权限 %s' % resource if resource else '权限不足'
@@ -276,6 +276,51 @@ def user_must_reset_password(user_id):
     return bool(getattr(user, 'must_reset_password', 0))
 
 
+def user_needs_profile_completion(user_id):
+    """实时查询用户是否缺失个人信息（email / nickname / job_title）。
+    种子 admin 用户免检。"""
+    if user_id is None:
+        return False
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return False
+    if bool(getattr(user, 'must_reset_password', 0)):
+        return False  # 密码重置优先，改密完成后再检查
+    from .policy import is_seed_admin_username
+    if is_seed_admin_username(user.username):
+        return False
+    return not all([
+        getattr(user, 'email', None),
+        getattr(user, 'nickname', None),
+        getattr(user, 'job_title', None),
+    ])
+
+
+def save_profile_completion(user_id, email, nickname, job_title):
+    """保存用户补全的个人信息。"""
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return {'ok': False, 'msg': '用户不存在或已停用'}
+    errors = []
+    if not email or not email.strip():
+        errors.append('邮箱')
+    if not nickname or not nickname.strip():
+        errors.append('花名')
+    if not job_title or not job_title.strip():
+        errors.append('岗位类型')
+    if errors:
+        return {'ok': False, 'msg': '请填写：' + '、'.join(errors)}
+    user.email = email.strip()
+    user.nickname = nickname.strip()
+    user.job_title = job_title.strip()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败，请重试'}
+    return {'ok': True, 'msg': '个人信息已补全'}
+
+
 def _auto_issue_token(user):
     """自动签发/重置 API Token（创建用户 / 改密码 / 改组时调用）。"""
     import secrets
@@ -285,7 +330,7 @@ def _auto_issue_token(user):
     user.api_token_expires_at = (datetime.now() + timedelta(days=API_TOKEN_TTL_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def create_user(username, role='viewer'):
+def create_user(username, role='viewer', email='', nickname='', job_title=''):
     """创建用户：默认密码 changeme，并标记首次登录须改密。自动签发 API Token。"""
     username = _normalize_username(username)
     if not username:
@@ -296,16 +341,32 @@ def create_user(username, role='viewer'):
     if err:
         return {'ok': False, 'msg': err}
     exists = db.session.scalars(
-        select(RbacUser).where(RbacUser.username == username)
+        select(RbacUser).where(
+            RbacUser.username == username,
+            RbacUser.is_active == 1,
+        )
     ).first()
     if exists:
         return {'ok': False, 'msg': '用户名已存在'}
+    # 删除同名已停用旧记录（释放 UNIQUE 约束，与注册审批逻辑对齐）
+    old_disabled = db.session.scalars(
+        select(RbacUser).where(
+            RbacUser.username == username,
+            RbacUser.is_active == 0,
+        )
+    ).first()
+    if old_disabled:
+        db.session.delete(old_disabled)
+        db.session.flush()
     user = RbacUser(
         username=username,
         role=role,
         is_active=1,
         must_reset_password=1,
         create_time=get_now_time(),
+        email=(email or '').strip() or None,
+        nickname=(nickname or '').strip() or None,
+        job_title=(job_title or '').strip() or None,
     )
     user.set_password(DEFAULT_USER_PASSWORD)
     _auto_issue_token(user)
@@ -324,6 +385,9 @@ def update_user(user_id, role=None, is_active=None):
     user = db.session.get(RbacUser, user_id)
     if not user:
         return {'ok': False, 'msg': '用户不存在'}
+    # "停用不可恢复"策略：已停用用户不可通过任何路径恢复启用
+    if is_active is not None and int(is_active) == 1 and user.is_active == 0:
+        return {'ok': False, 'msg': '停用后不可恢复启用，如需使用请重新注册或由管理员创建'}
     session_uid = session.get('user_id')
     if is_active is not None and int(is_active) == 0 and session_uid == user.id:
         return {'ok': False, 'msg': '不能停用当前登录账号'}
@@ -371,7 +435,9 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
         return {'ok': False, 'msg': err}
     actor_id = actor_user_id if actor_user_id is not None else session.get('user_id')
     want_active = 1 if int(is_active) else 0
-    if want_active == 0 and actor_id is not None and int(actor_id) == int(user.id):
+    if want_active == 1:
+        return {'ok': False, 'msg': '停用后不可恢复启用，如需使用请重新注册或由管理员创建'}
+    if actor_id is not None and int(actor_id) == int(user.id):
         return {'ok': False, 'msg': '不能停用当前登录账号'}
     if (
         want_active == 0
@@ -387,6 +453,10 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
         }
     user.is_active = want_active
     user.status_reason = reason
+    # 停用时立即清空 API Token（纵深防御 + 数据清洁）
+    if want_active == 0:
+        user.api_token = None
+        user.api_token_expires_at = None
     try:
         db.session.commit()
     except Exception:
@@ -405,10 +475,12 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
 
 
 def trigger_password_reset(user_id, actor_user_id=None):
-    """管理员触发重置：恢复默认密码并标记强制改密。不可重置自己。"""
+    """管理员触发重置：恢复默认密码并标记强制改密。不可重置自己。不可重置已停用用户。"""
     user = db.session.get(RbacUser, user_id)
     if not user:
         return {'ok': False, 'msg': '用户不存在'}
+    if not user.is_active:
+        return {'ok': False, 'msg': '用户已停用，不可重置密码'}
     actor_id = actor_user_id if actor_user_id is not None else session.get('user_id')
     if actor_id is not None and int(actor_id) == int(user.id):
         return {'ok': False, 'msg': '不能重置当前登录账号密码，请使用「修改密码」'}
@@ -664,7 +736,7 @@ def user_in_management_scope(actor_group_ids, target_user_id):
 # 用户注册审批（OPT-P1-10）
 # ---------------------------------------------------------------------------
 
-REGISTRATION_ROLES = ['operator', 'viewer']
+REGISTRATION_ROLES = ['operator', 'viewer', 'admin']
 REGISTRATION_EXPIRE_DAYS = 30
 
 # 岗位类型枚举（注册时下拉选择）
@@ -703,7 +775,7 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
     if len(username) > 64:
         return {'ok': False, 'msg': '用户名（邮箱前缀）最长 64 字符'}
     if role not in REGISTRATION_ROLES:
-        return {'ok': False, 'msg': '仅可申请 operator 或 viewer 角色'}
+        return {'ok': False, 'msg': '角色无效，可选：operator / viewer / admin'}
     password = password or ''
     confirm_password = confirm_password or ''
     if len(password) < 6:
@@ -747,9 +819,12 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
         return {'ok': False, 'msg': '请至少选择一个业务组'}
     gids_str = ','.join(str(g) for g in cleaned_gids)
 
-    # 检查用户名是否已存在于 rbac_users
+    # 检查用户名是否已存在于 rbac_users（仅检查启用中的用户；停用用户可重新注册）
     exists = db.session.scalars(
-        select(RbacUser).where(RbacUser.username == username)
+        select(RbacUser).where(
+            RbacUser.username == username,
+            RbacUser.is_active == 1,
+        )
     ).first()
     if exists:
         return {'ok': False, 'msg': '用户名"%s"已存在' % username}
@@ -816,6 +891,32 @@ def check_registration_status(username):
     }
 
 
+def _check_admin_approval_scope(req):
+    """校验当前审批者是否有权审批 admin 角色申请。
+
+    规则：审批者的业务组范围 ≥ 申请者请求的业务组。
+    种子 admin 和拥有全部业务组的 admin 可审批任何 admin 申请。
+    返回错误信息字符串，无错返回 None。
+    """
+    from .policy import is_seed_admin_username, user_bypasses_scope
+    actor_role = session.get('role') or ''
+    actor_username = session.get('username') or ''
+    actor_gids = session.get('group_ids') or []
+    # 种子 admin 或全局管理员直接通过
+    if user_bypasses_scope(actor_role, username=actor_username, group_ids=actor_gids):
+        return None
+    # 非 admin 角色不可审批 admin 申请
+    if actor_role != 'admin':
+        return '仅管理员可审批 admin 角色申请'
+    # 按组管理员：检查业务组是否覆盖
+    req_gids = set(int(g) for g in req.group_ids.split(',') if g.strip())
+    actor_gids_set = set(actor_gids)
+    if not req_gids.issubset(actor_gids_set):
+        uncovered = req_gids - actor_gids_set
+        return '您的业务组范围不覆盖该申请的部分业务组（组 ID：%s）' % ', '.join(str(g) for g in uncovered)
+    return None
+
+
 def approve_registration(request_id, reviewer_id=None):
     """审批通过注册申请。自动创建用户 + 绑定业务组 + 签发 Token。"""
     from datas.model.rbac_registration_request import RbacRegistrationRequest
@@ -826,9 +927,17 @@ def approve_registration(request_id, reviewer_id=None):
         return {'ok': False, 'msg': '申请不存在'}
     if req.status != 'pending':
         return {'ok': False, 'msg': '该申请已处理（%s）' % req.status}
-    # 再次检查用户名冲突
+    # admin 角色申请：审批者的业务组须覆盖申请者请求的业务组
+    if req.role == 'admin':
+        scope_err = _check_admin_approval_scope(req)
+        if scope_err:
+            return {'ok': False, 'msg': scope_err}
+    # 再次检查用户名冲突（仅启用用户）
     exists = db.session.scalars(
-        select(RbacUser).where(RbacUser.username == req.username)
+        select(RbacUser).where(
+            RbacUser.username == req.username,
+            RbacUser.is_active == 1,
+        )
     ).first()
     if exists:
         req.status = 'rejected'
@@ -837,6 +946,16 @@ def approve_registration(request_id, reviewer_id=None):
         req.update_time = get_now_time()
         db.session.commit()
         return {'ok': False, 'msg': '用户名"%s"已被占用，申请已自动拒绝' % req.username}
+    # 删除同名的已停用旧记录（释放 UNIQUE 约束）
+    old_disabled = db.session.scalars(
+        select(RbacUser).where(
+            RbacUser.username == req.username,
+            RbacUser.is_active == 0,
+        )
+    ).first()
+    if old_disabled:
+        db.session.delete(old_disabled)
+        db.session.flush()
 
     # 创建用户
     user = RbacUser(

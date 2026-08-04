@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static',filename='css/console-theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static',filename='js/simpleboot/font-awesome/4.4.0/css/font-awesome.min.css') }}">
     <script src="{{ url_for('static',filename='js/jquery.js') }}"></script>
+    <script src="{{ url_for('static',filename='js/common.js') }}"></script>
     <script src="{{ url_for('static',filename='js/bootstrap.min.js') }}"></script>
     <style>
         body { background: var(--cp-surface-3); }
@@ -137,11 +138,10 @@
                         {{ r }}
                     </option>
                     {% endfor %}
-                    <option value="admin">admin</option>
                 </select>
                 <div class="field-hint">operator 可写任务；viewer 仅查看</div>
                 <div class="admin-warning" id="admin-warning">
-                    <i class="fa fa-exclamation-triangle"></i>管理员角色需由系统管理员直接创建，请联系系统管理员。
+                    <i class="fa fa-exclamation-triangle"></i>管理员角色申请将由系统管理员审批，审批周期可能较长。
                 </div>
             </div>
 
@@ -159,7 +159,7 @@
                     <span style="color: var(--cp-muted); font-size: 0.9em;">暂无业务组</span>
                     {% endif %}
                 </div>
-                <div class="field-hint">至少选择一个业务组</div>
+                <div class="field-hint">至少选择一个业务组。没有目标业务组？请联系管理员创建后再申请</div>
             </div>
 
             <div class="form-group">
@@ -184,17 +184,10 @@ $(function() {
     var otherWrapper = document.getElementById('job-title-other-wrapper');
 
     roleSelect.addEventListener('change', function() {
-        if (this.value === 'admin') {
-            adminWarning.style.display = 'block';
-            submitBtn.disabled = true;
-        } else {
-            adminWarning.style.display = 'none';
-            submitBtn.disabled = false;
-        }
+        adminWarning.style.display = this.value === 'admin' ? 'block' : 'none';
     });
     if (roleSelect.value === 'admin') {
         adminWarning.style.display = 'block';
-        submitBtn.disabled = true;
     }
 
     jobTitleSelect.addEventListener('change', function() {
@@ -207,21 +200,6 @@ $(function() {
     if (jobTitleSelect.value === 'other') {
         otherWrapper.style.display = 'block';
     }
-
-    /* 防重复提交：表单提交后禁用按钮 */
-    $('form').on('submit', function() {
-        var btn = submitBtn;
-        if (btn.dataset.submitting === '1') return false;
-        btn.dataset.submitting = '1';
-        btn.disabled = true;
-        btn.textContent = '提交中…';
-        /* 3 秒后恢复（防网络超时后无法再提交） */
-        setTimeout(function() {
-            btn.dataset.submitting = '';
-            btn.disabled = false;
-            btn.textContent = '提交申请';
-        }, 3000);
-    });
 
     $(document).on('click', '.js-pwd-toggle', function() {
         var id = $(this).data('target');

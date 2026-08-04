@@ -76,9 +76,13 @@ def get_current_user_groups():
     from app import db
     from datas.model.resource_group import ResourceGroup
 
-    rows = db.session.scalars(
-        select(ResourceGroup).where(ResourceGroup.id.in_(ids))
-    ).all()
+    try:
+        rows = db.session.scalars(
+            select(ResourceGroup).where(ResourceGroup.id.in_(ids))
+        ).all()
+    except Exception:
+        g._current_user_groups = []
+        return []
     by_id = {int(r.id): r.name for r in rows}
     result = [{'id': gid, 'name': by_id.get(gid, '组#%s' % gid)} for gid in ids]
     g._current_user_groups = result

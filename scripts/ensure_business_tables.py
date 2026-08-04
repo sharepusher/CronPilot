@@ -60,6 +60,17 @@ def main():
         ensure_seed_admin()
         ensure_existing_users_have_token()
         expire_stale_registrations()
+        # 关键表存在断言（防止启动时表缺失导致全站 500）
+        from sqlalchemy import inspect as sa_inspect
+        critical_tables = [
+            'cron_infos', 'job_log', 'resource_groups',
+            'rbac_users', 'rbac_audit_logs',
+        ]
+        insp = sa_inspect(db.engine)
+        missing = [t for t in critical_tables if not insp.has_table(t)]
+        if missing:
+            print('FATAL: 关键表缺失 ->', ', '.join(missing))
+            return 1
     print('OK: %s 业务表已就绪 ->' % backend, uri)
     return 0
 

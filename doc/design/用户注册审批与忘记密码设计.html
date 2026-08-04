@@ -68,7 +68,7 @@
   <tr><td>公司邮箱</td><td>✅</td><td>格式校验（含 <code>@</code>）；自动提取前缀作为用户名；唯一性校验（用户名不可重复）</td></tr>
   <tr><td>密码</td><td>✅</td><td>用户自设（非默认 changeme），至少 6 位</td></tr>
   <tr><td>确认密码</td><td>✅</td><td>二次确认，须与密码一致</td></tr>
-  <tr><td>申请角色</td><td>✅</td><td>下拉：operator / viewer / admin（admin 选中时提示联系管理员并禁用提交）</td></tr>
+  <tr><td>申请角色</td><td>✅</td><td>下拉：operator / viewer / admin（admin 选中时显示引导提示但允许提交；审批时校验审批者范围）</td></tr>
   <tr><td>目标业务组</td><td>✅</td><td>多选下拉，列出所有已有业务组（至少选 1 个）</td></tr>
   <tr><td>申请缘由</td><td>✅</td><td>文本域，最长 500 字符</td></tr>
 </table>
@@ -90,15 +90,46 @@
   <li>写审计日志：<code>action='user:register_approve'</code></li>
 </ul>
 
-<h4>3.1.6 Admin 角色约束</h4>
-<p>admin 角色<strong>不能通过注册流程申请</strong>。注册表单中 admin 选项可见但选中后：</p>
+<h4>3.1.6 Admin 角色注册（已更新）</h4>
+<p>admin 角色<strong>可通过注册流程申请</strong>，但审批时有额外的范围约束：</p>
 <ul>
-  <li>显示提示框：「管理员角色需由系统管理员直接创建，请联系系统管理员。」</li>
-  <li>提交按钮变为禁用状态</li>
-  <li>切回 operator/viewer 后恢复正常</li>
+  <li>注册表单中 admin 选项可见，选中后显示引导提示：「管理员角色申请将由系统管理员审批，审批周期可能较长。」（但不禁用提交按钮）</li>
+  <li>审批时校验审批者的业务组范围 ≥ 申请者请求的业务组（<code>_check_admin_approval_scope()</code>）</li>
+  <li>种子 admin 和拥有「全部」业务组的管理员可审批任何 admin 申请</li>
+  <li>按组管理员若业务组范围不覆盖申请者的请求组，则在审批列表中不可见该申请</li>
 </ul>
 
-<h4>3.1.7 防恶意注册</h4>
+<h4>3.1.7 停用不可恢复与重新注册（已补充）</h4>
+<p>用户一旦被停用（<code>is_active=0</code>），<strong>不可通过任何路径恢复启用</strong>（"停用不可恢复"策略）。如需使用系统，必须：</p>
+<ul>
+  <li>通过注册流程重新申请（同一邮箱/用户名可重新提交）</li>
+  <li>或由管理员在用户管理中重新创建</li>
+</ul>
+<p><strong>技术实现</strong>：</p>
+<ul>
+  <li><code>set_user_active()</code>：拒绝 <code>is_active=1</code> 请求</li>
+  <li><code>update_user()</code>：检查 <code>is_active == 0</code> 的用户不可被改为 <code>is_active=1</code></li>
+  <li><code>users_set_active()</code> 视图：在入口处拦截 <code>is_active=1</code>（纵深防御）</li>
+  <li>编辑页 UI：停用用户显示「已停用（不可恢复）」文本，无恢复按钮</li>
+</ul>
+<p><strong>重新注册流程</strong>：</p>
+<ul>
+  <li><code>submit_registration()</code> 仅检查 <code>is_active=1</code> 用户的用户名冲突 → 已停用用户名可重新申请</li>
+  <li><code>approve_registration()</code> 审批通过时自动删除同名已停用旧记录（释放 UNIQUE 约束），再创建新用户</li>
+  <li><code>create_user()</code>（管理员手动创建）同理：仅检查启用用户，自动替换停用旧记录</li>
+  <li>审批页面提示「⚠ 曾被停用」（当待审批用户名存在已停用记录时）</li>
+</ul>
+
+<h4>3.1.8 Admin 角色审批权限（已补充）</h4>
+<table>
+  <tr><th>审批者类型</th><th>可审批 admin 角色申请？</th><th>条件</th></tr>
+  <tr><td>种子 admin</td><td>✅</td><td>无条件</td></tr>
+  <tr><td><code>__ALL__</code> 管理员 admin</td><td>✅</td><td>无条件</td></tr>
+  <tr><td>组管理员 admin</td><td>✅（有条件）</td><td>审批者业务组 ⊇ 申请者请求的业务组</td></tr>
+  <tr><td>operator / viewer</td><td>❌</td><td>无 <code>user:manage</code> 权限</td></tr>
+</table>
+
+<h4>3.1.9 防恶意注册</h4>
 <table>
   <tr><th>威胁</th><th>防护措施</th></tr>
   <tr><td>批量提交（Bot）</td><td>同一 username pending 状态仅允许 1 条；CSRF Token 校验</td></tr>
@@ -107,7 +138,7 @@
   <tr><td>信息泄露</td><td>登录时仅 username 精确匹配且有 pending/rejected 记录时才提示注册状态</td></tr>
 </table>
 
-<h4>3.1.8 性能评估</h4>
+<h4>3.1.10 性能评估</h4>
 <table>
   <tr><th>维度</th><th>分析</th><th>风险</th></tr>
   <tr><td>表规模</td><td><code>rbac_registration_requests</code> 预估几十到几百条（内部系统）</td><td>极低</td></tr>
@@ -141,7 +172,7 @@
   <tr><td>email</td><td>VARCHAR(128)</td><td>NOT NULL, INDEX</td><td>申请邮箱</td></tr>
   <tr><td>username</td><td>VARCHAR(64)</td><td>NOT NULL, INDEX</td><td>从邮箱前缀提取的用户名</td></tr>
   <tr><td>password_hash</td><td>VARCHAR(255)</td><td>NOT NULL</td><td>密码哈希（与 rbac_users 同算法）</td></tr>
-  <tr><td>role</td><td>VARCHAR(20)</td><td>NOT NULL</td><td>申请角色（operator/viewer）</td></tr>
+  <tr><td>role</td><td>VARCHAR(20)</td><td>NOT NULL</td><td>申请角色（operator/viewer/admin）</td></tr>
   <tr><td>group_ids</td><td>VARCHAR(255)</td><td>NOT NULL</td><td>目标业务组 ID（逗号分隔，如 "1,3"）</td></tr>
   <tr><td>job_title</td><td>VARCHAR(64)</td><td>NOT NULL, DEFAULT ''</td><td>岗位类型：tech/ops/qa/pm/proj_mgr/strategy/operation/other:自定义</td></tr>
   <tr><td>nickname</td><td>VARCHAR(64)</td><td>NOT NULL, DEFAULT ''</td><td>花名（内部昵称）</td></tr>
@@ -151,6 +182,7 @@
   <tr><td>review_comment</td><td>VARCHAR(500)</td><td>NULL</td><td>审批备注</td></tr>
   <tr><td>create_time</td><td>VARCHAR(25)</td><td>NOT NULL, INDEX</td><td>申请时间</td></tr>
   <tr><td>update_time</td><td>VARCHAR(25)</td><td>NULL</td><td>审批/过期时间</td></tr>
+  <tr><td>pending_username</td><td>VARCHAR(64)</td><td>NULL, UNIQUE</td><td>竞态防护：pending 时设为 username（保证同一 username 仅 1 条 pending），其他状态设为 NULL</td></tr>
 </table>
 
 <h3>4.2 <code>rbac_users</code> 新增列</h3>
@@ -241,8 +273,8 @@
 │              ↳ operator 可写任务；viewer 仅查看       │
 │                                                      │
 │  ┌──────────────────────────────────────────┐        │
-│  │ ⚠ 管理员角色需由系统管理员直接创建，       │ ←admin │
-│  │   请联系系统管理员。                       │  选中时 │
+│  │ ℹ 管理员角色申请将由系统管理员审批，       │ ←admin │
+│  │   审批周期可能较长。                       │  选中时 │
 │  └──────────────────────────────────────────┘        │
 │                                                      │
 │  目标业务组 * ┌────────────────┐                      │
@@ -266,15 +298,13 @@
 <p><strong>模板结构</strong>：独立 HTML 页面（类似 <code>login.html</code>），不使用 <code>admin_base.html</code>。表单区域居中，max-width: 600px。</p>
 <p><strong>表单布局</strong>：使用 <code>control-group</code> + <code>controls</code>（对齐 <code>users_add.html</code> 样式）。</p>
 <p><strong>交互方式</strong>：普通 HTML POST 表单，提交后重定向到登录页（<code>/rbac/login?msg=...</code>）。</p>
-<p><strong>Admin 角色联动（JavaScript）</strong>：</p>
+<p><strong>Admin 角色联动（JavaScript）</strong>：选中 admin 时显示引导提示（不禁用提交按钮）。</p>
 <pre>
 roleSelect.addEventListener('change', function() {
     if (this.value === 'admin') {
         adminWarning.style.display = 'block';
-        submitBtn.disabled = true;
     } else {
         adminWarning.style.display = 'none';
-        submitBtn.disabled = false;
     }
 });
 </pre>
@@ -331,7 +361,7 @@ roleSelect.addEventListener('change', function() {
   <tr><td>ID</td><td>申请编号</td><td>60px</td></tr>
   <tr><td>邮箱</td><td>申请邮箱</td><td>auto</td></tr>
   <tr><td>用户名</td><td>自动提取的用户名</td><td>100px</td></tr>
-  <tr><td>角色</td><td>operator / viewer</td><td>80px</td></tr>
+  <tr><td>角色</td><td>operator / viewer / admin</td><td>80px</td></tr>
   <tr><td>业务组</td><td>组名列表（逗号分隔）</td><td>auto</td></tr>
   <tr><td>申请缘由</td><td>截断展示 + hover 全文（title 属性）</td><td>auto，max-width: 200px</td></tr>
   <tr><td>申请时间</td><td>create_time</td><td>130px</td></tr>
@@ -363,7 +393,9 @@ roleSelect.addEventListener('change', function() {
 &lt;/li&gt;
 </pre>
 
-<p><strong>Scope 过滤</strong>：种子 admin / <code>__ALL__</code> admin 看所有；组 admin 仅看 group_ids 有交集的申请。</p>
+<p><strong>Scope 过滤</strong>：种子 admin / <code>__ALL__</code> admin 看所有；组 admin 仅看 group_ids 有交集的申请（admin 角色申请仅当审批者业务组 ⊇ 请求组时才可见）。</p>
+
+<p><strong>"曾被停用"提示</strong>：当待审批用户名存在 <code>is_active=0</code> 的同名记录时，在用户名旁显示 <span style="color:var(--cp-warn-icon)">⚠ 曾被停用</span>，审批弹窗中也显示替换旧记录的警告。</p>
 
 <!-- ================================================================== -->
 <h2>六、审计日志</h2>

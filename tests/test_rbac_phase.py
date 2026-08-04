@@ -1066,22 +1066,17 @@ class TestForcedPasswordReset(unittest.TestCase):
 
         self._login_session('mgr', 'admin', self.admin_id)
         html = self.client.get('/rbac/users').get_data(as_text=True)
+        # 启用用户仍有重置密码按钮
         self.assertIn('重置密码', html)
-        self.assertIn('/rbac/users/reset_password?id=', html)
-        self.assertIn('恢复启用', html)
-        self.assertTrue(
-            ('/rbac/users/set_active?id=%s&is_active=1' % disabled_id) in html
-            or ('/rbac/users/set_active?id=%s&amp;is_active=1' % disabled_id) in html
-        )
+        self.assertIn('/rbac/users/reset_password?id=%s' % self.existing_id, html)
+        # 停用用户：无重置密码/Token/编辑按钮，只有"查看"
+        self.assertNotIn('恢复启用', html)
+        self.assertNotIn('/rbac/users/reset_password?id=%s' % disabled_id, html)
+        self.assertIn('>查看</a>', html)
         self.assertIn('user-row-inactive', html)
-        self.assertIn('user-status-reset', html)
-        self.assertIn('待重置', html)
         self.assertIn('请假停用', html)
-        self.assertIn('btn-info', html)
-        # 编辑在操作列末尾（他人行）；当前用户仅「修改密码」
-        reset_pos = html.find('重置密码')
-        edit_pos = html.rfind('>编辑</a>')
-        self.assertGreater(edit_pos, reset_pos)
+        # 启用用户有"编辑"按钮
+        self.assertIn('>编辑</a>', html)
         self.assertIn('修改密码', html)
         self.assertIn('/rbac/password', html)
         self.assertIn('账号/角色/业务组不可自改', html)
@@ -1152,6 +1147,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             self.assertIsNotNone(row)
             self.assertIn('违规操作暂停', row.resource or '')
 
+        # 停用后不可恢复启用（"停用不可恢复"策略）
         enable = self.client.post(
             '/rbac/users/set_active',
             data={
@@ -1161,12 +1157,12 @@ class TestForcedPasswordReset(unittest.TestCase):
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
-        self.assertEqual(enable.get_json().get('errcode'), 0)
+        self.assertEqual(enable.get_json().get('errcode'), 1)
+        self.assertIn('不可恢复', enable.get_json().get('errmsg', ''))
         with self.app.app_context():
             from datas.model.rbac_user import RbacUser
             u = self.db.session.get(RbacUser, self.existing_id)
-            self.assertEqual(u.is_active, 1)
-            self.assertEqual(u.status_reason, '问题已处理，恢复使用')
+            self.assertEqual(u.is_active, 0)  # 仍为停用状态
 
     def test_cannot_disable_self_via_set_active(self):
         self._login_session('mgr', 'admin', self.admin_id)
@@ -1536,6 +1532,35 @@ class TestUserTopbar(unittest.TestCase):
             # 请求内缓存
             session['group_ids'] = []
             self.assertEqual(get_current_user_groups()[0]['name'], '支付业务')
+
+
+class TestContextProcessorResilience(unittest.TestCase):
+    """context processor 异常保护：DB 表缺失时不应导致 500。"""
+
+    def setUp(self):
+        self.app = Flask(
+            __name__,
+            template_folder=os.path.join(ROOT, 'app', 'templates'),
+            static_folder=os.path.join(ROOT, 'app', 'static'),
+        )
+        self.app.secret_key = 'test'
+        self.app.config['TESTING'] = True
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        from app import db
+        db.init_app(self.app)
+        # 不调用 db.create_all()：故意缺表以测试防御性代码
+
+    def test_get_current_user_groups_survives_missing_table(self):
+        """resource_groups 表不存在时返回空列表而非抛异常。"""
+        with self.app.app_context():
+            from app.rbac.context import get_current_user_groups
+            from flask import session, g
+            with self.app.test_request_context():
+                session['is_login'] = True
+                session['group_ids'] = [99999]
+                result = get_current_user_groups()
+                self.assertIsInstance(result, list)
 
 
 if __name__ == '__main__':

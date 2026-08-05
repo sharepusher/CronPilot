@@ -787,7 +787,8 @@ $(document).on('submit', 'form:not(.js-ajax-form)', function () {
     var $form = $(this);
     if ($form.attr('method') && $form.attr('method').toLowerCase() !== 'post') return;
     var $btn = $form.find('[type="submit"]');
-    if (!$btn.length || $btn.data('cp-submitting')) return false;
+    if (!$btn.length) return;          // 无 submit 按钮 → 放行提交，仅跳过守卫
+    if ($btn.data('cp-submitting')) return false;  // 正在提交 → 阻止重复
     $btn.data('cp-submitting', true);
     var origText = $btn.is('input') ? $btn.val() : $btn.text();
     if ($btn.is('input')) {

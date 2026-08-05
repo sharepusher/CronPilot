@@ -153,10 +153,10 @@
                     <div class="controls">
                         {% if groups %}
                         <select name="group_ids" multiple size="{% if groups|length < 4 %}{{ groups|length + 1 }}{% else %}5{% endif %}" id="group-ids-select">
-                            <option value="__ALL__"{% if not (user_group_ids or []) and user.role == 'admin' %} selected{% endif %}>全部（全局权限）</option>
                             {% for g in groups %}
                             <option value="{{ g.id }}"{% if g.id in (user_group_ids or []) %} selected{% endif %}>{{ g.name }} ({{ g.code }})</option>
                             {% endfor %}
+                            <option value="__ALL__"{% if not (user_group_ids or []) and user.role == 'admin' %} selected{% endif %}>全部（全局权限）</option>
                         </select>
                         <span style="color:var(--cp-muted)">下拉多选（Ctrl/Command 可多选）。所有角色<strong>必须</strong>至少选一个业务组或选择「全部」。变更后该用户需重新登录生效</span>
                         {% else %}
@@ -183,13 +183,12 @@
         var sel = document.getElementById('group-ids-select');
         var roleSel = document.querySelector('select[name="role"]');
         if (!sel) return;
+        var allOpt = sel.querySelector('option[value="__ALL__"]');
         sel.addEventListener('change', function(){
-            var opts = sel.options;
-            var allOpt = opts[0];
-            var allSelected = allOpt.selected;
+            var allSelected = allOpt && allOpt.selected;
             var anySpecific = false;
-            for (var i = 1; i < opts.length; i++) {
-                if (opts[i].selected) { anySpecific = true; break; }
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value !== '__ALL__' && sel.options[i].selected) { anySpecific = true; break; }
             }
             if (allSelected && anySpecific) {
                 allOpt.selected = false;
@@ -200,20 +199,19 @@
             if (target.tagName !== 'OPTION') return;
             if (target.value === '__ALL__') {
                 setTimeout(function(){
-                    for (var i = 1; i < sel.options.length; i++) {
-                        sel.options[i].selected = false;
+                    for (var i = 0; i < sel.options.length; i++) {
+                        if (sel.options[i].value !== '__ALL__') sel.options[i].selected = false;
                     }
                 }, 0);
             } else {
                 setTimeout(function(){
-                    sel.options[0].selected = false;
+                    if (allOpt) allOpt.selected = false;
                 }, 0);
             }
         });
         // 非 admin 隐藏「全部（全局权限）」
         function toggleAllOption() {
-            if (!roleSel) return;
-            var allOpt = sel.options[0];
+            if (!roleSel || !allOpt) return;
             if (roleSel.value === 'admin') {
                 allOpt.style.display = '';
             } else {

@@ -141,16 +141,16 @@
                 </select>
                 <div class="field-hint">operator 可写任务；viewer 仅查看</div>
                 <div class="admin-warning" id="admin-warning">
-                    <i class="fa fa-exclamation-triangle"></i>管理员角色申请将由系统管理员审批，审批周期可能较长。
+                    <i class="fa fa-exclamation-triangle"></i>管理员角色审批更严格，请确保个人信息和申请缘由准确完整。
                 </div>
             </div>
 
             <div class="form-group">
                 <label>目标业务组 <span class="required">*</span></label>
-                <div class="checkbox-group">
+                <div class="checkbox-group" id="group-checkboxes">
                     {% for g in groups %}
-                    <label>
-                        <input type="checkbox" name="group_ids" value="{{ g.id }}"
+                    <label class="group-item-label">
+                        <input type="checkbox" name="group_ids" value="{{ g.id }}" class="group-item-cb"
                             {% if form_data and g.id|string in form_data.getlist('group_ids') %}checked{% endif %}>
                         {{ g.name }}
                     </label>
@@ -158,6 +158,11 @@
                     {% if not groups %}
                     <span style="color: var(--cp-muted); font-size: 0.9em;">暂无业务组</span>
                     {% endif %}
+                    <label id="group-all-label" style="display:none;font-weight:600">
+                        <input type="checkbox" name="group_ids" value="__ALL__" id="group-all-cb"
+                            {% if form_data and '__ALL__' in form_data.getlist('group_ids') %}checked{% endif %}>
+                        全部（全局权限）
+                    </label>
                 </div>
                 <div class="field-hint">至少选择一个业务组。没有目标业务组？请联系管理员创建后再申请</div>
             </div>
@@ -168,10 +173,31 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary" id="submit-btn">提交申请</button>
+                <button type="button" class="btn btn-primary" id="submit-btn" onclick="showConfirmModal()">提交申请</button>
                 <a href="{{ url_for('rbac.login') }}" class="btn btn-default">返回登录</a>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="modal fade" id="reg-confirm-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">确认注册信息</h4>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--cp-muted);margin-bottom:12px">请仔细核对以下信息，确认无误后提交：</p>
+                <table class="table table-condensed" style="margin:0">
+                    <tbody id="confirm-summary"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">返回修改</button>
+                <button type="button" class="btn btn-primary" id="confirm-submit-btn">确认提交</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -183,12 +209,33 @@ $(function() {
     var jobTitleSelect = document.getElementById('job-title-select');
     var otherWrapper = document.getElementById('job-title-other-wrapper');
 
-    roleSelect.addEventListener('change', function() {
-        adminWarning.style.display = this.value === 'admin' ? 'block' : 'none';
-    });
-    if (roleSelect.value === 'admin') {
-        adminWarning.style.display = 'block';
+    var groupAllLabel = document.getElementById('group-all-label');
+    var groupAllCb = document.getElementById('group-all-cb');
+    var groupItemCbs = document.querySelectorAll('.group-item-cb');
+
+    function toggleAdminGroupUI() {
+        var isAdmin = roleSelect.value === 'admin';
+        adminWarning.style.display = isAdmin ? 'block' : 'none';
+        groupAllLabel.style.display = isAdmin ? 'block' : 'none';
+        if (!isAdmin && groupAllCb.checked) {
+            groupAllCb.checked = false;
+        }
     }
+    roleSelect.addEventListener('change', toggleAdminGroupUI);
+    toggleAdminGroupUI();
+
+    groupAllCb.addEventListener('change', function() {
+        if (this.checked) {
+            groupItemCbs.forEach(function(cb) { cb.checked = false; });
+        }
+    });
+    groupItemCbs.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            if (this.checked && groupAllCb.checked) {
+                groupAllCb.checked = false;
+            }
+        });
+    });
 
     jobTitleSelect.addEventListener('change', function() {
         if (this.value === 'other') {
@@ -208,7 +255,54 @@ $(function() {
         inp.type = inp.type === 'password' ? 'text' : 'password';
         $(this).toggleClass('fa-eye fa-eye-slash');
     });
+
+    $('#confirm-submit-btn').on('click', function() {
+        var btn = $(this);
+        if (btn.data('cp-submitting')) return;
+        btn.data('cp-submitting', true).text('提交中…').prop('disabled', true).addClass('disabled');
+        $('#reg-confirm-modal').modal('hide');
+        document.querySelector('form').submit();
+    });
 });
+
+function showConfirmModal() {
+    var form = document.querySelector('form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    var email = form.querySelector('[name="email"]').value;
+    var nickname = form.querySelector('[name="nickname"]').value;
+    var role = form.querySelector('[name="role"]').value;
+    var jobSel = form.querySelector('[name="job_title"]');
+    var jobTitle = jobSel.options[jobSel.selectedIndex].text;
+    if (jobSel.value === 'other') {
+        var custom = form.querySelector('[name="job_title_other"]').value;
+        jobTitle = '其他：' + (custom || '未填写');
+    }
+    var groups = [];
+    var checkedGroups = form.querySelectorAll('[name="group_ids"]:checked');
+    checkedGroups.forEach(function(cb) {
+        groups.push(cb.value === '__ALL__' ? '全部（全局权限）' : cb.parentElement.textContent.trim());
+    });
+    var reason = form.querySelector('[name="reason"]').value;
+    var rows = [
+        ['邮箱（用户名）', email],
+        ['花名', nickname],
+        ['岗位类型', jobTitle],
+        ['申请角色', role],
+        ['目标业务组', groups.join('、') || '未选择'],
+        ['申请缘由', reason.length > 80 ? reason.substring(0, 80) + '…' : reason],
+    ];
+    var tbody = document.getElementById('confirm-summary');
+    tbody.innerHTML = '';
+    rows.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td style="font-weight:600;width:120px;white-space:nowrap;color:var(--cp-ink)">' + r[0] + '</td><td>' + $('<span>').text(r[1]).html() + '</td>';
+        tbody.appendChild(tr);
+    });
+    $('#reg-confirm-modal').modal('show');
+}
 </script>
 </body>
 </html>

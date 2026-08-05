@@ -806,18 +806,28 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
         return {'ok': False, 'msg': '请填写申请缘由'}
     if len(reason) > 500:
         return {'ok': False, 'msg': '申请缘由最长 500 字'}
-    # 校验 group_ids
+    # 校验 group_ids（admin 可选 __ALL__）
     if not group_ids:
         return {'ok': False, 'msg': '请至少选择一个业务组'}
-    cleaned_gids = []
-    for g in group_ids:
-        try:
-            cleaned_gids.append(int(g))
-        except (TypeError, ValueError):
-            return {'ok': False, 'msg': '业务组参数无效'}
-    if not cleaned_gids:
-        return {'ok': False, 'msg': '请至少选择一个业务组'}
-    gids_str = ','.join(str(g) for g in cleaned_gids)
+    str_ids = [str(g) for g in group_ids]
+    has_all = GROUP_ALL_MARKER in str_ids
+    if has_all and role != 'admin':
+        return {'ok': False, 'msg': '非管理员角色不可选择全局权限'}
+    if has_all:
+        real_ids = [g for g in str_ids if g != GROUP_ALL_MARKER]
+        if real_ids:
+            return {'ok': False, 'msg': '「全部」与具体业务组不能同时选择'}
+        gids_str = GROUP_ALL_MARKER
+    else:
+        cleaned_gids = []
+        for g in group_ids:
+            try:
+                cleaned_gids.append(int(g))
+            except (TypeError, ValueError):
+                return {'ok': False, 'msg': '业务组参数无效'}
+        if not cleaned_gids:
+            return {'ok': False, 'msg': '请至少选择一个业务组'}
+        gids_str = ','.join(str(g) for g in cleaned_gids)
 
     # 检查用户名是否已存在于 rbac_users（仅检查启用中的用户；停用用户可重新注册）
     exists = db.session.scalars(
@@ -908,6 +918,9 @@ def _check_admin_approval_scope(req):
     # 非 admin 角色不可审批 admin 申请
     if actor_role != 'admin':
         return '仅管理员可审批 admin 角色申请'
+    # 申请全局权限（__ALL__）：仅种子/全局 admin 可审批（上方已放行），按组管理员无权
+    if req.group_ids.strip() == GROUP_ALL_MARKER:
+        return '全局权限申请仅系统管理员可审批'
     # 按组管理员：检查业务组是否覆盖
     req_gids = set(int(g) for g in req.group_ids.split(',') if g.strip())
     actor_gids_set = set(actor_gids)
@@ -973,10 +986,11 @@ def approve_registration(request_id, reviewer_id=None):
     try:
         db.session.add(user)
         db.session.flush()
-        # 绑定业务组
-        gids = [int(g) for g in req.group_ids.split(',') if g.strip()]
-        for gid in gids:
-            db.session.add(UserGroup(user_id=user.id, group_id=gid))
+        # 绑定业务组（__ALL__ 不写 user_group 行，与 set_user_groups 一致）
+        if req.group_ids.strip() != GROUP_ALL_MARKER:
+            gids = [int(g) for g in req.group_ids.split(',') if g.strip()]
+            for gid in gids:
+                db.session.add(UserGroup(user_id=user.id, group_id=gid))
         # 更新申请状态
         req.status = 'approved'
         req.pending_username = None

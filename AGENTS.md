@@ -28,6 +28,8 @@
 
 **大文件修改前结构分析（强制）**：修改 300+ 行的 JS/Python/模板文件前，必须用 AST 或手动追踪 `{}`/`def`/`class` 嵌套确认插入点的实际作用域；插入后须在运行时（CDP/`python -c`）确认代码在预期时机执行，禁止仅靠静态 `grep` 判断。详 `.cursor/rules/cronpilot-project.mdc`「大文件修改前结构分析」。
 
+**表单交互变更影响分析（强制）**：改 button type、引入模态框确认、改用 AJAX 提交等表单交互变更时，必须 `grep` 全局 JS（`common.js` 等）中 `[type="submit"]`、`form:not(...)` 等选择器的监听，确认改动后选择器仍能匹配；明确提交方式（原生 `form.submit()` vs jQuery `.submit()`）与全局守卫的交互结果；**端到端验证必须覆盖「填写→模态→确认→跳转/响应」全流程**。详 `.cursor/rules/cronpilot-project.mdc`「表单交互变更影响分析」。
+
 **策略变更影响分析（强制）**：引入或修改业务策略（如"停用不可恢复"、权限限制等）时，必须 grep 策略影响字段的**所有赋值点**，逐点加固或文档说明豁免原因；为每个修改入口编写独立测试；检查同类函数的逻辑一致性；回溯设计文档中策略相关描述。禁止仅在"最显眼"的入口加策略而忽略间接修改路径。详 `.cursor/rules/cronpilot-project.mdc`「策略变更影响分析」。
 
 **本地预览必重启**：本地以 `debug=False` / `use_reloader=False` 常驻，**改模板或 Python 后「刷新浏览器」无效**。对外让用户看效果前必须 `bash scripts/cronpilot.sh restart --daemon`，并用登录会话 curl/浏览器断言新文案或 class。**重启后须先 `curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"` 确认 200**，排除 DB 表缺失等全局 500，再进入功能验收。详见 `.cursor/rules/cronpilot-project.mdc`「本地进程与热更新」。

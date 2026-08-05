@@ -49,8 +49,12 @@
                 <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
                 <td>{{ req.role }}</td>
                 <td>
+                    {% if req.group_ids and req.group_ids.strip() == '__ALL__' %}
+                    全部（全局权限）
+                    {% else %}
                     {% set gids = req.group_ids.split(',') if req.group_ids else [] %}
                     {% for gid in gids %}{% if gid.strip() %}{{ group_name_map.get(gid|int, gid) }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}
+                    {% endif %}
                 </td>
                 <td title="{{ req.reason }}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ req.reason }}</td>
                 <td>{{ req.create_time[:16] if req.create_time else '' }}</td>

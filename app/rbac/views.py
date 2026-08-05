@@ -769,13 +769,17 @@ def registration_review():
         actor_gids = session.get('group_ids') or []
         page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter)
         # 按组管理员：隐藏其业务组未完全覆盖的 admin 角色申请
+        # __ALL__ 申请仅种子/全局 admin 可见（上方已走 _actor_bypasses_scope 分支）
         actor_gids_set = set(actor_gids)
-        page_data.items = [
-            r for r in page_data.items
-            if r.role != 'admin' or set(
-                int(g) for g in r.group_ids.split(',') if g.strip()
-            ).issubset(actor_gids_set)
-        ]
+        def _can_see_admin_req(r):
+            if r.role != 'admin':
+                return True
+            gids_raw = r.group_ids.strip()
+            if gids_raw == '__ALL__':
+                return False
+            req_gids = set(int(g) for g in gids_raw.split(',') if g.strip())
+            return req_gids.issubset(actor_gids_set)
+        page_data.items = [r for r in page_data.items if _can_see_admin_req(r)]
 
     # 获取业务组名映射
     group_name_map = {}

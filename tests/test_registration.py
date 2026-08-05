@@ -1012,6 +1012,96 @@ class TestNonAdminCannotSelectGlobal(unittest.TestCase):
             self.assertNotIn('仅 admin', data)
 
 
+class TestAdminRegistrationWithAllGroups(unittest.TestCase):
+    """注册申请中 admin + __ALL__ 全局权限场景。"""
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
+            self.db.create_all()
+            g = ResourceGroup(name='研发组', code='dev', create_time='2026-08-03')
+            self.db.session.add(g)
+            self.db.session.commit()
+            self.group_id = g.id
+
+    def tearDown(self):
+        with self.app.app_context():
+            self.db.drop_all()
+
+    def test_admin_submit_with_all_success(self):
+        """admin 角色注册申请选择 __ALL__ 应成功。"""
+        with self.app.test_request_context():
+            from app.rbac.services import submit_registration
+            result = submit_registration(
+                email='globaladmin@corp.com',
+                password='pass123',
+                confirm_password='pass123',
+                role='admin',
+                group_ids=['__ALL__'],
+                reason='需要全局管理权限',
+                job_title='tech',
+                nickname='全局管理员',
+            )
+            self.assertTrue(result['ok'], result.get('msg'))
+
+    def test_admin_submit_all_stored_correctly(self):
+        """admin + __ALL__ 注册申请应存储 group_ids='__ALL__'。"""
+        with self.app.test_request_context():
+            from app.rbac.services import submit_registration
+            submit_registration(
+                email='storeadmin@corp.com',
+                password='pass123',
+                confirm_password='pass123',
+                role='admin',
+                group_ids=['__ALL__'],
+                reason='存储测试',
+                job_title='ops',
+                nickname='存储管理员',
+            )
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
+            req = self.db.session.query(RbacRegistrationRequest).first()
+            self.assertEqual(req.group_ids, '__ALL__')
+
+    def test_operator_submit_with_all_rejected(self):
+        """非 admin 角色注册申请选择 __ALL__ 应被拒绝。"""
+        with self.app.test_request_context():
+            from app.rbac.services import submit_registration
+            result = submit_registration(
+                email='badop@corp.com',
+                password='pass123',
+                confirm_password='pass123',
+                role='operator',
+                group_ids=['__ALL__'],
+                reason='想要全局',
+                job_title='tech',
+                nickname='操作员',
+            )
+            self.assertFalse(result['ok'])
+            self.assertIn('非管理员', result['msg'])
+
+    def test_admin_submit_all_with_specific_rejected(self):
+        """admin 同时选择 __ALL__ 和具体业务组应被拒绝。"""
+        with self.app.test_request_context():
+            from app.rbac.services import submit_registration
+            result = submit_registration(
+                email='mixadmin@corp.com',
+                password='pass123',
+                confirm_password='pass123',
+                role='admin',
+                group_ids=['__ALL__', str(self.group_id)],
+                reason='混合选择测试',
+                job_title='tech',
+                nickname='混合管理员',
+            )
+            self.assertFalse(result['ok'])
+            self.assertIn('同时选择', result['msg'])
+
+
 class TestCheckRegistrationStatus(unittest.TestCase):
     """登录时注册状态查询。"""
 

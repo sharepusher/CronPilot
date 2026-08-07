@@ -11,6 +11,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 from app import db
 from app.services.cron_service import update_cron
 from datas.model.cron_infos import CronInfos
+from datas.model.task_group import TaskGroup  # noqa: F401
+from datas.model.tag import Tag  # noqa: F401
+from datas.model.task_tag import TaskTag  # noqa: F401
 from datas.model.operation_log import OperationLog  # noqa: F401
 from datas.utils.times import get_now_time
 
@@ -39,7 +42,6 @@ class TestCronEditPreservesPause(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GLOBAL',
-            group_id=None,
         )
         db.session.add(self.cif)
         db.session.commit()

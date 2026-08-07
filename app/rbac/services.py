@@ -553,10 +553,8 @@ def get_resource_group(group_id):
     return db.session.get(ResourceGroup, group_id)
 
 
-def create_resource_group(name, code=None, description=''):
+def create_resource_group(name, description=''):
     from datas.model.resource_group import ResourceGroup
-
-    from .group_code import generate_group_code
 
     name = (name or '').strip()
     description = (description or '').strip()
@@ -566,22 +564,13 @@ def create_resource_group(name, code=None, description=''):
         return {'ok': False, 'msg': '名称最长 64 字符'}
     if len(description) > 255:
         return {'ok': False, 'msg': '描述最长 255 字符'}
-    code = (code or '').strip()
-    if not code:
-        existing = db.session.scalars(select(ResourceGroup.code)).all()
-        code = generate_group_code(name, existing_codes=existing)
-    if not code:
-        return {'ok': False, 'msg': '无法根据名称生成编码'}
-    if len(code) > 64:
-        return {'ok': False, 'msg': '编码最长 64 字符'}
     exists = db.session.scalars(
-        select(ResourceGroup).where(ResourceGroup.code == code)
+        select(ResourceGroup).where(ResourceGroup.name == name)
     ).first()
     if exists:
-        return {'ok': False, 'msg': '编码已存在'}
+        return {'ok': False, 'msg': '名称已存在'}
     group = ResourceGroup(
         name=name,
-        code=code,
         description=description,
         create_time=get_now_time(),
     )
@@ -591,8 +580,8 @@ def create_resource_group(name, code=None, description=''):
     except Exception:
         db.session.rollback()
         return {'ok': False, 'msg': '创建失败'}
-    write_audit_log(action='group:create', resource=code)
-    return {'ok': True, 'msg': '创建成功', 'group_id': group.id, 'code': code}
+    write_audit_log(action='group:create', resource=name)
+    return {'ok': True, 'msg': '创建成功', 'group_id': group.id}
 
 
 def update_resource_group(group_id, name=None, description=None):
@@ -618,7 +607,7 @@ def update_resource_group(group_id, name=None, description=None):
     except Exception:
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
-    write_audit_log(action='group:update', resource=group.code)
+    write_audit_log(action='group:update', resource=group.name)
     return {'ok': True, 'msg': '保存成功'}
 
 

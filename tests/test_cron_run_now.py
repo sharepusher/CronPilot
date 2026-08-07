@@ -30,6 +30,9 @@ class TestCronRunNow(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
             self.active = CronInfos(
                 task_name='run-now-ok',
@@ -149,6 +152,9 @@ class TestCronListRunNowButton(unittest.TestCase):
         self.client = app.test_client()
         with app.app_context():
             from datas.model.cron_infos import CronInfos
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
             cif = CronInfos(
                 task_name='btn-task',

@@ -26,6 +26,9 @@ from datas.model.operation_log import OperationLog  # noqa: F401,E402
 from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
 from datas.model.user_group import UserGroup  # noqa: F401,E402
 from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401,E402
+from datas.model.task_group import TaskGroup  # noqa: F401,E402
+from datas.model.tag import Tag  # noqa: F401,E402
+from datas.model.task_tag import TaskTag  # noqa: F401,E402
 
 
 def business_db_backend(uri):
@@ -56,6 +59,11 @@ def main():
         _ensure_rbac_registration_requests_columns()
         _ensure_rbac_audit_logs_columns()
         _ensure_time_column_indexes()
+        _migrate_group_id_to_task_groups()
+        _ensure_tags_group_id_column()
+        _migrate_tags_group_isolation()
+        _ensure_tags_description_column()
+        _drop_resource_groups_code_column(backend=backend)
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
         ensure_existing_users_have_token()
@@ -65,6 +73,7 @@ def main():
         critical_tables = [
             'cron_infos', 'job_log', 'resource_groups',
             'rbac_users', 'rbac_audit_logs',
+            'task_groups', 'tags', 'task_tags',
         ]
         insp = sa_inspect(db.engine)
         missing = [t for t in critical_tables if not insp.has_table(t)]
@@ -125,8 +134,7 @@ def _ensure_cron_infos_columns(backend=''):
         alters.append("ALTER TABLE cron_infos ADD COLUMN retired_at VARCHAR(25) DEFAULT ''")
     if 'scope_type' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN scope_type VARCHAR(16) DEFAULT 'GLOBAL'")
-    if 'group_id' not in cols:
-        alters.append('ALTER TABLE cron_infos ADD COLUMN group_id INTEGER')
+    # group_id 已迁移至 task_groups 表（OPT-P1-11），不再补列
     if 'req_method' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN req_method VARCHAR(10) DEFAULT 'GET'")
     if 'req_body' not in cols:
@@ -308,8 +316,258 @@ def _ensure_time_column_indexes():
         print('OK: 时间列索引已创建 ->', ', '.join(created))
 
 
+def _migrate_group_id_to_task_groups():
+    """将 cron_infos.group_id 数据迁移到 task_groups 表，然后删除 group_id 列（幂等）。
+
+    仅处理 scope_type='GROUP' 且 group_id IS NOT NULL 且尚未在 task_groups 中的记录。
+    迁移完成后尝试删除 group_id 列（SQLite 3.35+ / MySQL 均支持）。
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('cron_infos') or not insp.has_table('task_groups'):
+        return
+    cols = {c['name'] for c in insp.get_columns('cron_infos')}
+    if 'group_id' not in cols:
+        return  # group_id 列已被删除，迁移已完成
+    backend = business_db_backend(str(db.engine.url))
+    if backend == 'mysql':
+        insert_sql = (
+            "INSERT IGNORE INTO task_groups (task_id, group_id) "
+            "SELECT id, group_id FROM cron_infos "
+            "WHERE scope_type = 'GROUP' AND group_id IS NOT NULL"
+        )
+    else:
+        insert_sql = (
+            "INSERT OR IGNORE INTO task_groups (task_id, group_id) "
+            "SELECT id, group_id FROM cron_infos "
+            "WHERE scope_type = 'GROUP' AND group_id IS NOT NULL"
+        )
+    with db.engine.begin() as conn:
+        result = conn.execute(text(insert_sql))
+        if result.rowcount:
+            print('OK: group_id -> task_groups 迁移 ->', result.rowcount, '行')
+    # 删除 group_id 列
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cron_infos DROP COLUMN group_id"))
+        print('OK: cron_infos.group_id 列已删除')
+    except Exception as e:
+        print('WARN: 无法删除 group_id 列（可忽略）:', e)
+
+
+def _ensure_tags_group_id_column():
+    """tags 表补 group_id 列（标签业务组隔离 OPT-P1-11）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('tags'):
+        return
+    cols = {c['name'] for c in insp.get_columns('tags')}
+    if 'group_id' in cols:
+        return
+    with db.engine.begin() as conn:
+        conn.execute(text('ALTER TABLE tags ADD COLUMN group_id INTEGER'))
+    # 删除旧的 name 唯一索引（如有），改为 (name, group_id) 联合唯一
+    backend = business_db_backend(str(db.engine.url))
+    try:
+        with db.engine.begin() as conn:
+            if backend == 'mysql':
+                conn.execute(text('ALTER TABLE tags DROP INDEX ix_tags_name'))
+            else:
+                conn.execute(text('DROP INDEX IF EXISTS ix_tags_name'))
+    except Exception:
+        pass
+    try:
+        with db.engine.begin() as conn:
+            if backend == 'mysql':
+                conn.execute(text(
+                    'ALTER TABLE tags ADD UNIQUE INDEX uix_tag_name_group (name, group_id)'
+                ))
+            else:
+                conn.execute(text(
+                    'CREATE UNIQUE INDEX IF NOT EXISTS uix_tag_name_group '
+                    'ON tags (name, group_id)'
+                ))
+    except Exception:
+        pass  # 索引已存在（幂等）
+    print('OK: tags 列已补全 -> group_id')
+
+
+def _migrate_tags_group_isolation():
+    """按任务组推断标签归属（标签业务组隔离 OPT-P1-11）。
+
+    迁移策略：
+    - 对每个 group_id IS NULL 的标签，查找其关联的任务及任务所属业务组
+    - 如果标签仅被同一个组的任务使用 → 直接更新 group_id
+    - 如果标签被多个组的任务使用 → 拆分为独立副本（每个组一份）
+    - GLOBAL 任务的标签保持 group_id=NULL
+    - 已有 group_id 的标签跳过（幂等）
+    """
+    from sqlalchemy import text
+
+    # 查找所有 group_id IS NULL 的标签
+    rows = db.session.execute(text(
+        'SELECT id, name, created_by, create_time, update_time '
+        'FROM tags WHERE group_id IS NULL'
+    )).fetchall()
+    if not rows:
+        return
+
+    migrated = 0
+    split = 0
+    for tag_id, tag_name, created_by, create_time, update_time in rows:
+        # 查找该标签关联的任务及其所属业务组
+        assocs = db.session.execute(text(
+            'SELECT tt.task_id, tg.group_id '
+            'FROM task_tags tt '
+            'LEFT JOIN task_groups tg ON tt.task_id = tg.task_id '
+            'WHERE tt.tag_id = :tid'
+        ), {'tid': tag_id}).fetchall()
+
+        if not assocs:
+            continue  # 无关联任务，保持 NULL
+
+        # 按 group_id 分组
+        groups = {}  # {group_id: [task_id, ...]}
+        for task_id, gid in assocs:
+            groups.setdefault(gid, []).append(task_id)
+
+        # 去掉 None（GLOBAL 任务），GLOBAL 任务的标签关联保留在原标签上
+        group_ids_with_tasks = [g for g in groups if g is not None]
+
+        if not group_ids_with_tasks:
+            continue  # 全是 GLOBAL 任务，保持 NULL
+
+        if len(group_ids_with_tasks) == 1:
+            # 仅一个组 → 直接更新原标签的 group_id
+            target_gid = group_ids_with_tasks[0]
+            # GLOBAL 任务的关联也迁移到这个组标签上（合理：标签本身属于该组）
+            if None not in groups:
+                # 没有 GLOBAL 任务关联，直接更新
+                db.session.execute(text(
+                    'UPDATE tags SET group_id = :gid WHERE id = :tid'
+                ), {'gid': target_gid, 'tid': tag_id})
+                migrated += 1
+            else:
+                # 有 GLOBAL 任务关联：原标签保持 NULL（给 GLOBAL），新建一个组标签
+                now = update_time or create_time or ''
+                db.session.execute(text(
+                    'INSERT INTO tags (name, group_id, created_by, create_time, update_time) '
+                    'VALUES (:name, :gid, :cb, :ct, :ut)'
+                ), {'name': tag_name, 'gid': target_gid, 'cb': created_by or '',
+                    'ct': create_time or '', 'ut': now})
+                new_tag_id = db.session.execute(text(
+                    'SELECT id FROM tags WHERE name = :name AND group_id = :gid'
+                ), {'name': tag_name, 'gid': target_gid}).scalar()
+                # 将该组任务的 task_tags 指向新标签
+                for task_id in groups[target_gid]:
+                    db.session.execute(text(
+                        'UPDATE task_tags SET tag_id = :new_tid '
+                        'WHERE task_id = :task_id AND tag_id = :old_tid'
+                    ), {'new_tid': new_tag_id, 'task_id': task_id, 'old_tid': tag_id})
+                split += 1
+        else:
+            # 多个组 → 为每个组创建独立副本
+            for gid in group_ids_with_tasks:
+                now = update_time or create_time or ''
+                # 检查目标组是否已有同名标签
+                existing_id = db.session.execute(text(
+                    'SELECT id FROM tags WHERE name = :name AND group_id = :gid'
+                ), {'name': tag_name, 'gid': gid}).scalar()
+                if not existing_id:
+                    db.session.execute(text(
+                        'INSERT INTO tags (name, group_id, created_by, create_time, update_time) '
+                        'VALUES (:name, :gid, :cb, :ct, :ut)'
+                    ), {'name': tag_name, 'gid': gid, 'cb': created_by or '',
+                        'ct': create_time or '', 'ut': now})
+                    existing_id = db.session.execute(text(
+                        'SELECT id FROM tags WHERE name = :name AND group_id = :gid'
+                    ), {'name': tag_name, 'gid': gid}).scalar()
+                # 将该组任务的 task_tags 指向新/已有标签
+                for task_id in groups[gid]:
+                    db.session.execute(text(
+                        'UPDATE task_tags SET tag_id = :new_tid '
+                        'WHERE task_id = :task_id AND tag_id = :old_tid'
+                    ), {'new_tid': existing_id, 'task_id': task_id, 'old_tid': tag_id})
+                split += 1
+            # 如果原标签没有 GLOBAL 任务关联了，清理原标签
+            if None not in groups:
+                db.session.execute(text(
+                    'DELETE FROM task_tags WHERE tag_id = :tid'
+                ), {'tid': tag_id})
+                db.session.execute(text(
+                    'DELETE FROM tags WHERE id = :tid'
+                ), {'tid': tag_id})
+
+    db.session.commit()
+    if migrated or split:
+        print('OK: 标签组隔离迁移 -> 直接归属 %d，拆分 %d' % (migrated, split))
+
+
 def _ensure_job_log_http_status_column():
     _ensure_job_log_columns()
+
+
+def _ensure_tags_description_column():
+    """tags 表补 description 列（标签说明，OPT-P1-11 增强）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('tags'):
+        return
+    cols = {c['name'] for c in insp.get_columns('tags')}
+    if 'description' in cols:
+        return
+    with db.engine.begin() as conn:
+        conn.execute(text(
+            "ALTER TABLE tags ADD COLUMN description VARCHAR(255) NOT NULL DEFAULT ''"
+        ))
+    print('OK: tags 列已补全 -> description')
+
+
+def _drop_resource_groups_code_column(backend='sqlite'):
+    """移除 resource_groups.code 列（冗余字段）并给 name 加唯一约束。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('resource_groups'):
+        return
+    cols = {c['name'] for c in insp.get_columns('resource_groups')}
+    if 'code' not in cols:
+        return
+    if backend == 'mysql':
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE resource_groups DROP COLUMN code'))
+    else:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                'CREATE TABLE IF NOT EXISTS _rg_tmp AS '
+                'SELECT id, name, description, create_time FROM resource_groups'
+            ))
+            conn.execute(text('DROP TABLE resource_groups'))
+            conn.execute(text(
+                'CREATE TABLE resource_groups ('
+                '  id INTEGER PRIMARY KEY,'
+                '  name VARCHAR(64) NOT NULL DEFAULT \'\' UNIQUE,'
+                '  description VARCHAR(255) NOT NULL DEFAULT \'\','
+                '  create_time VARCHAR(25) NOT NULL DEFAULT \'\''
+                ')'
+            ))
+            conn.execute(text(
+                'INSERT INTO resource_groups (id, name, description, create_time) '
+                'SELECT id, name, description, create_time FROM _rg_tmp'
+            ))
+            conn.execute(text('DROP TABLE _rg_tmp'))
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                'CREATE INDEX IF NOT EXISTS ix_resource_groups_create_time '
+                'ON resource_groups (create_time)'
+            ))
+    except Exception:
+        pass
+    print('OK: resource_groups 已移除 code 列，name 已加 UNIQUE')
 
 
 if __name__ == '__main__':

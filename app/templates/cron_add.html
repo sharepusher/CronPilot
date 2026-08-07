@@ -99,15 +99,15 @@
                         <input type="hidden" name="scope_type" value="GROUP" />
                         {% if scope_groups|length == 1 %}
                         <input type="hidden" name="group_id" value="{{ scope_groups[0].id }}" />
-                        <span>所属业务组：{{ scope_groups[0].name }} ({{ scope_groups[0].code }})</span>
-                        <span class="field-hint">仅同组可见，不可改为全局或其它组</span>
+                        <span>{{ scope_groups[0].name }}</span>
+                        <span class="field-hint">仅同组可见</span>
                         {% elif scope_groups|length > 1 %}
-                        <select name="group_id" id="group_id" required>
+                        <select name="group_id" required>
                             {% for g in scope_groups %}
-                            <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
+                            <option value="{{ g.id }}">{{ g.name }}</option>
                             {% endfor %}
                         </select>
-                        <span class="field-hint">仅可选本人所属业务组；不可创建全局任务</span>
+                        <span class="field-hint">选择任务所属业务组</span>
                         {% else %}
                         <span style="color:var(--cp-warn)">当前账号未绑定业务组，请联系管理员后再创建任务</span>
                         {% endif %}
@@ -115,7 +115,7 @@
                 </div>
                 {% else %}
                 <div class="control-group">
-                    <label class="control-label">业务组</label>
+                    <label class="control-label">可见范围</label>
                     <div class="controls">
                         <select name="scope_type" id="scope_type" required>
                             {% if scope_groups %}
@@ -130,18 +130,28 @@
                     </div>
                 </div>
                 <div class="control-group" id="group_id_row" {% if not scope_groups %}style="display:none"{% endif %}>
-                    <label class="control-label">选择业务组</label>
+                    <label class="control-label">业务组</label>
                     <div class="controls">
-                        <select name="group_id" id="group_id" {% if scope_groups %}required{% endif %}>
-                            <option value="">请选择</option>
+                        <select name="group_id" id="group_id_select">
                             {% for g in scope_groups or [] %}
-                            <option value="{{ g.id }}" {% if loop.first %}selected{% endif %}>{{ g.name }} ({{ g.code }})</option>
+                            <option value="{{ g.id }}">{{ g.name }}</option>
                             {% endfor %}
                         </select>
-                        <span class="field-hint">* 选择「指定业务组」时必填</span>
+                        <span class="field-hint">* 选择任务所属业务组</span>
                     </div>
                 </div>
                 {% endif %}
+                <div class="control-group" data-field="tags">
+                    <label class="control-label">任务标签</label>
+                    <div class="controls" style="position:relative">
+                        <div class="tag-input-wrapper">
+                            <input type="text" id="tags_input" placeholder="输入标签后按空格或回车添加" autocomplete="off">
+                        </div>
+                        <input type="hidden" name="tags" value="">
+                        <span class="field-hint">可选；建议输入国家/业务线/服务名等，用于筛选和分类</span>
+                        <div id="tag-suggest" style="display:none"></div>
+                    </div>
+                </div>
                 <div class="control-group" data-field="ds_ms">
                     <label class="control-label">定时方式</label>
                     <div class="controls">
@@ -266,10 +276,8 @@
             if (!$('#scope_type').length) return;
             if ($('#scope_type').val() === 'GROUP') {
                 $('#group_id_row').show();
-                $('#group_id').prop('required', true);
             } else {
                 $('#group_id_row').hide();
-                $('#group_id').prop('required', false);
             }
         }
         if ($('#scope_type').length) {
@@ -292,7 +300,7 @@
                 req_url: 'input[name=req_url]',
                 req_method: 'select[name=req_method]',
                 req_body: 'textarea[name=req_body]',
-                group_id: '#group_id'
+                group_id: 'select[name="group_id"]'
             };
 
             function clearFieldErrors() {
@@ -359,4 +367,5 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='dist/cron-form-validator.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tag-input.js') }}"></script>
 {% endblock %}

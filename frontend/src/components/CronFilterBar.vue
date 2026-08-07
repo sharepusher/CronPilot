@@ -25,6 +25,12 @@
         <option value="global">全局共享</option>
         <option v-for="g in scopeGroups" :key="g.id" :value="'group:' + g.id">{{ g.name }}</option>
       </select>
+      <span class="cron-filter-sep">|</span>
+      <span class="cron-toolbar-label">标签</span>
+      <select class="cron-toolbar-select" v-model="tagVal" @change="doFetch">
+        <option value="">全部</option>
+        <option v-for="t in allTags" :key="t" :value="t">{{ t }}</option>
+      </select>
     </div>
     <div class="cron-toolbar-search">
       <span class="cron-search-label">任务名</span>
@@ -51,6 +57,8 @@ const props = defineProps({
   currentScope: { type: String, default: 'all' },
   currentGroup: { type: String, default: '' },
   scopeGroupsJson: { type: String, default: '[]' },
+  allTagsJson: { type: String, default: '[]' },
+  currentTag: { type: String, default: '' },
 })
 
 const kw = ref(props.currentKw)
@@ -59,6 +67,10 @@ const health = ref(props.currentHealth)
 
 const scopeGroups = ref([])
 try { scopeGroups.value = JSON.parse(props.scopeGroupsJson) } catch (_) {}
+
+const allTags = ref([])
+try { allTags.value = JSON.parse(props.allTagsJson) } catch (_) {}
+const tagVal = ref(props.currentTag || '')
 
 // 'all' | 'global' | 'group:N'
 const scopeVal = ref(
@@ -82,6 +94,7 @@ function buildParams(includePartial) {
   } else {
     p.set('scope_view', 'all')
   }
+  if (tagVal.value) p.set('tag', tagVal.value)
   if (includePartial) p.set('partial', '1')
   return p
 }
@@ -126,6 +139,7 @@ function doReset() {
   status.value = ''
   health.value = ''
   scopeVal.value = 'all'
+  tagVal.value = ''
   doFetch()
 }
 

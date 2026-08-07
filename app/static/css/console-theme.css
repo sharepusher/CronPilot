@@ -42,6 +42,8 @@
   --cp-accent-bg:      #eff6ff;  /* 强调底色 — cron_list 运行中 chip 未选中底 (blue-50) */
   --cp-accent-bg-2:    #dbeafe;  /* 强调底色变体 — users 角色 admin 徽标底 (blue-100) */
   --cp-accent-border:  #93c5fd;  /* 强调边框 — cron_list 运行中 chip 未选中边框 (blue-300) */
+  --cp-tag-bg:         #e0e7ff;  /* 业务标签底色 — cron_list 标签 chip 柔和底色 (indigo-100) */
+  --cp-tag-text:       #3730a3;  /* 业务标签文字 — cron_list 标签 chip 文字色 (indigo-800) */
 
   /* ====== 成功色系 ====== */
   --cp-success:        #059669;  /* 成功主色 — _job_log_result_cell 成功文字 (emerald-600) */
@@ -128,3 +130,74 @@
 .rbac-topbar .topbar-sep { color: var(--cp-topbar-muted); }
 .rbac-topbar a { color: var(--cp-topbar-text); }
 .rbac-topbar a:hover { color: var(--cp-surface); }
+
+/* ============================================================
+   Inline Chip 标签输入（OPT-P1-11）
+   ============================================================ */
+.tag-input-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--cp-border);
+  border-radius: 4px;
+  background: var(--cp-surface);
+  cursor: text;
+  width: 70%;
+}
+.tag-input-wrapper:focus-within {
+  border-color: var(--cp-link);
+  box-shadow: 0 0 0 2px rgba(51, 122, 183, 0.15);
+}
+.tag-input-wrapper .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--cp-tag-bg);
+  color: var(--cp-tag-text);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tag-input-wrapper .tag-chip-remove {
+  margin-left: 4px;
+  color: var(--cp-tag-text);
+  text-decoration: none;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.tag-input-wrapper .tag-chip-remove:hover {
+  color: var(--cp-danger);
+}
+.tag-input-wrapper #tags_input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  padding: 2px 0;
+}
+#tag-suggest {
+  position: absolute;
+  z-index: 100;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  min-width: 160px;
+}
+#tag-suggest .tag-suggest-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#tag-suggest .tag-suggest-item:hover {
+  background: var(--cp-active-bg);
+}

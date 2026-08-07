@@ -78,7 +78,7 @@
                         {% if groups %}
                         <select name="group_ids" multiple size="{% if groups|length < 4 %}{{ groups|length + 1 }}{% else %}5{% endif %}" id="group-ids-select">
                             {% for g in groups %}
-                            <option value="{{ g.id }}">{{ g.name }} ({{ g.code }})</option>
+                            <option value="{{ g.id }}">{{ g.name }}</option>
                             {% endfor %}
                             <option value="__ALL__">全部（全局权限）</option>
                         </select>

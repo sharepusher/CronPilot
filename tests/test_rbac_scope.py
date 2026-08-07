@@ -27,31 +27,30 @@ class TestScopePure(unittest.TestCase):
         self.assertFalse(role_bypasses_scope('viewer'))
 
     def test_normalize_global_clears_group(self):
-        err, st, gid = normalize_scope_fields('GLOBAL', 99)
+        err, st, gid = normalize_scope_fields('GLOBAL', group_id=99)
         self.assertIsNone(err)
         self.assertEqual(st, SCOPE_GLOBAL)
         self.assertIsNone(gid)
 
     def test_normalize_group_requires_id(self):
-        err, st, gid = normalize_scope_fields('GROUP', '')
+        err, st, gid = normalize_scope_fields('GROUP', group_id=None)
         self.assertIsNotNone(err)
-        err, st, gid = normalize_scope_fields('GROUP', 3)
+        err, st, gid = normalize_scope_fields('GROUP', group_id=3)
         self.assertIsNone(err)
         self.assertEqual(st, SCOPE_GROUP)
         self.assertEqual(gid, 3)
 
-    def test_has_scope_matrix(self):
-        glob = SimpleNamespace(scope_type='GLOBAL', group_id=None, id=1)
-        ga = SimpleNamespace(scope_type='GROUP', group_id=1, id=2)
-        gb = SimpleNamespace(scope_type='GROUP', group_id=2, id=3)
+    def test_has_scope_global_no_db(self):
+        """GLOBAL 资源对任何角色可见（不需要 task_groups 查询）。"""
+        glob = SimpleNamespace(scope_type='GLOBAL', id=999)
         self.assertTrue(has_scope('viewer', [1], glob))
-        self.assertTrue(has_scope('viewer', [1], ga))
-        self.assertFalse(has_scope('viewer', [1], gb))
-        self.assertTrue(has_scope('admin', [], gb, username='admin'))
-        self.assertTrue(has_scope('admin', [], gb, username='mgr'))
-        self.assertFalse(has_scope('admin', [1], gb, username='mgr'))
-        self.assertTrue(has_scope('admin', [2], gb, username='mgr'))
-        self.assertFalse(has_scope('operator', [], ga))
+        self.assertTrue(has_scope('operator', [], glob))
+
+    def test_has_scope_admin_bypass(self):
+        """seed admin 和全局 admin 绕过 scope。"""
+        grp = SimpleNamespace(scope_type='GROUP', id=999)
+        self.assertTrue(has_scope('admin', [], grp, username='admin'))
+        self.assertTrue(has_scope('admin', [], grp, username='mgr'))
 
     def test_user_can_assign_group(self):
         self.assertTrue(user_can_assign_group('admin', [], 9, username='admin'))
@@ -75,54 +74,25 @@ class TestScopePure(unittest.TestCase):
         self.assertFalse(user_bypasses_scope('operator', username='op', group_ids=[]))
         self.assertFalse(user_bypasses_scope('viewer', username='vw', group_ids=[]))
 
-    def test_authorize_permission_then_scope(self):
-        other = SimpleNamespace(scope_type='GROUP', group_id=2, id=9)
+    def test_authorize_permission_denied(self):
+        """viewer 无 cron:write 权限。"""
+        other = SimpleNamespace(scope_type='GROUP', id=9)
         with self.assertRaises(AuthorizationError) as cm:
             authorize('viewer', 'cron:write', other, group_ids=[1])
         self.assertEqual(cm.exception.kind, 'permission')
-        with self.assertRaises(AuthorizationError) as cm2:
-            authorize('operator', 'cron:write', other, group_ids=[1])
-        self.assertEqual(cm2.exception.kind, 'scope')
-        authorize('admin', 'cron:write', other, group_ids=[], username='mgr_admin')
-        authorize('operator', 'cron:write', SimpleNamespace(scope_type='GLOBAL', group_id=None, id=1), group_ids=[])
 
-    def test_authorize_manager_admin_scope(self):
-        other = SimpleNamespace(scope_type='GROUP', group_id=2, id=9)
-        authorize('admin', 'cron:write', other, group_ids=[], username='mgr')
-        authorize('admin', 'cron:write', other, group_ids=[2], username='mgr')
-        with self.assertRaises(AuthorizationError) as cm:
-            authorize('admin', 'cron:write', other, group_ids=[1], username='mgr')
-        self.assertEqual(cm.exception.kind, 'scope')
+    def test_authorize_admin_bypass(self):
+        """全局 admin 绕过 scope 检查。"""
+        other = SimpleNamespace(scope_type='GROUP', id=9)
+        authorize('admin', 'cron:write', other, group_ids=[], username='mgr_admin')
+
+    def test_authorize_global_resource(self):
+        """GLOBAL 资源对 operator 可见。"""
+        glob = SimpleNamespace(scope_type='GLOBAL', id=1)
+        authorize('operator', 'cron:write', glob, group_ids=[])
 
 
 class TestGroupCodeAndMembership(unittest.TestCase):
-    def test_slugify_english(self):
-        from app.rbac.group_code import generate_group_code, slugify_code
-
-        self.assertEqual(slugify_code('Biz Line A'), 'biz-line-a')
-        self.assertEqual(
-            generate_group_code('Platform Ops', translate=False),
-            'platform-ops',
-        )
-
-    def test_unique_suffix(self):
-        from app.rbac.group_code import generate_group_code
-
-        code = generate_group_code('demo', existing_codes={'demo'}, translate=False)
-        self.assertEqual(code, 'demo-2')
-
-    def test_html_entity_in_translation(self):
-        from app.rbac.group_code import generate_group_code, slugify_code
-
-        self.assertEqual(slugify_code('R&D Center'), 'r-d-center')
-        from app.rbac import group_code as gc
-        orig = gc.translate_to_english
-        gc.translate_to_english = lambda text, timeout=3.0: 'R&amp;D Center'
-        try:
-            self.assertEqual(gc.generate_group_code('研发', translate=True), 'r-d-center')
-        finally:
-            gc.translate_to_english = orig
-
     def test_non_admin_requires_groups(self):
         from app.rbac.services import validate_groups_for_role
 
@@ -173,6 +143,9 @@ class TestScopeIntegration(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             from datas.model.job_log import JobLog  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
             db.create_all()
@@ -183,10 +156,11 @@ class TestScopeIntegration(unittest.TestCase):
         from datas.model.rbac_user import RbacUser
         from datas.model.resource_group import ResourceGroup
         from datas.model.user_group import UserGroup
+        from datas.model.task_group import TaskGroup
         from datas.utils.times import get_now_time
 
-        g1 = ResourceGroup(name='组A', code='biz-a', description='', create_time=get_now_time())
-        g2 = ResourceGroup(name='组B', code='biz-b', description='', create_time=get_now_time())
+        g1 = ResourceGroup(name='组A', description='', create_time=get_now_time())
+        g2 = ResourceGroup(name='组B', description='', create_time=get_now_time())
         self.db.session.add_all([g1, g2])
         self.db.session.flush()
         self.g1_id = g1.id
@@ -212,7 +186,6 @@ class TestScopeIntegration(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GLOBAL',
-            group_id=None,
         )
         c_a = CronInfos(
             task_name='group_a_task',
@@ -222,7 +195,6 @@ class TestScopeIntegration(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GROUP',
-            group_id=g1.id,
         )
         c_b = CronInfos(
             task_name='group_b_task',
@@ -232,9 +204,12 @@ class TestScopeIntegration(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GROUP',
-            group_id=g2.id,
         )
         self.db.session.add_all([c_global, c_a, c_b])
+        self.db.session.flush()
+        # OPT-P1-11：组关系通过 task_groups 表维护
+        self.db.session.add(TaskGroup(task_id=c_a.id, group_id=g1.id))
+        self.db.session.add(TaskGroup(task_id=c_b.id, group_id=g2.id))
         self.db.session.commit()
         self.global_id = c_global.id
         self.a_id = c_a.id
@@ -282,11 +257,45 @@ class TestScopeIntegration(unittest.TestCase):
 
     def test_default_scope_columns(self):
         from datas.model.cron_infos import CronInfos
+        from app.rbac.scope import get_task_group_ids
 
         with self.app.app_context():
             cif = self.db.session.get(CronInfos, self.global_id)
             self.assertEqual(cif.scope_type, 'GLOBAL')
-            self.assertIsNone(cif.group_id)
+            self.assertEqual(get_task_group_ids(cif.id), [])
+
+    def test_has_scope_group_via_task_groups(self):
+        """OPT-P1-11：has_scope 对 GROUP 任务通过 task_groups 表判断。"""
+        from datas.model.cron_infos import CronInfos
+        from app.rbac.scope import has_scope
+
+        with self.app.app_context():
+            cif_a = self.db.session.get(CronInfos, self.a_id)
+            cif_b = self.db.session.get(CronInfos, self.b_id)
+            # op_a 属于 g1，应可见 group_a_task（在 g1 中）
+            self.assertTrue(has_scope('operator', [self.g1_id], cif_a))
+            # op_a 属于 g1，不可见 group_b_task（在 g2 中）
+            self.assertFalse(has_scope('operator', [self.g1_id], cif_b))
+            # 双组用户可见两个任务
+            self.assertTrue(has_scope('operator', [self.g1_id, self.g2_id], cif_b))
+            # 无组用户只能看 GLOBAL
+            self.assertFalse(has_scope('operator', [], cif_a))
+            # 管理员 admin 全局 bypass
+            self.assertTrue(has_scope('admin', [], cif_b, username='admin'))
+            # 管理员 mgr 有组限制
+            self.assertFalse(has_scope('admin', [self.g1_id], cif_b, username='mgr'))
+            self.assertTrue(has_scope('admin', [self.g2_id], cif_b, username='mgr'))
+
+    def test_authorize_operator_scope_denied(self):
+        """OPT-P1-11：operator 对不在其组内的 GROUP 任务 scope 拒绝。"""
+        from datas.model.cron_infos import CronInfos
+        from app.rbac.authorize import authorize, AuthorizationError
+
+        with self.app.app_context():
+            cif_b = self.db.session.get(CronInfos, self.b_id)
+            with self.assertRaises(AuthorizationError) as cm:
+                authorize('operator', 'cron:write', cif_b, group_ids=[self.g1_id])
+            self.assertEqual(cm.exception.kind, 'scope')
 
 
 class TestAuditLogActorGroups(unittest.TestCase):

@@ -40,6 +40,11 @@
         <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>审计</a>
     </li>
     {% endif %}
+    {% if has_perm('user:manage') %}
+    <li{% if active == 'tags' %} class="active"{% endif %}>
+        <a{% if active != 'tags' %} href="{{ url_for('rbac.tag_manage') }}"{% endif %}>标签管理</a>
+    </li>
+    {% endif %}
     <li{% if active == 'password' %} class="active"{% endif %}>
         <a{% if active != 'password' %} href="{{ url_for('rbac.change_password') }}"{% endif %}>修改密码</a>
     </li>

@@ -677,14 +677,11 @@ def groups_add():
         return render_template('rbac/groups_add.html')
     result = create_resource_group(
         request.values.get('name', ''),
-        None,
         request.values.get('description', ''),
     )
     return _users_form_response(
         result['ok'],
-        result['msg'] if not result.get('ok') else (
-            '%s（编码 %s）' % (result['msg'], result.get('code') or '')
-        ),
+        result['msg'],
         url='/rbac/groups',
         template='rbac/groups_add.html',
     )
@@ -843,3 +840,104 @@ def registration_reject():
     return _users_form_response(
         result['ok'], result['msg'], url='/rbac/registration_review',
     )
+
+
+# ─── OPT-P1-11：标签管理 ───────────────────────────────────────────
+@rbac.route('/tags', methods=['GET'])
+@require_permission('user:manage')
+def tag_manage():
+    from app.services.tag_service import all_tags_with_count
+    from datas.model.resource_group import ResourceGroup
+    from sqlalchemy import select as sa_select
+    # scope 过滤：seed admin / __ALL__ admin 看全部，manager admin 只看自己组
+    if _actor_bypasses_scope():
+        tags = all_tags_with_count(group_id='__ALL__')
+    else:
+        gids = session.get('group_ids') or []
+        tags = []
+        for gid in gids:
+            tags.extend(all_tags_with_count(group_id=gid))
+        tags.extend(all_tags_with_count(group_id=None))
+    groups = db.session.scalars(
+        sa_select(ResourceGroup).order_by(ResourceGroup.name)
+    ).all()
+    group_name_map = {g.id: g.name for g in groups}
+    # scope_groups：新建标签时可选的业务组
+    if _actor_bypasses_scope():
+        scope_groups = groups
+    else:
+        allowed = set(session.get('group_ids') or [])
+        scope_groups = [g for g in groups if g.id in allowed]
+    return render_template(
+        'tag_manage.html', tags=tags, group_name_map=group_name_map,
+        scope_groups=scope_groups, is_bypass=_actor_bypasses_scope(),
+    )
+
+
+@rbac.route('/tags/create', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def tag_create():
+    from app.services.tag_service import create_tag as svc_create_tag
+    name = request.values.get('name', '').strip()
+    raw_gid = request.values.get('group_id', '').strip()
+    group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
+    description = request.values.get('description', '').strip()
+    ok, msg = svc_create_tag(
+        name=name,
+        group_id=group_id,
+        description=description,
+        created_by=session.get('username') or '',
+    )
+    return web_api_return(code=0 if ok else 1, msg=msg, url='/rbac/tags')
+
+
+@rbac.route('/tags/update', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def tag_update():
+    tag_id = request.values.get('tag_id')
+    new_name = request.values.get('new_name', '').strip() or None
+    description = request.values.get('description')
+    from app.services.tag_service import update_tag
+    ok, msg = update_tag(tag_id, new_name=new_name, description=description)
+    return web_api_return(code=0 if ok else 1, msg=msg, url='/rbac/tags')
+
+
+@rbac.route('/tags/rename', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def tag_rename():
+    """兼容旧路由，转发到 update。"""
+    tag_id = request.values.get('tag_id')
+    new_name = request.values.get('new_name', '').strip()
+    from app.services.tag_service import update_tag
+    ok, msg = update_tag(tag_id, new_name=new_name)
+    return web_api_return(code=0 if ok else 1, msg=msg, url='/rbac/tags')
+
+
+@rbac.route('/tags/tasks', methods=['GET'])
+@require_permission('user:manage')
+def tag_tasks():
+    """AJAX 查询标签关联的任务列表。"""
+    tag_id = request.args.get('tag_id')
+    if not tag_id:
+        return web_api_return(code=1, msg='缺少 tag_id')
+    from app.services.tag_service import get_tag_tasks
+    tag_name, tasks = get_tag_tasks(tag_id)
+    if tag_name is None:
+        return web_api_return(code=1, msg='标签不存在')
+    return web_api_return(code=0, data={'tag_name': tag_name, 'tasks': tasks})
+
+
+@rbac.route('/tags/delete', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def tag_delete():
+    tag_id = request.values.get('tag_id')
+    force = request.values.get('force', '') == '1'
+    from app.services.tag_service import delete_tag
+    ok, msg, extra = delete_tag(tag_id, force=force)
+    if extra and extra.get('need_confirm'):
+        return web_api_return(code=2, msg=msg, data=extra)
+    return web_api_return(code=0 if ok else 1, msg=msg, url='/rbac/tags')

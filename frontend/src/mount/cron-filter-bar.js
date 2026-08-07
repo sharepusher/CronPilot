@@ -13,5 +13,7 @@ document.querySelectorAll('#cron-filter-bar').forEach(function(el) {
     currentScope: d.currentScope || 'all',
     currentGroup: d.currentGroup || '',
     scopeGroupsJson: d.scopeGroups || '[]',
+    allTagsJson: d.allTags || '[]',
+    currentTag: d.currentTag || '',
   }).mount(el)
 })

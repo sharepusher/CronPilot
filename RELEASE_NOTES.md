@@ -5,9 +5,25 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
-## [Unreleased]
+## [2.9.0] — 2026-08-07
 
-Maintainer note: track unfinished work in [交付状态与路线图](doc/交付状态与路线图.html); do not use this section as a project status board.
+### Task group affiliation, tag system & error pages (OPT-P1-11)
+
+- **Single-group affiliation:** Each task belongs to exactly one business group (GROUP) or is globally visible (GLOBAL). `cron_infos.group_id` column removed; replaced by `task_groups` association table (one-to-one per task). `scope_type` (GLOBAL/GROUP) retained for semantic distinction.
+- **Business tags (group-isolated):** Free-text tag system for tasks (country, business line, service name, etc.). Tags are isolated per business group — same tag name can exist independently in different groups. Autocomplete scoped to the selected group.
+- **Inline chip tag input:** Tags displayed as chips inside the input field (email-recipient style); Enter/comma to add, Backspace to remove, autocomplete dropdown on typing.
+- **Tag filtering:** New "标签" dropdown on task list filter bar for filtering by tag.
+- **Tag management:** Admin page (`/rbac/tags`) for renaming and deleting tags. Manager admins only see tags from their assigned groups.
+- **Task create/edit:** Single-select dropdown for business group; tag input with inline chips and autocomplete.
+- **Unified error pages:** 403 (no permission), 404 (not found), and 500 (server error) now share a consistent template with icon, friendly message, and "back" / "home" navigation links. Internal permission identifiers (e.g. `cron:write`) no longer exposed to users.
+- **Removed `code` field:** `resource_groups.code` column and external translation API dependency (`api.mymemory.translated.net`) removed. Group creation is now instant (<50ms vs 1-3s). `name` column given UNIQUE constraint.
+- **Migration:** `scripts/ensure_business_tables.py` auto-migrates existing `group_id` data to `task_groups`, migrates tags to group-isolated model, and drops `code` column (all idempotent).
+- **API breaking change:** `cron_query` and `cron_detail` responses now return `group_id: int|null` (via `task_groups` lookup) instead of the removed `cron_infos.group_id` column.
+- **New models:** `TaskGroup`, `Tag` (with `group_id` for isolation), `TaskTag` (with unique constraints and indexes).
+- **Deleted:** `app/rbac/group_code.py`, `app/templates/rbac/forbidden.html`, `app/templates/errors/404.html`, `app/templates/errors/404_guest.html`.
+- **New norms:** "数据库字段删除/迁移前置分析"、"验证自主性原则"、"新模板/新路由自检清单"、"双渲染路径上下文一致性"、"Import 可达性验证"、"复盘质量门禁"。
+
+**Tests:** 428 pass · **Design:** `doc/design/任务创建页改进设计.html`
 
 ### User registration & approval (OPT-P1-10)
 
@@ -589,6 +605,7 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
+| **2.9.0** | Task group affiliation (single-group), tag system (group-isolated), unified error pages, `code` field removal, API breaking change |
 | **2.7.1** | Documentation reorganization (7 subdirs), 3 new CI scripts, broken link/OPT fixes, post-mortem rule strengthening |
 | **2.7.0** | Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization |
 | **2.6.0** | Color system consolidation, API access_token hardening, S6 user-level token, query-only API docs |

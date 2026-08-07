@@ -20,6 +20,7 @@ from app.rbac.scope import (
     normalize_scope_fields,
     user_can_assign_group,
 )
+from datas.model.task_group import TaskGroup
 from app.rbac.services import list_resource_groups
 from app.security.csrf import csrf_protect
 from app.services.cron_service import add_cron_web, edit_cron_web
@@ -90,13 +91,33 @@ def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
             return 'all', None, None
         if not _session_bypasses_scope() and gid not in set(group_ids or []):
             return 'all', None, None
+        from sqlalchemy import select as sa_select
+        task_ids_in_group = sa_select(TaskGroup.task_id).where(
+            TaskGroup.group_id == gid
+        ).correlate(None).scalar_subquery()
         return sv, gid, and_(
             CronInfos.scope_type == SCOPE_GROUP,
-            CronInfos.group_id == gid,
+            CronInfos.id.in_(task_ids_in_group),
         )
     if sv == 'global':
         return sv, None, CronInfos.scope_type == SCOPE_GLOBAL
     return 'all', None, None
+
+
+def _build_task_group_map(task_ids):
+    """返回 {task_id: group_id} 映射（每任务最多一个组），批量查询 task_groups。"""
+    if not task_ids:
+        return {}
+    from sqlalchemy import select as sa_select
+    rows = db.session.execute(
+        sa_select(TaskGroup.task_id, TaskGroup.group_id).where(
+            TaskGroup.task_id.in_(task_ids)
+        )
+    ).all()
+    result = {}
+    for tid, gid in rows:
+        result[tid] = gid  # 每任务只有一条记录
+    return result
 
 
 def _scope_form_context():
@@ -112,39 +133,43 @@ def _scope_form_context():
 
 
 def _apply_scope_from_form(datas):
-    """从 POST 字段解析 scope，写入 datas；失败返回错误字符串。"""
-    role = session.get('role') or ''
+    """从 POST 字段解析 scope，写入 datas；失败返回错误字符串。
+
+    业务规则：一个任务属于恰好一个业务组（GROUP），或全局公开（GLOBAL）。
+    """
     gids = session_group_ids()
-    # 非 admin：强制 GROUP，且 group 必须属于本人
+    raw_group_id = request.form.get('group_id', '').strip()
+    # 非 admin：强制 GROUP，单选
     if not _session_bypasses_scope():
         if not gids:
             return '当前账号未绑定业务组，无法创建/编辑任务'
-        group_id = datas.get('group_id')
-        if group_id is None or group_id == '':
+        if not raw_group_id:
             if len(gids) == 1:
-                group_id = gids[0]
+                raw_group_id = str(gids[0])
             else:
-                return '请选择所属业务组'
+                return '请选择任务所属业务组'
         try:
-            group_id = int(group_id)
+            selected_gid = int(raw_group_id)
         except (TypeError, ValueError):
             return '业务组无效'
-        if group_id not in set(int(x) for x in gids):
+        if selected_gid not in set(int(x) for x in gids):
             return '只能将任务放在本人所属业务组内'
         datas['scope_type'] = 'GROUP'
-        datas['group_id'] = group_id
+        datas['group_id'] = selected_gid
         return None
 
-    err, scope_type, group_id = normalize_scope_fields(
-        datas.get('scope_type'),
-        datas.get('group_id'),
-    )
-    if err:
-        return err
-    if not user_can_assign_group(role, gids, group_id, username=session.get('username') or ''):
-        return '不能将任务分配到未所属的业务组'
-    datas['scope_type'] = scope_type
-    datas['group_id'] = group_id
+    # admin：可选 GLOBAL 或 GROUP（单选）
+    scope_type_raw = datas.get('scope_type', '').strip().upper()
+    if scope_type_raw == 'GLOBAL' or not raw_group_id:
+        datas['scope_type'] = 'GLOBAL'
+        datas['group_id'] = None
+        return None
+    try:
+        selected_gid = int(raw_group_id)
+    except (TypeError, ValueError):
+        return '业务组无效'
+    datas['scope_type'] = 'GROUP'
+    datas['group_id'] = selected_gid
     return None
 
 
@@ -178,6 +203,17 @@ def cron_list():
     if life_status in ('0', '1', '-1'):
         filter_arr.append(CronInfos.status == int(life_status))
 
+    # OPT-P1-11：标签筛选
+    tag_filter = (keyword.get('tag') or '').strip()
+    if tag_filter:
+        from sqlalchemy import select as sa_select
+        from datas.model.task_tag import TaskTag
+        from datas.model.tag import Tag
+        tag_task_ids = sa_select(TaskTag.task_id).join(
+            Tag, Tag.id == TaskTag.tag_id
+        ).where(Tag.name == tag_filter).correlate(None).scalar_subquery()
+        filter_arr.append(CronInfos.id.in_(tag_task_ids))
+
     health = (keyword.get('health') or '').strip().lower()
     repo = _cron_repo()
     metrics = repo.metrics(
@@ -209,6 +245,12 @@ def cron_list():
     failing_tasks = repo.top_failing(filter_arr, limit=5)
     recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
 
+    # OPT-P1-11：构建 task_id -> [group_id, ...] 映射 + 标签映射
+    task_ids = [item.id for item in page_data.items]
+    task_group_map = _build_task_group_map(task_ids)
+    from app.services.tag_service import build_task_tag_map
+    task_tag_map = build_task_tag_map(task_ids)
+
     partial_ctx = dict(
         page_data=page_data,
         keyword=keyword,
@@ -216,6 +258,8 @@ def cron_list():
         group_name_by_id=group_name_by_id,
         scope_view=scope_view,
         scope_group_id=scope_group_id,
+        task_group_map=task_group_map,
+        task_tag_map=task_tag_map,
     )
     if request.args.get('partial') == '1':
         rows_html = render_template('_cron_list_rows.html', **partial_ctx)
@@ -225,6 +269,28 @@ def cron_list():
     failing_tasks = repo.top_failing(filter_arr, limit=5)
     recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
     scope_groups_json = json.dumps([{'id': g.id, 'name': g.name} for g in scope_groups])
+
+    # OPT-P1-11：标签列表供筛选下拉（按用户可见组隔离）
+    from app.services.tag_service import all_tags
+    gids = session_group_ids()
+    if _session_bypasses_scope():
+        visible_tags = all_tags(group_id='__ALL__')
+    elif gids:
+        visible_tags = []
+        seen_names = set()
+        for gid in gids:
+            for t in all_tags(group_id=gid):
+                if t['name'] not in seen_names:
+                    visible_tags.append(t)
+                    seen_names.add(t['name'])
+        for t in all_tags(group_id=None):
+            if t['name'] not in seen_names:
+                visible_tags.append(t)
+                seen_names.add(t['name'])
+    else:
+        visible_tags = all_tags(group_id=None)
+    all_tag_names = sorted(set(t['name'] for t in visible_tags))
+    all_tags_json = json.dumps(all_tag_names, ensure_ascii=False)
 
     return render_template(
         "cron_list.html",
@@ -245,6 +311,10 @@ def cron_list():
         list_role=role,
         failing_tasks=failing_tasks,
         recent_ok_tasks=recent_ok_tasks,
+        task_group_map=task_group_map,
+        task_tag_map=task_tag_map,
+        all_tags_json=all_tags_json,
+        current_tag=tag_filter,
     )
 
 
@@ -411,6 +481,9 @@ def cron_add():
             scope_err = _apply_scope_from_form(datas)
             if scope_err:
                 return web_api_return(code=1, msg=scope_err)
+            # OPT-P1-11：标签
+            raw_tags = request.form.get('tags', '').strip()
+            datas['tag_names'] = [t.strip() for t in raw_tags.split(',') if t.strip()] if raw_tags else []
             err, field = add_cron_web(datas, is_dev, CRON_CONFIG)
             if err:
                 payload = {'field': field} if field else None
@@ -444,18 +517,32 @@ def cron_edit():
     if cif.status == -1:
         return web_api_return(code=1, msg='任务已下线，不能编辑；请新建任务', url='/cron_list')
     if request.method == 'POST':
-        # 编辑不改作用域（表单亦不展示）；创建/更新时间只读且不展示
         datas = request.values.to_dict()
+        scope_err = _apply_scope_from_form(datas)
+        if scope_err:
+            return web_api_return(code=1, msg=scope_err)
+        # OPT-P1-11：标签
+        raw_tags = request.form.get('tags', '').strip()
+        datas['tag_names'] = [t.strip() for t in raw_tags.split(',') if t.strip()] if raw_tags else []
         err, field = edit_cron_web(datas, is_dev, CRON_CONFIG, id)
         if err:
             payload = {'field': field} if field else None
             return web_api_return(code=1, msg=err, data=payload)
         return web_api_return(code=0, msg='修改成功！', url='/cron_list')
 
+    scope_ctx = _scope_form_context()
+    # OPT-P1-11：编辑时回显当前 task_groups + tags
+    from app.rbac.scope import get_task_group_id
+    from app.services.tag_service import get_task_tag_names
+    current_group_id = get_task_group_id(cif.id)
+    current_tags = get_task_tag_names(cif.id)
     return render_template(
         "cron_edit.html",
         cif=cif,
         is_dev=is_dev,
+        current_group_id=current_group_id,
+        current_tags=current_tags,
+        **scope_ctx,
     )
 
 
@@ -614,6 +701,10 @@ def operation_log_list():
     elif 'group_id' in keywords and scope_view != 'group':
         keywords.pop('group_id', None)
 
+    # OPT-P1-11：操作记录中的任务组映射
+    oplog_task_ids = [cif.id for cif in cron_by_id.values()]
+    task_group_map = _build_task_group_map(oplog_task_ids)
+
     return render_template(
         'operation_log_list.html',
         page_data=page_data,
@@ -623,10 +714,23 @@ def operation_log_list():
         scope_groups=scope_groups,
         group_name_by_id=group_name_by_id,
         cron_by_id=cron_by_id,
+        task_group_map=task_group_map,
         operation_action_label=operation_action_label,
         operation_result_label=operation_result_label,
         format_detail_summary=format_detail_summary,
     )
+
+
+@main.route('/api/tags/suggest')
+@require_permission('cron:read')
+def tag_suggest():
+    """OPT-P1-11：标签自动补全接口（按业务组隔离）。"""
+    from app.services.tag_service import suggest_tags
+    prefix = (request.args.get('q') or '').strip()
+    raw_gid = request.args.get('group_id', '').strip()
+    group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
+    tags = suggest_tags(prefix=prefix, limit=20, group_id=group_id)
+    return jsonify(tags)
 
 
 @main.route('/cron_del', methods=['GET', 'POST'])

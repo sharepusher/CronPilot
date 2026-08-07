@@ -29,7 +29,9 @@
              data-current-health="{{ keyword.get('health','') }}"
              data-current-scope="{{ scope_view }}"
              data-current-group="{{ scope_group_id or '' }}"
-             data-scope-groups="{{ scope_groups_json }}">
+             data-scope-groups="{{ scope_groups_json }}"
+             data-all-tags="{{ all_tags_json }}"
+             data-current-tag="{{ current_tag or '' }}">
         </div>
 
             <table id="cron-task-table" class="table table-hover table-bordered table-condensed cron-list-refined" style="font-size:12px;margin-bottom:8px;table-layout:fixed;width:100%">

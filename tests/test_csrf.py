@@ -69,6 +69,9 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
             row = CronInfos(
                 task_name='csrf-task',

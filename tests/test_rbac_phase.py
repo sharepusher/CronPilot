@@ -612,7 +612,7 @@ class TestRbacUsersManage(unittest.TestCase):
             db.create_all()
             g = ResourceGroup(
                 name='Default',
-                code='default',
+                
                 description='',
                 create_time='t',
             )
@@ -804,7 +804,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             db.create_all()
             g = ResourceGroup(
                 name='Default',
-                code='default',
+                
                 description='',
                 create_time='t',
             )
@@ -1453,7 +1453,7 @@ class TestUserTopbar(unittest.TestCase):
             db.create_all()
             g = ResourceGroup(
                 name='支付业务',
-                code='pay',
+                
                 description='',
                 create_time='t',
             )

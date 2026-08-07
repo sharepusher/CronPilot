@@ -78,8 +78,6 @@ def apply_normalized_to_model(cif, normalized):
     cif.updated_at = get_now_time()
     if 'scope_type' in normalized:
         cif.scope_type = normalized['scope_type'] or 'GLOBAL'
-    if 'group_id' in normalized:
-        cif.group_id = normalized['group_id']
 
 
 def create_cron(normalized):
@@ -103,10 +101,23 @@ def create_cron(normalized):
         created_at=now,
         updated_at=now,
         scope_type=normalized.get('scope_type') or 'GLOBAL',
-        group_id=normalized.get('group_id'),
     )
     stamp_last_operator(cif)
     db.session.add(cif)
+    db.session.flush()  # 获取 cif.id，用于写入 task_groups
+    # OPT-P1-11：任务归属单个业务组（GROUP 时恰好一条 task_groups 记录）
+    group_id = normalized.get('group_id')
+    if group_id:
+        from datas.model.task_group import TaskGroup
+        db.session.add(TaskGroup(task_id=cif.id, group_id=int(group_id)))
+    # OPT-P1-11：标签 — 同步 task_tags（标签隔离：传递 group_id）
+    tag_names = normalized.get('tag_names')
+    if tag_names is not None:
+        from app.services.tag_service import sync_task_tags
+        from flask import session as flask_session
+        sync_task_tags(cif.id, tag_names,
+                       created_by=flask_session.get('username') or '',
+                       group_id=group_id)
     db.session.commit()
     register_cron_job(cif.id, normalized)
     record_operation(
@@ -132,6 +143,24 @@ def update_cron(cif, normalized, resume_after_save=False):
         cif.status = 1
     stamp_last_operator(cif)
     db.session.add(cif)
+    # OPT-P1-11：同步 task_groups 关联（单组）
+    new_group_id = normalized.get('group_id')
+    if new_group_id is not None:
+        from datas.model.task_group import TaskGroup
+        db.session.execute(
+            TaskGroup.__table__.delete().where(TaskGroup.task_id == cif.id)
+        )
+        if new_group_id:
+            db.session.add(TaskGroup(task_id=cif.id, group_id=int(new_group_id)))
+    # OPT-P1-11：同步标签（标签隔离：传递 group_id）
+    tag_names = normalized.get('tag_names')
+    if tag_names is not None:
+        from app.services.tag_service import sync_task_tags
+        from flask import session as flask_session
+        task_gid = new_group_id if new_group_id is not None else normalized.get('group_id')
+        sync_task_tags(cif.id, tag_names,
+                       created_by=flask_session.get('username') or '',
+                       group_id=task_gid if task_gid else None)
     db.session.commit()
     register_cron_job(cif.id, normalized)
     if cif.status == 0:
@@ -248,7 +277,10 @@ def add_cron_web(datas, is_dev, cron_config):
         return err, field
     if 'scope_type' in datas:
         normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
-        normalized['group_id'] = datas.get('group_id')
+        normalized['group_id'] = datas.get('group_id') or None
+    # OPT-P1-11：标签
+    if 'tag_names' in datas:
+        normalized['tag_names'] = datas['tag_names']
     exists = db.session.scalars(
         select(CronInfos).where(CronInfos.task_name == normalized['task_name'])
     ).first()
@@ -266,7 +298,10 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
         return err, field
     if 'scope_type' in datas:
         normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
-        normalized['group_id'] = datas.get('group_id')
+        normalized['group_id'] = datas.get('group_id') or None
+    # OPT-P1-11：标签
+    if 'tag_names' in datas:
+        normalized['tag_names'] = datas['tag_names']
     dup = db.session.scalars(
         select(CronInfos).where(
             CronInfos.task_name == normalized['task_name'],

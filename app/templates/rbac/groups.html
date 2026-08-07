@@ -27,7 +27,6 @@
             <tr>
                 <th>ID</th>
                 <th>名称</th>
-                <th>编码</th>
                 <th>描述</th>
                 <th>创建时间</th>
                 <th>操作</th>
@@ -38,13 +37,12 @@
             <tr>
                 <td>{{ g.id }}</td>
                 <td>{{ g.name }}</td>
-                <td>{{ g.code }}</td>
                 <td>{{ g.description }}</td>
                 <td>{{ g.create_time }}</td>
                 <td><a href="{{ url_for('rbac.groups_edit', id=g.id) }}">编辑</a></td>
             </tr>
             {% else %}
-            <tr><td colspan="6">暂无业务组</td></tr>
+            <tr><td colspan="5">暂无业务组</td></tr>
             {% endfor %}
             </tbody>
         </table>

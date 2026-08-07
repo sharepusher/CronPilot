@@ -152,11 +152,12 @@ class TestScopeIsolation(unittest.TestCase):
             from datas.model.rbac_user import RbacUser
             from datas.model.user_group import UserGroup
             from datas.model.cron_infos import CronInfos
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog
             self.db.create_all()
 
-            g1 = ResourceGroup(name='G1', code='g1', create_time='2026-01-01')
-            g2 = ResourceGroup(name='G2', code='g2', create_time='2026-01-01')
+            g1 = ResourceGroup(name='G1', create_time='2026-01-01')
+            g2 = ResourceGroup(name='G2', create_time='2026-01-01')
             self.db.session.add_all([g1, g2])
             self.db.session.flush()
             self.g1_id = g1.id
@@ -171,11 +172,14 @@ class TestScopeIsolation(unittest.TestCase):
             self.u_id = u.id
             self.db.session.add(UserGroup(user_id=u.id, group_id=g1.id))
 
-            self.db.session.add_all([
-                CronInfos(task_name='t-global', req_url='http://x.com', scope_type='GLOBAL'),
-                CronInfos(task_name='t-g1', req_url='http://x.com', scope_type='GROUP', group_id=g1.id),
-                CronInfos(task_name='t-g2', req_url='http://x.com', scope_type='GROUP', group_id=g2.id),
-            ])
+            tg = CronInfos(task_name='t-global', req_url='http://x.com', scope_type='GLOBAL')
+            t1 = CronInfos(task_name='t-g1', req_url='http://x.com', scope_type='GROUP')
+            t2 = CronInfos(task_name='t-g2', req_url='http://x.com', scope_type='GROUP')
+            self.db.session.add_all([tg, t1, t2])
+            self.db.session.flush()
+            from datas.model.task_group import TaskGroup
+            self.db.session.add(TaskGroup(task_id=t1.id, group_id=g1.id))
+            self.db.session.add(TaskGroup(task_id=t2.id, group_id=g2.id))
             self.db.session.commit()
 
     def _post(self, task_name, token='bot-tok'):
@@ -249,7 +253,7 @@ class TestAutoResetOnMutation(unittest.TestCase):
             from datas.model.user_group import UserGroup
             self.db.create_all()
 
-            g = ResourceGroup(name='G', code='g', create_time='2026-01-01')
+            g = ResourceGroup(name='G', create_time='2026-01-01')
             self.db.session.add(g)
             self.db.session.commit()
             self.g_id = g.id
@@ -310,12 +314,13 @@ class TestReadonlyQueryApis(unittest.TestCase):
             from datas.model.rbac_user import RbacUser
             from datas.model.user_group import UserGroup
             from datas.model.cron_infos import CronInfos
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.job_log import JobLog
             from datas.model.rbac_audit_log import RbacAuditLog
             self.db.create_all()
 
-            g1 = ResourceGroup(name='G1', code='g1', create_time='2026-01-01')
-            g2 = ResourceGroup(name='G2', code='g2', create_time='2026-01-01')
+            g1 = ResourceGroup(name='G1', create_time='2026-01-01')
+            g2 = ResourceGroup(name='G2', create_time='2026-01-01')
             self.db.session.add_all([g1, g2])
             self.db.session.flush()
 
@@ -334,11 +339,15 @@ class TestReadonlyQueryApis(unittest.TestCase):
             self.db.session.add(UserGroup(user_id=u.id, group_id=g1.id))
 
             c_global = CronInfos(task_name='q-global', req_url='http://x.com', scope_type='GLOBAL')
-            c_g1 = CronInfos(task_name='q-g1', req_url='http://x.com', scope_type='GROUP', group_id=g1.id)
-            c_g2 = CronInfos(task_name='q-g2', req_url='http://x.com', scope_type='GROUP', group_id=g2.id)
-            c_post = CronInfos(task_name='q-post', req_url='http://x.com', req_method='POST', scope_type='GROUP', group_id=g1.id)
+            c_g1 = CronInfos(task_name='q-g1', req_url='http://x.com', scope_type='GROUP')
+            c_g2 = CronInfos(task_name='q-g2', req_url='http://x.com', scope_type='GROUP')
+            c_post = CronInfos(task_name='q-post', req_url='http://x.com', req_method='POST', scope_type='GROUP')
             self.db.session.add_all([c_global, c_g1, c_g2, c_post])
             self.db.session.flush()
+            from datas.model.task_group import TaskGroup
+            self.db.session.add(TaskGroup(task_id=c_g1.id, group_id=g1.id))
+            self.db.session.add(TaskGroup(task_id=c_g2.id, group_id=g2.id))
+            self.db.session.add(TaskGroup(task_id=c_post.id, group_id=g1.id))
 
             self.db.session.add_all([
                 JobLog(cron_info_id=c_g1.id, log_id='lg-1', status='success', create_time='2026-01-01 10:00:00'),

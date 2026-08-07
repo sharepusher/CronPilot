@@ -21,13 +21,6 @@
             <input type="hidden" name="id" value="{{ group.id }}" />
             <fieldset>
                 <div class="control-group">
-                    <label class="control-label">编码</label>
-                    <div class="controls">
-                        <input type="text" value="{{ group.code }}" disabled />
-                        <span style="color:var(--cp-muted)">创建后不可改</span>
-                    </div>
-                </div>
-                <div class="control-group">
                     <label class="control-label">名称</label>
                     <div class="controls">
                         <input type="text" name="name" value="{{ group.name }}" required />

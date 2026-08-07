@@ -10,10 +10,7 @@ from app import db
 class ResourceGroup(db.Model):
     __tablename__ = 'resource_groups'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(db.String(64), nullable=False, default='')
-    code: Mapped[str] = mapped_column(
-        db.String(64), nullable=False, unique=True, index=True
-    )
+    name: Mapped[str] = mapped_column(db.String(64), nullable=False, unique=True, default='')
     description: Mapped[str] = mapped_column(
         db.String(255), nullable=False, default=''
     )

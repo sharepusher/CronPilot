@@ -1,0 +1,254 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+    <div class="wrap">
+        <div class="jumbotron">
+            <div style="text-align: center">
+                <h1 class="display-4">CronPilot 定时调度平台</h1>
+                <p class="lead">&nbsp;&nbsp;方便、统一、自由</p>
+            </div>
+        </div>
+
+        {% with active='tags' %}
+        {% include "rbac/_nav.html" %}
+        {% endwith %}
+
+        <div style="margin:8px 0">
+            <a href="javascript:;" id="btn-new-tag" class="btn btn-primary" style="margin-right:12px">新建标签</a>
+            <span style="color:var(--cp-muted);font-size:12px">标签按业务组隔离，您仅可管理权限范围内的标签。</span>
+        </div>
+
+        <table class="table table-bordered table-hover" style="font-size:12px">
+            <thead>
+            <tr>
+                <th>标签名称</th>
+                <th>说明</th>
+                <th>所属组</th>
+                <th>关联任务数</th>
+                <th>创建者</th>
+                <th>创建时间</th>
+                <th style="width:160px">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for t in tags %}
+            <tr data-tag-id="{{ t.id }}">
+                <td>{{ t.name }}</td>
+                <td style="color:var(--cp-muted)">{{ t.description or '—' }}</td>
+                <td>{% if t.group_id %}{{ group_name_map.get(t.group_id, '—') }}{% else %}<span style="color:var(--cp-muted)">全局</span>{% endif %}</td>
+                <td>{% if t.task_count > 0 %}<a href="javascript:;" class="btn-tag-tasks" data-id="{{ t.id }}" style="text-decoration:underline">{{ t.task_count }}</a>{% else %}0{% endif %}</td>
+                <td>{{ t.created_by or '—' }}</td>
+                <td>{{ t.create_time or '—' }}</td>
+                <td>
+                    <a href="javascript:;" class="btn-tag-edit"
+                       data-id="{{ t.id }}"
+                       data-name="{{ t.name }}"
+                       data-description="{{ t.description or '' }}"
+                       data-group-id="{{ t.group_id or '' }}"
+                       data-group-name="{% if t.group_id %}{{ group_name_map.get(t.group_id, '—') }}{% else %}全局{% endif %}">编辑</a>
+                    <span style="color:var(--cp-border-strong);margin:0 4px">|</span>
+                    <a href="javascript:;" class="btn-tag-delete" data-id="{{ t.id }}" data-name="{{ t.name }}" style="color:var(--cp-danger)">删除</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;color:var(--cp-muted)">暂无标签</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 新建标签模态框 -->
+    <div class="modal hide fade" id="create-modal" tabindex="-1">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h3>新建标签</h3>
+        </div>
+        <form id="create-form" class="js-ajax-form" method="post" action="{{ url_for('rbac.tag_create') }}">
+        <div class="modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="control-group">
+                <label class="control-label">标签名称</label>
+                <div class="controls"><input type="text" name="name" required maxlength="64" style="width:200px" placeholder="如：JP、支付核心"></div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">所属业务组</label>
+                <div class="controls">
+                    <select name="group_id" required style="width:216px">
+                        {% if is_bypass %}<option value="">全局（无组）</option>{% endif %}
+                        {% for g in scope_groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">标签说明</label>
+                <div class="controls"><input type="text" name="description" maxlength="255" style="width:300px" placeholder="可选，简要描述标签含义"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" data-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary js-ajax-submit">创建</button>
+        </div>
+        </form>
+    </div>
+
+    <!-- 编辑标签模态框 -->
+    <div class="modal hide fade" id="edit-modal" tabindex="-1">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h3>编辑标签</h3>
+        </div>
+        <form id="edit-form" class="js-ajax-form" method="post" action="{{ url_for('rbac.tag_update') }}">
+        <div class="modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="tag_id" id="edit-tag-id">
+            <div class="control-group">
+                <label class="control-label">标签名称</label>
+                <div class="controls"><input type="text" name="new_name" id="edit-tag-name" required maxlength="64" style="width:200px"></div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">所属业务组</label>
+                <div class="controls"><span id="edit-tag-group" style="line-height:30px;color:var(--cp-muted)"></span></div>
+            </div>
+            <div class="control-group">
+                <label class="control-label">标签说明</label>
+                <div class="controls"><input type="text" name="description" id="edit-tag-desc" maxlength="255" style="width:300px" placeholder="简要描述标签含义"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" data-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary js-ajax-submit">保存</button>
+        </div>
+        </form>
+    </div>
+    <!-- 关联任务列表模态框 -->
+    <div class="modal hide fade" id="tasks-modal" tabindex="-1">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h3 id="tasks-modal-title">关联任务</h3>
+        </div>
+        <div class="modal-body">
+            <div id="tasks-list-body"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" data-dismiss="modal">关闭</button>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div class="modal hide fade" id="delete-modal" tabindex="-1">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h3>确认删除标签</h3>
+        </div>
+        <div class="modal-body">
+            <div id="delete-task-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" data-dismiss="modal">取消</button>
+            <button type="button" id="btn-confirm-delete" class="btn btn-danger">确认删除</button>
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+<script>
+(function(){
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // 新建标签
+    document.getElementById('btn-new-tag').addEventListener('click', function() {
+        document.getElementById('create-form').reset();
+        $('#create-modal').modal('show');
+    });
+
+    // 查看关联任务
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-tag-tasks');
+        if (!btn) return;
+        var tagId = btn.dataset.id;
+        $.ajax({
+            url: '{{ url_for("rbac.tag_tasks") }}',
+            type: 'GET',
+            data: {tag_id: tagId},
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(r) {
+                if (r.errcode !== 0) { alert(r.errmsg || '查询失败'); return; }
+                var d = r.data;
+                document.getElementById('tasks-modal-title').textContent = '标签「' + d.tag_name + '」关联任务';
+                var html = '<table class="table table-bordered" style="font-size:12px"><thead><tr><th>ID</th><th>任务名称</th><th>状态</th></tr></thead><tbody>';
+                for (var i = 0; i < d.tasks.length; i++) {
+                    var t = d.tasks[i];
+                    var status = t.status === 1 ? '<span style="color:var(--cp-success)">运行中</span>' :
+                                 t.status === 2 ? '<span style="color:var(--cp-warning)">已暂停</span>' :
+                                 '<span style="color:var(--cp-muted)">已下线</span>';
+                    html += '<tr><td>' + t.id + '</td><td>' + t.name + '</td><td>' + status + '</td></tr>';
+                }
+                html += '</tbody></table>';
+                if (!d.tasks.length) html = '<p style="color:var(--cp-muted)">暂无关联任务</p>';
+                document.getElementById('tasks-list-body').innerHTML = html;
+                $('#tasks-modal').modal('show');
+            },
+            error: function() { alert('查询失败'); }
+        });
+    });
+
+    // 编辑标签
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-tag-edit');
+        if (!btn) return;
+        document.getElementById('edit-tag-id').value = btn.dataset.id;
+        document.getElementById('edit-tag-name').value = btn.dataset.name;
+        document.getElementById('edit-tag-desc').value = btn.dataset.description || '';
+        document.getElementById('edit-tag-group').textContent = btn.dataset.groupName || '全局';
+        $('#edit-modal').modal('show');
+    });
+
+    // 删除标签（二次确认流程：展示关联任务）
+    var pendingDeleteId = null;
+
+    function doDeleteTag(tagId, force) {
+        $.ajax({
+            url: '{{ url_for("rbac.tag_delete") }}',
+            type: 'POST',
+            data: {csrf_token: csrfToken, tag_id: tagId, force: force ? '1' : ''},
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            success: function(r) {
+                if (r.errcode === 2 && r.data && r.data.need_confirm) {
+                    pendingDeleteId = tagId;
+                    var html = '<p>' + r.errmsg + '，确定要删除吗？</p>';
+                    if (r.data.tasks && r.data.tasks.length) {
+                        html += '<table class="table table-bordered" style="font-size:12px;margin-top:8px"><thead><tr><th>ID</th><th>任务名称</th></tr></thead><tbody>';
+                        for (var i = 0; i < r.data.tasks.length; i++) {
+                            html += '<tr><td>' + r.data.tasks[i].id + '</td><td>' + r.data.tasks[i].name + '</td></tr>';
+                        }
+                        html += '</tbody></table>';
+                        if (r.data.task_count > r.data.tasks.length) {
+                            html += '<p style="color:var(--cp-muted);font-size:12px">（仅展示前 ' + r.data.tasks.length + ' 条，共 ' + r.data.task_count + ' 个任务）</p>';
+                        }
+                    }
+                    document.getElementById('delete-task-list').innerHTML = html;
+                    $('#delete-modal').modal('show');
+                } else if (r.errcode === 0) {
+                    location.reload();
+                } else {
+                    alert(r.errmsg || '操作失败');
+                }
+            },
+            error: function() { alert('操作失败'); }
+        });
+    }
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-tag-delete');
+        if (!btn) return;
+        doDeleteTag(btn.dataset.id, false);
+    });
+    document.getElementById('btn-confirm-delete').addEventListener('click', function() {
+        if (pendingDeleteId) {
+            $('#delete-modal').modal('hide');
+            doDeleteTag(pendingDeleteId, true);
+            pendingDeleteId = null;
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -81,4 +81,12 @@ def _forbidden_response(permission):
             errmsg=errmsg,
             status=403,
         )
-    return render_template('rbac/forbidden.html', permission=permission), 403
+    return render_template(
+        'errors/error.html',
+        icon='fa-lock',
+        title='无权访问',
+        description='您没有权限访问此页面，如需开通请联系管理员。',
+        show_nav=False,
+        home_url='/cron_list',
+        home_text='返回任务中心',
+    ), 403

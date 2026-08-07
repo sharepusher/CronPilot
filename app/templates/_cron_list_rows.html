@@ -14,15 +14,24 @@
             {% endif %}
             <div class="cabin-main">
                 <div class="cabin-title-line">
-                    {% if item.scope_type == 'GLOBAL' or not item.group_id %}
+                    {% if item.scope_type == 'GLOBAL' %}
                     <span class="label cabin-scope">全局</span>
                     {% else %}
-                    <span class="label label-info cabin-scope">{{ group_name_by_id.get(item.group_id, '组#' ~ item.group_id) }}</span>
+                    {% set gid = task_group_map.get(item.id) if task_group_map is defined else None %}
+                    {% if gid %}
+                    <span class="label label-info cabin-scope">{{ group_name_by_id.get(gid, '—') }}</span>
+                    {% else %}
+                    <span class="label cabin-scope" style="opacity:0.5">未分组</span>
+                    {% endif %}
                     {% endif %}
                     <strong class="cabin-name">{{ item.task_name }}</strong>
                     {% if item.task_keyword %}
                     <a href="javascript:;" class="cabin-desc-tip" data-toggle="tooltip" data-placement="top" title="{{ item.task_keyword|e }}"><i class="fa fa-question-circle"></i></a>
                     {% endif %}
+                    {% set tags = task_tag_map.get(item.id, []) if task_tag_map is defined else [] %}
+                    {% for tag in tags %}
+                    <span class="label" style="background:var(--cp-tag-bg);color:var(--cp-tag-text);font-size:10px;margin-left:3px;vertical-align:middle;font-weight:normal">{{ tag }}</span>
+                    {% endfor %}
                 </div>
                 {% if item.req_url %}
                 <div class="cabin-url-secondary" title="{{ item.req_url|e }}">{% if item.req_url|length > 72 %}{{ item.req_url[:72] }}…{% else %}{{ item.req_url }}{% endif %}</div>

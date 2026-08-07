@@ -229,7 +229,7 @@ class TestSubmitRegistration(unittest.TestCase):
             self.db.create_all()
             # 创建一个业务组
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='研发组', code='dev', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time='2026-08-03')
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -539,7 +539,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='研发组', code='dev', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time='2026-08-03')
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -788,7 +788,7 @@ class TestDisableNoReenable(unittest.TestCase):
         """停用用户可用同一用户名重新注册。"""
         with self.app.app_context():
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='测试组', code='test', create_time='2026-08-04')
+            g = ResourceGroup(name='测试组', create_time='2026-08-04')
             self.db.session.add(g)
             self.db.session.commit()
             gid = g.id
@@ -954,7 +954,7 @@ class TestNonAdminCannotSelectGlobal(unittest.TestCase):
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
-            g = ResourceGroup(name='测试组', code='test-g', create_time='t')
+            g = ResourceGroup(name='测试组', create_time='t')
             self.db.session.add(g)
             self.db.session.commit()
             self.admin_id = admin.id
@@ -1024,7 +1024,7 @@ class TestAdminRegistrationWithAllGroups(unittest.TestCase):
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
-            g = ResourceGroup(name='研发组', code='dev', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time='2026-08-03')
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -1114,7 +1114,7 @@ class TestCheckRegistrationStatus(unittest.TestCase):
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
-            g = ResourceGroup(name='研发组', code='dev', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time='2026-08-03')
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -1316,7 +1316,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             admin.set_password('changeme')
             self.db.session.add(admin)
             # 创建业务组
-            grp = ResourceGroup(name='TestGroup', code='test_group')
+            grp = ResourceGroup(name='TestGroup')
             self.db.session.add(grp)
             self.db.session.commit()
             self.group_id = grp.id

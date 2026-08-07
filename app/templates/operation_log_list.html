@@ -70,10 +70,13 @@
                 <td style="color:var(--cp-muted);font-size:12px">{{ item.operator_roles_json }}</td>
                 <td>{{ item.task_name }}</td>
                 <td>
-                    {% if cif and (cif.scope_type == 'GLOBAL' or not cif.group_id) %}
+                    {% if cif and cif.scope_type == 'GLOBAL' %}
                     全局
-                    {% elif cif and cif.group_id %}
-                    {{ group_name_by_id.get(cif.group_id, '组#' ~ cif.group_id) }}
+                    {% elif cif and cif.scope_type == 'GROUP' %}
+                    {% set gid = task_group_map.get(cif.id) if task_group_map is defined else None %}
+                    {% if gid %}
+                    {{ group_name_by_id.get(gid, '—') }}
+                    {% else %}<span style="color:var(--cp-faint)">—</span>{% endif %}
                     {% else %}
                     <span style="color:var(--cp-faint)">—</span>
                     {% endif %}

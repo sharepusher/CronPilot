@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>任务创建页三项改进设计 — OPT-P1-11</title>
+<style>
+body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; line-height: 1.7; color: #333; padding: 0 20px; }
+h1 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+h2 { color: #1e40af; margin-top: 36px; border-left: 4px solid #2563eb; padding-left: 12px; }
+h3 { color: #374151; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f3f4f6; font-weight: 600; }
+code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+.pending { background: #fef3c7; color: #92400e; }
+.note { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin: 12px 0; font-size: 0.92em; }
+</style>
+</head>
+<body>
+
+<h1>任务创建页三项改进设计 — OPT-P1-11</h1>
+<p><strong>状态：</strong><span class="status" style="background:#dcfce7;color:#166534">已完成</span></p>
+<p><strong>创建时间：</strong>2026-08-05</p>
+<p><strong>关联：</strong>用户反馈 2026-08-05；涉及 <code>cron_add.html</code>、<code>cron_edit.html</code>、数据模型</p>
+
+<h2>一、问题</h2>
+
+<h3>反馈 1：业务组文案冗余</h3>
+<p>当操作人仅属于一个业务组时，任务创建页显示「<strong>所属业务组：</strong>风控业务 (risk-control-business)」，
+但表单 label 本身已是「业务组」，「所属业务组：」前缀重复，信息密度低。</p>
+
+<h3>反馈 2：多组用户无法指定任务多组可见</h3>
+<p>当前每个任务仅绑定单个 <code>group_id</code>（<code>cron_infos.group_id</code>），
+拥有多组权限的用户无法让一个任务对多个业务组同时可见。</p>
+
+<h3>反馈 3：缺少业务/服务标签维度</h3>
+<p>任务缺乏跨业务组的归类方式（如「国家：日本」「业务线：支付」「服务：risk-engine」），
+无法按服务/业务维度筛选和检索任务。</p>
+
+<h2>二、根因</h2>
+
+<table>
+<tr><th>问题</th><th>根因</th></tr>
+<tr><td>文案冗余</td><td>模板中硬编码了「所属业务组：」前缀，未对单组 vs 多组分别优化文案</td></tr>
+<tr><td>单组限制</td><td><code>cron_infos.group_id</code> 为单值 INT，数据模型不支持多组</td></tr>
+<tr><td>缺少标签</td><td>系统无标签数据模型，任务仅有 <code>task_name</code> + <code>task_keyword</code> 两个文本维度</td></tr>
+</table>
+
+<h2>三、方案</h2>
+
+<h3>3.1 反馈 1：文案精简</h3>
+<p><strong>改法：</strong>移除「所属业务组：」前缀，单组时直接显示组名；多组时显示下拉。</p>
+<table>
+<tr><th>场景</th><th>当前</th><th>改后</th></tr>
+<tr><td>单组</td><td>所属业务组：风控业务 (risk-control-business)</td><td>风控业务 (risk-control-business) <span style="color:#888">仅同组可见</span></td></tr>
+<tr><td>多组</td><td>下拉单选</td><td>下拉多选（见 3.2）</td></tr>
+</table>
+
+<h3>3.2 反馈 2：任务多组可见（方案 A1 — 关联表）</h3>
+
+<h4>数据模型变更</h4>
+<pre>
+-- 新建关联表
+CREATE TABLE task_groups (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id  INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    UNIQUE(task_id, group_id)
+);
+CREATE INDEX idx_task_groups_group ON task_groups(group_id, task_id);
+CREATE INDEX idx_task_groups_task  ON task_groups(task_id, group_id);
+</pre>
+
+<div class="note">
+<strong>迁移策略：</strong>新增 <code>task_groups</code> 表后，一次性将现有 <code>cron_infos.group_id</code>
+数据迁移至 <code>task_groups</code>，所有查询统一改用 <code>task_groups</code>，
+然后 <strong>删除</strong> <code>cron_infos.group_id</code> 列。不保留旧列做兼容。<br>
+<strong>保留</strong> <code>cron_infos.scope_type</code>（GLOBAL/GROUP），用于区分全局共享与组限定。
+</div>
+
+<h4>UI 交互</h4>
+<table>
+<tr><th>角色</th><th>当前</th><th>改后</th></tr>
+<tr><td>非 admin（scope_locked）单组</td><td>自动绑定该组</td><td>不变</td></tr>
+<tr><td>非 admin 多组</td><td>下拉单选</td><td>checkbox 多选（仅限本人所属组）</td></tr>
+<tr><td>admin（全局/多组）</td><td>scope_type 切换 + 单选组</td><td>scope_type 切换 + checkbox 多选组</td></tr>
+</table>
+
+<h4>查询变更</h4>
+<pre>
+-- 旧：WHERE group_id = ?
+-- 新：WHERE id IN (SELECT task_id FROM task_groups WHERE group_id = ?)
+--     OR scope_type = 'GLOBAL'
+</pre>
+
+<h4>性能评估（1w-10w 任务）</h4>
+<table>
+<tr><th>指标</th><th>值</th></tr>
+<tr><td>task_groups 行数（10w 任务 × 平均 2 组）</td><td>~20w 行，< 4MB</td></tr>
+<tr><td>按组查询（带索引）</td><td>&lt; 5ms (SQLite) / &lt; 2ms (MySQL)</td></tr>
+<tr><td>分页列表（JOIN + LIMIT）</td><td>&lt; 10ms</td></tr>
+<tr><td>缓存策略</td><td>初期无需；10w+ 可加 lru_cache(TTL=60s) 于热路径</td></tr>
+</table>
+
+<h3>3.3 反馈 3：业务/服务标签系统（A+C 方案）</h3>
+
+<h4>数据模型</h4>
+<pre>
+CREATE TABLE tags (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        VARCHAR(64) NOT NULL UNIQUE,
+    created_by  VARCHAR(120) NOT NULL DEFAULT '',
+    create_time VARCHAR(25) NOT NULL DEFAULT '',
+    update_time VARCHAR(25) NOT NULL DEFAULT ''
+);
+CREATE INDEX idx_tags_name ON tags(name);
+
+CREATE TABLE task_tags (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    tag_id  INTEGER NOT NULL,
+    UNIQUE(task_id, tag_id)
+);
+CREATE INDEX idx_task_tags_tag  ON task_tags(tag_id, task_id);
+CREATE INDEX idx_task_tags_task ON task_tags(task_id, tag_id);
+</pre>
+
+<h4>用户侧行为</h4>
+<table>
+<tr><th>场景</th><th>行为</th></tr>
+<tr><td>创建任务</td><td>输入框支持自由输入 + 已有标签自动补全（autocomplete）；可添加多个标签</td></tr>
+<tr><td>输入新标签</td><td>按回车或逗号确认 → 变成标签 chip → 系统自动去重后加入 <code>tags</code> 表</td></tr>
+<tr><td>选择已有标签</td><td>输入时下拉提示匹配的标签，点击选中</td></tr>
+<tr><td>标签显示</td><td>任务列表中标签以 chip/badge 形式展示，可点击筛选</td></tr>
+<tr><td>任务筛选</td><td>任务列表增加标签筛选维度</td></tr>
+</table>
+
+<h4>管理员侧行为</h4>
+<table>
+<tr><th>操作</th><th>影响</th></tr>
+<tr><td>重命名标签</td><td><code>UPDATE tags SET name=? WHERE id=?</code> — 任务关联不变，自动展示新名</td></tr>
+<tr><td>合并标签</td><td><code>UPDATE task_tags SET tag_id=存留id WHERE tag_id=被合并id</code> + 删除被合并 tag — 透明</td></tr>
+<tr><td>删除标签</td><td><code>DELETE FROM task_tags WHERE tag_id=?</code> + 删除 tag — 任务丢失该标签但任务本身不受影响</td></tr>
+</table>
+
+<h4>标签输入提示</h4>
+<p>建议用户输入维度：国家/地区、业务线、服务名。示例标签：<code>JP</code> <code>支付</code> <code>risk-engine</code> <code>风控-反欺诈</code></p>
+
+<h2>四、范围</h2>
+
+<table>
+<tr><th>改动</th><th>文件</th></tr>
+<tr><td>文案精简</td><td><code>app/templates/cron_add.html</code></td></tr>
+<tr><td>多组关联表 + DDL</td><td><code>datas/model/task_group.py</code>（新）、<code>scripts/ensure_business_tables.py</code></td></tr>
+<tr><td>多组前端交互</td><td><code>app/templates/cron_add.html</code>、<code>app/templates/cron_edit.html</code></td></tr>
+<tr><td>多组查询改造</td><td><code>app/main/views.py</code>、<code>app/rbac/scope.py</code></td></tr>
+<tr><td>标签模型 + DDL</td><td><code>datas/model/tag.py</code>（新）、<code>datas/model/task_tag.py</code>（新）、<code>scripts/ensure_business_tables.py</code></td></tr>
+<tr><td>标签前端（输入 + 筛选）</td><td><code>app/templates/cron_add.html</code>、<code>app/templates/cron_list.html</code></td></tr>
+<tr><td>标签 API</td><td><code>app/main/views.py</code>（autocomplete 端点）</td></tr>
+<tr><td>标签管理页</td><td><code>app/templates/rbac/tags.html</code>（新）</td></tr>
+<tr><td>测试</td><td><code>tests/test_task_groups.py</code>（新）、<code>tests/test_tags.py</code>（新）</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+<li>迁移完成后删除 <code>cron_infos.group_id</code>（被 <code>task_groups</code> 替代），保留 <code>scope_type</code>（GLOBAL/GROUP 区分仍需要）</li>
+<li>不实现标签嵌套/树形结构（平铺标签即可）</li>
+<li>不实现标签权限（所有用户可见所有标签）</li>
+<li>不引入前端框架（标签输入用原生 JS + CSS 实现）</li>
+</ul>
+
+<h2>五、分批</h2>
+
+<table>
+<tr><th>批次</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td><strong>Batch 1</strong></td><td>文案精简 + 数据模型（task_groups、tags、task_tags）+ DDL + 数据迁移脚本</td><td>✅ cronpilot.sh test + ensure_business_tables</td></tr>
+<tr><td><strong>Batch 2</strong></td><td>多组前端交互（创建 + 编辑页 checkbox 多选）+ 后端存储</td><td>✅ 浏览器创建任务选多组</td></tr>
+<tr><td><strong>Batch 3</strong></td><td>多组查询改造（任务列表 + 筛选 + scope 过滤）</td><td>✅ 多组用户可在各组列表中看到同一任务</td></tr>
+<tr><td><strong>Batch 4</strong></td><td>标签前端（输入框 + autocomplete + chip 展示）</td><td>✅ 创建任务时可添加标签</td></tr>
+<tr><td><strong>Batch 5</strong></td><td>标签筛选（任务列表增加标签维度）+ 管理员标签管理页</td><td>✅ 按标签筛选任务 + 管理员重命名/合并/删除</td></tr>
+<tr><td><strong>Batch 6</strong></td><td>文档更新 + RELEASE_NOTES</td><td>✅ html_docs_to_markdown --check</td></tr>
+</table>
+
+<h2>六、验收</h2>
+
+<table>
+<tr><th>验收项</th><th>方法</th></tr>
+<tr><td>文案精简</td><td>浏览器查看单组用户创建任务页，无「所属业务组：」前缀</td></tr>
+<tr><td>多组创建</td><td>多组用户创建任务时选择 2+ 个业务组 → 任务在两个组的列表中均可见</td></tr>
+<tr><td>多组编辑</td><td>编辑已有任务 → 可修改可见组 → 列表联动更新</td></tr>
+<tr><td>标签创建</td><td>创建任务时输入新标签 → 标签出现在 tags 表 → 任务详情显示标签</td></tr>
+<tr><td>标签自动补全</td><td>再次创建任务时输入已有标签前缀 → 下拉提示匹配标签</td></tr>
+<tr><td>标签筛选</td><td>任务列表选择标签 → 仅显示含该标签的任务</td></tr>
+<tr><td>管理员标签管理</td><td>管理员重命名标签 → 关联任务自动展示新名；合并/删除操作正常</td></tr>
+<tr><td>单元测试</td><td><code>cronpilot.sh test</code> 通过</td></tr>
+<tr><td>性能</td><td>10w 级数据下列表查询 &lt; 50ms</td></tr>
+</table>
+
+<h2>七、风险</h2>
+
+<table>
+<tr><th>风险</th><th>缓解</th></tr>
+<tr><td><code>cron_infos.group_id</code> 到 <code>task_groups</code> 迁移数据一致性</td><td>迁移脚本幂等；迁移后验证 task_groups 行数 = 有 group_id 的 cron_infos 行数</td></tr>
+<tr><td>所有引用 <code>cron_infos.group_id</code> 的查询需改造</td><td>全局搜索 <code>.group_id</code> 引用，逐点改为 JOIN <code>task_groups</code>；<code>scope_type</code> 引用保留不变</td></tr>
+<tr><td>标签命名不规范导致碎片化</td><td>管理员合并/重命名功能；前端 autocomplete 引导复用</td></tr>
+<tr><td>cron_edit 页面同步改造</td><td>与 cron_add 一同改造，保持一致</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="任务创建页改进设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

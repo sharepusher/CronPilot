@@ -172,7 +172,11 @@ def cron_query():
             return api_return(errcode=1, errmsg='group_id 参数无效')
         if group_id <= 0:
             return api_return(errcode=1, errmsg='group_id 参数无效')
-        filters.append(CronInfos.group_id == group_id)
+        from datas.model.task_group import TaskGroup
+        task_ids_in_group = select(TaskGroup.task_id).where(
+            TaskGroup.group_id == group_id
+        ).correlate(None).scalar_subquery()
+        filters.append(CronInfos.id.in_(task_ids_in_group))
     if req_method:
         if req_method not in ('GET', 'POST'):
             return api_return(errcode=1, errmsg='req_method 参数无效')
@@ -193,12 +197,13 @@ def cron_query():
         .offset(offset)
         .limit(limit)
     ).all()
+    from app.rbac.scope import get_task_group_id
     items = [{
         'id': row.id,
         'task_name': row.task_name,
         'status': row.status,
         'scope_type': row.scope_type,
-        'group_id': row.group_id,
+        'group_id': get_task_group_id(row.id),
         'req_method': row.req_method or 'GET',
         'req_url': row.req_url or '',
         'updated_at': row.updated_at or '',
@@ -324,6 +329,7 @@ def cron_detail():
     denied = check_api_scope(cron)
     if denied is not None:
         return denied
+    from app.rbac.scope import get_task_group_id
     return api_return(errcode=0, errmsg='ok', data={
         'id': cron.id,
         'task_name': cron.task_name,
@@ -339,7 +345,7 @@ def cron_detail():
         'req_body': cron.req_body or '',
         'status': cron.status,
         'scope_type': cron.scope_type,
-        'group_id': cron.group_id,
+        'group_id': get_task_group_id(cron.id),
         'created_at': cron.created_at or '',
         'updated_at': cron.updated_at or '',
         'retired_at': cron.retired_at or '',

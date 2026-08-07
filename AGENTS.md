@@ -12,9 +12,9 @@
 | `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；见详设） |
 
 
-**协作闭环（强制）**：**清晰完整准确的设计（含分批 + 验收）→ 经用户确认 → 再实现 → 复盘（仅 bug 修复时，实现后、验证前） → 验证 → 可验证本地环境 → 文档 → commit**。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。**Bug 修复复盘是门禁步骤**：必须在同一条回复中写出 `## 复盘：<bug名>` + 6 要素（Bug 定位 / 根因 / 测试漏洞 / 修复 / 防护测试 / 同类排查），缺任一项视为交付不完整。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
+**协作闭环（强制）**：**设计 → 用户确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
 
-**Bug 修复复盘（强制 · 所有问题修复）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 工具）。交付回复必须包含：Bug 定位 → 根因 → 测试漏洞分析 → 修复 → 防护测试 → 同类排查。批量同根因可合并复盘但不得省略。测试分层须明确（单元 / 集成 / E2E），集成或 E2E 层的 bug 必须在对应层新增测试（`tests/test_*_integration.py`）。**交付前自检**：本轮有修复动作 → 回复中是否有复盘？缺失则先补再发。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
+**所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 
 **编号读法**：OPT（功能）/ Tier（依赖大阶段）/ Phase（ORM·框架子阶段）/ DEC（RFC 决策）不是同一套号。权威页：`doc/需求编号与缩写规范.html`。对外须写全称，如 `OPT-P1-03`、`Phase D3（OPT-P2-11）`。
 
@@ -42,6 +42,16 @@
 
 **颜色规范（强制）**：模板和 Vue 组件中**禁止硬编码十六进制颜色**（`#xxxxxx`），必须使用 `app/static/css/console-theme.css` 中定义的 CSS 变量（`var(--cp-*)`）。新增颜色需先在 `console-theme.css` 的 `:root` 中定义对应语义变量，再引用。CI 门禁 `scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 
+**数据库字段删除/迁移前置分析（强制）**：凡涉及删除、迁移、合并数据库字段，设计文档中必须对**每个被操作字段**逐行回答：① 该字段的独立语义是什么？② 该语义是否被新结构完全等价表达？③ 如果删除是否存在无法区分的状态？禁止因字段在代码中常一起出现就当一个整体处理。
+
+**验证自主性原则（强制）**：验证阶段遇到的技术障碍（缺测试用户/权限/数据），Agent **必须自行解决**，不得弹 AskQuestion 询问用户。创建测试用户、重置密码、准备测试数据等操作必须自主完成。AskQuestion 仅用于需求歧义澄清、等价方案偏好选择、破坏性操作授权。
+
+**迁移脚本双后端兼容（强制）**：`ensure_business_tables.py` 等迁移脚本中的原生 SQL 必须通过 `business_db_backend()` 判断后端，分别写 SQLite / MySQL 语法。禁止仅在 SQLite 开发环境验证就提交。
+
+**API 返回结构变更标注（强制）**：任何 API 字段增删改必须在 RELEASE_NOTES 标注 `⚠️ API Breaking Change`。commit 前 `git diff -- app/api/` 检查字段变化。
+
+**模板兜底值语义化（强制）**：模板 `.get(key, default)` 中禁止 default 为空字符串 `''`，必须使用有语义的兜底文案（`—`、`未知`等）。
+
 **测试数据库隔离（强制 · 2026-08 事故教训）**：测试文件中**严禁** `from manage import app` 或 `from manage import db`（`manage.py` 在模块级别 `create_app('development')` 绑定开发数据库）。所有测试必须使用 `sqlite:///:memory:`。改动测试文件后须在测试完成后 `sqlite3 datas/job_log.sqlite ".tables"` 确认表未被破坏。交付前须 `cronpilot.sh restart` → 浏览器 **POST 登录**（非仅 GET）→ 确认主页正常。详 `.cursor/rules/cronpilot-project.mdc`「测试数据库隔离」。
 
 **快速命令**
@@ -68,5 +78,23 @@ python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设�
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```
+
+**JS hidden input 命名冲突防护（强制）**：凡 JS 动态追加 `<input type="hidden" name="xxx">`，必须检查同表单内无同名可见 input，如有则移除可见 input 的 `name`，确保隐藏 input 独占字段名（Flask `request.form.get()` 返回第一个同名值，可见 input 在前导致后端拿到空值）。
+
+**Import 可达性验证（强制）**：编写 `from xxx import yyy` 前**必须** `grep` 确认 `yyy` 在目标模块中存在，禁止凭记忆写 import。`tests/test_import_smoke.py` 覆盖所有 Blueprint 路由模块的顶层 import。
+
+**复盘质量门禁（强制）**：预防方案必须①新增可验证措施（非「已有规范应执行」）、②可被第三方重现验证（给出路径+命令）、③根因追到行为层（非「粗心」）、④与根因因果对应。不合格须重写。
+
+**复盘文档化（强制）**：所有复盘必须持久化到文档（`doc/design/*.html`、`doc/rfc/*.html` 或 `doc/postmortem/YYYY-MM-功能名.html`），并确保 HTML↔Markdown 同步。涉及用户可感知变更的复盘须记入 `RELEASE_NOTES.md`。禁止复盘只在对话中给出而不落库。
+
+**浏览器验证自动化（强制）**：凡涉及 UI/模板/前端交互的变更，功能完成后**必须自动执行浏览器验证**（含自动登录、操作、截图），不得询问用户"是否需要验证"。登录切换账号等操作属于验证准备工作，无需用户确认。
+
+**AJAX 响应字段名规范（强制）**：本项目前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`（对应 `web_api_return()` 的 `errcode/errmsg`），禁止使用 `r.code` / `r.msg`。
+
+**JS keydown 可打印字符拦截（强制）**：`keydown` 中拦截可打印字符（空格、逗号等）时，`e.preventDefault()` 后必须附加 `setTimeout(function() { $input.val(''); }, 0)` 二次清除，防止部分浏览器在事件循环下一 tick 仍插入字符。
+
+**CDP 验证局限性声明（强制）**：涉及 JS 键盘交互修复时，不得仅凭 CDP 自动化验证宣称"已修复"。CDP 键盘模拟不走浏览器完整 input 事件管道，需明确告知用户"需手动确认键盘行为"。
+
+**AskQuestion 前置门禁（强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。
 
 **勿改**：上游 `xiaoniu_cron` 仓库（除非用户明确要求）。

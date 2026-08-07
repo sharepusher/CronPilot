@@ -111,6 +111,9 @@ class TestCronListHealthFilters(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             from datas.model.job_log import JobLog  # noqa: F401
             from datas.model.job_health import JobHealth  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
@@ -143,7 +146,6 @@ class TestCronListHealthFilters(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GLOBAL',
-            group_id=None,
         )
         t_today = CronInfos(
             task_name='today_fail_only',
@@ -153,7 +155,6 @@ class TestCronListHealthFilters(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GLOBAL',
-            group_id=None,
         )
         t_streak = CronInfos(
             task_name='streak_failing',
@@ -163,7 +164,6 @@ class TestCronListHealthFilters(unittest.TestCase):
             created_at=now,
             updated_at=now,
             scope_type='GLOBAL',
-            group_id=None,
         )
         db.session.add_all([t_ok, t_today, t_streak])
         db.session.flush()

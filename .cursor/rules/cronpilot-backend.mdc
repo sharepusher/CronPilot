@@ -109,6 +109,133 @@ alwaysApply: false
 | `job_log` | `create_time` | ✅ 本轮新增 |
 | `job_health` | `updated_at` | ✅ 本轮新增 |
 
+## 数据库字段删除 / 迁移前置分析（强制 · 2026-08）
+
+凡涉及**删除、迁移、合并**数据库字段，设计文档中必须对**每个被操作字段**逐行回答以下三个问题：
+
+| # | 问题 | 要求 |
+|---|---|---|
+| 1 | 该字段的**独立语义**是什么？ | 用一句话描述，不可与其他字段捆绑说明 |
+| 2 | 该语义是否被新结构**完全等价**地表达？ | 写出等价映射；若"约定：空关联 = 全局"则须注明并评估是否引入歧义 |
+| 3 | 如果删除，是否存在**无法区分**的状态？ | 举出至少一个反例场景 |
+
+**禁止**：因为两个字段在代码中常一起出现就当作一个整体删除；未逐字段分析就在设计文档中写"一并删除"。
+
+**典型失误（2026-08 多组可见性）**：`scope_type`（GLOBAL/GROUP 区分）和 `group_id`（单组绑定）因在 `normalize_scope_fields` 中一起处理，被错误地标记为一并删除。`scope_type` 有独立语义（全局 vs 组限定），`task_groups` 为空不等价于 GLOBAL。
+
+## 验证自主性原则（强制 · 2026-08）
+
+验证阶段遇到的**技术障碍**（缺测试用户、缺权限、缺数据），Agent **必须自行解决**，不得弹 AskQuestion 询问用户。
+
+**AskQuestion 仅适用于**：
+1. 需求/设计层面有歧义需要用户澄清
+2. 多个**等价方案**需要用户做偏好选择
+3. 破坏性操作需要用户授权（如删除生产数据）
+
+**以下操作不属于上述三类，必须自主完成**：
+- 创建测试用户 / 重置测试密码
+- 准备测试数据（业务组、任务、标签等）
+- **登录为不同角色的用户进行浏览器验证**（含输入用户名密码、切换账号）——无需询问用户确认
+- 修复验证环境中的技术阻塞
+
+**浏览器验证为强制步骤**：凡涉及 UI/模板/前端交互的变更，功能完成后**必须**自动执行浏览器验证，不得等待用户指示或询问"是否需要验证"。验证内容包括登录、导航、操作目标功能、截图确认。
+
+**典型失误（2026-08 多组可见性 Batch 2）**：seed admin 无 `cron:write` 权限，Agent 弹 AskQuestion 问用户"要不要创建 operator 测试用户"。正确做法：直接创建测试用户并继续验证。
+**典型失误（2026-08 标签管理）**：登录操作被 auto-review 阻断时应直接请求批准，不得把验证流程卡住或跳过。
+
+## 新模板 / 新路由自检清单（强制 · 2026-08）
+
+新建 Jinja2 模板或 Flask 路由时，**必须在编码前完成以下自检**：
+
+| 检查项 | 做法 | 禁止 |
+|---|---|---|
+| CSRF 注入方式 | `grep csrf_token app/templates/rbac/` 确认是 `{{ csrf_token }}` 变量还是 `{{ csrf_token() }}` 函数调用 | 凭记忆假设 |
+| 权限标识符 | `grep require_permission app/rbac/views.py` 确认已有权限名称（如 `user:manage`、`cron:read`） | 发明新权限名称不验证 |
+| 装饰器 vs 普通函数 | 检查被 `@` 引用的符号是否返回装饰器（接受 `func` 参数） | 把普通函数当装饰器 |
+| 模板继承 | 确认 `{% extends %}` 和 `{% block %}` 名称与 `admin_base.html` 一致 | 凭记忆 |
+
+**典型失误（2026-08 标签管理页）**：`csrf_token()` 不存在 + `admin:user` 权限不存在 + `ensure_csrf_token` 不是装饰器。
+
+## 双渲染路径上下文一致性（强制 · 2026-08）
+
+凡视图函数存在 **partial（AJAX 分页）+ full（完整页面）双渲染路径**，必须满足：
+
+1. 将所有模板变量合入**单一上下文字典**，两条路径从同一字典取值；或
+2. 在 full render 路径中**显式列出** partial 路径使用的全部变量，并加注释标明与 partial_ctx 保持同步。
+
+**禁止**：只在 `partial_ctx` 中添加新变量而遗漏 full page `render_template` 参数列表。
+
+**典型失误（2026-08 标签系统）**：`task_tag_map` 和 `task_group_map` 仅加入 `partial_ctx`，未同步到 `render_template("cron_list.html", ...)`，导致完整页面加载时标签不渲染。
+
+## 迁移脚本双后端兼容（强制 · 2026-08）
+
+凡在 `scripts/ensure_business_tables.py` 或其他迁移/DDL 脚本中编写原生 SQL：
+
+- **必须**通过 `business_db_backend()` 判断数据库后端（`sqlite` / `mysql`），分别编写对应语法。
+- **典型差异**：`INSERT OR IGNORE`（SQLite） vs `INSERT IGNORE`（MySQL）；`ALTER TABLE ... DROP COLUMN`（SQLite 3.35+ / MySQL 均支持但错误处理不同）。
+- **禁止**：仅在开发环境（SQLite）测试通过就提交，未验证 MySQL 语法兼容性。
+
+## API 返回结构变更标注（强制 · 2026-08）
+
+任何 API 返回结构变更（字段增删改、类型变化）：
+
+- **必须**在 `RELEASE_NOTES.md` 中标注 `⚠️ API Breaking Change`，并给出迁移指南。
+- **commit 前**执行 `git diff -- app/api/` 检查字段名/类型变化，凡有变化须在 RELEASE_NOTES 中体现。
+- **禁止**：以"纠正上一轮错误"为由跳过 Breaking Change 标注。
+
+## 模板兜底值语义化（强制 · 2026-08）
+
+模板中使用 `.get(key, default)` 或 `|default()` 时：
+
+- **禁止** default 为空字符串 `''`（渲染为不可见空白）。
+- **必须**使用有语义的兜底文案：`—`、`未知`、`未分组` 等，与页面其他缺失状态的视觉一致。
+
+## Import 可达性验证（强制 · 2026-08）
+
+凡编写 `from xxx import yyy` 时：
+
+1. **必须先 `grep` 验证** `yyy` 在目标模块中确实存在（函数名、类名、变量名完全匹配）。
+2. 若目标模块有多个相似命名的函数（如 `_session_bypasses_scope` vs `_actor_bypasses_scope` vs `user_bypasses_scope`），须在回复/注释中明确选择原因。
+3. **禁止凭记忆** 写 import — 即使「感觉」函数存在，也必须 `grep` 确认。
+
+**自动化加固**：`tests/test_import_smoke.py` 应覆盖所有 Blueprint 路由模块的顶层 import，确保 `ImportError` 在 CI 阶段暴露而非运行时。
+
+**典型失误（2026-08）**：`tag_manage()` 中 `from app.rbac.scope import session_group_ids` — 该函数从未存在于 `scope.py`，系同模块 `_actor_bypasses_scope()` 的误记。
+
+## JS 动态 hidden input 命名冲突防护（强制 · 2026-08）
+
+凡 JavaScript 中使用 `$('<input type="hidden" name="xxx">').val(...)` 动态追加隐藏表单字段：
+
+- **强制检查**：同表单内是否存在 **同名可见 input**（`<input name="xxx" ...>`、`<select name="xxx">`、`<textarea name="xxx">`）。
+- **如有同名**：移除可见 input 的 `name` 属性（或改用不同 name），确保隐藏 input 独占该字段名。
+- **根因**：Flask `request.form.get('xxx')` / Django `request.POST.get('xxx')` 均返回 **第一个** 同名字段值；若可见 input 在 DOM 前序且 value 为空，后端拿到空值。
+- **典型失误（2026-08 标签系统）**：`#tags_input` 保留 `name="tags"`，JS chip 机制追加同名 hidden input，导致标签提交全部丢失。
+
+## JS keydown 可打印字符拦截规范（强制 · 2026-08）
+
+凡在 `keydown` 事件中拦截可打印字符（空格、逗号等）并希望阻止其被输入：
+
+- **强制**：`e.preventDefault()` **后**必须附加 `setTimeout(function() { $input.val(''); }, 0)` 作为二次清除。
+- **原因**：部分浏览器（尤其 Electron webview）对可打印字符的 `keydown` 阶段 `preventDefault()` 不完全生效，浏览器在事件循环下一 tick 仍可能插入字符到 input，覆盖已清空的值。
+- **典型失误（2026-08 标签空格触发）**：`keydown` 中调用 `addTag() → $input.val('')` 后，浏览器异步插入空格字符导致输入框文本残留、视觉重复。
+
+## CDP 验证局限性声明（强制 · 2026-08）
+
+涉及 **JS 键盘交互行为** 的修复，Agent **不得**仅凭 CDP 自动化验证结果宣称"已修复"：
+
+- CDP 的键盘模拟（`Input.dispatchKeyEvent`、`browser_press_key`）直接操作 DOM 值，不经过浏览器的完整 input 事件管道。
+- 真实用户键盘的异步字符插入行为在 CDP 中**无法复现**。
+- **正确话术**：「已通过 CDP 验证基本逻辑，但涉及键盘交互的浏览器兼容性需请您手动确认」。
+- **禁止话术**：「已验证通过」（无手动验证说明）。
+
+## AJAX 响应字段名规范（强制 · 2026-08）
+
+本项目 `web_api_return()` / `json_response()` 统一返回 `errcode` / `errmsg` / `result` / `url` / `data`。
+
+- **前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`**，禁止使用 `r.code` / `r.msg`。
+- 典型失误（2026-08 标签删除）：新编写的 JS 使用了 `r.code` / `r.msg` 导致条件判断全部失效，Modal 不弹出。
+- **自检**：新写 AJAX 回调前先 `grep 'errcode' datas/utils/json.py` 确认项目响应结构。
+
 ## 静态文档路由
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="UTF-8"><title>复盘：标签管理增强 OPT-P1-11（2026-08）</title></head>
+<body>
+<h1>复盘：标签管理增强 OPT-P1-11（2026-08）</h1>
+<p>本文档汇总 OPT-P1-11（任务创建页改进：单组归属 + 标签系统）整个开发周期中发现的所有问题及复盘。</p>
+
+<hr>
+<h2>Bug 1: RELEASE_NOTES 内容与实际设计不一致</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>RELEASE_NOTES.md</code> OPT-P1-11 部分描述了"多组可见性"、<code>group_ids</code> 列表 API、"标签合并"功能、"复选框多选"、"453 tests"——均与实际已更改的设计不符。</td></tr>
+<tr><td>2</td><td>根因</td><td><strong>设计漂移</strong>：设计从"多组可见性"改为"单组归属"后，RELEASE_NOTES 未同步更新。修改了代码和设计文档但遗漏了发布文档。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无 CI 检查 RELEASE_NOTES 与代码/设计文档的一致性。</td></tr>
+<tr><td>4</td><td>修复</td><td>全面重写 OPT-P1-11 章节：单组归属、<code>group_id</code> 单值 API、移除合并功能、单选下拉框、正确测试数（428）。</td></tr>
+<tr><td>5</td><td>防护测试</td><td><code>python scripts/html_docs_to_markdown.py --check</code> 验证文档同步。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>同步检查了其他 OPT 条目的 RELEASE_NOTES 描述，无类似漂移。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-project.mdc</code>）：设计变更后必须即时同步 RELEASE_NOTES；commit 前 <code>git diff -- RELEASE_NOTES.md</code> 检查。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 2: rename_tag 错误消息引用已删除的"合并"功能</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/services/tag_service.py</code> — <code>rename_tag</code> 错误消息含"请使用合并功能"，但合并功能已被移除。</td></tr>
+<tr><td>2</td><td>根因</td><td>删除 <code>merge_tags</code> 功能时，<strong>不完整影响分析</strong>——只删除了函数本体和路由，未搜索全仓库引用（包括错误消息和 docstring）。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无测试覆盖错误消息内容的语义正确性。</td></tr>
+<tr><td>4</td><td>修复</td><td>错误消息改为"同组内已存在同名标签「{}」"；docstring 移除"合并"描述。</td></tr>
+<tr><td>5</td><td>防护测试</td><td><code>grep -rn '合并' app/services/tag_service.py</code>（应无匹配）。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>全仓库 <code>grep '合并.*标签\|merge.*tag'</code>，确认无其他残留。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-project.mdc</code>）：删除功能时必须全仓库搜索（中文名 + 英文名 + 函数名），清除所有引用。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 3: 标签输入空格触发后文本残留</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/static/js/tag-input.js</code> — 按空格键触发标签创建后，输入框内原文本未清除，导致视觉重复。</td></tr>
+<tr><td>2</td><td>根因</td><td>浏览器对 <code>keydown</code> 事件中可打印字符的 <code>e.preventDefault()</code> 不完全生效——浏览器在事件循环下一 tick 仍可能将字符插入 input，覆盖已调用的 <code>$input.val('')</code>。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>CDP 键盘模拟直接操作 DOM 值，不经过浏览器完整 input 事件管道，无法复现真实用户键盘的异步字符插入。</td></tr>
+<tr><td>4</td><td>修复</td><td>① 添加 <code>e.key === ' '</code> 为触发键；② <code>addTag(val)</code> 后添加 <code>setTimeout(function() { $input.val(''); }, 0)</code> 延迟清除。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>CDP 验证基本逻辑正确 + 用户手动验证键盘交互。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>检查所有 <code>keydown</code> handler 中的可打印字符拦截，确认无类似模式。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-backend.mdc</code>）：① JS keydown 可打印字符拦截必须附 <code>setTimeout(0)</code> 清除；② CDP 验证局限性声明。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 4: <code>name="tags"</code> hidden input 重名导致后端收到空字符串</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>cron_add.html</code> / <code>cron_edit.html</code> — 可见 input 和 hidden input 都使用 <code>name="tags"</code>，导致 FormData 序列化时可见 input 的空值覆盖了 hidden input 的实际值。</td></tr>
+<tr><td>2</td><td>根因</td><td>inline chip 重构时，将可见 input 的 <code>name</code> 属性从 <code>tags_input</code> 误写为 <code>tags</code>，与负责同步值的 hidden input 同名。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无 DOM 层级测试检查 <code>name</code> 属性唯一性。</td></tr>
+<tr><td>4</td><td>修复</td><td>可见 input 移除 <code>name</code> 属性（它不需要被提交，仅用于输入交互）。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>浏览器 E2E：提交带标签的任务 → 后端正确接收标签列表。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>检查所有 tag-input 实例确认无同名冲突。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-backend.mdc</code>）：JS 动态 hidden input 命名冲突防护——禁止可见 input 和 hidden input 使用同一 <code>name</code>。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 5: AJAX 响应字段名不匹配导致删除确认 Modal 不弹出</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/templates/tag_manage.html</code> JS 删除流程中使用 <code>r.code</code> / <code>r.msg</code>，而后端 <code>web_api_return()</code> 返回 <code>r.errcode</code> / <code>r.errmsg</code>。条件永远为 false，Modal 不弹出。</td></tr>
+<tr><td>2</td><td>根因</td><td>编写新 JS AJAX 代码时未先确认项目统一的 API 响应格式（<code>datas/utils/json.py</code>），凭其他项目经验使用了不一致的字段名。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无前端 AJAX 响应字段名的自动化检查。Ajax form guard 仅检查 DOM 结构。</td></tr>
+<tr><td>4</td><td>修复</td><td><code>r.code</code> → <code>r.errcode</code>，<code>r.msg</code> → <code>r.errmsg</code>。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>浏览器 E2E：点击删除 → CDP 验证 Modal <code>display:block</code> + 内容含任务数据。</td></tr>
+<tr><td>6</td><td>同类排查</td><td><code>grep -rn 'r\.code\b\|r\.msg\b' app/templates/</code> 无其他匹配。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-backend.mdc</code>）：AJAX 响应字段名规范——强制使用 <code>r.errcode</code> / <code>r.errmsg</code>。<code>AGENTS.md</code> 同步。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 6: <code>CronInfos.is_active</code> AttributeError 导致关联任务查询 500</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/services/tag_service.py:270</code> — <code>CronInfos.is_active</code> 属性不存在。</td></tr>
+<tr><td>2</td><td>根因</td><td>凭记忆假设 <code>CronInfos</code> 有 <code>is_active</code> 字段（<code>rbac_users</code> 表使用此名），未查阅 <code>datas/model/cron_infos.py</code> 确认实际字段名为 <code>status</code>。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td><code>get_tag_tasks</code> 为新函数，未编写单元测试即部署。"Import 可达性验证"规范未覆盖属性访问。</td></tr>
+<tr><td>4</td><td>修复</td><td><code>CronInfos.is_active</code> → <code>CronInfos.status</code>，JS 端 <code>t.active</code> → <code>t.status</code>。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>浏览器 E2E 验证 Modal 展示任务 ID + 名称 + 状态。</td></tr>
+<tr><td>6</td><td>同类排查</td><td><code>delete_tag</code> 中仅用 <code>CronInfos.id</code> 和 <code>CronInfos.task_name</code>，已验证正确。</td></tr>
+<tr><td>7</td><td>预防方案</td><td>使用 ORM 模型属性前，必须 <code>grep 字段名 datas/model/*.py</code> 确认字段存在。扩展 Import 可达性规范覆盖属性访问。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 7: <code>INSERT OR IGNORE</code> SQLite 专用语法未兼容 MySQL</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>scripts/ensure_business_tables.py</code> — <code>_migrate_group_id_to_task_groups()</code> 使用 <code>INSERT OR IGNORE INTO</code>。</td></tr>
+<tr><td>2</td><td>根因</td><td>只在 SQLite 开发环境测试，忽略 MySQL 生产环境。<code>INSERT OR IGNORE</code> 是 SQLite 专用，MySQL 使用 <code>INSERT IGNORE INTO</code>。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>单元测试用 <code>sqlite:///:memory:</code>，无法暴露跨数据库语法差异。</td></tr>
+<tr><td>4</td><td>修复</td><td>添加 <code>business_db_backend()</code> 判断，分别生成对应语法。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>迁移脚本为幂等操作，代码中已显式处理双后端。</td></tr>
+<tr><td>6</td><td>同类排查</td><td><code>grep 'INSERT OR IGNORE\|INSERT IGNORE' scripts/</code> 确认无其他未处理实例。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-project.mdc</code>）：迁移脚本原生 SQL 必须同时写 SQLite 和 MySQL 两个分支。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 8: API Breaking Change（<code>group_ids</code> → <code>group_id</code>）未标注</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/api/views.py</code> — <code>cron_query</code>/<code>cron_detail</code> 返回从 <code>group_ids</code> 列表改为 <code>group_id</code> 单值，RELEASE_NOTES 未标注。</td></tr>
+<tr><td>2</td><td>根因</td><td>将多组模型纠正为单组时，心理上未将其视为 Breaking Change；缺少 API 契约测试。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>单元测试已更新断言但缺少 API schema 验证测试。</td></tr>
+<tr><td>4</td><td>修复</td><td>RELEASE_NOTES 中明确标注 <code>Breaking Change</code> 及迁移指南。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>建议后续添加 API 响应 schema 断言测试。</td></tr>
+<tr><td>6</td><td>同类排查</td><td><code>grep 'group_ids'</code> 全仓库确认已全部替换。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>：API 返回结构变更必须在 RELEASE_NOTES 标注 Breaking Change。</td></tr>
+</table>
+
+<hr>
+<h2>Bug 9: 组名兜底使用空字符串而非语义值</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td><code>app/templates/_cron_list_rows.html</code> — <code>group_name_by_id.get(gid, '')</code> 兜底为空字符串。</td></tr>
+<tr><td>2</td><td>根因</td><td>沿用了 Python dict.get 的默认模式，未考虑前端显示时空字符串不可见、不可操作。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无模板渲染断言测试覆盖兜底值。</td></tr>
+<tr><td>4</td><td>修复</td><td>兜底值改为 <code>'—'</code>（em dash）。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>浏览器验证页面显示。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>检查所有模板 <code>.get(</code> 调用，修正同类空字符串兜底。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>：模板中 dict.get 兜底值必须使用语义值（如 '—'），禁止空字符串。</td></tr>
+</table>
+
+<hr>
+<h2>元复盘：Agent 反复遗漏自主复盘</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>#</th><th>要素</th><th>内容</th></tr>
+<tr><td>1</td><td>Bug 定位</td><td>Agent 多次在修复问题后直接进入 AskQuestion 提示下一步，跳过复盘。</td></tr>
+<tr><td>2</td><td>根因</td><td>① 将复盘视为"修复的附加步骤"而非"原子组成部分"；② AskQuestion 用户规则创造了"急于到达下一步"的锚点；③ 复盘触发条件被窄化为"用户报告的代码 bug"。</td></tr>
+<tr><td>3</td><td>测试漏洞</td><td>无自动化机制检查回复中是否包含复盘。</td></tr>
+<tr><td>4</td><td>修复</td><td>强化规范：AskQuestion 前置门禁——调用 AskQuestion 前必须自检是否需要复盘。</td></tr>
+<tr><td>5</td><td>防护测试</td><td>规范中的"交付前自检"清单 4 步。</td></tr>
+<tr><td>6</td><td>同类排查</td><td>回顾对话历史，至少 4 次被用户推回补充复盘。</td></tr>
+<tr><td>7</td><td>预防方案</td><td><strong>新增规范</strong>（<code>cronpilot-project.mdc</code>）：① AskQuestion 前置门禁；② 复盘质量门禁 4 项检查；③ 复盘文档化强制条款。</td></tr>
+</table>
+
+<hr>
+<h2>累积规范产出</h2>
+<p>以下规范在本轮开发中新增或强化：</p>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>规范</th><th>落地文件</th><th>触发 Bug</th></tr>
+<tr><td>设计变更后文档即时同步</td><td><code>cronpilot-project.mdc</code></td><td>#1</td></tr>
+<tr><td>删除功能全仓库引用搜索</td><td><code>cronpilot-project.mdc</code></td><td>#2</td></tr>
+<tr><td>JS keydown 可打印字符拦截规范</td><td><code>cronpilot-backend.mdc</code></td><td>#3</td></tr>
+<tr><td>CDP 验证局限性声明</td><td><code>cronpilot-backend.mdc</code></td><td>#3</td></tr>
+<tr><td>JS 动态 hidden input 命名冲突防护</td><td><code>cronpilot-backend.mdc</code></td><td>#4</td></tr>
+<tr><td>AJAX 响应字段名规范（errcode/errmsg）</td><td><code>cronpilot-backend.mdc</code></td><td>#5</td></tr>
+<tr><td>ORM 属性使用前 grep 确认</td><td>本文档</td><td>#6</td></tr>
+<tr><td>迁移脚本 SQL 后端兼容</td><td><code>cronpilot-project.mdc</code></td><td>#7</td></tr>
+<tr><td>API Breaking Change 标注</td><td><code>cronpilot-project.mdc</code></td><td>#8</td></tr>
+<tr><td>模板兜底值语义化（禁空字符串）</td><td><code>cronpilot-project.mdc</code></td><td>#9</td></tr>
+<tr><td>AskQuestion 前置门禁</td><td><code>cronpilot-project.mdc</code></td><td>元复盘</td></tr>
+<tr><td>复盘质量门禁（4 项检查）</td><td><code>cronpilot-project.mdc</code></td><td>元复盘</td></tr>
+<tr><td>复盘文档化强制条款</td><td><code>cronpilot-project.mdc</code></td><td>元复盘</td></tr>
+<tr><td>浏览器验证自动化</td><td><code>cronpilot-backend.mdc</code></td><td>流程改进</td></tr>
+</table>
+
+<h2>时间线</h2>
+<ul>
+  <li>2026-08-05~06：OPT-P1-11 实现（单组归属 + 标签系统基础）</li>
+  <li>2026-08-06：标签业务组隔离实现</li>
+  <li>2026-08-07：inline chip 标签输入 + 统一错误页 + code 字段移除</li>
+  <li>2026-08-07：标签管理增强（新建/编辑/说明/并发安全/删除确认/关联任务查看）</li>
+  <li>2026-08-07：规范强化（AJAX 字段名 + 浏览器验证 + 复盘文档化）</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-标签管理增强.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -54,12 +54,7 @@ class CronInfos(db.Model):
         server_default='GLOBAL',
         doc='GLOBAL=全局共享；GROUP=业务组隔离',
     )
-    group_id: Mapped[Optional[int]] = mapped_column(
-        db.Integer,
-        nullable=True,
-        default=None,
-        doc='scope_type=GROUP 时所属 resource_groups.id；GLOBAL 时为 NULL',
-    )
+    # group_id 已迁移至 task_groups 表（OPT-P1-11），此列已从模型删除
     last_operator_name: Mapped[str] = mapped_column(
         db.String(120),
         nullable=False,

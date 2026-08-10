@@ -5,7 +5,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
-## [Unreleased]
+## [3.0.0] — 2026-08-10
 
 ### Console Mode UI & Dual Theme (OPT-P2-14)
 
@@ -43,6 +43,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - **New norms:** "数据库字段删除/迁移前置分析"、"验证自主性原则"、"新模板/新路由自检清单"、"双渲染路径上下文一致性"、"Import 可达性验证"、"复盘质量门禁"。
 
 **Tests:** 428 pass · **Design:** `doc/design/任务创建页改进设计.html`
+
+---
+
+## [2.8.0] — 2026-08-05
 
 ### User registration & approval (OPT-P1-10)
 
@@ -624,7 +628,9 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
+| **3.0.0** | Console Mode UI, dual-mode switch (Classic/Console), dark theme, responsive layout, keyboard shortcuts |
 | **2.9.0** | Task group affiliation (single-group), tag system (group-isolated), unified error pages, `code` field removal, API breaking change |
+| **2.8.0** | User registration & approval, forgot password hint, concurrent prevention, anti-double-click |
 | **2.7.1** | Documentation reorganization (7 subdirs), 3 new CI scripts, broken link/OPT fixes, post-mortem rule strengthening |
 | **2.7.0** | Admin scope differentiation, audit log scope filtering, search, time-column indexing, doc reorganization |
 | **2.6.0** | Color system consolidation, API access_token hardening, S6 user-level token, query-only API docs |

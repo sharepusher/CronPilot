@@ -68,6 +68,9 @@ def create_app(config_name):
     from app.security.csrf import inject_csrf_context
     app.context_processor(inject_csrf_context)
 
+    from app.ui_mode import inject_ui_mode
+    app.context_processor(inject_ui_mode)
+
     _register_metrics_endpoint(app)
     _register_api_error_handlers(app)
 

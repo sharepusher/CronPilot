@@ -5,6 +5,25 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
+## [Unreleased]
+
+### Console Mode UI & Dual Theme (OPT-P2-14)
+
+- **Dual UI Mode (Classic/Console):** New "Console" mode with vertical sidebar navigation, collapsible to icon-only (56px). Switch via topbar button or ⌘B keyboard shortcut. Classic mode remains default and completely unchanged.
+- **Dual Theme (Light/Dark):** Full dark theme with 60+ CSS variables redefined. Toggle via button or ⌘\ shortcut. Cookie-persisted, SSR-rendered (no FOUC).
+- **Sidebar:** Fixed left panel (220px) with grouped navigation (任务/管理/个人 sections), search placeholder (⌘K), permission-gated items (`has_perm`), pending registration badge, mode/theme switches in footer.
+- **Responsive:** Three breakpoints — >1024px (full sidebar), 768–1024px (auto icon-only), ≤768px (hidden + hamburger → overlay). Table horizontal scroll on mobile.
+- **Animations:** Theme switch smooth transitions (0.25s), nav item hover translateX, button lift effect, table row highlight, badge pulse, pagination hover. All respect `prefers-reduced-motion`.
+- **Tooltips:** Collapsed sidebar hover shows floating label tooltip (pure CSS). Active page left-edge indicator bar. "CP" brand abbreviation in collapsed header.
+- **Keyboard shortcuts (Console mode only):** ⌘K (search focus), ⌘B (sidebar toggle), ⌘\ (theme switch), Escape (close/blur).
+- **Zero regression:** All styles scoped under `[data-ui-mode="console"]` / `[data-theme="dark"]` selectors; Classic+Light users see zero change.
+- **New files:** `app/ui_mode.py`, `app/static/css/console-mode.css` (~960 lines), `app/templates/rbac/_sidebar_console.html`, `tests/test_ui_mode.py`.
+- **Modified:** `admin_base.html` (attributes + sidebar include), `_topbar.html` (hamburger), `common.js` (+80 lines), `console-theme.css` (+Dark block).
+
+**Tests:** 428 pass (11 new UI mode tests) · **Design:** `doc/design/console-style-dual-mode-design.html`
+
+---
+
 ## [2.9.0] — 2026-08-07
 
 ### Task group affiliation, tag system & error pages (OPT-P1-11)

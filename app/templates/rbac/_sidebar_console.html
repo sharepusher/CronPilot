@@ -1,0 +1,92 @@
+{# Console mode sidebar — same navigation items & has_perm gates as _nav.html
+   OPT-P2-14 S1: This partial is rendered only when ui_mode == 'console'
+#}
+<aside class="cp-sidebar">
+    <div class="cp-sidebar-toggle" onclick="toggleSidebarCollapse()" title="折叠/展开">
+        <i class="fa fa-chevron-left"></i>
+    </div>
+    <div class="cp-sidebar-header">
+        <span class="cp-sidebar-brand">CronPilot</span>
+    </div>
+    <div class="cp-sidebar-search">
+        <input type="text" class="cp-search-input" placeholder="⌘K 搜索…" readonly>
+    </div>
+    <nav class="cp-sidebar-nav">
+        {% if has_perm('cron:read') %}
+        <a class="cp-nav-item{% if active == 'cron_list' %} active{% endif %}"{% if active != 'cron_list' %} href="{{ url_for('main.cron_list') }}"{% endif %}>
+            <i class="fa fa-tasks"></i><span>任务中心</span>
+        </a>
+        {% endif %}
+        {% if has_perm('cron:write') %}
+        {% if active == 'cron_edit' %}
+        <a class="cp-nav-item active">
+            <i class="fa fa-edit"></i><span>任务编辑</span>
+        </a>
+        {% else %}
+        <a class="cp-nav-item{% if active == 'cron_add' %} active{% endif %}"{% if active != 'cron_add' %} href="{{ url_for('main.cron_add') }}"{% endif %}>
+            <i class="fa fa-plus"></i><span>任务添加</span>
+        </a>
+        {% endif %}
+        {% endif %}
+        {% if has_perm('log:read') %}
+        <a class="cp-nav-item{% if active == 'job_log' %} active{% endif %}"{% if active != 'job_log' %} href="{{ url_for('main.job_log_all_list') }}"{% endif %}>
+            <i class="fa fa-history"></i><span>执行记录</span>
+        </a>
+        {% endif %}
+        {% if has_perm('operation:read') %}
+        <a class="cp-nav-item{% if active == 'operation_log' %} active{% endif %}"{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>
+            <i class="fa fa-list-alt"></i><span>操作记录</span>
+        </a>
+        {% endif %}
+
+        {% if has_perm('user:manage') or has_perm('audit:read') %}
+        <div class="cp-nav-divider"></div>
+        <div class="cp-nav-section">管理</div>
+        {% endif %}
+
+        {% if has_perm('user:manage') %}
+        <a class="cp-nav-item{% if active == 'users' %} active{% endif %}"{% if active != 'users' %} href="{{ url_for('rbac.users_list') }}"{% endif %}>
+            <i class="fa fa-users"></i><span>用户管理</span>
+        </a>
+        <a class="cp-nav-item{% if active == 'groups' %} active{% endif %}"{% if active != 'groups' %} href="{{ url_for('rbac.groups_list') }}"{% endif %}>
+            <i class="fa fa-sitemap"></i><span>业务组</span>
+        </a>
+        <a class="cp-nav-item{% if active == 'registration_review' %} active{% endif %}"{% if active != 'registration_review' %} href="{{ url_for('rbac.registration_review') }}"{% endif %}>
+            <i class="fa fa-user-plus"></i><span>注册审批{% if pending_reg_count %} <span class="cp-badge-count">{{ pending_reg_count }}</span>{% endif %}</span>
+        </a>
+        {% endif %}
+        {% if has_perm('audit:read') %}
+        <a class="cp-nav-item{% if active == 'audit' %} active{% endif %}"{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>
+            <i class="fa fa-shield"></i><span>审计</span>
+        </a>
+        {% endif %}
+        {% if has_perm('user:manage') %}
+        <a class="cp-nav-item{% if active == 'tags' %} active{% endif %}"{% if active != 'tags' %} href="{{ url_for('rbac.tag_manage') }}"{% endif %}>
+            <i class="fa fa-tags"></i><span>标签管理</span>
+        </a>
+        {% endif %}
+
+        <div class="cp-nav-divider"></div>
+        <div class="cp-nav-section">个人</div>
+
+        <a class="cp-nav-item{% if active == 'password' %} active{% endif %}"{% if active != 'password' %} href="{{ url_for('rbac.change_password') }}"{% endif %}>
+            <i class="fa fa-key"></i><span>修改密码</span>
+        </a>
+        <a class="cp-nav-item{% if active == 'api_token' %} active{% endif %}"{% if active != 'api_token' %} href="{{ url_for('rbac.api_token_page') }}"{% endif %}>
+            <i class="fa fa-code"></i><span>API Token</span>
+        </a>
+        {% if has_perm('cron:read') %}
+        <a class="cp-nav-item{% if active == 'api_doc' %} active{% endif %}"{% if active != 'api_doc' %} href="{{ url_for('main.api_doc') }}"{% endif %}>
+            <i class="fa fa-book"></i><span>API 文档</span>
+        </a>
+        {% endif %}
+    </nav>
+    <div class="cp-sidebar-footer">
+        <a href="javascript:void(0)" onclick="setUiMode('classic')" class="cp-nav-item cp-switch-classic" title="切换到经典模式">
+            <i class="fa fa-exchange"></i><span>经典模式</span>
+        </a>
+        <a href="javascript:void(0)" onclick="toggleTheme()" class="cp-nav-item cp-switch-theme" title="切换主题">
+            <i class="fa fa-adjust"></i><span>切换主题</span>
+        </a>
+    </div>
+</aside>

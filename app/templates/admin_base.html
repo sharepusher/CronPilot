@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html data-ui-mode="{{ ui_mode }}" data-theme="{{ theme }}"{% if sidebar_collapsed %} class="cp-sidebar-collapsed"{% endif %}>
 <head>
     <title>CronPilot 定时调度平台</title>
     <meta charset="utf-8">
@@ -15,6 +15,7 @@
     <link href="{{ url_for('static',filename='js/simpleboot/font-awesome/4.4.0/css/font-awesome.min.css') }}"
           rel="stylesheet" type="text/css">
     <link href="{{ url_for('static',filename='css/console-theme.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static',filename='css/console-mode.css') }}" rel="stylesheet">
     <style>
         form .input-order {
             margin-bottom: 0px;
@@ -94,10 +95,15 @@
     </script>
 </head>
 <body>
+{% if ui_mode == 'console' %}
+{% include "rbac/_sidebar_console.html" %}
+{% endif %}
+<div class="cp-main-wrap">
 {% block topbar %}
 {% include "rbac/_topbar.html" %}
 {% endblock %}
 {% block content %}{% endblock %}
+</div>
 <script src="{{ url_for('static',filename='js/md5.js') }}"></script>
 <script src="{{ url_for('static',filename='js/signs.js') }}"></script>
 <script src="{{ url_for('static',filename='js/requests.js') }}"></script>

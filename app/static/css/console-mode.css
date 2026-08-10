@@ -1,0 +1,967 @@
+/* ═══════════════════════════════════════════════════════════════════
+ * CronPilot · Console Mode Styles
+ * OPT-P2-14 — All rules scoped under [data-ui-mode="console"]
+ *
+ * This file contains layout, component, and visual rules that ONLY
+ * apply when the user switches to Console mode. Classic mode users
+ * are never affected because these selectors never match.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* ── S1: Sidebar + Layout ── */
+
+[data-ui-mode="console"] .cp-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 220px;
+    background: var(--cp-bg);
+    border-right: 1px solid var(--cp-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow-y: auto;
+    font-size: 13px;
+}
+
+[data-ui-mode="console"] .cp-sidebar-header {
+    padding: 16px 16px 8px;
+    display: flex;
+    align-items: center;
+}
+
+[data-ui-mode="console"] .cp-sidebar-brand {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--cp-text);
+    letter-spacing: -0.3px;
+}
+
+[data-ui-mode="console"] .cp-sidebar-search {
+    padding: 4px 12px 12px;
+}
+
+[data-ui-mode="console"] .cp-search-input {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--cp-border);
+    border-radius: 5px;
+    background: var(--cp-surface);
+    color: var(--cp-muted);
+    font-size: 12px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+[data-ui-mode="console"] .cp-search-input:hover {
+    border-color: var(--cp-accent);
+}
+
+[data-ui-mode="console"] .cp-sidebar-nav {
+    flex: 1;
+    padding: 0 8px;
+    overflow-y: auto;
+}
+
+[data-ui-mode="console"] .cp-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    color: var(--cp-text);
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 1px;
+}
+
+[data-ui-mode="console"] .cp-nav-item:hover {
+    background: var(--cp-surface);
+    text-decoration: none;
+    color: var(--cp-text);
+}
+
+[data-ui-mode="console"] .cp-nav-item.active {
+    background: var(--cp-accent-fill);
+    color: var(--cp-accent);
+    font-weight: 600;
+}
+
+[data-ui-mode="console"] .cp-nav-item i {
+    width: 16px;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+[data-ui-mode="console"] .cp-nav-item.active i {
+    opacity: 1;
+}
+
+[data-ui-mode="console"] .cp-nav-divider {
+    height: 1px;
+    background: var(--cp-border);
+    margin: 8px 10px;
+}
+
+[data-ui-mode="console"] .cp-nav-section {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px 4px;
+}
+
+[data-ui-mode="console"] .cp-badge-count {
+    display: inline-block;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--cp-danger-fill);
+    color: var(--cp-surface);
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    margin-left: 4px;
+}
+
+[data-ui-mode="console"] .cp-sidebar-footer {
+    padding: 8px;
+    border-top: 1px solid var(--cp-border);
+}
+
+/* Main content area offset */
+[data-ui-mode="console"] .cp-main-wrap {
+    margin-left: 220px;
+    min-height: 100vh;
+}
+
+/* Hide Classic-mode horizontal nav tabs */
+[data-ui-mode="console"] .nav-tabs {
+    display: none !important;
+}
+
+/* Hide jumbotron hero in Console mode */
+[data-ui-mode="console"] .jumbotron {
+    display: none !important;
+}
+
+/* Topbar adjustments in Console mode */
+[data-ui-mode="console"] .rbac-topbar {
+    border-bottom: 1px solid var(--cp-border);
+}
+
+/* Hide mode switch buttons from topbar when in Console mode (sidebar has them) */
+[data-ui-mode="console"] .topbar-switch-mode,
+[data-ui-mode="console"] .topbar-switch-theme {
+    display: none;
+}
+
+/* ── S2: List Page Console Style ── */
+
+/* Table: hairline borders, clean grid */
+[data-ui-mode="console"] .table-bordered {
+    border: 1px solid var(--cp-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+[data-ui-mode="console"] .table-bordered > thead > tr > th,
+[data-ui-mode="console"] .table-bordered > tbody > tr > td {
+    border-color: var(--cp-border);
+    border-width: 0 0 1px 0;
+}
+
+[data-ui-mode="console"] .table-bordered > thead > tr > th {
+    background: var(--cp-surface);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--cp-muted);
+    padding: 10px 12px;
+}
+
+[data-ui-mode="console"] .table-bordered > tbody > tr > td {
+    padding: 10px 12px;
+    font-size: 12.5px;
+}
+
+[data-ui-mode="console"] .table-hover > tbody > tr:hover > td {
+    background: var(--cp-surface);
+}
+
+/* Data cells: monospace for timestamps/cron */
+[data-ui-mode="console"] .sched-expr {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+}
+
+[data-ui-mode="console"] .audit-v {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+/* Health dot in Console mode: slightly smaller, with pulse animation for failing */
+[data-ui-mode="console"] .health-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+[data-ui-mode="console"] .health-dot-fail {
+    animation: cp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes cp-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--cp-danger-fill); }
+    50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-mode="console"] .health-dot-fail {
+        animation: none;
+    }
+}
+
+/* Lifecycle status in Console mode: dot + text instead of label pill */
+[data-ui-mode="console"] .cron-life-cell .label {
+    background: transparent !important;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+[data-ui-mode="console"] .cron-life-cell .label::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+[data-ui-mode="console"] .cron-life-cell .label-pause {
+    color: var(--cp-warn);
+}
+[data-ui-mode="console"] .cron-life-cell .label-pause::before {
+    background: var(--cp-warn);
+}
+
+[data-ui-mode="console"] .cron-life-cell .label-info {
+    color: var(--cp-accent);
+}
+[data-ui-mode="console"] .cron-life-cell .label-info::before {
+    background: var(--cp-accent);
+    animation: cp-pulse-accent 2s ease-in-out infinite;
+}
+
+@keyframes cp-pulse-accent {
+    0%, 100% { box-shadow: 0 0 0 0 var(--cp-accent); }
+    50% { box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-mode="console"] .cron-life-cell .label-info::before {
+        animation: none;
+    }
+}
+
+[data-ui-mode="console"] .cron-life-cell .label-retired {
+    color: var(--cp-muted);
+}
+[data-ui-mode="console"] .cron-life-cell .label-retired::before {
+    background: var(--cp-muted);
+}
+
+/* Filter bar area: cleaner spacing */
+[data-ui-mode="console"] .cron-list-toolbar {
+    gap: 8px;
+    padding: 8px 0;
+}
+
+/* Pagination: modern pill style */
+[data-ui-mode="console"] .pagination a,
+[data-ui-mode="console"] .pagination span {
+    border-radius: 4px;
+    border-color: var(--cp-border);
+    font-size: 12px;
+}
+
+/* Tags: subtle pill */
+[data-ui-mode="console"] .cabin-scope {
+    font-size: 10px;
+    border-radius: 3px;
+}
+
+/* Viewer hint */
+[data-ui-mode="console"] .opt-p2-13-viewer-hint {
+    margin: 8px 0 !important;
+    padding: 6px 10px;
+    background: var(--cp-surface);
+    border-radius: 4px;
+    border: 1px solid var(--cp-border);
+}
+
+/* ── S3: Form Page Console Style ── */
+
+/* Form layout: cleaner spacing and modern inputs */
+[data-ui-mode="console"] .form-horizontal .control-group {
+    margin-bottom: 20px;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+[data-ui-mode="console"] .form-horizontal .control-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cp-text);
+    letter-spacing: 0.2px;
+}
+
+[data-ui-mode="console"] .form-horizontal .controls > input[type="text"],
+[data-ui-mode="console"] .form-horizontal .controls > input[type="url"],
+[data-ui-mode="console"] .form-horizontal .controls > input[type="number"],
+[data-ui-mode="console"] .form-horizontal .controls > select,
+[data-ui-mode="console"] .form-horizontal .controls > textarea {
+    border: 1px solid var(--cp-border);
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 13px;
+    background: var(--cp-surface);
+    color: var(--cp-ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+[data-ui-mode="console"] .form-horizontal .controls > input:focus,
+[data-ui-mode="console"] .form-horizontal .controls > select:focus,
+[data-ui-mode="console"] .form-horizontal .controls > textarea:focus {
+    border-color: var(--cp-accent);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+    outline: none;
+}
+
+/* Field hints: subtle muted text */
+[data-ui-mode="console"] .field-hint {
+    font-size: 11.5px;
+    color: var(--cp-muted);
+}
+
+/* Alert bar: modern design */
+[data-ui-mode="console"] .cron-form-alert {
+    border-radius: 6px;
+    font-size: 12.5px;
+}
+
+/* Error state */
+[data-ui-mode="console"] .control-group.cron-field-error .control-label {
+    color: var(--cp-danger-fill);
+}
+
+[data-ui-mode="console"] .control-group.cron-field-error input[type="text"],
+[data-ui-mode="console"] .control-group.cron-field-error select {
+    border-color: var(--cp-danger-fill);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
+/* Form submit button area */
+[data-ui-mode="console"] .form-actions {
+    border-top: 1px solid var(--cp-border);
+    padding-top: 16px;
+    margin-top: 8px;
+}
+
+[data-ui-mode="console"] .form-actions .btn {
+    border-radius: 5px;
+    font-size: 13px;
+    padding: 7px 18px;
+}
+
+/* Fieldset in Console mode */
+[data-ui-mode="console"] fieldset {
+    border: none;
+    padding: 0;
+}
+
+/* Wrap container padding in Console mode */
+[data-ui-mode="console"] .wrap {
+    padding: 16px 24px;
+}
+
+/* ── S4: Dark Theme + Secondary Pages ── */
+
+/* Dark theme: page background */
+[data-theme="dark"] body {
+    background: var(--cp-bg);
+    color: var(--cp-ink);
+}
+
+/* Dark theme: simpleboot overrides */
+[data-theme="dark"] .table-bordered,
+[data-theme="dark"] .table-bordered > thead > tr > th,
+[data-theme="dark"] .table-bordered > tbody > tr > td {
+    border-color: var(--cp-border);
+}
+
+[data-theme="dark"] .table-hover > tbody > tr:hover > td {
+    background: var(--cp-surface-2);
+}
+
+[data-theme="dark"] .table > thead > tr > th {
+    background: var(--cp-surface);
+    color: var(--cp-muted);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--cp-surface);
+    color: var(--cp-ink);
+    border-color: var(--cp-border);
+}
+
+[data-theme="dark"] .jumbotron {
+    background: var(--cp-surface);
+    color: var(--cp-ink);
+}
+
+[data-theme="dark"] .pagination a,
+[data-theme="dark"] .pagination span {
+    background: var(--cp-surface);
+    color: var(--cp-ink);
+    border-color: var(--cp-border);
+}
+
+/* Dark Console sidebar */
+[data-theme="dark"][data-ui-mode="console"] .cp-sidebar {
+    background: var(--cp-surface);
+    border-right-color: var(--cp-border);
+}
+
+/* Dark topbar */
+[data-theme="dark"] .rbac-topbar {
+    background: var(--cp-topbar-bg);
+    border-bottom-color: var(--cp-border);
+}
+
+/* Secondary pages: users table, audit, groups — already covered by
+   table + form rules above. Add specific overrides below if needed */
+
+/* Users management: search toolbar area */
+[data-ui-mode="console"] .rbac-toolbar {
+    padding: 8px 0;
+    gap: 8px;
+}
+
+[data-ui-mode="console"] .rbac-search-form {
+    gap: 6px;
+}
+
+/* Audit log: ensure monospace for timestamps */
+[data-ui-mode="console"] .audit-timestamp {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+/* API Doc iframe: full height in Console mode */
+[data-ui-mode="console"] iframe[src*="swagger"] {
+    border: 1px solid var(--cp-border);
+    border-radius: 6px;
+}
+
+/* ── S5: Animations & Micro-interactions ── */
+
+/* --- 5.1 Global theme transition (color/background smooth switching) --- */
+[data-ui-mode="console"] body,
+[data-ui-mode="console"] .cp-sidebar,
+[data-ui-mode="console"] .cp-main-wrap,
+[data-ui-mode="console"] .rbac-topbar,
+[data-ui-mode="console"] .table-bordered,
+[data-ui-mode="console"] .table-bordered > thead > tr > th,
+[data-ui-mode="console"] .table-bordered > tbody > tr > td,
+[data-ui-mode="console"] input,
+[data-ui-mode="console"] select,
+[data-ui-mode="console"] textarea {
+    transition: background-color 0.25s ease, color 0.2s ease, border-color 0.25s ease;
+}
+
+/* --- 5.2 Sidebar collapse/expand --- */
+[data-ui-mode="console"] .cp-sidebar {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-ui-mode="console"] .cp-main-wrap {
+    transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.25s ease, color 0.2s ease;
+}
+
+/* Collapsed state: narrow, icon-only */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar {
+    width: 56px;
+}
+
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-main-wrap {
+    margin-left: 56px;
+}
+
+/* Hide text in collapsed sidebar */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-brand,
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-search,
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-section,
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item span,
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-badge-count {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+}
+
+/* Center icons in collapsed state */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item {
+    justify-content: center;
+    padding: 8px 0;
+}
+
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item i {
+    width: auto;
+    font-size: 16px;
+}
+
+/* Collapse toggle button */
+[data-ui-mode="console"] .cp-sidebar-toggle {
+    position: absolute;
+    top: 16px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1001;
+    font-size: 11px;
+    color: var(--cp-muted);
+    transition: background 0.15s ease, transform 0.25s ease, opacity 0.2s ease;
+    opacity: 0;
+}
+
+[data-ui-mode="console"] .cp-sidebar:hover .cp-sidebar-toggle {
+    opacity: 1;
+}
+
+[data-ui-mode="console"] .cp-sidebar-toggle:hover {
+    background: var(--cp-accent-fill);
+    color: var(--cp-accent);
+    border-color: var(--cp-accent);
+}
+
+/* Rotate chevron when collapsed */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-toggle {
+    opacity: 1;
+    transform: rotate(180deg);
+}
+
+/* Divider shrink in collapsed mode */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-divider {
+    margin: 6px 8px;
+}
+
+/* --- 5.3 Nav item hover micro-effects --- */
+[data-ui-mode="console"] .cp-nav-item {
+    transition: background 0.15s ease, color 0.12s ease, transform 0.12s ease;
+}
+
+[data-ui-mode="console"] .cp-nav-item:hover {
+    transform: translateX(2px);
+}
+
+[data-ui-mode="console"] .cp-nav-item:active {
+    transform: translateX(1px) scale(0.98);
+}
+
+/* --- 5.4 Button hover effects --- */
+[data-ui-mode="console"] .btn,
+[data-ui-mode="console"] .form-actions .btn {
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+[data-ui-mode="console"] .btn:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
+
+[data-ui-mode="console"] .btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* --- 5.5 Table row hover --- */
+[data-ui-mode="console"] .table-bordered > tbody > tr {
+    transition: background-color 0.12s ease;
+}
+
+[data-ui-mode="console"] .table-bordered > tbody > tr:hover > td {
+    background: var(--cp-surface-2);
+}
+
+/* --- 5.6 Search input focus glow --- */
+[data-ui-mode="console"] .cp-search-input {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-ui-mode="console"] .cp-search-input:hover,
+[data-ui-mode="console"] .cp-search-input:focus {
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+}
+
+/* --- 5.7 Badge pulse for pending notifications --- */
+@keyframes cp-badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+[data-ui-mode="console"] .cp-badge-count {
+    animation: cp-badge-pulse 2s ease-in-out infinite;
+}
+
+/* --- 5.8 Pagination hover --- */
+[data-ui-mode="console"] .pagination a {
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+[data-ui-mode="console"] .pagination a:hover {
+    background: var(--cp-accent-fill);
+    border-color: var(--cp-accent);
+    color: var(--cp-accent);
+}
+
+/* --- 5.9 Accessibility: respect prefers-reduced-motion --- */
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-mode="console"] *,
+    [data-ui-mode="console"] *::before,
+    [data-ui-mode="console"] *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ── S6: Responsive Adaptation ── */
+
+/* --- 6.1 Hamburger button (hidden by default, shown on mobile) --- */
+[data-ui-mode="console"] .cp-hamburger {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--cp-text);
+    font-size: 18px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.12s ease;
+}
+
+[data-ui-mode="console"] .cp-hamburger:hover {
+    background: var(--cp-surface);
+}
+
+/* Classic mode: always hide hamburger */
+[data-ui-mode="classic"] .cp-hamburger {
+    display: none !important;
+}
+
+/* --- 6.2 Overlay backdrop (mobile sidebar open) --- */
+[data-ui-mode="console"].cp-sidebar-mobile-open::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+/* --- 6.3 Medium screens (≤1024px): Auto-collapse sidebar --- */
+@media (max-width: 1024px) {
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-sidebar {
+        width: 56px;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-main-wrap {
+        margin-left: 56px;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-sidebar-brand,
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-sidebar-search,
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-section,
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item span,
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-badge-count {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item {
+        justify-content: center;
+        padding: 8px 0;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item i {
+        width: auto;
+        font-size: 16px;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-divider {
+        margin: 6px 8px;
+    }
+
+    /* Hide the collapse toggle on medium screens (already auto-collapsed) */
+    [data-ui-mode="console"] .cp-sidebar-toggle {
+        display: none;
+    }
+}
+
+/* --- 6.4 Small screens (≤768px): Sidebar overlay + hamburger --- */
+@media (max-width: 768px) {
+    /* Show hamburger */
+    [data-ui-mode="console"] .cp-hamburger {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Hide sidebar by default */
+    [data-ui-mode="console"] .cp-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                    width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 260px;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Show sidebar when mobile-open */
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-sidebar {
+        transform: translateX(0);
+    }
+
+    /* Reset text visibility in mobile sidebar overlay */
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-sidebar-brand,
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-sidebar-search,
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-section,
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-item span,
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-badge-count {
+        opacity: 1;
+        width: auto;
+        overflow: visible;
+    }
+
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-item {
+        justify-content: flex-start;
+        padding: 6px 10px;
+    }
+
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-item i {
+        width: 16px;
+        font-size: 13px;
+    }
+
+    /* Main content: full width */
+    [data-ui-mode="console"] .cp-main-wrap {
+        margin-left: 0;
+    }
+
+    /* Close sidebar on backdrop click via JS (class removal)
+       but also allow tapping anywhere to close */
+    [data-ui-mode="console"].cp-sidebar-mobile-open .cp-main-wrap {
+        pointer-events: none;
+    }
+
+    /* Table horizontal scroll */
+    [data-ui-mode="console"] .table-bordered {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Touch-friendly spacing */
+    [data-ui-mode="console"] .cp-nav-item {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    [data-ui-mode="console"] .wrap {
+        padding: 12px 12px;
+    }
+
+    /* Topbar adjustments */
+    [data-ui-mode="console"] .rbac-topbar {
+        padding-left: 4px;
+    }
+}
+
+/* --- 6.5 Extra small screens (≤480px): Compact layout --- */
+@media (max-width: 480px) {
+    [data-ui-mode="console"] .cron-list-toolbar {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    [data-ui-mode="console"] .wrap {
+        padding: 8px 8px;
+    }
+
+    [data-ui-mode="console"] .table-bordered > thead > tr > th,
+    [data-ui-mode="console"] .table-bordered > tbody > tr > td {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+}
+
+/* ── S7: Tooltip & Icon Details ── */
+
+/* --- 7.1 Collapsed sidebar tooltip (reusing hidden <span>) --- */
+/* In collapsed state, the <span> is hidden (opacity:0, width:0).
+   On hover, show it as a floating tooltip to the right of the icon. */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item {
+    position: relative;
+}
+
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item:hover span {
+    opacity: 1;
+    width: auto;
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 8px;
+    padding: 4px 10px;
+    background: var(--cp-surface-3, #2a2a3c);
+    color: var(--cp-text);
+    border: 1px solid var(--cp-border);
+    border-radius: 5px;
+    font-size: 12px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    pointer-events: none;
+}
+
+/* Tooltip arrow */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item:hover span::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: var(--cp-border);
+}
+
+/* Medium screen collapsed (via media query) also gets tooltips */
+@media (max-width: 1024px) {
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item {
+        position: relative;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item:hover span {
+        opacity: 1;
+        width: auto;
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        margin-left: 8px;
+        padding: 4px 10px;
+        background: var(--cp-surface-3, #2a2a3c);
+        color: var(--cp-text);
+        border: 1px solid var(--cp-border);
+        border-radius: 5px;
+        font-size: 12px;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 1100;
+        pointer-events: none;
+    }
+
+    [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item:hover span::before {
+        content: '';
+        position: absolute;
+        right: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 5px solid transparent;
+        border-right-color: var(--cp-border);
+    }
+}
+
+/* --- 7.2 Active page indicator (left edge bar) --- */
+[data-ui-mode="console"] .cp-nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--cp-accent);
+}
+
+[data-ui-mode="console"] .cp-nav-item {
+    position: relative;
+}
+
+/* --- 7.3 Icon hover glow (collapsed state) --- */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item:hover i {
+    color: var(--cp-accent);
+    text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+    opacity: 1;
+}
+
+/* --- 7.4 Sidebar brand icon for collapsed state --- */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-header {
+    justify-content: center;
+    padding: 12px 0;
+}
+
+/* Show a single-letter logo in collapsed header */
+[data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-header::after {
+    content: 'CP';
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--cp-accent);
+    letter-spacing: -1px;
+}
+
+/* ── S8: Keyboard Shortcuts UI Enhancements ── */
+
+/* Search input active state (when focused via ⌘K) */
+[data-ui-mode="console"] .cp-search-input:not([readonly]) {
+    background: var(--cp-surface-2, #27273a);
+    color: var(--cp-text);
+    cursor: text;
+    border-color: var(--cp-accent);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
+/* Keyboard hint badge in search placeholder area */
+[data-ui-mode="console"] .cp-search-input[readonly]::placeholder {
+    font-size: 12px;
+    color: var(--cp-muted);
+}

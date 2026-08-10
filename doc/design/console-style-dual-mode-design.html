@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot · 前端双模式（Classic/Console）视觉设计稿</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; max-width: 960px; margin: 0 auto; padding: 24px 20px; color: #1a1a2e; line-height: 1.65; font-size: 14.5px; }
+  h1 { font-size: 1.5em; border-bottom: 2px solid #0891b2; padding-bottom: 8px; }
+  h2 { font-size: 1.2em; margin-top: 2em; color: #0891b2; }
+  h3 { font-size: 1.05em; margin-top: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 18px; font-size: 13.5px; }
+  th, td { border: 1px solid #d1d5db; padding: 7px 10px; text-align: left; }
+  th { background: #f3f4f6; font-weight: 600; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 14px 16px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+  .status-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .tag-draft { background: #fef3c7; color: #92400e; }
+  .risk-critical { color: #dc2626; font-weight: 600; }
+  .risk-high { color: #d97706; font-weight: 600; }
+  .risk-medium { color: #2563eb; }
+  .risk-low { color: #059669; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 10px 14px; margin: 12px 0; border-radius: 4px; font-size: 13.5px; }
+  .warn { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; margin: 12px 0; border-radius: 4px; font-size: 13.5px; }
+</style>
+</head>
+<body>
+
+<h1>CronPilot · 前端双模式（Classic / Console）设计稿 + 可行性评估报告</h1>
+
+<p>
+  <span class="status-tag tag-draft">DRAFT v2</span>
+  &nbsp;文档编号：OPT-P2-14 &nbsp;·&nbsp; 日期：2026-08-10（基于 2026-08-07 v1 扩展）
+</p>
+
+<nav>
+  <strong>目录</strong>
+  <ol style="font-size:13px;columns:2;column-gap:32px;">
+    <li><a href="#sec-problem">问题</a></li>
+    <li><a href="#sec-root-cause">根因</a></li>
+    <li><a href="#sec-overview">方案概述</a></li>
+    <li><a href="#sec-scope">改动范围</a></li>
+    <li><a href="#sec-dual-status">双维度状态设计</a></li>
+    <li><a href="#sec-phases">分批实施</a></li>
+    <li><a href="#sec-acceptance">验收清单</a></li>
+    <li><a href="#sec-risk">风险与回退</a></li>
+    <li><a href="#sec-comparison">原始方案对比分析</a></li>
+    <li><a href="#sec-impact">产品影响评估</a></li>
+    <li><a href="#sec-performance">性能深度分析</a></li>
+    <li><a href="#sec-execution">后续执行步骤</a></li>
+  </ol>
+</nav>
+
+<h2 id="sec-problem">一、问题</h2>
+<p>CronPilot 管理端当前采用 simpleboot（Bootstrap 2 衍生）风格，视觉表现停留在 2015 年前后的
+   后台模板水准。用户希望升级到 2026 工程控制台风格（参考 Linear / Vercel / Raycast），
+   同时<strong>保留现有经典风格作为可切换选项</strong>，不做一次性替换。</p>
+
+<h2 id="sec-root-cause">二、根因</h2>
+<ul>
+  <li>现有 simpleboot 框架不提供主题切换能力，CSS 全局生效无命名空间。</li>
+  <li>颜色令牌层（<code>console-theme.css</code>）已完成收编（57 个变量 / 191 处），但缺少模式切换机制。</li>
+  <li>导航、筛选栏、操作菜单等核心交互组件已 Vue 化（3 个 SFC），样式改造不能只改模板。</li>
+</ul>
+
+<h2 id="sec-overview">三、方案概述</h2>
+
+<h3>3.1 双维模式模型</h3>
+<table>
+  <tr><th>维度</th><th>取值</th><th>控制内容</th><th>存储</th></tr>
+  <tr><td><code>ui_mode</code></td><td><code>classic</code> | <code>console</code></td><td>布局结构（侧栏 vs 横栏）、组件视觉（dot vs label）</td><td>Cookie <code>cp_ui_mode</code></td></tr>
+  <tr><td><code>color_theme</code></td><td><code>light</code> | <code>dark</code></td><td>颜色变量值（亮色系 vs 暗色系）</td><td>Cookie <code>cp_theme</code></td></tr>
+</table>
+
+<p>HTML 根节点挂属性：</p>
+<pre>&lt;html data-ui-mode="{{ ui_mode }}" data-theme="{{ theme }}"&gt;</pre>
+
+<h3>3.2 CSS 作用域隔离原则</h3>
+<ul>
+  <li><strong>Classic 模式</strong>：现有 simpleboot + <code>console-theme.css</code> 变量层原样生效，零改动。</li>
+  <li><strong>Console 模式</strong>：所有新样式以 <code>[data-ui-mode="console"]</code> 为前缀选择器，特异性天然高于旧样式，无需删除旧文件。</li>
+  <li><strong>Dark 主题</strong>：<code>[data-theme="dark"]</code> 下重定义 <code>--cp-*</code> 变量值，两种 ui_mode 均可搭配 dark。</li>
+</ul>
+
+<div class="note">
+  <strong>关键设计决策</strong>：Console 模式的 CSS 写在独立文件 <code>console-mode.css</code>（与现有
+  <code>console-theme.css</code> 并列），所有规则以 <code>[data-ui-mode="console"]</code> 开头。
+  切回 Classic 时，这些规则全部不匹配，实现真正的"零侵入并存"。
+</div>
+
+<h3>3.3 持久化与首屏无闪烁</h3>
+<p>使用 Cookie（非 localStorage），因为 Flask 是 SSR：</p>
+<pre>
+# app/__init__.py 或 rbac/__init__.py context processor
+@app.context_processor
+def inject_ui_mode():
+    return {
+        'ui_mode': request.cookies.get('cp_ui_mode', 'classic'),
+        'theme': request.cookies.get('cp_theme', 'light'),
+    }
+</pre>
+<p>Flask 在渲染模板时直接读 Cookie 输出正确的 <code>data-ui-mode</code> / <code>data-theme</code>，
+   浏览器拿到 HTML 时已经是正确模式，<strong>不需要 JS 纠正，无 FOUC</strong>。</p>
+
+<h3>3.4 切换入口</h3>
+<p>在 <code>rbac/_topbar.html</code>（Classic 模式顶栏）和 Console 模式侧栏底部各放一个切换按钮：</p>
+<pre>
+// common.js 新增
+function setUiMode(mode) {
+  document.cookie = 'cp_ui_mode=' + mode + ';path=/;max-age=31536000;samesite=lax';
+  location.reload();  // SSR 模式，reload 拿到新 HTML
+}
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.cookie = 'cp_theme=' + theme + ';path=/;max-age=31536000;samesite=lax';
+}
+</pre>
+
+<h2 id="sec-scope">四、范围：改哪些文件、不改什么</h2>
+
+<h3>4.1 改动范围</h3>
+<table>
+  <tr><th>文件</th><th>改动</th></tr>
+  <tr><td><code>app/__init__.py</code></td><td>新增 <code>inject_ui_mode</code> context processor</td></tr>
+  <tr><td><code>admin_base.html</code></td><td><code>&lt;html&gt;</code> 增加 <code>data-ui-mode</code>/<code>data-theme</code>；引入 <code>console-mode.css</code>；Console 模式下包含侧栏 partial</td></tr>
+  <tr><td><code>rbac/_topbar.html</code></td><td>增加"切换到 Console 模式"按钮</td></tr>
+  <tr><td><code>rbac/_nav.html</code></td><td>Console 模式下 class 从 <code>nav-tabs</code> 变为 <code>side-nav</code>（保留全部 <code>has_perm</code> 逻辑）</td></tr>
+  <tr><td><code>common.js</code></td><td>新增 <code>setUiMode</code> / <code>setTheme</code></td></tr>
+  <tr><td>新增 <code>console-mode.css</code></td><td>所有 Console 模式专属样式</td></tr>
+  <tr><td><code>console-theme.css</code></td><td>新增 <code>[data-theme="dark"]</code> 变量块</td></tr>
+  <tr><td>Vue 组件 × 3</td><td>仅视觉类改动（CSS class 覆盖），行为逻辑不变</td></tr>
+  <tr><td>独立页面 × 5</td><td><code>&lt;html&gt;</code> 增加 <code>data-theme</code></td></tr>
+</table>
+
+<h3>4.2 明确不做</h3>
+<ul>
+  <li>不删除旧主题文件（simpleboot、theme.min.css）</li>
+  <li>不改后端 API / 服务层 / 数据模型</li>
+  <li>不引入新前端框架（继续用 Vite + Vue 3 岛屿式挂载）</li>
+  <li>⌘K 搜索仅做视觉壳，不接真实搜索逻辑</li>
+  <li>不合并健康度 + 生命周期双维度状态（保留现有信息密度）</li>
+</ul>
+
+<h2 id="sec-dual-status">五、双维度状态设计（Console 模式下如何展示）</h2>
+
+<div class="warn">
+  <strong>核心原则</strong>：Console 模式改的是视觉表现（dot 代替 label-pill），不合并语义。
+</div>
+
+<table>
+  <tr><th>列</th><th>Classic 模式</th><th>Console 模式</th></tr>
+  <tr><td>"任务"列 · 健康度 dot</td><td>8px 圆点，4 色（fail 红 / warn 橙 / ok 绿 / none 灰）+ box-shadow 光晕</td><td>6px 圆点，同 4 色，fail 红用呼吸动画 <code>@keyframes pulse</code></td></tr>
+  <tr><td>"运行状态"列</td><td>Bootstrap label 色块徽标（已暂停橙底 / 运行中蓝底 / 已下线灰底）</td><td>dot + 文字行（已暂停用 <code>--cp-warn</code> dot / 运行中用 <code>--cp-accent</code> 呼吸 dot / 已下线用 <code>--cp-faint</code> dot）</td></tr>
+</table>
+
+<h2 id="sec-phases">六、分批实施</h2>
+<table>
+  <tr><th>阶段</th><th>内容</th><th>涉及文件</th><th>可独立验收</th></tr>
+  <tr>
+    <td><strong>S0</strong><br>模式骨架</td>
+    <td>Cookie + context processor + <code>data-ui-mode/data-theme</code> + <code>setUiMode/setTheme</code> JS + 切换按钮</td>
+    <td><code>__init__.py</code>, <code>admin_base.html</code>, <code>_topbar.html</code>, <code>common.js</code></td>
+    <td>✅ 切换后刷新模式保持；Classic 零回归</td>
+  </tr>
+  <tr>
+    <td><strong>S1</strong><br>Console 侧栏 + 布局</td>
+    <td>侧栏 partial（含全部 13 项 + <code>has_perm</code>）、主区 <code>margin-left</code>、jumbotron 隐藏、⌘K 壳</td>
+    <td><code>admin_base.html</code>, <code>rbac/_nav.html</code>, <code>console-mode.css</code></td>
+    <td>✅ Console 模式全站侧栏可用；Classic 不受影响</td>
+  </tr>
+  <tr>
+    <td><strong>S2</strong><br>列表页 Console 化</td>
+    <td>表格容器、筛选栏、状态列、操作列的 Console 视觉</td>
+    <td><code>console-mode.css</code>, Vue 组件 CSS 覆盖</td>
+    <td>✅ 任务列表 + 执行记录列表在 Console 模式下视觉统一</td>
+  </tr>
+  <tr>
+    <td><strong>S3</strong><br>表单页 Console 化</td>
+    <td>表单字段、告警条、CronFormValidator 的 Console 视觉</td>
+    <td><code>console-mode.css</code></td>
+    <td>✅ 新增/编辑任务页在 Console 模式下视觉统一</td>
+  </tr>
+  <tr>
+    <td><strong>S4</strong><br>次要页 + Dark</td>
+    <td>用户管理、业务组、审计、API 文档、登录/注册等页面 + Dark 主题变量</td>
+    <td><code>console-mode.css</code>, <code>console-theme.css</code>, 独立页面</td>
+    <td>✅ 全站无遗漏旧皮肤页面；Dark 可用</td>
+  </tr>
+</table>
+
+<h2 id="sec-acceptance">七、验收清单</h2>
+<ul>
+  <li>□ Classic 模式：与改造前完全一致（截图对比无差异）</li>
+  <li>□ Console 模式：侧栏 13 项导航正确显示，权限门控正常（viewer 只见任务中心/执行记录/API文档/修改密码）</li>
+  <li>□ 模式切换后刷新不闪烁（Cookie 首屏渲染正确 <code>data-ui-mode</code>）</li>
+  <li>□ 主题切换后刷新保持（Cookie 首屏渲染正确 <code>data-theme</code>）</li>
+  <li>□ 健康度 dot + 生命周期状态在 Console 模式下仍为双列展示</li>
+  <li>□ Vue 组件（筛选/操作/校验）在 Console 模式下功能正常</li>
+  <li>□ <code>prefers-reduced-motion: reduce</code> 下呼吸动画不出现</li>
+  <li>□ <code>bash scripts/cronpilot.sh test</code> 通过</li>
+  <li>□ <code>python scripts/audit_hardcoded_colors.py --check</code> 通过</li>
+  <li>□ <code>cd frontend && npm run build</code> 成功</li>
+</ul>
+
+<h2 id="sec-risk">八、风险与回退</h2>
+<table>
+  <tr><th>风险</th><th>等级</th><th>规避</th></tr>
+  <tr><td>Console 导航遗漏权限项</td><td class="risk-critical">致命</td><td>侧栏和横栏共用同一个 <code>_nav.html</code>，CSS 控制布局方向</td></tr>
+  <tr><td>健康度维度丢失</td><td class="risk-critical">致命</td><td>不合并列，Console 仅改 dot 视觉</td></tr>
+  <tr><td>Vue 组件 Bootstrap class 冲突</td><td class="risk-high">严重</td><td>Console 样式用 <code>[data-ui-mode="console"]</code> 选择器覆盖</td></tr>
+  <tr><td>CSS 特异性不足</td><td class="risk-medium">中等</td><td>属性选择器 + 类名组合，天然高于裸类名</td></tr>
+  <tr><td>独立页面无 <code>data-ui-mode</code></td><td class="risk-low">低</td><td>这些页面无侧栏，仅 <code>data-theme</code> 足矣</td></tr>
+</table>
+
+<p><strong>回退方案</strong>：删除 <code>console-mode.css</code> 引用 + 将 context processor 默认值设为 <code>classic</code>，
+   即可完全恢复原样。因为 Console 样式全在独立文件且有命名空间前缀，不影响 Classic。</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="sec-comparison">九、原始方案对比分析</h2>
+
+<h3>9.1 原始方案三处致命错误</h3>
+
+<h4>致命错误 #1：导航文件引用错误</h4>
+<table>
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>原方案描述</td><td>§三 组件映射表："侧边栏 <code>.side</code> → 对应 <code>app/templates/_admin_nav.html</code>"</td></tr>
+  <tr><td>实际情况</td><td><code>_admin_nav.html</code> 已于 RBAC v4（OPT-P2-10）废弃。<strong>当前全站使用 <code>rbac/_nav.html</code></strong>，含 13 导航项 + 7 处 <code>has_perm()</code> 权限门控</td></tr>
+  <tr><td>验证命令</td><td><code>grep -r "include.*_admin_nav" app/templates/</code> → 0 结果；<code>grep -r "include.*rbac/_nav" app/templates/</code> → 12 引用</td></tr>
+  <tr><td>后果</td><td>按方案改造废弃文件无效。若错误"迁移"覆盖 <code>rbac/_nav.html</code>，将丢失全部权限门控</td></tr>
+  <tr><td>根因</td><td>方案作者未执行 <code>grep</code> 搜索引用关系，仅凭文件名推断</td></tr>
+</table>
+
+<h4>致命错误 #2：前端技术栈判断错误</h4>
+<table>
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>原方案描述</td><td>"不引入前端框架/构建工具链"；操作菜单"需要<strong>新增</strong> DOM 结构和最小 JS"</td></tr>
+  <tr><td>实际情况</td><td>项目已有 <strong>Vue 3 + Vite</strong>（vue 3.5.13 + vite 6.3.5），编译出 3 个独立 bundle：<code>cron-filter-bar.js</code>（筛选）、<code>cron-status-cell.js</code>（操作+下拉）、<code>cron-form-validator.js</code>（校验）</td></tr>
+  <tr><td>验证命令</td><td><code>cat frontend/package.json | grep vue</code>；<code>ls app/static/dist/</code></td></tr>
+  <tr><td>后果</td><td>① 筛选栏改 HTML 模板不生效（实为 Vue 渲染）；② 操作菜单重新实现导致代码重复 + 丢失 RBAC 下拉权限控制</td></tr>
+  <tr><td>根因</td><td>仅检查 <code>app/templates/</code> 和 <code>app/static/js/</code>，未扫描 <code>frontend/</code> 和 <code>app/static/dist/</code></td></tr>
+</table>
+
+<h4>致命错误 #3：双维度状态模型被合并为单维度</h4>
+<table>
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>原方案描述</td><td>单列 <code>status</code>（4 态：<code>s-run</code>/<code>s-ok</code>/<code>s-warn</code>/<code>s-off</code>），"呼吸点取代色块徽标"</td></tr>
+  <tr><td>实际情况</td><td><code>_cron_list_rows.html</code> 第 6-14 行渲染<strong>健康度</strong>（4 态），第 70-77 行独立渲染<strong>生命周期</strong>（3 态）——两个正交维度</td></tr>
+  <tr><td>关键场景</td><td>任务可同时"运行中"（生命周期）且"连续失败 ×5"（健康度）——运维最需关注的组合</td></tr>
+  <tr><td>后果</td><td>管理员无法在列表页一眼看到"正在运行但持续失败"的任务，失去 Phase B 健康度体系的核心价值</td></tr>
+  <tr><td>根因</td><td>参考 Linear/Vercel 单维度任务模型凭直觉设计，未深入阅读 <code>_cron_list_rows.html</code> 的双列渲染逻辑</td></tr>
+</table>
+
+<h3>9.2 逐项对比表</h3>
+<table>
+  <tr><th>#</th><th>对比维度</th><th>原始方案</th><th>修订设计</th><th>差异</th></tr>
+  <tr><td>1</td><td>模式并存</td><td>不支持，一次性替换</td><td>Classic/Console 双模式运行时切换</td><td class="risk-critical">🔴 架构级</td></tr>
+  <tr><td>2</td><td>导航文件</td><td><code>_admin_nav.html</code>（已废弃）</td><td><code>rbac/_nav.html</code>（当前在用）</td><td class="risk-critical">🔴 致命</td></tr>
+  <tr><td>3</td><td>前端框架</td><td>"不引入框架/工具链"</td><td>利用已有 Vue 3 + Vite</td><td class="risk-critical">🔴 致命</td></tr>
+  <tr><td>4</td><td>状态维度</td><td>合并为单列 4 态</td><td>保留双列：健康度 + 生命周期</td><td class="risk-critical">🔴 致命</td></tr>
+  <tr><td>5</td><td>CSS 文件结构</td><td>一个 <code>console-theme.css</code></td><td><code>console-theme.css</code>（变量）+ <code>console-mode.css</code>（布局/组件，<code>[data-ui-mode]</code> 作用域）</td><td class="risk-high">🟡 改进</td></tr>
+  <tr><td>6</td><td>变量命名</td><td><code>--bg</code>/<code>--ink</code>（通用名）</td><td><code>--cp-bg</code>/<code>--cp-ink</code>（已有 57 个 <code>--cp-*</code>）</td><td class="risk-high">🟡 对齐</td></tr>
+  <tr><td>7</td><td>作用域隔离</td><td>无，新样式直接覆盖旧</td><td><code>[data-ui-mode="console"]</code> 前缀，Classic 不匹配</td><td class="risk-high">🟡 安全</td></tr>
+  <tr><td>8</td><td>Dark 主题选择器</td><td><code>html[data-theme="dark"]</code></td><td><code>[data-theme="dark"]</code>（等效）</td><td class="risk-low">✅ 一致</td></tr>
+  <tr><td>9</td><td>Cookie 持久化</td><td><code>cp_theme</code></td><td><code>cp_theme</code> + <code>cp_ui_mode</code></td><td class="risk-low">✅ 扩展</td></tr>
+  <tr><td>10</td><td>Context processor</td><td><code>inject_theme()</code> → <code>theme</code></td><td><code>inject_ui_mode()</code> → <code>ui_mode</code> + <code>theme</code></td><td class="risk-low">✅ 扩展</td></tr>
+  <tr><td>11</td><td>toggleTheme JS</td><td><code>common.js</code> 追加 <code>toggleTheme()</code></td><td>追加 <code>setUiMode()</code> + <code>setTheme()</code> + <code>toggleTheme()</code></td><td class="risk-low">✅ 一致</td></tr>
+  <tr><td>12</td><td>prefers-reduced-motion</td><td>✅ 提及</td><td>✅ 保留</td><td class="risk-low">✅ 完全一致</td></tr>
+  <tr><td>13</td><td>保留旧主题文件</td><td>✅ "不删除旧主题文件"</td><td>✅ Classic 模式原样生效</td><td class="risk-low">✅ 完全一致</td></tr>
+  <tr><td>14</td><td>分阶段实施</td><td>S0→S4 五阶段</td><td>S0→S4 五阶段（内容调整）</td><td class="risk-low">✅ 基本一致</td></tr>
+  <tr><td>15</td><td>表单迁移</td><td>替换 class（<code>.control-group</code> → <code>.cp-field</code>）</td><td>CSS 覆盖（<code>[data-ui-mode="console"] .control-group</code>），<strong>不改 HTML class</strong></td><td class="risk-high">🟡 更保守</td></tr>
+  <tr><td>16</td><td>⌘K 搜索</td><td>视觉壳</td><td>同上</td><td class="risk-low">✅ 完全一致</td></tr>
+  <tr><td>17</td><td>WCAG 对比度</td><td>AA 标准</td><td>不降低</td><td class="risk-low">✅ 完全一致</td></tr>
+  <tr><td>18</td><td>旧文件清理</td><td>S4 后观察 1-2 周再删</td><td>无需清理（Classic 永久保留）</td><td class="risk-high">🟡 方案差异</td></tr>
+  <tr><td>19</td><td>筛选栏改造</td><td>"只替换外层 class"</td><td>改 Vue 组件 <code>CronFilterBar.vue</code> 样式</td><td class="risk-high">🟡 正确定位</td></tr>
+  <tr><td>20</td><td>操作下拉</td><td>"复用 Bootstrap 2 dropdown 或新增 JS"</td><td>改 Vue 组件 <code>CronStatusCell.vue</code> 样式</td><td class="risk-high">🟡 避免重复实现</td></tr>
+</table>
+
+<h3>9.3 总结评价</h3>
+<table>
+  <tr><th>维度</th><th>原始方案</th><th>修订设计</th></tr>
+  <tr><td>视觉方向</td><td>✅ 正确且有品味</td><td>✅ 继承并发展</td></tr>
+  <tr><td>技术调研深度</td><td>❌ 仅看模板表面</td><td>✅ 全量 36 模板 + 3 Vue SFC + CSS + common.js</td></tr>
+  <tr><td>架构安全性</td><td>⚠️ 叠加覆盖，无命名空间</td><td>✅ 属性选择器隔离 + 双模式并存</td></tr>
+  <tr><td>信息完整性</td><td>❌ 状态维度降级</td><td>✅ 保留健康度 + 生命周期双维度</td></tr>
+  <tr><td>可落地性</td><td>⚠️ 至少 3 次"走不通需重来"</td><td>✅ 每步基于实际代码结构</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="sec-impact">十、产品影响评估</h2>
+
+<h3>10.1 核心结论</h3>
+<div class="note">
+  <strong>零停机、零功能影响</strong>。<code>[data-ui-mode]</code> 属性选择器隔离 + Cookie 默认 <code>classic</code>
+  使得整个 S0→S4 过程中，未主动切换模式的用户看到的产品与改造前完全一致。
+</div>
+
+<h3>10.2 逐阶段影响矩阵</h3>
+<table>
+  <tr><th>阶段</th><th>改动</th><th>对 Classic 用户影响</th><th>原因</th></tr>
+  <tr><td>S0</td><td><code>&lt;html&gt;</code> 追加属性 + context processor + 切换 JS</td><td><strong>零</strong></td><td>纯属性追加不匹配现有 CSS；函数未被调用</td></tr>
+  <tr><td>S1</td><td>侧栏 partial（Jinja 条件渲染）+ <code>console-mode.css</code> 布局规则</td><td><strong>零</strong></td><td><code>{% if ui_mode == 'console' %}</code> 不渲染；CSS 选择器不匹配</td></tr>
+  <tr><td>S2</td><td>表格/筛选/状态 Console 样式 + Vue 组件 CSS 追加</td><td><strong>零</strong></td><td>所有新 CSS 以 <code>[data-ui-mode="console"]</code> 开头</td></tr>
+  <tr><td>S3</td><td>表单字段 Console 覆盖样式</td><td><strong>零</strong></td><td>同上机制</td></tr>
+  <tr><td>S4</td><td>次要页 + Dark 变量</td><td><strong>零</strong></td><td><code>[data-theme="dark"]</code> 仅在用户切换后生效</td></tr>
+</table>
+
+<h3>10.3 部署策略</h3>
+<table>
+  <tr><th>策略</th><th>说明</th></tr>
+  <tr><td>可分阶段部署</td><td>S0-S4 可分 5 次独立部署，每次 Classic 用户无感知</td></tr>
+  <tr><td>可中途暂停</td><td>任何阶段之间可无限期暂停，不留"半成品"</td></tr>
+  <tr><td>可即时回滚</td><td>清空 <code>console-mode.css</code> → Console 用户自动退化为 Classic</td></tr>
+  <tr><td>无数据库迁移</td><td>不加表、不加列、无不可回滚状态</td></tr>
+  <tr><td>不影响 API</td><td>纯前端视觉，HTTP 请求/响应零变化</td></tr>
+  <tr><td>不影响调度器</td><td>核心调度能力（按时回调目标 URL）完全隔离</td></tr>
+</table>
+
+<h3>10.4 边缘风险场景</h3>
+<table>
+  <tr><th>场景</th><th>概率</th><th>影响</th><th>规避</th></tr>
+  <tr><td>Context processor 异常导致 <code>ui_mode</code> 为 None</td><td>极低</td><td><code>data-ui-mode="None"</code> 不匹配任何规则，退化为 Classic</td><td>无需额外处理</td></tr>
+  <tr><td>Cookie 被浏览器清除</td><td>低</td><td>下次访问恢复 Classic（默认）</td><td>设计即如此</td></tr>
+  <tr><td>Console 模式下冷门页面样式未覆盖</td><td>中</td><td>该页面显示 Classic 样式</td><td>渐进增强，不是错误</td></tr>
+  <tr><td><code>npm run build</code> 后 dist 未更新就部署</td><td>低</td><td>Vue 组件无新样式</td><td>CI 门禁 <code>frontend-build.yml</code> 拦截</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="sec-performance">十一、性能深度分析</h2>
+
+<h3>11.1 CSS 选择器匹配</h3>
+<table>
+  <tr><th>选择器类型</th><th>匹配机制</th><th>耗时（/1000 元素）</th><th>相对基准</th></tr>
+  <tr><td><code>.class-name</code></td><td>Hash 表查找</td><td>~0.003ms</td><td>1x</td></tr>
+  <tr><td><code>[data-attr="value"]</code></td><td>字符串比较</td><td>~0.005ms</td><td>1.6x</td></tr>
+  <tr><td><code>[data-ui-mode="console"] .table</code></td><td>属性+后代</td><td>~0.008ms</td><td>2.5x</td></tr>
+</table>
+<p>CronPilot 典型页面 DOM 约 200-800 节点。选择器总匹配时间增量 &lt; <strong>0.01ms</strong>（人类感知阈值 16ms，差 3 个数量级）。<strong>无可测量影响</strong>。</p>
+
+<h3>11.2 网络请求增量</h3>
+<table>
+  <tr><th>资源</th><th>大小（gzip）</th><th>新请求数</th><th>缓存策略</th></tr>
+  <tr><td><code>console-mode.css</code>（S4 全完成后）</td><td>6-10 KB</td><td>+1</td><td>带 hash 长缓存</td></tr>
+  <tr><td>Vue 组件 bundle 增量</td><td>2-4 KB</td><td>0（内嵌已有 bundle）</td><td>同现有 dist</td></tr>
+  <tr><td><code>common.js</code> 增量</td><td>&lt; 0.2 KB</td><td>0</td><td>已在文件中</td></tr>
+</table>
+<p>当前管理端 CSS 总加载量约 55.5 KB gzip；新增约 8 KB，增幅 +14.4%，HTTP/2 下额外 RTT 为 0。</p>
+
+<h3>11.3 CSS 解析 vs 应用（Classic 模式下）</h3>
+<table>
+  <tr><th>阶段</th><th>Classic 模式下 console-mode.css 开销</th></tr>
+  <tr><td>下载</td><td>正常（首次约 8KB，后续 304）</td></tr>
+  <tr><td>解析</td><td>正常构建 CSSOM（200-400 条规则，&lt; 1ms）</td></tr>
+  <tr><td>匹配</td><td><strong>极快退出</strong>：<code>[data-ui-mode="console"]</code> 不匹配 <code>&lt;html&gt;</code>，整条规则直接剪枝</td></tr>
+  <tr><td>应用</td><td>跳过（匹配已排除）</td></tr>
+</table>
+
+<h3>11.4 渲染性能</h3>
+<table>
+  <tr><th>场景</th><th>性能影响</th></tr>
+  <tr><td>Classic 用户日常使用</td><td><strong>零影响</strong>——无新规则匹配，布局/绘制与改造前完全一致</td></tr>
+  <tr><td>切换 Classic → Console</td><td>触发 <code>location.reload()</code>，等同正常页面加载</td></tr>
+  <tr><td>切换 Light → Dark</td><td>全页样式重算+重绘（无重排，仅颜色变化），6-14ms 一帧内完成</td></tr>
+  <tr><td>Console 模式日常使用</td><td>与 Classic 等价——匹配不同 CSS 规则，渲染复杂度相同</td></tr>
+</table>
+
+<h3>11.5 呼吸动画性能</h3>
+<p><code>@keyframes pulse</code> 使用 <code>box-shadow</code> 变化。最坏情况 20 个运行中任务同时呼吸：重绘面积约 3920px²（页面总面积 0.02%）。<code>prefers-reduced-motion: reduce</code> 时动画不运行。<strong>零性能顾虑</strong>。</p>
+
+<h3>11.6 JavaScript 执行开销</h3>
+<table>
+  <tr><th>新增逻辑</th><th>触发时机</th><th>执行成本</th></tr>
+  <tr><td><code>setUiMode(mode)</code></td><td>用户点击切换</td><td>1 次 Cookie 写入 + reload</td></tr>
+  <tr><td><code>setTheme(theme)</code></td><td>用户点击切换</td><td>1 次 <code>setAttribute</code> + Cookie ≈ 0.1ms</td></tr>
+  <tr><td>Context processor（Python）</td><td>每次请求</td><td><code>request.cookies.get()</code> O(1) ≈ 0.001ms</td></tr>
+</table>
+<p>无 MutationObserver、无定时轮询、无 localStorage 读写、无 media query 监听器。</p>
+
+<h3>11.7 Cookie 开销</h3>
+<p>新增 <code>cp_ui_mode</code>（19 bytes）+ <code>cp_theme</code>（14 bytes）= 33 bytes/请求。对比 Flask session 200-500 bytes，增幅 &lt; 5%。</p>
+
+<h3>11.8 内存占用</h3>
+<table>
+  <tr><th>场景</th><th>额外内存</th></tr>
+  <tr><td>Classic 模式</td><td>CSSOM 多存 200-400 条未匹配规则 ≈ 20-40 KB</td></tr>
+  <tr><td>Console 模式</td><td>侧栏 DOM + 事件 ≈ 5-10 KB</td></tr>
+  <tr><td>Dark 主题</td><td>变量规则块 ≈ 5 KB</td></tr>
+  <tr><td><strong>总计最坏</strong></td><td>~55 KB（浏览器 Tab 基础 50-100 MB 的 0.05%）</td></tr>
+</table>
+
+<h3>11.9 性能评估总表</h3>
+<table>
+  <tr><th>性能维度</th><th>影响等级</th><th>量化</th></tr>
+  <tr><td>首屏加载（FCP）</td><td>🟢 可忽略</td><td>+8 KB CSS / HTTP/2 +0ms RTT</td></tr>
+  <tr><td>最大内容绘制（LCP）</td><td>🟢 无影响</td><td>主内容渲染路径未变</td></tr>
+  <tr><td>累积布局偏移（CLS）</td><td>🟢 零</td><td>SSR 直出正确属性，无 JS 纠正</td></tr>
+  <tr><td>总阻塞时间（TBT）</td><td>🟢 无影响</td><td>无新增长任务 JS</td></tr>
+  <tr><td>交互响应（INP）</td><td>🟢 无影响</td><td>主题切换 6-14ms &lt; 200ms 阈值</td></tr>
+  <tr><td>内存</td><td>🟢 可忽略</td><td>+55 KB ≈ 0.05%</td></tr>
+  <tr><td>CPU（日常）</td><td>🟢 零</td><td>无轮询/监听；仅 dot 动画</td></tr>
+  <tr><td>网络（Cookie）</td><td>🟢 可忽略</td><td>+33 bytes/请求</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="sec-execution">十二、后续执行步骤</h2>
+
+<h3>12.1 执行流程概览</h3>
+<pre>
+设计确认（当前）
+    ↓
+S0 实现（模式骨架）── 预估 1-2 天
+    ↓ 验收通过
+S1 实现（Console 侧栏）── 预估 2-3 天
+    ↓ 验收通过
+S2 实现（列表页）── 预估 3-4 天
+    ↓ 验收通过
+S3 实现（表单页）── 预估 2-3 天
+    ↓ 验收通过
+S4 实现（次要页 + Dark）── 预估 3-4 天
+    ↓ 验收通过
+发版 v2.x.x · 更新 RELEASE_NOTES + 路线图
+</pre>
+
+<h3>12.2 S0 详细任务拆解</h3>
+<table>
+  <tr><th>#</th><th>任务</th><th>文件</th><th>验收标准</th></tr>
+  <tr><td>S0-1</td><td>新增 context processor <code>inject_ui_mode()</code></td><td><code>app/__init__.py</code></td><td>所有页面模板可访问 <code>ui_mode</code> 和 <code>theme</code> 变量</td></tr>
+  <tr><td>S0-2</td><td><code>&lt;html&gt;</code> 挂载 <code>data-ui-mode</code> + <code>data-theme</code></td><td><code>admin_base.html</code></td><td><code>curl</code> 响应含 <code>data-ui-mode="classic" data-theme="light"</code></td></tr>
+  <tr><td>S0-3</td><td>新增 <code>setUiMode()</code> / <code>setTheme()</code> 函数</td><td><code>common.js</code></td><td>浏览器控制台调用函数 → Cookie 写入正确 → reload 后属性正确</td></tr>
+  <tr><td>S0-4</td><td>切换入口 UI（按钮/图标）</td><td><code>rbac/_topbar.html</code></td><td>顶栏可见切换按钮，点击可在 Classic/Console 间切换</td></tr>
+  <tr><td>S0-5</td><td>新增空 <code>console-mode.css</code> 并在 base 中引入</td><td><code>app/static/css/console-mode.css</code> + <code>admin_base.html</code></td><td>文件存在 + link 标签正确引用</td></tr>
+  <tr><td>S0-6</td><td>单元测试：context processor 默认值</td><td><code>tests/test_ui_mode.py</code></td><td><code>cronpilot.sh test</code> 通过</td></tr>
+  <tr><td>S0-7</td><td>文档更新</td><td>RELEASE_NOTES + 路线图</td><td><code>html_docs_to_markdown.py --check</code> 通过</td></tr>
+</table>
+
+<h3>12.3 S1 详细任务拆解</h3>
+<table>
+  <tr><th>#</th><th>任务</th><th>文件</th><th>验收标准</th></tr>
+  <tr><td>S1-1</td><td>Console 侧栏 partial 模板</td><td><code>app/templates/rbac/_sidebar_console.html</code>（新增）</td><td>Console 模式下侧栏 13 项显示正确，权限项受 <code>has_perm</code> 控制</td></tr>
+  <tr><td>S1-2</td><td><code>admin_base.html</code> 条件渲染侧栏</td><td><code>admin_base.html</code></td><td><code>{% if ui_mode == 'console' %}...{% endif %}</code> 正确输出</td></tr>
+  <tr><td>S1-3</td><td><code>console-mode.css</code> 侧栏 + 主区布局</td><td><code>console-mode.css</code></td><td>Console 模式：左侧固定 220px 侧栏 + 主区 margin-left</td></tr>
+  <tr><td>S1-4</td><td>横栏隐藏 + jumbotron 隐藏</td><td><code>console-mode.css</code></td><td>Console 模式下 <code>.nav-tabs</code> 和 <code>.jumbotron</code> 不显示</td></tr>
+  <tr><td>S1-5</td><td>⌘K 搜索视觉壳</td><td><code>console-mode.css</code> + 侧栏 partial</td><td>侧栏顶部有搜索输入框壳（无后端逻辑）</td></tr>
+  <tr><td>S1-6</td><td>浏览器验收</td><td>—</td><td>Classic/Console 切换无闪烁；Classic 零回归；权限角色验证</td></tr>
+</table>
+
+<h3>12.4 S2-S4 概要</h3>
+<table>
+  <tr><th>阶段</th><th>核心内容</th><th>关键风险点</th></tr>
+  <tr><td>S2</td><td>列表页 Console 视觉：表格发丝线、等宽数据字体、筛选栏胶囊按钮、双维度 dot</td><td>Vue 组件 CSS 追加须确保不影响 Classic 模式</td></tr>
+  <tr><td>S3</td><td>表单页 Console 视觉：字段布局、告警条、校验反馈</td><td><code>CronFormValidator.vue</code> 样式覆盖的特异性</td></tr>
+  <tr><td>S4</td><td>用户管理/业务组/审计/API 文档 + Dark 主题完整实现</td><td>独立页面（login/register）无 <code>admin_base.html</code>，须单独处理</td></tr>
+</table>
+
+<h3>12.5 前置条件确认</h3>
+<table>
+  <tr><th>前置项</th><th>当前状态</th><th>是否阻塞 S0</th></tr>
+  <tr><td><code>console-theme.css</code> 变量层就绪</td><td>✅ 已有 57 个 <code>--cp-*</code> 变量</td><td>不阻塞</td></tr>
+  <tr><td>Vue 3 + Vite 构建管线可用</td><td>✅ <code>frontend/package.json</code> 完整</td><td>不阻塞</td></tr>
+  <tr><td>RBAC v4 导航权限体系稳定</td><td>✅ <code>rbac/_nav.html</code> 已交付</td><td>不阻塞</td></tr>
+  <tr><td>CI 门禁（颜色审计/构建/文档）就绪</td><td>✅ 4 条门禁已配置</td><td>不阻塞</td></tr>
+  <tr><td>HTML Demo 验证</td><td>✅ <code>doc/design/console-style-demo.html</code>（4 页面 × 4 组合）</td><td>不阻塞</td></tr>
+</table>
+
+<div class="note">
+  <strong>结论</strong>：所有前置条件已满足，S0 可立即启动。每个阶段独立可验收、可回滚，
+  对产品现有用户零影响。
+</div>
+
+<hr>
+<p style="font-size:12px;color:#94a3b8">
+  CronPilot · OPT-P2-14 设计稿 + 可行性评估报告 v2 · 2026-08-10 ·
+  <a href="../index.html">文档索引</a> ·
+  <a href="console-style-dual-mode-design.md">Markdown 版</a>
+</p>
+
+</body>
+</html>

@@ -783,6 +783,98 @@ function upload_file(self,input_id,upload_dir) {
  *   提交时自动禁用 submit 按钮 + 文案追加"中…"，3 秒后自动恢复。
  * js-ajax-form 已有 common.js 的 loading 守卫，不重复绑定。
  */
+
+/* ── UI 模式 & 颜色主题切换（OPT-P2-14 S0）──
+ * setUiMode: 切换 Classic/Console（需 reload 拿新 SSR 布局）
+ * setTheme: 切换 Light/Dark（纯 CSS 变量，无需 reload）
+ */
+function setUiMode(mode) {
+    if (mode !== 'classic' && mode !== 'console') return;
+    document.cookie = 'cp_ui_mode=' + mode + ';path=/;max-age=31536000;samesite=lax';
+    location.reload();
+}
+function setTheme(theme) {
+    if (theme !== 'light' && theme !== 'dark') return;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.cookie = 'cp_theme=' + theme + ';path=/;max-age=31536000;samesite=lax';
+}
+function toggleTheme() {
+    var current = document.documentElement.getAttribute('data-theme') || 'light';
+    setTheme(current === 'light' ? 'dark' : 'light');
+}
+function toggleSidebarCollapse() {
+    var html = document.documentElement;
+    var collapsed = html.classList.toggle('cp-sidebar-collapsed');
+    document.cookie = 'cp_sidebar_collapsed=' + (collapsed ? '1' : '0') + ';path=/;max-age=31536000;samesite=lax';
+}
+function toggleMobileSidebar() {
+    var html = document.documentElement;
+    html.classList.toggle('cp-sidebar-mobile-open');
+}
+$(document).on('click', function(e) {
+    var html = document.documentElement;
+    if (!html.classList.contains('cp-sidebar-mobile-open')) return;
+    var sidebar = document.querySelector('.cp-sidebar');
+    var hamburger = document.querySelector('.cp-hamburger');
+    if (sidebar && !sidebar.contains(e.target) && hamburger && !hamburger.contains(e.target)) {
+        html.classList.remove('cp-sidebar-mobile-open');
+    }
+});
+
+/* S8: Keyboard shortcuts for Console mode
+   ⌘K / Ctrl+K  → Focus search input
+   ⌘B / Ctrl+B  → Toggle sidebar collapse
+   ⌘\ / Ctrl+\  → Toggle theme
+   Escape        → Close mobile sidebar / blur search */
+$(document).on('keydown', function(e) {
+    var isConsole = document.documentElement.getAttribute('data-ui-mode') === 'console';
+    if (!isConsole) return;
+
+    var isMeta = e.metaKey || e.ctrlKey;
+
+    if (isMeta && e.key === 'k') {
+        e.preventDefault();
+        var searchInput = document.querySelector('.cp-search-input');
+        if (searchInput) {
+            searchInput.removeAttribute('readonly');
+            searchInput.focus();
+            searchInput.setAttribute('placeholder', '输入搜索…');
+        }
+        return;
+    }
+
+    if (isMeta && e.key === 'b') {
+        e.preventDefault();
+        if (window.innerWidth <= 768) {
+            toggleMobileSidebar();
+        } else {
+            toggleSidebarCollapse();
+        }
+        return;
+    }
+
+    if (isMeta && e.key === '\\') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+    }
+
+    if (e.key === 'Escape') {
+        var html = document.documentElement;
+        if (html.classList.contains('cp-sidebar-mobile-open')) {
+            html.classList.remove('cp-sidebar-mobile-open');
+        }
+        var searchInput = document.querySelector('.cp-search-input');
+        if (searchInput && document.activeElement === searchInput) {
+            searchInput.blur();
+            searchInput.value = '';
+            searchInput.setAttribute('readonly', '');
+            searchInput.setAttribute('placeholder', '⌘K 搜索…');
+        }
+        return;
+    }
+});
+
 $(document).on('submit', 'form:not(.js-ajax-form)', function () {
     var $form = $(this);
     if ($form.attr('method') && $form.attr('method').toLowerCase() !== 'post') return;

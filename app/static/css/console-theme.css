@@ -102,6 +102,107 @@
 
   /* ====== 链接 (simpleboot/Bootstrap 遗留) ====== */
   --cp-link: #337ab7;  /* Bootstrap 默认链接蓝 */
+
+  /* ====== UI Mode internal (OPT-P2-14) ====== */
+  --cp-bg:           #fafbfc;  /* Page background */
+  --cp-text:         #1a1a2e;  /* Primary text */
+  --cp-accent-fill:  #ecfeff;  /* Active nav item background */
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Dark Theme — OPT-P2-14 S4
+ * Applied when <html data-theme="dark">
+ * Works with both Classic and Console ui_mode
+ * ═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  /* ====== 文字层级 ====== */
+  --cp-ink:       #e2e8f0;
+  --cp-ink-alt:   #cbd5e1;
+  --cp-ink-2:     #94a3b8;
+  --cp-ink-3:     #a1a1aa;
+  --cp-muted:     #71717a;
+  --cp-faint:     #52525b;
+  --cp-neutral:   #6b7280;
+
+  /* ====== 背景/表面 ====== */
+  --cp-surface:   #1e1e2e;
+  --cp-surface-2: #27273a;
+  --cp-surface-3: #2a2a3c;
+  --cp-bg:        #16161e;
+  --cp-text:      #e2e8f0;
+
+  /* ====== 边框/分割线 ====== */
+  --cp-border:        #2e2e42;
+  --cp-border-strong: #3f3f5c;
+
+  /* ====== 强调色 ====== */
+  --cp-accent:         #22d3ee;
+  --cp-accent-blue:    #60a5fa;
+  --cp-accent-blue-2:  #3b82f6;
+  --cp-accent-bg:      #1e293b;
+  --cp-accent-bg-2:    #1e3a5f;
+  --cp-accent-border:  #1d4ed8;
+  --cp-accent-fill:    #1a2744;
+  --cp-tag-bg:         #312e81;
+  --cp-tag-text:       #a5b4fc;
+
+  /* ====== 成功色系 ====== */
+  --cp-success:        #34d399;
+  --cp-success-text:   #6ee7b7;
+  --cp-success-dark:   #a7f3d0;
+  --cp-success-icon:   #34d399;
+  --cp-success-alt:    #4ade80;
+  --cp-success-bg:     #052e16;
+  --cp-success-bg-2:   #064e3b;
+  --cp-success-border: #065f46;
+
+  /* ====== 危险色系 ====== */
+  --cp-danger:              #f87171;
+  --cp-danger-fill:         #ef4444;
+  --cp-danger-dark:         #fca5a5;
+  --cp-danger-bg:           #450a0a;
+  --cp-danger-border:       #7f1d1d;
+  --cp-danger-border-light: #991b1b;
+  --cp-label-danger:        #ef4444;
+
+  /* ====== 警告色系 ====== */
+  --cp-warn:           #fbbf24;
+  --cp-warn-accent:    #f59e0b;
+  --cp-warn-icon:      #eab308;
+  --cp-warn-dark:      #fef3c7;
+  --cp-warn-dark-2:    #fde68a;
+  --cp-warn-bg:        #422006;
+  --cp-warn-bg-2:      #451a03;
+  --cp-warn-bg-3:      #431407;
+  --cp-warn-border:    #78350f;
+  --cp-warn-border-2:  #713f12;
+
+  /* ====== 执行状态机 ====== */
+  --cp-state-running:      #38bdf8;
+  --cp-state-pending:      #52525b;
+  --cp-state-pending-text: #d4d4d8;
+  --cp-state-timeout:      #c084fc;
+
+  /* ====== 角色徽标 ====== */
+  --cp-role-admin:    #60a5fa;
+  --cp-role-operator: #2dd4bf;
+  --cp-role-viewer:   #4ade80;
+  --cp-role-seed:     #fb923c;
+  --cp-role-default:  #93c5fd;
+
+  /* ====== Topbar ====== */
+  --cp-topbar-bg:    #1e1e2e;
+  --cp-topbar-text:  #e2e8f0;
+  --cp-topbar-muted: #52525b;
+
+  /* ====== 已下线 ====== */
+  --cp-retired-text:   #a8a29e;
+  --cp-retired-bg:     #292524;
+  --cp-retired-fill:   #57534e;
+  --cp-retired-border: #44403c;
+
+  /* ====== 链接 ====== */
+  --cp-link: #60a5fa;
 }
 
 /* ============================================================

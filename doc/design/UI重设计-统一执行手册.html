@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot UI Redesign — 统一执行手册 (Unified Execution Manual)</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:1280px;margin:40px auto;padding:0 24px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #1e40af;padding-bottom:12px;color:#1e40af}
+h2{color:#1e40af;margin-top:56px;border-bottom:2px solid #1e40af;padding-bottom:10px;page-break-before:always}
+h3{color:#374151;margin-top:32px;border-left:3px solid #3b82f6;padding-left:12px}
+h4{color:#4b5563;margin-top:20px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12px}
+th,td{border:1px solid #d1d5db;padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-size:11px;font-family:'JetBrains Mono',monospace}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;overflow-x:auto;font-size:11px;font-family:'JetBrains Mono',monospace;line-height:1.6}
+.box{border-radius:8px;padding:16px 20px;margin:16px 0}
+.box-red{background:#FEF2F2;border:1px solid #FECACA}
+.box-blue{background:#EFF6FF;border:1px solid #BFDBFE}
+.box-green{background:#F0FDF4;border:1px solid #BBF7D0}
+.box-yellow{background:#FFFBEB;border:1px solid #FDE68A}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-done{background:#D1FAE5;color:#065F46}
+.badge-todo{background:#FEF3C7;color:#92400E}
+.badge-active{background:#DBEAFE;color:#1e40af}
+.phase-header{background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;padding:16px 24px;border-radius:8px;margin-top:32px}
+.phase-header h3{color:white;margin:0;border:none;padding:0}
+.phase-header .sub{opacity:0.8;font-size:13px;margin-top:4px}
+.layout-diagram{background:#1a1a2e;color:#e0e0e0;padding:14px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.toc{columns:2;font-size:12px;line-height:2.2}
+.toc a{color:#1e40af;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.page-meta{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;font-size:11px}
+.page-meta dt{font-weight:600;color:#6b7280}
+.page-meta dd{margin:0;color:#1a1a1a}
+.col-spec{font-family:'JetBrains Mono',monospace;font-size:11px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;margin:8px 0;line-height:1.8}
+.check{color:#16a34a}
+.warn{color:#ca8a04}
+.fail{color:#dc2626}
+.resp{background:#FFFBEB;border:1px solid #FDE68A}
+.resp th{background:#FEF3C7}
+.inter{background:#EFF6FF;border:1px solid #BFDBFE}
+.inter th{background:#DBEAFE}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle;border:1px solid #d1d5db;margin-right:4px}
+.ref-link{font-size:11px;color:#6b7280;font-style:italic}
+.batch-card{border:2px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;page-break-inside:avoid}
+.batch-card h4{margin-top:0;color:#1e40af}
+.qa-box{background:#FEF2F2;border:2px solid #FECACA;border-radius:8px;padding:14px;margin:12px 0}
+</style>
+</head>
+<body>
+
+<h1>CronPilot UI Redesign — 统一执行手册</h1>
+
+<div class="box box-blue">
+<strong>文档编号</strong>：OPT-P1-16-MANUAL v2<br>
+<strong>性质</strong>：前端重构的<strong>架构索引</strong>（不含精确数值）。所有视觉数值均引用源文档。<br>
+<strong>目标</strong>：前端重构的唯一执行入口 —— 批次结构 + 架构决策 + 质量门禁 + 源文档定位<br>
+<strong>权威数值来源</strong>：<a href="CronPilot-2026-redesign-mockup.html">Mockup HTML (CSS)</a> · <a href="UI重设计-视觉设计规格书.html">视觉规格书</a> · <a href="UI重设计-逐页设计规格书.html">逐页规格书</a><br>
+<strong>上次更新</strong>：2026-08-11 v2 — 移除冗余数值，改为纯索引
+</div>
+
+<h3>目录</h3>
+<div class="toc">
+<a href="#part1">Part 1: 架构与约束</a><br>
+<a href="#part2">Part 2: 全局设计规格（引用索引 — 不含数值）</a><br>
+<a href="#part3">Part 3: 逐批次执行计划（架构索引 — 不含逐页详情）</a><br>
+<a href="#part4">Part 4: 质量门禁体系</a><br>
+<a href="#part5">Part 5: 动画与过渡规格（引用索引）</a><br>
+<a href="#part6">Part 6: 无障碍与 ARIA 规格（引用索引）</a><br>
+<a href="#part7">Part 7: 风险与最终验收</a><br>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="part1">Part 1: 架构与约束</h2>
+<!-- ================================================================ -->
+
+<h3>1.1 技术栈</h3>
+<ul>
+<li>Python 3.8–3.11 + Flask 2.3 SSR（Jinja2 模板）</li>
+<li>jQuery 全局可用（<code>common.js</code>）；新增 JS 使用 IIFE/ES Module</li>
+<li>CSS 变量驱动（<code>--cp-*</code> 在 <code>console-theme.css</code>，Redesign 使用 <code>--*</code> 短名 in page CSS）</li>
+<li>新模板继承 <code>redesign/_base.html</code>（独立于 Bootstrap <code>admin_base.html</code>）</li>
+<li>新组件使用 <code>.cp-*</code> 前缀（避免 Bootstrap/Flat UI 冲突）</li>
+<li>表单保留 <code>js-ajax-form</code> + <code>js-ajax-submit</code> 约定</li>
+<li>深色模式：<code>[data-theme="dark"]</code> 覆盖 CSS 变量</li>
+</ul>
+
+<h3>1.2 文件组织</h3>
+<pre>
+app/templates/redesign/
+├── _base.html              # Shell（已完成）
+├── _sidebar.html           # Nav（已完成）
+├── _topbar.html            # Header（已完成）
+├── _pagination.html        # 共享分页宏（Phase 3 提取）
+├── _breadcrumb.html        # 面包屑宏
+├── dashboard.html          # B1 ✓
+├── execution_logs.html     # B1 ✓
+├── task_detail.html        # B3
+├── run_inspector.html      # B3
+├── task_form.html          # B4（新建+编辑共用）
+├── users.html              # B5
+├── user_form.html          # B5
+├── groups.html             # B6
+├── reg_review.html         # B7
+├── audit_log.html          # B8
+├── operation_log.html      # B8
+├── tags.html               # B9
+├── change_password.html    # B10
+├── api_token.html          # B10
+├── api_doc.html            # B10
+└── auth/
+    ├── login.html          # B10（独立，不继承 _base）
+    ├── register.html       # B10
+    └── forgot.html         # B10
+
+app/static/css/
+├── console-theme.css       # Design Tokens（已完成）
+├── redesign-layout.css     # Shell Grid（已完成）
+├── redesign-components.css # 组件库（已完成，后续批次扩展）
+└── redesign-pages.css      # 各页面特定样式（B3 新建，提取 inline CSS）
+
+app/static/js/
+├── redesign-shell.js       # Shell 交互（已完成）
+├── redesign-theme.js       # Theme 切换（已完成）
+├── redesign-cmd-palette.js # Command Palette（B11）
+├── redesign-toast.js       # Toast 全局 API（B2）
+└── redesign-confirm.js     # Confirm Modal 全局 API（B2）
+</pre>
+
+<h3>1.3 路由分支策略</h3>
+<p>每个页面在对应 view 函数中添加 <code>if getattr(g, 'ui_version', 'v1') == 'v2'</code> 分支，渲染 <code>redesign/*.html</code>。Flask 路由 URL 不变，前端通过 Cookie <code>cp_ui_version=v2</code> 切换。开发期间仅内部使用，不面向终端用户。</p>
+
+<h3>1.4 当前进度</h3>
+<table>
+<tr><th>批次</th><th>范围</th><th>状态</th></tr>
+<tr><td>Shell (Phase 1)</td><td>Layout + Sidebar + Topbar + Theme toggle</td><td><span class="badge badge-done">已完成</span></td></tr>
+<tr><td>B1 (Phase 2)</td><td>Dashboard + 执行记录</td><td><span class="badge badge-done">已完成</span>（结构对齐，数据待丰富）</td></tr>
+<tr><td>B2</td><td>全局组件提取（Toast/Modal/Empty）</td><td><span class="badge badge-done">已完成</span></td></tr>
+<tr><td>B3</td><td>任务详情 + Run Inspector</td><td><span class="badge badge-done">已完成</span></td></tr>
+<tr><td>B4</td><td>任务表单（新建/编辑）</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B5</td><td>用户管理</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B6</td><td>业务组</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B7</td><td>注册审批</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B8</td><td>审计日志 + 操作记录</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B9</td><td>标签管理</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B10</td><td>Auth + 个人设置 + API</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B11</td><td>Command Palette</td><td><span class="badge badge-todo">未开始</span></td></tr>
+<tr><td>B12</td><td>全量 Polish + 验收</td><td><span class="badge badge-todo">未开始</span></td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="part2">Part 2: 全局设计规格（引用索引）</h2>
+<!-- ================================================================ -->
+
+<div class="box box-red">
+<strong>⚠️ 本节不包含精确数值。</strong><br>
+所有视觉规格的<strong>唯一权威来源</strong>为以下两份文档。实现时必须直接 <code>Read</code> 对应源：<br><br>
+<strong>色彩 / 字体 / 间距 / 圆角 / 阴影 / 组件尺寸</strong>：<a href="UI重设计-视觉设计规格书.html">视觉设计规格书</a> (OPT-P1-16-SPEC)<br>
+<strong>Mockup CSS 源码（终极权威）</strong>：<a href="CronPilot-2026-redesign-mockup.html">Mockup HTML</a> 第 8–334 行 <code>&lt;style&gt;</code> 块
+</div>
+
+<h3>2.1 为什么不在此重复数值</h3>
+<p><strong>教训</strong>（2026-08-11）：本手册 v1 在整合时凭记忆写入 15 处与源文档不一致的数值（字体族错误、色值偏差、尺寸虚构），导致整份文档不可信。<br>
+<strong>结论</strong>：中间层整合文档 = 精度损失来源。因此本手册 <strong>不再包含任何可从源文档查到的精确值</strong>。</p>
+
+<h3>2.2 规格速查索引</h3>
+<table>
+<tr><th>需要查什么</th><th>去哪里查</th><th>在源文档的位置</th></tr>
+<tr><td>色彩 Token（Light + Dark 全量）</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §1.1–1.2</a></td><td>行 36–84</td></tr>
+<tr><td>字体系统（sans/mono/各级字号）</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §1.3</a></td><td>行 86–110</td></tr>
+<tr><td>间距系统（4px grid）</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §1.4</a></td><td>行 112–130</td></tr>
+<tr><td>圆角 / 阴影</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §1.5–1.6</a></td><td>行 132–200</td></tr>
+<tr><td>按钮 / 表格 / 表单组件</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §2</a></td><td>行 202–330</td></tr>
+<tr><td>Shell 布局（Sidebar/Topbar/Content）</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §3</a></td><td>行 332–400</td></tr>
+<tr><td>Token 到现有 <code>--cp-*</code> 的映射</td><td><a href="UI重设计-视觉设计规格书.html">视觉规格书 §4</a></td><td>行 440–470</td></tr>
+<tr><td>各页面详细布局 + 响应式 + 交互状态</td><td><a href="UI重设计-逐页设计规格书.html">逐页规格书</a></td><td>全文 16 页</td></tr>
+<tr><td>动画 / 过渡 / Motion 原则</td><td><a href="UI重设计-逐页设计规格书.html">逐页规格书 附录 C</a></td><td>搜索 <code>#animation</code></td></tr>
+<tr><td>ARIA / 无障碍 / 键盘导航</td><td><a href="UI重设计-逐页设计规格书.html">逐页规格书 附录 D</a></td><td>搜索 <code>#accessibility</code></td></tr>
+<tr><td>Mockup 原始 CSS（终极仲裁）</td><td><a href="CronPilot-2026-redesign-mockup.html">Mockup HTML</a></td><td>行 8–334</td></tr>
+</table>
+
+<h3>2.3 架构决策（非数值，保留在此）</h3>
+
+<h4>Token 命名空间策略</h4>
+<ul>
+<li><strong>Redesign 模板内</strong>：使用 Mockup 原生无前缀 Token（<code>--canvas</code>, <code>--signal</code>, <code>--warning</code> 等），定义在各 redesign 页面 <code>&lt;style&gt;</code> 或 <code>redesign-layout.css</code> 中</li>
+<li><strong>现有 v1 模板</strong>：继续使用 <code>--cp-*</code> 前缀（<code>console-theme.css</code>），不做修改</li>
+<li><strong>映射关系</strong>：见视觉规格书 §4 "Token 映射对照表"</li>
+<li><strong>冲突隔离</strong>：redesign 页面在 <code>.cp-shell</code> 作用域内；v1 页面不加载 redesign CSS</li>
+</ul>
+
+<h4>CSS 文件策略</h4>
+<ul>
+<li><strong>从 B3 起</strong>：各页面特定 CSS 直接写入 <code>redesign-pages.css</code>，不再使用 inline <code>&lt;style&gt;</code></li>
+<li><strong>B2 提取</strong>：Dashboard/执行记录的 inline CSS 迁移到 <code>redesign-pages.css</code></li>
+<li><strong>组件 CSS</strong>：共享组件在 <code>redesign-components.css</code>（已有基础）</li>
+</ul>
+
+<h4>JS 兼容策略</h4>
+<ul>
+<li><strong>保留 <code>common.js</code></strong>：新模板继续加载，确保 CSRF 注入、Ajax 表单守卫生效</li>
+<li><strong>按钮 type 约定</strong>：所有表单主提交按钮<strong>必须保留 <code>type="submit"</code></strong>，否则 <code>common.js</code> 防重复提交守卫失效</li>
+<li><strong>新增 JS</strong>：<code>redesign-toast.js</code> / <code>redesign-confirm.js</code> / <code>redesign-cmd-palette.js</code> 均为 IIFE 模式，不冲突</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="part3">Part 3: 逐批次执行计划（架构索引）</h2>
+<!-- ================================================================ -->
+
+<div class="box box-red">
+<strong>⚠️ 本节不包含精确视觉数值。</strong><br>
+每页的具体 CSS 数值、列结构、响应式断点等，必须在实现时 <code>Read</code> 以下权威源：<br>
+• <strong>Mockup HTML</strong>：<a href="CronPilot-2026-redesign-mockup.html">CronPilot-2026-redesign-mockup.html</a> — 对应 <code>id="view-*"</code> 区块<br>
+• <strong>逐页规格书</strong>：<a href="UI重设计-逐页设计规格书.html">UI重设计-逐页设计规格书.html</a> — 16 页详细布局 + 响应式 + 交互状态<br>
+• <strong>视觉规格书</strong>：<a href="UI重设计-视觉设计规格书.html">UI重设计-视觉设计规格书.html</a> — 组件规格（按钮/表格/表单等）
+</div>
+
+<h3>3.1 批次总览与依赖</h3>
+
+<pre>
+B1 (补完) ──→ B2 (组件) ──→ B3 (Detail/Inspector) ──→ B4 (Forms)
+                                                            │
+                                                     B5─B9 (Admin 5 pages)
+                                                            │
+                                                     B10 (Auth/Personal)
+                                                            │
+                                                     B11 (Cmd Palette)
+                                                            │
+                                                     B12 (Polish)
+</pre>
+
+<table>
+<tr><th>批次</th><th>页面范围</th><th>Mockup view-id</th><th>逐页规格书章节</th><th>预估</th><th>前置</th></tr>
+<tr><td>B1</td><td>Dashboard + 执行记录数据补完</td><td><code>view-dashboard</code>, <code>view-logs</code></td><td>§1–§2</td><td>0.5 天</td><td>Shell</td></tr>
+<tr><td>B2</td><td>Toast / Modal / Empty / Skeleton 提取</td><td>（全局组件）</td><td>附录 C</td><td>0.5 天</td><td>B1</td></tr>
+<tr><td>B3</td><td>任务详情 + Run Inspector</td><td><code>view-detail</code>, <code>view-run-inspector</code>, <code>view-run-failed</code></td><td>§3–§4</td><td>1 天</td><td>B2</td></tr>
+<tr><td>B4</td><td>任务表单（新建 + 编辑）</td><td><code>view-form</code>, <code>view-task-add</code></td><td>§5</td><td>1 天</td><td>B2 (可与 B3 并行)</td></tr>
+<tr><td>B5</td><td>用户管理</td><td><code>view-users</code>, <code>view-user-add</code>, <code>view-user-edit</code></td><td>§6</td><td>0.5 天</td><td>B2</td></tr>
+<tr><td>B6</td><td>业务组</td><td><code>view-groups</code></td><td>§7</td><td>0.5 天</td><td>B2</td></tr>
+<tr><td>B7</td><td>注册审批</td><td><code>view-reg-review</code></td><td>§8</td><td>0.5 天</td><td>B2</td></tr>
+<tr><td>B8</td><td>审计日志 + 操作记录</td><td><code>view-audit</code>, <code>view-optlog</code></td><td>§9</td><td>0.5 天</td><td>B2</td></tr>
+<tr><td>B9</td><td>标签管理</td><td><code>view-tags</code></td><td>§10</td><td>0.5 天</td><td>B2</td></tr>
+<tr><td>B10</td><td>Auth + 修改密码 + API Token + API 文档</td><td><code>login-page</code>, <code>register-page</code>, <code>forgot-page</code>, <code>view-password</code>, <code>view-api-token</code>, <code>view-apidoc</code></td><td>§11–§14</td><td>1 天</td><td>B2</td></tr>
+<tr><td>B11</td><td>Command Palette</td><td>（overlay 组件）</td><td>§15</td><td>0.5 天</td><td>B3</td></tr>
+<tr><td>B12</td><td>全量 Polish + 最终验收</td><td>全部</td><td>全部 + 附录 C/D</td><td>1 天</td><td>B1–B11</td></tr>
+</table>
+
+<p><strong>总计</strong>：~8 天（单人串行）；可压缩至 5 天（B4/B5-B9 并行）</p>
+
+<h3>3.2 每批次执行规程（统一流程）</h3>
+
+<div class="box box-blue">
+<strong>实现任一页面时，强制执行以下步骤：</strong>
+<ol>
+<li><strong>Read 源</strong>：<code>Read</code> Mockup HTML 中对应 <code>view-*</code> 区块（用 Grep 定位 id）→ 获取精确 HTML 结构 + inline CSS</li>
+<li><strong>Read 规格</strong>：<code>Read</code> 逐页规格书中对应章节 → 获取响应式断点 + 交互状态表</li>
+<li><strong>实现</strong>：严格按步骤 1-2 获取的数值编码；<strong>禁止凭记忆写数值</strong></li>
+<li><strong>Design QA (门禁 #8)</strong>：
+  <ul>
+  <li>列出 Mockup 结构清单（列数、列名、CSS class、组件层级）</li>
+  <li><code>curl + grep</code> 验证关键 class 存在于实现</li>
+  <li>浏览器截图逐区域对照 Mockup</li>
+  <li>差异 → 修复 → 重新验证</li>
+  </ul>
+</li>
+<li><strong>通用门禁</strong>：单测 + 颜色审计 + v1 无回归 + 深色模式 + 4 角色权限</li>
+</ol>
+</div>
+
+<h3>3.3 批次交互要点备忘（非数值，仅架构决策）</h3>
+
+<table>
+<tr><th>批次</th><th>关键架构决策</th></tr>
+<tr><td>B1</td><td>补充后端计算字段（成功率、croniter next_run、take_time humanize）；拆分"异常"为"失败/超时"两个 chip</td></tr>
+<tr><td>B2</td><td>Toast/Modal/Empty 提取为独立 JS（IIFE 模式）+ Jinja2 宏；<strong>此批次产出的组件供后续所有批次复用</strong></td></tr>
+<tr><td>B3</td><td>任务详情使用 2×2 CSS Grid；Run Inspector 使用 max-width 900px 居中；失败 Run 特有 .danger section</td></tr>
+<tr><td>B4</td><td>新建/编辑共用 <code>task_form.html</code>；使用 <code>js-ajax-form</code>；业务组 select 受 Scope 限制</td></tr>
+<tr><td>B5</td><td>9 列表格含"岗位"；已停用行 opacity: 0.6；编辑页有 .danger-zone</td></tr>
+<tr><td>B6</td><td>卡片网格（非表格）；点击展开 detail panel 而非跳转</td></tr>
+<tr><td>B7</td><td>审批操作触发 Toast（非整页刷新）；4 种 status chips</td></tr>
+<tr><td>B8</td><td>审计日志 6 列 + 操作记录 7 列；变更详情使用折叠 summary</td></tr>
+<tr><td>B9</td><td>Namespace 分区 + pill chips；hover 显示编辑/删除 icon</td></tr>
+<tr><td>B10</td><td>Auth 页面独立布局（不继承 _base.html）；密码强度 4 bars 指示器；Token 遮蔽 + 复制</td></tr>
+<tr><td>B11</td><td>⌘K 触发；overlay + cmd-box；debounce 150ms；↑↓ 键盘导航</td></tr>
+<tr><td>B12</td><td>全量 inline style → CSS 文件提取；prefers-reduced-motion；ARIA + keyboard nav；逐页截图对照</td></tr>
+</table>
+
+<h3>3.4 B12 最终验收清单</h3>
+<ol>
+<li>深色模式逐页截图 — 确认无白色闪块、对比度符合 WCAG AA</li>
+<li>响应式验证：1024px (sidebar auto-collapse)、768px (sidebar hidden + hamburger)</li>
+<li>Command Palette 全面测试（搜索/导航/操作）</li>
+<li>v1 无回归：<code>cp_ui_version=v1</code> 全站正常</li>
+<li>4 角色权限全链路：seed admin / biz admin / operator / viewer</li>
+<li>全量测试套件通过</li>
+<li>文档同步：RELEASE_NOTES + doc/design/ + README</li>
+<li>CSS 提取：inline style → <code>redesign-pages.css</code></li>
+<li>Animation：<code>prefers-reduced-motion</code> 支持</li>
+<li>Accessibility：ARIA 属性、keyboard nav、focus rings</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="part4">Part 4: 质量门禁体系</h2>
+<!-- ================================================================ -->
+
+<h3>4.1 每批次交付必须通过 (10 道门禁)</h3>
+
+<table>
+<tr><th>#</th><th>门禁</th><th>工具/命令</th><th>失败处理</th></tr>
+<tr><td>1</td><td>单元测试</td><td><code>bash scripts/cronpilot.sh test</code></td><td>修复后重跑</td></tr>
+<tr><td>2</td><td>颜色审计</td><td><code>python scripts/audit_hardcoded_colors.py --check</code></td><td>替换为 var(--cp-*)</td></tr>
+<tr><td>3</td><td>Ajax Form 守卫</td><td><code>python -m unittest tests.test_ajax_form_guard -v</code></td><td>补充 js-ajax-submit</td></tr>
+<tr><td>4</td><td>HTML↔MD 同步</td><td><code>python scripts/html_docs_to_markdown.py --check</code></td><td>regenerate</td></tr>
+<tr><td>5</td><td>Restart + 浏览器</td><td><code>cronpilot.sh restart → 登录 → 目标页面</code></td><td>修复渲染错误</td></tr>
+<tr><td>6</td><td>v1 无回归</td><td>切回 <code>cp_ui_version=v1</code> 验证</td><td>隔离 CSS/JS 泄漏</td></tr>
+<tr><td>7</td><td>深色模式</td><td>切换 dark → 无白色闪块</td><td>补 dark override</td></tr>
+<tr><td><strong>8</strong></td><td><strong>Mockup Design QA</strong></td><td><code>Read</code> mockup 源 → 列结构 → grep classes → 截图对照</td><td><strong>不通过不得提交</strong></td></tr>
+<tr><td>9</td><td>复盘文档化</td><td><code>python scripts/check_postmortem_completeness.py --check</code></td><td>补充复盘/RELEASE_NOTES</td></tr>
+<tr><td>10</td><td>4 角色权限</td><td>seed admin / biz admin / operator / viewer 各登录</td><td>修复权限逻辑</td></tr>
+</table>
+
+<h3>4.2 Design QA 强制流程（门禁 #8 详解）</h3>
+
+<div class="box box-red">
+<strong>来源</strong>：Phase 2 Mockup 偏离事故后追加的强制门禁。每个页面实现完成后必须执行：<br><br>
+<strong>Step 1</strong>：<code>Read</code> Mockup 对应 <code>view-*</code> 区块的完整 HTML 源码<br>
+<strong>Step 2</strong>：列出结构清单（列数、列名、CSS class、组件层级、按钮类型、间距值）<br>
+<strong>Step 3</strong>：<code>curl + grep</code> 验证关键 class 在实现中存在<br>
+<strong>Step 4</strong>：浏览器截图逐区域对照 Mockup<br>
+<strong>Step 5</strong>：如有差异 → 修复 → 回到 Step 3
+</div>
+
+<h3>4.3 程序化强制（Hook 系统）</h3>
+
+<table>
+<tr><th>Layer</th><th>Hook</th><th>事件</th><th>效果</th></tr>
+<tr><td>L1</td><td>postmortem-reminder.sh</td><td>postToolUse (Write/StrReplace)</td><td>每次编辑后注入复盘 checklist</td></tr>
+<tr><td>L2a</td><td>pre-commit-gate.sh</td><td>beforeShellExecution (git commit)</td><td>阻止不含 RELEASE_NOTES 的代码提交</td></tr>
+<tr><td>L2b</td><td>stop prompt hook</td><td>stop</td><td>结束前评估复盘完整性</td></tr>
+<tr><td>L3</td><td>CI script</td><td>check_postmortem_completeness.py</td><td>CI 阻断不完整文档</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="part5">Part 5: 动画与过渡规格（引用索引）</h2>
+<!-- ================================================================ -->
+
+<div class="box box-blue">
+<strong>权威来源</strong>：<a href="UI重设计-逐页设计规格书.html">逐页规格书 附录 C（搜索 <code>#animation</code>）</a><br>
+本节仅保留设计原则，不重复具体 keyframe 参数。
+</div>
+
+<h3>5.1 Motion 设计原则（架构决策，保留）</h3>
+<table>
+<tr><th>原则</th><th>说明</th></tr>
+<tr><td>响应性</td><td>hover/focus 反馈 ≤ 100ms</td></tr>
+<tr><td>自然性</td><td>出现 ease-out；消失 ease-in</td></tr>
+<tr><td>克制性</td><td>仅对用户关注的元素做动画；数据无装饰性动画</td></tr>
+<tr><td>可预测性</td><td>同类交互使用相同曲线和时长</td></tr>
+<tr><td>性能优先</td><td>只 animate transform/opacity（GPU 加速）</td></tr>
+<tr><td>Reduce motion</td><td><code>@media (prefers-reduced-motion: reduce)</code>: all animation/transition → 0.01ms</td></tr>
+</table>
+
+<h3>5.2 动画分类索引</h3>
+<table>
+<tr><th>类别</th><th>包含动画</th><th>详见</th></tr>
+<tr><td>全局过渡（hover/focus）</td><td>nav-item, btn, action-btn, tr:hover, chip, input:focus</td><td>逐页规格书 附录 C §C.1</td></tr>
+<tr><td>关键帧动画</td><td>slideIn, shimmer, fadeIn, scaleIn, slideUp</td><td>逐页规格书 附录 C §C.2</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="part6">Part 6: 无障碍与 ARIA 规格（引用索引）</h2>
+<!-- ================================================================ -->
+
+<div class="box box-blue">
+<strong>权威来源</strong>：<a href="UI重设计-逐页设计规格书.html">逐页规格书 附录 D（搜索 <code>#accessibility</code>）</a><br>
+本节仅保留合规要求总纲，不重复具体对比度数值和 ARIA 属性表。
+</div>
+
+<h3>6.1 合规目标</h3>
+<ul>
+<li><strong>标准</strong>：WCAG 2.1 Level AA</li>
+<li><strong>对比度</strong>：正文 ≥ 4.5:1；大文本 ≥ 3:1；所有 Token 对比度计算结果见逐页规格书 附录 D §D.1</li>
+<li><strong>键盘导航</strong>：所有交互元素 Tab 可达；visible focus ring；Esc 关闭 overlay</li>
+<li><strong>Screen Reader</strong>：landmark 结构完备；动态内容使用 <code>aria-live</code>；表格有 <code>caption</code></li>
+</ul>
+
+<h3>6.2 索引</h3>
+<table>
+<tr><th>需要查什么</th><th>去哪里查</th></tr>
+<tr><td>色彩对比度计算表</td><td>逐页规格书 附录 D §D.1</td></tr>
+<tr><td>键盘导航矩阵</td><td>逐页规格书 附录 D §D.2</td></tr>
+<tr><td>ARIA 属性逐页清单</td><td>逐页规格书 附录 D §D.3</td></tr>
+<tr><td>Focus 可见性规格</td><td>逐页规格书 附录 D §D.4</td></tr>
+<tr><td>Screen reader + Landmark 结构</td><td>逐页规格书 附录 D §D.5–D.6</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="part7">Part 7: 风险与最终验收</h2>
+<!-- ================================================================ -->
+
+<h3>7.1 风险评估</h3>
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td>实现偏离 Mockup</td><td>低（Design QA 门禁）</td><td>高</td><td>每页 Read mockup + grep + 截图; L1 Hook</td></tr>
+<tr><td>新旧 CSS 冲突</td><td>中</td><td>中</td><td><code>.cp-*</code> 前缀; <code>.cp-shell</code> 作用域</td></tr>
+<tr><td>jQuery common.js 事件不匹配</td><td>中</td><td>中</td><td>保留 <code>.js-ajax-form</code> 约定</td></tr>
+<tr><td>CSRF 遗漏</td><td>低</td><td>高</td><td><code>_base.html</code> 统一注入; 集成测试</td></tr>
+<tr><td>深色模式残留白色</td><td>中</td><td>中</td><td>B12 全量审计</td></tr>
+<tr><td>性能退化</td><td>低</td><td>低</td><td>提取共享 CSS; 只 animate transform/opacity</td></tr>
+</table>
+
+<h3>7.2 最终验收标准</h3>
+<ol>
+<li><code>cp_ui_version=v2</code> 从登录页遍历所有 sidebar 链接 → 全新设计（无经典混入）</li>
+<li>4 种角色各登录 → 权限正确（导航 + Scope + 操作拦截）</li>
+<li>深色/浅色各截图一套（16 页 × 2 = 32 张）</li>
+<li>768px 宽度 → 响应式布局正确</li>
+<li><code>cp_ui_version=v1</code> → 经典 UI 零回归</li>
+<li>全量测试套件通过（目标 450+ tests）</li>
+<li><code>check_postmortem_completeness.py --check</code> 通过</li>
+<li>RELEASE_NOTES 包含所有 Batch 的变更条目</li>
+<li><code>prefers-reduced-motion</code> 下无动画</li>
+<li>ARIA landmark + keyboard nav 手工验证</li>
+</ol>
+
+<hr>
+
+<h3>参考文档索引</h3>
+<table>
+<tr><th>文档</th><th>内容</th><th>路径</th></tr>
+<tr><td>视觉设计规格书</td><td>完整 Design Tokens + 334 行 CSS 提取</td><td><code>doc/design/UI重设计-视觉设计规格书.html</code></td></tr>
+<tr><td>逐页设计规格书</td><td>16 页布局+响应式+交互+动画+ARIA 完整规格</td><td><code>doc/design/UI重设计-逐页设计规格书.html</code></td></tr>
+<tr><td>Mockup 源文件</td><td>HTML mockup（22 views + auth）</td><td><code>doc/design/CronPilot-2026-redesign-mockup.html</code></td></tr>
+<tr><td>Phase 2 偏离复盘</td><td>事故原因与防护措施</td><td><code>doc/postmortem/2026-08-Phase2-Mockup偏离复盘.html</code></td></tr>
+<tr><td>元复盘</td><td>复盘失效机制分析</td><td><code>doc/postmortem/2026-08-元复盘-复盘失效机制.html</code></td></tr>
+</table>
+
+<hr>
+<p><em>文档版本：v2 · 2026-08-11 · 策略：纯索引+架构，数值引用源文档（Mockup CSS / 视觉规格书 / 逐页规格书）</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-统一执行手册.md">Markdown</a></footer>
+</body>
+</html>

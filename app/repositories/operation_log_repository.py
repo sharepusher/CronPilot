@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 """OperationLog 列表查询。"""
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, desc, or_, select
 
 from datas.model.cron_infos import CronInfos
 from datas.model.operation_log import OperationLog
@@ -15,6 +15,7 @@ class OperationLogRepository(BaseRepository):
         *,
         task_name=None,
         operator_name=None,
+        keyword=None,
         action=None,
         beg_time=None,
         end_time=None,
@@ -23,14 +24,20 @@ class OperationLogRepository(BaseRepository):
         bypass_scope=False,
     ):
         filters = []
-        if task_name:
-            filters.append(
-                OperationLog.task_name.like('%{}%'.format(task_name))
-            )
-        if operator_name:
-            filters.append(
-                OperationLog.operator_name.like('%{}%'.format(operator_name))
-            )
+        if keyword:
+            filters.append(or_(
+                OperationLog.task_name.like('%{}%'.format(keyword)),
+                OperationLog.operator_name.like('%{}%'.format(keyword)),
+            ))
+        else:
+            if task_name:
+                filters.append(
+                    OperationLog.task_name.like('%{}%'.format(task_name))
+                )
+            if operator_name:
+                filters.append(
+                    OperationLog.operator_name.like('%{}%'.format(operator_name))
+                )
         if action:
             filters.append(OperationLog.action == action)
         if beg_time:

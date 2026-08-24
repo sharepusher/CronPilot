@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CronPilot — Groups & Tags 视觉方案对比 Demo</title>
+<style>
+  :root {
+    --canvas:#F7F8F9; --surface:#FFFFFF; --surface-2:#F1F2F4;
+    --border:#E4E6E9; --border-strong:#D3D6DA;
+    --ink:#14171A; --muted:#5B6169; --faint:#9CA3AF;
+    --signal:#3D6FE0; --signal-ink:#2F5FCB; --signal-bg:rgba(61,111,224,0.09);
+    --success:#0F9D66; --success-bg:rgba(15,157,102,0.09);
+    --warning:#B7791F; --warning-bg:rgba(183,121,31,0.10);
+    --danger:#D64545; --danger-bg:rgba(214,69,69,0.09);
+    --mono:'JetBrains Mono','SFMono-Regular',Consolas,monospace;
+    --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+    --shadow:0 1px 2px rgba(20,23,26,0.04);
+  }
+  html[data-theme="dark"] {
+    --canvas:#0D0F12; --surface:#16191D; --surface-2:#1C2025;
+    --border:#262B31; --border-strong:#34393F;
+    --ink:#ECEEF0; --muted:#8B9198; --faint:#565C64;
+    --signal:#4C8DFF; --signal-ink:#7DAAFF; --signal-bg:rgba(76,141,255,0.12);
+    --success:#34D399; --success-bg:rgba(52,211,153,0.12);
+    --warning:#F5A623; --warning-bg:rgba(245,166,35,0.12);
+    --danger:#F16565; --danger-bg:rgba(241,101,101,0.12);
+    --shadow:none;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Page Header ── */
+  .doc-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .doc-title { font-size: 16px; font-weight: 700; margin: 0; }
+  .doc-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .theme-toggle {
+    display: flex; align-items: center; border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px; gap: 2px;
+  }
+  .theme-toggle button {
+    width: 28px; height: 26px; border-radius: 4px; border: none;
+    background: none; color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .theme-toggle button.on { background: var(--surface-2); color: var(--ink); }
+
+  /* ── Section ── */
+  .section { padding: 36px 40px; border-bottom: 1px solid var(--border); }
+  .section-title {
+    font-size: 18px; font-weight: 700; margin: 0 0 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+    background: var(--danger-bg); color: var(--danger);
+  }
+  .section-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 28px; }
+
+  .variants { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .variants.three { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 1100px) {
+    .variants, .variants.three { grid-template-columns: 1fr; }
+  }
+
+  .variant-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .variant-header {
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .variant-label { font-size: 11.5px; font-weight: 700; }
+  .variant-label.current { color: var(--muted); }
+  .variant-label.m1 { color: var(--warning); }
+  .variant-label.m2 { color: var(--success); }
+  .variant-label.t1 { color: var(--warning); }
+  .variant-label.t2 { color: var(--success); }
+  .variant-pill {
+    font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  }
+  .pill-current { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .pill-ok { background: var(--success-bg); color: var(--success); }
+  .pill-warn { background: var(--warning-bg); color: var(--warning); }
+  .variant-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .variant-body { padding: 16px; background: var(--canvas); }
+
+  /* ── Comparison Legend ── */
+  .legend {
+    display: flex; gap: 20px; margin-bottom: 20px; padding: 14px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ══════════════════════════════════════════════
+     TABLE (Current State)
+  ══════════════════════════════════════════════ */
+  .c-table-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .c-table { width: 100%; border-collapse: collapse; }
+  .c-table thead th {
+    text-align: left; font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint);
+    padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  .c-table tbody td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 12.5px; vertical-align: middle;
+  }
+  .c-table tbody tr:last-child td { border-bottom: none; }
+  .c-table tbody tr:hover td { background: var(--surface-2); }
+  .mono { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .fw6 { font-weight: 600; }
+
+  /* ══════════════════════════════════════════════
+     BUTTONS
+  ══════════════════════════════════════════════ */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 28px; padding: 0 11px; border-radius: 5px; font-size: 12px;
+    font-weight: 500; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--ink); cursor: pointer;
+    font-family: var(--sans); text-decoration: none;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn-sm { height: 24px; padding: 0 9px; font-size: 11.5px; }
+  .btn-primary { background: var(--signal); border-color: var(--signal); color: #fff; }
+  .btn-primary:hover { background: var(--signal-ink); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+
+  /* badge */
+  .badge {
+    display: inline-flex; align-items: center; font-size: 11px;
+    font-weight: 500; padding: 2px 8px; border-radius: 5px;
+  }
+  .badge-muted { background: var(--surface-2); color: var(--muted); }
+  .badge-signal { background: var(--signal-bg); color: var(--signal-ink); }
+  .badge-success { background: var(--success-bg); color: var(--success); }
+  .badge-warning { background: var(--warning-bg); color: var(--warning); }
+
+  /* toolbar */
+  .pg-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .pg-hint { color: var(--muted); font-size: 12px; }
+
+  /* ══════════════════════════════════════════════
+     M1 — Pure Mockup Card Grid (Groups)
+  ══════════════════════════════════════════════ */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .group-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .group-card .gname { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+  .group-card .gdesc { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; min-height: 36px; }
+  .group-card .gfoot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .avatars { display: flex; }
+  .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--signal-bg); color: var(--signal-ink);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 9.5px;
+    border: 2px solid var(--surface); margin-left: -6px; flex-shrink: 0;
+  }
+  .avatars .avatar:first-child { margin-left: 0; }
+  .avatar-placeholder {
+    background: var(--surface-2); color: var(--faint); border-color: var(--border);
+  }
+
+  /* ══════════════════════════════════════════════
+     M2 — Enhanced Card Grid (Groups)
+  ══════════════════════════════════════════════ */
+  .group-card-m2 {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; transition: border-color 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .group-card-m2:hover { border-color: var(--border-strong); }
+  .gm2-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+  .gm2-name { font-size: 13.5px; font-weight: 600; }
+  .gm2-edit { color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+  .gm2-edit:hover { background: var(--surface-2); color: var(--ink); }
+  .gm2-desc { font-size: 12px; color: var(--muted); line-height: 1.6; flex: 1; margin-bottom: 14px; }
+  .gm2-stats { display: flex; gap: 12px; margin-bottom: 12px; }
+  .gm2-stat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+  .gm2-stat svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .gm2-stat b { color: var(--ink); font-weight: 600; }
+  .gm2-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid var(--border); margin-top: auto;
+  }
+
+  /* ══════════════════════════════════════════════
+     T1 — Tag Cloud (Tags)
+  ══════════════════════════════════════════════ */
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-lg {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 20px; font-size: 12.5px;
+    cursor: pointer; transition: border-color 0.12s;
+  }
+  .tag-lg:hover { border-color: var(--border-strong); }
+  .tag-lg .cnt {
+    background: var(--surface-2); color: var(--muted);
+    font-size: 10.5px; padding: 1px 6px; border-radius: 8px;
+  }
+  .tag-lg .del { color: var(--faint); cursor: pointer; font-size: 13px; line-height: 1; }
+  .tag-lg .del:hover { color: var(--danger); }
+  .tag-lg .rename-icon { color: var(--faint); cursor: pointer; }
+  .tag-lg .rename-icon:hover { color: var(--signal); }
+
+  /* ══════════════════════════════════════════════
+     T2 — Cloud + Table Hybrid (Tags)
+  ══════════════════════════════════════════════ */
+  .tag-overview {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+  }
+  .tag-overview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint);
+  }
+  .tag-pill-sm {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 14px; font-size: 12px;
+    cursor: pointer; transition: border-color 0.1s;
+  }
+  .tag-pill-sm:hover { border-color: var(--signal); color: var(--signal); }
+  .tag-pill-sm .cnt {
+    background: var(--surface); color: var(--muted);
+    font-size: 10.5px; padding: 0px 5px; border-radius: 6px;
+    font-family: var(--mono);
+  }
+  .tag-cloud-sm { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ── Pro/Con List ── */
+  .pro-con { margin: 12px 0 0; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; }
+  .pro-con h5 { font-size: 11px; font-weight: 700; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .pro-con ul { margin: 0; padding: 0 0 0 14px; }
+  .pro-con li { font-size: 11.5px; margin-bottom: 3px; color: var(--ink); }
+  .pro-con .pro li { color: var(--success); }
+  .pro-con .con li { color: var(--danger); }
+  .pc-section { margin-bottom: 8px; }
+
+  /* ── Decision Table ── */
+  .decision-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+  .decision-table th {
+    text-align: left; padding: 8px 12px; background: var(--surface-2);
+    border: 1px solid var(--border); font-weight: 600; color: var(--muted); font-size: 11px;
+  }
+  .decision-table td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  .decision-table tr.recommended td { background: var(--success-bg); }
+  .score { font-weight: 700; }
+  .score.hi { color: var(--success); }
+  .score.mid { color: var(--warning); }
+  .score.lo { color: var(--danger); }
+
+  .section-divider {
+    font-size: 13px; font-weight: 700; color: var(--faint);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 20px 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="doc-header">
+  <div>
+    <div class="doc-title">CronPilot — Groups &amp; Tags 视觉方案对比</div>
+    <div class="doc-sub">设计评估 Demo · 对应 Mockup: CronPilot-2026-full-mockup.html · 2026-08</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="CronPilot-2026-full-mockup.html" target="_blank"
+       style="font-size:12px;color:var(--signal);text-decoration:none;border:1px solid var(--border);padding:5px 10px;border-radius:5px;">
+      查看原始 Mockup →
+    </a>
+    <div class="theme-toggle">
+      <button id="btn-light">☀</button>
+      <button id="btn-dark" class="on">☾</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  SECTION 1: 业务组 Groups                               -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">
+    业务组页（groups.html）
+    <span class="section-badge">🔴 高优先级偏差</span>
+  </h2>
+  <p class="section-sub">Mockup 规定卡片网格版式；当前实现为表格。以下展示三种方案的真实渲染效果与权衡。</p>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--faint)"></span>当前实现（表格）</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--warning)"></span>M1 · 纯 Mockup 卡片（仅模板改动）</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--success)"></span>M2 · 增强卡片（backend 补数据）<strong style="margin-left:4px;color:var(--success)">★ 推荐</strong></div>
+  </div>
+
+  <div class="variants three">
+
+    <!-- Current -->
+    <div class="variant-box">
+      <div class="variant-header">
+        <span class="variant-label current">当前实现</span>
+        <span class="variant-pill pill-current">表格版式</span>
+        <div class="variant-desc">与 Mockup 完全不同</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <a href="#" class="btn btn-primary btn-sm">+ 新建业务组</a>
+          <span class="pg-hint">禁止删除业务组</span>
+        </div>
+        <div class="c-table-wrap">
+          <table class="c-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>组名</th><th>说明</th><th>用户数</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">1</td>
+                <td class="fw6">交易平台组</td>
+                <td style="font-size:12px;color:var(--muted)">负责订单、支付...</td>
+                <td class="mono">5</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">编辑</a></td>
+              </tr>
+              <tr>
+                <td class="mono">2</td>
+                <td class="fw6">数据平台组</td>
+                <td style="font-size:12px;color:var(--muted)">报表、数仓同步...</td>
+                <td class="mono">3</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">编辑</a></td>
+              </tr>
+              <tr>
+                <td class="mono">3</td>
+                <td class="fw6">基础设施组</td>
+                <td style="font-size:12px;color:var(--muted)">缓存清理、健康检查...</td>
+                <td class="mono">1</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">编辑</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pro-con">
+          <div class="pc-section">
+            <ul class="pro"><li>✅ 信息密度高（含 ID、创建时间）</li><li>✅ 无需额外查询</li></ul>
+          </div>
+          <div class="pc-section">
+            <ul class="con"><li>❌ 与 Mockup 完全不同</li><li>❌ 无法直观感知组的规模</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M1 -->
+    <div class="variant-box">
+      <div class="variant-header">
+        <span class="variant-label m1">M1 · 纯 Mockup</span>
+        <span class="variant-pill pill-warn">仅模板改动</span>
+        <div class="variant-desc">高度对齐 Mockup，内容稍稀疏</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <a href="#" class="btn btn-primary btn-sm">+ 新建业务组</a>
+        </div>
+        <div class="card-grid">
+          <div class="group-card">
+            <div class="gname">交易平台组</div>
+            <div class="gdesc">负责订单、支付、履约相关的定时任务</div>
+            <div class="gfoot">
+              <!-- 仅有用户总数，无法做 avatar stack，用数字徽章替代 -->
+              <span class="badge badge-muted">5 名成员</span>
+              <a href="#" class="btn btn-ghost btn-sm">编辑</a>
+            </div>
+          </div>
+          <div class="group-card">
+            <div class="gname">数据平台组</div>
+            <div class="gdesc">报表生成、数仓同步、离线计算任务</div>
+            <div class="gfoot">
+              <span class="badge badge-muted">3 名成员</span>
+              <a href="#" class="btn btn-ghost btn-sm">编辑</a>
+            </div>
+          </div>
+          <div class="group-card">
+            <div class="gname">基础设施组</div>
+            <div class="gdesc">缓存清理、健康检查、告警巡检</div>
+            <div class="gfoot">
+              <span class="badge badge-muted">1 名成员</span>
+              <a href="#" class="btn btn-ghost btn-sm">编辑</a>
+            </div>
+          </div>
+        </div>
+        <div class="pro-con">
+          <div class="pc-section">
+            <ul class="pro"><li>✅ 与 Mockup 视觉对齐</li><li>✅ 零 backend 改动</li></ul>
+          </div>
+          <div class="pc-section">
+            <ul class="con"><li>⚠️ 无 avatar stack（context 缺用户名单）</li><li>⚠️ 无任务数（context 无此数据）</li><li>⚠️ 卡片内容单薄，缺乏决策价值</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M2 -->
+    <div class="variant-box" style="border-color:var(--success)">
+      <div class="variant-header" style="background:var(--success-bg);border-color:var(--success)">
+        <span class="variant-label m2">M2 · 增强卡片 ★ 推荐</span>
+        <span class="variant-pill pill-ok">backend 轻扩展</span>
+        <div class="variant-desc">Mockup 对齐 + 信息完整</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <a href="#" class="btn btn-primary btn-sm">+ 新建业务组</a>
+        </div>
+        <div class="card-grid">
+          <!-- Card 1 -->
+          <div class="group-card-m2">
+            <div class="gm2-head">
+              <div class="gm2-name">交易平台组</div>
+              <span class="gm2-edit">编辑</span>
+            </div>
+            <div class="gm2-desc">负责订单、支付、履约相关的定时任务</div>
+            <div class="gm2-stats">
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <b>18</b> 个任务
+              </div>
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <b>5</b> 名成员
+              </div>
+            </div>
+            <div class="gm2-foot">
+              <div class="avatars">
+                <div class="avatar">张</div>
+                <div class="avatar">李</div>
+                <div class="avatar">王</div>
+                <div class="avatar avatar-placeholder">+2</div>
+              </div>
+              <span class="badge badge-muted">18 任务</span>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="group-card-m2">
+            <div class="gm2-head">
+              <div class="gm2-name">数据平台组</div>
+              <span class="gm2-edit">编辑</span>
+            </div>
+            <div class="gm2-desc">报表生成、数仓同步、离线计算任务</div>
+            <div class="gm2-stats">
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <b>9</b> 个任务
+              </div>
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <b>3</b> 名成员
+              </div>
+            </div>
+            <div class="gm2-foot">
+              <div class="avatars">
+                <div class="avatar">陈</div>
+                <div class="avatar">刘</div>
+                <div class="avatar avatar-placeholder">+1</div>
+              </div>
+              <span class="badge badge-muted">9 任务</span>
+            </div>
+          </div>
+          <!-- Card 3 -->
+          <div class="group-card-m2">
+            <div class="gm2-head">
+              <div class="gm2-name">基础设施组</div>
+              <span class="gm2-edit">编辑</span>
+            </div>
+            <div class="gm2-desc">缓存清理、健康检查、告警巡检</div>
+            <div class="gm2-stats">
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <b>6</b> 个任务
+              </div>
+              <div class="gm2-stat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <b>1</b> 名成员
+              </div>
+            </div>
+            <div class="gm2-foot">
+              <div class="avatars">
+                <div class="avatar">张</div>
+              </div>
+              <span class="badge badge-muted">6 任务</span>
+            </div>
+          </div>
+        </div>
+        <div class="pro-con">
+          <div class="pc-section">
+            <ul class="pro">
+              <li>✅ Mockup 视觉对齐（卡片网格）</li>
+              <li>✅ avatar stack（用户首字母）</li>
+              <li>✅ 任务数可见，管理决策有据</li>
+              <li>✅ hover 交互更自然</li>
+            </ul>
+          </div>
+          <div class="pc-section">
+            <ul class="con"><li>⚠️ 需 view 层增加 2 个轻量查询（用户名单 + 任务计数）</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decision Summary -->
+  <div style="margin-top:24px;">
+    <h4 style="margin:0 0 10px;font-size:13px;">方案选型综合评分</h4>
+    <table class="decision-table">
+      <thead>
+        <tr>
+          <th>方案</th><th>视觉符合度</th><th>信息完整性</th><th>实现成本</th><th>推荐指数</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>当前（表格）</td>
+          <td><span class="score lo">低</span></td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score hi">零成本</span></td>
+          <td>❌ 不对齐 Mockup</td>
+        </tr>
+        <tr>
+          <td>M1 · 纯 Mockup</td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score lo">低</span>（内容稀疏）</td>
+          <td><span class="score hi">仅模板</span></td>
+          <td>⚠️ 视觉对但信息空</td>
+        </tr>
+        <tr class="recommended">
+          <td><strong>M2 · 增强卡片 ★</strong></td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score mid">view + 模板</span></td>
+          <td>✅ 推荐：视觉 + 信息双赢</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  SECTION 2: 标签管理 Tags                               -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">
+    标签管理页（tags.html）
+    <span class="section-badge">🔴 高优先级偏差</span>
+  </h2>
+  <p class="section-sub">Mockup 规定 pill 标签云；当前实现为管理表格。三方案对比：保留表格 / 纯标签云 / 上云下表混合。</p>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--faint)"></span>当前实现（管理表格）</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--warning)"></span>T1 · 纯标签云（全替换，仅模板）</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--success)"></span>T2 · 上云下表混合（仅模板）<strong style="margin-left:4px;color:var(--success)">★ 推荐</strong></div>
+  </div>
+
+  <div class="variants three">
+
+    <!-- Current -->
+    <div class="variant-box">
+      <div class="variant-header">
+        <span class="variant-label current">当前实现</span>
+        <span class="variant-pill pill-current">管理表格</span>
+        <div class="variant-desc">功能完整，视觉偏离</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <button class="btn btn-primary btn-sm">+ 新建标签</button>
+          <span class="pg-hint">标签按业务组隔离</span>
+        </div>
+        <div class="c-table-wrap">
+          <table class="c-table">
+            <thead>
+              <tr><th>ID</th><th>标签名</th><th>使用数</th><th>关联任务</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">1</td><td class="fw6">交易</td>
+                <td class="mono">18</td>
+                <td style="font-size:11px;color:var(--muted)">同步订单、支付清算…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+              <tr>
+                <td class="mono">2</td><td class="fw6">数据</td>
+                <td class="mono">9</td>
+                <td style="font-size:11px;color:var(--muted)">日活报表、数仓同步…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+              <tr>
+                <td class="mono">3</td><td class="fw6">P0</td>
+                <td class="mono">4</td>
+                <td style="font-size:11px;color:var(--muted)">同步订单…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pro-con">
+          <div class="pc-section"><ul class="pro"><li>✅ 全字段可见（ID、业务组）</li><li>✅ 操作入口清晰</li></ul></div>
+          <div class="pc-section"><ul class="con"><li>❌ 与 Mockup 完全不同</li><li>❌ 无法感知标签相对规模</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- T1 -->
+    <div class="variant-box">
+      <div class="variant-header">
+        <span class="variant-label t1">T1 · 纯标签云</span>
+        <span class="variant-pill pill-warn">全替换表格</span>
+        <div class="variant-desc">Mockup 完全对齐，操作受限</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <button class="btn btn-primary btn-sm">+ 新建标签</button>
+        </div>
+        <div class="tag-cloud">
+          <div class="tag-lg">
+            交易
+            <span class="cnt">18</span>
+            <span class="del" title="删除">×</span>
+          </div>
+          <div class="tag-lg">
+            数据
+            <span class="cnt">9</span>
+            <span class="del" title="删除">×</span>
+          </div>
+          <div class="tag-lg">
+            基础设施
+            <span class="cnt">6</span>
+            <span class="del" title="删除">×</span>
+          </div>
+          <div class="tag-lg">
+            P0
+            <span class="cnt">4</span>
+            <span class="del" title="删除">×</span>
+          </div>
+          <div class="tag-lg">
+            已弃用
+            <span class="cnt">2</span>
+            <span class="del" title="删除">×</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11.5px;color:var(--muted)">
+          点击标签名可重命名，点击 × 删除
+        </div>
+        <div class="pro-con">
+          <div class="pc-section"><ul class="pro"><li>✅ 与 Mockup 高度对齐</li><li>✅ 使用量一目了然</li><li>✅ 零 backend 改动</li></ul></div>
+          <div class="pc-section"><ul class="con"><li>⚠️ 无法显示业务组归属</li><li>⚠️ 标签很多时操作精确度下降</li><li>⚠️ 丢失 ID、创建时间等管理字段</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- T2 -->
+    <div class="variant-box" style="border-color:var(--success)">
+      <div class="variant-header" style="background:var(--success-bg);border-color:var(--success)">
+        <span class="variant-label t2">T2 · 上云下表 ★ 推荐</span>
+        <span class="variant-pill pill-ok">仅模板改动</span>
+        <div class="variant-desc">视觉 + 管理功能双赢</div>
+      </div>
+      <div class="variant-body">
+        <div class="pg-toolbar">
+          <button class="btn btn-primary btn-sm">+ 新建标签</button>
+          <span class="pg-hint">标签按业务组隔离</span>
+        </div>
+
+        <!-- 上：标签云概览 -->
+        <div class="tag-overview">
+          <div class="tag-overview-head">
+            <span>标签云概览</span>
+            <span style="font-weight:400;color:var(--faint)">点击标签可快速定位</span>
+          </div>
+          <div class="tag-cloud-sm">
+            <div class="tag-pill-sm">交易 <span class="cnt">18</span></div>
+            <div class="tag-pill-sm">数据 <span class="cnt">9</span></div>
+            <div class="tag-pill-sm">基础设施 <span class="cnt">6</span></div>
+            <div class="tag-pill-sm">P0 <span class="cnt">4</span></div>
+            <div class="tag-pill-sm">已弃用 <span class="cnt">2</span></div>
+          </div>
+        </div>
+
+        <!-- 下：管理表格 -->
+        <div class="c-table-wrap">
+          <table class="c-table">
+            <thead>
+              <tr><th>标签名</th><th>使用数</th><th>业务组</th><th>关联任务</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw6">交易</td>
+                <td class="mono">18</td>
+                <td style="font-size:11.5px">交易平台组</td>
+                <td style="font-size:11px;color:var(--muted)">同步订单、支付清算…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+              <tr>
+                <td class="fw6">数据</td>
+                <td class="mono">9</td>
+                <td style="font-size:11.5px">数据平台组</td>
+                <td style="font-size:11px;color:var(--muted)">日活报表…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+              <tr>
+                <td class="fw6">P0</td>
+                <td class="mono">4</td>
+                <td style="font-size:11.5px;color:var(--muted)">全局</td>
+                <td style="font-size:11px;color:var(--muted)">同步订单…</td>
+                <td><a href="#" class="btn btn-ghost btn-sm">重命名</a> <a href="#" class="btn btn-ghost btn-sm" style="color:var(--danger)">删除</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pro-con">
+          <div class="pc-section">
+            <ul class="pro">
+              <li>✅ 上方云区块体现 Mockup 设计语言</li>
+              <li>✅ 下方表格保留完整管理能力</li>
+              <li>✅ 零 backend 改动</li>
+              <li>✅ 去掉 ID 列（管理用无需，与 Mockup 简洁感一致）</li>
+            </ul>
+          </div>
+          <div class="pc-section"><ul class="con"><li>⚠️ 页面高度增加（多了云区块）</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decision Summary -->
+  <div style="margin-top:24px;">
+    <h4 style="margin:0 0 10px;font-size:13px;">方案选型综合评分</h4>
+    <table class="decision-table">
+      <thead>
+        <tr>
+          <th>方案</th><th>Mockup 视觉符合度</th><th>管理功能完整性</th><th>实现成本</th><th>推荐指数</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>当前（管理表格）</td>
+          <td><span class="score lo">低</span></td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score hi">零成本</span></td>
+          <td>❌ 不对齐 Mockup</td>
+        </tr>
+        <tr>
+          <td>T1 · 纯标签云</td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score lo">低</span>（丢失管理字段）</td>
+          <td><span class="score hi">仅模板</span></td>
+          <td>⚠️ 适合展示场景，不适合管理场景</td>
+        </tr>
+        <tr class="recommended">
+          <td><strong>T2 · 上云下表 ★</strong></td>
+          <td><span class="score mid">中高</span>（体现设计语言）</td>
+          <td><span class="score hi">高</span></td>
+          <td><span class="score hi">仅模板</span></td>
+          <td>✅ 推荐：无成本兼得视觉与功能</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  SECTION 3: 实施计划汇总                                 -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">实施计划汇总</h2>
+  <p class="section-sub">基于以上对比，推荐组合方案：Groups M2 + Tags T2</p>
+
+  <table class="decision-table" style="font-size:12.5px">
+    <thead>
+      <tr><th>页面</th><th>推荐方案</th><th>需改动文件</th><th>估计复杂度</th><th>验收方式</th></tr>
+    </thead>
+    <tbody>
+      <tr class="recommended">
+        <td><strong>groups.html</strong></td>
+        <td>M2 增强卡片</td>
+        <td>
+          <code>app/rbac/views.py</code>（groups_list 增加 2 查询）<br>
+          <code>app/templates/redesign/groups.html</code>
+        </td>
+        <td>小（~40 行 view + 模板重写）</td>
+        <td>浏览器截图对比 Mockup 卡片</td>
+      </tr>
+      <tr class="recommended">
+        <td><strong>tags.html</strong></td>
+        <td>T2 上云下表</td>
+        <td>
+          <code>app/templates/redesign/tags.html</code>（仅模板）
+        </td>
+        <td>小（新增云区块 + 简化表格）</td>
+        <td>浏览器截图，云区块 + 表格均可见</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12.5px;color:var(--muted);line-height:1.8">
+    <strong style="color:var(--ink)">验收命令序列：</strong><br>
+    1. <code>bash scripts/cronpilot.sh restart --daemon</code><br>
+    2. <code>curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"</code> → 确认 200<br>
+    3. 登录管理员账号 → 访问 <code>/rbac/groups</code>（卡片网格）→ 访问 <code>/rbac/tags</code>（上云下表）<br>
+    4. <code>python -m unittest tests.test_redesign_sidebar -v</code> → 12 个用例全通过
+  </div>
+</div>
+
+<div style="padding:20px 40px;font-size:11.5px;color:var(--faint);border-top:1px solid var(--border)">
+  CronPilot 2026 设计评估 · <a href="CronPilot-2026-full-mockup.html" target="_blank" style="color:var(--signal)">原始 Mockup</a> · 生成于 2026-08-18
+</div>
+
+<script>
+  document.getElementById('btn-light').addEventListener('click', function() {
+    document.documentElement.setAttribute('data-theme', 'light');
+    this.classList.add('on');
+    document.getElementById('btn-dark').classList.remove('on');
+  });
+  document.getElementById('btn-dark').addEventListener('click', function() {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    this.classList.add('on');
+    document.getElementById('btn-light').classList.remove('on');
+  });
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-groups-tags-方案对比Demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -1,0 +1,106 @@
+{% extends "redesign/_base.html" %}
+{% block title %}停用用户 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><h1>停用用户</h1></div>
+
+{% if form_msg %}
+<div class="usa-alert usa-alert-err">{{ form_msg }}</div>
+{% endif %}
+
+<div class="usa-card">
+  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.users_set_active') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="id" value="{{ user.id }}">
+    <input type="hidden" name="is_active" value="{{ target_active }}">
+
+    <div class="usa-row">
+      <label class="usa-label">用户名</label>
+      <span class="usa-value">{{ user.username }}</span>
+      <span class="usa-meta">角色 {{ user.role }}</span>
+    </div>
+
+    <div class="usa-row">
+      <label class="usa-label">当前状态</label>
+      <span class="usa-value">{% if user.is_active %}启用{% else %}已停用{% endif %}</span>
+      {% if user.status_reason %}
+      <span class="usa-meta">上次缘由：{{ user.status_reason }}</span>
+      {% endif %}
+    </div>
+
+    <div class="usa-row">
+      <label class="usa-label">停用缘由 <span class="usa-req">*</span></label>
+      <textarea name="reason" class="f-input usa-textarea" rows="3" maxlength="500" required></textarea>
+      <span class="usa-hint">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
+    </div>
+
+    <div class="usa-warn">
+      ⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。
+    </div>
+
+    <div class="usa-actions">
+      <button type="submit" class="btn-c btn-danger-c js-ajax-submit">确认停用</button>
+      <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.usa-card {
+  max-width: 560px;
+  box-sizing: border-box;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin-top: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.usa-alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.usa-alert-err { background: var(--cp-danger-bg); color: var(--cp-danger); border: 1px solid var(--cp-danger-border); }
+.usa-row { margin-bottom: 20px; }
+.usa-label { display: block; font-size: 13px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
+.usa-req { color: var(--cp-danger); }
+.usa-value { font-size: 13px; color: var(--cp-text); }
+.usa-meta { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 4px; }
+.usa-textarea {
+  width: 100%;
+  max-width: 480px;
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.usa-hint { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.4; }
+.usa-warn {
+  background: var(--cp-warn-bg);
+  border: 1px solid var(--cp-warn-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--cp-warn-dark);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.usa-actions {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cp-border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.usa-actions .btn-c { min-height: 32px; padding: 6px 16px; }
+.usa-card .f-input:focus {
+  border-color: var(--cp-signal);
+  box-shadow: 0 0 0 2px rgba(8,145,178,.12);
+  outline: none;
+}
+.usa-card .f-input { transition: border-color 0.15s, box-shadow 0.15s; }
+.usa-actions .btn-line:hover { background: var(--cp-surface-2); }
+</style>
+{% endblock %}

@@ -27,7 +27,7 @@ from app.services.job_log_outcome import (
 )
 from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.scheduler_db import fetch_apscheduler_job_ids
-from app.services.url_security import validate_callback_url
+from app.services.url_security import validate_callback_url, validate_and_resolve_url, make_pinned_session
 from configs import configs
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
@@ -215,7 +215,7 @@ def cron_do(cron_id):
                             extra={"event": "cron.url_invalid", "url": req_url},
                         )
                     else:
-                        url_ok, url_msg = validate_callback_url(req_url, CRON_CONFIG)
+                        url_ok, url_msg, resolved_ip = validate_and_resolve_url(req_url, CRON_CONFIG)
                         if not url_ok:
                             saved_jl = _save_job_log(
                                 cron_id,
@@ -250,6 +250,15 @@ def cron_do(cron_id):
 
                                 req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
 
+                                # OPT-P0-12: DNS pinning — 使用校验阶段解析的 IP 发起请求
+                                # 防止 DNS Rebinding 攻击（TOCTOU 窗口消除）
+                                from urllib.parse import urlparse as _urlparse
+                                _parsed_scheme = _urlparse(req_url).scheme
+                                if resolved_ip:
+                                    _http = make_pinned_session(resolved_ip, _urlparse(req_url).hostname, _parsed_scheme)
+                                else:
+                                    _http = requests
+
                                 if req_method == 'POST':
                                     if cif.req_body:
                                         import json as _json
@@ -261,14 +270,14 @@ def cron_do(cron_id):
                                         post_body['cronpilot_log_id'] = cronpilot_log_id
                                     if 'cronpilot_sign' not in post_body:
                                         post_body['cronpilot_sign'] = cronpilot_sign
-                                    req = requests.post(
+                                    req = _http.post(
                                         req_url,
                                         json=post_body,
                                         timeout=timeout_sec,
                                         headers={'user-agent': 'CronPilot'},
                                     )
                                 else:
-                                    req = requests.get(
+                                    req = _http.get(
                                         req_url,
                                         params={
                                             'cronpilot_log_id': cronpilot_log_id,

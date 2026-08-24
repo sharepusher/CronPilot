@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from flask import current_app, redirect, render_template, request, session
+from flask import current_app, g, redirect, render_template, request, session
 from sqlalchemy import select
 from app import db
 from app.common.functions import web_api_return
@@ -10,8 +10,10 @@ from app.repositories.rbac_user_repository import RbacUserRepository
 
 from . import rbac
 from .decorators import require_login, require_permission
+from .login_limiter import check_login_limit, record_login_failure, record_login_success
 from app.security.csrf import csrf_protect, ensure_csrf_token
 from .policy import is_seed_admin_username, user_bypasses_scope
+from .safe_redirect import safe_next_url
 from .services import (
     AUDIT_ACTION_LABELS,
     DEFAULT_USER_PASSWORD,
@@ -36,6 +38,7 @@ from .services import (
     reject_registration,
     submit_registration,
     trigger_password_reset,
+    update_own_profile,
     update_resource_group,
     update_user,
     user_in_management_scope,
@@ -55,6 +58,15 @@ def _actor_bypasses_scope():
         username=session.get('username') or '',
         group_ids=session.get('group_ids') or [],
     )
+
+
+def _get_locked_group(bypass, groups):
+    """R2: 非全局权限用户只属于一个业务组时，返回该组对象（锁定）；否则返回 None。"""
+    if bypass:
+        return None
+    if len(groups) == 1:
+        return groups[0]
+    return None
 
 
 def _check_management_scope(target_user_id):
@@ -100,6 +112,14 @@ def _users_form_response(ok, msg, url='/rbac/users', template=None, **ctx):
     if ok:
         return redirect(url)
     if template:
+        if getattr(g, 'ui_version', 'v1') == 'v2':
+            v2_map = {
+                'rbac/users_add.html': 'redesign/user_form.html',
+                'rbac/users_edit.html': 'redesign/user_form.html',
+                'rbac/groups_add.html': 'redesign/group_form.html',
+                'rbac/groups_edit.html': 'redesign/group_form.html',
+            }
+            template = v2_map.get(template, template)
         return render_template(template, form_msg=msg, roles=ROLE_ORDER, **ctx)
     return redirect(url)
 
@@ -163,19 +183,28 @@ def login():
         reg_username = request.args.get('reg_username', '')
         if reg_username:
             reg_status = check_registration_status(reg_username)
+        tpl = 'redesign/login.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/login.html'
         return render_template(
-            'rbac/login.html',
-            next_url=request.args.get('next', '/cron_list'),
+            tpl,
+            next_url=safe_next_url(request.args.get('next', '')),
             msg=msg,
             reg_status=reg_status,
         )
     username = request.values.get('username', '').strip()
+    next_url = safe_next_url(request.values.get('next', ''))
+    # OPT-P0-13: 登录防暴破 — 先检查是否被锁定
+    client_ip = request.remote_addr or '0.0.0.0'
+    locked, lock_msg, _retry = check_login_limit(client_ip, username)
+    if locked:
+        return redirect(
+            '/rbac/login?msg=%s&next=%s' % (quote(lock_msg), quote(next_url))
+        )
     result = authenticate_user(
         username,
         request.values.get('password', ''),
     )
-    next_url = request.values.get('next', '/cron_list')
     if not result['ok']:
+        record_login_failure(client_ip, username)
         # 检查是否有注册申请
         reg_status = check_registration_status(username)
         if reg_status:
@@ -186,12 +215,24 @@ def login():
             '/rbac/login?msg=%s&next=%s' % (quote(result['msg']), quote(next_url))
         )
     session['is_login'] = True
+    record_login_success(client_ip, username)
     session['username'] = result['username']
     session['role'] = result['role']
     if result.get('user_id') is not None:
         session['user_id'] = result['user_id']
         from .scope import get_user_group_ids
         session['group_ids'] = get_user_group_ids(result['user_id'])
+        # B3: update last_login_at
+        try:
+            from datas.model.rbac_user import RbacUser
+            from datetime import datetime
+            _u = db.session.get(RbacUser, result['user_id'])
+            if _u is not None:
+                _u.last_login_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                db.session.commit()
+        except Exception:
+            current_app.logger.warning('last_login_at update failed for user_id=%s', result.get('user_id'), exc_info=True)
+            db.session.rollback()
     else:
         session.pop('user_id', None)
         session['group_ids'] = []
@@ -204,7 +245,7 @@ def login():
     return redirect(next_url)
 
 
-@rbac.route('/logout', methods=['GET', 'POST'])
+@rbac.route('/logout', methods=['POST'])
 @csrf_protect
 def logout():
     if session.get('is_login'):
@@ -219,8 +260,9 @@ def register():
     """用户注册申请页面（OPT-P1-10）。"""
     groups = list_resource_groups()
     if request.method == 'GET':
+        tpl = 'redesign/register.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/register.html'
         return render_template(
-            'rbac/register.html',
+            tpl,
             roles=REGISTRATION_ROLES,
             groups=groups,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -242,8 +284,9 @@ def register():
     )
     if result['ok']:
         return redirect('/rbac/login?msg=%s' % quote(result['msg']))
+    tpl = 'redesign/register.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/register.html'
     return render_template(
-        'rbac/register.html',
+        tpl,
         roles=REGISTRATION_ROLES,
         groups=groups,
         job_title_choices=JOB_TITLE_CHOICES,
@@ -255,7 +298,8 @@ def register():
 @rbac.route('/forgot_password', methods=['GET'])
 def forgot_password():
     """忘记密码提示页面（OPT-P1-10）。"""
-    return render_template('rbac/forgot_password.html')
+    tpl = 'redesign/forgot_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/forgot_password.html'
+    return render_template(tpl)
 
 
 @rbac.route('/password', methods=['GET', 'POST'])
@@ -265,10 +309,8 @@ def change_password():
     """任意已登录用户修改自己的密码；成功后清空会话并要求重新登录。"""
     force_reset = _password_force_reset()
     if request.method == 'GET':
-        return render_template(
-            'rbac/change_password.html',
-            force_reset=force_reset,
-        )
+        tpl = 'redesign/change_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/change_password.html'
+        return render_template(tpl, force_reset=force_reset, active_nav='password')
     result = change_own_password(
         session.get('user_id'),
         request.values.get('old_password', ''),
@@ -286,10 +328,50 @@ def change_password():
         )
     if result['ok']:
         return redirect(login_url)
+    tpl = 'redesign/change_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/change_password.html'
+    return render_template(tpl, form_msg=result['msg'], force_reset=force_reset, active_nav='password')
+
+
+@rbac.route('/profile', methods=['GET', 'POST'])
+@require_login
+@csrf_protect
+def edit_profile():
+    """当前登录用户自助修改花名、邮箱、岗位类型（Y1）。"""
+    from datas.model.rbac_user import RbacUser
+    user = db.session.get(RbacUser, session.get('user_id'))
+    if not user:
+        return redirect('/rbac/login')
+    if request.method == 'GET':
+        return render_template(
+            'redesign/user_profile.html',
+            user=user,
+            job_title_choices=JOB_TITLE_CHOICES,
+            active_nav='profile',
+        )
+    raw_job_title = request.values.get('job_title', '')
+    if raw_job_title == 'other':
+        custom = request.values.get('job_title_other', '').strip()
+        raw_job_title = 'other:' + custom
+    result = update_own_profile(
+        user.id,
+        email=request.values.get('email', ''),
+        nickname=request.values.get('nickname', ''),
+        job_title=raw_job_title,
+    )
+    if _wants_ajax_json():
+        return web_api_return(
+            code=0 if result['ok'] else 1,
+            msg=result['msg'],
+            url='' if not result['ok'] else '',
+        )
+    db.session.refresh(user)
     return render_template(
-        'rbac/change_password.html',
+        'redesign/user_profile.html',
+        user=user,
+        job_title_choices=JOB_TITLE_CHOICES,
+        active_nav='profile',
         form_msg=result['msg'],
-        force_reset=force_reset,
+        form_ok=result['ok'],
     )
 
 
@@ -321,8 +403,9 @@ def complete_profile():
         if _wants_ajax_json():
             return web_api_return(code=1, msg=msg)
         db.session.refresh(user)
+    tpl = 'redesign/complete_profile.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/complete_profile.html'
     return render_template(
-        'rbac/complete_profile.html',
+        tpl,
         user=user,
         job_title_choices=JOB_TITLE_CHOICES,
         form_msg=msg,
@@ -335,10 +418,12 @@ def api_token_page():
     """展示当前用户的 API Token（独立页面）。"""
     from datas.model.rbac_user import RbacUser
     me = db.session.get(RbacUser, session.get('user_id'))
+    tpl = 'redesign/api_token.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/api_token.html'
     return render_template(
-        'rbac/api_token.html',
+        tpl,
         api_token=me.api_token if me else '',
         api_token_expires_at=me.api_token_expires_at if me else '',
+        active_nav='api-token',
     )
 
 
@@ -361,15 +446,44 @@ def api_token_reset():
 def users_list():
     page_query = PageQuery.from_args(request.args)
     search_username = (request.args.get('username') or '').strip()
+    chip = (request.args.get('chip') or '').strip()
+
+    # Translate chip preset into is_active filter.
+    is_active = None
+    if chip == 'active':
+        is_active = 1
+    elif chip == 'inactive':
+        is_active = 0
+
     repo = RbacUserRepository(db.session)
     if _actor_bypasses_scope():
-        page_data = repo.paginate_all(page_query, username=search_username or None)
+        page_data = repo.paginate_all(
+            page_query, username=search_username or None, is_active=is_active)
+        cnt_total, cnt_active, cnt_inactive = repo.count_by_status()
     else:
         actor_gids = session.get('group_ids') or []
-        page_data = repo.paginate_by_groups(page_query, actor_gids, username=search_username or None)
+        page_data = repo.paginate_by_groups(
+            page_query, actor_gids, username=search_username or None, is_active=is_active)
+        cnt_total, cnt_active, cnt_inactive = repo.count_by_status(group_ids=actor_gids)
     user_ids = [u.id for u in page_data.items]
     user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
     job_title_map = dict(JOB_TITLE_CHOICES)
+
+    # B5: v2 redesign dual-track
+    if getattr(g, 'ui_version', 'v1') == 'v2':
+        return render_template(
+            'redesign/users.html',
+            active_nav='users',
+            page_data=page_data,
+            user_groups_map=user_groups_map,
+            search_username=search_username,
+            job_title_map=job_title_map,
+            chip=chip,
+            cnt_total=cnt_total,
+            cnt_active=cnt_active,
+            cnt_inactive=cnt_inactive,
+        )
+
     return render_template(
         'rbac/users.html',
         page_data=page_data,
@@ -389,17 +503,22 @@ def users_add():
     else:
         actor_gids = set(session.get('group_ids') or [])
         groups = [g for g in list_resource_groups() if g.id in actor_gids]
+    locked_group = _get_locked_group(bypass, groups)
     if request.method == 'GET':
+        tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_add.html'
         return render_template(
-            'rbac/users_add.html',
+            tpl,
             roles=ROLE_ORDER,
             groups=groups,
+            locked_group=locked_group,
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
         )
     role = request.values.get('role', 'viewer')
     target_username = request.values.get('username', '').strip()
     group_ids = request.values.getlist('group_ids')
+    if locked_group:
+        group_ids = [str(locked_group.id)]
     # 非 admin 不允许选择全局
     if role != 'admin' and '__ALL__' in group_ids:
         return _users_form_response(
@@ -429,12 +548,30 @@ def users_add():
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
         )
-    # 岗位类型：如果选了 "other"，拼接自定义内容
+    # 岗位类型：必填验证
     add_job_title = request.values.get('job_title', '').strip()
+    if not add_job_title:
+        return _users_form_response(
+            False,
+            '岗位类型为必填项，请选择岗位',
+            template='rbac/users_add.html',
+            groups=groups,
+            default_password=DEFAULT_USER_PASSWORD,
+            job_title_choices=JOB_TITLE_CHOICES,
+        )
     if add_job_title == 'other':
         custom = request.values.get('job_title_other', '').strip()
         if custom:
             add_job_title = 'other:' + custom[:20]
+        else:
+            return _users_form_response(
+                False,
+                '选择「其他」时须填写自定义岗位名称',
+                template='rbac/users_add.html',
+                groups=groups,
+                default_password=DEFAULT_USER_PASSWORD,
+                job_title_choices=JOB_TITLE_CHOICES,
+            )
     result = create_user(
         target_username,
         role,
@@ -493,21 +630,26 @@ def users_edit():
     groups = list_resource_groups() if bypass else [
         g for g in list_resource_groups() if g.id in set(session.get('group_ids') or [])
     ]
+    locked_group = _get_locked_group(bypass, groups)
     edit_ctx = dict(
         groups=groups,
+        locked_group=locked_group,
         user_group_ids=get_user_group_ids_for_user(user.id),
         default_password=DEFAULT_USER_PASSWORD,
         job_title_choices=JOB_TITLE_CHOICES,
     )
     if request.method == 'GET':
+        tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_edit.html'
         return render_template(
-            'rbac/users_edit.html',
+            tpl,
             user=user,
             roles=ROLE_ORDER,
             **edit_ctx,
         )
     new_role = request.values.get('role', user.role)
     group_ids = request.values.getlist('group_ids')
+    if locked_group:
+        group_ids = [str(locked_group.id)]
     # 非 admin 不允许选择全局
     if new_role != 'admin' and '__ALL__' in group_ids:
         return _users_form_response(
@@ -537,18 +679,35 @@ def users_edit():
             result = bound
     # 保存个人信息字段（email / nickname / job_title）
     if result['ok']:
-        raw_jt = request.values.get('job_title', '')
+        raw_jt = request.values.get('job_title', '').strip()
         if raw_jt == 'other':
-            raw_jt = 'other:' + request.values.get('job_title_other', '').strip()
+            custom_jt = request.values.get('job_title_other', '').strip()
+            if not custom_jt:
+                return _users_form_response(
+                    False,
+                    '选择「其他」时须填写自定义岗位名称',
+                    template='rbac/users_edit.html',
+                    user=user,
+                    **edit_ctx,
+                )
+            raw_jt = 'other:' + custom_jt[:20]
+        if not raw_jt:
+            return _users_form_response(
+                False,
+                '岗位类型为必填项，请选择岗位',
+                template='rbac/users_edit.html',
+                user=user,
+                **edit_ctx,
+            )
         email_val = (request.values.get('email') or '').strip()
         nick_val = (request.values.get('nickname') or '').strip()
         user.email = email_val or user.email
         user.nickname = nick_val or None
-        if raw_jt:
-            user.job_title = raw_jt
+        user.job_title = raw_jt
         try:
             db.session.commit()
         except Exception:
+            current_app.logger.warning('profile commit failed for user_id=%s', user.id, exc_info=True)
             db.session.rollback()
     if not result['ok']:
         user.role = request.values.get('role', user.role)
@@ -565,6 +724,38 @@ def users_edit():
         user=user,
         **edit_ctx,
     )
+
+
+@rbac.route('/users/view', methods=['GET'])
+@require_permission('user:manage')
+def users_view():
+    """Read-only view for deactivated users."""
+    user_id = request.args.get('id')
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return redirect('/rbac/users')
+    user = get_user_by_id(user_id)
+    if not user:
+        return redirect('/rbac/users')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
+    user_groups_map = _build_user_groups_map([user_id])
+    tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_edit.html'
+    return render_template(
+        tpl,
+        user=user,
+        view_mode=True,
+        user_groups_map=user_groups_map,
+        roles=[],
+        groups=[],
+        locked_group=None,
+        job_title_choices=[],
+        default_password='',
+        user_group_ids=[],
+    )
+
 
 
 @rbac.route('/users/reset_password', methods=['POST'])
@@ -629,9 +820,10 @@ def users_set_active():
     denied = _check_management_scope(user_id)
     if denied:
         return denied
+    tpl = 'redesign/users_set_active.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_set_active.html'
     if request.method == 'GET':
         return render_template(
-            'rbac/users_set_active.html',
+            tpl,
             user=user,
             target_active=is_active,
         )
@@ -645,7 +837,7 @@ def users_set_active():
         result['ok'],
         result['msg'],
         url='/rbac/users',
-        template='rbac/users_set_active.html',
+        template=tpl,
         user=user,
         target_active=is_active,
     )
@@ -660,6 +852,55 @@ def groups_list():
     else:
         actor_gids = set(session.get('group_ids') or [])
         groups = [g for g in list_resource_groups() if g.id in actor_gids]
+    group_ids = [g.id for g in groups]
+    group_user_counts = {}
+    group_task_counts = {}
+    group_top_users = {}  # {group_id: ['张', '李', '王']}
+    if group_ids:
+        from datas.model.user_group import UserGroup
+        from datas.model.task_group import TaskGroup
+        from datas.model.rbac_user import RbacUser
+        from sqlalchemy import func, select as sa_select
+        # 用户数
+        rows = db.session.execute(
+            sa_select(UserGroup.group_id, func.count(UserGroup.user_id))
+            .where(UserGroup.group_id.in_(group_ids))
+            .group_by(UserGroup.group_id)
+        ).all()
+        group_user_counts = {gid: cnt for gid, cnt in rows}
+        # 任务数（走 task_groups 索引）
+        task_rows = db.session.execute(
+            sa_select(TaskGroup.group_id, func.count(TaskGroup.task_id))
+            .where(TaskGroup.group_id.in_(group_ids))
+            .group_by(TaskGroup.group_id)
+        ).all()
+        group_task_counts = {gid: cnt for gid, cnt in task_rows}
+        # 每组前 3 个用户展示名（花名优先，否则用户名）
+        user_rows = db.session.execute(
+            sa_select(UserGroup.group_id, RbacUser.username, RbacUser.nickname)
+            .join(RbacUser, RbacUser.id == UserGroup.user_id)
+            .where(UserGroup.group_id.in_(group_ids))
+            .order_by(UserGroup.group_id, UserGroup.id)
+        ).all()
+        tmp = {}
+        for gid, uname, nick in user_rows:
+            tmp.setdefault(gid, [])
+            if len(tmp[gid]) < 3:
+                display = (nick or uname or '?')[0].upper()
+                tmp[gid].append(display)
+        group_top_users = tmp
+
+    if getattr(g, 'ui_version', 'v1') == 'v2':
+        return render_template(
+            'redesign/groups.html',
+            active_nav='groups',
+            groups=groups,
+            group_user_counts=group_user_counts,
+            group_task_counts=group_task_counts,
+            group_top_users=group_top_users,
+            can_create_group=bypass,
+        )
+
     return render_template(
         'rbac/groups.html',
         groups=groups,
@@ -674,7 +915,8 @@ def groups_add():
     if not _actor_bypasses_scope():
         return _users_form_response(False, '按组管理员不可创建新业务组', url='/rbac/groups')
     if request.method == 'GET':
-        return render_template('rbac/groups_add.html')
+        tpl = 'redesign/group_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/groups_add.html'
+        return render_template(tpl)
     result = create_resource_group(
         request.values.get('name', ''),
         request.values.get('description', ''),
@@ -704,7 +946,8 @@ def groups_edit():
     if not group:
         return _users_form_response(False, '业务组不存在', url='/rbac/groups')
     if request.method == 'GET':
-        return render_template('rbac/groups_edit.html', group=group)
+        tpl = 'redesign/group_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/groups_edit.html'
+        return render_template(tpl, group=group)
     result = update_resource_group(
         group_id,
         name=request.values.get('name', group.name),
@@ -726,10 +969,24 @@ def groups_edit():
 @require_permission('audit:read')
 def audit_logs():
     page_query = PageQuery.from_args(request.args)
+    chip = (request.args.get('chip') or '').strip()
+
+    # Resolve chip presets into action/status filter values.
+    action = (request.args.get('action') or '').strip() or None
+    status = (request.args.get('status') or '').strip() or None
+    if chip == 'login_ok':
+        action, status = 'user:login', 'allow'
+    elif chip == 'login_fail':
+        action, status = 'user:login', 'deny'
+    elif chip == 'perm_deny':
+        action, status = 'permission:deny', None
+    elif chip == 'user_manage':
+        action, status = 'user:manage', None
+
     search = {
         'username': (request.args.get('username') or '').strip() or None,
-        'action': (request.args.get('action') or '').strip() or None,
-        'status': (request.args.get('status') or '').strip() or None,
+        'action': action,
+        'status': status,
         'time_from': (request.args.get('time_from') or '').strip() or None,
         'time_to': (request.args.get('time_to') or '').strip() or None,
     }
@@ -739,6 +996,19 @@ def audit_logs():
     else:
         viewer_group_ids = session.get('group_ids') or []
         page_data = repo.paginate_by_scope(page_query, viewer_group_ids, **search)
+    if getattr(g, 'ui_version', 'v1') == 'v2':
+        return render_template(
+            'redesign/audit_logs.html',
+            active_nav='audit',
+            page_data=page_data,
+            audit_action_label=audit_action_label,
+            audit_resource_label=audit_resource_label,
+            audit_status_label=audit_status_label,
+            search=search,
+            chip=chip,
+            AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,
+        )
+
     return render_template(
         'rbac/audit_logs.html',
         page_data=page_data,
@@ -780,8 +1050,8 @@ def registration_review():
 
     # 获取业务组名映射
     group_name_map = {}
-    for g in list_resource_groups():
-        group_name_map[g.id] = g.name
+    for grp in list_resource_groups():
+        group_name_map[grp.id] = grp.name
 
     job_title_map = dict(JOB_TITLE_CHOICES)
 
@@ -798,6 +1068,16 @@ def registration_review():
             )
         ).all()
         disabled_usernames = set(disabled_users)
+
+    if getattr(g, 'ui_version', 'v1') == 'v2':
+        return render_template(
+            'redesign/registration_review.html',
+            active_nav='reg-review',
+            page_data=page_data,
+            status_filter=status_filter or '',
+            job_title_map=job_title_map,
+            disabled_usernames=disabled_usernames,
+        )
 
     return render_template(
         'rbac/registration_review.html',
@@ -868,10 +1148,45 @@ def tag_manage():
     else:
         allowed = set(session.get('group_ids') or [])
         scope_groups = [g for g in groups if g.id in allowed]
+    tag_tasks = {}
+    if tags:
+        from app.services.tag_service import get_tag_tasks
+        for t in tags:
+            _, tasks = get_tag_tasks(t['id'], limit=5)
+            tag_tasks[t['id']] = [task['name'] for task in tasks]
+
+    if getattr(g, 'ui_version', 'v1') == 'v2':
+        return render_template(
+            'redesign/tags.html',
+            active_nav='tags',
+            tags=tags,
+            tag_tasks=tag_tasks,
+            group_name_map=group_name_map,
+            scope_groups=scope_groups,
+            is_bypass=_actor_bypasses_scope(),
+        )
+
     return render_template(
         'tag_manage.html', tags=tags, group_name_map=group_name_map,
         scope_groups=scope_groups, is_bypass=_actor_bypasses_scope(),
     )
+
+
+def _check_tag_group_id_scope(group_id):
+    """Scope 校验：非全局管理员只能操作自己组的标签。返回 (ok, error_response)。"""
+    if _actor_bypasses_scope():
+        return True, None
+    actor_gids = session.get('group_ids') or []
+    if group_id is None:
+        return False, web_api_return(code=1, msg='非全局管理员不能操作全局标签')
+    if group_id not in actor_gids:
+        return False, web_api_return(code=1, msg='无权操作该业务组的标签')
+    return True, None
+
+
+def _check_tag_scope(tag):
+    """Scope 校验：已有标签的归属组是否在操作者范围内。"""
+    return _check_tag_group_id_scope(tag.group_id)
 
 
 @rbac.route('/tags/create', methods=['POST'])
@@ -883,6 +1198,9 @@ def tag_create():
     raw_gid = request.values.get('group_id', '').strip()
     group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
     description = request.values.get('description', '').strip()
+    ok_scope, err = _check_tag_group_id_scope(group_id)
+    if not ok_scope:
+        return err
     ok, msg = svc_create_tag(
         name=name,
         group_id=group_id,
@@ -897,6 +1215,13 @@ def tag_create():
 @csrf_protect
 def tag_update():
     tag_id = request.values.get('tag_id')
+    from datas.model.tag import Tag
+    tag = db.session.get(Tag, int(tag_id)) if tag_id else None
+    if not tag:
+        return web_api_return(code=1, msg='标签不存在')
+    ok_scope, err = _check_tag_scope(tag)
+    if not ok_scope:
+        return err
     new_name = request.values.get('new_name', '').strip() or None
     description = request.values.get('description')
     from app.services.tag_service import update_tag
@@ -910,6 +1235,13 @@ def tag_update():
 def tag_rename():
     """兼容旧路由，转发到 update。"""
     tag_id = request.values.get('tag_id')
+    from datas.model.tag import Tag
+    tag = db.session.get(Tag, int(tag_id)) if tag_id else None
+    if not tag:
+        return web_api_return(code=1, msg='标签不存在')
+    ok_scope, err = _check_tag_scope(tag)
+    if not ok_scope:
+        return err
     new_name = request.values.get('new_name', '').strip()
     from app.services.tag_service import update_tag
     ok, msg = update_tag(tag_id, new_name=new_name)
@@ -923,10 +1255,15 @@ def tag_tasks():
     tag_id = request.args.get('tag_id')
     if not tag_id:
         return web_api_return(code=1, msg='缺少 tag_id')
+    from datas.model.tag import Tag
+    tag = db.session.get(Tag, int(tag_id))
+    if not tag:
+        return web_api_return(code=1, msg='标签不存在')
+    ok_scope, err = _check_tag_scope(tag)
+    if not ok_scope:
+        return err
     from app.services.tag_service import get_tag_tasks
     tag_name, tasks = get_tag_tasks(tag_id)
-    if tag_name is None:
-        return web_api_return(code=1, msg='标签不存在')
     return web_api_return(code=0, data={'tag_name': tag_name, 'tasks': tasks})
 
 
@@ -935,6 +1272,13 @@ def tag_tasks():
 @csrf_protect
 def tag_delete():
     tag_id = request.values.get('tag_id')
+    from datas.model.tag import Tag
+    tag = db.session.get(Tag, int(tag_id)) if tag_id else None
+    if not tag:
+        return web_api_return(code=1, msg='标签不存在')
+    ok_scope, err = _check_tag_scope(tag)
+    if not ok_scope:
+        return err
     force = request.values.get('force', '') == '1'
     from app.services.tag_service import delete_tag
     ok, msg, extra = delete_tag(tag_id, force=force)

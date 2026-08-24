@@ -1,0 +1,43 @@
+{# CronPilot Redesign — Welcome / Placeholder (Phase 1)
+   Shown as default content before Phase 2 builds the real dashboard. #}
+{% extends "redesign/_base.html" %}
+
+{% block title %}CronPilot — 新界面{% endblock %}
+
+{% block content %}
+<div class="cp-page-head">
+  <div>
+    <h1>欢迎使用新界面</h1>
+    <div class="subtitle">CronPilot 2026 Redesign — Phase 1 Shell 已就绪</div>
+  </div>
+</div>
+
+<div class="cp-stats">
+  <div class="cp-stat">
+    <div class="cp-stat-label">Layout Shell</div>
+    <div class="cp-stat-value cp-success-text">✓</div>
+  </div>
+  <div class="cp-stat">
+    <div class="cp-stat-label">Design Tokens</div>
+    <div class="cp-stat-value cp-success-text">✓</div>
+  </div>
+  <div class="cp-stat">
+    <div class="cp-stat-label">Theme Toggle</div>
+    <div class="cp-stat-value cp-success-text">✓</div>
+  </div>
+  <div class="cp-stat">
+    <div class="cp-stat-label">Navigation</div>
+    <div class="cp-stat-value cp-success-text">✓</div>
+  </div>
+</div>
+
+<div class="cp-card">
+  <div class="cp-card-title">当前状态</div>
+  <p class="cp-text-muted-sm">
+    新界面基础设施（Phase 1）已完成。侧边栏导航已连接到现有页面，后续 Phase 将逐步替换各页面内容。
+  </p>
+  <p class="cp-text-faint-sm">
+    点击侧边栏导航项即可访问各功能页面。如需切回经典界面，点击右上角用户菜单 → 「切换到经典界面」。
+  </p>
+</div>
+{% endblock %}

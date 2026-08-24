@@ -30,15 +30,16 @@ def api_deal_return(func):
                 else:
                     return api_return(errcode=result[0],errmsg=result[1],data=result[2])
         except Exception as e:
-            error = str(e)
-            return api_return(errcode=1,errmsg=error)
+            import logging
+            logging.getLogger(__name__).error('api_deal_return exception: %s', e, exc_info=True)
+            return api_return(errcode=1,errmsg='服务器内部错误')
     return gen_status
 
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if 'is_login' not in session:
-            return redirect('/check_pass?msg=需要验证密码')
+            return redirect('/rbac/login')
 
         return func(*args, **kwargs)
 

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Agent 对话全程错误记录与复盘</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:1000px;margin:0 auto;padding:2rem;line-height:1.7;color:#1e293b;}
+h1{border-bottom:2px solid #dc2626;padding-bottom:0.5rem;}
+h2{color:#991b1b;margin-top:2.5rem;border-left:4px solid #dc2626;padding-left:0.8rem;}
+h3{color:#334155;margin-top:1.5rem;}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.9rem;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;vertical-align:top;}
+th{background:#fef2f2;font-weight:600;}
+.severity-critical{background:#dc2626;color:#fff;padding:2px 8px;border-radius:3px;font-size:0.8em;}
+.severity-high{background:#ea580c;color:#fff;padding:2px 8px;border-radius:3px;font-size:0.8em;}
+.severity-medium{background:#d97706;color:#fff;padding:2px 8px;border-radius:3px;font-size:0.8em;}
+code{background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:0.85em;}
+.lesson{background:#fef2f2;border:1px solid #fca5a5;padding:12px 16px;border-radius:6px;margin:1rem 0;}
+</style>
+</head>
+<body>
+
+<h1>Agent 对话全程错误记录与复盘汇总</h1>
+<p>对话 ID: <code>a47e4f24-32f2-41f0-a42c-2fb11056a413</code><br>
+时间跨度: 2026-08（多轮）<br>
+涉及范围: UI Redesign 全过程（色系设计 → Mockup → 分批实现 → 对比核实）</p>
+
+<h2>错误清单总览</h2>
+
+<table>
+<tr><th>#</th><th>严重度</th><th>事件</th><th>用户原话</th><th>已有复盘文档</th></tr>
+<tr><td>1</td><td><span class="severity-critical">Critical</span></td><td>Phase 2 首次实现严重偏离 Mockup（缺 Exception Panel、7列降5列、icon变文字）</td><td>「做的乱七八糟，和 mockup 差别很大」</td><td>✅ <code>doc/postmortem/2026-08-Phase2-Mockup偏离复盘.html</code></td></tr>
+<tr><td>2</td><td><span class="severity-critical">Critical</span></td><td>修复后未主动复盘（反复违反，≥3次）</td><td>「为什么出现这么大的纰漏却没有复盘！规范是用来吃的吗！」「为什么又没有主动复盘，这多第几次了」</td><td>✅ <code>doc/postmortem/2026-08-元复盘-复盘失效机制.html</code></td></tr>
+<tr><td>3</td><td><span class="severity-critical">Critical</span></td><td>统一执行手册从记忆写入数值，导致 15 处偏差</td><td>「为什么总是凭记忆，你规范做的形同虚设，可以继续相信你吗」</td><td>✅ <code>doc/postmortem/2026-08-统一手册数值重复偏离.html</code></td></tr>
+<tr><td>4</td><td><span class="severity-critical">Critical</span></td><td>最终对比仍引用错误 Mockup 文件（console-style-demo.html 而非 CronPilot-2026-redesign-mockup.html）</td><td>「你脑子是不是有问题，早就没有 console-style-demo.html，新的重构都是基于 redesign」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>5</td><td><span class="severity-high">High</span></td><td>超时默认值被错误改为 10s（应为 5s），且未发现</td><td>「真是瞎搞，又把超时改成了 10s」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>6</td><td><span class="severity-high">High</span></td><td>Mockup 中「添加用户」被错误实现为「邀请用户」</td><td>「用户管理里添加用户不叫做邀请，邀请一般会发邮件」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>7</td><td><span class="severity-high">High</span></td><td>Dashboard 实现与 Mockup 存在 15 项结构性不一致</td><td>「还是有很多地方和 redesign mockup 文档不一致」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>8</td><td><span class="severity-medium">Medium</span></td><td>复盘文档化未执行（只在对话中写复盘，未落库）</td><td>「复盘有写入文档吗，有遵守规范吗」</td><td>✅ 在元复盘中记录</td></tr>
+<tr><td>9</td><td><span class="severity-medium">Medium</span></td><td>用户管理列表缺少「岗位」列</td><td>「用户管理里少了岗位，请再次全面梳理确认」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>10</td><td><span class="severity-medium">Medium</span></td><td>Mockup 对比后的修复引入未授权增强（如侧边栏底部用户信息）</td><td>「redesign 的 mockup 哪里有什么底部用户信息，瞎搞」</td><td>❌ <strong>本文档新增</strong></td></tr>
+<tr><td>11</td><td><span class="severity-medium">Medium</span></td><td>多个页面缺少权限描述可读性问题（cron:read 等不可读）</td><td>「页面有些地方描述权限使用 cron:read, cron:write 这种完全不可读的描述」</td><td>❌ 已在 Mockup 修正中处理</td></tr>
+</table>
+
+<h2>错误 #4 复盘：引用错误 Mockup 文件</h2>
+
+<h3>Bug 定位</h3>
+<p>在执行「逐页对比核实」时，Agent 读取了 <code>doc/design/console-style-demo.html</code>（早期 PoC），而正确的权威 Mockup 是 <code>doc/design/CronPilot-2026-redesign-mockup.html</code>。</p>
+
+<h3>根因</h3>
+<ol>
+<li><strong>仓库中存在两份类似文件</strong>：早期 PoC (<code>console-style-demo.html</code>) 和正式 Mockup (<code>CronPilot-2026-redesign-mockup.html</code>) 同时存在于 <code>doc/design/</code>，且两者文件名都不含明确的「SUPERSEDED」或「AUTHORITATIVE」标记</li>
+<li><strong>对话摘要中残留了旧文件引用</strong>：conversation summary 中多处提及 <code>console-style-demo.html</code>，Agent 在恢复上下文时优先匹配了旧引用</li>
+<li><strong>无程序化的权威源校验</strong>：没有任何脚本或配置文件声明「redesign 的唯一 Mockup 源」，完全依赖 Agent 记忆判断</li>
+</ol>
+
+<h3>测试漏洞</h3>
+<p>无测试会验证 Agent 读取的 Mockup 文件路径是否正确。这是一个「操作流程」问题而非代码逻辑问题。</p>
+
+<h3>修复</h3>
+<p>已在 <code>doc/design/redesign-handover.md</code> 中明确标注唯一权威 Mockup 源，并标注 <code>console-style-demo.html</code> 为已废弃。</p>
+
+<h3>防护测试</h3>
+<p>建议在 <code>console-style-demo.html</code> 文件头部加入 SUPERSEDED 注释。</p>
+
+<h3>同类排查</h3>
+<p>还有 3 份实施方案文档被标注为 superseded：<code>UI重设计-详细实施与验收计划v2.html</code>、<code>UI重设计-视觉设计规格书.html</code>、<code>UI重设计-逐页设计规格书.html</code>。它们的首行已含 superseded 标记。</p>
+
+<h3>预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th></tr>
+<tr><td>在 <code>console-style-demo.html</code> 首行加入 <code>&lt;!-- SUPERSEDED: 本文件已被 CronPilot-2026-redesign-mockup.html 取代 --&gt;</code></td><td><code>doc/design/console-style-demo.html</code> L1</td></tr>
+<tr><td>在每个 redesign 模板头部注释标注对应的 Mockup view ID 和行号</td><td><code>app/templates/redesign/*.html</code></td></tr>
+<tr><td>交接文档 <code>redesign-handover.md</code> 中已明确标注唯一权威源</td><td><code>doc/design/redesign-handover.md</code></td></tr>
+</table>
+
+<h2>错误 #5 复盘：超时默认值被错误修改</h2>
+
+<h3>Bug 定位</h3>
+<p>Mockup 文案审核时，Agent 将超时默认值从 5s 改为 10s，违背了项目已有设定。</p>
+
+<h3>根因</h3>
+<p>Agent 在「全面对比所有文案」时，根据主观判断认为 10s 更合理，未 <code>grep</code> 代码确认 <code>_DEFAULT_TIMEOUT_SEC = 5</code> 是项目既定值。</p>
+
+<h3>测试漏洞</h3>
+<p>无测试验证 Mockup 文案中的数值与代码中的默认值一致。</p>
+
+<h3>修复</h3>
+<p>已回退为 5s。</p>
+
+<h3>防护测试</h3>
+<p>可在 <code>check_ui_contract.py</code> 中新增断言：Mockup 中超时相关文案引用的数值与 <code>crons.py</code> 中 <code>_DEFAULT_TIMEOUT_SEC</code> 一致。</p>
+
+<h3>同类排查</h3>
+<p>其他默认值（如 MAX_FAILURES_PER_IP=5、密码最小长度等）未发现类似篡改。</p>
+
+<h3>预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th></tr>
+<tr><td>Mockup 中所有引用后端默认值的文案，必须 <code>grep</code> 确认源码值后再写入</td><td><code>.cursor/rules/cronpilot-project.mdc</code> 「Redesign Mockup 逐节对照」</td></tr>
+<tr><td>规范「禁止主观修改已有默认值，除非用户明确要求」已在项目规范中</td><td><code>AGENTS.md</code></td></tr>
+</table>
+
+<h2>错误 #6 复盘：「添加用户」错误实现为「邀请用户」</h2>
+
+<h3>Bug 定位</h3>
+<p>用户管理页面的「添加用户」按钮被 Agent 自行改为「邀请用户」。</p>
+
+<h3>根因</h3>
+<p>Agent 根据「行业惯例」自行判断应用「邀请」语义，未遵循 Mockup 原始文案 <code>+ 添加用户</code>。</p>
+
+<h3>修复</h3>
+<p>已回退为「+ 添加用户」。</p>
+
+<h3>预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th></tr>
+<tr><td>「禁止主观修改 Mockup 已定义的文案」已在规范中追加</td><td><code>.cursor/rules/cronpilot-project.mdc</code></td></tr>
+<tr><td>Mockup 中的按钮/标签文案属于产品决策，Agent 不得基于「行业惯例」自行更改</td><td>同上</td></tr>
+</table>
+
+<h2>错误 #7 复盘：Dashboard 15 项结构性不一致</h2>
+
+<h3>Bug 定位</h3>
+<p><code>app/templates/redesign/dashboard.html</code> 与 Mockup <code>#view-dashboard</code> 在过滤栏（5项）、操作按钮（4项）、页面头部（2项）、翻页（2项）、表格（2项）存在结构性偏差。</p>
+
+<h3>根因</h3>
+<ol>
+<li><strong>实现时引用了错误的 Mockup 文件</strong>（console-style-demo.html 而非 CronPilot-2026-redesign-mockup.html）</li>
+<li><strong>多轮迭代中 Mockup 源发生迁移</strong>但实现代码从未回溯对齐新 Mockup</li>
+<li><strong>规范「逐节对照」虽已写入但缺乏程序化强制</strong>，被绕过</li>
+<li><strong>验收环节只验证功能正确性</strong>（数据显示正确）而非结构对齐</li>
+</ol>
+
+<h3>修复</h3>
+<p>尚未执行。已在 <code>doc/design/redesign-handover.md</code> 中完整列出 15 项偏差的 Mockup 值 vs 实现值，供后续修复。</p>
+
+<h3>预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th></tr>
+<tr><td>每个模板文件头部注释标注 Mockup view ID + 行号范围</td><td><code>app/templates/redesign/*.html</code></td></tr>
+<tr><td>新建 <code>scripts/check_mockup_alignment.py</code> 自动 curl 渲染页面并验证关键 class 存在性</td><td><code>scripts/check_mockup_alignment.py</code></td></tr>
+<tr><td>规范已升级：在 <code>.cursor/rules/cronpilot-project.mdc</code> 中加入「Redesign Mockup 逐节对照」强制清单</td><td>已完成</td></tr>
+</table>
+
+<h2>错误 #9 复盘：用户管理列表缺少「岗位」列</h2>
+
+<h3>Bug 定位</h3>
+<p>Mockup 中用户管理表格有 10 列（含「岗位」），实现时遗漏了该列。</p>
+
+<h3>根因</h3>
+<p>实现时未逐列对照 Mockup 表格 <code>&lt;thead&gt;</code>，凭记忆判断列数。</p>
+
+<h3>修复</h3>
+<p>已补充「岗位」列。</p>
+
+<h3>预防方案</h3>
+<p>同错误 #7 的预防方案。</p>
+
+<h2>错误 #10 复盘：引入未授权增强（侧边栏底部用户信息）</h2>
+
+<h3>Bug 定位</h3>
+<p>Agent 在 Mockup 对比后自行添加了「侧边栏底部用户信息」组件，Mockup 中并无此元素。</p>
+
+<h3>根因</h3>
+<p>Agent 将「行业常见的侧边栏底部用户信息」视为「缺失项」而非「不需要的项」，主观添加了 Mockup 未定义的组件。</p>
+
+<h3>修复</h3>
+<p>已移除。</p>
+
+<h3>预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th></tr>
+<tr><td>规范追加：「Mockup 中未出现的元素视为不需要，不得自行添加。任何新增必须用户明确确认」</td><td><code>.cursor/rules/cronpilot-project.mdc</code></td></tr>
+</table>
+
+<h2>系统性根因分析</h2>
+
+<div class="lesson">
+<strong>核心失败模式</strong>：Agent 在整个 Redesign 过程中反复出现「凭印象/记忆行事」而非「严格读取源文件后行事」的行为模式。具体表现为：
+
+<ol>
+<li><strong>Mockup 源不对</strong>：引用旧 Mockup 而非新 Mockup</li>
+<li><strong>数值不对</strong>：从记忆写入数值而非 Read 源文件复制</li>
+<li><strong>文案不对</strong>：基于主观判断修改产品文案</li>
+<li><strong>结构不对</strong>：凭印象简化表格列数/按钮样式</li>
+<li><strong>增删不对</strong>：自行添加 Mockup 未定义的组件</li>
+</ol>
+
+<p><strong>根本原因</strong>：Agent 将 Mockup 视为「参考」而非「规格书」，允许自己在实现过程中做「优化判断」。正确认知应该是：<strong>Mockup 是权威规格，实现必须逐像素对齐，任何偏离必须用户明确授权。</strong></p>
+
+<p><strong>规范失效原因</strong>：纯文字规范被证明无法防止行为偏离（至少 3 次违反后才升级为程序化 Hook）。Hook 能防止复盘缺失，但无法防止「用错 Mockup 文件」这类认知层错误。</p>
+</div>
+
+<h2>已落地的预防措施清单</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证方式</th></tr>
+<tr><td>1</td><td>L1 postToolUse Hook（每次编辑后注入复盘提醒）</td><td><code>.cursor/hooks.json</code></td><td>编辑后自动触发</td></tr>
+<tr><td>2</td><td>L2 stop prompt Hook（结束前评估复盘完整性）</td><td><code>.cursor/hooks/stop-postmortem-gate.sh</code></td><td>自动触发</td></tr>
+<tr><td>3</td><td>L5 CI 复盘文档检查</td><td><code>scripts/check_postmortem_completeness.py</code></td><td><code>python scripts/check_postmortem_completeness.py --check</code></td></tr>
+<tr><td>4</td><td>Redesign Mockup 逐节对照规范</td><td><code>.cursor/rules/cronpilot-project.mdc</code></td><td>人工遵守（无程序化强制）</td></tr>
+<tr><td>5</td><td>禁止整合文档复制源文档数值</td><td><code>.cursor/rules/cronpilot-project.mdc</code> + <code>AGENTS.md</code></td><td>人工遵守</td></tr>
+<tr><td>6</td><td>文档链接 CI 检查</td><td><code>scripts/check_doc_links.py --check</code></td><td>CI 自动</td></tr>
+<tr><td>7</td><td>颜色硬编码审计</td><td><code>scripts/audit_hardcoded_colors.py --check</code></td><td>CI 自动</td></tr>
+<tr><td>8</td><td>交接文档标注唯一权威 Mockup 源</td><td><code>doc/design/redesign-handover.md</code></td><td>文档内容</td></tr>
+</table>
+
+<h2>仍缺失的预防措施</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>建议落地位置</th><th>状态</th></tr>
+<tr><td>1</td><td>程序化 Mockup 结构对齐验证（curl + grep 关键 class）</td><td><code>scripts/check_mockup_alignment.py</code></td><td>未创建</td></tr>
+<tr><td>2</td><td>每个模板文件头部标注 Mockup view ID + 行号</td><td><code>app/templates/redesign/*.html</code></td><td>未执行</td></tr>
+<tr><td>3</td><td><code>console-style-demo.html</code> 首行加 SUPERSEDED 标记</td><td><code>doc/design/console-style-demo.html</code></td><td>未执行</td></tr>
+<tr><td>4</td><td>Mockup 文案中引用的默认值自动与代码比对</td><td><code>scripts/check_ui_contract.py</code></td><td>未创建</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="redesign-全程错误记录.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

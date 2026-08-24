@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot UI 综合评估 — 2026-08-19</title>
+<style>
+  :root {
+    --bg: #0d0f12; --surface: #16191d; --surface2: #1c2025;
+    --border: #262b31; --ink: #eceef0; --muted: #8b9198; --faint: #565c64;
+    --signal: #4c8dff; --success: #34d399; --warning: #f5a623; --danger: #f16565;
+    --sbg: rgba(76,141,255,.12); --dbg: rgba(241,101,101,.12); --gbg: rgba(52,211,153,.12); --wbg: rgba(245,166,35,.12);
+    --mono: 'JetBrains Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; line-height: 1.6; padding: 40px 32px 80px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 36px; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ink); }
+
+  /* Summary card */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 40px; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .sum-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+  .sum-card .val { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+  .sum-card .val.g { color: var(--success); }
+  .sum-card .val.y { color: var(--warning); }
+  .sum-card .val.r { color: var(--danger); }
+
+  /* Page section */
+  .page-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .ps-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .ps-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .ps-url { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .ps-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; }
+  .badge-ok { background: var(--gbg); color: var(--success); }
+  .badge-partial { background: var(--wbg); color: var(--warning); }
+  .badge-pending { background: var(--dbg); color: var(--danger); }
+
+  .ps-body { padding: 16px 18px; }
+  .deviation-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .deviation-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--surface2); border-radius: 7px; border: 1px solid var(--border); }
+  .dev-icon { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .dev-icon.done { background: var(--gbg); color: var(--success); }
+  .dev-icon.pending { background: var(--dbg); color: var(--danger); }
+  .dev-icon.minor { background: var(--wbg); color: var(--warning); }
+  .dev-label { font-size: 12.5px; line-height: 1.5; flex: 1; }
+  .dev-label b { color: var(--ink); }
+  .dev-label .note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .dev-id { font-family: var(--mono); font-size: 10px; color: var(--faint); margin-top: 2px; }
+
+  /* Compared layout */
+  .compare-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .compare-col { }
+  .compare-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .compare-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+  .compare-label .dot.green { background: var(--success); }
+  .mock-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 12px 14px; font-size: 12px; }
+
+  /* Priority table */
+  .priority-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+  .priority-table th { text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .priority-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: middle; }
+  .priority-table tr:last-child td { border-bottom: none; }
+  .priority-table tr:hover td { background: var(--surface2); }
+  .pri { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .pri-h { background: var(--dbg); color: var(--danger); }
+  .pri-m { background: var(--wbg); color: var(--warning); }
+  .pri-l { background: var(--sbg); color: var(--signal); }
+  .status-done { color: var(--success); font-size: 12px; }
+  .status-pending { color: var(--danger); font-size: 12px; }
+
+  .section-title { font-size: 18px; font-weight: 700; margin: 36px 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>CronPilot UI 综合评估报告</h1>
+<p class="subtitle">当前实现 vs Mockup（/Users/summer/Downloads/CronPilot-2026-full-mockup.html）· 2026-08-19</p>
+
+<!-- ===== Summary Stats ===== -->
+<div class="summary-grid">
+  <div class="sum-card"><div class="label">总评估页面</div><div class="val">8</div></div>
+  <div class="sum-card"><div class="label">完全符合</div><div class="val g">3</div></div>
+  <div class="sum-card"><div class="label">基本符合（有偏差）</div><div class="val y">4</div></div>
+  <div class="sum-card"><div class="label">待处理偏差项</div><div class="val r">4</div></div>
+</div>
+
+<!-- ===== Pending Action Table ===== -->
+<div class="section-title">待处理偏差清单（优先级排序）</div>
+<table class="priority-table">
+  <thead>
+    <tr>
+      <th>编号</th>
+      <th>页面</th>
+      <th>偏差描述</th>
+      <th>Mockup 要求</th>
+      <th>优先级</th>
+      <th>状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>X3</code></td>
+      <td>任务中心</td>
+      <td>「新建任务」按钮在过滤栏末尾，页头右侧无主操作按钮</td>
+      <td>「新建任务」btn-primary 移至页头右侧；过滤栏只保留筛选控件</td>
+      <td><span class="pri pri-h">高</span></td>
+      <td><span class="status-pending">⏳ 待实现</span></td>
+    </tr>
+    <tr>
+      <td><code>X2</code></td>
+      <td>任务中心</td>
+      <td>Exception Panel 每行末「查看详情 →」为文字链接，与主表操作列 icon-btn 风格不一致</td>
+      <td>改为日志图标 icon-btn（tooltip 说明），与主表风格统一</td>
+      <td><span class="pri pri-h">高</span></td>
+      <td><span class="status-pending">⏳ 待实现</span></td>
+    </tr>
+    <tr>
+      <td><code>X5</code></td>
+      <td>审计日志</td>
+      <td>过滤栏为文本输入框 + 下拉选择，无 chip 快速过滤</td>
+      <td>增加「全部 / 登录失败 / 权限变更」chip 快速过滤行</td>
+      <td><span class="pri pri-m">中</span></td>
+      <td><span class="status-pending">⏳ 待实现</span></td>
+    </tr>
+    <tr>
+      <td><code>X6</code></td>
+      <td>执行记录</td>
+      <td>「返回内容」列显示完整响应体文本</td>
+      <td>改为「响应码」列，只显示 HTTP 状态码数字（如 200、502、—）</td>
+      <td><span class="pri pri-m">中</span></td>
+      <td><span class="status-pending">⏳ 待实现</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== Page-by-page ===== -->
+<div class="section-title">逐页评估详情</div>
+
+<!-- Dashboard -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">📋 任务中心（Dashboard）</div>
+    <div class="ps-url">http://127.0.0.1:5001/</div>
+    <span class="ps-badge badge-partial">基本符合 · 2处偏差</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>页头标题与副标题</b> —「任务中心」h1 + 副标题「管理与监控所有定时任务」
+          <div class="note">符合 mockup</div>
+          <div class="dev-id">已完成</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>统计卡片区域</b> — 4 列统计卡片：异常任务 / 连续失败 / 运行中 / 今日失败次数
+          <div class="note">数量结构符合，指标名称与 mockup 不同（mockup 为：任务总数 / 运行中 / 今日失败 / 24h成功率）。当前指标更具运维价值，属有意演进，非偏差。</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>主任务表格操作列</b> — icon-btn 风格（编辑 + 执行记录）
+          <div class="note">符合 mockup icon-btn 设计</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon pending">✗</div>
+        <div class="dev-label">
+          <b>X3 · 页头右侧缺「新建任务」主操作按钮</b>
+          <div class="note">当前「新建任务」按钮位于过滤栏末尾（仅有权限时显示）。Mockup 要求将其提升至页头右侧作为 btn-primary 主操作按钮，提升视觉层级与操作入口一致性。</div>
+          <div class="dev-id">X3 · 高优先级 · 待实现</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon pending">✗</div>
+        <div class="dev-label">
+          <b>X2 · Exception Panel「查看详情 →」文字链接与 icon-btn 风格不一致</b>
+          <div class="note">Exception Panel（需要关注的任务）每行末尾为「查看详情 →」文字链接。主任务表格操作列已是 icon-btn 风格，应保持一致，改为日志图标 icon-btn（tooltip）。</div>
+          <div class="dev-id">X2 · 高优先级 · 待实现</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Users -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">👤 用户管理</div>
+    <div class="ps-url">http://127.0.0.1:5001/rbac/users</div>
+    <span class="ps-badge badge-partial">基本符合 · 结构已对齐</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>页头副标题「4 名成员」</b>
+          <div class="note">X1 已实现，动态显示成员总数</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>用户列 Avatar</b> — 彩色圆圈 + 首字母
+          <div class="note">X1 已实现</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>去掉 ID 列</b>
+          <div class="note">X1 已实现，现为：用户名 | 姓名 | 部门 | 角色 | 状态 | 密码 | 业务组 | 创建时间</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon minor">△</div>
+        <div class="dev-label">
+          <b>「添加用户」按钮位置</b> — 当前在搜索栏区域，Mockup 为页头右侧 btn-primary「邀请成员」
+          <div class="note">功能已有，位置与 mockup 略有差异。用户在上一轮未将此列为修复项，保持现状。</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon minor">△</div>
+        <div class="dev-label">
+          <b>操作列</b> — Mockup 仅1个 icon-btn（编辑），当前有 4 个操作（编辑/重置密码/重置Token/停用）
+          <div class="note">功能更丰富，为有意演进。若需对齐 mockup 视觉（icon-btn），X1 的图标化改造可进一步收口。</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Groups -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">🏢 业务组</div>
+    <div class="ps-url">http://127.0.0.1:5001/rbac/groups</div>
+    <span class="ps-badge badge-ok">基本符合</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>卡片网格布局</b>
+          <div class="note">card-grid 响应式布局，与 mockup 一致</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>卡片结构</b> — 组名 / 描述 / 成员数 / 任务数
+          <div class="note">符合 mockup 卡片结构，用「N 名成员」替代 avatar 堆叠（符合用户确认的 M1 规格）</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon minor">△</div>
+        <div class="dev-label">
+          <b>「新建业务组」按钮位置</b> — 在页头副标题行而非页头右侧
+          <div class="note">mockup 为页头右侧 btn-primary，当前实现稍有差异但可接受</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Audit -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">🔐 审计日志</div>
+    <div class="ps-url">http://127.0.0.1:5001/rbac/audit-logs</div>
+    <span class="ps-badge badge-partial">基本符合 · 1处偏差</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>页头标题与说明文字</b>
+          <div class="note">有清晰的说明文字区分 RBAC 审计与操作记录</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>表格结构</b> — ID | 操作人 | 操作 | 目标类型 | 目标名 | 详情 | IP | 时间
+          <div class="note">列数更丰富，比 mockup（事件 | 用户 | 时间 | IP | 结果）提供更多细节，属有意演进</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon pending">✗</div>
+        <div class="dev-label">
+          <b>X5 · 缺 chip 快速过滤</b>
+          <div class="note">当前为文本框 + 下拉框的搜索栏。Mockup 要求「全部 / 登录失败 / 权限变更」chip 行，可一键快速筛选高频场景。建议在现有搜索栏上方增加 chip 行，不删除现有高级搜索。</div>
+          <div class="dev-id">X5 · 中优先级 · 待实现</div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- X5 比较示意 -->
+    <div class="compare-pair" style="margin-top: 16px;">
+      <div class="compare-col">
+        <div class="compare-label"><span class="dot"></span>当前：文本框 + 下拉过滤</div>
+        <div class="mock-block" style="color: var(--muted);">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <input style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:12px;width:100px;" placeholder="用户名" readonly>
+            <select style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:12px;"><option>全部动作</option></select>
+            <select style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:12px;"><option>全部结果</option></select>
+            <button style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 10px;color:var(--ink);font-size:12px;cursor:pointer;">搜索</button>
+          </div>
+          <div style="font-size:11px;color:var(--faint);">需逐项选择，操作步骤多</div>
+        </div>
+      </div>
+      <div class="compare-col">
+        <div class="compare-label"><span class="dot green"></span>建议：chip 快速过滤 + 保留高级搜索</div>
+        <div class="mock-block">
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <span style="height:28px;padding:0 12px;border:1px solid #4c8dff;border-radius:6px;color:#7daaff;background:rgba(76,141,255,.12);font-size:12px;display:inline-flex;align-items:center;cursor:pointer;">全部</span>
+            <span style="height:28px;padding:0 12px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12px;display:inline-flex;align-items:center;cursor:pointer;">登录失败</span>
+            <span style="height:28px;padding:0 12px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12px;display:inline-flex;align-items:center;cursor:pointer;">权限变更</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:12px;width:100px;" placeholder="用户名" readonly>
+            <select style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--muted);font-size:12px;"><option>全部动作</option></select>
+            <button style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 10px;color:var(--ink);font-size:12px;cursor:pointer;">搜索</button>
+          </div>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px;">一键筛选高频场景，高级搜索保留</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tags -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">🏷 标签管理</div>
+    <div class="ps-url">http://127.0.0.1:5001/rbac/tags</div>
+    <span class="ps-badge badge-ok">符合</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>标签云展示</b> — chip 样式（标签名 + 使用数）
+          <div class="note">符合 mockup 的 tag-cloud 设计</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>「新建标签」操作入口</b>
+          <div class="note">符合 mockup</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon minor">△</div>
+        <div class="dev-label">
+          <b>额外表格详情区</b> — 标签名 | 使用数 | 业务组 | 关联任务
+          <div class="note">Mockup 只有 tag-cloud，当前额外提供表格细节，属有意增强，保留即可</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Execution Logs -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">⏱ 执行记录</div>
+    <div class="ps-url">http://127.0.0.1:5001/job_log_list</div>
+    <span class="ps-badge badge-partial">基本符合 · 1处偏差</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>Filter chip 快速过滤</b> — 结果 / 非成功 / 全部 / 仅失败 / 仅异常 / 仅成功
+          <div class="note">已有 chip 筛选，比 mockup 的「全部 / 失败 / 超时」更丰富</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>页头标题与副标题</b>
+          <div class="note">符合 mockup</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon pending">✗</div>
+        <div class="dev-label">
+          <b>X6 · 「返回内容」列应改为「响应码」</b>
+          <div class="note">Mockup 表格列：任务 | 触发时间 | 耗时 | 响应码 | 状态。当前「返回内容」列显示完整响应体文本，应改为只显示 HTTP 状态码（200 / 502 / — 等），与 mockup 对齐，并减少列宽占用。</div>
+          <div class="dev-id">X6 · 中优先级 · 待实现</div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- X6 compare -->
+    <div class="compare-pair" style="margin-top:16px;">
+      <div class="compare-col">
+        <div class="compare-label"><span class="dot"></span>当前：「返回内容」显示完整响应文本</div>
+        <div class="mock-block">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">任务</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">触发时间</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">耗时</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);color:var(--danger);">返回内容（全文）</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">状态</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:8px;">同步订单</td><td style="padding:8px;color:var(--muted);">15:00:00</td><td style="padding:8px;color:var(--muted);">184ms</td><td style="padding:8px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{"code":0,"msg":"ok","data":{"count":14}}</td><td style="padding:8px;"><span style="color:var(--success);">● 成功</span></td></tr>
+              <tr><td style="padding:8px;">清理缓存</td><td style="padding:8px;color:var(--muted);">15:00:00</td><td style="padding:8px;color:var(--muted);">超时</td><td style="padding:8px;color:var(--muted);">—</td><td style="padding:8px;"><span style="color:var(--danger);">● 超时</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="compare-col">
+        <div class="compare-label"><span class="dot green"></span>建议：「响应码」只显示状态码</div>
+        <div class="mock-block">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">任务</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">触发时间</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">耗时</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);color:var(--success);">响应码</th>
+              <th style="text-align:left;padding:6px 8px;color:var(--faint);font-size:10.5px;border-bottom:1px solid var(--border);">状态</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:8px;">同步订单</td><td style="padding:8px;color:var(--muted);">15:00:00</td><td style="padding:8px;color:var(--muted);">184ms</td><td style="padding:8px;font-family:var(--mono);color:var(--success);">200</td><td style="padding:8px;"><span style="color:var(--success);">● 成功</span></td></tr>
+              <tr><td style="padding:8px;">清理缓存</td><td style="padding:8px;color:var(--muted);">15:00:00</td><td style="padding:8px;color:var(--muted);">超时</td><td style="padding:8px;color:var(--muted);">—</td><td style="padding:8px;"><span style="color:var(--danger);">● 超时</span></td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px;">节省列宽，快速识别成功/失败码</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Operation Log -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">📝 操作记录</div>
+    <div class="ps-url">http://127.0.0.1:5001/operation_log_list</div>
+    <span class="ps-badge badge-ok">符合</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>彩色操作类型 badge</b> — 创建任务（绿） / 修改任务（蓝） / 下线任务（红） / 暂停（橙）
+          <div class="note">视觉上符合 mockup 的 badge 规范</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>表格基本结构</b>
+          <div class="note">含 ID | 用户 | 类型 | 内容 | IP | 时间，比 mockup 更丰富（mockup：操作人 | 操作 | 对象 | 时间 | 来源IP）</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Task Form -->
+<div class="page-section">
+  <div class="ps-head">
+    <div class="ps-title">✏️ 任务编辑表单</div>
+    <div class="ps-url">http://127.0.0.1:5001/cron_add</div>
+    <span class="ps-badge badge-ok">符合</span>
+  </div>
+  <div class="ps-body">
+    <ul class="deviation-list">
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>表单卡片布局</b> — form-card 风格，字段：任务名称 / 回调地址 / 请求方式 / 超时 / Cron 表达式 / 标签 / 启用开关
+          <div class="note">与 mockup form-card 规范一致</div>
+        </div>
+      </li>
+      <li class="deviation-item">
+        <div class="dev-icon done">✓</div>
+        <div class="dev-label">
+          <b>SSRF 校验提示</b> — 内网 IP 地址显示红色错误提示
+          <div class="note">符合 mockup 错误状态设计（hint.error）</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Summary -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-top:24px;">
+  <h2 style="margin-bottom:12px;">📌 结论与行动计划</h2>
+  <p style="color:var(--muted);line-height:1.8;margin-bottom:14px;">
+    当前实现与 Mockup 整体高度对齐，已完成的核心改造（Redesign Shell、topbar、user chip、groups M1 卡片、tags、X1 用户表改造）质量良好。<br>
+    剩余 <b style="color:var(--danger);">4 项</b>待处理偏差（X2 / X3 / X5 / X6）均为中等复杂度的局部 UI 修改，不涉及后端逻辑变更。
+  </p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="background:var(--surface2);border-radius:7px;padding:12px 14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">建议第一批（Dashboard）</div>
+      <div style="font-size:12.5px;line-height:1.8;">
+        ① X3：「新建任务」移至页头右侧<br>
+        ② X2：Exception Panel 文字链接 → icon-btn
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:7px;padding:12px 14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">建议第二批（其他页面）</div>
+      <div style="font-size:12.5px;line-height:1.8;">
+        ③ X5：审计日志增加 chip 快速过滤<br>
+        ④ X6：执行记录「返回内容」→「响应码」
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-综合评估Demo-2026-08-19.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

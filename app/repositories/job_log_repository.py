@@ -11,12 +11,14 @@ from app.services.job_log_filter import job_log_outcome_clause
 
 
 class JobLogRepository(BaseRepository):
-    def paginate_for_cron(self, page_query, cron_info_id, outcome='all'):
+    def paginate_for_cron(self, page_query, cron_info_id, outcome='all', content_keyword=None):
         """单任务执行记录；cron 不存在时用 cron_info_id=-1 得空页。"""
         outcome_clause = job_log_outcome_clause(outcome)
         stmt = select(JobLog).where(JobLog.cron_info_id == cron_info_id)
         if outcome_clause is not None:
             stmt = stmt.where(outcome_clause)
+        if content_keyword:
+            stmt = stmt.where(JobLog.content.like('%{}%'.format(content_keyword)))
         stmt = stmt.order_by(desc(JobLog.id))
         return self.paginate(stmt, page_query)
 

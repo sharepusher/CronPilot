@@ -12,7 +12,7 @@
 | `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；见详设） |
 
 
-**协作闭环（强制）**：**设计 → 用户确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
+**协作闭环（强制）**：**设计文档（`doc/design/*.html`） → 用户 Review 并明确确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。**所有功能和页面变更（含 CSS/JS 代码质量修复）必须先创建正式设计文档（`doc/design/*.html`），禁止仅在聊天中给出设计而不落库**。设计文档须包含 7 项必备要素（问题/根因/方案/范围/分批/验收/风险）。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
 
 **所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 
@@ -26,17 +26,32 @@
 
 **表单防重复提交（强制）**：所有 POST 表单须有防重复提交保护。`js-ajax-form` 已有 `common.js` loading 守卫；非 Ajax POST 表单由 `common.js` 全局守卫自动保护（`cp-submitting` 标记）。独立页面（不继承 `admin_base.html`）须显式引入 `common.js`。静态门禁 `tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard`。
 
+**表单必填字段标注规范（强制）**：必填字段必须在 `<label>` 内用 `<span class="uf-req">*</span>` 标注，禁止在 label 外单独添加「必填」文字 span 或使用 inline style 标明必填；下拉 placeholder option 不写「（必填）」。验证命令：`grep -n '必填' app/templates/redesign/user_form.html` 应只出现在 hint 描述文本内，而非独立 span 标签中。
+
 **大文件修改前结构分析（强制）**：修改 300+ 行的 JS/Python/模板文件前，必须用 AST 或手动追踪 `{}`/`def`/`class` 嵌套确认插入点的实际作用域；插入后须在运行时（CDP/`python -c`）确认代码在预期时机执行，禁止仅靠静态 `grep` 判断。详 `.cursor/rules/cronpilot-project.mdc`「大文件修改前结构分析」。
+
+**连续 StrReplace 后必须读回验证（强制 · 2026-08 路由丢失事故教训）**：对同一文件连续执行 ≥ 2 次 StrReplace 时，每次替换完成后**必须 Read 受影响行（±20 行）**确认关键装饰器/语句未被下一次替换覆盖或消除。验证路由完整性：`python scripts/check_route_completeness.py --check app/rbac/views.py`。
 
 **表单交互变更影响分析（强制）**：改 button type、引入模态框确认、改用 AJAX 提交等表单交互变更时，必须 `grep` 全局 JS（`common.js` 等）中 `[type="submit"]`、`form:not(...)` 等选择器的监听，确认改动后选择器仍能匹配；明确提交方式（原生 `form.submit()` vs jQuery `.submit()`）与全局守卫的交互结果；**端到端验证必须覆盖「填写→模态→确认→跳转/响应」全流程**。详 `.cursor/rules/cronpilot-project.mdc`「表单交互变更影响分析」。
 
-**策略变更影响分析（强制）**：引入或修改业务策略（如"停用不可恢复"、权限限制等）时，必须 grep 策略影响字段的**所有赋值点**，逐点加固或文档说明豁免原因；为每个修改入口编写独立测试；检查同类函数的逻辑一致性；回溯设计文档中策略相关描述。禁止仅在"最显眼"的入口加策略而忽略间接修改路径。详 `.cursor/rules/cronpilot-project.mdc`「策略变更影响分析」。
+**禁止 form 嵌套（强制 · 2026-08 change_password 事故教训）**：HTML5 规范禁止 `<form>` 嵌套。浏览器会忽略内层 `<form>` 开标签，导致内层 submit 按钮触发外层表单提交。需要在表单内放置独立 POST 操作时，使用 `<button type="button">` + JS 动态创建 form 并 `document.body.appendChild(f); f.submit()` 提交。自检：`rg -c '<form' app/templates/redesign/*.html | awk -F: '$2 > 1 {print "CHECK:", $1}'`。详见 `doc/postmortem/2026-08-change-password-nested-form.html`。
+
+**策略变更影响分析（强制）**：引入或修改业务策略（如"停用不可恢复"、权限限制等）时，必须 grep 策略影响字段的**所有赋值点**，逐点加固或文档说明豁免原因；为每个修改入口编写独立测试；检查同类函数的逻辑一致性；回溯设计文档中策略相关描述。禁止仅在"最显眼"的入口加策略而忽略间接修改路径。**新功能路由 scope 对齐**：凡新增 `@require_permission` 路由，必须检查同模块已有路由是否使用了 `_actor_bypasses_scope()` scope 校验，若有则新路由必须对齐。防护测试：`python3 -m unittest tests.test_tag_scope -v`（9 条用例）。**违反教训**：2026-08 标签 CRUD 路由开发时未对齐组管理路由已有的 scope 检查（S3）。详 `.cursor/rules/cronpilot-project.mdc`「策略变更影响分析」。
 
 **本地预览必重启**：本地以 `debug=False` / `use_reloader=False` 常驻，**改模板或 Python 后「刷新浏览器」无效**。对外让用户看效果前必须 `bash scripts/cronpilot.sh restart --daemon`，并用登录会话 curl/浏览器断言新文案或 class。**重启后须先 `curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"` 确认 200**，排除 DB 表缺失等全局 500，再进入功能验收。详见 `.cursor/rules/cronpilot-project.mdc`「本地进程与热更新」。
 
 **交付后可验证本地环境（强制）**：宣称交付前须 restart、给出 **URL + 登录方式 + 可执行验收步骤与期望断言**，并在回复中附 **Agent 自证输出**；默认**保持服务运行**供用户复验。禁止只报「单测通过」。详 `.cursor/rules/cronpilot-project.mdc`「交付后可验证本地环境」。
 
 **大变更浏览器关键路径验证（强制）**：凡涉及 RBAC 鉴权、Scope 过滤、权限矩阵、导航/页面可见性等大变更（≥3 文件或涉及权限/可见性语义），必须用**目标角色账号**在浏览器中验证正向+反向路径并截图留证。禁止仅用种子 admin 或 curl 200 宣称通过。详 `.cursor/rules/cronpilot-project.mdc`「大变更浏览器关键路径验证」。
+
+**Redesign 侧边栏角色权限回归（强制 · 2026-08）**：凡修改 `app/templates/redesign/_sidebar.html`、`app/rbac/policy.py`、`app/rbac/context.py` 或权限字符串定义，必须运行 `python -m unittest tests.test_redesign_sidebar -v` 确认 4 种角色（Seed Admin / Biz Admin / Operator / Viewer）的导航可见性与反向 403 拦截均符合预期。回归测试覆盖内容：
+
+| 角色 | 预期可见导航数 | 关键拦截点 |
+|------|:-----------:|----------|
+| Seed Admin | 12 | 全管理权限，无 `cron:write`/`cron:retire` |
+| Biz Admin | 12 | 与 Seed Admin 同（带组分配） |
+| Operator | 7 | 403: `/rbac/users`、`/rbac/audit`；允许: `/cron_add` |
+| Viewer | 6 | 403: `/cron_add`、`/rbac/users`、`/operation_log_list` |
 
 **GitHub Release 文案（强制）**：Release title / notes 统一使用**专业英文**（结构化写 `What changed` / `Why` / `Validation` / `Compatibility & Risk`），禁止口语化或中英混杂标题。该规范已落库于 `.cursor/rules/cronpilot-project.mdc`。
 
@@ -62,6 +77,8 @@ bash scripts/cronpilot.sh start --daemon   # 自动匹配 Python 3.8–3.11
 bash scripts/cronpilot.sh restart --daemon # 改代码/模板后必跑（先停后启，默认 --force）
 bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test
+python -m unittest tests.test_redesign_sidebar -v  # Redesign 侧边栏 4 角色权限回归
+python -m unittest tests.test_rbac_scope.TestScopeIntegration -v  # Scope 隔离回归（含多组/Biz Admin）
 bash scripts/ensure_business_tables.sh   # SQLite/MySQL 业务库建表补列（生产启动亦会调用）
 bash scripts/verify_golden_path.sh          # 裸机 SQLite 黄金路径
 bash scripts/verify_docker_compose.sh --keep-running   # docker compose 黄金路径
@@ -75,6 +92,7 @@ python scripts/check_version_consistency.py --check  # 版本一致性：git tag
 python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.html 是否在 index.html 中注册
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
 python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
+python scripts/check_postmortem_completeness.py --check  # 复盘文档化完整性：HTML↔MD + RELEASE_NOTES 引用 + 代码变更同步
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```
@@ -87,14 +105,44 @@ bash scripts/check_pending_sync.sh
 
 **复盘文档化（强制）**：所有复盘必须持久化到文档（`doc/design/*.html`、`doc/rfc/*.html` 或 `doc/postmortem/YYYY-MM-功能名.html`），并确保 HTML↔Markdown 同步。涉及用户可感知变更的复盘须记入 `RELEASE_NOTES.md`。禁止复盘只在对话中给出而不落库。
 
+**禁止在中间整合文档中重复源文档数值（强制）**：凡创建/编辑「整合型文档」（手册/索引/总结），禁止将源文档中的精确数值（色值、字号、间距等）复制到整合文档中。整合文档只允许包含架构决策 + 源文档定位索引。实现代码必须 `Read` 源文档获取数值，禁止从整合文档或记忆中获取。详 `.cursor/rules/cronpilot-project.mdc`「禁止在中间整合文档中重复源文档数值」。
+
 **浏览器验证自动化（强制）**：凡涉及 UI/模板/前端交互的变更，功能完成后**必须自动执行浏览器验证**（含自动登录、操作、截图），不得询问用户"是否需要验证"。登录切换账号等操作属于验证准备工作，无需用户确认。
 
-**AJAX 响应字段名规范（强制）**：本项目前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`（对应 `web_api_return()` 的 `errcode/errmsg`），禁止使用 `r.code` / `r.msg`。
+**Redesign 确认对话框规范（强制）**：Redesign 页面（`app/templates/redesign/`）中，凡需弹出对话框，必须使用以下方式，**严禁 Bootstrap modal**：
+- **危险确认**（删除/重置等）：`CpConfirm.show()` API（`redesign-confirm.js`）— 对话框正文必须使用 **`body:`** 属性（**禁止 `message:`**，API 不识别该属性，正文将渲染为空白）
+- **表单型对话框**（含输入框/选择器）：页面内自定义 `CpModal(opts)` 工厂函数（使用 `.cp-modal-overlay` / `.cp-modal` 结构，见 `tags.html`）
+- **禁止**：`$().modal('show')` / `bootstrap.min.js` / `bootstrap.min.css`（Bootstrap modal 在 redesign shell 中 CSS 命名空间冲突，对话框不可见）
+- **CI 自检命令**：`grep -r "\.modal('show')\|bootstrap.min" app/templates/redesign/ && echo "FAIL: Bootstrap modal detected" || echo "OK"`
+- **CpConfirm 参数自检**：`grep -rn "CpConfirm.show" app/templates/ | grep "message:" && echo "FAIL: use body: not message:" || echo "OK"`
+- **E2E 验证要求**：改动对话框后必须 CDP click 触发 + 检查 snapshot 中对话框 heading/按钮出现，禁止仅凭"DOM 中有按钮"宣称可用
+
+**querySelector CSS class 可达性（强制）**：模板中 `document.querySelector('.xxx')` 引用的 CSS class 必须先 `grep` 确认在 CSS 文件或 JS 创建的 DOM 中有实际定义。禁止凭记忆或假设的 class 名编写选择器。自检命令：`grep -rn "cp-confirm-overlay" app/templates/ && echo "FAIL: non-existent class" || echo "OK"`。**违反教训**：2026-08 Escape 键守卫使用了不存在的 `.cp-confirm-overlay`（实际为 `.cp-modal-overlay`），导致对话框打开时按 Escape 仍触发页面导航。
+
+**异常信息脱敏（强制）**：`except Exception` 的 catch-all 分支中，**禁止** `web_api_return(msg=str(e))` 或 `api_return(errmsg=str(e))` 将异常原始文本返回前端/API 调用方。必须返回通用错误信息（如 `'服务器内部错误，请稍后重试'`），异常详情仅写入 `current_app.logger.error` 或 `logging.getLogger().error()`。自检：`grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ | grep -v "logger\|logging" && echo FAIL || echo OK`（注意搜索范围是整个 `app/` 目录，不限于特定文件）。**违反教训**：2026-08 P0-3 修复 `cron_add` 的 `str(e)` 时搜索范围仅限 `main/views.py` + `rbac/views.py`，遗漏了 `decorated.py` 中 API 装饰器的同源问题（S5）。
+
+**innerHTML XSS 防护（强制 · S4）**：模板 JS 中凡从 `data-*` / `dataset` 取值后拼入 `innerHTML` / `bodyHtml`，**必须**经 `escHtml()` 转义或改用 `textContent` + DOM API。Jinja2 自动转义仅保护 HTML 解析阶段，浏览器解码后 jQuery `.data()` 返回原始字符串 → 拼入 innerHTML 即为二次注入。自检：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml && echo WARN || echo OK`。**违反教训**：2026-08 `registration_review.html` 的 `username` 和 `tags.html` 的 `tagName` 未转义直接拼 HTML，可触发存储型 XSS。
+
+**状态修改操作必须 POST + CSRF（强制 · S1）**：凡状态修改操作（登出、删除、停用、修改等），路由 **必须** 限定 `methods=['POST']`，配合 `@csrf_protect` 装饰器。**禁止**使用 GET 执行状态修改。前端对应的触发元素必须通过隐藏 `<form method="POST">` + CSRF token 提交，或使用 `postNavigate()` 动态构建 POST 表单。自检：`grep -n "methods=\['GET'\]" app/rbac/views.py | grep -v "login\|password\|register\|complete_profile" && echo WARN || echo OK`。防护测试：`.venv-py311/bin/python -m unittest tests.test_logout_csrf -v`（4 条用例）。**违反教训**：2026-08 `/rbac/logout` 接受 GET，攻击者可通过 `<img src="/rbac/logout">` 强制登出已登录用户。
+
+**重定向参数校验（强制 · P0-2 Open Redirect）**：所有 `request.args.get('next')` / `request.values.get('next')` 必须经 `safe_next_url()` 包裹（`from app.rbac.safe_redirect import safe_next_url`）。禁止将用户提供的 `next` 参数直接用于 `redirect()` 或模板渲染。自检：`grep -rn "request\.\(args\|values\)\.get('next" app/ | grep -v safe_next_url && echo FAIL || echo OK`。防护测试：`python3 -m unittest tests.test_safe_redirect -v`（11 条用例）。**违反教训**：2026-08 登录页 `next` 参数未校验，攻击者可构造钓鱼跳转 URL。
+
+**Cookie SameSite 属性（强制 · C1）**：所有 JS 中 `document.cookie = '...'` 写入必须包含 `;samesite=lax`。自检：`rg "document\.cookie\s*=" app/static/js/ app/templates/ | grep -v "samesite" && echo "WARN: missing samesite" || echo "OK"`。
+
+**AJAX 请求 URL 规范（强制 · F1 Dashboard 404 教训）**：模板中 AJAX 请求的 URL **必须**使用 `url_for()` 或与已有调用点（v1 模板 / 同页面其他调用）对齐，禁止凭记忆或惯例构造 URL。CronPilot 后端统一使用 query param / form data 传递 `id`（`request.values.get('id')`），不使用 path param（`/resource/{id}`）。自检：`rg "\.post\('/[a-z_]+/'" app/templates/ && echo "WARN: path-param URL found" || echo "OK"`。**违反教训**：2026-08 Dashboard 三个 AJAX 按钮使用 `/update_status/{id}` 格式导致 404 全部失效，而同项目 `task_detail.html` 已正确使用 `/update_status?id=`。
+
+**AJAX 响应字段名规范（强制）**：本项目前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`（对应 `web_api_return()` 的 `errcode/errmsg`），禁止使用 `r.code` / `r.msg`。**后端 except 分支禁止在 code=1 错误响应中携带 `url` 字段**（js-ajax-form 无论 errcode 是否为 1 都会重定向到 data.url，导致用户表单数据丢失）。自检：`grep -n "url.*code=1\|web_api_return.*code=1.*url=" app/main/views.py app/rbac/views.py`，仅允许资源守卫场景（函数顶部非提交路径）。
+
+**Redesign 确认对话框规范（强制）**：所有新增弹窗必须使用全局 `CpConfirm.show()`（简单确认，无 HTML body）或 `CpModal()`（表单/HTML body），**禁止使用 Bootstrap modal（`$().modal('show')` / `bootstrap.min.js/css`）**。两者均已在 `redesign-confirm.js` 中全局注册，无需在页面内重复定义。自检命令：`grep -r "\.modal('show')\|bootstrap.min" app/templates/redesign/ && exit 1 || echo OK`。
 
 **JS keydown 可打印字符拦截（强制）**：`keydown` 中拦截可打印字符（空格、逗号等）时，`e.preventDefault()` 后必须附加 `setTimeout(function() { $input.val(''); }, 0)` 二次清除，防止部分浏览器在事件循环下一 tick 仍插入字符。
 
 **CDP 验证局限性声明（强制）**：涉及 JS 键盘交互修复时，不得仅凭 CDP 自动化验证宣称"已修复"。CDP 键盘模拟不走浏览器完整 input 事件管道，需明确告知用户"需手动确认键盘行为"。
 
-**AskQuestion 前置门禁（强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。
+**Redesign Mockup 逐节对照（强制 · 2026-08 追加）**：实现 `doc/design/CronPilot-2026-redesign-mockup.html` 中已定义的任何页面时，必须：① 先 `Read` Mockup 对应 `view-*` 区块的**完整 HTML**（不可凭记忆）；② 列出所有关键结构（CSS class、列数、组件层级、按钮类型）；③ 实现后 `curl + grep` 验证关键 class 存在于渲染 HTML；④ 交付前截图逐区域对照。**违反教训**：2026-08 首次 Phase 2 实现因未逐节对照源码，导致 Exception Panel 完全缺失、7 列降为 5 列、icon 按钮变文字按钮，触发全量重写。
+
+**Mockup 评估权威文件（强制 · 2026-08 追加）**：进行 Mockup 对比评估前，必须先确认参考文件为 `doc/design/CronPilot-2026-redesign-mockup.html`（项目内部设计规格，含完整 view-* 区块）。`Downloads` 目录中的 HTML 文件为外部演示版（简化版），不得作为实施依据。若用户提供 Downloads 路径，必须交叉核查内部文件，以内部文件为准。验证命令：`grep -l "mockup" doc/design/*.html`（应包含 `CronPilot-2026-redesign-mockup.html`）。**违反教训**：2026-08 连续 7 轮评估均错误使用外部简化版 Mockup，导致操作记录目标列数完全相反（5 列 vs 正确的 7 列），详见 `doc/postmortem/2026-08-错误Mockup文件评估复盘.html`。
+
+**AskQuestion 前置门禁（强制 + Hook 程序化强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。**程序化强制**：`.cursor/hooks.json` 配置了 L1（`postToolUse` 每次编辑后注入提醒）+ L2（`stop` prompt hook 结束前评估是否遗漏复盘）。纯文字规范已被证明反复失效（3+ 次），Hook 为硬约束层。
 
 **勿改**：上游 `xiaoniu_cron` 仓库（除非用户明确要求）。

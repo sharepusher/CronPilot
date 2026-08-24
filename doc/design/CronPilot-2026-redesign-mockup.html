@@ -1,0 +1,2525 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CronPilot 2026 — 重设计完整 Mockup（目标态）</title>
+<style>
+  :root{
+    --canvas:#F7F8F9; --surface:#FFFFFF; --surface-2:#F1F2F4;
+    --border:#E4E6E9; --border-strong:#D3D6DA;
+    --ink:#14171A; --muted:#5B6169; --faint:#9CA3AF;
+    --signal:#3D6FE0; --signal-ink:#2F5FCB; --signal-bg:rgba(61,111,224,0.09);
+    --success:#0F9D66; --success-bg:rgba(15,157,102,0.09);
+    --warning:#B7791F; --warning-bg:rgba(183,121,31,0.10);
+    --danger:#D64545; --danger-bg:rgba(214,69,69,0.09);
+    --mono:'JetBrains Mono','SFMono-Regular',Consolas,monospace;
+    --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+    --shadow:0 1px 2px rgba(20,23,26,0.04);
+  }
+  html[data-theme="dark"]{
+    --canvas:#0D0F12; --surface:#16191D; --surface-2:#1C2025;
+    --border:#262B31; --border-strong:#34393F;
+    --ink:#ECEEF0; --muted:#8B9198; --faint:#565C64;
+    --signal:#4C8DFF; --signal-ink:#7DAAFF; --signal-bg:rgba(76,141,255,0.12);
+    --success:#34D399; --success-bg:rgba(52,211,153,0.12);
+    --warning:#F5A623; --warning-bg:rgba(245,166,35,0.12);
+    --danger:#F16565; --danger-bg:rgba(241,101,101,0.12);
+    --shadow:none;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px;}
+
+  /* ===== shell ===== */
+  #app-shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+  .sidebar{background:var(--canvas);border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .brand{display:flex;align-items:center;gap:8px;padding:6px 8px 18px;font-weight:600;font-size:14px;letter-spacing:-0.01em;}
+  .brand .dot{width:8px;height:8px;border-radius:2px;background:var(--signal);}
+  .nav-section{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:0.08em;padding:16px 8px 6px;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;color:var(--muted);font-size:13px;cursor:pointer;border-left:2px solid transparent;margin-left:-2px;transition:all .1s;}
+  .nav-item svg{width:15px;height:15px;flex-shrink:0;opacity:0.75;}
+  .nav-item:hover{background:var(--surface-2);color:var(--ink);}
+  .nav-item.active{background:var(--signal-bg);color:var(--ink);border-left-color:var(--signal);}
+  .nav-item.active svg{opacity:1;color:var(--signal);}
+  .nav-badge{margin-left:auto;background:var(--danger-bg);color:var(--danger);font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;}
+
+  .col-main{display:flex;flex-direction:column;min-width:0;}
+
+  /* ===== topbar ===== */
+  .topbar{display:flex;align-items:center;gap:10px;height:52px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--canvas);position:sticky;top:0;z-index:20;}
+  .top-search{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12.5px;width:260px;cursor:pointer;}
+  .top-search svg{width:13px;height:13px;opacity:0.7;flex-shrink:0;}
+  .kbd{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:1px 5px;}
+  .top-spacer{flex:1;}
+  .icon-btn{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px solid transparent;cursor:pointer;background:none;}
+  .icon-btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--ink);}
+  .icon-btn svg{width:15px;height:15px;}
+
+  .theme-toggle{display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;}
+  .theme-toggle button{width:26px;height:24px;border-radius:4px;border:none;background:none;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .theme-toggle button svg{width:13px;height:13px;}
+  .theme-toggle button.on{background:var(--surface-2);color:var(--ink);}
+
+  .user-chip{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;border-radius:20px;cursor:pointer;border:1px solid transparent;}
+  .user-chip:hover{background:var(--surface-2);border-color:var(--border);}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--signal-bg);color:var(--signal-ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px;flex-shrink:0;}
+  .user-chip .uname{font-size:12.5px;font-weight:500;}
+
+  /* ===== page content ===== */
+  .main{padding:24px 32px 60px;max-width:1200px;}
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  .page-head h1{font-size:18px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .page-head .sub{color:var(--muted);font-size:12.5px;margin-top:3px;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;font-family:var(--sans);border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:var(--shadow);}
+  .btn:hover{background:var(--surface-2);}
+  .btn-primary{background:var(--signal);border-color:var(--signal);color:#fff;}
+  .btn-primary:hover{background:var(--signal-ink);}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--muted);box-shadow:none;}
+  .btn-ghost:hover{background:var(--surface-2);color:var(--ink);}
+  .btn-danger{border-color:var(--danger);color:var(--danger);background:transparent;}
+  .btn-sm{height:26px;padding:0 10px;font-size:12px;border-radius:5px;}
+
+  /* ===== Stats (Health-First) ===== */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px;}
+  .stat{background:var(--surface);padding:14px 18px;}
+  .stat .label{color:var(--muted);font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;font-weight:500;}
+  .stat .value{font-size:22px;font-weight:600;font-family:var(--mono);letter-spacing:-0.02em;}
+  .stat .value.signal{color:var(--signal);}
+  .stat .value.success{color:var(--success);}
+  .stat .value.danger{color:var(--danger);}
+  .stat .value.warning{color:var(--warning);}
+  .stat .total{font-size:11px;color:var(--faint);margin-top:4px;}
+
+  /* ===== Exception Panel ===== */
+  .exception-panel{border:1px solid var(--danger);border-radius:8px;margin-bottom:20px;overflow:hidden;background:var(--danger-bg);}
+  .exception-header{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12.5px;font-weight:600;color:var(--danger);}
+  .exception-header svg{width:14px;height:14px;}
+  .exception-list{background:var(--surface);border-top:1px solid var(--border);}
+  .exception-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .exception-item:last-child{border-bottom:none;}
+  .exception-item .ex-icon{color:var(--danger);font-weight:700;font-size:14px;}
+  .exception-item .ex-name{font-weight:500;flex:1;}
+  .exception-item .ex-detail{color:var(--muted);font-size:11.5px;}
+  .exception-item .ex-action{color:var(--signal);cursor:pointer;font-size:12px;font-weight:500;}
+
+  /* ===== Filters ===== */
+  .filters{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .search{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12.5px;flex:1;min-width:180px;max-width:260px;}
+  .search svg{width:14px;height:14px;opacity:0.7;flex-shrink:0;}
+  .chip{height:28px;padding:0 10px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .chip.active{border-color:var(--signal);color:var(--ink);background:var(--signal-bg);}
+
+  /* ===== Table ===== */
+  .table-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--faint);padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-2);}
+
+  .task-cell .task-name{font-weight:500;font-size:13px;margin-bottom:2px;cursor:pointer;color:var(--ink);}
+  .task-cell .task-name:hover{color:var(--signal);}
+  .task-cell .task-id{color:var(--faint);font-size:11px;font-family:var(--mono);}
+  .task-cell .tags{display:flex;gap:4px;margin-top:4px;}
+  .tag{font-size:10px;color:var(--muted);background:var(--surface-2);padding:1px 6px;border-radius:3px;}
+  .lifecycle{font-size:10px;font-weight:500;padding:2px 6px;border-radius:3px;}
+  .lifecycle.active{background:var(--success-bg);color:var(--success);}
+  .lifecycle.paused{background:var(--warning-bg);color:var(--warning);}
+  .lifecycle.retired{background:var(--surface-2);color:var(--faint);}
+
+  .cron-expr{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--surface-2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);}
+  .schedule-human{font-size:11px;color:var(--muted);margin-top:3px;}
+
+  .health{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;}
+  .health .dot{width:7px;height:7px;border-radius:50%;}
+  .health.healthy .dot{background:var(--success);}
+  .health.healthy{color:var(--success);}
+  .health.warning .dot{background:var(--warning);}
+  .health.warning{color:var(--warning);}
+  .health.failing .dot{background:var(--danger);}
+  .health.failing{color:var(--danger);}
+
+  .run-cell{font-size:12px;}
+  .run-cell .run-time{color:var(--muted);font-size:11px;}
+  .run-cell .run-duration{font-family:var(--mono);font-size:11px;}
+  .run-cell .run-status{display:inline-flex;align-items:center;gap:4px;}
+  .run-cell .run-status .pin{width:5px;height:5px;border-radius:50%;}
+
+  .next-run{font-size:12px;color:var(--muted);}
+  .scope-cell{font-size:12px;color:var(--muted);}
+
+  .row-actions{display:flex;gap:3px;}
+  .action-btn{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px solid transparent;cursor:pointer;background:none;font-size:11px;}
+  .action-btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--ink);}
+  .action-btn.run{color:var(--signal);}
+  .action-btn.run:hover{background:var(--signal-bg);}
+  .action-btn svg{width:13px;height:13px;}
+
+  /* ===== Task Detail ===== */
+  .detail-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px;}
+  .detail-title{font-size:20px;font-weight:600;margin-bottom:4px;}
+  .detail-id{font-family:var(--mono);font-size:12px;color:var(--faint);}
+  .detail-badges{display:flex;gap:6px;margin-top:8px;align-items:center;}
+  .detail-actions{display:flex;gap:8px;flex-shrink:0;}
+
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .detail-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;}
+  .detail-card.full{grid-column:1/-1;}
+  .detail-card h3{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--faint);margin:0 0 12px;font-weight:600;}
+
+  .health-big{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .health-big .dot{width:10px;height:10px;border-radius:50%;}
+  .health-big .label{font-size:15px;font-weight:600;}
+  .health-metrics{display:flex;gap:24px;}
+  .health-metric{font-size:12px;color:var(--muted);}
+  .health-metric strong{color:var(--ink);font-family:var(--mono);}
+
+  .schedule-big{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+  .schedule-big .expr{font-family:var(--mono);font-size:14px;background:var(--surface-2);padding:4px 10px;border-radius:5px;border:1px solid var(--border);}
+  .schedule-big .human{color:var(--muted);font-size:13px;}
+  .schedule-next{font-size:12px;color:var(--muted);margin-top:8px;}
+  .schedule-tz{font-size:11.5px;color:var(--faint);margin-top:4px;font-family:var(--mono);}
+
+  .recent-runs{margin:0;padding:0;list-style:none;}
+  .recent-runs li{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+  .recent-runs li:last-child{border-bottom:none;}
+  .recent-runs .rr-time{color:var(--muted);width:50px;font-family:var(--mono);font-size:11px;}
+  .recent-runs .rr-status{width:6px;height:6px;border-radius:50%;}
+  .recent-runs .rr-status.ok{background:var(--success);}
+  .recent-runs .rr-status.fail{background:var(--danger);}
+  .recent-runs .rr-code{font-family:var(--mono);font-size:11px;width:30px;}
+  .recent-runs .rr-duration{font-family:var(--mono);font-size:11px;color:var(--muted);}
+  .view-all{display:block;text-align:center;padding:10px;font-size:12px;color:var(--signal);cursor:pointer;border-top:1px solid var(--border);margin-top:8px;}
+
+  .config-grid{display:grid;grid-template-columns:100px 1fr;gap:8px;font-size:12.5px;}
+  .config-grid .cfg-label{color:var(--faint);font-size:11px;text-transform:uppercase;}
+  .config-grid .cfg-value{color:var(--ink);font-family:var(--mono);font-size:12px;word-break:break-all;}
+
+  /* ===== Run Inspector ===== */
+  .run-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .run-id{font-family:var(--mono);font-size:14px;font-weight:600;}
+  .run-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:5px;}
+  .run-badge.ok{background:var(--success-bg);color:var(--success);}
+  .run-badge.fail{background:var(--danger-bg);color:var(--danger);}
+  .run-meta{display:flex;gap:20px;font-size:12px;color:var(--muted);margin-bottom:20px;}
+  .run-meta strong{color:var(--ink);}
+
+  .run-section{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;}
+  .run-section-head{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .run-section-body{padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--muted);}
+  .run-section-body .key{color:var(--signal-ink);}
+  .run-section-body .str{color:var(--success);}
+  .run-section-body .num{color:var(--warning);}
+
+  .breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .breadcrumb a{color:var(--signal);cursor:pointer;}
+  .breadcrumb svg{width:10px;height:10px;color:var(--faint);}
+
+  /* ===== Views ===== */
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ===== Command Palette overlay ===== */
+  .cmd-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:none;align-items:flex-start;justify-content:center;padding-top:15vh;}
+  .cmd-overlay.open{display:flex;}
+  .cmd-box{width:520px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.3);overflow:hidden;}
+  .cmd-input{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);}
+  .cmd-input svg{width:16px;height:16px;color:var(--muted);}
+  .cmd-input input{border:none;outline:none;background:transparent;font-size:14px;color:var(--ink);flex:1;font-family:var(--sans);}
+  .cmd-results{max-height:360px;overflow-y:auto;padding:8px;}
+  .cmd-group{padding:6px 8px;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
+  .cmd-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .cmd-item:hover{background:var(--surface-2);}
+  .cmd-item .ci-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+  .cmd-item .ci-icon svg{width:14px;height:14px;}
+  .cmd-item .ci-name{flex:1;}
+  .cmd-item .ci-meta{font-size:11px;color:var(--faint);}
+  .cmd-item .ci-health{font-size:11px;font-weight:500;}
+  .cmd-footer{display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--faint);}
+  .cmd-footer kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--border);border-radius:3px;padding:1px 4px;background:var(--surface-2);}
+
+  /* ===== Empty State ===== */
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;}
+  .empty-state svg{width:48px;height:48px;color:var(--faint);margin-bottom:16px;opacity:0.6;}
+  .empty-state .empty-title{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--ink);}
+  .empty-state .empty-desc{font-size:12.5px;color:var(--muted);max-width:300px;margin-bottom:16px;}
+
+  /* ===== Toast Notifications ===== */
+  .toast-container{position:fixed;top:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+  .toast{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);font-size:13px;min-width:280px;animation:slideIn 0.2s ease-out;}
+  .toast.success{border-left:3px solid var(--success);}
+  .toast.error{border-left:3px solid var(--danger);}
+  .toast.warning{border-left:3px solid var(--warning);}
+  .toast .toast-icon{width:16px;height:16px;flex-shrink:0;}
+  .toast .toast-msg{flex:1;}
+  .toast .toast-close{color:var(--faint);cursor:pointer;font-size:16px;}
+  @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+  /* ===== Modal ===== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:480px;box-shadow:0 16px 48px rgba(0,0,0,0.2);overflow:hidden;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+  .modal-header h2{font-size:15px;font-weight:600;margin:0;}
+  .modal-body{padding:22px;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid var(--border);background:var(--surface-2);}
+
+  /* ===== Skeleton Loading ===== */
+  .skeleton{background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  .skeleton-line{height:12px;margin-bottom:10px;border-radius:4px;}
+  .skeleton-line.short{width:40%;}
+  .skeleton-line.medium{width:70%;}
+
+  /* ===== Pagination ===== */
+  .pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 0;font-size:12px;color:var(--muted);}
+  .pagination .pg-info{display:flex;align-items:center;gap:4px;}
+  .pagination .pg-nav{display:flex;align-items:center;gap:2px;}
+  .pagination .pg-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:12px;font-weight:500;}
+  .pagination .pg-btn:hover{background:var(--surface-2);color:var(--ink);}
+  .pagination .pg-btn.active{background:var(--signal-bg);border-color:var(--signal);color:var(--signal-ink);font-weight:600;}
+  .pagination .pg-btn.disabled{opacity:0.4;cursor:not-allowed;}
+
+  /* ===== Form Section (reusable) ===== */
+  .form-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px;}
+  .form-section-title{font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;}
+  .form-group{margin-bottom:14px;}
+  .form-group:last-child{margin-bottom:0;}
+  .form-group label{display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;}
+  .form-group input,.form-group select,.form-group textarea{width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);}
+  .form-group textarea{height:auto;min-height:70px;padding:9px 11px;resize:vertical;}
+  .form-group .help{font-size:11px;color:var(--muted);margin-top:5px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  /* ===== Danger Zone ===== */
+  .danger-zone{background:var(--danger-bg);border:1px solid rgba(214,69,69,0.25);border-radius:10px;padding:18px 22px;}
+  .danger-zone .dz-title{font-size:13px;font-weight:600;color:var(--danger);margin-bottom:4px;}
+  .danger-zone .dz-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;}
+
+  /* ===== Password Toggle ===== */
+  .input-with-toggle{position:relative;}
+  .input-with-toggle input{padding-right:36px!important;}
+  .input-with-toggle .toggle-vis{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--faint);border-radius:4px;border:none;background:none;}
+  .input-with-toggle .toggle-vis:hover{color:var(--ink);background:var(--surface-2);}
+  .input-with-toggle .toggle-vis svg{width:14px;height:14px;}
+
+  /* ===== Form Validation States ===== */
+  .form-group.has-error input,.form-group.has-error select,.form-group.has-error textarea{border-color:var(--danger);background:var(--danger-bg);}
+  .form-group.has-error .help{color:var(--danger);}
+  .form-group.has-success input,.form-group.has-success select{border-color:var(--success);}
+  .form-group .error-msg{font-size:11px;color:var(--danger);margin-top:5px;display:flex;align-items:center;gap:4px;}
+  .form-group .error-msg svg{width:12px;height:12px;flex-shrink:0;}
+
+  /* ===== Focus States ===== */
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal)!important;box-shadow:0 0 0 3px var(--signal-bg)!important;}
+
+  /* ===== Tooltip ===== */
+  .tooltip{position:relative;display:inline-flex;}
+  .tooltip .tip-text{visibility:hidden;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--canvas);font-size:11px;padding:4px 8px;border-radius:4px;white-space:nowrap;opacity:0;transition:opacity 0.15s;}
+  .tooltip:hover .tip-text{visibility:visible;opacity:1;}
+
+  /* ===== Badge (for counts) ===== */
+  .count-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;font-size:10px;font-weight:600;border-radius:9px;background:var(--surface-2);color:var(--muted);}
+
+  /* ===== Progress indicator ===== */
+  .password-strength{display:flex;gap:3px;margin-top:6px;}
+  .password-strength .bar{flex:1;height:3px;border-radius:2px;background:var(--border);}
+  .password-strength .bar.weak{background:var(--danger);}
+  .password-strength .bar.medium{background:var(--warning);}
+  .password-strength .bar.strong{background:var(--success);}
+  .password-strength-text{font-size:10px;margin-top:3px;font-weight:500;}
+</style>
+</head>
+<body>
+
+<!-- ================= APP SHELL ================= -->
+<div id="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>CronPilot</div>
+
+    <div class="nav-section">运维操作</div>
+    <div class="nav-item active" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1"/></svg>
+      任务中心
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" data-nav="logs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      执行记录
+    </div>
+
+    <div class="nav-section">系统配置</div>
+    <div class="nav-item" data-nav="groups">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="7" rx="1.5"/><rect x="14" y="15" width="7" height="7" rx="1.5"/></svg>
+      业务组
+    </div>
+    <div class="nav-item" data-nav="tags">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.6 12.3L11.7 3.4A1 1 0 0011 3H4a1 1 0 00-1 1v7c0 .3.1.5.3.7l8.9 8.9c.4.4 1 .4 1.4 0l7-7c.4-.4.4-1 0-1.4z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>
+      标签
+    </div>
+
+    <div class="nav-section">系统管理</div>
+    <div class="nav-item" data-nav="users">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/><circle cx="18" cy="8" r="2.5"/></svg>
+      用户管理
+    </div>
+    <div class="nav-item" data-nav="reg-review">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+      注册审批
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" data-nav="audit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg>
+      审计
+    </div>
+    <div class="nav-item" data-nav="optlog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      操作记录
+    </div>
+
+    <div class="nav-section">个人设置</div>
+    <div class="nav-item" data-nav="password">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+      修改密码
+    </div>
+    <div class="nav-item" data-nav="api-token">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 11-7.8 7.8 5.5 5.5 0 017.8-7.8zm0 0L15.1 6.6"/></svg>
+      API Token
+    </div>
+
+    <div class="nav-section">开发者</div>
+    <div class="nav-item" data-nav="apidoc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      API 文档
+    </div>
+
+    <div style="margin-top:auto;padding:8px;border-top:1px solid var(--border);margin-top:16px;">
+      <div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:0.06em;padding:6px 8px 4px;font-weight:600;">演示</div>
+      <div class="nav-item" data-nav="empty-demo" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+        空状态
+      </div>
+      <div class="nav-item" data-nav="loading-demo" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/></svg>
+        骨架屏加载
+      </div>
+      <div class="nav-item" data-nav="error-demo" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        错误页
+      </div>
+      <div class="nav-item" id="show-toast-demo" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>
+        Toast 通知
+      </div>
+      <div class="nav-item" id="show-modal-retire" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6"/></svg>
+        确认弹窗
+      </div>
+      <div class="nav-item" id="show-login-page" style="font-size:11px;color:var(--faint);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8l4 4-4 4"/></svg>
+        登录/注册页
+      </div>
+    </div>
+  </aside>
+
+  <div class="col-main">
+    <!-- ============ TOPBAR ============ -->
+    <div class="topbar">
+      <div class="top-search" id="cmd-trigger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        搜索任务、执行命令…
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="top-spacer"></div>
+
+      <div class="theme-toggle">
+        <button id="theme-light-btn" class="on" title="浅色">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button id="theme-dark-btn" title="深色">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A8.5 8.5 0 119.5 4a7 7 0 0010.5 10.5z"/></svg>
+        </button>
+      </div>
+
+      <button class="icon-btn" title="通知" style="position:relative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      </button>
+
+      <div class="user-chip" style="position:relative;cursor:pointer;" id="user-menu-trigger">
+        <div class="avatar">张</div>
+        <div class="uname">张伟</div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:.5"><path d="M6 9l6 6 6-6"/></svg>
+        <!-- User dropdown menu -->
+        <div id="user-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;width:180px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px 0;z-index:100;">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+            <div style="font-size:12.5px;font-weight:500;color:var(--ink);">张伟</div>
+            <div style="font-size:11px;color:var(--faint);">管理员 · 交易平台组</div>
+          </div>
+          <a style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px;color:var(--ink);text-decoration:none;cursor:pointer;" data-nav="password">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            修改密码
+          </a>
+          <a style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px;color:var(--ink);text-decoration:none;cursor:pointer;" data-nav="api-token">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 0-7.8 7.8 5.5 5.5 0 0 0 7.8-7.8zM14 4l3 3"/><path d="M5 16l3 3"/></svg>
+            API Token
+          </a>
+          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+          <a id="logout-btn" style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px;color:var(--danger);text-decoration:none;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            退出登录
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 任务中心 (Health-First) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view active" id="view-dashboard">
+      <div class="main">
+        <div class="page-head">
+          <div><h1>任务中心</h1><div class="sub">系统运行状态总览与任务运营</div></div>
+          <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>新建任务</button>
+        </div>
+
+        <!-- Health-First Metrics -->
+        <div class="stats">
+          <div class="stat"><div class="label">异常任务</div><div class="value danger">3</div><div class="total">需要立即关注</div></div>
+          <div class="stat"><div class="label">连续失败</div><div class="value warning">2</div><div class="total">≥3 次连续失败</div></div>
+          <div class="stat"><div class="label">运行中</div><div class="value signal">6</div><div class="total">当前正在执行</div></div>
+          <div class="stat"><div class="label">今日失败次数</div><div class="value danger">5</div><div class="total">128 个任务 · 成功率 99.4%</div></div>
+        </div>
+
+        <!-- Exception Panel (Health First) -->
+        <div class="exception-panel">
+          <div class="exception-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v6.3"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="18" cy="18" r="4"/><path d="M18 16v2l1 1"/></svg>
+            需要关注的任务（3）
+          </div>
+          <div class="exception-list">
+            <div class="exception-item">
+              <span class="ex-icon">×5</span>
+              <span class="ex-name">清理过期缓存</span>
+              <span class="ex-detail">连续失败 5 次 · 最近: Connection refused</span>
+              <span class="ex-action" data-nav="detail">查看详情 →</span>
+            </div>
+            <div class="exception-item">
+              <span class="ex-icon">×3</span>
+              <span class="ex-name">库存预警扫描</span>
+              <span class="ex-detail">连续失败 3 次 · 最近: HTTP 502</span>
+              <span class="ex-action" data-nav="detail">查看详情 →</span>
+            </div>
+            <div class="exception-item">
+              <span class="ex-icon" style="color:var(--warning)">⚠</span>
+              <span class="ex-name">用户画像更新</span>
+              <span class="ex-detail">P95 延迟 12.4s（阈值 5s）</span>
+              <span class="ex-action" data-nav="detail">查看详情 →</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>搜索任务名称…</div>
+          <div class="chip active">全部 128</div>
+          <div class="chip">异常 3</div>
+          <div class="chip">运行中 6</div>
+          <div class="chip">暂停 12</div>
+          <div class="chip">已下线 4</div>
+          <div style="flex:1"></div>
+          <div class="chip">业务组 ▾</div>
+          <div class="chip">标签 ▾</div>
+        </div>
+
+        <!-- Enhanced Task Table -->
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>任务</th>
+              <th>调度策略</th>
+              <th>健康度</th>
+              <th>最近执行</th>
+              <th>下次执行</th>
+              <th>业务组</th>
+              <th style="width:90px">操作</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="task-cell">
+                  <div class="task-name" data-nav="detail">同步订单履约状态</div>
+                  <div class="task-id">order-fulfillment-sync</div>
+                  <div class="tags"><span class="lifecycle active">运行中</span><span class="tag">交易</span><span class="tag">P0</span></div>
+                </td>
+                <td><span class="cron-expr">*/5 * * * *</span><div class="schedule-human">每 5 分钟</div></td>
+                <td><span class="health healthy"><span class="dot"></span>健康</span></td>
+                <td class="run-cell"><div class="run-status"><span class="pin" style="background:var(--success)"></span> 200</div><div class="run-duration">184ms</div><div class="run-time">2 min ago</div></td>
+                <td class="next-run">in 3 min</td>
+                <td class="scope-cell">交易平台组</td>
+                <td><div class="row-actions">
+                  <button class="action-btn run" title="立即执行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg></button>
+                  <button class="action-btn" title="暂停"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                  <button class="action-btn" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="task-cell">
+                  <div class="task-name" data-nav="detail">生成日活报表</div>
+                  <div class="task-id">dau-report-daily</div>
+                  <div class="tags"><span class="lifecycle active">运行中</span><span class="tag">数据</span></div>
+                </td>
+                <td><span class="cron-expr">0 2 * * *</span><div class="schedule-human">每日 02:00</div></td>
+                <td><span class="health healthy"><span class="dot"></span>健康</span></td>
+                <td class="run-cell"><div class="run-status"><span class="pin" style="background:var(--success)"></span> 200</div><div class="run-duration">4.2s</div><div class="run-time">13h ago</div></td>
+                <td class="next-run">in 11h</td>
+                <td class="scope-cell">数据平台组</td>
+                <td><div class="row-actions">
+                  <button class="action-btn run" title="立即执行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg></button>
+                  <button class="action-btn" title="暂停"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                  <button class="action-btn" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="task-cell">
+                  <div class="task-name" data-nav="detail" style="color:var(--danger)">清理过期缓存</div>
+                  <div class="task-id">cache-eviction-hourly</div>
+                  <div class="tags"><span class="lifecycle active">运行中</span><span class="tag">基础设施</span></div>
+                </td>
+                <td><span class="cron-expr">0 * * * *</span><div class="schedule-human">每小时</div></td>
+                <td><span class="health failing"><span class="dot"></span>×5 异常</span></td>
+                <td class="run-cell"><div class="run-status"><span class="pin" style="background:var(--danger)"></span> —</div><div class="run-duration">timeout</div><div class="run-time">1 min ago</div></td>
+                <td class="next-run">in 59 min</td>
+                <td class="scope-cell">基础设施组</td>
+                <td><div class="row-actions">
+                  <button class="action-btn run" title="立即执行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg></button>
+                  <button class="action-btn" title="暂停"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                  <button class="action-btn" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="task-cell">
+                  <div class="task-name" data-nav="detail">库存预警扫描</div>
+                  <div class="task-id">inventory-alert-scan</div>
+                  <div class="tags"><span class="lifecycle active">运行中</span><span class="tag">交易</span><span class="tag">P1</span></div>
+                </td>
+                <td><span class="cron-expr">*/15 * * * *</span><div class="schedule-human">每 15 分钟</div></td>
+                <td><span class="health failing"><span class="dot"></span>×3 异常</span></td>
+                <td class="run-cell"><div class="run-status"><span class="pin" style="background:var(--danger)"></span> 502</div><div class="run-duration">890ms</div><div class="run-time">5 min ago</div></td>
+                <td class="next-run">in 10 min</td>
+                <td class="scope-cell">交易平台组</td>
+                <td><div class="row-actions">
+                  <button class="action-btn run" title="立即执行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg></button>
+                  <button class="action-btn" title="暂停"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                  <button class="action-btn" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+                </div></td>
+              </tr>
+              <tr>
+                <td class="task-cell">
+                  <div class="task-name" data-nav="detail">旧版促销活动结算</div>
+                  <div class="task-id">legacy-promo-settle</div>
+                  <div class="tags"><span class="lifecycle retired">已下线</span><span class="tag">已弃用</span></div>
+                </td>
+                <td><span class="cron-expr">0 0 1 * *</span><div class="schedule-human">每月 1 日</div></td>
+                <td><span class="health" style="color:var(--faint)"><span class="dot" style="background:var(--faint)"></span>N/A</span></td>
+                <td class="run-cell"><div class="run-time" style="color:var(--faint)">已下线</div></td>
+                <td class="next-run" style="color:var(--faint)">—</td>
+                <td class="scope-cell">交易平台组</td>
+                <td><div class="row-actions">
+                  <button class="action-btn" title="恢复"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 019-9 9 9 0 010 18"/><path d="M3 12l3-3m-3 3l3 3"/></svg></button>
+                  <button class="action-btn" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+                </div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <div class="pg-info">显示 1-5 / 共 128 个任务</div>
+          <div class="pg-nav">
+            <button class="pg-btn disabled">‹</button>
+            <button class="pg-btn active">1</button>
+            <button class="pg-btn">2</button>
+            <button class="pg-btn">3</button>
+            <button class="pg-btn">…</button>
+            <button class="pg-btn">26</button>
+            <button class="pg-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: Task Detail -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-detail">
+      <div class="main">
+        <div class="breadcrumb">
+          <a data-nav="dashboard">任务中心</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>同步订单履约状态</span>
+        </div>
+
+        <div class="detail-header">
+          <div>
+            <div class="detail-title">同步订单履约状态</div>
+            <div class="detail-id">order-fulfillment-sync</div>
+            <div class="detail-badges">
+              <span class="lifecycle active">运行中</span>
+              <span class="tag">交易</span>
+              <span class="tag">P0</span>
+              <span class="tag">交易平台组</span>
+            </div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn btn-primary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>立即执行</button>
+            <button class="btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>暂停</button>
+            <button class="btn btn-ghost"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg>编辑</button>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <!-- Health Card -->
+          <div class="detail-card">
+            <h3>健康度</h3>
+            <div class="health-big">
+              <span class="dot" style="background:var(--success);width:10px;height:10px;border-radius:50%"></span>
+              <span class="label" style="font-size:15px;font-weight:600;color:var(--success)">健康</span>
+            </div>
+            <div class="health-metrics">
+              <div class="health-metric">连续失败 <strong>0</strong></div>
+              <div class="health-metric">24h 成功率 <strong>100%</strong></div>
+              <div class="health-metric">P95 延迟 <strong>192ms</strong></div>
+            </div>
+          </div>
+
+          <!-- Schedule Card -->
+          <div class="detail-card">
+            <h3>调度</h3>
+            <div class="schedule-big">
+              <span class="expr">*/5 * * * *</span>
+              <span class="human">每 5 分钟执行一次</span>
+            </div>
+            <div class="schedule-next">下次执行: <strong style="color:var(--ink)">15:05:00</strong></div>
+            <div class="schedule-tz">时区: Asia/Shanghai (UTC+8)</div>
+          </div>
+
+          <!-- Recent Runs Card -->
+          <div class="detail-card">
+            <h3>最近执行</h3>
+            <ul class="recent-runs">
+              <li><span class="rr-time">15:00</span><span class="rr-status ok"></span><span class="rr-code">200</span><span class="rr-duration">184ms</span></li>
+              <li><span class="rr-time">14:55</span><span class="rr-status ok"></span><span class="rr-code">200</span><span class="rr-duration">192ms</span></li>
+              <li><span class="rr-time">14:50</span><span class="rr-status ok"></span><span class="rr-code">200</span><span class="rr-duration">181ms</span></li>
+              <li><span class="rr-time">14:45</span><span class="rr-status ok"></span><span class="rr-code">200</span><span class="rr-duration">188ms</span></li>
+              <li><span class="rr-time">14:40</span><span class="rr-status ok"></span><span class="rr-code">200</span><span class="rr-duration">195ms</span></li>
+            </ul>
+            <a class="view-all" data-nav="run-inspector">查看全部执行记录 →</a>
+          </div>
+
+          <!-- Configuration Card -->
+          <div class="detail-card">
+            <h3>配置信息</h3>
+            <div class="config-grid">
+              <span class="cfg-label">请求地址</span><span class="cfg-value">POST https://api.order.io/fulfillment/sync</span>
+              <span class="cfg-label">超时</span><span class="cfg-value">30s</span>
+              <span class="cfg-label">业务组</span><span class="cfg-value">交易平台组</span>
+              <span class="cfg-label">创建人</span><span class="cfg-value">张伟</span>
+              <span class="cfg-label">创建时间</span><span class="cfg-value">2026-03-15</span>
+              <span class="cfg-label">最后修改</span><span class="cfg-value">2026-08-10 14:20</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: Run Inspector -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-run-inspector">
+      <div class="main">
+        <div class="breadcrumb">
+          <a data-nav="dashboard">任务中心</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <a data-nav="detail">同步订单履约状态</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>执行 #ab8148aa</span>
+        </div>
+
+        <div class="run-header">
+          <span class="run-id">执行 #ab8148aa</span>
+          <span class="run-badge ok">● 成功</span>
+        </div>
+
+        <div class="run-meta">
+          <span>HTTP <strong>200</strong></span>
+          <span>耗时 <strong>184ms</strong></span>
+          <span>开始 <strong>2026-08-11 15:00:00.000</strong></span>
+          <span>结束 <strong>2026-08-11 15:00:00.184</strong></span>
+          <span>触发方式 <strong>定时调度</strong></span>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">请求</div>
+          <div class="run-section-body">
+<span class="key">POST</span> https://api.order.io/fulfillment/sync
+
+<span class="key">Headers:</span>
+  Content-Type: application/json
+  X-CronPilot-Sign: a3f8c2...
+
+<span class="key">Body:</span>
+{
+  <span class="str">"cronpilot_log_id"</span>: <span class="str">"ab8148aa"</span>,
+  <span class="str">"cronpilot_sign"</span>: <span class="str">"a3f8c2d9..."</span>
+}
+          </div>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">响应</div>
+          <div class="run-section-body">
+HTTP/<span class="num">200</span> OK
+
+{
+  <span class="str">"status"</span>: <span class="str">"ok"</span>,
+  <span class="str">"processed"</span>: <span class="num">42</span>,
+  <span class="str">"duration_ms"</span>: <span class="num">156</span>
+}
+          </div>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">业务日志 (3 条)</div>
+          <div class="run-section-body">
+[<span class="num">15:00:00.034</span>] Processing batch 1/3 (14 orders)
+[<span class="num">15:00:00.098</span>] Processing batch 2/3 (14 orders)
+[<span class="num">15:00:00.156</span>] All <span class="num">42</span> orders synced successfully
+          </div>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">元数据</div>
+          <div class="run-section-body" style="font-family:var(--sans)">
+            <div class="config-grid">
+              <span class="cfg-label">任务</span><span class="cfg-value">order-fulfillment-sync</span>
+              <span class="cfg-label">业务组</span><span class="cfg-value">交易平台组</span>
+              <span class="cfg-label">触发方式</span><span class="cfg-value">定时调度 (cron)</span>
+              <span class="cfg-label">执行节点</span><span class="cfg-value">cronpilot-main@10.2.31.4</span>
+              <span class="cfg-label">时区</span><span class="cfg-value">Asia/Shanghai (UTC+8)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: Run Inspector (Failed) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-run-failed">
+      <div class="main">
+        <div class="breadcrumb">
+          <a data-nav="dashboard">任务中心</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <a>清理过期缓存</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>执行 #c47f2b11</span>
+        </div>
+
+        <div class="run-header">
+          <span class="run-id">执行 #c47f2b11</span>
+          <span class="run-badge fail">× 失败</span>
+        </div>
+
+        <div class="run-meta">
+          <span>HTTP <strong>—</strong></span>
+          <span>耗时 <strong>30,000ms (超时)</strong></span>
+          <span>开始 <strong>2026-08-11 15:00:00.000</strong></span>
+          <span>错误 <strong style="color:var(--danger)">Connection refused</strong></span>
+        </div>
+
+        <div class="run-section" style="border-color:var(--danger);">
+          <div class="run-section-head" style="color:var(--danger);background:var(--danger-bg)">失败原因</div>
+          <div class="run-section-body">
+<span style="color:var(--danger);font-weight:600">ConnectionError:</span> Connection refused
+  Target: http://10.2.31.100:8080/cache/evict
+  Timeout: 30s
+  Retries: 0/0
+
+<span class="key">连续失败:</span> <span class="num">5</span> (since 2026-08-11 10:00)
+<span class="key">最后成功:</span> 2026-08-11 09:00:00 (6 hours ago)
+          </div>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">请求</div>
+          <div class="run-section-body">
+<span class="key">GET</span> http://10.2.31.100:8080/cache/evict?cronpilot_log_id=c47f2b11&amp;cronpilot_sign=...
+
+<span class="key">Headers:</span>
+  User-Agent: CronPilot/3.0
+          </div>
+        </div>
+
+        <div class="run-section">
+          <div class="run-section-head">响应</div>
+          <div class="run-section-body" style="color:var(--danger)">
+No response received — connection refused by target host.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 执行记录 (Enhanced) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-logs">
+      <div class="main">
+        <div class="page-head"><div><h1>执行记录</h1><div class="sub">全部任务的调度执行历史</div></div></div>
+        <div class="filters">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>按任务名筛选…</div>
+          <div class="chip active">全部</div>
+          <div class="chip">失败</div>
+          <div class="chip">超时</div>
+          <div style="flex:1"></div>
+          <div class="chip">业务组 ▾</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>任务</th><th>触发时间</th><th>耗时</th><th>响应码</th><th>状态</th><th>失败原因</th><th style="width:60px"></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="task-cell"><div class="task-name">同步订单履约状态</div></td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">2026-08-11 15:00:00</td>
+                <td style="font-family:var(--mono);font-size:12px">184ms</td>
+                <td style="font-family:var(--mono);font-size:12px">200</td>
+                <td><span class="health healthy"><span class="dot"></span>成功</span></td>
+                <td style="color:var(--faint);font-size:12px">—</td>
+                <td><button class="action-btn" title="查看详情" data-nav="run-inspector"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button></td>
+              </tr>
+              <tr style="background:var(--danger-bg);">
+                <td class="task-cell"><div class="task-name" style="color:var(--danger)">清理过期缓存</div></td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">2026-08-11 15:00:00</td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--danger)">30000ms</td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--faint)">—</td>
+                <td><span class="health failing"><span class="dot"></span>超时</span></td>
+                <td style="font-size:11.5px;color:var(--danger)">Connection refused</td>
+                <td><button class="action-btn" title="查看详情" data-nav="run-failed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button></td>
+              </tr>
+              <tr>
+                <td class="task-cell"><div class="task-name">生成日活报表</div></td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">2026-08-11 02:00:00</td>
+                <td style="font-family:var(--mono);font-size:12px">4.2s</td>
+                <td style="font-family:var(--mono);font-size:12px">200</td>
+                <td><span class="health healthy"><span class="dot"></span>成功</span></td>
+                <td style="color:var(--faint);font-size:12px">—</td>
+                <td><button class="action-btn" title="查看详情"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button></td>
+              </tr>
+              <tr style="background:var(--danger-bg);">
+                <td class="task-cell"><div class="task-name" style="color:var(--danger)">库存预警扫描</div></td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">2026-08-11 14:45:00</td>
+                <td style="font-family:var(--mono);font-size:12px">890ms</td>
+                <td style="font-family:var(--mono);font-size:12px;color:var(--danger)">502</td>
+                <td><span class="health failing"><span class="dot"></span>失败</span></td>
+                <td style="font-size:11.5px;color:var(--danger)">HTTP 502 Bad Gateway</td>
+                <td><button class="action-btn" title="查看详情"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 用户管理 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-users">
+      <div class="main">
+        <div class="page-head">
+          <div><h1>用户管理</h1><div class="sub">6 名成员 · 3 个业务组</div></div>
+          <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>添加用户</button>
+        </div>
+        <div class="filters">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>搜索用户…</div>
+          <div class="chip active">全部 6</div>
+          <div class="chip">启用 5</div>
+          <div class="chip">停用 1</div>
+          <div style="flex:1"></div>
+          <div class="chip">角色 ▾</div>
+          <div class="chip">业务组 ▾</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>用户</th><th>花名</th><th>岗位</th><th>角色</th><th>业务组</th><th>状态</th><th>密码状态</th><th>创建时间</th><th style="width:180px">操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="display:flex;align-items:center;gap:10px"><div class="avatar">张</div><div><div style="font-weight:500;font-size:13px">zhangwei</div><div style="font-family:var(--mono);font-size:11px;color:var(--faint)">zhangwei@cronpilot.dev</div></div></td>
+                <td style="font-size:12px">张伟</td>
+                <td style="font-size:12px;color:var(--muted)">后端开发</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">管理员</span></td>
+                <td style="font-size:12px;color:var(--muted)">交易平台组</td>
+                <td><span class="health healthy"><span class="dot"></span>启用</span></td>
+                <td><span style="font-size:11px;color:var(--success)">正常</span></td>
+                <td style="font-size:11px;color:var(--faint)">2026-03-15</td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">重置密码</button><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">停用</button><button class="action-btn" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg></button></div></td>
+              </tr>
+              <tr>
+                <td style="display:flex;align-items:center;gap:10px"><div class="avatar">李</div><div><div style="font-weight:500;font-size:13px">lina</div><div style="font-family:var(--mono);font-size:11px;color:var(--faint)">lina@cronpilot.dev</div></div></td>
+                <td style="font-size:12px">李娜</td>
+                <td style="font-size:12px;color:var(--muted)">运维/SRE</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">运维</span></td>
+                <td style="font-size:12px;color:var(--muted)">数据平台组</td>
+                <td><span class="health healthy"><span class="dot"></span>启用</span></td>
+                <td><span style="font-size:11px;color:var(--success)">正常</span></td>
+                <td style="font-size:11px;color:var(--faint)">2026-04-20</td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">重置密码</button><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">停用</button><button class="action-btn" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg></button></div></td>
+              </tr>
+              <tr style="opacity:0.6">
+                <td style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:var(--surface-2);color:var(--faint)">王</div><div><div style="font-weight:500;font-size:13px">wangfang</div><div style="font-family:var(--mono);font-size:11px;color:var(--faint)">wangfang@cronpilot.dev</div></div></td>
+                <td style="font-size:12px">王芳</td>
+                <td style="font-size:12px;color:var(--faint)">数据分析</td>
+                <td><span class="lifecycle" style="background:var(--surface-2);color:var(--muted)">观察者</span></td>
+                <td style="font-size:12px;color:var(--muted)">基础设施组</td>
+                <td><span class="health" style="color:var(--faint)"><span class="dot" style="background:var(--faint)"></span>停用</span></td>
+                <td><span style="font-size:11px;color:var(--faint)">—</span></td>
+                <td style="font-size:11px;color:var(--faint)">2026-05-10</td>
+                <td><button class="action-btn" title="查看"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button></td>
+              </tr>
+              <tr>
+                <td style="display:flex;align-items:center;gap:10px"><div class="avatar">陈</div><div><div style="font-weight:500;font-size:13px">chenming</div><div style="font-family:var(--mono);font-size:11px;color:var(--faint)">chenming@cronpilot.dev</div></div></td>
+                <td style="font-size:12px">陈明</td>
+                <td style="font-size:12px;color:var(--muted)">前端开发</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">运维</span></td>
+                <td style="font-size:12px;color:var(--muted)">交易平台组, 基础设施组</td>
+                <td><span class="health healthy"><span class="dot"></span>启用</span></td>
+                <td><span style="font-size:11px;color:var(--warning);font-weight:500">待重置</span></td>
+                <td style="font-size:11px;color:var(--faint)">2026-06-02</td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">重置密码</button><button class="btn btn-sm" style="font-size:11px;padding:0 8px;height:24px;">停用</button><button class="action-btn" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg></button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:11.5px;color:var(--faint)">💡 无物理删除；停用不可恢复。新建用户默认密码 changeme。</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 业务组详情 (Scope Console) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-groups">
+      <div class="main">
+        <div class="page-head">
+          <div><h1>业务组</h1><div class="sub">资源 Scope 管理 · 3 个活跃组</div></div>
+          <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>新建业务组</button>
+        </div>
+
+        <!-- Group Cards Overview -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;">
+          <div style="background:var(--surface);border:1px solid var(--signal);border-radius:8px;padding:16px;cursor:pointer;" data-nav="group-detail">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">交易平台组</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">负责交易核心链路的定时任务管理</div>
+            <div style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding-top:10px;border-top:1px solid var(--border);">
+              <span><strong style="color:var(--ink)">3</strong> 成员</span>
+              <span><strong style="color:var(--ink)">18</strong> 任务</span>
+              <span><strong style="color:var(--danger)">2</strong> 异常</span>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;cursor:pointer;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">数据平台组</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">数据处理、报表、ETL 相关任务</div>
+            <div style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding-top:10px;border-top:1px solid var(--border);">
+              <span><strong style="color:var(--ink)">2</strong> 成员</span>
+              <span><strong style="color:var(--ink)">9</strong> 任务</span>
+              <span><strong style="color:var(--success)">0</strong> 异常</span>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;cursor:pointer;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">基础设施组</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">缓存、监控、清理等基础设施任务</div>
+            <div style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding-top:10px;border-top:1px solid var(--border);">
+              <span><strong style="color:var(--ink)">2</strong> 成员</span>
+              <span><strong style="color:var(--ink)">6</strong> 任务</span>
+              <span><strong style="color:var(--danger)">1</strong> 异常</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group Detail (expanded) -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:16px;font-weight:600;">交易平台组</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">负责交易核心链路的定时任务管理</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm">编辑</button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);">
+            <!-- Members -->
+            <div style="padding:16px 20px;border-right:1px solid var(--border);">
+              <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:12px;">成员 (3)</div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;">
+                  <div class="avatar">张</div>
+                  <div><div style="font-weight:500">张伟</div><div style="font-size:11px;color:var(--faint)">管理员</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;">
+                  <div class="avatar">陈</div>
+                  <div><div style="font-weight:500">陈明</div><div style="font-size:11px;color:var(--faint)">运维</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;">
+                  <div class="avatar">赵</div>
+                  <div><div style="font-weight:500">赵磊</div><div style="font-size:11px;color:var(--faint)">观察者</div></div>
+                </div>
+              </div>
+            </div>
+            <!-- Permissions -->
+            <div style="padding:16px 20px;">
+              <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:12px;">权限 Scope</div>
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
+                <div style="display:flex;align-items:center;gap:8px;"><span class="health healthy"><span class="dot"></span></span><span style="font-size:12px;color:var(--ink)">查看任务</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><span class="health healthy"><span class="dot"></span></span><span style="font-size:12px;color:var(--ink)">管理任务</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><span class="health healthy"><span class="dot"></span></span><span style="font-size:12px;color:var(--ink)">执行任务</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><span class="health healthy"><span class="dot"></span></span><span style="font-size:12px;color:var(--ink)">查看执行日志</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><span class="health" style="color:var(--faint)"><span class="dot" style="background:var(--faint)"></span></span><span style="font-size:12px;color:var(--faint)">用户管理（仅 admin）</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks in this group -->
+          <div style="padding:16px 20px;">
+            <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:12px;">任务 (18) · <span style="color:var(--danger)">2 异常</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span class="health failing"><span class="dot"></span></span>
+                <span style="font-weight:500;flex:1">清理过期缓存</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">0 * * * *</span>
+                <span style="font-size:11px;color:var(--danger)">×5 连续失败</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span class="health failing"><span class="dot"></span></span>
+                <span style="font-weight:500;flex:1">库存预警扫描</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">*/15 * * * *</span>
+                <span style="font-size:11px;color:var(--danger)">×3 连续失败</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span class="health healthy"><span class="dot"></span></span>
+                <span style="font-weight:500;flex:1">同步订单履约状态</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">*/5 * * * *</span>
+                <span style="font-size:11px;color:var(--success)">健康</span>
+              </div>
+              <div style="text-align:center;padding:8px;font-size:12px;color:var(--signal);cursor:pointer;">查看全部 18 个任务 →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 审计日志 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-audit">
+      <div class="main">
+        <div class="page-head"><div><h1>审计日志</h1><div class="sub">RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）</div></div></div>
+        <div class="filters">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>搜索用户名…</div>
+          <div class="chip active">全部</div>
+          <div class="chip">登录成功</div>
+          <div class="chip">登录失败</div>
+          <div class="chip">权限拒绝</div>
+          <div class="chip">用户管理</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>时间</th><th>用户名</th><th>动作</th><th>说明</th><th>来源 IP</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap">2026-08-11 14:32:11</td>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">角色变更</span></td>
+                <td style="font-size:12px">将 <strong>陈明</strong> 的角色从 <code style="background:var(--surface-2);padding:1px 4px;border-radius:2px;font-size:11px">观察者</code> 提升为 <code style="background:var(--surface-2);padding:1px 4px;border-radius:2px;font-size:11px">运维</code></td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+                <td><span style="font-size:11px;color:var(--success);font-weight:500">允许</span></td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap">2026-08-11 14:20:03</td>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">登录成功</span></td>
+                <td style="font-size:12px">密码认证</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+                <td><span style="font-size:11px;color:var(--success);font-weight:500">允许</span></td>
+              </tr>
+              <tr style="background:var(--danger-bg)">
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap">2026-08-11 14:18:55</td>
+                <td style="font-size:12.5px;font-weight:500;color:var(--danger)">未知</td>
+                <td><span class="lifecycle" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger)">登录失败</span></td>
+                <td style="font-size:12px;color:var(--danger)">暴力破解检测：5 分钟内 8 次失败尝试 (zhangwei)</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--danger)">203.0.113.42</td>
+                <td><span style="font-size:11px;color:var(--danger);font-weight:600">拒绝</span></td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap">2026-08-11 11:03:47</td>
+                <td style="font-size:12.5px;font-weight:500">李娜</td>
+                <td><span class="lifecycle" style="background:var(--warning-bg);color:var(--warning)">权限拒绝</span></td>
+                <td style="font-size:12px">尝试访问 <code style="background:var(--surface-2);padding:1px 4px;border-radius:2px;font-size:11px">用户管理</code>，权限不足</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.9</td>
+                <td><span style="font-size:11px;color:var(--danger);font-weight:500">拒绝</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:11px;color:var(--faint);margin-top:10px;">💡 任务配置变更（创建/编辑/启停/下线）请到「操作记录」页查看。</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 标签管理 (with Namespace) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-tags">
+      <div class="main">
+        <div class="page-head">
+          <div><h1>标签管理</h1><div class="sub">按命名空间组织的任务标签</div></div>
+          <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>新建标签</button>
+        </div>
+
+        <!-- Tag Namespace: Business -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="7" rx="1.5"/></svg>
+            业务域
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              交易 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">18</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              数据 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">9</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              基础设施 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">6</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              风控 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">4</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag Namespace: Priority -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            优先级
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--danger-bg);border:1px solid rgba(214,69,69,0.2);border-radius:20px;font-size:12.5px;color:var(--danger);font-weight:500;">
+              P0 <span style="background:rgba(214,69,69,0.15);font-size:10.5px;padding:1px 6px;border-radius:8px;">4</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--warning-bg);border:1px solid rgba(183,121,31,0.2);border-radius:20px;font-size:12.5px;color:var(--warning);font-weight:500;">
+              P1 <span style="background:rgba(183,121,31,0.15);font-size:10.5px;padding:1px 6px;border-radius:8px;">12</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              P2 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">31</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag Namespace: Lifecycle -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            生命周期
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              已弃用 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">2</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              迁移中 <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag Namespace: Region -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            区域
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              CN <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">45</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              SG <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">8</span>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12.5px;">
+              JP <span style="background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:1px 6px;border-radius:8px;">3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 任务编辑 (Configuration Workspace) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-form">
+      <div class="main" style="max-width:720px;">
+        <div class="breadcrumb">
+          <a data-nav="dashboard">任务中心</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <a data-nav="detail">同步订单履约状态</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>编辑配置</span>
+        </div>
+
+        <div class="page-head"><div><h1>编辑任务配置</h1><div class="sub">order-fulfillment-sync</div></div></div>
+
+        <!-- Section: 基础信息 -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">基础信息</div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">任务名称</label>
+            <input type="text" value="同步订单履约状态" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">任务说明</label>
+            <textarea style="width:100%;min-height:50px;padding:8px 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);resize:vertical;">每5分钟同步订单履约状态到数据平台</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div>
+              <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">业务组</label>
+              <select style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);"><option>交易平台组</option><option>数据平台组</option><option>基础设施组</option></select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">标签</label>
+              <div style="display:flex;gap:4px;align-items:center;height:34px;padding:0 8px;border:1px solid var(--border-strong);border-radius:6px;"><span class="tag">交易</span><span class="tag">P0</span><span class="tag" style="border:1px dashed var(--border-strong);cursor:pointer;color:var(--signal)">+ 添加</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Endpoint -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">请求配置</div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">触发 URL</label>
+            <input type="text" value="https://api.order.io/fulfillment/sync" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--mono);">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div>
+              <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">请求方式</label>
+              <select style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);"><option>POST</option><option>GET</option></select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">超时（秒）</label>
+              <input type="number" value="5" min="1" max="120" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--mono);">
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">范围 1-120 秒</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">请求 JSON Body</label>
+            <textarea style="width:100%;min-height:70px;padding:8px 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:12px;font-family:var(--mono);resize:vertical;">{"task_name": "order-fulfillment-sync"}</textarea>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">POST 请求时发送的 JSON 请求体（可选）</div>
+          </div>
+        </div>
+
+        <!-- Section: Schedule -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">调度配置</div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">定时方式</label>
+            <select style="width:200px;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;">
+              <option selected>定时模式（周期执行）</option>
+              <option>具体时间（仅执行一次）</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">Cron 表达式</label>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;background:var(--signal-bg);color:var(--signal);border:none;">每 5 分钟</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每小时</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每日 02:00</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每周一 09:00</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">自定义</button>
+            </div>
+            <input type="text" value="*/5 * * * *" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:14px;font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <div style="font-size:11.5px;color:var(--muted);">= 每 5 分钟执行一次</div>
+              <div style="font-size:11px;color:var(--faint);">下次：2026-08-11 15:05:00</div>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">时区</label>
+            <select style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--mono);"><option>Asia/Shanghai (UTC+8)</option><option>UTC</option><option>America/New_York (UTC-4)</option></select>
+          </div>
+        </div>
+
+        <!-- Section: Lifecycle -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:24px;">
+          <div style="font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">Lifecycle</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface-2);border-radius:8px;">
+            <div><div style="font-size:12.5px;font-weight:500;">启用任务</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px;">关闭后调度器将跳过该任务，不会触发执行</div></div>
+            <div style="width:36px;height:20px;border-radius:10px;background:var(--signal);position:relative;cursor:pointer;flex-shrink:0;"><div style="position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:2px;left:18px;"></div></div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display:flex;gap:8px;padding-top:4px;">
+          <button class="btn btn-primary">保存修改</button>
+          <button class="btn btn-ghost" data-nav="detail">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 操作记录 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-optlog">
+      <div class="main">
+        <div class="page-head"><div><h1>操作记录</h1><div class="sub">任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）</div></div></div>
+        
+        <!-- Filters -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <input type="text" placeholder="搜索操作人/对象…" style="height:32px;padding:0 10px;width:200px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:12px;">
+          <select style="height:32px;padding:0 8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:12px;">
+            <option>全部操作</option><option>创建任务</option><option>修改任务</option><option>启动/暂停</option><option>下线任务</option><option>立即执行</option>
+          </select>
+          <select style="height:32px;padding:0 8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:12px;">
+            <option>最近 7 天</option><option>最近 24 小时</option><option>最近 30 天</option><option>自定义范围</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>操作人</th><th>操作类型</th><th>操作对象</th><th>变更详情</th><th>操作结果</th><th>时间</th><th>来源 IP</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">修改配置</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">order-fulfillment-sync</div><div style="font-size:11px;color:var(--faint)">任务 · 交易平台组</div></td>
+                <td style="font-size:12px;color:var(--muted);">Cron 表达式：<code style="font-size:11px;text-decoration:line-through;color:var(--faint)">*/10 * * * *</code> → <code style="font-size:11px;color:var(--ink)">*/5 * * * *</code></td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-11 14:20:11</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+              </tr>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">立即执行</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">order-fulfillment-sync</div><div style="font-size:11px;color:var(--faint)">任务 · 交易平台组</div></td>
+                <td style="font-size:12px;color:var(--muted);">手动触发执行，响应 200，耗时 184ms</td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-11 14:18:05</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+              </tr>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">李娜</td>
+                <td><span class="lifecycle" style="background:var(--danger-bg);color:var(--danger)">下线</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">legacy-promo-settle</div><div style="font-size:11px;color:var(--faint)">任务 · 交易平台组</div></td>
+                <td style="font-size:12px;color:var(--muted);">原因：活动结束，任务不再需要</td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-11 11:03:47</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.9</td>
+              </tr>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">新建</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">inventory-alert-scan</div><div style="font-size:11px;color:var(--faint)">任务 · 交易平台组</div></td>
+                <td style="font-size:12px;color:var(--muted);">触发 URL https://api.inv.io/scan · POST · 每 15 分钟</td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-10 19:44:02</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+              </tr>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">张伟</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">创建任务</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">user-profile-sync</div><div style="font-size:11px;color:var(--faint)">任务 · 数据平台组</div></td>
+                <td style="font-size:12px;color:var(--muted);">触发 URL https://api.data.io/sync · GET · 每 30 分钟</td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-10 16:30:22</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.4</td>
+              </tr>
+              <tr>
+                <td style="font-size:12.5px;font-weight:500">王芳</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">暂停</span></td>
+                <td><div style="font-family:var(--mono);font-size:12px;color:var(--ink)">cache-eviction-hourly</div><div style="font-size:11px;color:var(--faint)">任务 · 基础设施组</div></td>
+                <td style="font-size:12px;color:var(--muted);">连续失败 5 次，暂停排查</td>
+                <td><span style="color:var(--success);font-size:12px;">✓ 成功</span></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;">2026-08-10 14:12:08</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint)">10.2.31.15</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:var(--muted);">
+          <span>显示 1-6 / 共 234 条记录</span>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;font-size:12px;">‹</button>
+            <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;font-size:12px;background:var(--signal);color:#fff;border-color:var(--signal);">1</button>
+            <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;font-size:12px;">2</button>
+            <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;font-size:12px;">3</button>
+            <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;font-size:12px;">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 修改密码 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-password">
+      <div class="main" style="max-width:480px;">
+        <div class="page-head"><div><h1>修改密码</h1><div class="sub">定期更改密码以确保账户安全</div></div></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;">
+          <div style="margin-bottom:18px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">当前密码</label>
+            <div class="input-with-toggle">
+              <input type="password" placeholder="请输入当前密码" style="width:100%;height:36px;padding:0 12px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+              <button class="toggle-vis" title="显示/隐藏密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>
+          <div style="margin-bottom:18px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">新密码</label>
+            <div class="input-with-toggle">
+              <input type="password" placeholder="至少 6 位" style="width:100%;height:36px;padding:0 12px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+              <button class="toggle-vis" title="显示/隐藏密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+            <div class="password-strength">
+              <div class="bar weak"></div>
+              <div class="bar weak"></div>
+              <div class="bar medium"></div>
+              <div class="bar"></div>
+            </div>
+            <div class="password-strength-text" style="color:var(--warning);">中等强度</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px;">密码要求：至少 6 位，且不能与当前密码相同</div>
+          </div>
+          <div style="margin-bottom:22px;">
+            <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">确认新密码</label>
+            <div class="input-with-toggle">
+              <input type="password" placeholder="再次输入新密码" style="width:100%;height:36px;padding:0 12px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+              <button class="toggle-vis" title="显示/隐藏密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;">更新密码</button>
+          <div style="margin-top:14px;padding:12px;background:var(--surface-2);border-radius:6px;font-size:11.5px;color:var(--muted);line-height:1.6;">
+            <strong style="color:var(--ink)">安全提示：</strong>修改密码后将自动退出所有设备的登录状态，需重新登录。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: API Token -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-api-token">
+      <div class="main" style="max-width:640px;">
+        <div class="page-head"><div><h1>API Token</h1><div class="sub">用于程序化访问 CronPilot API</div></div></div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin-bottom:16px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:12px;">当前 Token</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div style="flex:1;font-family:var(--mono);font-size:13px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;letter-spacing:0.02em;word-break:break-all;">
+              cpat_a3f8c2d9e7b14a6f8e2c9d1b5a7f3e8c...
+            </div>
+            <button class="btn btn-sm" style="flex-shrink:0;">复制</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;font-size:12px;color:var(--muted);">
+            <span>创建时间: <strong style="color:var(--ink)">2026-07-15</strong></span>
+            <span>权限: <strong style="color:var(--ink)">查看任务、管理任务、查看执行日志</strong></span>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;margin-bottom:16px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:12px;">使用方式</div>
+          <div style="font-family:var(--mono);font-size:12px;padding:14px;background:var(--canvas);border:1px solid var(--border);border-radius:6px;line-height:1.7;color:var(--muted);">
+<span style="color:var(--faint)"># 在请求 Header 中传递 Token</span>
+curl -H <span style="color:var(--success)">"Authorization: Bearer cpat_a3f8c2d9..."</span> \
+     <span style="color:var(--signal-ink)">http://cronpilot.example.com/api/cron/list</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button class="btn btn-danger" style="border-color:var(--danger);color:var(--danger);background:transparent;">重置 Token</button>
+          <div style="font-size:11.5px;color:var(--muted);display:flex;align-items:center;">⚠️ 重置后旧 Token 立即失效，调用方需更新凭证</div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;">
+          <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;letter-spacing:0.05em;margin-bottom:10px;">Token 自动重置规则</div>
+          <ul style="margin:0;padding-left:16px;font-size:12.5px;color:var(--muted);line-height:2;">
+            <li>修改密码后 Token 自动重置</li>
+            <li>业务组变更后 Token 自动重置</li>
+            <li>你可在本页主动重置 Token</li>
+            <li>管理员可在用户列表中触发重置</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: API 文档 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-apidoc">
+      <div class="main">
+        <div class="page-head"><div><h1>API 文档</h1><div class="sub">CronPilot REST API 参考</div></div></div>
+
+        <!-- Endpoint cards -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <!-- GET /api/cron/list -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--success-bg);color:var(--success)">GET</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/list</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">获取任务列表</span>
+            </div>
+          </div>
+
+          <!-- POST /api/cron/add -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--signal-bg);color:var(--signal-ink)">POST</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/add</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">创建定时任务</span>
+            </div>
+          </div>
+
+          <!-- POST /api/cron/edit -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--signal-bg);color:var(--signal-ink)">POST</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/edit</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">修改定时任务</span>
+            </div>
+          </div>
+
+          <!-- POST /api/cron/run -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--signal-bg);color:var(--signal-ink)">POST</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/run</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">立即执行任务</span>
+            </div>
+          </div>
+
+          <!-- POST /api/cron/add_log -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--signal-bg);color:var(--signal-ink)">POST</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/add_log</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">回传执行进度</span>
+            </div>
+          </div>
+
+          <!-- GET /api/cron/status -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--success-bg);color:var(--success)">GET</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/status</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">查询任务状态</span>
+            </div>
+          </div>
+
+          <!-- Expanded example -->
+          <div style="background:var(--surface);border:1px solid var(--signal);border-radius:8px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--signal-bg);">
+              <span style="font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--success-bg);color:var(--success)">GET</span>
+              <span style="font-family:var(--mono);font-size:12.5px;font-weight:500">/api/cron/log_list</span>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--muted)">获取执行记录列表</span>
+            </div>
+            <div style="padding:16px;">
+              <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:8px;">Parameters</div>
+              <div style="font-family:var(--mono);font-size:12px;line-height:2;color:var(--muted);">
+                <div><span style="color:var(--ink);font-weight:500">cron_id</span> <span style="color:var(--faint)">integer, required</span> — 任务 ID</div>
+                <div><span style="color:var(--ink);font-weight:500">page</span> <span style="color:var(--faint)">integer, optional</span> — 页码，默认 1</div>
+                <div><span style="color:var(--ink);font-weight:500">per_page</span> <span style="color:var(--faint)">integer, optional</span> — 每页条数，默认 20</div>
+              </div>
+              <div style="font-size:11px;text-transform:uppercase;color:var(--faint);font-weight:600;margin:14px 0 8px;">Response Example</div>
+              <div style="font-family:var(--mono);font-size:11.5px;padding:12px;background:var(--canvas);border:1px solid var(--border);border-radius:6px;line-height:1.6;color:var(--muted);">
+{
+  <span style="color:var(--signal-ink)">"errcode"</span>: <span style="color:var(--warning)">0</span>,
+  <span style="color:var(--signal-ink)">"data"</span>: {
+    <span style="color:var(--signal-ink)">"list"</span>: [...],
+    <span style="color:var(--signal-ink)">"total"</span>: <span style="color:var(--warning)">42</span>
+  }
+}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 注册审批 (Registration Review) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-reg-review">
+      <div class="main">
+        <div class="page-head"><div><h1>注册审批</h1><div class="sub">审核待批准的注册申请</div></div></div>
+        <div class="filters">
+          <div class="chip active">待审核 3</div>
+          <div class="chip">已通过</div>
+          <div class="chip">已拒绝</div>
+          <div class="chip">已过期</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>邮箱</th><th>用户名</th><th>花名</th><th>岗位</th><th>申请角色</th><th>业务组</th><th>申请原因</th><th>申请时间</th><th style="width:140px">操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted)">liuyang@example.com</td>
+                <td style="font-weight:500;font-size:12px">liuyang</td>
+                <td style="font-size:12px">刘洋</td>
+                <td style="font-size:12px;color:var(--muted)">后端开发</td>
+                <td><span class="lifecycle active" style="background:var(--success-bg);color:var(--success)">运维</span></td>
+                <td style="font-size:12px;color:var(--muted)">交易平台组</td>
+                <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="负责交易系统定时任务维护">负责交易系统定时任务维护</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;">2026-08-11 10:30</td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="btn btn-sm btn-primary" style="font-size:12px;">✓ 批准</button>
+                    <button class="btn btn-sm" style="font-size:12px;color:var(--danger);border-color:var(--danger);">✗ 拒绝</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted)">zhoumin@example.com</td>
+                <td style="font-weight:500;font-size:12px">zhoumin</td>
+                <td style="font-size:12px">周敏</td>
+                <td style="font-size:12px;color:var(--muted)">数据分析</td>
+                <td><span class="lifecycle" style="background:var(--surface-2);color:var(--muted)">观察者</span></td>
+                <td style="font-size:12px;color:var(--muted)">数据平台组</td>
+                <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="需要查看数据 ETL 任务执行状态">需要查看数据 ETL 任务执行状态</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;">2026-08-10 16:45</td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="btn btn-sm btn-primary" style="font-size:12px;">✓ 批准</button>
+                    <button class="btn btn-sm" style="font-size:12px;color:var(--danger);border-color:var(--danger);">✗ 拒绝</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--muted)">wuhao@example.com</td>
+                <td style="font-weight:500;font-size:12px">wuhao</td>
+                <td style="font-size:12px">吴昊</td>
+                <td style="font-size:12px;color:var(--muted)">运维/SRE</td>
+                <td><span class="lifecycle active" style="background:var(--signal-bg);color:var(--signal)">管理员</span></td>
+                <td style="font-size:12px;color:var(--muted)">基础设施组</td>
+                <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="基础设施组负责人，需要管理权限">基础设施组负责人，需要管理权限</td>
+                <td style="font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;">2026-08-10 09:12</td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="btn btn-sm btn-primary" style="font-size:12px;">✓ 批准</button>
+                    <button class="btn btn-sm" style="font-size:12px;color:var(--danger);border-color:var(--danger);">✗ 拒绝</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 添加用户 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-user-add">
+      <div class="main" style="max-width:640px;">
+        <div class="breadcrumb">
+          <a data-nav="users">用户管理</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>添加用户</span>
+        </div>
+        <div class="page-head"><div><h1>添加用户</h1><div class="sub">创建新用户账号并分配角色</div></div></div>
+
+        <div class="form-section">
+          <div class="form-section-title">基本信息</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>用户名 <span style="color:var(--danger)">*</span></label>
+              <input type="text" placeholder="如 zhangsan（建议用邮箱前缀）">
+            </div>
+            <div class="form-group">
+              <label>邮箱</label>
+              <input type="email" placeholder="user@company.com">
+              <div class="help">可选；留空则用户首次登录后补填</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>花名</label>
+              <input type="text" placeholder="内部昵称（可选）">
+            </div>
+            <div class="form-group">
+              <label>岗位类型</label>
+              <select>
+                <option>-- 未设置 --</option>
+                <option>后端开发</option>
+                <option>前端开发</option>
+                <option>运维/SRE</option>
+                <option>数据分析</option>
+                <option>产品经理</option>
+                <option>其他</option>
+              </select>
+              <div class="help">可选</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>初始密码</label>
+            <div style="display:flex;align-items:center;gap:12px;height:34px;">
+              <span style="font-family:var(--mono);font-weight:600;font-size:14px;color:var(--ink)">changeme</span>
+              <span style="font-size:11.5px;color:var(--muted)">管理员不可指定密码；用户首次登录必须修改后才能继续使用</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">权限配置</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>角色 <span style="color:var(--danger)">*</span></label>
+              <select>
+                <option selected>观察者 — 只读任务和日志</option>
+                <option>运维 — 可执行和管理任务</option>
+                <option>管理员 — 全部权限</option>
+              </select>
+              <div class="help">角色决定用户在系统中的权限边界</div>
+            </div>
+            <div class="form-group">
+              <label>业务组 <span style="color:var(--danger)">*</span></label>
+              <select multiple size="4" style="height:auto;min-height:70px;">
+                <option>交易平台组</option>
+                <option>数据平台组</option>
+                <option>基础设施组</option>
+                <option>全部（全局权限）</option>
+              </select>
+              <div class="help">Ctrl/Command 可多选。所有角色必须至少选一个业务组或选择「全部」</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;padding-top:4px;">
+          <button class="btn btn-primary">创建用户</button>
+          <button class="btn btn-ghost" data-nav="users">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 编辑用户 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-user-edit">
+      <div class="main" style="max-width:640px;">
+        <div class="breadcrumb">
+          <a data-nav="users">用户管理</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>编辑 · 张伟</span>
+        </div>
+        <div class="page-head"><div><h1>编辑用户</h1><div class="sub">zhangwei@cronpilot.dev</div></div></div>
+
+        <div class="form-section">
+          <div class="form-section-title">基本信息</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>用户名</label>
+              <input type="text" value="zhangwei" disabled style="opacity:0.6;cursor:not-allowed;">
+              <div class="help">用户名创建后不可更改</div>
+            </div>
+            <div class="form-group">
+              <label>邮箱</label>
+              <input type="email" value="zhangwei@cronpilot.dev">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>花名</label>
+              <input type="text" value="张伟">
+            </div>
+            <div class="form-group">
+              <label>岗位类型</label>
+              <select><option selected>后端开发</option><option>前端开发</option><option>运维/SRE</option><option>数据分析</option><option>产品经理</option><option>其他</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">权限配置</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>角色</label>
+              <select><option selected>管理员</option><option>运维</option><option>观察者</option></select>
+            </div>
+            <div class="form-group">
+              <label>业务组</label>
+              <select><option selected>交易平台组</option><option>数据平台组</option><option>基础设施组</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">安全操作</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm">重置密码</button>
+            <button class="btn btn-sm">重置 API Token</button>
+          </div>
+          <div class="help" style="margin-top:8px;">重置后密码恢复为 changeme，用户必须重新修改密码后才能继续使用</div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="danger-zone">
+          <div class="dz-title">⚠️ 停用账户</div>
+          <div class="dz-desc">停用后该用户将无法登录系统，且所有 API Token 立即失效。<strong>此操作不可恢复</strong>——停用后无法重新启用。</div>
+          <button class="btn btn-danger btn-sm">停用此账户</button>
+        </div>
+
+        <div style="display:flex;gap:8px;padding-top:16px;">
+          <button class="btn btn-primary">保存修改</button>
+          <button class="btn btn-ghost" data-nav="users">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 新建业务组 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-group-add">
+      <div class="main" style="max-width:560px;">
+        <div class="breadcrumb">
+          <a data-nav="groups">业务组</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>新建业务组</span>
+        </div>
+        <div class="page-head"><div><h1>新建业务组</h1><div class="sub">创建资源隔离的 Scope 单元</div></div></div>
+
+        <div class="form-section">
+          <div class="form-group">
+            <label>组名称 <span style="color:var(--danger)">*</span></label>
+            <input type="text" placeholder="如：交易平台组">
+            <div class="help">建议使用「团队名+组」的命名方式，如"风控组"、"数据平台组"</div>
+          </div>
+          <div class="form-group">
+            <label>描述</label>
+            <textarea placeholder="简要描述该业务组的职责和管理范围…"></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;padding-top:4px;">
+          <button class="btn btn-primary">创建业务组</button>
+          <button class="btn btn-ghost" data-nav="groups">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 新建任务 (空白态) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-task-add">
+      <div class="main" style="max-width:720px;">
+        <div class="breadcrumb">
+          <a data-nav="dashboard">任务中心</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <span>新建任务</span>
+        </div>
+        <div class="page-head"><div><h1>新建定时任务</h1><div class="sub">配置触发 URL 和调度策略</div></div></div>
+
+        <div class="form-section">
+          <div class="form-section-title">基础信息</div>
+          <div class="form-group">
+            <label>任务名称 <span style="color:var(--danger)">*</span></label>
+            <input type="text" placeholder="如：同步订单履约状态">
+            <div class="help">建议使用有意义的中文名称，方便团队识别</div>
+          </div>
+          <div class="form-group">
+            <label>任务说明</label>
+            <textarea placeholder="描述任务用途、触发条件或注意事项" style="width:100%;min-height:60px;padding:8px 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);resize:vertical;"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>业务组 <span style="color:var(--danger)">*</span></label>
+              <select><option value="">请选择业务组</option><option selected>交易平台组</option><option>数据平台组</option></select>
+              <div class="help">仅显示你所属的业务组</div>
+            </div>
+            <div class="form-group">
+              <label>标签</label>
+              <div style="display:flex;gap:4px;align-items:center;height:34px;padding:0 8px;border:1px solid var(--border-strong);border-radius:6px;"><span class="tag" style="border:1px dashed var(--border-strong);cursor:pointer;color:var(--signal)">+ 添加标签</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">请求配置</div>
+          <div class="form-group">
+            <label>触发 URL <span style="color:var(--danger)">*</span></label>
+            <input type="text" placeholder="https://example.com/job" style="font-family:var(--mono);">
+            <div class="help">CronPilot 将在调度时向此 URL 发送 HTTP 请求触发任务执行</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>请求方式</label>
+              <select><option selected>GET</option><option>POST</option></select>
+            </div>
+            <div class="form-group">
+              <label>超时（秒）</label>
+              <input type="number" placeholder="5" min="1" max="120" style="font-family:var(--mono);width:80px;">
+              <div class="help">范围 1-120 秒，默认 5 秒</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>请求 JSON Body</label>
+            <textarea placeholder='{"task_name": "example"}' style="width:100%;min-height:80px;padding:8px 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:12px;font-family:var(--mono);resize:vertical;"></textarea>
+            <div class="help">POST 请求时发送的 JSON 请求体（可选）</div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">调度配置</div>
+          <div class="form-group">
+            <label>Cron 表达式 <span style="color:var(--danger)">*</span></label>
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每 5 分钟</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每小时</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每日 02:00</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每周一 09:00</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;border-radius:4px;">每月 1 日</button>
+            </div>
+            <input type="text" placeholder="*/5 * * * *" style="font-family:var(--mono);font-size:14px;">
+            <div class="help" style="color:var(--muted)">
+              选择预设或输入自定义表达式 · 格式：分 时 日 月 周
+            </div>
+          </div>
+          <div class="form-group">
+            <label>时区</label>
+            <select style="font-family:var(--mono);"><option>Asia/Shanghai (UTC+8)</option><option>UTC</option><option>America/New_York (UTC-4)</option></select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;padding-top:4px;">
+          <button class="btn btn-primary">创建任务</button>
+          <button class="btn btn-ghost" data-nav="dashboard">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 空状态示例 (无任务) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-empty-demo">
+      <div class="main">
+        <div class="page-head"><div><h1>任务中心</h1><div class="sub">系统运行状态总览与任务运营</div></div></div>
+        <div class="stats">
+          <div class="stat"><div class="label">异常任务</div><div class="value" style="color:var(--faint)">0</div><div class="total">一切正常</div></div>
+          <div class="stat"><div class="label">连续失败</div><div class="value" style="color:var(--faint)">0</div><div class="total">—</div></div>
+          <div class="stat"><div class="label">运行中</div><div class="value" style="color:var(--faint)">0</div><div class="total">无活跃任务</div></div>
+          <div class="stat"><div class="label">总任务数</div><div class="value" style="color:var(--faint)">0</div><div class="total">—</div></div>
+        </div>
+        <div class="table-wrap">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            <div class="empty-title">还没有定时任务</div>
+            <div class="empty-desc">创建你的第一个定时任务，CronPilot 将按计划自动触发目标 URL</div>
+            <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>新建任务</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: Loading 骨架屏示例 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-loading-demo">
+      <div class="main">
+        <div class="page-head"><div><h1>执行记录</h1><div class="sub">全部任务的调度执行历史</div></div></div>
+        <div class="filters">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>按任务名筛选…</div>
+          <div class="chip active">全部</div>
+          <div class="chip">失败</div>
+        </div>
+        <div class="table-wrap" style="padding:16px;">
+          <div style="margin-bottom:16px;display:flex;gap:14px;align-items:center;">
+            <div class="skeleton" style="width:120px;height:14px;"></div>
+            <div class="skeleton" style="width:160px;height:14px;"></div>
+            <div class="skeleton" style="width:60px;height:14px;"></div>
+            <div class="skeleton" style="width:40px;height:14px;"></div>
+            <div class="skeleton" style="width:60px;height:14px;"></div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:18px;">
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div class="skeleton" style="width:140px;height:12px;"></div>
+              <div class="skeleton" style="width:130px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:12px;"></div>
+              <div class="skeleton" style="width:35px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:20px;border-radius:10px;"></div>
+            </div>
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div class="skeleton" style="width:110px;height:12px;"></div>
+              <div class="skeleton" style="width:130px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:12px;"></div>
+              <div class="skeleton" style="width:35px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:20px;border-radius:10px;"></div>
+            </div>
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div class="skeleton" style="width:130px;height:12px;"></div>
+              <div class="skeleton" style="width:130px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:12px;"></div>
+              <div class="skeleton" style="width:35px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:20px;border-radius:10px;"></div>
+            </div>
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div class="skeleton" style="width:120px;height:12px;"></div>
+              <div class="skeleton" style="width:130px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:12px;"></div>
+              <div class="skeleton" style="width:35px;height:12px;"></div>
+              <div class="skeleton" style="width:50px;height:20px;border-radius:10px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- VIEW: 错误页 (404/403/500) -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="view" id="view-error-demo">
+      <div class="main">
+        <div class="empty-state" style="padding:100px 20px;">
+          <div style="font-family:var(--mono);font-size:56px;font-weight:700;color:var(--faint);margin-bottom:8px;letter-spacing:-0.03em;">403</div>
+          <div class="empty-title">无权访问</div>
+          <div class="empty-desc">你没有权限访问此页面。如需访问，请联系你的业务组管理员申请相应权限。</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" data-nav="dashboard">返回首页</button>
+            <button class="btn btn-ghost">联系管理员</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- col-main -->
+</div><!-- app-shell -->
+
+<!-- ═══════════ TOAST DEMO (always visible) ═══════════ -->
+<div class="toast-container" id="toast-demo" style="display:none;">
+  <div class="toast success">
+    <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+    <span class="toast-msg">任务「同步订单履约状态」已暂停</span>
+    <span class="toast-close">×</span>
+  </div>
+  <div class="toast error">
+    <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+    <span class="toast-msg">操作失败：权限不足，请联系管理员</span>
+    <span class="toast-close">×</span>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL DEMO: 任务下线确认 ═══════════ -->
+<div class="modal-overlay" id="modal-retire-demo" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚠️ 确认下线任务</h2>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;margin:0 0 12px;line-height:1.6;">你即将下线以下任务：</p>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px;">旧版促销活动结算</div>
+        <div style="font-family:var(--mono);font-size:11.5px;color:var(--faint);">legacy-promo-settle</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">Cron: <code style="background:var(--canvas);padding:1px 4px;border-radius:2px;font-size:11px">0 0 1 * *</code> · 业务组: 交易平台组</div>
+      </div>
+      <div style="background:var(--danger-bg);border:1px solid rgba(214,69,69,0.2);border-radius:6px;padding:12px;font-size:12px;color:var(--danger);line-height:1.6;">
+        <strong>⚠️ 此操作不可撤销</strong> — 任务下线后将永久停止调度，无法恢复为运行状态。历史执行记录将保留。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost">取消</button>
+      <button class="btn btn-danger">确认下线</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL DEMO: 停用用户确认 ═══════════ -->
+<div class="modal-overlay" id="modal-deactivate-demo" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚠️ 停用用户账户</h2>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="avatar" style="width:40px;height:40px;font-size:16px;">王</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;">王芳</div>
+          <div style="font-family:var(--mono);font-size:11.5px;color:var(--faint);">wangfang@cronpilot.dev</div>
+        </div>
+      </div>
+      <div style="background:var(--danger-bg);border:1px solid rgba(214,69,69,0.2);border-radius:6px;padding:12px;font-size:12px;color:var(--danger);line-height:1.7;">
+        <strong>⚠️ 此操作不可恢复</strong><br>
+        停用后：<br>
+        · 用户将立即无法登录<br>
+        · 所有 API Token 立即失效<br>
+        · 账户无法重新激活（如需恢复须创建新账号）
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost">取消</button>
+      <button class="btn btn-danger">确认停用</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ FORGOT PASSWORD PAGE (standalone) ═══════════ -->
+<div id="forgot-page" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--canvas);padding:20px;">
+  <div style="width:380px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:36px 30px;text-align:center;">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:28px;justify-content:center;">
+      <span style="width:9px;height:9px;border-radius:2px;background:var(--signal);display:inline-block;"></span>CronPilot
+    </div>
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.5" style="margin-bottom:16px;"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/><circle cx="12" cy="15" r="1.5"/></svg>
+    <div style="font-size:17px;font-weight:600;margin-bottom:8px;">忘记密码？</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.7;">
+      出于安全考虑，CronPilot 不支持自助密码重置。<br>请联系你的管理员为你重置密码。
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12.5px;color:var(--muted);line-height:1.6;text-align:left;">
+      <strong style="color:var(--ink)">你可以：</strong><br>
+      1. 联系业务组管理员，请求重置密码<br>
+      2. 管理员操作路径：用户管理 → 找到你的账号 → 重置密码<br>
+      3. 重置后你将在登录时被要求设置新密码
+    </div>
+    <a style="display:inline-block;margin-top:20px;color:var(--signal);font-size:13px;font-weight:500;cursor:pointer;" id="show-login-from-forgot">← 返回登录</a>
+  </div>
+</div>
+
+<!-- ═══════════ LOGIN PAGE (standalone) ═══════════ -->
+<div id="login-page" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--canvas);padding:20px;">
+  <div style="width:380px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:36px 30px;">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:28px;">
+      <span style="width:9px;height:9px;border-radius:2px;background:var(--signal);display:inline-block;"></span>CronPilot
+    </div>
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px;">欢迎回来</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:24px;">登录你的工作空间</div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">用户名</label>
+      <input type="text" placeholder="请输入用户名" style="width:100%;height:38px;padding:0 12px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+      <div style="font-size:11px;color:var(--faint);margin-top:5px;">通常为邮箱前缀，如 zhangwei@company.com → zhangwei</div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:500;margin-bottom:6px;"><span>密码</span><a style="color:var(--signal);font-size:11.5px;font-weight:400;cursor:pointer;" id="show-forgot">忘记密码？</a></label>
+      <div class="input-with-toggle">
+        <input type="password" placeholder="••••••••" style="width:100%;height:38px;padding:0 12px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);">
+        <button class="toggle-vis" title="显示/隐藏密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;height:38px;justify-content:center;font-size:14px;">登录</button>
+    <!-- 注册状态反馈区域 -->
+    <div style="margin-top:14px;padding:10px 14px;background:var(--warning-bg);border:1px solid rgba(183,121,31,0.2);border-radius:6px;font-size:12px;color:var(--warning);display:none;" id="login-reg-status">
+      <strong>⏳ 注册审核中</strong> — 您的注册申请正在审核中，请耐心等待。
+    </div>
+    <div style="margin-top:20px;text-align:center;font-size:12px;color:var(--muted);">
+      还没有账号？<a style="color:var(--signal);font-weight:500;cursor:pointer;" id="show-register">申请注册</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ REGISTER PAGE (standalone) ═══════════ -->
+<div id="register-page" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--canvas);padding:20px;">
+  <div style="width:440px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px 28px;">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:24px;">
+      <span style="width:9px;height:9px;border-radius:2px;background:var(--signal);display:inline-block;"></span>CronPilot
+    </div>
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px;">申请注册</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:22px;">提交注册申请后，管理员将进行审核</div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">公司邮箱 <span style="color:var(--danger)">*</span></label>
+      <input type="email" placeholder="your.name@company.com" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;">
+      <div style="font-size:11px;color:var(--faint);margin-top:4px;">邮箱前缀将作为登录用户名</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">花名 <span style="color:var(--danger)">*</span></label>
+        <input type="text" placeholder="内部昵称" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">岗位类型 <span style="color:var(--danger)">*</span></label>
+        <select style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;"><option>-- 请选择 --</option><option>后端开发</option><option>前端开发</option><option>运维/SRE</option><option>数据分析</option><option>产品经理</option><option>其他</option></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">密码 <span style="color:var(--danger)">*</span></label>
+        <input type="password" placeholder="至少 6 位" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">确认密码 <span style="color:var(--danger)">*</span></label>
+        <input type="password" placeholder="再次输入密码" style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">申请角色 <span style="color:var(--danger)">*</span></label>
+        <select style="width:100%;height:34px;padding:0 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;"><option>观察者</option><option>运维</option><option>管理员</option></select>
+        <div style="font-size:11px;color:var(--faint);margin-top:4px;">观察者可查看；运维可操作任务</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">目标业务组 <span style="color:var(--danger)">*</span></label>
+        <div style="border:1px solid var(--border-strong);border-radius:6px;padding:8px 10px;max-height:80px;overflow-y:auto;font-size:12.5px;">
+          <label style="display:block;margin-bottom:4px;cursor:pointer;font-weight:normal;"><input type="checkbox" style="margin-right:6px;"> 交易平台组</label>
+          <label style="display:block;margin-bottom:4px;cursor:pointer;font-weight:normal;"><input type="checkbox" style="margin-right:6px;"> 数据平台组</label>
+          <label style="display:block;cursor:pointer;font-weight:normal;"><input type="checkbox" style="margin-right:6px;"> 基础设施组</label>
+        </div>
+        <div style="font-size:11px;color:var(--faint);margin-top:4px;">至少选择一个业务组</div>
+      </div>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12.5px;font-weight:500;margin-bottom:6px;">申请原因 <span style="color:var(--danger)">*</span></label>
+      <textarea placeholder="请简述申请原因和工作职责（最多 500 字）…" style="width:100%;height:70px;padding:9px 11px;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--ink);font-size:13px;font-family:var(--sans);resize:vertical;"></textarea>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;">提交申请</button>
+    <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--muted);">
+      已有账号？<a style="color:var(--signal);font-weight:500;cursor:pointer;" id="show-login-from-reg">返回登录</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ Command Palette ═══════════ -->
+<div class="cmd-overlay" id="cmd-overlay">
+  <div class="cmd-box">
+    <div class="cmd-input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" placeholder="搜索任务、执行命令…" autofocus>
+    </div>
+    <div class="cmd-results">
+      <div class="cmd-group">任务</div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg></span>
+        <span class="ci-name">同步订单履约状态</span>
+        <span class="ci-health" style="color:var(--success)">● 健康</span>
+      </div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg></span>
+        <span class="ci-name">清理过期缓存</span>
+        <span class="ci-health" style="color:var(--danger)">×5 异常</span>
+      </div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg></span>
+        <span class="ci-name">生成日活报表</span>
+        <span class="ci-health" style="color:var(--success)">● 健康</span>
+      </div>
+      <div class="cmd-group">快捷操作</div>
+      <div class="cmd-item">
+        <span class="ci-icon" style="color:var(--signal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg></span>
+        <span class="ci-name">执行任务…</span>
+        <span class="ci-meta">立即执行</span>
+      </div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span class="ci-name">新建任务</span>
+        <span class="ci-meta">创建定时任务</span>
+      </div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span>
+        <span class="ci-name">Pause task…</span>
+        <span class="ci-meta">暂停任务</span>
+      </div>
+      <div class="cmd-group">Navigation</div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span>
+        <span class="ci-name">用户管理</span>
+      </div>
+      <div class="cmd-item">
+        <span class="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg></span>
+        <span class="ci-name">审计日志</span>
+      </div>
+    </div>
+    <div class="cmd-footer">
+      <span><kbd>↑↓</kbd> 导航</span>
+      <span><kbd>↵</kbd> 选择</span>
+      <span><kbd>esc</kbd> 关闭</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Navigation
+document.querySelectorAll('[data-nav]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    const target=el.dataset.nav;
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    const viewMap={
+      'dashboard':'view-dashboard','detail':'view-detail','run-inspector':'view-run-inspector',
+      'run-failed':'view-run-failed','logs':'view-logs','groups':'view-groups',
+      'tags':'view-tags','users':'view-users','audit':'view-audit',
+      'optlog':'view-optlog','apidoc':'view-apidoc','form':'view-form',
+      'group-detail':'view-groups','password':'view-password',
+      'api-token':'view-api-token','reg-review':'view-reg-review',
+      'user-add':'view-user-add','user-edit':'view-user-edit',
+      'group-add':'view-group-add','task-add':'view-task-add',
+      'empty-demo':'view-empty-demo','loading-demo':'view-loading-demo',
+      'error-demo':'view-error-demo'
+    };
+    const viewId=viewMap[target]||'view-dashboard';
+    const el2=document.getElementById(viewId);
+    if(el2)el2.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const navEl=document.querySelector(`.nav-item[data-nav="${target}"]`);
+    if(navEl)navEl.classList.add('active');
+    // Hide standalone pages
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('register-page').style.display='none';
+    document.getElementById('forgot-page').style.display='none';
+    document.getElementById('app-shell').style.display='grid';
+  });
+});
+
+// "新建任务" button on dashboard → task-add view
+document.querySelectorAll('.btn-primary').forEach(btn=>{
+  if(btn.textContent.includes('新建任务') && !btn.closest('#view-task-add')){
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-task-add').classList.add('active');
+    });
+  }
+  if(btn.textContent.includes('添加用户')){
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-user-add').classList.add('active');
+    });
+  }
+  if(btn.textContent.includes('新建业务组')){
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-group-add').classList.add('active');
+    });
+  }
+});
+
+// Edit user button on user list → user-edit view
+document.querySelectorAll('#view-users .action-btn[title="编辑"]').forEach(btn=>{
+  btn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-user-edit').classList.add('active');
+  });
+});
+
+// Standalone login/register/forgot toggle
+document.addEventListener('click',(e)=>{
+  if(e.target.id==='show-login-page'||e.target.id==='show-login-from-reg'||e.target.id==='show-login-from-forgot'){
+    document.getElementById('app-shell').style.display='none';
+    document.getElementById('login-page').style.display='flex';
+    document.getElementById('register-page').style.display='none';
+    document.getElementById('forgot-page').style.display='none';
+  }
+  if(e.target.id==='show-register'){
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('register-page').style.display='flex';
+  }
+  if(e.target.textContent==='忘记密码？'){
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('forgot-page').style.display='flex';
+  }
+  if(e.target.id==='back-to-app'){
+    document.getElementById('app-shell').style.display='grid';
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('register-page').style.display='none';
+    document.getElementById('forgot-page').style.display='none';
+  }
+});
+
+// Toast demo
+document.getElementById('show-toast-demo').addEventListener('click',()=>{
+  const tc=document.getElementById('toast-demo');
+  tc.style.display='flex';
+  setTimeout(()=>{tc.style.display='none';},4000);
+});
+
+// Modal demos
+document.getElementById('show-modal-retire').addEventListener('click',()=>{
+  document.getElementById('modal-retire-demo').style.display='flex';
+});
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',(e)=>{
+    if(e.target===m||e.target.closest('.btn-ghost')||e.target.closest('.btn-danger')){
+      m.style.display='none';
+    }
+  });
+});
+
+// User dropdown menu toggle
+const userMenuTrigger = document.getElementById('user-menu-trigger');
+const userDropdown = document.getElementById('user-dropdown');
+if(userMenuTrigger && userDropdown){
+  userMenuTrigger.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    userDropdown.style.display = userDropdown.style.display==='none'?'block':'none';
+  });
+  document.addEventListener('click',()=>{userDropdown.style.display='none';});
+}
+// Logout button
+const logoutBtn = document.getElementById('logout-btn');
+if(logoutBtn){
+  logoutBtn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    userDropdown.style.display='none';
+    document.getElementById('app-shell').style.display='none';
+    document.getElementById('login-page').style.display='flex';
+  });
+}
+
+// Password visibility toggle
+document.querySelectorAll('.toggle-vis').forEach(btn=>{
+  btn.addEventListener('click',(e)=>{
+    e.preventDefault();
+    const input=btn.parentElement.querySelector('input');
+    if(input.type==='password'){
+      input.type='text';
+      btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.9 17.9A10.2 10.2 0 0112 20c-7 0-11-8-11-8a18.5 18.5 0 015.1-5.9m3-2.3A9.7 9.7 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.2 3.3"/><path d="M1 1l22 22"/></svg>';
+    }else{
+      input.type='password';
+      btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    }
+  });
+});
+
+// Forgot password link in login page
+document.addEventListener('click',(e)=>{
+  if(e.target.id==='show-forgot'||e.target.textContent==='忘记密码？'){
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('forgot-page').style.display='flex';
+  }
+  if(e.target.id==='show-login-from-forgot'){
+    document.getElementById('forgot-page').style.display='none';
+    document.getElementById('login-page').style.display='flex';
+  }
+});
+
+// Theme toggle
+document.getElementById('theme-light-btn').addEventListener('click',()=>{
+  document.documentElement.dataset.theme='light';
+  document.getElementById('theme-light-btn').classList.add('on');
+  document.getElementById('theme-dark-btn').classList.remove('on');
+});
+document.getElementById('theme-dark-btn').addEventListener('click',()=>{
+  document.documentElement.dataset.theme='dark';
+  document.getElementById('theme-dark-btn').classList.add('on');
+  document.getElementById('theme-light-btn').classList.remove('on');
+});
+
+// Command Palette
+const overlay=document.getElementById('cmd-overlay');
+document.getElementById('cmd-trigger').addEventListener('click',()=>overlay.classList.add('open'));
+overlay.addEventListener('click',(e)=>{if(e.target===overlay)overlay.classList.remove('open');});
+document.addEventListener('keydown',(e)=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();overlay.classList.toggle('open');}
+  if(e.key==='Escape')overlay.classList.remove('open');
+});
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="CronPilot-2026-redesign-mockup.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

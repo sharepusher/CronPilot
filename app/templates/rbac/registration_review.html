@@ -16,11 +16,11 @@
 
         <div class="rbac-toolbar">
             <span style="font-weight:600;font-size:0.95em;color:var(--cp-ink)">状态筛选：</span>
-            <a href="{{ url_for('rbac.registration_review') }}" class="btn btn-mini{% if not status_filter %} btn-info{% endif %}">全部</a>
-            <a href="{{ url_for('rbac.registration_review', status='pending') }}" class="btn btn-mini{% if status_filter == 'pending' %} btn-info{% endif %}">待审批</a>
-            <a href="{{ url_for('rbac.registration_review', status='approved') }}" class="btn btn-mini{% if status_filter == 'approved' %} btn-info{% endif %}">已通过</a>
-            <a href="{{ url_for('rbac.registration_review', status='rejected') }}" class="btn btn-mini{% if status_filter == 'rejected' %} btn-info{% endif %}">已拒绝</a>
-            <a href="{{ url_for('rbac.registration_review', status='expired') }}" class="btn btn-mini{% if status_filter == 'expired' %} btn-info{% endif %}">已过期</a>
+            <a href="{{ url_for('rbac.registration_review') }}" class="btn cp-btn-sm{% if not status_filter %} btn-info{% endif %}">全部</a>
+            <a href="{{ url_for('rbac.registration_review', status='pending') }}" class="btn cp-btn-sm{% if status_filter == 'pending' %} btn-info{% endif %}">待审批</a>
+            <a href="{{ url_for('rbac.registration_review', status='approved') }}" class="btn cp-btn-sm{% if status_filter == 'approved' %} btn-info{% endif %}">已通过</a>
+            <a href="{{ url_for('rbac.registration_review', status='rejected') }}" class="btn cp-btn-sm{% if status_filter == 'rejected' %} btn-info{% endif %}">已拒绝</a>
+            <a href="{{ url_for('rbac.registration_review', status='expired') }}" class="btn cp-btn-sm{% if status_filter == 'expired' %} btn-info{% endif %}">已过期</a>
         </div>
 
         <table class="table table-hover table-bordered rbac-users-table">
@@ -73,8 +73,8 @@
                 </td>
                 <td>
                     {% if req.status == 'pending' %}
-                    <button type="button" class="btn btn-mini btn-success js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✓ 批准</button>
-                    <button type="button" class="btn btn-mini btn-danger js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✗ 拒绝</button>
+                    <button type="button" class="btn cp-btn-sm btn-success js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✓ 批准</button>
+                    <button type="button" class="btn cp-btn-sm btn-danger js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">✗ 拒绝</button>
                     {% elif req.status == 'rejected' and req.review_comment %}
                     <span title="{{ req.review_comment }}" style="color:var(--cp-muted);cursor:help;font-size:0.85em"><i class="fa fa-comment-o"></i> {{ req.review_comment[:15] }}{% if req.review_comment|length > 15 %}...{% endif %}</span>
                     {% else %}

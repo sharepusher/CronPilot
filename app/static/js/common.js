@@ -497,7 +497,7 @@ function setCookie(name, value, days) {
     var expire = new Date();
     if (days == null || days == 0) days = 1;
     expire.setTime(expire.getTime() + 3600000 * 24 * days);
-    document.cookie = name + "=" + escape(value) + ("; path=/") + ((secure == true) ? "; secure" : "") + ";expires=" + expire.toGMTString();
+    document.cookie = name + "=" + encodeURIComponent(value) + ("; path=/") + ((secure == true) ? "; secure" : "") + ";expires=" + expire.toGMTString();
 }
 
 /**
@@ -826,6 +826,173 @@ $(document).on('click', function(e) {
    ⌘B / Ctrl+B  → Toggle sidebar collapse
    ⌘\ / Ctrl+\  → Toggle theme
    Escape        → Close mobile sidebar / blur search */
+
+/* --- S8.1: Console Search (OPT-P2-14-F6) --- */
+var _cpSearch = (function() {
+    var _index = null;
+    var _dropdown = null;
+    var _selectedIdx = -1;
+
+    function buildIndex() {
+        var items = [];
+        var seen = {};
+        // 侧边栏菜单项
+        var navItems = document.querySelectorAll('.cp-nav-item');
+        for (var i = 0; i < navItems.length; i++) {
+            var a = navItems[i];
+            var span = a.querySelector('span');
+            var text = span ? span.textContent.trim() : a.textContent.trim();
+            var href = a.getAttribute('href');
+            if (text && href && !seen[href]) {
+                items.push({text: text, href: href, type: 'nav'});
+                seen[href] = true;
+            }
+        }
+        // 快捷操作（仅添加不在导航中的）
+        var actions = [
+            {text: '修改密码', href: '/rbac/password'},
+            {text: '退出登录', href: '/rbac/logout', post: true}
+        ];
+        for (var j = 0; j < actions.length; j++) {
+            if (!seen[actions[j].href]) {
+                items.push({text: actions[j].text, href: actions[j].href, type: 'action'});
+            }
+        }
+        return items;
+    }
+
+    function getIndex() {
+        if (!_index) _index = buildIndex();
+        return _index;
+    }
+
+    function createDropdown() {
+        if (_dropdown) return _dropdown;
+        var div = document.createElement('div');
+        div.className = 'cp-search-dropdown';
+        div.style.display = 'none';
+        var searchBox = document.querySelector('.cp-sidebar-search');
+        if (searchBox) searchBox.appendChild(div);
+        _dropdown = div;
+        return div;
+    }
+
+    function renderResults(results) {
+        var dd = createDropdown();
+        if (!results.length) {
+            dd.innerHTML = '<div class="cp-search-empty">无匹配结果</div>';
+            dd.style.display = 'block';
+            _selectedIdx = -1;
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < results.length && i < 8; i++) {
+            var r = results[i];
+            var icon = r.type === 'nav' ? 'fa-arrow-right' : 'fa-bolt';
+            html += '<a class="cp-search-result" href="' + r.href + '" data-idx="' + i + '"'
+                  + (r.post ? ' data-post="1"' : '')
+                  + '><i class="fa ' + icon + '"></i>'
+                  + '<span>' + escapeHtml(r.text) + '</span>'
+                  + '</a>';
+        }
+        dd.innerHTML = html;
+        dd.style.display = 'block';
+        _selectedIdx = -1;
+
+        dd.querySelectorAll('.cp-search-result[data-post]').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                postNavigate(el.getAttribute('href'));
+            });
+        });
+    }
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(s));
+        return d.innerHTML;
+    }
+
+    function hide() {
+        if (_dropdown) {
+            _dropdown.style.display = 'none';
+            _dropdown.innerHTML = '';
+        }
+        _selectedIdx = -1;
+    }
+
+    function highlightItem(idx) {
+        if (!_dropdown) return;
+        var items = _dropdown.querySelectorAll('.cp-search-result');
+        for (var i = 0; i < items.length; i++) {
+            items[i].classList.toggle('cp-search-result--active', i === idx);
+        }
+        _selectedIdx = idx;
+    }
+
+    function navigate(delta) {
+        if (!_dropdown) return;
+        var items = _dropdown.querySelectorAll('.cp-search-result');
+        if (!items.length) return;
+        var next = _selectedIdx + delta;
+        if (next < 0) next = items.length - 1;
+        if (next >= items.length) next = 0;
+        highlightItem(next);
+    }
+
+    function postNavigate(href) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = href;
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'csrf_token';
+            inp.value = csrfMeta.content;
+            form.appendChild(inp);
+        }
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function selectCurrent() {
+        if (!_dropdown || _selectedIdx < 0) return false;
+        var items = _dropdown.querySelectorAll('.cp-search-result');
+        if (items[_selectedIdx]) {
+            var el = items[_selectedIdx];
+            if (el.getAttribute('data-post')) {
+                postNavigate(el.getAttribute('href'));
+            } else {
+                window.location.href = el.getAttribute('href');
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function search(query) {
+        if (!query) { hide(); return; }
+        var q = query.toLowerCase();
+        var index = getIndex();
+        var results = [];
+        for (var i = 0; i < index.length; i++) {
+            if (index[i].text.toLowerCase().indexOf(q) !== -1) {
+                results.push(index[i]);
+            }
+        }
+        renderResults(results);
+    }
+
+    return {
+        search: search,
+        hide: hide,
+        navigate: navigate,
+        selectCurrent: selectCurrent,
+        rebuild: function() { _index = null; }
+    };
+})();
+
 $(document).on('keydown', function(e) {
     var isConsole = document.documentElement.getAttribute('data-ui-mode') === 'console';
     if (!isConsole) return;
@@ -870,9 +1037,29 @@ $(document).on('keydown', function(e) {
             searchInput.value = '';
             searchInput.setAttribute('readonly', '');
             searchInput.setAttribute('placeholder', '⌘K 搜索…');
+            _cpSearch.hide();
         }
         return;
     }
+});
+
+/* S8.2: Search input event binding */
+$(document).on('input', '.cp-search-input', function() {
+    _cpSearch.search(this.value.trim());
+});
+$(document).on('keydown', '.cp-search-input', function(e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); _cpSearch.navigate(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _cpSearch.navigate(-1); }
+    else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!_cpSearch.selectCurrent()) {
+            // 无选中项时不做跳转
+        }
+    }
+});
+$(document).on('blur', '.cp-search-input', function() {
+    // 延迟隐藏以允许点击结果
+    setTimeout(function() { _cpSearch.hide(); }, 200);
 });
 
 $(document).on('submit', 'form:not(.js-ajax-form)', function () {

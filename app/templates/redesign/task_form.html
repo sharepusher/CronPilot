@@ -1,0 +1,362 @@
+{% extends "redesign/_base.html" %}
+{% block title %}{{ '编辑任务' if is_edit else '新建任务' }} — CronPilot{% endblock %}
+
+{% block breadcrumb %}{% endblock %}
+
+{% block content %}
+<div class="tf-container">
+  <h1 class="tf-title">{{ '编辑任务' if is_edit else '新建定时任务' }}</h1>
+
+  <form method="post" class="tf-form js-ajax-form js-cron-form"
+        action="{{ url_for('main.cron_edit', id=cif.id) if is_edit else url_for('main.cron_add') }}">
+    {# ─── Basic Info ─── #}
+
+      <div class="tf-field" data-field="task_name">
+        <label class="tf-label">任务名称 <span class="tf-required">*</span></label>
+        <input type="text" name="task_name" required class="tf-input"
+               value="{{ cif.task_name if is_edit else '' }}"
+               placeholder="例如：订单状态同步"
+               {% if is_edit %}readonly{% endif %}>
+        <span class="tf-hint">必填，不可重复{% if is_edit %}（创建后不可修改）{% endif %}</span>
+      </div>
+
+      <div class="tf-field" data-field="task_keyword">
+        <label class="tf-label">任务说明 <span class="tf-required">*</span></label>
+        <input type="text" name="task_keyword" required class="tf-input" maxlength="500"
+               value="{{ cif.task_keyword if is_edit else '' }}"
+               placeholder="简要描述任务的用途和目的">
+        <span class="tf-hint">必填，1～500 字；可写需求链接、用途等</span>
+      </div>
+
+    {# ─── Scope ─── #}
+
+      {% if scope_locked %}
+      <div class="tf-field">
+        <label class="tf-label">业务组</label>
+        <input type="hidden" name="scope_type" value="GROUP">
+        {% if scope_groups|length == 1 %}
+        <input type="hidden" name="group_id" value="{{ scope_groups[0].id }}">
+        <div class="tf-static-value">{{ scope_groups[0].name }} <span class="tf-hint">仅同组可见</span></div>
+        {% elif scope_groups|length > 1 %}
+        <select name="group_id" required class="tf-select">
+          {% for g in scope_groups %}
+          <option value="{{ g.id }}" {{ 'selected' if is_edit and current_group_id == g.id }}>{{ g.name }}</option>
+          {% endfor %}
+        </select>
+        <span class="tf-hint">选择任务所属业务组</span>
+        {% else %}
+        <div class="tf-warning">当前账号未绑定业务组，请联系管理员后再创建任务</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="tf-field">
+        <label class="tf-label">可见范围 <span class="tf-required">*</span></label>
+        <select name="scope_type" id="scope_type" required class="tf-select">
+          {% if scope_groups %}
+          <option value="GROUP" {{ 'selected' if not is_edit or current_group_id }}>指定业务组</option>
+          <option value="GLOBAL" {{ 'selected' if is_edit and not current_group_id }}>全局共享</option>
+          {% else %}
+          <option value="GLOBAL" selected>全局共享</option>
+          <option value="GROUP" disabled>指定业务组（暂无业务组）</option>
+          {% endif %}
+        </select>
+        <span class="tf-hint">{% if scope_groups %}默认归属业务组；仅必要时选全局共享{% else %}当前无业务组可选{% endif %}</span>
+      </div>
+      <div class="tf-field" id="group_id_row" {% if not scope_groups %}style="display:none"{% endif %}>
+        <label class="tf-label">业务组</label>
+        <select name="group_id" id="group_id_select" class="tf-select">
+          {% for g in scope_groups or [] %}
+          <option value="{{ g.id }}" {{ 'selected' if is_edit and current_group_id == g.id }}>{{ g.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="tf-field" data-field="tags">
+        <label class="tf-label">任务标签</label>
+        <div class="tf-tag-input">
+          <div class="tf-tag-chips" id="tag-chips">
+            {% if is_edit and current_tags %}
+            {% for tag in current_tags %}
+            <span class="tf-tag-chip">{{ tag }}<button type="button" class="tf-tag-remove" onclick="removeTag(this)">×</button></span>
+            {% endfor %}
+            {% endif %}
+          </div>
+          <input type="text" id="tags_input" class="tf-input tf-tag-text" placeholder="输入标签后按空格或回车添加" autocomplete="off">
+        </div>
+        <input type="hidden" name="tags" id="tags_hidden" value="{{ current_tags|join(',') if is_edit and current_tags else '' }}">
+        <span class="tf-hint">可选；建议输入国家/业务线/服务名等</span>
+        <div id="tag-suggest" class="tf-tag-suggest" style="display:none"></div>
+      </div>
+
+    {# ─── Schedule ─── #}
+
+      <div class="tf-field" data-field="ds_ms">
+        <label class="tf-label">定时方式 <span class="tf-required">*</span></label>
+        <select name="ds_ms" id="ds_ms" required class="tf-select">
+          <option value="2" {{ 'selected' if not is_edit or cif.ds_ms == 2 }}>定时模式（Cron）</option>
+          <option value="1" {{ 'selected' if is_edit and cif.ds_ms == 1 }}>具体时间（一次性）</option>
+        </select>
+        <span class="tf-hint">定时模式按周期触发；具体时间仅执行一次</span>
+      </div>
+
+      <div class="tf-field" id="run_date" data-field="run_date" style="display:none">
+        <label class="tf-label">执行时间 <span class="tf-required">*</span></label>
+        <input type="text" name="run_date" id="run_date_input" class="tf-input js-datetime"
+               value="{{ cif.run_date if is_edit else '' }}">
+        <span class="tf-hint">选择「具体时间」时必填</span>
+      </div>
+
+      <div id="cron_div">
+        <label class="tf-label">Cron 表达式</label>
+        <div class="tf-cron-grid">
+        <div class="tf-field tf-cron-field">
+          <label class="tf-label">日（号）</label>
+          <input type="text" name="day" class="tf-input" placeholder="*"
+                 value="{{ cif.day if is_edit else '' }}">
+          <span class="tf-hint">1-31</span>
+        </div>
+        <div class="tf-field tf-cron-field">
+          <label class="tf-label">星期几</label>
+          <input type="text" name="day_of_week" class="tf-input" placeholder="*"
+                 value="{{ cif.day_of_week if is_edit else '' }}">
+          <span class="tf-hint">0-6 或 mon-sun</span>
+        </div>
+        <div class="tf-field tf-cron-field">
+          <label class="tf-label">小时</label>
+          <input type="text" name="hour" class="tf-input" placeholder="*"
+                 value="{{ cif.hour if is_edit else '' }}">
+          <span class="tf-hint">0-23；*/2 = 每 2 小时</span>
+        </div>
+        <div class="tf-field tf-cron-field">
+          <label class="tf-label">分钟</label>
+          <input type="text" name="minute" class="tf-input" placeholder="*"
+                 value="{{ cif.minute if is_edit else '' }}">
+          <span class="tf-hint">0-59；*/5 = 每 5 分钟</span>
+        </div>
+        <div class="tf-field tf-cron-field">
+          <label class="tf-label">秒</label>
+          <input type="text" name="second" class="tf-input" placeholder="0"
+                 value="{{ cif.second if is_edit else '' }}"
+                 {% if is_dev == 1 %}disabled{% endif %}>
+          <span class="tf-hint">0-59{% if is_dev == 1 %}（体验版不可用）{% endif %}</span>
+        </div>
+        </div>
+      </div>
+      <div id="cron-form-validator" class="tf-cron-preview"></div>
+
+    {# ─── Target ─── #}
+
+      <div class="tf-field" data-field="req_url">
+        <label class="tf-label">触发 URL <span class="tf-required">*</span></label>
+        <div class="tf-url-group">
+          <select name="req_method" class="tf-select tf-method-select">
+            <option value="GET" {{ 'selected' if not is_edit or cif.req_method == 'GET' }}>GET</option>
+            <option value="POST" {{ 'selected' if is_edit and cif.req_method == 'POST' }}>POST</option>
+          </select>
+          <input type="text" name="req_url" required class="tf-input tf-url-input"
+                 value="{{ cif.req_url if is_edit else '' }}"
+                 placeholder="https://your-service.example.com/task/run">
+        </div>
+        <span class="tf-hint">到点由调度器发起请求；GET 附加 query 参数，POST 写入 JSON Body</span>
+      </div>
+
+      <div class="tf-field" id="req_body_div" data-field="req_body" style="display:none">
+        <label class="tf-label">请求 JSON Body</label>
+        <textarea name="req_body" class="tf-textarea" rows="4"
+                  placeholder='{"task_name": "example"}'>{{ cif.req_body if is_edit else '' }}</textarea>
+        <span class="tf-hint">仅 POST 时生效；须为 JSON 对象；系统会注入 cronpilot_log_id / cronpilot_sign</span>
+      </div>
+
+      <div class="tf-field" data-field="timeout_sec">
+        <label class="tf-label">超时（秒）</label>
+        <input type="number" name="timeout_sec" min="1" max="120" class="tf-input tf-timeout-input"
+               value="{{ cif.timeout_sec if is_edit else '' }}" placeholder="5">
+        <span class="tf-hint">留空使用默认 5s；有效范围 1–120</span>
+      </div>
+
+    {# ─── Actions ─── #}
+    <div class="tf-actions">
+      <button type="submit" class="cp-btn cp-btn--primary js-ajax-submit">
+        {{ '保存修改' if is_edit else '添加' }}
+      </button>
+      <a class="btn" href="{{ url_for('main.task_detail_v2', id=cif.id) if is_edit else url_for('main.cron_list') }}">返回</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block js %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/cron-form-validator.css') }}">
+<script src="{{ url_for('static', filename='dist/cron-form-validator.js') }}"></script>
+<script>
+/* ── Schedule Mode Toggle ── */
+function syncScheduleMode() {
+  var val = document.getElementById('ds_ms').value;
+  document.getElementById('run_date').style.display = val == '1' ? '' : 'none';
+  document.getElementById('cron_div').style.display = val == '1' ? 'none' : '';
+  var rdInput = document.getElementById('run_date_input');
+  if (rdInput) rdInput.required = (val == '1');
+}
+
+function syncMethodBody() {
+  var method = document.querySelector('[name="req_method"]').value;
+  document.getElementById('req_body_div').style.display = method === 'POST' ? '' : 'none';
+}
+
+document.getElementById('ds_ms').addEventListener('change', syncScheduleMode);
+document.querySelector('[name="req_method"]').addEventListener('change', syncMethodBody);
+
+syncScheduleMode();
+syncMethodBody();
+
+{% if not scope_locked %}
+var scopeEl = document.getElementById('scope_type');
+if (scopeEl) {
+  scopeEl.addEventListener('change', function() {
+    var row = document.getElementById('group_id_row');
+    if (row) row.style.display = this.value === 'GROUP' ? '' : 'none';
+  });
+}
+{% endif %}
+
+/* ── Tag Input with Autocomplete ── */
+var tagsInput = document.getElementById('tags_input');
+var tagsHidden = document.getElementById('tags_hidden');
+var tagChips = document.getElementById('tag-chips');
+var tagSuggest = document.getElementById('tag-suggest');
+var suggestTimer = null;
+
+function getTagsList() {
+  var chips = tagChips.querySelectorAll('.tf-tag-chip');
+  var vals = [];
+  chips.forEach(function(c) { vals.push(c.textContent.replace('×', '').trim()); });
+  return vals;
+}
+
+function updateTagsHidden() {
+  tagsHidden.value = getTagsList().join(',');
+}
+
+function addTag(text) {
+  text = text.trim();
+  if (!text) return;
+  if (getTagsList().indexOf(text) !== -1) return;
+  var chip = document.createElement('span');
+  chip.className = 'tf-tag-chip';
+  chip.textContent = text;
+  var rmBtn = document.createElement('button');
+  rmBtn.type = 'button';
+  rmBtn.className = 'tf-tag-remove';
+  rmBtn.textContent = '\u00d7';
+  rmBtn.onclick = function() { removeTag(this); };
+  chip.appendChild(rmBtn);
+  tagChips.appendChild(chip);
+  updateTagsHidden();
+  tagsInput.value = '';
+  tagSuggest.style.display = 'none';
+}
+
+function removeTag(btn) {
+  btn.parentElement.remove();
+  updateTagsHidden();
+}
+
+function fetchSuggestions(query) {
+  clearTimeout(suggestTimer);
+  if (query.length < 1) { tagSuggest.style.display = 'none'; return; }
+  suggestTimer = setTimeout(function() {
+    var params = '?q=' + encodeURIComponent(query);
+    var gidSelect = document.querySelector('select[name="group_id"]');
+    if (gidSelect && gidSelect.value) params += '&group_id=' + gidSelect.value;
+    fetch('/api/tags/suggest' + params)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        tagSuggest.innerHTML = '';
+        var existing = getTagsList();
+        var items = (data || []).filter(function(t) {
+          var name = typeof t === 'string' ? t : t.name;
+          return existing.indexOf(name) === -1;
+        });
+        if (!items.length) { tagSuggest.style.display = 'none'; return; }
+        items.forEach(function(item) {
+          var name = typeof item === 'string' ? item : item.name;
+          var desc = (typeof item === 'object' && item.description) ? item.description : '';
+          var el = document.createElement('div');
+          el.className = 'tf-tag-suggest-item';
+          el.textContent = desc ? name + ' — ' + desc : name;
+          el.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            addTag(name);
+          });
+          tagSuggest.appendChild(el);
+        });
+        tagSuggest.style.display = '';
+      })
+      .catch(function() { tagSuggest.style.display = 'none'; });
+  }, 200);
+}
+
+tagsInput.addEventListener('input', function() {
+  fetchSuggestions(this.value.trim());
+});
+
+tagsInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
+    e.preventDefault();
+    addTag(this.value);
+    this.value = '';
+    setTimeout(function() { tagsInput.value = ''; }, 0);
+  }
+  if (e.key === 'Backspace' && !this.value) {
+    var last = tagChips.querySelector('.tf-tag-chip:last-child');
+    if (last) { last.remove(); updateTagsHidden(); }
+  }
+});
+
+tagsInput.addEventListener('blur', function() {
+  setTimeout(function() {
+    tagSuggest.style.display = 'none';
+    var val = tagsInput.value.replace(/,/g, '').trim();
+    if (val) addTag(val);
+  }, 150);
+});
+
+/* ── Cron Expression Preview ── */
+/* Handled by cron-form-validator.js Vue component mounting to #cron-form-validator */
+
+/* ── Form Validation Feedback ── */
+var form = document.querySelector('.tf-form');
+if (form) {
+  form.addEventListener('invalid', function(e) {
+    var field = e.target.closest('.tf-field');
+    if (field) field.classList.add('tf-field-error');
+  }, true);
+  form.addEventListener('input', function(e) {
+    var field = e.target.closest('.tf-field');
+    if (field && e.target.validity.valid) {
+      field.classList.remove('tf-field-error');
+    }
+  });
+}
+
+/* ── Keyboard Shortcut ── */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && !document.querySelector('.cp-modal-overlay')) {
+    history.back();
+  }
+});
+
+/* ── URL Validation handled by cron-form-validator.js Vue component ── */
+
+/* ── Textarea Auto-Resize ── */
+document.querySelectorAll('.tf-textarea').forEach(function(ta) {
+  function autoResize() {
+    ta.style.height = 'auto';
+    ta.style.height = Math.max(ta.scrollHeight, 80) + 'px';
+  }
+  ta.addEventListener('input', autoResize);
+  if (ta.value) autoResize();
+});
+</script>
+{% endblock %}

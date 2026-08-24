@@ -178,6 +178,8 @@
     <tr><td>OPT-P0-09</td><td>集群 Redis 互斥锁原子化（SET NX EX + token 释放）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>single_task</code></td></tr>
     <tr><td>OPT-P0-10</td><td>生产 SECRET_KEY fail-fast</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-09-10-锁与密钥设计.html">锁与密钥设计</a> · <code>run_production.sh</code> / <code>datas/.flask_secret_key</code></td></tr>
     <tr><td>OPT-P0-11</td><td>管理端 CSRF 防护（写操作 POST + Session Token）</td><td class="s-done">已交付</td><td>v2.1.1</td><td><a href="arch/OPT-P0-11-管理端CSRF设计.html">CSRF 设计</a> · <code>app/security/csrf.py</code></td></tr>
+    <tr><td>OPT-P0-12</td><td>SSRF DNS Rebinding 修复（DNS pinning 消除 TOCTOU）</td><td class="s-done">已交付</td><td>Unreleased</td><td><code>validate_and_resolve_url</code> + <code>_PinnedIPAdapter</code> · <code>app/services/url_security.py</code></td></tr>
+    <tr><td>OPT-P0-13</td><td>登录防暴破（IP+用户名双维度滑动窗口限流）</td><td class="s-done">已交付</td><td>Unreleased</td><td><code>app/rbac/login_limiter.py</code> · 5 次/5min IP 锁 15min · 10 次/10min 用户锁 30min</td></tr>
     <tr><td>UI-A′</td><td>执行记录单列两行 + 查看详情 + <code>http_status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>UI-B1</td><td>Cron 分钟 <code>*/1</code> 灰字提示</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>OPT-P1-01</td><td>执行 <code>status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="plan/P1可观测优化设计.html">P1 可观测设计</a></td></tr>

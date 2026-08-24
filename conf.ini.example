@@ -49,6 +49,21 @@ url_ssrf_observe_only=0
 # log_level=INFO
 # log_json_enabled=1
 
+# ====== 调度器性能调参（OPT-P1-12）======
+# 环境变量 CRONPILOT_SCHEDULER_ENABLED=false 可关闭调度器（Web-only 模式）
+# 用途：水平扩容 Web 进程时，仅主进程运行调度器
+#
+# 当前默认（config.py）：
+#   SCHEDULER_EXECUTORS.max_workers = 30  （并发执行任务的线程数上限）
+#   SCHEDULER_JOB_DEFAULTS.max_instances = 20 （单任务最大排队实例数）
+#   SCHEDULER_JOB_DEFAULTS.misfire_grace_time = 50 （错过触发的宽限秒数）
+#
+# 调参指南：
+#   - 200 个秒级任务 + 平均响应 1s → max_workers=30 足够（稳态 ~5 活跃线程）
+#   - 200 个秒级任务 + 目标服务慢(5s) → 稳态 ~25 线程，接近上限，建议调至 50
+#   - 500+ 秒级任务 → 建议双进程分离（CRONPILOT_SCHEDULER_ENABLED=false for web）
+#   - 监控指标：Prometheus cronpilot_jobs_active > 0.8 * max_workers 持续 5min → 预警
+
 # Prometheus /metrics 端点 Bearer Token（可选）
 # 留空时仅允许已登录 Web 用户访问；填写后 Prometheus server 可用 bearer_token 无会话抓取
 # 生成示例：python -c "import secrets; print(secrets.token_hex(32))"

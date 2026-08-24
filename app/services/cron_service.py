@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 """Cron 任务写入与调度注册（Web / API 共用）。"""
+import logging
+
 from sqlalchemy import select
 
 from app import db, scheduler
@@ -8,6 +10,8 @@ from datas.model.cron_infos import CronInfos
 from datas.utils.times import get_now_time
 
 # 系统自动下线固定文案（LIFECYCLE-2）
+_log = logging.getLogger(__name__)
+
 RETIRE_REASON_ONE_SHOT = '一次性任务执行完成（系统）'
 RETIRE_REASON_EXECUTOR = '调度执行器异常移除（系统）'
 RETIRE_REASON_ORPHAN = 'JobStore 无对应任务，系统对账下线'
@@ -167,7 +171,7 @@ def update_cron(cif, normalized, resume_after_save=False):
         try:
             scheduler.pause_job('cron_%s' % cif.id)
         except Exception:
-            pass
+            _log.warning('pause_job failed for cron_%s', cif.id, exc_info=True)
     record_operation(
         action='update_cron',
         target_id=cif.id,
@@ -217,7 +221,7 @@ def retire_cron_by_id(cron_id, reason):
     try:
         scheduler.remove_job('cron_%s' % cif.id)
     except Exception:
-        pass
+        _log.warning('remove_job failed for cron_%s during retire', cif.id, exc_info=True)
     db.session.commit()
     _record_retire(cif)
     return None, cif
@@ -241,7 +245,7 @@ def retire_cron_by_task_name(task_name, reason):
     try:
         scheduler.remove_job('cron_%s' % cif.id)
     except Exception:
-        pass
+        _log.warning('remove_job failed for cron_%s during retire', cif.id, exc_info=True)
     db.session.commit()
     _record_retire(cif)
     return None, cif

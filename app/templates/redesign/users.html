@@ -1,0 +1,489 @@
+{% extends "redesign/_base.html" %}
+{% block title %}用户管理 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>用户管理</h1>
+    <div class="sub">{{ page_data.total }} 名成员</div>
+  </div>
+  <a href="{{ url_for('rbac.users_add') }}" class="btn-c btn-accent btn-xs">+ 添加用户</a>
+</div>
+
+<div class="um-toolbar">
+  <form method="GET" action="{{ url_for('rbac.users_list') }}" class="um-search">
+    <input class="f-input um-search-input" type="text" name="username" value="{{ search_username }}" placeholder="按用户名搜索…">
+    {% if chip %}<input type="hidden" name="chip" value="{{ chip }}">{% endif %}
+    <button type="submit" class="btn-c btn-line btn-xs">搜索</button>
+    {% if search_username %}<a href="{{ url_for('rbac.users_list', chip=chip if chip else None) }}" class="btn-c btn-line btn-xs um-clear">清除</a>{% endif %}
+  </form>
+</div>
+<div class="um-chips">
+  <a class="um-chip{% if not chip %} um-chip-active{% endif %}" href="{{ url_for('rbac.users_list', username=search_username or None) }}">全部 {{ cnt_total }}</a>
+  <a class="um-chip{% if chip == 'active' %} um-chip-active{% endif %}" href="{{ url_for('rbac.users_list', chip='active', username=search_username or None) }}">启用 {{ cnt_active }}</a>
+  <a class="um-chip{% if chip == 'inactive' %} um-chip-active{% endif %}" href="{{ url_for('rbac.users_list', chip='inactive', username=search_username or None) }}">停用 {{ cnt_inactive }}</a>
+</div>
+<div class="um-hint-row">
+  <span class="um-hint">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</span>
+</div>
+
+<div class="c-table-wrap">
+  <table class="c-table">
+    <thead>
+      <tr>
+        <th class="col-uname">用户名</th>
+        <th class="col-nickname">花名</th>
+        <th class="col-jobtitle">岗位</th>
+        <th class="col-role">角色</th>
+        <th class="col-groups">业务组</th>
+        <th class="col-status">状态</th>
+        <th class="col-pwdstat">密码状态</th>
+        <th class="col-last-login">最近登录</th>
+        <th class="um-col-ops">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_data.items %}
+      {% set is_self = current_user and current_user.user_id == item.id %}
+      <tr{% if not item.is_active %} class="cp-opacity-60"{% endif %}>
+        <td>
+          <div class="um-user-cell">
+            <div class="um-avatar">{{ ((item.nickname or item.username) or 'U')[0] | upper }}</div>
+            <div class="um-user-info">
+              <span class="cp-fw-600">{{ item.username }}{% if is_self %}<span class="um-me">当前</span>{% endif %}</span>
+              {% if item.email %}<div class="um-email">{{ item.email }}</div>{% endif %}
+            </div>
+          </div>
+        </td>
+        <td class="col-nickname" title="{{ item.nickname or '' }}">{{ item.nickname or '—' }}</td>
+        <td>{% if item.job_title %}{% if item.job_title.startswith('other:') %}{{ item.job_title[6:] }}{% else %}{{ job_title_map.get(item.job_title, item.job_title) }}{% endif %}{% else %}—{% endif %}</td>
+        <td><span class="u-role u-role-{{ item.role }}">{{ item.role }}</span></td>
+        <td class="col-groups-cell">
+          {% set groups = user_groups_map.get(item.id, []) %}
+          {% if groups %}
+            {% for g in groups[:2] %}<span class="um-group-tag">{{ g }}</span>{% endfor %}
+            {% if groups|length > 2 %}<span class="um-group-tag um-group-more" title="{{ groups[2:]|join(', ') }}">+{{ groups|length - 2 }}</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if item.is_active %}
+          <span class="u-badge u-active">启用</span>
+          {% else %}
+          <span class="u-badge u-inactive">停用</span>
+          {% if item.status_reason %}
+          <div class="um-reason">{{ item.status_reason }}</div>
+          {% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if item.must_reset_password %}
+          <span class="u-badge u-reset">待重置</span>
+          {% else %}
+          <span class="u-badge u-normal">正常</span>
+          {% endif %}
+        </td>
+        {% set ll = item.last_login_at or '' %}
+        <td class="col-last-login mono cp-text-xs" title="{{ ll }}">{% if ll %}{{ ll[:10] }}<br><span class="um-time-sub">{{ ll[11:16] }}</span>{% else %}—{% endif %}</td>
+        <td>
+          {% if is_self %}
+          <div class="um-ops">
+            <a class="um-icon-btn" href="{{ url_for('rbac.change_password') }}" data-tooltip="修改密码">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            </a>
+            <span class="um-ops-hint">账号/角色不可自改</span>
+          </div>
+          {% elif item.is_active %}
+          <div class="um-ops">
+            <a class="um-icon-btn" href="{{ url_for('rbac.users_edit', id=item.id) }}" data-tooltip="编辑用户">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg>
+            </a>
+            <a class="um-icon-btn um-confirm-action"
+               href="{{ url_for('rbac.users_reset_password') }}?id={{ item.id }}"
+               data-tooltip="重置密码"
+               data-confirm-title="重置密码"
+               data-confirm-body="确定触发重置用户「{{ item.username }}」的密码？密码将恢复为 changeme，且须改密后才能继续使用。"
+               data-csrf="{{ csrf_token }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15 3l3 3"/></svg>
+            </a>
+            <a class="um-icon-btn um-confirm-action"
+               href="{{ url_for('rbac.users_reset_token') }}?id={{ item.id }}"
+               data-tooltip="重置 API Token"
+               data-confirm-title="重置 API Token"
+               data-confirm-body="确定重置用户「{{ item.username }}」的 API Token？当前 Token 将立即失效，调用方需重新获取。"
+               data-csrf="{{ csrf_token }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 12A8.5 8.5 0 0121 9M21 9V3M21 9h-6"/><path d="M20.5 12A8.5 8.5 0 013 15M3 15v6M3 15h6"/></svg>
+            </a>
+            <button class="um-icon-btn um-icon-btn-danger um-deactivate-btn"
+                    data-user-id="{{ item.id }}"
+                    data-username="{{ item.username }}"
+                    data-role="{{ item.role }}"
+                    data-csrf="{{ csrf_token }}"
+                    data-tooltip="停用用户" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>
+            </button>
+          </div>
+          {% else %}
+          <a href="{{ url_for('rbac.users_view') }}?id={{ item.id }}" class="um-icon-btn" data-tooltip="查看信息" title="">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="8" r="4"/><path d="M3 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="c-foot">
+    <span class="count">{{ page_data.total }} total</span>
+    <div class="c-pg">
+      {% set pg_extra = {} %}
+      {% if search_username %}{% set _ = pg_extra.update({'username': search_username}) %}{% endif %}
+      {% if chip %}{% set _ = pg_extra.update({'chip': chip}) %}{% endif %}
+      {% if page_data.has_prev %}
+      <a href="{{ url_for('rbac.users_list', page=page_data.page - 1, **pg_extra) }}">‹</a>
+      {% endif %}
+      {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+        <a{% if p == page_data.page %} class="active"{% endif %}
+           href="{{ url_for('rbac.users_list', page=p, **pg_extra) }}">{{ p }}</a>
+        {% else %}
+        <a>…</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_data.has_next %}
+      <a href="{{ url_for('rbac.users_list', page=page_data.page + 1, **pg_extra) }}">›</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Inline Deactivation Modal (R3) -->
+<div id="dm-overlay" style="display:none">
+  <div class="dm-backdrop" id="dm-backdrop"></div>
+  <div class="dm-dialog" role="dialog" aria-modal="true" aria-labelledby="dm-title">
+    <div class="dm-head">
+      <span id="dm-title">停用用户</span>
+      <button class="dm-close" id="dm-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="dm-body">
+      <div class="dm-user-row">
+        <span class="dm-username" id="dm-username"></span>
+        <span class="dm-role-badge" id="dm-role"></span>
+      </div>
+      <div class="dm-warn-box">
+        ⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。
+      </div>
+      <div class="dm-field">
+        <label class="dm-label">停用原因 <span class="dm-req">*</span></label>
+        <textarea id="dm-reason" maxlength="500" placeholder="请填写停用原因（1-500 字）" rows="3"></textarea>
+        <span class="dm-char" id="dm-char">0 / 500</span>
+      </div>
+      <div class="dm-err" id="dm-err" style="display:none">请填写停用原因</div>
+    </div>
+    <div class="dm-foot">
+      <button class="btn-c btn-line btn-xs" id="dm-cancel" type="button">取消</button>
+      <button class="btn-c btn-danger-c btn-xs" id="dm-confirm" type="button">确认停用</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.um-toolbar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
+}
+.um-search {
+  display: flex; align-items: center; gap: 4px;
+}
+.um-clear { color: var(--cp-text-muted); }
+.um-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;
+}
+.um-chip {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 500; cursor: pointer; text-decoration: none;
+  background: var(--cp-surface-2); color: var(--cp-text-muted);
+  border: 1px solid var(--cp-border);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.um-chip:hover {
+  background: var(--cp-signal-bg); color: var(--cp-signal); border-color: var(--cp-signal);
+}
+.um-chip-active {
+  background: var(--cp-signal-bg); color: var(--cp-signal);
+  border-color: var(--cp-signal); font-weight: 600;
+}
+.um-hint-row { margin-bottom: 12px; }
+.um-hint {
+  color: var(--cp-text-muted); font-size: 12px;
+}
+.um-me {
+  font-size: 10px; padding: 0 4px; border-radius: 3px;
+  background: var(--cp-signal-bg); color: var(--cp-signal);
+}
+.um-reason {
+  font-size: 10px; color: var(--cp-text-muted); margin-top: 2px;
+}
+.um-ops-hint {
+  font-size: 10px; color: var(--cp-text-faint);
+}
+.um-ops {
+  display: flex; flex-wrap: nowrap; gap: 2px; align-items: center;
+}
+.um-user-cell {
+  display: flex; align-items: center; gap: 8px;
+}
+.um-user-info { display: flex; flex-direction: column; min-width: 0; }
+.um-email { font-size: 11px; color: var(--cp-text-faint); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.um-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--cp-signal-bg); color: var(--cp-signal);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 10px; flex-shrink: 0;
+}
+.um-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  color: var(--cp-text-muted); border: 1px solid transparent;
+  cursor: pointer; background: none; text-decoration: none; flex-shrink: 0;
+  position: relative;
+}
+.um-icon-btn:hover {
+  background: var(--cp-surface-2); border-color: var(--cp-border);
+  color: var(--cp-ink);
+}
+.um-icon-btn svg { width: 14px; height: 14px; }
+.um-icon-btn-danger { color: var(--cp-danger-fill); }
+.um-icon-btn-danger:hover {
+  background: var(--cp-danger-bg); border-color: var(--cp-danger-fill);
+  color: var(--cp-danger-fill);
+}
+/* CSS tooltip — shows immediately on hover (no OS delay) */
+.um-icon-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cp-ink, #1a1a2e);
+  color: var(--cp-bg, #fff);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.08s;
+  z-index: 200;
+}
+.um-icon-btn[data-tooltip]:hover::after { opacity: 1; }
+/* Inactive user label in ops column */
+.um-inactive-label {
+  font-size: 11px; color: var(--cp-text-faint); font-style: italic;
+}
+.u-role {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 11px; font-weight: 600; color: var(--cp-on-filled);
+}
+.u-role-admin { background: var(--cp-role-admin); }
+.u-role-operator { background: var(--cp-role-operator); }
+.u-role-viewer { background: var(--cp-role-viewer); }
+.u-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px;
+}
+.u-active { background: var(--cp-success-bg); color: var(--cp-success-text); }
+.u-inactive { background: var(--cp-danger-bg); color: var(--cp-danger-fill); }
+.u-reset { background: var(--cp-warn-bg); color: var(--cp-warn); }
+.u-normal { background: var(--cp-surface-2); color: var(--cp-ink-2); }
+.um-col-ops { width: 120px; }
+.um-search-input { width: 160px; }
+/* Business group tags — wrap multi-group labels */
+.col-groups-cell { vertical-align: middle; }
+.um-group-tag {
+  display: inline-block; background: var(--cp-surface-2); color: var(--cp-text-muted);
+  border: 1px solid var(--cp-border); border-radius: 3px;
+  font-size: 11px; padding: 0 5px; line-height: 18px;
+  white-space: nowrap; margin: 1px 2px 1px 0;
+}
+.um-group-more {
+  background: var(--cp-signal-bg); color: var(--cp-signal);
+  border-color: var(--cp-signal); cursor: default;
+}
+/* Last login two-line display */
+.um-time-sub { display: block; opacity: .7; }
+/* Fixed-layout table — explicit widths for all columns prevent uneven spacing */
+.c-table-wrap { overflow-x: auto; }
+.c-table { table-layout: fixed; width: 100%; min-width: 960px; }
+.c-table th { white-space: nowrap; }
+.c-table .col-uname    { width: 200px; }  /* 用户名 + email 副标题 */
+.c-table .col-nickname { width: 72px;  }  /* 花名 */
+.c-table .col-jobtitle { width: 72px;  }  /* 岗位 */
+.c-table .col-role     { width: 72px;  }  /* 角色 */
+.c-table .col-groups   { width: 140px; }  /* 业务组 */
+.c-table .col-status   { width: 68px;  }  /* 状态 */
+.c-table .col-pwdstat  { width: 68px;  }  /* 密码状态 */
+.c-table .col-last-login { width: 100px; } /* 最近登录 */
+.c-table .um-col-ops   { width: 120px; }  /* 操作 */
+/* Truncate text in constrained single-line columns */
+.c-table td.col-nickname,
+.c-table td.col-jobtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Groups cell wraps; last-login shows two lines — no nowrap */
+/* User cell username also truncates */
+.um-user-cell span, .um-user-info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* Deactivation Modal (R3) */
+#dm-overlay { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; }
+.dm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.4); }
+.dm-dialog {
+  position: relative; z-index: 1;
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  width: 420px; max-width: calc(100vw - 40px);
+}
+.dm-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 14px; border-bottom: 1px solid var(--cp-border);
+  font-size: 14px; font-weight: 600;
+}
+.dm-close { background: none; border: none; cursor: pointer; color: var(--cp-text-muted); font-size: 18px; line-height: 1; padding: 0 2px; }
+.dm-close:hover { color: var(--cp-ink); }
+.dm-body { padding: 18px 20px 16px; }
+.dm-user-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.dm-username { font-size: 14px; font-weight: 600; }
+.dm-role-badge { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--cp-surface-2); color: var(--cp-text-muted); border: 1px solid var(--cp-border); }
+.dm-warn-box {
+  background: var(--cp-warn-bg); border: 1px solid var(--cp-warn-border);
+  border-radius: 6px; padding: 9px 13px; font-size: 12.5px;
+  color: var(--cp-warn-dark); line-height: 1.5; margin-bottom: 16px;
+}
+.dm-field { margin-bottom: 4px; }
+.dm-label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; }
+.dm-req { color: var(--cp-danger-fill); }
+#dm-reason {
+  width: 100%; resize: vertical; min-height: 72px;
+  font-family: inherit; font-size: 13px;
+  padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--cp-border); background: var(--cp-surface);
+  color: var(--cp-ink); outline: none; box-sizing: border-box;
+}
+#dm-reason:focus { border-color: var(--cp-signal); box-shadow: 0 0 0 2px var(--cp-signal-bg); }
+#dm-reason.dm-invalid { border-color: var(--cp-danger-fill); }
+.dm-char { display: block; font-size: 11px; color: var(--cp-text-faint); text-align: right; margin-top: 3px; }
+.dm-err { font-size: 12px; color: var(--cp-danger-fill); margin-top: 6px; }
+.dm-foot {
+  padding: 12px 20px 16px; border-top: 1px solid var(--cp-border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+/* Compact override: tighter row height specific to user management page */
+.c-table thead th { padding: 6px 10px; }
+.c-table tbody td { padding: 6px 10px; font-size: 12px; }
+.um-avatar { width: 22px; height: 22px; font-size: 9px; }
+.um-icon-btn { width: 24px; height: 24px; }
+.um-icon-btn svg { width: 13px; height: 13px; }
+.um-group-tag { font-size: 10px; padding: 0 4px; line-height: 16px; }
+.um-time-sub { font-size: 11px; }
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+$(function() {
+    /* ===== Deactivation Modal (R3) ===== */
+    var $overlay = $('#dm-overlay');
+    var $reason = $('#dm-reason');
+    var $char = $('#dm-char');
+    var $err = $('#dm-err');
+    var $username = $('#dm-username');
+    var $roleBadge = $('#dm-role');
+    var deactivateUserId = null;
+    var deactivateCsrf = null;
+
+    function openDm($btn) {
+        deactivateUserId = $btn.data('user-id');
+        deactivateCsrf = $btn.data('csrf');
+        $username.text($btn.data('username'));
+        $roleBadge.text($btn.data('role'));
+        $reason.val('').removeClass('dm-invalid');
+        $char.text('0 / 500');
+        $err.hide();
+        $overlay.css('display', 'flex');
+        setTimeout(function(){ $reason.focus(); }, 60);
+    }
+
+    function closeDm() {
+        $overlay.hide();
+        deactivateUserId = null;
+    }
+
+    $(document).on('click', '.um-deactivate-btn', function(e) {
+        e.preventDefault();
+        openDm($(this));
+    });
+
+    $('#dm-cancel, #dm-close').on('click', closeDm);
+    $('#dm-backdrop').on('click', closeDm);
+
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $overlay.is(':visible')) closeDm();
+    });
+
+    $reason.on('input', function() {
+        var len = this.value.length;
+        $char.text(len + ' / 500');
+        if (len > 0) { $(this).removeClass('dm-invalid'); $err.hide(); }
+    });
+
+    $('#dm-confirm').on('click', function() {
+        var reason = $reason.val().trim();
+        if (!reason) {
+            $reason.addClass('dm-invalid').focus();
+            $err.show();
+            return;
+        }
+        /* Submit form POST to backend (same as existing set_active page) */
+        var $form = $('<form method="post" style="display:none"></form>')
+            .attr('action', "{{ url_for('rbac.users_set_active') }}");
+        $form.append($('<input type="hidden" name="csrf_token">').val(deactivateCsrf));
+        $form.append($('<input type="hidden" name="id">').val(deactivateUserId));
+        $form.append($('<input type="hidden" name="is_active">').val('0'));
+        $form.append($('<input type="hidden" name="reason">').val(reason));
+        $('body').append($form);
+        $form[0].submit();
+    });
+    /* ===== End Deactivation Modal ===== */
+
+    $(document).on('click', '.um-confirm-action', function(e) {
+        e.preventDefault();
+        var $a = $(this);
+        var fullHref = $a.attr('href');
+        var csrf = $a.data('csrf');
+        var title = $a.data('confirm-title') || '确认操作';
+        var body = $a.data('confirm-body') || '确定要执行此操作吗？';
+        /* Split URL into base path + query string id param */
+        var url = fullHref.split('?')[0];
+        var qs = fullHref.indexOf('?') >= 0 ? fullHref.split('?')[1] : '';
+        CpConfirm.show({
+            title: title,
+            body: body,
+            confirmText: '确认',
+            cancelText: '取消',
+            danger: true,
+            onConfirm: function() {
+                var $form = $('<form method="post" style="display:none"></form>')
+                    .attr('action', url);
+                $form.append($('<input type="hidden" name="csrf_token">').val(csrf));
+                if (qs) {
+                    qs.split('&').forEach(function(pair) {
+                        var parts = pair.split('=');
+                        if (parts.length === 2) {
+                            $form.append($('<input type="hidden">').attr('name', decodeURIComponent(parts[0])).val(decodeURIComponent(parts[1])));
+                        }
+                    });
+                }
+                $('body').append($form);
+                $form.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

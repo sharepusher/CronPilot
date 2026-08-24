@@ -1,0 +1,6 @@
+# CronPilot dev/visual-regression dependencies
+# Install: pip install -r requirements-dev.txt
+# Then: playwright install chromium
+
+playwright>=1.40,<2.0
+Pillow>=10.0,<14.0

@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot UI Redesign — 逐页设计规格书 (Complete)</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:1200px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #1e40af;padding-bottom:12px;color:#1e40af}
+h2{color:#1e40af;margin-top:56px;border-bottom:2px solid #1e40af;padding-bottom:10px;page-break-before:always}
+h3{color:#374151;margin-top:28px;border-left:3px solid #3b82f6;padding-left:12px}
+h4{color:#4b5563;margin-top:20px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:11.5px}
+th,td{border:1px solid #d1d5db;padding:5px 8px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-size:11px;font-family:'JetBrains Mono',monospace}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;overflow-x:auto;font-size:11px;font-family:'JetBrains Mono',monospace;line-height:1.6}
+.layout-diagram{background:#1a1a2e;color:#e0e0e0;padding:14px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.resp{background:#FFFBEB;border:1px solid #FDE68A}
+.resp th{background:#FEF3C7}
+.inter{background:#EFF6FF;border:1px solid #BFDBFE}
+.inter th{background:#DBEAFE}
+.page-meta{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11.5px}
+.page-meta dt{font-weight:600;color:#6b7280}
+.page-meta dd{margin:0;color:#1a1a1a}
+.toc{columns:2;font-size:12px;line-height:2.2}
+.toc a{color:#1e40af;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<h1>CronPilot UI Redesign — 逐页设计规格书</h1>
+
+<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:13px">
+<strong>📌 定位</strong>：本文档为 <a href="UI重设计-统一执行手册.html">统一执行手册</a> 的详细附录（Part 3 逐页规格的完整版 + Part 5/6 动画与无障碍）。执行入口以统一手册为准。
+</div>
+
+<p>
+<strong>文档编号</strong>：OPT-P1-16-PAGE-SPEC v2<br>
+<strong>状态</strong>：设计评审<br>
+<strong>Mockup 源</strong>：<code>doc/design/CronPilot-2026-redesign-mockup.html</code><br>
+<strong>全局 Token</strong>：参见 <code>doc/design/UI重设计-视觉设计规格书.html</code><br>
+<strong>范围</strong>：每页 = 布局结构 · 响应式断点 · 交互状态 · 验收标准
+</p>
+
+<h3>目录 (16 pages + 4 overlay/state)</h3>
+<div class="toc">
+<a href="#p01">01 Dashboard（任务中心）</a><br>
+<a href="#p02">02 执行记录</a><br>
+<a href="#p03">03 任务详情</a><br>
+<a href="#p04">04 Run Inspector</a><br>
+<a href="#p05">05 任务表单（编辑/新建）</a><br>
+<a href="#p06">06 用户管理列表</a><br>
+<a href="#p07">07 用户表单（添加/编辑）</a><br>
+<a href="#p08">08 业务组</a><br>
+<a href="#p09">09 注册审批</a><br>
+<a href="#p10">10 审计日志</a><br>
+<a href="#p11">11 操作记录</a><br>
+<a href="#p12">12 标签管理</a><br>
+<a href="#p13">13 修改密码</a><br>
+<a href="#p14">14 API Token</a><br>
+<a href="#p15">15 API 文档</a><br>
+<a href="#p16">16 登录/注册/忘记密码</a><br>
+<a href="#overlay">OV Command Palette / Toast / Modal</a><br>
+<a href="#state">ST Empty / Loading / Error</a><br>
+<a href="#animation">C 动画与过渡效果规格</a><br>
+<a href="#accessibility">D 无障碍与 ARIA 规格</a><br>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="p01">PAGE 01: Dashboard（任务中心）</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-dashboard</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /cron_list</code></dd></dl>
+<dl><dt>模板</dt><dd><code>redesign/dashboard.html</code></dd></dl>
+<dl><dt>继承</dt><dd><code>redesign/_base.html</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>CSS Prefix</dt><dd><code>.hf-*</code> / <code>.exc-*</code></dd></dl>
+</div>
+
+<h3>1.1 布局结构</h3>
+<div class="layout-diagram">
+┌─────────────────────────────────────────────────────────────────────┐
+│ .page-head (flex; between; wrap; gap:12px; mb:20px)                  │
+│ ┌────────────────────────────┐  ┌─────────────────────────────┐    │
+│ │ h1 "任务中心" 18px/600     │  │ .btn.btn-primary 32px h     │    │
+│ │ .sub 12.5px muted mt:3px   │  │ icon 14×14 + "新建任务"     │    │
+│ └────────────────────────────┘  └─────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────────────┤
+│ .stats (grid:4×1fr; gap:1px; bg:border; border:1px; r:8px; mb:20px) │
+│ ┌────────────┬────────────┬────────────┬────────────┐              │
+│ │ .stat      │ .stat      │ .stat      │ .stat      │              │
+│ │ pad:14 18  │ pad:14 18  │ pad:14 18  │ pad:14 18  │              │
+│ │ bg:surface │ bg:surface │ bg:surface │ bg:surface │              │
+│ │            │            │            │            │              │
+│ │ .label:    │ .label:    │ .label:    │ .label:    │              │
+│ │ 11px/500   │ 11px/500   │ 11px/500   │ 11px/500   │              │
+│ │ upper faint│ upper faint│ upper faint│ upper faint│              │
+│ │ ls:0.04em  │ ls:0.04em  │ ls:0.04em  │ ls:0.04em  │              │
+│ │ mb:6px     │ mb:6px     │ mb:6px     │ mb:6px     │              │
+│ │            │            │            │            │              │
+│ │ .value:    │ .value:    │ .value:    │ .value:    │              │
+│ │ 22px/600   │ 22px/600   │ 22px/600   │ 22px/600   │              │
+│ │ mono       │ mono       │ mono       │ mono       │              │
+│ │ ls:-0.02   │ ls:-0.02   │ ls:-0.02   │ ls:-0.02   │              │
+│ │ .danger    │ .warning   │ .signal    │ .danger    │              │
+│ │            │            │            │            │              │
+│ │ .total:    │ .total:    │ .total:    │ .total:    │              │
+│ │ 11px faint │ 11px faint │ 11px faint │ 11px faint │              │
+│ │ mt:4px     │ mt:4px     │ mt:4px     │ mt:4px     │              │
+│ └────────────┴────────────┴────────────┴────────────┘              │
+├─────────────────────────────────────────────────────────────────────┤
+│ .exception-panel (border:1px danger; r:8px; bg:danger-bg; mb:20px)   │
+│ ┌───────────────────────────────────────────────────────────────┐  │
+│ │ .exception-header (flex; gap:8px; pad:10 16; 12.5px/600)      │  │
+│ │   color:danger; svg 14×14                                      │  │
+│ ├───────────────────────────────────────────────────────────────┤  │
+│ │ .exception-list (bg:surface; border-top:1px border)            │  │
+│ │ ┌─ .exception-item (flex; gap:12px; pad:10 16; bb:1px) ────┐  │  │
+│ │ │ .ex-icon   .ex-name    .ex-detail       .ex-action        │  │  │
+│ │ │ 14px/700   12.5px/500  11.5px muted     12px/500 signal   │  │  │
+│ │ │ danger     flex:1                        cursor:pointer    │  │  │
+│ │ └──────────────────────────────────────────────────────────┘  │  │
+│ └───────────────────────────────────────────────────────────────┘  │
+├─────────────────────────────────────────────────────────────────────┤
+│ .filters (flex; center; gap:8px; wrap; mb:14px)                      │
+│ [.search 260×32 r:6] [.chip×5 28h r:6] [spacer] [.chip 业务组▾]    │
+│ [.chip 标签▾]                                                        │
+├─────────────────────────────────────────────────────────────────────┤
+│ .table-wrap (border:1px; r:8px; overflow:hidden)                     │
+│  thead th: 10.5px/500 upper ls:0.05em faint pad:10 14 bg:surface    │
+│  7 cols: 任务(auto) | 调度策略(~150) | 健康度(~80) | 最近执行(~130)  │
+│          | 下次执行(~100) | 业务组(~90) | 操作(90px)                 │
+│  tbody td: pad:11 14; bb:1px border; hover:bg surface-2             │
+│  .task-cell: name(13/500 hover→signal) + id(11 mono faint)          │
+│              + tags(flex gap:4 mt:4: .lifecycle + .tag×N)            │
+│  .cron-expr: mono 11.5px; bg:surface-2; pad:2 6; r:4; border:1px   │
+│  .schedule-human: 11px muted mt:3px                                  │
+│  .health: inline-flex gap:5; 12px/500; .dot 7×7 r:50%               │
+│  .run-cell: .run-status(pin 5×5 + code) + .run-duration(mono 11)    │
+│             + .run-time(11 muted)                                    │
+│  .next-run: 12px muted                                               │
+│  .scope-cell: 12px muted                                             │
+│  .row-actions: flex gap:3; .action-btn 26×26 r:5                     │
+│  retired row: opacity 0.6; actions only [恢复][更多]                 │
+├─────────────────────────────────────────────────────────────────────┤
+│ .pagination (flex; between; pad:12 0; 12px muted)                    │
+│  .pg-info: "显示 1-5 / 共 128 个任务"                               │
+│  .pg-nav: flex gap:2; .pg-btn 28×28 r:5 border 12px/500             │
+│    .active: signal-bg border:signal color:signal-ink/600             │
+│    .disabled: opacity:0.4 cursor:not-allowed                         │
+└─────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>1.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>Shell 变化</th><th>页面内容变化</th></tr>
+<tr><td><code>&gt; 1200px</code></td><td>Sidebar 220px 展开</td><td>全量 7 列 + Exception panel + 4 stat</td></tr>
+<tr><td><code>1024–1200px</code></td><td>Sidebar 220px</td><td>.main padding→20 24; stat padding→12 14; "下次执行"列可 ellipsis</td></tr>
+<tr><td><code>768–1024px</code></td><td>Sidebar collapse → 56px icon-only</td><td>Exception panel .ex-detail 隐藏; 表格列宽均匀压缩</td></tr>
+<tr><td><code>&lt; 768px</code></td><td>Sidebar 隐藏 → hamburger overlay</td><td>stats→grid 2×2; filters wrap 多行; table overflow-x:auto; 隐藏"下次执行""业务组"列; pagination→prev/next only; .page-head flex-col</td></tr>
+</table>
+
+<h3>1.3 交互状态</h3>
+<table class="inter">
+<tr><th>元素</th><th>Default</th><th>Hover</th><th>Active/Focus</th><th>Disabled</th></tr>
+<tr><td>tbody tr</td><td>bg: transparent</td><td>bg: surface-2</td><td>—</td><td>.retired: opacity 0.6</td></tr>
+<tr><td>.task-name</td><td>13px/500; color: ink</td><td>color: signal; cursor: pointer</td><td>—</td><td>—</td></tr>
+<tr><td>.chip</td><td>border: border; color: muted; 12px</td><td>—</td><td>.active: border: signal; bg: signal-bg; color: ink</td><td>—</td></tr>
+<tr><td>.action-btn</td><td>26×26; border: transparent; color: muted</td><td>bg: surface-2; border: border; color: ink</td><td>—</td><td>opacity 0.4; not-allowed</td></tr>
+<tr><td>.action-btn.run</td><td>color: signal</td><td>bg: signal-bg; border: border</td><td>—</td><td>—</td></tr>
+<tr><td>.btn-primary</td><td>bg: signal; border: signal; color: #fff</td><td>bg: signal-ink</td><td>—</td><td>opacity 0.6; not-allowed</td></tr>
+<tr><td>.pg-btn</td><td>border: border; bg: surface; color: muted</td><td>bg: surface-2; color: ink</td><td>.active: bg: signal-bg; border: signal; color: signal-ink; 600</td><td>.disabled: opacity 0.4</td></tr>
+<tr><td>.search input</td><td>border: border; color: muted</td><td>border: border-strong</td><td>border: signal; box-shadow: 0 0 0 3px signal-bg</td><td>—</td></tr>
+<tr><td>.ex-action</td><td>color: signal; 12px/500</td><td>underline (implied)</td><td>—</td><td>—</td></tr>
+</table>
+
+<h4>特殊页面状态</h4>
+<table>
+<tr><th>状态</th><th>视觉规格</th></tr>
+<tr><td>Empty（0 任务）</td><td>stats 全 0(faint); 隐藏 exception-panel; table-wrap 内显示 .empty-state: svg 48×48 faint opacity:0.6 → .empty-title 15px/600 → .empty-desc 12.5px muted max-w:300 → CTA btn-primary</td></tr>
+<tr><td>Loading</td><td>stats .value 替换为 .skeleton 40×22px; table 内 5 行 skeleton flex 布局</td></tr>
+<tr><td>Error</td><td>同 empty-state 结构; icon=error; title="加载失败"; CTA="重试"</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p02">PAGE 02: 执行记录</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-logs</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /job_log_all_list</code></dd></dl>
+<dl><dt>模板</dt><dd><code>redesign/execution_logs.html</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>CSS Prefix</dt><dd><code>.el-*</code></dd></dl>
+<dl><dt>表头</dt><dd>任务 | 触发时间 | 耗时 | 响应码 | 状态 | 失败原因 | (detail icon)</dd></dl>
+</div>
+
+<h3>2.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.page-head h1</td><td>"执行记录" 18px/600; .sub "全部任务的调度执行历史" 12.5px muted</td></tr>
+<tr><td>.filters</td><td>flex; gap:8px; mb:14px; chips: [全部(active)] [失败] [超时]; spacer; [业务组▾]</td></tr>
+<tr><td>table 列宽</td><td>任务(auto) | 触发时间(~140px mono 12px muted) | 耗时(~70px mono 12px) | 响应码(~60px mono 12px) | 状态(~70px) | 失败原因(~160px 11.5px) | 详情(60px)</td></tr>
+<tr><td>失败行 (row-fail)</td><td>tr: bg: danger-bg; .task-name color: danger; 耗时 color: danger; 响应码 color: faint(如—) 或 danger(如502); 失败原因 color: danger 11.5px</td></tr>
+<tr><td>.task-cell</td><td>只有 .task-name(13px/500)，无 id/tags（对比 Dashboard 更紧凑）</td></tr>
+<tr><td>Detail btn</td><td>.action-btn 26×26; eye icon svg 13×13; 链接到 /job_log_detail/ID</td></tr>
+</table>
+
+<h3>2.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 1024px</td><td>7 列全部可见</td></tr>
+<tr><td>768–1024px</td><td>"失败原因"列 max-width: 100px; overflow: hidden; text-overflow: ellipsis</td></tr>
+<tr><td>&lt; 768px</td><td>table overflow-x: auto; 隐藏"响应码""失败原因"列</td></tr>
+</table>
+
+<h3>2.3 交互状态</h3>
+<table class="inter">
+<tr><th>元素</th><th>Default</th><th>Hover</th><th>特殊</th></tr>
+<tr><td>成功行 tr</td><td>bg: transparent</td><td>bg: surface-2</td><td>—</td></tr>
+<tr><td>失败行 tr</td><td>bg: danger-bg</td><td>bg: danger-bg (unchanged)</td><td>.task-name color: danger</td></tr>
+<tr><td>Detail eye btn</td><td>color: muted</td><td>bg: surface-2; border: border; color: ink</td><td>navigate to run-inspector</td></tr>
+<tr><td>.chip</td><td>与 Dashboard 相同</td><td>—</td><td>.active → signal style</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p03">PAGE 03: 任务详情</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-detail</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /cron_detail/&lt;id&gt;</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>核心结构</dt><dd>Breadcrumb → Header → 2×2 Detail-Grid</dd></dl>
+</div>
+
+<h3>3.1 布局关键尺寸</h3>
+<table>
+<tr><th>区域</th><th>规格</th></tr>
+<tr><td>.breadcrumb</td><td>flex gap:6px; 12px muted; mb:16px; links color:signal; separator svg 10×10 faint</td></tr>
+<tr><td>.detail-header</td><td>flex; align:flex-start; between; mb:24px; gap:16px</td></tr>
+<tr><td>.detail-title</td><td>20px/600; mb:4px</td></tr>
+<tr><td>.detail-id</td><td>mono 12px faint</td></tr>
+<tr><td>.detail-badges</td><td>flex gap:6px; mt:8px; .lifecycle + .tag×N + group-tag</td></tr>
+<tr><td>.detail-actions</td><td>flex gap:8px; flex-shrink:0; [立即执行 btn-primary] [暂停 btn] [编辑 btn-ghost]</td></tr>
+<tr><td>.detail-grid</td><td>grid: 1fr 1fr; gap:16px; mb:20px</td></tr>
+<tr><td>.detail-card</td><td>bg:surface; border:1px border; r:8px; pad:16 18; h3: 11px upper ls:0.06em faint/600 mb:12px</td></tr>
+</table>
+
+<h4>Card 1: 健康度</h4>
+<table>
+<tr><td>.health-big</td><td>flex gap:10; .dot 10×10 r:50%; .label 15px/600 color:success/warning/danger</td></tr>
+<tr><td>.health-metrics</td><td>flex gap:24; 12px muted; strong: ink mono</td></tr>
+</table>
+
+<h4>Card 2: 调度</h4>
+<table>
+<tr><td>.schedule-big</td><td>flex gap:12; .expr: mono 14px bg:surface-2 pad:4 10 r:5 border:1px; .human: 13px muted</td></tr>
+<tr><td>.schedule-next</td><td>12px muted mt:8; strong ink</td></tr>
+<tr><td>.schedule-tz</td><td>11.5px faint mono mt:4</td></tr>
+</table>
+
+<h4>Card 3: 最近执行</h4>
+<table>
+<tr><td>.recent-runs li</td><td>flex gap:12; pad:7 0; bb:1px border; 12px</td></tr>
+<tr><td>.rr-time</td><td>muted w:50 mono 11px</td></tr>
+<tr><td>.rr-status</td><td>6×6 r:50%; .ok=success .fail=danger</td></tr>
+<tr><td>.rr-code</td><td>mono 11px w:30</td></tr>
+<tr><td>.rr-duration</td><td>mono 11px muted</td></tr>
+<tr><td>.view-all</td><td>center; pad:10; 12px signal; bt:1px border; mt:8; cursor:pointer</td></tr>
+</table>
+
+<h4>Card 4: 配置信息</h4>
+<table>
+<tr><td>.config-grid</td><td>grid: 100px 1fr; gap:8px; 12.5px</td></tr>
+<tr><td>.cfg-label</td><td>11px upper faint</td></tr>
+<tr><td>.cfg-value</td><td>12px mono ink; word-break:break-all</td></tr>
+<tr><td>Fields</td><td>请求地址 / 超时 / 业务组 / 创建人 / 创建时间 / 最后修改</td></tr>
+</table>
+
+<h3>3.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 768px</td><td>detail-grid 2 列; header flex-row</td></tr>
+<tr><td>&lt; 768px</td><td>detail-grid 1 列 stack; .detail-header flex-col; .detail-actions 全宽; .detail-badges wrap</td></tr>
+</table>
+
+<h3>3.3 交互状态</h3>
+<table class="inter">
+<tr><th>元素</th><th>Default</th><th>Hover</th></tr>
+<tr><td>.breadcrumb a</td><td>color: signal</td><td>underline</td></tr>
+<tr><td>.view-all</td><td>color: signal</td><td>underline</td></tr>
+<tr><td>recent-runs li</td><td>bb: border</td><td>bg: surface-2 (subtle)</td></tr>
+<tr><td>.btn-primary "立即执行"</td><td>bg: signal</td><td>bg: signal-ink</td></tr>
+<tr><td>.btn "暂停"</td><td>border: border-strong; bg: surface</td><td>bg: surface-2</td></tr>
+<tr><td>.btn-ghost "编辑"</td><td>bg: transparent; border: transparent</td><td>bg: surface-2; color: ink</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p04">PAGE 04: Run Inspector（执行详情）</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-run-inspector</code> / <code>#view-run-failed</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /job_log_detail/&lt;id&gt;</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>核心结构</dt><dd>Breadcrumb(3级) → run-header → run-meta → run-section×N</dd></dl>
+</div>
+
+<h3>4.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.run-header</td><td>flex gap:12; mb:20px; .run-id: mono 14px/600; .run-badge: 12px/600 pad:3 10 r:5</td></tr>
+<tr><td>.run-badge.ok</td><td>bg: success-bg; color: success</td></tr>
+<tr><td>.run-badge.fail</td><td>bg: danger-bg; color: danger</td></tr>
+<tr><td>.run-meta</td><td>flex gap:20; 12px muted; mb:20; strong: ink</td></tr>
+<tr><td>.run-section</td><td>bg: surface; border: 1px border; r:8; mb:12; overflow:hidden</td></tr>
+<tr><td>.run-section-head</td><td>flex gap:8; pad:10 16; 12px/600 faint upper ls:0.04em; bb:1px border; bg:surface-2</td></tr>
+<tr><td>.run-section-body</td><td>pad:14 16; mono 12px; line-height:1.7; color:muted; .key=signal-ink .str=success .num=warning</td></tr>
+<tr><td>失败特有 section</td><td>.run-section border-color:danger; .run-section-head color:danger bg:danger-bg; 内容含连续失败次数+最后成功时间</td></tr>
+</table>
+
+<h3>4.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 768px</td><td>.run-meta 单行; sections 正常宽度</td></tr>
+<tr><td>&lt; 768px</td><td>.run-meta flex-wrap; .run-section-body overflow-x: auto（长 JSON/URL）</td></tr>
+</table>
+
+<h3>4.3 交互状态</h3>
+<table class="inter">
+<tr><th>状态</th><th>表现</th></tr>
+<tr><td>成功执行</td><td>.run-badge.ok; 正常 sections (请求/响应/业务日志/元数据)</td></tr>
+<tr><td>失败执行</td><td>.run-badge.fail; 额外 .run-section(danger border) 在最上方; run-meta 显示 "错误" 字段(danger)</td></tr>
+<tr><td>Loading</td><td>section body 区域 skeleton lines</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p05">PAGE 05: 任务表单（编辑/新建）</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-form</code> (编辑) / <code>#view-task-add</code> (新建)</dd></dl>
+<dl><dt>路由</dt><dd><code>GET /cron_edit/&lt;id&gt;</code> / <code>GET /cron_add</code></dd></dl>
+<dl><dt>Content max-width</dt><dd><strong>720px</strong>（窄版表单）</dd></dl>
+<dl><dt>核心结构</dt><dd>Breadcrumb → page-head → form-section×4 → actions</dd></dl>
+</div>
+
+<h3>5.1 布局关键尺寸</h3>
+<table>
+<tr><th>区域</th><th>规格</th></tr>
+<tr><td>.form-section</td><td>bg:surface; border:1px border; r:10px; pad:20 22; mb:16px</td></tr>
+<tr><td>.form-section-title</td><td>12px/600 faint upper ls:0.05em; mb:16px</td></tr>
+<tr><td>.form-group</td><td>mb:14px; label: 12.5px/500 mb:6px; .help: 11px muted mt:5px</td></tr>
+<tr><td>input/select/textarea</td><td>w:100%; h:34px; pad:0 11; bg:surface; border:1px border-strong; r:6; 13px sans; textarea: h:auto min-h:70px pad:9 11 resize:vertical</td></tr>
+<tr><td>.form-row</td><td>grid: 1fr 1fr; gap:14px</td></tr>
+<tr><td>Cron 预设按钮组</td><td>flex gap:6-8 mb:8 wrap; btn-ghost 11px pad:3 8 r:4; active: bg:signal-bg color:signal border:none</td></tr>
+<tr><td>Cron 输入框</td><td>mono 14px</td></tr>
+<tr><td>Cron 提示行</td><td>flex between mt:6; left: 11.5px muted "= 每 X 分钟"; right: 11px faint "下次: ..."</td></tr>
+<tr><td>Lifecycle toggle</td><td>flex between; pad:12 14; bg:surface-2; r:8; toggle: 36×20 r:10 bg:signal; knob: 16×16 #fff r:50% absolute left:18px</td></tr>
+<tr><td>Tags 输入</td><td>flex gap:4 center; h:34; pad:0 8; border:1px border-strong r:6; .tag×N + "+ 添加" dashed signal</td></tr>
+<tr><td>Form actions</td><td>flex gap:8; pt:4px; [保存修改/创建任务 btn-primary] [取消 btn-ghost]</td></tr>
+</table>
+
+<h4>新建 vs 编辑差异</h4>
+<table>
+<tr><th>差异点</th><th>新建</th><th>编辑</th></tr>
+<tr><td>Breadcrumb</td><td>任务中心 → 新建任务</td><td>任务中心 → 任务名 → 编辑配置</td></tr>
+<tr><td>h1</td><td>"新建定时任务"</td><td>"编辑任务配置"</td></tr>
+<tr><td>.sub</td><td>"配置触发 URL 和调度策略"</td><td>task-id (mono)</td></tr>
+<tr><td>Lifecycle section</td><td>无</td><td>有（含 toggle）</td></tr>
+<tr><td>业务组</td><td>"仅显示你所属的业务组"（help 提示）; 当前用户组预选</td><td>可选所有组（admin 权限决定）</td></tr>
+<tr><td>CTA</td><td>"创建任务"</td><td>"保存修改"</td></tr>
+</table>
+
+<h3>5.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 768px</td><td>.form-row 2 列; max-width 720px 居左</td></tr>
+<tr><td>&lt; 768px</td><td>.form-row → 1 列 stack; breadcrumb wrap; Cron 预设按钮 wrap</td></tr>
+</table>
+
+<h3>5.3 交互状态</h3>
+<table class="inter">
+<tr><th>元素</th><th>Default</th><th>Focus</th><th>Error</th></tr>
+<tr><td>input/select/textarea</td><td>border: border-strong</td><td>border: signal; box-shadow: 0 0 0 3px signal-bg</td><td>.has-error: border: danger; bg: danger-bg; .error-msg 11px danger</td></tr>
+<tr><td>.toggle (Lifecycle)</td><td>bg: signal (on); knob left:18px</td><td>—</td><td>off: bg: border-strong; knob left:2px</td></tr>
+<tr><td>Cron 预设 btn</td><td>btn-ghost style</td><td>—</td><td>selected: bg:signal-bg color:signal</td></tr>
+<tr><td>"+ 添加" tag</td><td>dashed border; color: signal</td><td>bg: signal-bg</td><td>—</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p06">PAGE 06: 用户管理列表</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-users</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/users</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>表头 (9列)</dt><dd>用户 | 花名 | 岗位 | 角色 | 业务组 | 状态 | 密码状态 | 创建时间 | 操作(180px)</dd></dl>
+</div>
+
+<h3>6.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>page-head</td><td>h1 "用户管理"; .sub "6 名成员 · 3 个业务组"; CTA "添加用户" btn-primary</td></tr>
+<tr><td>filters chips</td><td>[全部 6(active)] [启用 5] [停用 1] | spacer | [角色▾] [业务组▾]</td></tr>
+<tr><td>用户列 td</td><td>flex gap:10; .avatar 26×26 r:50% bg:signal-bg color:signal-ink 11px/600; name 13px/500; email mono 11px faint</td></tr>
+<tr><td>花名列</td><td>12px</td></tr>
+<tr><td>岗位列</td><td>12px muted</td></tr>
+<tr><td>角色 badge</td><td>.lifecycle; 管理员: signal-bg/signal; 运维: success-bg/success; 观察者: surface-2/muted</td></tr>
+<tr><td>业务组</td><td>12px muted; 多组逗号分隔</td></tr>
+<tr><td>状态</td><td>.health; 启用: healthy; 停用: faint dot + "停用"</td></tr>
+<tr><td>密码状态</td><td>正常: 11px success; 待重置: 11px/500 warning; 停用用户: "—" faint</td></tr>
+<tr><td>创建时间</td><td>11px faint</td></tr>
+<tr><td>操作列 (180px)</td><td>flex gap:4 wrap; [重置密码 btn-sm 11px h:24 pad:0 8] [停用 btn-sm] [编辑 action-btn icon]; 停用用户仅 [查看 eye icon]</td></tr>
+<tr><td>停用行</td><td>tr: opacity 0.6; avatar bg:surface-2 color:faint</td></tr>
+<tr><td>Footer hint</td><td>mt:10px; 11.5px faint; "💡 无物理删除；停用不可恢复..."</td></tr>
+</table>
+
+<h3>6.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 1200px</td><td>9 列全显</td></tr>
+<tr><td>1024–1200px</td><td>"密码状态""创建时间"列可隐藏或 ellipsis</td></tr>
+<tr><td>&lt; 768px</td><td>table overflow-x: auto; 隐藏"岗位""密码状态""创建时间"列</td></tr>
+</table>
+
+<h3>6.3 交互状态</h3>
+<table class="inter">
+<tr><th>元素</th><th>Default</th><th>Hover</th></tr>
+<tr><td>"添加用户" CTA</td><td>btn-primary</td><td>bg: signal-ink</td></tr>
+<tr><td>操作 btn-sm</td><td>border: border-strong; bg: surface; 11px h:24</td><td>bg: surface-2</td></tr>
+<tr><td>编辑 action-btn</td><td>标准 action-btn</td><td>bg: surface-2; border: border</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p07">PAGE 07: 用户表单（添加/编辑）</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-user-add</code> / <code>#view-user-edit</code></dd></dl>
+<dl><dt>Content max-width</dt><dd><strong>640px</strong></dd></dl>
+<dl><dt>核心结构</dt><dd>Breadcrumb → page-head → form-section(基本信息) → form-section(权限配置) → [danger-zone(编辑)] → actions</dd></dl>
+</div>
+
+<h3>7.1 添加用户规格</h3>
+<table>
+<tr><th>Section</th><th>字段</th><th>规格</th></tr>
+<tr><td rowspan="4">基本信息</td><td>用户名 *</td><td>input; placeholder "如 zhangsan"; .form-row 左列</td></tr>
+<tr><td>邮箱</td><td>input type=email; .help "可选；留空则用户首次登录后补填"; .form-row 右列</td></tr>
+<tr><td>花名 / 岗位类型</td><td>.form-row; 岗位=select(未设置/后端/前端/运维/数据/产品/其他); .help "可选"</td></tr>
+<tr><td>初始密码</td><td>不可编辑；显示 <code>changeme</code> mono 14px/600 + 说明文案 11.5px muted</td></tr>
+<tr><td rowspan="2">权限配置</td><td>角色 *</td><td>select: [观察者(default)] [运维] [管理员]; .help 说明</td></tr>
+<tr><td>业务组 *</td><td>select multiple size=4 min-h:70px; .help "Ctrl/Command 可多选"; 末尾选项"全部（全局权限）"</td></tr>
+</table>
+
+<h3>7.2 编辑用户规格（增量）</h3>
+<table>
+<tr><th>差异</th><th>规格</th></tr>
+<tr><td>用户名 disabled</td><td>opacity:0.6; cursor:not-allowed; .help "用户名创建后不可更改"</td></tr>
+<tr><td>安全操作 section</td><td>[重置密码 btn-sm] [重置 API Token btn-sm]; .help 说明 mt:8</td></tr>
+<tr><td>.danger-zone</td><td>bg: danger-bg; border: 1px rgba(214,69,69,0.25); r:10; pad:18 22; .dz-title 13px/600 danger; .dz-desc 12px muted line-height:1.6 mb:14; btn-danger btn-sm "停用此账户"</td></tr>
+</table>
+
+<h3>7.3 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 640px</td><td>.form-row 2 列</td></tr>
+<tr><td>&lt; 640px</td><td>.form-row 1 列 stack; 所有 input 全宽</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p08">PAGE 08: 业务组</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-groups</code> / <code>#view-group-add</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/groups</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>核心结构</dt><dd>page-head → 3列 Card Overview → Group Detail (展开态)</dd></dl>
+</div>
+
+<h3>8.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>page-head</td><td>h1 "业务组"; .sub "资源 Scope 管理 · 3 个活跃组"; CTA "新建业务组"</td></tr>
+<tr><td>Card Grid</td><td>grid: repeat(3,1fr); gap:12px; mb:28px</td></tr>
+<tr><td>Group Card</td><td>bg:surface; border:1px border; r:8; pad:16; cursor:pointer; 选中态: border-color:signal</td></tr>
+<tr><td>Card title</td><td>14px/600; mb:4px</td></tr>
+<tr><td>Card desc</td><td>12px muted; mb:12px</td></tr>
+<tr><td>Card stats</td><td>flex gap:16; 12px muted; bt:1px border; pt:10px; strong ink; 异常 strong danger</td></tr>
+<tr><td>Detail Panel</td><td>bg:surface; border:1px border; r:10; overflow:hidden</td></tr>
+<tr><td>Panel Header</td><td>pad:16 20; bb:1px; flex between; title 16px/600; desc 12px muted mt:2; btn-sm "编辑"</td></tr>
+<tr><td>Panel Content Grid</td><td>grid: 1fr 1fr; bb:1px border</td></tr>
+<tr><td>Members section</td><td>pad:16 20; border-right; h: 11px upper faint/600 ls:0.05em mb:12; items: flex col gap:10; each: avatar + name(500) + role(11px faint)</td></tr>
+<tr><td>Permissions section</td><td>pad:16 20; list: flex col gap:6 12px; green dot = allowed; faint dot = restricted</td></tr>
+<tr><td>Tasks section</td><td>pad:16 20; h: "任务 (N) · <span danger>M 异常</span>"; items: flex gap:12 12.5px pad:6 0 bb; .view-all center 12px signal</td></tr>
+</table>
+
+<h3>8.2 新建业务组表单</h3>
+<table>
+<tr><td>max-width</td><td>560px</td></tr>
+<tr><td>Fields</td><td>组名称(required) + 描述(textarea); .help "建议使用「团队名+组」..."</td></tr>
+<tr><td>Actions</td><td>[创建业务组 btn-primary] [取消 btn-ghost]</td></tr>
+</table>
+
+<h3>8.3 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 768px</td><td>Card Grid 3 列; Detail Panel 2列 content grid</td></tr>
+<tr><td>&lt; 768px</td><td>Card Grid 1 列 stack; Detail Panel content grid 1列 stack (Members 在 Permissions 上方)</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p09">PAGE 09: 注册审批</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-reg-review</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/reg_review</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>表头 (9列)</dt><dd>邮箱 | 用户名 | 花名 | 岗位 | 申请角色 | 业务组 | 申请原因 | 申请时间 | 操作(140px)</dd></dl>
+</div>
+
+<h3>9.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>filters chips</td><td>[待审核 3(active)] [已通过] [已拒绝] [已过期]（无 search bar）</td></tr>
+<tr><td>邮箱列</td><td>mono 11.5px muted</td></tr>
+<tr><td>用户名列</td><td>12px/500</td></tr>
+<tr><td>花名列</td><td>12px</td></tr>
+<tr><td>岗位列</td><td>12px muted</td></tr>
+<tr><td>申请角色</td><td>.lifecycle badge（管理员: signal; 运维: success; 观察者: surface-2/muted）</td></tr>
+<tr><td>业务组列</td><td>12px muted</td></tr>
+<tr><td>申请原因列</td><td>12px muted; max-w:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; title tooltip</td></tr>
+<tr><td>申请时间列</td><td>mono 11px faint; white-space:nowrap</td></tr>
+<tr><td>操作列</td><td>flex gap:6; [✓ 批准 btn-sm btn-primary 12px] [✗ 拒绝 btn-sm color:danger border:danger 12px]</td></tr>
+</table>
+
+<h3>9.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 1024px</td><td>全列显示</td></tr>
+<tr><td>&lt; 1024px</td><td>table overflow-x:auto; "申请原因"max-w 缩至 100px; "邮箱""岗位"列可隐藏</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p10">PAGE 10: 审计日志</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-audit</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/audit</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>表头 (6列)</dt><dd>时间 | 用户名 | 动作 | 说明 | 来源 IP | 结果</dd></dl>
+</div>
+
+<h3>10.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>page-head .sub</td><td>"RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）"</td></tr>
+<tr><td>filters chips</td><td>search + [全部(active)] [登录成功] [登录失败] [权限拒绝] [用户管理]</td></tr>
+<tr><td>时间列</td><td>mono 11.5px muted; white-space:nowrap</td></tr>
+<tr><td>用户名列</td><td>12.5px/500; 失败行: color: danger</td></tr>
+<tr><td>动作 badge</td><td>.lifecycle; 角色变更/登录成功=signal/success; 登录失败=danger-bg+danger+border:danger; 权限拒绝=warning-bg/warning</td></tr>
+<tr><td>说明列</td><td>12px; 含 <code> 标签(bg:surface-2 pad:1 4 r:2 11px); strong 用于人名</td></tr>
+<tr><td>来源 IP</td><td>mono 11px faint; 失败行: danger</td></tr>
+<tr><td>结果列</td><td>"允许": 11px success/500; "拒绝": 11px danger/500-600</td></tr>
+<tr><td>失败行 tr</td><td>bg: danger-bg</td></tr>
+<tr><td>Footer hint</td><td>"💡 任务配置变更（创建/编辑/启停/下线）请到「操作记录」页查看。"</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p11">PAGE 11: 操作记录</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-optlog</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /optlog</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>表头 (7列)</dt><dd>操作人 | 操作类型 | 操作对象 | 变更详情 | 操作结果 | 时间 | 来源 IP</dd></dl>
+</div>
+
+<h3>11.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>page-head .sub</td><td>"任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）"</td></tr>
+<tr><td>Filters（非 chip）</td><td>flex gap:8 wrap mb:16; input(200×32 12px) + select 操作类型(32h) + select 时间范围(32h)</td></tr>
+<tr><td>操作人列</td><td>12.5px/500</td></tr>
+<tr><td>操作类型 badge</td><td>.lifecycle; 修改配置/立即执行/暂停=signal; 下线=danger; 新建/创建=success</td></tr>
+<tr><td>操作对象列</td><td>task-id: mono 12px ink; desc: 11px faint ("任务 · 交易平台组")</td></tr>
+<tr><td>变更详情列</td><td>12px muted; Cron 变更: old <code style="text-decoration:line-through;color:faint"> → new <code style="color:ink"></td></tr>
+<tr><td>操作结果</td><td>"✓ 成功" success 12px</td></tr>
+<tr><td>时间列</td><td>mono 11.5px muted; nowrap</td></tr>
+<tr><td>来源 IP</td><td>mono 11px faint</td></tr>
+<tr><td>Pagination</td><td>flex between mt:14; 12px muted; btn-ghost 28×28 pagination btns; active: bg:signal color:#fff border:signal</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p12">PAGE 12: 标签管理</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-tags</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /tags</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>核心结构</dt><dd>page-head → namespace groups × N（非表格布局）</dd></dl>
+</div>
+
+<h3>12.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>page-head</td><td>h1 "标签管理"; .sub "按命名空间组织的任务标签"; CTA "新建标签"</td></tr>
+<tr><td>Namespace block</td><td>mb:24px</td></tr>
+<tr><td>Namespace title</td><td>12px/600 faint upper ls:0.05em mb:10; flex gap:8; icon svg 13×13</td></tr>
+<tr><td>Tag pills container</td><td>flex; flex-wrap; gap:8px</td></tr>
+<tr><td>Normal tag pill</td><td>inline-flex gap:8; pad:7 14; bg:surface; border:1px border; r:20px; 12.5px; count-badge: bg:surface-2 color:muted 10.5px pad:1 6 r:8</td></tr>
+<tr><td>Priority P0 pill</td><td>bg:danger-bg; border:rgba(214,69,69,0.2); color:danger/500; count bg:rgba(214,69,69,0.15)</td></tr>
+<tr><td>Priority P1 pill</td><td>bg:warning-bg; border:rgba(183,121,31,0.2); color:warning/500; count bg:rgba(183,121,31,0.15)</td></tr>
+<tr><td>Namespaces</td><td>业务域 / 优先级 / 生命周期 / 区域</td></tr>
+</table>
+
+<h3>12.2 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 768px</td><td>pill 正常 flex-wrap</td></tr>
+<tr><td>&lt; 768px</td><td>pills 可能 wrap 到 2-3 行; namespace title 全宽</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p13">PAGE 13: 修改密码</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-password</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/change_pwd</code></dd></dl>
+<dl><dt>Content max-width</dt><dd><strong>480px</strong></dd></dl>
+<dl><dt>核心结构</dt><dd>page-head → single card form → security tip</dd></dl>
+</div>
+
+<h3>13.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Card</td><td>bg:surface; border:1px border; r:10; pad:24px</td></tr>
+<tr><td>Form groups</td><td>mb:18px; label 12.5px/500 mb:6; input h:36 pad:0 12; 13px sans</td></tr>
+<tr><td>.input-with-toggle</td><td>position:relative; input padding-right:36px!important</td></tr>
+<tr><td>.toggle-vis</td><td>absolute right:8; top:50% translateY(-50%); 24×24 r:4; bg:none; border:none; color:faint; hover: ink bg:surface-2; svg 14×14</td></tr>
+<tr><td>.password-strength</td><td>flex gap:3; mt:6; .bar: flex:1 h:3 r:2 bg:border; .weak=danger; .medium=warning; .strong=success</td></tr>
+<tr><td>.password-strength-text</td><td>10px mt:3 /500; color:warning (dynamic)</td></tr>
+<tr><td>Password help</td><td>11px muted mt:5 "密码要求：至少 6 位，且不能与当前密码相同"</td></tr>
+<tr><td>Submit btn</td><td>btn-primary w:100% justify:center</td></tr>
+<tr><td>Security tip box</td><td>mt:14; pad:12; bg:surface-2; r:6; 11.5px muted lh:1.6; strong ink</td></tr>
+</table>
+
+<h3>13.2 交互状态</h3>
+<table class="inter">
+<tr><th>状态</th><th>表现</th></tr>
+<tr><td>Password toggle ON</td><td>input type=text; eye icon swap to eye-off</td></tr>
+<tr><td>Strength: 弱</td><td>1/4 bar weak(danger); text "强度不足" danger</td></tr>
+<tr><td>Strength: 中等</td><td>3/4 bars (2 weak + 1 medium); text "中等强度" warning</td></tr>
+<tr><td>Strength: 强</td><td>4/4 bars strong(success); text "强度足够" success</td></tr>
+<tr><td>Passwords mismatch</td><td>.has-error on confirm input; .error-msg "密码不一致"</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p14">PAGE 14: API Token</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-api-token</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/api_token</code></dd></dl>
+<dl><dt>Content max-width</dt><dd><strong>640px</strong></dd></dl>
+<dl><dt>核心结构</dt><dd>page-head → current token card → usage card → reset action → rules card</dd></dl>
+</div>
+
+<h3>14.1 布局关键尺寸</h3>
+<table>
+<tr><th>区域</th><th>规格</th></tr>
+<tr><td>Current Token Card</td><td>bg:surface; border:1px; r:10; pad:24; mb:16</td></tr>
+<tr><td>Token display</td><td>flex gap:10; mb:12; mono 13px pad:10 14 bg:surface-2 border r:6 ls:0.02em word-break:break-all; + [复制 btn-sm]</td></tr>
+<tr><td>Token meta</td><td>flex gap:16; 12px muted; strong ink; "创建时间: / 权限:"</td></tr>
+<tr><td>Usage Card</td><td>同上结构; code block: mono 12px pad:14 bg:canvas border r:6 lh:1.7 muted; .faint=comments .success=strings .signal-ink=urls</td></tr>
+<tr><td>Reset action</td><td>flex gap:8 mb:16; btn-danger(transparent bg, danger border/color); warning text 11.5px muted flex center</td></tr>
+<tr><td>Rules Card</td><td>bg:surface; border; r:10; pad:20 24; ul: pad-left:16 12.5px muted lh:2</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p15">PAGE 15: API 文档</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#view-apidoc</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /docs/api</code></dd></dl>
+<dl><dt>Content max-width</dt><dd>1200px</dd></dl>
+<dl><dt>核心结构</dt><dd>page-head → Endpoint cards (accordion)</dd></dl>
+</div>
+
+<h3>15.1 布局关键尺寸</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Endpoint container</td><td>flex col; gap:10px</td></tr>
+<tr><td>Endpoint Card (collapsed)</td><td>bg:surface; border:1px border; r:8; overflow:hidden</td></tr>
+<tr><td>Card header row</td><td>flex gap:10; pad:12 16; cursor:pointer</td></tr>
+<tr><td>Method badge</td><td>mono 10.5px/600 pad:2 7 r:4; GET: success-bg/success; POST: signal-bg/signal-ink</td></tr>
+<tr><td>Path</td><td>mono 12.5px/500</td></tr>
+<tr><td>Description</td><td>12px muted (right side, spacer between)</td></tr>
+<tr><td>Expanded Card</td><td>border-color: signal; header bg: signal-bg; bb:1px border</td></tr>
+<tr><td>Expanded body</td><td>pad:16; Parameters section + Response Example section</td></tr>
+<tr><td>Parameters</td><td>h: 11px upper faint/600 mb:8; mono 12px lh:2; param-name: ink/500; type: faint; desc: — separated</td></tr>
+<tr><td>Response block</td><td>mono 11.5px pad:12 bg:canvas border r:6 lh:1.6 muted; key:signal-ink num:warning</td></tr>
+</table>
+
+<h3>15.2 交互状态</h3>
+<table class="inter">
+<tr><th>状态</th><th>表现</th></tr>
+<tr><td>Collapsed card</td><td>单行 header; border: border</td></tr>
+<tr><td>Hover (collapsed)</td><td>bg: surface-2 (header row)</td></tr>
+<tr><td>Expanded card</td><td>border: signal; header bg: signal-bg; body visible below</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="p16">PAGE 16: 登录 / 注册 / 忘记密码</h2>
+<!-- ================================================================ -->
+
+<div class="page-meta">
+<dl><dt>View ID</dt><dd><code>#login-page</code> / <code>#register-page</code> / <code>#forgot-page</code></dd></dl>
+<dl><dt>路由</dt><dd><code>GET /rbac/login</code> / <code>GET /rbac/register</code></dd></dl>
+<dl><dt>类型</dt><dd>Standalone 全屏（无 Shell/Sidebar）</dd></dl>
+<dl><dt>布局</dt><dd>min-h:100vh; flex center center; bg: canvas; pad:20px</dd></dl>
+</div>
+
+<h3>16.1 登录页</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Container</td><td>w:380px; bg:surface; border:1px border; r:12; pad:36 30</td></tr>
+<tr><td>Brand</td><td>flex gap:8; 15px/600; mb:28; .dot 9×9 r:2 bg:signal</td></tr>
+<tr><td>Title</td><td>"欢迎回来" 17px/600 mb:4; subtitle 12.5px muted mb:24</td></tr>
+<tr><td>Username field</td><td>mb:16; label 12.5px/500 mb:6; input h:38 pad:0 12 r:6 13px; .help 11px faint mt:5</td></tr>
+<tr><td>Password field</td><td>mb:20; label: flex between(label + "忘记密码?" link signal 11.5px); .input-with-toggle h:38</td></tr>
+<tr><td>Submit btn</td><td>btn-primary w:100% h:38 center 14px</td></tr>
+<tr><td>Register link</td><td>mt:20; center 12px muted; "申请注册" signal/500</td></tr>
+<tr><td>Reg status (hidden)</td><td>mt:14; pad:10 14; bg:warning-bg; border:rgba(183,121,31,0.2); r:6; 12px warning</td></tr>
+</table>
+
+<h3>16.2 注册页</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Container</td><td>w:440px; bg:surface; border:1px border; r:12; pad:32 28</td></tr>
+<tr><td>Title</td><td>"申请注册" 17px/600; subtitle "提交注册申请后，管理员将进行审核" 12.5px muted mb:22</td></tr>
+<tr><td>Fields</td><td>公司邮箱* / grid(花名*,岗位类型*) / grid(密码*,确认密码*) / grid(申请角色*,目标业务组* checkbox list) / 申请原因* textarea h:70</td></tr>
+<tr><td>业务组选择器</td><td>border:1px border-strong; r:6; pad:8 10; max-h:80 overflow-y:auto; 12.5px; checkbox + label items mb:4</td></tr>
+<tr><td>Submit</td><td>"提交申请" btn-primary w:100% center</td></tr>
+<tr><td>Login link</td><td>mt:14; center 12px muted; "返回登录" signal/500</td></tr>
+</table>
+
+<h3>16.3 忘记密码页</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Container</td><td>w:380px; r:12; pad:36 30; text-align:center</td></tr>
+<tr><td>Icon</td><td>svg 48×48 faint stroke-w:1.5; mb:16</td></tr>
+<tr><td>Title</td><td>"忘记密码？" 17px/600 mb:8</td></tr>
+<tr><td>Description</td><td>13px muted lh:1.7 mb:24; 说明不支持自助重置</td></tr>
+<tr><td>Help box</td><td>bg:surface-2; border:1px border; r:8; pad:14; 12.5px muted lh:1.6; text-align:left; strong ink; 步骤列表</td></tr>
+<tr><td>Back link</td><td>mt:20; signal 13px/500 "← 返回登录"</td></tr>
+</table>
+
+<h3>16.4 响应式断点</h3>
+<table class="resp">
+<tr><th>断点</th><th>变化</th></tr>
+<tr><td>&gt; 480px</td><td>Container 固定宽度居中</td></tr>
+<tr><td>&lt; 480px</td><td>Container w:100%; pad 缩减; 注册页 grid 变 1 列</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="overlay">OVERLAY: Command Palette / Toast / Modal</h2>
+<!-- ================================================================ -->
+
+<h3>OV.1 Command Palette (⌘K)</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.cmd-overlay</td><td>fixed inset:0; bg:rgba(0,0,0,0.5); z:100; flex; pt:15vh; center</td></tr>
+<tr><td>.cmd-box</td><td>w:520px; bg:surface; border:1px border; r:12; box-shadow:0 16px 48px rgba(0,0,0,0.3); overflow:hidden</td></tr>
+<tr><td>.cmd-input</td><td>flex gap:10; pad:14 16; bb:1px border; svg 16×16 muted; input: no-border bg:transparent 14px ink; flex:1</td></tr>
+<tr><td>.cmd-results</td><td>max-h:360px; overflow-y:auto; pad:8px</td></tr>
+<tr><td>.cmd-group</td><td>pad:6 8; 10px faint upper ls:0.06em /600</td></tr>
+<tr><td>.cmd-item</td><td>flex gap:10; pad:8 10; r:6; 13px; cursor:pointer; hover:bg surface-2</td></tr>
+<tr><td>.ci-icon</td><td>20×20 flex center; color:muted; svg 14×14</td></tr>
+<tr><td>.ci-name</td><td>flex:1</td></tr>
+<tr><td>.ci-health</td><td>11px/500; color: success/danger</td></tr>
+<tr><td>.ci-meta</td><td>11px faint</td></tr>
+<tr><td>.cmd-footer</td><td>flex gap:12; pad:8 16; bt:1px border; 11px faint; kbd: mono 10px border r:3 pad:1 4 bg:surface-2</td></tr>
+</table>
+
+<h3>OV.2 Toast Notifications</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.toast-container</td><td>fixed top:16 right:16 z:200; flex col gap:8</td></tr>
+<tr><td>.toast</td><td>flex gap:10; pad:12 16; bg:surface; border:1px border; r:8; box-shadow:0 4px 16px rgba(0,0,0,0.12); 13px; min-w:280px; animation:slideIn 0.2s ease-out</td></tr>
+<tr><td>.toast.success</td><td>border-left: 3px solid success</td></tr>
+<tr><td>.toast.error</td><td>border-left: 3px solid danger</td></tr>
+<tr><td>.toast.warning</td><td>border-left: 3px solid warning</td></tr>
+<tr><td>.toast-icon</td><td>16×16 flex-shrink:0</td></tr>
+<tr><td>.toast-close</td><td>color:faint; cursor:pointer; 16px</td></tr>
+</table>
+
+<h3>OV.3 Modal (确认弹窗)</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.modal-overlay</td><td>fixed inset:0; bg:rgba(0,0,0,0.5); z:150; flex center center; pad:20</td></tr>
+<tr><td>.modal</td><td>bg:surface; border:1px border; r:12; w:100% max-w:480px; box-shadow:0 16px 48px rgba(0,0,0,0.2); overflow:hidden</td></tr>
+<tr><td>.modal-header</td><td>flex between center; pad:18 22; bb:1px border; h2: 15px/600 m:0</td></tr>
+<tr><td>.modal-body</td><td>pad:22</td></tr>
+<tr><td>.modal-footer</td><td>flex end gap:8; pad:14 22; bt:1px border; bg:surface-2</td></tr>
+<tr><td>Actions (下线)</td><td>[取消 btn-ghost] [确认下线 btn-danger]</td></tr>
+<tr><td>Actions (停用)</td><td>[取消 btn-ghost] [确认停用 btn-danger]</td></tr>
+<tr><td>Warning box</td><td>bg:danger-bg; border:1px rgba(214,69,69,0.2); r:6; pad:12; 12px danger lh:1.6-1.7</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="state">SPECIAL STATES: Empty / Loading / Error</h2>
+<!-- ================================================================ -->
+
+<h3>ST.1 Empty State</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.empty-state</td><td>flex col center center; pad:60 20; text-align:center</td></tr>
+<tr><td>Icon</td><td>svg 48×48 color:faint; mb:16; opacity:0.6</td></tr>
+<tr><td>.empty-title</td><td>15px/600 mb:6; color:ink</td></tr>
+<tr><td>.empty-desc</td><td>12.5px muted max-w:300 mb:16</td></tr>
+<tr><td>CTA</td><td>btn-primary; icon + text</td></tr>
+<tr><td>Context</td><td>Dashboard empty: stats 全 0(faint); .total 改为 "一切正常"/"无活跃任务"/"—"</td></tr>
+</table>
+
+<h3>ST.2 Loading / Skeleton</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>.skeleton</td><td>bg: linear-gradient(90deg, surface-2 25%, border 50%, surface-2 75%); bg-size:200% 100%; animation:shimmer 1.5s infinite; r:4</td></tr>
+<tr><td>.skeleton-line</td><td>h:12px mb:10px r:4; .short w:40%; .medium w:70%</td></tr>
+<tr><td>Table skeleton</td><td>Header row: 5 skeleton bars(120/160/60/40/60 × 14px) flex gap:14; Body: 4 rows × 5 bars(varying widths × 12px + 1 badge 50×20 r:10)</td></tr>
+</table>
+
+<h3>ST.3 Error Page</h3>
+<table>
+<tr><th>元素</th><th>规格</th></tr>
+<tr><td>Layout</td><td>.empty-state pad:100 20</td></tr>
+<tr><td>Error code</td><td>mono 56px/700 faint; ls:-0.03em; mb:8 (如 "403")</td></tr>
+<tr><td>.empty-title</td><td>"无权访问" / "页面不存在" / "服务异常"</td></tr>
+<tr><td>.empty-desc</td><td>具体说明 + 建议操作</td></tr>
+<tr><td>Actions</td><td>flex gap:8; [返回首页 btn-primary] [联系管理员 btn-ghost]</td></tr>
+</table>
+
+<hr>
+<h2>附录：全局共享规格速查</h2>
+
+<table>
+<tr><th>Token</th><th>Light</th><th>Dark</th></tr>
+<tr><td>--canvas</td><td>#F7F8F9</td><td>#0D0F12</td></tr>
+<tr><td>--surface</td><td>#FFFFFF</td><td>#16191D</td></tr>
+<tr><td>--surface-2</td><td>#F1F2F4</td><td>#1C2025</td></tr>
+<tr><td>--border</td><td>#E4E6E9</td><td>#262B31</td></tr>
+<tr><td>--border-strong</td><td>#D3D6DA</td><td>#34393F</td></tr>
+<tr><td>--ink</td><td>#14171A</td><td>#ECEEF0</td></tr>
+<tr><td>--muted</td><td>#5B6169</td><td>#8B9198</td></tr>
+<tr><td>--faint</td><td>#9CA3AF</td><td>#565C64</td></tr>
+<tr><td>--signal</td><td>#3D6FE0</td><td>#4C8DFF</td></tr>
+<tr><td>--signal-ink</td><td>#2F5FCB</td><td>#7DAAFF</td></tr>
+<tr><td>--signal-bg</td><td>rgba(61,111,224,0.09)</td><td>rgba(76,141,255,0.12)</td></tr>
+<tr><td>--success</td><td>#0F9D66</td><td>#34D399</td></tr>
+<tr><td>--warning</td><td>#B7791F</td><td>#F5A623</td></tr>
+<tr><td>--danger</td><td>#D64545</td><td>#F16565</td></tr>
+<tr><td>--mono</td><td colspan="2">'JetBrains Mono','SFMono-Regular',Consolas,monospace</td></tr>
+<tr><td>--sans</td><td colspan="2">'Inter','Helvetica Neue',Arial,sans-serif</td></tr>
+<tr><td>--shadow</td><td>0 1px 2px rgba(20,23,26,0.04)</td><td>none</td></tr>
+</table>
+
+<table>
+<tr><th>全局组件</th><th>高度</th><th>字号</th><th>圆角</th></tr>
+<tr><td>.btn (default)</td><td>32px</td><td>13px/500</td><td>6px</td></tr>
+<tr><td>.btn-sm</td><td>26px</td><td>12px</td><td>5px</td></tr>
+<tr><td>.chip</td><td>28px</td><td>12px</td><td>6px</td></tr>
+<tr><td>.search</td><td>32px</td><td>12.5px</td><td>6px</td></tr>
+<tr><td>input/select (form)</td><td>34px</td><td>13px</td><td>6px</td></tr>
+<tr><td>input (login page)</td><td>38px</td><td>13px</td><td>6px</td></tr>
+<tr><td>.action-btn</td><td>26×26px</td><td>—</td><td>5px</td></tr>
+<tr><td>.pg-btn</td><td>28×28px</td><td>12px/500</td><td>5px</td></tr>
+<tr><td>.avatar</td><td>26×26px</td><td>11px/600</td><td>50%</td></tr>
+<tr><td>.tag</td><td>auto</td><td>10px</td><td>3px</td></tr>
+<tr><td>.lifecycle badge</td><td>auto</td><td>10px/500</td><td>3px</td></tr>
+</table>
+
+<table>
+<tr><th>Shell 规格</th><th>值</th></tr>
+<tr><td>Sidebar 宽度</td><td>220px (展开); 56px (collapsed)</td></tr>
+<tr><td>Topbar 高度</td><td>52px; position:sticky top:0 z:20</td></tr>
+<tr><td>.main padding</td><td>24px 32px 60px</td></tr>
+<tr><td>.nav-item</td><td>pad:7 10; r:6; 13px; gap:10; border-left:2px transparent; .active: bg:signal-bg border-left:signal</td></tr>
+<tr><td>.nav-badge</td><td>ml:auto; bg:danger-bg color:danger; 10px/600; pad:1 6; r:10</td></tr>
+<tr><td>.top-search</td><td>260×30px; r:6; bg:surface; border:border; 12.5px muted; .kbd mono 10px faint border pad:1 5</td></tr>
+<tr><td>.icon-btn</td><td>30×30; r:6; color:muted; hover: bg:surface-2 border:border color:ink</td></tr>
+<tr><td>.theme-toggle</td><td>border:1px border; r:6; pad:2; gap:2; button 26×24 r:4; .on: bg:surface-2 color:ink</td></tr>
+<tr><td>.user-chip</td><td>flex gap:8; pad:4 8 4 4; r:20; border:transparent; hover: bg:surface-2 border:border</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="animation">附录 C: 动画与过渡效果规格</h2>
+<!-- ================================================================ -->
+
+<h3>C.1 全局过渡 (Global Transitions)</h3>
+<table>
+<tr><th>触发场景</th><th>属性</th><th>持续时间</th><th>缓动函数</th><th>备注</th></tr>
+<tr><td>.nav-item hover/active</td><td>background, color, border-left-color</td><td>100ms</td><td>ease (CSS transition:all .1s)</td><td>侧边栏导航项状态切换</td></tr>
+<tr><td>.btn hover</td><td>background-color</td><td>150ms</td><td>ease</td><td>所有按钮 hover 变色</td></tr>
+<tr><td>.action-btn hover</td><td>background, border-color, color</td><td>100ms</td><td>ease</td><td>图标按钮快速反馈</td></tr>
+<tr><td>tbody tr:hover</td><td>background-color</td><td>100ms</td><td>ease</td><td>表格行 hover 高亮</td></tr>
+<tr><td>.chip active toggle</td><td>border-color, background, color</td><td>150ms</td><td>ease</td><td>筛选 chip 激活/取消</td></tr>
+<tr><td>input:focus</td><td>border-color, box-shadow</td><td>150ms</td><td>ease</td><td>输入框聚焦环</td></tr>
+<tr><td>.user-chip:hover</td><td>background, border-color</td><td>100ms</td><td>ease</td><td>顶栏用户信息 hover</td></tr>
+<tr><td>.icon-btn:hover</td><td>background, border-color, color</td><td>100ms</td><td>ease</td><td>顶栏图标按钮</td></tr>
+</table>
+
+<h3>C.2 关键帧动画 (Keyframe Animations)</h3>
+<table>
+<tr><th>动画名</th><th>目标</th><th>关键帧</th><th>持续/循环</th></tr>
+<tr><td><code>@keyframes slideIn</code></td><td>.toast 出现</td><td>from: translateX(100%) opacity:0 → to: translateX(0) opacity:1</td><td>200ms ease-out; 一次</td></tr>
+<tr><td><code>@keyframes shimmer</code></td><td>.skeleton 骨架屏</td><td>from: background-position 200% 0 → to: -200% 0</td><td>1500ms infinite; linear</td></tr>
+<tr><td><code>@keyframes fadeIn</code> (建议)</td><td>.modal-overlay 出现</td><td>from: opacity:0 → to: opacity:1</td><td>200ms ease-out; 一次</td></tr>
+<tr><td><code>@keyframes scaleIn</code> (建议)</td><td>.modal / .cmd-box 出现</td><td>from: transform scale(0.95) opacity:0 → to: scale(1) opacity:1</td><td>200ms cubic-bezier(0.16,1,0.3,1); 一次</td></tr>
+<tr><td><code>@keyframes slideUp</code> (建议)</td><td>Toast 消失</td><td>from: translateX(0) opacity:1 → to: translateX(100%) opacity:0</td><td>150ms ease-in; 一次</td></tr>
+</table>
+
+<h3>C.3 页面视图切换</h3>
+<table>
+<tr><th>场景</th><th>动画</th><th>规格</th></tr>
+<tr><td>SPA 视图切换（nav item click）</td><td>Crossfade</td><td>旧 view: opacity 1→0 (100ms); 新 view: opacity 0→1 (150ms); 总感知 ~150ms</td></tr>
+<tr><td>侧边栏 collapse/expand (响应式)</td><td>Width transition</td><td>width: 220px ↔ 56px; transition: width 200ms ease; .nav-item text opacity: 0/1 transition 100ms</td></tr>
+<tr><td>Exception panel expand/collapse (如筛选)</td><td>Height + opacity</td><td>max-height: 0→auto (200ms); opacity: 0→1 (150ms); overflow:hidden</td></tr>
+<tr><td>Dropdown menu (user-chip)</td><td>Scale + fade</td><td>transform-origin: top right; scaleY 0.9→1 + opacity 0→1; 150ms ease-out</td></tr>
+<tr><td>Command Palette open</td><td>Overlay fade + box scale</td><td>overlay: opacity 0→1 (150ms); .cmd-box: scaleY(0.97)→1 + opacity 0→1 (200ms cubic-bezier)</td></tr>
+<tr><td>Command Palette close</td><td>Reverse</td><td>overlay: opacity 1→0 (100ms); .cmd-box: opacity 1→0 (100ms)</td></tr>
+</table>
+
+<h3>C.4 交互微动画</h3>
+<table>
+<tr><th>元素</th><th>动画</th><th>触发</th><th>规格</th></tr>
+<tr><td>Toggle switch (Lifecycle)</td><td>Knob slide</td><td>点击</td><td>knob left: 2px ↔ 18px; bg: border-strong ↔ signal; transition: all 200ms ease</td></tr>
+<tr><td>Password strength bars</td><td>Width grow</td><td>输入时</td><td>各 .bar width: 0→100%; stagger delay: 0/50/100/150ms; transition: all 300ms ease-out</td></tr>
+<tr><td>.health .dot</td><td>Pulse (异常时)</td><td>持续</td><td>.failing .dot: animation: pulse 2s infinite; @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }</td></tr>
+<tr><td>Pagination .pg-btn.active</td><td>Background fill</td><td>切换页码</td><td>background + border-color transition 150ms ease</td></tr>
+<tr><td>.tag "添加" hover</td><td>Background fill</td><td>hover</td><td>bg: transparent → signal-bg; transition 100ms</td></tr>
+<tr><td>Toast auto-dismiss</td><td>Slide out + fade</td><td>4s 后自动</td><td>delay 4000ms → slideUp 150ms ease-in → remove from DOM</td></tr>
+<tr><td>.tooltip appear</td><td>Opacity</td><td>hover (150ms delay)</td><td>opacity: 0→1; transition: opacity 150ms; 需 hover 150ms 后才显示</td></tr>
+</table>
+
+<h3>C.5 Motion Design Principles</h3>
+<table>
+<tr><th>原则</th><th>说明</th></tr>
+<tr><td>响应性（Responsive）</td><td>所有 hover/focus 反馈 ≤ 100ms，用户感知为即时</td></tr>
+<tr><td>自然性（Natural）</td><td>UI 元素出现使用 ease-out（减速进入）；消失使用 ease-in（加速退出）</td></tr>
+<tr><td>克制性（Restrained）</td><td>仅对用户关注的元素做动画；表格数据、文本内容无装饰性动画</td></tr>
+<tr><td>可预测性（Predictable）</td><td>同类交互使用相同的动画曲线和时长；modal/cmd/toast 同族</td></tr>
+<tr><td>性能优先（Performant）</td><td>只 animate transform/opacity（GPU 加速）；避免 layout thrash（如 height/width 动画用 max-height 模拟或 FLIP）</td></tr>
+<tr><td>Reduce motion</td><td><code>@media (prefers-reduced-motion: reduce)</code>: 所有 animation: none; transition-duration: 0.01ms</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="accessibility">附录 D: 无障碍与 ARIA 规格</h2>
+<!-- ================================================================ -->
+
+<h3>D.1 颜色对比度要求 (WCAG 2.1 AA)</h3>
+<table>
+<tr><th>场景</th><th>前景</th><th>背景</th><th>对比度</th><th>最低要求</th></tr>
+<tr><td>正文文本 (--ink on --surface)</td><td>#14171A</td><td>#FFFFFF</td><td>18.3:1</td><td>4.5:1 ✓</td></tr>
+<tr><td>辅助文本 (--muted on --surface)</td><td>#5B6169</td><td>#FFFFFF</td><td>5.8:1</td><td>4.5:1 ✓</td></tr>
+<tr><td>次要文本 (--faint on --surface)</td><td>#9CA3AF</td><td>#FFFFFF</td><td>2.6:1</td><td>3:1 (大文本) ⚠️ 仅用于装饰性/非关键信息</td></tr>
+<tr><td>Signal on surface (link/CTA)</td><td>#3D6FE0</td><td>#FFFFFF</td><td>4.6:1</td><td>4.5:1 ✓ (勉强通过)</td></tr>
+<tr><td>Success text</td><td>#0F9D66</td><td>#FFFFFF</td><td>3.4:1</td><td>3:1 (大文本/图标) ✓</td></tr>
+<tr><td>Danger text</td><td>#D64545</td><td>#FFFFFF</td><td>4.0:1</td><td>3:1 (需辅助图标) ⚠️</td></tr>
+<tr><td>Dark: ink on surface</td><td>#ECEEF0</td><td>#16191D</td><td>13.6:1</td><td>4.5:1 ✓</td></tr>
+<tr><td>Dark: muted on surface</td><td>#8B9198</td><td>#16191D</td><td>5.4:1</td><td>4.5:1 ✓</td></tr>
+</table>
+
+<h4>颜色无障碍策略</h4>
+<ul>
+<li><strong>不仅靠颜色传递信息</strong>：所有状态色 (success/warning/danger) 须辅以图标（dot/✓/×/⚠）或文字标签</li>
+<li>Health 状态：dot + 文字 "健康"/"异常"/"×N"</li>
+<li>表单校验：border-color 变化 + 错误文字 + icon</li>
+<li>Toast 通知：border-left + icon + 文字描述</li>
+</ul>
+
+<h3>D.2 键盘导航 (Keyboard Navigation)</h3>
+<table>
+<tr><th>区域</th><th>Tab 顺序</th><th>快捷键</th><th>说明</th></tr>
+<tr><td>全局</td><td>Skip link → Sidebar → Topbar → Main</td><td><code>⌘K</code> / <code>Ctrl+K</code></td><td>任何位置打开 Command Palette</td></tr>
+<tr><td>Sidebar nav</td><td>顺序 Tab 所有 .nav-item</td><td><code>↑↓</code></td><td>焦点在 sidebar 时可用箭头键移动; Enter 激活</td></tr>
+<tr><td>Table rows</td><td>Tab 到表格 → 箭头键行间移动</td><td><code>↑↓</code> rows; <code>Enter</code> 打开详情</td><td>焦点行应有 visible focus ring</td></tr>
+<tr><td>Filters (.chip)</td><td>Tab 进入 chip 组</td><td><code>←→</code> 切换 chip; <code>Enter/Space</code> 激活</td><td>radio group 语义</td></tr>
+<tr><td>Pagination</td><td>Tab 到 pg-nav</td><td><code>←→</code> 切换页码; <code>Enter</code> 跳转</td><td>aria-label="分页"</td></tr>
+<tr><td>Command Palette</td><td>自动 focus input</td><td><code>↑↓</code> 项间导航; <code>Enter</code> 选中; <code>Esc</code> 关闭</td><td>trap focus in overlay</td></tr>
+<tr><td>Modal</td><td>自动 focus 第一个 interactive</td><td><code>Esc</code> 关闭; <code>Tab</code> trap in modal</td><td>关闭时 focus 返回触发元素</td></tr>
+<tr><td>Forms</td><td>正常 Tab 顺序</td><td><code>Enter</code> submit (单行 input)</td><td>错误 focus 到第一个 invalid 字段</td></tr>
+</table>
+
+<h3>D.3 ARIA 属性规格</h3>
+<table>
+<tr><th>组件</th><th>Role / Attribute</th><th>说明</th></tr>
+<tr><td>#app-shell</td><td><code>role="application"</code></td><td>SPA 根容器</td></tr>
+<tr><td>.sidebar</td><td><code>role="navigation" aria-label="主导航"</code></td><td>侧边栏导航区</td></tr>
+<tr><td>.nav-item.active</td><td><code>aria-current="page"</code></td><td>标识当前页</td></tr>
+<tr><td>.nav-badge</td><td><code>aria-label="3 个待处理"</code></td><td>数字 badge 可读标签</td></tr>
+<tr><td>.topbar</td><td><code>role="banner"</code></td><td>顶栏</td></tr>
+<tr><td>.top-search / .cmd-trigger</td><td><code>role="button" aria-haspopup="dialog" aria-label="搜索 ⌘K"</code></td><td>Command Palette 触发器</td></tr>
+<tr><td>.cmd-overlay</td><td><code>role="dialog" aria-modal="true" aria-label="命令面板"</code></td><td>模态对话框</td></tr>
+<tr><td>.cmd-input input</td><td><code>role="combobox" aria-expanded="true" aria-controls="cmd-results" aria-activedescendant="..."</code></td><td>搜索 combobox 模式</td></tr>
+<tr><td>.cmd-results</td><td><code>role="listbox" id="cmd-results"</code></td><td>搜索结果列表</td></tr>
+<tr><td>.cmd-item</td><td><code>role="option" id="cmd-item-N"</code></td><td>搜索结果项</td></tr>
+<tr><td>.chip 组</td><td><code>role="radiogroup" aria-label="状态筛选"</code></td><td>互斥筛选</td></tr>
+<tr><td>.chip</td><td><code>role="radio" aria-checked="true/false"</code></td><td>单个筛选项</td></tr>
+<tr><td>.table-wrap table</td><td><code>role="table"</code> (原生语义)</td><td>数据表格</td></tr>
+<tr><td>排序列头 th (如将来添加)</td><td><code>aria-sort="ascending/descending/none"</code></td><td>排序状态</td></tr>
+<tr><td>.action-btn</td><td><code>aria-label="立即执行" / "暂停" / "更多操作"</code></td><td>无文字的图标按钮必须有 aria-label</td></tr>
+<tr><td>.modal-overlay</td><td><code>role="dialog" aria-modal="true" aria-labelledby="modal-title"</code></td><td>确认弹窗</td></tr>
+<tr><td>.toast</td><td><code>role="alert" aria-live="assertive"</code></td><td>紧急通知（error）; <code>aria-live="polite"</code> for success</td></tr>
+<tr><td>.toggle-vis (密码)</td><td><code>aria-label="显示密码" / "隐藏密码" aria-pressed="true/false"</code></td><td>toggle 按钮</td></tr>
+<tr><td>.password-strength</td><td><code>role="meter" aria-valuemin="0" aria-valuemax="4" aria-valuenow="N" aria-label="密码强度"</code></td><td>密码强度指示器</td></tr>
+<tr><td>.pagination</td><td><code>nav aria-label="分页导航"</code></td><td>分页容器</td></tr>
+<tr><td>.pg-btn.active</td><td><code>aria-current="page"</code></td><td>当前页码</td></tr>
+<tr><td>.pg-btn.disabled</td><td><code>aria-disabled="true"</code></td><td>不可点击</td></tr>
+<tr><td>.empty-state</td><td><code>role="status" aria-label="暂无数据"</code></td><td>空状态区域</td></tr>
+<tr><td>.skeleton (loading)</td><td><code>aria-busy="true" aria-label="加载中"</code></td><td>加载占位</td></tr>
+<tr><td>form .error-msg</td><td><code>role="alert" aria-live="polite"</code></td><td>表单即时错误</td></tr>
+<tr><td>form input (error)</td><td><code>aria-invalid="true" aria-describedby="error-msg-id"</code></td><td>关联错误信息</td></tr>
+<tr><td>form label + input</td><td><code>&lt;label for="input-id"&gt;</code></td><td>所有输入必须 label 关联</td></tr>
+<tr><td>required 字段</td><td><code>aria-required="true"</code> + visual <code>*</code></td><td>必填标记</td></tr>
+<tr><td>.breadcrumb</td><td><code>nav aria-label="面包屑"</code>; last item: <code>aria-current="page"</code></td><td>面包屑导航</td></tr>
+<tr><td>Theme toggle</td><td><code>role="radiogroup" aria-label="主题切换"</code>; button: <code>role="radio" aria-checked</code></td><td>浅色/深色切换</td></tr>
+</table>
+
+<h3>D.4 Focus 可见性规格</h3>
+<table>
+<tr><th>元素类型</th><th>Focus ring 样式</th></tr>
+<tr><td>按钮 (.btn, .action-btn, .pg-btn)</td><td><code>outline: 2px solid var(--signal); outline-offset: 2px;</code></td></tr>
+<tr><td>输入框 (input, select, textarea)</td><td><code>border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-bg);</code> (已在 CSS 中定义)</td></tr>
+<tr><td>链接 (.task-name, .breadcrumb a, .view-all)</td><td><code>outline: 2px solid var(--signal); outline-offset: 1px; border-radius: 2px;</code></td></tr>
+<tr><td>Chip (.chip)</td><td><code>outline: 2px solid var(--signal); outline-offset: 1px;</code></td></tr>
+<tr><td>Nav item (.nav-item)</td><td><code>outline: 2px solid var(--signal); outline-offset: -2px;</code> (内缩适配 border-left)</td></tr>
+<tr><td>Modal 内元素</td><td>同上对应类型</td></tr>
+</table>
+
+<h4>:focus-visible vs :focus</h4>
+<ul>
+<li>使用 <code>:focus-visible</code> 而非 <code>:focus</code>，仅键盘导航时显示 focus ring</li>
+<li>Fallback: <code>:focus:not(:focus-visible) { outline: none; }</code></li>
+<li>对 <code>.action-btn</code> 等纯鼠标操作元素，:focus-visible 可避免点击后残留 outline</li>
+</ul>
+
+<h3>D.5 屏幕阅读器注意事项</h3>
+<table>
+<tr><th>场景</th><th>策略</th></tr>
+<tr><td>Stats 数字</td><td>每个 .stat 应 aria-label="异常任务 3 个, 需要立即关注"（合并 label+value+total）</td></tr>
+<tr><td>Exception Panel</td><td>aria-live="polite" 当异常数变化时通知</td></tr>
+<tr><td>Table 排序</td><td>排序操作完成后 aria-live 区域播报 "按健康度降序排列"</td></tr>
+<tr><td>分页跳转</td><td>跳转后 focus 到 table 首行或 aria-live 播报 "显示第 21-40 条"</td></tr>
+<tr><td>Toast 通知</td><td>role="alert" 确保立即播报；4s 后 DOM 移除不影响已播报内容</td></tr>
+<tr><td>Modal 开关</td><td>打开时 focus trap + aria-modal; 关闭时 focus 返回触发元素（store ref before open）</td></tr>
+<tr><td>Loading skeleton</td><td>aria-busy="true" on 容器; 加载完成后移除 + aria-live="polite" 播报 "数据已加载"</td></tr>
+<tr><td>Icon-only buttons</td><td>所有无文字按钮（.action-btn, .toggle-vis, .icon-btn）必须 aria-label</td></tr>
+<tr><td>Health dots</td><td>.dot 本身 aria-hidden="true"; 文字标签（"健康"/"异常"）承载语义</td></tr>
+<tr><td>Retired rows</td><td>opacity 降低为视觉提示; 须辅以 .lifecycle badge 文字 "已下线" + aria-label</td></tr>
+</table>
+
+<h3>D.6 Landmark 结构</h3>
+<pre>
+&lt;body&gt;
+  &lt;a class="skip-link" href="#main-content"&gt;跳转到主要内容&lt;/a&gt;
+  &lt;div id="app-shell"&gt;
+    &lt;aside role="navigation" aria-label="主导航"&gt; ... &lt;/aside&gt;
+    &lt;div class="col-main"&gt;
+      &lt;header role="banner"&gt; .topbar &lt;/header&gt;
+      &lt;main id="main-content" role="main"&gt;
+        &lt;div class="view active"&gt; ... page content ... &lt;/div&gt;
+      &lt;/main&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+</pre>
+
+<h3>D.7 Reduce Motion 支持</h3>
+<pre>
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton { animation: none; background: var(--surface-2); }
+  .toast { animation: none; }
+}
+</pre>
+
+<hr>
+<p><em>文档版本：v3 COMPLETE · 2026-08-11 · 覆盖全部 16 页 + Overlay + States + 动画规格 + 无障碍规格</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-逐页设计规格书.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

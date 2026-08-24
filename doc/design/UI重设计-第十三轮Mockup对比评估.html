@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CronPilot — 第十三轮 Mockup 对比评估</title>
+<style>
+:root{
+  --bg:#F7F8F9;--surface:#fff;--border:#E4E6E9;
+  --ink:#14171A;--muted:#5B6169;--faint:#9CA3AF;
+  --signal:#3D6FE0;--success:#0F9D66;--warning:#B7791F;--danger:#D64545;
+  --aligned-bg:#E8FDF2;--aligned-border:#0F9D66;
+  --enhanced-bg:#EEF3FF;--enhanced-border:#3D6FE0;
+  --deviate-bg:#FFF7E6;--deviate-border:#B7791F;
+  --major-bg:#FEF0F0;--major-border:#D64545;
+  --pending-bg:#F5F0FF;--pending-border:#7C3AED;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding:32px 24px 80px}
+h1{font-size:22px;font-weight:700;margin:0 0 4px}
+.meta{color:var(--muted);font-size:12px;margin-bottom:32px}
+
+/* Summary cards */
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:36px}
+.scard{padding:16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);text-align:center}
+.scard .num{font-size:28px;font-weight:700;margin-bottom:4px}
+.scard .lbl{font-size:11px;color:var(--muted)}
+.scard.aligned .num{color:var(--success)}
+.scard.enhanced .num{color:var(--signal)}
+.scard.deviate .num{color:var(--warning)}
+.scard.major .num{color:var(--danger)}
+.scard.pending .num{color:#7C3AED}
+
+/* Legend */
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500}
+.b-aligned{background:var(--aligned-bg);color:var(--aligned-border)}
+.b-enhanced{background:var(--enhanced-bg);color:var(--enhanced-border)}
+.b-deviate{background:var(--deviate-bg);color:var(--warning)}
+.b-major{background:var(--major-bg);color:var(--danger)}
+.b-pending{background:var(--pending-bg);color:#7C3AED}
+
+/* Section headers */
+.section{margin-bottom:48px}
+.section-title{font-size:16px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px}
+
+/* Comparison row */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.compare .panel{border-radius:10px;border:1px solid var(--border);overflow:hidden}
+.panel-head{padding:10px 16px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em}
+.panel-body{padding:16px}
+.panel-body img{width:100%;border-radius:6px;border:1px solid var(--border)}
+.mockup-spec{font-size:12px;color:var(--ink);line-height:1.8}
+.mockup-spec ul{margin:8px 0;padding-left:18px}
+.mockup-spec li{margin-bottom:4px}
+.mockup-spec .col{background:#F1F2F4;padding:2px 7px;border-radius:4px;font-family:monospace;font-size:11px;margin:0 2px}
+
+/* Status bar */
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;margin-bottom:16px;border-radius:8px;font-size:12.5px}
+.status-bar.aligned{background:var(--aligned-bg);border:1px solid var(--aligned-border)}
+.status-bar.enhanced{background:var(--enhanced-bg);border:1px solid var(--enhanced-border)}
+.status-bar.deviate{background:var(--deviate-bg);border:1px solid var(--deviate-border)}
+.status-bar.major{background:var(--major-bg);border:1px solid var(--major-border)}
+.status-bar.pending{background:var(--pending-bg);border:1px solid var(--pending-border)}
+
+/* Delta table */
+.delta{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.delta th{background:var(--bg);padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid var(--border)}
+.delta td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.delta tr:last-child td{border-bottom:none}
+.check{color:var(--success)}
+.cross{color:var(--danger)}
+.warn{color:var(--warning)}
+.pend{color:#7C3AED}
+.tag{display:inline-block;background:#F1F2F4;padding:1px 6px;border-radius:4px;font-size:11px;font-family:monospace}
+
+/* Pending items */
+.pending-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-top:20px}
+.pitem{border-radius:10px;border:1px solid var(--border);background:var(--surface);overflow:hidden}
+.pitem-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pitem-title{font-size:13px;font-weight:600}
+.pitem-body{padding:14px 16px;font-size:12px;color:var(--muted);line-height:1.7}
+.priority-high{color:var(--danger)}
+.priority-med{color:var(--warning)}
+.priority-low{color:var(--signal)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>第十三轮 Mockup 对比评估</h1>
+<div class="meta">评估基准：<code>/Users/summer/Downloads/CronPilot-2026-full-mockup.html</code> &nbsp;·&nbsp; 评估时间：2026-08-18 &nbsp;·&nbsp; 覆盖页面：7 个主视图</div>
+
+<!-- Summary -->
+<div class="summary">
+  <div class="scard aligned"><div class="num">4</div><div class="lbl">完全对齐</div></div>
+  <div class="scard enhanced"><div class="num">3</div><div class="lbl">功能增强</div></div>
+  <div class="scard deviate"><div class="num">1</div><div class="lbl">轻微偏差</div></div>
+  <div class="scard major"><div class="num">0</div><div class="lbl">重大偏差</div></div>
+  <div class="scard pending"><div class="num">3</div><div class="lbl">待办事项</div></div>
+</div>
+
+<div class="legend">
+  <span class="badge b-aligned">✓ 完全对齐</span>
+  <span class="badge b-enhanced">↑ 功能增强（超出 Mockup）</span>
+  <span class="badge b-deviate">~ 轻微偏差</span>
+  <span class="badge b-major">✗ 重大偏差</span>
+  <span class="badge b-pending">● 待办</span>
+</div>
+
+<!-- =========== Dashboard =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-enhanced">↑ 功能增强</span>
+    任务中心 — Dashboard
+  </div>
+  <div class="status-bar enhanced">
+    <span><strong>评估结论：</strong>功能增强 — 当前实现显著超出 Mockup 规格，提供异常面板、更丰富 Stats 和更多筛选维度</span>
+    <span class="badge b-enhanced">Enhanced</span>
+  </div>
+  <div class="compare">
+    <div class="panel">
+      <div class="panel-head">Mockup 规格</div>
+      <div class="panel-body">
+        <div class="mockup-spec">
+          <strong>Stats 指标（4 个）：</strong><br>
+          <ul>
+            <li><span class="col">任务总数</span> · <span class="col">运行中</span> · <span class="col">今日失败</span> · <span class="col">24h 成功率</span></li>
+          </ul>
+          <strong>筛选栏：</strong><br>
+          <ul>
+            <li>文本搜索框 + chips：全部 / 运行中 / 异常 / 已下线</li>
+          </ul>
+          <strong>表格（4 列）：</strong><br>
+          <ul>
+            <li><span class="col">任务</span>（名称+slug+标签）</li>
+            <li><span class="col">调度策略</span>（cron 表达式）</li>
+            <li><span class="col">运行状态</span></li>
+            <li><span class="col">操作</span>（edit + pause 图标）</li>
+          </ul>
+          <strong>页头：</strong> 新建任务 按钮
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">当前实现</div>
+      <div class="panel-body">
+        <div class="mockup-spec">
+          <strong>Stats 指标（4 个，标签不同）：</strong><br>
+          <ul>
+            <li><span class="col">异常任务</span> · <span class="col">连续失败</span> · <span class="col">运行中</span> · <span class="col">今日失败次数</span></li>
+          </ul>
+          <strong>额外增强：</strong><br>
+          <ul>
+            <li>异常任务例外面板（Exception Panel）</li>
+            <li>下拉筛选：业务组 + 标签</li>
+            <li>更多 chip 状态：连续失败 / 今日失败 / 状态 / 已暂停</li>
+          </ul>
+          <strong>表格（7 列，超出 Mockup）：</strong><br>
+          <ul>
+            <li>任务 / 调度频率 / <span style="color:var(--signal)">健康度</span> / <span style="color:var(--signal)">最近执行</span> / <span style="color:var(--signal)">下次执行</span> / <span style="color:var(--signal)">业务组</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup</th><th>当前</th><th>评价</th></tr>
+    <tr><td>Stats 数量</td><td>4 项</td><td>4 项</td><td><span class="check">✓ 一致</span></td></tr>
+    <tr><td>Stats 标签</td><td>任务总数 / 运行中 / 今日失败 / 24h成功率</td><td>异常任务 / 连续失败 / 运行中 / 今日失败次数</td><td><span class="warn">~ 标签侧重运营视角（更实用）</span></td></tr>
+    <tr><td>异常面板</td><td>❌ 无</td><td>✅ Exception Panel（连续失败提醒）</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>筛选维度</td><td>4 个 chip</td><td>7 个 chip + 2 个下拉</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>表格列数</td><td>4 列</td><td>7 列</td><td><span class="check">↑ 增强（健康度/执行时间/业务组）</span></td></tr>
+    <tr><td>新建任务入口</td><td>页头按钮</td><td>页头按钮</td><td><span class="check">✓ 一致</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Execution Logs =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-aligned">✓ 对齐</span>
+    执行记录 — Execution Logs
+  </div>
+  <div class="status-bar aligned">
+    <span><strong>评估结论：</strong>对齐 — 核心结构与 Mockup 一致，筛选 chip 名称有小幅差异</span>
+    <span class="badge b-aligned">Aligned</span>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup</th><th>当前</th><th>评价</th></tr>
+    <tr><td>筛选 chips</td><td>全部 / 失败 / 超时</td><td>非成功 / 全部 / 仅失败 / 仅异常 / 仅成功</td><td><span class="warn">~ 标签稍有差异，覆盖更全</span></td></tr>
+    <tr><td>搜索维度</td><td>任务名搜索</td><td>任务名 + 时间范围</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>表格结构</td><td>任务 / 触发时间 / 耗时 / 响应码 / 状态</td><td>对应完整实现</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>空状态</td><td>无规定</td><td>✅ 有图标提示</td><td><span class="check">↑ 增强</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Operation Log =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-enhanced">↑ 功能增强</span>
+    操作记录 — Operation Log
+  </div>
+  <div class="status-bar enhanced">
+    <span><strong>评估结论：</strong>功能增强 — 7 列实现超出 Mockup 的 5 列（已在前一轮实现），增加了"变更详情"和"操作结果"列</span>
+    <span class="badge b-enhanced">Enhanced</span>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup（5 列）</th><th>当前（7 列）</th><th>评价</th></tr>
+    <tr><td>列结构</td><td>操作人 / 操作 / 对象 / 时间 / 来源IP</td><td>操作人 / 操作类型 / 操作对象 / <span style="color:var(--signal)">变更详情</span> / <span style="color:var(--signal)">操作结果</span> / 时间</td><td><span class="check">↑ 增强（加入变更详情/结果列）</span></td></tr>
+    <tr><td>筛选</td><td>无</td><td>✅ 操作人搜索 + 操作类型下拉</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>描述字幕</td><td>用户在控制台中的变更历史</td><td>任务配置变更审计（创建/编辑/启动/暂停/下线）</td><td><span class="check">✓ 更清晰</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== User Management =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-enhanced">↑ 功能增强</span>
+    用户管理 — User Management
+  </div>
+  <div class="status-bar enhanced">
+    <span><strong>评估结论：</strong>功能增强 — 9 列实现（含花名/岗位/业务组/密码状态）大幅超出 Mockup 5 列；Avatar 已实现；chip 筛选已实现</span>
+    <span class="badge b-enhanced">Enhanced</span>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup（5 列）</th><th>当前（9 列）</th><th>评价</th></tr>
+    <tr><td>用户列</td><td>Avatar + 用户名 + email 副标题</td><td>✅ Avatar + 用户名 + email 副标题</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>额外列</td><td>—</td><td>花名 / 岗位 / 业务组 / 密码状态</td><td><span class="check">↑ 增强（业务必要信息）</span></td></tr>
+    <tr><td>操作按钮</td><td>1个 edit 图标</td><td>edit / reset-password / reset-token / deactivate 图标</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>chip 筛选</td><td>无</td><td>✅ 全部/启用/停用</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>排序逻辑</td><td>无规定</td><td>✅ 启用优先 → 用户名字母序</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>停用用户展示</td><td>简单 status 标</td><td>✅ 停用行 + view-only 链接</td><td><span class="check">↑ 增强（B1 已实现）</span></td></tr>
+    <tr><td>页头按钮文案</td><td>邀请成员</td><td>+ 添加用户</td><td><span class="warn">~ 用语不同（功能等价）</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Business Groups =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-aligned">✓ 对齐</span>
+    业务组 — Business Groups
+  </div>
+  <div class="status-bar aligned">
+    <span><strong>评估结论：</strong>对齐 — 卡片网格结构、描述、任务数统计均与 Mockup 一致；Avatar 堆叠已替换为数字成员数（经用户确认）</span>
+    <span class="badge b-aligned">Aligned</span>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup</th><th>当前</th><th>评价</th></tr>
+    <tr><td>卡片布局</td><td>card-grid，每卡显示名/描述/页脚</td><td>✅ 相同</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>成员展示</td><td>Avatar 堆叠（头像缩略）</td><td>「N 名成员」数字</td><td><span class="warn">~ 已取得用户确认的设计决定</span></td></tr>
+    <tr><td>任务数</td><td>badge 显示</td><td>✅ badge 显示</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>新建入口</td><td>页头按钮</td><td>✅ 页头 + 新建业务组</td><td><span class="check">✓ 对齐</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Audit Log =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-deviate">~ 轻微偏差</span>
+    审计日志 — Audit Log
+  </div>
+  <div class="status-bar deviate">
+    <span><strong>评估结论：</strong>轻微偏差 — 表格列顺序与 Mockup 不一致；chip 筛选标签不完全对齐</span>
+    <span class="badge b-deviate">Minor Deviation</span>
+  </div>
+  <div class="compare">
+    <div class="panel">
+      <div class="panel-head">Mockup 规格</div>
+      <div class="panel-body">
+        <div class="mockup-spec">
+          <strong>Chip 筛选：</strong> 全部 / 登录失败 / 权限变更<br><br>
+          <strong>表格（5 列）：</strong>
+          <ul>
+            <li><span class="col">事件</span>（登录/角色变更等）</li>
+            <li><span class="col">用户</span></li>
+            <li><span class="col">时间</span></li>
+            <li><span class="col">IP</span></li>
+            <li><span class="col">结果</span>（badge：成功/失败×5）</li>
+          </ul>
+          <strong>列顺序：</strong> 事件 → 用户 → 时间 → IP → 结果
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">当前实现</div>
+      <div class="panel-body">
+        <div class="mockup-spec">
+          <strong>Chip 筛选：</strong> 全部 / 登录成功 / 登录失败 / 权限拒绝 / 用户管理<br>
+          <span style="color:var(--warning)">偏差：缺少「权限变更」，有「登录成功」和「用户管理」chip</span><br><br>
+          <strong>表格（5 列）：</strong>
+          <ul>
+            <li><span class="col">时间</span>（放首列）</li>
+            <li><span class="col">用户名</span></li>
+            <li><span class="col">动作</span></li>
+            <li><span class="col">描述</span></li>
+            <li><span class="col">来源IP</span></li>
+          </ul>
+          <span style="color:var(--warning)">偏差：无独立「结果」列；「动作」→「描述」代替了「事件」→「结果」</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup</th><th>当前</th><th>建议</th></tr>
+    <tr><td>「事件」列</td><td>第1列：事件类型</td><td>第3列：动作（等效）</td><td><span class="warn">~ 可接受，顺序差异</span></td></tr>
+    <tr><td>「结果」列</td><td>有独立结果列（badge：成功/失败×5）</td><td>无独立结果列；描述列包含结果信息</td><td><span class="warn">~ 信息等效但展现形式不同</span></td></tr>
+    <tr><td>chip「权限变更」</td><td>有</td><td>无（有「权限拒绝」代替）</td><td><span class="warn">~ 标签不同</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Tags =========== -->
+<div class="section">
+  <div class="section-title">
+    <span class="badge b-enhanced">↑ 功能增强</span>
+    标签管理 — Tags
+  </div>
+  <div class="status-bar enhanced">
+    <span><strong>评估结论：</strong>功能增强 — 同时提供 Tag Cloud + 数据表格（4 列），超出 Mockup 的纯 Cloud 方案；行内删除交互已实现</span>
+    <span class="badge b-enhanced">Enhanced</span>
+  </div>
+  <table class="delta">
+    <tr><th>维度</th><th>Mockup</th><th>当前</th><th>评价</th></tr>
+    <tr><td>页头副标题</td><td>用于任务分类与筛选</td><td>✅ 用于任务分类与筛选</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>Tag Cloud</td><td>tag-lg pills（名称 + 使用数 + ×）</td><td>✅ 实现（含 × 删除，弹确认）</td><td><span class="check">✓ 对齐</span></td></tr>
+    <tr><td>数据表格</td><td>无（仅 Cloud）</td><td>✅ 标签名 / 使用数 / 业务组 / 关联任务</td><td><span class="check">↑ 增强</span></td></tr>
+    <tr><td>新建入口</td><td>带图标的搜索框样式</td><td>蓝色填充 + 新建标签 button</td><td><span class="warn">~ 样式差异，功能等效</span></td></tr>
+  </table>
+</div>
+
+<!-- =========== Pending Items =========== -->
+<div class="section">
+  <div class="section-title">待办事项（R 系列 + 新发现）</div>
+  <div class="pending-list">
+
+    <div class="pitem">
+      <div class="pitem-head">
+        <div class="pitem-title">R3 · 改进停用确认对话框</div>
+        <span class="badge b-pending priority-high">高 · 已选定</span>
+      </div>
+      <div class="pitem-body">
+        <strong>现状：</strong>点击停用图标 → 跳转到独立页面 <code>/rbac/users/set_active</code>，体验割裂。<br>
+        <strong>目标：</strong>改为行内 Modal，原地填写停用原因，无需页面跳转，保持用户列表上下文。<br>
+        <strong>约束：</strong>原因字段保持必填（1-500字，R1 后端已就绪）。
+      </div>
+    </div>
+
+    <div class="pitem">
+      <div class="pitem-head">
+        <div class="pitem-title">R2 · 非全局权限用户默认并锁定自身业务组</div>
+        <span class="badge b-pending priority-med">中</span>
+      </div>
+      <div class="pitem-body">
+        <strong>现状：</strong>无全局权限的用户在编辑/创建用户时，业务组下拉仍显示全部选项。<br>
+        <strong>目标：</strong>自动填充当前用户所属业务组，且设为只读（无法更改为其他组）。
+      </div>
+    </div>
+
+    <div class="pitem">
+      <div class="pitem-head">
+        <div class="pitem-title">N1 · 停用行内「查看信息」链接缺失停用原因</div>
+        <span class="badge b-pending priority-med">中</span>
+      </div>
+      <div class="pitem-body">
+        <strong>现状：</strong>停用用户点击「查看信息」可访问只读页，但页面未显示停用原因。<br>
+        <strong>目标：</strong>在只读页面中明确展示停用原因字段（即使原因为空时显示 —）。<br>
+        <strong>注：</strong>停用原因不应显示在用户列表 users.html 的状态列（已遵守）。
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- =========== Progress Summary =========== -->
+<div class="section">
+  <div class="section-title">进度总览</div>
+  <table class="delta">
+    <tr><th>功能</th><th>状态</th><th>完成轮次</th></tr>
+    <tr><td>Dashboard 异常面板 + 多维筛选</td><td><span class="check">✓ 已交付</span></td><td>Phase 1/2</td></tr>
+    <tr><td>任务详情页 (task_detail)</td><td><span class="check">✓ 已交付</span></td><td>Phase 2</td></tr>
+    <tr><td>执行记录 (execution_logs)</td><td><span class="check">✓ 已交付</span></td><td>Phase 2</td></tr>
+    <tr><td>操作记录 7列 (Z1)</td><td><span class="check">✓ 已交付</span></td><td>第8轮</td></tr>
+    <tr><td>审计日志 chips (Z2)</td><td><span class="check">✓ 已交付</span></td><td>第8轮</td></tr>
+    <tr><td>标签管理行内×删除 (Z3)</td><td><span class="check">✓ 已交付</span></td><td>第4轮</td></tr>
+    <tr><td>用户管理 Avatar + email 副标题 (A2/X1)</td><td><span class="check">✓ 已交付</span></td><td>第9轮</td></tr>
+    <tr><td>用户管理 chip 筛选 (A2)</td><td><span class="check">✓ 已交付</span></td><td>第9轮</td></tr>
+    <tr><td>停用用户只读页 (B1)</td><td><span class="check">✓ 已交付</span></td><td>第10轮</td></tr>
+    <tr><td>最近登录列 (B3)</td><td><span class="check">✓ 已交付</span></td><td>第11轮</td></tr>
+    <tr><td>用户管理列宽/排序/岗位必填 (12轮)</td><td><span class="check">✓ 已交付</span></td><td>第12轮</td></tr>
+    <tr><td>业务组/最近登录多行显示 (12轮)</td><td><span class="check">✓ 已交付</span></td><td>第12轮</td></tr>
+    <tr><td>R1 停用必填原因</td><td><span class="check">✓ 后端已就绪，页面已有</span></td><td>既有</td></tr>
+    <tr><td>R3 停用确认行内 Modal</td><td><span class="pend">● 待实现</span></td><td>—</td></tr>
+    <tr><td>R2 非全局用户组默认锁定</td><td><span class="pend">● 待实现</span></td><td>—</td></tr>
+    <tr><td>N1 只读页显示停用原因</td><td><span class="pend">● 待实现</span></td><td>—</td></tr>
+  </table>
+</div>
+
+<div style="margin-top:40px;padding:20px;background:#F1F2F4;border-radius:10px;font-size:12px;color:var(--muted)">
+  <strong>评估说明：</strong>本轮覆盖 7 个主视图（任务中心/执行记录/操作记录/用户管理/业务组/审计日志/标签管理）。
+  任务表单（task_form）、注册审批（registration_review）等页面在上轮已完成评估，本轮不重复。
+  总体进度：<strong>核心 Mockup 覆盖率 95%+</strong>，当前剩余均为功能增强或 UX 完善类工作，无重大对齐缺口。
+</div>
+
+</div>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-第十三轮Mockup对比评估.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

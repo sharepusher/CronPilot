@@ -1,0 +1,83 @@
+{% extends "redesign/_base.html" %}
+{% block title %}{{ '编辑业务组' if group else '新建业务组' }} — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><h1>{{ '编辑业务组' if group else '新建业务组' }}</h1></div>
+
+{% if form_msg %}
+<div class="gf-alert gf-alert-err">{{ form_msg }}</div>
+{% endif %}
+
+<div class="gf-card">
+  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.groups_edit') if group else url_for('rbac.groups_add') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if group %}<input type="hidden" name="id" value="{{ group.id }}">{% endif %}
+
+    <div class="gf-row">
+      <label class="gf-label">组名 <span class="gf-req">*</span></label>
+      <input type="text" name="name" class="f-input gf-input" required maxlength="64" value="{{ group.name if group else '' }}" placeholder="如：订单业务组" />
+      <span class="gf-hint">组名不可重复；建议按业务线命名</span>
+    </div>
+
+    <div class="gf-row">
+      <label class="gf-label">说明</label>
+      <textarea name="description" class="f-input gf-textarea" maxlength="256" rows="3" placeholder="可选；描述该业务组的职责范围">{{ group.description if group and group.description else '' }}</textarea>
+    </div>
+
+    <div class="gf-actions">
+      <button type="submit" class="btn-c btn-accent js-ajax-submit">保存</button>
+      <a class="btn-c btn-line" href="{{ url_for('rbac.groups_list') }}">返回</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.gf-card {
+  max-width: 520px;
+  box-sizing: border-box;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 28px 32px;
+}
+.gf-alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.gf-alert-err { background: var(--cp-danger-bg); color: var(--cp-danger); border: 1px solid var(--cp-danger-border); }
+.gf-row { margin-bottom: 20px; }
+.gf-label { display: block; font-size: 13px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
+.gf-req { color: var(--cp-danger); }
+.gf-input { width: 100%; max-width: 320px; padding: 6px 10px; }
+.gf-textarea {
+  width: 100%; max-width: 400px;
+  resize: vertical; min-height: 60px;
+  font-family: inherit; font-size: 13px;
+  padding: 8px 10px;
+}
+.gf-hint { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.4; }
+.gf-actions {
+  margin-top: 28px; padding-top: 20px;
+  border-top: 1px solid var(--cp-border);
+  display: flex; gap: 10px; align-items: center;
+}
+.gf-actions .btn-c { min-height: 32px; padding: 6px 16px; }
+/* Focus state */
+.gf-card .f-input:focus {
+  border-color: var(--cp-signal);
+  box-shadow: 0 0 0 2px rgba(8,145,178,.12);
+  outline: none;
+}
+/* Card subtle shadow + transition */
+.gf-card { box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.gf-card .f-input { transition: border-color 0.15s, box-shadow 0.15s; }
+/* Card top spacing from heading */
+.gf-card { margin-top: 4px; }
+/* Placeholder styling */
+.gf-card .f-input::placeholder { color: var(--cp-text-faint); font-style: italic; }
+/* Textarea resize styling */
+.gf-textarea::-webkit-resizer { display: none; }
+.gf-textarea { resize: vertical; background-image: linear-gradient(135deg, transparent 60%, var(--cp-border) 60%, var(--cp-border) 65%, transparent 65%); background-size: 8px 8px; background-position: bottom 4px right 4px; background-repeat: no-repeat; }
+/* Return button hover */
+.gf-actions .btn-line:hover { background: var(--cp-surface-2); }
+</style>
+{% endblock %}

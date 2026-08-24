@@ -1,0 +1,179 @@
+{% extends "redesign/_base.html" %}
+{% block title %}注册审批 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><h1>注册审批</h1></div>
+
+<div class="pg-toolbar">
+  <span class="pg-filter-label">状态筛选：</span>
+  <a href="{{ url_for('rbac.registration_review') }}" class="btn-c btn-xs{% if not status_filter %} btn-accent{% else %} btn-line{% endif %}">全部</a>
+  <a href="{{ url_for('rbac.registration_review', status='pending') }}" class="btn-c btn-xs{% if status_filter == 'pending' %} btn-accent{% else %} btn-line{% endif %}">待审批</a>
+  <a href="{{ url_for('rbac.registration_review', status='approved') }}" class="btn-c btn-xs{% if status_filter == 'approved' %} btn-accent{% else %} btn-line{% endif %}">已通过</a>
+  <a href="{{ url_for('rbac.registration_review', status='rejected') }}" class="btn-c btn-xs{% if status_filter == 'rejected' %} btn-accent{% else %} btn-line{% endif %}">已拒绝</a>
+  <a href="{{ url_for('rbac.registration_review', status='expired') }}" class="btn-c btn-xs{% if status_filter == 'expired' %} btn-accent{% else %} btn-line{% endif %}">已过期</a>
+</div>
+
+<div class="c-table-wrap">
+  <table class="c-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>用户名</th>
+        <th>花名</th>
+        <th>邮箱</th>
+        <th>岗位</th>
+        <th>申请时间</th>
+        <th class="rr-col-ops">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in page_data.items %}
+      <tr>
+        <td class="mono">{{ req.id }}</td>
+        <td class="cp-fw-600">
+          {{ req.username }}
+          {% if req.username in disabled_usernames %}
+          <span class="pg-warn-tag">曾被停用</span>
+          {% endif %}
+        </td>
+        <td>{{ req.nickname or '—' }}</td>
+        <td>{{ req.email }}</td>
+        <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
+        <td class="mono cp-text-xs">{{ req.create_time[:16] if req.create_time else '—' }}</td>
+        <td>
+          {% if req.status == 'pending' %}
+          <button type="button" class="btn-c btn-accent btn-xs js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">通过</button>
+          <button type="button" class="btn-c btn-danger-c btn-xs js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">拒绝</button>
+          {% elif req.status == 'rejected' and req.review_comment %}
+          <span class="pg-comment" title="{{ req.review_comment }}">{{ req.review_comment[:15] }}{% if req.review_comment|length > 15 %}…{% endif %}</span>
+          {% else %}
+          <span class="pg-muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="pg-empty">暂无注册申请</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="c-foot">
+    <span class="count">{{ page_data.total }} total</span>
+    <div class="c-pg">
+      {% if page_data.has_prev %}
+      <a href="{{ url_for('rbac.registration_review', page=page_data.page - 1, status=status_filter or '') }}">‹</a>
+      {% endif %}
+      {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+        <a{% if p == page_data.page %} class="active"{% endif %}
+           href="{{ url_for('rbac.registration_review', page=p, status=status_filter or '') }}">{{ p }}</a>
+        {% else %}
+        <a>…</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_data.has_next %}
+      <a href="{{ url_for('rbac.registration_review', page=page_data.page + 1, status=status_filter or '') }}">›</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block css %}
+<style>
+.pg-warn-tag {
+  font-size: 10px; color: var(--cp-warn); margin-left: 4px;
+}
+.pg-warn-block {
+  padding: 8px 10px; background: var(--cp-warn-bg); border-radius: 4px;
+  color: var(--cp-warn); font-size: 12px; margin-top: 8px;
+}
+.pg-comment {
+  font-size: 11px; color: var(--cp-text-muted); cursor: help;
+}
+.pg-muted { color: var(--cp-text-faint); }
+.rr-col-ops { width: 140px; }
+.rr-fg { margin-bottom: 12px; }
+.rr-fg label { display: block; font-size: 12px; color: var(--cp-text-muted); margin-bottom: 4px; }
+.rr-textarea {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--cp-border);
+  border-radius: 6px; background: var(--cp-surface-2); color: var(--cp-text);
+  font-size: 13px; font-family: inherit; resize: vertical; min-height: 72px;
+  box-sizing: border-box;
+}
+.rr-textarea:focus { outline: none; border-color: var(--cp-accent); }
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+var disabledNames = {{ disabled_usernames|list|tojson }};
+var approveUrl = '{{ url_for("rbac.registration_approve") }}';
+var rejectUrl = '{{ url_for("rbac.registration_reject") }}';
+var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
+
+function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function submitForm(action, fields) {
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = action;
+    Object.keys(fields).forEach(function(k) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = k;
+        inp.value = fields[k];
+        form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+}
+
+$(document).on('click', '.js-approve-btn', function() {
+    var id = $(this).data('id');
+    var username = $(this).data('username');
+    var isDisabled = disabledNames.indexOf(username) >= 0;
+    var warnHtml = isDisabled
+        ? '<div class="pg-warn-block">注意：该用户名曾被停用，审批通过后旧账号记录将被替换。</div>'
+        : '';
+    CpModal({
+        title: '批准注册申请',
+        bodyHtml: '<p style="margin:0 0 8px;font-size:13px">确认批准用户 <strong>' + escHtml(username) + '</strong> 的注册申请？</p>' + warnHtml,
+        confirmText: '确认批准',
+        cancelText: '取消',
+        onConfirm: function(overlay, close) {
+            close();
+            submitForm(approveUrl, { csrf_token: csrfToken, id: id });
+        }
+    });
+});
+
+$(document).on('click', '.js-reject-btn', function() {
+    var id = $(this).data('id');
+    var username = $(this).data('username');
+    var bodyHtml =
+        '<p style="margin:0 0 10px;font-size:13px">拒绝用户 <strong>' + escHtml(username) + '</strong> 的注册申请</p>' +
+        '<div class="rr-fg"><label>拒绝原因（可选）</label>' +
+        '<textarea id="rr-reject-comment" class="rr-textarea" maxlength="500" placeholder="请填写拒绝原因…"></textarea></div>';
+    CpModal({
+        title: '拒绝注册申请',
+        bodyHtml: bodyHtml,
+        confirmText: '确认拒绝',
+        confirmClass: 'btn-c btn-danger-c',
+        cancelText: '取消',
+        onConfirm: function(overlay, close) {
+            var comment = document.getElementById('rr-reject-comment').value.trim();
+            submitForm(rejectUrl, { csrf_token: csrfToken, id: id, comment: comment });
+        }
+    });
+    setTimeout(function() {
+        var el = document.getElementById('rr-reject-comment');
+        if (el) el.focus();
+    }, 30);
+});
+</script>
+{% endblock %}

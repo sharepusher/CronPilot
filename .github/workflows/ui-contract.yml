@@ -1,0 +1,38 @@
+name: UI Contract Guard
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/templates/redesign/**'
+      - 'app/static/css/redesign-*.css'
+      - 'scripts/check_ui_contract.py'
+      - 'tests/test_check_ui_contract.py'
+      - '.github/workflows/ui-contract.yml'
+  pull_request:
+    paths:
+      - 'app/templates/redesign/**'
+      - 'app/static/css/redesign-*.css'
+      - 'scripts/check_ui_contract.py'
+      - 'tests/test_check_ui_contract.py'
+      - '.github/workflows/ui-contract.yml'
+
+jobs:
+  ui-contract:
+    name: UI contract (0 violations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps (html parser only)
+        run: pip install beautifulsoup4
+
+      - name: Run check_ui_contract static guard
+        run: python scripts/check_ui_contract.py --check
+
+      - name: Run unit tests for check_ui_contract
+        run: python -m unittest tests.test_check_ui_contract -v

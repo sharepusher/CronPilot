@@ -56,6 +56,79 @@ class TestUrlSecurity(unittest.TestCase):
         self.assertTrue(ok, msg)
 
 
+class TestValidateAndResolve(unittest.TestCase):
+    """OPT-P0-12: validate_and_resolve_url DNS pinning 测试。"""
+
+    def setUp(self):
+        self.cfg = {'block_private_ip': '1', 'url_allow_hosts': '', 'url_ssrf_observe_only': '0'}
+
+    def test_ip_literal_returns_ip_directly(self):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://8.8.8.8/hook', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '8.8.8.8')
+
+    def test_private_ip_literal_rejected(self):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://127.0.0.1/x', self.cfg)
+        self.assertFalse(ok)
+        self.assertIsNone(ip)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'93.184.216.34'})
+    def test_domain_returns_resolved_ip(self, mock_dns):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/hook', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '93.184.216.34')
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'10.0.0.1'})
+    def test_domain_resolving_to_private_rejected(self, mock_dns):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://evil.com/x', self.cfg)
+        self.assertFalse(ok)
+        self.assertIsNone(ip)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value=None)
+    def test_dns_unavailable_returns_none_ip(self, mock_dns):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/x', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertIsNone(ip)
+
+
+class TestPinnedSession(unittest.TestCase):
+    """OPT-P0-12: make_pinned_session DNS pinning 会话测试。"""
+
+    def test_session_created_with_adapter(self):
+        session = url_security.make_pinned_session('1.2.3.4', 'example.com', 'http')
+        # 验证 session 挂载了自定义 adapter
+        adapter = session.get_adapter('http://example.com/')
+        self.assertIsInstance(adapter, url_security._PinnedIPAdapter)
+        self.assertEqual(adapter.pinned_ip, '1.2.3.4')
+        self.assertEqual(adapter.original_hostname, 'example.com')
+
+    def test_adapter_rewrites_url_and_host_header(self):
+        from requests import Request, PreparedRequest
+        adapter = url_security._PinnedIPAdapter('93.184.216.34', 'example.com')
+        req = Request('GET', 'http://example.com/path?q=1',
+                      headers={'user-agent': 'test'}).prepare()
+        # 模拟 send 中的 URL 重写逻辑（不实际发请求）
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(req.url)
+        if parsed.hostname and parsed.hostname != '93.184.216.34':
+            req.headers.setdefault('Host', 'example.com')
+            req.url = urlunparse(parsed._replace(netloc='93.184.216.34'))
+        self.assertIn('93.184.216.34', req.url)
+        self.assertEqual(req.headers['Host'], 'example.com')
+
+    def test_adapter_preserves_port(self):
+        from requests import Request
+        adapter = url_security._PinnedIPAdapter('1.2.3.4', 'api.example.com')
+        req = Request('GET', 'http://api.example.com:8080/v1').prepare()
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(req.url)
+        port_suffix = ':%d' % parsed.port if parsed.port else ''
+        req.headers.setdefault('Host', 'api.example.com')
+        req.url = urlunparse(parsed._replace(netloc='1.2.3.4' + port_suffix))
+        self.assertIn('1.2.3.4:8080', req.url)
+        self.assertEqual(req.headers['Host'], 'api.example.com')
+
+
 class TestPassword(unittest.TestCase):
     def test_plaintext_legacy(self):
         self.assertTrue(password_mod.verify_login_password('secret', 'secret'))

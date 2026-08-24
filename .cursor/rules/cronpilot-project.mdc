@@ -36,9 +36,9 @@ alwaysApply: true
 
 **凡优化（OPT / Tier / Phase / 依赖演进）与功能开发，一律：**
 
-1. **先出设计** — 清晰、完整、准确（见下方「设计必备要素」）；优先落 `doc/*.html`（复杂项），简单项可在回复中结构化写出同等要素。  
-2. **经用户明确确认** — 口头/聊天中的「做吧」「完成 XX」若**未附带或未确认设计稿**，仍须先交设计再等确认；**不得**把「请完成」直接当成设计已确认。  
-3. **确认后再执行** — 确认前 **禁止** 改业务代码、`requirements*.txt`、管理端模板、CI 行为门禁等实现向变更。
+1. **先出设计文档** — 清晰、完整、准确（见下方「设计必备要素」）；**必须**落 `doc/design/*.html`（正式设计文档），**禁止**仅在聊天回复中给出设计而不落库。设计文档须包含所有必备要素且可被独立 Review。  
+2. **经用户明确确认** — 口头/聊天中的「做吧」「完成 XX」若**未附带或未确认设计文档**，仍须先交设计再等确认；**不得**把「请完成」直接当成设计已确认。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。  
+3. **确认后再执行** — 确认前 **禁止** 改业务代码、CSS/JS 静态资源、`requirements*.txt`、管理端模板、CI 行为门禁等实现向变更。
 
 **禁止**：边设计边写代码；未确认就开干；用「先实现再补设计」交付；设计缺「分批」或「验收」仍声称可开干。
 
@@ -115,13 +115,19 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 2. 若是 → 回复中是否已包含对应的**7 项复盘要素**？
 3. 若缺失 → **停止，先补充复盘，再 invoke AskQuestion**。
 
+**程序化强制（L1+L2 Hook · 2026-08 追加）**：
+- **L1**（`postToolUse` hook）：每次 `Write`/`StrReplace` 后注入上下文提醒"你刚做了修复，需要复盘"。
+- **L2**（`stop` prompt hook）：Agent 结束前评估是否遗漏复盘，遗漏则自动续行要求补充。
+- **L3**（TodoWrite 原子绑定）：每个修复类 Todo（如 `fix-xxx`）必须配对 `fix-xxx-postmortem` 项，两者同时 `completed` 才算任务完成。
+- Hook 配置：`.cursor/hooks.json` + `.cursor/hooks/postmortem-reminder.sh`。
+
 **禁止行为**：
 - 修复后直接 AskQuestion 而跳过复盘
 - 将复盘推迟到"下一轮"
 - 认为"自发现的问题"不需要复盘
 - 认为"文案/文档修复"不需要复盘
 
-**根因复盘（2026-08 元复盘）**：Agent 反复违反复盘规范的结构性原因：①将复盘视为"修复的附加步骤"而非"修复的原子组成部分"；②AskQuestion 用户规则创造了"急于到达下一步"的流程锚点，导致中间步骤被跳过；③复盘触发条件在执行时被窄化为"用户报告的代码 bug"，遗漏了自发现问题和非代码修复。
+**根因复盘（2026-08 元复盘）**：Agent 反复违反复盘规范的结构性原因：①将复盘视为"修复的附加步骤"而非"修复的原子组成部分"；②AskQuestion 用户规则创造了"急于到达下一步"的流程锚点，导致中间步骤被跳过；③复盘触发条件在执行时被窄化为"用户报告的代码 bug"，遗漏了自发现问题和非代码修复。④ **纯文字规范被证明无法阻止反复违规**（至少 3 次被用户指出），因此升级为程序化 Hook 强制。
 
 **禁止**：只写"已修复"而不分析测试盲区；只新增单元测试而实际故障发生在 JS/浏览器层却不说明分层差距；**修复后直接跳到总结/提交而跳过复盘**；**复盘缺少预防方案就宣称交付完成**。
 
@@ -312,6 +318,49 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 
 **禁止**：仅用 curl 看 HTTP 200 就宣称"浏览器验收通过"；仅在种子 admin 下验证而未测试受限角色。
 
+### Redesign 侧边栏角色权限回归（强制 · 2026-08 追加）
+
+**适用**：凡修改 `app/templates/redesign/_sidebar.html`、`app/rbac/policy.py`、`app/rbac/context.py` 或权限字符串定义。
+
+**回归门禁**：`python -m unittest tests.test_redesign_sidebar -v`（12 个用例）
+
+### Redesign Mockup 逐节对照（强制 · 2026-08 追加）
+
+**适用**：实现 `doc/design/CronPilot-2026-redesign-mockup.html` 中已定义的任何页面/组件。
+
+**强制清单**：
+
+| 步骤 | 强制操作 | 禁止 |
+|---|---|---|
+| **1 · Read Mockup 源码** | 先 `Read` Mockup 中对应 `view-*` 区块的**完整 HTML**（含 CSS class、列数、组件层级） | 凭记忆或对 Mockup 的"印象"开始编码 |
+| **2 · 列出结构清单** | 在开始实现前，显式列出：Stats 指标名与顺序、表格列数与列名、按钮类型(icon/text)、特殊面板(Exception Panel 等)、行样式(高亮/淡化) | 直接开始写模板 |
+| **3 · 实现后结构断言** | `curl + grep` 验证渲染 HTML 中存在 Mockup 规定的关键 CSS class（如 `exc-panel`、`row-acts`、`hf-stats`） | 仅看"页面能打开"就宣称对齐 |
+| **4 · 截图逐区域对照** | 截图并逐区域（Stats/Panel/Filters/Table/Pagination）与 Mockup 对比 | 只看整体"差不多"就交付 |
+
+**典型失误（2026-08 Phase 2 首次实现事件）**：
+
+| 失误 | 后果 |
+|---|---|
+| 未 Read Mockup 源码即开始实现 | Stats 指标名和顺序错误；Exception Panel 完全缺失 |
+| 将 Mockup 的 7 列表格凭印象简化为 5 列 | 缺失健康度、下次执行两个关键列 |
+| Icon-only 按钮实现为文字按钮 | 视觉与 Mockup 严重不一致 |
+| 首次验证只确认"数据显示正确" | 结构偏离直到用户全面 Review 才暴露 |
+
+**覆盖矩阵**：
+
+| 角色 | 预期导航项数 | 反向 403 拦截验证 |
+|------|:-----------:|----------|
+| Seed Admin | 12 | `/rbac/users` → 200 |
+| Biz Admin | 12 | 同上 |
+| Operator | 7 | `/rbac/users` → 403；`/cron_add` → 200 |
+| Viewer | 6 | `/cron_add` → 403；`/rbac/users` → 403；`/operation_log_list` → 403 |
+
+**权限字符串对照**（7 个）：`cron:read` · `cron:write` · `cron:retire` · `log:read` · `operation:read` · `user:manage` · `audit:read`
+
+**修改侧边栏后交付闭环**：① 单测通过 → ② restart + 浏览器 4 角色截图 → ③ 更新本文件角色矩阵（如导航项数变化）
+
+**Scope 隔离回归测试（强制 · 2026-08）**：凡修改 `app/rbac/scope.py`、`app/rbac/policy.py`（`user_bypasses_scope`）、`app/main/views.py`（`build_scope_filter_clause` 调用）时，必须运行 `python -m unittest tests.test_rbac_scope.TestScopeIntegration -v` 确认 Scope 隔离完整。覆盖场景：单组 operator 不可见其他组；双组 operator 可见两组；Biz Admin 有组时受限；Seed Admin 绕过全部。
+
 ### 本地进程与热更新（强制 · 防「刷新无效」）
 
 **事实**：`scripts/start_local_full.sh` 以 `app.run(..., debug=False, use_reloader=False)` 常驻。Flask `DEBUG=False` 时 **Jinja 默认不按 mtime 重载模板**；Python 模块亦只在进程启动时 import 一次。因此改 `app/**/*.py` 或 `app/templates/**` 后，**浏览器刷新不能加载新代码**。
@@ -373,6 +422,18 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 - 残留引用须一并修正或明确注释为历史引用。
 
 **根因复盘**：2026-08 移除标签合并功能时，`rename_tag` 的错误提示和文件头注释仍引用"合并功能"。若执行 `grep -r "合并" app/` 可立即发现。
+
+### 禁止在中间整合文档中重复源文档数值（追加 2026-08）
+
+**触发条件**：凡创建或编辑「整合型文档」（汇总/索引/手册等引用多个源文档的文档）。
+
+**强制规则**：
+- **禁止**将源文档中的精确数值（色值、字号、间距、尺寸、CSS 属性值等）复制到整合文档中。
+- 整合文档只允许包含：① 架构决策（定性描述）② 源文档定位索引（文件名 + 章节号 + 行号） ③ 流程/规程描述。
+- 需要引用具体数值时，使用 **链接 + 位置指示**（如「见视觉规格书 §1.3 行 86–110」），不得内联写出数值。
+- **实现代码**在编写时必须 `Read` 源文档获取数值，禁止从整合文档或记忆中获取。
+
+**根因复盘**：2026-08 统一执行手册 v1 从视觉规格书/Mockup 抄写数值时引入 15 处偏差。Agent 在"综合写入"步骤中依赖记忆而非机械复制。改为 v2 纯索引架构后根除此问题。详见 `doc/postmortem/2026-08-统一手册数值重复偏离.html`。
 
 ### GitHub Release 发布文案规范（追加 2026-07）
 

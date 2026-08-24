@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：P0 前端+后端关键问题修复（P0-1/P0-2/P0-3/P0-4）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:2em;border-bottom:1px solid #e5e7eb;padding-bottom:.2em}
+h3{color:#374151;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-family:"SF Mono",Menlo,monospace;font-size:0.9em}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+</style>
+</head>
+<body>
+
+<h1>复盘：P0-1 / P0-2 / P0-3 / P0-4 前端+后端关键问题修复</h1>
+
+<table>
+<tr><th>日期</th><td>2026-08-24</td></tr>
+<tr><th>发现方式</th><td>Code Review（全面前后端代码审计）</td></tr>
+<tr><th>严重级别</th><td>P0（影响核心交互功能 / 安全漏洞 / 安全信息泄露）</td></tr>
+<tr><th>涉及文件</th><td><code>task_detail.html</code>、<code>task_form.html</code>、<code>app/main/views.py</code>、<code>app/rbac/views.py</code>、<code>app/rbac/safe_redirect.py</code></td></tr>
+</table>
+
+<h2>P0-1：CpConfirm.show() 参数名错误</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/templates/redesign/task_detail.html</code> 第 153 行和第 186 行，<code>CpConfirm.show()</code> 调用传入 <code>message:</code> 属性，但 <code>redesign-confirm.js:31</code> 的 API 仅识别 <code>body:</code> 属性。结果：确认对话框的正文区域渲染为空白。</p>
+
+<h3>2. 根因</h3>
+<p><code>task_detail.html</code> 与 <code>dashboard.html</code> 独立开发，实现相同功能（任务操作确认对话框）。<code>dashboard.html</code> 正确参考了 <code>redesign-confirm.js</code> API 签名（使用 <code>body:</code>），而 <code>task_detail.html</code> 依赖了常见 UI 库惯例（SweetAlert、Element UI 等使用 <code>message</code>），未交叉验证项目自有 API。JavaScript 对未知属性完全静默（<code>opts.message</code> 被赋值但从不被读取），无任何开发时警告。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>项目无前端 JS API 调用的自动化检查。现有单测覆盖后端逻辑（Python），但不覆盖前端模板中 JS API 调用的参数正确性。手动验收时可能因任务详情页功能不完整（seed admin 无 <code>cron:write</code> 权限看不到操作按钮）而跳过该路径。</p>
+
+<h3>4. 修复</h3>
+<p>2 处 <code>message:</code> → <code>body:</code> 纯字符串替换。</p>
+
+<h3>5. 防护测试</h3>
+<p>CDP 验证：<code>Runtime.evaluate</code> 检查页面 script 标签中 <code>CpConfirm.show</code> 调用仅包含 <code>body:</code>，不包含 <code>message:</code>。结果：<code>{"hasMessage":false,"hasBody":true}</code>。</p>
+
+<h3>6. 同类排查</h3>
+<table>
+<tr><th>文件</th><th>CpConfirm 调用数</th><th>使用的参数</th><th>状态</th></tr>
+<tr><td><code>dashboard.html</code></td><td>3</td><td><code>body:</code></td><td>正确</td></tr>
+<tr><td><code>users.html</code></td><td>1</td><td><code>body:</code></td><td>正确</td></tr>
+<tr><td><code>tags.html</code></td><td>1</td><td><code>body:</code></td><td>正确</td></tr>
+<tr><td><code>api_token.html</code></td><td>1</td><td><code>body:</code></td><td>正确</td></tr>
+<tr><td><code>task_detail.html</code></td><td>2</td><td><code>message:</code> → <code>body:</code></td><td>已修复</td></tr>
+</table>
+<p>仅 <code>task_detail.html</code> 存在此问题。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> 新增规范：调用 <code>CpConfirm.show()</code> 时必须使用 <code>body:</code> 而非 <code>message:</code></td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "CpConfirm" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>新增 CI grep 检查：<code>grep -rn "CpConfirm.show" app/templates/ | grep "message:" &amp;&amp; exit 1 || echo OK</code></td>
+  <td><code>scripts/</code> 或 CI workflow</td>
+  <td><code>grep -rn "CpConfirm.show" app/templates/ | grep "message:" &amp;&amp; echo FAIL || echo OK</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>P0-4：Escape 键守卫选择器错误</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/templates/redesign/task_detail.html:237</code> 和 <code>task_form.html:339</code>，Escape 键处理器使用 <code>document.querySelector('.cp-confirm-overlay[style*="flex"]')</code> 检查对话框是否打开。<code>.cp-confirm-overlay</code> 这个 class 在整个项目中从未定义或创建，实际 class 为 <code>.cp-modal-overlay</code>。</p>
+
+<h3>2. 根因</h3>
+<p>在 redesign 组件开发过程中，确认对话框的 overlay class 名从概念名 <code>.cp-confirm-overlay</code> 演进为通用的 <code>.cp-modal-overlay</code>（因为 CpConfirm 和 CpModal 共用同一套 overlay 结构）。编写 <code>task_detail.html</code> 和 <code>task_form.html</code> 的 Escape 守卫时，使用了假设的旧名，未通过 <code>grep</code> 验证该 class 是否在 CSS 或 JS 中实际存在。此外 <code>[style*="flex"]</code> 属性选择器有双重问题：即使 class 名正确，CSS 定义的 <code>display: flex</code> 不会出现在 DOM 的 inline style 中。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>无自动化检查：① 模板中 <code>querySelector</code> 引用的 CSS class 是否在项目中有定义；② Escape 键在对话框打开/关闭两种状态下的行为端到端测试。</p>
+
+<h3>4. 修复</h3>
+<p>两处选择器修正为 <code>.cp-modal-overlay</code>，去掉不可靠的 <code>[style*="flex"]</code>（因为 overlay 元素在创建时 <code>appendChild</code> 到 DOM，关闭时 <code>removeChild</code> 移除，只需检查元素是否存在即可）。</p>
+
+<h3>5. 防护测试</h3>
+<p>CDP 验证：<code>Runtime.evaluate</code> 检查页面 script 标签中 Escape handler 使用 <code>cp-modal-overlay</code>（正确）且不包含 <code>cp-confirm-overlay</code>（错误）。结果：<code>{"hasOldSelector":false,"hasNewSelector":true}</code>。</p>
+
+<h3>6. 同类排查</h3>
+<pre>grep -rn "cp-confirm-overlay" app/templates/redesign/  → 无匹配（修复后）
+grep -rn "cp-modal-overlay" app/templates/redesign/     → 仅 task_detail.html:237, task_form.html:339（正确引用）</pre>
+<p>全仓库已无 <code>.cp-confirm-overlay</code> 的任何引用。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增 CI grep 检查：禁止引用 <code>.cp-confirm-overlay</code>（不存在的 class）</td>
+  <td><code>scripts/</code> 或 CI workflow</td>
+  <td><code>grep -rn "cp-confirm-overlay" app/templates/ &amp;&amp; echo FAIL || echo OK</code></td>
+</tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> 新增规范：模板中 <code>querySelector</code> 引用的 CSS class 必须先 <code>grep</code> 确认在 CSS/JS 中有定义</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "querySelector" AGENTS.md</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>P0-2：开放重定向修复 (Open Redirect)</h2>
+
+<h3>1. Bug 定位</h3>
+<p>登录页 <code>next</code> 参数未做校验，3 处调用点直接将用户提供的 <code>next</code> 值用于重定向目标：</p>
+<ul>
+<li><code>app/rbac/views.py:189</code> — GET 渲染登录页时 <code>request.args.get('next', '/cron_list')</code> 原样传入模板</li>
+<li><code>app/rbac/views.py:194</code> — POST 登录成功后 <code>request.values.get('next', '/cron_list')</code> 用作 <code>redirect()</code> 目标</li>
+<li><code>app/main/views.py:1203</code> — 未登录拦截重定向时 <code>request.args.get('next', '')</code> 拼入 <code>/rbac/login?next=</code></li>
+</ul>
+<p>攻击向量：<code>https://example.com/rbac/login?next=https://evil.com/steal</code> → 用户登录后被自动重定向到钓鱼站点。</p>
+
+<h3>2. 根因</h3>
+<p>Flask 原生 <code>redirect()</code> 不对目标 URL 做安全校验（仅生成 302 响应）。项目在引入 <code>next</code> 参数时直接信任用户输入，未引入白名单或同域校验。这是 Web 安全领域的经典漏洞（CWE-601），但因项目最初面向内网使用，开发阶段未将其纳入安全审计范围。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>现有测试仅覆盖登录成功/失败的业务逻辑，未测试 <code>next</code> 参数的安全性。无集成测试验证"登录后重定向目标是否为安全的相对路径"。<code>verify_golden_path.sh</code> 的登录流程使用固定 <code>next=/cron_list</code>，不覆盖恶意输入。</p>
+
+<h3>4. 修复</h3>
+<p>新增 <code>app/rbac/safe_redirect.py</code> → <code>safe_next_url(next_url, default='/cron_list')</code> 函数：</p>
+<ul>
+<li>拒绝有 <code>scheme</code> 的 URL（<code>http://</code>、<code>https://</code>、<code>javascript:</code>、<code>data:</code> 等）</li>
+<li>拒绝有 <code>netloc</code> 的 URL（<code>//evil.com</code> 协议相对 URL）</li>
+<li>拒绝以 <code>//</code> 开头的字符串（双重保险）</li>
+<li>空值返回 <code>default</code>（<code>/cron_list</code>）</li>
+</ul>
+<p>3 处调用点全部包裹 <code>safe_next_url()</code>。</p>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_safe_redirect.py</code> — 11 条单元测试：</p>
+<table>
+<tr><th>类别</th><th>测试数</th><th>覆盖场景</th></tr>
+<tr><td>安全相对路径（应放行）</td><td>3</td><td><code>/cron_list</code>、<code>/cron_list?page=2</code>、<code>/rbac/users</code></td></tr>
+<tr><td>恶意目标（应拒绝）</td><td>5</td><td><code>http://evil.com</code>、<code>https://evil.com</code>、<code>//evil.com</code>、<code>javascript:alert(1)</code>、<code>data:text/html,...</code></td></tr>
+<tr><td>边界情况</td><td>3</td><td>空字符串、<code>None</code>、自定义 default</td></tr>
+</table>
+<p>端到端验证：<code>curl "http://127.0.0.1:5001/rbac/login" -X POST -d "username=admin&password=changeme&next=https://evil.com/steal"</code> → 302 重定向到 <code>/cron_list</code>（安全默认值），非 <code>https://evil.com</code>。</p>
+
+<h3>6. 同类排查</h3>
+<pre>grep -rn "request\.\(args\|values\|form\)\.get('next" app/  → 仅 3 处，全部已包裹 safe_next_url()
+grep -rn "redirect(" app/main/views.py app/rbac/views.py  → 其他 redirect 调用使用硬编码路径或 url_for()，无开放重定向风险</pre>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增 <code>safe_next_url()</code> 工具函数，所有 <code>next</code> 参数必须经过此函数校验</td>
+  <td><code>app/rbac/safe_redirect.py</code></td>
+  <td><code>python3 -m unittest tests.test_safe_redirect -v</code></td>
+</tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> 新增规范：所有 <code>request.args.get('next')</code> 必须经 <code>safe_next_url()</code> 包裹</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "safe_next_url" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>CI grep 检查：裸用 <code>request.*.get('next')</code> 而未包裹 <code>safe_next_url</code> 应告警</td>
+  <td><code>scripts/</code> 或 CI workflow</td>
+  <td><code>grep -rn "request\.\(args\|values\)\.get('next" app/ | grep -v safe_next_url &amp;&amp; echo FAIL || echo OK</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>P0-3：异常文本泄露修复</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/main/views.py:901</code>，<code>cron_add</code> 的 <code>except Exception</code> 分支中 <code>web_api_return(code=1, msg=str(e))</code> 将 Python 异常原始文本（可含数据库引擎/表名/内网 IP/文件路径）直接返回给前端 Ajax 响应。</p>
+
+<h3>2. 根因</h3>
+<p>开发阶段为调试便利，将异常信息直接返回前端。转向生产时未清理。同一 catch 块中的 <code>wechat_info_err(str(e), trace_info)</code> 是合理的服务端告警行为，开发者在此基础上顺手复用 <code>str(e)</code> 作为前端错误信息 — 将"服务端日志内容"和"用户可见内容"混为一体。其他路由（<code>rbac/views.py</code>、<code>crons.py</code>）的异常处理均未将 <code>str(e)</code> 返回前端，说明这是孤立的遗留问题而非系统性模式。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>现有测试关注正常流程（添加成功）和业务校验（字段缺失），未覆盖"构造异常触发 catch-all"的场景。无规范要求审查 <code>web_api_return</code> 的 <code>msg</code> 参数是否包含敏感信息。</p>
+
+<h3>4. 修复</h3>
+<p>将 <code>msg=str(e)</code> 替换为通用错误信息 <code>msg='服务器内部错误，请稍后重试'</code>。新增 <code>current_app.logger.error</code> 确保异常详情不丢失（写入服务端日志文件）。微信告警保持不变。</p>
+
+<h3>5. 防护测试</h3>
+<p><code>grep -n "msg=str(e)" app/main/views.py app/rbac/views.py</code> → 无匹配，确认修复完成。restart 后 <code>curl</code> 确认 HTTP 200 正常。</p>
+
+<h3>6. 同类排查</h3>
+<p>全仓库搜索 <code>msg=str(e)</code>：仅此 1 处。<code>crons.py</code> 中的 <code>str(e)</code> 用于服务端日志和微信推送（不返回 HTTP 响应），不存在同类问题。<code>rbac/views.py</code> 无 <code>str(e)</code> 返回前端。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> 新增规范：禁止 <code>web_api_return(msg=str(e))</code>，catch-all 必须返回通用错误信息</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "msg=str" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>CI grep 检查：<code>grep -rn "web_api_return.*msg=str(e)" app/ &amp;&amp; echo FAIL || echo OK</code></td>
+  <td><code>scripts/</code> 或 CI workflow</td>
+  <td><code>grep -rn "msg=str(e)" app/main/views.py app/rbac/views.py &amp;&amp; echo FAIL || echo OK</code></td>
+</tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-P0-frontend-bugs.md">Markdown</a></footer>
+</body>
+</html>

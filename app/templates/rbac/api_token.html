@@ -22,7 +22,7 @@
                 <div class="controls">
                     <input type="text" value="{{ api_token }}" readonly
                            style="width:380px;font-family:monospace;color:var(--cp-ink)" id="api-token-display" />
-                    <button type="button" class="btn btn-small"
+                    <button type="button" class="btn cp-btn-sm"
                             onclick="var i=document.getElementById('api-token-display');i.select();document.execCommand('copy')">复制</button>
                     <a class="btn btn-warning js-ajax-dialog-btn"
                        href="{{ url_for('rbac.api_token_reset') }}"

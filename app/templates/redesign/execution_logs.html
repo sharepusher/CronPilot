@@ -1,0 +1,436 @@
+{# CronPilot Redesign — Execution Logs (Mockup-aligned)
+   7-column table matching Mockup Console mode:
+   LOG ID | 任务名称 | 返回内容 | 执行时间 | 耗时 | 结果 | 操作
+   Filter bar: button group + task name + date range + search/reset #}
+{% extends "redesign/_base.html" %}
+{% block title %}执行记录 — CronPilot{% endblock %}
+
+{% block css %}
+<style>
+/* ===== Page Head ===== */
+.el-page-head{margin-bottom:0;display:flex;align-items:baseline;justify-content:space-between;}
+.el-page-head h1{font-size:16px;font-weight:600;margin:0;}
+.el-page-head .stat-line{color:var(--cp-text-muted);font-size:11.5px;margin-top:3px;}
+
+/* ===== Task Info Card (single-task view) ===== */
+.el-task-card{display:flex;align-items:center;gap:16px;background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:8px;padding:12px 16px;margin-bottom:16px;}
+.el-task-card-info{flex:1;min-width:0;}
+.el-task-card-name{font-weight:600;font-size:14px;color:var(--cp-ink);}
+.el-task-card-url{font-size:11.5px;color:var(--cp-text-faint);font-family:var(--cp-font-mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.el-task-card-actions{display:flex;gap:8px;flex-shrink:0;}
+
+/* ===== Filters (Mockup: console-filters with f-group) ===== */
+.el-filters{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--cp-border);margin-bottom:0;}
+.el-f-group{display:flex;align-items:center;gap:4px;}
+.el-f-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--cp-text-faint);margin-right:4px;font-weight:600;}
+.el-f-btn{padding:4px 9px;border-radius:5px;font-size:12px;color:var(--cp-text-muted);border:1px solid transparent;background:none;cursor:pointer;font-family:inherit;transition:all 0.1s;display:inline-flex;align-items:center;}
+.el-f-btn:hover{color:var(--cp-ink);}
+.el-f-btn.active{background:var(--cp-surface);border-color:var(--cp-border);color:var(--cp-ink);font-weight:600;}
+.el-f-btn.active::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;margin-right:3px;}
+.el-f-btn:active{transform:scale(0.96);}
+.el-f-sep{width:1px;height:14px;background:var(--cp-border);}
+.el-f-input{background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:5px;padding:5px 8px;font-size:12px;color:var(--cp-ink);font-family:inherit;width:150px;transition:border-color 0.12s,box-shadow 0.12s;}
+.el-f-input:focus{outline:none;border-color:var(--cp-signal);box-shadow:0 0 0 2px var(--cp-signal-bg);}
+.el-f-input::placeholder{color:var(--cp-text-faint);}
+.el-input-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--cp-text-faint);cursor:pointer;font-size:14px;border-radius:50%;transition:all 0.12s;}
+.el-input-clear:hover{color:var(--cp-ink);background:var(--cp-surface-2);}
+.el-f-spacer{flex:1;}
+
+/* ===== Buttons (Mockup style) ===== */
+.el-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;border:1px solid transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.12s;}
+.el-btn-accent{background:var(--cp-signal);color:#fff;}
+.el-btn-accent:hover{opacity:.9;}
+.el-btn-line{background:var(--cp-surface);border-color:var(--cp-border);color:var(--cp-text-muted);}
+.el-btn-line:hover{color:var(--cp-ink);border-color:var(--cp-border-strong);text-decoration:none;}
+.el-btn-line:active{transform:scale(0.95);}
+.el-btn-xs{padding:3px 8px;font-size:11.5px;}
+
+/* ===== Table (Mockup: c-table) ===== */
+.el-table-wrap{border:1px solid var(--cp-border);border-radius:0 0 8px 8px;border-top:none;overflow:hidden;background:var(--cp-surface);max-height:calc(100vh - 200px);overflow-y:auto;}
+.el-table{width:100%;border-collapse:collapse;}
+.el-table thead{position:sticky;top:0;z-index:5;}
+.el-table thead th{text-align:left;font-size:10.5px;font-weight:600;color:var(--cp-text-faint);text-transform:uppercase;letter-spacing:.05em;padding:9px 16px;background:var(--cp-surface-2);border-bottom:1px solid var(--cp-border);}
+.el-table tbody td{padding:11px 16px;border-bottom:1px solid var(--cp-border);vertical-align:middle;font-size:12.5px;}
+.el-table tbody tr:last-child td{border-bottom:none;}
+.el-table tbody tr{transition:background 0.12s;}
+.el-table tbody tr:hover{background:var(--cp-surface-2);}
+.el-table tbody tr.row-fail{border-left:3px solid var(--cp-danger);}
+.el-table tbody tr.row-fail td:first-child{padding-left:13px;}
+
+/* Task name in log row */
+.el-task-name{font-weight:600;font-size:12.5px;color:var(--cp-ink);text-decoration:none;}
+.el-task-name:hover{text-decoration:underline;}
+
+/* Mono cells */
+.el-mono{font-family:var(--cp-font-mono);font-size:11px;white-space:nowrap;}
+.el-mono.duration-warn{color:var(--cp-warn);}
+.el-mono.duration-crit{color:var(--cp-danger);font-weight:500;}
+.el-mono.log-id{cursor:pointer;position:relative;}
+.el-mono.log-id:hover{color:var(--cp-signal);}
+.el-mono.log-id:hover::after{content:'copy';position:absolute;top:-2px;right:-28px;font-size:9px;color:var(--cp-text-faint);opacity:0.8;}
+.el-mono.log-id.copied{color:var(--cp-success);}
+.el-mono.log-id.copied::after{content:'✓';color:var(--cp-success);}
+
+/* Return content (code) */
+.el-content-code{font-family:var(--cp-font-mono);font-size:11px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;cursor:pointer;transition:all 0.15s;}
+.el-content-code.expanded{white-space:normal;max-width:none;word-break:break-all;}
+.el-content-code.is-fail{color:var(--cp-danger);}
+.el-content-code.is-timeout{color:var(--cp-state-timeout);}
+.el-content-code.is-unknown{color:var(--cp-text-muted);}
+.el-content-code.is-success{color:var(--cp-success);}
+/* Tooltip for content (shows on hover, not replacing click expand) */
+.el-content-code[title]:not(.expanded):hover::after{content:attr(title);position:absolute;bottom:calc(100% + 6px);left:0;background:var(--cp-ink);color:var(--cp-surface);font-size:11px;padding:6px 10px;border-radius:5px;white-space:normal;max-width:360px;z-index:100;pointer-events:none;animation:elTooltipIn 0.15s ease-out;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+.el-content-code{position:relative;}
+@keyframes elTooltipIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Log result (dot + text) — Mockup style */
+.el-log-result{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;}
+.el-log-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.el-log-success{color:var(--cp-success);}
+.el-log-success .el-log-dot{background:var(--cp-success);}
+.el-log-fail{color:var(--cp-danger);}
+.el-log-fail .el-log-dot{background:var(--cp-danger);animation:statusPulse 2s ease-in-out infinite;}
+.el-log-timeout{color:var(--cp-state-timeout);}
+.el-log-timeout .el-log-dot{background:var(--cp-state-timeout);}
+.el-log-unknown{color:var(--cp-text-muted);}
+.el-log-unknown .el-log-dot{background:var(--cp-border-strong);}
+@keyframes statusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.3)}}
+
+/* Footer (Mockup: c-foot) */
+.el-foot{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-top:1px solid var(--cp-border);}
+.el-foot-count{font-size:11px;color:var(--cp-text-faint);font-family:var(--cp-font-mono);}
+.el-pg{display:flex;gap:2px;}
+.el-pg a,.el-pg span{padding:4px 9px;border-radius:5px;font-size:11.5px;color:var(--cp-text-muted);font-family:var(--cp-font-mono);text-decoration:none;transition:background 0.1s;}
+.el-pg a:hover{background:var(--cp-surface-2);text-decoration:none;}
+.el-pg a.active{background:var(--cp-signal-bg);color:var(--cp-signal);font-weight:700;}
+.el-pg span.disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ===== Micro-interactions ===== */
+/* Row stagger entrance */
+.el-table tbody tr{opacity:0;animation:elRowIn 0.25s ease-out forwards;}
+@keyframes elRowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.el-table tbody tr:nth-child(1){animation-delay:0.02s;}
+.el-table tbody tr:nth-child(2){animation-delay:0.04s;}
+.el-table tbody tr:nth-child(3){animation-delay:0.06s;}
+.el-table tbody tr:nth-child(4){animation-delay:0.08s;}
+.el-table tbody tr:nth-child(5){animation-delay:0.1s;}
+.el-table tbody tr:nth-child(6){animation-delay:0.12s;}
+.el-table tbody tr:nth-child(7){animation-delay:0.14s;}
+.el-table tbody tr:nth-child(8){animation-delay:0.16s;}
+.el-table tbody tr:nth-child(9){animation-delay:0.18s;}
+.el-table tbody tr:nth-child(10){animation-delay:0.2s;}
+
+/* Page fade-in */
+.cp-main{animation:elPageFadeIn 0.3s ease-out;}
+@keyframes elPageFadeIn{from{opacity:0}to{opacity:1}}
+
+/* Empty state entrance */
+.cp-empty-state svg{animation:emptyBounce 0.6s ease-out 0.1s both;}
+.cp-empty-state .empty-title{animation:emptyFadeIn 0.4s ease-out 0.2s both;}
+.cp-empty-state .empty-desc{animation:emptyFadeIn 0.4s ease-out 0.3s both;}
+@keyframes emptyBounce{from{opacity:0;transform:scale(0.8) translateY(8px)}60%{transform:scale(1.05) translateY(-2px)}to{opacity:0.6;transform:scale(1) translateY(0)}}
+@keyframes emptyFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .el-table tbody tr{animation:none;opacity:1;}
+  .el-log-fail .el-log-dot{animation:none;}
+}
+
+/* Keyboard accessibility */
+.el-btn:focus-visible,.el-f-btn:focus-visible,.el-pg a:focus-visible{outline:2px solid var(--cp-signal);outline-offset:2px;border-radius:5px;}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .el-filters{gap:8px;padding:8px 0;}
+  .el-f-group{flex-wrap:wrap;}
+  .el-f-input{width:100%!important;max-width:none;}
+  .el-f-spacer{display:none;}
+  .el-table thead th:nth-child(3),.el-table tbody td:nth-child(3){display:none;}
+  .el-table thead th:nth-child(4),.el-table tbody td:nth-child(4){display:none;}
+}
+/* Table column widths (Phase 2C) */
+.elc-id     { width: 8%;  }
+.elc-name   { width: 20%; }
+.elc-body   { width: 30%; }
+.elc-time   { width: 16%; }
+.elc-dur    { width: 10%; }
+.elc-result { width: 8%;  }
+.elc-act    { width: 8%;  }
+/* Date-range inputs */
+.el-f-date  { width: 130px; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ═══ Page Header ═══ #}
+<div class="el-page-head">
+  <div>
+    <h1>执行记录</h1>
+    <div class="stat-line">{% if cron_info %}{{ cron_info.task_name }} 的执行历史{% else %}全部任务的调度执行历史{% endif %}</div>
+  </div>
+</div>
+
+{# ═══ Task Info Card (single-task view) ═══ #}
+{% if cron_info %}
+<div class="el-task-card">
+  <div class="el-task-card-info">
+    <div class="el-task-card-name">{{ cron_info.task_name }}</div>
+    {% if cron_info.req_url %}
+    <div class="el-task-card-url">{{ cron_info.req_url }}</div>
+    {% endif %}
+  </div>
+  <div class="el-task-card-actions">
+    {% if has_perm('cron:write') and cron_info.status != -1 %}
+    <a href="{{ url_for('main.cron_edit', id=cron_info.id) }}" class="el-btn el-btn-line el-btn-xs">编辑任务</a>
+    {% endif %}
+    <a href="{{ url_for('main.job_log_all_list') }}" class="el-btn el-btn-line el-btn-xs">查看全部</a>
+  </div>
+</div>
+{% endif %}
+
+{# ═══ Filters (Mockup: console-filters bar) ═══ #}
+{% set base_url = url_for('main.job_log_list', id=cron_info.id) if cron_info else url_for('main.job_log_all_list') %}
+<form class="el-filters" method="get" action="{{ base_url }}">
+  <div class="el-f-group">
+    <span class="el-f-label">结果</span>
+    <button type="submit" name="outcome" value="not_success" class="el-f-btn{{ ' active' if outcome in ('not_success', None, '') }}">非成功</button>
+    <button type="submit" name="outcome" value="all" class="el-f-btn{{ ' active' if outcome == 'all' }}">全部</button>
+    <button type="submit" name="outcome" value="fail" class="el-f-btn{{ ' active' if outcome == 'fail' }}">仅失败</button>
+    <button type="submit" name="outcome" value="timeout" class="el-f-btn{{ ' active' if outcome == 'timeout' }}">仅异常</button>
+    <button type="submit" name="outcome" value="success" class="el-f-btn{{ ' active' if outcome == 'success' }}">仅成功</button>
+  </div>
+  <div class="el-f-sep"></div>
+  {% if not cron_info %}
+  <input class="el-f-input" type="text" name="task_name" value="{{ keywords.get('task_name','') }}" placeholder="任务名称">
+  {% else %}
+  <input class="el-f-input" type="text" name="content" value="{{ keywords.get('content','') }}" placeholder="搜索内容">
+  {% endif %}
+  <input class="el-f-input el-f-date" type="text" name="start_time" value="{{ keywords.get('start_time','') }}" placeholder="开始时间">
+  <span style="color:var(--cp-text-faint)">—</span>
+  <input class="el-f-input el-f-date" type="text" name="end_time" value="{{ keywords.get('end_time','') }}" placeholder="结束时间">
+  <div class="el-f-spacer"></div>
+  <button type="submit" class="el-btn el-btn-accent el-btn-xs">搜索</button>
+  <a href="{{ base_url }}" class="el-btn el-btn-line el-btn-xs">重置</a>
+</form>
+
+{# ═══ Log Table (7 columns — matches Mockup) ═══ #}
+{% if page_data.items %}
+<div class="el-table-wrap">
+  <table class="el-table">
+    <thead><tr>
+      <th class="elc-id">LOG ID</th>
+      <th class="elc-name">任务名称</th>
+      <th class="elc-body">返回内容</th>
+      <th class="elc-time">执行时间</th>
+      <th class="elc-dur">耗时</th>
+      <th class="elc-result">结果</th>
+      <th class="elc-act">操作</th>
+    </tr></thead>
+    <tbody>
+      {% for row in page_data.items %}
+      {# Determine log and task from row structure #}
+      {% if cron_info %}
+        {% set log = row %}
+        {% set task = cron_info %}
+      {% else %}
+        {% set log = row[0] %}
+        {% set task = row[1] %}
+      {% endif %}
+      {% set is_fail = log.status in ('fail', 'error', 'timeout') %}
+      <tr{% if is_fail %} class="row-fail"{% endif %}>
+        {# COL 1: LOG ID (clickable to copy) #}
+        <td><span class="el-mono log-id" data-id="{{ log.id }}">{{ log.id }}</span></td>
+        {# COL 2: 任务名称 #}
+        <td>
+          <a class="el-task-name" href="{{ url_for('main.task_detail_v2', id=task.id) if task else '#' }}">{{ task.task_name if task else '—' }}</a>
+        </td>
+        {# COL 3: 返回内容 — smart display: strip HTML, show meaningful summary #}
+        <td>
+          {% if log.content %}
+            {% if log.content[:9] == '<!doctype' or log.content[:5] == '<html' or log.content[:5] == '<?xml' %}
+              {# HTML/XML response — extract meaningful hint #}
+              {% if log.http_status %}
+              <code class="el-content-code{% if log.http_status >= 400 %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">HTTP {{ log.http_status }} · HTML Response ({{ log.content|length }} bytes)</code>
+              {% else %}
+              <code class="el-content-code is-unknown" title="{{ log.content[:300] }}">HTML Response ({{ log.content|length }} bytes)</code>
+              {% endif %}
+            {% else %}
+            <code class="el-content-code{% if log.status in ('fail','error') %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">{{ log.content[:80] }}</code>
+            {% endif %}
+          {% elif log.fail_reason %}
+          <code class="el-content-code is-fail" title="{{ log.fail_reason }}">{{ log.fail_reason }}</code>
+          {% else %}
+          <span style="color:var(--cp-text-faint)">—</span>
+          {% endif %}
+        </td>
+        {# COL 4: 执行时间 #}
+        <td><span class="el-mono">{{ log.create_time or '—' }}</span></td>
+        {# COL 5: 耗时 #}
+        <td><span class="el-mono">{{ log.take_time|format_duration }}</span></td>
+        {# COL 6: 结果 #}
+        <td>
+          {% if log.status == 'success' %}
+          <span class="el-log-result el-log-success"><span class="el-log-dot"></span> 成功</span>
+          {% elif log.status == 'timeout' %}
+          <span class="el-log-result el-log-timeout"><span class="el-log-dot"></span> 超时</span>
+          {% elif log.status in ('fail', 'error') %}
+          <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败</span>
+          {% elif log.status == 'running' %}
+          <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 执行中</span>
+          {% else %}
+          <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 未知</span>
+          {% endif %}
+        </td>
+        {# COL 7: 操作 #}
+        <td>
+          <a class="el-btn el-btn-line el-btn-xs" href="{{ url_for('main.job_log_detail', id=log.id) }}">详情</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# ═══ Footer (Mockup: c-foot inside table-wrap) ═══ #}
+  <div class="el-foot">
+    <span class="el-foot-count">
+      {% if outcome in ('not_success', None, '') %}{{ page_data.total }} total (non-success)
+      {% elif outcome == 'fail' %}{{ page_data.total }} total (failures)
+      {% elif outcome == 'timeout' %}{{ page_data.total }} total (timeouts)
+      {% elif outcome == 'success' %}{{ page_data.total }} total (success)
+      {% else %}{{ page_data.total }} total{% endif %}
+    </span>
+    {% if page_data.pages > 1 %}
+    <div class="el-pg">
+      {% if page_data.has_prev %}
+      <a href="?page={{ page_data.prev_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">‹</a>
+      {% endif %}
+      {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+        {% if p %}
+        <a class="{{ 'active' if p == page_data.page }}" href="?page={{ p }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">{{ p }}</a>
+        {% else %}
+        <span class="disabled">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if page_data.has_next %}
+      <a href="?page={{ page_data.next_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">›</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+{# ═══ Empty State ═══ #}
+<div class="cp-empty-state cp-mt-40">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="10" width="36" height="28" rx="4"/><path d="M6 18h36"/></svg>
+  <div class="empty-title">暂无执行记录</div>
+  <div class="empty-desc">{% if keywords.get('task_name') or keywords.get('content') or (outcome and outcome not in ('not_success', 'all')) %}未找到匹配的记录，请调整筛选条件{% elif cron_info %}该任务暂未产生执行记录{% else %}系统暂未产生任何执行记录{% endif %}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block js %}
+<script>
+/* Close any open dropdowns on outside click */
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('.hf-dropdown.open').forEach(function(dd) {
+    if (!dd.contains(e.target)) dd.classList.remove('open');
+  });
+});
+
+/* Date range inputs — connect to Wind datePicker if available */
+(function() {
+  var startInput = document.querySelector('input[name="start_time"]');
+  var endInput = document.querySelector('input[name="end_time"]');
+  if (startInput) startInput.classList.add('js-datetime');
+  if (endInput) endInput.classList.add('js-datetime');
+})();
+
+/* Search clear button — inject × button when input has value */
+(function() {
+  var searchInputs = document.querySelectorAll('.el-f-input[name="task_name"],.el-f-input[name="content"]');
+  searchInputs.forEach(function(input) {
+    if (!input.value) return;
+    var clear = document.createElement('span');
+    clear.className = 'el-input-clear';
+    clear.textContent = '×';
+    clear.title = '清除';
+    clear.onclick = function() { input.value = ''; input.focus(); clear.remove(); };
+    input.parentElement.style.position = 'relative';
+    input.insertAdjacentElement('afterend', clear);
+  });
+})();
+
+/* Keyboard shortcuts: Esc = reset, Enter in input = submit */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.querySelector('.cp-modal-overlay')) return;
+    var resetBtn = document.querySelector('a[href$="job_log_all_list"]');
+    if (resetBtn && document.activeElement.tagName !== 'INPUT') {
+      resetBtn.click();
+    }
+  }
+});
+
+/* Relative time tooltip for execution time cells */
+(function() {
+  var monoCells = document.querySelectorAll('.el-table tbody td:nth-child(4) .el-mono');
+  monoCells.forEach(function(cell) {
+    var text = cell.textContent.trim();
+    if (text === '—' || !text) return;
+    var d = new Date(text.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return;
+    var diff = Date.now() - d.getTime();
+    var minutes = Math.floor(diff / 60000);
+    var hours = Math.floor(minutes / 60);
+    var days = Math.floor(hours / 24);
+    var relative;
+    if (days > 0) relative = days + ' 天前';
+    else if (hours > 0) relative = hours + ' 小时前';
+    else if (minutes > 0) relative = minutes + ' 分钟前';
+    else relative = '刚刚';
+    cell.title = relative;
+  });
+})();
+
+/* Duration color coding: > 5s = warn, > 30s = critical */
+(function() {
+  var durCells = document.querySelectorAll('.el-table tbody td:nth-child(5) .el-mono');
+  durCells.forEach(function(cell) {
+    var text = cell.textContent.trim();
+    if (text === '—') return;
+    var seconds = 0;
+    var match = text.match(/^([\d.]+)(ms|s|m)?$/);
+    if (match) {
+      var val = parseFloat(match[1]);
+      var unit = match[2] || 's';
+      if (unit === 'ms') seconds = val / 1000;
+      else if (unit === 's') seconds = val;
+      else if (unit === 'm') seconds = val * 60;
+    }
+    if (seconds >= 30) cell.classList.add('duration-crit');
+    else if (seconds >= 5) cell.classList.add('duration-warn');
+  });
+})();
+
+/* Click LOG ID to copy */
+document.querySelectorAll('.log-id').forEach(function(el) {
+  el.addEventListener('click', function() {
+    var id = el.getAttribute('data-id');
+    navigator.clipboard.writeText(id).then(function() {
+      el.classList.add('copied');
+      setTimeout(function() { el.classList.remove('copied'); }, 1200);
+    });
+  });
+});
+
+/* Click content to expand/collapse */
+document.querySelectorAll('.el-content-code').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    e.stopPropagation();
+    el.classList.toggle('expanded');
+  });
+});
+</script>
+{% endblock %}

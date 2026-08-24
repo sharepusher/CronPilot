@@ -321,6 +321,45 @@ def save_profile_completion(user_id, email, nickname, job_title):
     return {'ok': True, 'msg': '个人信息已补全'}
 
 
+def update_own_profile(user_id, email, nickname, job_title):
+    """当前登录用户自助修改花名、邮箱、岗位类型。"""
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return {'ok': False, 'msg': '用户不存在或已停用'}
+    errors = []
+    email = (email or '').strip()
+    nickname = (nickname or '').strip()
+    job_title = (job_title or '').strip()
+    if not email or '@' not in email:
+        errors.append('邮箱格式不正确')
+    if not nickname:
+        errors.append('花名不能为空')
+    elif len(nickname) > 64:
+        errors.append('花名最长 64 字符')
+    if not job_title:
+        errors.append('请选择岗位类型')
+    if job_title.startswith('other:'):
+        custom = job_title[len('other:'):].strip()
+        if not custom:
+            errors.append('请填写自定义岗位名称')
+        elif len(custom) > 20:
+            errors.append('自定义岗位名称最长 20 字符')
+        job_title = 'other:' + custom
+    elif job_title and job_title not in VALID_JOB_TITLES:
+        errors.append('岗位类型不合法')
+    if errors:
+        return {'ok': False, 'msg': '；'.join(errors)}
+    user.email = email
+    user.nickname = nickname
+    user.job_title = job_title
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败，请重试'}
+    return {'ok': True, 'msg': '个人资料已更新'}
+
+
 def _auto_issue_token(user):
     """自动签发/重置 API Token（创建用户 / 改密码 / 改组时调用）。"""
     import secrets

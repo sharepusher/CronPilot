@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": ".cursor/hooks/postmortem-reminder.sh",
+        "matcher": "Write|StrReplace|EditNotebook",
+        "timeout": 5
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/pre-commit-gate.sh",
+        "matcher": "git commit",
+        "timeout": 10,
+        "failClosed": true
+      }
+    ],
+    "stop": [
+      {
+        "type": "prompt",
+        "prompt": "Before this agent turn ends, evaluate: Did the agent make any file edits in this turn that FIXED something (corrected a bug, fixed a discrepancy, corrected documentation, added a missing gate/rule)? If YES: Does the agent's response contain a structured postmortem with ALL 7 elements (Bug定位, 根因, 测试漏洞, 修复, 防护测试, 同类排查, 预防方案)? Also check: Was RELEASE_NOTES.md updated if code changes were made? If the answer is YES-fixes-exist but NO-postmortem-missing or NO-release-notes-missing, return a followup_message asking the agent to complete documentation before finishing. If no fixes were made, or everything is complete, allow the stop. Here is the context: $ARGUMENTS",
+        "timeout": 15,
+        "loop_limit": 2
+      }
+    ]
+  }
+}

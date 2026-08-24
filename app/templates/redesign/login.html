@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="{{ theme }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 — CronPilot</title>
+  {% if csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/console-theme.css') }}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--cp-bg);
+      padding: 20px;
+      color: var(--cp-text);
+    }
+    .auth-card {
+      width: 380px;
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border);
+      border-radius: 12px;
+      padding: 36px 30px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .auth-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 28px;
+      color: var(--cp-text);
+    }
+    .auth-logo-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--cp-signal);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .auth-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .auth-subtitle { font-size: 12.5px; color: var(--cp-text-muted); margin-bottom: 24px; }
+    .auth-field { margin-bottom: 16px; }
+    .auth-field:last-of-type { margin-bottom: 20px; }
+    .auth-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .auth-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .auth-label-row a {
+      color: var(--cp-signal);
+      font-size: 11.5px;
+      font-weight: 400;
+      text-decoration: none;
+    }
+    .auth-label-row a:hover { text-decoration: underline; }
+    .auth-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      background: var(--cp-surface);
+      border: 1px solid var(--cp-border-strong);
+      border-radius: 6px;
+      color: var(--cp-text);
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .auth-input:focus { outline: none; border-color: var(--cp-signal); box-shadow: 0 0 0 2px var(--cp-signal-bg); }
+    .auth-input::placeholder { color: var(--cp-text-faint); }
+    .auth-hint { font-size: 11px; color: var(--cp-text-faint); margin-top: 5px; }
+    .input-with-toggle { position: relative; }
+    .input-with-toggle .auth-input { padding-right: 36px; }
+    .toggle-vis {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--cp-text-faint);
+      border-radius: 4px;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    .toggle-vis:hover { color: var(--cp-text); background: var(--cp-surface-2); }
+    .toggle-vis svg { width: 14px; height: 14px; }
+    .auth-btn {
+      width: 100%;
+      height: 38px;
+      border: none;
+      border-radius: 6px;
+      background: var(--cp-signal);
+      color: var(--cp-on-filled);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.12s;
+    }
+    .auth-btn:hover { opacity: 0.9; }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-msg {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .auth-msg-err {
+      background: var(--cp-danger-bg);
+      border: 1px solid var(--cp-danger-border);
+      color: var(--cp-danger);
+    }
+    .auth-msg-warn {
+      background: var(--cp-warn-bg);
+      border: 1px solid var(--cp-warn-border);
+      color: var(--cp-warn);
+    }
+    .auth-msg-reject {
+      background: var(--cp-danger-bg);
+      border: 1px solid var(--cp-danger-border);
+      color: var(--cp-danger);
+    }
+    .auth-footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--cp-text-muted);
+    }
+    .auth-footer a {
+      color: var(--cp-signal);
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .auth-footer a:hover { text-decoration: underline; }
+    .auth-link-inline { color: var(--cp-signal); text-decoration: none; }
+    .auth-link-inline:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-logo-dot"></span>CronPilot
+    </div>
+    <div class="auth-title">欢迎回来</div>
+    <div class="auth-subtitle">登录你的工作空间</div>
+
+    <form action="{{ url_for('rbac.login') }}" method="post" id="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <div class="auth-field">
+        <label class="auth-label" for="login-username">用户名</label>
+        <input type="text" id="login-username" name="username" class="auth-input" placeholder="请输入用户名" required autocomplete="username">
+        <div class="auth-hint">通常为邮箱前缀，如 zhangwei@company.com → zhangwei</div>
+      </div>
+
+      <div class="auth-field">
+        <div class="auth-label-row">
+          <label class="auth-label" for="login-pwd-input">密码</label>
+          <a href="{{ url_for('rbac.forgot_password') }}">忘记密码？</a>
+        </div>
+        <div class="input-with-toggle">
+          <input type="password" id="login-pwd-input" name="password" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="toggle-vis" data-target="login-pwd-input" title="显示/隐藏密码" aria-label="显示/隐藏密码">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="auth-btn" id="login-submit">登录</button>
+    </form>
+
+    {% if msg %}
+    <div class="auth-msg auth-msg-err">{{ msg }}</div>
+    {% endif %}
+
+    {% if reg_status %}
+      {% if reg_status.status == 'pending' %}
+      <div class="auth-msg auth-msg-warn">
+        <strong>⏳ 注册审核中</strong> — 您的注册申请正在审核中，请耐心等待。
+      </div>
+      {% elif reg_status.status == 'rejected' %}
+      <div class="auth-msg auth-msg-reject">
+        您的注册申请已被拒绝。{% if reg_status.review_comment %}原因：{{ reg_status.review_comment }}{% endif %}
+        <br><a href="{{ url_for('rbac.register') }}" class="auth-link-inline">重新申请</a>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="auth-footer">
+      还没有账号？<a href="{{ url_for('rbac.register') }}">申请注册</a>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    document.querySelectorAll('.toggle-vis').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var id = btn.getAttribute('data-target');
+        var input = id ? document.getElementById(id) : btn.parentElement.querySelector('input');
+        if (!input) return;
+        input.type = input.type === 'password' ? 'text' : 'password';
+      });
+    });
+
+    var form = document.getElementById('login-form');
+    var submitBtn = document.getElementById('login-submit');
+    if (form && submitBtn) {
+      form.addEventListener('submit', function() {
+        if (submitBtn.disabled) return false;
+        submitBtn.disabled = true;
+        submitBtn.textContent = '登录中…';
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

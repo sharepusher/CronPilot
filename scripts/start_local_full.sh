@@ -46,6 +46,7 @@ if [ ! -f conf.ini ]; then
 fi
 
 export FLASK_CONFIG=development
+export CRONPILOT_FORCE_NEW_UI=true
 bash "$ROOT/scripts/ensure_business_tables.sh"
 
 pids=$(cronpilot_listen_pids "$LOCAL_PORT")

@@ -100,7 +100,7 @@ class TestAntiDoubleSubmitGuard(unittest.TestCase):
                       'common.js 须包含全局防重复提交守卫（cp-submitting 标记）')
 
     def test_standalone_post_forms_include_common_js(self):
-        """不继承 admin_base.html 的 POST 表单页须显式引入 common.js。"""
+        """不继承 admin_base.html 的 POST 表单页须显式引入 common.js 或内联等效防重复提交守卫。"""
         failures = []
         for path in _iter_html_templates():
             basename = os.path.basename(path)
@@ -112,13 +112,16 @@ class TestAntiDoubleSubmitGuard(unittest.TestCase):
                 continue
             if 'admin_base.html' in html or "extends" in html:
                 continue
-            if 'common.js' not in html:
-                rel = os.path.relpath(path, ROOT)
-                failures.append(rel)
+            if 'common.js' in html:
+                continue
+            if '.disabled' in html and ('submitting' in html.lower() or '中…' in html):
+                continue
+            rel = os.path.relpath(path, ROOT)
+            failures.append(rel)
         self.assertEqual(
             failures,
             [],
-            '独立 POST 表单页须引入 common.js 以获得全局防重复提交保护：\n'
+            '独立 POST 表单页须引入 common.js 或内联等效防重复提交守卫：\n'
             + '\n'.join(failures),
         )
 

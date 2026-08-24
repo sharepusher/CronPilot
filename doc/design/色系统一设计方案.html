@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 色系统一设计方案（RFC）</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 40px auto; padding: 0 24px; line-height: 1.7; color: #1a1a2e; }
+h1 { border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+h2 { margin-top: 48px; color: #334155; }
+h3 { margin-top: 32px; color: #475569; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+th { background: #f8fafc; font-weight: 600; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+.swatch { display: inline-block; width: 16px; height: 16px; border-radius: 3px; vertical-align: middle; margin-right: 6px; border: 1px solid rgba(0,0,0,0.1); }
+.problem { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 16px 0; }
+.insight { background: #f0fdf4; border-left: 4px solid #059669; padding: 12px 16px; margin: 16px 0; }
+.principle { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 16px 0; }
+.meta { color: #64748b; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>CronPilot 色系统一设计方案（RFC）</h1>
+
+<p class="meta">
+编号：OPT-P1-15 · 创建：2026-08-10 · 状态：<strong>草案/待确认</strong><br>
+前置：OPT-P2-14（Console Mode + Dark Theme）已交付<br>
+触发：用户反馈深色模式"颜色乱七八糟"，Batch 4 Tailwind 统一方案被回退
+</p>
+
+<h2>一、现状诊断：为什么"看起来不协调"</h2>
+
+<h3>1.1 核心问题：三套调色板在同一页面共存</h3>
+
+<table>
+<tr><th>来源</th><th>色相范围</th><th>饱和度模型</th><th>使用场景</th><th>变量数</th></tr>
+<tr>
+<td>Tailwind CSS 色阶</td>
+<td>完整色轮（slate/blue/green/red/amber/indigo）</td>
+<td>S = 47–94%（跨度 47%）</td>
+<td>正文、状态标签、表单、Tag、背景</td>
+<td>55 个</td>
+</tr>
+<tr>
+<td>Flat UI (2013)</td>
+<td>有限色相（midnight/peter-river/green-sea/carrot）</td>
+<td>S = 29–80%（跨度 51%）</td>
+<td>Topbar 背景、角色徽标</td>
+<td>9 个</td>
+</tr>
+<tr>
+<td>Bootstrap 3 默认</td>
+<td>单色（#337ab7）</td>
+<td>S = 56%</td>
+<td>链接</td>
+<td>1 个</td>
+</tr>
+</table>
+
+<div class="problem">
+<strong>视觉后果</strong>：用户在任务列表页同时看到 Tailwind 蓝 (#2563eb, H=221°) 的运行状态标签、Flat UI 蓝 (#2980b9, H=204°) 的 admin 角色徽标、Bootstrap 蓝 (#337ab7, H=208°) 的链接文字——三个"蓝"色相差 17°、饱和度差 27%，人眼可感知但说不出哪里不对。
+</div>
+
+<h3>1.2 量化诊断</h3>
+
+<table>
+<tr><th>诊断维度</th><th>CronPilot 现状</th><th>行业标杆范围</th><th>差距</th></tr>
+<tr><td>语义色饱和度跨度</td><td>78%（S=16–94%）</td><td>&lt; 30%</td><td>2.6 倍</td></tr>
+<tr><td>同色系蓝色色相分裂</td><td>3 个独立蓝（H=204/208/221°）</td><td>统一为 1 个色相 ±5°</td><td>色相跨 17°</td></tr>
+<tr><td>CSS 颜色变量总数</td><td>65 × 2（亮暗）= 130</td><td>15–25 × 2 = 30–50</td><td>2.6 倍</td></tr>
+<tr><td>暗色模式设计方法</td><td>"查 Tailwind 对应暗色阶填入"</td><td>独立的明度/饱和度曲线</td><td>缺少设计规则</td></tr>
+</table>
+
+<h3>1.3 WCAG 对比度审计结果</h3>
+
+<table>
+<tr><th>组合</th><th>亮色比</th><th>暗色比</th><th>WCAG AA（≥4.5）</th></tr>
+<tr><td>ink / surface（正文）</td><td>17.85</td><td>13.30</td><td>✅ / ✅</td></tr>
+<tr><td>muted / surface（次要文字）</td><td>4.76</td><td>3.39</td><td>✅ / ⚠️ 不达标</td></tr>
+<tr><td>link / surface（链接）</td><td>4.56</td><td>6.45</td><td>✅ / ✅</td></tr>
+<tr><td>accent / surface（主强调）</td><td>3.68</td><td>9.08</td><td>⚠️ 不达标 / ✅</td></tr>
+<tr><td>role-admin / surface（徽标）</td><td>4.30</td><td>6.45</td><td>⚠️ 不达标 / ✅</td></tr>
+<tr><td>border / surface（边框）</td><td>1.23</td><td>1.24</td><td>❌ / ❌</td></tr>
+</table>
+
+<div class="problem">
+<strong>关键发现</strong>：<br>
+① 暗色模式次要文字 (<code>--cp-muted</code>) 对比度仅 3.39:1，不满足正文可读性要求<br>
+② 亮色模式强调色/角色标签对比度边界不达标（3.68/4.30）<br>
+③ 边框色在两种模式下都几乎不可见（1.23:1）——这意味着"边框"实际上是靠阴影/间距感知的，不是靠颜色
+</div>
+
+<h3>1.4 色相一致性（亮↔暗）</h3>
+
+<div class="insight">
+<strong>好消息</strong>：当前亮暗模式的色相偏移控制得很好——所有关键变量的色相差 &lt; 10°，品牌色的"色感"在模式切换时保持了一致。问题不在于"暗色用了不同的颜色"，而在于<strong>亮色模式本身就有三套来源混用</strong>，暗色只是忠实地映射了这个混乱。
+</div>
+
+<h2>二、行业标杆分析</h2>
+
+<h3>2.1 对标产品</h3>
+
+<p>CronPilot 定位为"定时调度管理面板"，对标以下同类产品：</p>
+
+<table>
+<tr><th>产品</th><th>定位</th><th>主色</th><th>色系策略</th><th>暗色策略</th></tr>
+<tr>
+<td><strong>Grafana</strong></td>
+<td>监控面板</td>
+<td>Orange (#FF6600)</td>
+<td>暖色主色 + 蓝灰中性面 + 独立语义色</td>
+<td>暗色是默认模式，专门设计</td>
+</tr>
+<tr>
+<td><strong>Datadog</strong></td>
+<td>监控/APM</td>
+<td>Purple (#632CA6)</td>
+<td>冷色主调 + 极简，S=55–75% 统一区间</td>
+<td>深灰底 (#23232F)，非纯黑</td>
+</tr>
+<tr>
+<td><strong>Linear</strong></td>
+<td>项目管理</td>
+<td>Indigo (#5E6AD2)</td>
+<td>极简 4–5 色，灰度占 90%+</td>
+<td>暗色有独立明度曲线</td>
+</tr>
+<tr>
+<td><strong>Cloudflare</strong></td>
+<td>管理后台</td>
+<td>Orange + Blue</td>
+<td>双主调 + 功能语义色分明</td>
+<td>共享色相，调明度/饱和度</td>
+</tr>
+<tr>
+<td><strong>GitHub Primer</strong></td>
+<td>开发者工具</td>
+<td>模块化 accent</td>
+<td>Scale 系统（每色相 10 级阶梯）</td>
+<td>同色相 light.5 → dark.3 映射</td>
+</tr>
+</table>
+
+<h3>2.2 提炼的行业共性原则</h3>
+
+<div class="principle">
+<strong>原则 1：一个产品一个蓝</strong><br>
+所有行业头部产品中，"蓝色"只有一个色相角度（±5°），通过明度/饱和度产生变体。不存在"这里用 204° 蓝那里用 221° 蓝"的情况。
+</div>
+
+<div class="principle">
+<strong>原则 2：语义色饱和度统一</strong><br>
+同一产品中所有功能/语义色的饱和度落在一个窄区间内（通常 25% 跨度以内），这是视觉和谐的核心——饱和度跳跃比色相跳跃更容易被感知为"乱"。
+</div>
+
+<div class="principle">
+<strong>原则 3：灰度为主，颜色为辅</strong><br>
+管理面板 80–90% 的视觉面积由灰色/中性色承载（背景、边框、正文），颜色只用于传递语义（状态、操作、角色）。颜色不是"装饰"而是"信号"。
+</div>
+
+<div class="principle">
+<strong>原则 4：暗色模式是独立设计，不是映射</strong><br>
+暗色不是"找 Tailwind 暗色阶对应值"，而是有自己的规则：<br>
+• 背景：极暗但不纯黑（#16–1e，保留蓝/紫色相 2–5%）<br>
+• 语义色：同色相，S-10~15%，L+15~25%<br>
+• 文字：不用纯白，用 90% 白（#e2e8f0）减轻刺目感
+</div>
+
+<div class="principle">
+<strong>原则 5：变量数量克制</strong><br>
+语义层变量 15–25 个足够覆盖管理面板所有场景。超过 40 个说明粒度过细，维护成本反超收益。可以有内部 scale（不暴露为变量），语义层引用 scale。
+</div>
+
+<h2>三、推荐方案：渐进统一</h2>
+
+<h3>3.1 设计方向选择</h3>
+
+<table>
+<tr><th>方案</th><th>描述</th><th>风险</th><th>推荐度</th></tr>
+<tr>
+<td><strong>A. 以 Flat UI 为锚点统一</strong></td>
+<td>让 Tailwind 色向 Flat UI 色相/饱和度靠拢，保持现有"品牌感"</td>
+<td>Flat UI 色系本身缺乏系统性（无完整 scale），向上扩展困难</td>
+<td>⭐⭐</td>
+</tr>
+<tr>
+<td><strong>B. 以 CronPilot 品牌色为锚点重建</strong></td>
+<td>定义 1 个品牌色 + 4–5 个语义色，统一 S 区间，两边向中间收敛</td>
+<td>需要"品牌色"决策，工作量中等</td>
+<td>⭐⭐⭐⭐⭐</td>
+</tr>
+<tr>
+<td><strong>C. 全盘 Tailwind 替换</strong></td>
+<td>所有 Flat UI / Bootstrap 色换为 Tailwind 等价色</td>
+<td>已尝试并被用户否决——色感跳跃太大</td>
+<td>❌ 已验证不可行</td>
+</tr>
+<tr>
+<td><strong>D. 不动色值，只修对比度</strong></td>
+<td>仅调整 WCAG 不达标的 3–4 个变量</td>
+<td>不解决根本问题，但零风险</td>
+<td>⭐⭐⭐（短期）</td>
+</tr>
+</table>
+
+<h3>3.2 推荐方案 B 详解：以品牌色为锚点重建</h3>
+
+<p><strong>核心思路</strong>：不改变用户已习惯的整体视觉印象（深蓝 topbar + 青色强调），但用一套统一的 HSL 规则重新推导所有色值，消除三套来源的"混搭感"。</p>
+
+<h4>Step 1：确定品牌色锚点</h4>
+
+<p>CronPilot 现有视觉识别中最强烈的色彩记忆是：</p>
+<ul>
+<li><strong>Topbar 深蓝</strong>：#2c3e50 (H=210°, S=29%, L=24%) — 深沉、专业、技术感</li>
+<li><strong>Accent 青色</strong>：#0891b2 (H=192°, S=94%, L=37%) — Console Mode 的现代感标记</li>
+</ul>
+
+<p>这两个色值是 CronPilot 的"品牌锚点"——用户看到深蓝 + 青色就知道"这是 CronPilot"。任何色系统一方案<strong>不应改变这两个锚点</strong>。</p>
+
+<h4>Step 2：统一饱和度通道</h4>
+
+<p>将所有语义色的饱和度收敛到一个窄区间：</p>
+
+<table>
+<tr><th>色彩角色</th><th>目标 S 范围</th><th>说明</th></tr>
+<tr><td>品牌/主强调</td><td>S = 85–95%</td><td>允许最高饱和度（仅 accent 1 个）</td></tr>
+<tr><td>语义色（成功/危险/警告）</td><td>S = 60–75%</td><td>统一到 Flat UI 的中等饱和度</td></tr>
+<tr><td>角色/功能标签</td><td>S = 55–70%</td><td>略低于语义色，不喧宾夺主</td></tr>
+<tr><td>中性面（文字/背景/边框）</td><td>S = 5–20%</td><td>灰色带微量色相倾向</td></tr>
+</table>
+
+<h4>Step 3：统一蓝色色相</h4>
+
+<p>所有"蓝色"统一为 <strong>H = 208°</strong>（介于 Flat UI 204° 和 Tailwind 221° 之间，恰好是 Bootstrap 默认蓝）：</p>
+
+<table>
+<tr><th>变量</th><th>当前 H°</th><th>目标 H°</th><th>变化</th></tr>
+<tr><td>--cp-link</td><td>208°</td><td>208°</td><td>不变（锚点）</td></tr>
+<tr><td>--cp-role-admin</td><td>204°</td><td>208°</td><td>+4°（几乎不可感知）</td></tr>
+<tr><td>--cp-accent-blue</td><td>221°</td><td>208°</td><td>-13°（从偏紫回到标准蓝）</td></tr>
+<tr><td>--cp-accent-blue-2</td><td>224°</td><td>208°</td><td>-16°</td></tr>
+</table>
+
+<h4>Step 4：暗色模式独立规则</h4>
+
+<p>不再"查 Tailwind 暗色 scale"，而是用数学规则推导：</p>
+
+<table>
+<tr><th>规则</th><th>公式</th><th>示例</th></tr>
+<tr><td>保持色相</td><td>H<sub>dark</sub> = H<sub>light</sub></td><td>blue 208° → 208°</td></tr>
+<tr><td>降低饱和度</td><td>S<sub>dark</sub> = S<sub>light</sub> × 0.75</td><td>S=70% → S=52%</td></tr>
+<tr><td>提升明度</td><td>L<sub>dark</sub> = L<sub>light</sub> + 20%（上限 80%）</td><td>L=44% → L=64%</td></tr>
+<tr><td>背景/表面</td><td>H=230° S=15% L=8–12%</td><td>深蓝灰，非纯黑</td></tr>
+</table>
+
+<h3>3.3 分阶段实施路径</h3>
+
+<table>
+<tr><th>阶段</th><th>范围</th><th>影响变量数</th><th>风险</th></tr>
+<tr>
+<td><strong>Phase 0：对比度修复（即时）</strong></td>
+<td>仅调整 WCAG 不达标的 3 个变量</td>
+<td>3</td>
+<td>极低</td>
+</tr>
+<tr>
+<td><strong>Phase 1：蓝色统一（低风险）</strong></td>
+<td>将 3 个蓝色统一到 H=208°，调整 S 到统一区间</td>
+<td>5–6</td>
+<td>低（色相变化 ≤ 16°）</td>
+</tr>
+<tr>
+<td><strong>Phase 2：语义色 S 收敛（中风险）</strong></td>
+<td>绿/红/黄/紫各语义色 S 收敛到 60–75%</td>
+<td>15–20</td>
+<td>中（视觉变化可感知）</td>
+</tr>
+<tr>
+<td><strong>Phase 3：暗色规则化（中风险）</strong></td>
+<td>用统一数学规则重推所有暗色值</td>
+<td>65</td>
+<td>中（需全页面验收）</td>
+</tr>
+<tr>
+<td><strong>Phase 4：变量精简（远期）</strong></td>
+<td>将 65 变量合并/分层为 20–25 语义变量 + scale</td>
+<td>—</td>
+<td>高（全站引用需更新）</td>
+</tr>
+</table>
+
+<h2>四、对 Batch 4 失败的根因分析</h2>
+
+<table>
+<tr><th>失误</th><th>根因</th><th>本方案如何避免</th></tr>
+<tr>
+<td>直接用 Tailwind 色值替换 Flat UI</td>
+<td>没有先定义"统一的目标饱和度区间"，只做了色相对齐</td>
+<td>先定义 S 区间规则，再推导具体色值</td>
+</tr>
+<tr>
+<td>一次性改 9 个变量</td>
+<td>变化太大无法逐步验收，只能整体"感觉不对"</td>
+<td>分 4 阶段，每阶段 3–6 个变量，逐步验收</td>
+</tr>
+<tr>
+<td>没有视觉锚点保持</td>
+<td>Topbar 和角色标签色都变了，用户失去"熟悉感"</td>
+<td>锚点（topbar bg + accent）不动，其余向锚点靠拢</td>
+</tr>
+<tr>
+<td>没有对比度验证</td>
+<td>只管"色系统一"没管"是否可读"</td>
+<td>每阶段强制 WCAG AA 对比度检查</td>
+</tr>
+</table>
+
+<h2>五、验收标准</h2>
+
+<ol>
+<li><strong>饱和度一致性</strong>：所有语义色 S 在 55–75% 区间内（跨度 ≤ 20%）</li>
+<li><strong>色相统一</strong>：同色系（蓝/绿/红/黄）内部色相差 ≤ 5°</li>
+<li><strong>WCAG AA</strong>：所有文字/图标与其背景的对比度 ≥ 4.5:1</li>
+<li><strong>亮暗一致性</strong>：色相偏移 ≤ 10°（已满足，保持）</li>
+<li><strong>品牌连续性</strong>：Topbar (#2c3e50) 和 Accent (#0891b2) 不变</li>
+<li><strong>用户可感知改善</strong>：同一页面内不再出现"两种蓝"、"两种绿"的视觉撕裂</li>
+</ol>
+
+<h2>六、决策点（需用户确认）</h2>
+
+<ol>
+<li><strong>品牌色锚点</strong>：是否同意以"深蓝 topbar + 青色 accent"作为品牌色不动点？</li>
+<li><strong>目标蓝色相</strong>：是否接受 H=208°（Bootstrap 蓝）作为统一蓝色？还是偏好 H=204°（更偏现有 Flat UI）？</li>
+<li><strong>实施节奏</strong>：先做 Phase 0（3 个对比度修复，无视觉变化）然后逐阶段？还是一步到位？</li>
+<li><strong>方案选择</strong>：是否同意方案 B（品牌锚点重建）？有其他偏好？</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="色系统一设计方案.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

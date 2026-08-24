@@ -1,0 +1,81 @@
+name: Visual Regression
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/templates/redesign/**'
+      - 'app/static/css/redesign-*.css'
+      - 'app/static/css/console-theme.css'
+      - 'scripts/compare_visual_regression.py'
+      - 'scripts/capture_visual_baseline.py'
+      - 'tests/visual_regression/baseline/**'
+      - '.github/workflows/visual-regression.yml'
+  pull_request:
+    paths:
+      - 'app/templates/redesign/**'
+      - 'app/static/css/redesign-*.css'
+      - 'app/static/css/console-theme.css'
+      - 'scripts/compare_visual_regression.py'
+      - 'scripts/capture_visual_baseline.py'
+      - 'tests/visual_regression/baseline/**'
+      - '.github/workflows/visual-regression.yml'
+
+jobs:
+  visual-regression:
+    name: Visual regression (Redesign v2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements-core.txt
+          pip install playwright Pillow
+
+      - name: Install Playwright Chromium
+        run: playwright install --with-deps chromium
+
+      - name: Prepare conf.ini (SQLite, no external DB)
+        run: cp conf.ci.ini conf.ini
+
+      - name: Start CronPilot server
+        run: |
+          bash scripts/ensure_business_tables.sh
+          bash scripts/start_local_full.sh &
+          for i in $(seq 1 20); do
+            curl -sf http://127.0.0.1:5001/rbac/login -o /dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:5001/rbac/login -o /dev/null || (echo "Server failed to start" && exit 1)
+
+      - name: Regenerate baseline if missing or stale (Linux-native)
+        # On first run or when baseline is macOS-generated, regenerate to avoid
+        # cross-platform font-rendering false positives.  Stale baseline is
+        # detected by checking the baseline/.platform sentinel file.
+        run: |
+          PLATFORM_FILE=tests/visual_regression/baseline/.platform
+          if [ ! -f "$PLATFORM_FILE" ] || [ "$(cat $PLATFORM_FILE)" != "linux" ]; then
+            echo "Baseline is missing or from non-Linux platform — regenerating..."
+            python scripts/capture_visual_baseline.py
+            echo "linux" > "$PLATFORM_FILE"
+            echo "Baseline regenerated on Linux."
+          else
+            echo "Linux baseline exists — skipping capture."
+          fi
+
+      - name: Run visual regression comparison
+        # Strict 0.5% threshold; baselines are now Linux-native so no cross-platform skew.
+        run: python scripts/compare_visual_regression.py --threshold 0.5
+
+      - name: Upload diff screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diffs
+          path: tests/visual_regression/current/
+          retention-days: 7

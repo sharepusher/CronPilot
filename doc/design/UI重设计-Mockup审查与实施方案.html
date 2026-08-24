@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 2026 — UI 重设计 Mockup 审查结论与分批实施方案</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:1080px;margin:40px auto;padding:0 24px;line-height:1.8;color:#14171A;font-size:14px;}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:12px;font-size:22px;}
+h2{margin-top:56px;font-size:18px;color:#14171A;border-left:4px solid #3D6FE0;padding-left:12px;}
+h3{margin-top:28px;color:#334155;font-size:15px;}
+h4{margin-top:18px;color:#475569;font-size:14px;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px;}
+th,td{border:1px solid #E4E6E9;padding:8px 12px;text-align:left;}
+th{background:#F7F8F9;font-weight:600;}
+code{background:#F1F2F4;padding:2px 6px;border-radius:3px;font-size:0.88em;font-family:'JetBrains Mono',monospace;}
+.box{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;line-height:1.7;}
+.box-blue{background:rgba(61,111,224,0.06);border:1px solid rgba(61,111,224,0.2);}
+.box-green{background:rgba(15,157,102,0.06);border:1px solid rgba(15,157,102,0.2);}
+.box-amber{background:rgba(183,121,31,0.06);border:1px solid rgba(183,121,31,0.2);}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-done{background:#dcfce7;color:#166534;}
+.badge-wip{background:#dbeafe;color:#1e40af;}
+.badge-next{background:#fef3c7;color:#92400e;}
+.badge-future{background:#f1f5f9;color:#475569;}
+pre{background:#0D0F12;color:#ECEEF0;padding:16px 20px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;}
+.meta{color:#5B6169;font-size:12px;margin-bottom:32px;}
+.timeline{border-left:3px solid #3D6FE0;padding-left:20px;margin:20px 0;}
+.timeline .phase{margin-bottom:24px;position:relative;}
+.timeline .phase::before{content:'';position:absolute;left:-26px;top:6px;width:10px;height:10px;border-radius:50%;background:#3D6FE0;}
+.timeline .phase-title{font-weight:700;font-size:14px;margin-bottom:4px;}
+.timeline .phase-desc{font-size:13px;color:#5B6169;}
+</style>
+</head>
+<body>
+
+<h1>CronPilot 2026 — UI 重设计 Mockup 审查结论与分批实施方案</h1>
+
+<p class="meta">
+文档编号：OPT-P1-16-IMPL · 创建：2026-08-11 · 最后更新：2026-08-11 · 状态：<strong>审查通过（二轮），待实施</strong><br>
+关联文档：<code>UI交互重设计综合方案.html</code> · <code>色系统一设计方案.html</code> · <code>CronPilot-2026-redesign-mockup.html</code><br>
+目标：将 Mockup 设计落地为工程可交付的分批实施方案
+</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>一、Mockup 审查结论</h2>
+
+<h3>1.1 审查范围</h3>
+<table>
+<tr><th>审查项</th><th>状态</th><th>说明</th></tr>
+<tr><td>浅色模式（默认）</td><td><span class="badge badge-done">✅ 通过</span></td><td>所有 22 个 View 验证完毕</td></tr>
+<tr><td>深色模式</td><td><span class="badge badge-done">✅ 通过</span></td><td>8 个关键页面逐一截图验证一致性（二轮追加）</td></tr>
+<tr><td>功能覆盖完整性</td><td><span class="badge badge-done">✅ 通过</span></td><td>当前系统所有功能均有对应 Mockup</td></tr>
+<tr><td>交互细节</td><td><span class="badge badge-done">✅ 通过</span></td><td>密码 Toggle、强度条、表单验证、空状态、骨架屏、Toast、Modal、分页均已覆盖</td></tr>
+<tr><td>新旧对比合理性</td><td><span class="badge badge-done">✅ 通过</span></td><td>任务中心/用户管理/登录三大核心对比确认</td></tr>
+<tr><td>文案与真实系统对齐</td><td><span class="badge badge-done">✅ 通过</span></td><td>全量审计：表单标签、默认值、占位符、帮助文案均与 cron_add.html 等模板对齐</td></tr>
+<tr><td>中文本地化（i18n）</td><td><span class="badge badge-done">✅ 通过</span></td><td>二轮审查消除全部非技术英文标签（详见 §1.4）</td></tr>
+</table>
+
+<h3>1.2 Mockup 覆盖的完整页面清单</h3>
+<table>
+<tr><th>模块</th><th>页面</th><th>View ID</th><th>核心改进</th></tr>
+<tr><td rowspan="5">Operations</td><td>任务中心（Dashboard）</td><td>view-dashboard</td><td>Health-First + 异常置顶 + Cron可视 + 分页</td></tr>
+<tr><td>任务详情/下钻</td><td>view-detail</td><td>三层状态模型 + 配置/历史/操作分区</td></tr>
+<tr><td>Run Inspector</td><td>view-run-inspector</td><td>全链路执行轨迹 + HTTP 响应展示</td></tr>
+<tr><td>失败记录分析</td><td>view-run-failed</td><td>异常分组 + 根因摘要</td></tr>
+<tr><td>执行记录</td><td>view-logs</td><td>时间线样式 + 状态过滤</td></tr>
+<tr><td rowspan="5">Configuration</td><td>业务组</td><td>view-groups</td><td>组成员/任务统计 + 创建表单</td></tr>
+<tr><td>标签管理</td><td>view-tags</td><td>命名空间分层 + 色彩标签</td></tr>
+<tr><td>任务编辑</td><td>view-form</td><td>分区表单（基础/Endpoint/Schedule/Lifecycle）</td></tr>
+<tr><td>新建任务</td><td>view-task-add</td><td>同编辑结构，空状态起始</td></tr>
+<tr><td>新建业务组</td><td>view-group-add</td><td>简洁创建表单</td></tr>
+<tr><td rowspan="5">Administration</td><td>用户管理</td><td>view-users</td><td>Avatar分层 + 状态圆点 + Tab筛选</td></tr>
+<tr><td>添加用户</td><td>view-user-add</td><td>密码强度 + 角色/组选择</td></tr>
+<tr><td>编辑用户</td><td>view-user-edit</td><td>危险区域隔离</td></tr>
+<tr><td>注册审批</td><td>view-reg-review</td><td>Tab切换（待审/已通过/已拒绝）</td></tr>
+<tr><td>审计日志</td><td>view-audit</td><td>时间线 + 操作者/动作/目标分列</td></tr>
+<tr><td rowspan="2">Personal</td><td>修改密码</td><td>view-password</td><td>密码Toggle + 强度指示器 + 安全提示</td></tr>
+<tr><td>API Token</td><td>view-api-token</td><td>Token展示 + curl示例 + 重新生成</td></tr>
+<tr><td>Developer</td><td>API 文档</td><td>view-apidoc</td><td>Swagger嵌入 + 端点列表</td></tr>
+<tr><td>操作记录</td><td>操作历史</td><td>view-optlog</td><td>时间线样式</td></tr>
+<tr><td rowspan="4">Auth（独立页）</td><td>登录</td><td>login-page</td><td>居中卡片 + 密码Toggle</td></tr>
+<tr><td>注册</td><td>register-page</td><td>角色/组选择 + 申请理由</td></tr>
+<tr><td>忘记密码</td><td>forgot-page</td><td>邮箱重置流程</td></tr>
+<tr><td>错误页(403)</td><td>view-error-demo</td><td>友好提示 + 返回操作</td></tr>
+</table>
+
+<h3>1.3 设计原则确认</h3>
+<div class="box box-blue">
+<strong>核心设计决策（用户确认）</strong>
+<ul>
+<li><strong>默认主题</strong>：浅色（Light）为默认</li>
+<li><strong>品牌色</strong>：#3D6FE0（蓝色主色调），延续 CronPilot 品牌</li>
+<li><strong>信息架构</strong>：Health-First — 异常和需关注任务优先展示</li>
+<li><strong>导航分组</strong>：运维操作 → 系统配置 → 系统管理 → 个人设置 → 开发者</li>
+<li><strong>用户管理操作语义</strong>：使用"添加用户"而非"邀请"（无邮件通知机制）</li>
+<li><strong>色系</strong>：暂保留现有 Flat UI 色值，色系统一推迟到专项重设计</li>
+<li><strong>交互规范</strong>：密码字段均需 Toggle；表单均需验证反馈；列表均需分页</li>
+<li><strong>本地化原则</strong>：界面全部中文化，仅保留技术名词（HTTP/URL/Cron/API/Token/JSON 等）使用英文</li>
+</ul>
+</div>
+
+<h3>1.4 本地化（i18n）审查结论（二轮追加）</h3>
+
+<p>二轮审查中发现 Mockup 中仍有约 40 处英文 UI 标签，已全部修正为中文。以下为修正清单：</p>
+
+<table>
+<tr><th>区域</th><th>修正前（英文）</th><th>修正后（中文）</th></tr>
+<tr><td>侧栏导航分类</td><td>Operations / Configuration / Administration / Personal / Developer / Demo</td><td>运维操作 / 系统配置 / 系统管理 / 个人设置 / 开发者 / 演示</td></tr>
+<tr><td>任务详情卡片标题</td><td>Health / Schedule / Recent Runs / Configuration</td><td>健康度 / 调度 / 最近执行 / 配置信息</td></tr>
+<tr><td>任务详情配置标签</td><td>Endpoint / Timeout / Group / Owner / Created / Last Edit</td><td>请求地址 / 超时 / 业务组 / 创建人 / 创建时间 / 最后修改</td></tr>
+<tr><td>调度卡片内文案</td><td>Next Run: / Timezone:</td><td>下次执行: / 时区:</td></tr>
+<tr><td>执行详情页头</td><td>Run #xxx / SUCCESS / FAILED</td><td>执行 #xxx / 成功 / 失败</td></tr>
+<tr><td>执行元信息</td><td>Duration / Started / Finished / Triggered by / Error</td><td>耗时 / 开始 / 结束 / 触发方式 / 错误</td></tr>
+<tr><td>执行详情 Section</td><td>Request / Response / Business Logs / Metadata / Failure Reason</td><td>请求 / 响应 / 业务日志 / 元数据 / 失败原因</td></tr>
+<tr><td>元数据标签</td><td>Task / Group / Triggered By / Worker / Timezone</td><td>任务 / 业务组 / 触发方式 / 执行节点 / 时区</td></tr>
+<tr><td>生命周期状态 Badge</td><td>Active / Retired</td><td>运行中 / 已下线</td></tr>
+<tr><td>健康状态标签</td><td>Healthy / ×5 Failing / ×3 Failing</td><td>健康 / ×5 异常 / ×3 异常</td></tr>
+<tr><td>表单 Section 标题</td><td>Endpoint / Schedule</td><td>请求配置 / 调度配置</td></tr>
+<tr><td>Dashboard 统计</td><td>今日失败 Run / 128 Tasks</td><td>今日失败次数 / 128 个任务</td></tr>
+<tr><td>Command Palette</td><td>Create task / ● Healthy</td><td>新建任务 / ● 健康</td></tr>
+<tr><td>失败详情</td><td>Consecutive Failures / Last Success</td><td>连续失败 / 最后成功</td></tr>
+</table>
+
+<div class="box box-green">
+<strong>保留英文的技术名词</strong>：HTTP、URL、POST/GET、Cron、API、Token、JSON、N/A、Connection refused、HTTP 502 等运行时错误信息。这些是行业通用技术术语或真实系统日志输出，不做翻译。
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>二、新旧版本核心差异对比</h2>
+
+<h3>2.1 任务中心</h3>
+<table>
+<tr><th>维度</th><th>当前版本 (v3.0)</th><th>新设计 (v4.0 Target)</th></tr>
+<tr><td>首屏焦点</td><td>任务平铺列表</td><td>Health 指标汇总（异常/失败/运行中/今日成功率）</td></tr>
+<tr><td>异常提醒</td><td>无</td><td>「需要关注的任务」Alert 卡片，连续失败/超时/P95 异常置顶</td></tr>
+<tr><td>调度展示</td><td>"每小时第30分钟" 纯文字</td><td>Cron 5 段可视化 <code>*/5 * * * *</code> + 中文人读</td></tr>
+<tr><td>表格设计</td><td>6列密集文字表格</td><td>分层卡片行 — 任务名+URL/标签/状态独立层级</td></tr>
+<tr><td>操作入口</td><td>"运行记录"文字链接 + "更多"按钮</td><td>Icon Action Bar（执行/暂停/更多菜单）</td></tr>
+<tr><td>分页</td><td>首页/上一页/1/下一页/尾页（文字）</td><td>数字分页 + 条目统计（"显示 1-5 / 共 128 个任务"）</td></tr>
+</table>
+
+<h3>2.2 用户管理</h3>
+<table>
+<tr><th>维度</th><th>当前版本</th><th>新设计</th></tr>
+<tr><td>列表样式</td><td>ID起始 + 紧凑表格</td><td>Avatar + 姓名/邮箱分层卡片</td></tr>
+<tr><td>状态展示</td><td>彩色底色块「启用/停用」</td><td>语义圆点 <code>●</code> + 文案</td></tr>
+<tr><td>筛选</td><td>单行文本搜索框</td><td>Tab 快筛（全部/启用/停用）+ 角色/组下拉</td></tr>
+<tr><td>操作</td><td>红/蓝色文字链接并排</td><td>统一 icon 操作按钮（齿轮/设置）</td></tr>
+<tr><td>信息摘要</td><td>无</td><td>"6 名成员 · 3 个业务组" 头部概览</td></tr>
+</table>
+
+<h3>2.3 登录页</h3>
+<table>
+<tr><th>维度</th><th>当前版本</th><th>新设计</th></tr>
+<tr><td>布局</td><td>超大 Jumbotron 标题 + 单行内联表单</td><td>页面居中卡片，视觉聚焦</td></tr>
+<tr><td>品牌</td><td>"CronPilot 定时调度平台" 大标题</td><td>Logo + "欢迎回来" 简洁问候</td></tr>
+<tr><td>安全</td><td>无密码可视性切换</td><td>👁 密码显示/隐藏 Toggle</td></tr>
+<tr><td>辅助导航</td><td>同行排列</td><td>分层（忘记密码右对齐 + 注册在卡片底部）</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>三、分批实施方案</h2>
+
+<div class="box box-amber">
+<strong>实施原则</strong>：每批独立可交付、独立可验收、可回滚。批次间无强依赖，可灵活调整顺序。每批完成后服务可正常运行。
+</div>
+
+<h3>3.1 实施阶段总览</h3>
+
+<div class="timeline">
+<div class="phase">
+<div class="phase-title"><span class="badge badge-next">Phase 1</span> 基础设施 — Design Token + Layout Shell（2-3天）</div>
+<div class="phase-desc">建立新 Layout（Sidebar + Topbar + Content Area），注入 Design Token 系统，所有后续 Phase 基于此骨架。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-next">Phase 2</span> 核心 Operations — 任务中心重构（3-4天）</div>
+<div class="phase-desc">Health-First Dashboard、Cron 可视化、新任务列表卡片行、分页组件。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-next">Phase 3</span> Task Detail + Execution（2-3天）</div>
+<div class="phase-desc">任务详情下钻、Run Inspector、执行记录时间线。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-future">Phase 4</span> 表单系统 — 任务编辑/新建（2天）</div>
+<div class="phase-desc">分区表单（基础/Endpoint/Schedule/Lifecycle），Cron 实时预览。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-future">Phase 5</span> Administration — 用户/组/审批/审计（3天）</div>
+<div class="phase-desc">用户管理列表+CRUD、业务组管理、注册审批Tab、审计时间线。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-future">Phase 6</span> Auth 独立页 + Personal（1-2天）</div>
+<div class="phase-desc">登录/注册/忘记密码重设计、修改密码（含强度条）、API Token。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-future">Phase 7</span> 全局交互 + 辅助页（1-2天）</div>
+<div class="phase-desc">Toast 通知系统、Modal 确认框、空状态、错误页、Loading骨架屏。</div>
+</div>
+<div class="phase">
+<div class="phase-title"><span class="badge badge-future">Phase 8</span> 深色模式 + 响应式 + 收尾（1-2天）</div>
+<div class="phase-desc">深色模式完整适配、移动端适配、性能优化、文档同步。</div>
+</div>
+</div>
+
+<h3>3.2 Phase 1 — 基础设施（Design Token + Layout Shell）</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/static/css/redesign-tokens.css</code></td><td>全新 Design Token 文件：颜色/字体/间距/圆角/阴影变量（Light + Dark）</td></tr>
+<tr><td><code>app/static/css/redesign-layout.css</code></td><td>新 Layout 骨架：Sidebar（固定宽度）+ Topbar + Content Area</td></tr>
+<tr><td><code>app/templates/redesign_base.html</code></td><td>新 base 模板（继承或替代 admin_base.html）</td></tr>
+<tr><td><code>app/templates/components/sidebar.html</code></td><td>侧边栏导航组件</td></tr>
+<tr><td><code>app/templates/components/topbar.html</code></td><td>顶栏（搜索+通知+用户头像）</td></tr>
+</table>
+
+<h4>关键设计决策</h4>
+<ul>
+<li><strong>渐进式迁移</strong>：新模板 <code>redesign_base.html</code> 与现有 <code>admin_base.html</code> 并存，通过配置开关或路由级别逐步迁移</li>
+<li><strong>Token 命名</strong>：采用语义化命名 <code>--cp-surface-*</code>、<code>--cp-text-*</code>、<code>--cp-signal-*</code>（参考色系统一设计方案.html）</li>
+<li><strong>兼容策略</strong>：新 Layout 中保留 Bootstrap 网格 class 兼容，逐步替换</li>
+</ul>
+
+<h4>验收标准</h4>
+<ol>
+<li>新 base 模板渲染出 Sidebar + Topbar + 空白 Content Area</li>
+<li>浅色/深色 Toggle 切换正常</li>
+<li>⌘K 搜索功能仍可用</li>
+<li>所有 Design Token 变量在 DevTools 中可查看</li>
+<li>现有页面（旧 base）不受影响</li>
+</ol>
+
+<h3>3.3 Phase 2 — 任务中心重构</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/templates/redesign/cron_list.html</code></td><td>全新任务中心模板（Health Summary + Alert + Task Table + Pagination）</td></tr>
+<tr><td><code>app/static/css/redesign-dashboard.css</code></td><td>任务中心专用样式</td></tr>
+<tr><td><code>app/static/js/cron-visual.js</code></td><td>Cron 表达式 5 段可视化组件</td></tr>
+<tr><td><code>app/main/views.py</code></td><td>新增 Health 指标聚合 API 数据</td></tr>
+</table>
+
+<h4>子任务拆解</h4>
+<ol>
+<li><strong>2a</strong>：Health Summary 卡片（异常/失败/运行中/成功率 4 指标）</li>
+<li><strong>2b</strong>：Alert 需关注面板（连续失败/P95超时任务列表）</li>
+<li><strong>2c</strong>：新任务列表表格（卡片行、Cron可视、标签chip、操作栏）</li>
+<li><strong>2d</strong>：分页组件（数字分页 + 条目统计 + 每页条数选择）</li>
+</ol>
+
+<h4>验收标准</h4>
+<ol>
+<li>任务中心默认展示 Health 指标和需关注任务</li>
+<li>Cron 表达式以 5 段可视化 + 中文人读展示</li>
+<li>分页可切换、筛选可用（全部/异常/暂停/运行中/已下线）</li>
+<li>深色模式下排版/对比度一致</li>
+</ol>
+
+<h3>3.4 Phase 3 — Task Detail + Execution</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/templates/redesign/cron_detail.html</code></td><td>任务详情页（状态三层模型 + 配置/历史/操作分区）</td></tr>
+<tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>Run Inspector 全链路执行轨迹</td></tr>
+<tr><td><code>app/templates/redesign/cron_log.html</code></td><td>执行记录时间线</td></tr>
+<tr><td><code>app/static/css/redesign-detail.css</code></td><td>详情页/执行记录专用样式</td></tr>
+</table>
+
+<h3>3.5 Phase 4 — 表单系统</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/templates/redesign/cron_form.html</code></td><td>统一任务编辑/新建表单（分区：基础信息/Endpoint/Schedule/Lifecycle）</td></tr>
+<tr><td><code>app/static/js/cron-preview.js</code></td><td>Cron 表达式实时预览（下 N 次执行时间）</td></tr>
+<tr><td><code>app/static/css/redesign-form.css</code></td><td>表单分区样式</td></tr>
+</table>
+
+<h3>3.6 Phase 5 — Administration</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/templates/redesign/rbac/users.html</code></td><td>用户管理列表（Avatar + Tab筛选 + 概览摘要）</td></tr>
+<tr><td><code>app/templates/redesign/rbac/user_form.html</code></td><td>添加/编辑用户表单</td></tr>
+<tr><td><code>app/templates/redesign/rbac/groups.html</code></td><td>业务组管理</td></tr>
+<tr><td><code>app/templates/redesign/rbac/reg_review.html</code></td><td>注册审批（Tab：待审核/已通过/已拒绝）</td></tr>
+<tr><td><code>app/templates/redesign/rbac/audit.html</code></td><td>审计日志时间线</td></tr>
+</table>
+
+<h3>3.7 Phase 6 — Auth + Personal</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/templates/redesign/login.html</code></td><td>居中卡片登录页 + 密码Toggle</td></tr>
+<tr><td><code>app/templates/redesign/register.html</code></td><td>注册申请表单</td></tr>
+<tr><td><code>app/templates/redesign/forgot_password.html</code></td><td>忘记密码流程</td></tr>
+<tr><td><code>app/templates/redesign/password.html</code></td><td>修改密码（强度条）</td></tr>
+<tr><td><code>app/templates/redesign/api_token.html</code></td><td>API Token 管理</td></tr>
+</table>
+
+<h3>3.8 Phase 7 — 全局交互组件</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/static/js/toast.js</code></td><td>Toast 通知系统（success/error/warning，自动消失）</td></tr>
+<tr><td><code>app/static/js/modal.js</code></td><td>确认弹窗组件（替代 JS confirm）</td></tr>
+<tr><td><code>app/templates/components/empty_state.html</code></td><td>空状态组件（可复用 include）</td></tr>
+<tr><td><code>app/templates/components/skeleton.html</code></td><td>骨架屏 Loading 组件</td></tr>
+<tr><td><code>app/templates/redesign/error_403.html</code></td><td>403 错误页</td></tr>
+</table>
+
+<h3>3.9 Phase 8 — 深色模式 + 收尾</h3>
+
+<h4>交付物</h4>
+<table>
+<tr><th>文件</th><th>变更内容</th></tr>
+<tr><td><code>app/static/css/redesign-tokens.css</code></td><td>Dark Mode 完整 Token 补全</td></tr>
+<tr><td><code>app/static/css/redesign-responsive.css</code></td><td>移动端/平板 Media Query</td></tr>
+<tr><td>各模板</td><td>暗色场景下的边界用例修复</td></tr>
+<tr><td>文档</td><td>RELEASE_NOTES + 部署指南 + 设计文档归档</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>四、工程约束与风险</h2>
+
+<h3>4.1 技术约束</h3>
+<table>
+<tr><th>约束</th><th>应对策略</th></tr>
+<tr><td>Python 3.8-3.11 + Flask 2.3 + Jinja2</td><td>纯服务端渲染，不引入 SPA 框架；JS 增强仅用原生 + jQuery</td></tr>
+<tr><td>Bootstrap 3.3.7 + Flat UI 历史依赖</td><td>新 Layout 独立 CSS 文件，不覆盖旧样式；渐进式迁移</td></tr>
+<tr><td>颜色规范 <code>var(--cp-*)</code></td><td>新 Token 系统兼容现有 <code>console-theme.css</code>，逐步替换</td></tr>
+<tr><td>现有测试 (ajax_form_guard 等)</td><td>新模板需通过现有静态门禁；分批验证</td></tr>
+</table>
+
+<h3>4.2 迁移策略</h3>
+<div class="box box-green">
+<strong>渐进式双轨方案</strong>
+<ol>
+<li>新增 <code>redesign_base.html</code>，与 <code>admin_base.html</code> 并存</li>
+<li>按模块将路由指向新模板（通过 Jinja2 extends 切换）</li>
+<li>添加配置开关 <code>CRONPILOT_NEW_UI=true/false</code>，允许一键回滚</li>
+<li>全部迁移完成后，删除旧模板和对应 CSS</li>
+</ol>
+</div>
+
+<h3>4.3 风险清单</h3>
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解措施</th></tr>
+<tr><td>Bootstrap 3 class 被新 Layout 覆盖</td><td>中</td><td>高</td><td>新 CSS 使用独立命名空间 <code>.cp-redesign *</code></td></tr>
+<tr><td>js-ajax-form 守卫在新模板中失效</td><td>低</td><td>高</td><td>每批完成后跑 <code>test_ajax_form_guard</code></td></tr>
+<tr><td>深色模式变量遗漏</td><td>中</td><td>中</td><td>Phase 8 集中审查 + 自动化截图对比</td></tr>
+<tr><td>移动端适配工作量超预期</td><td>低</td><td>低</td><td>Phase 8 作为独立可选阶段</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>五、工时估算</h2>
+
+<table>
+<tr><th>Phase</th><th>估算工时</th><th>前置依赖</th><th>优先级</th></tr>
+<tr><td>Phase 1 · 基础设施</td><td>2-3 天</td><td>无</td><td>🔴 必须最先</td></tr>
+<tr><td>Phase 2 · 任务中心</td><td>3-4 天</td><td>Phase 1</td><td>🔴 核心价值</td></tr>
+<tr><td>Phase 3 · Task Detail</td><td>2-3 天</td><td>Phase 1</td><td>🟡 高价值</td></tr>
+<tr><td>Phase 4 · 表单系统</td><td>2 天</td><td>Phase 1</td><td>🟡 中等</td></tr>
+<tr><td>Phase 5 · Administration</td><td>3 天</td><td>Phase 1</td><td>🟡 中等</td></tr>
+<tr><td>Phase 6 · Auth + Personal</td><td>1-2 天</td><td>Phase 1</td><td>🟢 可独立</td></tr>
+<tr><td>Phase 7 · 交互组件</td><td>1-2 天</td><td>Phase 1</td><td>🟢 增强</td></tr>
+<tr><td>Phase 8 · 深色 + 收尾</td><td>1-2 天</td><td>Phase 2-7</td><td>🟢 收尾</td></tr>
+<tr><td colspan="4"><strong>合计：15-21 个工作日</strong></td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>六、验收与文档同步</h2>
+
+<h3>6.1 每 Phase 验收清单</h3>
+<ol>
+<li><code>bash scripts/cronpilot.sh test</code> — 全测试通过</li>
+<li><code>python scripts/audit_hardcoded_colors.py --check</code> — 无硬编码颜色</li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code> → 浏览器验收对应页面</li>
+<li>深色模式切换后页面渲染正常</li>
+<li><code>python scripts/html_docs_to_markdown.py --check</code> — 文档同步</li>
+</ol>
+
+<h3>6.2 最终交付时文档更新</h3>
+<ul>
+<li><code>RELEASE_NOTES.md</code> — v4.0 UI 重设计条目</li>
+<li><code>doc/交付状态与路线图.html</code> — 标记 OPT-P1-16 已交付</li>
+<li><code>README.md</code> — 更新截图和功能描述</li>
+<li><code>AGENTS.md</code> — 更新模板路径约定（若结构变化）</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-Mockup审查与实施方案.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

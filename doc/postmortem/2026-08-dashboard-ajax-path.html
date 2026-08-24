@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Dashboard AJAX 路径错误（F1+F2+F3）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:2em;border-bottom:1px solid #e5e7eb;padding-bottom:.2em}
+h3{color:#374151;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-family:"SF Mono",Menlo,monospace;font-size:0.9em}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+</style>
+</head>
+<body>
+
+<h1>复盘：Dashboard AJAX 路径错误（F1+F2+F3）</h1>
+
+<table>
+<tr><th>日期</th><td>2026-08-24</td></tr>
+<tr><th>发现方式</th><td>全面前后端代码审计（Code Review）</td></tr>
+<tr><th>严重级别</th><td>功能性 Bug — Dashboard 操作按钮全部失效</td></tr>
+<tr><th>修复状态</th><td>已修复</td></tr>
+</table>
+
+<h2>1. Bug 定位</h2>
+<p><code>app/templates/redesign/dashboard.html</code> 行 465, 485, 513：</p>
+<table>
+<tr><th>函数</th><th>原路径</th><th>实际 Flask 路由</th><th>后果</th></tr>
+<tr><td><code>cpToggleStatus()</code></td><td><code>/update_status/{cronId}</code></td><td><code>/update_status</code>（id via form data）</td><td>404</td></tr>
+<tr><td><code>cpRunNow()</code></td><td><code>/cron_run_now/{cronId}</code></td><td><code>/cron_run_now</code>（id via form data）</td><td>404</td></tr>
+<tr><td><code>cpRetire()</code></td><td><code>/update_status/{cronId}</code> + <code>{status:-1}</code></td><td><code>/cron_retire</code>（id via form data）</td><td>404 + 逻辑错误</td></tr>
+</table>
+<p>验证：<code>curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:5001/update_status/123</code> → <strong>404</strong></p>
+
+<h2>2. 根因</h2>
+<p>Redesign Dashboard 在开发时，开发者习惯使用 RESTful 风格 URL（<code>/resource/{id}</code>），而未检查 Flask 实际注册的路由格式。CronPilot 后端统一使用 query param / form data 传递 <code>id</code>（<code>request.values.get('id')</code>），不使用 path param。</p>
+<p>同项目的 v1 模板 <code>_cron_list_rows.html</code> 使用 <code>url_for('main.update_status', id=item.id)</code> 生成正确 URL；redesign <code>task_detail.html</code> 使用 <code>/update_status?id=taskId</code>。唯独 <code>dashboard.html</code> 使用了不同格式。</p>
+<p><strong>根因行为层</strong>：新模板开发时未检查已有模板中的同一 API 调用方式，也未 <code>curl</code> 验证 AJAX 请求的实际响应。</p>
+
+<h2>3. 测试漏洞</h2>
+<p>无集成测试或 E2E 测试覆盖 Dashboard 的 AJAX 操作。单元测试覆盖 <code>update_status</code> 和 <code>cron_run_now</code> 的后端逻辑，但不覆盖前端发送的 URL 是否正确。Redesign 验收只验证了 Dashboard 的静态渲染（列表显示），未验证交互操作。</p>
+
+<h2>4. 修复</h2>
+<ul>
+<li><strong>F1</strong>：<code>'/update_status/' + cronId</code> → <code>'/update_status'</code>，<code>id</code> 通过 POST data 传递</li>
+<li><strong>F1</strong>：<code>'/cron_run_now/' + cronId</code> → <code>'/cron_run_now'</code>，同上</li>
+<li><strong>F2</strong>：<code>cpRetire()</code> 改 POST 到 <code>/cron_retire</code>（正确路由 + 正确权限 <code>cron:retire</code>）</li>
+<li><strong>F3</strong>：去除 <code>{status: newStatus}</code> 无用参数（后端 toggle 模式不读取此参数）</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<pre>
+# 登录后验证渲染结果
+python3 -c "..." → 确认三处 $.post 路径为 /update_status、/cron_run_now、/cron_retire
+# 验证路径匹配
+curl -s -o /dev/null -w "%{http_code}" -X POST "http://127.0.0.1:5001/update_status?id=1" → 302（需登录）而非 404
+</pre>
+
+<h2>6. 同类排查</h2>
+<p>全仓库搜索所有模板中对后端路由的直接硬编码引用：</p>
+<pre>
+rg "\.post\('/[a-z_]+/" app/templates/ → 无其他 path-param 风格调用
+rg "\.post\('/update_status" app/templates/ → 仅 dashboard.html（已修复）
+</pre>
+<p><code>task_detail.html</code> 使用 <code>/update_status?id=</code>（正确）。<code>_cron_list_rows.html</code> 使用 <code>url_for()</code>（正确）。</p>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增规范：模板中 AJAX 请求 URL 必须使用 <code>url_for()</code> 或与已有调用点对齐，禁止凭记忆/惯例构造 URL</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "url_for\|AJAX.*URL" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>新增自检命令：搜索模板中使用 path-param 风格的 AJAX URL</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>rg "\.post\('/[a-z_]+/'" app/templates/ &amp;&amp; echo "WARN: path-param URL found" || echo "OK"</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>附录：D5+D6 标签页代码质量修复</h2>
+
+<h3>D5: alert() → CpToast</h3>
+<p><strong>Bug 定位</strong>：<code>tags.html</code> 行 322, 344, 445, 448 — 使用 <code>alert()</code> 显示错误，而 redesign 其余页面统一使用 <code>CpToast.error()</code>。</p>
+<p><strong>根因</strong>：标签页开发较早，当时 <code>CpToast</code> 模块尚未就绪或开发者未意识到应使用统一组件。</p>
+<p><strong>修复</strong>：4 处 <code>alert()</code> 替换为 <code>CpToast.error()</code>。</p>
+<p><strong>同类排查</strong>：<code>grep -r "alert(" app/templates/redesign/</code> → 无其他 alert() 残留。</p>
+
+<h3>D6: CSRF meta null check</h3>
+<p><strong>Bug 定位</strong>：<code>tags.html</code> 行 249 — <code>document.querySelector('meta[name="csrf-token"]').content</code> 在 meta 标签不存在时抛出 <code>TypeError: Cannot read properties of null</code>。</p>
+<p><strong>根因</strong>：<code>_base.html</code> 中 meta 标签有条件渲染 <code>{% if csrf_token %}</code>，理论上 CSRF token 应始终存在，但防御性编码应处理边界情况。</p>
+<p><strong>修复</strong>：<code>var csrfMeta = document.querySelector(...); var csrfToken = csrfMeta ? csrfMeta.content : '';</code></p>
+<p><strong>同类排查</strong>：<code>registration_review.html</code> 行 113 已正确使用 null check 模式。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="2026-08-dashboard-ajax-path.md">Markdown</a></footer>
+</body>
+</html>

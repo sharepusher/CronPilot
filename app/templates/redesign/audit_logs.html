@@ -1,0 +1,188 @@
+{% extends "redesign/_base.html" %}
+{% block title %}审计日志 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>审计日志</h1><div class="sub">RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）</div></div></div>
+
+<div class="pg-audit-filter-bar">
+  <form method="GET" action="{{ url_for('rbac.audit_logs') }}" class="pg-search-row">
+    <input class="f-input pg-input-sm" type="text" name="username" value="{{ search.username or '' }}" placeholder="搜索用户名…">
+    {% if chip %}<input type="hidden" name="chip" value="{{ chip }}">{% endif %}
+    <button type="submit" class="btn-c btn-line btn-xs">搜索</button>
+    {% if search.username %}
+    <a href="{{ url_for('rbac.audit_logs', chip=chip if chip else None) }}" class="btn-c btn-line btn-xs pg-clear">清除</a>
+    {% endif %}
+  </form>
+  <div class="pg-chips">
+    <a class="pg-chip{% if not chip %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', username=search.username) }}">全部</a>
+    <a class="pg-chip{% if chip == 'login_ok' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='login_ok', username=search.username) }}">登录成功</a>
+    <a class="pg-chip{% if chip == 'login_fail' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='login_fail', username=search.username) }}">登录失败</a>
+    <a class="pg-chip{% if chip == 'perm_deny' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='perm_deny', username=search.username) }}">权限拒绝</a>
+    <a class="pg-chip{% if chip == 'user_manage' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='user_manage', username=search.username) }}">用户管理</a>
+  </div>
+</div>
+
+<div class="c-table-wrap">
+  <table class="c-table">
+    <thead>
+      <tr>
+        <th>时间</th>
+        <th>用户名</th>
+        <th>动作</th>
+        <th>说明</th>
+        <th>来源 IP</th>
+        <th>结果</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_data.items %}
+      <tr{% if item.status == 'deny' %} class="pg-row-deny"{% endif %}>
+        <td class="mono cp-text-xs pg-time-cell">{{ item.create_time or '—' }}</td>
+        <td class="cp-fw-600{% if item.status == 'deny' %} pg-user-deny{% endif %}">{{ item.username or '未知' }}</td>
+        <td>
+          {% if item.action == 'user:login' and item.status != 'deny' %}
+            <span class="pg-audit-badge pg-audit-badge-ok">登录成功</span>
+          {% elif item.action == 'user:login' and item.status == 'deny' %}
+            <span class="pg-audit-badge pg-audit-badge-fail">登录失败</span>
+          {% elif item.action == 'user:logout' %}
+            <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) }}</span>
+          {% elif item.action in ['permission:deny', 'scope:deny', 'api:deny'] %}
+            <span class="pg-audit-badge pg-audit-badge-warn">{{ audit_action_label(item.action) }}</span>
+          {% elif item.action and item.action.startswith('user:') %}
+            <span class="pg-audit-badge pg-audit-badge-manage">{{ audit_action_label(item.action) }}</span>
+          {% else %}
+            <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) or '—' }}</span>
+          {% endif %}
+        </td>
+        <td class="cp-text-xs pg-desc-cell">{{ audit_resource_label(item.action, item.resource) }}</td>
+        <td class="mono cp-text-xs cp-text-muted">{{ item.ip or '—' }}</td>
+        <td>
+          {% if item.status == 'deny' %}
+            <span class="pg-audit-result-deny">拒绝</span>
+          {% else %}
+            <span class="pg-audit-result-ok">允许</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="pg-empty">暂无审计记录</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="c-foot">
+    <span class="count">{{ page_data.total }} total</span>
+    <div class="c-pg">
+      {% set pg_extra = {} %}
+      {% if search.username %}{% set _ = pg_extra.update({'username': search.username}) %}{% endif %}
+      {% if chip %}{% set _ = pg_extra.update({'chip': chip}) %}{% endif %}
+      {% if page_data.has_prev %}
+      <a href="{{ url_for('rbac.audit_logs', page=page_data.page - 1, **pg_extra) }}">‹</a>
+      {% endif %}
+      {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+        <a{% if p == page_data.page %} class="active"{% endif %}
+           href="{{ url_for('rbac.audit_logs', page=p, **pg_extra) }}">{{ p }}</a>
+        {% else %}
+        <a>…</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_data.has_next %}
+      <a href="{{ url_for('rbac.audit_logs', page=page_data.page + 1, **pg_extra) }}">›</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.pg-audit-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.pg-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pg-input-sm { width: 160px; }
+.pg-clear { color: var(--cp-text-muted); }
+.pg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pg-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--cp-surface-2);
+  color: var(--cp-text-muted);
+  border: 1px solid var(--cp-border);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.pg-chip:hover {
+  background: var(--cp-signal-bg);
+  color: var(--cp-signal);
+  border-color: var(--cp-signal);
+}
+.pg-chip-active {
+  background: var(--cp-signal-bg);
+  color: var(--cp-signal);
+  border-color: var(--cp-signal);
+  font-weight: 600;
+}
+.pg-time-cell { color: var(--cp-text-muted); white-space: nowrap; }
+.pg-user-deny { color: var(--cp-danger); }
+.pg-desc-cell { color: var(--cp-text); }
+.pg-row-deny { background: var(--cp-danger-bg); }
+/* Action badges */
+.pg-audit-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pg-audit-badge-ok {
+  background: var(--cp-success-bg);
+  color: var(--cp-success);
+}
+.pg-audit-badge-fail {
+  background: var(--cp-danger-bg);
+  color: var(--cp-danger);
+  border: 1px solid var(--cp-danger-border);
+}
+.pg-audit-badge-warn {
+  background: var(--cp-warn-bg);
+  color: var(--cp-warn);
+}
+.pg-audit-badge-manage {
+  background: var(--cp-signal-bg);
+  color: var(--cp-signal);
+}
+.pg-audit-badge-muted {
+  background: var(--cp-surface-2);
+  color: var(--cp-text-muted);
+}
+/* Result column */
+.pg-audit-result-ok {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cp-success);
+}
+.pg-audit-result-deny {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-danger);
+}
+</style>
+{% endblock %}

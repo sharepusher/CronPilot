@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot UI Redesign — 前端重构详细实施与验收计划 v2</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:1100px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #1e40af;padding-bottom:12px;color:#1e40af}
+h2{color:#1e40af;margin-top:40px;border-bottom:1px solid #e5e7eb;padding-bottom:8px}
+h3{color:#374151;margin-top:28px}
+h4{color:#4b5563;margin-top:20px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:12px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:16px;overflow-x:auto;font-size:12px}
+.box{border-radius:8px;padding:16px 20px;margin:16px 0}
+.box-red{background:#FEF2F2;border:1px solid #FECACA}
+.box-blue{background:#EFF6FF;border:1px solid #BFDBFE}
+.box-green{background:#F0FDF4;border:1px solid #BBF7D0}
+.box-yellow{background:#FFFBEB;border:1px solid #FDE68A}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-done{background:#D1FAE5;color:#065F46}
+.badge-todo{background:#FEF3C7;color:#92400E}
+.badge-blocked{background:#FEE2E2;color:#991B1B}
+.phase-header{background:linear-gradient(135deg,#1e40af,#3b82f6);color:white;padding:16px 24px;border-radius:8px;margin-top:32px}
+.phase-header h3{color:white;margin:0}
+.phase-header .sub{opacity:0.8;font-size:13px;margin-top:4px}
+.col-spec{font-family:monospace;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;margin:8px 0}
+.check{color:#16a34a}
+.warn{color:#ca8a04}
+.fail{color:#dc2626}
+</style>
+</head>
+<body>
+
+<h1>CronPilot UI Redesign — 前端重构详细实施与验收计划 v2</h1>
+
+<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:8px;padding:16px 20px;margin:16px 0">
+<strong>⚠️ SUPERSEDED</strong>：本文档已合入 <a href="UI重设计-统一执行手册.html">统一执行手册 (OPT-P1-16-MANUAL)</a>。<br>
+本文档保留供历史追溯，<strong>不再维护</strong>。执行以统一手册为准。
+</div>
+
+<div class="box box-blue">
+<strong>文档编号</strong>：OPT-P1-16-IMPL-v2<br>
+<strong>状态</strong>：<del>设计评审（待确认）</del> → 已合入统一手册<br>
+<strong>前置</strong>：替换 <code>doc/design/UI重设计-实施架构与过渡方案.html</code> 中的粗粒度 Phase 描述<br>
+<strong>Mockup 源</strong>：<code>doc/design/CronPilot-2026-redesign-mockup.html</code>（22 views + 3 standalone auth pages）<br>
+<strong>教训整合</strong>：Phase 2 Mockup 偏离事故 → 每页强制 Design QA；Agent 复盘失效 → Hook 程序化强制
+</div>
+
+<!-- ========== 一、当前状态 ========== -->
+<h2>一、当前状态总览</h2>
+
+<table>
+<tr><th>Phase</th><th>范围</th><th>状态</th><th>完成度</th></tr>
+<tr><td>1</td><td>Shell（Layout + Sidebar + Topbar + Theme）</td><td><span class="badge badge-done">已完成</span></td><td>90%</td></tr>
+<tr><td>2</td><td>Dashboard + 执行记录</td><td><span class="badge badge-done">已完成</span></td><td>70%（结构对齐，数据待丰富）</td></tr>
+<tr><td>3</td><td>任务详情 + 执行详情</td><td><span class="badge badge-todo">未开始</span></td><td>0%</td></tr>
+<tr><td>4</td><td>任务表单（新建/编辑）</td><td><span class="badge badge-todo">未开始</span></td><td>0%</td></tr>
+<tr><td>5</td><td>管理页面（6 个子页面）</td><td><span class="badge badge-todo">未开始</span></td><td>0%</td></tr>
+<tr><td>6</td><td>Auth + 个人设置</td><td><span class="badge badge-todo">未开始</span></td><td>0%</td></tr>
+<tr><td>7</td><td>全局组件（Toast/Modal/Palette/Empty/Skeleton）</td><td><span class="badge badge-todo">部分</span></td><td>30%（结构在 base，功能未完成）</td></tr>
+<tr><td>8</td><td>深色模式/响应式/全量验收</td><td><span class="badge badge-todo">未开始</span></td><td>10%（theme toggle 已工作）</td></tr>
+</table>
+
+<div class="box box-yellow">
+<strong>关键问题</strong>：当前从 v2 sidebar 点击"用户管理""业务组"等未实现页面，会跳到经典 <code>admin_base.html</code> 布局，体验断裂。Phase 3-6 的目标是消除这一断裂。
+</div>
+
+<!-- ========== 二、总体架构策略 ========== -->
+<h2>二、总体架构策略</h2>
+
+<h3>2.1 技术约束</h3>
+<ul>
+<li>Python 3.8–3.11 + Flask 2.3 SSR（Jinja2 模板）</li>
+<li>jQuery 全局可用（<code>common.js</code>）；新增 JS 使用 IIFE/ES Module</li>
+<li>CSS 变量驱动（<code>--cp-*</code> 在 <code>console-theme.css</code>）</li>
+<li>新模板继承 <code>redesign/_base.html</code>（独立于 Bootstrap <code>admin_base.html</code>）</li>
+<li>新组件使用 <code>.cp-*</code> 前缀（避免 Bootstrap/Flat UI 冲突）</li>
+<li>表单保留 <code>js-ajax-form</code> + <code>js-ajax-submit</code> 约定</li>
+</ul>
+
+<h3>2.2 文件组织</h3>
+<pre>
+app/templates/redesign/
+├── _base.html              # Shell（已完成）
+├── _sidebar.html           # Nav（已完成）
+├── _topbar.html            # Header（已完成）
+├── _pagination.html        # 共享分页宏（Phase 3 提取）
+├── _breadcrumb.html        # 面包屑宏
+├── dashboard.html          # Phase 2 ✓
+├── execution_logs.html     # Phase 2 ✓
+├── task_detail.html        # Phase 3
+├── run_inspector.html      # Phase 3
+├── task_form.html          # Phase 4（新建+编辑共用）
+├── users.html              # Phase 5a
+├── user_form.html          # Phase 5a
+├── groups.html             # Phase 5b
+├── group_form.html         # Phase 5b
+├── reg_review.html         # Phase 5c
+├── audit_log.html          # Phase 5d
+├── operation_log.html      # Phase 5d
+├── tags.html               # Phase 5e
+├── change_password.html    # Phase 6
+├── api_token.html          # Phase 6
+├── api_doc.html            # Phase 6
+└── auth/
+    ├── login.html          # Phase 6（独立，不继承 _base）
+    ├── register.html       # Phase 6
+    └── forgot.html         # Phase 6
+
+app/static/css/
+├── console-theme.css       # Design Tokens（已完成）
+├── redesign-layout.css     # Shell Grid（已完成）
+├── redesign-components.css # 组件库（已完成，Phase 3+ 扩展）
+└── redesign-pages.css      # 各页面特定样式（Phase 3 新建，提取 inline CSS）
+
+app/static/js/
+├── redesign-shell.js       # Shell 交互（已完成）
+├── redesign-theme.js       # Theme 切换（已完成）
+├── redesign-cmd-palette.js # Command Palette（Phase 7）
+├── redesign-toast.js       # Toast 全局 API（Phase 7）
+└── redesign-confirm.js     # Confirm Modal 全局 API（Phase 7）
+</pre>
+
+<h3>2.3 路由分支策略</h3>
+<p>每个页面在对应 view 函数中添加 <code>if getattr(g, 'ui_version', 'v1') == 'v2'</code> 分支，渲染 <code>redesign/*.html</code>。Flask 路由 URL 不变，前端通过 Cookie 切换。</p>
+
+<!-- ========== 三、逐 Phase 详细规格 ========== -->
+<h2>三、逐 Phase 详细实施规格</h2>
+
+<!-- Phase 2 补完 -->
+<div class="phase-header">
+<h3>Phase 2 补完 — 数据丰富 + 细节对齐</h3>
+<div class="sub">范围：Dashboard + 执行记录现有页面的数据补充</div>
+</div>
+
+<h4>2.1 Dashboard 数据补完</h4>
+<table>
+<tr><th>Mockup 要求</th><th>当前状态</th><th>需要实现</th></tr>
+<tr><td>Stats #4 子文本：成功率 %</td><td>仅显示任务数</td><td>计算 today_success_rate 传入模板</td></tr>
+<tr><td>最近执行列：耗时 + 相对时间</td><td>仅时间戳</td><td>传入 <code>take_time</code> + 模板 humanize</td></tr>
+<tr><td>下次执行列：计算时间</td><td>静态文案</td><td><code>croniter</code> 计算 next_run_at</td></tr>
+<tr><td>Exception Panel：P95 延迟警告</td><td>仅连续失败</td><td>可选（Phase 8 polish）</td></tr>
+<tr><td>Action "更多" 下拉菜单</td><td>无</td><td>⋮ dropdown（编辑/查看详情/查看日志/下线）</td></tr>
+</table>
+
+<h4>2.2 执行记录数据补完</h4>
+<table>
+<tr><th>Mockup 要求</th><th>当前状态</th><th>需要实现</th></tr>
+<tr><td>Filter chip："超时"</td><td>"异常"（not_success）</td><td>拆分为 失败/超时 两个独立 chip</td></tr>
+<tr><td>业务组下拉过滤</td><td>无</td><td>添加 group dropdown filter</td></tr>
+<tr><td>详情链接 → Run Inspector</td><td>→ 经典 job_log_detail</td><td>Phase 3 完成后改指向 v2</td></tr>
+</table>
+
+<h4>2.3 验收标准</h4>
+<pre>
+# 结构对齐
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_list | grep -c 'hf-stat'  # = 4
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_list | grep 'exc-panel'    # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_list | grep 'act-btn'      # exists
+
+# 数据
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_list | grep '成功率'         # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/job_log_all_list | grep '超时'    # chip exists
+
+# 截图对照 Mockup view-dashboard / view-logs
+</pre>
+
+<!-- Phase 3 -->
+<div class="phase-header">
+<h3>Phase 3 — 任务详情 + 执行详情 (Run Inspector)</h3>
+<div class="sub">Mockup views: view-detail, view-run-inspector, view-run-failed</div>
+</div>
+
+<h4>3.1 任务详情 (<code>task_detail.html</code>)</h4>
+
+<p><strong>路由</strong>：<code>/cron_detail/&lt;id&gt;</code> 或 <code>/job_log_list?id=&lt;cron_id&gt;</code> 的详情链接</p>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-detail)：</strong><br>
+├── .page-head: 面包屑 + H1 + task-id badge + lifecycle/tags/group badges<br>
+├── .detail-header: actions (立即执行 / 暂停 / 编辑 — cp-btn 文字按钮)<br>
+├── .detail-grid (2×2 CSS Grid):<br>
+│   ├── Card 1: 健康度 (.health-big) + 连续失败 + 24h成功率 + P95延迟<br>
+│   ├── Card 2: 调度 (.schedule-big) — cron + human + next + timezone<br>
+│   ├── Card 3: 最近执行 (.recent-runs) — 最近5条 + "查看全部"链接<br>
+│   └── Card 4: 配置信息 (.config-grid) — URL/超时/业务组/创建人/时间<br>
+└── (无分页)
+</div>
+
+<h4>数据需求</h4>
+<table>
+<tr><th>字段</th><th>来源</th><th>备注</th></tr>
+<tr><td>cron_info.*</td><td>CronInfos model</td><td>task_name, task_keyword, req_url, time_out, status, cron_str, run_date</td></tr>
+<tr><td>health.*</td><td>JobHealth model</td><td>consecutive_failures, health_status, last_fail_at, last_success_at</td></tr>
+<tr><td>recent_runs (5条)</td><td>JobLog 最新5条</td><td>http_status, status, take_time, create_time</td></tr>
+<tr><td>success_rate_24h</td><td>计算</td><td>24h 内成功数/总数</td></tr>
+<tr><td>next_run_at</td><td>croniter 计算</td><td>基于 cron_str + run_date</td></tr>
+<tr><td>group_name</td><td>task_groups 关联</td><td>业务组名称</td></tr>
+<tr><td>tags</td><td>task_tag_map</td><td>标签列表</td></tr>
+</table>
+
+<h4>3.2 执行详情 / Run Inspector (<code>run_inspector.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-run-inspector / view-run-failed)：</strong><br>
+├── .page-head: 3级面包屑 (任务中心 → 任务名 → 执行 #ID)<br>
+├── .run-header: run-id + .run-badge(.ok/.fail) + run-meta(HTTP/耗时/时间/触发方式)<br>
+├── .run-section "请求": mono-block (URL + Headers)<br>
+├── .run-section "响应": mono-block (HTTP response body)<br>
+├── .run-section "业务日志": mono-block (进度回传内容)<br>
+├── .run-section "元数据": key-value pairs<br>
+└── [失败特有] .run-section.danger: 错误详情 + 连续失败 + 最后成功时间
+</div>
+
+<h4>数据需求</h4>
+<table>
+<tr><th>字段</th><th>来源</th><th>备注</th></tr>
+<tr><td>job_log.*</td><td>JobLog model</td><td>所有字段</td></tr>
+<tr><td>cron_info.task_name</td><td>关联查询</td><td>面包屑用</td></tr>
+<tr><td>progress_logs</td><td>JobLogContent / add_log 内容</td><td>业务日志</td></tr>
+</table>
+
+<h4>3.3 验收标准</h4>
+<pre>
+# task_detail.html
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_detail/1 | grep 'detail-grid'  # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_detail/1 | grep 'health-big'   # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_detail/1 | grep 'recent-runs'  # exists
+
+# run_inspector.html
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/job_log_detail/1 | grep 'run-header'  # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/job_log_detail/1 | grep 'run-badge'   # exists
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/job_log_detail/1 | grep 'run-section' # ≥3
+
+# Design QA: Read mockup view-detail → 对照 4 张 card、badges、actions
+# Design QA: Read mockup view-run-inspector → 对照 4 个 section
+# 截图：浅色 + 深色各一张
+</pre>
+
+<!-- Phase 4 -->
+<div class="phase-header">
+<h3>Phase 4 — 任务表单（新建 + 编辑）</h3>
+<div class="sub">Mockup views: view-form, view-task-add</div>
+</div>
+
+<h4>4.1 表单结构 (<code>task_form.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-form / view-task-add)：</strong><br>
+├── .page-head: 面包屑 (任务中心 → [任务名] → 编辑配置 / 新建任务)<br>
+├── .form-section "基础信息":<br>
+│   ├── 任务名称 (input, required)<br>
+│   ├── 任务关键词 (input)<br>
+│   └── 业务组 (select — 受 Scope 限制)<br>
+├── .form-section "请求配置":<br>
+│   ├── 回调 URL (input, required)<br>
+│   ├── 请求方式 (select: GET/POST)<br>
+│   └── 超时时长 (input, default=30s)<br>
+├── .form-section "调度配置":<br>
+│   ├── Cron 表达式 (input + 预设 chips: 每分钟/5分钟/小时/天/周一)<br>
+│   └── 人类可读说明 (auto-generated from cron, 只读)<br>
+├── .form-section "Lifecycle" (编辑模式独有):<br>
+│   └── 状态切换 (toggle: 运行/暂停)<br>
+└── .form-actions: 保存 (.cp-btn--primary) + 取消 (.cp-btn--ghost)
+</div>
+
+<h4>交互要点</h4>
+<ul>
+<li>使用 <code>js-ajax-form</code> + <code>js-ajax-submit</code> 提交模式</li>
+<li>Cron 预设 chips 点击填入对应表达式</li>
+<li>业务组选择受当前用户 Scope 限制（非 seed admin 只能选自己的组）</li>
+<li>编辑模式：表单预填已有数据</li>
+<li>新建模式：字段为空，无 Lifecycle section</li>
+<li>标签输入：chip-style inline tag input（复用已有实现）</li>
+</ul>
+
+<h4>4.2 验收标准</h4>
+<pre>
+# 结构
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_add | grep 'form-section' | wc -l  # ≥3
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/cron_edit/1 | grep 'form-section' | wc -l  # ≥4
+
+# 功能
+# POST 新建任务 → 201/JSON redirect
+# POST 编辑任务 → 200/JSON redirect
+# 非 seed admin 只能选自己组
+
+# Design QA: Read mockup view-form → 对照 section 数、字段名、cron chips
+</pre>
+
+<!-- Phase 5 -->
+<div class="phase-header">
+<h3>Phase 5 — 管理页面（6 个子页面）</h3>
+<div class="sub">Mockup views: view-users, view-groups, view-audit, view-optlog, view-reg-review, view-tags</div>
+</div>
+
+<h4>5a. 用户管理 (<code>users.html</code> + <code>user_form.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-users) — 9 列表格：</strong><br>
+用户(avatar+username+email) | 花名 | 岗位 | 角色 | 业务组 | 状态 | 密码状态 | 创建时间 | 操作(180px)
+<br><br>
+<strong>操作列</strong>：文字按钮 (重置密码 / 停用) + icon 编辑按钮<br>
+<strong>已停用行</strong>：opacity: 0.6，仅显示 "查看"<br>
+<strong>Footer</strong>：说明文案 "账户一旦停用不可恢复..."
+</div>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-user-add / view-user-edit)：</strong><br>
+├── .form-section "基本信息": 用户名/邮箱/花名/岗位/初始密码<br>
+├── .form-section "权限配置": 角色(select) + 业务组(select)<br>
+├── [编辑] .form-section "安全操作": 重置密码 + 重置 Token<br>
+└── [编辑] .danger-zone: 停用账户（不可恢复）
+</div>
+
+<h4>5b. 业务组 (<code>groups.html</code> + <code>group_form.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-groups) — 卡片网格：</strong><br>
+├── Overview: 3-col card grid (组名 + 描述 + stats: 成员/任务/异常)<br>
+├── 点击展开: detail panel<br>
+│   ├── 左列：成员列表 (avatar + username + role)<br>
+│   └── 右列：权限 Scope checklist + 任务列表 (health dots)<br>
+└── Header: "新建业务组" 按钮
+</div>
+
+<h4>5c. 注册审批 (<code>reg_review.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-reg-review) — 9 列：</strong><br>
+邮箱 | 用户名 | 花名 | 岗位 | 申请角色 | 业务组 | 申请原因 | 申请时间 | 操作(✓批准/✗拒绝)
+<br><br>
+<strong>Status chips</strong>：待审核(.warning) / 已通过(.success) / 已拒绝(.danger) / 已过期(.neutral)
+</div>
+
+<h4>5d. 审计日志 (<code>audit_log.html</code>) + 操作记录 (<code>operation_log.html</code>)</h4>
+
+<div class="col-spec">
+<strong>审计日志 (view-audit) — 6 列：</strong><br>
+时间 | 用户名 | 动作(badge) | 说明 | 来源 IP | 结果<br>
+失败登录行高亮 danger-bg
+<br><br>
+<strong>操作记录 (view-optlog) — 7 列：</strong><br>
+操作人 | 操作类型 | 操作对象 | 变更详情 | 操作结果 | 时间 | 来源 IP<br>
+Filters: search + 操作类型 select + 时间范围 select
+</div>
+
+<h4>5e. 标签管理 (<code>tags.html</code>)</h4>
+
+<div class="col-spec">
+<strong>Mockup 结构 (view-tags) — Namespace chip 布局：</strong><br>
+├── 4 namespace groups: 业务域 / 优先级 / 生命周期 / 区域<br>
+├── 每组: pill chips with count badges<br>
+└── P0/P1 使用 danger/warning 颜色
+</div>
+
+<h4>5.x 验收标准（统一）</h4>
+<pre>
+# 每个子页面验收：
+# 1. curl 列数验证
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/rbac/users | grep -c '&lt;th'  # = 9
+curl -sb 'cp_ui_version=v2' http://127.0.0.1:5001/rbac/registration_review | grep -c '&lt;th'  # = 9
+
+# 2. Design QA: Read mockup → 逐列对照
+# 3. 4 角色验证：seed admin / biz admin / operator / viewer
+# 4. 截图：浅色 + 深色
+# 5. v1 无回归：cp_ui_version=v1 经典页面正常
+</pre>
+
+<!-- Phase 6 -->
+<div class="phase-header">
+<h3>Phase 6 — Auth + 个人设置</h3>
+<div class="sub">Mockup views: login-page, register-page, forgot-page, view-password, view-api-token, view-apidoc</div>
+</div>
+
+<h4>6.1 Auth 页面（独立布局，不继承 _base.html）</h4>
+<ul>
+<li><code>auth/login.html</code> — 登录表单 + 忘记密码链接 + 注册链接</li>
+<li><code>auth/register.html</code> — 注册表单 + 业务组勾选 + 角色申请</li>
+<li><code>auth/forgot.html</code> — 管理员重置提示页</li>
+</ul>
+
+<h4>6.2 个人设置（继承 _base.html Shell）</h4>
+<ul>
+<li><code>change_password.html</code> — 3 密码字段 + 显示/隐藏 toggle + 强度指示器（max-width 480px）</li>
+<li><code>api_token.html</code> — Token 显示 + 复制 + curl 示例 + 重置（max-width 640px）</li>
+<li><code>api_doc.html</code> — Endpoint cards + 方法 badge + Parameters/Response（可折叠）</li>
+</ul>
+
+<!-- Phase 7 -->
+<div class="phase-header">
+<h3>Phase 7 — 全局组件 JS 完善</h3>
+<div class="sub">Toast / Modal / Command Palette / Empty State / Skeleton</div>
+</div>
+
+<table>
+<tr><th>组件</th><th>文件</th><th>API</th><th>依赖 Phase</th></tr>
+<tr><td>Toast</td><td><code>redesign-toast.js</code></td><td><code>CpToast.success(msg)</code> / <code>.error(msg)</code> / <code>.warning(msg)</code></td><td>Phase 3+（当前 dashboard 有 inline 实现，需提取）</td></tr>
+<tr><td>Confirm Modal</td><td><code>redesign-confirm.js</code></td><td><code>CpConfirm.show({title, body, onOk})</code></td><td>同上</td></tr>
+<tr><td>Command Palette</td><td><code>redesign-cmd-palette.js</code></td><td>⌘K 打开 → 搜索 sidebar items + quick actions</td><td>可独立</td></tr>
+<tr><td>Empty State</td><td>Jinja2 macro</td><td><code>{% call empty_state(icon, title, desc) %} CTA {% endcall %}</code></td><td>Phase 3+</td></tr>
+<tr><td>Skeleton</td><td>CSS only</td><td><code>.cp-skeleton</code> + <code>.cp-skeleton-line</code></td><td>已在 redesign-components.css</td></tr>
+</table>
+
+<!-- Phase 8 -->
+<div class="phase-header">
+<h3>Phase 8 — 全量验收 + Polish</h3>
+<div class="sub">深色模式全审计 / 响应式 / 文档同步 / v1 回归</div>
+</div>
+
+<ul>
+<li>深色模式：逐页截图，确认无白色闪块、对比度符合 WCAG AA</li>
+<li>响应式：1024px（sidebar auto-collapse）、768px（sidebar hidden + hamburger）</li>
+<li>Command Palette 全面测试</li>
+<li>全量 v1 回归：切回 v1 后所有经典页面正常</li>
+<li>文档同步：RELEASE_NOTES + doc/design/ + README</li>
+</ul>
+
+<!-- ========== 四、每页 Design QA 规格（强制） ========== -->
+<h2>四、逐页 Design QA 验收规格（强制门禁）</h2>
+
+<div class="box box-red">
+<strong>强制规则</strong>：每个页面实现完成后，必须执行以下 4 步 Design QA。这是 Phase 2 偏离事故后的强制门禁。<br>
+① <code>Read</code> Mockup 对应 <code>view-*</code> 区块完整 HTML<br>
+② 列出结构清单（列数、列名、CSS class、组件层级、按钮类型）<br>
+③ <code>curl + grep</code> 验证关键 class 存在<br>
+④ 截图逐区域对照
+</div>
+
+<table>
+<tr><th>页面</th><th>Mockup view</th><th>关键 grep 验证</th><th>列数</th></tr>
+<tr><td>Dashboard</td><td><code>view-dashboard</code></td><td><code>hf-stats</code>, <code>exc-panel</code>, <code>row-acts</code></td><td>7</td></tr>
+<tr><td>Execution Logs</td><td><code>view-logs</code></td><td><code>el-table</code>, <code>row-fail</code></td><td>7</td></tr>
+<tr><td>Task Detail</td><td><code>view-detail</code></td><td><code>detail-grid</code>, <code>health-big</code>, <code>recent-runs</code></td><td>N/A (cards)</td></tr>
+<tr><td>Run Inspector</td><td><code>view-run-inspector</code></td><td><code>run-header</code>, <code>run-badge</code>, <code>run-section</code></td><td>N/A (sections)</td></tr>
+<tr><td>Task Form</td><td><code>view-form</code></td><td><code>form-section</code> ×3+, cron presets <code>chip</code></td><td>N/A (form)</td></tr>
+<tr><td>Users</td><td><code>view-users</code></td><td>9 个 <code>&lt;th&gt;</code></td><td>9</td></tr>
+<tr><td>Groups</td><td><code>view-groups</code></td><td>card grid, <code>stat</code> badges</td><td>N/A (cards)</td></tr>
+<tr><td>Reg Review</td><td><code>view-reg-review</code></td><td>9 个 <code>&lt;th&gt;</code>, status chips</td><td>9</td></tr>
+<tr><td>Audit Log</td><td><code>view-audit</code></td><td>6 个 <code>&lt;th&gt;</code>, action badges</td><td>6</td></tr>
+<tr><td>Operation Log</td><td><code>view-optlog</code></td><td>7 个 <code>&lt;th&gt;</code>, filter selects</td><td>7</td></tr>
+<tr><td>Tags</td><td><code>view-tags</code></td><td>namespace groups, <code>chip</code> with count</td><td>N/A (chips)</td></tr>
+<tr><td>Change Password</td><td><code>view-password</code></td><td><code>input-with-toggle</code>, <code>password-strength</code></td><td>N/A (form)</td></tr>
+<tr><td>API Token</td><td><code>view-api-token</code></td><td>mono code block, copy button</td><td>N/A</td></tr>
+<tr><td>API Doc</td><td><code>view-apidoc</code></td><td>method badges (GET/POST)</td><td>N/A</td></tr>
+<tr><td>Login</td><td><code>#login-page</code></td><td>login form, register link</td><td>N/A</td></tr>
+<tr><td>Register</td><td><code>#register-page</code></td><td>group checkboxes, role select</td><td>N/A</td></tr>
+</table>
+
+<!-- ========== 五、执行顺序与依赖 ========== -->
+<h2>五、执行顺序与依赖关系</h2>
+
+<pre>
+Phase 2 补完 ──→ Phase 3 (Detail/Inspector) ──→ Phase 4 (Forms)
+                                                     │
+                                              Phase 5a-5e (Admin)
+                                                     │
+                                              Phase 6 (Auth/Personal)
+                                                     │
+                                              Phase 7 (Global Components)
+                                                     │
+                                              Phase 8 (Polish/Audit)
+</pre>
+
+<p><strong>关键依赖</strong>：</p>
+<ul>
+<li>Phase 3 依赖 Phase 2 完成（Dashboard "查看详情" 链接指向 task_detail）</li>
+<li>Phase 4 可与 Phase 3 并行（表单独立于列表/详情）</li>
+<li>Phase 5 的每个子页面可独立交付（5a/5b/5c/5d/5e 之间无强依赖）</li>
+<li>Phase 7 建议在 Phase 5 之前提取（避免 Toast/Modal 代码重复），但不阻塞</li>
+<li>Phase 6 Auth 独立于 Shell（不继承 _base），可在任何时候实现</li>
+</ul>
+
+<h3>推荐交付节奏（每批可独立验收）</h3>
+
+<table>
+<tr><th>批次</th><th>包含</th><th>预估工作量</th><th>可独立验收</th></tr>
+<tr><td>B1</td><td>Phase 2 补完</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B2</td><td>Phase 7 提取（Toast/Modal/Empty）</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B3</td><td>Phase 3 (Detail + Inspector)</td><td>1 天</td><td>✓</td></tr>
+<tr><td>B4</td><td>Phase 4 (Forms)</td><td>1 天</td><td>✓</td></tr>
+<tr><td>B5</td><td>Phase 5a (Users)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B6</td><td>Phase 5b (Groups)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B7</td><td>Phase 5c (Reg Review)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B8</td><td>Phase 5d (Audit + OptLog)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B9</td><td>Phase 5e (Tags)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B10</td><td>Phase 6 (Auth + Personal + API Doc)</td><td>1 天</td><td>✓</td></tr>
+<tr><td>B11</td><td>Phase 7 完善 (Command Palette)</td><td>0.5 天</td><td>✓</td></tr>
+<tr><td>B12</td><td>Phase 8 (全量 Polish + 验收)</td><td>1 天</td><td>✓</td></tr>
+</table>
+
+<p><strong>总计</strong>：~8 天（单人串行）；可压缩至 5 天（并行 Phase 4/5）</p>
+
+<!-- ========== 六、质量门禁 ========== -->
+<h2>六、质量门禁体系</h2>
+
+<h3>6.1 每批次交付必须通过</h3>
+
+<table>
+<tr><th>#</th><th>门禁</th><th>工具/命令</th><th>失败处理</th></tr>
+<tr><td>1</td><td>单元测试通过</td><td><code>bash scripts/cronpilot.sh test</code></td><td>修复后重跑</td></tr>
+<tr><td>2</td><td>颜色审计</td><td><code>python scripts/audit_hardcoded_colors.py --check</code></td><td>替换为 var(--cp-*)</td></tr>
+<tr><td>3</td><td>Ajax Form 守卫</td><td><code>python -m unittest tests.test_ajax_form_guard -v</code></td><td>补充 js-ajax-submit</td></tr>
+<tr><td>4</td><td>HTML↔MD 同步</td><td><code>python scripts/html_docs_to_markdown.py --check</code></td><td>regenerate</td></tr>
+<tr><td>5</td><td>Restart + 浏览器</td><td><code>cronpilot.sh restart → 登录 → 目标页面</code></td><td>修复渲染错误</td></tr>
+<tr><td>6</td><td>v1 无回归</td><td>切回 <code>cp_ui_version=v1</code> 验证经典页面</td><td>隔离 CSS/JS 泄漏</td></tr>
+<tr><td>7</td><td>深色模式</td><td>切换 dark → 无白色闪块</td><td>补 dark mode override</td></tr>
+<tr><td><strong>8</strong></td><td><strong>Mockup Design QA</strong></td><td>Read mockup → 列结构 → grep classes → 截图对照</td><td><strong>不通过不得提交</strong></td></tr>
+<tr><td>9</td><td>复盘文档化完整性</td><td><code>python scripts/check_postmortem_completeness.py --check</code></td><td>补充复盘/RELEASE_NOTES</td></tr>
+<tr><td>10</td><td>4 角色权限验证</td><td>seed admin / biz admin / operator / viewer 各登录验证</td><td>修复权限逻辑</td></tr>
+</table>
+
+<h3>6.2 程序化强制（Hook 系统）</h3>
+
+<table>
+<tr><th>Hook</th><th>事件</th><th>效果</th></tr>
+<tr><td>L1 postmortem-reminder</td><td>postToolUse (Write/StrReplace)</td><td>每次编辑后注入分类+复盘+文档同步清单</td></tr>
+<tr><td>L2 pre-commit-gate</td><td>beforeShellExecution (git commit)</td><td>阻止不含 RELEASE_NOTES 的代码提交</td></tr>
+<tr><td>L2b stop hook</td><td>stop</td><td>结束前评估复盘完整性（安全网）</td></tr>
+</table>
+
+<!-- ========== 七、风险与缓解 ========== -->
+<h2>七、风险评估</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td>实现再次偏离 Mockup</td><td>低（已有 Design QA 强制门禁）</td><td>高</td><td>每页 Read mockup + grep + 截图；L1 Hook 提醒</td></tr>
+<tr><td>新旧 CSS 冲突</td><td>中</td><td>中</td><td><code>.cp-*</code> 前缀命名空间；页面 CSS 在 <code>.cp-shell</code> 下作用域</td></tr>
+<tr><td>jQuery common.js 事件不匹配</td><td>中</td><td>中</td><td>保留 <code>.js-ajax-form</code>/<code>.js-ajax-submit</code> 约定</td></tr>
+<tr><td>CSRF 遗漏</td><td>低</td><td>高</td><td><code>_base.html</code> 统一注入 <code>csrf_param</code>；集成测试覆盖 POST</td></tr>
+<tr><td>深色模式残留白色</td><td>中</td><td>中</td><td>Phase 8 全量审计 + CI 扫描</td></tr>
+<tr><td>性能退化（过多 inline CSS）</td><td>低</td><td>低</td><td>Phase 7 提取共享 <code>redesign-pages.css</code></td></tr>
+</table>
+
+<!-- ========== 八、验收总结 ========== -->
+<h2>八、最终验收标准</h2>
+
+<p>当所有 Phase 完成后，最终验收需通过：</p>
+
+<ol>
+<li>设置 <code>cp_ui_version=v2</code>，从登录页开始，遍历所有 sidebar 链接，每个页面均为新设计（无经典 admin_base 混入）</li>
+<li>4 种角色各登录一次，验证权限正确（导航可见性 + 数据 Scope + 操作拦截）</li>
+<li>深色/浅色模式各截图一套（~16 页 × 2 = 32 张）</li>
+<li>768px 宽度下验证响应式布局</li>
+<li>设置 <code>cp_ui_version=v1</code>，验证经典 UI 零回归</li>
+<li>全量测试套件通过（目标 450+ tests）</li>
+<li><code>check_postmortem_completeness.py --check</code> 通过</li>
+<li>RELEASE_NOTES 包含所有 Phase 的变更条目</li>
+</ol>
+
+<hr>
+<p><em>文档版本：v2 · 创建日期：2026-08-11 · 基于 Phase 2 偏离事故后重新设计</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-详细实施与验收计划v2.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

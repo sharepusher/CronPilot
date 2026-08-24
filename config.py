@@ -48,6 +48,17 @@ class Config:
 
     SCHEDULER_API_ENABLED = False
 
+    # OPT-P1-12 Step 1: 调度器开关（环境变量 CRONPILOT_SCHEDULER_ENABLED=false 可关闭）
+    # 用途：水平扩容 Web 时关闭非主进程的调度器；或单独运行 scheduler 进程
+    CRONPILOT_SCHEDULER_ENABLED = os.environ.get(
+        'CRONPILOT_SCHEDULER_ENABLED', 'true'
+    ).lower() not in ('0', 'false', 'no')
+
+    # OPT-P1-16: 新 UI 全局强制开关（环境变量 CRONPILOT_FORCE_NEW_UI=true 覆盖所有用户 Cookie）
+    CRONPILOT_FORCE_NEW_UI = os.environ.get(
+        'CRONPILOT_FORCE_NEW_UI', 'false'
+    ).lower() in ('1', 'true', 'yes')
+
     CRON_DB_URL = configs('cron_db_url')
 
     BASEDIR = basedir

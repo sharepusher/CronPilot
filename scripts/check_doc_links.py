@@ -41,7 +41,7 @@ def _extract_md_doc_links(filepath):
     # Backtick references: `doc/...html` or `doc/...md`
     for m in re.finditer(r'`(doc/[^`]+\.(?:html|md))`', content):
         path = m.group(1)
-        if '*' not in path:  # skip glob patterns
+        if '*' not in path and 'YYYY' not in path:  # skip glob patterns and template placeholders
             links.append((path, filepath))
     return links
 

@@ -1,0 +1,144 @@
+{% extends "redesign/_base.html" %}
+{% block title %}API 文档 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>API 文档</h1><div class="sub">使用 API Token 通过接口管理任务</div></div></div>
+
+<div class="ad-card">
+  <h4 class="ad-title">API 查询文档（权限内）</h4>
+  <p class="ad-tip">
+    本页仅展示当前账号权限范围内、且具备"查询语义"的接口。写入/变更类接口不在此页展示与调试。
+  </p>
+  {% if docs %}
+  <div class="ad-list">
+    {% for item in docs %}
+    <div class="ad-item">
+      <div class="ad-head">
+        <span class="ad-method">{{ item.method }}</span>
+        <span class="ad-path">{{ item.path }}</span>
+      </div>
+      <div class="ad-summary">{{ item.summary }}</div>
+      <div class="ad-grid">
+        <div class="ad-pane">
+          <div class="ad-desc">{{ item.description }}</div>
+          <div class="ad-meta">
+            <div><strong>参数：</strong>{% if item.params %}{{ item.params|join('；') }}{% else %}无{% endif %}</div>
+            <div><strong>响应：</strong>{{ item.response }}</div>
+          </div>
+        </div>
+        <div class="ad-pane">
+          <div class="ad-pane-title">调用示例</div>
+          <pre class="ad-example">{{ item.example or '无' }}</pre>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="pg-empty">
+    当前角色（{{ current_role or 'unknown' }}）暂无可展示的查询接口。
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.ad-card {
+  margin-top: 4px;
+  padding: 16px 18px;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+}
+.ad-title {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cp-ink);
+}
+.ad-tip {
+  margin: 0 0 12px 0;
+  color: var(--cp-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ad-list {
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--cp-surface);
+}
+.ad-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--cp-border);
+}
+.ad-item:last-child { border-bottom: 0; }
+.ad-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ad-method {
+  display: inline-block;
+  min-width: 46px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-on-filled);
+  background: var(--cp-signal);
+}
+.ad-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--cp-ink);
+  font-size: 13px;
+}
+.ad-summary {
+  color: var(--cp-ink);
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.ad-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ad-pane { min-width: 0; }
+.ad-pane-title {
+  color: var(--cp-text-muted);
+  font-size: 12px;
+  margin: 2px 0 4px 0;
+  font-weight: 600;
+}
+.ad-desc {
+  color: var(--cp-text-muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.ad-meta {
+  color: var(--cp-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.ad-example {
+  margin: 0;
+  background: var(--cp-surface-2);
+  border: 1px solid var(--cp-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--cp-ink);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (max-width: 1100px) {
+  .ad-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}

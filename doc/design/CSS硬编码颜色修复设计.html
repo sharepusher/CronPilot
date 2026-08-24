@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>设计文档：Redesign CSS 硬编码颜色、重复定义与 Print 选择器修复</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2em auto;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:2px solid #0891b2;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:1.8em}
+h3{color:#334155;margin-top:1.2em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;text-align:left}
+th{background:#f6f8fa}
+code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:0.92em}
+pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow-x:auto}
+.tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:0.85em;font-weight:600}
+.fix{background:#dcfce7;color:#166534}
+</style>
+</head>
+<body>
+
+<h1>设计文档：Redesign CSS 硬编码颜色、重复定义与 Print 选择器修复</h1>
+
+<p><strong>分类</strong>：<span class="tag fix">代码质量修复</span><br>
+<strong>日期</strong>：2026-08-24<br>
+<strong>关联</strong>：OPT-P1-16（Redesign Phase 1）· Review 发现<br>
+<strong>状态</strong>：已实施</p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>Code Review 发现 Redesign CSS 文件中存在 3 类代码质量问题：</p>
+
+<ol>
+<li><strong>硬编码颜色</strong>（CSS-2）：3 个 redesign CSS 文件中共 15 处硬编码十六进制颜色（<code>#fff</code>、<code>#ddd</code>、<code>#d97706</code> 等），违反项目颜色变量统一规范</li>
+<li><strong>重复定义</strong>（CSS-3）：<code>.cp-breadcrumb</code> 选择器在 <code>redesign-layout.css</code> 和 <code>redesign-pages.css</code> 中各有一份定义，属性值冲突</li>
+<li><strong>Print 选择器不匹配</strong>（CSS-4）：<code>@media print</code> 中引用了不存在的 <code>.redesign-*</code> 类名，实际 DOM 使用 <code>.cp-*</code> 前缀</li>
+</ol>
+
+<h2>2. 根因</h2>
+
+<ul>
+<li><strong>硬编码颜色</strong>：开发 redesign CSS 时直接写 <code>#fff</code>，虽然 <code>console-theme.css</code> 已有 <code>--cp-on-filled: #ffffff</code> 可用。部分引用了不存在的变量名（<code>--cp-warning</code> 应为 <code>--cp-warn-accent</code>），反映对变量命名体系不熟悉。</li>
+<li><strong>重复定义</strong>：布局层和页面层各自独立添加 breadcrumb 样式，未做跨文件查重。</li>
+<li><strong>Print 选择器</strong>：编写 print 样式时使用旧命名约定 <code>.redesign-*</code>，后来类名统一改为 <code>.cp-*</code> 时未同步 print 块。</li>
+</ul>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 硬编码颜色替换（CSS-2）</h3>
+
+<table>
+<tr><th>文件</th><th>行号</th><th>当前值</th><th>改为</th></tr>
+<tr><td><code>redesign-components.css</code></td><td>55, 61</td><td><code>color: #fff</code></td><td><code>color: var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-components.css</code></td><td>423</td><td><code>color: #fff</code></td><td><code>color: var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-components.css</code></td><td>461, 467</td><td><code>color: #fff</code></td><td><code>color: var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-components.css</code></td><td>797, 803</td><td><code>color: #fff</code></td><td><code>color: var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>96</td><td><code>color: #fff</code></td><td><code>color: var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>614</td><td><code>var(--cp-warning-bg, rgba(...))</code></td><td><code>var(--cp-warn-bg)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>615</td><td><code>var(--cp-warning, #d97706)</code></td><td><code>var(--cp-warn-accent)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>771</td><td><code>1px solid #ddd</code></td><td><code>1px solid var(--cp-border)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>897</td><td><code>var(--cp-warning, #d97706)</code></td><td><code>var(--cp-warn-accent)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>1103</td><td><code>var(--cp-white, #fff)</code></td><td><code>var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-mockup-shared.css</code></td><td>162</td><td>带 fallback 的 <code>var(--cp-success-bg, #dcfce7)</code></td><td><code>var(--cp-success-bg)</code>（移除 fallback）</td></tr>
+<tr><td><code>redesign-mockup-shared.css</code></td><td>167</td><td><code>var(--cp-warn-text, #854d0e)</code></td><td><code>var(--cp-warn-text)</code>（新增变量）</td></tr>
+<tr><td><code>redesign-mockup-shared.css</code></td><td>172</td><td><code>var(--cp-danger-text, #991b1b)</code></td><td><code>var(--cp-danger-text)</code>（新增变量）</td></tr>
+</table>
+
+<h3>3.2 新增 CSS 变量（console-theme.css）</h3>
+
+<table>
+<tr><th>变量名</th><th>Light</th><th>Dark</th><th>语义</th></tr>
+<tr><td><code>--cp-warn-text</code></td><td><code>#854d0e</code>（amber-800）</td><td><code>#fde68a</code></td><td>警告文字色（浅底上）</td></tr>
+<tr><td><code>--cp-danger-text</code></td><td><code>#991b1b</code>（red-800）</td><td><code>#fca5a5</code></td><td>危险文字色（浅底上）</td></tr>
+</table>
+
+<h3>3.3 Breadcrumb 去重（CSS-3）</h3>
+
+<ul>
+<li><strong>删除</strong> <code>redesign-layout.css</code> L423-445 的 <code>.cp-breadcrumb</code> 块（含 <code>.sep::after</code>）</li>
+<li><strong>保留</strong> <code>redesign-pages.css</code> L458-505 的版本（更完整，含 <code>svg</code>、<code>.current</code>、<code>.kbd-hint</code>）</li>
+<li>将 <code>.sep::after</code> 规则迁移到 <code>redesign-pages.css</code> 的 breadcrumb 区块</li>
+</ul>
+
+<h3>3.4 Print 选择器修正（CSS-4）</h3>
+
+<table>
+<tr><th>位置</th><th>当前</th><th>改为</th></tr>
+<tr><td>L742</td><td><code>.redesign-sidebar</code></td><td><code>.cp-sidebar</code></td></tr>
+<tr><td>L743</td><td><code>.redesign-topbar</code></td><td><code>.cp-topbar</code></td></tr>
+<tr><td>L751</td><td><code>.redesign-main</code></td><td><code>.cp-main</code></td></tr>
+</table>
+
+<h2>4. 范围</h2>
+
+<h3>涉及文件（5 个）</h3>
+<ul>
+<li><code>app/static/css/console-theme.css</code> — 新增 2 个变量（light + dark）</li>
+<li><code>app/static/css/redesign-components.css</code> — 7 处 <code>#fff</code> → <code>var(--cp-on-filled)</code></li>
+<li><code>app/static/css/redesign-pages.css</code> — 5 处颜色替换 + breadcrumb <code>.sep::after</code> 迁入 + print 选择器修正</li>
+<li><code>app/static/css/redesign-mockup-shared.css</code> — 3 处 fallback 移除</li>
+<li><code>app/static/css/redesign-layout.css</code> — 删除重复 breadcrumb 块</li>
+</ul>
+
+<h3>明确不做</h3>
+<ul>
+<li>CSS-1 双命名体系（<code>.cp-*</code> vs <code>.btn-c</code>）整合 — 需独立方案</li>
+<li><code>console-mode.css</code> 中的硬编码 — 不在 redesign 范围</li>
+<li>HTML 模板中的 CSS 变量 fallback（已有 CI 门禁覆盖）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p>本方案涉及纯 CSS 变更，无功能逻辑，可一次性执行。无需分批。</p>
+
+<h2>6. 验收</h2>
+
+<ol>
+<li><strong>静态检查</strong>：
+<pre><code># redesign CSS 无硬编码颜色
+grep -n '#[0-9a-fA-F]\{3,8\}[; )]' app/static/css/redesign-*.css | grep -v '/\*' && echo "FAIL" || echo "OK"
+
+# 无 .redesign-* 残留选择器
+grep -n '\.redesign-' app/static/css/redesign-pages.css && echo "FAIL" || echo "OK"
+
+# breadcrumb 仅在 pages 中定义
+grep -c '\.cp-breadcrumb' app/static/css/redesign-layout.css  # 期望 0</code></pre>
+</li>
+<li><strong>视觉回归</strong>：<code>cronpilot.sh restart --daemon</code> → 浏览器验证 dashboard + users 页面在浅色/暗色模式下视觉无变化</li>
+<li><strong>预期效果</strong>：修复前后视觉完全一致（<code>#fff</code> 与 <code>var(--cp-on-filled)</code> 在 <code>:root</code> 中均为 <code>#ffffff</code>）</li>
+</ol>
+
+<h2>7. 修复前后效果对比</h2>
+
+<p>本次修复为纯代码质量改进。<code>#fff</code> 和 <code>var(--cp-on-filled)</code> 在 <code>:root</code> 中均为 <code>#ffffff</code>，修复前后视觉效果完全一致。以下截图证实无视觉回归。</p>
+
+<h3>7.1 任务中心（浅色模式）</h3>
+<table>
+<tr><th style="width:50%">修复前</th><th style="width:50%">修复后</th></tr>
+<tr>
+<td><img src="screenshots/css-fix-before-dashboard.png" alt="Dashboard Before" style="width:100%"></td>
+<td><img src="screenshots/css-fix-after-dashboard.png" alt="Dashboard After" style="width:100%"></td>
+</tr>
+</table>
+
+<h3>7.2 用户管理（浅色模式）</h3>
+<table>
+<tr><th style="width:50%">修复前</th><th style="width:50%">修复后</th></tr>
+<tr>
+<td><img src="screenshots/css-fix-before-users.png" alt="Users Before" style="width:100%"></td>
+<td><img src="screenshots/css-fix-after-users.png" alt="Users After" style="width:100%"></td>
+</tr>
+</table>
+
+<h3>7.3 用户管理（暗色模式）</h3>
+<table>
+<tr><th style="width:50%">修复前</th><th style="width:50%">修复后</th></tr>
+<tr>
+<td><img src="screenshots/css-fix-before-users-dark.png" alt="Users Dark Before" style="width:100%"></td>
+<td><img src="screenshots/css-fix-after-users-dark.png" alt="Users Dark After" style="width:100%"></td>
+</tr>
+</table>
+
+<h3>7.4 任务中心（暗色模式）</h3>
+<table>
+<tr><th style="width:50%">修复前</th><th style="width:50%">修复后</th></tr>
+<tr>
+<td><img src="screenshots/css-fix-before-dashboard-dark.png" alt="Dashboard Dark Before" style="width:100%"></td>
+<td><img src="screenshots/css-fix-after-dashboard-dark.png" alt="Dashboard Dark After" style="width:100%"></td>
+</tr>
+</table>
+
+<h2>8. 风险</h2>
+
+<ul>
+<li>如果未来暗色主题需要在填充按钮上使用非白色文字，只需修改 <code>[data-theme="dark"]</code> 中的 <code>--cp-on-filled</code> 即可全局生效 — 这正是使用变量的好处</li>
+<li>Print 选择器修正会改变实际打印行为：修复前 <code>.redesign-sidebar</code> 无法匹配 DOM 中的 <code>.cp-sidebar</code>，导致打印时侧边栏/顶栏仍然可见（print 样式是死代码）；修复后选择器正确匹配，打印时侧边栏和顶栏将被隐藏。这是恢复原始设计意图，不是引入新行为。</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="CSS硬编码颜色修复设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

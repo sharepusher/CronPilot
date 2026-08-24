@@ -83,6 +83,33 @@ class CronRepository(BaseRepository):
             'failing_threshold': get_failing_threshold(cron_config),
         }
 
+    def count_consecutive_failing(self, base_filters=None):
+        """连续失败 ≥3 次的任务数（用于 Health-First stats）。"""
+        base_filters = list(base_filters or [])
+        stmt = (
+            select(func.count())
+            .select_from(JobHealth)
+            .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
+            .where(JobHealth.consecutive_failures >= 3)
+        )
+        if base_filters:
+            stmt = stmt.where(*base_filters)
+        return int(self.scalar(stmt) or 0)
+
+    def status_counts(self, base_filters=None):
+        """每种 status 的任务数（用于 filter chip counts）。"""
+        base_filters = list(base_filters or [])
+        result = {'running': 0, 'paused': 0, 'retired': 0}
+        for status_val, key in [(1, 'running'), (0, 'paused'), (-1, 'retired')]:
+            stmt = (
+                select(func.count()).select_from(CronInfos)
+                .where(CronInfos.status == status_val)
+            )
+            if base_filters:
+                stmt = stmt.where(*base_filters)
+            result[key] = int(self.scalar(stmt) or 0)
+        return result
+
     def health_by_cron_ids(self, ids):
         if not ids:
             return {}
@@ -129,3 +156,100 @@ class CronRepository(BaseRepository):
         ):
             by_id[cif.id] = cif
         return by_id
+
+    def today_success_rate(self, base_filters=None):
+        """今日成功率 = 今日成功次数 / 今日总执行次数。"""
+        base_filters = list(base_filters or [])
+        today = get_today()
+        time_clause = JobLog.create_time.like(today + '%')
+        total_stmt = (
+            select(func.count())
+            .select_from(JobLog)
+            .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+            .where(time_clause)
+        )
+        success_stmt = (
+            select(func.count())
+            .select_from(JobLog)
+            .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+            .where(time_clause)
+            .where(JobLog.status == STATUS_SUCCESS)
+        )
+        if base_filters:
+            total_stmt = total_stmt.where(*base_filters)
+            success_stmt = success_stmt.where(*base_filters)
+        total = int(self.scalar(total_stmt) or 0)
+        success = int(self.scalar(success_stmt) or 0)
+        if total == 0:
+            return 100.0
+        return round(success / total * 100, 1)
+
+    def last_run_details_by_ids(self, cron_ids):
+        """获取每个任务最后一条 JobLog 的 http_status/take_time/fail_reason/create_time。
+        返回 {cron_id: {http_status, take_time, fail_reason, create_time, status}}。
+        """
+        if not cron_ids:
+            return {}
+        from sqlalchemy import and_
+        subq = (
+            select(
+                JobLog.cron_info_id,
+                func.max(JobLog.id).label('max_id'),
+            )
+            .where(JobLog.cron_info_id.in_(cron_ids))
+            .group_by(JobLog.cron_info_id)
+            .subquery()
+        )
+        stmt = (
+            select(JobLog)
+            .join(subq, and_(
+                JobLog.cron_info_id == subq.c.cron_info_id,
+                JobLog.id == subq.c.max_id,
+            ))
+        )
+        result = {}
+        from datetime import datetime as _dt
+        now = _dt.now()
+        for log in self.scalars_all(stmt):
+            # Format take_time: raw is seconds (float), display as ms/s
+            raw_time = getattr(log, 'take_time', None) or 0
+            try:
+                raw_time = float(raw_time)
+            except (TypeError, ValueError):
+                raw_time = 0
+            if raw_time >= 1:
+                take_display = '{:.1f}s'.format(raw_time)
+            else:
+                take_display = '{}ms'.format(int(raw_time * 1000))
+
+            # Format create_time as relative "X ago"
+            raw_ct = getattr(log, 'create_time', None) or ''
+            time_ago = ''
+            if raw_ct:
+                try:
+                    if isinstance(raw_ct, str):
+                        ct = _dt.strptime(raw_ct, '%Y-%m-%d %H:%M:%S')
+                    else:
+                        ct = raw_ct
+                    delta_sec = int((now - ct).total_seconds())
+                    if delta_sec < 0:
+                        time_ago = 'just now'
+                    elif delta_sec < 60:
+                        time_ago = 'just now'
+                    elif delta_sec < 3600:
+                        time_ago = '{} min ago'.format(delta_sec // 60)
+                    elif delta_sec < 86400:
+                        time_ago = '{}h ago'.format(delta_sec // 3600)
+                    else:
+                        time_ago = '{}d ago'.format(delta_sec // 86400)
+                except (ValueError, TypeError):
+                    time_ago = str(raw_ct)
+
+            result[log.cron_info_id] = {
+                'http_status': getattr(log, 'http_status', None) or '—',
+                'take_time': take_display,
+                'fail_reason': getattr(log, 'fail_reason', None) or '',
+                'create_time': time_ago,
+                'status': getattr(log, 'status', None) or '',
+            }
+        return result

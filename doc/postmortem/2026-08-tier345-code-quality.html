@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Tier 3-5 代码质量修复（CSS 规范 + 可访问性 + 后端日志 + JS 兼容性）</title>
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;line-height:1.6;padding:0 1rem}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 4px;border-radius:3px}h2{border-bottom:2px solid #0891b2;padding-bottom:4px}
+h3{color:#0891b2}</style>
+</head>
+<body>
+<h1>复盘：Tier 3-5 代码质量修复</h1>
+<p><strong>日期</strong>：2026-08-24<br>
+<strong>范围</strong>：CSS 硬编码颜色提取、重复 CSS 合并、HTML 可访问性、后端静默异常、JS 废弃 API</p>
+
+<h2>1. Bug 定位</h2>
+<table>
+<tr><th>编号</th><th>文件</th><th>行号</th><th>问题</th></tr>
+<tr><td>S3</td><td><code>redesign-pages.css</code></td><td>870, 972</td><td><code>rgba(8,145,178,0.12)</code> focus ring 硬编码，违反 <code>--cp-*</code> 变量规范</td></tr>
+<tr><td>S3</td><td><code>redesign-mockup-shared.css</code></td><td>47</td><td>同上</td></tr>
+<tr><td>S3</td><td><code>console-mode.css</code></td><td>274, 356</td><td>同上</td></tr>
+<tr><td>S2</td><td><code>redesign-mockup-shared.css</code></td><td>22, 181</td><td><code>.btn-c</code> 定义 2 次，transition 声明冲突</td></tr>
+<tr><td>A1</td><td><code>login.html</code></td><td>180</td><td>密码字段用 <code>&lt;span&gt;</code> 代替 <code>&lt;label for&gt;</code></td></tr>
+<tr><td>A2</td><td><code>change_password.html</code></td><td>27, 35, 44</td><td>3 个 <code>&lt;label&gt;</code> 缺 <code>for=</code> 属性</td></tr>
+<tr><td>A3</td><td><code>_topbar.html</code></td><td>16, 19</td><td>主题按钮缺 <code>aria-pressed</code></td></tr>
+<tr><td>A4</td><td><code>_sidebar.html</code></td><td>20</td><td><code>&lt;nav&gt;</code> 缺 <code>aria-label</code></td></tr>
+<tr><td>A5</td><td><code>execution_logs.html</code></td><td>367</td><td>Escape 键无 modal overlay 检查</td></tr>
+<tr><td>A5 同类</td><td><code>run_inspector.html</code></td><td>148</td><td>同上</td></tr>
+<tr><td>B1</td><td><code>rbac/views.py</code></td><td>233</td><td><code>last_login_at</code> 更新失败 <code>except: rollback</code> 无日志</td></tr>
+<tr><td>B2</td><td><code>rbac/views.py</code></td><td>709</td><td>Profile commit 失败无日志</td></tr>
+<tr><td>B3</td><td><code>cron_service.py</code></td><td>169, 222, 246</td><td>调度器 <code>pause_job</code>/<code>remove_job</code> 异常 <code>pass</code> 吞掉</td></tr>
+<tr><td>B4</td><td><code>common.js</code></td><td>500</td><td><code>escape()</code> 已废弃，应使用 <code>encodeURIComponent()</code></td></tr>
+</table>
+
+<h2>2. 根因</h2>
+<ul>
+<li><strong>S2/S3（CSS 硬编码与重复）</strong>：Mockup 直出的 CSS 被逐节复制到生产样式表中，未经统一颜色变量化审计。<code>rgba(8,145,178,…)</code> 是设计系统主色 <code>--cp-accent</code> 的半透明变体，但 <code>console-theme.css</code> 中未定义对应变量，导致各文件直接硬编码。</li>
+<li><strong>A1-A4（可访问性缺失）</strong>：Redesign 开发以视觉还原为主，缺少 a11y checklist。<code>login.html</code> 使用 <code>&lt;span&gt;</code> + flex 布局实现密码行的 label-row，跳过了语义化 <code>&lt;label&gt;</code>。</li>
+<li><strong>A5（Escape 键误触）</strong>：P0-4 修复时只检查了 <code>task_detail.html</code> 和 <code>task_form.html</code>，遗漏了 <code>execution_logs.html</code> 和 <code>run_inspector.html</code> 中的相同模式。</li>
+<li><strong>B1-B3（静默异常）</strong>：防御性 try-except 编写时以"不影响主流程"为目标，直接 <code>pass</code>，未考虑运维可观测性。</li>
+<li><strong>B4（废弃 API）</strong>：<code>setCookie()</code> 是早期 v1 遗留代码，从未经过现代化审查。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>无 CSS lint 门禁检查 <code>rgba()</code> 硬编码（现有 <code>audit_hardcoded_colors.py</code> 只检查 hex 色值）。</li>
+<li>无 a11y 自动化测试（如 axe-core / pa11y）。</li>
+<li>P0-4 同类排查时搜索了 <code>.cp-confirm-overlay</code>，但 <code>execution_logs.html</code> 和 <code>run_inspector.html</code> 使用的是直接 <code>e.key === 'Escape'</code> 不含 <code>.cp-confirm</code> 关键字，因此未被搜索到。</li>
+<li>后端 <code>except: pass</code> 无 lint 规则禁止。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+<li><strong>S3</strong>：<code>console-theme.css</code> 新增 <code>--cp-accent-ring</code>（light/dark 双套），5 处硬编码替换为 <code>var(--cp-accent-ring)</code>。</li>
+<li><strong>S2</strong>：<code>.btn-c</code> 的 transition 合并到首定义，删除重复块。</li>
+<li><strong>A1</strong>：<code>login.html</code> <code>&lt;span&gt;密码&lt;/span&gt;</code> → <code>&lt;label for="login-pwd-input"&gt;密码&lt;/label&gt;</code>。</li>
+<li><strong>A2</strong>：<code>change_password.html</code> 3 个 <code>&lt;label&gt;</code> 补全 <code>for="pwd-old/pwd-new/pwd-confirm"</code>。</li>
+<li><strong>A3</strong>：2 个主题按钮增加 <code>aria-pressed="{{ 'true' if theme == '...' else 'false' }}"</code>。</li>
+<li><strong>A4</strong>：<code>&lt;nav&gt;</code> 增加 <code>aria-label="主导航"</code>。</li>
+<li><strong>A5</strong>：<code>execution_logs.html</code> + <code>run_inspector.html</code> Escape handler 增加 <code>!document.querySelector('.cp-modal-overlay')</code> 守卫。</li>
+<li><strong>B1/B2</strong>：<code>rbac/views.py</code> 两处 <code>except</code> 增加 <code>current_app.logger.warning(..., exc_info=True)</code>。</li>
+<li><strong>B3</strong>：<code>cron_service.py</code> 3 处 <code>except: pass</code> 改为 <code>_log.warning(..., exc_info=True)</code>。</li>
+<li><strong>B4</strong>：<code>escape(value)</code> → <code>encodeURIComponent(value)</code>。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+<li>现有 <code>audit_hardcoded_colors.py --check</code> 对 hex 色值的门禁覆盖，<code>rgba</code> 变体需人工确认（见预防方案）。</li>
+<li><code>cronpilot.sh test</code> 全 438 用例通过，确认后端变更未引入回归。</li>
+<li>Escape 键守卫已由 P0-4 测试覆盖 <code>task_detail.html</code> 和 <code>task_form.html</code>；新增的 <code>execution_logs.html</code> 和 <code>run_inspector.html</code> 同类修复由结构一致性保证。</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<ul>
+<li><code>rgba(8,145,178</code> 全仓库搜索结果：仅剩 <code>console-theme.css</code> 中的变量定义（预期）。</li>
+<li><code>escape(</code> 在 JS 中仅 <code>common.js</code> 一处（已修复），<code>redesign-*.js</code> 无此用法。</li>
+<li><code>except.*:\n.*pass</code> 在 <code>app/</code> 中全局搜索：<code>cron_service.py</code> 3 处已修复；其余 <code>except: pass</code> 在 <code>register_cron_job</code>（JobLookupError 可容忍）、<code>__init__.py</code>（APScheduler 初始化）属合理场景。</li>
+<li>Escape 键 handler 全模板搜索：<code>task_detail.html</code>、<code>task_form.html</code>（已修）、<code>execution_logs.html</code>（本轮已修）、<code>run_inspector.html</code>（本轮已修）、<code>users.html</code>（仅关闭弹窗，合理）。</li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr><td>新增 <code>--cp-accent-ring</code> CSS 变量，未来 focus ring 样式统一引用</td><td><code>console-theme.css</code> :root + [data-theme="dark"]</td><td><code>grep 'accent-ring' app/static/css/console-theme.css</code></td></tr>
+<tr><td>Escape 键 handler 同类排查已覆盖所有 redesign 模板</td><td>本复盘文档 §6 同类排查</td><td><code>grep -r "e.key === .Escape" app/templates/redesign/ | grep -v cp-modal-overlay | grep -v closeDm</code>（应为空）</td></tr>
+<tr><td><code>except: pass</code> 后端审查完成</td><td>本复盘文档 §6 同类排查</td><td><code>grep -rn "except.*:$" app/services/ app/rbac/ | grep -A1 "pass$"</code>（应无新增盲吞）</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-tier345-code-quality.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

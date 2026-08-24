@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>安全问题修复设计：S1–S5（登出CSRF / 标签越权 / XSS / 异常泄露）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:960px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:2em;border-bottom:1px solid #e5e7eb;padding-bottom:.2em}
+h3{color:#374151;margin-top:1.5em}
+h4{color:#6b7280;margin-top:1em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-family:"SF Mono",Menlo,monospace;font-size:0.9em}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+.risk-high{color:#dc2626;font-weight:700}
+.risk-medium{color:#d97706;font-weight:700}
+.risk-low{color:#059669;font-weight:700}
+.batch{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:1em;margin:1em 0}
+.batch h4{margin-top:0;color:#1e40af}
+</style>
+</head>
+<body>
+
+<h1>安全问题修复设计：S1–S5</h1>
+
+<table>
+<tr><th>文档类型</th><td>安全修复设计方案</td></tr>
+<tr><th>日期</th><td>2026-08-24</td></tr>
+<tr><th>发现方式</th><td>全面前后端代码审计（Code Review）</td></tr>
+<tr><th>涵盖问题</th><td>S1 登出 CSRF（RBAC）· S2 登出 CSRF（Legacy）· S3 标签 CRUD 越权 · S4 注册审批存储型 XSS · S5 API 异常泄露</td></tr>
+<tr><th>状态</th><td>待确认</td></tr>
+</table>
+
+<!-- ================ S1 + S2 ================ -->
+
+<h2>§1 · S1 + S2：登出 CSRF（GET 方法清 session）</h2>
+
+<h3>1.1 问题</h3>
+<p>两个登出路由均接受 GET 请求清除 session，无有效 CSRF 保护：</p>
+<table>
+<tr><th>路由</th><th>文件</th><th>行号</th><th>问题</th></tr>
+<tr>
+<td><code>/rbac/logout</code></td>
+<td><code>app/rbac/views.py</code></td>
+<td>247–253</td>
+<td>虽有 <code>@csrf_protect</code>，但装饰器对 GET 请求 pass-through（设计如此：Safe methods 不校验 CSRF）</td>
+</tr>
+<tr>
+<td><code>/logout</code></td>
+<td><code>app/main/views.py</code></td>
+<td>1209–1212</td>
+<td>仅 GET，无 <code>@csrf_protect</code>，无 <code>@login_required</code></td>
+</tr>
+</table>
+<p>前端 <code>_topbar.html:61</code> 用 <code>&lt;a href="/rbac/logout"&gt;</code> 发起 GET 登出。攻击者可在任意页面嵌入 <code>&lt;img src="/rbac/logout"&gt;</code> 强制已登录用户登出。</p>
+
+<h3>1.2 根因</h3>
+<p>上游 <code>xiaoniu_cron</code> 无 CSRF 机制，登出是简单的 GET→clear→redirect。CronPilot RBAC 改造引入了 CSRF 体系，但登出因"不涉及写操作"被忽视。<code>csrf_protect</code> 的 Safe method pass-through 设计是正确的 REST 语义，但<strong>登出是状态变更操作，不应使用 GET</strong>。遗留 <code>/logout</code> 是上游残留路由，RBAC 改造后未移除。</p>
+
+<h3>1.3 方案</h3>
+
+<h4>推荐方案：POST-only + 前端 JS 提交</h4>
+
+<table>
+<tr><th>变更</th><th>说明</th></tr>
+<tr>
+<td><code>rbac/views.py</code> logout</td>
+<td><code>methods=['GET', 'POST']</code> → <code>methods=['POST']</code>。GET 请求返回 405。</td>
+</tr>
+<tr>
+<td><code>main/views.py</code> logout + check_pass</td>
+<td><strong>删除</strong>遗留 <code>/logout</code> 和 <code>/check_pass</code> 路由（重定向 shim 已无用途，RBAC 登录流程完全替代）。</td>
+</tr>
+<tr>
+<td><code>redesign/_topbar.html</code></td>
+<td><code>&lt;a href="/rbac/logout"&gt;</code> → <code>&lt;a href="#" onclick="...submit logout form..."&gt;</code>：动态创建 POST 表单 + CSRF token 提交。已有 <code>change_password.html</code> 的 <code>pw-logout-btn</code> 实现可参考。</td>
+</tr>
+<tr>
+<td>v1 模板 <code>admin_base.html</code></td>
+<td>同步修改登出链接为 POST 提交（或 JS form.submit）。</td>
+</tr>
+</table>
+
+<h4>备选方案（不推荐）：GET + 确认页</h4>
+<p>GET 到确认页 → 用户点"确认登出"→ POST 提交。多一步交互，体验差。</p>
+
+<h3>1.4 范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/rbac/views.py</code></td><td>logout 改 POST-only</td></tr>
+<tr><td><code>app/main/views.py</code></td><td>删除 <code>/logout</code> + <code>/check_pass</code></td></tr>
+<tr><td><code>app/templates/redesign/_topbar.html</code></td><td>登出链接 → JS POST</td></tr>
+<tr><td><code>app/templates/admin_base.html</code></td><td>v1 登出链接 → JS POST 或 POST form</td></tr>
+<tr><td><code>app/templates/redesign/change_password.html</code></td><td>已有 JS POST 登出实现，无需修改</td></tr>
+</table>
+
+<p><strong>明确不做</strong>：不修改 <code>csrf_protect</code> 装饰器的 Safe method pass-through 设计（这是正确的 REST 语义）。</p>
+
+<h3>1.5 风险</h3>
+<ul>
+<li>v1 模板的登出链接若遗漏修改，用户将无法登出 → 兜底方案：清浏览器 session cookie</li>
+<li>删除 <code>/check_pass</code> 可能影响上游引用 → 搜索确认无其他入口引用</li>
+</ul>
+
+<h3>1.6 验收</h3>
+<pre>
+# 1. GET /rbac/logout 应 405
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5001/rbac/logout
+# → 405
+
+# 2. POST /rbac/logout + CSRF token 应 302 → /rbac/login
+# (先获取 CSRF token 登录，再 POST logout)
+
+# 3. /logout 和 /check_pass 应 404
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5001/logout
+# → 404
+
+# 4. 浏览器验收：点击退出登录 → 实际登出并跳转到登录页
+</pre>
+
+<!-- ================ S3 ================ -->
+
+<h2>§2 · S3：标签 CRUD 缺 scope 校验</h2>
+
+<h3>2.1 问题</h3>
+<p>标签的创建、修改、删除路由（<code>tag_create</code> / <code>tag_update</code> / <code>tag_delete</code>）仅检查 <code>@require_permission('user:manage')</code>，<strong>无 scope 层面校验</strong>。按组管理员（Biz Admin）可通过修改 POST body 中的 <code>group_id</code> 越权操作其他组或全局标签。</p>
+
+<h3>2.2 根因</h3>
+<p>标签系统在用户管理/组管理之后开发，开发时 UI 层面用前端 JS 控制了 <code>group_id</code> 下拉选项（只展示用户所属组），误以为前端限制等于安全防护。同期的组管理路由（<code>groups_edit</code>）有 <code>_actor_bypasses_scope()</code> 检查，但标签路由开发时未对齐该模式。</p>
+
+<h3>2.3 方案</h3>
+
+<h4>tag_create — 校验 group_id 归属</h4>
+<pre>
+def tag_create():
+    ...
+    group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
+    # ── scope 校验 ──
+    if not _actor_bypasses_scope():
+        actor_gids = session.get('group_ids') or []
+        if group_id is None:
+            return web_api_return(code=1, msg='非全局管理员不能创建全局标签')
+        if group_id not in actor_gids:
+            return web_api_return(code=1, msg='无权操作该业务组的标签')
+    ...
+</pre>
+
+<h4>tag_update / tag_delete — 校验标签归属组</h4>
+<pre>
+def tag_update():
+    tag_id = request.values.get('tag_id')
+    # ── 先查标签归属 ──
+    from datas.model.tag import Tag
+    tag = db.session.get(Tag, int(tag_id))
+    if not tag:
+        return web_api_return(code=1, msg='标签不存在')
+    if not _actor_bypasses_scope():
+        actor_gids = session.get('group_ids') or []
+        if tag.group_id is None or tag.group_id not in actor_gids:
+            return web_api_return(code=1, msg='无权操作该标签')
+    ...
+</pre>
+
+<h4>tag_tasks — 读取也需 scope 限制</h4>
+<p><code>tag_tasks</code>（GET 查询标签关联的任务）同样需要校验标签归属组，避免信息泄露。</p>
+
+<h3>2.4 范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/rbac/views.py</code></td><td><code>tag_create</code> / <code>tag_update</code> / <code>tag_delete</code> / <code>tag_rename</code> / <code>tag_tasks</code> 加 scope 校验</td></tr>
+<tr><td><code>tests/test_tag_scope.py</code> (new)</td><td>scope 校验单元测试</td></tr>
+</table>
+
+<p><strong>明确不做</strong>：不修改 <code>tag_service.py</code>（业务逻辑层保持纯净，scope 校验在视图层）。</p>
+
+<h3>2.5 风险</h3>
+<ul>
+<li>Seed Admin（绕过 scope）不受影响</li>
+<li>单组 Biz Admin 操作自己组的标签不受影响</li>
+<li>若 Biz Admin 无组分配（<code>group_ids = []</code>），无法创建任何标签 → 合理的安全行为</li>
+</ul>
+
+<h3>2.6 验收</h3>
+<pre>
+# 1. 单测
+python3 -m unittest tests.test_tag_scope -v
+
+# 2. 浏览器验证（Biz Admin 登录）
+# - 创建标签：下拉只显示自己组 → OK（前端已限制）
+# - curl 篡改 group_id：应被拦截并返回错误信息
+curl -X POST .../tags/create -d "name=test&amp;group_id=999&amp;csrf_token=..." → errcode=1
+</pre>
+
+<!-- ================ S4 ================ -->
+
+<h2>§3 · S4：注册审批 username 存储型 XSS</h2>
+
+<h3>3.1 问题</h3>
+<p><code>registration_review.html</code> 第 139 行和第 153 行，<code>username</code> 从 <code>data-username</code> 属性取值后直接拼入 <code>bodyHtml</code> HTML 字符串，传给 <code>CpModal({ bodyHtml: ... })</code>。<code>CpModal</code> 内部用 <code>innerHTML</code> 赋值。</p>
+
+<h4>攻击链路</h4>
+<ol>
+<li>恶意用户注册 <code>username = '&lt;img src=x onerror=alert(document.cookie)&gt;'</code></li>
+<li>Jinja2 在 <code>data-username="{{ req.username }}"</code> 中自动转义 → <code>data-username="&amp;lt;img..."</code></li>
+<li>浏览器解析 HTML 属性时<strong>解码</strong> HTML entities → DOM 属性值为原始 <code>&lt;img src=x onerror=alert(...)&gt;</code></li>
+<li>jQuery <code>.data('username')</code> 返回解码后的字符串</li>
+<li>拼入 <code>bodyHtml</code> → <code>innerHTML</code> → <strong>脚本执行</strong></li>
+</ol>
+
+<h3>3.2 根因</h3>
+<p>开发者信任 Jinja2 自动转义提供了完整的 XSS 防护，但忽略了 HTML entity 的编解码链路：模板转义保护的是 <strong>HTML 解析阶段</strong>（防止属性值跳出引号），但 JS 从 DOM 读取后的值是<strong>已解码的原始字符串</strong>，再次插入 <code>innerHTML</code> 时等于"二次注入"。</p>
+<p>同类风险存在于所有 <code>data-*</code> 取值后拼 HTML 的模式。</p>
+
+<h3>3.3 方案</h3>
+
+<h4>推荐方案：HTML 转义函数 + textContent</h4>
+
+<p>在 <code>registration_review.html</code> 的 <code>{% block js %}</code> 中添加转义函数（或复用已有的 <code>escHtml</code>），所有 <code>data-*</code> 取值后拼入 HTML 的位置使用转义：</p>
+
+<pre>
+function escHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+// 修复前：
+bodyHtml: '...确认批准用户 &lt;strong&gt;' + username + '&lt;/strong&gt;...'
+// 修复后：
+bodyHtml: '...确认批准用户 &lt;strong&gt;' + escHtml(username) + '&lt;/strong&gt;...'
+</pre>
+
+<h4>同类修复</h4>
+<table>
+<tr><th>文件</th><th>行号</th><th>问题</th></tr>
+<tr><td><code>registration_review.html</code></td><td>139</td><td>approve <code>bodyHtml</code> 拼 <code>username</code></td></tr>
+<tr><td><code>registration_review.html</code></td><td>153</td><td>reject <code>bodyHtml</code> 拼 <code>username</code></td></tr>
+<tr><td><code>task_form.html</code></td><td>247</td><td><code>addTag()</code> 用 <code>innerHTML</code> 拼 tag name</td></tr>
+<tr><td><code>tags.html</code></td><td>449</td><td><code>confirmDelete()</code> 拼 tagName 入 title</td></tr>
+</table>
+
+<h3>3.4 范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/templates/redesign/registration_review.html</code></td><td>2 处 username 拼 HTML → 加 <code>escHtml()</code></td></tr>
+<tr><td><code>app/templates/redesign/task_form.html</code></td><td><code>addTag()</code> 的 <code>innerHTML</code> → <code>textContent</code> + DOM API</td></tr>
+<tr><td><code>app/templates/redesign/tags.html</code></td><td><code>confirmDelete()</code> tagName → <code>escHtml()</code></td></tr>
+</table>
+
+<p><strong>明确不做</strong>：不修改 <code>CpModal</code> / <code>CpConfirm</code> 底层（<code>bodyHtml</code> 参数设计就是接受 HTML，调用方负责转义）。</p>
+
+<h3>3.5 风险</h3>
+<ul>
+<li>转义后 <code>&lt;strong&gt;username&lt;/strong&gt;</code> 仍正常加粗显示 → 无视觉影响</li>
+<li>若 username 合法包含 <code>&amp;</code>（极少见），转义后显示为 <code>&amp;amp;</code> → 可接受的安全-视觉权衡</li>
+</ul>
+
+<h3>3.6 验收</h3>
+<pre>
+# 1. 创建含特殊字符的注册用户
+# username: &lt;img src=x onerror=alert(1)&gt;
+# 2. 以管理员登录审批页面，点击"通过" → 对话框应显示纯文本，无 alert 弹窗
+# 3. grep 检查
+grep -n "innerHTML\|bodyHtml.*+.*data\|\.html(" app/templates/redesign/registration_review.html
+# 确认所有用户输入都经过 escHtml
+</pre>
+
+<!-- ================ S5 ================ -->
+
+<h2>§4 · S5：API 装饰器 catch-all 异常泄露</h2>
+
+<h3>4.1 问题</h3>
+<p><code>app/decorated.py:32-34</code> 的 <code>api_deal_return</code> 装饰器在 <code>except Exception</code> 中返回 <code>str(e)</code>。当前仅 <code>app/api/views.py:585</code> 的 <code>crons_legacy</code>（<code>/api/cron/add</code> 旧路径兼容层）使用此装饰器。</p>
+
+<h3>4.2 根因</h3>
+<p>与 P0-3 完全同源。<code>decorated.py</code> 是上游 <code>xiaoniu_cron</code> 的遗留代码，P0-3 修复时搜索范围限于 <code>main/views.py</code> + <code>rbac/views.py</code>，未扩展到 API 层。</p>
+
+<h3>4.3 方案</h3>
+
+<pre>
+# decorated.py 第 32-34 行
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).error('api_deal_return exception: %s', e, exc_info=True)
+    return api_return(errcode=1, errmsg='服务器内部错误')
+</pre>
+
+<h3>4.4 范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/decorated.py</code></td><td>catch-all 返回通用错误信息，异常写入 logger</td></tr>
+</table>
+
+<p><strong>明确不做</strong>：不重构 <code>api_deal_return</code> 整体结构（遗留兼容层不值得大改）。</p>
+
+<h3>4.5 风险</h3>
+<p>极低。仅改错误分支的返回文案，不影响正常分支逻辑。</p>
+
+<h3>4.6 验收</h3>
+<pre>
+# 1. 代码验证
+grep -n "str(e)" app/decorated.py  → 无匹配
+
+# 2. 全仓库验证
+grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ → 无匹配
+</pre>
+
+<!-- ================ 分批计划 ================ -->
+
+<h2>§5 · 分批实施计划</h2>
+
+<div class="batch">
+<h4>Batch 1：S5 API 异常泄露（最小 diff，1 文件）</h4>
+<p>修改 <code>decorated.py</code> 的 catch-all 返回值。独立可验收。</p>
+</div>
+
+<div class="batch">
+<h4>Batch 2：S4 存储型 XSS（3 文件，纯前端）</h4>
+<p>添加 <code>escHtml</code> 转义函数，修复 4 处 <code>innerHTML</code> / <code>bodyHtml</code> 拼接。独立可验收。</p>
+</div>
+
+<div class="batch">
+<h4>Batch 3：S3 标签 scope 越权（1 文件 + 测试）</h4>
+<p>标签 CRUD 路由加 scope 校验。独立可验收。</p>
+</div>
+
+<div class="batch">
+<h4>Batch 4：S1 + S2 登出 CSRF（4 文件）</h4>
+<p>登出改 POST-only + 删除遗留路由。涉及前端交互变更，独立可验收。</p>
+</div>
+
+<!-- ================ 附录 ================ -->
+
+<h2>§6 · 附录：根因模式总结</h2>
+
+<table>
+<tr><th>安全问题</th><th>根因模式</th><th>预防</th></tr>
+<tr><td>S1/S2</td><td>状态变更操作使用 GET 方法</td><td>规范：状态变更必须 POST + CSRF</td></tr>
+<tr><td>S3</td><td>UI 限制被当作安全防护</td><td>规范：后端必须独立校验 scope</td></tr>
+<tr><td>S4</td><td>信任模板转义但忽略 JS 层 innerHTML</td><td>规范：data-* 取值后拼 HTML 必须 escHtml</td></tr>
+<tr><td>S5</td><td>修复搜索范围不完整</td><td>规范：异常脱敏搜索覆盖整个 app/</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="安全问题修复设计-S1至S5.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

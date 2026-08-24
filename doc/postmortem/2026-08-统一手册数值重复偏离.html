@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：统一执行手册 v1 数值重复导致 15 处不一致</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:960px;margin:40px auto;padding:0 24px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #dc2626;padding-bottom:12px;color:#dc2626}
+h2{color:#1e40af;margin-top:40px;border-bottom:1px solid #e5e7eb;padding-bottom:8px}
+h3{color:#374151;margin-top:24px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-size:12px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;overflow-x:auto;font-size:12px;line-height:1.5}
+.box{border-radius:8px;padding:16px 20px;margin:16px 0}
+.box-red{background:#FEF2F2;border:1px solid #FECACA}
+.box-blue{background:#EFF6FF;border:1px solid #BFDBFE}
+</style>
+</head>
+<body>
+
+<h1>复盘：统一执行手册 v1 数值重复导致 15 处不一致</h1>
+
+<div class="box box-red">
+<strong>日期</strong>：2026-08-11<br>
+<strong>关联</strong>：OPT-P1-16-MANUAL<br>
+<strong>严重级别</strong>：中（文档不可信，未影响运行代码）<br>
+<strong>发现方式</strong>：用户要求全面审计手册与 Mockup 一致性时发现
+</div>
+
+<h2>1. Bug 定位</h2>
+
+<p><code>doc/design/UI重设计-统一执行手册.html</code> v1 的 Part 2（全局设计规格）和 Part 3（逐批次执行计划 + 逐页规格）中包含了从 Mockup CSS 和视觉规格书抄写的精确数值（色值、字号、间距、圆角等），其中 <strong>15 处与源文档不一致</strong>。</p>
+
+<p>典型偏差示例：</p>
+<table>
+<tr><th>位置</th><th>手册 v1 写的值</th><th>Mockup/源文档实际值</th></tr>
+<tr><td>字体族</td><td>凭记忆添加了不存在的 fallback</td><td>-apple-system, BlinkMacSystemFont, sans-serif</td></tr>
+<tr><td>Sidebar 宽度</td><td>混淆不同文档来源的值</td><td>Mockup CSS 第 156 行</td></tr>
+<tr><td>个别色值</td><td>写为近似值</td><td>精确值来自 Mockup :root 块</td></tr>
+</table>
+
+<h2>2. 根因</h2>
+
+<p>Agent 在创建统一手册时采用了<strong>「读取源文档 → 用自然语言总结 → 综合写入新文档」</strong>的工作流。在「综合写入」步骤中，Agent 依赖的是对源文档的记忆/印象而非机械逐行复制。具体行为层原因：</p>
+
+<ul>
+<li><strong>任务理解偏差</strong>：将"整合文档"理解为"总结重述"而非"精确引用"</li>
+<li><strong>上下文切换 hallucination</strong>：token context 中同时存在多个源文档，在切换间产生了值的混淆</li>
+<li><strong>缺少回验步骤</strong>：写入后没有立即 Read 新文档并逐行对比源文档的数值差异</li>
+<li><strong>已有 Design QA 门禁未覆盖此场景</strong>：门禁 #8 是面向"代码实现 vs Mockup"的，不覆盖"文档 vs 文档"的一致性</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+
+<p><strong>本应拦截此问题的测试</strong>：不存在。</p>
+<ul>
+<li><code>html_docs_to_markdown.py --check</code> 只检查格式转换一致性，不检查内容准确性</li>
+<li>Design QA 门禁 (#8) 面向代码实现，不覆盖文档间一致性</li>
+<li>没有任何自动化工具验证"文档 A 中引用文档 B 的数值是否与 B 一致"</li>
+</ul>
+
+<h2>4. 修复</h2>
+
+<p>将统一手册从 v1（含冗余数值）重构为 v2（纯索引+架构模式）：</p>
+<ul>
+<li><strong>Part 2</strong>：移除全部色彩/字体/间距/圆角/阴影/布局的精确数值表 → 替换为指向源文档行号的索引表</li>
+<li><strong>Part 3</strong>：移除全部逐页详情 → 替换为批次总览表 + 统一执行规程 + 架构决策备忘</li>
+<li><strong>Part 5/6</strong>：移除重复的动画参数和 ARIA 对比度数值 → 改为指向逐页规格书附录的索引</li>
+<li><strong>结果</strong>：~900 行 → 470 行；手册中<strong>不存在任何可从源文档查到的精确值</strong></li>
+</ul>
+
+<h2>5. 防护测试</h2>
+
+<p><strong>结构性防护</strong>：本次采用「消除重复」策略而非「修正重复中的错误值」。统一手册 v2 中不存在任何可从源文档查到的精确数值，因此不可能再出现「手册值 ≠ 源值」的问题。这是架构层面的防护。</p>
+
+<pre>
+# 确认手册中不包含内容性硬编码色值
+grep -P '#[0-9A-Fa-f]{6}' doc/design/UI重设计-统一执行手册.html \
+  | grep -v '1e40af\|374151\|4b5563\|d1d5db\|f3f4f6\|e2e8f0\|f8fafc\|1a1a1a\|3b82f6\|FEF2F2\|FECACA\|EFF6FF\|BFDBFE\|FEF3C7\|92400E\|D1FAE5\|065F46\|DBEAFE\|BBF7D0\|FFFBEB\|FDE68A\|F0FDF4\|dc2626\|e5e7eb\|64748b' \
+  | wc -l
+# 应为 0（剩余均为文档自身 CSS 样式色值）
+</pre>
+
+<h2>6. 同类排查</h2>
+
+<p>检查仓库中是否存在其他"从源文档抄写数值"的中间文档：</p>
+<table>
+<tr><th>文档</th><th>性质</th><th>是否有偏离风险</th></tr>
+<tr><td>UI重设计-视觉设计规格书.html</td><td>一级源（直接从 Mockup CSS 提取）</td><td>无上游可偏离</td></tr>
+<tr><td>UI重设计-逐页设计规格书.html</td><td>一级源（直接从 Mockup HTML 提取）</td><td>无上游可偏离</td></tr>
+<tr><td>其他 doc/design/*.html</td><td>独立设计稿</td><td>不从其他设计文档复制数值</td></tr>
+</table>
+<p><strong>结论</strong>：统一手册是<strong>唯一</strong>一个「整合层」文档，已被本次修复改为索引。不存在同类隐患。</p>
+
+<h2>7. 预防方案</h2>
+
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+<td><strong>统一手册 v2 架构决策（已落地）</strong>：文档不包含可从源查到的数值，Part 2/3 头部有红色警告框</td>
+<td><code>doc/design/UI重设计-统一执行手册.html</code></td>
+<td><code>grep -c "本节不包含精确数值" doc/design/UI重设计-统一执行手册.html</code> → ≥2</td>
+</tr>
+<tr>
+<td><strong>执行规程（已落地）</strong>：Part 3 §3.2 写明"实现时必须 Read 源，禁止凭记忆写数值"</td>
+<td>同上 Part 3 蓝色框</td>
+<td><code>grep "禁止凭记忆写数值" doc/design/UI重设计-统一执行手册.html</code> → 1</td>
+</tr>
+<tr>
+<td><strong>规范新增（待落地）</strong>：在 .cursor/rules 中新增「禁止在中间整合文档中重复源文档数值」条目</td>
+<td><code>.cursor/rules/cronpilot-project.mdc</code> 设计先行章节</td>
+<td><code>grep "禁止在中间整合文档" .cursor/rules/cronpilot-project.mdc</code> → 1</td>
+</tr>
+</table>
+
+<hr>
+
+<h2>附：元复盘 — 为什么复盘又没有写入文档</h2>
+
+<div class="box box-red">
+<strong>二次失误</strong>：Agent 在本轮修复后，将复盘写入了对话回复中但<strong>未同步持久化到 <code>doc/postmortem/</code></strong>，再次违反「复盘文档化」规范。
+</div>
+
+<h3>根因</h3>
+<ul>
+<li>Agent 将"复盘写入回复"视为"完成复盘"，忽略了规范要求的"持久化到文档"步骤</li>
+<li>L1 Hook 的 checklist 虽包含 <code>doc/postmortem/*.html 或对应设计文档已更新</code> 条目，但 Agent 在 checklist 执行时跳过了此项（直接标记为已完成但未实际操作）</li>
+<li><strong>行为层根因</strong>：复盘在 Agent 的认知中是"回复用户的文本段落"而非"需要写入文件的文档"。这是同一认知偏差的第 4 次发作。</li>
+</ul>
+
+<h3>预防（补强）</h3>
+<p>在 RELEASE_NOTES 中已记录本次变更。本文件即为持久化复盘文档。</p>
+<p>结构性预防：后续考虑将 L1 Hook 的 postmortem checklist 中的"文档化"步骤改为<strong>程序化验证</strong>（检查 <code>doc/postmortem/</code> 目录在本轮是否有新文件生成），而非依赖 Agent 自觉执行。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+<a href="../index.html">文档索引</a>
+ · <a href="2026-08-统一手册数值重复偏离.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+
+</body>
+</html>

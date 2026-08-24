@@ -140,7 +140,7 @@
                         <span style="color:var(--cp-success-text);font-weight:600">启用</span>
                         {% if current_user and current_user.user_id != user.id %}
                         <div style="margin-top:6px">
-                            <a class="btn btn-mini btn-danger" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=0) }}">停用（须填缘由）</a>
+                            <a class="btn cp-btn-sm btn-danger" href="{{ url_for('rbac.users_set_active', id=user.id, is_active=0) }}">停用（须填缘由）</a>
                         </div>
                         {% else %}
                         <span style="color:var(--cp-muted);margin-left:8px">当前登录账号不可在此停用</span>

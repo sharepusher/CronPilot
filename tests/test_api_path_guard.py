@@ -48,6 +48,8 @@ def _collect_registered_api_paths():
         registered.add(path)
     # Also include well-known framework paths
     registered.add('/api/openapi.json')
+    # Routes registered in main/views.py (not in the api Blueprint)
+    registered.add('/api/tags/suggest')
     return registered
 
 

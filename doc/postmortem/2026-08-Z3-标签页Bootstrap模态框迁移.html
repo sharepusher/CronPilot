@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Z3 标签管理页 Bootstrap Modal 迁移 — CronPilot</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:900px;margin:40px auto;padding:0 24px;color:#1c1c1e;line-height:1.7}
+h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.meta{color:#6b7280;font-size:13px;margin-bottom:32px}
+h2{font-size:16px;font-weight:700;margin:28px 0 10px;border-left:3px solid #4f6ef7;padding-left:10px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:#f5f5f7;padding:8px 12px;text-align:left;font-weight:600;border:1px solid #e2e2e7}
+td{padding:8px 12px;border:1px solid #e2e2e7;vertical-align:top}
+.code{font-family:monospace;font-size:12px;background:#f5f5f7;padding:2px 6px;border-radius:4px}
+pre{font-family:monospace;font-size:12px;background:#f5f5f7;padding:14px;border-radius:6px;overflow-x:auto;line-height:1.5}
+.callout{border-left:3px solid #4f6ef7;background:#eff2fe;padding:10px 14px;border-radius:0 6px 6px 0;margin:12px 0;font-size:13px}
+.callout.danger{border-color:#dc2626;background:#fef2f2}
+.callout.ok{border-color:#16a34a;background:#f0fdf4}
+.callout.warn{border-color:#d97706;background:#fffbeb}
+ul{margin:8px 0;padding-left:20px}
+li{margin-bottom:4px;font-size:13px}
+</style>
+</head>
+<body>
+
+<h1>复盘：Z3 — 标签管理页 Bootstrap Modal 系统迁移</h1>
+<div class="meta">日期：2026-08-20 · 触发：用户报告「功能都不测试吗」 · 类型：Bug 修复复盘</div>
+
+<h2>1. Bug 定位</h2>
+
+<table>
+  <tr><th>位置</th><td><span class="code">app/templates/redesign/tags.html</span>，4 个 Bootstrap modal：<span class="code">#create-modal</span>、<span class="code">#edit-modal</span>、<span class="code">#tasks-modal</span>、<span class="code">#delete-modal</span></td></tr>
+  <tr><th>现象</th><td>点击删除/新建/重命名按钮后出现半透明遮罩，对话框不可见（内容区域空白）；用户强烈反馈"页面透明的，功能都不测试吗"</td></tr>
+  <tr><th>失败代码</th><td><pre>$('#delete-modal').modal('show');  // Bootstrap modal，在 redesign shell 中不渲染
+$('#create-modal').modal('show');  // 同上
+$('#edit-modal').modal('show');    // 同上
+$('#tasks-modal').modal('show');   // 同上</pre></td></tr>
+</table>
+
+<h2>2. 根因</h2>
+
+<p>行为层根因（非"粗心"）：</p>
+<ul>
+  <li><strong>CSS 命名空间污染</strong>：redesign shell（<span class="code">redesign-components.css</span>）重新定义了 <span class="code">.modal</span>、<span class="code">.modal-backdrop</span> 等类的样式，导致 Bootstrap 的定位和层叠规则失效。Bootstrap modal 依赖 <span class="code">display:block</span> + <span class="code">position:fixed</span> + 特定 z-index 协作，被 redesign CSS override 后对话框 <span class="code">display:none</span> 条件不满足但 visibility 为 0。</li>
+  <li><strong>迁移不完整</strong>：同一时期，<span class="code">api_token.html</span> 和 <span class="code">users.html</span> 上的对话框已被迁移到 <span class="code">CpConfirm.show()</span>，但 <span class="code">tags.html</span> 被遗漏——原因是 tags 页的表单型 modal（新建/重命名）需要额外的输入框支持，实现复杂度更高，导致偷懒推迟而未在同一轮完成迁移。</li>
+  <li><strong>验证层级不足</strong>：Z3 第一次实现（添加 pill 内联 × 按钮）时，验证只覆盖了"× 按钮是否渲染"和"stopPropagation 是否生效"，未验证点击后对话框是否正常显示——这是 E2E 交互验证的盲区。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+
+<table>
+  <tr><th>现有测试</th><th>为何未能拦截</th></tr>
+  <tr><td><span class="code">tests/test_redesign_sidebar.py</span> — 权限/导航测试</td><td>不覆盖 JS 模态框渲染行为</td></tr>
+  <tr><td><span class="code">tests/test_ajax_form_guard.py</span> — 防重复提交测试</td><td>只检查 form 类名，不验证模态框可见性</td></tr>
+  <tr><td>单元测试全部绿</td><td>Python 单元测试无法验证浏览器内 CSS/JS 渲染结果</td></tr>
+  <tr><td>CDP 自动化（pill 渲染检查）</td><td>只检查 DOM 中 <span class="code">.tg-pill-del-btn</span> 是否存在，未触发点击并检查 modal 可见性</td></tr>
+</table>
+
+<div class="callout warn">根本漏洞：缺少"点击操作按钮 → 验证模态框 display 和 opacity"这一层 E2E 验证。CSS 冲突类 Bug 必须在浏览器渲染层才能发现。</div>
+
+<h2>4. 修复</h2>
+
+<p>最小 diff 方案：彻底替换 <span class="code">tags.html</span> 中所有 Bootstrap modal 为 redesign 原生 modal 系统。</p>
+
+<table>
+  <tr><th>操作</th><th>内容</th></tr>
+  <tr><td>删除</td><td>4 个 Bootstrap modal HTML 块（#create-modal / #edit-modal / #tasks-modal / #delete-modal）</td></tr>
+  <tr><td>删除</td><td><span class="code">&lt;link rel="stylesheet" href="bootstrap.min.css"&gt;</span> 和 <span class="code">&lt;script src="bootstrap.min.js"&gt;</span></td></tr>
+  <tr><td>新增</td><td><span class="code">CpModal(opts)</span> 工厂函数（使用 <span class="code">.cp-modal-overlay</span> / <span class="code">.cp-modal</span> / <span class="code">.cp-modal-body</span> 标准 CSS 结构，innerHTML 注入表单）</td></tr>
+  <tr><td>新增</td><td>模态框内表单 CSS（<span class="code">.tg-fg</span> / <span class="code">.tg-input</span> / <span class="code">.tg-select</span> / <span class="code">.tg-err</span>）</td></tr>
+  <tr><td>保留</td><td>删除确认使用 <span class="code">CpConfirm.show()</span>（简单确认）；强制删除使用 <span class="code">CpModal()</span>（需渲染任务列表 HTML）</td></tr>
+</table>
+
+<h2>5. 防护测试</h2>
+
+<div class="callout ok">CDP 验证通过（2026-08-20）</div>
+
+<table>
+  <tr><th>验证项</th><th>方法</th><th>断言</th></tr>
+  <tr><td>删除确认 modal</td><td>CDP click <span class="code">.btn-tag-delete</span>，检查 snapshot</td><td>snapshot 中出现 <span class="code">role:button name:确认删除</span> 和 <span class="code">role:heading name:删除标签「JP」</span></td></tr>
+  <tr><td>新建标签 modal</td><td>CDP click <span class="code">#btn-new-tag</span>，检查 snapshot</td><td>snapshot 中出现 <span class="code">role:textbox placeholder:如：JP、支付核心</span> 和 <span class="code">role:combobox</span>（业务组选择）</td></tr>
+  <tr><td>ESC 关闭</td><td>CDP press Escape，检查 modal 消失</td><td>snapshot 不包含 <span class="code">role:heading name:新建标签</span></td></tr>
+  <tr><td>截图留证</td><td>browser_take_screenshot</td><td>对话框可见、背景半透明、按钮样式正确</td></tr>
+</table>
+
+<p>E2E 验证截图保存在：<span class="code">doc/design/screenshots/round4/tags_delete_modal.png</span> 和 <span class="code">tags_create_modal.png</span>。</p>
+
+<h2>6. 同类排查</h2>
+
+<table>
+  <tr><th>页面</th><th>是否存在 Bootstrap modal</th><th>状态</th></tr>
+  <tr><td>api_token.html</td><td>原有，已在上一轮迁移到 CpConfirm</td><td>✅ 已修复</td></tr>
+  <tr><td>users.html</td><td>原有，已在上一轮迁移到 CpConfirm</td><td>✅ 已修复</td></tr>
+  <tr><td>tags.html</td><td>4个，本轮全部迁移</td><td>✅ 本轮修复</td></tr>
+  <tr><td>其他 redesign 模板</td><td>全量 grep 检查</td><td>见下方命令输出</td></tr>
+</table>
+
+<pre>grep -r "modal('show')\|\.modal('hide')\|bootstrap.min" \
+  app/templates/redesign/ \
+  --include="*.html"
+# 结果：无匹配（clean）</pre>
+
+<h2>7. 预防方案（可落地 + 可验证）</h2>
+
+<h3>方案 A：规范文档落地（已执行）</h3>
+<div class="callout">
+在 <span class="code">.cursor/rules/cronpilot-project.mdc</span> 和 <span class="code">AGENTS.md</span> 新增"Redesign 确认对话框规范"：
+<ul>
+  <li>禁止在 <span class="code">app/templates/redesign/</span> 中使用 <span class="code">$().modal('show')</span></li>
+  <li>强制使用：<span class="code">CpConfirm.show()</span>（简单确认）或 <span class="code">CpModal()</span>（表单/HTML体）</li>
+</ul>
+</div>
+
+<h3>方案 B：CI 静态检查（新增门禁）</h3>
+<div class="callout">
+新增检查命令（可加入 <span class="code">scripts/check_ui_contract.py</span> 或单独脚本）：
+<pre>grep -r "modal('show')\|bootstrap.min.js" app/templates/redesign/ --include="*.html"
+# 有匹配 → CI 失败</pre>
+验证方法：<span class="code">grep -r "\.modal('show')" app/templates/redesign/</span> 返回空行则通过。
+</div>
+
+<h3>方案 C：E2E 模态框可见性验证规范（新增）</h3>
+<div class="callout warn">
+凡涉及"点击按钮 → 弹出对话框"的交互变更，验证必须包含：
+<ul>
+  <li>CDP click 后检查 snapshot 中是否出现对话框 heading 或按钮</li>
+  <li>或 <span class="code">Runtime.evaluate</span> 检查 <span class="code">document.querySelector('.cp-modal-overlay')</span> 不为 null</li>
+  <li>禁止仅凭"单测通过"或"DOM 中存在按钮"宣称对话框功能可用</li>
+</ul>
+</div>
+
+<p>落地位置：<span class="code">.cursor/rules/cronpilot-project.mdc</span> §"浏览器端 DOM / CSS / JS 修改"和 §"Redesign 确认对话框规范"。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-Z3-标签页Bootstrap模态框迁移.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

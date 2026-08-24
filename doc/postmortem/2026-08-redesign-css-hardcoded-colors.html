@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Redesign CSS 硬编码颜色与重复定义</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:860px;margin:2em auto;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:2px solid #0891b2;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:1.8em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;text-align:left}
+th{background:#f6f8fa}
+code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:0.92em}
+pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow-x:auto}
+.severity{display:inline-block;padding:2px 8px;border-radius:3px;font-size:0.85em;font-weight:600}
+.medium{background:#fef3c7;color:#92400e}
+</style>
+</head>
+<body>
+
+<h1>复盘：Redesign CSS 硬编码颜色与重复定义</h1>
+
+<p><strong>日期</strong>：2026-08-24<br>
+<strong>严重度</strong>：<span class="severity medium">中</span><br>
+<strong>触发来源</strong>：代码 Review / 自查审计<br>
+<strong>关联</strong>：OPT-P1-16（Redesign Phase 1）</p>
+
+<h2>1. Bug 定位</h2>
+
+<p>3 个 redesign CSS 文件中共 15 处硬编码十六进制颜色：</p>
+
+<table>
+<tr><th>文件</th><th>行号</th><th>硬编码值</th><th>应使用的变量</th></tr>
+<tr><td><code>redesign-components.css</code></td><td>55, 61, 423, 461, 467, 797, 803</td><td><code>#fff</code></td><td><code>var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>96</td><td><code>#fff</code></td><td><code>var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>614-615</td><td><code>--cp-warning</code>（不存在）</td><td><code>--cp-warn-accent</code> / <code>--cp-warn-bg</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>771</td><td><code>#ddd</code></td><td><code>var(--cp-border)</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>897</td><td><code>--cp-warning</code>（不存在）</td><td><code>--cp-warn-accent</code></td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>1103</td><td><code>--cp-white</code>（不存在）</td><td><code>var(--cp-on-filled)</code></td></tr>
+<tr><td><code>redesign-mockup-shared.css</code></td><td>162, 167, 172</td><td>带硬编码 fallback 的变量引用</td><td>移除 fallback，新增缺失变量</td></tr>
+</table>
+
+<p>另外存在 <code>.cp-breadcrumb</code> 在 <code>redesign-layout.css</code> 和 <code>redesign-pages.css</code> 中重复定义（属性值冲突），以及 Print <code>@media</code> 中选择器引用了不存在的 <code>.redesign-*</code> 类名。</p>
+
+<h2>2. 根因</h2>
+
+<ul>
+<li><strong>硬编码颜色</strong>：开发 redesign CSS 时直接写 <code>#fff</code> 等色值，虽然 <code>console-theme.css</code> 已有 <code>--cp-on-filled: #ffffff</code> 变量，但未统一使用。引用了不存在的变量名（<code>--cp-warning</code> 而非 <code>--cp-warn-accent</code>），反映对变量命名体系不够熟悉。</li>
+<li><strong>重复定义</strong>：<code>redesign-layout.css</code>（布局层）和 <code>redesign-pages.css</code>（页面层）各自独立添加了 breadcrumb 样式，未检查跨文件是否已存在同名选择器。</li>
+<li><strong>Print 选择器</strong>：编写 print 样式时使用了 <code>.redesign-*</code> 命名约定，后来 DOM 类名统一改为 <code>.cp-*</code>，print 块未同步更新。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+
+<ul>
+<li>颜色审计 CI（<code>audit_hardcoded_colors.py --check</code>）仅扫描 HTML 模板和 Vue 文件，不覆盖 CSS 文件中的硬编码色值。</li>
+<li>无 CSS 选择器有效性测试（CSS 中引用的 class 是否存在于 DOM 中）。</li>
+<li>无 CSS 变量存在性检测（CSS 中引用的 <code>var(--cp-*)</code> 是否在 <code>:root</code> 中有定义）。</li>
+</ul>
+
+<h2>4. 修复</h2>
+
+<ul>
+<li>15 处硬编码全部替换为 CSS 变量引用</li>
+<li>在 <code>console-theme.css</code> 中新增 <code>--cp-warn-text</code> 和 <code>--cp-danger-text</code>（含暗色主题）</li>
+<li>删除 <code>redesign-layout.css</code> 中的重复 breadcrumb 块，保留 <code>redesign-pages.css</code> 版本</li>
+<li>修正 Print 选择器：<code>.redesign-sidebar</code> → <code>.cp-sidebar</code> 等</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+
+<pre><code># 验证 redesign CSS 文件中无硬编码颜色
+grep -n '#[0-9a-fA-F]\{3,8\}[; )]' app/static/css/redesign-*.css | grep -v '/\*' && echo "FAIL" || echo "OK"
+
+# 验证 print 选择器使用正确的 class
+grep -n '\.redesign-' app/static/css/redesign-pages.css && echo "FAIL" || echo "OK"
+
+# 验证 breadcrumb 不再重复定义
+grep -c '\.cp-breadcrumb' app/static/css/redesign-layout.css  # 应为 0</code></pre>
+
+<h2>6. 同类排查</h2>
+
+<ul>
+<li><code>redesign-components.css</code>：已清理，0 处硬编码</li>
+<li><code>redesign-pages.css</code>：已清理，0 处硬编码</li>
+<li><code>redesign-mockup-shared.css</code>：已清理 fallback</li>
+<li><code>console-mode.css</code>：不在 redesign 范围，暂不处理</li>
+<li><code>console-theme.css</code>：变量定义文件，允许硬编码</li>
+</ul>
+
+<h2>7. 预防方案</h2>
+
+<p><strong>措施</strong>：扩展 <code>audit_hardcoded_colors.py</code> 的扫描范围，增加对 <code>app/static/css/redesign-*.css</code> 文件的检查。排除 <code>console-theme.css</code>（变量定义文件）和 CSS 注释行。</p>
+
+<p><strong>落地位置</strong>：<code>scripts/audit_hardcoded_colors.py</code>（CI 门禁自动触发）</p>
+
+<p><strong>验证命令</strong>：</p>
+<pre><code>grep -n '#[0-9a-fA-F]\{3,8\}[; )]' app/static/css/redesign-*.css | grep -v '/\*' && echo "FAIL" || echo "OK"</code></pre>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-redesign-css-hardcoded-colors.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

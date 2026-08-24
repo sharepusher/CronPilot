@@ -1,0 +1,165 @@
+{% extends "redesign/_base.html" %}
+{% block title %}API Token — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><h1>API Token</h1></div>
+
+<div class="tk-card">
+  {% if api_token %}
+  <div class="tk-section">
+    <label class="tk-label">我的 Token</label>
+    <div class="tk-token-row">
+      <input type="text" class="f-input tk-token-input" value="{{ api_token }}" readonly id="api-token-display" />
+      <button type="button" class="btn-c btn-line btn-xs" id="tk-copy-btn">复制</button>
+      <button type="button" class="btn-c btn-danger-c btn-xs" id="tk-reset-btn"
+              data-href="{{ url_for('rbac.api_token_reset') }}"
+              data-csrf="{{ csrf_token }}">重置</button>
+    </div>
+    {% if api_token_expires_at %}
+    <div class="tk-expires">有效期至：<span class="mono">{{ api_token_expires_at }}</span></div>
+    {% endif %}
+  </div>
+
+  <hr class="tk-divider">
+
+  <div class="tk-section">
+    <label class="tk-label">使用方式</label>
+    <p class="tk-desc">在 API 请求中通过 <code>Authorization</code> 头传递 Token：</p>
+    <pre class="tk-code">curl -H "Authorization: Bearer {{ api_token }}" http://&lt;host&gt;/api/cron/query</pre>
+    <p class="tk-desc cp-mt-8">也可通过 <code>POST /api/auth/token</code>（Basic Auth）重新获取 Token。</p>
+  </div>
+
+  <hr class="tk-divider">
+
+  <div class="tk-section">
+    <label class="tk-label">Token 自动重置规则</label>
+    <ul class="tk-rules">
+      <li>修改密码后 Token 自动重置</li>
+      <li>业务组变更后 Token 自动重置</li>
+      <li>你可在本页主动重置 Token</li>
+      <li>管理员可在<a href="{{ url_for('rbac.users_list') }}">用户列表</a>中触发重置</li>
+    </ul>
+  </div>
+  {% else %}
+  <div class="tk-empty">
+    当前账号尚未生成 API Token。修改密码后将自动签发。
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.tk-card {
+  max-width: 600px;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 24px 28px;
+}
+.tk-section { margin-bottom: 4px; }
+.tk-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cp-ink);
+  margin-bottom: 8px;
+}
+.tk-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tk-token-input {
+  flex: 1;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  height: 34px;
+  box-sizing: border-box;
+}
+.tk-expires {
+  font-size: 12px;
+  color: var(--cp-text-muted);
+  margin-top: 8px;
+}
+.tk-divider {
+  border: none;
+  border-top: 1px solid var(--cp-border);
+  margin: 18px 0;
+}
+.tk-desc {
+  font-size: 13px;
+  color: var(--cp-text-muted);
+  margin: 0 0 6px;
+}
+.tk-desc code {
+  background: var(--cp-surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.tk-code {
+  background: var(--cp-surface-2);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-x: auto;
+  color: var(--cp-ink);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.tk-rules {
+  font-size: 13px;
+  color: var(--cp-text-muted);
+  margin: 0;
+  padding-left: 18px;
+}
+.tk-rules li { margin-bottom: 4px; }
+.tk-rules a { color: var(--cp-accent); text-decoration: none; }
+.tk-rules a:hover { text-decoration: underline; }
+.tk-empty {
+  padding: 16px;
+  background: color-mix(in srgb, var(--cp-warn) 10%, transparent);
+  color: var(--cp-warn);
+  border: 1px solid color-mix(in srgb, var(--cp-warn) 30%, transparent);
+  border-radius: 6px;
+  font-size: 13px;
+}
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+$(function() {
+    $('#tk-copy-btn').on('click', function() {
+        var inp = document.getElementById('api-token-display');
+        inp.select();
+        document.execCommand('copy');
+        var $btn = $(this);
+        $btn.text('已复制');
+        setTimeout(function() { $btn.text('复制'); }, 1500);
+    });
+
+    $('#tk-reset-btn').on('click', function() {
+        var href = $(this).data('href');
+        var csrf = $(this).data('csrf');
+        CpConfirm.show({
+            title: '重置 API Token',
+            body: '确定重置当前账号的 API Token？当前 Token 将立即失效，调用方需更新凭证。',
+            confirmText: '确认重置',
+            cancelText: '取消',
+            danger: true,
+            onConfirm: function() {
+                var $form = $('<form method="post" style="display:none"></form>')
+                    .attr('action', href)
+                    .append($('<input type="hidden" name="csrf_token">').val(csrf));
+                $('body').append($form);
+                $form.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

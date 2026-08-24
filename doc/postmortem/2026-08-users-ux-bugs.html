@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：用户管理页 UX 三 Bug（2026-08）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;color:#1a1a2e;line-height:1.7}
+h1{font-size:1.5rem;border-bottom:2px solid #e74c3c;padding-bottom:8px}
+h2{font-size:1.1rem;margin-top:2em;color:#c0392b}
+h3{font-size:1rem;color:#2c3e50;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;vertical-align:top}
+th{background:#f8f9fa;font-weight:600;font-size:0.9rem}
+code{background:#f4f4f4;padding:2px 6px;border-radius:4px;font-size:0.88rem}
+pre{background:#f4f4f4;padding:14px;border-radius:6px;overflow-x:auto;font-size:0.85rem}
+.badge-red{background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:12px;font-size:0.8rem}
+.badge-green{background:#e8f5e9;color:#27ae60;padding:2px 8px;border-radius:12px;font-size:0.8rem}
+.badge-blue{background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:12px;font-size:0.8rem}
+.box{border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin:12px 0;background:#fafafa}
+</style>
+</head>
+<body>
+<h1>复盘：用户管理页 UX 三 Bug（2026-08）</h1>
+<p><strong>版本</strong>：Unreleased（A2 后续）&nbsp;|&nbsp;<strong>复盘时间</strong>：2026-08-18&nbsp;|&nbsp;<strong>触发来源</strong>：用户报告</p>
+
+<h2>一、问题概述</h2>
+<div class="box">
+<p>用户在 A2（用户管理页列结构重构 + Chip 筛选器）交付后反馈三个 UX 问题：</p>
+<table>
+<tr><th>编号</th><th>问题描述</th><th>严重程度</th></tr>
+<tr><td>UX-1</td><td>操作列图标按钮鼠标悬停提示（tooltip）显示极慢（浏览器原生延迟约 500ms–1s）</td><td><span class="badge-red">体验差</span></td></tr>
+<tr><td>UX-2</td><td>停用用户的操作列使用眼睛图标（👁），与密码可见性图标含义冲突，产生歧义</td><td><span class="badge-red">认知混乱</span></td></tr>
+<tr><td>UX-3</td><td>停用用户点击操作（眼睛图标链接）跳转到用户编辑页，停用账号不应可编辑</td><td><span class="badge-red">功能错误</span></td></tr>
+</table>
+</div>
+
+<h2>二、逐 Bug 复盘</h2>
+
+<h3>Bug UX-1：Tooltip 显示慢</h3>
+<table>
+<tr><th width="140">要素</th><th>内容</th></tr>
+<tr><td><strong>Bug 定位</strong></td><td><code>app/templates/redesign/users.html</code> — 图标按钮使用 HTML 原生 <code>title</code> 属性</td></tr>
+<tr><td><strong>根因</strong></td><td>浏览器原生 <code>title</code> tooltip 有约 500ms–1000ms 的操作系统级内置延迟，无法通过 CSS/JS 覆盖。这是 OS 级行为，与 Web 代码无关</td></tr>
+<tr><td><strong>测试漏洞</strong></td><td>A2 实现期间未在浏览器中做悬停体验测试；图标按钮的 tooltip 延迟是感知性问题，不会在 Python unittest 或 curl 中暴露</td></tr>
+<tr><td><strong>修复</strong></td><td>将 <code>title="xxx"</code> 替换为 <code>data-tooltip="xxx"</code>，通过 CSS <code>[data-tooltip]::after</code> + <code>transition: opacity 0.08s</code> 实现立即显示的自定义 tooltip</td></tr>
+<tr><td><strong>防护测试</strong></td><td>
+<pre>python -c "
+import urllib.request
+resp = urllib.request.urlopen('http://127.0.0.1:5001/rbac/users')
+html = resp.read().decode()
+assert 'data-tooltip=' in html, 'FAIL: data-tooltip missing'
+assert 'title=' not in html.split('<td class=\"um-ops\"')[1].split('</td>')[0], 'FAIL: title attr still present in ops column'
+print('OK: data-tooltip found, no title attr in ops column')
+"</pre>
+</td></tr>
+<tr><td><strong>同类排查</strong></td><td>检查 <code>redesign/</code> 目录下其他模板中的 <code>title=</code> 用法：任务列表页、执行日志页的操作按钮均未使用 <code>title</code>；此问题仅出现在 users.html</td></tr>
+<tr><td><strong>预防方案</strong></td><td>在 <code>tests/test_check_ui_contract.py</code> 中新增断言：<code>redesign/users.html</code> 的 <code>.um-ops</code> 列不得含有 <code>title=</code> 属性；或在 <code>scripts/audit_button_classes.py</code> 中追加 "action column title attribute" 检查</td></tr>
+</table>
+
+<h3>Bug UX-2：眼睛图标语义歧义</h3>
+<table>
+<tr><th width="140">要素</th><th>内容</th></tr>
+<tr><td><strong>Bug 定位</strong></td><td><code>app/templates/redesign/users.html</code> — 停用用户操作列使用眼睛（eye）SVG 图标表示"查看用户"</td></tr>
+<tr><td><strong>根因</strong></td><td>眼睛图标在 Web 惯例中几乎固定表示"显示/隐藏密码"。实现时选用 eye 图标表示"查看详情"，未检查 icon-to-meaning 惯例映射，导致与密码操作含义冲突</td></tr>
+<tr><td><strong>测试漏洞</strong></td><td>无 UX/可用性测试；icon-semantic 正确性是主观感知问题，需要设计审查或 UX 测试，纯代码审查无法发现</td></tr>
+<tr><td><strong>修复</strong></td><td>对停用用户操作列，完全移除图标按钮，改为静态文字标签 <code>&lt;span class="um-inactive-label"&gt;已停用&lt;/span&gt;</code>，彻底消除歧义</td></tr>
+<tr><td><strong>防护测试</strong></td><td>
+<pre>python -c "
+import urllib.request
+resp = urllib.request.urlopen('http://127.0.0.1:5001/rbac/users')
+html = resp.read().decode()
+assert 'um-inactive-label' in html, 'FAIL: inactive label missing'
+print('OK: um-inactive-label present')
+"</pre>
+</td></tr>
+<tr><td><strong>同类排查</strong></td><td>全仓库搜索眼睛图标使用：<code>grep -r "eye" app/templates/redesign/</code>。结论：仅 <code>change_password.html</code> 使用眼睛图标（密码可见性切换），语义正确</td></tr>
+<tr><td><strong>预防方案</strong></td><td>在 <code>doc/design/CronPilot-2026-redesign-mockup.html</code> 的图标规范节中明确 eye 图标仅用于密码可见性；在 <code>.cursor/rules/cronpilot-project.mdc</code> 追加"图标语义约束"规范条目（见下方规范更新）</td></tr>
+</table>
+
+<h3>Bug UX-3：停用用户跳转编辑页</h3>
+<table>
+<tr><th width="140">要素</th><th>内容</th></tr>
+<tr><td><strong>Bug 定位</strong></td><td><code>app/templates/redesign/users.html</code> — 停用用户的操作链接 <code>href="{{ url_for('rbac.users_edit', ...) }}"</code> 指向编辑路由</td></tr>
+<tr><td><strong>根因</strong></td><td>A2 实现时从启用用户行直接复制了操作列 HTML，只改了图标为 eye，未将链接目标改为只读视图（且项目当前无独立只读用户视图路由）。策略"停用用户不可编辑"未在模板层体现</td></tr>
+<tr><td><strong>测试漏洞</strong></td><td>未针对停用用户编写"点击操作后跳转目标正确性"的集成测试；单元测试只验证用户数据查询，不验证模板 URL 生成语义</td></tr>
+<tr><td><strong>修复</strong></td><td>停用用户操作列不渲染任何链接或按钮，仅显示 <code>&lt;span class="um-inactive-label"&gt;已停用&lt;/span&gt;</code>，从根本上阻止跳转</td></tr>
+<tr><td><strong>防护测试</strong></td><td>
+<pre>python -c "
+import re, urllib.request
+resp = urllib.request.urlopen('http://127.0.0.1:5001/rbac/users')
+html = resp.read().decode()
+# Verify inactive users don't have edit links
+inactive_ops = re.findall(r'um-inactive-label.*?</span>', html, re.DOTALL)
+assert len(inactive_ops) > 0, 'FAIL: no inactive user rows found'
+edit_in_inactive = 'users_edit' in str(inactive_ops)
+assert not edit_in_inactive, 'FAIL: edit link found in inactive user row'
+print(f'OK: {len(inactive_ops)} inactive users, no edit links')
+"</pre>
+</td></tr>
+<tr><td><strong>同类排查</strong></td><td>检查其他页面的停用/受限状态行为：注册审批页的"已拒绝"申请仅展示状态标签，无操作链接 — 模式正确。仅 users.html 存在此问题</td></tr>
+<tr><td><strong>预防方案</strong></td><td>在 <code>tests/test_rbac_scope.py</code> 或新建 <code>tests/test_users_template.py</code> 中添加测试：创建一个停用用户，GET <code>/rbac/users</code>，断言响应 HTML 中该用户行不含 <code>href.*users_edit</code>；将此用例加入 CI 必跑套件</td></tr>
+</table>
+
+<h2>三、综合预防方案</h2>
+<div class="box">
+<table>
+<tr><th>预防措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新建 <code>tests/test_users_template.py</code>，覆盖：① ops 列无 <code>title=</code>；② 停用行无编辑链接；③ 停用行含 <code>um-inactive-label</code></td>
+  <td><code>tests/test_users_template.py</code></td>
+  <td><code>python -m unittest tests.test_users_template -v</code></td>
+</tr>
+<tr>
+  <td>在图标规范中明确 eye 图标仅用于密码可见性，其他"查看"操作使用 person 或 info 图标</td>
+  <td><code>doc/design/CronPilot-2026-redesign-mockup.html</code> 图标规范节</td>
+  <td><code>grep -c "eye.*password" doc/design/CronPilot-2026-redesign-mockup.html</code></td>
+</tr>
+<tr>
+  <td>策略变更影响分析强制清单追加：UI 中停用/受限状态行必须做"无操作链接"验证</td>
+  <td><code>.cursor/rules/cronpilot-project.mdc</code> 策略变更影响分析节</td>
+  <td>Review 时执行 <code>git diff -- app/templates/redesign/users.html | grep users_edit</code></td>
+</tr>
+</table>
+</div>
+
+<h2>四、修复验证证据</h2>
+<div class="box">
+<pre># 1. 重启后验证
+PID: 7187 — 监听 127.0.0.1:5001
+
+# 2. data-tooltip 验证
+document.querySelectorAll('.um-icon-btn[data-tooltip]')[0..2]
+→ ["编辑用户", "重置密码", "重置 API Token"]  ✅
+
+# 3. 停用标签验证
+document.querySelector('.um-inactive-label').outerHTML
+→ &lt;span class="um-inactive-label"&gt;已停用&lt;/span&gt;  ✅
+
+# 4. 用户页面正常加载
+curl -s http://127.0.0.1:5001/rbac/users -w "%{http_code}" | tail -1
+→ 200  ✅</pre>
+</div>
+
+<h2>五、关联文档</h2>
+<ul>
+  <li><a href="../design/CronPilot-2026-redesign-mockup.html">CronPilot-2026-redesign-mockup.html</a> — 权威设计规格</li>
+  <li><a href="2026-08-错误Mockup文件评估复盘.html">2026-08-错误Mockup文件评估复盘</a> — 上轮使用错误Mockup文件的复盘</li>
+</ul>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-users-ux-bugs.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

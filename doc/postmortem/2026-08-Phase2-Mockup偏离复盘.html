@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Phase 2 Dashboard/执行记录实现偏离 Mockup</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:2px solid #e5e5e5;padding-bottom:8px}
+h2{color:#1e40af;margin-top:32px}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left;font-size:14px}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:13px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:16px;overflow-x:auto;font-size:13px}
+.severity-critical{color:#dc2626;font-weight:700}
+.severity-serious{color:#ea580c;font-weight:600}
+.severity-medium{color:#ca8a04}
+</style>
+</head>
+<body>
+<h1>复盘：Phase 2 Dashboard/执行记录实现偏离 Mockup</h1>
+<p><strong>日期</strong>：2026-08-12<br>
+<strong>涉及</strong>：OPT-P1-16 UI 重设计 Phase 2<br>
+<strong>影响</strong>：Dashboard + 执行记录页全量重写</p>
+
+<h2>1. Bug 定位</h2>
+<p>首次 Phase 2 实现的 <code>redesign/dashboard.html</code> 和 <code>redesign/execution_logs.html</code> 
+与 <code>doc/design/CronPilot-2026-redesign-mockup.html</code> 存在<strong>结构性偏离</strong>：</p>
+<table>
+<thead><tr><th>区域</th><th>Mockup 规范</th><th>首次实现</th><th>偏离程度</th></tr></thead>
+<tbody>
+<tr><td>Stats Row</td><td>异常任务/连续失败/运行中/今日失败 + sub-text</td><td>总任务/运行中/异常/今日失败 (无 sub-text)</td><td class="severity-serious">严重</td></tr>
+<tr><td>Exception Panel</td><td>红边框面板 + ×N + 任务列表 + 查看详情</td><td>完全缺失</td><td class="severity-critical">致命</td></tr>
+<tr><td>Filter Chips</td><td>含数量 (全部 128 / 异常 3...)</td><td>无数量显示</td><td class="severity-medium">中等</td></tr>
+<tr><td>表格列数</td><td>7 列 (任务/调度/健康度/最近执行/下次执行/业务组/操作)</td><td>5 列 (缺健康度/下次执行两列)</td><td class="severity-serious">严重</td></tr>
+<tr><td>Task Cell</td><td>name + task_id(mono) + lifecycle + tags</td><td>name + req_url + scope + tags</td><td class="severity-medium">中等</td></tr>
+<tr><td>操作列</td><td>Icon-only SVG 按钮 (▶ ❚❚ ⋮)</td><td>文字按钮 (暂停/编辑/执行/下线)</td><td class="severity-serious">严重</td></tr>
+<tr><td>执行记录行高亮</td><td>失败行 background:danger-bg</td><td>无高亮</td><td class="severity-medium">中等</td></tr>
+<tr><td>执行记录列</td><td>7 列 (含响应码 + 失败原因)</td><td>6 列 (缺 fail_reason 独立列)</td><td class="severity-medium">中等</td></tr>
+</tbody>
+</table>
+
+<h2>2. 根因</h2>
+<ul>
+<li><strong>直接原因</strong>：Agent 未在编码前 <code>Read</code> Mockup HTML 的对应 <code>view-dashboard</code> 区块完整源码。依赖对 Mockup 的"记忆印象"而非实际结构比对。</li>
+<li><strong>结构性原因</strong>：缺少「Mockup → 实现对照清单」机制。Mockup 是 2500+ 行 HTML，靠记忆无法准确提取所有设计细节（列数、组件层级、CSS class、按钮类型等）。</li>
+<li><strong>行为层原因</strong>：Agent 在 Phase 2 启动时直接进入编码，跳过了"提取结构清单"步骤；交付验证时只检查"页面能渲染、数据正确"，未逐区域对照 Mockup 截图。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>无结构对照测试：没有自动化测试验证渲染 HTML 是否包含 Mockup 规定的关键 class/结构</li>
+<li>浏览器验证走马观花：首次验证只确认"页面能渲染"，未逐列、逐区域对照</li>
+</ul>
+
+<h2>4. 修复</h2>
+<p>全量重写 <code>dashboard.html</code> 和 <code>execution_logs.html</code>，新增后端方法 <code>count_consecutive_failing()</code> 和 <code>status_counts()</code>。</p>
+
+<h2>5. 防护测试</h2>
+<pre><code># Dashboard 结构检查
+curl -s -b cookie.txt -b "cp_ui_version=v2" http://127.0.0.1:5001/cron_list | \
+  grep -c 'hf-stats\|exc-panel\|hf-table.*thead\|row-acts\|hf-pagination'
+# 期望 ≥ 5
+
+# 执行记录结构检查
+curl -s -b cookie.txt -b "cp_ui_version=v2" http://127.0.0.1:5001/job_log_all_list | \
+  grep -c 'el-table.*thead\|el-status\|el-fail-reason\|el-action-btn\|row-fail'
+# 期望 ≥ 5</code></pre>
+
+<h2>6. 同类排查</h2>
+<ul>
+<li><code>redesign/_sidebar.html</code> — ✅ 已通过 <code>test_redesign_sidebar.py</code> 回归</li>
+<li><code>redesign/_topbar.html</code> — ✅ 结构简单，对齐度高</li>
+<li>未来新增页面（用户管理、业务组、审计日志等）— <strong>需在实现时执行逐节对照</strong></li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<table>
+<thead><tr><th>措施</th><th>落地位置</th><th>验证方式</th></tr></thead>
+<tbody>
+<tr>
+<td>新增「Mockup 逐节对照」强制步骤（4 步）</td>
+<td><code>.cursor/rules/cronpilot-project.mdc</code> § "Redesign Mockup 逐节对照"</td>
+<td><code>grep "Mockup 逐节对照" .cursor/rules/cronpilot-project.mdc</code></td>
+</tr>
+<tr>
+<td>新增同规范到 AGENTS.md</td>
+<td><code>AGENTS.md</code> § "Redesign Mockup 逐节对照"</td>
+<td><code>grep "Mockup 逐节对照" AGENTS.md</code></td>
+</tr>
+<tr>
+<td>交付前结构断言脚本化</td>
+<td>Agent 工作流（本文档定义的 curl+grep 命令）</td>
+<td>在下一次 UI 页面交付时执行</td>
+</tr>
+</tbody>
+</table>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="2026-08-Phase2-Mockup偏离复盘.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

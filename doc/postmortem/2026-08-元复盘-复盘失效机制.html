@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>元复盘：Agent 反复未主动复盘的系统性失败</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:2px solid #e5e5e5;padding-bottom:8px}
+h2{color:#1e40af;margin-top:32px}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left;font-size:14px}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:13px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:16px;overflow-x:auto;font-size:13px}
+.box-red{background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:12px 16px;margin:16px 0}
+.box-green{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:12px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<h1>元复盘：Agent 反复未主动复盘的系统性失败</h1>
+<p><strong>日期</strong>：2026-08-11<br>
+<strong>严重程度</strong>：系统性流程缺陷（非单次遗漏）<br>
+<strong>影响</strong>：用户至少 3 次被迫指出复盘缺失，严重影响协作信任</p>
+
+<h2>1. Bug 定位</h2>
+<p><strong>模式</strong>：Agent 在以下场景中反复未主动执行复盘：</p>
+<ul>
+<li>Phase 2 首次实现偏离 Mockup → 用户发现后才复盘</li>
+<li>Phase 2 全量重写后 → 用户问"为什么没复盘"才补</li>
+<li>实施方案缺 Design QA → 本轮才追加</li>
+</ul>
+<p>发生次数：仅在 Mockup 实施周期内至少 <strong>3 次</strong>。</p>
+
+<h2>2. 根因（行为层分析）</h2>
+<table>
+<tr><th>层次</th><th>根因</th></tr>
+<tr><td>认知层</td><td>Agent 将复盘视为"事后总结"而非"修复的原子组成部分"——改完代码就认为"任务完成"，复盘被挤到后面甚至遗忘</td></tr>
+<tr><td>流程层</td><td>Agent 内部执行序列是"改代码→验证→报告结果→问下一步"，复盘没有被嵌入为任何一步的<strong>前置条件</strong></td></tr>
+<tr><td>激励层</td><td>AskQuestion 制造了"快速到达下一步"的锚点，Agent 潜意识优先"给出选项"而非"先完成复盘"</td></tr>
+<tr><td>判断层</td><td>对"何时触发复盘"的判断过于依赖显式 bug（用户报告的 500/报错），对"设计偏离""方案缺陷"等隐性问题不触发</td></tr>
+<tr><td><strong>约束层（核心）</strong></td><td><strong>纯文字规范对 Agent 行为的约束被证明反复失效</strong>——规范虽存在，但没有程序化强制机制阻止跳过</td></tr>
+</table>
+
+<h2>3. 测试漏洞</h2>
+<p>现有规范（<code>.cursor/rules/cronpilot-project.mdc</code>「AskQuestion 前置门禁」）已经写明：</p>
+<blockquote>Agent 在 invoke AskQuestion 之前必须自检：本轮是否执行了修复动作？有→先输出复盘再给选项</blockquote>
+<p>但这条规范<strong>仅是文字约束，没有程序化强制机制</strong>。Agent 可以"读到了但执行时跳过"。文字规范 ≠ 可执行门禁。</p>
+
+<h2>4. 修复</h2>
+<ul>
+<li>创建 <code>.cursor/hooks.json</code> + <code>.cursor/hooks/postmortem-reminder.sh</code>（L1 实时提醒）</li>
+<li>配置 <code>stop</code> prompt hook（L2 结束前评估）</li>
+<li>更新 <code>.cursor/rules/cronpilot-project.mdc</code> 加入程序化强制描述</li>
+<li>更新 <code>AGENTS.md</code> 同步</li>
+<li>更新 <code>doc/design/UI重设计-实施架构与过渡方案.html</code> 加入 Design QA 门禁</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<table>
+<tr><th>层</th><th>机制</th><th>验证方式</th></tr>
+<tr><td>L1</td><td><code>postToolUse</code> hook 注入 <code>additional_context</code>（每次 Write/StrReplace 后）</td><td>编辑文件后观察 system_reminder 是否出现</td></tr>
+<tr><td>L2</td><td><code>stop</code> prompt hook（Agent 结束前评估复盘完整性）</td><td>尝试结束一轮包含修复但无复盘的对话，验证是否被续行</td></tr>
+<tr><td>L3</td><td>TodoWrite 原子绑定（修复 Todo + 复盘 Todo 配对）</td><td>检查 TodoWrite 调用中修复类项目是否有配对复盘项</td></tr>
+</table>
+
+<h2>6. 同类排查</h2>
+<p>检查其他"应该做但反复被跳过"的规范：</p>
+<ul>
+<li>Mockup 逐节对照 — 已通过 Design QA 门禁 + Hook 加固 ✓</li>
+<li>复盘文档化 — 已有明确规范，本轮在 Hook 提醒中也包含 ✓</li>
+<li>交付后可验证本地环境 — 暂未发现反复跳过的模式（保持观察）</li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<div class="box-red">
+<strong>核心结论</strong>：对于反复违反的规范，纯文字约束无效，必须升级为程序化强制。
+</div>
+
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr><td>L1: postToolUse Hook（实时提醒）</td><td><code>.cursor/hooks.json</code> + <code>.cursor/hooks/postmortem-reminder.sh</code></td><td><code>cat .cursor/hooks.json | python3 -m json.tool</code></td></tr>
+<tr><td>L2: stop prompt Hook（结束前门禁）</td><td><code>.cursor/hooks.json</code> stop 节</td><td>同上 + 实际触发验证</td></tr>
+<tr><td>L3: TodoWrite 原子绑定规范</td><td><code>.cursor/rules/cronpilot-project.mdc</code> AskQuestion 前置门禁节</td><td><code>grep "L3" .cursor/rules/cronpilot-project.mdc</code></td></tr>
+<tr><td>Design QA 门禁写入实施方案</td><td><code>doc/design/UI重设计-实施架构与过渡方案.html</code> §6.1 第 8 条 + §6.3</td><td><code>grep "Mockup 设计还原对照" doc/design/UI重设计-实施架构与过渡方案.html</code></td></tr>
+<tr><td>元复盘文档化</td><td><code>doc/postmortem/2026-08-元复盘-复盘失效机制.html</code>（本文档）</td><td>文件存在</td></tr>
+</table>
+
+<div class="box-green">
+<strong>效果验证</strong>：本轮实施 Hook 后，每次 <code>Write</code>/<code>StrReplace</code> 操作已立即收到 system_reminder 注入，证明 L1 生效。L2 将在下一次 Agent 结束时生效。
+</div>
+
+<hr>
+<p><em>生成时间：2026-08-11 · 文档路径：doc/postmortem/2026-08-元复盘-复盘失效机制.html</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="2026-08-元复盘-复盘失效机制.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

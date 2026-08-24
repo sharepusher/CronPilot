@@ -297,6 +297,54 @@ class TestScopeIntegration(unittest.TestCase):
                 authorize('operator', 'cron:write', cif_b, group_ids=[self.g1_id])
             self.assertEqual(cm.exception.kind, 'scope')
 
+    def test_multi_group_operator_sees_both(self):
+        """OPT-P1-16 回归：双组 operator 可见两个组的任务 + GLOBAL。"""
+        from datas.model.rbac_user import RbacUser
+        from datas.model.user_group import UserGroup
+        from datas.utils.times import get_now_time
+
+        with self.app.app_context():
+            multi_op = RbacUser(username='op_multi', role='operator',
+                                is_active=1, create_time=get_now_time())
+            multi_op.set_password('pass')
+            self.db.session.add(multi_op)
+            self.db.session.flush()
+            self.db.session.add(UserGroup(user_id=multi_op.id, group_id=self.g1_id))
+            self.db.session.add(UserGroup(user_id=multi_op.id, group_id=self.g2_id))
+            self.db.session.commit()
+
+        self._login('op_multi')
+        resp = self.client.get('/cron_list')
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('global_task', body)
+        self.assertIn('group_a_task', body)
+        self.assertIn('group_b_task', body)
+
+    def test_biz_admin_with_group_is_scoped(self):
+        """OPT-P1-16 回归：Biz Admin 有 group_ids 时受 scope 限制（仅看自己组 + GLOBAL）。"""
+        from datas.model.rbac_user import RbacUser
+        from datas.model.user_group import UserGroup
+        from datas.utils.times import get_now_time
+
+        with self.app.app_context():
+            biz_adm = RbacUser(username='biz_adm_g1', role='admin',
+                               is_active=1, create_time=get_now_time())
+            biz_adm.set_password('pass')
+            self.db.session.add(biz_adm)
+            self.db.session.flush()
+            self.db.session.add(UserGroup(user_id=biz_adm.id, group_id=self.g1_id))
+            self.db.session.commit()
+
+        self._login('biz_adm_g1')
+        resp = self.client.get('/cron_list')
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('global_task', body, "Biz admin should see GLOBAL tasks")
+        self.assertIn('group_a_task', body, "Biz admin should see own group tasks")
+        self.assertNotIn('group_b_task', body,
+                         "Biz admin with group_ids should NOT see other group tasks")
+
 
 class TestAuditLogActorGroups(unittest.TestCase):
     """OPT-P2-13 审计日志 actor_group_ids 写入 + 查询过滤验证。"""

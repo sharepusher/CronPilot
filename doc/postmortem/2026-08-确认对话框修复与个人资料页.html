@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：确认对话框显示异常 & 个人资料页新增 — 2026-08</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 40px auto; padding: 0 24px; color: #1e293b; line-height: 1.7; }
+h1 { font-size: 22px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 8px; }
+h2 { font-size: 17px; margin-top: 36px; color: #1d4ed8; }
+h3 { font-size: 14px; margin-top: 20px; color: #374151; }
+.meta { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 13px; text-align: left; }
+th { background: #f8fafc; font-weight: 600; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 12px; overflow-x: auto; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-fix { background: #fef3c7; color: #92400e; }
+.badge-feat { background: #dbeafe; color: #1e40af; }
+.badge-ok { background: #dcfce7; color: #166534; }
+.screenshot { margin: 12px 0; }
+.screenshot img { max-width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.screenshot figcaption { font-size: 12px; color: #64748b; margin-top: 4px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin: 12px 0; }
+.alert-warn { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; }
+.alert-ok { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
+ul { margin: 8px 0; padding-left: 20px; }
+li { margin-bottom: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>复盘：确认对话框显示异常 &amp; 个人资料页新增</h1>
+<div class="meta">
+  日期：2026-08-20 &nbsp;|&nbsp;
+  影响版本：[Unreleased] &nbsp;|&nbsp;
+  <span class="badge badge-fix">Bug Fix</span>
+  <span class="badge badge-feat">New Feature</span>
+</div>
+
+<h2>一、个人资料编辑页（Y1 新功能）</h2>
+
+<p>用户反馈「个人设置」区域缺少修改自己花名、邮箱、岗位等信息的入口，仅有修改密码和 API Token，无法自助维护个人信息。</p>
+
+<h3>实现内容</h3>
+<ul>
+  <li>新路由 <code>GET/POST /rbac/profile</code>，已登录用户均可访问</li>
+  <li>新服务函数 <code>update_own_profile(user_id, email, nickname, job_title)</code>，含完整校验</li>
+  <li>新模板 <code>redesign/user_profile.html</code>，与 <code>change_password.html</code> 同卡片风格</li>
+  <li>侧边栏「个人设置」节新增「个人资料」入口（全角色可见）</li>
+  <li>只读字段（账号、角色）统一置灰：<code>--cp-surface-2</code> 背景 + <code>--cp-text-muted</code> 文字 + <code>cursor: not-allowed</code></li>
+</ul>
+
+<h3>验收截图</h3>
+<div class="compare">
+  <figure class="screenshot">
+    <img src="screenshots/y1-profile-page.png" alt="个人资料页初始状态">
+    <figcaption>个人资料页 — 初始状态（字段空白）</figcaption>
+  </figure>
+  <figure class="screenshot">
+    <img src="screenshots/y1-profile-grayed.png" alt="个人资料页置灰效果">
+    <figcaption>账号/角色字段置灰（不可修改），花名/邮箱/岗位可编辑</figcaption>
+  </figure>
+</div>
+
+<div class="alert alert-ok">✓ 侧边栏回归测试 12 用例全绿（admin 12项，operator 7项，viewer 6项）</div>
+
+<h2>二、确认对话框显示异常修复</h2>
+
+<h3>Bug 定位</h3>
+<table>
+  <tr><th>文件</th><th>位置</th><th>问题</th></tr>
+  <tr>
+    <td><code>redesign-confirm.js</code></td>
+    <td>第 45、53-55 行</td>
+    <td>按钮类名使用 Bootstrap <code>btn btn-danger</code> / <code>btn btn-ghost</code>，Redesign CSS 未定义这些类 → 按钮无样式</td>
+  </tr>
+  <tr>
+    <td><code>redesign/api_token.html</code></td>
+    <td>第 14 行「重置」按钮</td>
+    <td>使用 <code>js-ajax-dialog-btn</code> 触发旧 <code>artDialog</code> → tooltip 贴着按钮弹出，遮盖内容</td>
+  </tr>
+  <tr>
+    <td><code>redesign/users.html</code></td>
+    <td>第 87-98 行图标按钮</td>
+    <td>「重置密码」「重置 API Token」同样使用 <code>js-ajax-dialog-btn</code> → artDialog 内联弹出</td>
+  </tr>
+</table>
+
+<h3>根因</h3>
+<p><code>redesign-confirm.js</code> 作为新模块编写时，按钮类名沿用了 Bootstrap 命名约定（<code>btn btn-danger</code>），未对齐 Redesign 体系的 <code>btn-c btn-danger-c</code>。<code>api_token.html</code> 和 <code>users.html</code> 从 v1 模板迁移到 redesign 时，直接复用了 <code>js-ajax-dialog-btn</code> 机制，未切换到 <code>CpConfirm.show()</code>。</p>
+
+<h3>测试漏洞</h3>
+<p><code>test_ajax_form_guard.py</code> 仅检查 POST 防重复提交，不覆盖「点击后弹框的 DOM 结构和 CSS class 属性值」。无 E2E 测试验证 <code>CpConfirm</code> 按钮外观。</p>
+
+<h3>对比截图</h3>
+<div class="compare">
+  <figure class="screenshot">
+    <img src="screenshots/confirm-artdialog-before.png" alt="修复前：artDialog 内联弹出">
+    <figcaption>修复前：artDialog 贴着按钮弹出，覆盖正文</figcaption>
+  </figure>
+  <figure class="screenshot">
+    <img src="screenshots/confirm-api-token-after.png" alt="修复后：API Token 重置模态框">
+    <figcaption>修复后：居中模态框 + 半透明遮罩（API Token 重置）</figcaption>
+  </figure>
+</div>
+<figure class="screenshot">
+  <img src="screenshots/confirm-reset-pwd-after.png" alt="修复后：重置密码模态框">
+  <figcaption>修复后：用户管理页「重置密码」模态框，正确样式按钮</figcaption>
+</figure>
+
+<h3>修复内容</h3>
+<table>
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr>
+    <td><code>app/static/js/redesign-confirm.js</code></td>
+    <td><code>btn btn-danger</code> → <code>btn-c btn-danger-c</code>；<code>btn btn-ghost</code> → <code>btn-c btn-line</code></td>
+  </tr>
+  <tr>
+    <td><code>app/templates/redesign/api_token.html</code></td>
+    <td>「重置」改为 <code>&lt;button id="tk-reset-btn"&gt;</code> + JS 调用 <code>CpConfirm.show()</code>，POST form 提交</td>
+  </tr>
+  <tr>
+    <td><code>app/templates/redesign/users.html</code></td>
+    <td>「重置密码」「重置 API Token」移除 <code>js-ajax-dialog-btn</code>，改用 <code>um-confirm-action</code> 类 + 委托事件调用 <code>CpConfirm.show()</code></td>
+  </tr>
+</table>
+
+<h3>同类排查</h3>
+<pre>grep -r "js-ajax-dialog-btn" app/templates/redesign/</pre>
+<div class="alert alert-ok">✓ 无结果 — Redesign 模板中已无残留 artDialog 调用</div>
+<p>旧 v1 模板（<code>app/templates/rbac/</code>）继续使用 artDialog，不影响 Redesign UI。</p>
+
+<h3>预防方案</h3>
+<table>
+  <tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+  <tr>
+    <td>Redesign 页面禁止使用 <code>js-ajax-dialog-btn</code> 规范</td>
+    <td><code>AGENTS.md</code>、<code>.cursor/rules/cronpilot-project.mdc</code></td>
+    <td><code>grep -r "js-ajax-dialog-btn" app/templates/redesign/ &amp;&amp; echo "FAIL" || echo "OK"</code></td>
+  </tr>
+  <tr>
+    <td>新增 <code>redesign-confirm.js</code> 按钮类名 lint 检查</td>
+    <td>可加入 <code>scripts/check_ui_contract.py</code></td>
+    <td><code>grep "btn btn-danger\|btn btn-ghost" app/static/js/redesign-confirm.js &amp;&amp; echo "FAIL" || echo "OK"</code></td>
+  </tr>
+</table>
+
+<h2>三、涉及文件清单</h2>
+<ul>
+  <li><code>app/rbac/services.py</code> — 新增 <code>update_own_profile()</code></li>
+  <li><code>app/rbac/views.py</code> — 新增 <code>/rbac/profile</code> 路由</li>
+  <li><code>app/templates/redesign/user_profile.html</code> — 新建模板</li>
+  <li><code>app/templates/redesign/_sidebar.html</code> — 新增「个人资料」导航项</li>
+  <li><code>app/static/js/redesign-confirm.js</code> — 修复按钮 CSS 类名</li>
+  <li><code>app/templates/redesign/api_token.html</code> — 重置按钮改用 CpConfirm</li>
+  <li><code>app/templates/redesign/users.html</code> — 图标按钮改用 CpConfirm</li>
+  <li><code>tests/test_redesign_sidebar.py</code> — 更新导航项计数（12/7/6）</li>
+  <li><code>RELEASE_NOTES.md</code>、<code>AGENTS.md</code>、<code>.cursor/rules/cronpilot-project.mdc</code> — 文档同步</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-确认对话框修复与个人资料页.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

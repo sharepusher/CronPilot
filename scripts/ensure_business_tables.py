@@ -200,6 +200,10 @@ def _ensure_rbac_users_columns():
         alters.append(
             'ALTER TABLE rbac_users ADD COLUMN nickname VARCHAR(64)'
         )
+    if 'last_login_at' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN last_login_at VARCHAR(25)'
+        )
     if not alters:
         return
     with db.engine.begin() as conn:

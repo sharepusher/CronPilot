@@ -1,0 +1,148 @@
+{% extends "redesign/_base.html" %}
+{% block title %}业务组 — CronPilot{% endblock %}
+
+{% block css %}
+<style>
+/* ── Toolbar ── */
+.grp-toolbar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.grp-hint { color: var(--cp-text-muted); font-size: 12px; }
+
+/* ── Card Grid (Mockup M1: pure mockup card-grid) ── */
+.grp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+/* ── Card ── */
+.grp-card {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s;
+}
+.grp-card:hover { border-color: var(--cp-border-strong); }
+
+/* ── Name (gname) ── */
+.grp-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cp-ink);
+  margin-bottom: 4px;
+  text-decoration: none;
+}
+a.grp-name:hover { color: var(--cp-signal); text-decoration: none; }
+
+/* ── Description (gdesc) ── */
+.grp-desc {
+  font-size: 12px;
+  color: var(--cp-text-muted);
+  line-height: 1.6;
+  flex: 1;
+  margin-bottom: 14px;
+  min-height: 36px;
+}
+.grp-desc-empty { font-style: italic; color: var(--cp-text-faint); }
+
+/* ── Card Footer (gfoot) ── */
+.grp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--cp-border);
+  margin-top: auto;
+}
+
+/* ── Member count ── */
+.grp-member-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--cp-text-muted);
+}
+.grp-member-count svg { flex-shrink: 0; }
+
+/* ── Badge ── */
+.grp-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--cp-surface-2);
+  color: var(--cp-text-muted);
+}
+
+/* ── Empty State ── */
+.grp-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--cp-text-muted);
+}
+.grp-empty-title { font-size: 15px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
+.grp-empty-desc { font-size: 13px; color: var(--cp-text-faint); }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Toolbar ── #}
+<div class="page-head"><div><h1>业务组</h1><div class="sub">按团队划分任务归属与权限范围</div></div></div>
+
+<div class="grp-toolbar">
+  {% if can_create_group %}
+  <a href="{{ url_for('rbac.groups_add') }}" class="btn-c btn-accent btn-xs">+ 新建业务组</a>
+  <span class="grp-hint">禁止删除业务组，避免悬挂任务引用</span>
+  {% else %}
+  <span class="grp-hint">按组管理员仅可查看和编辑所属业务组</span>
+  {% endif %}
+</div>
+
+{# ── Card Grid ── #}
+{% if groups %}
+<div class="grp-grid">
+  {% for g in groups %}
+  {% set user_cnt = group_user_counts.get(g.id, 0) %}
+  {% set task_cnt = group_task_counts.get(g.id, 0) %}
+  {% set avatars = group_top_users.get(g.id, []) %}
+  <div class="grp-card">
+    {# gname — 纯 Mockup M1 结构 #}
+    {% if can_create_group %}
+    <a href="{{ url_for('rbac.groups_edit', id=g.id) }}" class="grp-name">{{ g.name }}</a>
+    {% else %}
+    <div class="grp-name">{{ g.name }}</div>
+    {% endif %}
+
+    {# gdesc #}
+    <div class="grp-desc{% if not g.description %} grp-desc-empty{% endif %}">
+      {{ g.description or '暂无说明' }}
+    </div>
+
+    {# gfoot: member count + task badge #}
+    <div class="grp-foot">
+      <span class="grp-member-count">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        {{ user_cnt }} 名成员
+      </span>
+      <span class="grp-badge">{{ task_cnt }} 个任务</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="grp-empty">
+  <div class="grp-empty-title">暂无业务组</div>
+  <div class="grp-empty-desc">
+    {% if can_create_group %}点击「新建业务组」创建第一个组{% else %}当前账号未分配业务组{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

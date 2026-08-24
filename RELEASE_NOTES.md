@@ -5,6 +5,459 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ---
 
+## [Unreleased]
+
+### Fix — Tier 3-5: CSS 规范化 + 可访问性 + 后端日志 + JS 兼容性
+
+**CSS 规范 (S2, S3)**
+- `redesign-pages.css`、`redesign-mockup-shared.css`、`console-mode.css` 中 5 处 `rgba(8,145,178,…)` focus ring 硬编码颜色提取为 `--cp-accent-ring` CSS 变量（新增于 `console-theme.css` light/dark 两套）。
+- `redesign-mockup-shared.css` `.btn-c` 重复定义合并为一处。
+- S1（18 处重复选择器）经分析为按页面分区的有意拆分，不做合并。
+
+**可访问性 (A1-A5)**
+- `login.html` 密码字段 `<span>密码</span>` 改为 `<label for="login-pwd-input">`，屏幕阅读器可正确关联。
+- `change_password.html` 三个密码 `<label>` 补全 `for=` 属性。
+- `_topbar.html` 主题切换按钮增加 `aria-pressed` 状态。
+- `_sidebar.html` `<nav>` 增加 `aria-label="主导航"`。
+- `execution_logs.html` + `run_inspector.html` Escape 键守卫增加 `.cp-modal-overlay` 检查，防止弹窗打开时误触导航。
+
+**后端异常日志 (B1-B3)**
+- `rbac/views.py` `last_login_at` 更新失败和 profile commit 失败的 `except: rollback` 增加 `current_app.logger.warning` 日志。
+- `cron_service.py` 调度器 `pause_job`/`remove_job` 的 3 处 `except: pass` 增加 `_log.warning` 日志。
+
+**JS 兼容性 (B4)**
+- `common.js` `setCookie()` 中已废弃的 `escape()` 替换为 `encodeURIComponent()`。
+
+**不修改项**
+- B5（CpModal keydown listener 未清理）：经核查，`close()` 函数已正确调用 `removeEventListener`，不存在泄漏。
+- S1（18 处重复选择器）：按页面分区的分节式 CSS，合并反降可读性。
+- A6（inline layout styles）：dashboard 等页面的 inline styles 属于 Mockup 直出样式，集中提取需全面回归。
+
+**Files changed:** `console-theme.css`, `redesign-pages.css`, `redesign-mockup-shared.css`, `console-mode.css`, `login.html`, `change_password.html`, `_topbar.html`, `_sidebar.html`, `execution_logs.html`, `run_inspector.html`, `rbac/views.py`, `cron_service.py`, `common.js`
+
+### Fix — D5+D6: 标签页 alert() 替换 + CSRF null check
+
+- `tags.html` 中 4 处 `alert()` 替换为 `CpToast.error()`，与 redesign 其余页面体验一致。
+- `tags.html` CSRF meta 标签取值增加 null 安全检查。
+
+**Files changed:** `app/templates/redesign/tags.html`
+
+### Fix — C1+X1+X2: Cookie SameSite 一致性 + XSS 防御深度
+
+- Redesign JS 中 3 处 cookie 写入（`cp_theme`、`cp_sidebar_collapsed`、`cp_ui_version`）缺少 `samesite=lax`，与 `common.js` 不一致。
+- `tags.html` 删除确认对话框中 `r.errmsg` 未经 `escHtml()` 转义直接拼入 HTML。
+- `CpModal` 的 `confirmText`/`cancelText` 通过 `innerHTML` 拼接，改为 DOM API `textContent` 赋值。
+
+**Files changed:** `app/static/js/redesign-theme.js`, `app/static/js/redesign-shell.js`, `app/templates/redesign/_topbar.html`, `app/templates/redesign/tags.html`, `app/static/js/redesign-confirm.js`
+
+### Fix — F1+F2+F3: Dashboard AJAX 路径与 API 契约修复
+
+- Dashboard 三个操作按钮（暂停/恢复、立即执行、下架）的 AJAX 请求使用 RESTful 路径 `/update_status/{id}` 而非 Flask 注册的 `/update_status`，导致 **404 全部失效**。
+- 下架按钮错误地 POST 到 `/update_status`（toggle 行为），实际应走 `/cron_retire`（下架行为）。
+- 修复：三处 `$.post()` URL 改为正确路径，`id` 通过 POST data 传递；下架改用 `/cron_retire` 端点。
+- 同类排查：`task_detail.html` 已正确使用 `/update_status?id=` 格式，v1 `_cron_list_rows.html` 使用 `url_for()`。
+
+**Files changed:** `app/templates/redesign/dashboard.html`
+
+### Fix — S1+S2: 登出 CSRF 防护
+
+- `/rbac/logout` 原先接受 GET 请求，攻击者可构造 `<img src="/rbac/logout">` 使已登录用户被强制登出。
+- 修复：`/rbac/logout` 改为 **POST-only**（GET 返回 405），配合 CSRF token 校验。
+- 前端同步：Redesign `_topbar.html` 登出链接改为隐藏 `<form method="POST">` + JS 提交；v1 Command Palette 搜索结果中 "退出登录" 改为动态创建 POST 表单。
+- 遗留路由 `/logout` 和 `/check_pass`（`main.views`）不再清除 session，仅重定向到 `/rbac/login`。
+- 4 条单元测试覆盖 (`tests/test_logout_csrf.py`)：GET→405、POST→302+session清除、遗留路由→302。
+- 设计文档：`doc/design/安全问题修复设计-S1至S5.html` §4
+- 复盘文档：`doc/postmortem/2026-08-security-S1-S5.html`
+
+**Files changed:** `app/rbac/views.py`, `app/main/views.py`, `app/decorated.py`, `app/templates/redesign/_topbar.html`, `app/static/js/redesign-shell.js`, `app/static/js/common.js`, `tests/test_logout_csrf.py` (new)
+
+### Fix — S3: 标签 CRUD scope 越权修复
+
+- 标签的创建/修改/删除/查询路由仅检查 `@require_permission('user:manage')`，无 scope 层面校验。
+- 按组管理员（Biz Admin）可通过修改 POST body 中的 `group_id` 越权操作其他组或全局标签。
+- 修复：新增 `_check_tag_group_id_scope()` / `_check_tag_scope()` 辅助函数，5 个标签路由（create/update/rename/tasks/delete）全部加入 scope 校验。
+- 9 条单元测试覆盖：自组操作允许 3 + 他组/全局拦截 6 (`tests/test_tag_scope.py`)。
+- 设计文档：`doc/design/安全问题修复设计-S1至S5.html` §2
+- 复盘文档：`doc/postmortem/2026-08-security-S1-S5.html`
+
+**Files changed:** `app/rbac/views.py`, `tests/test_tag_scope.py` (new)
+
+### Fix — S4: 存储型 XSS 修复（data-* → innerHTML 链路）
+
+- `registration_review.html` 2 处、`tags.html` 4 处、`task_form.html` 1 处，`data-*` 属性取值后直接拼入 `innerHTML` / `bodyHtml`，未转义。
+- 攻击链路：Jinja2 转义保护 HTML 解析阶段，但浏览器解码后 jQuery `.data()` 返回原始字符串 → 二次注入。
+- 修复：添加 `escHtml()` 转义函数；`task_form.html` 的 `addTag()` 改用 `textContent` + DOM API。
+- 设计文档：`doc/design/安全问题修复设计-S1至S5.html` §3
+- 复盘文档：`doc/postmortem/2026-08-security-S1-S5.html`
+
+**Files changed:** `app/templates/redesign/registration_review.html`, `app/templates/redesign/task_form.html`, `app/templates/redesign/tags.html`
+
+### Fix — S5: API 装饰器 catch-all 异常文本泄露
+
+- `app/decorated.py` 的 `api_deal_return` 装饰器在 `except Exception` 中返回 `str(e)`，影响 `/api/cron/add` 旧路径兼容层。
+- 与 P0-3 同源：修复时搜索范围限于 `main/views.py` + `rbac/views.py`，未覆盖 API 装饰器。
+- 修复：返回通用错误信息 `'服务器内部错误'`；异常详情写入 `logging.getLogger().error()`。
+- 设计文档：`doc/design/安全问题修复设计-S1至S5.html` §4
+- 复盘文档：`doc/postmortem/2026-08-security-S1-S5.html`
+
+**Files changed:** `app/decorated.py`
+
+### Fix — P0-1: CpConfirm.show() 参数名错误 + P0-4: Escape 键守卫选择器修复
+
+- **P0-1**: `task_detail.html` 的 2 处 `CpConfirm.show()` 调用使用了 `message:` 属性，但 API 仅识别 `body:`。修复后确认对话框正文正常显示。
+- **P0-4**: `task_detail.html` 和 `task_form.html` 的 Escape 键守卫使用了不存在的 `.cp-confirm-overlay` 选择器（实际为 `.cp-modal-overlay`），导致对话框打开时按 Escape 仍触发页面导航。同时移除了不可靠的 `[style*="flex"]` 属性选择器。
+- 设计文档：`doc/design/P0问题修复设计.html`
+- 复盘文档：`doc/postmortem/2026-08-P0-frontend-bugs.html`
+
+**Files changed:** `app/templates/redesign/task_detail.html`, `app/templates/redesign/task_form.html`
+
+### Fix — P0-2: 开放重定向修复 (Open Redirect)
+
+- 登录页 `next` 参数未做校验，攻击者可构造 `?next=https://evil.com/steal` 实现钓鱼跳转。
+- 修复：新增 `app/rbac/safe_redirect.py` → `safe_next_url()` 函数，拒绝绝对 URL / 协议相对 URL / `javascript:` 等 scheme，仅放行安全的相对路径。
+- 3 处调用点全部包裹：`rbac/views.py` GET 渲染（L189）+ POST 登录（L194）、`main/views.py` 未登录重定向（L1203）。
+- 11 条单元测试覆盖：正常路径 3 + 恶意路径 5 + 边界 3 (`tests/test_safe_redirect.py`)。
+- 设计文档：`doc/design/P0问题修复设计.html` §3
+- 复盘文档：`doc/postmortem/2026-08-P0-frontend-bugs.html`
+
+**Files changed:** `app/rbac/safe_redirect.py` (new), `app/rbac/views.py`, `app/main/views.py`, `tests/test_safe_redirect.py` (new)
+
+### Fix — P0-3: 异常文本泄露修复
+
+- `cron_add` 的 `except Exception` 分支中 `web_api_return(code=1, msg=str(e))` 将 Python 异常原始文本（含数据库引擎/表名/内网IP/文件路径）返回给前端。
+- 修复：返回通用错误信息「服务器内部错误，请稍后重试」；异常详情写入 `current_app.logger.error` + 微信告警保持不变。
+- 设计文档：`doc/design/P0问题修复设计.html` §4
+- 复盘文档：`doc/postmortem/2026-08-P0-frontend-bugs.html`
+
+**Files changed:** `app/main/views.py`
+
+### Feature — Brand Icon `[⏱]`
+
+- Replaced the old 8px blue dot brand icon with a new **`[ ]` bracket-clock** SVG brand mark.
+- Design: two square brackets (`currentColor`, adapts to theme) + blue clock hands (`var(--cp-signal)`).
+- Concept: code syntax `[scheduled]` + time — instantly communicates "scheduled tasks" to developers.
+- Works clearly at all sizes: 20px (sidebar expanded), 18px (sidebar collapsed), favicon-ready.
+- Design candidates (45 options across 3 rounds): `doc/design/brand-icon-candidates.html`
+
+**Files changed:** `_sidebar.html`
+
+### Feature — Sidebar Collapse Button (Edge Toggle)
+
+- Added a visible collapse/expand button on the sidebar's right edge (divider line), positioned at `top: 20%` (1/5 of page height).
+- The button is a 24px circle with a chevron icon: `‹` when expanded, `›` when collapsed.
+- Always visible (`opacity: 1`) to ensure discoverability for first-time users.
+- Hover highlight: signal-blue background with matching border.
+- Sidebar transition: `grid-template-columns 0.2s ease` for smooth width animation (192px ↔ 56px).
+- State persistence: via `cp_sidebar_collapsed` cookie (existing infrastructure), server-side rendered to avoid flash.
+- Added `title` attributes to all nav items for native tooltip in collapsed (icon-only) mode.
+- Design document: `doc/design/侧边栏折叠功能设计.html`
+
+**Files changed:** `_sidebar.html`, `redesign-layout.css`
+
+### Fix — Redesign CSS hardcoded colors, duplicate definitions, and print selector mismatch
+
+- Replaced 15 hardcoded hex colors (`#fff`, `#ddd`, `#d97706`) across 3 redesign CSS files with CSS variable references (`var(--cp-on-filled)`, `var(--cp-border)`, `var(--cp-warn-accent)`).
+- Fixed 2 references to non-existent CSS variables: `--cp-warning` → `--cp-warn-accent`, `--cp-white` → `--cp-on-filled`.
+- Added 2 missing CSS variables to `console-theme.css`: `--cp-warn-text` and `--cp-danger-text` (both light and dark themes).
+- Removed duplicate `.cp-breadcrumb` definition from `redesign-layout.css` (consolidated into `redesign-pages.css`).
+- Fixed print `@media` selectors: `.redesign-sidebar`/`.redesign-topbar`/`.redesign-main` → `.cp-sidebar`/`.cp-topbar`/`.cp-main`.
+- No visual changes — all modifications are code quality improvements.
+
+**Files changed:** `console-theme.css`, `redesign-components.css`, `redesign-pages.css`, `redesign-mockup-shared.css`, `redesign-layout.css`
+
+### Fix — Nested form in change_password.html (force_reset mode)
+
+- Fixed an HTML spec violation where the logout `<form>` was nested inside the password change `<form>` when `force_reset=True`.
+- Browsers ignore nested `<form>` tags, so clicking "退出登录" would incorrectly trigger the password change submission instead.
+- Fix: replaced the nested form with a `<button type="button">` + JS-driven dynamic form submission.
+- Also removed an inline `style="display:inline"` that violated the project's no-inline-style rule.
+
+**Files changed:** `app/templates/redesign/change_password.html`
+
+### Feature — R3: Inline Deactivation Modal (User Management)
+
+- Replaced the full-page deactivation redirect with an inline modal dialog.
+- Modal shows username + role badge, an irreversible-action warning, and a **required** reason textarea (1–500 characters, live character counter).
+- Confirm button is disabled until at least 1 character is entered.
+- Three close methods: ESC key, Cancel button, backdrop click.
+- Backend: deactivation reason is now persisted to `RbacUser.status_reason` via `users_set_active` endpoint.
+- Deactivated user view-only page (`/rbac/users/view?id=<id>`) already displays the reason; shows "—（未填写）" for legacy users deactivated before R3.
+
+**Files changed:** `app/templates/redesign/users.html`
+
+### Feature — R2: Business Group Auto-Lock for Single-Group Users
+
+- When a non-global user (Biz Admin with exactly one business group) accesses the create-user or edit-user form, the business group field is rendered as a read-only text input with the group pre-filled, plus a hidden `<input>` that submits the group ID automatically.
+- Seed Admin and users belonging to multiple groups continue to see the full multi-select dropdown.
+- Backend enforce: if `locked_group` is set, the submitted `group_ids` is overridden server-side regardless of what the client sends.
+- New helper `_get_locked_group(bypass, groups)` in `views.py`.
+
+**Files changed:** `app/rbac/views.py`, `app/templates/redesign/user_form.html`
+
+### Feature — B3: Last Login Column in User Management Table
+
+- Added `last_login_at VARCHAR(25)` field to `RbacUser` model (nullable, default None).
+- Migration: `scripts/ensure_business_tables.py` now adds the column to existing `rbac_users` tables.
+- Login flow: on successful authentication, `last_login_at` is updated with current timestamp.
+- User management table (`/rbac/users`): new "最近登录" column added between "状态" and "密码状态", showing `YYYY-MM-DD HH:MM` or `—` if never logged in since the field was introduced.
+- **Bug fix (B3 regression)**: Adding the 10th column caused headers to wrap on 1440px viewport. Fixed by changing `.c-table` from `table-layout: fixed; width: 100%` to `table-layout: fixed; min-width: 1300px` and adding `white-space: nowrap` to `th` elements, ensuring proper horizontal scroll.
+- **Prevention**: Added "表格列变更验收" rule in `cronpilot-format-guard.mdc` requiring 1440px viewport screenshot validation when adding/removing table columns.
+
+**Files changed:** `datas/model/rbac_user.py`, `app/rbac/views.py`, `scripts/ensure_business_tables.py`, `app/templates/redesign/users.html`, `.cursor/rules/cronpilot-format-guard.mdc`
+
+### Bug Fix — B1: Deactivated Users View-Only Page + Critical Route Decorator Fix
+
+**B1 — Deactivated users: view-only info**
+- Added `GET /rbac/users/view?id=<id>` route rendering all fields as disabled/read-only inputs.
+- Updated `users.html`: inactive users now show a person-icon link (tooltip: 查看信息) pointing to the view page, replacing the static "已停用" label.
+- Updated `user_form.html` to support `view_mode=True` context: all fields disabled, "保存" replaced by "← 返回用户管理", page title "查看用户信息".
+
+**Critical Bug Fix — Missing `@rbac.route` decorator on `users_reset_password`**
+- A successive StrReplace operation accidentally deleted the `@rbac.route('/users/reset_password', methods=['POST'])` decorator from `users_reset_password`, making the endpoint invisible to Flask routing.
+- This caused `url_for('rbac.users_reset_password')` in `redesign/users.html` to raise `BuildError`, returning HTTP 500 for all visits to `/rbac/users`.
+- **Fix**: Restored the missing `@rbac.route` decorator.
+- **Prevention**: New `scripts/check_route_completeness.py` (AST scan, CI-ready). New rule in AGENTS.md: "Read back ±20 lines after consecutive StrReplace on same function area."
+- **Postmortem**: `doc/postmortem/2026-08-missing-route-decorator.html`
+
+**Files changed:** `app/rbac/views.py`, `app/templates/redesign/users.html`, `app/templates/redesign/user_form.html`
+
+
+
+Added email address as a mono-font subtitle below the username in the users table, matching the `view-users` mockup spec.
+
+**Files changed:** `app/templates/redesign/users.html`
+
+### Bug Fix — User Management Page UX (3 Issues)
+
+**Bugs fixed:**
+- UX-1: Icon button tooltips showed with ~500ms–1s OS delay (native `title` attr) → replaced with instant CSS `[data-tooltip]::after` tooltips
+- UX-2: Eye icon used for "view inactive user" action conflicted with password-visibility icon convention → removed action entirely for inactive users
+- UX-3: Inactive user action link navigated to the edit page, which is incorrect → replaced with static `已停用` label, no link
+
+**Files changed:** `app/templates/redesign/users.html`
+**Postmortem:** `doc/postmortem/2026-08-users-ux-bugs.html`
+
+### Redesign UI — Users Table Column Alignment + Status Chip Filters (A2)
+
+- **Column order corrected**: 业务组 moved to position 5 (after 角色), 状态 moved to position 6.
+- **Column renamed**: `密码` → `密码状态` to match internal mockup.
+- **Chip filter bar added**: 全部 N / 启用 N / 停用 N with dynamic counts, applied via `?chip=active/inactive`.
+- **Backend**: `is_active` filter added to `RbacUserRepository.paginate_all` / `paginate_by_groups`; new `count_by_status()` method for scope-aware counts.
+- **Pagination** preserves chip and username filters across pages.
+
+### Redesign UI — Audit Log Table Alignment + Chip Filters (Z2)
+
+- **Table structure updated from 8 columns to 6 columns** to match internal redesign mockup.
+- **New columns:** 时间 | 用户名 | 动作 | 说明 | 来源 IP | 结果 (removed ID, 目标类型, 目标名 columns).
+- **Chip filter bar** replaces dropdown selects: 全部 / 登录成功 / 登录失败 / 权限拒绝 / 用户管理 presets.
+- **Action badges** with semantic colors: green (login success), red (login fail/deny), amber (permission deny), blue (user management).
+- **Row highlight** for denied events (`background: var(--cp-danger-bg)`).
+- **Backend:** `user:manage` pseudo-action in `rbac_audit_log_repository.py` expands to all user-management action codes via `IN` query.
+
+### Redesign UI — Operation Log Table Alignment (Z1)
+
+- **Table structure updated from 6 columns to 7 columns** to match internal redesign mockup (`doc/design/CronPilot-2026-redesign-mockup.html`).
+- **Removed:** `ID` column (was the first column).
+- **Renamed:** `用户` → `操作人`, `类型` → `操作类型`, `IP` → `来源 IP`.
+- **Split:** Former `内容` column split into two: `操作对象` (task name + "任务 · 组" subtitle) and `变更详情` (summary text from `format_detail_summary()`).
+- **Added:** `操作结果` column (✓ 成功 / ✗ 失败 based on `item.result`).
+- **View updated:** `operation_result_label`, `cron_by_id`, `group_name_by_id` now passed to redesign template.
+- **Subtitle updated:** Page subtitle now reads "任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）".
+- **Modified:** `app/templates/redesign/operation_log.html`, `app/main/views.py`
+
+### Bug Fix — Evaluation Against Wrong Mockup File (7+ Rounds)
+
+- **Root cause:** Comprehensive UI evaluations (rounds 1–7) used `/Users/summer/Downloads/CronPilot-2026-full-mockup.html` (external simplified demo, 5 columns for operation log) as the reference instead of the authoritative internal spec `doc/design/CronPilot-2026-redesign-mockup.html` (7 columns including 变更详情).
+- **Fix:** Confirmed authoritative reference is `doc/design/CronPilot-2026-redesign-mockup.html`. Added mandatory rule to `AGENTS.md` and postmortem to `doc/postmortem/2026-08-错误Mockup文件评估复盘.html`.
+
+### Bug Fix — cron_add Exception Redirect (BUG-1)
+
+- **Root cause:** `cron_add` exception handler returned `web_api_return(code=1, ..., url='/cron_list')`. The `js-ajax-form` handler in `common.js` unconditionally redirects to `data.url` regardless of `errcode`, causing users to lose their form data on any server-side exception.
+- **Fix:** Removed `url='/cron_list'` from the exception handler return — errors now stay on the form page and show the message inline.
+- **Modified:** `app/main/views.py` (line 901, exception handler in `cron_add`)
+
+### Redesign UI — Registration Review Modal System Migration + Global CpModal
+
+- **Bootstrap modal → CpModal migration:** `registration_review.html` still used 2 Bootstrap modals (批准/拒绝) which rendered as transparent overlays in the redesign shell. Migrated to global `CpModal()`.
+- **Global `CpModal` extracted:** `CpModal` function moved from `tags.html` inline definition into `redesign-confirm.js` as `window.CpModal`, making it available to all redesign pages without duplication. `tags.html` updated to use the global version (removed local copy, updated button class refs from `tg-m-*` to `cp-modal-*-btn`).
+- **Bootstrap fully removed from redesign templates:** `grep "\.modal('show')\|bootstrap.min" app/templates/redesign/` returns 0 results.
+- **Modified:** `app/static/js/redesign-confirm.js` (+`window.CpModal`), `app/templates/redesign/registration_review.html` (Bootstrap → CpModal), `app/templates/redesign/tags.html` (use global CpModal)
+
+### Redesign UI — Tag Management Modal System Migration (Z3 完整修复)
+
+- **Bootstrap modal → cp-modal 系统完整迁移**：标签管理页（`/rbac/tags`）原有 4 个 Bootstrap modal（新建标签/重命名标签/查看关联任务/删除确认）在 redesign shell 中全部不可见（透明遮罩/无内容），现已全部迁移到统一的 `CpModal()` 工厂函数 + `CpConfirm.show()` 系统。
+- **新建标签**：内嵌表单（标签名/业务组/说明），服务端错误即时反馈，创建中状态防重复提交。
+- **重命名标签**：pre-filled 表单（名称/只读组名/说明），提交后刷新。
+- **查看关联任务**：只读任务列表表格，单"关闭"按钮。
+- **删除确认（普通）**：`CpConfirm.show()` danger 模式，ESC 关闭，覆盖表格删除按钮和 pill 内联 × 按钮。
+- **删除确认（强制）**：标签有关联任务时，展示任务列表的 `CpModal` danger variant，用户确认后发起 force 删除请求。
+- **移除 Bootstrap 依赖**：从 `tags.html` 删除所有 Bootstrap modal HTML + `bootstrap.min.css/js` 引用，消除样式污染。
+- **Modified:** `app/templates/redesign/tags.html` (全量重构 JS/HTML modal 系统)
+
+### Security hardening (OPT-P0-12, OPT-P0-13)
+
+- **SSRF DNS Rebinding fix (OPT-P0-12):** Eliminated TOCTOU window between URL validation and HTTP request execution. `validate_and_resolve_url()` now returns the validated IP address; the scheduler's HTTP client pins the connection to that IP via a custom `_PinnedIPAdapter`, preventing DNS rebinding attacks where a domain resolves to a safe IP during validation but resolves to a private/metadata IP at request time. Fallback to standard `requests` behavior when DNS is unavailable.
+- **Login brute-force protection (OPT-P0-13):** In-memory sliding-window rate limiter on login failures. Dual dimensions: per-IP (5 failures / 5 min → 15-min lockout) and per-username (10 failures / 10 min → 30-min lockout). Successful login clears failure counters. Lockout messages shown on login page. No new dependencies; counters are process-local (reset on restart; adequate for single-instance deployments; Redis-backed upgrade path documented).
+- **New files:** `app/rbac/login_limiter.py`, `tests/test_login_limiter.py`
+- **Modified:** `app/services/url_security.py` (+DNS pinning layer), `app/crons.py` (pinned session), `app/rbac/views.py` (rate limit integration), `tests/test_p0_phase_a.py` (+8 pinning tests)
+
+### ⌘K Sidebar Search (OPT-P2-14-F6)
+
+- **Client-side fuzzy search:** Typing in the Console Mode sidebar search box (`⌘K` to focus) now filters sidebar navigation items and quick actions in real-time. Results displayed in a styled dropdown with keyboard navigation (↑/↓ select, Enter navigate, Escape close).
+- **Index sources:** All permission-visible sidebar nav links + hardcoded quick-action shortcuts (e.g. "新增任务", "修改密码"). Auto-deduplicates by `href`.
+- **Dark theme support:** Dropdown fully styled for both light and dark Console Mode themes.
+- **No dependencies:** Pure vanilla JS (`_cpSearch` IIFE in `common.js`); zero external libraries.
+- **Modified:** `app/static/js/common.js` (+`_cpSearch` IIFE, ~90 lines), `app/static/css/console-mode.css` (+dropdown styles)
+
+### Scheduler separation readiness (OPT-P1-12 Step 1-2)
+
+- **Scheduler enable/disable switch:** Environment variable `CRONPILOT_SCHEDULER_ENABLED=false` disables the APScheduler tick loop, allowing the process to run as a Web-only instance. Default: `true` (backward compatible). Use case: horizontal Web scaling where only one instance should run the scheduler.
+- **Tuning documentation:** Added scheduler performance tuning guide to `conf.ini.example` covering `max_workers` (default 30), `max_instances` (default 20), capacity planning for second-level tasks (200+ tasks supported at current defaults), and monitoring thresholds (`jobs_active > 0.8 × max_workers` → alert).
+- **Modified:** `config.py` (+`CRONPILOT_SCHEDULER_ENABLED`), `app/__init__.py` (conditional `scheduler.start()`), `conf.ini.example` (+tuning guide)
+
+### Confirm Dialog Fix (Redesign UI)
+
+- **Root cause**: `redesign-confirm.js` used Bootstrap button classes (`btn btn-danger`, `btn btn-ghost`) absent from the redesign CSS, resulting in unstyled buttons. `api_token.html` and `users.html` (redesign) used legacy `js-ajax-dialog-btn` triggering `artDialog` (inline tooltip anchored to button), visually messy in the redesign layout.
+- **Fix**: Updated `redesign-confirm.js` to use `btn-c btn-danger-c` / `btn-c btn-line`. Replaced `js-ajax-dialog-btn` in `redesign/api_token.html` and `redesign/users.html` with `CpConfirm.show()` (centered modal + dim overlay). Confirmation POST uses hidden form with CSRF token.
+- **Postmortem**: `doc/postmortem/2026-08-确认对话框修复与个人资料页.html`
+- **Modified**: `app/static/js/redesign-confirm.js`, `app/templates/redesign/api_token.html`, `app/templates/redesign/users.html`
+
+### Personal Profile Editing (Y1)
+
+- **New page `/rbac/profile`:** All logged-in users can now edit their own nickname (花名), email, and job title. Account and role fields are read-only.
+- **Sidebar:** Added "个人资料" link in the "个人设置" section (always visible to all roles). Navigation counts updated: Admin 12, Operator 7, Viewer 6.
+- **Service:** New `update_own_profile()` function in `app/rbac/services.py` with full validation (email format, nickname length, job title whitelist).
+- **Template:** `app/templates/redesign/user_profile.html` — follows the same card style as `change_password.html`, uses `js-ajax-form` + `js-ajax-submit` guard.
+- **Modified:** `app/rbac/services.py`, `app/rbac/views.py`, `app/templates/redesign/_sidebar.html`, `tests/test_redesign_sidebar.py` (+nav counts)
+
+**Tests:** 490 pass (was 481) · **Validation:** 6 consecutive failed logins → lockout message; legitimate login succeeds post-restart; scheduler disabled mode verified (`running=False`, routes intact); ⌘K search returns correct results (CDP verified: "用户"→"用户管理", "审"→"注册审批/审计"); full test suite green; DB integrity confirmed.
+
+### Design Token System (Phase 1 · Batch 1-3)
+
+- **Typography tokens:** 5-level font-size scale (`--cp-font-xs` 11px / `--cp-font-sm` 12px / `--cp-font-base` 13px / `--cp-font-md` 14px / `--cp-font-lg` 18px). All 34 `font-size` declarations in `console-mode.css` replaced with token references; zero raw pixel values remain. Eliminates prior 10-value fragmentation including `11.5px` / `12.5px` half-pixel artifacts.
+- **Spacing tokens:** 4px-grid system (`--cp-space-1` through `--cp-space-6`: 4/8/12/16/24/32px). All 41 spacing declarations (padding/margin/gap) tokenized; non-grid values (5px/6px/7px/10px) mapped to nearest grid point. Eliminates "adjacent pages feel subtly different" spacing inconsistency.
+- **Border-radius tokens:** 3-level semantic scale (`--cp-radius-sm` 3px / `--cp-radius-md` 5px / `--cp-radius-lg` 8px). All 16 applicable `border-radius` declarations tokenized (excluding `50%` circles and compound values).
+- **Net result:** 91 raw pixel declarations eliminated from `console-mode.css`; all layout values now flow from 14 centralized tokens in `console-theme.css`.
+- **Visual impact:** 76% exact match (0px change), 91% ≤ 0.5px change; notable intentional improvements: nav items slightly more spacious (+2px vertical for better touch targets), collapsed sidebar icons larger (+2px for visibility).
+- **Color palette unification (Batch 4):** *Reverted* — Tailwind unification of Flat UI role badge / topbar colors was applied then rolled back per user feedback; original Flat UI colors retained. Palette unification deferred to future phase with proper design review.
+- **Button size convergence (Batch 5):** Deprecated `btn-mini` / `btn-small` (Flat UI remnants) replaced with `cp-btn-sm` across all 25 template occurrences. New 3-tier system (`cp-btn-sm` / `cp-btn-base` / `cp-btn-lg`) defined with Design Token values. CI gate: `scripts/audit_button_classes.py --check`.
+- **Jumbotron compact (Batch 6):** Marketing-style `jumbotron` headings (120px+ height with tagline) collapsed to transparent inline title in Console Mode. `<p class="lead">` hidden. First-screen table rows increased from ~5–6 to 8+.
+- **Modified:** `app/static/css/console-theme.css` (+14 token definitions, +9 color migrations), `app/static/css/console-mode.css` (91 declarations tokenized + button styles + jumbotron compact), 7 template files (btn-mini → cp-btn-sm)
+- **New files:** `scripts/audit_button_classes.py` (CI gate)
+
+### UI Redesign Phase 1 — Layout Shell & Dual-Track (OPT-P1-16)
+
+- **Design Token extension:** 9 new semantic tokens (`--cp-canvas`, `--cp-signal`, `--cp-signal-hover`, `--cp-signal-bg`, `--cp-text-muted`, `--cp-text-faint`, `--cp-shadow-sm`, `--cp-font-sans`, `--cp-font-mono`) with light/dark mode overrides in `console-theme.css`.
+- **Layout Shell:** CSS Grid-based 3-zone layout (sidebar 220px / topbar 56px / main content) in `redesign-layout.css`. Responsive collapse at 768px.
+- **Component base library:** `redesign-components.css` — buttons, tables, cards, stats, badges, forms, pagination, empty states, toasts, modals, skeletons, command palette. All prefixed `cp-` to avoid conflicts.
+- **Dual-track switching:** Cookie `cp_ui_version=v2` activates new UI; environment variable `CRONPILOT_FORCE_NEW_UI=true` forces all users. `before_request` sets `g.ui_version`; view functions branch to redesign templates when `v2`.
+- **Permission-gated sidebar:** `redesign/_sidebar.html` uses `has_perm()` to show/hide navigation sections by role. Verified for all 4 role types.
+- **Shell interactions:** `redesign-shell.js` (sidebar collapse, user dropdown, command palette) + `redesign-theme.js` (light/dark toggle with cookie persistence).
+- **Regression test gate:** `tests/test_redesign_sidebar.py` — 12 tests covering sidebar visibility (4 roles × template render) + HTTP reverse-path 403 assertions.
+- **New files:** `app/static/css/redesign-layout.css`, `app/static/css/redesign-components.css`, `app/static/js/redesign-shell.js`, `app/static/js/redesign-theme.js`, `app/templates/redesign/_base.html`, `app/templates/redesign/_sidebar.html`, `app/templates/redesign/_topbar.html`, `app/templates/redesign/_welcome.html`, `tests/test_redesign_sidebar.py`
+- **Modified:** `app/ui_mode.py` (+`ui_version` injection), `config.py` (+`CRONPILOT_FORCE_NEW_UI`), `app/__init__.py` (+`_set_ui_version` before_request), `app/main/views.py` (+conditional render for v2)
+
+### UI Redesign Phase 2 — Dashboard & Execution Logs (OPT-P1-16)
+
+- **Health-First Dashboard:** 4 top-level stats (总任务/运行中/暂停/异常), Exception Panel (top 5 consecutive-failing tasks), 7-column task table (任务/状态/Cron/业务组/标签/最近执行/操作), icon-only action buttons, dynamic filter chips with counts. Strictly aligned with `doc/design/CronPilot-2026-redesign-mockup.html` via Design QA gate.
+- **Execution Logs page:** 7-column layout (任务/执行时间/耗时/HTTP状态/结果/失败原因/操作), row highlighting for failed entries, task info card header, monospace fonts for IDs/times, status dots.
+- **Backend enrichment:** `CronRepository.count_consecutive_failing()` (连续失败≥3任务数), `CronRepository.status_counts()` (各状态任务数), `job_log_all_list` v2 route conditional rendering.
+- **Light + Dark mode:** Both pages fully themed via CSS variables; verified via screenshots.
+- **New files:** `app/templates/redesign/dashboard.html`, `app/templates/redesign/execution_logs.html`
+- **Modified:** `app/repositories/cron_repository.py` (+2 methods), `app/main/views.py` (+v2 conditional render for both views)
+
+### Agent Quality: Postmortem Hook System (Process Improvement)
+
+- **Problem:** Agent repeatedly failed to provide proactive postmortems after fixes (3+ occurrences), proving text-only rules insufficient.
+- **L1 Hook (postToolUse):** `.cursor/hooks/postmortem-reminder.sh` — injects mandatory classification + postmortem checklist after every `Write`/`StrReplace`/`EditNotebook`. Verified 100% trigger rate.
+- **L2 Hook (stop prompt):** `.cursor/hooks.json` stop event — AI evaluates at turn-end whether fixes exist without postmortem; if so, generates `followup_message` (loop_limit=2).
+- **Design QA Gate:** Added to implementation plan (`doc/design/UI重设计-实施架构与过渡方案.html` §6.1 #8 + §6.3) — each Phase delivery requires Mockup source comparison before declaring complete.
+- **Postmortems:** `doc/postmortem/2026-08-Phase2-Mockup偏离复盘.html`, `doc/postmortem/2026-08-元复盘-复盘失效机制.html`
+- **New files:** `.cursor/hooks.json`, `.cursor/hooks/postmortem-reminder.sh`, `.cursor/hooks/stop-postmortem-gate.sh`
+- **Modified:** `AGENTS.md`, `.cursor/rules/cronpilot-project.mdc`, `doc/design/UI重设计-实施架构与过渡方案.html`
+
+### UI Redesign: Unified Manual v2 — Index-Only Architecture (OPT-P1-16-MANUAL)
+
+- **Problem:** Manual v1 duplicated numerical values from source documents (Mockup CSS, 视觉规格书, 逐页规格书), introducing 15 inaccuracies via agent memory-based synthesis during integration.
+- **Solution:** Rewrote `doc/design/UI重设计-统一执行手册.html` as **pure architecture index** — all sections that previously contained CSS values, font sizes, spacing, color tokens etc. now contain only references/links to their authoritative source documents.
+- **Document role (v2):** Batch structure + architecture decisions + quality gates + source document locator. **Zero duplicated numerical values.**
+- **Authoritative value chain:** Mockup HTML (CSS lines 8–334) → 视觉規格書 (extracted analysis) → 逐页規格書 (per-page details). Implementation reads from these directly.
+- **Modified:** `doc/design/UI重设计-统一执行手册.html` (v1→v2: ~400 lines removed, replaced with index tables + reference links)
+
+### UI Redesign Phase 1 — Token Alignment & Static Guard (Phase 1A/1B/1C)
+
+- **Phase 1A — Redesign token alignment:** Added `.cp-shell`-scoped CSS token overrides in `console-theme.css` to precisely match Mockup-exact values for both light and dark themes. Scoped to `.cp-shell` so v1 legacy pages are completely unaffected.
+- **Phase 1B — Sidebar 216px:** Adjusted `redesign-layout.css` grid column width from 220px to 216px (Mockup exact), main content padding to `24px 32px 60px`, max-width to 1180px.
+- **Phase 1C — Static guard `check_ui_contract.py`:** New script scans `app/templates/redesign/` for inline-style attributes, legacy Bootstrap/Simpleboot class usage, and hardcoded hex colors. Supports `--check` mode for CI gate. Initial scan: 68 violations identified for Phase 2 remediation.
+- **Bug fix — false positive in legacy-class detection:** `check_legacy_classes()` previously used substring matching (`if legacy in class_val`), causing project-specific classes (`btn-danger-c`, `btn-primary-c`, `btn-success-c`, `btn-default-c`) to be falsely reported as Bootstrap violations. Fixed by switching to HTML token-based matching (`set(class_val.split())`). Violation count corrected from 72 → 68.
+- **New files:** `scripts/check_ui_contract.py`, `tests/test_check_ui_contract.py` (25 tests: token boundary regression, allowlist exceptions, hex detection)
+- **Modified:** `app/static/css/console-theme.css` (+`.cp-shell` scoped token overrides), `app/static/css/redesign-layout.css` (216px sidebar, exact padding/max-width)
+
+**Tests:** 25 new `test_check_ui_contract` tests pass · **Phase 2 plan:** 68 violations → 0 across 6 batches (2A CSS utils → 2B simple files → 2C table colwidths → 2D typography → 2E modal forms → 2F task_detail)
+
+### UI Redesign Phase 2 — Inline Style & Legacy Class Elimination (Batch 2A–2F)
+
+Executed all 6 batches of Phase 2 component extraction. Final result: **68 → 0 violations**. `check_ui_contract.py --check` now clean.
+
+- **Batch 2A — CSS utility layer:** Added micro-utility classes to `redesign-components.css`: `.cp-fw-600`, `.cp-text-xs`, `.cp-text-muted-sm`, `.cp-text-faint-sm`, `.cp-mt-8`, `.cp-mb-12`, `.cp-mt-40`, `.cp-opacity-60`, `.cp-btn--success`.
+- **Batch 2B — Simple single-violation files:** Replaced inline styles in `_welcome.html`, `api_token.html`, `run_inspector.html`, `user_form.html`; replaced legacy `btn btn-primary` with `cp-btn cp-btn--primary` in `task_form.html`.
+- **Batch 2C — Table column widths:** Extracted `<th style="width:...">` into page-scoped CSS classes in `dashboard.html`, `execution_logs.html`, `users.html`.
+- **Batch 2D — Mixed typography files:** Replaced `style="font-weight:600"` and `style="font-size:11px"` with utility classes in `groups.html`, `audit_logs.html`, `operation_log.html`.
+- **Batch 2F — task_detail.html:** Added `{% block css %}` with `.td-empty-logs`; replaced legacy button classes; extracted `style="padding:16px 0"`.
+- **Batch 2E — Legacy modal form structures:** Converted `control-group`/`controls` → `cp-form-group` in `tags.html`; replaced all legacy Bootstrap button classes (`btn-primary`/`btn-danger`/`btn-default`/`btn-success`) with `cp-btn` variants; extracted remaining inline width/typography styles in `tags.html` and `registration_review.html`.
+- **Modified:** `redesign-components.css`, `_welcome.html`, `api_token.html`, `run_inspector.html`, `user_form.html`, `task_form.html`, `dashboard.html`, `execution_logs.html`, `users.html`, `groups.html`, `audit_logs.html`, `operation_log.html`, `task_detail.html`, `tags.html`, `registration_review.html`
+
+### UI Redesign Phase 3A — CI Gate Integration
+
+- **GitHub Actions gate:** New workflow `.github/workflows/ui-contract.yml` runs `check_ui_contract.py --check` + `tests/test_check_ui_contract` on every PR/push that touches `app/templates/redesign/**`, `app/static/css/redesign-*.css`, or the guard script itself. Blocks merges that reintroduce inline styles, legacy Bootstrap classes, or hardcoded hex colors in redesign templates.
+- **Trigger paths:** `app/templates/redesign/**`, `app/static/css/redesign-*.css`, `scripts/check_ui_contract.py`, `tests/test_check_ui_contract.py`
+- **New files:** `.github/workflows/ui-contract.yml`
+
+### UI Redesign Phase 3B — Visual Regression Baseline
+
+- **Playwright baseline capture:** `scripts/capture_visual_baseline.py` logs in (v2 cookie + dark theme) and captures full-page screenshots of all 13 redesign pages to `tests/visual_regression/baseline/`.
+- **Visual regression comparison:** `scripts/compare_visual_regression.py` re-captures current screenshots and computes pixel diff vs baseline using Pillow. Default threshold: 0.5% (CI uses 1% to absorb Linux/macOS font rendering difference). Reports per-page diff % and exits non-zero on failure.
+- **Anti-aliasing tolerance:** Pixels with max RGB channel diff ≤ 5 are ignored to prevent false positives from sub-pixel rendering differences.
+- **Failure artifacts:** CI uploads `tests/visual_regression/current/` as a downloadable artifact on failure for visual inspection.
+- **GitHub Actions gate:** `.github/workflows/visual-regression.yml` triggers on redesign template/CSS changes; starts Flask server, runs comparison, uploads diff screenshots if any page exceeds 1%.
+- **New files:** `scripts/capture_visual_baseline.py`, `scripts/compare_visual_regression.py`, `requirements-dev.txt`, `.github/workflows/visual-regression.yml`, `tests/visual_regression/baseline/*.png` (13 screenshots)
+- **Baseline:** 13 pages captured, max diff 0.021% (dashboard anti-aliasing), all other pages 0.000%
+
+### UI Redesign Phase 4 — Full Page Implementation (Batches B1–B7)
+
+Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly aligned with `doc/design/console-style-demo.html` Mockup.
+
+- **Batch 1 (Dashboard + Execution Logs):** 7-column task table, 4 stats cards, exception panel (top 5 consecutive-failing), status filter chips, scope/tag dropdowns, text search. Execution logs with status dots, duration color-coding, click-to-copy LOG ID, content expand/collapse.
+- **Batch 2 (Global Components):** Toast notifications (`redesign-toast.js`), Confirm Modal (`redesign-confirm.js`), Empty State with SVG icon, Skeleton loading states. All integrated into Dashboard and Execution Logs.
+- **Batch 3 (Task Detail + Run Inspector):** Task detail page with config display, health badge, tag list. Run Inspector with full response content, HTTP status, timing, fail reason.
+- **Batch 4 (Task Form):** Cron expression grid builder (day/weekday/hour/minute/second), human-readable schedule preview, tag chip input with group-scoped autocomplete, scope selector, timeout/method/body configuration.
+- **Batch 5 (User Management + System Pages):** Users list (10 columns with role badges, group tags), Groups list, Tags management (CRUD with modals), Registration Review (status filter tabs), Audit Logs (multi-filter: user/action/result/date), Operation Logs, Change Password form, API Token display+reset.
+- **Batch 6 (Form Pages):** User Add/Edit form, Group Add/Edit form. Consistent card-based layout with validation hints, disabled states, dark mode support.
+- **Batch 7 (Standalone Auth + Utility):** Login, Register, Forgot Password, Complete Profile — fully standalone pages (no `_base.html` dependency) with inline dark mode detection via `cp_theme` cookie. API Doc page. `users_set_active` confirmation page. `cron_retire` confirmation page.
+
+**Architecture decisions:**
+- Shared CSS: `redesign-mockup-shared.css` centralizes common Mockup-derived classes (`c-table`, `btn-c`, `f-input`, `page-head`, `pg-*` utilities) for cross-page reuse.
+- Color token compliance: All colors use `var(--cp-*)` variables; `--cp-on-filled` introduced for text on filled backgrounds. Zero hardcoded hex in templates (CI gate `audit_hardcoded_colors.py --check`).
+- RBAC-aware rendering: All action buttons, navigation items, and page access controlled by `has_perm()` checks.
+- Dual-track coexistence: v1 and v2 templates coexist; `CRONPILOT_FORCE_NEW_UI=true` in startup script forces v2 as default.
+
+**New files (26 templates):** `app/templates/redesign/dashboard.html`, `execution_logs.html`, `task_detail.html`, `run_inspector.html`, `task_form.html`, `users.html`, `groups.html`, `tags.html`, `registration_review.html`, `audit_logs.html`, `operation_log.html`, `change_password.html`, `api_token.html`, `user_form.html`, `group_form.html`, `api_doc.html`, `login.html`, `register.html`, `forgot_password.html`, `complete_profile.html`, `users_set_active.html`, `cron_retire.html`, `_base.html`, `_sidebar.html`, `_topbar.html`, `_welcome.html`
+
+**New CSS/JS:** `app/static/css/redesign-mockup-shared.css`, `app/static/css/redesign-pages.css`, `app/static/js/redesign-toast.js`, `app/static/js/redesign-confirm.js`
+
+**Modified:** `app/rbac/views.py` (v2 conditional rendering for all RBAC routes + `active_nav` context), `app/main/views.py` (v2 conditional rendering for main routes + Jinja filters), `app/main/__init__.py` (+`humanize_schedule`, `format_cron_expression` filters), `app/static/css/console-theme.css` (+`--cp-on-filled`, `.cp-shell` scoped tokens), `app/static/css/redesign-layout.css` (192px sidebar, rounded nav items, left-border active indicator), `scripts/start_local_full.sh` (+`CRONPILOT_FORCE_NEW_UI=true`)
+
+### UI Redesign — Layout Refinement & Consistency Fixes
+
+- **Sidebar narrowing:** Grid column reduced from 220px → 192px (Mockup exact). Nav item padding/font-size refined, rounded corners (`border-radius: 6px`), active state uses `border-left: 2px solid var(--cp-signal)` + `background: var(--cp-surface-2)`.
+- **Title separator unification:** All 22 v2 templates now use ` — ` (em-dash) consistently in `<title>` tags; corrected `dashboard.html` and `execution_logs.html` which used ` - ` (hyphen).
+- **Sidebar `active_nav` completeness:** Fixed missing `active_nav` context for 3 views: `change_password` → `'password'`, `api_token_page` → `'api-token'`, `api_doc` → `'apidoc'`. Sidebar now highlights the correct item on all 12 navigable pages.
+- **CSS token compliance:** Replaced 2 remaining `color: #fff` instances in `redesign-layout.css` (`.cp-nav-badge`, `.cp-topbar-avatar`) with `var(--cp-on-filled)`.
+
+**Tests:** 438 pass · **Dark mode:** All 12 pages verified via browser screenshots · **Mockup alignment:** All differences confirmed as user-authorized changes or RBAC-correct behavior.
+
+---
+
 ## [3.0.0] — 2026-08-10
 
 ### Console Mode UI & Dual Theme (OPT-P2-14)

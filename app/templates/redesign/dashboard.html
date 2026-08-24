@@ -1,0 +1,524 @@
+{# CronPilot Redesign — Dashboard (Full Rewrite)
+   Health-First information architecture matching the approved Mockup.
+   7-column table, Exception Panel, icon-only action buttons. #}
+{% extends "redesign/_base.html" %}
+{% block title %}任务中心 — CronPilot{% endblock %}
+
+{% block css %}
+<style>
+/* ===== Filters (Mockup dual-dimension layout) ===== */
+.console-filters{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--cp-border);margin-bottom:0;}
+.f-group{display:flex;align-items:center;gap:4px;}
+.f-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--cp-text-faint);margin-right:4px;font-weight:600;}
+.f-btn{padding:4px 9px;border-radius:5px;font-size:12px;color:var(--cp-text-muted);border:1px solid transparent;background:none;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;transition:all 0.1s;}
+.f-btn:hover{color:var(--cp-ink);text-decoration:none;}
+.f-btn.active{background:var(--cp-surface);border-color:var(--cp-border);color:var(--cp-ink);font-weight:600;}
+.f-sep{width:1px;height:14px;background:var(--cp-border);}
+.f-select{background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:5px;padding:5px 8px;font-size:12px;color:var(--cp-ink);font-family:inherit;}
+.f-input{background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:5px;padding:5px 8px;font-size:12px;color:var(--cp-ink);font-family:inherit;width:150px;}
+.f-input::placeholder{color:var(--cp-text-faint);}
+.f-spacer{flex:1;}
+.btn-c{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:5px;border:1px solid transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
+.btn-c svg{width:12px;height:12px;}
+.btn-accent{background:var(--cp-signal);color:#fff;}
+.btn-accent:hover{opacity:0.9;text-decoration:none;color:#fff;}
+
+/* ===== Enhanced Table ===== */
+.hf-table-wrap{border:1px solid var(--cp-border);border-radius:8px;overflow:hidden;}
+.hf-table-wrap--attached{border-top:none;border-radius:0 0 8px 8px;}
+.hf-table{width:100%;border-collapse:collapse;}
+.hf-table thead th{text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--cp-text-faint);padding:9px 16px;background:var(--cp-surface-2);border-bottom:1px solid var(--cp-border);}
+.hf-table tbody td{padding:11px 16px;border-bottom:1px solid var(--cp-border);vertical-align:top;font-size:12.5px;}
+.hf-table tbody tr:last-child td{border-bottom:none;}
+.hf-table tbody tr:hover td{background:var(--cp-surface-2);}
+.hf-table tbody tr{transition:background 0.12s;}
+.hf-table tbody tr:hover{background:var(--cp-surface-2);}
+.hf-table tbody tr.row-retired{opacity:0.6;}
+.hf-table tbody tr.row-retired:hover{opacity:0.85;}
+
+/* Task cell */
+.tc-name{font-weight:600;font-size:13px;margin:0 0 2px;cursor:pointer;color:var(--cp-ink);text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+a.tc-name:hover{color:var(--cp-signal);}
+.tc-name.failing{color:var(--cp-danger);}
+.tc-id{color:var(--cp-text-faint);font-size:11px;font-family:var(--cp-font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;}
+.tc-tags{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+.tc-lifecycle{font-size:10px;font-weight:500;padding:2px 6px;border-radius:3px;line-height:1.4;}
+.tc-lifecycle.active{background:var(--cp-success-bg);color:var(--cp-success);}
+.tc-lifecycle.paused{background:var(--cp-warn-bg);color:var(--cp-warn);}
+.tc-lifecycle.retired{background:var(--cp-surface-2);color:var(--cp-text-faint);}
+.tc-tag{font-size:10px;color:var(--cp-tag-text);background:var(--cp-tag-bg);padding:0 5px;border-radius:3px;vertical-align:middle;}
+
+/* Schedule */
+.sched-human{font-size:12.5px;color:var(--cp-ink);margin-bottom:3px;}
+.sched-expr{font-size:11px;color:var(--cp-text-muted);font-family:var(--cp-font-mono);display:inline-block;background:var(--cp-surface-2);padding:1px 5px;border-radius:3px;}
+
+/* Health — now handled by .hc-dot classes above */
+
+/* Last run */
+.lr-cell{line-height:1.6;}
+.lr-status{display:inline-flex;align-items:center;gap:4px;font-family:var(--cp-font-mono);font-weight:500;font-size:12px;}
+.lr-pin{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.lr-duration{font-family:var(--cp-font-mono);font-size:11px;color:var(--cp-text-muted);}
+.lr-time{color:var(--cp-text-faint);font-size:11px;}
+
+/* Next run */
+.nr{font-size:12px;color:var(--cp-text-muted);}
+.nr.imminent{color:var(--cp-signal);font-weight:500;}
+.nr.paused{color:var(--cp-warn);font-style:italic;}
+.nr.offline{color:var(--cp-text-faint);font-style:italic;}
+
+/* Health badge (Mockup B column 3) */
+.health-badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:3px;white-space:nowrap;}
+.health-badge.ok{background:var(--cp-success-bg);color:var(--cp-success);}
+.health-badge.danger{background:var(--cp-danger-bg, rgba(220,38,38,0.08));color:var(--cp-danger);}
+.health-badge.off{background:var(--cp-surface-2);color:var(--cp-text-faint);}
+.health-badge.unknown{background:var(--cp-surface-2);color:var(--cp-text-faint);}
+
+/* Scope cell */
+.sc{font-size:12px;color:var(--cp-text-muted);}
+
+/* Health dots (shared) */
+.hc-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.hc-dot.dot-ok{background:var(--cp-success);}
+.hc-dot.dot-fail{background:var(--cp-danger);animation:healthPulse 2s ease-in-out infinite;}
+.hc-dot.dot-unknown{background:var(--cp-text-faint);}
+.hc-dot.dot-run{background:var(--cp-signal);animation:c-pulse 1.8s ease-in-out infinite;}
+.hc-dot.dot-off{background:var(--cp-text-faint);}
+@keyframes c-pulse{0%,100%{box-shadow:0 0 0 0 var(--cp-signal-bg)}50%{box-shadow:0 0 0 4px var(--cp-signal-bg)}}
+
+/* Action icon buttons (Mockup B) */
+.act-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;border:1px solid var(--cp-border);background:var(--cp-surface);color:var(--cp-text-muted);cursor:pointer;transition:all 0.12s;padding:0;}
+.act-btn svg{width:14px;height:14px;}
+.act-btn:hover{color:var(--cp-ink);border-color:var(--cp-border-strong);background:var(--cp-surface-2);}
+.act-btn.run{color:var(--cp-signal);}
+.act-btn.run:hover{background:var(--cp-signal-bg);border-color:var(--cp-signal);}
+
+/* Dropdown menu (matching mockup) */
+.c-dd{position:relative;display:inline-block;}
+.c-dd-menu{position:absolute;right:0;top:calc(100% + 4px);min-width:110px;background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:6px;padding:4px;display:none;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.c-dd.open .c-dd-menu{display:block;}
+.c-dd-menu a{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:4px;font-size:12px;color:var(--cp-ink);cursor:pointer;text-decoration:none;}
+.c-dd-menu a:hover{background:var(--cp-surface-2);text-decoration:none;}
+.c-dd-menu a.c-danger{color:var(--cp-danger);}
+.c-dd-menu .c-div{height:1px;background:var(--cp-border);margin:4px 3px;}
+
+/* Icon action buttons */
+.row-acts{display:flex;gap:5px;align-items:center;}
+
+/* Pagination — inside table wrap footer */
+.hf-pagination{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;font-size:12px;color:var(--cp-text-muted);border-top:1px solid var(--cp-border);}
+.hf-pg-info{font-family:var(--cp-font-mono);font-size:11px;color:var(--cp-text-faint);}
+.hf-pg-nav{display:flex;align-items:center;gap:2px;}
+.hf-pg-btn{padding:4px 9px;border-radius:5px;font-size:11.5px;color:var(--cp-text-muted);font-family:var(--cp-font-mono);text-decoration:none;display:inline-block;}
+.hf-pg-btn:hover{background:var(--cp-surface-2);color:var(--cp-ink);text-decoration:none;}
+.hf-pg-btn.active{background:var(--cp-signal-bg);color:var(--cp-signal);font-weight:700;}
+.hf-pg-btn.disabled{opacity:0.4;cursor:not-allowed;pointer-events:none;}
+
+/* Page header */
+.hf-page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;}
+.hf-page-head h1{font-size:16px;font-weight:600;margin:0;}
+.stat-line{font-size:11.5px;color:var(--cp-text-faint);font-family:var(--cp-font-mono);}
+.stat-line b{color:var(--cp-ink);font-weight:600;}
+
+/* ===== Stats Cards (Mockup B: 4-column grid) ===== */
+.hf-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--cp-border);border:1px solid var(--cp-border);border-radius:8px;overflow:hidden;margin-bottom:20px;}
+.hf-stat{background:var(--cp-surface);padding:14px 18px;}
+.hf-stat-label{color:var(--cp-text-muted);font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;font-weight:500;}
+.hf-stat-value{font-size:22px;font-weight:600;font-family:var(--cp-font-mono);letter-spacing:-0.02em;}
+.hf-stat-value.signal{color:var(--cp-signal);}
+.hf-stat-value.danger{color:var(--cp-danger);}
+.hf-stat-value.warning{color:var(--cp-warn);}
+.hf-stat-sub{font-size:11px;color:var(--cp-text-faint);margin-top:4px;}
+
+/* ===== Exception Panel (Mockup B) ===== */
+.hf-exception{border:1px solid var(--cp-danger);border-radius:8px;margin-bottom:20px;overflow:hidden;background:var(--cp-danger-bg);}
+.hf-exception-header{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12.5px;font-weight:600;color:var(--cp-danger);}
+.hf-exception-header svg{width:14px;height:14px;flex-shrink:0;}
+.hf-exception-list{background:var(--cp-surface);border-top:1px solid var(--cp-border);}
+.hf-exception-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--cp-border);font-size:12.5px;}
+.hf-exception-item:last-child{border-bottom:none;}
+.hf-ex-icon{color:var(--cp-danger);font-weight:700;font-size:14px;flex-shrink:0;}
+.hf-ex-name{font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hf-ex-detail{color:var(--cp-text-muted);font-size:11.5px;flex:2;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hf-ex-action{color:var(--cp-signal);font-size:12px;font-weight:500;white-space:nowrap;text-decoration:none;}
+.hf-ex-action:hover{text-decoration:underline;}
+
+/* Empty state */
+.hf-empty{text-align:center;padding:60px 20px;color:var(--cp-text-muted);}
+.hf-empty-title{font-size:15px;font-weight:600;color:var(--cp-ink);margin-bottom:6px;}
+.hf-empty-desc{font-size:13px;color:var(--cp-text-faint);margin-bottom:16px;}
+
+/* ===== Micro-interactions & Animations ===== */
+/* Table row stagger entrance */
+.hf-table tbody tr{opacity:0;animation:rowSlideIn 0.25s ease-out forwards;}
+@keyframes rowSlideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.hf-table tbody tr:nth-child(1){animation-delay:0.02s;}
+.hf-table tbody tr:nth-child(2){animation-delay:0.04s;}
+.hf-table tbody tr:nth-child(3){animation-delay:0.06s;}
+.hf-table tbody tr:nth-child(4){animation-delay:0.08s;}
+.hf-table tbody tr:nth-child(5){animation-delay:0.1s;}
+.hf-table tbody tr:nth-child(6){animation-delay:0.12s;}
+.hf-table tbody tr:nth-child(7){animation-delay:0.14s;}
+.hf-table tbody tr:nth-child(8){animation-delay:0.16s;}
+.hf-table tbody tr:nth-child(9){animation-delay:0.18s;}
+.hf-table tbody tr:nth-child(10){animation-delay:0.2s;}
+
+/* Action button press effect */
+.act-btn:active{transform:scale(0.88);}
+
+/* Button focus ring (keyboard accessibility) */
+.act-btn:focus-visible,.f-btn:focus-visible,.hf-pg-btn:focus-visible{outline:2px solid var(--cp-signal);outline-offset:1px;}
+
+/* Page fade-in on load */
+.cp-main{animation:pageFadeIn 0.3s ease-out;}
+@keyframes pageFadeIn{from{opacity:0}to{opacity:1}}
+
+/* Tooltip for truncated text */
+[data-tooltip]{position:relative;}
+[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--cp-ink);color:var(--cp-surface);font-size:11px;padding:4px 8px;border-radius:4px;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis;z-index:100;pointer-events:none;animation:tooltipIn 0.15s ease-out;}
+@keyframes tooltipIn{from{opacity:0;transform:translateX(-50%) translateY(4px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Skeleton shimmer (inline usage) */
+.hf-skeleton{display:inline-block;background:linear-gradient(90deg, var(--cp-surface-2) 25%, var(--cp-border) 50%, var(--cp-surface-2) 75%);background-size:200% 100%;animation:hfShimmer 1.5s infinite;border-radius:4px;}
+@keyframes hfShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+/* Table column widths (Mockup B — 7 columns) */
+.hfc-name   { width: 28%; }
+.hfc-cron   { width: 14%; }
+.hfc-health { width: 8%;  }
+.hfc-lastrun{ width: 14%; }
+.hfc-nextrun{ width: 10%; }
+.hfc-group  { width: 14%; }
+.hfc-act    { width: 12%; }
+/* Table variant: attached below a panel (no top border/radius) */
+.hf-table-wrap--attached { border-top: none; border-radius: 0 0 8px 8px; }
+/* Empty state icon */
+.hf-empty-icon { margin-bottom: 12px; opacity: 0.5; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+{# ═══ Page Header (Mockup: title left + stat-line right) ═══ #}
+<div class="hf-page-head">
+  <div><h1>任务中心</h1><div class="sub">管理与监控所有定时任务</div></div>
+  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 连续失败 · <span style="color:var(--cp-warn)">{{ metrics.today_fail_runs }}</span> 今日告警</div>
+</div>
+
+{# ═══ Stats Cards (Mockup B: 4-column Health-First metrics) ═══ #}
+<div class="hf-stats">
+  <div class="hf-stat">
+    <div class="hf-stat-label">异常任务</div>
+    <div class="hf-stat-value danger">{{ metrics.failing }}</div>
+    <div class="hf-stat-sub">需要立即关注</div>
+  </div>
+  <div class="hf-stat">
+    <div class="hf-stat-label">连续失败</div>
+    <div class="hf-stat-value warning">{{ consecutive_failing }}</div>
+    <div class="hf-stat-sub">≥{{ metrics.failing_threshold }} 次连续失败</div>
+  </div>
+  <div class="hf-stat">
+    <div class="hf-stat-label">运行中</div>
+    <div class="hf-stat-value signal">{{ metrics.running }}</div>
+    <div class="hf-stat-sub">当前正在执行</div>
+  </div>
+  <div class="hf-stat">
+    <div class="hf-stat-label">今日失败次数</div>
+    <div class="hf-stat-value danger">{{ metrics.today_fail_runs }}</div>
+    <div class="hf-stat-sub">{{ metrics.total }} 个任务 · 成功率 {{ today_success_rate }}%</div>
+  </div>
+</div>
+
+{# ═══ Exception Panel (Mockup B: failing tasks needing attention) ═══ #}
+{% if failing_tasks %}
+<div class="hf-exception">
+  <div class="hf-exception-header">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v6.3"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="18" cy="18" r="4"/><path d="M18 16v2l1 1"/></svg>
+    需要关注的任务（{{ failing_tasks|length }}）
+  </div>
+  <div class="hf-exception-list">
+    {% for row in failing_tasks %}
+    {% set cron = row[0] %}
+    {% set health = row[1] %}
+    <div class="hf-exception-item">
+      <span class="hf-ex-icon">×{{ health.consecutive_failures }}</span>
+      <span class="hf-ex-name">{{ cron.task_name }}</span>
+      <span class="hf-ex-detail">连续失败 {{ health.consecutive_failures }} 次{% if health.last_fail_at %} · 最近失败: {{ health.last_fail_at[:16] }}{% endif %}</span>
+      <a class="hf-ex-action" href="{{ url_for('main.job_log_list', id=cron.id) }}">查看详情 →</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ═══ Filters (Mockup dual-dimension: 异常 | 状态 | group | tag | search) ═══ #}
+<div class="console-filters">
+  <div class="f-group">
+    <span class="f-label">异常</span>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'failing' }}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id or '') }}">连续失败</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}">今日失败</a>
+  </div>
+  <div class="f-sep"></div>
+  <div class="f-group">
+    <span class="f-label">状态</span>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}">运行中</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}">已暂停</a>
+    <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}">全部</a>
+  </div>
+  <div class="f-sep"></div>
+  {% if scope_groups %}
+  <select class="f-select" onchange="location.href=this.value">
+    <option value="{{ url_for('main.cron_list', scope_view='all') }}"{% if not scope_group_id %} selected{% endif %}>全部（可见）</option>
+    {% for grp in scope_groups %}
+    <option value="{{ url_for('main.cron_list', scope_view='group', group_id=grp.id) }}"{% if scope_group_id == grp.id %} selected{% endif %}>{{ grp.name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  {% if all_tag_names %}
+  <select class="f-select" onchange="location.href=this.value">
+    <option value="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}"{% if not current_tag %} selected{% endif %}>全部标签</option>
+    {% for tname in all_tag_names %}
+    <option value="{{ url_for('main.cron_list', tag=tname, scope_view=scope_view, group_id=scope_group_id or '') }}"{% if current_tag == tname %} selected{% endif %}>{{ tname }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <form method="get" action="{{ url_for('main.cron_list') }}" style="display:contents">
+    <input class="f-input" type="text" name="task_name" value="{{ keyword.get('task_name','') }}" placeholder="任务名模糊匹配">
+    {% if scope_view %}<input type="hidden" name="scope_view" value="{{ scope_view }}">{% endif %}
+    {% if scope_group_id %}<input type="hidden" name="group_id" value="{{ scope_group_id }}">{% endif %}
+  </form>
+  <div class="f-spacer"></div>
+  {% if has_perm('cron:write') %}
+  <a href="{{ url_for('main.cron_add') }}" class="btn-c btn-accent">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建任务
+  </a>
+  {% endif %}
+</div>
+
+{# ═══ Task Table (7 columns — Mockup B alignment) ═══ #}
+{% if page_data.items %}
+<div class="hf-table-wrap hf-table-wrap--attached">
+  <table class="hf-table">
+    <thead><tr>
+      <th class="hfc-name">任务</th>
+      <th class="hfc-cron">调度策略</th>
+      <th class="hfc-health">健康度</th>
+      <th class="hfc-lastrun">最近执行</th>
+      <th class="hfc-nextrun">下次执行</th>
+      <th class="hfc-group">业务组</th>
+      <th class="hfc-act">操作</th>
+    </tr></thead>
+    <tbody>
+      {% for item in page_data.items %}
+      {% set h = health_by_id.get(item.id) %}
+      {% set lr = last_run_map.get(item.id, {}) %}
+      <tr{% if item.status == -1 %} class="row-retired"{% endif %}>
+        {# COL 1: Task (name + task_id + lifecycle + tags) #}
+        <td>
+          <a href="{{ url_for('main.task_detail_v2', id=item.id) }}" class="tc-name{% if h and h.health_status == 'failing' %} failing{% endif %}" data-tooltip="{{ item.task_name }}">{{ item.task_name }}</a>
+          <div class="tc-id">{{ item.task_keyword or '—' }}</div>
+          <div class="tc-tags">
+            {% if item.status == 1 %}<span class="tc-lifecycle active">运行中</span>
+            {% elif item.status == 0 %}<span class="tc-lifecycle paused">已暂停</span>
+            {% elif item.status == -1 %}<span class="tc-lifecycle retired">已下线</span>{% endif %}
+            {% set tags = task_tag_map.get(item.id, []) if task_tag_map is defined else [] %}
+            {% for tag in tags[:3] %}<span class="tc-tag">{{ tag }}</span>{% endfor %}
+            {% if tags|length > 3 %}<span class="tc-tag">+{{ tags|length - 3 }}</span>{% endif %}
+          </div>
+        </td>
+        {# COL 2: Schedule (human text + cron expr) #}
+        <td>
+          {% if item.run_date %}
+          <div class="sched-human">{{ item.run_date }}</div>
+          <div class="sched-expr">一次性</div>
+          {% else %}
+          <div class="sched-human">{{ item|humanize_schedule }}</div>
+          <div class="sched-expr">{{ item|format_cron_expression or '—' }}</div>
+          {% endif %}
+        </td>
+        {# COL 3: Health (badge text) #}
+        <td>
+          {% if item.status == -1 %}
+          <span class="health-badge off">已下线</span>
+          {% elif h and h.health_status == 'failing' %}
+          <span class="health-badge danger"><span class="hc-dot dot-fail"></span>异常</span>
+          {% elif h and h.health_status == 'ok' %}
+          <span class="health-badge ok"><span class="hc-dot dot-ok"></span>健康</span>
+          {% else %}
+          <span class="health-badge unknown">N/A</span>
+          {% endif %}
+        </td>
+        {# COL 4: Last Run (http_status + duration + relative time) #}
+        <td class="lr-cell">
+          {% if lr %}
+          <div class="lr-status">
+            <span class="lr-pin" style="background:var({% if lr.get('status') == 'success' %}--cp-success{% elif lr.get('status') in ['fail','error','timeout'] %}--cp-danger{% else %}--cp-text-faint{% endif %})"></span>
+            {{ lr.get('http_status', '—') }}
+          </div>
+          <div class="lr-duration">{{ lr.get('take_time', '—') }}s</div>
+          <div class="lr-time">{{ lr.get('create_time', '—')[-8:] if lr.get('create_time') else '—' }}</div>
+          {% else %}
+          <span class="lr-time">—</span>
+          {% endif %}
+        </td>
+        {# COL 5: Next Run (relative time) #}
+        <td>
+          {% set nr = next_run_map.get(item.id, '—') %}
+          <span class="nr{% if item.status == 0 %} paused{% elif item.status == -1 %} offline{% elif 'min' in nr %} imminent{% endif %}">{{ nr }}</span>
+        </td>
+        {# COL 6: Business Group #}
+        <td>
+          <span class="sc">
+            {%- if item.scope_type == 'GLOBAL' -%}—{%- else -%}
+              {%- set gids = task_group_map.get(item.id, []) if task_group_map is defined else [] -%}
+              {%- if gids is iterable and gids is not string -%}
+                {%- for gid in gids %}{{ group_name_by_id.get(gid, '—') }}{% if not loop.last %}, {% endif %}{%- endfor -%}
+              {%- elif gids -%}{{ group_name_by_id.get(gids, '—') }}{%- else -%}—{%- endif -%}
+            {%- endif -%}
+          </span>
+        </td>
+        {# COL 7: Actions (icon buttons) #}
+        <td>
+          <div class="row-acts">
+            {% if has_perm('cron:write') and item.status == 1 and item.req_url %}
+            <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" title="立即执行">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            {% endif %}
+            <a class="act-btn" href="{{ url_for('main.job_log_list', id=item.id) }}" title="执行记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            </a>
+            {% if has_perm('cron:write') and item.status != -1 %}
+            <div class="c-dd">
+              <button class="act-btn" onclick="this.parentElement.classList.toggle('open')" title="更多">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <div class="c-dd-menu">
+                {% if item.status == 1 %}
+                <a onclick="cpToggleStatus({{ item.id }}, 0, this)">暂停</a>
+                {% elif item.status == 0 %}
+                <a onclick="cpToggleStatus({{ item.id }}, 1, this)">恢复</a>
+                {% endif %}
+                <a href="{{ url_for('main.cron_edit', id=item.id) }}">编辑</a>
+                <div class="c-div"></div>
+                <a class="c-danger" onclick="cpRetire({{ item.id }}, this)">下线</a>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{# ═══ Pagination (inside table wrap — matches Mockup c-foot) ═══ #}
+<div class="hf-pagination">
+  <div class="hf-pg-info">{{ page_data.total }} total</div>
+  {% if page_data.pages > 1 %}
+  <div class="hf-pg-nav">
+    {% if page_data.has_prev %}
+    <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.prev_num, **keyword) }}">‹</a>
+    {% else %}
+    <span class="hf-pg-btn disabled">‹</span>
+    {% endif %}
+    {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+      {% if p %}
+      <a class="hf-pg-btn{{ ' active' if p == page_data.page }}" href="{{ url_for('main.cron_list', page=p, **keyword) }}">{{ p }}</a>
+      {% else %}
+      <span class="hf-pg-btn disabled">…</span>
+      {% endif %}
+    {% endfor %}
+    {% if page_data.has_next %}
+    <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.next_num, **keyword) }}">›</a>
+    {% else %}
+    <span class="hf-pg-btn disabled">›</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+</div>
+
+{% else %}
+{# ═══ Empty State ═══ #}
+<div class="hf-empty">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="hf-empty-icon"><rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2"/><path d="M6 18h36M16 14v-4M32 14v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  <div class="hf-empty-title">暂无任务</div>
+  <div class="hf-empty-desc">{% if keyword.get('task_name') or keyword.get('status') or keyword.get('health') %}未找到匹配的任务，请调整筛选条件{% else %}创建第一个定时任务来开始{% endif %}</div>
+  {% if has_perm('cron:write') and not keyword.get('task_name') %}
+  <a href="{{ url_for('main.cron_add') }}" class="cp-btn cp-btn--primary cp-mt-8">新建任务</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block js %}
+<script>
+var _cpCsrf = '{{ csrf_token }}';
+
+/* ── Toggle status ── */
+function cpToggleStatus(cronId, newStatus, btn) {
+  var title = newStatus === 0 ? '暂停任务' : '启动任务';
+  var msg = newStatus === 0 ? '暂停后任务将不再按计划执行，确认暂停？' : '启动后任务将按计划调度，确认启动？';
+  CpConfirm.show({ title: title, body: msg, confirmText: '确认', cancelText: '取消' }).then(function(confirmed) {
+    if (!confirmed) return;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    $.post('/update_status', {id: cronId, csrf_token: _cpCsrf}, function(r) {
+      if (r.errcode === 0) {
+        CpToast.success(newStatus === 0 ? '已暂停' : '已启动');
+        setTimeout(function() { location.reload(); }, 600);
+      } else {
+        CpToast.error(r.errmsg || '操作失败');
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      }
+    }).fail(function() {
+      CpToast.error('网络错误');
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    });
+  });
+}
+
+/* ── Run now ── */
+function cpRunNow(cronId, btn) {
+  CpConfirm.show({ title: '立即执行', body: '将立即触发一次该任务执行，确认？', confirmText: '确认', cancelText: '取消' }).then(function(confirmed) {
+    if (!confirmed) return;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    $.post('/cron_run_now', {id: cronId, csrf_token: _cpCsrf}, function(r) {
+      if (r.errcode === 0) {
+        CpToast.success('已触发执行');
+      } else {
+        CpToast.error(r.errmsg || '执行失败');
+      }
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    }).fail(function() {
+      CpToast.error('网络错误');
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    });
+  });
+}
+
+/* ── Close dropdown on outside click ── */
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('.hf-dropdown.open').forEach(function(dd) {
+    if (!dd.contains(e.target)) dd.classList.remove('open');
+  });
+  document.querySelectorAll('.c-dd.open').forEach(function(dd) {
+    if (!dd.contains(e.target)) dd.classList.remove('open');
+  });
+});
+
+/* ── Retire task ── */
+function cpRetire(cronId, btn) {
+  CpConfirm.show({ title: '下线任务', body: '下线后任务将不再执行且无法恢复运行状态，确认下线？', confirmText: '确认下线', cancelText: '取消' }).then(function(confirmed) {
+    if (!confirmed) return;
+    $.post('/cron_retire', {id: cronId, csrf_token: _cpCsrf}, function(r) {
+      if (r.errcode === 0) {
+        CpToast.success('已下线');
+        setTimeout(function() { location.reload(); }, 600);
+      } else {
+        CpToast.error(r.errmsg || '操作失败');
+      }
+    }).fail(function() { CpToast.error('网络错误'); });
+  });
+}
+</script>
+{% endblock %}

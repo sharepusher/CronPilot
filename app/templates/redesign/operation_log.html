@@ -1,0 +1,110 @@
+{% extends "redesign/_base.html" %}
+{% block title %}操作记录 — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><div><h1>操作记录</h1><div class="sub">任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）</div></div></div>
+
+<p class="pg-desc">本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / 启动 / 暂停 / 下线）。登录与权限事件见{% if has_perm('audit:read') %}<a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。</p>
+
+<form method="GET" action="{{ url_for('main.operation_log_list') }}" class="pg-toolbar pg-search">
+  <input class="f-input pg-input-md" type="text" name="keyword" value="{{ search_keyword or '' }}" placeholder="搜索操作人/对象…">
+  <select class="f-input pg-select" name="action">
+    <option value="">全部操作</option>
+    <option value="create_cron"{% if keywords.get('action') == 'create_cron' %} selected{% endif %}>创建任务</option>
+    <option value="update_cron"{% if keywords.get('action') == 'update_cron' %} selected{% endif %}>修改任务</option>
+    <option value="toggle_status"{% if keywords.get('action') == 'toggle_status' %} selected{% endif %}>启动/暂停</option>
+    <option value="retire_cron"{% if keywords.get('action') == 'retire_cron' %} selected{% endif %}>下线任务</option>
+  </select>
+  <button type="submit" class="btn-c btn-line btn-xs">搜索</button>
+  {% if search_keyword or keywords.get('action') %}
+  <a href="{{ url_for('main.operation_log_list') }}" class="btn-c btn-line btn-xs pg-clear">清除</a>
+  {% endif %}
+</form>
+
+<div class="c-table-wrap">
+  <table class="c-table">
+    <thead>
+      <tr>
+        <th>操作人</th>
+        <th>操作类型</th>
+        <th>操作对象</th>
+        <th>变更详情</th>
+        <th>操作结果</th>
+        <th>时间</th>
+        <th>来源 IP</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_data.items %}
+      {% set cron = cron_by_id.get(item.target_id) if item.target_id else none %}
+      {% set group_name = group_name_by_id.get(cron.group_id) if cron and cron.group_id else none %}
+      {% set detail_text = format_detail_summary(item.action, item.detail_json) %}
+      <tr>
+        <td class="cp-fw-600">{{ item.operator_name or '—' }}</td>
+        <td title="{{ item.action }}"><span class="op-badge op-badge-{{ item.action.replace('_', '-') }}">{{ operation_action_label(item.action, item.detail_json) }}</span></td>
+        <td class="pg-obj-cell">
+          {% if item.task_name %}<div class="pg-task-name">{{ item.task_name }}</div>{% endif %}
+          <div class="pg-obj-sub">任务{% if group_name %} · {{ group_name }}{% endif %}</div>
+        </td>
+        <td class="pg-detail-cell" title="{{ item.detail_json }}">
+          {% if detail_text and detail_text != '—' %}{{ detail_text }}{% else %}<span class="pg-muted">—</span>{% endif %}
+        </td>
+        <td>
+          {% if item.result == 'ok' or not item.result %}
+          <span class="pg-result-ok">✓ 成功</span>
+          {% else %}
+          <span class="pg-result-fail">✗ {{ operation_result_label(item.result) }}</span>
+          {% endif %}
+        </td>
+        <td class="mono cp-text-xs">{{ item.create_time or '—' }}</td>
+        <td class="mono cp-text-xs">{{ item.client_ip or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="pg-empty">暂无操作记录</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="c-foot">
+    <span class="count">{{ page_data.total }} total</span>
+    <div class="c-pg">
+      {% set pg_kw = {} %}
+      {% if search_keyword %}{% set _ = pg_kw.update({'keyword': search_keyword}) %}{% endif %}
+      {% if keywords.get('action') %}{% set _ = pg_kw.update({'action': keywords.get('action')}) %}{% endif %}
+      {% if page_data.has_prev %}
+      <a href="{{ url_for('main.operation_log_list', page=page_data.page - 1, **pg_kw) }}">‹</a>
+      {% endif %}
+      {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+        <a{% if p == page_data.page %} class="active"{% endif %}
+           href="{{ url_for('main.operation_log_list', page=p, **pg_kw) }}">{{ p }}</a>
+        {% else %}
+        <a>…</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_data.has_next %}
+      <a href="{{ url_for('main.operation_log_list', page=page_data.page + 1, **pg_kw) }}">›</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.pg-input-md { width: 200px; }
+.pg-select { width: auto; min-width: 120px; }
+.pg-clear { color: var(--cp-text-muted); }
+.pg-obj-cell { vertical-align: middle; }
+.pg-task-name { font-weight: 600; color: var(--cp-ink); font-family: var(--cp-font-mono); font-size: 11px; }
+.pg-obj-sub { font-size: 11px; color: var(--cp-text-faint); margin-top: 2px; }
+.pg-detail-cell { font-size: 12px; color: var(--cp-text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-muted { color: var(--cp-text-faint); }
+.pg-result-ok { font-size: 12px; color: var(--cp-success); font-weight: 500; white-space: nowrap; }
+.pg-result-fail { font-size: 12px; color: var(--cp-danger); font-weight: 500; white-space: nowrap; }
+.op-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; background: var(--cp-surface-2); color: var(--cp-text-muted); }
+.op-badge-create-cron { background: var(--cp-success-bg); color: var(--cp-success); }
+.op-badge-update-cron { background: var(--cp-signal-bg); color: var(--cp-signal); }
+.op-badge-toggle-status { background: var(--cp-warn-bg); color: var(--cp-warn); }
+.op-badge-retire-cron { background: var(--cp-danger-bg); color: var(--cp-danger); }
+</style>
+{% endblock %}

@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot UI X2+X3 对比 Demo</title>
+<style>
+:root{
+  --bg:#0D0F12;--surface:#16191D;--surface-2:#1C2025;
+  --border:#262B31;--border-strong:#34393F;
+  --ink:#ECEEF0;--muted:#8B9198;--faint:#565C64;
+  --signal:#4C8DFF;--signal-bg:rgba(76,141,255,0.12);
+  --success:#34D399;--success-bg:rgba(52,211,153,0.12);
+  --warn:#F5A623;--warn-bg:rgba(245,166,35,0.12);
+  --danger:#F16565;--danger-bg:rgba(241,101,101,0.12);
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6;background:var(--bg);color:var(--ink);}
+.wrap{max-width:1100px;margin:0 auto;padding:36px 24px 80px;}
+h1{font-size:20px;font-weight:700;margin-bottom:6px;}
+.lead{color:var(--muted);font-size:12.5px;margin-bottom:36px;}
+.section{margin-bottom:48px;}
+.section-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.id-tag{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border-strong);padding:2px 8px;border-radius:5px;color:var(--muted);}
+.sev{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;}
+.sev-mid{background:var(--warn-bg);color:var(--warn);}
+.sev-done{background:var(--success-bg);color:var(--success);}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.panel-head{padding:9px 14px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);display:flex;align-items:center;gap:8px;}
+.dot{width:6px;height:6px;border-radius:50%;}
+.dot-red{background:var(--danger);}
+.dot-green{background:var(--success);}
+.panel-body{padding:16px;}
+
+/* page elements */
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.page-head h1{font-size:15px;font-weight:600;color:var(--ink);margin:0;}
+.page-head .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.stat-line{font-size:11.5px;color:var(--muted);}
+.stat-line span{color:var(--danger);}
+
+/* exception panel */
+.exc-panel{border:1px solid var(--danger);border-radius:6px;padding:10px 12px;background:rgba(241,101,101,0.06);margin-bottom:12px;}
+.exc-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--danger);margin-bottom:8px;}
+.exc-head svg{width:13px;height:13px;flex-shrink:0;}
+.exc-item{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(241,101,101,0.15);}
+.exc-item:last-child{border-bottom:none;}
+.exc-count{font-family:var(--mono);font-size:10px;color:var(--danger);font-weight:700;width:32px;flex-shrink:0;}
+.exc-name{font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.exc-detail{font-size:10px;color:var(--muted);}
+
+/* BEFORE: text link */
+.exc-link-text{font-size:10.5px;color:var(--signal);text-decoration:none;white-space:nowrap;margin-left:auto;flex-shrink:0;}
+.exc-link-text:hover{text-decoration:underline;}
+
+/* AFTER: icon btn */
+.exc-icon-btn{width:24px;height:24px;border-radius:5px;background:none;border:1px solid transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;margin-left:auto;flex-shrink:0;text-decoration:none;}
+.exc-icon-btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--ink);}
+.exc-icon-btn svg{width:13px;height:13px;}
+
+/* filter bar */
+.filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;background:var(--surface-2);border-radius:6px;margin-bottom:10px;}
+.f-chip{height:24px;padding:0 10px;border:1px solid var(--border);border-radius:4px;font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;background:none;white-space:nowrap;}
+.f-chip.active{border-color:var(--signal);color:var(--ink);background:var(--signal-bg);}
+.f-input{height:24px;padding:0 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--ink);font-size:10.5px;width:120px;}
+.f-select{height:24px;padding:0 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--ink);font-size:10.5px;}
+.f-spacer{flex:1;}
+
+/* buttons */
+.btn-primary{height:28px;padding:0 14px;border-radius:6px;background:var(--signal);border:none;color:#fff;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary:hover{background:#3a7ae0;}
+.btn-primary svg{width:12px;height:12px;}
+
+/* accent in filter bar (current) */
+.btn-accent{height:24px;padding:0 10px;border-radius:4px;background:var(--signal);border:none;color:#fff;font-size:10.5px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+.btn-accent svg{width:11px;height:11px;}
+
+/* task table (mini) */
+.table-wrap{border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:10.5px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+.task-name-link{color:var(--signal);font-weight:500;font-size:10.5px;}
+.task-meta{font-size:9.5px;color:var(--muted);font-family:var(--mono);}
+.cron-expr{font-family:var(--mono);font-size:9px;color:var(--ink);background:var(--surface-2);padding:2px 5px;border-radius:3px;border:1px solid var(--border);}
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:10px;}
+.sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.sdot.r{background:var(--danger);}
+.sdot.g{background:var(--success);}
+.sdot.b{background:var(--signal);}
+
+/* act-btn (icon buttons) */
+.row-acts{display:flex;gap:3px;}
+.act-btn{width:24px;height:24px;border-radius:4px;background:none;border:1px solid transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;}
+.act-btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--ink);}
+.act-btn svg{width:12px;height:12px;}
+
+/* diff annotations */
+.diff-box{margin-top:12px;padding:8px 10px;border-radius:5px;font-size:10.5px;}
+.diff-box.before{background:rgba(241,101,101,.08);border:1px solid rgba(241,101,101,.25);color:var(--danger);}
+.diff-box.after{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:var(--success);}
+.diff-label{display:inline-block;font-weight:600;font-size:9.5px;padding:1px 6px;border-radius:3px;margin-right:6px;}
+.dl-bef{background:rgba(241,101,101,.2);color:var(--danger);}
+.dl-aft{background:rgba(52,211,153,.2);color:var(--success);}
+
+.summary{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-top:40px;}
+.summary h2{font-size:14px;font-weight:600;margin-bottom:12px;}
+.sum-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.sum-table th{text-align:left;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);padding:7px 12px;border-bottom:1px solid var(--border);}
+.sum-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+.sum-table tr:last-child td{border-bottom:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>X2 + X3 对比 Demo</h1>
+<p class="lead">任务中心两处偏差的当前状态 vs 建议修复方案 · 2026-08-18</p>
+
+<!-- ======= X2 ======= -->
+<div class="section">
+  <div class="section-head">
+    <span class="id-tag">X2</span>
+    <h2 style="flex:1;font-size:14px;font-weight:600;margin:0;">Exception Panel："查看详情 →" → icon-btn</h2>
+    <span class="sev sev-mid">★★ 中</span>
+  </div>
+
+  <p style="font-size:11.5px;color:var(--muted);margin-bottom:14px;">
+    主任务表格的操作列已是 icon-btn 风格（✓ 已符合）。
+    剩余偏差仅在 <b>Exception Panel（需要关注的任务）</b>中——每行末尾的"查看详情 →"是文字链接，与整体 icon-btn 风格不一致。
+  </p>
+
+  <div class="compare">
+    <!-- BEFORE -->
+    <div class="panel">
+      <div class="panel-head"><span class="dot dot-red"></span>当前：文字链接"查看详情 →"</div>
+      <div class="panel-body">
+        <div class="exc-panel">
+          <div class="exc-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            需要关注的任务（3）
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×411</span>
+            <span class="exc-name">testbap</span>
+            <span class="exc-detail">最近失败 2026-08-10</span>
+            <a class="exc-link-text" href="#">查看详情 →</a>
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×103</span>
+            <span class="exc-name">admin-multi-group-task</span>
+            <span class="exc-detail">最近失败 2026-08-19</span>
+            <a class="exc-link-text" href="#">查看详情 →</a>
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×97</span>
+            <span class="exc-name">global-shared-task</span>
+            <span class="exc-detail">最近失败 2026-08-19</span>
+            <a class="exc-link-text" href="#">查看详情 →</a>
+          </div>
+        </div>
+        <div class="diff-box before">
+          <span class="diff-label dl-bef">问题</span>
+          "查看详情 →" 为文字链接；与主表格 icon-btn 风格不一致；文字占据横向空间
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="panel">
+      <div class="panel-head"><span class="dot dot-green"></span>建议：改为执行记录 icon-btn</div>
+      <div class="panel-body">
+        <div class="exc-panel">
+          <div class="exc-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            需要关注的任务（3）
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×411</span>
+            <span class="exc-name">testbap</span>
+            <span class="exc-detail">最近失败 2026-08-10</span>
+            <a class="exc-icon-btn" href="#" title="查看执行记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            </a>
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×103</span>
+            <span class="exc-name">admin-multi-group-task</span>
+            <span class="exc-detail">最近失败 2026-08-19</span>
+            <a class="exc-icon-btn" href="#" title="查看执行记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            </a>
+          </div>
+          <div class="exc-item">
+            <span class="exc-count">×97</span>
+            <span class="exc-name">global-shared-task</span>
+            <span class="exc-detail">最近失败 2026-08-19</span>
+            <a class="exc-icon-btn" href="#" title="查看执行记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="diff-box after">
+          <span class="diff-label dl-aft">修复</span>
+          改为与主表格相同的文档 icon-btn；tooltip 提示"查看执行记录"；视觉更紧凑
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= X3 ======= -->
+<div class="section">
+  <div class="section-head">
+    <span class="id-tag">X3</span>
+    <h2 style="flex:1;font-size:14px;font-weight:600;margin:0;">页头右侧：统计数字 → "新建任务" btn-primary</h2>
+    <span class="sev sev-mid">★★ 中</span>
+  </div>
+
+  <p style="font-size:11.5px;color:var(--muted);margin-bottom:14px;">
+    "新建任务"按钮已存在于过滤栏末尾（有 cron:write 权限时显示）。
+    Mockup 要求：将其提升到<b>页头右侧</b>，改用 <code>btn-primary</code> 样式，增强视觉层次感。
+    过滤栏末尾的按钮可以保留或移除（建议移除以避免重复）。
+  </p>
+
+  <div class="compare">
+    <!-- BEFORE -->
+    <div class="panel">
+      <div class="panel-head"><span class="dot dot-red"></span>当前：页头显示统计数字；"新建"在过滤栏末尾</div>
+      <div class="panel-body">
+        <!-- Page Head -->
+        <div class="page-head">
+          <div>
+            <h1>任务中心</h1>
+            <div class="sub">管理与监控所有定时任务</div>
+          </div>
+          <div class="stat-line"><b>8</b> 个任务 · <span>8</span> 连续失败 · <span>6</span> 今日告警</div>
+        </div>
+
+        <!-- Filter bar with btn at end -->
+        <div class="filters">
+          <a class="f-chip active">全部</a>
+          <a class="f-chip">连续失败</a>
+          <a class="f-chip">今日失败</a>
+          <span style="border-left:1px solid var(--border-strong);height:16px;margin:0 2px;"></span>
+          <a class="f-chip">运行中</a>
+          <select class="f-select"><option>全部（可见）</option></select>
+          <input class="f-input" type="text" placeholder="任务名模糊匹配">
+          <div class="f-spacer"></div>
+          <button class="btn-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            新建任务
+          </button>
+        </div>
+
+        <div class="diff-box before">
+          <span class="diff-label dl-bef">问题</span>
+          页头右侧是统计数字而非 CTA 按钮；"新建任务"混在过滤栏末尾，视觉权重低，不符合 Mockup 主操作突出模式
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="panel">
+      <div class="panel-head"><span class="dot dot-green"></span>建议：页头右侧放 btn-primary；统计数字保留在页头左侧副标题区</div>
+      <div class="panel-body">
+        <!-- Page Head with btn-primary -->
+        <div class="page-head">
+          <div>
+            <h1>任务中心</h1>
+            <div class="sub">管理与监控所有定时任务 · <b>8</b> 个任务 · <span style="color:var(--danger);">8</span> 失败</div>
+          </div>
+          <button class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            新建任务
+          </button>
+        </div>
+
+        <!-- Filter bar without btn (btn moved to page head) -->
+        <div class="filters">
+          <a class="f-chip active">全部</a>
+          <a class="f-chip">连续失败</a>
+          <a class="f-chip">今日失败</a>
+          <span style="border-left:1px solid var(--border-strong);height:16px;margin:0 2px;"></span>
+          <a class="f-chip">运行中</a>
+          <select class="f-select"><option>全部（可见）</option></select>
+          <input class="f-input" type="text" placeholder="任务名模糊匹配">
+        </div>
+
+        <div class="diff-box after">
+          <span class="diff-label dl-aft">修复</span>
+          "新建任务"移到页头右侧，改用 btn-primary 强调色；统计数字融入副标题行；过滤栏仅保留过滤功能
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary">
+  <h2>变更总结</h2>
+  <table class="sum-table">
+    <thead>
+      <tr><th>ID</th><th>页面</th><th>具体变更</th><th>文件</th><th>工作量</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="id-tag">X2</span></td>
+        <td>任务中心 · Exception Panel</td>
+        <td>将每行"查看详情 →"文字链接替换为文档 icon-btn（与主表格一致）</td>
+        <td style="font-family:monospace;font-size:10px;">dashboard.html</td>
+        <td>XS（10 min）</td>
+      </tr>
+      <tr>
+        <td><span class="id-tag">X3</span></td>
+        <td>任务中心 · 页头</td>
+        <td>① 页头右侧改为 btn-primary "新建任务"（有 cron:write 时）；② 统计数字移入副标题行；③ 过滤栏末尾按钮移除</td>
+        <td style="font-family:monospace;font-size:10px;">dashboard.html</td>
+        <td>S（20 min）</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-X2X3对比Demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

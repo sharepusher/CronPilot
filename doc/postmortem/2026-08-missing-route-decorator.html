@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>复盘：users_reset_password 路由装饰器丢失导致全站 500</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; line-height: 1.6; color: #1a1a2e; }
+h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; }
+h2 { color: #2c3e50; margin-top: 32px; }
+code { background: #f4f4f8; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+pre { background: #f4f4f8; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 6px; }
+.badge-high { background: #fee2e2; color: #991b1b; }
+.badge-mid { background: #fef3c7; color: #92400e; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+th { background: #f4f4f8; text-align: left; padding: 8px 12px; }
+td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+</style>
+</head>
+<body>
+<h1>复盘：<code>users_reset_password</code> 路由装饰器丢失导致全站 /rbac/users 500</h1>
+<p><strong>日期</strong>：2026-08-21 &nbsp;|&nbsp; <strong>严重程度</strong>：<span class="badge badge-high">P0</span> 管理端核心页面不可用 &nbsp;|&nbsp; <strong>影响范围</strong>：所有拥有 <code>user:manage</code> 权限的用户无法访问用户管理页面</p>
+
+<h2>1. Bug 定位</h2>
+<p><code>app/rbac/views.py</code> 第 696 行，<code>users_reset_password</code> 函数缺少 <code>@rbac.route('/users/reset_password', methods=['POST'])</code> 路由装饰器：</p>
+<pre># 错误状态（修复前）
+@require_permission('user:manage')   # ← @rbac.route 丢失
+@csrf_protect
+def users_reset_password():
+    ...</pre>
+<p>导致模板 <code>redesign/users.html</code> 第 97 行的 <code>url_for('rbac.users_reset_password')</code> 在运行时抛出 <code>werkzeug.routing.exceptions.BuildError</code>，整个 <code>/rbac/users</code> 页面返回 500。</p>
+<p><strong>错误日志（摘录）</strong>：</p>
+<pre>werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'rbac.users_reset_password'.
+Did you mean 'rbac.users_reset_token' instead?
+File "app/templates/redesign/users.html", line 97, in block 'content'
+    href="{{ url_for('rbac.users_reset_password') }}?id={{ item.id }}"</pre>
+
+<h2>2. 根因</h2>
+<p>两次 <code>StrReplace</code> 操作边界未对照，导致第二次替换覆盖了第一次替换结果中的关键装饰器行：</p>
+<ol>
+  <li>第一次 StrReplace（插入 <code>users_view</code> 路由）：将原来的 <code>@rbac.route('/users/reset_password', methods=['POST'])</code> 放在了替换后内容的末尾，正确。</li>
+  <li>第二次 StrReplace（修正 <code>users_view</code> 函数体中的 helper 调用）：<code>old_string</code> 精确匹配了 <code>users_view</code> 函数的全部代码，<code>new_string</code> 遗漏了原来末尾的 <code>@rbac.route('/users/reset_password', methods=['POST'])</code> 行，导致该装饰器从文件消失。</li>
+</ol>
+<p><strong>行为层根因</strong>：Agent 在连续多次 StrReplace 时，没有执行"替换后读回验证"——每次替换后未 grep 或读取受影响行来确认内容完整，而是直接进行下一次替换，在积累的上下文误差下丢失了关键行。</p>
+
+<h2>3. 测试漏洞</h2>
+<table>
+  <tr><th>测试层</th><th>覆盖情况</th><th>根因</th></tr>
+  <tr><td><code>test_import_smoke.py</code></td><td>只测顶层 import，不验证路由注册</td><td>路由注册是运行时行为，import 成功不代表路由存在</td></tr>
+  <tr><td><code>test_redesign_sidebar.py</code></td><td>测试导航链接，不请求 /rbac/users 并断言 200</td><td>只关注侧边栏渲染，不关注页面实际响应</td></tr>
+  <tr><td>无集成测试</td><td>没有任何测试向 /rbac/users 发送 GET 请求并断言响应码 + 内容</td><td>集成测试层缺失</td></tr>
+</table>
+
+<h2>4. 修复</h2>
+<pre># 修复后
+@rbac.route('/users/reset_password', methods=['POST'])  # ← 补回装饰器
+@require_permission('user:manage')
+@csrf_protect
+def users_reset_password():
+    ...</pre>
+<p>同时通过 AST 扫描确认全部 29 个 rbac 路由函数均有 <code>@rbac.route</code> 装饰器，无其他遗漏。</p>
+
+<h2>5. 防护测试</h2>
+<p>新增 <code>scripts/check_route_completeness.py</code>，用 AST 扫描所有带 <code>@require_permission</code> 装饰器的函数，断言同时存在 <code>@blueprint.route</code> 装饰器：</p>
+<pre>python scripts/check_route_completeness.py --check app/rbac/views.py</pre>
+<p>同时在 <code>tests/test_redesign_pages.py</code>（新建）中加入：</p>
+<pre>def test_users_page_200(self):
+    """访问 /rbac/users 应返回 200，确保 url_for 全部可解析。"""
+    with self._login_as_biz_admin() as c:
+        rv = c.get('/rbac/users')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'url_for', rv.data)  # 确保模板渲染完整</pre>
+
+<h2>6. 同类排查</h2>
+<p>使用 AST 扫描 <code>app/rbac/views.py</code> 中所有 29 个路由函数：</p>
+<pre>OK route: login, logout, register, forgot_password, change_password,
+edit_profile, complete_profile, api_token_page, api_token_reset,
+users_list, users_add, users_edit, users_view, users_reset_password,
+users_reset_token, users_set_active, groups_list, groups_add,
+groups_edit, audit_logs, registration_review, registration_approve,
+registration_reject, tag_manage, tag_create, tag_update, tag_rename,
+tag_tasks, tag_delete</pre>
+<p>全部 29 个路由函数均有 <code>@rbac.route</code> 装饰器，无其他同类问题。</p>
+
+<h2>7. 预防方案</h2>
+<table>
+  <tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+  <tr>
+    <td><strong>新建路由完整性检查脚本</strong>：AST 扫描 Blueprint 文件，对每个带 <code>@require_permission</code> 的函数断言存在 <code>@blueprint.route</code>，否则 exit(1)</td>
+    <td><code>scripts/check_route_completeness.py</code></td>
+    <td><code>python scripts/check_route_completeness.py --check app/rbac/views.py</code></td>
+  </tr>
+  <tr>
+    <td><strong>连续 StrReplace 后强制读回验证</strong>：在 AGENTS.md 新增规范：连续多次 StrReplace 修改同一函数或临近代码区域时，必须在每次替换后 Read 受影响行（±20 行）确认关键装饰器/语句未被消除</td>
+    <td><code>AGENTS.md</code> "大文件修改前结构分析"节</td>
+    <td>代码审查：<code>grep -n "@rbac.route" app/rbac/views.py | wc -l</code> 应与路由函数总数相等</td>
+  </tr>
+  <tr>
+    <td><strong>新增集成测试：管理端核心页面 200 检查</strong>：以已登录 session 访问 /rbac/users、/rbac/groups、/rbac/audit-logs，断言 status_code == 200</td>
+    <td><code>tests/test_redesign_pages.py</code>（新建）</td>
+    <td><code>python -m unittest tests.test_redesign_pages -v</code></td>
+  </tr>
+</table>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-missing-route-decorator.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -1,0 +1,273 @@
+{% extends "redesign/_base.html" %}
+{% block title %}{{ '查看用户信息' if view_mode else ('编辑用户' if user else '添加用户') }} — CronPilot{% endblock %}
+
+{% block content %}
+<div class="page-head"><h1>{{ '查看用户信息' if view_mode else ('编辑用户' if user else '添加用户') }}</h1></div>
+
+{% if form_msg %}
+<div class="uf-alert uf-alert-err">{{ form_msg }}</div>
+{% endif %}
+
+<div class="uf-card">
+  {% if view_mode %}
+  <!-- View mode: read-only display -->
+  <div class="uf-row">
+    <label class="uf-label">用户名</label>
+    <input type="text" class="f-input uf-input" value="{{ user.username }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">角色</label>
+    <input type="text" class="f-input uf-input" value="{{ user.role }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">邮箱</label>
+    <input type="text" class="f-input uf-input" value="{{ user.email or '—' }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">花名</label>
+    <input type="text" class="f-input uf-input uf-input-short" value="{{ user.nickname or '—' }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">岗位类型</label>
+    <input type="text" class="f-input uf-input" value="{{ user.job_title or '—' }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">业务组</label>
+    {% set groups_display = user_groups_map.get(user.id, []) if user_groups_map else [] %}
+    <input type="text" class="f-input uf-input" value="{{ groups_display|join('、') or '—' }}" disabled />
+  </div>
+  <div class="uf-row">
+    <label class="uf-label">状态</label>
+    <span class="u-badge u-inactive" style="display:inline-block">已停用</span>
+  </div>
+  {% if user.status_reason %}
+  <div class="uf-row">
+    <label class="uf-label">停用原因</label>
+    <span class="uf-hint-block">{{ user.status_reason }}</span>
+  </div>
+  {% else %}
+  <div class="uf-row">
+    <label class="uf-label">停用原因</label>
+    <span class="uf-hint-block uf-hint-empty">—（未填写）</span>
+  </div>
+  {% endif %}
+  <div class="uf-actions">
+    <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">← 返回用户管理</a>
+  </div>
+  {% else %}
+  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.users_edit') if user else url_for('rbac.users_add') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if user %}<input type="hidden" name="id" value="{{ user.id }}">{% endif %}
+
+    <!-- Username row -->
+    <div class="uf-row">
+      <label class="uf-label">用户名 <span class="uf-req">*</span></label>
+      {% if user %}
+      <input type="text" class="f-input uf-input" value="{{ user.username }}" disabled />
+      <span class="uf-hint">用户名不可修改</span>
+      {% else %}
+      <input type="text" name="username" class="f-input uf-input" required maxlength="64" placeholder="如 zhangsan" />
+      <span class="uf-hint">建议使用公司邮箱前缀（如 zhangsan@company.com → zhangsan）</span>
+      {% endif %}
+    </div>
+
+    <!-- Initial password (add mode only) -->
+    {% if not user %}
+    <div class="uf-row">
+      <label class="uf-label">初始密码</label>
+      <span class="uf-pwd-display">{{ default_password or 'changeme' }}</span>
+      <span class="uf-hint">管理员不可指定密码；用户首次登录必须修改后才能继续使用</span>
+    </div>
+    {% endif %}
+
+    <!-- Role -->
+    <div class="uf-row">
+      <label class="uf-label">角色 <span class="uf-req">*</span></label>
+      <select name="role" class="f-input uf-select" id="uf-role-select">
+        {% for r in roles %}
+        <option value="{{ r }}"{% if user and user.role == r %} selected{% elif not user and r == 'viewer' %} selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+      <span class="uf-hint">viewer 只读；operator 可写任务+看操作记录；admin 含用户管理/RBAC审计/下线</span>
+    </div>
+
+    <!-- Email -->
+    <div class="uf-row">
+      <label class="uf-label">邮箱</label>
+      <input type="email" name="email" class="f-input uf-input" maxlength="128" value="{{ user.email if user and user.email else '' }}" placeholder="user@company.com" />
+      <span class="uf-hint">可选；留空则用户首次登录后补填</span>
+    </div>
+
+    <!-- Nickname -->
+    <div class="uf-row">
+      <label class="uf-label">花名</label>
+      <input type="text" name="nickname" class="f-input uf-input uf-input-short" maxlength="64" value="{{ user.nickname if user and user.nickname else '' }}" />
+      <span class="uf-hint">可选</span>
+    </div>
+
+    <!-- Job title -->
+    <div class="uf-row">
+      <label class="uf-label">岗位类型 <span class="uf-req">*</span></label>
+      <div class="uf-row-inline">
+        <select name="job_title" class="f-input uf-select" id="uf-job-title-select" required>
+          <option value="">-- 请选择岗位 --</option>
+          {% for code, label in (job_title_choices or []) %}
+          <option value="{{ code }}"{% if user and user.job_title == code %} selected{% elif user and user.job_title and user.job_title.startswith('other') and code == 'other' %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <span id="uf-job-title-other-wrap" style="display:none">
+          <input type="text" name="job_title_other" class="f-input uf-input-other" maxlength="20" value="{% if user and user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="请填写具体岗位" />
+        </span>
+      </div>
+    </div>
+
+    <!-- Business Groups -->
+    <div class="uf-row">
+      <label class="uf-label">业务组 <span class="uf-req">*</span></label>
+      {% if locked_group %}
+      {# R2: 非全局权限用户只有一个业务组，自动锁定不可更改 #}
+      <input type="text" class="f-input uf-input" value="{{ locked_group.name }}" disabled />
+      <input type="hidden" name="group_ids" value="{{ locked_group.id }}" />
+      <span class="uf-hint">您的业务组已由系统自动设置，无法更改</span>
+      {% elif groups %}
+      <select name="group_ids" multiple class="f-input uf-select-multi" id="uf-group-select" size="{% if groups|length < 4 %}{{ groups|length + 1 }}{% else %}5{% endif %}">
+        {% for g in groups %}
+        <option value="{{ g.id }}"{% if user and user_group_ids and g.id in user_group_ids %} selected{% endif %}>{{ g.name }}</option>
+        {% endfor %}
+        <option value="__ALL__"{% if user and user_group_ids and '__ALL__' in (user_group_ids|map('string')|list) %} selected{% endif %}>全部（全局权限）</option>
+      </select>
+      <span class="uf-hint">Ctrl/Command 多选。所有角色必须至少选一个业务组或选择「全部」</span>
+      {% else %}
+      <span class="uf-hint" style="color:var(--cp-warn)">暂无业务组，请先在「业务组」创建</span>
+      {% endif %}
+    </div>
+
+    <!-- Edit-only: is_active toggle -->
+    {% if user %}
+    <div class="uf-row">
+      <label class="uf-label">状态</label>
+      <select name="is_active" class="f-input uf-select">
+        <option value="1"{% if user.is_active %} selected{% endif %}>启用</option>
+        <option value="0"{% if not user.is_active %} selected{% endif %}>停用</option>
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="uf-actions">
+      <button type="submit" class="btn-c btn-accent js-ajax-submit">保存</button>
+      <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">返回</a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+.uf-card {
+  max-width: 600px;
+  box-sizing: border-box;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 28px 32px;
+}
+.uf-alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.uf-alert-err { background: var(--cp-danger-bg); color: var(--cp-danger); border: 1px solid var(--cp-danger-border); }
+.uf-row { margin-bottom: 20px; }
+.uf-label { display: block; font-size: 13px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
+.uf-req { color: var(--cp-danger); }
+.uf-input { width: 100%; max-width: 360px; padding: 6px 10px; }
+.uf-input-short { max-width: 200px; }
+.uf-select { width: auto; min-width: 160px; padding: 6px 28px 6px 10px; }
+.uf-select-multi { width: 100%; max-width: 360px; min-height: 80px; padding: 6px 10px; }
+.uf-input-other { width: 140px; }
+.uf-row-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.uf-hint { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.4; }
+.uf-hint-block { display: block; font-size: 13px; color: var(--cp-ink); margin-top: 2px; padding: 6px 10px; background: var(--cp-surface-2); border-radius: 4px; max-width: 360px; word-break: break-word; }
+.uf-hint-empty { color: var(--cp-text-faint); font-style: italic; }
+.uf-pwd-display {
+  display: inline-block;
+  font-weight: 600; font-size: 13px; color: var(--cp-ink);
+  font-family: var(--cp-font-mono);
+  background: var(--cp-surface-2); padding: 3px 10px; border-radius: 4px;
+}
+.uf-actions {
+  margin-top: 28px; padding-top: 20px;
+  border-top: 1px solid var(--cp-border);
+  display: flex; gap: 10px; align-items: center;
+}
+.uf-actions .btn-c { min-height: 32px; padding: 6px 16px; }
+/* Disabled state */
+.uf-card input:disabled, .uf-card input[readonly] {
+  background: var(--cp-surface-2); color: var(--cp-text-muted);
+  cursor: not-allowed; opacity: 0.8;
+}
+/* Focus state (reinforce shared .f-input:focus) */
+.uf-card .f-input:focus {
+  border-color: var(--cp-signal);
+  box-shadow: 0 0 0 2px rgba(8,145,178,.12);
+  outline: none;
+}
+/* Card subtle shadow */
+.uf-card { box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+/* Transition on border for smooth focus */
+.uf-card .f-input { transition: border-color 0.15s, box-shadow 0.15s; }
+/* Card top spacing from heading */
+.uf-card { margin-top: 4px; }
+/* Select arrow dark mode adaptation */
+[data-theme="dark"] .uf-card select.f-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E");
+}
+/* Placeholder styling */
+.uf-card .f-input::placeholder { color: var(--cp-text-faint); font-style: italic; }
+/* Multi-select option spacing */
+.uf-select-multi option { padding: 3px 6px; }
+/* Required asterisk micro-spacing */
+.uf-req { margin-left: 2px; }
+/* Return button hover */
+.uf-actions .btn-line:hover { background: var(--cp-surface-2); }
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+(function(){
+    var sel = document.getElementById('uf-group-select');
+    var roleSel = document.getElementById('uf-role-select');
+    if (!sel) return;
+    var allOpt = sel.querySelector('option[value="__ALL__"]');
+    sel.addEventListener('change', function(){
+        var allSelected = allOpt && allOpt.selected;
+        var anySpecific = false;
+        for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value !== '__ALL__' && sel.options[i].selected) { anySpecific = true; break; }
+        }
+        if (allSelected && anySpecific) { allOpt.selected = false; }
+    });
+    sel.addEventListener('mousedown', function(e){
+        var target = e.target || e.srcElement;
+        if (target.tagName !== 'OPTION') return;
+        if (target.value === '__ALL__') {
+            setTimeout(function(){ for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value !== '__ALL__') sel.options[i].selected = false; } }, 0);
+        } else {
+            setTimeout(function(){ if (allOpt) allOpt.selected = false; }, 0);
+        }
+    });
+    function toggleAllOption() {
+        if (!roleSel || !allOpt) return;
+        allOpt.style.display = (roleSel.value === 'admin') ? '' : 'none';
+        if (roleSel.value !== 'admin') allOpt.selected = false;
+    }
+    if (roleSel) { roleSel.addEventListener('change', toggleAllOption); toggleAllOption(); }
+})();
+(function(){
+    var jtSel = document.getElementById('uf-job-title-select');
+    var jtWrap = document.getElementById('uf-job-title-other-wrap');
+    if (!jtSel || !jtWrap) return;
+    jtSel.addEventListener('change', function(){ jtWrap.style.display = (this.value === 'other') ? 'inline-flex' : 'none'; });
+    if (jtSel.value === 'other') jtWrap.style.display = 'inline-flex';
+})();
+</script>
+{% endblock %}

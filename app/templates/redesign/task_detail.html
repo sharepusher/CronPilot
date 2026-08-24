@@ -1,0 +1,252 @@
+{% extends "redesign/_base.html" %}
+{% block title %}{{ cif.task_name }} — CronPilot{% endblock %}
+
+{% block css %}
+<style>
+.td-empty-logs { padding: 16px 0; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="cp-breadcrumb">
+  <a href="{{ url_for('main.cron_list') }}">任务中心</a>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  <span class="current">{{ cif.task_name }}</span>
+  <span class="kbd-hint"><kbd>Esc</kbd> 返回</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="td-header">
+  <div>
+    <div class="td-title">{{ cif.task_name }}</div>
+    <div class="td-id">
+      {{ cif.task_keyword or ('task-' ~ cif.id) }}
+      <button class="cp-copy-btn" onclick="cpCopy('{{ cif.task_keyword or ('task-' ~ cif.id) }}', this)" title="复制任务 ID">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </button>
+    </div>
+    <div class="td-badges">
+      {% if cif.status == 1 %}
+        <span class="td-badge lifecycle">运行中</span>
+      {% elif cif.status == 0 %}
+        <span class="td-badge lifecycle paused">已暂停</span>
+      {% else %}
+        <span class="td-badge lifecycle retired">已下线</span>
+      {% endif %}
+      {% for tag in tags %}
+        <span class="td-badge tag">{{ tag }}</span>
+      {% endfor %}
+      {% if group_name %}
+        <span class="td-badge tag">{{ group_name }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="td-actions">
+    {% if perms and 'cron:write' in perms %}
+      {% if cif.status == 1 %}
+        <button class="cp-btn cp-btn--primary" onclick="cpRunNow({{ cif.id }})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>立即执行
+        </button>
+        <button class="btn" onclick="cpToggleTask({{ cif.id }}, 0)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>暂停
+        </button>
+      {% elif cif.status == 0 %}
+        <button class="cp-btn cp-btn--primary" onclick="cpToggleTask({{ cif.id }}, 1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>恢复
+        </button>
+      {% endif %}
+      <a class="btn" href="{{ url_for('main.cron_edit', id=cif.id) }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg>编辑
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="td-grid">
+  {# ─── Health Card ─── #}
+  <div class="td-card">
+    <h3>健康度</h3>
+    <div class="td-health-big">
+      {% if health and health.health_status == 'failing' %}
+        <span class="dot failing"></span>
+        <span class="label failing">异常</span>
+      {% else %}
+        <span class="dot"></span>
+        <span class="label">健康</span>
+      {% endif %}
+    </div>
+    <div class="td-health-metrics">
+      <div class="td-health-metric">连续失败 <strong>{{ health.consecutive_failures if health else 0 }}</strong></div>
+      <div class="td-health-metric">24h 成功率 <strong>{{ success_rate }}%</strong></div>
+      {% if p95_latency %}
+      <div class="td-health-metric">P95 延迟 <strong>{{ p95_latency }}</strong></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ─── Schedule Card ─── #}
+  <div class="td-card">
+    <h3>调度</h3>
+    <div class="td-schedule-big" data-tooltip="{{ cron_human }}">
+      <span class="expr">{{ cron_expr }}</span>
+      <span class="human">{{ cron_human }}</span>
+    </div>
+    {% if next_run %}
+    <div class="td-schedule-next">下次执行: <strong>{{ next_run }}</strong></div>
+    {% endif %}
+    <div class="td-schedule-tz">时区: Asia/Shanghai (UTC+8)</div>
+  </div>
+
+  {# ─── Recent Runs Card ─── #}
+  <div class="td-card">
+    <h3>最近执行</h3>
+    {% if recent_runs %}
+    <ul class="td-recent-runs">
+      {% for run in recent_runs %}
+      <li>
+        <a href="{{ url_for('main.job_log_detail', id=run.id) }}" class="td-rr-link">
+          <span class="td-rr-time">{{ run.time_short }}</span>
+          <span class="td-rr-status {{ 'ok' if run.status == 'success' else 'fail' }}"></span>
+          <span class="td-rr-code">{{ run.http_status or '—' }}</span>
+          <span class="td-rr-duration">{{ run.take_time }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="cp-empty-state td-empty-logs">
+      <div class="cp-empty-title">暂无执行记录</div>
+    </div>
+    {% endif %}
+    <a class="td-view-all" href="{{ url_for('main.job_log_list', id=cif.id) }}">查看全部执行记录 →</a>
+  </div>
+
+  {# ─── Configuration Card ─── #}
+  <div class="td-card">
+    <h3>配置信息</h3>
+    <div class="td-config-grid">
+      <span class="td-cfg-label">请求地址</span>
+      <span class="td-cfg-value">{{ cif.req_method or 'GET' }} {{ cif.req_url or '—' }}</span>
+      <span class="td-cfg-label">超时</span>
+      <span class="td-cfg-value">{{ cif.timeout_sec or 5 }}s</span>
+      <span class="td-cfg-label">业务组</span>
+      <span class="td-cfg-value">{{ group_name or '全局' }}</span>
+      <span class="td-cfg-label">创建人</span>
+      <span class="td-cfg-value">{{ cif.last_operator_name or '—' }}</span>
+      <span class="td-cfg-label">创建时间</span>
+      <span class="td-cfg-value">{{ cif.created_at or '—' }}</span>
+      <span class="td-cfg-label">最后修改</span>
+      <span class="td-cfg-value">{{ cif.updated_at or cif.last_operated_at or '—' }}</span>
+    </div>
+  </div>
+</div>
+<div class="td-last-updated">数据加载于 <span id="td-load-time"></span></div>
+{% endblock %}
+
+{% block js %}
+<script>
+document.getElementById('td-load-time').textContent = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+function cpRunNow(taskId) {
+  CpConfirm.show({
+    title: '立即执行',
+    body: '确认立即触发该任务？',
+    confirmText: '执行',
+  }).then(function(ok) {
+    if (!ok) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/cron_run_now?id=' + taskId);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-CSRFToken', document.querySelector('meta[name=csrf-token]') ?
+      document.querySelector('meta[name=csrf-token]').content : '');
+    xhr.onload = function() {
+      try {
+        var r = JSON.parse(xhr.responseText);
+        if (r.errcode === 0) {
+          CpToast.success(r.errmsg || '执行完成');
+          if (r.url) {
+            setTimeout(function() { location.href = r.url; }, 1000);
+          }
+        } else {
+          CpToast.error(r.errmsg || '执行失败');
+        }
+      } catch(e) {
+        CpToast.error('请求异常');
+      }
+    };
+    xhr.onerror = function() { CpToast.error('网络错误'); };
+    xhr.send('');
+  });
+}
+
+function cpToggleTask(taskId, newStatus) {
+  var action = newStatus === 1 ? '恢复' : '暂停';
+  CpConfirm.show({
+    title: action + '任务',
+    body: '确认' + action + '该任务？',
+    confirmText: action,
+    danger: newStatus === 0,
+  }).then(function(ok) {
+    if (!ok) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/update_status?id=' + taskId);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-CSRFToken', document.querySelector('meta[name=csrf-token]') ?
+      document.querySelector('meta[name=csrf-token]').content : '');
+    xhr.onload = function() {
+      try {
+        var r = JSON.parse(xhr.responseText);
+        if (r.errcode === 0) {
+          CpToast.success(r.errmsg || action + '成功');
+          setTimeout(function() { location.reload(); }, 800);
+        } else {
+          CpToast.error(r.errmsg || action + '失败');
+        }
+      } catch(e) {
+        CpToast.error('请求异常');
+      }
+    };
+    xhr.onerror = function() { CpToast.error('网络错误'); };
+    xhr.send('');
+  });
+}
+
+function cpCopy(text, btn) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.classList.add('copied');
+      setTimeout(function() { btn.classList.remove('copied'); }, 1500);
+      CpToast.success('已复制');
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    setTimeout(function() { btn.classList.remove('copied'); }, 1500);
+    CpToast.success('已复制');
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && !document.querySelector('.cp-modal-overlay')) {
+    location.href = '{{ url_for("main.cron_list") }}';
+  }
+});
+
+document.querySelectorAll('.td-rr-link').forEach(function(link) {
+  link.setAttribute('tabindex', '0');
+  link.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      link.click();
+    }
+  });
+});
+</script>
+{% endblock %}

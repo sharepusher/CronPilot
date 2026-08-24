@@ -43,6 +43,10 @@ class RbacUser(db.Model):
         db.String(64), nullable=True, default=None
     )
     create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    # B3：最近登录时间（登录成功时更新）
+    last_login_at: Mapped[Optional[str]] = mapped_column(
+        db.String(25), nullable=True, default=None
+    )
 
     def set_password(self, plain):
         self.password_hash = hash_password(plain)

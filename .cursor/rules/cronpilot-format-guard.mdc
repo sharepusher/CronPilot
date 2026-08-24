@@ -23,6 +23,12 @@ alwaysApply: true
 
 **自检要求**：交付前执行 `git diff -- app/templates/` 审查 diff，凡出现上表变更但设计稿中未列出者，须先向用户确认再提交。
 
+**新增 DOM 行禁止越权（2026-08 追加）**：凡在模板中**新增任意可见 DOM 行**（包括 `{% if %}` 渲染块、新增列、新增文本节点），必须在对应设计文档（`doc/design/*.html` 或该轮用户确认回复）中找到对应条目，否则视为越权变更。**强制自检命令**：
+```bash
+git diff -- app/templates/ | grep '^+' | grep -v '^+++' | grep -E '<(div|span|td|th|tr|button|a|input|label|p|h[1-6])' | head -20
+```
+若存在未在设计文档中列出的新可见元素，禁止提交，须先提设计方案。
+
 ## 颜色约束（追加 2026-07）
 
 - **禁止**在模板和 Vue 组件中新增硬编码十六进制颜色（`#xxxxxx`），必须使用 `var(--cp-*)` 引用 `app/static/css/console-theme.css` 中的变量。
@@ -46,3 +52,5 @@ alwaysApply: true
 | 清除按钮 | `.rbac-search-clear`，不独创新样式 |
 
 **自检要求**：交付前 `git diff -- app/templates/` 若出现 `style="height:` / `style="font-size:` 等 inline 布局属性，须重构为 CSS class。
+
+**表格列变更验收（追加 2026-08）**：凡在管理端模板中新增或删除表格列，必须在 1440px 视口下截图验证：① 所有 `<th>` 无换行；② 横向滚动正常；③ 操作列可达（通过滚动）。验证命令：`browser_cdp Emulation.setDeviceMetricsOverride {width:1440}` → 截图 → `browser_cdp Runtime.evaluate "document.querySelector('.c-table-wrap').scrollWidth > document.querySelector('.c-table-wrap').clientWidth"`（期望 true）。

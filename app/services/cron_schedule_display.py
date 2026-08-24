@@ -51,7 +51,7 @@ def _schedule_configured(item):
 
 
 def format_cron_expression(item):
-    """标准五段风格：星期 日 时:分[:秒]；有 run_date 或全空则返回空串。"""
+    """标准五/六段 cron 格式：分 时 日 * 星期 [秒]（匹配 Mockup 展示风格）。"""
     if _part(getattr(item, 'run_date', None)):
         return ''
     if not _schedule_configured(item):
@@ -61,10 +61,12 @@ def format_cron_expression(item):
     hour = _part(getattr(item, 'hour', None)) or '*'
     minute = _part(getattr(item, 'minute', None)) or '*'
     second = _part(getattr(item, 'second', None))
-    clock = '%s:%s' % (hour, minute)
-    if second and second != '*':
-        clock = '%s:%s' % (clock, second)
-    return '%s %s %s' % (dow, day, clock)
+    # Standard 5-field: minute hour day month dow
+    expr = '%s %s %s * %s' % (minute, hour, day, dow)
+    # If second is non-trivial, prepend as 6-field
+    if second and second != '0' and second != '*':
+        expr = '%s %s' % (second, expr)
+    return expr
 
 
 def humanize_schedule(item):
@@ -168,3 +170,20 @@ def schedule_empty_hint(item, status=None):
     if not _schedule_configured(item) and not _part(getattr(item, 'run_date', None)):
         return '调度未配置，不会自动执行'
     return '等待首次触发'
+
+
+def format_duration(raw_value):
+    """将耗时（秒，字符串或数值）格式化为可读文案。
+    例：0.318 → '318ms'，1.089 → '1.1s'，空/0 → '—'
+    """
+    if not raw_value:
+        return '—'
+    try:
+        secs = float(raw_value)
+    except (TypeError, ValueError):
+        return str(raw_value)
+    if secs <= 0:
+        return '0ms'
+    if secs >= 1:
+        return '{:.1f}s'.format(secs)
+    return '{}ms'.format(int(secs * 1000))

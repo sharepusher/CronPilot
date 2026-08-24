@@ -1,0 +1,216 @@
+/*
+ * CronPilot Redesign — Mockup Shared Classes
+ * ============================================
+ * Common styling from the approved Mockup (doc/design/console-style-demo.html)
+ * shared across all redesign pages: buttons, tables, pagination, page head, inputs.
+ */
+
+/* ===== Page Head ===== */
+.page-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.page-head h1 { font-size: 18px; font-weight: 600; margin: 0; }
+.page-head .sub { color: var(--cp-text-muted); font-size: 12.5px; margin-top: 3px; }
+.page-head .stat-line {
+  font-size: 11.5px; color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+}
+.page-head .stat-line b { color: var(--cp-ink); font-weight: 600; }
+
+/* ===== Buttons (Mockup: btn-c) ===== */
+.btn-c {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 5px;
+  border: 1px solid transparent;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  text-decoration: none;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.12s;
+}
+.btn-c:hover { text-decoration: none; }
+.btn-c svg { width: 12px; height: 12px; }
+.btn-accent { background: var(--cp-signal); color: var(--cp-on-filled); }
+.btn-accent:hover { opacity: 0.9; color: var(--cp-on-filled); }
+.btn-line { border-color: var(--cp-border); color: var(--cp-ink); background: var(--cp-surface); }
+.btn-line:hover { border-color: var(--cp-border-strong); background: var(--cp-surface-2); color: var(--cp-ink); }
+.btn-danger-c { background: var(--cp-danger); border-color: var(--cp-danger); color: var(--cp-on-filled); }
+.btn-danger-c:hover { opacity: 0.9; }
+.btn-xs { padding: 3px 8px; font-size: 11px; }
+
+/* ===== Filter Inputs ===== */
+.f-input {
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 5px; padding: 5px 8px;
+  font-size: 12px; color: var(--cp-ink); font-family: inherit;
+}
+.f-input::placeholder { color: var(--cp-text-faint); }
+.f-input:focus { outline: none; border-color: var(--cp-signal); box-shadow: 0 0 0 2px var(--cp-accent-ring); }
+select.f-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+/* ===== Table (Mockup: c-table) ===== */
+.c-table-wrap {
+  border: 1px solid var(--cp-border); border-radius: 8px;
+  overflow: hidden; background: var(--cp-surface);
+}
+.c-table-wrap.no-top { border-top: none; border-radius: 0 0 8px 8px; }
+.c-table { width: 100%; border-collapse: collapse; }
+.c-table thead th {
+  text-align: left; font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--cp-text-faint); padding: 9px 14px;
+  background: var(--cp-surface-2); border-bottom: 1px solid var(--cp-border);
+}
+.c-table tbody td {
+  padding: 10px 14px; border-bottom: 1px solid var(--cp-border);
+  vertical-align: middle; font-size: 12.5px;
+}
+.c-table tbody tr:last-child td { border-bottom: none; }
+.c-table tbody tr { transition: background 0.12s; }
+.c-table tbody tr:hover { background: var(--cp-surface-2); }
+.c-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--cp-surface-2) 30%, transparent); }
+.c-table tbody tr:nth-child(even):hover { background: var(--cp-surface-2); }
+.c-table .mono { font-family: var(--cp-font-mono); }
+
+/* ===== Footer / Pagination (Mockup: c-foot + c-pg) ===== */
+.c-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 14px; border-top: 1px solid var(--cp-border);
+}
+.c-foot .count {
+  font-size: 11px; color: var(--cp-text-faint);
+  font-family: var(--cp-font-mono);
+}
+.c-pg { display: flex; gap: 2px; }
+.c-pg a {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 26px; padding: 0 6px;
+  font-size: 11.5px; border-radius: 4px;
+  color: var(--cp-text-muted); cursor: pointer;
+  font-family: var(--cp-font-mono); text-decoration: none;
+  transition: background 0.1s;
+}
+.c-pg a:hover { background: var(--cp-surface-2); color: var(--cp-ink); text-decoration: none; }
+.c-pg a.active {
+  background: var(--cp-signal); color: var(--cp-on-filled); font-weight: 600;
+}
+
+/* ===== Page-level utilities (pg-*) ===== */
+.pg-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.pg-desc {
+  color: var(--cp-text-muted); font-size: 12px; margin: 0 0 12px;
+  line-height: 1.5;
+}
+.pg-desc a { color: var(--cp-signal); text-decoration: none; }
+.pg-desc a:hover { text-decoration: underline; }
+.pg-desc strong { color: var(--cp-ink); }
+.pg-hint {
+  color: var(--cp-text-muted); font-size: 12px;
+}
+.pg-search { gap: 6px; }
+.pg-search .f-input { margin-bottom: 0; }
+.pg-filter-label {
+  font-weight: 600; font-size: 12px; color: var(--cp-ink);
+}
+.pg-empty {
+  text-align: center; color: var(--cp-text-muted); padding: 40px 20px;
+  font-size: 13px;
+}
+.pg-empty::before {
+  content: '';
+  display: block;
+  width: 48px; height: 48px;
+  margin: 0 auto 12px;
+  background: var(--cp-surface-2);
+  border-radius: 50%;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'%3E%3Cpath d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'%3E%3Cpath d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/%3E%3C/svg%3E");
+  mask-size: 24px; -webkit-mask-size: 24px;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+  mask-position: center; -webkit-mask-position: center;
+}
+
+/* ===== Focus & keyboard accessibility ===== */
+.btn-c:focus-visible, .f-input:focus-visible, select.f-input:focus-visible {
+  outline: 2px solid var(--cp-signal);
+  outline-offset: 2px;
+}
+.c-table tbody tr:focus-within {
+  box-shadow: inset 0 0 0 1px var(--cp-signal);
+}
+
+/* ===== Subtle entry animation ===== */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.c-table-wrap { animation: fadeSlideIn 0.2s ease-out; }
+.page-head { animation: fadeSlideIn 0.15s ease-out; }
+
+/* ===== Status badges (shared) ===== */
+.badge-ok {
+  display: inline-block; font-size: 11px; line-height: 1;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--cp-success-bg); color: var(--cp-success-text);
+}
+.badge-warn {
+  display: inline-block; font-size: 11px; line-height: 1;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--cp-warn-bg); color: var(--cp-warn-text);
+}
+.badge-err {
+  display: inline-block; font-size: 11px; line-height: 1;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--cp-danger-bg); color: var(--cp-danger-text);
+}
+.badge-muted {
+  display: inline-block; font-size: 11px; line-height: 1;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--cp-surface-2); color: var(--cp-text-muted);
+}
+
+/* ===== Action button micro-interactions ===== */
+.btn-c:active {
+  transform: scale(0.96);
+}
+.btn-danger-c:hover {
+  filter: brightness(1.08);
+}
+
+/* ===== Scrollable table for narrow viewports ===== */
+@media (max-width: 1024px) {
+  .c-table-wrap { overflow-x: auto; }
+  .c-table { min-width: 700px; }
+}
+
+/* ===== Truncate utility ===== */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ===== Tooltip-like title enhancement ===== */
+[data-tip] { position: relative; cursor: help; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%); padding: 4px 8px;
+  background: var(--cp-ink); color: var(--cp-bg);
+  font-size: 11px; border-radius: 4px; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s;
+}
+[data-tip]:hover::after { opacity: 1; }

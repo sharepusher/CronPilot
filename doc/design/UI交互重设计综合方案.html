@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 2026 — UI/交互重设计综合评估与方案</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:1020px;margin:40px auto;padding:0 24px;line-height:1.8;color:#14171A;font-size:14px;}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:12px;font-size:22px;}
+h2{margin-top:56px;font-size:18px;color:#14171A;border-left:4px solid #3D6FE0;padding-left:12px;}
+h3{margin-top:28px;color:#334155;font-size:15px;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px;}
+th,td{border:1px solid #E4E6E9;padding:8px 12px;text-align:left;}
+th{background:#F7F8F9;font-weight:600;}
+code{background:#F1F2F4;padding:2px 6px;border-radius:3px;font-size:0.88em;font-family:'JetBrains Mono',monospace;}
+.box{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;line-height:1.7;}
+.box-blue{background:rgba(61,111,224,0.06);border:1px solid rgba(61,111,224,0.2);}
+.box-green{background:rgba(15,157,102,0.06);border:1px solid rgba(15,157,102,0.2);}
+.box-red{background:rgba(214,69,69,0.06);border:1px solid rgba(214,69,69,0.2);}
+.box-amber{background:rgba(183,121,31,0.06);border:1px solid rgba(183,121,31,0.2);}
+.score{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:12px;padding:2px 8px;border-radius:10px;}
+.score-good{background:#dcfce7;color:#166534;}
+.score-mid{background:#fef3c7;color:#92400e;}
+.score-low{background:#fee2e2;color:#991b1b;}
+pre{background:#0D0F12;color:#ECEEF0;padding:16px 20px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;}
+.meta{color:#5B6169;font-size:12px;margin-bottom:32px;}
+.tree{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;background:#F7F8F9;padding:16px 20px;border-radius:8px;border:1px solid #E4E6E9;}
+</style>
+</head>
+<body>
+
+<h1>CronPilot 2026 — UI/交互重设计综合评估与方案</h1>
+
+<p class="meta">
+文档编号：OPT-P1-16 · 创建：2026-08-11 · 状态：<strong>设计草案</strong><br>
+输入源：① Mockup (<code>CronPilot-2026-full-mockup.html</code>) ② 产品评审分析 ③ 现有工程架构 ④ 已交付 IA/RBAC/任务生命周期/执行记录设计文档<br>
+目标：从"漂亮的 Admin Console"升级为"专业的 Scheduler Operations Console"
+</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>一、评估总结</h2>
+
+<h3>1.1 Mockup 评分</h3>
+
+<table>
+<tr><th>维度</th><th>当前 Mockup</th><th>目标</th><th>关键差距</th></tr>
+<tr><td>Visual Design</td><td><span class="score score-good">8.5/10</span></td><td>9</td><td>色系已自洽、Typography/Radius 克制</td></tr>
+<tr><td>Design System</td><td><span class="score score-good">8.5/10</span></td><td>9</td><td>Token 完整（canvas/surface/signal/...），Light/Dark 对称</td></tr>
+<tr><td>Information Architecture</td><td><span class="score score-mid">7.0/10</span></td><td>9</td><td>"任务编辑"不应为 L1 nav；缺 Health 层</td></tr>
+<tr><td>Task Management</td><td><span class="score score-mid">7.0/10</span></td><td>9</td><td>仍是 CRUD List；缺 Task Detail</td></tr>
+<tr><td>Observability</td><td><span class="score score-low">6.5/10</span></td><td>9</td><td>无 Health/Exception 首屏；指标选取非运营视角</td></tr>
+<tr><td>Execution Debug</td><td><span class="score score-low">6.0/10</span></td><td>9</td><td>缺 Run Inspector / 失败原因 / Duration anomaly</td></tr>
+<tr><td>RBAC/Scope UX</td><td><span class="score score-mid">7.0/10</span></td><td>9</td><td>Group 停留在 Card；未体现 Scope Console</td></tr>
+<tr><td>Scalability 100+ Tasks</td><td><span class="score score-low">6.5/10</span></td><td>9</td><td>表格无健康上下文，信息密度不足</td></tr>
+<tr><td>Enterprise UX</td><td><span class="score score-mid">7.0/10</span></td><td>9</td><td>缺 Timezone、Run Now 确认流、Progressive Disclosure</td></tr>
+<tr><td>2026 风格</td><td><span class="score score-good">8.0/10</span></td><td>9</td><td>接近 Linear/Vercel 水准；卡片化略多</td></tr>
+<tr><td><strong>Overall</strong></td><td><strong>≈ 7.2/10</strong></td><td><strong>9/10</strong></td><td></td></tr>
+</table>
+
+<h3>1.2 核心判断</h3>
+
+<div class="box box-blue">
+<strong>结论</strong>：Mockup 的视觉层（Design Token + Shell + Component Library）可直接采用。产品层需要二次收敛：从"管理 128 条记录"的心智升级为"10s 发现问题 → 30s 定位任务 → 1min 定位 Run → 3min 完成处理"的运营心智。
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>二、Design Token 采纳决策</h2>
+
+<h3>2.1 Mockup Token 与现有 CronPilot Token 对照</h3>
+
+<table>
+<tr><th>Token 类别</th><th>Mockup (新)</th><th>CronPilot 现有</th><th>决策</th></tr>
+<tr><td>Canvas/Surface</td><td><code>--canvas/#F7F8F9</code> <code>--surface/#FFF</code></td><td><code>--cp-bg/#fafbfc</code> <code>--cp-surface/#fff</code></td><td>✅ 采用 Mockup 值（差异 &lt;1%）</td></tr>
+<tr><td>Border</td><td><code>--border/#E4E6E9</code></td><td><code>--cp-border/#e2e8f0</code></td><td>✅ 采用 Mockup 值（对比度更好）</td></tr>
+<tr><td>Ink/Muted</td><td><code>--ink/#14171A</code> <code>--muted/#5B6169</code></td><td><code>--cp-ink/#0f172a</code> <code>--cp-muted/#64748b</code></td><td>✅ Mockup 的 muted 对比度 6.2:1 &gt; 现有 4.76</td></tr>
+<tr><td>Signal (Primary)</td><td><code>--signal/#3D6FE0</code> (H=222° S=73% L=56%)</td><td><code>--cp-accent-blue/#2563eb</code> (H=221° S=83% L=53%)</td><td>✅ 采用 Mockup（饱和度更收敛）</td></tr>
+<tr><td>Success/Warning/Danger</td><td>各有 base + bg 两级</td><td>各有 5–7 级变体（过细）</td><td>⚠️ 精简至 Mockup 的 2–3 级</td></tr>
+<tr><td>Typography</td><td>Inter + JetBrains Mono</td><td>系统字体 + 无 mono 指定</td><td>✅ 采用（Mono 对 Cron/URL 展示至关重要）</td></tr>
+<tr><td>Dark Mode</td><td><code>canvas:#0D0F12</code> 独立设计</td><td><code>--cp-bg:#16161e</code> Tailwind 映射</td><td>✅ 采用 Mockup 暗色系统（独立设计 > 机械映射）</td></tr>
+</table>
+
+<div class="box box-green">
+<strong>决策</strong>：以 Mockup 的 Token 系统为目标态（~20 变量 × 2 主题 = 40 值），替代现有 65 × 2 = 130 值的过细系统。迁移过程中两套并存，逐页替换。
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>三、信息架构重设计</h2>
+
+<h3>3.1 现有 IA vs 目标 IA</h3>
+
+<table>
+<tr><th>现有 Mockup IA</th><th>问题</th><th>目标 IA</th></tr>
+<tr><td>任务中心 (Task List)</td><td>无 Health 层</td><td><strong>OPERATIONS</strong>: 任务中心 (Health + Tasks)</td></tr>
+<tr><td>任务编辑 (L1 nav)</td><td>Edit 是 Action 不是节点</td><td>移除（Edit 从 Task Detail 进入）</td></tr>
+<tr><td>执行记录</td><td>仅列表无 Detail</td><td><strong>OPERATIONS</strong>: 执行记录 (+ Run Inspector)</td></tr>
+<tr><td>操作记录</td><td>—</td><td><strong>ADMINISTRATION</strong>: 操作记录</td></tr>
+<tr><td>用户管理</td><td>—</td><td><strong>ADMINISTRATION</strong>: 用户管理</td></tr>
+<tr><td>业务组 (Card)</td><td>未体现 Scope</td><td><strong>CONFIGURATION</strong>: 业务组 (Scope Console)</td></tr>
+<tr><td>审计</td><td>—</td><td><strong>ADMINISTRATION</strong>: 审计</td></tr>
+<tr><td>标签管理</td><td>无 Namespace</td><td><strong>CONFIGURATION</strong>: 标签 (+ Namespace)</td></tr>
+<tr><td>API 文档 (在"个人"下)</td><td>API 非个人资源</td><td><strong>DEVELOPER</strong>: API 文档</td></tr>
+</table>
+
+<h3>3.2 目标导航结构</h3>
+
+<div class="tree">
+OPERATIONS
+├── 任务中心          ← Health + Exception + Task List
+├── 执行记录          ← Run History + Run Inspector
+│
+CONFIGURATION
+├── 业务组            ← Scope Console
+├── 标签              ← Tag Namespace
+│
+ADMINISTRATION
+├── 用户管理
+├── 审计
+├── 操作记录
+│
+DEVELOPER
+├── API 文档
+├── API Token         ← 从 User Dropdown 中也可访问
+</div>
+
+<h3>3.3 新增核心页面：Task Detail</h3>
+
+<div class="box box-amber">
+<strong>当前最大缺页</strong>：Mockup 中点击任务直接进入 Edit Form。专业 Scheduler 需要一个<strong>Task Detail / Task Overview</strong>页面——它是运维人员 90% 时间停留的页面。
+</div>
+
+<pre>
+← 返回任务列表
+
+┌─────────────────────────────────────────────────────┐
+│  同步订单履约状态                                      │
+│  order-fulfillment-sync                              │
+│  [Active] [交易] [P0]    [▶ 立即执行] [⏸ 暂停] [✎ 编辑]│
+├─────────────────────────────────────────────────────┤
+│                                                      │
+│  ┌─ Health ────────────────────────────────────────┐ │
+│  │ ● Healthy                                       │ │
+│  │ 连续失败: 0  │  24h 成功率: 100%  │  P95 延迟: 192ms │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                      │
+│  ┌─ Schedule ──────────────────────────────────────┐ │
+│  │ */5 * * * *     每 5 分钟执行一次                  │ │
+│  │ Next: 15:05     Timezone: Asia/Shanghai (UTC+8)  │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                      │
+│  ┌─ Recent Runs ───────────────────────────────────┐ │
+│  │ 15:00  ● 200  184ms                             │ │
+│  │ 14:55  ● 200  192ms                             │ │
+│  │ 14:50  ● 200  181ms                             │ │
+│  │ [查看全部执行记录]                                 │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                      │
+│  ┌─ Configuration ─────────────────────────────────┐ │
+│  │ Endpoint: POST https://api.order.io/sync         │ │
+│  │ Timeout: 30s │ Group: 交易平台组                   │ │
+│  └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+</pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>四、任务中心重设计：Health-First</h2>
+
+<h3>4.1 当前 → 目标</h3>
+
+<table>
+<tr><th>元素</th><th>Mockup 当前</th><th>目标</th></tr>
+<tr><td>顶部指标</td><td>任务总数 / 运行中 / 今日失败 / 24h成功率</td><td><strong>异常任务 / 连续失败 / 运行中 / 今日失败 Run</strong>（128 Tasks 降为副文本）</td></tr>
+<tr><td>首屏内容</td><td>直接进入 Task Table</td><td>Exception Panel（连续失败 top 3）→ Task Table</td></tr>
+<tr><td>表格字段</td><td>任务 / 调度策略 / 运行状态 / 操作</td><td>任务 / Schedule / <strong>Health</strong> / Last Run / Next Run / Scope / 操作</td></tr>
+<tr><td>Status</td><td>单维度（运行中/成功/失败/已下线）</td><td>三维度拆分（Lifecycle + Execution + Health）</td></tr>
+</table>
+
+<h3>4.2 三层状态模型</h3>
+
+<table>
+<tr><th>维度</th><th>可能值</th><th>展示方式</th></tr>
+<tr><td><strong>Lifecycle</strong> (任务配置态)</td><td>Active / Paused / Retired</td><td>Badge（出现在 Task Name 旁）</td></tr>
+<tr><td><strong>Execution</strong> (当前执行态)</td><td>Running / Idle</td><td>动画 pin（仅 Running 时脉冲）</td></tr>
+<tr><td><strong>Health</strong> (健康聚合态)</td><td>Healthy (●) / Warning (●) / Failing (×N)</td><td>Health 列独立展示</td></tr>
+</table>
+
+<pre>
+Task Table Row 示例：
+
+│ 同步订单履约状态       │ */5 * * * * │ ● Healthy │ 2m ago 184ms │ in 3m │ 交易组 │ ▶ … │
+│ order-fulfillment-sync │             │           │              │        │        │     │
+│ [Active] [交易] [P0]  │             │           │              │        │        │     │
+│                        │             │           │              │        │        │     │
+│ 清理过期缓存           │ 0 * * * *   │ ×5 Failing│ 1m ago  —    │ in 59m │ 基础设施│ ▶ … │
+│ cache-eviction-hourly  │             │           │              │        │        │     │
+│ [Active] [基础设施]    │             │           │              │        │        │     │
+</pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>五、关键交互升级</h2>
+
+<h3>5.1 Run Now 确认流</h3>
+
+<pre>
+用户点击 ▶ 立即执行
+        ↓
+┌─ 确认对话框 ──────────────────────┐
+│  确认立即执行？                     │
+│                                    │
+│  任务: sync-order                  │
+│  当前计划: 每 5 分钟                │
+│  上次执行: 2 分钟前 · Success       │
+│  Concurrency: 不允许并发            │
+│                                    │
+│  [取消]          [确认执行]         │
+└────────────────────────────────────┘
+</pre>
+
+<h3>5.2 Run Inspector（执行详情页）</h3>
+
+<pre>
+Execution #ab8148aa
+
+┌─ 状态 ─────────────────────────────┐
+│ ● SUCCESS  HTTP 200  Duration 184ms │
+│ Started 15:00:00.000                │
+│ Finished 15:00:00.184               │
+└─────────────────────────────────────┘
+
+┌─ Request ──────────────────────────┐
+│ POST https://api.order.io/sync      │
+│ Headers: Content-Type: application/json │
+│ Body: {"cronpilot_log_id":"ab8148aa"} │
+└─────────────────────────────────────┘
+
+┌─ Response ─────────────────────────┐
+│ HTTP 200                            │
+│ {"status":"ok","processed":42}      │
+└─────────────────────────────────────┘
+
+┌─ Business Logs (3 entries) ────────┐
+│ [15:00:00.034] Processing batch 1   │
+│ [15:00:00.098] Processing batch 2   │
+│ [15:00:00.156] All 42 orders synced │
+└─────────────────────────────────────┘
+</pre>
+
+<h3>5.3 Timezone 作为一等字段</h3>
+
+<div class="box box-red">
+<strong>必须补充</strong>：Cron expression 本身无法完整表达调度语义。跨时区部署时，`0 9 * * *` 在 UTC+8 和 UTC+0 意味着完全不同的时刻。Timezone 必须在 Schedule 配置和 Task Detail 中显式展示。
+</div>
+
+<h3>5.4 ⌘K 升级为 Command Palette</h3>
+
+<pre>
+⌘K 打开
+
+┌─────────────────────────────────────┐
+│ 🔍 输入命令或搜索…                   │
+├─────────────────────────────────────┤
+│ TASKS                               │
+│   sync-order            ● Healthy   │
+│   cache-eviction        ×5 Failing  │
+│                                     │
+│ ACTIONS                             │
+│   ▶ Run task…                       │
+│   + Create task                     │
+│   ⏸ Pause task…                     │
+│                                     │
+│ NAVIGATION                          │
+│   → 用户管理                         │
+│   → 执行记录                         │
+│   → 审计                             │
+└─────────────────────────────────────┘
+</pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>六、实施路径</h2>
+
+<h3>6.1 分阶段计划</h3>
+
+<table>
+<tr><th>阶段</th><th>范围</th><th>交付物</th><th>工程依赖</th></tr>
+<tr>
+<td><strong>Phase 0</strong><br>Design Token 迁移</td>
+<td>将 Mockup 的 20 变量 Token 系统导入 <code>console-theme.css</code>，建立新旧映射</td>
+<td>新 <code>console-theme-v2.css</code>（两套并存）</td>
+<td>无后端依赖</td>
+</tr>
+<tr>
+<td><strong>Phase 1</strong><br>IA 重构 + Task Center</td>
+<td>① 导航结构调整（去掉"任务编辑" L1）<br>② 任务中心 Health-First 改造<br>③ 三层状态模型</td>
+<td>sidebar nav + 任务列表页重构</td>
+<td>需要 <code>job_health</code> 模型（已有）</td>
+</tr>
+<tr>
+<td><strong>Phase 2</strong><br>Task Detail + Run Now</td>
+<td>① 新增 Task Detail 页<br>② Run Now 确认流<br>③ Timezone 字段</td>
+<td><code>/cron_detail?id=X</code> 路由 + 模板</td>
+<td>需新增路由和视图函数</td>
+</tr>
+<tr>
+<td><strong>Phase 3</strong><br>Run Inspector</td>
+<td>① 执行详情页（Request/Response/Business Logs）<br>② Duration anomaly 标记<br>③ 失败原因分类</td>
+<td><code>/job_log_detail?id=X</code> 重构</td>
+<td>现有 <code>job_log</code> + <code>job_log_items</code></td>
+</tr>
+<tr>
+<td><strong>Phase 4</strong><br>Command Palette + Scope Console</td>
+<td>① ⌘K 升级为全局 Command Palette<br>② Group Detail → Scope Console<br>③ Tag Namespace</td>
+<td>前端 JS 组件 + Group 详情页</td>
+<td>中等</td>
+</tr>
+</table>
+
+<h3>6.2 不做/不动的部分</h3>
+
+<ul>
+<li>✅ <strong>保留</strong>：操作记录与审计分离（正确的信息模型）</li>
+<li>✅ <strong>保留</strong>：Mockup 的视觉层（Token/Shell/Table/Form/Badge 全套复用）</li>
+<li>✅ <strong>保留</strong>：登录页设计（未来加 SSO/OIDC 入口即可）</li>
+<li>❌ <strong>不做</strong>：DAG、Calendar View、SLA、Latency Trend（P2 远期）</li>
+<li>❌ <strong>不做</strong>：Bootstrap 3 全面退役（仅逐页替换，不一次性重写）</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>七、色系决策（综合此前色系 RFC）</h2>
+
+<div class="box box-green">
+<strong>最终决策</strong>：<strong>直接采用 Mockup 的色系统</strong>。它已经解决了我们之前诊断的所有问题：
+<ul style="margin:8px 0 0;padding-left:20px;">
+<li>单一蓝色：<code>--signal:#3D6FE0</code> (H=222°) — 统一的唯一蓝</li>
+<li>饱和度收敛：signal S=73%, success S=76%, warning S=68%, danger S=65% — 跨度仅 11%</li>
+<li>变量精简：~20 个语义变量（而非 65 个）</li>
+<li>暗色独立设计：<code>canvas:#0D0F12</code>（深色带蓝相 2%），非机械映射</li>
+<li>WCAG 达标：<code>--muted:#5B6169</code> 对比度 6.2:1 &gt; 4.5:1</li>
+</ul>
+不再需要之前的"Phase A 色相微调"方案——直接用 Mockup Token 体系替代。
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>八、与现有工程架构的对接</h2>
+
+<table>
+<tr><th>Mockup 概念</th><th>CronPilot 现有对应</th><th>差距/需要新增</th></tr>
+<tr><td>Task Center Health指标</td><td><code>job_health</code> 表 (consecutive_failures)</td><td>需要一个聚合查询 API</td></tr>
+<tr><td>三层状态</td><td>Lifecycle: <code>status</code> 字段; Execution: 运行时状态</td><td>Health 聚合需从 <code>job_health</code> 动态计算</td></tr>
+<tr><td>Task Detail</td><td>无对应路由</td><td>新增 <code>/cron_detail?id=X</code></td></tr>
+<tr><td>Run Inspector</td><td><code>job_log_detail</code> 已有基础数据</td><td>前端重构为 Inspector 布局</td></tr>
+<tr><td>Timezone</td><td><code>cron_infos</code> 无 timezone 字段</td><td>需加字段 + 迁移</td></tr>
+<tr><td>Run Now</td><td>已有"立即执行"按钮</td><td>需加确认弹窗 + 并发检查</td></tr>
+<tr><td>Command Palette</td><td>已有 ⌘K 搜索（sidebar filter）</td><td>升级为全局 Command + Action</td></tr>
+<tr><td>Tag Namespace</td><td><code>tags</code> 表（group_id 隔离）</td><td>可选加 <code>namespace</code> 字段</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>九、产品心智定位</h2>
+
+<div class="box box-blue" style="font-size:14px;">
+<strong>CronPilot 的产品心智不是</strong>：
+<blockquote style="margin:8px 0;padding-left:12px;border-left:3px solid rgba(61,111,224,0.3);color:#5B6169;">
+"我有 128 个任务，给我看 128 条记录。"
+</blockquote>
+
+<strong>CronPilot 的产品心智应该是</strong>：
+<blockquote style="margin:8px 0;padding-left:12px;border-left:3px solid #0F9D66;">
+"系统现在健康吗？→ 哪里不健康？→ 哪个任务？→ 这次 Run 为什么失败？→ 我要不要处理？"
+</blockquote>
+
+<strong>对标定位</strong>：<br>
+Linear 的信息密度 + Datadog 的可观测性 + GitHub Actions 的执行心智 + 企业级 RBAC 的治理能力
+</div>
+
+<pre>
+用户进入 CronPilot 的认知路径：
+
+L1 Health     "系统怎么样？"        → 异常面板 + 指标卡
+     ↓
+L2 Task       "哪个任务有问题？"    → Task Table + Task Detail
+     ↓
+L3 Run        "这次为什么失败？"    → Run Inspector
+     ↓
+L4 Action     "我要怎么处理？"      → Run Now / Pause / Edit / Alert
+</pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>十、决策点（需确认）</h2>
+
+<ol>
+<li><strong>是否同意目标 IA 结构</strong>（OPERATIONS / CONFIGURATION / ADMINISTRATION / DEVELOPER 四区）？</li>
+<li><strong>是否同意 Phase 0→4 分阶段推进</strong>？优先级是否需要调整？</li>
+<li><strong>Task Detail 页是否在 Phase 2 实现</strong>？还是提前到 Phase 1 一起做？</li>
+<li><strong>Timezone 字段</strong>：是否现在就加入 DB schema（Phase 2），还是远期？</li>
+<li><strong>卡片化 vs Flat Surface</strong>：是否同意在非"独立实体"场景减少卡片包装？</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI交互重设计综合方案.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

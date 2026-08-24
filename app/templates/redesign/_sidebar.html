@@ -1,0 +1,116 @@
+{# CronPilot Redesign — Sidebar Navigation (OPT-P1-16 Phase 1)
+   Permission-aware: uses has_perm() to gate menu items.
+   Permission model (7 strings):
+     cron:read | cron:write | cron:retire | log:read |
+     operation:read | user:manage | audit:read
+   Roles: viewer={cron:read, log:read}
+          operator={cron:read, cron:write, log:read, operation:read}
+          admin={all 7 except seed admin who lacks cron:write/cron:retire}
+#}
+<aside class="cp-sidebar" id="cp-sidebar">
+  <a href="{{ url_for('main.cron_list') }}" class="cp-sidebar-brand">
+    <svg class="cp-brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="12 7 12 12 15.5 14" stroke="var(--cp-signal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>CronPilot</span>
+  </a>
+
+  <nav class="cp-sidebar-nav" aria-label="主导航">
+    {# === 运维操作 === #}
+    <div class="cp-nav-section">
+      <div class="cp-nav-section-label">运维操作</div>
+      {% if has_perm('cron:read') %}
+      <a href="{{ url_for('main.cron_list') }}" class="cp-nav-item{% if active_nav == 'dashboard' %} active{% endif %}" title="任务中心">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>任务中心</span>
+      </a>
+      {% endif %}
+      {% if has_perm('log:read') %}
+      <a href="{{ url_for('main.job_log_all_list') }}" class="cp-nav-item{% if active_nav == 'logs' %} active{% endif %}" title="执行记录">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8m8 4H8m2-8H8"/></svg>
+        <span>执行记录</span>
+      </a>
+      {% endif %}
+    </div>
+
+    {# === 系统配置 (需 user:manage) === #}
+    {% if has_perm('user:manage') %}
+    <div class="cp-nav-section">
+      <div class="cp-nav-section-label">系统配置</div>
+      <a href="{{ url_for('rbac.groups_list') }}" class="cp-nav-item{% if active_nav == 'groups' %} active{% endif %}" title="业务组">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
+        <span>业务组</span>
+      </a>
+      <a href="{{ url_for('rbac.tag_manage') }}" class="cp-nav-item{% if active_nav == 'tags' %} active{% endif %}" title="标签">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        <span>标签</span>
+      </a>
+    </div>
+    {% endif %}
+
+    {# === 系统管理 (需 user:manage 或 audit:read 或 operation:read) === #}
+    {% if has_perm('user:manage') or has_perm('audit:read') or has_perm('operation:read') %}
+    <div class="cp-nav-section">
+      <div class="cp-nav-section-label">系统管理</div>
+      {% if has_perm('user:manage') %}
+      <a href="{{ url_for('rbac.users_list') }}" class="cp-nav-item{% if active_nav == 'users' %} active{% endif %}" title="用户管理">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>用户管理</span>
+      </a>
+      <a href="{{ url_for('rbac.registration_review') }}" class="cp-nav-item{% if active_nav == 'reg-review' %} active{% endif %}" title="注册审批">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6m3-3h-6"/></svg>
+        <span>注册审批</span>
+        {% if pending_reg_count %}<span class="cp-nav-badge">{{ pending_reg_count }}</span>{% endif %}
+      </a>
+      {% endif %}
+      {% if has_perm('audit:read') %}
+      <a href="{{ url_for('rbac.audit_logs') }}" class="cp-nav-item{% if active_nav == 'audit' %} active{% endif %}" title="审计">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>审计</span>
+      </a>
+      {% endif %}
+      {% if has_perm('operation:read') %}
+      <a href="{{ url_for('main.operation_log_list') }}" class="cp-nav-item{% if active_nav == 'optlog' %} active{% endif %}" title="操作记录">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>操作记录</span>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# === 个人设置 (始终可见) === #}
+    <div class="cp-nav-section">
+      <div class="cp-nav-section-label">个人设置</div>
+      <a href="{{ url_for('rbac.edit_profile') }}" class="cp-nav-item{% if active_nav == 'profile' %} active{% endif %}" title="个人资料">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>个人资料</span>
+      </a>
+      <a href="{{ url_for('rbac.change_password') }}" class="cp-nav-item{% if active_nav == 'password' %} active{% endif %}" title="修改密码">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span>修改密码</span>
+      </a>
+      <a href="{{ url_for('rbac.api_token_page') }}" class="cp-nav-item{% if active_nav == 'api-token' %} active{% endif %}" title="API Token">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span>API Token</span>
+      </a>
+    </div>
+
+    {# === 开发者 (需 cron:read) === #}
+    {% if has_perm('cron:read') %}
+    <div class="cp-nav-section">
+      <div class="cp-nav-section-label">开发者</div>
+      <a href="{{ url_for('main.api_doc') }}" class="cp-nav-item{% if active_nav == 'apidoc' %} active{% endif %}" title="API 文档">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span>API 文档</span>
+      </a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <button class="cp-collapse-btn" onclick="CpShell.toggleSidebar()" title="{{ '展开侧栏' if sidebar_collapsed else '收起侧栏' }}">
+    <svg class="cp-collapse-icon expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <svg class="cp-collapse-icon collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+</aside>

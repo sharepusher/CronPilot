@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>设计文档：侧边栏折叠功能</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2em auto;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:2px solid #0891b2;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:1.8em}
+h3{color:#334155;margin-top:1.2em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;text-align:left}
+th{background:#f6f8fa}
+code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:0.92em}
+pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow-x:auto}
+.tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:0.85em;font-weight:600}
+.feature{background:#dbeafe;color:#1d4ed8}
+.mockup-box{border:2px solid #e2e8f0;border-radius:8px;margin:16px 0;background:#fafbfc;overflow:hidden}
+.mockup-shell{display:grid;grid-template-columns:192px 1fr;height:400px;position:relative}
+.mockup-shell.mock-collapsed{grid-template-columns:56px 1fr}
+.mockup-sidebar{display:flex;flex-direction:column;gap:4px;padding:12px;background:#f7f8f9;border-right:2px solid #e2e8f0;font-size:12px;position:relative;overflow:hidden}
+.mockup-sidebar.collapsed{align-items:center;padding:12px 8px}
+.mockup-edge-btn{position:absolute;top:20%;right:-12px;width:24px;height:24px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:11px;z-index:10;box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:background 0.15s,color 0.15s}
+.mockup-edge-btn:hover{background:#f0f4ff;color:#3D6FE0;border-color:#93b4f5}
+.mockup-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;color:#334155;white-space:nowrap}
+.mockup-nav-item.active{background:rgba(61,111,224,0.09);color:#3D6FE0}
+.mockup-section-label{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#9CA3AF;padding:12px 10px 4px;font-weight:500;white-space:nowrap}
+.mockup-icon{width:16px;height:16px;background:#94a3b8;border-radius:3px;flex-shrink:0}
+.mockup-content{padding:16px;color:#64748b;font-size:11px}
+.side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:16px 0}
+.ref-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.ref-gallery img,.ref-gallery .ref-box{border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#64748b}
+.highlight-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:12px 0}
+.alt-label{display:inline-block;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-size:0.8em;font-weight:600;margin-left:4px}
+</style>
+</head>
+<body>
+
+<h1>设计文档：侧边栏折叠功能</h1>
+
+<p><strong>分类</strong>：<span class="tag feature">功能增强</span><br>
+<strong>日期</strong>：2026-08-24<br>
+<strong>关联</strong>：OPT-P1-16（Redesign Phase 1）<br>
+<strong>状态</strong>：待确认</p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>当前 Redesign 侧边栏固定占据 192px 宽度，无法折叠或隐藏。在小屏幕（1280px 以下）或需要更大内容区域的场景下，侧边栏占比过高。</p>
+
+<p>代码层面已有折叠基础设施：</p>
+<ul>
+<li>CSS：<code>.cp-shell.collapsed</code> 将侧边栏从 192px 缩为 56px，隐藏文字标签和分组标题（<code>redesign-layout.css</code> L425-447）</li>
+<li>JS：<code>window.CpShell.toggleSidebar()</code> 函数可切换折叠状态，通过 <code>cp_sidebar_collapsed</code> cookie 持久化（<code>redesign-shell.js</code> L16-21）</li>
+<li><strong>缺失</strong>：没有任何可见的 UI 控件来触发折叠。JS 注释写着"Mobile hamburger button will be added in later phases"。</li>
+</ul>
+
+<h2>2. 根因</h2>
+
+<p>Redesign Phase 1 实现时，侧边栏折叠的 CSS/JS 基础设施已就绪，但触发 UI 被推迟到后续阶段。Mockup 中也未包含折叠按钮设计。</p>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 折叠按钮位置 — "分界线按钮"方案</h3>
+
+<p>按钮放置在侧边栏与内容区的<strong>分界线上</strong>（半嵌入侧边栏右边缘），垂直方向固定在页面高度的 <strong>1/5 处</strong>（即 <code>top: 20%</code>）。此方案是 VS Code、Linear、Figma、Notion 等主流产品的标准做法，具有以下优势：</p>
+
+<ul>
+<li><strong>高可发现性</strong>：用户自然会沿分界线探索交互</li>
+<li><strong>零侵入</strong>：不占用侧边栏内部空间，也不影响内容区域</li>
+<li><strong>位置可预测</strong>：无论滚动状态如何，按钮始终在同一位置</li>
+</ul>
+
+<div class="highlight-box">
+<strong>设计决策</strong>：选择 20%（1/5 处）而非顶部或底部的原因 — ① 避开顶部 Brand 区域（约 60px），防止视觉拥挤；② 视觉重心在阅读区上部三分之一，与用户视线自然交汇；③ 参考 VS Code 的折叠按钮位于侧边栏中上部。
+</div>
+
+<div class="side-by-side">
+  <div>
+    <p><strong>展开状态（192px）</strong></p>
+    <div class="mockup-box">
+      <div class="mockup-shell">
+        <div class="mockup-sidebar">
+          <div style="font-weight:600;font-size:13px;padding:6px 10px 12px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#3D6FE0;border-radius:50%"></span> CronPilot</div>
+          <div class="mockup-section-label">运维操作</div>
+          <div class="mockup-nav-item active"><span class="mockup-icon"></span> 任务中心</div>
+          <div class="mockup-nav-item"><span class="mockup-icon"></span> 执行记录</div>
+          <div class="mockup-section-label">系统管理</div>
+          <div class="mockup-nav-item"><span class="mockup-icon"></span> 用户管理</div>
+          <div class="mockup-nav-item"><span class="mockup-icon"></span> 审计日志</div>
+          <div class="mockup-edge-btn" title="折叠侧边栏">‹</div>
+        </div>
+        <div class="mockup-content">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px">任务中心</div>
+          <div style="background:#f0f4f8;border-radius:6px;height:40px;margin-bottom:8px"></div>
+          <div style="background:#f0f4f8;border-radius:6px;height:200px"></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#64748b;text-align:center">按钮在分界线上，<code>top:20%</code>，展开时显示 <code>‹</code></p>
+  </div>
+  <div>
+    <p><strong>折叠状态（56px）</strong></p>
+    <div class="mockup-box">
+      <div class="mockup-shell mock-collapsed">
+        <div class="mockup-sidebar collapsed">
+          <div style="font-weight:600;font-size:13px;padding:6px 0 12px;display:flex;justify-content:center"><span style="width:8px;height:8px;background:#3D6FE0;border-radius:50%"></span></div>
+          <div class="mockup-nav-item" style="justify-content:center;padding:10px" title="任务中心"><span class="mockup-icon"></span></div>
+          <div class="mockup-nav-item" style="justify-content:center;padding:10px" title="执行记录"><span class="mockup-icon"></span></div>
+          <div class="mockup-nav-item" style="justify-content:center;padding:10px" title="用户管理"><span class="mockup-icon"></span></div>
+          <div class="mockup-nav-item" style="justify-content:center;padding:10px" title="审计日志"><span class="mockup-icon"></span></div>
+          <div class="mockup-edge-btn" title="展开侧边栏">›</div>
+        </div>
+        <div class="mockup-content">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px">任务中心</div>
+          <div style="background:#f0f4f8;border-radius:6px;height:40px;margin-bottom:8px"></div>
+          <div style="background:#f0f4f8;border-radius:6px;height:200px"></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#64748b;text-align:center">折叠后按钮在 56px 分界线上，显示 <code>›</code></p>
+  </div>
+</div>
+
+<h3>3.2 按钮规格</h3>
+
+<table>
+<tr><th>属性</th><th>值</th><th>说明</th></tr>
+<tr><td>位置</td><td>侧边栏右边缘，<code>top: 20%</code>（1/5 处），半圆外露</td><td>按钮中心点在分界线上，右半部分伸入内容区域</td></tr>
+<tr><td>定位方式</td><td><code>position: absolute</code>，相对于 <code>.cp-sidebar</code></td><td><code>right: -12px</code>（按钮直径的一半外露）</td></tr>
+<tr><td>尺寸</td><td>24px × 24px</td><td>小巧不干扰，参考 VS Code 尺寸</td></tr>
+<tr><td>形状</td><td><code>border-radius: 50%</code>（圆形）</td><td>分界线上的圆形按钮是业界通用视觉语言</td></tr>
+<tr><td>边框</td><td>1px solid <code>var(--cp-border)</code></td><td>与侧边栏分界线一致</td></tr>
+<tr><td>背景</td><td><code>var(--cp-canvas)</code></td><td>与页面底色融合</td></tr>
+<tr><td>阴影</td><td><code>0 1px 3px rgba(0,0,0,0.08)</code></td><td>轻微阴影，增加层次感</td></tr>
+<tr><td>图标</td><td>展开时 <code>‹</code>（左箭头 SVG），折叠时 <code>›</code>（右箭头 SVG）</td><td>单箭头更精简，配合圆形按钮</td></tr>
+<tr><td>图标色</td><td><code>var(--cp-muted)</code></td><td>默认低调</td></tr>
+<tr><td>Hover</td><td>背景 <code>var(--cp-signal-bg)</code>，图标色 <code>var(--cp-signal)</code>，边框 <code>var(--cp-signal-border)</code></td><td>高亮状态，提示可交互</td></tr>
+<tr><td>Tooltip</td><td>展开时"收起侧栏"，折叠时"展开侧栏"</td><td>简短明确</td></tr>
+<tr><td>默认可见性</td><td><strong>始终可见</strong></td><td>确保首次访问的用户也能发现折叠功能</td></tr>
+</table>
+
+<h3>3.3 可见性策略</h3>
+
+<p>折叠按钮<strong>始终可见</strong>（<code>opacity: 1</code>），确保首次访问的用户也能发现折叠功能。按钮尺寸小（24px 圆形），视觉上不会造成干扰。</p>
+
+<div class="highlight-box">
+<strong>设计决策变更</strong>：初始方案为"默认隐藏、hover 渐显"，但用户反馈指出——如果按钮不展示，首次访问的用户无法发现折叠功能。因此改为始终可见。
+</div>
+
+<h3>3.4 交互行为</h3>
+
+<table>
+<tr><th>交互</th><th>行为</th></tr>
+<tr><td>点击折叠按钮</td><td>调用已有 <code>CpShell.toggleSidebar()</code>，侧边栏 192px ↔ 56px 切换</td></tr>
+<tr><td>状态持久化</td><td>通过 <code>cp_sidebar_collapsed</code> cookie 记忆（已有实现）</td></tr>
+<tr><td>过渡动画</td><td><code>.cp-shell { transition: grid-template-columns 0.2s ease }</code></td></tr>
+<tr><td>折叠后图标 tooltip</td><td>鼠标悬停在折叠的导航图标上时，显示原始文字标签（如"任务中心"）；使用 <code>title</code> 属性原生 tooltip</td></tr>
+<tr><td>页面加载</td><td>服务端根据 cookie 渲染 <code>collapsed</code> class，避免闪烁（见 3.5）</td></tr>
+</table>
+
+<h3>3.5 初始化（服务端渲染 · 防闪烁）</h3>
+
+<p>在 <code>_base.html</code> 中根据 cookie 在服务端渲染时即决定初始 class，避免"先展开再折叠"的视觉闪动：</p>
+
+<pre><code>&lt;div class="cp-shell{% if request.cookies.get('cp_sidebar_collapsed') == '1' %} collapsed{% endif %}"&gt;</code></pre>
+
+<h3>3.6 行业参考</h3>
+
+<table>
+<tr><th>产品</th><th>按钮位置</th><th>形状</th><th>显隐</th></tr>
+<tr><td>VS Code</td><td>活动栏右侧分界线上，中上部</td><td>细长矩形，圆角</td><td>hover 显示</td></tr>
+<tr><td>Linear</td><td>侧边栏右边缘，上部 1/4 处</td><td>圆形</td><td>hover 侧边栏时显示</td></tr>
+<tr><td>Figma</td><td>面板分界线上</td><td>小圆点 + 箭头</td><td>hover 显示</td></tr>
+<tr><td>Notion</td><td>侧边栏右上角，靠近分界线</td><td>圆形</td><td>hover 侧边栏时显示</td></tr>
+<tr><td><strong>CronPilot（本方案）</strong></td><td><strong>侧边栏右边缘分界线，top: 20%</strong></td><td><strong>24px 圆形</strong></td><td><strong>始终可见</strong></td></tr>
+</table>
+
+<h2>4. 范围</h2>
+
+<h3>涉及文件（3 个）</h3>
+<ul>
+<li><code>app/templates/redesign/_sidebar.html</code> — 在侧边栏末尾添加折叠按钮 HTML（含 SVG 图标 + title 属性）</li>
+<li><code>app/static/css/redesign-layout.css</code> — 添加折叠按钮定位样式（<code>.cp-collapse-btn</code>）+ <code>.cp-shell</code> transition 动画 + hover 显隐 + 折叠后导航 title tooltip 样式</li>
+<li><code>app/templates/redesign/_base.html</code> — <code>.cp-shell</code> 行添加 Jinja2 条件判断 cookie，服务端渲染折叠初始状态</li>
+</ul>
+
+<h3>不涉及（无需修改）</h3>
+<ul>
+<li><code>redesign-shell.js</code> — <code>toggleSidebar()</code> 和 cookie 逻辑<strong>已就绪</strong>，无需改动</li>
+<li><code>console-theme.css</code> — 现有令牌足够，无需新增变量</li>
+</ul>
+
+<h3>明确不做</h3>
+<ul>
+<li>移动端 hamburger 菜单（已有独立的 <code>@media (max-width: 768px)</code> 响应式设计，作用域不同）</li>
+<li>键盘快捷键折叠（可在后续阶段添加，如 <code>Cmd+[</code>）</li>
+<li>拖拽调整侧边栏宽度</li>
+<li>折叠后导航 flyout 子菜单（当前使用原生 <code>title</code> tooltip，后续可升级为自定义 flyout）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p>单批次实施，涉及 3 个文件，总变更量约 30-40 行，均为新增。</p>
+
+<h2>6. 验收</h2>
+
+<table>
+<tr><th>#</th><th>验收项</th><th>期望结果</th></tr>
+<tr><td>1</td><td><strong>按钮位置</strong>：hover 侧边栏，按钮出现位置</td><td>在侧边栏右边缘分界线上，垂直方向约 1/5 处</td></tr>
+<tr><td>2</td><td><strong>hover 显隐</strong>：鼠标进入/离开侧边栏</td><td>进入时 0.15s 渐显，离开后 0.3s 渐隐</td></tr>
+<tr><td>3</td><td><strong>点击折叠</strong>：点击按钮</td><td>侧边栏从 192px 平滑过渡到 56px，图标从 <code>‹</code> 变为 <code>›</code></td></tr>
+<tr><td>4</td><td><strong>点击展开</strong>：再次点击按钮</td><td>侧边栏从 56px 恢复到 192px，图标恢复 <code>‹</code></td></tr>
+<tr><td>5</td><td><strong>折叠后按钮可见性</strong>：折叠状态下不 hover</td><td>按钮始终可见（不需要 hover）</td></tr>
+<tr><td>6</td><td><strong>状态持久化</strong>：折叠后刷新页面</td><td>页面加载时直接为折叠状态，无闪烁</td></tr>
+<tr><td>7</td><td><strong>暗色主题</strong>：切换到暗色主题后检查按钮</td><td>按钮颜色适配暗色主题（使用 CSS 变量）</td></tr>
+<tr><td>8</td><td><strong>折叠后 tooltip</strong>：hover 折叠状态下的导航图标</td><td>显示原始文字标签（如"任务中心"）</td></tr>
+<tr><td>9</td><td><strong>截图验证</strong>：4 张截图</td><td>展开/折叠 × 浅色/暗色</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+
+<table>
+<tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+<tr><td>折叠状态下导航仅图标，用户需要学习</td><td>低</td><td>原生 <code>title</code> tooltip 提供文字提示；折叠是主动操作，用户有预期</td></tr>
+<tr><td>按钮圆形外露 12px 进入内容区</td><td>无</td><td>内容区域有 padding，12px 不会遮挡内容；hover 才显示进一步降低干扰</td></tr>
+<tr><td>CSS <code>position: absolute</code> 的 z-index 冲突</td><td>低</td><td>按钮 <code>z-index: 10</code> 低于模态框（100+），不影响弹窗</td></tr>
+<tr><td>折叠后表格宽度变化</td><td>低</td><td>内容区使用 <code>1fr</code> 自适应，表格已有 <code>overflow-x</code>，无需额外处理</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="侧边栏折叠功能设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

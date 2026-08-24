@@ -21,35 +21,35 @@
     flex-direction: column;
     z-index: 1000;
     overflow-y: auto;
-    font-size: 13px;
+    font-size: var(--cp-font-base);
 }
 
 [data-ui-mode="console"] .cp-sidebar-header {
-    padding: 16px 16px 8px;
+    padding: var(--cp-space-4) var(--cp-space-4) var(--cp-space-2);
     display: flex;
     align-items: center;
 }
 
 [data-ui-mode="console"] .cp-sidebar-brand {
     font-weight: 700;
-    font-size: 15px;
+    font-size: var(--cp-font-md);
     color: var(--cp-text);
     letter-spacing: -0.3px;
 }
 
 [data-ui-mode="console"] .cp-sidebar-search {
-    padding: 4px 12px 12px;
+    padding: var(--cp-space-1) var(--cp-space-3) var(--cp-space-3);
 }
 
 [data-ui-mode="console"] .cp-search-input {
     width: 100%;
     height: 28px;
-    padding: 0 8px;
+    padding: 0 var(--cp-space-2);
     border: 1px solid var(--cp-border);
-    border-radius: 5px;
+    border-radius: var(--cp-radius-md);
     background: var(--cp-surface);
     color: var(--cp-muted);
-    font-size: 12px;
+    font-size: var(--cp-font-sm);
     cursor: pointer;
     box-sizing: border-box;
 }
@@ -60,19 +60,19 @@
 
 [data-ui-mode="console"] .cp-sidebar-nav {
     flex: 1;
-    padding: 0 8px;
+    padding: 0 var(--cp-space-2);
     overflow-y: auto;
 }
 
 [data-ui-mode="console"] .cp-nav-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 5px;
+    gap: var(--cp-space-2);
+    padding: var(--cp-space-2) var(--cp-space-3);
+    border-radius: var(--cp-radius-md);
     color: var(--cp-text);
     text-decoration: none;
-    font-size: 13px;
+    font-size: var(--cp-font-base);
     margin-bottom: 1px;
 }
 
@@ -91,7 +91,7 @@
 [data-ui-mode="console"] .cp-nav-item i {
     width: 16px;
     text-align: center;
-    font-size: 13px;
+    font-size: var(--cp-font-base);
     opacity: 0.7;
 }
 
@@ -102,16 +102,16 @@
 [data-ui-mode="console"] .cp-nav-divider {
     height: 1px;
     background: var(--cp-border);
-    margin: 8px 10px;
+    margin: var(--cp-space-2) var(--cp-space-3);
 }
 
 [data-ui-mode="console"] .cp-nav-section {
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
     font-weight: 600;
     color: var(--cp-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 4px 10px 4px;
+    padding: var(--cp-space-1) var(--cp-space-3) var(--cp-space-1);
 }
 
 [data-ui-mode="console"] .cp-badge-count {
@@ -119,18 +119,18 @@
     min-width: 16px;
     height: 16px;
     line-height: 16px;
-    padding: 0 4px;
-    border-radius: 8px;
+    padding: 0 var(--cp-space-1);
+    border-radius: var(--cp-radius-lg);
     background: var(--cp-danger-fill);
     color: var(--cp-surface);
-    font-size: 10px;
+    font-size: var(--cp-font-xs);
     font-weight: 700;
     text-align: center;
     margin-left: 4px;
 }
 
 [data-ui-mode="console"] .cp-sidebar-footer {
-    padding: 8px;
+    padding: var(--cp-space-2);
     border-top: 1px solid var(--cp-border);
 }
 
@@ -166,7 +166,7 @@
 /* Table: hairline borders, clean grid */
 [data-ui-mode="console"] .table-bordered {
     border: 1px solid var(--cp-border);
-    border-radius: 6px;
+    border-radius: var(--cp-radius-md);
     overflow: hidden;
 }
 
@@ -179,16 +179,16 @@
 [data-ui-mode="console"] .table-bordered > thead > tr > th {
     background: var(--cp-surface);
     font-weight: 600;
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     color: var(--cp-muted);
-    padding: 10px 12px;
+    padding: var(--cp-space-2) var(--cp-space-3);
 }
 
 [data-ui-mode="console"] .table-bordered > tbody > tr > td {
-    padding: 10px 12px;
-    font-size: 12.5px;
+    padding: var(--cp-space-2) var(--cp-space-3);
+    font-size: var(--cp-font-base);
 }
 
 [data-ui-mode="console"] .table-hover > tbody > tr:hover > td {
@@ -198,16 +198,16 @@
 /* Data cells: monospace for timestamps/cron */
 [data-ui-mode="console"] .sched-expr {
     font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
     background: var(--cp-surface);
     border: 1px solid var(--cp-border);
-    border-radius: 3px;
-    padding: 1px 5px;
+    border-radius: var(--cp-radius-sm);
+    padding: 1px var(--cp-space-1);
 }
 
 [data-ui-mode="console"] .audit-v {
     font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
 }
 
 /* Health dot in Console mode: slightly smaller, with pulse animation for failing */
@@ -239,11 +239,11 @@
     background: transparent !important;
     border: none;
     padding: 0;
-    font-size: 12px;
+    font-size: var(--cp-font-sm);
     font-weight: 500;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--cp-space-1);
 }
 
 [data-ui-mode="console"] .cron-life-cell .label::before {
@@ -271,7 +271,7 @@
 
 @keyframes cp-pulse-accent {
     0%, 100% { box-shadow: 0 0 0 0 var(--cp-accent); }
-    50% { box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15); }
+    50% { box-shadow: 0 0 0 3px var(--cp-accent-ring); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -289,30 +289,30 @@
 
 /* Filter bar area: cleaner spacing */
 [data-ui-mode="console"] .cron-list-toolbar {
-    gap: 8px;
-    padding: 8px 0;
+    gap: var(--cp-space-2);
+    padding: var(--cp-space-2) 0;
 }
 
 /* Pagination: modern pill style */
 [data-ui-mode="console"] .pagination a,
 [data-ui-mode="console"] .pagination span {
-    border-radius: 4px;
+    border-radius: var(--cp-radius-md);
     border-color: var(--cp-border);
-    font-size: 12px;
+    font-size: var(--cp-font-sm);
 }
 
 /* Tags: subtle pill */
 [data-ui-mode="console"] .cabin-scope {
-    font-size: 10px;
-    border-radius: 3px;
+    font-size: var(--cp-font-xs);
+    border-radius: var(--cp-radius-sm);
 }
 
 /* Viewer hint */
 [data-ui-mode="console"] .opt-p2-13-viewer-hint {
-    margin: 8px 0 !important;
-    padding: 6px 10px;
+    margin: var(--cp-space-2) 0 !important;
+    padding: var(--cp-space-2) var(--cp-space-3);
     background: var(--cp-surface);
-    border-radius: 4px;
+    border-radius: var(--cp-radius-md);
     border: 1px solid var(--cp-border);
 }
 
@@ -326,7 +326,7 @@
 }
 
 [data-ui-mode="console"] .form-horizontal .control-label {
-    font-size: 12px;
+    font-size: var(--cp-font-sm);
     font-weight: 600;
     color: var(--cp-text);
     letter-spacing: 0.2px;
@@ -338,11 +338,14 @@
 [data-ui-mode="console"] .form-horizontal .controls > select,
 [data-ui-mode="console"] .form-horizontal .controls > textarea {
     border: 1px solid var(--cp-border);
-    border-radius: 5px;
-    padding: 6px 10px;
-    font-size: 13px;
+    border-radius: var(--cp-radius-md);
+    padding: var(--cp-space-1) var(--cp-space-3);
+    font-size: var(--cp-font-base);
     background: var(--cp-surface);
     color: var(--cp-ink);
+    height: auto;
+    min-height: 32px;
+    box-sizing: border-box;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -350,20 +353,20 @@
 [data-ui-mode="console"] .form-horizontal .controls > select:focus,
 [data-ui-mode="console"] .form-horizontal .controls > textarea:focus {
     border-color: var(--cp-accent);
-    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+    box-shadow: 0 0 0 3px var(--cp-accent-ring);
     outline: none;
 }
 
 /* Field hints: subtle muted text */
 [data-ui-mode="console"] .field-hint {
-    font-size: 11.5px;
+    font-size: var(--cp-font-sm);
     color: var(--cp-muted);
 }
 
 /* Alert bar: modern design */
 [data-ui-mode="console"] .cron-form-alert {
-    border-radius: 6px;
-    font-size: 12.5px;
+    border-radius: var(--cp-radius-md);
+    font-size: var(--cp-font-base);
 }
 
 /* Error state */
@@ -385,9 +388,9 @@
 }
 
 [data-ui-mode="console"] .form-actions .btn {
-    border-radius: 5px;
-    font-size: 13px;
-    padding: 7px 18px;
+    border-radius: var(--cp-radius-md);
+    font-size: var(--cp-font-base);
+    padding: var(--cp-space-2) var(--cp-space-4);
 }
 
 /* Fieldset in Console mode */
@@ -398,7 +401,7 @@
 
 /* Wrap container padding in Console mode */
 [data-ui-mode="console"] .wrap {
-    padding: 16px 24px;
+    padding: var(--cp-space-4) var(--cp-space-5);
 }
 
 /* ── S4: Dark Theme + Secondary Pages ── */
@@ -462,24 +465,24 @@
 
 /* Users management: search toolbar area */
 [data-ui-mode="console"] .rbac-toolbar {
-    padding: 8px 0;
-    gap: 8px;
+    padding: var(--cp-space-2) 0;
+    gap: var(--cp-space-2);
 }
 
 [data-ui-mode="console"] .rbac-search-form {
-    gap: 6px;
+    gap: var(--cp-space-2);
 }
 
 /* Audit log: ensure monospace for timestamps */
 [data-ui-mode="console"] .audit-timestamp {
     font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
 }
 
 /* API Doc iframe: full height in Console mode */
 [data-ui-mode="console"] iframe[src*="swagger"] {
     border: 1px solid var(--cp-border);
-    border-radius: 6px;
+    border-radius: var(--cp-radius-md);
 }
 
 /* ── S5: Animations & Micro-interactions ── */
@@ -533,12 +536,12 @@
 /* Center icons in collapsed state */
 [data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item {
     justify-content: center;
-    padding: 8px 0;
+    padding: var(--cp-space-2) 0;
 }
 
 [data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-item i {
     width: auto;
-    font-size: 16px;
+    font-size: var(--cp-font-lg);
 }
 
 /* Collapse toggle button */
@@ -556,7 +559,7 @@
     justify-content: center;
     cursor: pointer;
     z-index: 1001;
-    font-size: 11px;
+    font-size: var(--cp-font-xs);
     color: var(--cp-muted);
     transition: background 0.15s ease, transform 0.25s ease, opacity 0.2s ease;
     opacity: 0;
@@ -580,7 +583,7 @@
 
 /* Divider shrink in collapsed mode */
 [data-ui-mode="console"].cp-sidebar-collapsed .cp-nav-divider {
-    margin: 6px 8px;
+    margin: var(--cp-space-2) var(--cp-space-2);
 }
 
 /* --- 5.3 Nav item hover micro-effects --- */
@@ -671,10 +674,10 @@
     background: none;
     border: none;
     color: var(--cp-text);
-    font-size: 18px;
-    padding: 4px 8px;
+    font-size: var(--cp-font-lg);
+    padding: var(--cp-space-1) var(--cp-space-2);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--cp-radius-md);
     transition: background 0.12s ease;
 }
 
@@ -721,16 +724,16 @@
 
     [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item {
         justify-content: center;
-        padding: 8px 0;
+        padding: var(--cp-space-2) 0;
     }
 
     [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-item i {
         width: auto;
-        font-size: 16px;
+        font-size: var(--cp-font-lg);
     }
 
     [data-ui-mode="console"]:not(.cp-sidebar-mobile-open) .cp-nav-divider {
-        margin: 6px 8px;
+        margin: var(--cp-space-2) var(--cp-space-2);
     }
 
     /* Hide the collapse toggle on medium screens (already auto-collapsed) */
@@ -774,12 +777,12 @@
 
     [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-item {
         justify-content: flex-start;
-        padding: 6px 10px;
+        padding: var(--cp-space-2) var(--cp-space-3);
     }
 
     [data-ui-mode="console"].cp-sidebar-mobile-open .cp-nav-item i {
         width: 16px;
-        font-size: 13px;
+        font-size: var(--cp-font-base);
     }
 
     /* Main content: full width */
@@ -802,12 +805,12 @@
 
     /* Touch-friendly spacing */
     [data-ui-mode="console"] .cp-nav-item {
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: var(--cp-space-2) var(--cp-space-3);
+        font-size: var(--cp-font-md);
     }
 
     [data-ui-mode="console"] .wrap {
-        padding: 12px 12px;
+        padding: var(--cp-space-3) var(--cp-space-3);
     }
 
     /* Topbar adjustments */
@@ -820,17 +823,17 @@
 @media (max-width: 480px) {
     [data-ui-mode="console"] .cron-list-toolbar {
         flex-direction: column;
-        gap: 8px;
+        gap: var(--cp-space-2);
     }
 
     [data-ui-mode="console"] .wrap {
-        padding: 8px 8px;
+        padding: var(--cp-space-2) var(--cp-space-2);
     }
 
     [data-ui-mode="console"] .table-bordered > thead > tr > th,
     [data-ui-mode="console"] .table-bordered > tbody > tr > td {
-        padding: 6px 8px;
-        font-size: 12px;
+        padding: var(--cp-space-2) var(--cp-space-2);
+        font-size: var(--cp-font-sm);
     }
 }
 
@@ -851,12 +854,12 @@
     top: 50%;
     transform: translateY(-50%);
     margin-left: 8px;
-    padding: 4px 10px;
+    padding: var(--cp-space-1) var(--cp-space-3);
     background: var(--cp-surface-3, #2a2a3c);
     color: var(--cp-text);
     border: 1px solid var(--cp-border);
-    border-radius: 5px;
-    font-size: 12px;
+    border-radius: var(--cp-radius-md);
+    font-size: var(--cp-font-sm);
     white-space: nowrap;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 1100;
@@ -888,12 +891,12 @@
         top: 50%;
         transform: translateY(-50%);
         margin-left: 8px;
-        padding: 4px 10px;
+        padding: var(--cp-space-1) var(--cp-space-3);
         background: var(--cp-surface-3, #2a2a3c);
         color: var(--cp-text);
         border: 1px solid var(--cp-border);
-        border-radius: 5px;
-        font-size: 12px;
+        border-radius: var(--cp-radius-md);
+        font-size: var(--cp-font-sm);
         white-space: nowrap;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         z-index: 1100;
@@ -937,14 +940,14 @@
 /* --- 7.4 Sidebar brand icon for collapsed state --- */
 [data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-header {
     justify-content: center;
-    padding: 12px 0;
+    padding: var(--cp-space-3) 0;
 }
 
 /* Show a single-letter logo in collapsed header */
 [data-ui-mode="console"].cp-sidebar-collapsed .cp-sidebar-header::after {
     content: 'CP';
     font-weight: 800;
-    font-size: 14px;
+    font-size: var(--cp-font-md);
     color: var(--cp-accent);
     letter-spacing: -1px;
 }
@@ -962,6 +965,102 @@
 
 /* Keyboard hint badge in search placeholder area */
 [data-ui-mode="console"] .cp-search-input[readonly]::placeholder {
-    font-size: 12px;
+    font-size: var(--cp-font-sm);
     color: var(--cp-muted);
+}
+
+/* --- S8.3: Search Dropdown (OPT-P2-14-F6) --- */
+[data-ui-mode="console"] .cp-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--cp-surface, #fff);
+    border: 1px solid var(--cp-border, #e2e8f0);
+    border-radius: var(--cp-radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 280px;
+    overflow-y: auto;
+}
+[data-ui-mode="console"] .cp-sidebar-search {
+    position: relative;
+}
+[data-ui-mode="console"] .cp-search-result {
+    display: flex;
+    align-items: center;
+    gap: var(--cp-space-2);
+    padding: var(--cp-space-2) var(--cp-space-3);
+    font-size: var(--cp-font-sm);
+    color: var(--cp-ink, #0f172a);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+[data-ui-mode="console"] .cp-search-result:hover,
+[data-ui-mode="console"] .cp-search-result--active {
+    background: var(--cp-surface-2, #f1f5f9);
+}
+[data-ui-mode="console"] .cp-search-result i {
+    color: var(--cp-muted, #64748b);
+    font-size: var(--cp-font-xs);
+    width: 14px;
+    text-align: center;
+}
+[data-ui-mode="console"] .cp-search-empty {
+    padding: var(--cp-space-3);
+    text-align: center;
+    font-size: var(--cp-font-sm);
+    color: var(--cp-muted, #64748b);
+}
+
+/* Dark theme overrides for search dropdown */
+[data-theme="dark"] .cp-search-dropdown {
+    background: var(--cp-surface, #1e1e2e);
+    border-color: var(--cp-border, #3b3b52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .cp-search-result:hover,
+[data-theme="dark"] .cp-search-result--active {
+    background: var(--cp-surface-2, #27273a);
+}
+
+/* --- S10: Jumbotron Compact (Phase 1 · Batch 6) --- */
+[data-ui-mode="console"] .jumbotron {
+    padding: var(--cp-space-2) 0;
+    margin-bottom: var(--cp-space-2);
+    background: transparent;
+    text-align: left;
+}
+[data-ui-mode="console"] .jumbotron h1,
+[data-ui-mode="console"] .jumbotron .display-4 {
+    font-size: var(--cp-font-lg);
+    font-weight: 600;
+    margin: 0;
+    color: var(--cp-ink);
+}
+[data-ui-mode="console"] .jumbotron .lead,
+[data-ui-mode="console"] .jumbotron p {
+    display: none;
+}
+
+/* --- S9: Button Size Tokens (Phase 1 · Batch 5) --- */
+[data-ui-mode="console"] .cp-btn-sm {
+    padding: var(--cp-space-1) var(--cp-space-2);
+    font-size: var(--cp-font-xs);
+    border-radius: var(--cp-radius-sm);
+    line-height: 1.4;
+}
+[data-ui-mode="console"] .cp-btn-base {
+    padding: var(--cp-space-1) var(--cp-space-3);
+    font-size: var(--cp-font-sm);
+    border-radius: var(--cp-radius-md);
+    line-height: 1.5;
+}
+[data-ui-mode="console"] .cp-btn-lg {
+    padding: var(--cp-space-2) var(--cp-space-4);
+    font-size: var(--cp-font-base);
+    border-radius: var(--cp-radius-md);
+    line-height: 1.5;
 }

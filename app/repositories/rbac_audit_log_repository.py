@@ -5,13 +5,22 @@ from datas.model.rbac_audit_log import RbacAuditLog
 
 from app.repositories.base import BaseRepository
 
+# Pseudo-action 'user:manage' expands to all user-management action codes.
+_USER_MANAGE_ACTIONS = [
+    'user:create', 'user:update', 'user:disable', 'user:enable',
+    'user:password', 'user:password_reset',
+    'user:register_approve', 'user:register_reject', 'user:register_expire',
+]
+
 
 def _apply_search_filters(stmt, username=None, action=None, status=None,
                            time_from=None, time_to=None):
     """通用搜索过滤：用户名 / 动作 / 结果 / 时间范围。"""
     if username:
         stmt = stmt.where(RbacAuditLog.username.like('%{}%'.format(username)))
-    if action:
+    if action == 'user:manage':
+        stmt = stmt.where(RbacAuditLog.action.in_(_USER_MANAGE_ACTIONS))
+    elif action:
         stmt = stmt.where(RbacAuditLog.action == action)
     if status:
         stmt = stmt.where(RbacAuditLog.status == status)

@@ -1,0 +1,58 @@
+{# CronPilot Redesign — Base Template (OPT-P1-16 Phase 1)
+   All new-architecture pages extend this template.
+   Coexists with admin_base.html; selected via ui_version='v2'. #}
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="{{ theme }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CronPilot{% endblock %}</title>
+  {% if csrf_token %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/console-theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-pages.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-mockup-shared.css') }}">
+  {% block css %}{% endblock %}
+</head>
+<body>
+  <div class="cp-shell{% if sidebar_collapsed %} collapsed{% endif %}">
+    {% include "redesign/_sidebar.html" %}
+    <div class="cp-col-main">
+      {% include "redesign/_topbar.html" %}
+      <main class="cp-main{% block main_class %}{% endblock %}">
+        {% block breadcrumb %}{% endblock %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  {# Toast container #}
+  <div class="toast-container" id="cp-toast-container"></div>
+
+  {# Command Palette #}
+  <div class="cp-cmd-overlay" id="cp-cmd-overlay">
+    <div class="cp-cmd-box">
+      <input class="cp-cmd-input" id="cp-cmd-input" type="text" placeholder="搜索任务、操作或页面…" autocomplete="off">
+      <div class="cp-cmd-results" id="cp-cmd-results"></div>
+      <div class="cp-cmd-footer">
+        <span><kbd>↑↓</kbd> 导航</span>
+        <span><kbd>↵</kbd> 选择</span>
+        <span><kbd>Esc</kbd> 关闭</span>
+      </div>
+    </div>
+  </div>
+
+  {# Core JS — jQuery + shared utilities #}
+  <script>var GV = {ROOT: "/", WEB_ROOT: "", JS_ROOT: "{{ url_for('static', filename='js/') }}", UPLOAD_URL: "/"};</script>
+  <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/wind.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  {# Redesign JS modules #}
+  <script src="{{ url_for('static', filename='js/redesign-shell.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/redesign-theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/redesign-toast.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/redesign-confirm.js') }}"></script>
+  {% block js %}{% endblock %}
+</body>
+</html>

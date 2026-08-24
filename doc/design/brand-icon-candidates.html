@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 品牌图标设计方案（第三轮）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 40px 24px;
+    line-height: 1.6;
+  }
+  h1 { text-align: center; font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #f8fafc; }
+  .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 40px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 0 30px rgba(59,130,246,0.15);
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+  }
+  .card-number {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  .icon-showcase {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 16px;
+    padding: 20px 0;
+  }
+  .icon-lg {
+    width: 64px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    background: #0f172a;
+    border-radius: 14px;
+    border: 1px solid #334155;
+  }
+  .icon-lg svg { width: 40px; height: 40px; }
+  .icon-sm {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f8fafc;
+    border-radius: 10px;
+  }
+  .icon-sm svg { width: 24px; height: 24px; }
+
+  .sidebar-demo {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 4px auto 20px;
+  }
+  .sb-expanded {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #141c2b;
+    border-radius: 8px;
+    padding: 8px 14px;
+    border: 1px solid #1e293b;
+  }
+  .sb-expanded svg { width: 20px; height: 20px; }
+  .sb-expanded span { color: #e2e8f0; font-size: 14px; font-weight: 600; letter-spacing: 0.3px; }
+  .sb-collapsed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #141c2b;
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 1px solid #1e293b;
+  }
+  .sb-collapsed svg { width: 18px; height: 18px; }
+
+  .card-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #f1f5f9; }
+  .card-concept { font-size: 12px; color: #94a3b8; margin-bottom: 8px; line-height: 1.6; }
+  .card-tags { font-size: 11px; }
+  .card-tags span {
+    display: inline-block;
+    background: rgba(59,130,246,0.1);
+    color: #60a5fa;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin: 2px;
+    border: 1px solid rgba(59,130,246,0.2);
+  }
+
+  .section-title {
+    max-width: 1320px;
+    margin: 0 auto 16px;
+    padding-top: 40px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+
+  .notes {
+    max-width: 1320px;
+    margin: 48px auto 0;
+    padding: 28px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+  }
+  .notes h2 { font-size: 16px; margin-bottom: 12px; color: #f1f5f9; }
+  .notes ul { padding-left: 20px; }
+  .notes li { font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
+  .notes li strong { color: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<h1>CronPilot 品牌图标（第三轮）</h1>
+<p class="subtitle">15 个全新品牌标识 · 更注重设计感、记忆点与品牌独特性 · 每个方案展示大尺寸/小尺寸/侧边栏预览</p>
+
+<!-- ===== A: 大胆几何 ===== -->
+<p class="section-title">A · 大胆几何 — 用形状本身说话</p>
+<div class="grid">
+
+  <!-- #1 螺旋桨 -->
+  <div class="card">
+    <div class="card-number">1</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 12C12 8 14 4 12 2C10 4 8 6 10 10" stroke="#e2e8f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <path d="M12 12C16 12 20 14 22 12C20 10 18 8 14 10" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <path d="M12 12C12 16 10 20 12 22C14 20 16 18 14 14" stroke="#e2e8f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <path d="M12 12C8 12 4 10 2 12C4 14 6 16 10 14" stroke="#e2e8f0" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.5"/>
+          <circle cx="12" cy="12" r="1.8" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 12C12 8 14 4 12 2C10 4 8 6 10 10" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C16 12 20 14 22 12C20 10 18 8 14 10" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C12 16 10 20 12 22C14 20 16 18 14 14" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C8 12 4 10 2 12C4 14 6 16 10 14" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+          <circle cx="12" cy="12" r="1.8" fill="#3b82f6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 12C12 8 14 4 12 2C10 4 8 6 10 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C16 12 20 14 22 12C20 10 18 8 14 10" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C12 16 10 20 12 22C14 20 16 18 14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C8 12 4 10 2 12C4 14 6 16 10 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+          <circle cx="12" cy="12" r="1.8" fill="#60a5fa"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 12C12 8 14 4 12 2C10 4 8 6 10 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C16 12 20 14 22 12C20 10 18 8 14 10" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C12 16 10 20 12 22C14 20 16 18 14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 12C8 12 4 10 2 12C4 14 6 16 10 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+          <circle cx="12" cy="12" r="1.8" fill="#60a5fa"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">风车螺旋桨</div>
+    <div class="card-concept">四叶螺旋桨 — Pilot 飞行 + 旋转运动。一叶蓝色品牌色强调，打破对称制造视觉张力</div>
+    <div class="card-tags"><span>Pilot</span><span>旋转</span><span>不对称</span></div>
+  </div>
+
+  <!-- #2 快门光圈 -->
+  <div class="card">
+    <div class="card-number">2</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <path d="M12 2a10 10 0 0 1 8.66 5l-5 8.66" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+          <path d="M20.66 7a10 10 0 0 1 0 10l-10 0" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M20.66 17a10 10 0 0 1-8.66 5l5-8.66" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 22a10 10 0 0 1-8.66-5l5-8.66" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M3.34 17a10 10 0 0 1 0-10l10 0" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+          <path d="M3.34 7a10 10 0 0 1 8.66-5l-5 8.66" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="1.5"/>
+          <path d="M12 2a10 10 0 0 1 8.66 5l-5 8.66" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+          <path d="M20.66 7a10 10 0 0 1 0 10l-10 0" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+          <path d="M20.66 17a10 10 0 0 1-8.66 5l5-8.66" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 22a10 10 0 0 1-8.66-5l5-8.66" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M3.34 17a10 10 0 0 1 0-10l10 0" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/>
+          <path d="M3.34 7a10 10 0 0 1 8.66-5l-5 8.66" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <path d="M12 2a10 10 0 0 1 8.66 5l-5 8.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M20.66 7a10 10 0 0 1 0 10l-10 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <path d="M12 22a10 10 0 0 1-8.66-5l5-8.66" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M3.34 17a10 10 0 0 1 0-10l10 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+          <path d="M3.34 7a10 10 0 0 1 8.66-5l-5 8.66" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <path d="M12 2a10 10 0 0 1 8.66 5l-5 8.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 22a10 10 0 0 1-8.66-5l5-8.66" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">光圈快门</div>
+    <div class="card-concept">六叶片快门 — 叶片渐变灰度 + 一叶蓝色。如相机快门"按时触发"，精密机械感</div>
+    <div class="card-tags"><span>精密</span><span>触发</span><span>渐变层次</span></div>
+  </div>
+
+  <!-- #3 三角箭头 -->
+  <div class="card">
+    <div class="card-number">3</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polygon points="12,2 22,19 2,19" stroke="#e2e8f0" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <polygon points="12,8 17,17 7,17" fill="#3b82f6" fill-opacity="0.2" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="12" y1="11" x2="12" y2="14" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="15.5" r="0.8" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polygon points="12,2 22,19 2,19" stroke="#334155" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <polygon points="12,8 17,17 7,17" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="12" y1="11" x2="12" y2="14" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="15.5" r="0.8" fill="#3b82f6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polygon points="12,2 22,19 2,19" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <polygon points="12,8 17,17 7,17" fill="#60a5fa" fill-opacity="0.2" stroke="#60a5fa" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="12" y1="11" x2="12" y2="14" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="15.5" r="0.8" fill="#60a5fa"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polygon points="12,2 22,19 2,19" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <polygon points="12,8 17,17 7,17" fill="#60a5fa" fill-opacity="0.2" stroke="#60a5fa" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="12" y1="11" x2="12" y2="14" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="15.5" r="0.8" fill="#60a5fa"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">△ 标志灯</div>
+    <div class="card-concept">外三角（Vercel 风稳定感）+ 内三角蓝色填充 + 感叹号。如航标警示灯 — "准时发信号"</div>
+    <div class="card-tags"><span>航标</span><span>信号</span><span>Vercel 风</span></div>
+  </div>
+
+</div>
+
+<!-- ===== B: 流动 / 有机 ===== -->
+<p class="section-title">B · 流动 / 有机 — 打破刚性，传达"活"的调度</p>
+<div class="grid">
+
+  <!-- #4 水滴时钟 -->
+  <div class="card">
+    <div class="card-number">4</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z" stroke="#e2e8f0" stroke-width="1.8" fill="none"/>
+          <polyline points="12 11 12 15 14.5 16.5" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="15" r="1" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z" stroke="#334155" stroke-width="1.8"/>
+          <polyline points="12 11 12 15 14.5 16.5" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="15" r="1" fill="#3b82f6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z" stroke="currentColor" stroke-width="1.8"/>
+          <polyline points="12 11 12 15 14.5 16.5" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="15" r="1" fill="#60a5fa"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z" stroke="currentColor" stroke-width="1.8"/>
+          <polyline points="12 11 12 15 14.5 16.5" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">水滴计时</div>
+    <div class="card-concept">水滴轮廓 + 内部时钟指针。每一滴 = 一次调度触发，流动而精准</div>
+    <div class="card-tags"><span>流动</span><span>有机</span><span>独特轮廓</span></div>
+  </div>
+
+  <!-- #5 音波圆环 -->
+  <div class="card">
+    <div class="card-number">5</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#334155" stroke-width="1"/>
+          <rect x="4" y="10.5" width="2" height="3" rx="1" fill="#475569"/>
+          <rect x="7" y="8" width="2" height="8" rx="1" fill="#64748b"/>
+          <rect x="10" y="5" width="2" height="14" rx="1" fill="#3b82f6"/>
+          <rect x="13" y="7" width="2" height="10" rx="1" fill="#60a5fa"/>
+          <rect x="16" y="9" width="2" height="6" rx="1" fill="#94a3b8"/>
+          <rect x="19" y="10.5" width="2" height="3" rx="1" fill="#64748b"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#e2e8f0" stroke-width="1"/>
+          <rect x="4" y="10.5" width="2" height="3" rx="1" fill="#94a3b8"/>
+          <rect x="7" y="8" width="2" height="8" rx="1" fill="#64748b"/>
+          <rect x="10" y="5" width="2" height="14" rx="1" fill="#3b82f6"/>
+          <rect x="13" y="7" width="2" height="10" rx="1" fill="#60a5fa"/>
+          <rect x="16" y="9" width="2" height="6" rx="1" fill="#475569"/>
+          <rect x="19" y="10.5" width="2" height="3" rx="1" fill="#94a3b8"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1"/>
+          <rect x="4" y="10.5" width="2" height="3" rx="1" fill="#475569"/>
+          <rect x="7" y="8" width="2" height="8" rx="1" fill="#64748b"/>
+          <rect x="10" y="5" width="2" height="14" rx="1" fill="#60a5fa"/>
+          <rect x="13" y="7" width="2" height="10" rx="1" fill="#60a5fa" opacity="0.7"/>
+          <rect x="16" y="9" width="2" height="6" rx="1" fill="#64748b"/>
+          <rect x="19" y="10.5" width="2" height="3" rx="1" fill="#475569"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1"/>
+          <rect x="4" y="10.5" width="2" height="3" rx="1" fill="#475569"/>
+          <rect x="7" y="8" width="2" height="8" rx="1" fill="#64748b"/>
+          <rect x="10" y="5" width="2" height="14" rx="1" fill="#60a5fa"/>
+          <rect x="13" y="7" width="2" height="10" rx="1" fill="#60a5fa" opacity="0.7"/>
+          <rect x="16" y="9" width="2" height="6" rx="1" fill="#64748b"/>
+          <rect x="19" y="10.5" width="2" height="3" rx="1" fill="#475569"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">频率脉冲</div>
+    <div class="card-concept">圆环内 EQ 频率柱 — 中间双柱蓝色最高，向两侧衰减。"周期性信号"的可视化，如心跳</div>
+    <div class="card-tags"><span>频率</span><span>心跳</span><span>数据可视化</span></div>
+  </div>
+
+  <!-- #6 螺旋金 -->
+  <div class="card">
+    <div class="card-number">6</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3a9 9 0 0 1 6.36 2.64 9 9 0 0 1 0 12.72" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+          <path d="M18.36 18.36a9 9 0 0 1-12.72 0 9 9 0 0 1 0-12.72" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 7a5 5 0 0 1 3.54 1.46 5 5 0 0 1 0 7.08" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+          <path d="M15.54 15.54a5 5 0 0 1-7.08 0 5 5 0 0 1 0-7.08" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          <circle cx="12" cy="12" r="1.5" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3a9 9 0 0 1 6.36 2.64 9 9 0 0 1 0 12.72" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+          <path d="M18.36 18.36a9 9 0 0 1-12.72 0 9 9 0 0 1 0-12.72" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 7a5 5 0 0 1 3.54 1.46 5 5 0 0 1 0 7.08" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+          <path d="M15.54 15.54a5 5 0 0 1-7.08 0 5 5 0 0 1 0-7.08" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          <circle cx="12" cy="12" r="1.5" fill="#3b82f6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3a9 9 0 0 1 6.36 2.64 9 9 0 0 1 0 12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M18.36 18.36a9 9 0 0 1-12.72 0 9 9 0 0 1 0-12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+          <path d="M12 7a5 5 0 0 1 3.54 1.46 5 5 0 0 1 0 7.08" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+          <path d="M15.54 15.54a5 5 0 0 1-7.08 0 5 5 0 0 1 0-7.08" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          <circle cx="12" cy="12" r="1.5" fill="#60a5fa"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3a9 9 0 0 1 6.36 2.64 9 9 0 0 1 0 12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M18.36 18.36a9 9 0 0 1-12.72 0 9 9 0 0 1 0-12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+          <path d="M12 7a5 5 0 0 1 3.54 1.46 5 5 0 0 1 0 7.08" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="1.5" fill="#60a5fa"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">双螺旋</div>
+    <div class="card-concept">双层断弧螺旋 — 外层白色大弧 + 内层蓝色小弧，如涡旋/漩涡。暗示"层层递进的调度链"</div>
+    <div class="card-tags"><span>涡旋</span><span>层次</span><span>抽象美</span></div>
+  </div>
+
+</div>
+
+<!-- ===== C: 实心 / 填充 ===== -->
+<p class="section-title">C · 实心填充 — 告别线条，拥抱色块</p>
+<div class="grid">
+
+  <!-- #7 半月 -->
+  <div class="card">
+    <div class="card-number">7</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2A10 10 0 1 1 12 22A10 10 0 0 1 12 2z" fill="#e2e8f0" fill-opacity="0.1" stroke="#475569" stroke-width="1"/>
+          <path d="M12 2A10 10 0 0 1 22 12L12 12z" fill="#3b82f6"/>
+          <path d="M12 12L22 12A10 10 0 0 1 12 22z" fill="#1d4ed8"/>
+          <circle cx="12" cy="12" r="3" fill="#0f172a"/>
+          <line x1="12" y1="10" x2="12" y2="12" stroke="#e2e8f0" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12" y1="12" x2="13.5" y2="13" stroke="#e2e8f0" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2A10 10 0 1 1 12 22A10 10 0 0 1 12 2z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+          <path d="M12 2A10 10 0 0 1 22 12L12 12z" fill="#3b82f6"/>
+          <path d="M12 12L22 12A10 10 0 0 1 12 22z" fill="#1d4ed8"/>
+          <circle cx="12" cy="12" r="3" fill="#f8fafc"/>
+          <line x1="12" y1="10" x2="12" y2="12" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12" y1="12" x2="13.5" y2="13" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.05" stroke="#475569" stroke-width="1"/>
+          <path d="M12 2A10 10 0 0 1 22 12L12 12z" fill="#3b82f6"/>
+          <path d="M12 12L22 12A10 10 0 0 1 12 22z" fill="#1d4ed8"/>
+          <circle cx="12" cy="12" r="3" fill="#141c2b"/>
+          <line x1="12" y1="10" x2="12" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12" y1="12" x2="13.5" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.05" stroke="#475569" stroke-width="1"/>
+          <path d="M12 2A10 10 0 0 1 22 12L12 12z" fill="#3b82f6"/>
+          <path d="M12 12L22 12A10 10 0 0 1 12 22z" fill="#1d4ed8"/>
+          <circle cx="12" cy="12" r="3" fill="#141c2b"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">象限填色</div>
+    <div class="card-concept">饼图式色块 — 右侧半圆蓝色双色调填充（浅蓝/深蓝），中心镂空时钟。如"已执行/待执行"进度</div>
+    <div class="card-tags"><span>进度</span><span>色块</span><span>仪表板感</span></div>
+  </div>
+
+  <!-- #8 圆角方块 -->
+  <div class="card">
+    <div class="card-number">8</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="5" fill="#3b82f6"/>
+          <polyline points="12 7 12 12 16 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 4a2 2 0 0 1 2 2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="5" fill="#3b82f6"/>
+          <polyline points="12 7 12 12 16 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 4a2 2 0 0 1 2 2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="5" fill="#3b82f6"/>
+          <polyline points="12 7 12 12 16 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 4a2 2 0 0 1 2 2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="5" fill="#3b82f6"/>
+          <polyline points="12 7 12 12 16 14" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">蓝底方钟</div>
+    <div class="card-concept">圆角矩形蓝色底板 + 白色时钟指针。App icon 风格，如 iOS/macOS 风格图标。简洁有力</div>
+    <div class="card-tags"><span>App 风</span><span>品牌蓝</span><span>简洁有力</span></div>
+  </div>
+
+  <!-- #9 环中星 -->
+  <div class="card">
+    <div class="card-number">9</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="6" stroke="#3b82f6" stroke-width="2"/>
+          <polygon points="12,6 13.5,10 18,10 14.5,13 16,17 12,14.5 8,17 9.5,13 6,10 10.5,10" fill="#3b82f6" fill-opacity="0.8"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="6" stroke="#3b82f6" stroke-width="2"/>
+          <polygon points="12,6 13.5,10 18,10 14.5,13 16,17 12,14.5 8,17 9.5,13 6,10 10.5,10" fill="#3b82f6" fill-opacity="0.8"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="6" stroke="#60a5fa" stroke-width="2"/>
+          <polygon points="12,6 13.5,10 18,10 14.5,13 16,17 12,14.5 8,17 9.5,13 6,10 10.5,10" fill="#60a5fa" fill-opacity="0.8"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="6" stroke="#60a5fa" stroke-width="2"/>
+          <polygon points="12,6 13.5,10 18,10 14.5,13 16,17 12,14.5 8,17 9.5,13 6,10 10.5,10" fill="#60a5fa" fill-opacity="0.8"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">星环</div>
+    <div class="card-concept">外环 + 内环蓝圆 + 中心五角星。星 = Pilot/导航星，双环 = 调度轨道。航海导航+天体运动</div>
+    <div class="card-tags"><span>导航星</span><span>天体</span><span>引领</span></div>
+  </div>
+
+</div>
+
+<!-- ===== D: 文字 / 符号 ===== -->
+<p class="section-title">D · 文字符号 — 将 Crontab 语法化为品牌元素</p>
+<div class="grid">
+
+  <!-- #10 五星号 -->
+  <div class="card">
+    <div class="card-number">10</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <text x="12" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="14" font-weight="700" fill="#e2e8f0" letter-spacing="1">*</text>
+          <text x="5.5" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="10" font-weight="600" fill="#475569">*</text>
+          <text x="18.5" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="10" font-weight="600" fill="#475569">*</text>
+          <text x="8" y="8" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="8" font-weight="600" fill="#64748b">*</text>
+          <text x="16" y="8" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="8" font-weight="600" fill="#3b82f6">*</text>
+          <circle cx="12" cy="12" r="10.5" stroke="#334155" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <text x="12" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="14" font-weight="700" fill="#334155" letter-spacing="1">*</text>
+          <text x="5.5" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="10" font-weight="600" fill="#94a3b8">*</text>
+          <text x="18.5" y="16" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="10" font-weight="600" fill="#94a3b8">*</text>
+          <text x="8" y="8" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="8" font-weight="600" fill="#cbd5e1">*</text>
+          <text x="16" y="8" text-anchor="middle" font-family="'SF Mono','Fira Code',monospace" font-size="8" font-weight="600" fill="#3b82f6">*</text>
+          <circle cx="12" cy="12" r="10.5" stroke="#e2e8f0" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <text x="12" y="16" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="currentColor">*</text>
+          <text x="5.5" y="16" text-anchor="middle" font-family="monospace" font-size="10" font-weight="600" fill="currentColor" opacity="0.4">*</text>
+          <text x="18.5" y="16" text-anchor="middle" font-family="monospace" font-size="10" font-weight="600" fill="currentColor" opacity="0.4">*</text>
+          <text x="8" y="8" text-anchor="middle" font-family="monospace" font-size="8" font-weight="600" fill="currentColor" opacity="0.3">*</text>
+          <text x="16" y="8" text-anchor="middle" font-family="monospace" font-size="8" font-weight="600" fill="#60a5fa">*</text>
+          <circle cx="12" cy="12" r="10.5" stroke="#475569" stroke-width="1.5"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <text x="12" y="16" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="currentColor">*</text>
+          <text x="16" y="8" text-anchor="middle" font-family="monospace" font-size="8" font-weight="600" fill="#60a5fa">*</text>
+          <circle cx="12" cy="12" r="10.5" stroke="#475569" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">星号星座</div>
+    <div class="card-concept">5 个 * 号散布在圆中 — 直接致敬 <code>* * * * *</code> crontab 语法。大小/透明度不同形成"星座"效果</div>
+    <div class="card-tags"><span>Crontab</span><span>极客</span><span>文化认同</span></div>
+  </div>
+
+  <!-- #11 方括号时钟 -->
+  <div class="card">
+    <div class="card-number">11</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 3H3v18h3" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 3h3v18h-3" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 3H3v18h3" stroke="#334155" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 3h3v18h-3" stroke="#334155" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="12 7 12 12 15.5 14" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="12 7 12 12 15.5 14" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">[时钟]</div>
+    <div class="card-concept">方括号 [ ] 包裹蓝色时钟指针 — 代码语法 + 时间概念的交汇。"[scheduled]"状态标记的视觉化</div>
+    <div class="card-tags"><span>代码</span><span>状态标记</span><span>极简粗犷</span></div>
+  </div>
+
+  <!-- #12 大于号箭头 -->
+  <div class="card">
+    <div class="card-number">12</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polyline points="4 6 12 12 4 18" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="14" y1="18" x2="22" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="18" cy="8" r="5" stroke="#3b82f6" stroke-width="1.8"/>
+          <polyline points="18 5.5 18 8 19.5 9" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polyline points="4 6 12 12 4 18" stroke="#334155" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="14" y1="18" x2="22" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="18" cy="8" r="5" stroke="#3b82f6" stroke-width="1.8"/>
+          <polyline points="18 5.5 18 8 19.5 9" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polyline points="4 6 12 12 4 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="14" y1="18" x2="22" y2="18" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="18" cy="8" r="5" stroke="#60a5fa" stroke-width="1.8"/>
+          <polyline points="18 5.5 18 8 19.5 9" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <polyline points="4 6 12 12 4 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="14" y1="18" x2="22" y2="18" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="18" cy="8" r="5" stroke="#60a5fa" stroke-width="1.8"/>
+          <polyline points="18 5.5 18 8 19.5 9" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">&gt;_ 提示符</div>
+    <div class="card-concept">终端提示符 &gt; + 下划线 + 右上角蓝色时钟。"命令行调度"的直觉表达，兼具终端感与时间概念</div>
+    <div class="card-tags"><span>终端</span><span>命令行</span><span>开发者</span></div>
+  </div>
+
+</div>
+
+<!-- ===== E: 意外 / 概念突破 ===== -->
+<p class="section-title">E · 概念突破 — 不走寻常路</p>
+<div class="grid">
+
+  <!-- #13 沙漏流沙 -->
+  <div class="card">
+    <div class="card-number">13</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h14M5 21h14" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 3l6 9-6 9" stroke="#e2e8f0" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+          <path d="M18 3l-6 9 6 9" stroke="#e2e8f0" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+          <path d="M9 5l3 4.5L15 5" fill="#3b82f6" fill-opacity="0.3"/>
+          <path d="M10 17l2-3 2 3z" fill="#3b82f6" fill-opacity="0.6"/>
+          <line x1="12" y1="11.5" x2="12" y2="14" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h14M5 21h14" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 3l6 9-6 9" stroke="#334155" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M18 3l-6 9 6 9" stroke="#334155" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M9 5l3 4.5L15 5" fill="#3b82f6" fill-opacity="0.3"/>
+          <path d="M10 17l2-3 2 3z" fill="#3b82f6" fill-opacity="0.6"/>
+          <line x1="12" y1="11.5" x2="12" y2="14" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h14M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 3l6 9-6 9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M18 3l-6 9 6 9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M9 5l3 4.5L15 5" fill="#60a5fa" fill-opacity="0.3"/>
+          <path d="M10 17l2-3 2 3z" fill="#60a5fa" fill-opacity="0.6"/>
+          <line x1="12" y1="11.5" x2="12" y2="14" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h14M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 3l6 9-6 9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M18 3l-6 9 6 9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M10 17l2-3 2 3z" fill="#60a5fa" fill-opacity="0.6"/>
+          <line x1="12" y1="11.5" x2="12" y2="14" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">流沙沙漏</div>
+    <div class="card-concept">几何沙漏 + 蓝色"流沙"粒子流。上方待执行（淡蓝）→ 流过中心节流口 → 下方已完成（深蓝）</div>
+    <div class="card-tags"><span>时间</span><span>流动</span><span>经典隐喻</span></div>
+  </div>
+
+  <!-- #14 闪电圈 -->
+  <div class="card">
+    <div class="card-number">14</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <polygon points="13 2 8 13 12 13 11 22 16 11 12 11" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="1.5"/>
+          <polygon points="13 2 8 13 12 13 11 22 16 11 12 11" fill="#3b82f6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <polygon points="13 2 8 13 12 13 11 22 16 11 12 11" fill="#60a5fa"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#475569" stroke-width="1.5"/>
+          <polygon points="13 2 8 13 12 13 11 22 16 11 12 11" fill="#60a5fa"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">闪电核心</div>
+    <div class="card-concept">圆环 + 实心蓝色闪电。极简两个元素，极高冲击力。"瞬间触发"的能量感。类似 Zapier/Zap 的辨识度</div>
+    <div class="card-tags"><span>能量</span><span>瞬发</span><span>极高辨识</span></div>
+  </div>
+
+  <!-- #15 堆叠圆环 -->
+  <div class="card">
+    <div class="card-number">15</div>
+    <div class="icon-showcase">
+      <div class="icon-lg">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="#64748b" stroke-width="1.8" fill="none"/>
+          <circle cx="15" cy="15" r="7" stroke="#3b82f6" stroke-width="2" fill="none"/>
+          <path d="M14.5 8.1A7 7 0 0 0 8.1 14.5" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="icon-sm">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="#94a3b8" stroke-width="1.8"/>
+          <circle cx="15" cy="15" r="7" stroke="#3b82f6" stroke-width="2"/>
+          <path d="M14.5 8.1A7 7 0 0 0 8.1 14.5" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sidebar-demo">
+      <div class="sb-expanded">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.8" opacity="0.5"/>
+          <circle cx="15" cy="15" r="7" stroke="#60a5fa" stroke-width="2"/>
+          <path d="M14.5 8.1A7 7 0 0 0 8.1 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>CronPilot</span>
+      </div>
+      <div class="sb-collapsed">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.8" opacity="0.5"/>
+          <circle cx="15" cy="15" r="7" stroke="#60a5fa" stroke-width="2"/>
+          <path d="M14.5 8.1A7 7 0 0 0 8.1 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">双环交叠</div>
+    <div class="card-concept">两个偏心圆环交叠 — 灰色(计划) + 蓝色(执行)，交集处高亮弧线。"计划与执行的交汇"抽象表达</div>
+    <div class="card-tags"><span>交叠</span><span>Venn</span><span>抽象</span></div>
+  </div>
+
+</div>
+
+<!-- ===== Notes ===== -->
+<div class="notes">
+  <h2>第三轮设计理念</h2>
+  <ul>
+    <li><strong>从"图标"升级为"品牌标识"</strong> — 追求脱离文字仍可辨识的独特视觉</li>
+    <li><strong>更大胆的色彩运用</strong> — 填充色块、渐变灰度、透明度层次取代千篇一律的线条</li>
+    <li><strong>避免"通用图标库"感觉</strong> — 每个方案都有独特的形态故事，非标准 icon 变体</li>
+    <li><strong>致敬开发者文化</strong> — #10 五星号（crontab 语法）、#11 方括号、#12 终端提示符</li>
+    <li><strong>展示格式升级</strong> — 深色背景更接近实际侧边栏环境，大/小尺寸同时展示确保可读性</li>
+  </ul>
+  <h2>推荐方向</h2>
+  <ul>
+    <li><strong>最有品牌力</strong>：#8（蓝底方钟）— App icon 风格，简洁有力，即使在 favicon 尺寸也清晰</li>
+    <li><strong>最有设计感</strong>：#2（光圈快门）、#6（双螺旋）— 层次丰富，高级感强</li>
+    <li><strong>最有文化认同</strong>：#10（星号星座）、#11（[时钟]）— 开发者一眼就懂</li>
+    <li><strong>最有冲击力</strong>：#14（闪电核心）— 两个元素，极高辨识度</li>
+    <li><strong>最独特</strong>：#4（水滴计时）、#13（流沙沙漏）— 别人用不到的轮廓</li>
+  </ul>
+</div>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="brand-icon-candidates.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

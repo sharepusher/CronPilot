@@ -42,6 +42,7 @@
   --cp-accent-bg:      #eff6ff;  /* 强调底色 — cron_list 运行中 chip 未选中底 (blue-50) */
   --cp-accent-bg-2:    #dbeafe;  /* 强调底色变体 — users 角色 admin 徽标底 (blue-100) */
   --cp-accent-border:  #93c5fd;  /* 强调边框 — cron_list 运行中 chip 未选中边框 (blue-300) */
+  --cp-accent-ring:    rgba(8, 145, 178, 0.12); /* Focus ring — input/textarea focus box-shadow */
   --cp-tag-bg:         #e0e7ff;  /* 业务标签底色 — cron_list 标签 chip 柔和底色 (indigo-100) */
   --cp-tag-text:       #3730a3;  /* 业务标签文字 — cron_list 标签 chip 文字色 (indigo-800) */
 
@@ -58,6 +59,7 @@
   /* ====== 危险色系 ====== */
   --cp-danger:              #b91c1c;  /* 危险主色/错误文字 — cron_list 异常 chip、CronFormValidator 错误 (red-700) */
   --cp-danger-fill:         #dc2626;  /* 危险填充 — cron_list 异常 chip 选中底 (red-600) */
+  --cp-danger-text:         #991b1b;  /* 危险文字色（浅底上） — badge-err 文字 (red-800) */
   --cp-danger-dark:         #991b1b;  /* 深危险/hover — cron_list 菜单 danger hover (red-800) */
   --cp-danger-bg:           #fef2f2;  /* 危险提示底色 — cron_list 异常 chip 未选中底、CronFormValidator 错误底 (red-50) */
   --cp-danger-border:       #fecaca;  /* 危险提示边框 — CronFormValidator 错误边框 (red-200) */
@@ -68,6 +70,7 @@
   --cp-warn:           #b45309;  /* 警告主色/文字 — cron_add/edit 提示文字、operation_log 8 处 (amber-700) */
   --cp-warn-accent:    #d97706;  /* 警告强调/左边框 — cron_add/edit 提示条左边框 (amber-600) */
   --cp-warn-icon:      #f59e0b;  /* 警告图标/虚线边框 — cron_add/edit 输入框虚线、cron_list chip (amber-500) */
+  --cp-warn-text:      #854d0e;  /* 警告文字色（浅底上） — badge-warn 文字 (amber-800) */
   --cp-warn-dark:      #78350f;  /* 警告深色文字 — cron_add/edit 提示条文字 (amber-900) */
   --cp-warn-dark-2:    #92400e;  /* 警告深色变体 — cron_list 警告提示文字 (amber-800) */
   --cp-warn-bg:        #fffbeb;  /* 警告提示底色 — cron_add/edit/list 警告条底色 (amber-50) */
@@ -83,13 +86,16 @@
   --cp-state-timeout:      #9333ea;  /* 超时 (purple-600) */
 
   /* ====== 角色徽标 (rbac/_topbar.html) ====== */
-  --cp-role-admin:    #2980b9;  /* 管理员 */
-  --cp-role-operator: #16a085;  /* 运维 */
-  --cp-role-viewer:   #27ae60;  /* 观察者 */
-  --cp-role-seed:     #e67e22;  /* 种子账号 */
+  --cp-role-admin:    #2980b9;  /* 管理员 (Peter River) */
+  --cp-role-operator: #16a085;  /* 运维 (Green Sea) */
+  --cp-role-viewer:   #27ae60;  /* 观察者 (Nephritis) */
+  --cp-role-seed:     #e67e22;  /* 种子账号 (Carrot) */
   --cp-role-default:  #3498db;  /* 默认/未知角色 */
 
-  /* ====== Topbar (Flat UI 遗留色，侧边栏重构后可废弃) ====== */
+  /* ====== 填充按钮前景色 ====== */
+  --cp-on-filled:     #ffffff;  /* 填充（accent/danger）按钮上的文字色 */
+
+  /* ====== Topbar ====== */
   --cp-topbar-bg:    #2c3e50;  /* topbar 背景 (Flat UI midnight blue) */
   --cp-topbar-text:  #ecf0f1;  /* topbar 文字 (Flat UI silver) */
   --cp-topbar-muted: #7f8c8d;  /* topbar 分隔符 (Flat UI asbestos) */
@@ -100,13 +106,44 @@
   --cp-retired-fill:   #78716c;  /* 已下线选中底 (stone-500) */
   --cp-retired-border: #d6d3d1;  /* 已下线边框 (stone-300) */
 
-  /* ====== 链接 (simpleboot/Bootstrap 遗留) ====== */
+  /* ====== 链接 ====== */
   --cp-link: #337ab7;  /* Bootstrap 默认链接蓝 */
 
   /* ====== UI Mode internal (OPT-P2-14) ====== */
   --cp-bg:           #fafbfc;  /* Page background */
   --cp-text:         #1a1a2e;  /* Primary text */
   --cp-accent-fill:  #ecfeff;  /* Active nav item background */
+
+  /* ====== Design Tokens — 字号阶梯 (Phase 1 · OPT-P2-14) ====== */
+  --cp-font-xs:   11px;   /* 脚注/badge 内文字/时间戳 */
+  --cp-font-sm:   12px;   /* 表格正文/工具栏/搜索按钮 */
+  --cp-font-base: 13px;   /* 表单标签/导航项/侧边栏 */
+  --cp-font-md:   14px;   /* 段落正文/对话/描述 */
+  --cp-font-lg:   18px;   /* 页面标题 */
+
+  /* ====== Design Tokens — 间距 (4px 网格) ====== */
+  --cp-space-1:   4px;    /* 最紧凑：badge 内边距/图标间隙 */
+  --cp-space-2:   8px;    /* 控件内边距/行内间距 */
+  --cp-space-3:  12px;    /* 卡片内边距/表单行间 */
+  --cp-space-4:  16px;    /* 区块间距/节分隔 */
+  --cp-space-5:  24px;    /* 大分隔/页面边距 */
+  --cp-space-6:  32px;    /* 极大分隔 */
+
+  /* ====== Design Tokens — 圆角 (3 级语义) ====== */
+  --cp-radius-sm:  3px;   /* 小元素：badge/tag/状态标记 */
+  --cp-radius-md:  5px;   /* 中等元素：按钮/输入框/卡片 */
+  --cp-radius-lg:  8px;   /* 大容器：模态框/弹窗/面板 */
+
+  /* ====== Redesign Tokens — 2026 新架构语义层 (OPT-P1-16 Phase 1) ====== */
+  --cp-canvas:        #F7F8F9;  /* 页面级背景 */
+  --cp-signal:        #3D6FE0;  /* 主操作/品牌色 */
+  --cp-signal-hover:  #2F5FCB;  /* 主操作 hover */
+  --cp-signal-bg:     rgba(61,111,224,0.09);  /* 主操作浅底 */
+  --cp-text-muted:    #5B6169;  /* 次级文字 */
+  --cp-text-faint:    #9CA3AF;  /* 占位/辅助文字 */
+  --cp-shadow-sm:     0 1px 2px rgba(20,23,26,0.04);  /* 微投影 */
+  --cp-font-sans:     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --cp-font-mono:     "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -142,6 +179,7 @@
   --cp-accent-bg:      #1e293b;
   --cp-accent-bg-2:    #1e3a5f;
   --cp-accent-border:  #1d4ed8;
+  --cp-accent-ring:    rgba(34, 211, 238, 0.15);
   --cp-accent-fill:    #1a2744;
   --cp-tag-bg:         #312e81;
   --cp-tag-text:       #a5b4fc;
@@ -159,6 +197,7 @@
   /* ====== 危险色系 ====== */
   --cp-danger:              #f87171;
   --cp-danger-fill:         #ef4444;
+  --cp-danger-text:         #fca5a5;
   --cp-danger-dark:         #fca5a5;
   --cp-danger-bg:           #450a0a;
   --cp-danger-border:       #7f1d1d;
@@ -169,6 +208,7 @@
   --cp-warn:           #fbbf24;
   --cp-warn-accent:    #f59e0b;
   --cp-warn-icon:      #eab308;
+  --cp-warn-text:      #fde68a;
   --cp-warn-dark:      #fef3c7;
   --cp-warn-dark-2:    #fde68a;
   --cp-warn-bg:        #422006;
@@ -190,6 +230,9 @@
   --cp-role-seed:     #fb923c;
   --cp-role-default:  #93c5fd;
 
+  /* ====== 填充按钮前景色 ====== */
+  --cp-on-filled:     #ffffff;
+
   /* ====== Topbar ====== */
   --cp-topbar-bg:    #1e1e2e;
   --cp-topbar-text:  #e2e8f0;
@@ -203,6 +246,41 @@
 
   /* ====== 链接 ====== */
   --cp-link: #60a5fa;
+
+  /* ====== Redesign Tokens — dark overrides (OPT-P1-16) ====== */
+  --cp-canvas:        #0D0F12;
+  --cp-signal:        #4C8DFF;
+  --cp-signal-hover:  #7DAAFF;
+  --cp-signal-bg:     rgba(76,141,255,0.12);
+  --cp-text-muted:    #8B9198;
+  --cp-text-faint:    #565C64;
+  --cp-shadow-sm:     none;
+}
+
+/* ====== Redesign Shell Tokens — 2026 Mockup-Aligned Overrides (Phase 1A) ======
+ * Scoped to .cp-shell so v1 legacy pages are completely unaffected.
+ * Source of Truth: CronPilot-2026-full-mockup.html :root / html[data-theme="dark"]
+ * exact values read directly from Mockup (禁止从记忆或整合文档取值).
+ * ============================================================================== */
+.cp-shell {
+  --cp-ink:           #14171A;   /* Mockup: --ink */
+  --cp-surface-2:     #F1F2F4;   /* Mockup: --surface-2 */
+  --cp-border:        #E4E6E9;   /* Mockup: --border */
+  --cp-border-strong: #D3D6DA;   /* Mockup: --border-strong */
+  --cp-success:       #0F9D66;   /* Mockup: --success */
+  --cp-danger:        #D64545;   /* Mockup: --danger */
+  --cp-warn:          #B7791F;   /* Mockup: --warning */
+}
+
+html[data-theme="dark"] .cp-shell {
+  --cp-surface:         #16191D;   /* Mockup dark: --surface */
+  --cp-surface-2:       #1C2025;   /* Mockup dark: --surface-2 */
+  --cp-border:          #262B31;   /* Mockup dark: --border */
+  --cp-border-strong:   #34393F;   /* Mockup dark: --border-strong */
+  --cp-ink:             #ECEEF0;   /* Mockup dark: --ink */
+  --cp-success:         #34D399;   /* Mockup dark: --success */
+  --cp-danger:          #F16565;   /* Mockup dark: --danger */
+  --cp-warn:            #F5A623;   /* Mockup dark: --warning */
 }
 
 /* ============================================================

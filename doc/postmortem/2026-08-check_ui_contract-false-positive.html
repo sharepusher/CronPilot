@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：check_ui_contract.py 子字符串误报（legacy-class 检测）</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:960px;margin:40px auto;padding:0 24px;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #dc2626;padding-bottom:12px;color:#dc2626}
+h2{color:#1e40af;margin-top:40px;border-bottom:1px solid #e5e7eb;padding-bottom:8px}
+h3{color:#374151;margin-top:24px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-size:12px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;overflow-x:auto;font-size:12px;line-height:1.5}
+.box{border-radius:8px;padding:16px 20px;margin:16px 0}
+.box-red{background:#FEF2F2;border:1px solid #FECACA}
+.box-blue{background:#EFF6FF;border:1px solid #BFDBFE}
+.box-green{background:#F0FDF4;border:1px solid #BBF7D0}
+</style>
+</head>
+<body>
+
+<h1>复盘：check_ui_contract.py 子字符串误报（legacy-class 检测）</h1>
+
+<div class="box box-red">
+<strong>日期</strong>：2026-08-17<br>
+<strong>关联</strong>：OPT-P1-16 Phase 1C — UI Contract Static Guard<br>
+<strong>严重级别</strong>：低（仅影响工具误报计数，不影响业务代码）<br>
+<strong>发现方式</strong>：Phase 2 计划分析时审查 legacy-class 输出，发现 <code>tags.html:44</code> 的 <code>btn-danger-c</code> 被误报为 <code>btn-danger</code>
+</div>
+
+<h2>1. Bug 定位</h2>
+
+<p>文件：<code>scripts/check_ui_contract.py</code>，函数 <code>check_legacy_classes()</code></p>
+
+<p>两个具体误报位置：</p>
+<ul>
+  <li><code>app/templates/redesign/tags.html:44</code> — <code>class="btn-c btn-danger-c btn-xs btn-tag-delete"</code></li>
+  <li><code>app/templates/redesign/registration_review.html:46</code> — <code>class="btn-c btn-danger-c btn-xs js-reject-btn ..."</code></li>
+  <li>同样风险但未实际命中的前缀类：<code>btn-primary-c</code>、<code>btn-success-c</code>、<code>btn-default-c</code></li>
+</ul>
+
+<p>错误代码（修复前）：</p>
+<pre>class_val = m.group(1)
+for legacy in LEGACY_CLASSES:
+    if legacy in class_val:   # ← 字符串子串匹配</pre>
+
+<h2>2. 根因</h2>
+
+<p>HTML class 属性是空格分隔的 <strong>token 列表</strong>，其成员检测必须先 tokenize 再做集合判断。编写函数时将字符串 <code>in</code> 操作视为"足够精确"，没有意识到 HTML class 属性的分词语义：<code>"btn-danger" in "btn-danger-c btn-xs"</code> 在 Python 字符串层面为 True，但在 HTML 语义层面是错误匹配。</p>
+
+<p>行为层追溯：</p>
+<ul>
+  <li>脚本在 Phase 1C 创建时，直接从"检测字符串是否包含关键词"的直觉出发</li>
+  <li>没有对 HTML token 分词这一领域知识做显式测试</li>
+  <li>项目中 <code>btn-danger-c</code> 等类名在 v1 模板已有使用，但 Phase 1C 创建时未比对已有类名前缀</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+
+<p><code>check_ui_contract.py</code> 在创建时（Phase 1C）<strong>没有配套单元测试文件</strong>。本应存在如下测试：</p>
+<pre>def test_no_false_positive_btn_danger_c():
+    lines = ['&lt;a class="btn-c btn-danger-c btn-xs"&gt;删除&lt;/a&gt;']
+    assert check_legacy_classes(lines, "test.html") == []</pre>
+<p>如果该测试存在，脚本在 Phase 1C 首次运行时就会失败，误报不会进入下一轮。</p>
+
+<h2>4. 修复</h2>
+
+<p>将字符串子串匹配替换为 HTML token 集合判断（1 行核心变更）：</p>
+<pre># 修复前
+class_val = m.group(1)
+if legacy in class_val:
+
+# 修复后
+tokens = set(m.group(1).split())
+if legacy in tokens:</pre>
+
+<p>此修复同步消除了 <code>btn-primary-c</code>、<code>btn-success-c</code>、<code>btn-default-c</code> 的潜在前缀匹配风险。违规计数从 72 → 68（4 个误报消除）。</p>
+
+<h2>5. 防护测试</h2>
+
+<p>新增 <code>tests/test_check_ui_contract.py</code>，包含 25 个测试用例，覆盖：</p>
+
+<table>
+<tr><th>测试类</th><th>测试内容</th></tr>
+<tr><td><code>TestLegacyClassDetection</code></td><td>4 个 false-positive 防护（btn-danger-c/primary-c/success-c/default-c）；6 个真阳性检测；行号报告正确性</td></tr>
+<tr><td><code>TestInlineStyleAllowlist</code></td><td>CSS var / display / width 100% / position 允许；font-weight / font-size / margin 拦截</td></tr>
+<tr><td><code>TestInlineStyleCheck</code></td><td>font-weight inline 检测；display:none 放行</td></tr>
+<tr><td><code>TestHexInStyleAttr</code></td><td>hex 色值检测；class 属性 hex 不误报；CSS var 放行</td></tr>
+</table>
+
+<p>运行命令：</p>
+<pre>python3 -m unittest tests.test_check_ui_contract -v
+# 期望：25 tests pass</pre>
+
+<h2>6. 同类排查</h2>
+
+<p><code>LEGACY_CLASSES</code> 中所有 <code>btn-*</code> 前缀条目均已被 token 匹配方案同步修复，无残留同类风险。</p>
+
+<table>
+<tr><th>被修复的潜在前缀冲突</th><th>项目实际类名</th><th>状态</th></tr>
+<tr><td><code>btn-danger</code></td><td><code>btn-danger-c</code></td><td>✓ 已修复</td></tr>
+<tr><td><code>btn-primary</code></td><td><code>btn-primary-c</code></td><td>✓ 已修复</td></tr>
+<tr><td><code>btn-success</code></td><td><code>btn-success-c</code></td><td>✓ 已修复</td></tr>
+<tr><td><code>btn-default</code></td><td><code>btn-default-c</code></td><td>✓ 已修复</td></tr>
+</table>
+
+<p><code>check_inline_styles()</code> 和 <code>check_hex_in_style_attr()</code> 不涉及 class 属性解析，无同类问题。</p>
+
+<h2>7. 预防方案</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>1</td>
+  <td>单元测试覆盖 token 边界（防止回退到子串匹配）</td>
+  <td><code>tests/test_check_ui_contract.py</code>（已创建，25 用例）</td>
+  <td><code>python3 -m unittest tests.test_check_ui_contract -v</code></td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>脚本顶部注释明确"必须用 token 匹配，禁用子字符串匹配"规则</td>
+  <td><code>scripts/check_ui_contract.py</code> <code>check_legacy_classes()</code> 函数注释</td>
+  <td><code>grep -n "token" scripts/check_ui_contract.py</code></td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>CI 接入时将 <code>test_check_ui_contract</code> 加入测试矩阵</td>
+  <td><code>.github/workflows/ui-contract.yml</code>（Phase 2 CI 接入时）</td>
+  <td>CI pipeline 绿色</td>
+</tr>
+</table>
+
+<div class="box box-green">
+<strong>核心预防逻辑</strong>：新增测试（措施 1）是根因的直接对策——缺少单元测试导致误报进入使用阶段，新增测试确保未来任何回退都能被立即捕获，而非等到人工审查。
+</div>
+
+<hr>
+<p style="font-size:12px;color:#6b7280">
+  <a href="../index.html">文档索引</a> ·
+  <a href="2026-08-check_ui_contract-false-positive.md">Markdown 版</a>
+</p>
+</body>
+</html>

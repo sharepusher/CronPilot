@@ -40,7 +40,7 @@ def create_app(config_name):
 
     db.init_app(app)
     from app.services.job_log_display import job_log_badge, job_log_content_preview, job_log_status_line, job_log_status_badge_class
-    from app.services.cron_schedule_display import format_cron_expression, humanize_schedule
+    from app.services.cron_schedule_display import format_cron_expression, format_duration, humanize_schedule
 
     app.jinja_env.filters['job_log_status_line'] = job_log_status_line
     app.jinja_env.filters['job_log_content_preview'] = job_log_content_preview
@@ -48,9 +48,14 @@ def create_app(config_name):
     app.jinja_env.filters['job_log_status_badge_class'] = job_log_status_badge_class
     app.jinja_env.filters['humanize_schedule'] = humanize_schedule
     app.jinja_env.filters['format_cron_expression'] = format_cron_expression
+    app.jinja_env.filters['format_duration'] = format_duration
     scheduler.app = app
-    scheduler.init_app(app)
-    scheduler.start()
+    if app.config.get('CRONPILOT_SCHEDULER_ENABLED', True):
+        scheduler.init_app(app)
+        scheduler.start()
+    else:
+        # Web-only mode: scheduler not started; DB + routes still available
+        scheduler.init_app(app)
 
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
@@ -70,6 +75,19 @@ def create_app(config_name):
 
     from app.ui_mode import inject_ui_mode
     app.context_processor(inject_ui_mode)
+
+    # OPT-P1-16: Set g.ui_version for views to branch template selection
+    from app.ui_mode import _VALID_UI_VERSIONS
+
+    @app.before_request
+    def _set_ui_version():
+        from flask import g, request as _req
+        ui_version = _req.cookies.get('cp_ui_version', 'v1')
+        if app.config.get('CRONPILOT_FORCE_NEW_UI'):
+            ui_version = 'v2'
+        if ui_version not in _VALID_UI_VERSIONS:
+            ui_version = 'v1'
+        g.ui_version = ui_version
 
     _register_metrics_endpoint(app)
     _register_api_error_handlers(app)

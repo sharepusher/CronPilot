@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：安全问题 S1–S5 修复</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.3em}
+h2{color:#0891b2;margin-top:2em;border-bottom:1px solid #e5e7eb;padding-bottom:.2em}
+h3{color:#374151;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-family:"SF Mono",Menlo,monospace;font-size:0.9em}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+</style>
+</head>
+<body>
+
+<h1>复盘：安全问题 S1–S5 修复</h1>
+
+<table>
+<tr><th>日期</th><td>2026-08-24</td></tr>
+<tr><th>发现方式</th><td>全面前后端代码审计（Code Review）</td></tr>
+<tr><th>严重级别</th><td>P1 安全（5 个问题）</td></tr>
+<tr><th>修复状态</th><td>S1–S5 全部已修复</td></tr>
+</table>
+
+<h2>S5：API 装饰器 catch-all 异常文本泄露</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/decorated.py:32-34</code>，<code>api_deal_return</code> 装饰器的 <code>except Exception</code> 分支中 <code>return api_return(errcode=1, errmsg=str(e))</code> 将 Python 异常原始文本返回给 API 调用方。当前仅 <code>app/api/views.py:585</code> 的 <code>crons_legacy</code>（<code>/api/cron/add</code> 旧路径兼容层）使用此装饰器。</p>
+
+<h3>2. 根因</h3>
+<p>与 P0-3 完全同源。<code>decorated.py</code> 是上游 <code>xiaoniu_cron</code> 的遗留代码，在开发阶段将异常信息直接返回便于调试。P0-3 修复时执行 <code>grep "msg=str(e)" app/main/views.py app/rbac/views.py</code>，搜索范围限于管理端视图层，未扩展到 API 装饰器层。<strong>根因行为层</strong>：修复搜索时按"已知受影响文件"而非"全仓库相同模式"搜索，导致同源问题遗漏。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>P0-3 的修复验证命令 <code>grep -rn "msg=str(e)" app/main/views.py app/rbac/views.py</code> 路径限定为两个文件，未覆盖 <code>decorated.py</code>。P0-3 复盘中提出的 CI grep 检查也仅覆盖了 <code>web_api_return</code>（管理端），未覆盖 <code>api_return</code>（API 层）。</p>
+
+<h3>4. 修复</h3>
+<p>将 <code>str(e)</code> 替换为通用错误信息 <code>'服务器内部错误'</code>。新增 <code>logging.getLogger(__name__).error()</code> 并设置 <code>exc_info=True</code> 确保完整堆栈写入日志。</p>
+
+<h3>5. 防护测试</h3>
+<pre>
+# 全仓库搜索：确认无 str(e) 返回客户端
+grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ | grep -v "logger\|logging\|wechat"
+# → 无匹配
+
+# decorated.py 专项
+grep -n "str(e)" app/decorated.py
+# → 无匹配
+</pre>
+
+<h3>6. 同类排查</h3>
+<p>P0-3（<code>main/views.py</code>）已修复。全仓库搜索 <code>str(e)</code> 出现在客户端响应构造中的情况：</p>
+<pre>grep -rn "str(e)" app/ | grep -v "logger\|logging\|wechat\|#\|'''" → 无匹配（所有 str(e) 仅用于日志/告警）</pre>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td><strong>扩大 CI grep 搜索范围</strong>：异常脱敏检查覆盖整个 <code>app/</code> 目录，包括 <code>api_return</code> 和 <code>web_api_return</code> 两套返回函数</td>
+  <td><code>AGENTS.md</code> "异常信息脱敏" 规范</td>
+  <td><code>grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ | grep -v "logger\|logging" &amp;&amp; echo FAIL || echo OK</code></td>
+</tr>
+<tr>
+  <td>更新 AGENTS.md 异常脱敏规范的自检命令，将搜索路径从 <code>app/main/views.py app/rbac/views.py</code> 扩展为 <code>app/</code></td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "app/" AGENTS.md | grep "str(e)"</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>S3：标签 CRUD 缺 scope 校验</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/rbac/views.py</code> 的 <code>tag_create</code>（L1176）、<code>tag_update</code>（L1194）、<code>tag_rename</code>（L1206）、<code>tag_tasks</code>（L1217）、<code>tag_delete</code>（L1232）— 仅有 <code>@require_permission('user:manage')</code> 权限检查，无 scope 层面校验。按组管理员可越权操作其他组或全局标签。</p>
+
+<h3>2. 根因</h3>
+<p>标签系统在用户管理/组管理之后开发。开发时 <strong>UI 层面用前端 JS 控制了 <code>group_id</code> 下拉选项</strong>（只展示用户所属组），误以为前端限制等于安全防护。同期的组管理路由（<code>groups_edit</code> L913）已有 <code>_actor_bypasses_scope()</code> 检查，但标签路由开发时未对齐该模式。<strong>根因行为层</strong>：新功能开发时未执行"策略变更影响分析"中的"全路径枚举"步骤，遗漏了与已有安全模式的对齐。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>现有标签测试覆盖 CRUD 正常流程（管理员），不覆盖"按组管理员越权操作其他组标签"的负面场景。无集成测试以 Biz Admin 身份 POST 篡改 <code>group_id</code>。</p>
+
+<h3>4. 修复</h3>
+<p>新增 <code>_check_tag_group_id_scope(group_id)</code> 和 <code>_check_tag_scope(tag)</code> 辅助函数。5 个标签路由全部加入 scope 校验：</p>
+<ul>
+<li><code>tag_create</code>：校验 <code>group_id</code> 在 <code>session['group_ids']</code> 中；拒绝全局标签（<code>group_id=None</code>）</li>
+<li><code>tag_update</code> / <code>tag_rename</code> / <code>tag_delete</code>：先查标签归属组，校验在操作者 scope 内</li>
+<li><code>tag_tasks</code>：读取也需 scope 限制，防止信息泄露</li>
+</ul>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_tag_scope.py</code> — 9 条单元测试：</p>
+<table>
+<tr><th>类别</th><th>测试数</th><th>覆盖场景</th></tr>
+<tr><td>自组操作（应放行）</td><td>3</td><td>create/update/delete 自组标签</td></tr>
+<tr><td>他组操作（应拦截）</td><td>4</td><td>create/update/delete/tasks 他组标签</td></tr>
+<tr><td>全局操作（应拦截）</td><td>2</td><td>create/update 全局标签</td></tr>
+</table>
+
+<h3>6. 同类排查</h3>
+<p>搜索所有使用 <code>@require_permission</code> 但无 <code>_actor_bypasses_scope()</code> 的路由：</p>
+<ul>
+<li>用户管理路由（<code>users/groups/audit</code>）— 已有 scope 检查</li>
+<li>任务相关路由（<code>cron_add/edit/update_status</code>）— 通过 <code>build_scope_filter_clause</code> 过滤</li>
+<li>标签路由 — <strong>唯一缺失</strong>，已修复</li>
+</ul>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增 scope 校验函数 + 9 条覆盖测试</td>
+  <td><code>app/rbac/views.py</code> + <code>tests/test_tag_scope.py</code></td>
+  <td><code>.venv-py311/bin/python -m unittest tests.test_tag_scope -v</code></td>
+</tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> "策略变更影响分析" 中追加示例：新功能路由必须对齐已有 scope 校验模式</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "scope" AGENTS.md | grep -i "标签\|tag"</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>S4：存储型 XSS（data-* → innerHTML 链路）</h2>
+
+<h3>1. Bug 定位</h3>
+<p>多个模板中 <code>data-*</code> 属性取值后直接拼入 <code>innerHTML</code> / <code>bodyHtml</code>：</p>
+<table>
+<tr><th>文件</th><th>行号</th><th>问题</th></tr>
+<tr><td><code>registration_review.html</code></td><td>139, 153</td><td><code>username</code> 拼入 <code>CpModal bodyHtml</code></td></tr>
+<tr><td><code>tags.html</code></td><td>334, 339, 424, 432, 449</td><td><code>tagName</code> / <code>task.name</code> / <code>tag_name</code> 拼入 <code>CpModal title/bodyHtml</code></td></tr>
+<tr><td><code>task_form.html</code></td><td>247</td><td><code>addTag()</code> 用 <code>innerHTML</code> 拼标签名</td></tr>
+</table>
+
+<h3>2. 根因</h3>
+<p>开发者信任 Jinja2 自动转义提供完整 XSS 防护。模板层确实安全——<code>{{ req.username }}</code> 在 <code>data-username</code> 属性中被转义为 <code>&amp;lt;</code> 等。但 HTML entity 编解码存在链路不对称：</p>
+<ol>
+<li>Jinja2 转义保护 <strong>HTML 解析阶段</strong>（防止属性值跳出引号）</li>
+<li>浏览器解析 HTML 时<strong>解码</strong> entities → DOM 属性值为原始字符串</li>
+<li>jQuery <code>.data()</code> 返回解码后的值</li>
+<li>拼入 <code>bodyHtml</code> → <code>innerHTML</code> → <strong>脚本执行</strong></li>
+</ol>
+<p><strong>根因行为层</strong>：将"Jinja2 自动转义"等同于"全链路 XSS 防护"，忽略了 JS 层的 innerHTML 二次注入风险。同一项目的 <code>register.html</code> 已正确使用 <code>escHtml()</code>，但未形成团队规范。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>无前端 XSS 自动化测试。手动验收时使用正常字符的用户名/标签名，不覆盖特殊字符输入。现有后端测试不覆盖 JS 层行为。</p>
+
+<h3>4. 修复</h3>
+<ul>
+<li><code>registration_review.html</code>：新增 <code>escHtml()</code> 函数，2 处 <code>username</code> 拼接加 <code>escHtml()</code></li>
+<li><code>tags.html</code>：新增 <code>escHtml()</code> 函数，5 处 <code>tagName</code> / <code>task.name</code> 拼接加 <code>escHtml()</code></li>
+<li><code>task_form.html</code>：<code>addTag()</code> 的 <code>innerHTML</code> 改为 <code>textContent</code> + DOM API 创建 <code>&lt;button&gt;</code></li>
+</ul>
+
+<h3>5. 防护测试</h3>
+<pre>
+# 全模板 innerHTML 扫描
+rg -n "innerHTML\s*=" app/templates/redesign/
+# → 仅 task_form.html:275（清空 innerHTML=''）和 register.html:478（已用 escHtml）
+
+# data-* 取值后拼 HTML 扫描
+rg -n "\.data\(|dataset\." app/templates/redesign/ | grep -v escHtml | grep -v textContent | grep -v "\.id\b"
+# → 无高风险残留
+</pre>
+
+<h3>6. 同类排查</h3>
+<p>全仓库搜索 <code>innerHTML</code> 赋值 + <code>data-*</code>/<code>dataset</code> 取值拼接：修复后仅剩安全用法（<code>innerHTML = ''</code> 清空 / <code>escHtml()</code> 包裹 / <code>textContent</code> 替代）。<code>register.html</code> 在项目初期已正确使用 <code>escHtml</code>，未推广到其他模板。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>在 <code>AGENTS.md</code> 新增规范：模板 JS 中凡从 <code>data-*</code> / <code>dataset</code> 取值后拼入 <code>innerHTML</code> / <code>bodyHtml</code>，必须经 <code>escHtml()</code> 转义或改用 <code>textContent</code></td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "escHtml\|innerHTML" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>CI 扫描：<code>rg "innerHTML\s*=(?!.*escHtml)" app/templates/redesign/</code> 检查是否有未转义的 innerHTML 赋值</td>
+  <td>CI workflow</td>
+  <td><code>rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml &amp;&amp; echo WARN || echo OK</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>S1+S2：登出 CSRF + 遗留路由清理</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/rbac/views.py</code> L247：<code>@rbac.route('/logout', methods=['GET', 'POST'])</code> — 登出接受 GET 请求。攻击者可构造 <code>&lt;img src="/rbac/logout"&gt;</code> 使已登录用户被强制登出。</p>
+<p>遗留路由 <code>app/main/views.py</code>：<code>/logout</code>（L1209）直接 <code>session.clear()</code>；<code>/check_pass</code>（L1201）接受 <code>safe_next_url</code> 参数但实质是登录重定向。</p>
+<p>前端引用：<code>app/templates/redesign/_topbar.html</code> L61 — <code>&lt;a href="/rbac/logout"&gt;</code> 直接 GET 链接；<code>app/static/js/common.js</code> L854 — Command Palette 搜索结果中 "退出登录" 使用 GET 导航。</p>
+
+<h3>2. 根因</h3>
+<p>登出功能在 RBAC 系统初始开发时沿用上游 <code>xiaoniu_cron</code> 的 GET 登出模式。上游系统为内网工具，不考虑 CSRF 攻击面。RBAC 改造时添加了 CSRF 保护中间件和 <code>@csrf_protect</code> 装饰器，但 <code>@csrf_protect</code> 在 GET 请求时不校验 CSRF token（这是正确行为——GET 应该是幂等的），而登出不是幂等操作。<strong>根因行为层</strong>：<code>@csrf_protect</code> 的存在创造了"CSRF 已防护"的假象，但它只保护 POST，而登出同时接受 GET。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>无测试覆盖 "GET /rbac/logout 应返回 405" 的负面场景。现有登出测试仅验证 POST 成功后 session 清除，不验证 GET 被拒绝。</p>
+
+<h3>4. 修复</h3>
+<ul>
+<li><strong>后端</strong>：<code>/rbac/logout</code> 改为 <code>methods=['POST']</code>（GET → 405）</li>
+<li><strong>Redesign 前端</strong>：<code>_topbar.html</code> 登出链接改为 <code>&lt;a id="cp-logout-btn"&gt;</code> + 隐藏 <code>&lt;form method="POST"&gt;</code>（含 CSRF token）；<code>redesign-shell.js</code> 新增 click handler 提交表单</li>
+<li><strong>v1 前端</strong>：<code>common.js</code> Command Palette 的 "退出登录" 标记为 <code>post: true</code>；新增 <code>postNavigate()</code> 函数动态创建 POST 表单（含 CSRF meta token）</li>
+<li><strong>遗留路由</strong>：<code>/logout</code> 和 <code>/check_pass</code> 不再清除 session，仅重定向到 <code>/rbac/login</code></li>
+<li><code>decorated.py</code> 中死代码 <code>login_required</code> 的 <code>/check_pass</code> 引用改为 <code>/rbac/login</code></li>
+</ul>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_logout_csrf.py</code> — 4 条单元测试：</p>
+<table>
+<tr><th>测试</th><th>断言</th></tr>
+<tr><td><code>test_get_logout_returns_405</code></td><td>GET /rbac/logout → 405</td></tr>
+<tr><td><code>test_post_logout_redirects</code></td><td>POST /rbac/logout → 302 + session 清除</td></tr>
+<tr><td><code>test_legacy_logout_redirects_to_login</code></td><td>GET /logout → 302 → /rbac/login</td></tr>
+<tr><td><code>test_legacy_check_pass_redirects_to_login</code></td><td>GET /check_pass → 302 → /rbac/login</td></tr>
+</table>
+
+<h3>6. 同类排查</h3>
+<p>搜索所有状态修改操作仍使用 GET 的路由：</p>
+<pre>
+grep -n "methods=\['GET'\]" app/rbac/views.py | grep -v "login\|password\|register\|complete_profile"
+# → 无其他状态修改操作使用纯 GET
+</pre>
+<p>v1 topbar（<code>rbac/_topbar.html</code>）已使用 POST form，无需修改。<code>change_password.html</code>、<code>complete_profile.html</code> 的登出按钮已使用 POST form。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增规范：状态修改操作（登出、删除、修改等）必须使用 POST + CSRF，禁止 GET</td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>grep "POST.*CSRF\|登出.*POST" AGENTS.md</code></td>
+</tr>
+<tr>
+  <td>4 条单元测试持续回归</td>
+  <td><code>tests/test_logout_csrf.py</code></td>
+  <td><code>.venv-py311/bin/python -m unittest tests.test_logout_csrf -v</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>C1+X1+X2：Cookie SameSite 一致性 + XSS 防御深度</h2>
+
+<h3>1. Bug 定位</h3>
+<ul>
+<li><strong>C1</strong>：<code>redesign-theme.js:17</code>、<code>redesign-shell.js:20</code>、<code>_topbar.html:56</code> — cookie 写入缺 <code>samesite=lax</code></li>
+<li><strong>X1</strong>：<code>tags.html:420</code> — <code>r.errmsg</code> 未经 <code>escHtml()</code> 直接拼入 modal bodyHtml</li>
+<li><strong>X2</strong>：<code>redesign-confirm.js:115,118</code> — <code>CpModal</code> 的 <code>confirmText</code>/<code>cancelText</code> 通过 <code>innerHTML</code> 拼接</li>
+</ul>
+
+<h3>2. 根因</h3>
+<p><strong>C1</strong>：Redesign JS 模块独立开发，未对齐 <code>common.js</code> 已有的 <code>samesite=lax</code> 写法。<strong>X1/X2</strong>：与 S4 同源，S4 修复时搜索范围覆盖 <code>data-*</code> → <code>innerHTML</code> 链路，但 <code>r.errmsg</code>（AJAX 响应 → innerHTML）和 <code>opts.confirmText</code>（函数参数 → innerHTML）属于不同输入路径，未被 S4 修复搜索覆盖。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>无自动化检查 cookie 属性一致性。S4 的 innerHTML 扫描命令 <code>rg "innerHTML\s*=" app/templates/redesign/</code> 覆盖模板但不覆盖 JS 模块文件。</p>
+
+<h3>4. 修复</h3>
+<ul>
+<li><strong>C1</strong>：3 处 cookie 写入追加 <code>;samesite=lax</code></li>
+<li><strong>X1</strong>：<code>r.errmsg</code> 包裹 <code>escHtml()</code></li>
+<li><strong>X2</strong>：<code>CpModal</code> footer 改为 DOM API（<code>createElement</code> + <code>textContent</code>），不再使用 innerHTML 拼接</li>
+</ul>
+
+<h3>5. 防护测试</h3>
+<pre>
+rg "samesite" app/static/js/redesign-theme.js app/static/js/redesign-shell.js app/templates/redesign/_topbar.html
+# → 3 处均已包含 samesite=lax
+
+rg "escHtml.*errmsg" app/templates/redesign/tags.html
+# → 确认 escHtml 包裹
+
+rg "textContent.*Text" app/static/js/redesign-confirm.js
+# → 确认 cancelText/confirmText 使用 textContent
+</pre>
+
+<h3>6. 同类排查</h3>
+<p>Cookie：<code>rg "document\.cookie" app/static/js/ app/templates/</code> — 所有写入点均已包含 <code>samesite=lax</code>。innerHTML：S4 已修复模板中 <code>data-*</code> → innerHTML 链路；X1/X2 覆盖了剩余的 AJAX 响应 → innerHTML 和函数参数 → innerHTML 路径。</p>
+
+<h3>7. 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+  <td>新增规范：cookie 写入必须包含 <code>samesite=lax</code></td>
+  <td><code>AGENTS.md</code></td>
+  <td><code>rg "document\.cookie\s*=" app/static/js/ app/templates/ | grep -v "samesite" &amp;&amp; echo WARN || echo OK</code></td>
+</tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-security-S1-S5.md">Markdown</a></footer>
+</body>
+</html>

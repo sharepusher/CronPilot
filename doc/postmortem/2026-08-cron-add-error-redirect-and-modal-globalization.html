@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>复盘：cron_add 错误重定向 + CpModal 全局化 — 2026-08</title>
+<style>
+body{font-family:'Inter',Arial,sans-serif;max-width:900px;margin:32px auto;padding:0 20px;color:#14171a;font-size:14px;line-height:1.6;}
+h1{font-size:22px;border-bottom:2px solid #3d6fe0;padding-bottom:8px;margin-bottom:24px;}
+h2{font-size:17px;color:#3d6fe0;margin-top:32px;}
+h3{font-size:14px;color:#5b6169;margin-top:20px;}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+th{background:#f1f2f4;text-align:left;padding:8px 10px;border:1px solid #e4e6e9;font-weight:600;}
+td{padding:8px 10px;border:1px solid #e4e6e9;vertical-align:top;}
+code{background:#f1f2f4;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;}
+pre{background:#f7f8f9;border:1px solid #e4e6e9;padding:12px;border-radius:6px;overflow:auto;font-size:12px;}
+.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+.tag-danger{background:#fde8e8;color:#d64545;}
+.tag-warn{background:#fff3e0;color:#b7791f;}
+.tag-ok{background:#e8f5e9;color:#0f9d66;}
+</style>
+</head>
+<body>
+
+<h1>复盘：cron_add 错误重定向 &amp; CpModal 全局化 — 2026-08</h1>
+
+<p><strong>触发来源</strong>：用户报告 Bug + 自查发现同类问题</p>
+<p><strong>涉及功能</strong>：任务创建表单 (<code>cron_add</code>) + 注册审批弹窗 (<code>registration_review</code>)</p>
+
+<hr>
+
+<h2>BUG-1：cron_add 异常时立即跳转到任务列表</h2>
+
+<h3>1 · Bug 定位</h3>
+<table>
+<tr><th>位置</th><td><code>app/main/views.py</code>，第 898–901 行，<code>cron_add</code> POST 处理器的 except 分支</td></tr>
+<tr><th>现象</th><td>用户填写任务新建表单后提交，若服务端发生异常（如 DB 写入失败、tag 解析异常等），页面立即跳转到 <code>/cron_list</code>，用户失去所有填写内容，无法看到具体错误原因</td></tr>
+<tr><th>复现</th><td>触发任意服务端异常（如构造非法 cron 表达式绕过前端校验）后观察页面跳转行为</td></tr>
+</table>
+
+<h3>2 · 根因</h3>
+<pre>
+# app/main/views.py 原始代码（已修复）
+except Exception as e:
+    trace_info = traceback.format_exc()
+    wechat_info_err(str(e), trace_info)
+    return web_api_return(code=1, msg=str(e), url='/cron_list')  # ← 错误：含 url 字段
+
+# app/static/js/common.js js-ajax-form 的 success 回调（第 187-189 行）：
+if (data.url) {
+    window.location.href = data.url;   # ← 无论 errcode 是否为 1，只要有 url 就跳转
+}
+</pre>
+
+<p><strong>行为层根因</strong>：</p>
+<ul>
+<li><code>common.js</code> 的 <code>js-ajax-form</code> success 回调在有 <code>data.url</code> 时<strong>无条件重定向</strong>，不检查 <code>errcode</code></li>
+<li>正常验证错误（code=1，无 url）会在按钮旁显示短暂提示然后消失，行为符合预期</li>
+<li>但异常分支（except）写了 <code>url='/cron_list'</code> ——这是从正常成功路径（code=0）复制时带入的参数，未意识到 url 会触发无条件跳转</li>
+</ul>
+
+<h3>3 · 测试漏洞</h3>
+<table>
+<tr><th>现有测试</th><td><code>tests.test_p0_phase_a</code>、<code>tests.test_ajax_form_guard</code> 均未测试"服务端抛出异常时响应不含 url"</td></tr>
+<tr><th>漏洞根因</th><td>异常路径属于 happy-path 测试的盲区；AJAX 错误响应字段内容未纳入契约测试</td></tr>
+</table>
+
+<h3>4 · 修复</h3>
+<pre>
+# 修复后（app/main/views.py 第 901 行）
+return web_api_return(code=1, msg=str(e))  # 移除 url='/cron_list'
+</pre>
+
+<h3>5 · 防护测试</h3>
+<p>在 <code>tests/test_ajax_form_guard.py</code> 中添加测试：<code>test_cron_add_error_response_has_no_url</code></p>
+<pre>
+# 验证 cron_add POST 错误响应不含 url 字段（防止重定向）
+def test_cron_add_error_response_has_no_url(self):
+    # 触发服务端验证错误
+    resp = self.client.post('/cron_add', data={'task_name': '', ...})
+    data = json.loads(resp.data)
+    self.assertEqual(data['errcode'], 1)
+    self.assertNotIn('url', data, "错误响应不应含 url 字段（会触发 js-ajax-form 无条件跳转）")
+</pre>
+
+<h3>6 · 同类排查</h3>
+<table>
+<tr><th>排查范围</th><th>结论</th></tr>
+<tr><td><code>cron_edit</code> POST handler</td><td>无 except 块，异常会 500 并由 Flask 全局错误处理器接管，不含 url ✓</td></tr>
+<tr><td><code>update_status</code> 的 code=1 错误</td><td>包含 <code>url='/cron_list'</code>（第 991 行），但这是 task-not-found 的 GET/POST 双路由守卫，触发时用户不在表单上，重定向行为可接受</td></tr>
+<tr><td>其他 code=1 含 url 的地方（L932/937/1026/1055）</td><td>均在函数最开头（资源查找失败），非提交中的异常，重定向符合预期</td></tr>
+</table>
+
+<h3>7 · 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+<td>在 <code>AGENTS.md</code> 和 <code>cronpilot-project.mdc</code> 补充规范：<strong>AJAX POST handler 的 except 分支，禁止在 code=1 错误响应中携带 url 字段</strong></td>
+<td><code>AGENTS.md</code>「AJAX 响应字段名规范」节</td>
+<td><code>grep -n "url.*code=1\|code=1.*url=" app/main/views.py app/rbac/views.py</code>（应只返回已知合法的资源守卫场景）</td>
+</tr>
+<tr>
+<td>新增测试：<code>test_cron_add_error_response_has_no_url</code></td>
+<td><code>tests/test_ajax_form_guard.py</code></td>
+<td><code>.venv-py311/bin/python -m unittest tests.test_ajax_form_guard -v</code></td>
+</tr>
+</table>
+
+<hr>
+
+<h2>BUG-2：registration_review.html Bootstrap modal 在 redesign shell 中不可见</h2>
+
+<h3>1 · Bug 定位</h3>
+<table>
+<tr><th>位置</th><td><code>app/templates/redesign/registration_review.html</code>，第 81-129 行，2 个 Bootstrap modal div + Bootstrap JS 导入</td></tr>
+<tr><th>现象</th><td>点击"通过"/"拒绝"按钮，弹窗要么透明、要么完全不显示（与 Z3 tags.html 事故同根因）</td></tr>
+</table>
+
+<h3>2 · 根因</h3>
+<p>Redesign shell 的 CSS（<code>console-theme.css</code>、<code>redesign-components.css</code>）与 Bootstrap 的 modal z-index / positioning 策略冲突。Bootstrap modal 依赖 <code>position:fixed</code> 和特定的 <code>z-index</code> 层级，而 redesign 的 shell 容器改变了 stacking context，导致 modal 背景遮罩透明或内容区域定位错误。此问题在 Z3（tags.html）中已被识别，但 registration_review.html 的迁移被推迟。</p>
+
+<h3>3 · 测试漏洞</h3>
+<table>
+<tr><th>漏洞</th><td>同类排查（Z3 postmortem）已标记此文件为"待修复"，但未被纳入任何自动化测试；CI 中无 Bootstrap modal 使用的检测门禁</td></tr>
+<tr><th>修复后</th><td><code>grep "\.modal('show')\|bootstrap.min" app/templates/redesign/</code> 返回 0 结果，可纳入 CI</td></tr>
+</table>
+
+<h3>4 · 修复</h3>
+<ul>
+<li>移除 <code>registration_review.html</code> 中所有 Bootstrap modal HTML（<code>#approveModal</code>、<code>#rejectModal</code>）及 CSS/JS 导入</li>
+<li>迁移"批准"弹窗至 <code>CpModal()</code>（支持 HTML body，显示 username 加粗 + 停用警告）</li>
+<li>迁移"拒绝"弹窗至 <code>CpModal()</code>（含 textarea 输入）</li>
+<li>弹窗确认后通过 <code>submitForm()</code> 动态创建原生 form 提交（绕过 jQuery 事件链，避免守卫干扰）</li>
+</ul>
+
+<h3>5 · 同类排查 + CpModal 全局化</h3>
+<p><strong>根本改进</strong>：将 <code>CpModal</code> 从 <code>tags.html</code> 的内联定义提取到 <code>redesign-confirm.js</code> 作为 <code>window.CpModal</code>，使所有 redesign 页面无需重复定义即可使用。</p>
+<pre>
+# 验证 CpModal 全局可用
+browser_cdp: typeof window.CpModal  → "function"
+browser_cdp: typeof window.CpConfirm  → "object"
+</pre>
+<p><code>tags.html</code> 已同步更新：移除本地 <code>CpModal</code> 定义，更新按钮选择器（<code>.tg-m-confirm</code> → <code>.cp-modal-confirm-btn</code>）。</p>
+
+<h3>6 · 防护测试</h3>
+<table>
+<tr><th>测试</th><th>内容</th></tr>
+<tr><td><code>grep "\.modal('show')\|bootstrap.min" app/templates/redesign/</code></td><td>CI 门禁：返回非零 = CI 失败（现在已是 0 结果）</td></tr>
+<tr><td>12 个 sidebar 单测</td><td>全部通过，模板变更未影响权限回归</td></tr>
+</table>
+
+<h3>7 · 预防方案</h3>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+<td>将 Bootstrap modal 检测加入 CI 门禁（<code>check_ui_contract.py</code> 或新增 shell 检测步骤）</td>
+<td><code>.github/workflows/ui-contract.yml</code> 或 <code>scripts/check_ui_contract.py</code></td>
+<td><code>grep -r "\.modal('show')\|bootstrap.min" app/templates/redesign/ &amp;&amp; exit 1 || echo OK</code></td>
+</tr>
+<tr>
+<td>规范更新：所有新增弹窗必须使用 <code>CpConfirm.show()</code>（简单确认）或 <code>CpModal()</code>（表单/HTML），全局可用无需重复定义</td>
+<td><code>AGENTS.md</code>「Redesign 确认对话框规范」节</td>
+<td>—</td>
+</tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-cron-add-error-redirect-and-modal-globalization.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

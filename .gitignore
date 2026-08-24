@@ -19,6 +19,8 @@ conf.ini
 .venv311/
 .venv-md/
 datas/*.db
+datas/*.pid
+datas/logs/
 datas/.flask_secret_key
 *.db
 
@@ -29,3 +31,6 @@ doc/_pending_sync/*
 
 # Frontend build toolchain
 frontend/node_modules/
+
+# Visual regression current screenshots (temp, not tracked)
+tests/visual_regression/current/

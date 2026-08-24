@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>UI 重设计 — 逐页对比核实计划</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:1000px;margin:0 auto;padding:2rem;line-height:1.7;color:#1e293b;background:#f8fafc;}
+h1{font-size:1.6rem;border-bottom:2px solid #3b82f6;padding-bottom:0.5rem;}
+h2{font-size:1.3rem;color:#1e40af;margin-top:2rem;border-left:4px solid #3b82f6;padding-left:0.8rem;}
+h3{font-size:1.1rem;color:#334155;margin-top:1.5rem;}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.9rem;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;vertical-align:top;}
+th{background:#f1f5f9;font-weight:600;}
+.match{background:#dcfce7;color:#166534;}
+.diff{background:#fee2e2;color:#991b1b;}
+.enhance{background:#fef3c7;color:#92400e;}
+.na{background:#f1f5f9;color:#64748b;}
+code{background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:0.85em;}
+.status{font-weight:700;padding:2px 8px;border-radius:4px;font-size:0.8em;}
+.done{background:#dcfce7;color:#166534;}
+.pending{background:#fef3c7;color:#92400e;}
+.fail{background:#fee2e2;color:#991b1b;}
+ol li{margin-bottom:0.5rem;}
+</style>
+</head>
+<body>
+
+<h1>UI 重设计 — 逐页对比核实计划</h1>
+<p>本文档定义了逐页、逐项对比核实的系统方法论，确保实现与 Mockup（<code>doc/design/console-style-demo.html</code>）严格对齐。</p>
+<p><b>权威源</b>：<code>doc/design/console-style-demo.html</code>（以下简称 Mockup）</p>
+<p><b>实现目录</b>：<code>app/templates/redesign/</code>（26 个模板）</p>
+<p><b>执行原则</b>：</p>
+<ol>
+<li>逐页、逐区域、逐项对比，不跳过任何可视元素</li>
+<li>每项标记为 ✅ 一致 / ❌ 不一致 / 🟡 增强（已确认）/ ⬜ Mockup 无定义</li>
+<li>不一致项必须给出 Mockup 原始值 vs 实现值的具体差异</li>
+<li>所有修复在用户确认后分步执行</li>
+</ol>
+
+<h2>执行顺序</h2>
+<p>按 Mockup 中明确定义的 4 个页面优先，之后是扩展页面：</p>
+<table>
+<tr><th>序号</th><th>页面</th><th>Mockup 区域</th><th>实现模板</th><th>状态</th></tr>
+<tr><td>P1</td><td>任务中心（Dashboard）</td><td><code>#console-cron_list</code></td><td><code>dashboard.html</code></td><td><span class="status pending">待核实</span></td></tr>
+<tr><td>P2</td><td>新建定时任务（Task Form）</td><td><code>#console-cron_add</code></td><td><code>task_form.html</code></td><td><span class="status pending">待核实</span></td></tr>
+<tr><td>P3</td><td>执行记录（Execution Logs）</td><td><code>#console-job_log</code></td><td><code>execution_logs.html</code></td><td><span class="status pending">待核实</span></td></tr>
+<tr><td>P4</td><td>用户管理（Users）</td><td><code>#console-users</code></td><td><code>users.html</code></td><td><span class="status pending">待核实</span></td></tr>
+<tr><td>P5-P26</td><td>扩展页面</td><td>无 Mockup（按已确认模式推演）</td><td>其余 22 个模板</td><td><span class="status pending">待核实</span></td></tr>
+</table>
+
+<h2>P1：任务中心（Dashboard）对比维度</h2>
+
+<h3>1.1 页面头部（Page Header）</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>标题文案</td><td><code>任务中心</code></td><td></td><td></td></tr>
+<tr><td>统计行格式</td><td><code>{N} 个任务 · {N} 连续失败 · {N} 今日告警</code></td><td></td><td></td></tr>
+<tr><td>统计行位置</td><td>标题右侧（flex space-between）</td><td></td><td></td></tr>
+<tr><td>连续失败颜色</td><td><code>var(--danger-fill)</code></td><td></td><td></td></tr>
+<tr><td>今日告警颜色</td><td><code>var(--warn)</code></td><td></td><td></td></tr>
+</table>
+
+<h3>1.2 过滤栏（Filters）</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>布局</td><td>单行 flex，<code>gap</code> 间隔</td><td></td><td></td></tr>
+<tr><td>异常分组标签</td><td><code>异常</code>（f-label）</td><td></td><td></td></tr>
+<tr><td>异常分组按钮</td><td>连续失败 / 今日失败</td><td></td><td></td></tr>
+<tr><td>状态分组标签</td><td><code>状态</code>（f-label）</td><td></td><td></td></tr>
+<tr><td>状态分组按钮</td><td>运行中 / 已暂停 / 全部</td><td></td><td></td></tr>
+<tr><td>分隔符</td><td><code>f-sep</code>（1px 竖线）</td><td></td><td></td></tr>
+<tr><td>业务组选择器</td><td><code>select.f-select</code>，含「全部（可见）」默认项</td><td></td><td></td></tr>
+<tr><td>标签选择器</td><td><code>select.f-select</code>，含「全部标签」默认项</td><td></td><td></td></tr>
+<tr><td>搜索框</td><td><code>input.f-input</code> placeholder=「任务名模糊匹配」</td><td></td><td></td></tr>
+<tr><td>新建按钮</td><td><code>btn-c btn-accent</code> + ＋ SVG 图标 + 「新建任务」</td><td></td><td></td></tr>
+<tr><td>新建按钮位置</td><td>最右侧（f-spacer 推到右端）</td><td></td><td></td></tr>
+</table>
+
+<h3>1.3 表格结构（Table）</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>表格容器</td><td><code>.c-table-wrap.no-top</code></td><td></td><td></td></tr>
+<tr><td>表格 class</td><td><code>c-table</code></td><td></td><td></td></tr>
+<tr><td>列数</td><td>6 列</td><td></td><td></td></tr>
+<tr><td>列头文案</td><td>任务 / 调度策略 / 运行与发布 / 健康 / 状态 / 操作</td><td></td><td></td></tr>
+<tr><td>列宽比例</td><td>36% / 14% / 18% / 7% / 9% / 16%</td><td></td><td></td></tr>
+</table>
+
+<h3>1.4 表格行内容格式</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>任务列 — 健康点</td><td><code>c-dot</code> 圆点 + 颜色表示健康</td><td></td><td></td></tr>
+<tr><td>任务列 — 作用域标签</td><td><code>c-scope</code>（GLOBAL / 组名）</td><td></td><td></td></tr>
+<tr><td>任务列 — 任务名</td><td><code>c-task-name</code>（font-weight:600）</td><td></td><td></td></tr>
+<tr><td>任务列 — 标签</td><td><code>c-tag</code></td><td></td><td></td></tr>
+<tr><td>任务列 — URL</td><td><code>c-task-url</code>（mono 字体显示完整 URL）</td><td></td><td></td></tr>
+<tr><td>调度策略列 — 人性化描述</td><td><code>c-sched-human</code>（如「每 5 分钟」）</td><td></td><td></td></tr>
+<tr><td>调度策略列 — cron 表达式</td><td><code>c-sched-expr</code>（mono 字体）</td><td></td><td></td></tr>
+<tr><td>运行与发布列 — RUN 时间</td><td><code>c-audit mono</code>：<code>RUN {time}</code></td><td></td><td></td></tr>
+<tr><td>运行与发布列 — BY 创建者</td><td><code>c-audit</code>：<code>BY {name} · {date}</code></td><td></td><td></td></tr>
+<tr><td>健康列</td><td><code>c-dot</code> 圆点（ok/fail/warn/none）</td><td></td><td></td></tr>
+<tr><td>状态列</td><td><code>c-status</code> + 圆点 + 文案（运行中/已暂停/已下线）</td><td></td><td></td></tr>
+<tr><td>操作列 — 按钮样式</td><td><code>btn-c btn-line btn-xs</code>（文字按钮）</td><td></td><td></td></tr>
+<tr><td>操作列 — 按钮列表</td><td>运行中：记录 / 执行 / ···（暂停/编辑/下线）</td><td></td><td></td></tr>
+<tr><td>操作列 — 已暂停</td><td>记录 / ···（启动/编辑/下线）</td><td></td><td></td></tr>
+<tr><td>操作列 — 已下线</td><td>仅「记录」</td><td></td><td></td></tr>
+<tr><td>已下线行样式</td><td><code>opacity:.6</code></td><td></td><td></td></tr>
+</table>
+
+<h3>1.5 翻页（Pagination）</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>容器 class</td><td><code>c-foot</code></td><td></td><td></td></tr>
+<tr><td>左侧计数格式</td><td><code>{N} total</code></td><td></td><td></td></tr>
+<tr><td>翻页按钮</td><td>‹ / 数字 / … / 数字 / ›</td><td></td><td></td></tr>
+<tr><td>当前页样式</td><td><code>.active</code></td><td></td><td></td></tr>
+</table>
+
+<h3>1.6 Mockup B 增强（已确认）</h3>
+<table>
+<tr><th>增强项</th><th>来源</th><th>状态</th></tr>
+<tr><td>4 格统计卡片</td><td>用户确认加入</td><td></td></tr>
+<tr><td>异常面板</td><td>用户确认加入</td><td></td></tr>
+<tr><td>7 列表格</td><td>用户确认表格结构调整</td><td></td></tr>
+<tr><td>图标操作按钮</td><td>用户确认替代文字按钮</td><td></td></tr>
+</table>
+
+<h2>P2：新建定时任务（Task Form）对比维度</h2>
+<h3>2.1 页面头部</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>标题</td><td><code>新建定时任务</code></td><td></td><td></td></tr>
+</table>
+
+<h3>2.2 表单字段</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>字段 1 — 任务名称</td><td>label=「任务名称 *」, placeholder=「例如：订单状态同步」, hint=「必填，不可重复」</td><td></td><td></td></tr>
+<tr><td>字段 2 — 任务说明</td><td>label=「任务说明 *」, placeholder=「简要描述任务的用途和目的」, hint=「必填，1～500 字；可写需求链接、用途等」</td><td></td><td></td></tr>
+<tr><td>字段 3 — 可见范围</td><td>label=「可见范围 *」, inline 双 select（「指定业务组/全局共享」+「组列表」）, hint=「默认归属业务组；仅必要时选全局共享」</td><td></td><td></td></tr>
+<tr><td>字段 4 — 任务标签</td><td>label=「任务标签」, tag 容器样式（带 c-tag + input）, hint=「可选；建议输入国家/业务线/服务名等」</td><td></td><td></td></tr>
+<tr><td>字段 5 — 定时方式</td><td>label=「定时方式 *」, select（定时模式/具体时间）, hint=「定时模式按周期触发，具体时间仅执行一次」</td><td></td><td></td></tr>
+<tr><td>字段 6 — Cron 表达式</td><td>label=「Cron 表达式」, 5 格网格（日/星期几/小时/分钟/秒）, 预览行</td><td></td><td></td></tr>
+<tr><td>字段 7 — 触发 URL</td><td>label=「触发 URL *」, inline（method select + url input）, hint 含协议说明</td><td></td><td></td></tr>
+<tr><td>字段 8 — 超时（秒）</td><td>label=「超时（秒）」, type=number, placeholder=「5」, width=100px, hint=「留空使用默认 5s；有效范围 1–120」</td><td></td><td></td></tr>
+<tr><td>操作按钮</td><td>「添加」(btn-accent) + 「返回」(btn-line)</td><td></td><td></td></tr>
+</table>
+
+<h2>P3：执行记录（Execution Logs）对比维度</h2>
+<h3>3.1 页面头部</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>标题</td><td><code>执行记录</code></td><td></td><td></td></tr>
+<tr><td>副标题</td><td><code>默认展示「非成功」，避免秒级成功日志淹没异常</code></td><td></td><td></td></tr>
+</table>
+
+<h3>3.2 过滤栏</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>结果分组标签</td><td><code>结果</code>（f-label）</td><td></td><td></td></tr>
+<tr><td>结果按钮</td><td>非成功(active) / 全部 / 仅失败 / 仅异常 / 仅成功</td><td></td><td></td></tr>
+<tr><td>分隔符</td><td><code>f-sep</code></td><td></td><td></td></tr>
+<tr><td>任务名称输入</td><td><code>f-input</code> placeholder=「任务名称」</td><td></td><td></td></tr>
+<tr><td>时间范围</td><td>开始时间 — 结束时间（两个 f-input）</td><td></td><td></td></tr>
+<tr><td>搜索按钮</td><td><code>btn-c btn-accent btn-xs</code>「搜索」</td><td></td><td></td></tr>
+<tr><td>重置按钮</td><td><code>btn-c btn-line btn-xs</code>「重置」</td><td></td><td></td></tr>
+</table>
+
+<h3>3.3 表格结构</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>列数</td><td>7 列</td><td></td><td></td></tr>
+<tr><td>列头文案</td><td>LOG ID / 任务名称 / 返回内容 / 执行时间 / 耗时 / 结果 / 操作</td><td></td><td></td></tr>
+<tr><td>列宽比例</td><td>8% / 20% / 30% / 16% / 10% / 8% / 8%</td><td></td><td></td></tr>
+<tr><td>LOG ID 样式</td><td><code>mono font-size:11px</code></td><td></td><td></td></tr>
+<tr><td>任务名称样式</td><td><code>font-weight:600</code></td><td></td><td></td></tr>
+<tr><td>返回内容样式</td><td><code>&lt;code&gt; font-size:11px</code>，失败时 <code>color:var(--danger-fill)</code></td><td></td><td></td></tr>
+<tr><td>结果 badge</td><td><code>log-result log-fail/log-timeout/log-unknown</code> + c-dot + 文案</td><td></td><td></td></tr>
+<tr><td>操作按钮</td><td>「详情」<code>btn-c btn-line btn-xs</code></td><td></td><td></td></tr>
+</table>
+
+<h3>3.4 翻页</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>计数格式</td><td><code>{N} total (non-success)</code></td><td></td><td></td></tr>
+</table>
+
+<h2>P4：用户管理（Users）对比维度</h2>
+<h3>4.1 页面头部</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>标题</td><td><code>用户管理</code></td><td></td><td></td></tr>
+</table>
+
+<h3>4.2 工具栏</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>添加按钮</td><td><code>btn-c btn-accent btn-xs</code>「+ 添加用户」</td><td></td><td></td></tr>
+<tr><td>搜索框</td><td><code>f-input</code> placeholder=「按用户名搜索…」width=160px</td><td></td><td></td></tr>
+<tr><td>搜索按钮</td><td><code>btn-c btn-line btn-xs</code>「搜索」</td><td></td><td></td></tr>
+<tr><td>说明文案</td><td><code>color:var(--muted);font-size:12px</code>「无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。」</td><td></td><td></td></tr>
+</table>
+
+<h3>4.3 表格结构</h3>
+<table>
+<tr><th>检查项</th><th>Mockup 值</th><th>实现值</th><th>状态</th></tr>
+<tr><td>列数</td><td>10 列</td><td></td><td></td></tr>
+<tr><td>列头文案</td><td>ID / 用户名 / 花名 / 岗位 / 角色 / 状态 / 密码 / 业务组 / 创建时间 / 操作</td><td></td><td></td></tr>
+<tr><td>操作列宽度</td><td><code>width:220px</code></td><td></td><td></td></tr>
+<tr><td>当前用户标记</td><td><code>当前</code> badge（accent-dim + accent 颜色）</td><td></td><td></td></tr>
+<tr><td>角色 badge</td><td><code>u-role u-role-admin/operator/viewer</code></td><td></td><td></td></tr>
+<tr><td>状态 badge</td><td><code>u-badge u-active/u-inactive</code></td><td></td><td></td></tr>
+<tr><td>密码 badge</td><td><code>u-badge</code>（正常/待重置）</td><td></td><td></td></tr>
+<tr><td>停用用户行样式</td><td><code>opacity:.6</code></td><td></td><td></td></tr>
+<tr><td>停用用户操作</td><td>仅「查看」按钮</td><td></td><td></td></tr>
+<tr><td>当前用户操作</td><td>「修改密码」+ 说明文案「账号/角色不可自改」</td><td></td><td></td></tr>
+<tr><td>普通用户操作</td><td>重置密码 / 重置Token / 停用 / 编辑</td><td></td><td></td></tr>
+<tr><td>停用按钮样式</td><td><code>btn-c btn-danger-c btn-xs</code></td><td></td><td></td></tr>
+</table>
+
+<h2>逐页核实方法（每页执行步骤）</h2>
+<ol>
+<li><b>读 Mockup 源</b>：用 Read 工具读取 <code>console-style-demo.html</code> 中对应 page-view 区域的完整 HTML</li>
+<li><b>读实现源</b>：用 Read 工具读取 <code>app/templates/redesign/xxx.html</code> 完整内容</li>
+<li><b>逐项对比</b>：按上方表格逐项填写「实现值」和「状态」</li>
+<li><b>浏览器截图</b>：restart 后打开浏览器截图对比</li>
+<li><b>输出结果</b>：标记 ✅/❌/🟡/⬜ 并列出所有 ❌ 项的修复建议</li>
+<li><b>用户确认</b>：等用户确认后执行修复</li>
+</ol>
+
+<h2>核实进度跟踪</h2>
+<table>
+<tr><th>页面</th><th>检查项数</th><th>✅ 一致</th><th>❌ 不一致</th><th>🟡 已确认增强</th><th>⬜ 无定义</th><th>进度</th></tr>
+<tr><td>P1 Dashboard</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="status pending">待执行</span></td></tr>
+<tr><td>P2 Task Form</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="status pending">待执行</span></td></tr>
+<tr><td>P3 Execution Logs</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="status pending">待执行</span></td></tr>
+<tr><td>P4 Users</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="status pending">待执行</span></td></tr>
+<tr><td>P5-P26 扩展页面</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><span class="status pending">待执行</span></td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-逐页对比核实计划.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

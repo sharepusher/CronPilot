@@ -2,7 +2,10 @@
 """回调 URL 安全校验：SSRF / 内网探测防护。"""
 import ipaddress
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
+
+import requests
+from requests.adapters import HTTPAdapter
 
 
 _BLOCKED_HOSTS = frozenset({
@@ -109,3 +112,85 @@ def _fail_or_observe(cron_config, message):
     if _observe_only(cron_config):
         return True, ''
     return False, message
+
+
+# ---------------------------------------------------------------------------
+# DNS-pinning layer (OPT-P0-12): eliminate TOCTOU between validation & request
+# ---------------------------------------------------------------------------
+
+def validate_and_resolve_url(req_url, cron_config=None):
+    """
+    执行阶段校验：验证 URL 安全性并返回已解析的安全 IP。
+
+    返回 (ok: bool, message: str, resolved_ip: str | None)
+    - resolved_ip 为通过校验的 IP（可用于 DNS pinning）
+    - 若 hostname 本身是 IP 字面量或 DNS 不可用，resolved_ip 为 None
+    """
+    ok, msg = validate_callback_url(req_url, cron_config)
+    if not ok:
+        return False, msg, None
+
+    parsed = urlparse(req_url)
+    hostname = (parsed.hostname or '').strip().lower()
+
+    # hostname 已是 IP 字面量：无需 pin（请求不会二次 DNS 解析）
+    try:
+        ipaddress.ip_address(hostname)
+        return True, '', hostname
+    except ValueError:
+        pass
+
+    # 域名：解析并返回第一个安全 IP 供 pinning
+    ips = _resolve_host_ips(hostname)
+    if ips is None:
+        return True, '', None
+    # 选取第一个通过校验的 IP
+    for addr in ips:
+        if not _is_private_or_reserved_ip(addr):
+            return True, '', addr
+    # 全部 IP 为内网（理论上上面 validate_callback_url 已拦截）
+    return True, '', None
+
+
+class _PinnedIPAdapter(HTTPAdapter):
+    """强制将 HTTP(S) 请求连接到指定 IP，防止 DNS Rebinding。
+
+    原理：重写 URL 中的 hostname 为已验证的 IP，通过 Host header
+    保持服务端虚拟主机路由和 TLS SNI 正确性。
+    """
+
+    def __init__(self, pinned_ip, original_hostname, **kwargs):
+        self.pinned_ip = pinned_ip
+        self.original_hostname = original_hostname
+        super().__init__(**kwargs)
+
+    def send(self, request, **kwargs):
+        parsed = urlparse(request.url)
+        if parsed.hostname and parsed.hostname != self.pinned_ip:
+            request.headers.setdefault('Host', self.original_hostname)
+            port_suffix = ':%d' % parsed.port if parsed.port else ''
+            request.url = urlunparse(parsed._replace(
+                netloc=self.pinned_ip + port_suffix
+            ))
+        return super().send(request, **kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
+        # HTTPS: 让 TLS 对原始主机名做 SNI 和证书校验
+        if self.original_hostname:
+            kwargs.setdefault('assert_hostname', self.original_hostname)
+            kwargs.setdefault('server_hostname', self.original_hostname)
+        super().init_poolmanager(connections, maxsize, block, **kwargs)
+
+
+def make_pinned_session(pinned_ip, original_hostname, scheme='http'):
+    """创建一个 DNS-pinned requests.Session，所有请求强制连接到 pinned_ip。
+
+    用法：
+        session = make_pinned_session('93.184.216.34', 'example.com', 'https')
+        resp = session.get('https://example.com/path', timeout=10)
+    """
+    session = requests.Session()
+    adapter = _PinnedIPAdapter(pinned_ip, original_hostname)
+    prefix = '%s://' % scheme
+    session.mount(prefix, adapter)
+    return session

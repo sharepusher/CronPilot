@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CronPilot — Mockup 偏差对比 Demo（D1–D9）</title>
+<style>
+:root {
+  --canvas: #F7F8F9; --surface: #FFFFFF; --surface-2: #F1F2F4;
+  --border: #E4E6E9; --border-strong: #D3D6DA;
+  --ink: #14171A; --muted: #5B6169; --faint: #9CA3AF;
+  --signal: #3D6FE0; --signal-ink: #2F5FCB; --signal-bg: rgba(61,111,224,0.09);
+  --success: #0F9D66; --success-bg: rgba(15,157,102,0.09);
+  --danger: #D64545; --danger-bg: rgba(214,69,69,0.09);
+  --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+}
+html[data-theme="dark"] {
+  --canvas: #0D0F12; --surface: #16191D; --surface-2: #1C2025;
+  --border: #262B31; --border-strong: #34393F;
+  --ink: #ECEEF0; --muted: #8B9198; --faint: #565C64;
+  --signal: #4C8DFF; --signal-ink: #7DAAFF; --signal-bg: rgba(76,141,255,0.12);
+  --success: #34D399; --success-bg: rgba(52,211,153,0.12);
+  --danger: #F16565; --danger-bg: rgba(241,101,101,0.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);font-size:13px;background:var(--canvas);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;}
+a{color:inherit;text-decoration:none;}
+
+/* ── Doc shell ── */
+.doc-header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.doc-title{font-size:15px;font-weight:700;}
+.doc-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.toggle-bar{display:flex;gap:8px;}
+.toggle-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer;}
+.toggle-btn.on{background:var(--signal);border-color:var(--signal);color:#fff;}
+
+.doc-body{padding:24px 32px 60px;max-width:1300px;margin:0 auto;}
+.section{margin-bottom:48px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--faint);margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.severity-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:8px;vertical-align:middle;}
+.sev-high{background:var(--danger-bg);color:var(--danger);}
+.sev-med{background:rgba(183,121,31,0.10);color:#B7791F;}
+.sev-ok{background:var(--success-bg);color:var(--success);}
+
+/* ── Diff row ── */
+.diff-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+.diff-col{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.diff-col-head{display:flex;align-items:center;gap:6px;padding:8px 14px;font-size:11.5px;font-weight:600;border-bottom:1px solid var(--border);}
+.diff-col-head.before{background:rgba(214,69,69,0.06);color:var(--danger);}
+.diff-col-head.after{background:var(--success-bg);color:var(--success);}
+.diff-col-body{padding:16px;}
+.code-line{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;margin-top:6px;color:var(--muted);}
+.code-line b{color:var(--danger);}
+.code-line.new b{color:var(--success);}
+.note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
+
+/* ── Mini sidebar preview ── */
+.mini-shell{display:grid;grid-template-columns:180px 1fr;height:260px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.mini-sidebar-before{background:#ffffff;border-right:1px solid var(--border);padding:12px 8px;}
+.mini-sidebar-after{background:var(--canvas);border-right:1px solid var(--border);padding:12px 8px;}
+.mini-brand{display:flex;align-items:center;gap:7px;padding:5px 8px 12px;font-size:13px;font-weight:700;}
+.mini-dot-before{width:7px;height:7px;border-radius:50%;background:#059669;flex-shrink:0;} /* green — current */
+.mini-dot-after{width:7px;height:7px;border-radius:50%;background:#3D6FE0;flex-shrink:0;} /* signal blue — mockup */
+.mini-nav-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;color:var(--muted);font-size:12px;border-left:2px solid transparent;}
+.mini-nav-item.active-before{background:#f1f5f9;color:var(--ink);border-left:2px solid var(--signal);font-weight:600;}
+.mini-nav-item.active-after{background:rgba(61,111,224,0.09);color:var(--ink);border-left:2px solid var(--signal);font-weight:600;}
+.mini-nav-icon{width:12px;height:12px;opacity:0.7;flex-shrink:0;}
+.mini-content{background:var(--canvas);padding:16px;}
+.mini-h1-before{font-size:16px;font-weight:600;color:var(--ink);}
+.mini-h1-after{font-size:18px;font-weight:600;color:var(--ink);}
+.mini-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.mini-topbar{height:48px;background:var(--canvas);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;justify-content:flex-end;}
+.mini-chip{display:flex;align-items:center;gap:7px;padding:3px 8px 3px 4px;border-radius:16px;border:1px solid transparent;cursor:default;}
+.mini-chip:hover{background:var(--surface-2);border-color:var(--border);}
+.mini-avatar{width:24px;height:24px;border-radius:50%;background:var(--signal-bg);color:var(--signal-ink);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+
+/* ── Tags / Groups comparison ── */
+.mini-page{background:var(--canvas);padding:14px;height:260px;overflow:hidden;}
+.mini-page-before .ph1{font-size:16px;font-weight:600;margin-bottom:4px;}
+.mini-page-after .ph1{font-size:16px;font-weight:600;margin-bottom:2px;}
+.mini-page-after .ph-sub{font-size:12px;color:var(--muted);margin-bottom:12px;}
+
+.tag-cloud{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.tag-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;background:var(--surface);border:1px solid var(--border);border-radius:14px;font-size:12px;color:var(--ink);}
+.tag-cnt{background:var(--surface-2);color:var(--muted);font-size:10.5px;padding:0 5px;border-radius:6px;}
+.tag-del{color:var(--faint);}
+
+/* group cards mini */
+.grp-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px;}
+.grp-mini-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.grp-mini-name{font-size:12.5px;font-weight:600;margin-bottom:3px;color:var(--ink);}
+.grp-mini-desc{font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;}
+.grp-mini-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);}
+.grp-avatars{display:flex;}
+.grp-av{width:18px;height:18px;border-radius:50%;background:var(--signal-bg);color:var(--signal-ink);font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--surface);margin-left:-5px;flex-shrink:0;}
+.grp-av:first-child{margin-left:0;}
+.grp-member-count{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--muted);}
+.grp-badge{font-size:10px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted);}
+
+/* mockup spec vs current block */
+.spec-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;}
+.spec-table th{text-align:left;padding:6px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--faint);background:var(--surface-2);border-bottom:1px solid var(--border);}
+.spec-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.spec-table tr:last-child td{border-bottom:none;}
+.tag-ok{color:var(--success);font-weight:600;}
+.tag-diff{color:var(--danger);font-weight:600;}
+.tag-note{color:#B7791F;font-weight:600;}
+
+/* topbar dropdown demo */
+.dropdown-demo{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:8px;font-size:12.5px;}
+.dd-head{display:flex;align-items:center;gap:8px;padding:7px 8px;}
+.dd-avatar-lg{width:32px;height:32px;border-radius:50%;background:var(--signal-bg);color:var(--signal-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.dd-name{font-weight:600;font-size:12.5px;}
+.dd-sub{font-size:11px;color:var(--muted);}
+.dd-email{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.dd-div{height:1px;background:var(--border);margin:5px 0;}
+.dd-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;color:var(--ink);cursor:default;}
+.dd-item svg{width:13px;height:13px;color:var(--muted);}
+.dd-item:hover{background:var(--surface-2);}
+.dd-item.danger{color:var(--danger);}
+.dd-item.danger svg{color:var(--danger);}
+
+/* summary table */
+.summary-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.summary-tbl th{text-align:left;padding:7px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--faint);background:var(--surface-2);border-bottom:1px solid var(--border);}
+.summary-tbl td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.summary-tbl tr:last-child td{border-bottom:none;}
+.fix-mark{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;}
+.fix-1css{background:var(--success-bg);color:var(--success);}
+.fix-html{background:var(--signal-bg);color:var(--signal-ink);}
+.fix-intent{background:var(--surface-2);color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div>
+    <div class="doc-title">Mockup 偏差对比 Demo — D1–D9</div>
+    <div class="doc-sub">CronPilot 2026 重设计 · 现状 vs Mockup 逐项可视化对比</div>
+  </div>
+  <div class="toggle-bar">
+    <button class="toggle-btn on" id="btn-light" onclick="setTheme('light')">☀ 浅色</button>
+    <button class="toggle-btn" id="btn-dark" onclick="setTheme('dark')">☾ 深色</button>
+  </div>
+</div>
+
+<div class="doc-body">
+
+<!-- ═════════════════ SUMMARY ═════════════════ -->
+<div class="section">
+  <div class="section-title">📊 偏差总览</div>
+  <table class="summary-tbl" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+    <thead><tr>
+      <th style="width:40px">#</th>
+      <th>区域</th>
+      <th>Mockup 规格</th>
+      <th>当前实现</th>
+      <th>修复成本</th>
+      <th>性质</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>D1</td>
+        <td>侧边栏背景色</td>
+        <td><code>--canvas</code> = #F7F8F9（与页面融合）</td>
+        <td><code>--surface</code> = #FFFFFF（白色，视觉分离）</td>
+        <td><span class="fix-mark fix-1css">1行CSS</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+      <tr>
+        <td>D2</td>
+        <td>导航选中态背景</td>
+        <td><code>--signal-bg</code>（蓝调底 rgba）</td>
+        <td><code>--surface-2</code>（灰色 #f1f5f9）</td>
+        <td><span class="fix-mark fix-1css">1行CSS</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+      <tr>
+        <td>D3</td>
+        <td>品牌 dot 颜色</td>
+        <td><code>--signal</code> 蓝 #3D6FE0</td>
+        <td><code>--success</code> 绿 #059669</td>
+        <td><span class="fix-mark fix-1css">1行CSS</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+      <tr>
+        <td>D4</td>
+        <td>页面 H1 字号</td>
+        <td>18px</td>
+        <td>16px</td>
+        <td><span class="fix-mark fix-1css">1行CSS</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+      <tr>
+        <td>D5</td>
+        <td>导航分区数</td>
+        <td>3 组（无标签/管理/个人）</td>
+        <td>5 组（含运维/配置/管理/个人/开发者）</td>
+        <td><span class="fix-mark fix-intent">可保留</span></td>
+        <td><span class="tag-note">功能扩展</span></td>
+      </tr>
+      <tr>
+        <td>D6</td>
+        <td>Topbar 通知铃</td>
+        <td>有通知铃 icon-btn</td>
+        <td>缺失</td>
+        <td><span class="fix-mark fix-html">1行HTML</span></td>
+        <td><span class="tag-note">无后端支撑</span></td>
+      </tr>
+      <tr>
+        <td>D7</td>
+        <td>用户下拉头部</td>
+        <td>email（mono字体）</td>
+        <td>角色名</td>
+        <td><span class="fix-mark fix-html">HTML小改</span></td>
+        <td><span class="tag-note">各有合理性</span></td>
+      </tr>
+      <tr>
+        <td>D8</td>
+        <td>业务组页面副标题</td>
+        <td>"按团队划分任务归属与权限范围"</td>
+        <td>无</td>
+        <td><span class="fix-mark fix-html">1行HTML</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+      <tr>
+        <td>D9</td>
+        <td>标签管理页面副标题</td>
+        <td>"用于任务分类与筛选"</td>
+        <td>无</td>
+        <td><span class="fix-mark fix-html">1行HTML</span></td>
+        <td><span class="tag-diff">视觉偏差</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═════════════════ D1+D2+D3: Sidebar ═════════════════ -->
+<div class="section">
+  <div class="section-title">D1 · 侧边栏背景 <span class="severity-badge sev-high">视觉偏差</span> &nbsp; D2 · 选中态背景 <span class="severity-badge sev-high">视觉偏差</span> &nbsp; D3 · 品牌 dot <span class="severity-badge sev-med">视觉偏差</span></div>
+  <div class="diff-row">
+    <!-- BEFORE -->
+    <div class="diff-col">
+      <div class="diff-col-head before">✗ 当前实现</div>
+      <div class="diff-col-body" style="padding:0">
+        <div class="mini-shell">
+          <div class="mini-sidebar-before">
+            <div class="mini-brand">
+              <span class="mini-dot-before"></span>CronPilot
+            </div>
+            <!-- Nav items: active uses surface-2 grey bg -->
+            <div class="mini-nav-item active-before">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              任务中心
+            </div>
+            <div class="mini-nav-item" style="color:var(--muted)">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+              执行记录
+            </div>
+            <div class="mini-nav-item" style="color:var(--muted)">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              用户管理
+            </div>
+          </div>
+          <div style="background:var(--canvas);flex:1;display:flex;flex-direction:column;">
+            <div class="mini-topbar"></div>
+            <div class="mini-content">
+              <div class="mini-h1-before">任务中心</div>
+              <div class="mini-sub">管理与监控所有定时任务</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:10px 14px;font-size:11.5px;color:var(--muted);">
+          <div>侧边栏: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: #FFFFFF</code> (白色，与 canvas 分离)</div>
+          <div style="margin-top:4px">选中项: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: #f1f5f9</code> (灰色调)</div>
+          <div style="margin-top:4px">品牌dot: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: #059669</code> (绿色)</div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div class="diff-col">
+      <div class="diff-col-head after">✓ 对齐 Mockup</div>
+      <div class="diff-col-body" style="padding:0">
+        <div class="mini-shell">
+          <div class="mini-sidebar-after">
+            <div class="mini-brand">
+              <span class="mini-dot-after"></span>CronPilot
+            </div>
+            <!-- Nav items: active uses signal-bg blue bg -->
+            <div class="mini-nav-item active-after">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              任务中心
+            </div>
+            <div class="mini-nav-item" style="color:var(--muted)">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+              执行记录
+            </div>
+            <div class="mini-nav-item" style="color:var(--muted)">
+              <svg class="mini-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              用户管理
+            </div>
+          </div>
+          <div style="background:var(--canvas);flex:1;display:flex;flex-direction:column;">
+            <div class="mini-topbar"></div>
+            <div class="mini-content">
+              <div class="mini-h1-after">任务中心</div>
+              <div class="mini-sub">管理与监控所有定时任务</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:10px 14px;font-size:11.5px;color:var(--muted);">
+          <div>侧边栏: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: var(--canvas)</code> (= #F7F8F9，与页面融合)</div>
+          <div style="margin-top:4px">选中项: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: var(--signal-bg)</code> (蓝调底)</div>
+          <div style="margin-top:4px">品牌dot: <code style="font-family:var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:3px;">background: var(--signal)</code> (蓝 #3D6FE0)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code diff -->
+  <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;">
+    <div style="font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;margin-bottom:10px;">修复代码 — redesign-layout.css（3行）</div>
+    <div class="code-line">/* D1 */ .cp-sidebar { background: <b>var(--cp-surface)</b>; ... }</div>
+    <div class="code-line new">/* D1 */ .cp-sidebar { background: <b>var(--cp-canvas)</b>; ... }</div>
+    <div class="code-line" style="margin-top:8px">/* D2 */ .cp-nav-item.active { background: <b>var(--cp-surface-2)</b>; ... }</div>
+    <div class="code-line new">/* D2 */ .cp-nav-item.active { background: <b>var(--cp-signal-bg)</b>; ... }</div>
+    <div class="code-line" style="margin-top:8px">/* D3 */ .cp-sidebar-brand .dot { background: <b>var(--cp-success)</b>; ... }</div>
+    <div class="code-line new">/* D3 */ .cp-sidebar-brand .dot { background: <b>var(--cp-signal)</b>; ... }</div>
+  </div>
+</div>
+
+<!-- ═════════════════ D4: H1 size ═════════════════ -->
+<div class="section">
+  <div class="section-title">D4 · 页面标题 H1 字号 <span class="severity-badge sev-med">视觉偏差</span></div>
+  <div class="diff-row">
+    <div class="diff-col">
+      <div class="diff-col-head before">✗ 当前 16px</div>
+      <div class="diff-col-body" style="padding:20px;">
+        <div style="font-size:16px;font-weight:600;color:var(--ink);">任务中心</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">管理与监控所有定时任务</div>
+        <div style="font-size:16px;font-weight:600;color:var(--ink);margin-top:20px;">用户管理</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">4 名成员</div>
+      </div>
+    </div>
+    <div class="diff-col">
+      <div class="diff-col-head after">✓ Mockup 18px</div>
+      <div class="diff-col-body" style="padding:20px;">
+        <div style="font-size:18px;font-weight:600;color:var(--ink);">任务中心</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">管理与监控所有定时任务</div>
+        <div style="font-size:18px;font-weight:600;color:var(--ink);margin-top:20px;">用户管理</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">4 名成员</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;">
+    <div style="font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;margin-bottom:10px;">修复代码 — redesign-mockup-shared.css（1行）</div>
+    <div class="code-line">/* D4 */ .page-head h1 { font-size: <b>16px</b>; font-weight: 600; margin: 0; }</div>
+    <div class="code-line new">/* D4 */ .page-head h1 { font-size: <b>18px</b>; font-weight: 600; margin: 0; }</div>
+  </div>
+</div>
+
+<!-- ═════════════════ D7: User Dropdown ═════════════════ -->
+<div class="section">
+  <div class="section-title">D7 · 用户下拉菜单头部 <span class="severity-badge sev-med">设计差异</span></div>
+  <div class="diff-row">
+    <div class="diff-col">
+      <div class="diff-col-head before">✗ 当前：显示角色名</div>
+      <div class="diff-col-body" style="display:flex;justify-content:center;padding:24px;">
+        <div class="dropdown-demo">
+          <div class="dd-head">
+            <div class="dd-avatar-lg">A</div>
+            <div>
+              <div class="dd-name">admin</div>
+              <div class="dd-sub">系统管理员</div>
+            </div>
+          </div>
+          <div class="dd-div"></div>
+          <div class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>修改密码</div>
+          <div class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777z"/></svg>API Token</div>
+          <div class="dd-div"></div>
+          <div class="dd-item danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>退出登录</div>
+        </div>
+      </div>
+    </div>
+    <div class="diff-col">
+      <div class="diff-col-head after">✓ Mockup：显示 email（mono）</div>
+      <div class="diff-col-body" style="display:flex;justify-content:center;padding:24px;">
+        <div class="dropdown-demo">
+          <div class="dd-head">
+            <div class="dd-avatar-lg">张</div>
+            <div>
+              <div class="dd-name">张伟</div>
+              <div class="dd-email">zhangwei@cronpilot.dev</div>
+            </div>
+          </div>
+          <div class="dd-div"></div>
+          <div class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>修改密码</div>
+          <div class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777z"/></svg>API Token</div>
+          <div class="dd-div"></div>
+          <div class="dd-item danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>退出登录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;">⚠️ 注意：当前实现显示的是<b>角色名</b>（如「系统管理员」），Mockup 显示的是 <b>email 地址</b>（mono 字体）。两种方式各有价值：email 更易识别身份，角色名更快了解权限。此项需要确认取舍方向再修复，因为显示 email 需要 backend 提供 email 字段到模板上下文。</p>
+</div>
+
+<!-- ═════════════════ D8+D9: Page Subtitles ═════════════════ -->
+<div class="section">
+  <div class="section-title">D8 · 业务组页面副标题 &nbsp; D9 · 标签管理页面副标题 <span class="severity-badge sev-med">视觉偏差</span></div>
+  <div class="diff-row">
+    <div class="diff-col">
+      <div class="diff-col-head before">✗ 当前：仅标题</div>
+      <div class="diff-col-body" style="padding:20px;">
+        <div style="font-size:16px;font-weight:600;color:var(--ink);margin-bottom:16px;">业务组</div>
+        <div style="font-size:16px;font-weight:600;color:var(--ink);">标签管理</div>
+      </div>
+    </div>
+    <div class="diff-col">
+      <div class="diff-col-head after">✓ Mockup：标题 + 副标题</div>
+      <div class="diff-col-body" style="padding:20px;">
+        <div>
+          <div style="font-size:18px;font-weight:600;color:var(--ink);">业务组</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">按团队划分任务归属与权限范围</div>
+        </div>
+        <div style="margin-top:20px;">
+          <div style="font-size:18px;font-weight:600;color:var(--ink);">标签管理</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">用于任务分类与筛选</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;">
+    <div style="font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;margin-bottom:10px;">修复代码 — 模板 HTML（各 1行）</div>
+    <div class="code-line"><!-- D8 groups.html --> &lt;div class="page-head"&gt;&lt;h1&gt;业务组&lt;/h1&gt;&lt;/div&gt;</div>
+    <div class="code-line new"><!-- D8 groups.html --> &lt;div class="page-head"&gt;&lt;div&gt;&lt;h1&gt;业务组&lt;/h1&gt;&lt;div class="sub"&gt;按团队划分任务归属与权限范围&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;</div>
+    <div class="code-line" style="margin-top:8px"><!-- D9 tags.html --> &lt;div class="page-head"&gt;&lt;h1&gt;标签管理&lt;/h1&gt;&lt;/div&gt;</div>
+    <div class="code-line new"><!-- D9 tags.html --> &lt;div class="page-head"&gt;&lt;div&gt;&lt;h1&gt;标签管理&lt;/h1&gt;&lt;div class="sub"&gt;用于任务分类与筛选&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;</div>
+  </div>
+</div>
+
+<!-- ═════════════════ Groups card ═════════════════ -->
+<div class="section">
+  <div class="section-title">I5 · 业务组卡片：成员显示 <span class="severity-badge sev-ok">已按用户要求完成 ✓</span></div>
+  <div class="diff-row">
+    <div class="diff-col">
+      <div class="diff-col-head before">Mockup 原始：Avatar Stack</div>
+      <div class="diff-col-body">
+        <div class="grp-mini-grid">
+          <div class="grp-mini-card">
+            <div class="grp-mini-name">交易平台组</div>
+            <div class="grp-mini-desc">负责订单、支付、履约相关的定时任务</div>
+            <div class="grp-mini-foot">
+              <div class="grp-avatars">
+                <div class="grp-av">张</div><div class="grp-av">李</div><div class="grp-av">+3</div>
+              </div>
+              <span class="grp-badge">18 个任务</span>
+            </div>
+          </div>
+          <div class="grp-mini-card">
+            <div class="grp-mini-name">数据平台组</div>
+            <div class="grp-mini-desc">报表生成、数仓同步、离线计算任务</div>
+            <div class="grp-mini-foot">
+              <div class="grp-avatars">
+                <div class="grp-av">王</div><div class="grp-av">+2</div>
+              </div>
+              <span class="grp-badge">9 个任务</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="diff-col">
+      <div class="diff-col-head after">✓ 当前：数字成员数（用户明确选择）</div>
+      <div class="diff-col-body">
+        <div class="grp-mini-grid">
+          <div class="grp-mini-card">
+            <div class="grp-mini-name">交易平台组</div>
+            <div class="grp-mini-desc">负责订单、支付、履约相关的定时任务</div>
+            <div class="grp-mini-foot">
+              <div class="grp-member-count">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                5 名成员
+              </div>
+              <span class="grp-badge">18 个任务</span>
+            </div>
+          </div>
+          <div class="grp-mini-card">
+            <div class="grp-mini-name">数据平台组</div>
+            <div class="grp-mini-desc">报表生成、数仓同步、离线计算任务</div>
+            <div class="grp-mini-foot">
+              <div class="grp-member-count">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                3 名成员
+              </div>
+              <span class="grp-badge">9 个任务</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════ Intentional Improvements ═════════════════ -->
+<div class="section">
+  <div class="section-title">✅ 有意优化（优于 Mockup，建议保留）</div>
+  <table class="summary-tbl" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+    <thead><tr>
+      <th>#</th>
+      <th>区域</th>
+      <th>Mockup</th>
+      <th>当前（优化版）</th>
+      <th>建议</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>I1</td>
+        <td>Dashboard 统计卡</td>
+        <td>总数/运行/今日失败/成功率</td>
+        <td>异常/连续失败/运行/今日失败（Health-First）</td>
+        <td><span class="tag-ok">保留</span> — 运维视角更优</td>
+      </tr>
+      <tr>
+        <td>I2</td>
+        <td>任务表格</td>
+        <td>4列</td>
+        <td>7列（+健康度/最近执行/下次执行/业务组）</td>
+        <td><span class="tag-ok">保留</span> — 信息更完整</td>
+      </tr>
+      <tr>
+        <td>I3</td>
+        <td>Exception Panel</td>
+        <td>无</td>
+        <td>有（连续失败任务聚合）</td>
+        <td><span class="tag-ok">保留</span> — 主动告警可见性</td>
+      </tr>
+      <tr>
+        <td>I4</td>
+        <td>标签页</td>
+        <td>仅 tag cloud + × 删除</td>
+        <td>T2：标签云 + 管理表格</td>
+        <td><span class="tag-ok">保留</span> — 操作链路更完整</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div style="background:var(--signal-bg);border:1px solid rgba(61,111,224,0.2);border-radius:8px;padding:16px;font-size:13px;color:var(--ink);">
+    <b>修复汇总：</b> D1-D4（4行CSS） + D8/D9（2行HTML） = <b>6处修改，每处1行</b>。
+    D7（下拉显示 email 还是角色）需要决策方向：email 需要 backend 提供字段；角色名已有。
+    建议先确认 D7 取舍，D1-D4+D8+D9 可立即批量执行。
+  </div>
+</div>
+
+</div><!-- end doc-body -->
+
+<script>
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('btn-light').classList.toggle('on', t === 'light');
+  document.getElementById('btn-dark').classList.toggle('on', t === 'dark');
+}
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-Mockup偏差对比Demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

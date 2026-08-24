@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot UI 完整对比 Demo — 2026-08-19 (v2)</title>
+<style>
+  :root {
+    --bg:#0d0f12; --surface:#16191d; --surface2:#1c2025;
+    --border:#262b31; --border2:#34393f;
+    --ink:#eceef0; --muted:#8b9198; --faint:#565c64;
+    --signal:#4c8dff; --signal-ink:#7daaff; --sbg:rgba(76,141,255,.12);
+    --success:#34d399; --gbg:rgba(52,211,153,.12);
+    --warning:#f5a623; --wbg:rgba(245,166,35,.12);
+    --danger:#f16565; --dbg:rgba(241,101,101,.12);
+    --mono:'JetBrains Mono',Consolas,monospace;
+    --sans:'Inter','Helvetica Neue',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.6;padding:40px 32px 80px;max-width:1300px;margin:0 auto;}
+
+  .doc-header{margin-bottom:36px;}
+  .doc-header h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+  .doc-header .meta{color:var(--muted);font-size:12.5px;margin-bottom:12px;}
+  .legend{display:flex;gap:20px;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+
+  .change-block{margin-bottom:52px;}
+  .cb-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--border);}
+  .cb-num{background:var(--dbg);color:var(--danger);font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 10px;border-radius:5px;}
+  .cb-num.new{background:var(--wbg);color:var(--warning);}
+  .cb-title{font-size:17px;font-weight:700;flex:1;}
+  .cb-pri{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;}
+  .pri-high{background:var(--dbg);color:var(--danger);}
+  .pri-mid{background:var(--wbg);color:var(--warning);}
+
+  .cb-desc{font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.75;padding:12px 16px;background:var(--surface);border-left:3px solid var(--signal);border-radius:0 6px 6px 0;}
+  .cb-desc b{color:var(--ink);}
+
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .cp-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+  .badge-before{padding:2px 8px;border-radius:4px;font-size:10px;background:var(--dbg);color:var(--danger);}
+  .badge-after{padding:2px 8px;border-radius:4px;font-size:10px;background:var(--gbg);color:var(--success);}
+  .cp-frame{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+
+  .diff-box{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+  .diff-row{display:flex;gap:8px;font-size:12.5px;padding:3px 0;}
+  .d-add{color:var(--success);}
+  .d-rm{color:var(--danger);}
+  .d-keep{color:var(--faint);}
+
+  /* highlight boxes */
+  .hl-add{outline:2px dashed rgba(52,211,153,.6);outline-offset:3px;border-radius:4px;}
+  .hl-rm{outline:2px dashed rgba(241,101,101,.6);outline-offset:3px;border-radius:4px;}
+
+  /* ——— UI components ——— */
+  .pc{padding:18px 20px;}
+
+  .page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+  .ph-left h1{font-size:16px;font-weight:700;margin:0 0 2px;}
+  .ph-left .sub{font-size:12px;color:var(--muted);}
+  .stat-line{font-size:11.5px;color:var(--faint);font-family:var(--mono);text-align:right;line-height:1.8;}
+  .stat-line b{color:var(--ink);font-weight:600;}
+
+  .btn-primary{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;background:var(--signal);border:1px solid var(--signal);color:#fff;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;}
+  .btn-ghost{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;background:transparent;border:1px solid var(--border2);color:var(--muted);border-radius:6px;font-size:12.5px;cursor:pointer;}
+  .btn-accent{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;background:var(--signal);border:1px solid var(--signal);color:#fff;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;}
+
+  .filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .f-group{display:flex;align-items:center;gap:3px;}
+  .f-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin-right:3px;font-weight:600;}
+  .f-btn{padding:4px 8px;border-radius:4px;font-size:12px;color:var(--muted);border:1px solid transparent;background:none;cursor:pointer;font-family:inherit;}
+  .f-btn.active{background:var(--surface2);border-color:var(--border);color:var(--ink);font-weight:600;}
+  .f-sep{width:1px;height:14px;background:var(--border);}
+  .f-select{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 7px;font-size:12px;color:var(--muted);}
+  .f-input{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 7px;font-size:12px;color:var(--muted);width:130px;}
+  .f-spacer{flex:1;}
+
+  .chip{height:27px;padding:0 11px;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:12px;display:inline-flex;align-items:center;cursor:pointer;}
+  .chip.active{border-color:var(--signal);color:var(--signal-ink);background:var(--sbg);}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:12px;}
+  .stat{background:var(--surface);padding:12px 14px;}
+  .stat .lbl{color:var(--muted);font-size:10.5px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
+  .stat .val{font-size:20px;font-weight:700;font-family:var(--mono);}
+  .sv-r{color:var(--danger);}
+  .sv-s{color:var(--signal);}
+
+  .exc-panel{border:1px solid rgba(241,101,101,.25);background:rgba(241,101,101,.04);border-radius:7px;margin-bottom:12px;overflow:hidden;}
+  .exc-head{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(241,101,101,.12);font-size:12.5px;font-weight:600;color:var(--danger);}
+  .exc-count{background:var(--dbg);color:var(--danger);font-size:10px;padding:1px 6px;border-radius:8px;}
+  .exc-row{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid rgba(241,101,101,.06);gap:10px;}
+  .exc-row:last-child{border-bottom:none;}
+  .exc-id{font-family:var(--mono);font-size:11px;color:var(--danger);font-weight:700;width:38px;flex-shrink:0;}
+  .exc-name{font-size:12.5px;font-weight:500;flex:1;}
+  .exc-meta{font-size:11.5px;color:var(--muted);font-family:var(--mono);}
+  .exc-action-text{color:var(--signal-ink);font-size:12px;white-space:nowrap;text-decoration:none;font-weight:500;}
+  .icon-btn{width:28px;height:28px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);border:1px solid var(--border);background:var(--surface);cursor:pointer;}
+  .icon-btn:hover{color:var(--ink);border-color:var(--border2);}
+  .icon-btn svg{width:13px;height:13px;}
+
+  .tw{border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12.5px;}
+  tbody tr:last-child td{border-bottom:none;}
+
+  .badge{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;}
+  .badge-s{background:var(--gbg);color:var(--success);}
+  .badge-d{background:var(--dbg);color:var(--danger);}
+  .badge-m{background:var(--surface2);color:var(--muted);}
+
+  .form-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:20px 22px;max-width:100%;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:var(--ink);}
+  .form-input{width:100%;height:34px;padding:0 10px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--muted);font-size:13px;}
+  .form-input:disabled{background:var(--surface2);color:var(--faint);cursor:not-allowed;}
+  .form-actions{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);}
+
+  .sidebar-section{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;padding:10px 8px 4px;}
+  .sidebar-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;color:var(--muted);font-size:12.5px;margin-bottom:1px;}
+  .sidebar-item.active{background:var(--sbg);color:var(--ink);}
+  .sidebar-item svg{width:14px;height:14px;flex-shrink:0;}
+
+  .annotation{font-size:11px;padding:3px 8px;border-radius:4px;display:inline-block;margin-top:4px;}
+  .ann-rm{background:var(--dbg);color:var(--danger);}
+  .ann-add{background:var(--gbg);color:var(--success);}
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>CronPilot UI — 待处理变更完整对比 (v2)</h1>
+  <div class="meta">对照 <code>/Users/summer/Downloads/CronPilot-2026-full-mockup.html</code> · 2026-08-19</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>当前状态</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>建议修改后</div>
+    <div class="legend-item" style="gap:4px;"><svg width="12" height="12" viewBox="0 0 12 12"><rect width="12" height="12" rx="2" fill="none" stroke="rgba(241,101,101,.6)" stroke-width="1.5" stroke-dasharray="3 2"/></svg><span>红框 = 当前偏差处</span></div>
+    <div class="legend-item" style="gap:4px;"><svg width="12" height="12" viewBox="0 0 12 12"><rect width="12" height="12" rx="2" fill="none" stroke="rgba(52,211,153,.6)" stroke-width="1.5" stroke-dasharray="3 2"/></svg><span>绿框 = 建议变更处</span></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     X3  任务中心页头
+     ============================================================ -->
+<div class="change-block">
+  <div class="cb-header">
+    <span class="cb-num">X3</span>
+    <span class="cb-title">任务中心 · 页头右侧：统计文本 → 「新建任务」btn-primary</span>
+    <span class="cb-pri pri-high">高优先级</span>
+  </div>
+  <div class="cb-desc">
+    <b>当前</b>：页头右侧显示的是统计文本（"128 个任务 · 8 连续失败 · 24 今日告警"），并非按钮。「新建任务」按钮实际在<b>过滤栏右侧</b>（由 flex spacer 推至末尾），视觉上与过滤控件同层，优先级不突出。<br><br>
+    <b>Mockup 要求</b>：页头右侧放置 <code>btn-primary</code>「新建任务」按钮，作为页面主操作入口（与业务组、用户管理等页面的主操作按钮位置保持一致）；统计数字整合到页头副标题或移除（保留 stats cards 已经足够）；过滤栏不再重复显示按钮。
+  </div>
+  <div class="compare">
+    <!-- BEFORE -->
+    <div>
+      <div class="cp-label"><span>当前</span><span class="badge-before">偏差</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="page-head">
+            <div class="ph-left">
+              <h1>任务中心</h1>
+              <div class="sub">管理与监控所有定时任务</div>
+            </div>
+            <!-- 右侧是统计文本，非按钮 -->
+            <div class="hl-rm">
+              <div class="stat-line"><b>128</b> 个任务 · <span style="color:var(--danger)">8</span> 连续失败 · <span style="color:var(--warning)">24</span> 今日告警</div>
+              <div class="annotation ann-rm">页头右侧 = 统计文本</div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="lbl">异常任务</div><div class="val sv-r">8</div></div>
+            <div class="stat"><div class="lbl">连续失败</div><div class="val sv-r">8</div></div>
+            <div class="stat"><div class="lbl">运行中</div><div class="val sv-s">6</div></div>
+            <div class="stat"><div class="lbl">今日失败次数</div><div class="val sv-r">24</div></div>
+          </div>
+          <!-- 过滤栏含按钮 -->
+          <div class="filters">
+            <div class="f-group">
+              <span class="f-label">异常</span>
+              <span class="f-btn">连续失败</span>
+              <span class="f-btn">今日失败</span>
+            </div>
+            <div class="f-sep"></div>
+            <div class="f-group">
+              <span class="f-label">状态</span>
+              <span class="f-btn">运行中</span>
+              <span class="f-btn active">全部</span>
+            </div>
+            <div class="f-sep"></div>
+            <input class="f-input" placeholder="任务名模糊匹配" readonly>
+            <div class="f-spacer"></div>
+            <!-- 按钮在过滤栏末尾 -->
+            <div class="hl-rm">
+              <button class="btn-accent">+ 新建任务</button>
+              <div class="annotation ann-rm" style="display:block;margin-top:2px;">按钮在过滤栏内，与过滤控件同层</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div>
+      <div class="cp-label"><span>建议</span><span class="badge-after">对齐 Mockup</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="page-head">
+            <div class="ph-left">
+              <h1>任务中心</h1>
+              <div class="sub">管理与监控所有定时任务</div>
+            </div>
+            <!-- 右侧是 btn-primary -->
+            <div class="hl-add">
+              <button class="btn-primary">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                新建任务
+              </button>
+              <div class="annotation ann-add">页头右侧 = btn-primary 主操作</div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="lbl">异常任务</div><div class="val sv-r">8</div></div>
+            <div class="stat"><div class="lbl">连续失败</div><div class="val sv-r">8</div></div>
+            <div class="stat"><div class="lbl">运行中</div><div class="val sv-s">6</div></div>
+            <div class="stat"><div class="lbl">今日失败次数</div><div class="val sv-r">24</div></div>
+          </div>
+          <!-- 过滤栏无按钮，只做筛选 -->
+          <div class="filters">
+            <div class="f-group">
+              <span class="f-label">异常</span>
+              <span class="f-btn">连续失败</span>
+              <span class="f-btn">今日失败</span>
+            </div>
+            <div class="f-sep"></div>
+            <div class="f-group">
+              <span class="f-label">状态</span>
+              <span class="f-btn">运行中</span>
+              <span class="f-btn active">全部</span>
+            </div>
+            <div class="f-sep"></div>
+            <input class="f-input" placeholder="任务名模糊匹配" readonly>
+            <!-- spacer 和按钮已移除 -->
+            <div class="hl-add" style="margin-left:auto;">
+              <span style="font-size:11px;color:var(--success);">✓ 过滤栏只做筛选</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="diff-box">
+    <div class="diff-row d-rm">－ 页头右侧的统计文本行（stat-line）移除</div>
+    <div class="diff-row d-add">＋ 页头右侧增加 <code>btn-primary</code>「新建任务」按钮（带 <code>has_perm('cron:write')</code> 权限控制）</div>
+    <div class="diff-row d-rm">－ 过滤栏末尾的 <code>.f-spacer</code> + 「新建任务」按钮移除</div>
+    <div class="diff-row d-keep">◉ stats cards、过滤 chip/select、任务表格不变</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     X2  Exception Panel 操作列
+     ============================================================ -->
+<div class="change-block">
+  <div class="cb-header">
+    <span class="cb-num">X2</span>
+    <span class="cb-title">任务中心 · Exception Panel 操作：文字链接 → icon-btn</span>
+    <span class="cb-pri pri-high">高优先级</span>
+  </div>
+  <div class="cb-desc">
+    <b>当前</b>：Exception Panel 每行末尾为「查看详情 →」蓝色文字链接。<br>
+    <b>主表对比</b>：主任务表格操作列已是 <code>icon-btn</code> 风格（文档图标/三点菜单）。<br>
+    <b>为什么要改</b>：同一页面内两种不同的「查看记录」交互样式（文字链接 vs icon-btn），造成视觉割裂——用户扫描页面时需要在两种模式间切换认知。统一为 icon-btn 后，用户只需记住「这个图标 = 查看记录」。
+  </div>
+  <div class="compare">
+    <!-- BEFORE -->
+    <div>
+      <div class="cp-label"><span>当前</span><span class="badge-before">偏差</span></div>
+      <div class="cp-frame">
+        <div class="pc" style="padding:14px;">
+          <div class="exc-panel">
+            <div class="exc-head">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              需要关注的任务 <span class="exc-count">5</span>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×411</span>
+              <span class="exc-name">testbap</span>
+              <span class="exc-meta">连续失败 411 次 · 最近: 08-10</span>
+              <div class="hl-rm"><a class="exc-action-text">查看详情 →</a></div>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×105</span>
+              <span class="exc-name">admin-multi-group-task</span>
+              <span class="exc-meta">连续失败 105 次 · 最近: 08-19</span>
+              <a class="exc-action-text" style="opacity:.3;">查看详情 →</a>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×99</span>
+              <span class="exc-name">global-shared-task</span>
+              <span class="exc-meta">连续失败 99 次 · 最近: 08-19</span>
+              <a class="exc-action-text" style="opacity:.3;">查看详情 →</a>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:6px;">
+            <div style="font-size:11.5px;font-weight:600;margin-bottom:6px;color:var(--muted);">主表操作列对比（已是 icon-btn）</div>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <button class="icon-btn" title="立即执行">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <button class="icon-btn" title="执行记录">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              </button>
+              <button class="icon-btn" title="更多">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <span style="font-size:11px;color:var(--danger);margin-left:4px;">← 主表已是 icon-btn，Exception Panel 不一致</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div>
+      <div class="cp-label"><span>建议</span><span class="badge-after">对齐 Mockup</span></div>
+      <div class="cp-frame">
+        <div class="pc" style="padding:14px;">
+          <div class="exc-panel">
+            <div class="exc-head">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              需要关注的任务 <span class="exc-count">5</span>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×411</span>
+              <span class="exc-name">testbap</span>
+              <span class="exc-meta">连续失败 411 次 · 最近: 08-10</span>
+              <div class="hl-add">
+                <button class="icon-btn" title="查看执行记录">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×105</span>
+              <span class="exc-name">admin-multi-group-task</span>
+              <span class="exc-meta">连续失败 105 次 · 最近: 08-19</span>
+              <button class="icon-btn" title="查看执行记录" style="opacity:.4;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              </button>
+            </div>
+            <div class="exc-row">
+              <span class="exc-id">×99</span>
+              <span class="exc-name">global-shared-task</span>
+              <span class="exc-meta">连续失败 99 次 · 最近: 08-19</span>
+              <button class="icon-btn" title="查看执行记录" style="opacity:.4;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:6px;">
+            <div style="font-size:11.5px;font-weight:600;margin-bottom:6px;color:var(--muted);">主表操作列（保持不变）</div>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <button class="icon-btn" title="立即执行">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <button class="icon-btn" title="执行记录">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              </button>
+              <button class="icon-btn" title="更多">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <span style="font-size:11px;color:var(--success);margin-left:4px;">← Exception Panel 与主表图标一致</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="diff-box">
+    <div class="diff-row d-rm">－ <code>&lt;a class="hf-ex-action"&gt;查看详情 →&lt;/a&gt;</code> 文字链接</div>
+    <div class="diff-row d-add">＋ <code>&lt;a class="act-btn" title="查看执行记录"&gt;&lt;svg&gt;文档图标&lt;/svg&gt;&lt;/a&gt;</code>（与主表相同的 icon-btn 样式，href 不变）</div>
+    <div class="diff-row d-keep">◉ Exception Panel 结构、失败次数、任务列表逻辑不变</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     X5  审计日志 chip 快速过滤
+     ============================================================ -->
+<div class="change-block">
+  <div class="cb-header">
+    <span class="cb-num">X5</span>
+    <span class="cb-title">审计日志 · 增加 Chip 快速过滤行</span>
+    <span class="cb-pri pri-mid">中优先级</span>
+  </div>
+  <div class="cb-desc">
+    <b>当前</b>：审计日志只有「用户名输入框 + 动作下拉 + 结果下拉 + 日期范围」搜索表单，没有一键快速过滤。<br>
+    <b>Mockup 要求</b>：在搜索表单上方增加一行 chip 快速过滤（全部 / 登录失败 / 权限变更），对应最高频的两类审计场景，不删除现有高级搜索表单。
+  </div>
+  <div class="compare">
+    <!-- BEFORE -->
+    <div>
+      <div class="cp-label"><span>当前</span><span class="badge-before">偏差</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="page-head" style="margin-bottom:10px;">
+            <div class="ph-left"><h1>审计日志</h1><div class="sub">安全相关事件的完整留痕</div></div>
+          </div>
+          <div class="hl-rm" style="margin-bottom:8px;padding:4px;">
+            <span style="font-size:11px;color:var(--danger);">此处无 chip 快速过滤行</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <input class="f-input" placeholder="用户名" style="width:90px;" readonly>
+            <select class="f-select" style="font-size:12px;"><option>全部动作</option></select>
+            <select class="f-select" style="font-size:12px;"><option>全部结果</option></select>
+            <input class="f-input" placeholder="起始日期" style="width:90px;" readonly>
+            <span style="color:var(--muted);font-size:12px;">至</span>
+            <input class="f-input" placeholder="截止日期" style="width:90px;" readonly>
+            <button class="btn-primary" style="height:28px;font-size:12px;padding:0 12px;">搜索</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>事件</th><th>操作人</th><th>时间</th><th>IP</th><th>结果</th></tr></thead>
+              <tbody>
+                <tr><td>登录</td><td>admin</td><td style="color:var(--muted);font-size:11.5px;">08-19 09:02</td><td style="color:var(--muted);font-size:11.5px;">127.0.0.1</td><td><span class="badge badge-s">成功</span></td></tr>
+                <tr><td>权限拒绝</td><td>admin</td><td style="color:var(--muted);font-size:11.5px;">08-19 09:01</td><td style="color:var(--muted);font-size:11.5px;">127.0.0.1</td><td><span class="badge badge-d">拒绝</span></td></tr>
+                <tr><td>登录</td><td>unknown</td><td style="color:var(--muted);font-size:11.5px;">08-18 03:11</td><td style="color:var(--muted);font-size:11.5px;">203.0.113.9</td><td><span class="badge badge-d">失败×5</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div>
+      <div class="cp-label"><span>建议</span><span class="badge-after">对齐 Mockup</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="page-head" style="margin-bottom:10px;">
+            <div class="ph-left"><h1>审计日志</h1><div class="sub">安全相关事件的完整留痕</div></div>
+          </div>
+          <!-- 新增 chip 行 -->
+          <div class="hl-add" style="margin-bottom:10px;padding:4px;">
+            <div style="display:flex;gap:6px;">
+              <span class="chip active">全部</span>
+              <span class="chip">登录失败</span>
+              <span class="chip">权限变更</span>
+            </div>
+          </div>
+          <!-- 原搜索表单保留 -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <input class="f-input" placeholder="用户名" style="width:90px;" readonly>
+            <select class="f-select" style="font-size:12px;"><option>全部动作</option></select>
+            <select class="f-select" style="font-size:12px;"><option>全部结果</option></select>
+            <input class="f-input" placeholder="起始日期" style="width:90px;" readonly>
+            <span style="color:var(--muted);font-size:12px;">至</span>
+            <input class="f-input" placeholder="截止日期" style="width:90px;" readonly>
+            <button class="btn-primary" style="height:28px;font-size:12px;padding:0 12px;">搜索</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>事件</th><th>操作人</th><th>时间</th><th>IP</th><th>结果</th></tr></thead>
+              <tbody>
+                <tr><td>登录</td><td>admin</td><td style="color:var(--muted);font-size:11.5px;">08-19 09:02</td><td style="color:var(--muted);font-size:11.5px;">127.0.0.1</td><td><span class="badge badge-s">成功</span></td></tr>
+                <tr><td>权限拒绝</td><td>admin</td><td style="color:var(--muted);font-size:11.5px;">08-19 09:01</td><td style="color:var(--muted);font-size:11.5px;">127.0.0.1</td><td><span class="badge badge-d">拒绝</span></td></tr>
+                <tr><td>登录</td><td>unknown</td><td style="color:var(--muted);font-size:11.5px;">08-18 03:11</td><td style="color:var(--muted);font-size:11.5px;">203.0.113.9</td><td><span class="badge badge-d">失败×5</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="diff-box">
+    <div class="diff-row d-add">＋ 搜索表单上方增加 chip 行：「全部」(默认选中) / 「登录失败」/ 「权限变更」</div>
+    <div class="diff-row d-add">＋ 点击「登录失败」= 动作过滤设为登录+结果设为拒绝，自动提交</div>
+    <div class="diff-row d-add">＋ 点击「权限变更」= 动作过滤设为权限拒绝，自动提交</div>
+    <div class="diff-row d-keep">◉ 原高级搜索表单（用户名/动作/结果/日期）保留不变</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     X6  执行记录响应码列
+     ============================================================ -->
+<div class="change-block">
+  <div class="cb-header">
+    <span class="cb-num">X6</span>
+    <span class="cb-title">执行记录 · 「返回内容」列 → 「响应码」列</span>
+    <span class="cb-pri pri-mid">中优先级</span>
+  </div>
+  <div class="cb-desc">
+    <b>当前</b>：「返回内容」列显示完整 HTTP 响应体文本（如 <code>{"code":0,"msg":"ok",...}</code>），内容长，列宽大，难以快速扫描成功/失败状态。<br>
+    <b>Mockup 要求</b>：改为「响应码」列，只显示 HTTP 状态码数字（200=绿 / 4xx|5xx=红 / —=超时无响应），信噪比更高。
+  </div>
+  <div class="compare">
+    <!-- BEFORE -->
+    <div>
+      <div class="cp-label"><span>当前</span><span class="badge-before">偏差</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="tw">
+            <table>
+              <thead><tr>
+                <th>任务</th><th>触发时间</th><th>耗时</th>
+                <th class="hl-rm">返回内容</th>
+                <th>状态</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:500;">同步订单履约</td>
+                  <td style="color:var(--muted);font-size:11.5px;">15:00:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">184ms</td>
+                  <td><div style="font-family:var(--mono);font-size:11px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{"code":0,"msg":"ok","data":{"count":14}}</div></td>
+                  <td><span style="color:var(--success);font-size:12px;">● 成功</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight:500;">清理过期缓存</td>
+                  <td style="color:var(--muted);font-size:11.5px;">15:00:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">超时 30s</td>
+                  <td style="color:var(--muted);font-size:12px;">—</td>
+                  <td><span style="color:var(--danger);font-size:12px;">● 超时</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight:500;">库存预警扫描</td>
+                  <td style="color:var(--muted);font-size:11.5px;">14:45:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">890ms</td>
+                  <td><div style="font-family:var(--mono);font-size:11px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Bad Gateway: upstream connection refused</div></td>
+                  <td><span style="color:var(--danger);font-size:12px;">● 失败</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div>
+      <div class="cp-label"><span>建议</span><span class="badge-after">对齐 Mockup</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="tw">
+            <table>
+              <thead><tr>
+                <th>任务</th><th>触发时间</th><th>耗时</th>
+                <th class="hl-add">响应码</th>
+                <th>状态</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:500;">同步订单履约</td>
+                  <td style="color:var(--muted);font-size:11.5px;">15:00:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">184ms</td>
+                  <td><span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--success);">200</span></td>
+                  <td><span style="color:var(--success);font-size:12px;">● 成功</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight:500;">清理过期缓存</td>
+                  <td style="color:var(--muted);font-size:11.5px;">15:00:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">超时 30s</td>
+                  <td><span style="font-family:var(--mono);font-size:13px;color:var(--faint);">—</span></td>
+                  <td><span style="color:var(--danger);font-size:12px;">● 超时</span></td>
+                </tr>
+                <tr>
+                  <td style="font-weight:500;">库存预警扫描</td>
+                  <td style="color:var(--muted);font-size:11.5px;">14:45:00</td>
+                  <td style="color:var(--muted);font-size:11.5px;">890ms</td>
+                  <td><span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--danger);">502</span></td>
+                  <td><span style="color:var(--danger);font-size:12px;">● 失败</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="diff-box">
+    <div class="diff-row d-rm">－ 列名「返回内容」→「响应码」；内容从完整响应体文本改为 HTTP 状态码数字</div>
+    <div class="diff-row d-add">＋ 200 = 绿色；4xx/5xx = 红色；超时/无响应 = 灰色「—」</div>
+    <div class="diff-row d-keep">◉ 其他列（任务/时间/耗时/状态）不变；过滤 chip 不变</div>
+    <div class="diff-row" style="color:var(--warning);">⚠ 需确认后端 job_log 表是否已存储 http_status 字段（当前 <code>lr.get('http_status')</code> 已在 dashboard 中使用，来源待核实）</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Y1  NEW  个人设置缺少资料编辑
+     ============================================================ -->
+<div class="change-block">
+  <div class="cb-header">
+    <span class="cb-num new">Y1</span>
+    <span class="cb-title">个人设置 · 增加「个人资料」编辑入口（新需求）</span>
+    <span class="cb-pri pri-mid">中优先级</span>
+  </div>
+  <div class="cb-desc">
+    <b>发现</b>：当前个人设置侧边栏只有「修改密码」和「API Token」。用户首次登录时填写的花名（nickname）、邮箱、岗位类型（job_title）在登录后无法修改——<code>complete_profile.html</code> 是纯首次流程，已填字段禁用不可编辑。<br>
+    <b>需求</b>：在侧边栏「个人设置」分区增加「个人资料」入口，允许用户随时修改自己的花名、邮箱（或部门）等基本信息。
+  </div>
+  <div class="compare">
+    <!-- BEFORE -->
+    <div>
+      <div class="cp-label"><span>当前侧边栏个人设置</span><span class="badge-before">缺失</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="sidebar-section">个人设置</div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            修改密码
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            API Token
+          </div>
+          <div class="hl-rm" style="margin-top:8px;padding:8px;">
+            <span style="font-size:11px;color:var(--danger);">无「个人资料」编辑入口</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div>
+      <div class="cp-label"><span>建议</span><span class="badge-after">新增入口</span></div>
+      <div class="cp-frame">
+        <div class="pc">
+          <div class="sidebar-section">个人设置</div>
+          <div class="hl-add">
+            <div class="sidebar-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              个人资料
+            </div>
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            修改密码
+          </div>
+          <div class="sidebar-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            API Token
+          </div>
+          <div style="margin-top:12px;">
+            <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">个人资料页内容（新增）：</div>
+            <div class="form-card">
+              <div class="form-row">
+                <label>账号（不可改）</label>
+                <input class="form-input" value="testop" disabled readonly>
+              </div>
+              <div class="form-row">
+                <label>花名</label>
+                <input class="form-input" value="小草" style="border-color:var(--signal);color:var(--ink);" readonly>
+              </div>
+              <div class="form-row">
+                <label>邮箱</label>
+                <input class="form-input" value="testop@company.com" style="color:var(--ink);" readonly>
+              </div>
+              <div class="form-row" style="margin-bottom:0;">
+                <label>岗位类型</label>
+                <input class="form-input" value="技术" style="color:var(--ink);" readonly>
+              </div>
+              <div class="form-actions">
+                <button class="btn-primary" style="height:30px;font-size:12.5px;padding:0 14px;">保存修改</button>
+                <button class="btn-ghost" style="height:30px;font-size:12.5px;padding:0 12px;">取消</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="diff-box">
+    <div class="diff-row d-add">＋ 侧边栏「个人设置」区增加「个人资料」链接（新路由 <code>/rbac/profile</code> 或复用 <code>complete_profile</code>）</div>
+    <div class="diff-row d-add">＋ 个人资料页：账号（只读）/ 花名（可改）/ 邮箱（可改）/ 岗位类型（可改）</div>
+    <div class="diff-row d-keep">◉ 「修改密码」「API Token」入口不变</div>
+    <div class="diff-row" style="color:var(--warning);">⚠ 需后端新增 update_profile API（或复用 update_user，限制用户只能改自己且只能改 nickname/email/job_title）</div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="UI重设计-完整对比Demo-2026-08-19.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

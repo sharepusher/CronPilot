@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot UI 重设计 — 实施架构与平稳过渡方案</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:1100px;margin:0 auto;padding:30px 20px;line-height:1.7;color:#1a1a1a;background:#fff}
+h1{font-size:1.8em;border-bottom:3px solid #3D6FE0;padding-bottom:12px;margin-top:0}
+h2{font-size:1.4em;color:#14171A;border-bottom:1px solid #E4E6E9;padding-bottom:8px;margin-top:40px}
+h3{font-size:1.15em;color:#2F5FCB;margin-top:28px}
+h4{font-size:1em;color:#5B6169;margin-top:20px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:0.9em}
+th,td{border:1px solid #E4E6E9;padding:8px 12px;text-align:left;vertical-align:top}
+th{background:#F7F8F9;font-weight:600;white-space:nowrap}
+code{background:#F1F2F4;padding:2px 6px;border-radius:3px;font-size:0.88em;font-family:"JetBrains Mono","Fira Code",monospace}
+pre{background:#0D0F12;color:#ECEEF0;padding:16px 20px;border-radius:8px;overflow-x:auto;font-size:0.85em;line-height:1.5}
+pre code{background:none;padding:0;color:inherit}
+.box{padding:14px 18px;border-radius:6px;margin:14px 0;border-left:4px solid}
+.box-blue{background:#EFF6FF;border-color:#3D6FE0}
+.box-green{background:#F0FDF4;border-color:#0F9D66}
+.box-yellow{background:#FFFBEB;border-color:#B7791F}
+.box-red{background:#FEF2F2;border-color:#D64545}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.8em;font-weight:600}
+.badge-new{background:#EFF6FF;color:#3D6FE0}
+.badge-keep{background:#F0FDF4;color:#0F9D66}
+.badge-migrate{background:#FFFBEB;color:#B7791F}
+.badge-remove{background:#FEF2F2;color:#D64545}
+.phase-tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:600;margin-right:6px}
+.p1{background:#DBEAFE;color:#1E40AF}
+.p2{background:#D1FAE5;color:#065F46}
+.p3{background:#FEF3C7;color:#92400E}
+.mermaid{background:#F7F8F9;padding:20px;border-radius:8px;margin:16px 0;font-family:monospace;white-space:pre;overflow-x:auto;font-size:0.82em;line-height:1.4}
+.decision{background:#FEFCE8;border:1px solid #FDE68A;padding:12px 16px;border-radius:6px;margin:12px 0}
+.decision strong{color:#92400E}
+.file-tree{background:#F7F8F9;padding:16px 20px;border-radius:8px;font-family:monospace;font-size:0.85em;line-height:1.6;white-space:pre}
+.timeline{display:grid;grid-template-columns:80px 1fr;gap:8px 16px;margin:16px 0;font-size:0.9em}
+.timeline .week{font-weight:700;color:#3D6FE0;padding-top:4px}
+.timeline .work{padding:4px 0;border-bottom:1px dashed #E4E6E9}
+</style>
+</head>
+<body>
+
+<h1>CronPilot UI 重设计 — 实施架构与平稳过渡方案</h1>
+
+<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:8px;padding:16px 20px;margin:16px 0">
+<strong>⚠️ SUPERSEDED</strong>：本文档已合入 <a href="UI重设计-统一执行手册.html">统一执行手册 (OPT-P1-16-MANUAL)</a>。<br>
+本文档保留供历史追溯，<strong>不再维护</strong>。执行以统一手册为准。
+</div>
+
+<p>
+文档编号：<strong>OPT-P1-16-ARCH</strong> ·
+创建：2026-08-11 ·
+最后更新：2026-08-11 ·
+状态：<strong>设计评审</strong> ·
+关联：<a href="CronPilot-2026-redesign-mockup.html">Mockup</a> |
+<a href="UI重设计-Mockup审查与实施方案.html">审查与实施方案</a> |
+<a href="色系统一设计方案.html">色系统一 RFC</a>
+</p>
+
+<div class="box box-blue">
+<strong>目标</strong>：将 CronPilot 管理端从 Bootstrap 3 + Simpleboot 横向 Tab 架构，平稳过渡到 Mockup 定义的 Health-First Sidebar + 语义 Token 新架构。<br>
+<strong>约束</strong>：① Python 3.8–3.11 + Flask 2.3 SSR（非 SPA）；② 过渡期新旧共存、渐进切换；③ 每步可回滚、可独立验收；④ 对现有 API、定时调度零影响。
+</div>
+
+<!-- ==================== 一、架构总览 ==================== -->
+<h2>一、架构决策与技术路线</h2>
+
+<h3>1.1 核心架构决策</h3>
+
+<table>
+<tr><th>#</th><th>决策点</th><th>选择</th><th>理由</th><th>备选（弃用）</th></tr>
+<tr>
+  <td>D1</td>
+  <td>前端框架</td>
+  <td><strong>保持 Jinja2 SSR + jQuery + Vue Islands</strong></td>
+  <td>改造量最小、与现有 RBAC/CSRF/session 无缝兼容、无需引入 SPA Router</td>
+  <td>全量 Vue SPA（重写成本过高、SSR SEO 不需要）</td>
+</tr>
+<tr>
+  <td>D2</td>
+  <td>新旧共存方式</td>
+  <td><strong>双 Base 模板 + Cookie 开关</strong></td>
+  <td>用户可随时回退经典模式；渐进迁移不影响未改造页面</td>
+  <td>Feature Flag 环境变量（不支持用户级切换）</td>
+</tr>
+<tr>
+  <td>D3</td>
+  <td>CSS Token 体系</td>
+  <td><strong>统一为 <code>--cp-*</code> 命名空间</strong>，新增语义层</td>
+  <td>与现有 <code>console-theme.css</code> 兼容，无需全量重命名</td>
+  <td>Mockup 的裸 <code>--canvas/--signal</code>（与生产 token 冲突）</td>
+</tr>
+<tr>
+  <td>D4</td>
+  <td>布局方案</td>
+  <td><strong>CSS Grid Shell (<code>.cp-shell</code>)</strong>，与 Bootstrap Grid 独立</td>
+  <td>新布局不污染旧页面；旧页面通过 <code>admin_base.html</code> 保持原貌</td>
+  <td>在 Bootstrap container 内嵌套（选择器冲突严重）</td>
+</tr>
+<tr>
+  <td>D5</td>
+  <td>JavaScript 模块化</td>
+  <td><strong>新功能用 ES Module IIFE；全局保留 jQuery</strong></td>
+  <td>渐进式；新组件（Command Palette、Toast）独立封装不依赖全局</td>
+  <td>引入 Webpack/Vite 打包全局 JS（风险大）</td>
+</tr>
+<tr>
+  <td>D6</td>
+  <td>路由策略</td>
+  <td><strong>保持服务端路由，每个 View 对应独立 URL</strong></td>
+  <td>SEO 无关，但利于书签/分享、浏览器后退、RBAC 装饰器直接鉴权</td>
+  <td>前端 Hash Router（破坏已有收藏链接）</td>
+</tr>
+<tr>
+  <td>D7</td>
+  <td>深色模式实现</td>
+  <td><strong><code>html[data-theme="dark"]</code> + CSS Token 覆盖</strong></td>
+  <td>与当前 console-mode 一致；JS 切换 + Cookie 持久化</td>
+  <td>CSS prefers-color-scheme（不支持手动切换）</td>
+</tr>
+</table>
+
+<h3>1.2 目标架构图</h3>
+
+<div class="mermaid">
+┌─────────────────────────────────────────────────────────────────────┐
+│ Browser                                                             │
+│                                                                     │
+│  ┌── 新架构 ──────────────────────┐  ┌── 旧架构（共存） ──────────┐ │
+│  │ redesign_base.html             │  │ admin_base.html            │ │
+│  │  ├ _shell.html (Grid Shell)    │  │  ├ _topbar.html            │ │
+│  │  ├ _sidebar.html               │  │  ├ _nav.html (tabs)        │ │
+│  │  ├ _topbar_new.html            │  │  ├ _sidebar_console.html   │ │
+│  │  └ {% block content %}         │  │  └ {% block content %}     │ │
+│  └────────────────────────────────┘  └────────────────────────────┘ │
+│                                                                     │
+│  共享层：                                                            │
+│  ├ console-theme.css (Design Tokens: --cp-*)                        │
+│  ├ redesign-layout.css (新布局专用)                                  │
+│  ├ redesign-components.css (新组件库)                                │
+│  ├ common.js (Ajax form / anti-double-submit / 搜索 / 签名)         │
+│  ├ redesign-shell.js (Sidebar、Command Palette、Toast、Theme)       │
+│  └ Vue 3 Islands (filter-bar, status-cell, form-validator)          │
+└─────────────────────────────────────────────────────────────────────┘
+         │                                    │
+         ▼                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Flask Server (SSR)                                                   │
+│  ├ Blueprints: main / rbac / api / docs                             │
+│  ├ Views: render_template('redesign/xxx.html') or ('xxx.html')      │
+│  ├ UI Mode: Cookie → context_processor → template选择               │
+│  ├ Services → Repositories → Models (不变)                           │
+│  └ APScheduler / gevent (不变)                                       │
+└─────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>1.3 文件结构规划</h3>
+
+<div class="file-tree">
+app/
+├── templates/
+│   ├── admin_base.html                 # 旧 Base（保留，不删）
+│   ├── redesign/                       # ★ 新架构目录
+│   │   ├── _base.html                  # 新 Base 模板
+│   │   ├── _shell.html                 # Grid Shell partial
+│   │   ├── _sidebar.html               # 侧边栏 partial
+│   │   ├── _topbar.html                # 新顶栏 partial
+│   │   ├── _breadcrumb.html            # 面包屑 macro
+│   │   ├── _pagination.html            # 分页 macro
+│   │   ├── _toast.html                 # Toast 容器
+│   │   ├── _modal.html                 # Modal 通用 macro
+│   │   ├── _empty_state.html           # 空状态 macro
+│   │   ├── dashboard.html              # 任务中心
+│   │   ├── task_detail.html            # 任务详情
+│   │   ├── task_edit.html              # 任务编辑
+│   │   ├── task_add.html               # 新建任务
+│   │   ├── run_inspector.html          # 执行详情
+│   │   ├── execution_logs.html         # 执行记录
+│   │   ├── users.html                  # 用户管理
+│   │   ├── user_add.html               # 添加用户
+│   │   ├── user_edit.html              # 编辑用户
+│   │   ├── groups.html                 # 业务组
+│   │   ├── group_add.html              # 新建业务组
+│   │   ├── tags.html                   # 标签管理
+│   │   ├── audit_log.html              # 审计日志
+│   │   ├── operation_log.html          # 操作记录
+│   │   ├── reg_review.html             # 注册审批
+│   │   ├── change_password.html        # 修改密码
+│   │   ├── api_token.html              # API Token
+│   │   └── api_doc.html                # API 文档
+│   ├── redesign_auth/                  # 独立 Auth 页（不继承 Shell）
+│   │   ├── login.html
+│   │   ├── register.html
+│   │   └── forgot_password.html
+│   └── ... (旧模板保留)
+├── static/
+│   ├── css/
+│   │   ├── console-theme.css           # ★ 扩展 Token（新增语义变量）
+│   │   ├── console-mode.css            # 旧 Console 样式（保留）
+│   │   ├── redesign-layout.css         # ★ 新布局 CSS
+│   │   ├── redesign-components.css     # ★ 新组件库 CSS
+│   │   └── redesign-auth.css           # ★ Auth 页专用
+│   └── js/
+│       ├── common.js                   # 保留（共享 Ajax/guard）
+│       ├── redesign-shell.js           # ★ Shell 交互
+│       ├── redesign-cmd-palette.js     # ★ Command Palette
+│       ├── redesign-toast.js           # ★ Toast 系统
+│       └── redesign-theme.js           # ★ 主题切换
+</div>
+
+<!-- ==================== 二、Token 映射方案 ==================== -->
+<h2>二、Design Token 映射 — Mockup → 生产</h2>
+
+<h3>2.1 Token 命名对照</h3>
+
+<p>Mockup 使用简短的裸变量名（<code>--canvas</code>、<code>--signal</code>），生产环境统一映射为 <code>--cp-</code> 前缀以避免第三方库冲突：</p>
+
+<table>
+<tr><th>Mockup Token</th><th>生产 Token</th><th>Light 值</th><th>Dark 值</th><th>用途</th></tr>
+<tr><td><code>--canvas</code></td><td><code>--cp-canvas</code></td><td>#F7F8F9</td><td>#0D0F12</td><td>页面背景</td></tr>
+<tr><td><code>--surface</code></td><td><code>--cp-surface</code></td><td>#FFFFFF</td><td>#16191D</td><td>卡片/面板</td></tr>
+<tr><td><code>--surface-2</code></td><td><code>--cp-surface-2</code></td><td>#F1F2F4</td><td>#1C2025</td><td>Hover/次级</td></tr>
+<tr><td><code>--border</code></td><td><code>--cp-border</code></td><td>#E4E6E9</td><td>#262B31</td><td>默认边框</td></tr>
+<tr><td><code>--border-strong</code></td><td><code>--cp-border-strong</code></td><td>#D3D6DA</td><td>#34393F</td><td>输入框边框</td></tr>
+<tr><td><code>--ink</code></td><td><code>--cp-ink</code></td><td>#14171A</td><td>#ECEEF0</td><td>主文字</td></tr>
+<tr><td><code>--muted</code></td><td><code>--cp-text-muted</code></td><td>#5B6169</td><td>#8B9198</td><td>次级文字</td></tr>
+<tr><td><code>--faint</code></td><td><code>--cp-text-faint</code></td><td>#9CA3AF</td><td>#565C64</td><td>占位/辅助</td></tr>
+<tr><td><code>--signal</code></td><td><code>--cp-signal</code></td><td>#3D6FE0</td><td>#4C8DFF</td><td>主操作色</td></tr>
+<tr><td><code>--signal-ink</code></td><td><code>--cp-signal-hover</code></td><td>#2F5FCB</td><td>#7DAAFF</td><td>主操作 Hover</td></tr>
+<tr><td><code>--signal-bg</code></td><td><code>--cp-signal-bg</code></td><td>rgba(61,111,224,0.09)</td><td>rgba(76,141,255,0.12)</td><td>主操作背景</td></tr>
+<tr><td><code>--success</code></td><td><code>--cp-success</code></td><td>#0F9D66</td><td>#34D399</td><td>成功</td></tr>
+<tr><td><code>--warning</code></td><td><code>--cp-warning</code></td><td>#B7791F</td><td>#F5A623</td><td>警告</td></tr>
+<tr><td><code>--danger</code></td><td><code>--cp-danger</code></td><td>#D64545</td><td>#F16565</td><td>危险</td></tr>
+<tr><td><code>--mono</code></td><td><code>--cp-font-mono</code></td><td colspan="2">"JetBrains Mono","Fira Code",monospace</td><td>等宽字体</td></tr>
+<tr><td><code>--sans</code></td><td><code>--cp-font-sans</code></td><td colspan="2">"Inter",-apple-system,sans-serif</td><td>UI 字体</td></tr>
+<tr><td><code>--shadow</code></td><td><code>--cp-shadow-sm</code></td><td>0 1px 2px rgba(20,23,26,0.04)</td><td>none</td><td>微投影</td></tr>
+</table>
+
+<h3>2.2 与现有 Token 的兼容策略</h3>
+
+<div class="box box-yellow">
+<strong>原则</strong>：现有 <code>--cp-*</code> Token（如 <code>--cp-role-admin</code>、<code>--cp-topbar-bg</code>、<code>--cp-font-sm</code>）<strong>保留不删</strong>。新 Token 在 <code>console-theme.css</code> 的 <code>:root</code> 中追加。旧模板通过旧 Token 继续工作，新模板引用新 Token。
+</div>
+
+<pre><code>/* console-theme.css — Phase 1 追加 */
+:root {
+  /* === 新语义 Token（2026 Redesign） === */
+  --cp-canvas: #F7F8F9;
+  --cp-surface: #FFFFFF;
+  --cp-surface-2: #F1F2F4;
+  --cp-border: #E4E6E9;
+  --cp-border-strong: #D3D6DA;
+  --cp-ink: #14171A;
+  --cp-text-muted: #5B6169;
+  --cp-text-faint: #9CA3AF;
+  --cp-signal: #3D6FE0;
+  --cp-signal-hover: #2F5FCB;
+  --cp-signal-bg: rgba(61,111,224,0.09);
+  --cp-shadow-sm: 0 1px 2px rgba(20,23,26,0.04);
+  /* success/warning/danger 沿用现有 --cp-success 等 */
+}
+
+html[data-theme="dark"] {
+  --cp-canvas: #0D0F12;
+  --cp-surface: #16191D;
+  --cp-surface-2: #1C2025;
+  --cp-border: #262B31;
+  --cp-border-strong: #34393F;
+  --cp-ink: #ECEEF0;
+  --cp-text-muted: #8B9198;
+  --cp-text-faint: #565C64;
+  --cp-signal: #4C8DFF;
+  --cp-signal-hover: #7DAAFF;
+  --cp-signal-bg: rgba(76,141,255,0.12);
+  --cp-shadow-sm: none;
+}</code></pre>
+
+<!-- ==================== 三、过渡机制 ==================== -->
+<h2>三、平稳过渡机制</h2>
+
+<h3>3.1 双轨切换架构</h3>
+
+<div class="box box-green">
+<strong>核心思路</strong>：用户通过 Cookie（<code>cp_ui_version=v2</code>）选择新架构；未切换的用户继续使用旧界面零影响。管理员可通过配置强制全局启用。
+</div>
+
+<h4>3.1.1 Context Processor 扩展</h4>
+
+<pre><code># app/ui_mode.py — 扩展现有 inject_ui_mode
+def inject_ui_mode():
+    # 现有逻辑：ui_mode, theme, sidebar_collapsed
+    ...
+    # 新增：UI 版本
+    ui_version = request.cookies.get('cp_ui_version', 'v1')
+    if current_app.config.get('CRONPILOT_FORCE_NEW_UI'):
+        ui_version = 'v2'
+    return dict(
+        ui_mode=ui_mode,
+        theme=theme,
+        sidebar_collapsed=sidebar_collapsed,
+        ui_version=ui_version,  # 'v1' or 'v2'
+    )</code></pre>
+
+<h4>3.1.2 Views 中的模板选择</h4>
+
+<pre><code># app/main/views.py — 示例：任务列表
+@main.route('/cron_list')
+@require_login
+def cron_list():
+    # ... 业务逻辑不变 ...
+    if g.ui_version == 'v2':
+        return render_template('redesign/dashboard.html', **ctx)
+    return render_template('cron_list.html', **ctx)</code></pre>
+
+<div class="decision">
+<strong>决策 D2 实施细节</strong>：不修改 URL 路由，只在 view 函数末尾分支模板。这保证：
+<ul>
+<li>收藏的链接 <code>/cron_list</code> 对新旧用户均有效</li>
+<li>RBAC 装饰器（<code>@require_permission</code>）无需改动</li>
+<li>API Blueprint 完全不受影响</li>
+</ul>
+</div>
+
+<h4>3.1.3 切换入口</h4>
+
+<p>在旧界面顶栏和新界面设置中放置「切换 UI 版本」入口：</p>
+
+<pre><code># app/rbac/views.py
+@rbac.route('/switch_ui_version', methods=['POST'])
+@require_login
+def switch_ui_version():
+    version = request.form.get('version', 'v1')
+    resp = redirect(request.referrer or url_for('main.cron_list'))
+    resp.set_cookie('cp_ui_version', version, max_age=365*86400, httponly=True)
+    return resp</code></pre>
+
+<h3>3.2 迁移进度矩阵</h3>
+
+<p>每个路由页面独立迁移，标记状态：</p>
+
+<table>
+<tr><th>路由</th><th>旧模板</th><th>新模板</th><th>Phase</th><th>状态</th></tr>
+<tr><td><code>/cron_list</code> (Dashboard)</td><td>cron_list.html</td><td>redesign/dashboard.html</td><td><span class="phase-tag p1">Phase 2</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/cron_detail/&lt;id&gt;</code></td><td>cron_detail.html</td><td>redesign/task_detail.html</td><td><span class="phase-tag p2">Phase 3</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/cron_edit/&lt;id&gt;</code></td><td>cron_edit.html</td><td>redesign/task_edit.html</td><td><span class="phase-tag p2">Phase 4</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/cron_add</code></td><td>cron_add.html</td><td>redesign/task_add.html</td><td><span class="phase-tag p2">Phase 4</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/job_log_list</code></td><td>job_log_list.html</td><td>redesign/execution_logs.html</td><td><span class="phase-tag p1">Phase 2</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/job_log_detail/&lt;id&gt;</code></td><td>job_log_detail.html</td><td>redesign/run_inspector.html</td><td><span class="phase-tag p2">Phase 3</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/users</code></td><td>rbac/users.html</td><td>redesign/users.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/groups</code></td><td>rbac/groups.html</td><td>redesign/groups.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/tags</code></td><td>rbac/tags.html</td><td>redesign/tags.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/audit-logs</code></td><td>rbac/audit_logs.html</td><td>redesign/audit_log.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/operation_log_list</code></td><td>operation_log_list.html</td><td>redesign/operation_log.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/registration_review</code></td><td>rbac/registration_review.html</td><td>redesign/reg_review.html</td><td><span class="phase-tag p3">Phase 5</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/login</code></td><td>rbac/login.html</td><td>redesign_auth/login.html</td><td><span class="phase-tag p3">Phase 6</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/register</code></td><td>rbac/register.html</td><td>redesign_auth/register.html</td><td><span class="phase-tag p3">Phase 6</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+<tr><td><code>/rbac/change_password</code></td><td>rbac/change_password.html</td><td>redesign/change_password.html</td><td><span class="phase-tag p3">Phase 6</span></td><td><span class="badge badge-new">待开发</span></td></tr>
+</table>
+
+<h3>3.3 回滚机制</h3>
+
+<table>
+<tr><th>场景</th><th>操作</th><th>影响范围</th></tr>
+<tr><td>单用户回退</td><td>设置 Cookie <code>cp_ui_version=v1</code></td><td>仅该用户</td></tr>
+<tr><td>全局回退</td><td>删除 <code>CRONPILOT_FORCE_NEW_UI</code> 配置</td><td>所有用户回退到 v1</td></tr>
+<tr><td>代码回退</td><td><code>git revert</code> 特定 Phase 的 commits</td><td>旧模板完整保留，不受影响</td></tr>
+</table>
+
+<!-- ==================== 四、分批实施详案 ==================== -->
+<h2>四、分批实施详案（深度技术方案）</h2>
+
+<h3>4.1 Phase 1 — 基础设施（Design Token + Layout Shell）</h3>
+
+<div class="box box-blue">
+<strong>目标</strong>：建立新架构的「地基」——Token 系统 + Shell 骨架 + 切换机制。完成后新旧模板可并行存在，后续 Phase 只需「填内容」。
+</div>
+
+<h4>4.1.1 交付物清单</h4>
+
+<table>
+<tr><th>文件</th><th>动作</th><th>说明</th></tr>
+<tr><td><code>app/static/css/console-theme.css</code></td><td><span class="badge badge-migrate">扩展</span></td><td>追加 §2 Token；不删不改现有变量</td></tr>
+<tr><td><code>app/static/css/redesign-layout.css</code></td><td><span class="badge badge-new">新建</span></td><td>Grid Shell (.cp-shell) + Sidebar + Topbar 布局</td></tr>
+<tr><td><code>app/static/css/redesign-components.css</code></td><td><span class="badge badge-new">新建</span></td><td>基础组件：btn、table、card、badge、form primitives</td></tr>
+<tr><td><code>app/templates/redesign/_base.html</code></td><td><span class="badge badge-new">新建</span></td><td>新 Base 模板（引入新 CSS/JS + Shell）</td></tr>
+<tr><td><code>app/templates/redesign/_shell.html</code></td><td><span class="badge badge-new">新建</span></td><td>Sidebar + Topbar + Content slot</td></tr>
+<tr><td><code>app/templates/redesign/_sidebar.html</code></td><td><span class="badge badge-new">新建</span></td><td>权限感知的导航菜单</td></tr>
+<tr><td><code>app/templates/redesign/_topbar.html</code></td><td><span class="badge badge-new">新建</span></td><td>搜索 + 主题 + 用户菜单</td></tr>
+<tr><td><code>app/templates/redesign/_pagination.html</code></td><td><span class="badge badge-new">新建</span></td><td>分页 Macro（支持 url_for）</td></tr>
+<tr><td><code>app/static/js/redesign-shell.js</code></td><td><span class="badge badge-new">新建</span></td><td>Sidebar collapse、User dropdown、Mobile menu</td></tr>
+<tr><td><code>app/static/js/redesign-theme.js</code></td><td><span class="badge badge-new">新建</span></td><td>Light/Dark 切换 + Cookie 持久化</td></tr>
+<tr><td><code>app/ui_mode.py</code></td><td><span class="badge badge-migrate">修改</span></td><td>追加 <code>ui_version</code> 注入</td></tr>
+<tr><td><code>config.py</code></td><td><span class="badge badge-migrate">修改</span></td><td>追加 <code>CRONPILOT_FORCE_NEW_UI</code></td></tr>
+</table>
+
+<h4>4.1.2 新 Base 模板骨架</h4>
+
+<pre><code>&lt;!-- app/templates/redesign/_base.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN" data-theme="{{ theme }}"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta name="viewport" content="width=device-width,initial-scale=1"&gt;
+  &lt;title&gt;{% block title %}CronPilot{% endblock %}&lt;/title&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/console-theme.css') }}"&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-layout.css') }}"&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-components.css') }}"&gt;
+  {% block css %}{% endblock %}
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="cp-shell"&gt;
+    {% include "redesign/_sidebar.html" %}
+    &lt;div class="cp-col-main"&gt;
+      {% include "redesign/_topbar.html" %}
+      &lt;main class="cp-main"&gt;
+        {% block breadcrumb %}{% endblock %}
+        {% block content %}{% endblock %}
+      &lt;/main&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  {% include "redesign/_toast.html" %}
+
+  &lt;!-- 共享 JS（保留 jQuery 生态 + 新模块） --&gt;
+  &lt;script src="{{ url_for('static', filename='js/jquery.js') }}"&gt;&lt;/script&gt;
+  &lt;script src="{{ url_for('static', filename='js/common.js') }}"&gt;&lt;/script&gt;
+  &lt;script src="{{ url_for('static', filename='js/redesign-shell.js') }}"&gt;&lt;/script&gt;
+  &lt;script src="{{ url_for('static', filename='js/redesign-theme.js') }}"&gt;&lt;/script&gt;
+  {% block js %}{% endblock %}
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h4>4.1.3 Layout CSS 核心</h4>
+
+<pre><code>/* redesign-layout.css */
+.cp-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+  background: var(--cp-canvas);
+  color: var(--cp-ink);
+  font-family: var(--cp-font-sans);
+}
+
+.cp-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--cp-surface);
+  border-right: 1px solid var(--cp-border);
+  padding: 16px 0;
+}
+
+.cp-col-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* prevent grid blowout */
+}
+
+.cp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  background: var(--cp-surface);
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-main {
+  flex: 1;
+  padding: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Sidebar collapsed state */
+.cp-shell.collapsed {
+  grid-template-columns: 56px 1fr;
+}
+.cp-shell.collapsed .cp-sidebar .nav-label,
+.cp-shell.collapsed .cp-sidebar .section-label { display: none; }
+
+/* Mobile */
+@media (max-width: 768px) {
+  .cp-shell { grid-template-columns: 1fr; }
+  .cp-sidebar { display: none; }
+  .cp-sidebar.mobile-open { display: block; position: fixed; z-index: 100; width: 260px; }
+}</code></pre>
+
+<h4>4.1.4 验收标准</h4>
+
+<ol>
+<li><code>bash scripts/cronpilot.sh restart</code> → 访问 <code>/cron_list</code> 旧界面正常</li>
+<li>设置 Cookie <code>cp_ui_version=v2</code> → 看到新 Shell 骨架（空 content + sidebar + topbar）</li>
+<li><code>python scripts/audit_hardcoded_colors.py --check</code> 通过</li>
+<li>Light/Dark 切换生效，Cookie 持久化</li>
+<li>Sidebar 导航链接跳转到对应旧页面（降级正常）</li>
+</ol>
+
+<h3>4.2 Phase 2 — 任务中心（Health-First Dashboard）</h3>
+
+<div class="box box-blue">
+<strong>目标</strong>：将 <code>/cron_list</code> 重构为 Health-First Dashboard，这是用户 80%+ 时间停留的首页。
+</div>
+
+<h4>4.2.1 数据层准备</h4>
+
+<pre><code># app/services/dashboard_service.py — 新建
+class DashboardService:
+    """聚合任务健康数据，供 Dashboard 使用"""
+
+    def get_health_summary(self, scope_group_ids=None):
+        """返回 Health-First 统计面板数据"""
+        return {
+            'abnormal_count': ...,       # 异常任务数
+            'consecutive_fail': ...,     # 连续失败任务数
+            'running_count': ...,        # 运行中任务数
+            'today_fail_count': ...,     # 今日失败次数
+            'total_tasks': ...,
+            'success_rate_24h': ...,
+        }
+
+    def get_exception_tasks(self, scope_group_ids=None, limit=5):
+        """返回需要关注的异常任务列表"""
+        return [
+            {'task_name': ..., 'failure_count': ..., 'last_error': ...},
+            ...
+        ]</code></pre>
+
+<h4>4.2.2 后端变更（Views）</h4>
+
+<pre><code># app/main/views.py — cron_list 增强
+@main.route('/cron_list')
+@require_login
+def cron_list():
+    # ... 现有分页 + 筛选逻辑保持 ...
+    ctx = {
+        'tasks': paginated_tasks,
+        'pagination': pagination,
+        'groups': user_groups,
+        'filters': current_filters,
+    }
+
+    if g.ui_version == 'v2':
+        # 新 Dashboard 需要额外数据
+        dashboard_svc = DashboardService()
+        scope_ids = get_user_scope_group_ids()
+        ctx['health_summary'] = dashboard_svc.get_health_summary(scope_ids)
+        ctx['exceptions'] = dashboard_svc.get_exception_tasks(scope_ids)
+        return render_template('redesign/dashboard.html', **ctx)
+
+    return render_template('cron_list.html', **ctx)</code></pre>
+
+<h4>4.2.3 前端组件拆解</h4>
+
+<table>
+<tr><th>组件</th><th>实现方式</th><th>说明</th></tr>
+<tr><td>Health Stats 面板</td><td>Jinja2 模板</td><td>4 个统计卡片，纯服务端渲染</td></tr>
+<tr><td>Exception Panel</td><td>Jinja2 模板</td><td>异常任务列表，带链接跳转详情</td></tr>
+<tr><td>Filter Bar</td><td>Vue 3 Island <span class="badge badge-keep">复用</span></td><td>复用现有 <code>cron-filter-bar.js</code></td></tr>
+<tr><td>Task Table</td><td>Jinja2 + Vue Cell</td><td>表格 SSR，状态单元格用 Vue 组件</td></tr>
+<tr><td>Pagination</td><td>Jinja2 Macro</td><td>新建 <code>_pagination.html</code> macro</td></tr>
+</table>
+
+<h4>4.2.4 验收标准</h4>
+
+<ol>
+<li>Health Summary 4 项指标与数据库实际一致</li>
+<li>Exception Panel 展示连续失败 ≥ threshold 的任务</li>
+<li>Filter/搜索/分页功能与旧版等效</li>
+<li>Scope 隔离：非 admin 用户只看到自己组的数据</li>
+<li>切回 v1 旧界面完全正常</li>
+</ol>
+
+<h3>4.3 Phase 3 — 任务详情 + 执行详情</h3>
+
+<h4>4.3.1 关键技术点</h4>
+
+<table>
+<tr><th>特性</th><th>实现方案</th></tr>
+<tr><td>Detail 多 Card 布局</td><td>CSS Grid 2-column（<code>grid-template-columns: 1fr 1fr</code>）</td></tr>
+<tr><td>Recent Runs 列表</td><td>Jinja2 渲染最近 10 条，链接到 Run Inspector</td></tr>
+<tr><td>Run Inspector 代码块</td><td><code>&lt;pre&gt;</code> + <code>--cp-font-mono</code>；JSON 格式化用 Python <code>json.dumps(indent=2)</code></td></tr>
+<tr><td>失败原因高亮</td><td><code>.run-badge.failed</code> + Danger Token 着色</td></tr>
+<tr><td>业务日志时间线</td><td>Jinja2 loop <code>job_log_items</code>，按时间排序</td></tr>
+</table>
+
+<h4>4.3.2 新增路由</h4>
+
+<pre><code># 执行详情页目前是 /job_log_detail/<id>
+# v2 保持相同 URL，切换模板
+@main.route('/job_log_detail/&lt;int:log_id&gt;')
+@require_login
+def job_log_detail(log_id):
+    log = JobLogRepository.get_with_items(log_id)
+    # ... 权限检查 ...
+    ctx = {'log': log, 'task': log.cron_info, 'items': log.items}
+    if g.ui_version == 'v2':
+        return render_template('redesign/run_inspector.html', **ctx)
+    return render_template('job_log_detail.html', **ctx)</code></pre>
+
+<h3>4.4 Phase 4 — 表单系统（编辑/新建任务）</h3>
+
+<h4>4.4.1 设计原则</h4>
+
+<ul>
+<li><strong>分段式表单</strong>：基础信息 / 请求配置 / 调度配置 / 生命周期 — 每段独立 <code>.form-section</code></li>
+<li><strong>Cron 预设</strong>：Quick chips + 自定义输入 — 复用现有 <code>cron-form-validator.js</code> Vue 组件</li>
+<li><strong>业务组限选</strong>：只显示用户所属组（已有 Scope 过滤逻辑）</li>
+<li><strong>保持 Ajax 提交</strong>：使用 <code>js-ajax-form</code> + <code>js-ajax-submit</code> 模式</li>
+</ul>
+
+<h4>4.4.2 关键变更</h4>
+
+<pre><code>&lt;!-- redesign/task_edit.html — 表单结构 --&gt;
+{% extends "redesign/_base.html" %}
+{% block content %}
+&lt;form class="js-ajax-form" action="{{ url_for('main.cron_save') }}" method="post"&gt;
+  {{ csrf_param | safe }}
+
+  &lt;div class="form-section"&gt;
+    &lt;div class="form-section-title"&gt;基础信息&lt;/div&gt;
+    &lt;!-- 任务名称、说明、业务组、标签 --&gt;
+  &lt;/div&gt;
+
+  &lt;div class="form-section"&gt;
+    &lt;div class="form-section-title"&gt;请求配置&lt;/div&gt;
+    &lt;!-- 触发 URL、请求方式、超时、JSON Body --&gt;
+  &lt;/div&gt;
+
+  &lt;div class="form-section"&gt;
+    &lt;div class="form-section-title"&gt;调度配置&lt;/div&gt;
+    &lt;!-- 定时方式、Cron 表达式 + 预设 chips --&gt;
+    &lt;div id="cron-form-validator-mount"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class="form-actions"&gt;
+    &lt;button type="submit" class="btn btn-primary js-ajax-submit"&gt;保存&lt;/button&gt;
+    &lt;a href="{{ url_for('main.cron_list') }}" class="btn"&gt;取消&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/form&gt;
+{% endblock %}
+
+{% block js %}
+&lt;script src="{{ url_for('static', filename='dist/cron-form-validator.js') }}"&gt;&lt;/script&gt;
+{% endblock %}</code></pre>
+
+<h3>4.5 Phase 5 — 用户/组/审批/审计</h3>
+
+<h4>4.5.1 实施子步</h4>
+
+<table>
+<tr><th>子步</th><th>页面</th><th>复杂度</th><th>新增后端逻辑</th></tr>
+<tr><td>5a</td><td>用户管理 + 添加/编辑</td><td>中</td><td>无（现有 API 充分）</td></tr>
+<tr><td>5b</td><td>业务组</td><td>中</td><td>追加 group detail 聚合查询</td></tr>
+<tr><td>5c</td><td>注册审批</td><td>低</td><td>无</td></tr>
+<tr><td>5d</td><td>审计日志 + 操作记录</td><td>低</td><td>无</td></tr>
+<tr><td>5e</td><td>标签管理</td><td>低</td><td>无</td></tr>
+</table>
+
+<h3>4.6 Phase 6 — Auth 独立页 + 个人设置</h3>
+
+<h4>4.6.1 Auth 页面特殊处理</h4>
+
+<p>Auth 页面不继承 Shell（无侧边栏），使用独立的 <code>redesign_auth/</code> base：</p>
+
+<pre><code>&lt;!-- redesign_auth/_auth_base.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN" data-theme="{{ theme }}"&gt;
+&lt;head&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/console-theme.css') }}"&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-components.css') }}"&gt;
+  &lt;link rel="stylesheet" href="{{ url_for('static', filename='css/redesign-auth.css') }}"&gt;
+&lt;/head&gt;
+&lt;body class="cp-auth-page"&gt;
+  &lt;div class="cp-auth-container"&gt;
+    {% block auth_content %}{% endblock %}
+  &lt;/div&gt;
+  &lt;script src="{{ url_for('static', filename='js/common.js') }}"&gt;&lt;/script&gt;
+  {% block js %}{% endblock %}
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h4>4.6.2 密码强度组件</h4>
+
+<pre><code>// redesign-password-strength.js — IIFE
+(function() {
+  'use strict';
+  document.querySelectorAll('.password-strength-wrap').forEach(function(wrap) {
+    var input = wrap.querySelector('input[type="password"], input[type="text"]');
+    var bars = wrap.querySelectorAll('.strength-bar');
+    var label = wrap.querySelector('.strength-label');
+
+    input.addEventListener('input', function() {
+      var score = calcStrength(input.value);
+      updateBars(bars, label, score);
+    });
+  });
+
+  function calcStrength(pw) {
+    if (!pw || pw.length < 6) return 0;
+    var score = 1; // weak
+    if (pw.length >= 8 && /[a-z]/.test(pw) && /\d/.test(pw)) score = 2; // medium
+    if (pw.length >= 10 && /[A-Z]/.test(pw) && /[^a-zA-Z0-9]/.test(pw)) score = 3; // strong
+    return score;
+  }
+})();</code></pre>
+
+<h3>4.7 Phase 7 — 全局交互组件</h3>
+
+<table>
+<tr><th>组件</th><th>文件</th><th>触发方式</th></tr>
+<tr><td>Toast 通知</td><td><code>redesign-toast.js</code></td><td><code>window.CpToast.success(msg)</code> / <code>.error(msg)</code></td></tr>
+<tr><td>确认 Modal</td><td><code>redesign-modal.js</code></td><td><code>window.CpModal.confirm({title, message, onOk})</code></td></tr>
+<tr><td>Command Palette</td><td><code>redesign-cmd-palette.js</code></td><td>⌘K / Ctrl+K / 点击搜索框</td></tr>
+<tr><td>空状态</td><td><code>_empty_state.html</code> Macro</td><td>Jinja2 条件渲染</td></tr>
+<tr><td>骨架屏</td><td>CSS <code>.skeleton</code></td><td>页面加载时显示，JS 填充后移除</td></tr>
+</table>
+
+<h4>4.7.1 Toast 与现有 noty 的关系</h4>
+
+<div class="decision">
+<strong>决策</strong>：新界面使用自研 <code>CpToast</code>（轻量、Token 着色、无依赖）；旧界面继续用 noty。<code>common.js</code> 中的 Ajax 成功回调在 v2 下调用 <code>CpToast</code>。
+</div>
+
+<pre><code>// common.js — Ajax form success hook 增强
+function showFeedback(msg, type) {
+  if (window.CpToast) {
+    window.CpToast[type === 'error' ? 'error' : 'success'](msg);
+  } else {
+    // 旧 noty fallback
+    noty({text: msg, type: type === 'error' ? 'error' : 'success'});
+  }
+}</code></pre>
+
+<h4>4.7.2 Command Palette 数据源</h4>
+
+<pre><code>// redesign-cmd-palette.js
+// 数据源：服务端注入 + 前端静态
+var PALETTE_DATA = {
+  tasks: {{ tasks_for_palette | tojson }},  // 服务端注入（前 50 个活跃任务）
+  actions: [
+    { label: '新建任务', icon: '+', href: '{{ url_for("main.cron_add") }}' },
+    { label: '执行记录', icon: '📋', href: '{{ url_for("main.job_log_list") }}' },
+    { label: '用户管理', icon: '👥', href: '{{ url_for("rbac.users") }}' },
+  ],
+};</code></pre>
+
+<h3>4.8 Phase 8 — 深色模式完善 + 响应式 + 收尾</h3>
+
+<h4>4.8.1 深色模式检查清单</h4>
+
+<ul>
+<li>所有 <code>redesign-*.css</code> 中不允许硬编码颜色，必须通过 Token</li>
+<li>图片/Logo 需提供深色版本或使用 <code>filter: brightness()</code></li>
+<li>代码块/JSON 显示使用独立的深色方案（<code>--cp-code-bg</code>）</li>
+<li>表单 <code>:focus</code> ring 在深色背景上可见度充分（4.5:1 对比度）</li>
+</ul>
+
+<h4>4.8.2 响应式断点</h4>
+
+<table>
+<tr><th>断点</th><th>布局调整</th></tr>
+<tr><td>≥ 1024px</td><td>完整 Sidebar + 全部列可见</td></tr>
+<tr><td>768–1023px</td><td>Sidebar 折叠为 icon-only；表格隐藏次要列</td></tr>
+<tr><td>&lt; 768px</td><td>Sidebar 隐藏（汉堡菜单触发）；表格可横向滚动</td></tr>
+</table>
+
+<!-- ==================== 五、时间线与里程碑 ==================== -->
+<h2>五、实施时间线</h2>
+
+<div class="timeline">
+<span class="week">W1</span><span class="work"><strong>Phase 1</strong> — Token + Shell + 切换机制 + 验收<br>→ 里程碑：新旧 UI 可切换，Shell 骨架可见</span>
+<span class="week">W2</span><span class="work"><strong>Phase 2</strong> — Dashboard + Execution Logs<br>→ 里程碑：核心首页可用（Health Stats + Task Table + Pagination）</span>
+<span class="week">W3</span><span class="work"><strong>Phase 3 + 4</strong> — 详情 + 表单系统<br>→ 里程碑：核心 CRUD 闭环（列表→详情→编辑→新建）</span>
+<span class="week">W4</span><span class="work"><strong>Phase 5</strong> — Admin 全套（用户/组/审批/审计/标签）<br>→ 里程碑：管理功能完整</span>
+<span class="week">W5</span><span class="work"><strong>Phase 6 + 7</strong> — Auth + 全局组件<br>→ 里程碑：登录流程端到端新界面；Toast/Modal/Palette 完整</span>
+<span class="week">W5-6</span><span class="work"><strong>Phase 8</strong> — 深色模式、响应式、文档同步、全面验收<br>→ 里程碑：全部页面深色/浅色一致，移动端可用</span>
+</div>
+
+<div class="box box-green">
+<strong>总工期</strong>：5–6 周（单人全职）或 3–4 周（前后端各一人）。<br>
+<strong>可并行</strong>：Phase 3 & 4 可同时进行（分属不同模板文件）；Phase 5 的子步可并行。
+</div>
+
+<!-- ==================== 六、质量保障 ==================== -->
+<h2>六、质量保障与验收体系</h2>
+
+<h3>6.1 每 Phase 必须通过的门禁</h3>
+
+<table>
+<tr><th>#</th><th>门禁</th><th>命令/工具</th></tr>
+<tr><td>1</td><td>单元测试通过</td><td><code>bash scripts/cronpilot.sh test</code></td></tr>
+<tr><td>2</td><td>颜色审计通过</td><td><code>python scripts/audit_hardcoded_colors.py --check</code></td></tr>
+<tr><td>3</td><td>Ajax Form 守卫</td><td><code>python -m unittest tests.test_ajax_form_guard -v</code></td></tr>
+<tr><td>4</td><td>HTML↔MD 同步</td><td><code>python scripts/html_docs_to_markdown.py --check</code></td></tr>
+<tr><td>5</td><td>重启后浏览器验证</td><td><code>cronpilot.sh restart → curl + browser</code></td></tr>
+<tr><td>6</td><td>旧界面无回归</td><td>切回 v1 关键路径正常</td></tr>
+<tr><td>7</td><td>深色模式无残留</td><td>切换 dark → 无白色闪块/对比度问题</td></tr>
+<tr style="background:#FEF2F2"><td><strong>8</strong></td><td><strong>Mockup 设计还原对照（Design QA）</strong></td><td>
+逐节对照 Mockup 源码中对应 <code>view-*</code> 区块：<br>
+① <code>Read</code> Mockup 对应区块完整 HTML（不可凭记忆）<br>
+② 逐一核对：Stats 指标名与顺序、表格列数与列名、按钮类型(icon/text)、特殊面板、行样式<br>
+③ <code>curl + grep</code> 验证关键 CSS class 存在于渲染 HTML<br>
+④ 截图逐区域对照（Stats → Panel → Filters → Table → Pagination）
+</td></tr>
+</table>
+
+<h3>6.2 新增测试</h3>
+
+<table>
+<tr><th>测试文件</th><th>覆盖内容</th><th>Phase</th></tr>
+<tr><td><code>tests/test_redesign_templates.py</code></td><td>新模板渲染不报错 + 关键元素存在</td><td>Phase 1</td></tr>
+<tr><td><code>tests/test_ui_version_switch.py</code></td><td>Cookie 切换逻辑正确</td><td>Phase 1</td></tr>
+<tr><td><code>tests/test_dashboard_service.py</code></td><td>Health 聚合数据正确性</td><td>Phase 2</td></tr>
+<tr><td><code>tests/test_redesign_auth.py</code></td><td>新 Auth 页 CSRF + 登录流程</td><td>Phase 6</td></tr>
+</table>
+
+<h3>6.3 设计还原度验收（Design QA）— 强制</h3>
+
+<div class="box box-red">
+<strong>强制</strong>（2026-08 追加，Phase 2 偏离事故后升级为强制门禁）：<br>
+每个 Phase 交付前，必须执行 <strong>Mockup 逐节对照</strong>，步骤：<br>
+① <code>Read</code> Mockup 中对应 <code>view-*</code> 区块的完整 HTML 源码（禁止凭记忆）<br>
+② 列出结构清单：Stats 指标名和顺序、表格列数和列名、按钮类型、面板组件、行样式<br>
+③ <code>curl + grep</code> 验证关键 CSS class 存在于渲染输出<br>
+④ 截图逐区域对照（Stats → Exception Panel → Filters → Table → Pagination → Actions）<br><br>
+<strong>失败教训</strong>：Phase 2 首次实现因跳过此步骤，导致 Exception Panel 完全缺失、7 列降为 5 列、icon 按钮变文字按钮，触发全量重写。
+</div>
+
+<h3>6.4 视觉回归（Playwright）</h3>
+
+<div class="box box-yellow">
+<strong>建议</strong>（非强制，资源允许时引入）：使用 Playwright screenshot comparison 对关键页面做视觉快照对比。CI 中新增 <code>visual-regression.yml</code> workflow，在 PR 中展示 diff 图。
+</div>
+
+<!-- ==================== 七、风险与缓解 ==================== -->
+<h2>七、风险评估与缓解</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解措施</th></tr>
+<tr>
+  <td>新旧 CSS 选择器冲突（如 <code>.btn</code> 被覆盖）</td>
+  <td>中</td>
+  <td>高</td>
+  <td>新组件使用 <code>.cp-btn</code> 前缀命名空间；<code>redesign-*.css</code> 全部在 <code>.cp-shell</code> 作用域下</td>
+</tr>
+<tr>
+  <td>jQuery <code>common.js</code> 事件与新模板 DOM 结构不匹配</td>
+  <td>中</td>
+  <td>中</td>
+  <td>新模板保留 <code>.js-ajax-form</code>/<code>.js-ajax-submit</code> class 约定；全局守卫依赖 <code>[type="submit"]</code> 保持兼容</td>
+</tr>
+<tr>
+  <td>CSRF Token 在新模板中遗漏</td>
+  <td>低</td>
+  <td>高</td>
+  <td>新 Base 模板统一引入 <code>{{ csrf_param|safe }}</code>；集成测试覆盖 POST</td>
+</tr>
+<tr>
+  <td>深色模式遗漏变量导致白色闪块</td>
+  <td>中</td>
+  <td>中</td>
+  <td>CI 脚本扫描 <code>redesign-*.css</code> 中是否有未使用 Token 的颜色</td></tr>
+<tr>
+  <td>Vue Islands 在新 Shell 中挂载时机错误</td>
+  <td>低</td>
+  <td>中</td>
+  <td>保持 <code>DOMContentLoaded</code> 后 mount；新模板确保 mount 点 ID 一致</td>
+</tr>
+<tr>
+  <td>迁移周期过长导致新旧不一致时间窗过大</td>
+  <td>低</td>
+  <td>低</td>
+  <td>每完成一个 Phase 即上线（Cookie 切换）；用户反馈驱动优先级调整</td>
+</tr>
+</table>
+
+<!-- ==================== 八、弃用计划 ==================== -->
+<h2>八、旧架构弃用路线</h2>
+
+<table>
+<tr><th>阶段</th><th>条件</th><th>操作</th></tr>
+<tr>
+  <td>Phase 8 完成后</td>
+  <td>所有路由已支持 v2</td>
+  <td>将 <code>CRONPILOT_FORCE_NEW_UI</code> 默认值改为 <code>True</code></td>
+</tr>
+<tr>
+  <td>v2 上线 4 周无投诉</td>
+  <td>运行稳定</td>
+  <td>移除 <code>ui_version</code> 分支逻辑；旧模板标记 deprecated</td>
+</tr>
+<tr>
+  <td>下一大版本（v4.0）</td>
+  <td>确认无用户使用 v1</td>
+  <td>删除旧模板 + Simpleboot 依赖 + noty/artDialog</td>
+</tr>
+</table>
+
+<div class="box box-red">
+<strong>绝对不做</strong>：在过渡期删除旧模板或旧 CSS。旧文件保留为「安全网」，直到弃用条件全部满足。
+</div>
+
+<!-- ==================== 九、附录 ==================== -->
+<h2>九、附录</h2>
+
+<h3>A. 关键决策日志</h3>
+
+<table>
+<tr><th>日期</th><th>决策</th><th>理由</th></tr>
+<tr><td>2026-08-11</td><td>不引入 SPA Router</td><td>22 个页面级 View 通过服务端路由管理更简单，RBAC 装饰器直接鉴权</td></tr>
+<tr><td>2026-08-11</td><td>新 Token 使用 <code>--cp-</code> 前缀</td><td>与现有 Token 同命名空间，避免两套变量名共存增加认知负担</td></tr>
+<tr><td>2026-08-11</td><td>分 8 Phase 渐进交付</td><td>单 Phase 不超过 1 周，降低合并冲突和回归风险</td></tr>
+<tr><td>2026-08-11</td><td>保留 jQuery + common.js</td><td>Anti-double-submit、Ajax form、CSRF 等基础设施成熟稳定，无需重写</td></tr>
+</table>
+
+<h3>B. 参考资源</h3>
+
+<ul>
+<li><a href="CronPilot-2026-redesign-mockup.html">完整交互 Mockup</a></li>
+<li><a href="色系统一设计方案.html">色系统一设计方案 RFC</a></li>
+<li><a href="UI交互重设计综合方案.html">UI 交互重设计综合方案</a></li>
+<li><a href="UI重设计-Mockup审查与实施方案.html">Mockup 审查与实施方案</a></li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="UI重设计-实施架构与过渡方案.md">Markdown</a> · <a href="../index.html">索引</a></footer>
+</body>
+</html>

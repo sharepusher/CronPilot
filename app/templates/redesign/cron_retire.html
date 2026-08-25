@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}下线任务 — CronPilot{% endblock %}
+{% block main_class %} cp-page-cron-retire{% endblock %}
 
 {% block content %}
 <div class="page-head"><h1>下线任务</h1></div>
@@ -47,71 +48,6 @@
 
 {% block css %}
 <style>
-.cr-card {
-  max-width: 560px;
-  box-sizing: border-box;
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  padding: 28px 32px;
-  margin-top: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.04);
-}
-.cr-card-info {
-  border-color: var(--cp-border);
-}
-.cr-warn {
-  background: var(--cp-warn-bg);
-  border: 1px solid var(--cp-warn-border);
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 12.5px;
-  color: var(--cp-warn-dark);
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-.cr-info-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--cp-text);
-  margin-bottom: 10px;
-}
-.cr-info-row {
-  font-size: 13px;
-  color: var(--cp-text-muted);
-  margin-bottom: 6px;
-  line-height: 1.5;
-}
-.cr-row { margin-bottom: 20px; }
-.cr-label { display: block; font-size: 13px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
-.cr-req { color: var(--cp-danger); }
-.cr-value { font-size: 13px; color: var(--cp-text); }
-.cr-textarea {
-  width: 100%;
-  max-width: 480px;
-  resize: vertical;
-  min-height: 72px;
-  font-family: inherit;
-  font-size: 13px;
-  padding: 8px 10px;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.cr-hint { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.4; }
-.cr-actions {
-  margin-top: 8px;
-  padding-top: 20px;
-  border-top: 1px solid var(--cp-border);
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.cr-actions .btn-c { min-height: 32px; padding: 6px 16px; }
-.cr-card .f-input:focus {
-  border-color: var(--cp-signal);
-  box-shadow: 0 0 0 2px rgba(8,145,178,.12);
-  outline: none;
-}
-.cr-card .f-input { transition: border-color 0.15s, box-shadow 0.15s; }
-.cr-actions .btn-line:hover { background: var(--cp-surface-2); }
+/* Cron Retire — styles moved to redesign-pages.css (scoped via .cp-page-cron-retire) */
 </style>
 {% endblock %}

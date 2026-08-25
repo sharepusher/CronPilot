@@ -150,6 +150,56 @@ def check_hex_in_style_attr(lines: list, filepath: str) -> list:
     return violations
 
 
+INLINE_CSS_MAX_LINES = 3
+
+
+def check_inline_css_volume(lines: list, filepath: str) -> list:
+    """Flag <style> blocks with more than INLINE_CSS_MAX_LINES of actual CSS.
+
+    Counts non-empty, non-comment lines inside each <style>...</style> block.
+    Allows small overrides (e.g. Jinja-injected CSS variables) but blocks
+    structural CSS that should live in an external file.
+    """
+    violations = []
+    in_style = False
+    css_lines = 0
+    style_start = 0
+
+    for lineno, line in enumerate(lines, 1):
+        stripped = line.strip()
+        lower = stripped.lower()
+
+        if '<style' in lower and '</style' not in lower:
+            in_style = True
+            css_lines = 0
+            style_start = lineno
+        elif '</style' in lower:
+            if in_style and css_lines > INLINE_CSS_MAX_LINES:
+                violations.append({
+                    'file': filepath,
+                    'line': style_start,
+                    'type': 'inline-css-volume',
+                    'detail': (
+                        f'<style> block has {css_lines} CSS lines '
+                        f'(max {INLINE_CSS_MAX_LINES}) — '
+                        f'move to redesign-pages.css with .cp-page-xxx scope'
+                    ),
+                })
+            in_style = False
+        elif in_style:
+            if not stripped:
+                continue
+            # Skip single-line comments: /* ... */
+            if stripped.startswith('/*') and stripped.endswith('*/'):
+                continue
+            # Skip comment-only lines (// style)
+            if stripped.startswith('//'):
+                continue
+            css_lines += 1
+
+    return violations
+
+
 def scan() -> list:
     """Run all checks on every .html file in REDESIGN_DIR."""
     if not REDESIGN_DIR.exists():
@@ -168,6 +218,7 @@ def scan() -> list:
         all_violations.extend(check_inline_styles(lines, rel))
         all_violations.extend(check_legacy_classes(lines, rel))
         all_violations.extend(check_hex_in_style_attr(lines, rel))
+        all_violations.extend(check_inline_css_volume(lines, rel))
 
     return all_violations
 

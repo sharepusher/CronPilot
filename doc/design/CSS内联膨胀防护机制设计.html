@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CSS 内联膨胀防护机制设计 — 从 R1 治标到治本</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14px;}
+h1{font-size:22px;border-bottom:2px solid #0891b2;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:36px;border-left:4px solid #0891b2;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:24px;}
+h4{font-size:13px;color:#475569;margin-top:16px;margin-bottom:4px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+pre .add{color:#86efac;}
+pre .del{color:#fca5a5;}
+pre .ctx{color:#94a3b8;}
+pre .file{color:#7dd3fc;font-weight:600;}
+.warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:13px;}
+.principle{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px;}
+.metric{display:inline-block;background:#ecfdf5;border:1px solid #86efac;border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600;color:#166534;margin-right:6px;}
+.decision-tree{background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:2;}
+</style>
+</head>
+<body>
+
+<h1>CSS 内联膨胀防护机制设计 — 从 R1 治标到治本</h1>
+
+<p><strong>关联文档</strong>：<code>doc/design/Phase-R1-CSS架构统一实施方案.html</code>、<code>doc/design/Redesign前端代码质量评估与优化计划.html</code><br>
+<strong>优先级</strong>：P1（Phase R1 后续防护层，属治本措施）<br>
+<strong>预计工时</strong>：0.5 天<br>
+<strong>目标</strong>：建立 CI 可执行的结构性防护，使内联 CSS 膨胀在开发阶段即被拦截，而非依赖事后清理</p>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>一、问题：为什么 Phase R1 之后还需要这个文档</h2>
+
+<p>Phase R1 成功地将 2010 行内联 CSS 降至 0 行，但它是<strong>一次性人工操作</strong>。在没有结构性防护的情况下，下一次功能迭代完全可能复现同样的问题。</p>
+
+<h3>1.1 问题的本质不是"代码写得差"</h3>
+
+<p>在 R1 之前，每个页面的开发模式是：</p>
+<pre>
+开发者拿到 Mockup → 在模板 &lt;style&gt; 中写 CSS → 功能验收通过 → 发布
+                                                    ↑
+                                         唯一 DoD = "功能是否工作"
+</pre>
+
+<p>这种模式是<strong>激励结构</strong>决定的：内联比外联更快（不需要理解 6 个 CSS 文件的分工）、功能验收不检查 CSS 架构、CI 没有内联量门禁。开发者选择了<strong>对个人效率最优但对系统长期可维护性最差</strong>的路径。这是系统设计问题，不是个人纪律问题。</p>
+
+<h3>1.2 现有防护的覆盖面</h3>
+
+<table>
+<tr><th>已有门禁</th><th>检查范围</th><th>盲区</th></tr>
+<tr><td><code>audit_hardcoded_colors.py</code></td><td>CSS/模板中的硬编码十六进制颜色</td><td>不检查 CSS 是否在正确的文件中</td></tr>
+<tr><td><code>check_ui_contract.py</code></td><td><code>style=""</code> 属性、Bootstrap class、style 中的 hex</td><td><strong>不检查 <code>&lt;style&gt;</code> 块内的 CSS 行数</strong></td></tr>
+<tr><td><code>ui-contract.yml</code> CI</td><td>执行上述检查</td><td>200 行合规内联 CSS → 全绿</td></tr>
+</table>
+
+<div class="warn">
+<strong>核心盲区</strong>：开发者可以在模板 <code>&lt;style&gt;</code> 中写 200 行完全合规的 CSS（使用 <code>var(--cp-*)</code>、无 Bootstrap class），所有现有 CI 门禁全部通过——但 R1 清理的问题完整复现。
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>二、根因：系统激励与期望产出的不对齐</h2>
+
+<h3>2.1 五层 Why 分析</h3>
+
+<table>
+<tr><th>层级</th><th>问题</th><th>原因</th></tr>
+<tr><td>Why-1</td><td>内联 CSS 膨胀到 2010 行</td><td>每个页面独立开发时 CSS 就地编写</td></tr>
+<tr><td>Why-2</td><td>为什么就地编写？</td><td>不知道（或不关心）应该放到哪个外联文件</td></tr>
+<tr><td>Why-3</td><td>为什么不知道？</td><td>没有文档化的「CSS 归属决策树」，也无自动提示</td></tr>
+<tr><td>Why-4</td><td>为什么没有决策树？</td><td>项目早期页面少，一人开发无需规范；后来快速堆积时无人回头补</td></tr>
+<tr><td>Why-5</td><td>为什么快速堆积时没补？</td><td>DoD 只验功能不验架构，CI 无内联量门禁 → 无反馈 → 无改进压力</td></tr>
+</table>
+
+<h3>2.2 结构性根因总结</h3>
+
+<div class="principle">
+<strong>根因公式</strong>：<br>
+<code>缺乏架构验收门禁</code> + <code>错误路径（内联）比正确路径（外联）更省力</code> + <code>开发者无决策指引</code> = <strong>必然的内联 CSS 膨胀</strong>
+</div>
+
+<p>解法必须同时解决这三个因子，否则无效：</p>
+<ul>
+<li>只补文档（决策树）→ 依赖自律，约 70% 遵守率</li>
+<li>只加门禁 → 开发者被拦后不知道正确做法，效率降低</li>
+<li>只改工作流 → 没有自动化卡点，规范漂移</li>
+</ul>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>三、方案：三层防护体系</h2>
+
+<div class="principle">
+<strong>核心设计原则</strong>：让错误做法比正确做法更费力。<br>
+正确路径（写到 <code>redesign-pages.css</code>）= 一步到位，CI 绿。<br>
+错误路径（写在 <code>&lt;style&gt;</code>）= CI 红 → 需要修 → 反而多花时间。
+</div>
+
+<h3>3.1 层级架构</h3>
+
+<table>
+<tr><th>防护层</th><th>位置</th><th>作用</th><th>触发时机</th></tr>
+<tr><td><strong>L1 · CI 门禁</strong>（硬卡点）</td><td><code>scripts/check_ui_contract.py</code></td><td>扫描模板 <code>&lt;style&gt;</code> 块内非注释 CSS 行 &gt; 阈值则 exit 1</td><td>push / PR</td></tr>
+<tr><td><strong>L2 · 决策引导</strong>（认知辅助）</td><td><code>.cursor/rules/cronpilot-project.mdc</code></td><td>CSS 归属决策树 + 新页面模板脚手架</td><td>Agent 开发时自动注入</td></tr>
+<tr><td><strong>L3 · 模板约束</strong>（最佳实践）</td><td><code>AGENTS.md</code></td><td>新页面必须声明 <code>{% block main_class %}</code>；Scope class 索引</td><td>代码 Review / Agent 参考</td></tr>
+</table>
+
+<h3>3.2 L1 · CI 门禁实现细节</h3>
+
+<h4>检查逻辑（新增函数 <code>check_inline_css_volume()</code>）</h4>
+<pre>
+<span class="file">scripts/check_ui_contract.py</span>
+
+<span class="add">+INLINE_CSS_MAX_LINES = 3  # 允许极少量动态覆写（如 Jinja 条件变量）</span>
+<span class="add">+</span>
+<span class="add">+def check_inline_css_volume(lines: list, filepath: str) -> list:</span>
+<span class="add">+    """Flag &lt;style&gt; blocks with > INLINE_CSS_MAX_LINES of actual CSS."""</span>
+<span class="add">+    violations = []</span>
+<span class="add">+    in_style = False</span>
+<span class="add">+    css_lines = 0</span>
+<span class="add">+    style_start = 0</span>
+<span class="add">+</span>
+<span class="add">+    for lineno, line in enumerate(lines, 1):</span>
+<span class="add">+        stripped = line.strip()</span>
+<span class="add">+        if '&lt;style' in stripped.lower() and '&lt;/style' not in stripped.lower():</span>
+<span class="add">+            in_style = True</span>
+<span class="add">+            css_lines = 0</span>
+<span class="add">+            style_start = lineno</span>
+<span class="add">+        elif '&lt;/style' in stripped.lower():</span>
+<span class="add">+            if in_style and css_lines > INLINE_CSS_MAX_LINES:</span>
+<span class="add">+                violations.append({</span>
+<span class="add">+                    'file': filepath,</span>
+<span class="add">+                    'line': style_start,</span>
+<span class="add">+                    'type': 'inline-css-volume',</span>
+<span class="add">+                    'detail': (</span>
+<span class="add">+                        f'&lt;style&gt; block has {css_lines} CSS lines '</span>
+<span class="add">+                        f'(max {INLINE_CSS_MAX_LINES}) — '</span>
+<span class="add">+                        f'move to redesign-pages.css with .cp-page-xxx scope'</span>
+<span class="add">+                    ),</span>
+<span class="add">+                })</span>
+<span class="add">+            in_style = False</span>
+<span class="add">+        elif in_style:</span>
+<span class="add">+            # Skip empty lines, pure comment lines, comment placeholder lines</span>
+<span class="add">+            if stripped and not stripped.startswith('/*') and not stripped.startswith('//'):</span>
+<span class="add">+                if not stripped.endswith('*/') or not stripped.startswith('/*'):</span>
+<span class="add">+                    css_lines += 1</span>
+<span class="add">+</span>
+<span class="add">+    return violations</span>
+</pre>
+
+<h4>阈值决策</h4>
+<table>
+<tr><th>阈值候选</th><th>允许场景</th><th>拦截场景</th><th>推荐度</th></tr>
+<tr><td>0 行（绝对禁止）</td><td>无</td><td>全部</td><td>过严——需禁止所有 <code>&lt;style&gt;</code> 标签</td></tr>
+<tr><td><strong>3 行</strong>（推荐）</td><td>注释占位 + 1-2 行 Jinja 动态覆写</td><td>任何结构性 CSS</td><td>✅ 平衡严格与灵活</td></tr>
+<tr><td>5 行</td><td>小段微调</td><td>大段 CSS</td><td>略宽松，仍可接受</td></tr>
+<tr><td>10 行</td><td>短页面样式</td><td>仅大段</td><td>过宽——不足以预防</td></tr>
+</table>
+
+<p><strong>推荐阈值 = 3 行</strong>。当前所有模板的 <code>&lt;style&gt;</code> 块要么为空、要么只含 1 行注释（R1 清理的结果），3 行阈值与现状完全兼容。唯一例外是 <code>task_detail.html</code>（1 行实际 CSS），在阈值内。</p>
+
+<h4>误报排除</h4>
+<ul>
+<li>纯注释行（<code>/* ... */</code>）不计入</li>
+<li>空行不计入</li>
+<li><code>{% block css %}</code> 或 <code>&lt;style&gt;</code> 标签本身行不计入</li>
+<li>单行格式注释（如 <code>/* Dashboard — see redesign-pages.css */</code>）不计入</li>
+</ul>
+
+<h3>3.3 L2 · CSS 归属决策树</h3>
+
+<div class="decision-tree">
+需要写 CSS？<br>
+├─ 是 Design Token 新增/修改？<br>
+│  └─→ <strong>console-theme.css</strong> :root { --cp-xxx: ... }<br>
+├─ 是通用 UI 组件（任何页面可能复用）？<br>
+│  └─→ <strong>redesign-components.css</strong><br>
+├─ 是全局 Layout/Shell（sidebar, topbar, grid）？<br>
+│  └─→ <strong>redesign-layout.css</strong><br>
+├─ 是跨页面共享表格/卡片标准？<br>
+│  └─→ <strong>redesign-mockup-shared.css</strong><br>
+├─ 是认证页（不继承 _base.html）？<br>
+│  └─→ <strong>redesign-auth.css</strong><br>
+└─ 是页面专属样式？<br>
+   └─→ <strong>redesign-pages.css</strong>，使用 <code>.cp-page-xxx</code> 作用域<br>
+<br>
+<strong>绝对禁止</strong>：在模板 &lt;style&gt; 块中新增超过 3 行的 CSS
+</div>
+
+<h3>3.4 L3 · 新页面模板脚手架</h3>
+
+<pre>
+<span class="file">新页面标准结构</span>
+
+{# CronPilot Redesign — [页面名称] #}
+{% extends "redesign/_base.html" %}
+{% block title %}页面标题{% endblock %}
+{% block main_class %} cp-page-xxx{% endblock %}
+
+{% block content %}
+&lt;div class="cp-page-xxx-content"&gt;
+  {# 页面结构 #}
+&lt;/div&gt;
+{% endblock %}
+
+{% block js %}
+&lt;script&gt;
+{# 页面专属 JS（< 30 行可内联；> 30 行提取为独立文件）#}
+&lt;/script&gt;
+{% endblock %}
+
+{# CSS 归属：app/static/css/redesign-pages.css → .cp-page-xxx 作用域 #}
+{# 禁止：在此文件中新增 &lt;style&gt; 块 #}
+</pre>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>四、范围</h2>
+
+<h3>4.1 需修改的文件</h3>
+<table>
+<tr><th>文件</th><th>变更类型</th><th>描述</th></tr>
+<tr><td><code>scripts/check_ui_contract.py</code></td><td>功能扩展</td><td>新增 <code>check_inline_css_volume()</code> + 在 <code>scan()</code> 中调用</td></tr>
+<tr><td><code>tests/test_check_ui_contract.py</code></td><td>新增测试</td><td>覆盖阈值检查的正向（拦截）和反向（放行）场景</td></tr>
+<tr><td><code>.cursor/rules/cronpilot-project.mdc</code></td><td>追加规范</td><td>「CSS 归属决策树」+ 「新页面模板约束」</td></tr>
+<tr><td><code>AGENTS.md</code></td><td>追加引用</td><td>新页面 CSS 规范快速命令 + 决策树摘要</td></tr>
+</table>
+
+<h3>4.2 明确不做</h3>
+<ul>
+<li><strong>不做 R2（命名统一）</strong>：作用域隔离已解决冲突问题，重命名 ROI 过低</li>
+<li><strong>不做 R3（JS 模块化）</strong>：JS 架构质量已达 A 级，无结构性问题</li>
+<li><strong>不修改现有已清理的模板</strong>：R1 成果保持原样</li>
+<li><strong>不引入新的 CSS 文件</strong>：6 文件架构已足够</li>
+<li><strong>不改 CI workflow</strong>：<code>ui-contract.yml</code> 已覆盖该脚本，无需额外配置</li>
+</ul>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>五、分批</h2>
+
+<p>本方案规模小（0.5 天），<strong>单批交付</strong>：</p>
+
+<table>
+<tr><th>步骤</th><th>内容</th><th>验收点</th></tr>
+<tr><td>1</td><td>扩展 <code>check_ui_contract.py</code> 新增 inline-css-volume 检查</td><td><code>python scripts/check_ui_contract.py --check</code> 在现有代码上通过（0 violations）</td></tr>
+<tr><td>2</td><td>新增测试用例</td><td><code>python -m unittest tests.test_check_ui_contract -v</code> 全绿</td></tr>
+<tr><td>3</td><td>更新 <code>.cursor/rules/cronpilot-project.mdc</code></td><td>Agent 创建新页面时自动遵循决策树</td></tr>
+<tr><td>4</td><td>更新 <code>AGENTS.md</code></td><td>快速命令区新增 <code>check_ui_contract.py</code> 说明</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>六、验收</h2>
+
+<h3>6.1 门禁通过性</h3>
+<pre>
+# 现有代码应全部通过（0 violations）
+python scripts/check_ui_contract.py --check
+
+# 模拟违规：临时在任意模板 &lt;style&gt; 中加 5 行 CSS
+# → 应报 inline-css-volume violation 并 exit 1
+</pre>
+
+<h3>6.2 测试覆盖</h3>
+<pre>
+python -m unittest tests.test_check_ui_contract -v
+# 新增用例：
+#   test_inline_css_volume_exceeds_threshold  — 4+ CSS 行 → 违规
+#   test_inline_css_volume_within_threshold   — 1-3 CSS 行 → 通过
+#   test_inline_css_volume_comments_excluded  — 注释行不计入
+#   test_inline_css_volume_empty_block        — 空 &lt;style&gt; → 通过
+</pre>
+
+<h3>6.3 规范有效性</h3>
+<pre>
+# 验证 AGENTS.md 中新增了决策树引用
+grep "CSS 归属" AGENTS.md
+
+# 验证 .cursor/rules/ 中包含决策树
+grep "redesign-pages.css" .cursor/rules/cronpilot-project.mdc
+</pre>
+
+<h3>6.4 回归</h3>
+<pre>
+# 侧边栏权限回归
+python -m unittest tests.test_redesign_sidebar -v
+
+# 颜色审计
+python scripts/audit_hardcoded_colors.py --check
+
+# 现有 UI contract 测试
+python -m unittest tests.test_check_ui_contract -v
+</pre>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>七、风险</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td><code>task_detail.html</code> 的 1 行实际 CSS 触发误报</td><td>低</td><td>低</td><td>阈值 3 > 1，不会触发；若未来扩充则须迁移到 <code>redesign-pages.css</code></td></tr>
+<tr><td>开发者绕过门禁（把大段 CSS 拆为多个 &lt;style&gt; 块每块 ≤ 3 行）</td><td>极低</td><td>中</td><td>Code Review 关注 <code>&lt;style&gt;</code> 标签数量；可后续扩展为"单模板 &lt;style&gt; 标签最多 1 个"</td></tr>
+<tr><td>新增需求确实需要动态 CSS（如 Jinja 变量注入样式）</td><td>中</td><td>低</td><td>3 行阈值允许 <code>:root { --dynamic-val: {{ value }}px; }</code> 等极少量注入</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>八、预期长期效果</h2>
+
+<p>实施后的开发闭环：</p>
+
+<pre>
+[开发者新增/修改页面]
+  → Agent/人工参考决策树 → CSS 写入正确的外联文件
+  → git push
+  → CI: check_ui_contract.py --check
+      → inline-css-volume > 3?  → ❌ 阻断（附带修复提示）
+      → inline-style 违规?      → ❌ 阻断
+      → hardcoded-color?         → ❌ 阻断
+      → legacy-class?            → ❌ 阻断
+  → ✅ PR 合并
+
+效果：
+  · 不依赖开发者自律
+  · 错误路径（内联）比正确路径更费力（CI 红 → 需修改 → 多花时间）
+  · 正确路径有明确指引（决策树 + 脚手架）
+  · 技术债在入口处被拦截，永不积累
+</pre>
+
+<p><strong>核心转变</strong>：从「事后清理技术债」→ 「结构上不可能积累技术债」。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="CSS内联膨胀防护机制设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

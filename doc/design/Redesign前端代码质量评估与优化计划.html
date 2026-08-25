@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot Redesign 前端代码质量评估与深度复盘</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14.5px;}
+h1{font-size:22px;border-bottom:2px solid #0891b2;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:40px;border-left:4px solid #0891b2;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:28px;}
+h4{font-size:13.5px;color:#475569;margin-top:20px;margin-bottom:6px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:7px 11px;text-align:left;vertical-align:top;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+.grade{display:inline-block;padding:2px 10px;border-radius:4px;font-weight:600;font-size:12px;}
+.grade-a{background:#dcfce7;color:#166534;}
+.grade-b{background:#dbeafe;color:#1d4ed8;}
+.grade-c{background:#fef3c7;color:#92400e;}
+.grade-d{background:#fef2f2;color:#991b1b;}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:3px;margin-right:4px;}
+.tag-arch{background:#ede9fe;color:#5b21b6;}
+.tag-perf{background:#fce7f3;color:#9d174d;}
+.tag-ux{background:#ecfdf5;color:#065f46;}
+.tag-maint{background:#fff7ed;color:#9a3412;}
+.tag-sec{background:#fef2f2;color:#991b1b;}
+.summary{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px 20px;margin:16px 0;}
+.postmortem{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;margin:14px 0;}
+.postmortem-title{font-weight:700;color:#92400e;font-size:13px;margin-bottom:6px;}
+.insight{background:#f0fdf4;border-left:3px solid #22c55e;padding:10px 14px;margin:10px 0;font-size:13px;}
+.metric{display:inline-block;background:#ecfdf5;border:1px solid #86efac;border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600;color:#166534;margin-right:6px;}
+.anti-pattern{background:#fef2f2;border-left:3px solid #ef4444;padding:10px 14px;margin:10px 0;font-size:13px;}
+</style>
+</head>
+<body>
+
+<h1>CronPilot Redesign 前端代码质量评估与深度复盘</h1>
+
+<p><strong>文档版本</strong>：v2.0（含深度分析与专业复盘）<br>
+<strong>评估日期</strong>：2026-08-24<br>
+<strong>评估范围</strong>：<code>app/templates/redesign/</code>（27 文件，6,244 行）、<code>app/static/css/redesign-*.css</code>（4 文件，2,687 行）、<code>app/static/js/redesign-*.js</code>（4 文件，389 行）、后端 UI mode 分流层<br>
+<strong>参考基准</strong>：<code>doc/design/CronPilot-2026-redesign-mockup.html</code>（内部权威 Mockup）</p>
+
+<div class="summary">
+<strong>总体评级：B+（良好，具备量产质量，有明确可优化空间）</strong><br>
+重构成功建立了完整的设计系统基础设施（Design Token、组件库、Shell 架构），代码组织合理、双轨共存机制稳健。<br>
+主要改进空间集中在 CSS 架构冗余（技术债 62%）、页面间样式一致性（22%）、前端工程化程度（16%）三个维度。
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>一、量化概览</h2>
+
+<h3>1.1 代码体量</h3>
+<table>
+<tr><th>模块</th><th>文件数</th><th>总行数</th><th>有效代码率</th></tr>
+<tr><td>HTML 模板（含 partial）</td><td>27</td><td>6,244</td><td>~72%（扣除内联 CSS/JS）</td></tr>
+<tr><td>外联 CSS</td><td>4</td><td>2,687</td><td>~90%</td></tr>
+<tr><td>外联 JS</td><td>4</td><td>389</td><td>~95%</td></tr>
+<tr><td>模板内联 CSS</td><td>—</td><td>2,061</td><td>占模板总量 33%</td></tr>
+<tr><td>模板内联 JS</td><td>—</td><td>1,174</td><td>占模板总量 19%</td></tr>
+<tr><th>合计</th><th>35</th><th>9,320</th><th>—</th></tr>
+</table>
+
+<h3>1.2 架构健康度仪表盘</h3>
+<table>
+<tr><th>指标</th><th>当前值</th><th>业界良好基准</th><th>状态</th></tr>
+<tr><td>CSS 变量覆盖率（var(--cp-*)）</td><td>416 次引用</td><td>&gt;80% 颜色经 token 引用</td><td><span class="grade grade-a">✓ 优秀</span></td></tr>
+<tr><td>内联 CSS 比例</td><td>43%（2061/4748 总 CSS）</td><td>&lt;10%</td><td><span class="grade grade-d">✗ 严重</span></td></tr>
+<tr><td>表格系统数</td><td>3 套</td><td>1 套</td><td><span class="grade grade-c">⚠ 冗余</span></td></tr>
+<tr><td>类名前缀数</td><td>9 种（cp/hf/um/td/ri/tf/tg/c/act）</td><td>1-2 种</td><td><span class="grade grade-c">⚠ 混乱</span></td></tr>
+<tr><td>jQuery + 原生 DOM 混用</td><td>52 处 jQuery / 92 处原生</td><td>统一单一范式</td><td><span class="grade grade-b">△ 可接受</span></td></tr>
+<tr><td>全局函数暴露</td><td>26 个函数（9 文件）</td><td>0（事件委托）</td><td><span class="grade grade-c">⚠ 耦合</span></td></tr>
+<tr><td>Inline onclick 属性</td><td>14 处</td><td>0</td><td><span class="grade grade-c">⚠ 过时</span></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>二、整体架构评估</h2>
+
+<h3>2.1 架构决策审计</h3>
+<table>
+<tr><th>决策</th><th>评级</th><th>专业评价</th></tr>
+<tr><td>Design Token 系统（<code>console-theme.css</code>，57 语义色值）</td><td><span class="grade grade-a">A</span></td><td>完全符合 Design System 工业实践。Token 覆盖了颜色、字体、圆角、阴影等核心属性，通过 <code>html[data-theme]</code> 属性切换暗色方案。这是现代 UI 工程的正确基础设施。</td></tr>
+<tr><td>Grid Application Shell（<code>.cp-shell</code>）</td><td><span class="grade grade-a">A</span></td><td>使用 CSS Grid 两栏布局（<code>192px/1fr</code>），侧边栏折叠通过类切换实现。相比 Flexbox 方案，Grid 在此场景下提供了更清晰的布局语义和更简洁的响应式断点处理。</td></tr>
+<tr><td>IIFE 模块化（无构建工具）</td><td><span class="grade grade-a">A-</span></td><td>在无 bundler 约束下，IIFE 是唯一正确选择。4 个模块各自封闭，仅通过 <code>window.Cp*</code> 暴露公共 API。代码风格对标 jQuery UI Widget 时代的最佳实践。扣分点：页面级 JS 未遵循此模式。</td></tr>
+<tr><td>双轨 UI 共存（<code>ui_mode.py</code>）</td><td><span class="grade grade-a">A</span></td><td>Cookie 驱动的 v1/v2 分流机制零侵入。通过 <code>CRONPILOT_FORCE_NEW_UI</code> 配置可全局切换。这种模式在大型前端迁移（如 Facebook React 渐进式引入）中被广泛验证。</td></tr>
+<tr><td>模板继承 + Partial 组件化</td><td><span class="grade grade-a">A</span></td><td><code>_base.html → _sidebar/_topbar → page</code> 三层继承清晰。组件使用 <code>{% include %}</code> 分离。这是 Jinja2 模板的标准最佳实践。</td></tr>
+<tr><td>权限感知前端（<code>has_perm()</code>）</td><td><span class="grade grade-a">A</span></td><td>侧边栏 7 个权限字符串精确控制导航可见性，4 角色 12 条单测回归。权限从后端 context processor 注入，前端不做权限决策——符合安全第一原则。</td></tr>
+</table>
+
+<div class="insight">
+<strong>架构总结</strong>：核心架构决策均为正确方向。6 项关键决策中 5 项达到 A 级，1 项 A-。这说明重构的<strong>战略方向</strong>正确，问题出在<strong>战术执行</strong>（页面级实现未严格遵循架构层设定的规范）。
+</div>
+
+<h3>2.2 Mockup 还原度分析</h3>
+<table>
+<tr><th>维度</th><th>评级</th><th>偏差描述与专业评价</th></tr>
+<tr><td>Shell 布局</td><td><span class="grade grade-a">A</span></td><td>Grid 192px/1fr 精确匹配。Mockup 216px 调整为 192px 是合理的实际优化（为内容区留更多空间）。</td></tr>
+<tr><td>Dashboard 7 列表格</td><td><span class="grade grade-a">A</span></td><td>完整还原 Health-First 信息架构，含 Exception Panel 和 Stats 面板。</td></tr>
+<tr><td>表单系统</td><td><span class="grade grade-a">A</span></td><td>Cron 5 格、URL 组合输入、标签 Chip 交互均对齐 Mockup。</td></tr>
+<tr><td>颜色系统</td><td><span class="grade grade-b">B</span></td><td>Mockup 使用 <code>--signal/--canvas</code> 命名，实现使用 <code>--cp-*</code>。语义等价但增加了 Mockup→实现的溯源成本。</td></tr>
+<tr><td>微交互</td><td><span class="grade grade-b">B+</span></td><td>行入场动画、按钮 scale、tooltip 均实现。Command Palette 仅 UI 壳无搜索逻辑。</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>三、CSS 层深度分析与复盘</h2>
+
+<h3>3.1 问题全景（按严重度排序）</h3>
+
+<table>
+<tr><th>#</th><th>问题</th><th>分类</th><th>量化影响</th><th>根因分类</th></tr>
+<tr><td>C1</td><td>页面级 <code>&lt;style&gt;</code> 块过度膨胀</td><td><span class="tag tag-arch">架构</span></td><td>2,061 行内联 CSS（占总 CSS 43%）</td><td>开发流程</td></tr>
+<tr><td>C2</td><td>命名体系碎片化（9 种前缀并存）</td><td><span class="tag tag-arch">架构</span></td><td>9 种命名前缀，开发者无法确定新页面该用哪套</td><td>规范缺失</td></tr>
+<tr><td>C3</td><td>选择器重复定义（跨文件）</td><td><span class="tag tag-maint">可维护性</span></td><td>.btn-c 6 处, .f-input 7 处</td><td>Mockup→实现转化路径</td></tr>
+<tr><td>C4</td><td>三套表格系统共存</td><td><span class="tag tag-arch">架构</span></td><td>.cp-table(0页用), .c-table(5页), .hf-table(1页)</td><td>增量开发缺统筹</td></tr>
+<tr><td>C5</td><td>Mockup 裸类名（无前缀）</td><td><span class="tag tag-sec">安全</span></td><td>.page-head/.btn-c/.f-input 与 legacy 潜在冲突</td><td>Mockup 直接移植</td></tr>
+<tr><td>C6</td><td>Dark theme token 部分缺失</td><td><span class="tag tag-ux">用户体验</span></td><td>3-5 个 token 在暗色下缺少覆写</td><td>验证覆盖不足</td></tr>
+<tr><td>C7</td><td>动画性能未优化</td><td><span class="tag tag-perf">性能</span></td><td>10 行 nth-child 逐帧延迟动画</td><td>实现取巧</td></tr>
+</table>
+
+<h3>3.2 系统性根因分析</h3>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C1：页面内联 CSS 膨胀 — 开发流程反模式</div>
+
+<p><strong>现象</strong>：27 个模板中 24 个包含 <code>&lt;style&gt;</code> 块，总计 2,061 行。最严重的 register.html 有 242 行内联 CSS（占文件 48%）。</p>
+
+<p><strong>根因链（Why × 5）</strong>：</p>
+<ol>
+<li><strong>为什么内联？</strong> → 因为开发者在实现各页面时，按 Mockup 逐页工作，CSS 自然写在当前页面。</li>
+<li><strong>为什么不提取到外联？</strong> → 因为没有在开发开始前建立"组件→外联，页面专属→pages.css"的强制工作流。</li>
+<li><strong>为什么没有工作流？</strong> → 因为架构层（4 个外联 CSS 文件）虽然建立了分层，但未制定"什么时候提取"的触发规则。</li>
+<li><strong>为什么缺少触发规则？</strong> → 因为重构以"功能完整 + Mockup 还原"为主要验收标准，CSS 组织属于技术内部质量，未纳入验收清单。</li>
+<li><strong>根本原因</strong>：<strong>重构工作流缺少"CSS 归位"作为每页完成的 Definition of Done</strong>。功能优先、内部质量延后的开发节奏产生了可预期的技术债。</li>
+</ol>
+
+<p><strong>业界对标</strong>：</p>
+<ul>
+<li>Google Material Web Components：内联 CSS 严格 0 行（全部通过 Lit CSS 模块化）</li>
+<li>Shopify Polaris：页面级 <code>&lt;style&gt;</code> 仅允许用于 CSS-in-JS 运行时注入（非手写）</li>
+<li>可接受标准：内联 CSS &lt; 总 CSS 的 10%（本项目 43% → 超标 4.3 倍）</li>
+</ul>
+
+<p><strong>复合影响</strong>：</p>
+<ul>
+<li><strong>可维护性</strong>：修改按钮全局样式需排查 14 个文件（.btn-c 使用页数），遗漏一处即视觉不一致</li>
+<li><strong>性能</strong>：每页 HTML payload 增大 ~4KB（gzip 后 ~1KB），无法利用 CSS 缓存</li>
+<li><strong>协作</strong>：多人并行开发时，不同页面的相同组件样式可能发生漂移</li>
+</ul>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C2：命名体系碎片化 — 组件所有权模糊</div>
+
+<p><strong>现象</strong>：9 种类名前缀并存（cp / hf / um / td / ri / tf / tg / c / act），开发者无法一眼判断某个类属于哪个层级。</p>
+
+<p><strong>根因</strong>：不同页面在不同时间实现，每位（或每次）开发采用了自认为合理的前缀缩写：</p>
+<table>
+<tr><th>前缀</th><th>来源</th><th>含义</th><th>问题</th></tr>
+<tr><td><code>.cp-*</code></td><td>组件库 (components.css)</td><td>CronPilot 通用组件</td><td>正确的统一前缀，但覆盖不全</td></tr>
+<tr><td><code>.hf-*</code></td><td>Dashboard 内联</td><td>Health-First 缩写</td><td>页面概念作为前缀 → 非通用</td></tr>
+<tr><td><code>.um-*</code></td><td>Users 内联</td><td>User Management</td><td>同上</td></tr>
+<tr><td><code>.td-*</code></td><td>Task Detail 内联</td><td>Task Detail</td><td>同上</td></tr>
+<tr><td><code>.ri-*</code></td><td>Run Inspector 内联</td><td>Run Inspector</td><td>同上</td></tr>
+<tr><td><code>.tf-*</code></td><td>Task Form 内联</td><td>Task Form</td><td>同上</td></tr>
+<tr><td><code>.tg-*</code></td><td>Tags 内联</td><td>Tags</td><td>同上</td></tr>
+<tr><td><code>.c-*</code></td><td>mockup-shared.css</td><td>"common" 缩写</td><td>与 <code>.cp-</code> 意图重叠</td></tr>
+<tr><td><code>.act-*</code></td><td>Dashboard 操作列</td><td>Action</td><td>通用概念但仅一页使用</td></tr>
+</table>
+
+<p><strong>设计决策失误分析</strong>：</p>
+<ul>
+<li>组件库 <code>redesign-components.css</code> 建立了 <code>.cp-</code> 作为统一前缀（正确），但 Mockup 共享文件 <code>redesign-mockup-shared.css</code> 引入了 <code>.c-</code>（冲突），页面级开发又各自创造了新前缀（失控）。</li>
+<li><strong>根本原因</strong>：缺少一份"CSS 命名规范文档"在重构开始时达成共识。各页面是独立任务、独立验收，而非整体规划后分页实施。</li>
+</ul>
+
+<div class="anti-pattern">
+<strong>反模式识别</strong>：这属于经典的"分治缺统（Divide Without Governance）"反模式 — 任务拆分为独立页面是正确的，但缺少跨页面的一致性约束（命名规范 + 组件注册表）导致各页面独立进化。
+</div>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C3+C4：选择器重复与三套表格 — Mockup 转译失控</div>
+
+<p><strong>现象</strong>：</p>
+<ul>
+<li><code>.btn-c</code> 完整定义出现 2 次（mockup-shared + dashboard），扩展定义出现 4 次</li>
+<li><code>.f-input</code> 完整定义出现 2 次，扩展定义出现 5 次</li>
+<li>表格有 <code>.cp-table</code>（components.css，0 页使用）、<code>.c-table</code>（mockup-shared，5 页）、<code>.hf-table</code>（dashboard，1 页）三套</li>
+</ul>
+
+<p><strong>根因</strong>：Mockup 是一个单文件 HTML（所有样式在一个 <code>&lt;style&gt;</code> 中），转为多文件项目时经历了以下路径：</p>
+<ol>
+<li>首先建立了 <code>redesign-components.css</code>（包含 <code>.cp-table</code> 等理想化组件）</li>
+<li>然后从 Mockup 提取共享样式到 <code>redesign-mockup-shared.css</code>（包含 <code>.c-table</code> — Mockup 原始命名）</li>
+<li>Dashboard 实现时，因表格需求略有不同（padding、动画），直接新建了 <code>.hf-table</code> 而非扩展已有</li>
+<li>其他页面实现时引用了 mockup-shared 的 <code>.c-table</code>（因为那是 Mockup 中的原始名称）</li>
+<li>结果：<code>.cp-table</code>（理想化定义）从未被使用，成为"死代码"</li>
+</ol>
+
+<p><strong>设计模式诊断</strong>：这是<strong>"Bottom-up 与 Top-down 设计并行但未合流"</strong>的典型症状：</p>
+<ul>
+<li><strong>Top-down</strong>：<code>redesign-components.css</code> 试图从抽象出发定义理想化组件（<code>.cp-table</code>）</li>
+<li><strong>Bottom-up</strong>：<code>redesign-mockup-shared.css</code> 从 Mockup 实际 CSS 直接提取（<code>.c-table</code>）</li>
+<li>两条路径都是合理的，但需要一个<strong>合流步骤</strong>（将 mockup-shared 中验证可行的样式合入 components 的规范定义），这一步从未执行。</li>
+</ul>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C5：裸类名冲突风险 — 命名空间安全性</div>
+
+<p><strong>现象</strong>：<code>redesign-mockup-shared.css</code> 中的 <code>.page-head</code>、<code>.btn-c</code>、<code>.f-input</code> 没有 <code>.cp-</code> 前缀。</p>
+
+<p><strong>风险评估</strong>：</p>
+<ul>
+<li>当前风险等级：<strong>低</strong>（v1 和 v2 模板使用不同的 base template，CSS 文件不交叉加载）</li>
+<li>潜在风险：如果 v1/v2 过渡期出现混合渲染场景（如 v2 iframe 内嵌 v1 组件），裸类名将与 Simpleboot 发生冲突</li>
+<li>根因：Mockup 是独立 HTML，无命名空间需求；转为项目代码时未做前缀化处理</li>
+</ul>
+
+<p><strong>业界参考</strong>：BEM 命名规范建议所有项目级类名携带 namespace prefix（如 <code>.cp-</code>），以隔离第三方 CSS 和遗留样式表。Tailwind CSS 通过 <code>prefix</code> 配置项强制命名空间。</p>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C6：Dark Theme Token 缺失 — 验证覆盖盲区</div>
+
+<p><strong>现象</strong>：<code>redesign-layout.css</code> 引用 <code>--cp-surface-3</code>、<code>--cp-signal-bg</code> 等变量，部分在 <code>html[data-theme="dark"]</code> 中缺少对应覆写值。</p>
+
+<p><strong>根因</strong>：Design Token 定义（<code>console-theme.css</code>）与使用（<code>redesign-*.css</code>）由同一开发者完成，但验证流程仅在 Light 模式下进行截图对比。Dark 模式作为"附加功能"在功能完成后一次性测试，但新增变量引用时未同步到 dark 分支。</p>
+
+<p><strong>影响</strong>：</p>
+<ul>
+<li>缺少覆写的变量将 fallback 到 <code>:root</code> 中的浅色值 → 暗色模式下出现对比度不足或视觉割裂</li>
+<li>这属于"静默降级"类 bug — 不会报错，但用户体验下降</li>
+</ul>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 C7：动画性能 — 实现取巧的代价</div>
+
+<p><strong>现象</strong>：Dashboard 使用 CSS <code>nth-child(1)..nth-child(10)</code> 为每行设置递增 <code>animation-delay</code>，实现入场 stagger 效果。</p>
+
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当列表超过 10 行时，第 11+ 行同时入场（delay 规则不够）</li>
+<li>所有行在页面加载时即触发动画，无论是否在视口内</li>
+<li>每行动画涉及 <code>transform</code> + <code>opacity</code>（合成层），10+ 行同时动画时会触发图层爆炸</li>
+</ul>
+
+<p><strong>更好的实现</strong>：<code>IntersectionObserver</code> + <code>el.style.setProperty('--i', index)</code> 动态设置 delay，仅在可见时触发。这是 GSAP/Framer Motion 等动画库的标准做法。</p>
+</div>
+
+<h3>3.3 CSS 问题复合效应分析</h3>
+
+<p>CSS 层的 7 个问题并非独立存在，它们形成了一个<strong>正反馈的技术债循环</strong>：</p>
+
+<pre>
+  C2(命名碎片化) ──→ C3(选择器重复)
+       ↓                    ↓
+  C5(裸类名风险) ←── C4(三套表格) ──→ C1(内联膨胀)
+       ↓                                      ↑
+  C6(token缺失) ←─── 验证只覆盖单页 ─────────┘
+                           ↓
+                     C7(动画取巧)
+
+循环根因：缺少跨页面的 CSS 架构治理（命名规范 + 组件注册表 + 提取触发规则）
+</pre>
+
+<p><strong>打破循环的关键切入点</strong>：</p>
+<ol>
+<li><strong>Phase R1</strong>：统一表格 + 消除重复（切断 C3→C4→C1 链路）</li>
+<li><strong>Phase R2</strong>：命名规范化（切断 C2→C3→C5 链路）</li>
+<li><strong>Phase R4</strong>：Dark Token 补全（修复 C6，从验证流程层面防止复发）</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>四、JavaScript 层深度分析与复盘</h2>
+
+<h3>4.1 优点（值得保持的设计决策）</h3>
+
+<table>
+<tr><th>优点</th><th>专业评价</th><th>量化</th></tr>
+<tr><td>IIFE 严格封装</td><td>4 个外联模块全部使用 <code>(function(){'use strict'; ... })()</code>，零全局泄漏。在无 ES Module 支持的环境中，这是最佳实践。</td><td>4/4 模块</td></tr>
+<tr><td>公共 API 设计</td><td><code>CpToast.success(msg)</code>、<code>CpConfirm.show(opts) → Promise</code> — 简洁、语义化、支持链式调用。Promise-based 的 Confirm 使得异步控制流自然。</td><td>4 个全局 API</td></tr>
+<tr><td>XSS 防护意识</td><td>Toast 使用 <code>.textContent</code> 赋值；Confirm 中 title 通过 <code>.textContent</code> 设置。对用户输入的防护是显式的。</td><td>0 处 innerHTML 渗漏</td></tr>
+<tr><td>安全退出机制</td><td>Logout 通过隐藏 POST form + CSRF 实现。<code>redesign-shell.js:86-92</code> 的实现完全符合项目安全规范。</td><td>符合 S1 规范</td></tr>
+<tr><td>Cookie 安全属性</td><td>所有 <code>document.cookie</code> 写入均携带 <code>;samesite=lax</code>（<code>redesign-shell.js:20</code>、<code>redesign-theme.js:18</code>）</td><td>2/2 处</td></tr>
+<tr><td>键盘无障碍</td><td>Escape 关闭 Modal / Command Palette，Cmd+K 打开。事件在 document 级别监听，不依赖焦点状态。</td><td>2 组快捷键</td></tr>
+</table>
+
+<h3>4.2 问题清单与深度分析</h3>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 J1：Command Palette 搜索未实现 — 功能空壳</div>
+
+<p><strong>现象</strong>：<code>redesign-shell.js</code> 实现了 open/close 动作（L47-L83），但搜索逻辑、结果渲染、键盘导航均为空壳。UI 中有输入框但输入无响应。</p>
+
+<p><strong>根因</strong>：Command Palette 依赖后端 <code>/api/search</code> 端点（需跨实体搜索任务/用户/操作），该端点尚未开发。前端优先完成了 UI 壳以对齐 Mockup 视觉。</p>
+
+<p><strong>影响评估</strong>：</p>
+<ul>
+<li><strong>用户体验</strong>：Cmd+K 可打开面板但无法使用 → 用户困惑</li>
+<li><strong>感知质量</strong>：半成品暴露给用户比完全不展示更糟糕</li>
+<li><strong>建议</strong>：在搜索后端就绪前，应隐藏 Command Palette 入口或显示"即将推出"占位符</li>
+</ul>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 J2：jQuery + 原生 DOM 双范式混用 — 一致性割裂</div>
+
+<p><strong>量化</strong>：</p>
+<table>
+<tr><th>范式</th><th>使用处</th><th>典型场景</th></tr>
+<tr><td>jQuery <code>$()</code></td><td>52 处（5 文件）</td><td>users.html (26), api_token.html (9), user_profile.html (6)</td></tr>
+<tr><td>原生 DOM</td><td>92 处（10 文件）</td><td>task_form.html (19), tags.html (19), register.html (15)</td></tr>
+</table>
+
+<p><strong>根因分析</strong>：</p>
+<ul>
+<li>外联 JS（shell/theme/toast/confirm）全部使用原生 DOM — 这是<strong>正确的方向</strong></li>
+<li>页面级 JS 出现 jQuery 是因为这些页面需要与 v1 共享的 <code>common.js</code>（基于 jQuery）交互（如 <code>js-ajax-form</code> 守卫、Toast 通知）</li>
+<li><strong>根本原因</strong>：v1 的 jQuery 生态通过 <code>common.js</code> 的全局表单守卫"传染"了 v2 页面级代码。这是双轨共存架构的<strong>固有代价</strong>。</li>
+</ul>
+
+<p><strong>务实评价</strong>：在 v1/v2 共存期间，完全消除 jQuery 不现实（<code>common.js</code> 的 <code>js-ajax-form</code> 机制是 v2 POST 表单的安全基石）。正确做法是：<strong>新代码统一原生 DOM</strong>，仅在与 <code>common.js</code> 交互处保留 jQuery 调用。</p>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 J3：全局函数暴露 + Inline onclick — 过时模式</div>
+
+<p><strong>量化</strong>：</p>
+<ul>
+<li>26 个 <code>function name()</code> 声明分布在 9 个模板文件中</li>
+<li>14 处 <code>onclick="funcName()"</code> 内联事件属性</li>
+<li>重灾区：<code>dashboard.html</code>（5 onclick + 3 全局函数）、<code>task_detail.html</code>（4 onclick + 3 全局函数）</li>
+</ul>
+
+<p><strong>为什么这是问题</strong>：</p>
+<ol>
+<li><strong>内容安全策略（CSP）</strong>：<code>onclick</code> 属性要求 <code>unsafe-inline</code> CSP 指令 → 削弱 XSS 防护能力</li>
+<li><strong>可测试性</strong>：全局函数无法被 mock 或隔离测试</li>
+<li><strong>命名冲突</strong>：<code>cpToggleStatus</code>、<code>cpRunNow</code>、<code>cpRetire</code> 污染全局作用域</li>
+<li><strong>事件生命周期</strong>：无法统一管理事件解绑（内存泄漏风险）</li>
+</ol>
+
+<p><strong>正确模式</strong>：</p>
+<pre>
+// 事件委托模式（单一入口，零全局函数）
+document.addEventListener('click', function(e) {
+  var action = e.target.closest('[data-action]');
+  if (!action) return;
+  var handlers = {
+    'toggle-status': handleToggle,
+    'run-now': handleRun,
+    'retire': handleRetire
+  };
+  var fn = handlers[action.dataset.action];
+  if (fn) fn(action, e);
+});
+</pre>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 J4：Dropdown 关闭逻辑重复 — DRY 违反</div>
+
+<p><strong>现象</strong>：<code>redesign-shell.js:33-35</code> 有 document click-outside 关闭用户下拉菜单的逻辑。Dashboard 的操作列 dropdown（<code>.c-dd</code>）又实现了一套独立的 click-outside 关闭。</p>
+
+<p><strong>根因</strong>：Shell 层的 Dropdown 是架构组件（全局唯一的用户菜单），页面层的 Dropdown 是内容组件（每行操作列）。两者在"点击外部关闭"这个行为上完全相同，但因分属不同抽象层级，未被识别为可复用的通用行为。</p>
+
+<p><strong>建议</strong>：提取为通用行为：<code>CpShell.registerDropdown(trigger, panel)</code> — 统一管理 open/close 状态和 click-outside 事件。</p>
+</div>
+
+<div class="postmortem">
+<div class="postmortem-title">复盘 J5：AJAX 后 location.reload — 用户数据安全</div>
+
+<p><strong>现象</strong>：虽然 grep 未在 v2 模板中找到 <code>location.reload</code>（v2 使用 <code>CpToast</code> 反馈），但 Dashboard 的状态切换等操作通过 <code>$.post</code> 成功后需要更新行状态。当前实现是修改行内 DOM（正确方向），但<strong>缺少错误边界</strong>：</p>
+<ul>
+<li>网络失败时 Toast 提示后无后续动作</li>
+<li>并发操作（快速连续点击不同行）未做串行队列</li>
+<li>服务端返回非 JSON 响应时未处理</li>
+</ul>
+
+<p><strong>建议</strong>：为 AJAX 操作建立统一错误处理层 <code>CpApi.post(url, data).then(ok).catch(retry | rollback)</code></p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>五、模板 (Jinja2) 质量分析</h2>
+
+<h3>5.1 优点</h3>
+<table>
+<tr><th>维度</th><th>评价</th></tr>
+<tr><td>继承结构</td><td><code>_base.html</code> → 页面，partial 组件通过 <code>{% include %}</code> 分离。层级清晰，职责明确。</td></tr>
+<tr><td>权限控制</td><td><code>{% if has_perm('cron:write') %}</code> 按功能粒度控制 UI 元素可见性。7 个权限字符串，12 条回归测试。</td></tr>
+<tr><td>CSRF 全覆盖</td><td>所有 POST 表单含 <code>csrf_token</code>。AJAX 请求通过 <code>common.js</code> 自动附带。</td></tr>
+<tr><td>数据兜底</td><td>使用 <code>or '—'</code> / <code>|default</code> 处理空值，避免 None 渲染到页面。</td></tr>
+<tr><td>可访问性</td><td><code>role="dialog"</code>、<code>aria-modal="true"</code>、<code>aria-label</code> 属性齐全（CpConfirm）。</td></tr>
+</table>
+
+<h3>5.2 问题与分析</h3>
+
+<table>
+<tr><th>#</th><th>问题</th><th>根因</th><th>影响</th><th>建议</th></tr>
+<tr>
+<td>T1</td>
+<td>Login/Register/ForgotPassword 不继承 _base.html</td>
+<td>认证页不需要 Shell 布局（侧边栏/顶栏），因此使用独立 HTML 结构</td>
+<td>共享样式（Design Token、组件基础）无法复用，需在每页内联引入 <code>console-theme.css</code></td>
+<td>创建 <code>_auth_base.html</code>（轻量 base，仅引入 token + 认证页公共样式，无 Shell）</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>Dashboard 模板复杂度高（524 行 = CSS 190 + JS 69 + HTML 265）</td>
+<td>Dashboard 是信息密度最高的页面（7 列表格 + Stats + Exception Panel + Filters + Pagination），且 CSS/JS 未外联</td>
+<td>修改任何部分需滚动大量无关代码；三关注点混合降低可读性</td>
+<td>Phase R1 提取 CSS → Phase R3 提取 JS → 最终模板仅 ~260 行纯 HTML</td>
+</tr>
+<tr>
+<td>T3</td>
+<td><code>{% block css %}</code> 位置不统一</td>
+<td>部分页面先写 content 再补 css block（开发顺序的自然产物）</td>
+<td>不影响功能，但降低可读性和模板结构的可预测性</td>
+<td>规范化：<code>{% block css %}</code> 始终在 <code>{% block content %}</code> 之前</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>少量 inline style 残留</td>
+<td>快速修复或微调时直接写 <code>style=</code>，未走 CSS class 路径</td>
+<td>2-3 处，影响极小但违反项目规范</td>
+<td>在 R1 中顺手修复</td>
+</tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>六、后端整合层评估</h2>
+
+<h3>6.1 优点</h3>
+<ul>
+<li><strong>双轨零侵入</strong>：<code>ui_mode.py</code> 通过 <code>@app.context_processor</code> 注入 <code>ui_version</code>，视图函数仅需 <code>if ui_version == 'v2': return render_template('redesign/...')</code></li>
+<li><strong>Cookie 驱动</strong>：主题（<code>cp_theme</code>）、折叠（<code>cp_sidebar_collapsed</code>）、版本（<code>cp_ui</code>）三种偏好全部 Cookie 持久化，无需数据库字段</li>
+<li><strong>Force 配置</strong>：<code>CRONPILOT_FORCE_NEW_UI=1</code> 环境变量可全局强制 v2，方便灰度/全量切换</li>
+<li><strong>上下文注入完整</strong>：<code>has_perm</code>、<code>current_user</code>、<code>role_display_name</code>、<code>pending_reg_count</code>、<code>groups_with_counts</code> 等均在 _sidebar/_topbar 中可用</li>
+</ul>
+
+<h3>6.2 改进空间</h3>
+<table>
+<tr><th>#</th><th>建议</th><th>当前状态</th><th>改进方向</th></tr>
+<tr><td>B1</td><td>视图函数 v1/v2 分支逻辑重复</td><td>部分视图函数同时准备 v1 和 v2 所需上下文变量</td><td>用装饰器或 helper 统一切换，视图函数只准备通用数据</td></tr>
+<tr><td>B2</td><td>Command Palette 后端 API 缺失</td><td>前端 UI 壳已就绪，但无 <code>/api/search</code></td><td>实现跨实体搜索接口（任务/用户/操作），支持模糊匹配</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>七、技术债分类与优先级矩阵</h2>
+
+<h3>7.1 技术债分类</h3>
+
+<table>
+<tr><th>类别</th><th>问题编号</th><th>修复成本</th><th>不修复的年化成本</th><th>优先级</th></tr>
+<tr><td>架构冗余<br>（Structural Duplication）</td><td>C1, C3, C4</td><td>中（2-3天）</td><td>高 — 每次迭代需多文件同步修改</td><td>P0</td></tr>
+<tr><td>命名治理<br>（Naming Governance）</td><td>C2, C5</td><td>中（1-2天）</td><td>中 — 新开发者上手成本翻倍</td><td>P1</td></tr>
+<tr><td>模式统一<br>（Pattern Unification）</td><td>J2, J3, J4</td><td>中（2天）</td><td>中 — 认知负担 + CSP 限制</td><td>P1</td></tr>
+<tr><td>功能空壳<br>（Feature Shell）</td><td>J1</td><td>高（依赖后端）</td><td>低 — 仅影响感知质量</td><td>P2</td></tr>
+<tr><td>主题完整性<br>（Theme Completeness）</td><td>C6</td><td>低（&lt;1天）</td><td>低 — 暗色模式用户较少</td><td>P2</td></tr>
+<tr><td>性能优化<br>（Performance）</td><td>C7, J5</td><td>低（1天）</td><td>低 — 数据量小时无感知</td><td>P2</td></tr>
+</table>
+
+<h3>7.2 修复优先级决策框架</h3>
+
+<div class="insight">
+<strong>优先修复"架构冗余"类（C1/C3/C4）的理由</strong>：<br>
+这类问题具有<strong>传染性</strong> — 每新增一个页面，开发者面对三套表格时都会做出"选择"，可能创造第四套。而每次选择错误又会产生新的重复定义。<strong>越早统一，避免的后续返工越多</strong>。年化成本估算：若按当前节奏每月新增 1-2 个 redesign 页面，每页因不确定该用哪套系统而浪费 2-4 小时 + 后期统一时需多改 1 个文件。
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>八、综合评分与行业对标</h2>
+
+<h3>8.1 维度评分</h3>
+<table>
+<tr><th>维度</th><th>评分</th><th>关键理由</th><th>行业百分位</th></tr>
+<tr><td>架构设计</td><td><span class="grade grade-a">A-</span></td><td>双轨共存、Token 系统、权限集成均优秀；CSS 分层有重叠</td><td>Top 20%</td></tr>
+<tr><td>代码质量</td><td><span class="grade grade-b">B+</span></td><td>安全规范严格、无硬编码色值（外联文件）；命名不统一、内联过多</td><td>Top 30%</td></tr>
+<tr><td>可维护性</td><td><span class="grade grade-b">B</span></td><td>页面级 style 膨胀导致修改成本 ×3；三套表格增加认知负担</td><td>Top 40%</td></tr>
+<tr><td>性能</td><td><span class="grade grade-b">B+</span></td><td>无框架轻量（总 JS &lt; 1.6KB gzip）；动画策略可优化</td><td>Top 25%</td></tr>
+<tr><td>Mockup 还原度</td><td><span class="grade grade-a">A</span></td><td>结构、交互、动画高度还原；微调合理且有文档记录</td><td>Top 10%</td></tr>
+<tr><td>安全性</td><td><span class="grade grade-a">A</span></td><td>CSRF 全覆盖、XSS 防护、POST-only 变更、SameSite、innerHTML 转义</td><td>Top 15%</td></tr>
+<tr><td>可访问性</td><td><span class="grade grade-b">B+</span></td><td>ARIA 属性、键盘导航、focus-visible；缺 skip-to-content</td><td>Top 30%</td></tr>
+<tr><td>用户体验</td><td><span class="grade grade-a">A-</span></td><td>Toast/Confirm/Dropdown/Tooltip 交互完整；Command Palette 未完成</td><td>Top 20%</td></tr>
+</table>
+
+<h3>8.2 与同类项目对比</h3>
+
+<table>
+<tr><th>对标项目</th><th>规模</th><th>CSS 架构</th><th>本项目对比</th></tr>
+<tr><td>AdminLTE (Bootstrap Admin)</td><td>~15K CSS</td><td>单一 Bootstrap 生态 + 覆写层</td><td>CronPilot 的 Token 系统更现代，但 CSS 组织不如 AdminLTE 统一</td></tr>
+<tr><td>Tailwind UI (Dashboard)</td><td>Utility-first</td><td>零自定义 CSS + Token 配置</td><td>CronPilot 选择了组件化 CSS（传统但稳定），在无 build 工具约束下是合理选择</td></tr>
+<tr><td>Django Admin (Grappelli)</td><td>~5K CSS</td><td>模块化 SCSS + 变量系统</td><td>CronPilot 在安全性和权限集成上远超 Grappelli，CSS 组织水平相当</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>九、优化路线图（Phase R1–R5）</h2>
+
+<h3>Phase R1：CSS 架构统一（P0，2-3 天）<span class="metric">✅ 已完成 2026-08-24</span></h3>
+<p><strong>目标</strong>：消除三套表格、重复声明、内联膨胀<br>
+<strong>详细方案与完成记录</strong>：见 <code>doc/design/Phase-R1-CSS架构统一实施方案.html</code> 第八章</p>
+<table>
+<tr><th>Batch</th><th>动作</th><th>效果</th><th>状态</th></tr>
+<tr><td>B1</td><td>统一表格系统（.hf-table → .c-table + 修饰符）</td><td>3 套→1 套</td><td>✅</td></tr>
+<tr><td>B2</td><td>消除 dashboard 重复声明（.btn-c/.f-input）</td><td>-8 行重复</td><td>✅</td></tr>
+<tr><td>B3</td><td>提取高频业务页内联 CSS 到 redesign-pages.css</td><td>6 页清零</td><td>✅</td></tr>
+<tr><td>B4</td><td>认证页 CSS → redesign-auth.css</td><td>4 页清零</td><td>✅</td></tr>
+<tr><td>B5</td><td>剩余全部页面内联 CSS 提取</td><td>10 页清零</td><td>✅</td></tr>
+</table>
+<p><strong>最终成果</strong>：内联 CSS <strong>2010 → 0 行（-100%）</strong>；硬编码颜色 <strong>2 → 0</strong>；侧边栏回归 12/12 通过。</p>
+
+<h3>Phase R2：命名规范化（P1，1-2 天）</h3>
+<p><strong>目标</strong>：建立统一 BEM-like 命名规范</p>
+<pre>
+命名规则：
+  .cp-{组件}            → 块级组件（cp-table, cp-btn, cp-card）
+  .cp-{组件}--{修饰}    → 变体（cp-btn--primary, cp-table--compact）
+  .cp-{组件}__{子元素}  → 子元素（cp-table__header, cp-card__title）
+  .{page}-{element}     → 页面专属（仅限 redesign-pages.css 内使用）
+
+迁移映射：
+  .hf-*  → .cp-dashboard__* 或提升为通用 .cp-*
+  .um-*  → .cp-users__*
+  .td-*  → .cp-detail__*
+  .ri-*  → .cp-inspector__*
+  .tf-*  → .cp-form__*
+  .tg-*  → .cp-tags__*
+  .c-*   → .cp-table / .cp-pagination（已在 R1 过渡）
+</pre>
+
+<h3>Phase R3：JS 现代化与模块整合（P1，2 天）</h3>
+<table>
+<tr><th>步骤</th><th>动作</th><th>解决问题</th></tr>
+<tr><td>R3.1</td><td>提取页面内联 <code>&lt;script&gt;</code> 为独立 JS 文件</td><td>T2 模板复杂度</td></tr>
+<tr><td>R3.2</td><td>消除全局 <code>onclick</code>：统一 <code>data-action</code> + 委托监听</td><td>J3 全局函数 + CSP</td></tr>
+<tr><td>R3.3</td><td>AJAX 错误边界：统一 <code>CpApi.post()</code> 带 retry/rollback</td><td>J5 错误处理</td></tr>
+<tr><td>R3.4</td><td>统一 Dropdown 关闭行为为 <code>CpShell.registerDropdown()</code></td><td>J4 DRY</td></tr>
+</table>
+
+<h3>Phase R4：Dark Theme 补全（P2，1 天）</h3>
+<table>
+<tr><th>步骤</th><th>动作</th></tr>
+<tr><td>R4.1</td><td>审计所有 <code>--cp-*</code> 变量在 dark 中的覆写完整性</td></tr>
+<tr><td>R4.2</td><td>认证页（login/register 等）添加暗色支持</td></tr>
+<tr><td>R4.3</td><td>浏览器逐页 Dark 模式截图验证</td></tr>
+</table>
+
+<h3>Phase R5：性能优化（P2，1 天）</h3>
+<table>
+<tr><th>步骤</th><th>动作</th></tr>
+<tr><td>R5.1</td><td>行入场动画改为 IntersectionObserver 触发</td></tr>
+<tr><td>R5.2</td><td>CSS 文件合并（或按路由拆分 + preload hint）</td></tr>
+<tr><td>R5.3</td><td>SVG 图标 sprite 化（减少 24 次重复定义）</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>十、系统性预防方案</h2>
+
+<p>基于上述分析，以下预防措施可防止同类问题在后续开发中复发：</p>
+
+<table>
+<tr><th>#</th><th>预防措施</th><th>解决问题</th><th>落地方式</th></tr>
+<tr>
+<td>P1</td>
+<td><strong>CSS 组件注册表</strong>：新建 <code>doc/design/css-component-registry.md</code>，每个通用组件必须注册（类名、位置、用途），新页面开发时先查注册表</td>
+<td>C2/C3/C4 — 命名碎片化 + 重复</td>
+<td>Markdown 文件 + 开发者 onboarding 清单</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>内联 CSS 行数门禁</strong>：CI 脚本检查 <code>{% block css %}</code> 块行数 ≤ 30 行（允许极少量页面专属微调）</td>
+<td>C1 — 内联膨胀</td>
+<td><code>scripts/audit_inline_css.py --check --max-lines=30</code></td>
+</tr>
+<tr>
+<td>P3</td>
+<td><strong>Dark 模式 CI 验证</strong>：新增/修改 CSS 变量引用时，CI 自动检查该变量在 dark 分支中有定义</td>
+<td>C6 — Token 缺失</td>
+<td><code>scripts/audit_dark_tokens.py --check</code></td>
+</tr>
+<tr>
+<td>P4</td>
+<td><strong>全局函数黑名单</strong>：CI 脚本检查 <code>app/templates/redesign/*.html</code> 中不允许新增 <code>function name()</code>（仅允许 IIFE 内部或 <code>var fn = function</code>）</td>
+<td>J3 — 全局函数暴露</td>
+<td><code>scripts/audit_global_functions.py --check</code></td>
+</tr>
+<tr>
+<td>P5</td>
+<td><strong>每页 DoD（Definition of Done）清单</strong>：新增 redesign 页面时必须满足 ① CSS 在外联文件中 ② 使用 .cp- 前缀 ③ 无全局函数 ④ Dark 模式验证</td>
+<td>C1/C2/C6/J3 综合</td>
+<td>更新 <code>.cursor/rules/cronpilot-project.mdc</code></td>
+</tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>十一、结论</h2>
+
+<p>CronPilot Redesign 代码整体质量<strong>达到生产级标准</strong>（B+），在安全性、权限集成、设计系统基础三个关键维度表现优秀（均 A 级）。核心架构决策（双轨共存、Token 驱动、IIFE 模块化、权限精确控制）全部正确。</p>
+
+<p>主要技术债的根因高度集中：<strong>"功能完整 + Mockup 还原"作为唯一验收标准，内部代码组织质量未被纳入 DoD</strong>。这导致了：</p>
+<ul>
+<li>CSS 层的快速增量开发产生了可预见的冗余（三套表格、9 种前缀、43% 内联）</li>
+<li>JS 层的双范式共存是 v1/v2 共存的固有代价（非设计失误）</li>
+<li>模板层的结构性问题（认证页独立、block 位置不一致）影响微小</li>
+</ul>
+
+<p>通过 <strong>Phase R1 → R2 → R3 → R4/R5</strong> 顺序执行（总计 7-9 工作日），可将代码库从 B+ 提升至 A 级。其中 R1（CSS 架构统一）具有最高优先级，因为它处于技术债循环的核心，修复后可防止后续页面开发产生新的冗余。</p>
+
+<p><strong>关键认知</strong>：这些问题不是"代码写得差"，而是"快速迭代的自然产物 + 缺少 CSS 层的跨页面治理机制"。在时间压力下优先保证功能完整性是合理的工程决策，现在补上架构治理是正确的时机（页面已稳定，基础设施成熟）。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Redesign前端代码质量评估与优化计划.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

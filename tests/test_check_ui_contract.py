@@ -16,7 +16,9 @@ from scripts.check_ui_contract import (
     check_legacy_classes,
     check_inline_styles,
     check_hex_in_style_attr,
+    check_inline_css_volume,
     _is_allowed_style,
+    INLINE_CSS_MAX_LINES,
 )
 
 
@@ -170,6 +172,116 @@ class TestHexInStyleAttr(unittest.TestCase):
         lines = ['<div style="color:var(--cp-danger)">text</div>']
         result = check_hex_in_style_attr(lines, 'test.html')
         self.assertEqual(result, [])
+
+
+class TestInlineCssVolume(unittest.TestCase):
+    """Tests for the inline-css-volume gate (max lines in <style> blocks)."""
+
+    def test_exceeds_threshold(self):
+        """A <style> block with more CSS lines than threshold is flagged."""
+        lines = [
+            '<style>',
+            '.foo { color: red; }',
+            '.bar { margin: 0; }',
+            '.baz { padding: 4px; }',
+            '.qux { display: flex; }',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['type'], 'inline-css-volume')
+        self.assertIn('4 CSS lines', result[0]['detail'])
+        self.assertIn('redesign-pages.css', result[0]['detail'])
+
+    def test_within_threshold(self):
+        """A <style> block with lines <= threshold passes."""
+        lines = [
+            '<style>',
+            '.td-empty-logs { padding: 16px 0; }',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result, [])
+
+    def test_exactly_at_threshold(self):
+        """Exactly INLINE_CSS_MAX_LINES lines should pass (not >)."""
+        lines = ['<style>']
+        for i in range(INLINE_CSS_MAX_LINES):
+            lines.append(f'.rule-{i} {{ color: red; }}')
+        lines.append('</style>')
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result, [])
+
+    def test_comments_excluded(self):
+        """Comment-only lines should not count toward the threshold."""
+        lines = [
+            '<style>',
+            '/* Dashboard — styles moved to redesign-pages.css */',
+            '/* Another comment line */',
+            '/* Third comment line */',
+            '/* Fourth comment line */',
+            '/* Fifth comment line */',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result, [])
+
+    def test_empty_block(self):
+        """An empty <style></style> block passes."""
+        lines = [
+            '<style>',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result, [])
+
+    def test_empty_lines_excluded(self):
+        """Blank lines inside <style> should not count."""
+        lines = [
+            '<style>',
+            '',
+            '  ',
+            '',
+            '.only-rule { margin: 0; }',
+            '',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result, [])
+
+    def test_multiple_style_blocks(self):
+        """Each <style> block is checked independently."""
+        lines = [
+            '<style>',
+            '/* comment only */',
+            '</style>',
+            '<p>content</p>',
+            '<style>',
+            '.a { color: red; }',
+            '.b { color: blue; }',
+            '.c { color: green; }',
+            '.d { color: pink; }',
+            '</style>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['line'], 5)
+
+    def test_line_number_points_to_style_open(self):
+        """Violation line number should point to the <style> tag."""
+        lines = [
+            '<head>',
+            '<title>Test</title>',
+            '<style>',
+            '.a { x: 1; }',
+            '.b { x: 2; }',
+            '.c { x: 3; }',
+            '.d { x: 4; }',
+            '</style>',
+            '</head>',
+        ]
+        result = check_inline_css_volume(lines, 'test.html')
+        self.assertEqual(result[0]['line'], 3)
 
 
 if __name__ == '__main__':

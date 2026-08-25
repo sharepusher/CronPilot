@@ -54,3 +54,25 @@ git diff -- app/templates/ | grep '^+' | grep -v '^+++' | grep -E '<(div|span|td
 **自检要求**：交付前 `git diff -- app/templates/` 若出现 `style="height:` / `style="font-size:` 等 inline 布局属性，须重构为 CSS class。
 
 **表格列变更验收（追加 2026-08）**：凡在管理端模板中新增或删除表格列，必须在 1440px 视口下截图验证：① 所有 `<th>` 无换行；② 横向滚动正常；③ 操作列可达（通过滚动）。验证命令：`browser_cdp Emulation.setDeviceMetricsOverride {width:1440}` → 截图 → `browser_cdp Runtime.evaluate "document.querySelector('.c-table-wrap').scrollWidth > document.querySelector('.c-table-wrap').clientWidth"`（期望 true）。
+
+## Redesign CSS 归属约束（追加 2026-08）
+
+**内联 CSS 行数门禁**：Redesign 模板（`app/templates/redesign/*.html`）中 `<style>` 块内**非注释实际 CSS 行不得超过 3 行**。CI 门禁 `python scripts/check_ui_contract.py --check` 自动拦截违规。
+
+**CSS 归属决策树（新增/修改 CSS 时必须遵循）**：
+
+| 需求类型 | 目标文件 | 说明 |
+|---|---|---|
+| Design Token 新增/修改 | `console-theme.css` | `:root { --cp-xxx: ... }` |
+| 通用 UI 组件（任何页面可复用） | `redesign-components.css` | btn, input, modal, toast 等 |
+| 全局 Layout/Shell | `redesign-layout.css` | sidebar, topbar, grid |
+| 跨页面共享表格/卡片标准 | `redesign-mockup-shared.css` | `.c-table` 系列 |
+| 认证页（不继承 `_base.html`） | `redesign-auth.css` | login, register 等 |
+| **页面专属样式** | `redesign-pages.css` | 使用 `.cp-page-xxx` 作用域 |
+
+**新页面模板强制模式**：
+
+- 必须声明 `{% block main_class %} cp-page-xxx{% endblock %}` 作用域
+- 页面专属 CSS 写入 `redesign-pages.css`，以 `.cp-page-xxx` 选择器包裹
+- **禁止**在模板 `<style>` 块中新增超过 3 行的结构性 CSS
+- 自检命令：`python scripts/check_ui_contract.py --check`（应无 `inline-css-volume` 违规）

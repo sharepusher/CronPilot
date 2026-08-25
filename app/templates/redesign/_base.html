@@ -45,14 +45,14 @@
 
   {# Core JS — jQuery + shared utilities #}
   <script>var GV = {ROOT: "/", WEB_ROOT: "", JS_ROOT: "{{ url_for('static', filename='js/') }}", UPLOAD_URL: "/"};</script>
-  <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/wind.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/wind.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/common.js') }}"></script>
   {# Redesign JS modules #}
-  <script src="{{ url_for('static', filename='js/redesign-shell.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/redesign-theme.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/redesign-toast.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/redesign-confirm.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/redesign-shell.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/redesign-theme.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/redesign-toast.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/redesign-confirm.js') }}"></script>
   {% block js %}{% endblock %}
 </body>
 </html>

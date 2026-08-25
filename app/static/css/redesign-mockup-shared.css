@@ -78,6 +78,13 @@ select.f-input {
 .c-table tbody tr:nth-child(even):hover { background: var(--cp-surface-2); }
 .c-table .mono { font-family: var(--cp-font-mono); }
 
+/* Variant: spacious (wider padding — used by Dashboard) */
+.c-table--spacious thead th { padding: 9px 16px; }
+.c-table--spacious tbody td { padding: 11px 16px; }
+
+/* Variant: vertical-top alignment */
+.c-table--vtop tbody td { vertical-align: top; }
+
 /* ===== Footer / Pagination (Mockup: c-foot + c-pg) ===== */
 .c-foot {
   display: flex; justify-content: space-between; align-items: center;

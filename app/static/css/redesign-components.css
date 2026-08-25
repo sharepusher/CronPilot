@@ -802,3 +802,23 @@
   opacity: 0.88;
   color: var(--cp-on-filled);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Accessibility: prefers-reduced-motion
+   Covers global component animations (toast, modal, shimmer).
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .toast-item,
+  .cp-modal-overlay,
+  .cp-modal,
+  .cp-confirm-box {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .cp-shimmer,
+  [class*="shimmer"] {
+    animation: none !important;
+    background-image: none !important;
+  }
+}

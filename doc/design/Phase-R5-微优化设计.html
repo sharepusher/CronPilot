@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Phase R5 微优化 — prefers-reduced-motion 补全 + Script defer</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14px;}
+h1{font-size:22px;border-bottom:2px solid #0891b2;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:36px;border-left:4px solid #0891b2;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:24px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+pre .add{color:#86efac;}
+</style>
+</head>
+<body>
+
+<h1>Phase R5 微优化 — prefers-reduced-motion 补全 + Script defer</h1>
+
+<p><strong>关联文档</strong>：<code>doc/design/Redesign前端代码质量评估与优化计划.html</code> §九 Phase R5<br>
+<strong>优先级</strong>：P2（可访问性合规 + 低风险微优化）<br>
+<strong>预计工时</strong>：0.5 天<br>
+<strong>目标</strong>：① 补全 WCAG 2.1 Level AA 动画可访问性要求 ② 改善首屏渲染时序</p>
+
+<h2>一、问题</h2>
+
+<h3>1.1 prefers-reduced-motion 覆盖不全</h3>
+<p>项目定义了 15 个 <code>@keyframes</code> 动画 + 多处 CSS transition，但仅 2 处响应 <code>prefers-reduced-motion</code>（exec-logs 行入场和 fail-dot pulse）。无限循环动画（pulse/shimmer）对前庭障碍用户造成不适。</p>
+
+<h3>1.2 Script 加载无 defer</h3>
+<p>7 个 <code>&lt;script&gt;</code> 标签无 defer 属性，浏览器串行下载 + 执行 166 KB JS 阻塞 DOMContentLoaded 触发。</p>
+
+<h2>二、根因</h2>
+<ul>
+<li><strong>reduced-motion</strong>：开发时无可访问性检查清单；动画增量添加未系统审计</li>
+<li><strong>defer</strong>：继承 v1 模板的 body 末尾 script 模式（2010 年代最佳实践），Redesign 未重新评估</li>
+</ul>
+
+<h2>三、方案</h2>
+
+<h3>3.1 prefers-reduced-motion 补全</h3>
+<p>在 <code>redesign-pages.css</code> 和 <code>redesign-components.css</code> 末尾添加统一的 <code>@media (prefers-reduced-motion: reduce)</code> 块，覆盖所有非必要动画：</p>
+<ul>
+<li>所有 <code>animation</code> → <code>animation: none !important</code></li>
+<li>所有 <code>transition</code> → <code>transition: none !important</code>（保留 opacity 用于功能性过渡如 tooltip 显隐）</li>
+</ul>
+
+<h3>3.2 Script defer</h3>
+<p>在 <code>_base.html</code> 的 7 个外联 <code>&lt;script&gt;</code> 标签添加 <code>defer</code> 属性。保留执行顺序，允许 HTML 解析继续。</p>
+
+<h2>四、范围</h2>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/static/css/redesign-pages.css</code></td><td>末尾追加 <code>@media (prefers-reduced-motion: reduce)</code> 块</td></tr>
+<tr><td><code>app/static/css/redesign-components.css</code></td><td>末尾追加 reduced-motion 覆盖（toast/modal/shimmer）</td></tr>
+<tr><td><code>app/templates/redesign/_base.html</code></td><td>7 个 <code>&lt;script&gt;</code> 标签添加 <code>defer</code></td></tr>
+</table>
+
+<p><strong>不做</strong>：IntersectionObserver、CSS 拆分、SVG sprite、去 jQuery</p>
+
+<h2>五、分批</h2>
+<p>单批交付（范围极小）：① reduced-motion CSS → ② defer 属性 → ③ 验证</p>
+
+<h2>六、验收</h2>
+<pre>
+# 1. 可访问性
+grep -c "prefers-reduced-motion" app/static/css/redesign-pages.css    # ≥ 1
+grep -c "prefers-reduced-motion" app/static/css/redesign-components.css  # ≥ 1
+
+# 2. defer
+grep -c 'defer' app/templates/redesign/_base.html  # = 7
+
+# 3. 回归
+python -m unittest tests.test_redesign_sidebar -v  # 12/12
+python scripts/check_ui_contract.py 2>&1 | grep "inline-css-volume" | wc -l  # = 0
+</pre>
+
+<h2>七、风险</h2>
+<table>
+<tr><th>风险</th><th>概率</th><th>缓解</th></tr>
+<tr><td>defer 导致内联 script 在 jQuery 前执行</td><td>低</td><td>内联 script 在 body 内，defer scripts 在 head 或 body 末尾均保证先执行</td></tr>
+<tr><td>reduced-motion 覆盖影响功能性动画（如 loading spinner）</td><td>低</td><td>仅覆盖装饰性动画；shimmer 在 reduce-motion 下改为静态背景色</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Phase-R5-微优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

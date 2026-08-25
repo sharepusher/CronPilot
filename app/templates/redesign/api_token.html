@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}API Token — CronPilot{% endblock %}
+{% block main_class %} cp-page-api-token{% endblock %}
 
 {% block content %}
 <div class="page-head"><h1>API Token</h1></div>
@@ -50,83 +51,7 @@
 
 {% block css %}
 <style>
-.tk-card {
-  max-width: 600px;
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  padding: 24px 28px;
-}
-.tk-section { margin-bottom: 4px; }
-.tk-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--cp-ink);
-  margin-bottom: 8px;
-}
-.tk-token-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.tk-token-input {
-  flex: 1;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 13px;
-  height: 34px;
-  box-sizing: border-box;
-}
-.tk-expires {
-  font-size: 12px;
-  color: var(--cp-text-muted);
-  margin-top: 8px;
-}
-.tk-divider {
-  border: none;
-  border-top: 1px solid var(--cp-border);
-  margin: 18px 0;
-}
-.tk-desc {
-  font-size: 13px;
-  color: var(--cp-text-muted);
-  margin: 0 0 6px;
-}
-.tk-desc code {
-  background: var(--cp-surface-2);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-.tk-code {
-  background: var(--cp-surface-2);
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  overflow-x: auto;
-  color: var(--cp-ink);
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-.tk-rules {
-  font-size: 13px;
-  color: var(--cp-text-muted);
-  margin: 0;
-  padding-left: 18px;
-}
-.tk-rules li { margin-bottom: 4px; }
-.tk-rules a { color: var(--cp-accent); text-decoration: none; }
-.tk-rules a:hover { text-decoration: underline; }
-.tk-empty {
-  padding: 16px;
-  background: color-mix(in srgb, var(--cp-warn) 10%, transparent);
-  color: var(--cp-warn);
-  border: 1px solid color-mix(in srgb, var(--cp-warn) 30%, transparent);
-  border-radius: 6px;
-  font-size: 13px;
-}
+/* API Token — styles moved to redesign-pages.css (scoped via .cp-page-api-token) */
 </style>
 {% endblock %}
 

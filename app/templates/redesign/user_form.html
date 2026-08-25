@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}{{ '查看用户信息' if view_mode else ('编辑用户' if user else '添加用户') }} — CronPilot{% endblock %}
+{% block main_class %} cp-page-user-form{% endblock %}
 
 {% block content %}
 <div class="page-head"><h1>{{ '查看用户信息' if view_mode else ('编辑用户' if user else '添加用户') }}</h1></div>
@@ -165,69 +166,7 @@
 
 {% block css %}
 <style>
-.uf-card {
-  max-width: 600px;
-  box-sizing: border-box;
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  padding: 28px 32px;
-}
-.uf-alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
-.uf-alert-err { background: var(--cp-danger-bg); color: var(--cp-danger); border: 1px solid var(--cp-danger-border); }
-.uf-row { margin-bottom: 20px; }
-.uf-label { display: block; font-size: 13px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
-.uf-req { color: var(--cp-danger); }
-.uf-input { width: 100%; max-width: 360px; padding: 6px 10px; }
-.uf-input-short { max-width: 200px; }
-.uf-select { width: auto; min-width: 160px; padding: 6px 28px 6px 10px; }
-.uf-select-multi { width: 100%; max-width: 360px; min-height: 80px; padding: 6px 10px; }
-.uf-input-other { width: 140px; }
-.uf-row-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.uf-hint { display: block; font-size: 12px; color: var(--cp-text-muted); margin-top: 5px; line-height: 1.4; }
-.uf-hint-block { display: block; font-size: 13px; color: var(--cp-ink); margin-top: 2px; padding: 6px 10px; background: var(--cp-surface-2); border-radius: 4px; max-width: 360px; word-break: break-word; }
-.uf-hint-empty { color: var(--cp-text-faint); font-style: italic; }
-.uf-pwd-display {
-  display: inline-block;
-  font-weight: 600; font-size: 13px; color: var(--cp-ink);
-  font-family: var(--cp-font-mono);
-  background: var(--cp-surface-2); padding: 3px 10px; border-radius: 4px;
-}
-.uf-actions {
-  margin-top: 28px; padding-top: 20px;
-  border-top: 1px solid var(--cp-border);
-  display: flex; gap: 10px; align-items: center;
-}
-.uf-actions .btn-c { min-height: 32px; padding: 6px 16px; }
-/* Disabled state */
-.uf-card input:disabled, .uf-card input[readonly] {
-  background: var(--cp-surface-2); color: var(--cp-text-muted);
-  cursor: not-allowed; opacity: 0.8;
-}
-/* Focus state (reinforce shared .f-input:focus) */
-.uf-card .f-input:focus {
-  border-color: var(--cp-signal);
-  box-shadow: 0 0 0 2px rgba(8,145,178,.12);
-  outline: none;
-}
-/* Card subtle shadow */
-.uf-card { box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-/* Transition on border for smooth focus */
-.uf-card .f-input { transition: border-color 0.15s, box-shadow 0.15s; }
-/* Card top spacing from heading */
-.uf-card { margin-top: 4px; }
-/* Select arrow dark mode adaptation */
-[data-theme="dark"] .uf-card select.f-input {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E");
-}
-/* Placeholder styling */
-.uf-card .f-input::placeholder { color: var(--cp-text-faint); font-style: italic; }
-/* Multi-select option spacing */
-.uf-select-multi option { padding: 3px 6px; }
-/* Required asterisk micro-spacing */
-.uf-req { margin-left: 2px; }
-/* Return button hover */
-.uf-actions .btn-line:hover { background: var(--cp-surface-2); }
+/* User Form — styles moved to redesign-pages.css (scoped via .cp-page-user-form) */
 </style>
 {% endblock %}
 

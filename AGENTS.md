@@ -57,6 +57,8 @@
 
 **颜色规范（强制）**：模板和 Vue 组件中**禁止硬编码十六进制颜色**（`#xxxxxx`），必须使用 `app/static/css/console-theme.css` 中定义的 CSS 变量（`var(--cp-*)`）。新增颜色需先在 `console-theme.css` 的 `:root` 中定义对应语义变量，再引用。CI 门禁 `scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 
+**Redesign CSS 归属（强制）**：Redesign 模板中 `<style>` 块内非注释 CSS 行**不得超过 3 行**（CI 门禁 `check_ui_contract.py --check` 拦截 `inline-css-volume` 违规）。新增/修改 CSS 按决策树归档：Design Token → `console-theme.css` / 通用组件 → `redesign-components.css` / Layout → `redesign-layout.css` / 跨页面表格 → `redesign-mockup-shared.css` / 认证页 → `redesign-auth.css` / **页面专属 → `redesign-pages.css` + `.cp-page-xxx` 作用域**。新页面必须声明 `{% block main_class %} cp-page-xxx{% endblock %}`。详 `.cursor/rules/cronpilot-format-guard.mdc`「Redesign CSS 归属约束」。
+
 **数据库字段删除/迁移前置分析（强制）**：凡涉及删除、迁移、合并数据库字段，设计文档中必须对**每个被操作字段**逐行回答：① 该字段的独立语义是什么？② 该语义是否被新结构完全等价表达？③ 如果删除是否存在无法区分的状态？禁止因字段在代码中常一起出现就当一个整体处理。
 
 **验证自主性原则（强制）**：验证阶段遇到的技术障碍（缺测试用户/权限/数据），Agent **必须自行解决**，不得弹 AskQuestion 询问用户。创建测试用户、重置密码、准备测试数据等操作必须自主完成。AskQuestion 仅用于需求歧义澄清、等价方案偏好选择、破坏性操作授权。
@@ -88,6 +90,7 @@ bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒�
 bash scripts/assert_framework_pins.sh   # Phase D3：断言 Framework pin 与 requirements.txt 一致
 python scripts/audit_hardcoded_colors.py --check  # 颜色审计：检查模板/Vue 中是否有硬编码颜色
 python scripts/audit_hardcoded_colors.py --mapping # 查看色值→令牌完整映射表
+python scripts/check_ui_contract.py --check        # UI 契约门禁：inline-style / legacy-class / inline-css-volume（≤3 行）
 python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES + Unreleased 残留 + 版本总览表
 python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.html 是否在 index.html 中注册
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）

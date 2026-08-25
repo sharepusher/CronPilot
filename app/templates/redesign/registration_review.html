@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}注册审批 — CronPilot{% endblock %}
+{% block main_class %} cp-page-reg-review{% endblock %}
 
 {% block content %}
 <div class="page-head"><h1>注册审批</h1></div>
@@ -81,27 +82,7 @@
 
 {% block css %}
 <style>
-.pg-warn-tag {
-  font-size: 10px; color: var(--cp-warn); margin-left: 4px;
-}
-.pg-warn-block {
-  padding: 8px 10px; background: var(--cp-warn-bg); border-radius: 4px;
-  color: var(--cp-warn); font-size: 12px; margin-top: 8px;
-}
-.pg-comment {
-  font-size: 11px; color: var(--cp-text-muted); cursor: help;
-}
-.pg-muted { color: var(--cp-text-faint); }
-.rr-col-ops { width: 140px; }
-.rr-fg { margin-bottom: 12px; }
-.rr-fg label { display: block; font-size: 12px; color: var(--cp-text-muted); margin-bottom: 4px; }
-.rr-textarea {
-  width: 100%; padding: 7px 10px; border: 1px solid var(--cp-border);
-  border-radius: 6px; background: var(--cp-surface-2); color: var(--cp-text);
-  font-size: 13px; font-family: inherit; resize: vertical; min-height: 72px;
-  box-sizing: border-box;
-}
-.rr-textarea:focus { outline: none; border-color: var(--cp-accent); }
+/* Registration Review — styles moved to redesign-pages.css (scoped via .cp-page-reg-review) */
 </style>
 {% endblock %}
 

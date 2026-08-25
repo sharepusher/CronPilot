@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}操作记录 — CronPilot{% endblock %}
+{% block main_class %} cp-page-oplog{% endblock %}
 
 {% block content %}
 <div class="page-head"><div><h1>操作记录</h1><div class="sub">任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）</div></div></div>
@@ -91,20 +92,6 @@
 
 {% block css %}
 <style>
-.pg-input-md { width: 200px; }
-.pg-select { width: auto; min-width: 120px; }
-.pg-clear { color: var(--cp-text-muted); }
-.pg-obj-cell { vertical-align: middle; }
-.pg-task-name { font-weight: 600; color: var(--cp-ink); font-family: var(--cp-font-mono); font-size: 11px; }
-.pg-obj-sub { font-size: 11px; color: var(--cp-text-faint); margin-top: 2px; }
-.pg-detail-cell { font-size: 12px; color: var(--cp-text-muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pg-muted { color: var(--cp-text-faint); }
-.pg-result-ok { font-size: 12px; color: var(--cp-success); font-weight: 500; white-space: nowrap; }
-.pg-result-fail { font-size: 12px; color: var(--cp-danger); font-weight: 500; white-space: nowrap; }
-.op-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px; white-space: nowrap; background: var(--cp-surface-2); color: var(--cp-text-muted); }
-.op-badge-create-cron { background: var(--cp-success-bg); color: var(--cp-success); }
-.op-badge-update-cron { background: var(--cp-signal-bg); color: var(--cp-signal); }
-.op-badge-toggle-status { background: var(--cp-warn-bg); color: var(--cp-warn); }
-.op-badge-retire-cron { background: var(--cp-danger-bg); color: var(--cp-danger); }
+/* Operation Log — styles moved to redesign-pages.css */
 </style>
 {% endblock %}

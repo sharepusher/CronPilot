@@ -1,94 +1,10 @@
 {% extends "redesign/_base.html" %}
 {% block title %}业务组 — CronPilot{% endblock %}
+{% block main_class %} cp-page-groups{% endblock %}
 
 {% block css %}
 <style>
-/* ── Toolbar ── */
-.grp-toolbar {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
-}
-.grp-hint { color: var(--cp-text-muted); font-size: 12px; }
-
-/* ── Card Grid (Mockup M1: pure mockup card-grid) ── */
-.grp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-/* ── Card ── */
-.grp-card {
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  transition: border-color 0.15s;
-}
-.grp-card:hover { border-color: var(--cp-border-strong); }
-
-/* ── Name (gname) ── */
-.grp-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--cp-ink);
-  margin-bottom: 4px;
-  text-decoration: none;
-}
-a.grp-name:hover { color: var(--cp-signal); text-decoration: none; }
-
-/* ── Description (gdesc) ── */
-.grp-desc {
-  font-size: 12px;
-  color: var(--cp-text-muted);
-  line-height: 1.6;
-  flex: 1;
-  margin-bottom: 14px;
-  min-height: 36px;
-}
-.grp-desc-empty { font-style: italic; color: var(--cp-text-faint); }
-
-/* ── Card Footer (gfoot) ── */
-.grp-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px solid var(--cp-border);
-  margin-top: auto;
-}
-
-/* ── Member count ── */
-.grp-member-count {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--cp-text-muted);
-}
-.grp-member-count svg { flex-shrink: 0; }
-
-/* ── Badge ── */
-.grp-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 5px;
-  background: var(--cp-surface-2);
-  color: var(--cp-text-muted);
-}
-
-/* ── Empty State ── */
-.grp-empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--cp-text-muted);
-}
-.grp-empty-title { font-size: 15px; font-weight: 600; color: var(--cp-ink); margin-bottom: 6px; }
-.grp-empty-desc { font-size: 13px; color: var(--cp-text-faint); }
+/* Groups page — styles moved to redesign-pages.css (scoped via .cp-page-groups) */
 </style>
 {% endblock %}
 

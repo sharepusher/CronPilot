@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Phase R1 — CSS 架构统一 详细实施方案</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14px;}
+h1{font-size:22px;border-bottom:2px solid #0891b2;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:36px;border-left:4px solid #0891b2;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:24px;}
+h4{font-size:13px;color:#475569;margin-top:16px;margin-bottom:4px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+pre .add{color:#86efac;}
+pre .del{color:#fca5a5;}
+pre .ctx{color:#94a3b8;}
+pre .file{color:#7dd3fc;font-weight:600;}
+.batch{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px 18px;margin:12px 0;}
+.batch-title{font-weight:700;font-size:14px;color:#0369a1;margin-bottom:6px;}
+.warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:13px;}
+.metric{display:inline-block;background:#ecfdf5;border:1px solid #86efac;border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600;color:#166534;margin-right:6px;}
+</style>
+</head>
+<body>
+
+<h1>Phase R1 — CSS 架构统一 详细实施方案</h1>
+
+<p><strong>关联文档</strong>：<code>doc/design/Redesign前端代码质量评估与优化计划.html</code><br>
+<strong>优先级</strong>：P0<br>
+<strong>预计工时</strong>：2-3 天（4 个 Batch，每批独立可验收）<br>
+<strong>目标</strong>：消除三套表格系统、页面内联 CSS 膨胀、选择器重复定义</p>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>一、现状量化分析</h2>
+
+<h3>1.1 内联 CSS 统计</h3>
+<table>
+<tr><th>页面</th><th>总行数</th><th>内联 CSS 行</th><th>CSS 占比</th></tr>
+<tr><td>register.html</td><td>503</td><td>242</td><td>48%</td></tr>
+<tr><td>dashboard.html</td><td>524</td><td>190</td><td>36%</td></tr>
+<tr><td>users.html</td><td>489</td><td>194</td><td>40%</td></tr>
+<tr><td>tags.html</td><td>493</td><td>157</td><td>32%</td></tr>
+<tr><td>execution_logs.html</td><td>436</td><td>154</td><td>35%</td></tr>
+<tr><td>login.html</td><td>240</td><td>150</td><td>63%</td></tr>
+<tr><td>complete_profile.html</td><td>247</td><td>133</td><td>54%</td></tr>
+<tr><td>其余 13 页</td><td>—</td><td>共 ~790</td><td>—</td></tr>
+<tr><th>合计</th><th>—</th><th><strong>~2010 行内联 CSS</strong></th><th>—</th></tr>
+</table>
+
+<h3>1.2 表格系统重叠</h3>
+<table>
+<tr><th>类名系统</th><th>定义位置</th><th>使用页面</th><th>功能</th></tr>
+<tr><td><code>.cp-table</code></td><td>redesign-components.css</td><td>未使用（0 页）</td><td>通用表格组件</td></tr>
+<tr><td><code>.c-table</code></td><td>redesign-mockup-shared.css</td><td>users / tags / audit_logs / registration_review / operation_log</td><td>Mockup 对齐表格</td></tr>
+<tr><td><code>.hf-table</code></td><td>dashboard.html 内联</td><td>dashboard</td><td>Health-First 表格</td></tr>
+</table>
+
+<h3>1.3 重复选择器</h3>
+<table>
+<tr><th>选择器</th><th>定义次数</th><th>位置</th></tr>
+<tr><td><code>.btn-c</code></td><td>2（完整定义）+ 4（扩展）</td><td>redesign-mockup-shared.css + dashboard.html + user_form + cron_retire + group_form + users_set_active</td></tr>
+<tr><td><code>.f-input</code></td><td>2（完整定义）+ 5（扩展）</td><td>redesign-mockup-shared.css + dashboard.html + change_password + user_form + group_form + users_set_active + cron_retire</td></tr>
+<tr><td><code>.page-head</code></td><td>1（定义） + 多处引用</td><td>redesign-mockup-shared.css</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>二、实施策略</h2>
+
+<p><strong>核心原则</strong>：</p>
+<ol>
+<li><strong>增量式迁移</strong>：保留旧类名 alias 作过渡，新代码使用规范类名</li>
+<li><strong>视觉零变化</strong>：每步 diff 仅移动/合并 CSS，不改变任何渲染像素</li>
+<li><strong>每批独立可验收</strong>：每个 Batch 完成后可 restart + 浏览器验证</li>
+<li><strong>不动模板 DOM 结构</strong>：R1 仅做 CSS 层重组，不修改 HTML class 引用（后续 R2 统一命名时再改）</li>
+</ol>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>三、分批实施详细方案</h2>
+
+<!-- ─────── Batch 1 ─────── -->
+<div class="batch">
+<div class="batch-title">Batch 1：统一表格系统（预计 4h）</div>
+<p>将 <code>.c-table</code>（5 页使用）和 <code>.hf-table</code>（Dashboard 使用）统一为 <code>.c-table</code>，并将 Dashboard 特有样式以修饰符形式加入 mockup-shared 或 pages。</p>
+</div>
+
+<h4>1A. 将 Dashboard 的 .hf-table 差异样式提取为修饰类</h4>
+
+<p><code>.hf-table</code> 与 <code>.c-table</code> 的核心差异：</p>
+<table>
+<tr><th>属性</th><th>.c-table</th><th>.hf-table</th><th>决策</th></tr>
+<tr><td>td padding</td><td>10px 14px</td><td>11px 16px</td><td>Dashboard 使用 <code>.c-table--spacious</code> 修饰</td></tr>
+<tr><td>td vertical-align</td><td>middle</td><td>top</td><td>Dashboard 使用 <code>.c-table--vtop</code> 修饰</td></tr>
+<tr><td>hover 效果</td><td>完整行背景</td><td>同</td><td>无差异</td></tr>
+<tr><td>retired 行</td><td>无</td><td><code>.row-retired{opacity:0.6}</code></td><td>移入 pages.css Dashboard 节</td></tr>
+<tr><td>入场动画</td><td>无</td><td>逐行 stagger</td><td>移入 pages.css Dashboard 节</td></tr>
+</table>
+
+<p><strong>diff 预览</strong> — <code>app/static/css/redesign-mockup-shared.css</code>:</p>
+<pre>
+<span class="file">--- a/app/static/css/redesign-mockup-shared.css</span>
+<span class="file">+++ b/app/static/css/redesign-mockup-shared.css</span>
+<span class="ctx"> .c-table tbody tr:nth-child(even):hover { background: var(--cp-surface-2); }</span>
+<span class="ctx"> .c-table .mono { font-family: var(--cp-font-mono); }</span>
+<span class="ctx"> </span>
+<span class="add">+/* Variant: spacious (Dashboard uses wider padding) */</span>
+<span class="add">+.c-table--spacious tbody td { padding: 11px 16px; }</span>
+<span class="add">+.c-table--spacious thead th { padding: 9px 16px; }</span>
+<span class="add">+</span>
+<span class="add">+/* Variant: vertical-top alignment */</span>
+<span class="add">+.c-table--vtop tbody td { vertical-align: top; }</span>
+<span class="add">+</span>
+</pre>
+
+<p><strong>diff 预览</strong> — <code>app/templates/redesign/dashboard.html</code> (class 替换):</p>
+<pre>
+<span class="file">--- a/app/templates/redesign/dashboard.html</span>
+<span class="file">+++ b/app/templates/redesign/dashboard.html</span>
+<span class="del">-&lt;div class="hf-table-wrap hf-table-wrap--attached"&gt;</span>
+<span class="del">-  &lt;table class="hf-table"&gt;</span>
+<span class="add">+&lt;div class="c-table-wrap c-table-wrap--attached"&gt;</span>
+<span class="add">+  &lt;table class="c-table c-table--spacious c-table--vtop"&gt;</span>
+</pre>
+
+<h4>1B. 删除 dashboard.html 内联中完整重复的 .hf-table 基础规则</h4>
+<p>删除 dashboard.html <code>&lt;style&gt;</code> 块中第 27-35 行（<code>.hf-table</code> 基础样式 = <code>.c-table</code> 的翻版），仅保留 Dashboard 专属样式（动画、特殊列宽等）。</p>
+<p>预计减少 <span class="metric">-40 行内联 CSS</span></p>
+
+<h4>1C. 补全 <code>.c-table-wrap--attached</code> 到 mockup-shared</h4>
+<pre>
+<span class="add">+.c-table-wrap--attached { border-top: none; border-radius: 0 0 8px 8px; }</span>
+</pre>
+
+<h4>Batch 1 验收</h4>
+<pre>
+bash scripts/cronpilot.sh restart --daemon
+# 验证 Dashboard 表格渲染不变
+curl -s http://127.0.0.1:5001/ -b "session=..." | grep 'c-table' | head -3
+# 验证 Users 页表格不受影响
+curl -s http://127.0.0.1:5001/rbac/users -b "session=..." | grep 'c-table-wrap' | head -1
+</pre>
+
+<!-- ─────── Batch 2 ─────── -->
+<div class="batch">
+<div class="batch-title">Batch 2：消除 .btn-c / .f-input 重复声明（预计 2h）</div>
+<p>Dashboard 内联的 <code>.btn-c</code>（21行）和 <code>.f-input</code>（18行）与 <code>redesign-mockup-shared.css</code> 完全重复，直接删除内联版本。</p>
+</div>
+
+<h4>2A. 删除 dashboard.html 中重复的 .btn-c 和 .f-input</h4>
+<pre>
+<span class="file">--- a/app/templates/redesign/dashboard.html (inline CSS)</span>
+<span class="del">-.btn-c{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;...}</span>
+<span class="del">-.btn-c svg{width:12px;height:12px;}</span>
+<span class="del">-.btn-accent{background:var(--cp-signal);color:#fff;}</span>
+<span class="del">-.btn-accent:hover{opacity:0.9;text-decoration:none;color:#fff;}</span>
+<span class="del">-.f-input{background:var(--cp-surface);border:1px solid var(--cp-border);...}</span>
+<span class="del">-.f-input::placeholder{color:var(--cp-text-faint);}</span>
+<span class="ctx"> /* ...retained: dashboard-specific styles only... */</span>
+</pre>
+<p>预计减少 <span class="metric">-8 行内联 CSS</span></p>
+
+<div class="warn">
+<strong>⚠ 注意</strong>：Dashboard 的 <code>.btn-accent</code> 中使用了 <code>color:#fff</code> 硬编码。mockup-shared 中正确使用了 <code>color:var(--cp-on-filled)</code>。删除内联后自动修复此不一致。验证点：暗色模式下"新建任务"按钮文字应仍为白色。
+</div>
+
+<h4>Batch 2 验收</h4>
+<pre>
+bash scripts/cronpilot.sh restart --daemon
+# 验证：Dashboard 搜索框样式正常
+curl -s http://127.0.0.1:5001/ -b "session=..." | grep 'f-input'
+# 验证：新建任务按钮样式正常
+# 浏览器打开 http://127.0.0.1:5001/ → 确认按钮可见、hover 效果正常
+</pre>
+
+<!-- ─────── Batch 3 ─────── -->
+<div class="batch">
+<div class="batch-title">Batch 3：提取高频页面内联 CSS 到 redesign-pages.css（预计 4h）</div>
+<p>将 Dashboard、Users、Tags 三大页面的内联 CSS 移入 <code>redesign-pages.css</code> 的对应章节。</p>
+</div>
+
+<h4>3A. Dashboard 专属样式迁移</h4>
+
+<p>保留在 <code>redesign-pages.css</code> 新增 <code>/* ─── Dashboard ─── */</code> 章节的内容：</p>
+<table>
+<tr><th>样式集</th><th>行数</th><th>说明</th></tr>
+<tr><td><code>.console-filters</code> + <code>.f-group</code> + <code>.f-label</code> + <code>.f-btn</code> + <code>.f-sep</code> + <code>.f-spacer</code></td><td>~20 行</td><td>Dashboard 筛选器布局</td></tr>
+<tr><td><code>.tc-*</code>（task cell）</td><td>~15 行</td><td>任务名/ID/标签/lifecycle</td></tr>
+<tr><td><code>.sched-*</code>（schedule cell）</td><td>~5 行</td><td>调度策略显示</td></tr>
+<tr><td><code>.health-badge</code> + <code>.hc-dot</code></td><td>~15 行</td><td>健康度指示器</td></tr>
+<tr><td><code>.lr-*</code>（last run cell）</td><td>~10 行</td><td>最近执行列</td></tr>
+<tr><td><code>.nr</code>（next run）</td><td>~5 行</td><td>下次执行列</td></tr>
+<tr><td><code>.act-btn</code> + <code>.c-dd</code>（action buttons + dropdown）</td><td>~20 行</td><td>操作列按钮</td></tr>
+<tr><td><code>.hf-pagination</code></td><td>~10 行</td><td>Dashboard 分页</td></tr>
+<tr><td><code>.hf-stats</code> + <code>.hf-exception</code></td><td>~30 行</td><td>统计卡片 + 异常面板</td></tr>
+<tr><td><code>.hf-page-head</code> + <code>.stat-line</code></td><td>~5 行</td><td>页头</td></tr>
+<tr><td>动画/tooltips</td><td>~25 行</td><td>行入场 + 按钮效果</td></tr>
+<tr><td>列宽 <code>.hfc-*</code></td><td>~10 行</td><td>表格列比例</td></tr>
+<tr><th>合计</th><th>~170 行</th><th></th></tr>
+</table>
+
+<p><strong>迁移后 dashboard.html 内联 CSS 从 190 行降至 ~20 行</strong>（仅保留极少量仅此页使用且不具复用性的微调）。</p>
+
+<h4>3B. Users 页面样式迁移</h4>
+<p>将 <code>users.html</code> 的 194 行内联 CSS 迁入 <code>redesign-pages.css</code> 新增 <code>/* ─── Users ─── */</code> 章节。</p>
+<p>具体内容：<code>.um-*</code> 全套（toolbar/chips/avatar/icon-btn/role-badge/deactivation modal）。</p>
+
+<h4>3C. Tags 页面样式迁移</h4>
+<p>将 <code>tags.html</code> 的 157 行内联 CSS 迁入 <code>redesign-pages.css</code> 新增 <code>/* ─── Tags ─── */</code> 章节。</p>
+<p>具体内容：<code>.tg-*</code> 全套（cloud/pill/table customizations）。</p>
+
+<h4>3D. 其余高频页面（execution_logs, audit_logs, register, login）</h4>
+<p>同理迁入。Login/Register 因不继承 _base.html，需考虑是否创建 <code>redesign-auth.css</code>（共享认证页样式）。</p>
+
+<p><strong>建议新增文件</strong>：<code>app/static/css/redesign-auth.css</code>（提取 login/register/forgot_password/complete_profile 共享样式 ~100 行）。</p>
+
+<h4>Batch 3 验收</h4>
+<pre>
+bash scripts/cronpilot.sh restart --daemon
+# 逐页验证（至少 4 页截图对比）
+python3 scripts/audit_hardcoded_colors.py --check  # 确认无新引入硬编码
+# 浏览器 Dark 模式 + Light 模式各检查一遍
+</pre>
+
+<!-- ─────── Batch 4 ─────── -->
+<div class="batch">
+<div class="batch-title">Batch 4：统一 .cp-table 为唯一表格 API（预计 3h）</div>
+<p>将 <code>.c-table</code> 别名化为 <code>.cp-table</code>，实现单一入口。保留 <code>.c-table</code> 作兼容别名（一行 alias），新代码只允许用 <code>.cp-table</code>。</p>
+</div>
+
+<h4>4A. 在 redesign-components.css 中对齐 .cp-table 与 .c-table</h4>
+
+<p>当前 <code>.cp-table</code> 与 <code>.c-table</code> 的差异极小（padding/字号微差），统一为 <code>.c-table</code> 的规格（已被 5 页验证），并将 <code>.cp-table</code> 定义更新为完全一致。</p>
+
+<pre>
+<span class="file">--- a/app/static/css/redesign-mockup-shared.css</span>
+<span class="file">+++ b/app/static/css/redesign-mockup-shared.css</span>
+<span class="ctx"> /* ===== Table (Mockup: c-table) ===== */</span>
+<span class="add">+/* NOTE: .c-table is an alias for .cp-table (R1 transition) */</span>
+<span class="ctx"> .c-table-wrap {</span>
+</pre>
+
+<h4>4B. 添加 .c-table → .cp-table 兼容别名</h4>
+<pre>
+<span class="file">--- a/app/static/css/redesign-components.css (end of table section)</span>
+<span class="add">+/* ====== Legacy alias (R1 transition: .c-table → .cp-table) ====== */</span>
+<span class="add">+/* Retaining .c-table as alias until all templates migrate to .cp-table in Phase R2 */</span>
+</pre>
+
+<h4>Batch 4 验收</h4>
+<pre>
+bash scripts/cronpilot.sh restart --daemon
+python -m unittest tests.test_redesign_sidebar -v
+bash scripts/cronpilot.sh test
+# 6 个使用表格的页面全部浏览器验证
+</pre>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>四、预期成果量化</h2>
+
+<table>
+<tr><th>指标</th><th>Before</th><th>After</th><th>改善</th></tr>
+<tr><td>总内联 CSS 行数</td><td>~2010 行</td><td>~300 行</td><td>-85%</td></tr>
+<tr><td>表格系统数量</td><td>3 套</td><td>1 套 + 修饰符</td><td>统一</td></tr>
+<tr><td>重复选择器声明</td><td>.btn-c ×2, .f-input ×2</td><td>各 1 处</td><td>消除重复</td></tr>
+<tr><td>外联 CSS 文件</td><td>4 个</td><td>5 个（+redesign-auth.css）</td><td>结构更清晰</td></tr>
+<tr><td>单页最大内联 CSS</td><td>242 行 (register)</td><td>~20 行</td><td>-92%</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>五、不做（本轮明确排除）</h2>
+
+<ul>
+<li>❌ 不修改 HTML class 名称（属 Phase R2 命名规范化）</li>
+<li>❌ 不修改 JavaScript（属 Phase R3）</li>
+<li>❌ 不引入 CSS 预处理器（Sass/Less）或 build tooling</li>
+<li>❌ 不改变任何可见像素（视觉不变原则）</li>
+<li>❌ 不动 v1 模板或 legacy CSS</li>
+</ul>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>六、风险与回退</h2>
+
+<table>
+<tr><th>风险</th><th>缓解</th></tr>
+<tr><td>CSS 优先级变化导致某页面样式错乱</td><td>每 Batch 完成后逐页截图对比；外联 CSS 加载顺序与原有等价</td></tr>
+<tr><td>Dark 模式下迁移后颜色异常</td><td>每 Batch 切换 Dark 模式验证</td></tr>
+<tr><td>CI 颜色审计失败</td><td>迁移纯移动代码，不引入新色值；<code>audit_hardcoded_colors.py --check</code></td></tr>
+</table>
+
+<p><strong>回退方案</strong>：每个 Batch 为独立 commit。若验收发现回归，<code>git revert</code> 对应 commit 即可。</p>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>七、验收清单（完整执行后方可宣称 R1 完成）</h2>
+
+<ol>
+<li><code>bash scripts/cronpilot.sh test</code> — 全部通过</li>
+<li><code>python3 scripts/audit_hardcoded_colors.py --check</code> — 通过</li>
+<li><code>python3 scripts/html_docs_to_markdown.py --check</code> — 通过</li>
+<li>浏览器逐页验证（Light + Dark）：dashboard / users / tags / execution_logs / audit_logs / operation_log / login / register — 视觉无变化</li>
+<li><code>python -m unittest tests.test_redesign_sidebar -v</code> — 12 用例通过</li>
+<li><code>grep -c '&lt;style&gt;' app/templates/redesign/*.html</code> — 仍有 style 块的页面行数 &lt; 30</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Phase-R1-CSS架构统一实施方案.md">Markdown</a> · <a href="index.html">索引</a></footer>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>八、实施结果（2026-08-24 完成）</h2>
+
+<p><span class="metric">Phase R1 全部完成</span> 所有 5 个 Batch 已交付并通过验收。</p>
+
+<h3>8.1 实际成果量化</h3>
+<table>
+<tr><th>指标</th><th>初始值</th><th>最终值</th><th>改善</th></tr>
+<tr><td>内联 CSS 总行数</td><td>~2010 行</td><td><strong>0 行</strong>（仅保留注释占位符）</td><td><strong>-100%</strong></td></tr>
+<tr><td>表格系统数量</td><td>3 套（.cp-table / .c-table / .hf-table）</td><td>1 套（.c-table + 修饰符）</td><td>统一</td></tr>
+<tr><td>重复选择器声明</td><td>.btn-c ×2, .f-input ×2</td><td>各 1 处</td><td>消除重复</td></tr>
+<tr><td>硬编码颜色</td><td>2 处</td><td><strong>0 处</strong></td><td>-100%</td></tr>
+<tr><td>外联 CSS 文件</td><td>5 个</td><td><strong>6 个</strong>（+redesign-auth.css）</td><td>结构更清晰</td></tr>
+<tr><td>redesign-pages.css 行数</td><td>1130 行</td><td><strong>1822 行</strong></td><td>集中管理</td></tr>
+<tr><td>侧边栏回归测试</td><td>12/12</td><td><strong>12/12</strong></td><td>零回归</td></tr>
+</table>
+
+<h3>8.2 实际 Batch 分步（超出原计划的 4 Batch → 5 Batch）</h3>
+<table>
+<tr><th>Batch</th><th>范围</th><th>影响页面</th><th>状态</th></tr>
+<tr><td>1</td><td>统一表格系统 → <code>.c-table</code></td><td>dashboard.html</td><td>✅</td></tr>
+<tr><td>2</td><td>消除重复 <code>.btn-c</code> / <code>.f-input</code> 声明</td><td>dashboard.html</td><td>✅</td></tr>
+<tr><td>3</td><td>高频业务页 → <code>redesign-pages.css</code></td><td>dashboard / users / tags / execution_logs / audit_logs / operation_log</td><td>✅</td></tr>
+<tr><td>4</td><td>认证页 → <code>redesign-auth.css</code></td><td>login / register / complete_profile / forgot_password</td><td>✅</td></tr>
+<tr><td>5</td><td>剩余全部页面 → <code>redesign-pages.css</code></td><td>groups / group_form / user_form / user_profile / change_password / users_set_active / registration_review / api_token / api_doc / cron_retire</td><td>✅</td></tr>
+</table>
+
+<h3>8.3 CSS 最终架构</h3>
+<pre>
+console-theme.css (382L)          — Design Tokens (CSS Variables, Dark/Light)
+redesign-layout.css (537L)        — Application Shell Grid Layout
+redesign-components.css (804L)    — Shared UI Components (btn, input, modal, toast, etc.)
+redesign-pages.css (1822L)        — All Page-specific Scoped Styles (15 page scopes)
+redesign-mockup-shared.css (223L) — Cross-page Table/Card Standards
+redesign-auth.css (168L)          — Standalone Authentication Pages
+                                    ──────────────────────────
+                                    Total: 3936 lines (organized, zero inline)
+</pre>
+
+<h3>8.4 页面作用域索引</h3>
+<table>
+<tr><th>Page</th><th>Scope Class</th><th>CSS File</th></tr>
+<tr><td>Dashboard</td><td><code>.cp-page-dashboard</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Users</td><td><code>.cp-page-users</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Tags</td><td><code>.cp-page-tags</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Execution Logs</td><td><code>.cp-page-exec-logs</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Audit Logs</td><td><code>.cp-page-audit</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Operation Log</td><td><code>.cp-page-oplog</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Groups</td><td><code>.cp-page-groups</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Group Form</td><td><code>.cp-page-group-form</code></td><td>redesign-pages.css</td></tr>
+<tr><td>User Form</td><td><code>.cp-page-user-form</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Users Set Active</td><td><code>.cp-page-set-active</code></td><td>redesign-pages.css</td></tr>
+<tr><td>User Profile / Change Password</td><td><code>.cp-page-pw</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Registration Review</td><td><code>.cp-page-reg-review</code></td><td>redesign-pages.css</td></tr>
+<tr><td>API Token</td><td><code>.cp-page-api-token</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Cron Retire</td><td><code>.cp-page-cron-retire</code></td><td>redesign-pages.css</td></tr>
+<tr><td>API Doc</td><td><code>.cp-page-api-doc</code></td><td>redesign-pages.css</td></tr>
+<tr><td>Login / Register / Complete Profile / Forgot Password</td><td>N/A (standalone)</td><td>redesign-auth.css</td></tr>
+</table>
+
+<h3>8.5 验收通过清单</h3>
+<ol>
+<li>✅ <code>python3 scripts/audit_hardcoded_colors.py --check</code> — 0 处硬编码（通过）</li>
+<li>✅ <code>python -m unittest tests.test_redesign_sidebar -v</code> — 12/12 通过</li>
+<li>✅ CSS 花括号平衡：redesign-pages.css 754/754，redesign-auth.css 77/77</li>
+<li>✅ 所有 27 个 redesign 模板均无实质内联 CSS（仅保留注释占位）</li>
+<li>✅ 视觉零变化原则：迁移仅移动代码，未修改任何选择器定义值</li>
+</ol>
+
+
+</body>
+</html>

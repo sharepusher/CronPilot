@@ -1,5 +1,6 @@
 {% extends "redesign/_base.html" %}
 {% block title %}审计日志 — CronPilot{% endblock %}
+{% block main_class %} cp-page-audit{% endblock %}
 
 {% block content %}
 <div class="page-head"><div><h1>审计日志</h1><div class="sub">RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）</div></div></div>
@@ -96,93 +97,6 @@
 
 {% block css %}
 <style>
-.pg-audit-filter-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.pg-search-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.pg-input-sm { width: 160px; }
-.pg-clear { color: var(--cp-text-muted); }
-.pg-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.pg-chip {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  background: var(--cp-surface-2);
-  color: var(--cp-text-muted);
-  border: 1px solid var(--cp-border);
-  transition: background .15s, color .15s, border-color .15s;
-}
-.pg-chip:hover {
-  background: var(--cp-signal-bg);
-  color: var(--cp-signal);
-  border-color: var(--cp-signal);
-}
-.pg-chip-active {
-  background: var(--cp-signal-bg);
-  color: var(--cp-signal);
-  border-color: var(--cp-signal);
-  font-weight: 600;
-}
-.pg-time-cell { color: var(--cp-text-muted); white-space: nowrap; }
-.pg-user-deny { color: var(--cp-danger); }
-.pg-desc-cell { color: var(--cp-text); }
-.pg-row-deny { background: var(--cp-danger-bg); }
-/* Action badges */
-.pg-audit-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.pg-audit-badge-ok {
-  background: var(--cp-success-bg);
-  color: var(--cp-success);
-}
-.pg-audit-badge-fail {
-  background: var(--cp-danger-bg);
-  color: var(--cp-danger);
-  border: 1px solid var(--cp-danger-border);
-}
-.pg-audit-badge-warn {
-  background: var(--cp-warn-bg);
-  color: var(--cp-warn);
-}
-.pg-audit-badge-manage {
-  background: var(--cp-signal-bg);
-  color: var(--cp-signal);
-}
-.pg-audit-badge-muted {
-  background: var(--cp-surface-2);
-  color: var(--cp-text-muted);
-}
-/* Result column */
-.pg-audit-result-ok {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--cp-success);
-}
-.pg-audit-result-deny {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--cp-danger);
-}
+/* Audit Logs — styles moved to redesign-pages.css */
 </style>
 {% endblock %}

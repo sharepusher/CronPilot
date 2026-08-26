@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Phase R2/R3 必要性深度分析与根因复盘 — CronPilot</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1000px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:2px solid #333;padding-bottom:.3em}
+h2{margin-top:2em;border-bottom:1px solid #ddd;padding-bottom:.2em}
+h3{margin-top:1.5em}
+h4{margin-top:1em;color:#2c3e50}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:0.9em}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f5f5f5;font-weight:600}
+tr:nth-child(even){background:#fafafa}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:0.88em}
+pre{background:#f5f5f5;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+blockquote{border-left:4px solid #3498db;margin:1em 0;padding:0.5em 1em;background:#f8fbfd}
+.verdict{border:2px solid;padding:16px;border-radius:8px;margin:1em 0}
+.verdict-yes{border-color:#27ae60;background:#f0faf4}
+.verdict-no{border-color:#e74c3c;background:#fdf2f2}
+.verdict-partial{border-color:#f39c12;background:#fefcf3}
+.metric{display:inline-block;background:#e8f4f8;padding:4px 10px;border-radius:4px;margin:2px;font-size:0.9em}
+.risk-high{color:#c0392b;font-weight:600}
+.risk-med{color:#d35400;font-weight:600}
+.risk-low{color:#27ae60;font-weight:600}
+</style>
+</head>
+<body>
+
+<h1>Phase R2/R3 必要性深度分析与根因复盘</h1>
+
+<p><strong>文档编号</strong>：OPT-CSS-CLEANUP-02<br>
+<strong>状态</strong>：R2 最小化已执行（Accent 统一 + 3 页 Scope ✓）；R3 功能补全已执行（Command Palette + Mobile ✓）<br>
+<strong>前置</strong>：OPT-CSS-CLEANUP-01（已完成 Batch A/B/C）<br>
+<strong>日期</strong>：2026-08-24</p>
+
+<hr>
+
+<h2>一、Phase R2 — CSS 命名规范化</h2>
+
+<h3>1.1 问题量化</h3>
+
+<table>
+<tr><th>问题类型</th><th>当前状态</th><th>具体实例</th></tr>
+<tr><td>按钮系统并行</td><td>4 套活跃</td><td><code>.btn-c</code>(44 refs) / <code>.cp-btn</code>(4 refs) / <code>.btn</code>(JS modals) / <code>.el-btn</code>(9 refs)</td></tr>
+<tr><td>双 Accent 色系</td><td>2 套共存</td><td><code>--cp-accent</code>(cyan, 24×) vs <code>--cp-signal</code>(blue, 37×)</td></tr>
+<tr><td>页面缺 scope</td><td>3 页</td><td>task_detail / task_form / run_inspector 的 CSS 全局暴露</td></tr>
+<tr><td>Filter 系统重复</td><td>4 套</td><td>dashboard/exec-logs/users/audit 各自实现 chip + search</td></tr>
+<tr><td>Form-card 模板重复</td><td>5 套</td><td><code>.gf-card/.uf-card/.usa-card/.cr-card/.pw-card</code> 结构 90% 相同</td></tr>
+<tr><td>Tooltip 实现重复</td><td>3 套</td><td>pages.css(L633) / pages.css(L1279, 已 scope) / .um-icon-btn</td></tr>
+</table>
+
+<h3>1.2 根因追溯</h3>
+
+<h4>为什么存在 4 套按钮系统？</h4>
+
+<table>
+<tr><th>系统</th><th>诞生原因</th><th>为何没合并</th></tr>
+<tr><td><code>.btn-c</code></td><td>直接复刻 Mockup 设计规格</td><td>是 Mockup 验收标准，不可能改名</td></tr>
+<tr><td><code>.cp-btn</code></td><td>Phase 0 组件库先于 Mockup 设计</td><td>已被 task_detail/task_form 使用，与 <code>.btn-c</code> 视觉不同（有 0.97 缩放、不同的 focus ring）</td></tr>
+<tr><td><code>.btn</code></td><td>JS 模块（confirm.js）需要在动态 HTML 中使用无前缀类名</td><td>confirm.js 的 <code>innerHTML</code> 构建使用 <code>btn-c btn-accent</code>（已迁移）；遗留 tags/reg_review 仍引用</td></tr>
+<tr><td><code>.el-btn</code></td><td>exec-logs 页需要特殊的紧凑按钮（高度 26px vs 标准 32px）</td><td>语义上是 <code>.btn-c--sm</code> 但命名时没考虑复用</td></tr>
+</table>
+
+<h4>为什么存在双 Accent 色系？</h4>
+
+<p><code>--cp-accent</code>（#0891b2 青色）是 Phase 0 定义的主色调。当 Mockup 交付时使用了 <code>--cp-signal</code>（#3D6FE0 蓝色），开发者在新页面中切换到 signal，但已完成的 task_detail/task_form/run_inspector 仍保留 accent。这不是疏忽——两种颜色在视觉上差异明显（青 vs 蓝），如果直接全局替换会导致已验收页面的外观变化。</p>
+
+<h4>为什么 3 页缺少 .cp-page-* scope？</h4>
+
+<p>task_detail / task_form / run_inspector 是 Phase R1 之前的「B3 早期页面」。Phase R1 设计时，这三页的 CSS 使用 <code>.td-*</code>/<code>.tf-*</code>/<code>.ri-*</code> 前缀本身就构成了命名隔离（不存在与其他页面的类名冲突），所以 R1 选择「不动它们」以降低变更风险。从技术角度看，加 scope 是一个机械操作，但需要验证 ~790 行 CSS 在新 scope 下无 specificity 变化。</p>
+
+<h3>1.3 必要性判定</h3>
+
+<div class="verdict verdict-partial">
+<strong>结论：部分必要，但优先级低于功能开发</strong>
+<ul>
+<li><strong>必要且 ROI 高</strong>：双 Accent 统一（影响用户对品牌色彩的一致性感知）、3 页补充 scope（10 分钟机械操作 + 验证）</li>
+<li><strong>必要但 ROI 低</strong>：按钮系统收敛（需重新设计按钮层级，影响面大，收益有限）、Filter 抽象（需设计通用 API，当前各页需求略有不同）</li>
+<li><strong>不必要</strong>：强制统一所有命名前缀到 <code>.cp-*</code>（Mockup 系命名已成为事实标准，强行改名只增加改动量无收益）</li>
+</ul>
+</div>
+
+<h3>1.4 如果实施，推荐最小化方案</h3>
+
+<table>
+<tr><th>子项</th><th>工作量</th><th>风险</th><th>收益</th><th>建议</th></tr>
+<tr><td>统一 Accent 色</td><td>~30 min（24 处 accent → signal）</td><td class="risk-low">低（纯色值替换）</td><td>品牌色一致</td><td><strong>✅ 已完成</strong></td></tr>
+<tr><td>3 页补 scope</td><td>~15 min</td><td class="risk-low">低</td><td>消除全局污染风险</td><td><strong>✅ 已完成</strong></td></tr>
+<tr><td>按钮系统收敛</td><td>2–4 h</td><td class="risk-med">中</td><td>减少认知负担</td><td>推迟</td></tr>
+<tr><td>Filter 抽象</td><td>2–3 h</td><td class="risk-med">中</td><td>减少 ~100 行重复</td><td>推迟</td></tr>
+<tr><td>Form-card 抽象</td><td>1–2 h</td><td class="risk-low">低</td><td>减少 ~150 行重复</td><td>推迟</td></tr>
+</table>
+
+<hr>
+
+<h2>二、Phase R3 — JavaScript 模块化</h2>
+
+<h3>2.1 问题量化</h3>
+
+<table>
+<tr><th>问题类型</th><th>当前状态</th><th>影响</th></tr>
+<tr><td>common.js 体积</td><td>1,082 行（Redesign 实际需要 ~300 行）</td><td>加载 ~780 行无用代码</td></tr>
+<tr><td>Command Palette 未完成</td><td>UI shell 存在，搜索逻辑空</td><td>用户按 ⌘K 后无功能——功能缺失</td></tr>
+<tr><td>Mobile 侧边栏断路</td><td>CSS <code>.mobile-open</code> 存在，JS 未连接</td><td>移动端不可用——功能缺失</td></tr>
+<tr><td>主题/侧边栏双重实现</td><td>common.js + redesign-shell.js 各有一套</td><td>维护混淆，但无运行时冲突（console-mode gate）</td></tr>
+<tr><td>全局命名污染</td><td>~15 个 window-level 函数</td><td>潜在命名冲突，但当前无实际冲突</td></tr>
+<tr><td>jQuery 依赖</td><td>52 处 jQuery 调用在 redesign 模板中</td><td>无法去除 jQuery（还用于 js-ajax-form）</td></tr>
+</table>
+
+<h3>2.2 根因追溯</h3>
+
+<h4>为什么 common.js 成为了 1,082 行巨石？</h4>
+
+<p><code>common.js</code> 是 v1（经典模式）时代的唯一前端脚本，承载了所有功能：</p>
+<ul>
+<li>Ajax 表单处理 + CSRF 注入（Redesign 仍需要）</li>
+<li>防重复提交全局守卫（Redesign 仍需要）</li>
+<li>artDialog / Wind.js 对话框辅助（Redesign 不需要）</li>
+<li>Console 模式侧边栏搜索（Redesign 不需要）</li>
+<li>文件上传弹窗辅助（Redesign 不需要）</li>
+<li>IE 兼容 polyfill（Redesign 不需要）</li>
+</ul>
+
+<p>Redesign 通过 <code>data-ui-mode === 'console'</code> gate 隔离了不兼容的快捷键，但仍加载了全部代码。原因：拆分 common.js 需要确保 v1 和 v2 都不受影响，且 v1 → v2 迁移未完成（双轨并行中）。</p>
+
+<h4>为什么 Command Palette 和 Mobile 未完成？</h4>
+
+<p>两者都属于「UI 外壳先行，功能后补」的开发策略。设计规格在 Mockup 中只定义了视觉外观（搜索框 + 结果列表），未定义搜索算法、数据源、结果排序。实现者完成了可视/交互层（打开/关闭/聚焦），将功能逻辑推迟到明确产品定义后。Mobile 同理——Mockup 为纯桌面设计，移动适配属于未定义需求。</p>
+
+<h3>2.3 必要性判定</h3>
+
+<div class="verdict verdict-partial">
+<strong>结论：功能补全（Command Palette / Mobile）有用户价值；模块化拆分 ROI 极低</strong>
+<ul>
+<li><strong>必要（用户可感知）</strong>：Command Palette 实现搜索（当前是空壳欺骗用户）、Mobile 侧边栏连接（使移动端可用）</li>
+<li><strong>不必要（投入产出不匹配）</strong>：拆分 common.js——当前双轨并行中，v1 仍需要完整 common.js；拆分只减少 Redesign 的加载体积 ~15KB gzip 前（实际 ~3KB gzip），对用户体验无感知提升</li>
+<li><strong>不必要</strong>：jQuery → 原生迁移——52 处调用需逐一重写，且 js-ajax-form 仍依赖 jQuery；风险远大于收益</li>
+</ul>
+</div>
+
+<h3>2.4 如果实施，推荐最小化方案</h3>
+
+<table>
+<tr><th>子项</th><th>工作量</th><th>风险</th><th>收益</th><th>建议</th></tr>
+<tr><td>Command Palette 搜索</td><td>1–2 h</td><td class="risk-low">低（独立模块）</td><td>⌘K 可用，提升导航效率</td><td><strong>✅ 已完成</strong></td></tr>
+<tr><td>Mobile 侧边栏 JS</td><td>30 min</td><td class="risk-low">低（纯新增）</td><td>移动端可用</td><td><strong>✅ 已完成</strong></td></tr>
+<tr><td>common.js 拆分</td><td>3–5 h</td><td class="risk-high">高（双轨兼容）</td><td>~3KB gzip 减小</td><td>推迟到 v2-only</td></tr>
+<tr><td>jQuery 去除</td><td>8–12 h</td><td class="risk-high">高（Ajax form 核心）</td><td>~30KB gzip 减小</td><td>不做</td></tr>
+<tr><td>全局函数收敛</td><td>1–2 h</td><td class="risk-med">中</td><td>命名空间清洁</td><td>推迟到 v2-only</td></tr>
+</table>
+
+<hr>
+
+<h2>三、综合根因复盘</h2>
+
+<h3>3.1 结构性根因总结</h3>
+
+<p>所有 R2/R3 问题共享同一个<strong>根因链</strong>：</p>
+
+<pre>
+快速迭代交付压力
+    → 功能 DoD 不含"架构一致性"检查
+        → 新页面独立选择命名/实现，不与已有页面对齐
+            → 并行系统累积
+                → 无自动化门禁阻止偏离
+                    → 债务隐性增长直到集中审计
+</pre>
+
+<h4>为什么"快速迭代"会导致这些问题？</h4>
+
+<p>因为 CronPilot 的 Redesign 是一个<strong>渐进式重写</strong>（23 页分批实现），而不是一次性全量重写。在渐进式重写中，每个页面面对两种选择：</p>
+<ol>
+<li><strong>复用已有组件</strong>（需要阅读理解全局 CSS、可能需要扩展/修改现有类）</li>
+<li><strong>从零写新类</strong>（只需关注当前页面、快速交付、不影响其他页面）</li>
+</ol>
+<p>在缺少「组件复用指南」和「CI 强制复用检查」的情况下，选项 2 的短期成本总是更低。这是一个经典的<strong>公地悲剧</strong>——每个页面的最优局部策略（新建前缀）导致全局最劣结果（N 套并行系统）。</p>
+
+<h3>3.2 与行业最佳实践对比</h3>
+
+<table>
+<tr><th>实践</th><th>行业标准</th><th>CronPilot 现状</th><th>差距</th></tr>
+<tr><td>Design Token</td><td>一套权威 Token 文件，所有组件引用</td><td>✓ <code>console-theme.css</code> 100% Token 化</td><td>无差距</td></tr>
+<tr><td>组件库唯一性</td><td>每种 UI 元素只有一种实现</td><td>✗ 4 种按钮、4 种表格、6 种筛选</td><td>显著差距</td></tr>
+<tr><td>CSS 作用域</td><td>CSS Modules / BEM / Shadow DOM</td><td>◐ 17/20 页有 .cp-page-* scope；3 页无</td><td>小差距</td></tr>
+<tr><td>JS 模块化</td><td>ES Modules / Webpack</td><td>◐ Redesign 4 个 IIFE（好）; common.js 巨石（差）</td><td>中差距</td></tr>
+<tr><td>Mobile-first</td><td>默认响应式</td><td>◐ 有 768/480 断点；Mobile 侧边栏 JS 断路</td><td>中差距</td></tr>
+<tr><td>死代码防护</td><td>Tree-shaking / CSS purge</td><td>✓ <code>check_dead_css.py</code>（刚建立）</td><td>已弥补</td></tr>
+</table>
+
+<h3>3.3 问题复合效应分析</h3>
+
+<blockquote>
+这些问题的核心风险不是「当前是否有 bug」，而是「未来每次新增/修改页面时的决策成本和出错概率」。
+</blockquote>
+
+<table>
+<tr><th>场景</th><th>无清理时的行为</th><th>清理后的行为</th></tr>
+<tr><td>新开发者添加一个按钮</td><td>需要判断 4 套中哪个适用，可能创建第 5 套</td><td>文档明确指定 <code>.btn-c</code> 为标准</td></tr>
+<tr><td>设计师要求统一主色调</td><td>需要在 2 种 Accent 中排查 24+37 处</td><td>只需改 1 个 Token 变量</td></tr>
+<tr><td>新增一个表格页面</td><td>参考 6 种已有表格样式，选择困难</td><td><code>.c-table</code> 是唯一答案</td></tr>
+<tr><td>Bug 修复一个 tooltip</td><td>需要理解 3 套 tooltip 的 cascade 关系</td><td>1 套定义 + scope 覆盖</td></tr>
+</table>
+
+<hr>
+
+<h2>四、推荐行动方案</h2>
+
+<h3>4.1 立即实施（ROI 高、风险低）</h3>
+
+<table>
+<tr><th>#</th><th>动作</th><th>工作量</th><th>归类</th></tr>
+<tr><td>1</td><td>统一 Accent：24 处 <code>--cp-accent</code> → <code>--cp-signal</code></td><td>30 min</td><td>R2 最小化</td></tr>
+<tr><td>2</td><td>3 页补充 <code>.cp-page-*</code> scope</td><td>15 min</td><td>R2 最小化</td></tr>
+<tr><td>3</td><td>实现 Command Palette 搜索</td><td>1–2 h</td><td>R3 功能补全</td></tr>
+<tr><td>4</td><td>连接 Mobile 侧边栏 JS</td><td>30 min</td><td>R3 功能补全</td></tr>
+</table>
+
+<h3>4.2 推迟（等待 v2-only 切换后再做）</h3>
+
+<table>
+<tr><th>动作</th><th>推迟原因</th></tr>
+<tr><td>按钮系统收敛</td><td>需先确定 .cp-btn 在 task 页的长期角色（是否与 .btn-c 合并）</td></tr>
+<tr><td>Filter 抽象</td><td>各页筛选器细节不同（chip vs dropdown vs 搜索框组合），强行统一可能过早</td></tr>
+<tr><td>common.js 拆分</td><td>v1 仍在线，拆分需双轨验证</td></tr>
+<tr><td>jQuery 去除</td><td>js-ajax-form 核心依赖 jQuery，去除需重写整个 Ajax 提交层</td></tr>
+</table>
+
+<h3>4.3 不做</h3>
+
+<table>
+<tr><th>动作</th><th>不做原因</th></tr>
+<tr><td>强制所有类名统一为 .cp-*</td><td>Mockup 系命名（.c-table / .btn-c）已是事实标准，改名只增加 churn 无实际收益</td></tr>
+<tr><td>Form-card CSS 抽象</td><td>每个 form-card 有细微差异（字段数、是否有 sidebar、是否有权限限制），抽象后仍需大量覆盖，不如保持显式</td></tr>
+<tr><td>引入 CSS 预处理器</td><td>项目体量不足以支撑构建工具链的维护成本</td></tr>
+</table>
+
+<hr>
+
+<h2>五、预防机制评估</h2>
+
+<h3>5.1 已建立的门禁</h3>
+
+<table>
+<tr><th>门禁</th><th>检测内容</th><th>状态</th></tr>
+<tr><td><code>audit_hardcoded_colors.py --check</code></td><td>模板/CSS 中硬编码 hex 颜色</td><td>✓ 运行中</td></tr>
+<tr><td><code>check_ui_contract.py --check</code></td><td>inline style / legacy class / inline CSS 体积</td><td>✓ 运行中</td></tr>
+<tr><td><code>check_dead_css.py --check</code></td><td>components.css 中无引用的类</td><td>✓ 本次新建</td></tr>
+<tr><td><code>test_redesign_sidebar</code></td><td>4 角色导航权限回归</td><td>✓ 运行中</td></tr>
+</table>
+
+<h3>5.2 缺失但推荐的门禁</h3>
+
+<table>
+<tr><th>门禁</th><th>检测内容</th><th>优先级</th><th>理由</th></tr>
+<tr><td>CSS Token 完整性检查</td><td>所有 <code>var(--cp-xxx)</code> 在 :root 中有定义</td><td>P1</td><td>本次发现 <code>--cp-active-bg</code> 事件</td></tr>
+<tr><td>页面 scope 覆盖率</td><td>每个 redesign 模板的 pages.css 规则是否在 <code>.cp-page-*</code> 下</td><td>P2</td><td>3 页无 scope 事件</td></tr>
+<tr><td>CSS 选择器重复检测</td><td>同名选择器在多文件中出现（排除有意覆盖）</td><td>P3</td><td>[data-tooltip] 重复事件</td></tr>
+</table>
+
+<h3>5.3 为什么这些机制之前不存在？</h3>
+
+<p>核心原因：<strong>门禁需求来自痛点，而痛点需要累积到可被感知的阈值</strong>。</p>
+
+<ul>
+<li>颜色审计门禁诞生于「第一次发现硬编码颜色渗入」</li>
+<li>死代码门禁诞生于「第一次全量审计发现 55% 浪费」</li>
+<li>Token 完整性门禁尚未诞生，因为 <code>--cp-active-bg</code> 是第一个被发现的案例</li>
+</ul>
+
+<p>这是一个自然的成熟度演进路径——每个门禁都在对应问题首次暴露后建立。项目的治理成熟度在过去一个月（Phase R1 → R5 → 功能修复 → 死代码清理）中快速提升。</p>
+
+<hr>
+
+<h2>六、结论</h2>
+
+<blockquote>
+<strong>Phase R2 和 R3 的大部分工作「不是现在必须做的」，但有 4 个高 ROI 子项应该做。</strong>
+</blockquote>
+
+<table>
+<tr><th>维度</th><th>判定</th></tr>
+<tr><td>R2 全量命名统一</td><td><strong>不做</strong>——Mockup 命名已是事实标准，强行统一是「架构洁癖」而非用户价值</td></tr>
+<tr><td>R2 Accent 统一 + Scope 补全</td><td><strong>做</strong>——45 min 换来品牌一致性 + 隔离安全，ROI 极高</td></tr>
+<tr><td>R3 模块化拆分</td><td><strong>推迟到 v2-only</strong>——当前双轨并行，拆分风险大于收益</td></tr>
+<tr><td>R3 功能补全（Command Palette + Mobile）</td><td><strong>做</strong>——功能缺失 P0，用户每次看到空壳都是负体验</td></tr>
+</table>
+
+<p>推荐将上述 4 个「做」的子项合并为一个轻量 OPT（~2.5h 总工作量），而非承诺完整的 Phase R2/R3。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Phase-R2-R3必要性分析与根因复盘.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

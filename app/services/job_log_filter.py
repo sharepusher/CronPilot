@@ -15,6 +15,8 @@ def job_log_outcome_clause(outcome):
         return JobLog.status == STATUS_FAIL
     if o == 'error':
         return JobLog.status == STATUS_ERROR
+    if o == 'exception':
+        return JobLog.status.in_((STATUS_ERROR, STATUS_TIMEOUT))
     if o == 'not_success':
         return JobLog.status.in_((STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT))
     if o == 'unknown':

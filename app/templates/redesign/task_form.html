@@ -1,6 +1,8 @@
 {% extends "redesign/_base.html" %}
 {% block title %}{{ '编辑任务' if is_edit else '新建任务' }} — CronPilot{% endblock %}
 
+{% block main_class %} cp-page-task-form{% endblock %}
+
 {% block breadcrumb %}{% endblock %}
 
 {% block content %}
@@ -82,7 +84,7 @@
             {% endfor %}
             {% endif %}
           </div>
-          <input type="text" id="tags_input" class="tf-input tf-tag-text" placeholder="输入标签后按空格或回车添加" autocomplete="off">
+          <input type="text" id="tags_input" class="tf-input tf-tag-text" placeholder="输入标签后按空格或回车添加" autocomplete="off" aria-label="输入标签">
         </div>
         <input type="hidden" name="tags" id="tags_hidden" value="{{ current_tags|join(',') if is_edit and current_tags else '' }}">
         <span class="tf-hint">可选；建议输入国家/业务线/服务名等</span>

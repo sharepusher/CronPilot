@@ -33,7 +33,7 @@
   {# Command Palette #}
   <div class="cp-cmd-overlay" id="cp-cmd-overlay">
     <div class="cp-cmd-box">
-      <input class="cp-cmd-input" id="cp-cmd-input" type="text" placeholder="搜索任务、操作或页面…" autocomplete="off">
+      <input class="cp-cmd-input" id="cp-cmd-input" type="text" placeholder="搜索任务、操作或页面…" autocomplete="off" aria-label="搜索任务、操作或页面">
       <div class="cp-cmd-results" id="cp-cmd-results"></div>
       <div class="cp-cmd-footer">
         <span><kbd>↑↓</kbd> 导航</span>
@@ -43,11 +43,9 @@
     </div>
   </div>
 
-  {# Core JS — jQuery + shared utilities #}
-  <script>var GV = {ROOT: "/", WEB_ROOT: "", JS_ROOT: "{{ url_for('static', filename='js/') }}", UPLOAD_URL: "/"};</script>
-  <script defer src="{{ url_for('static', filename='js/jquery.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='js/wind.js') }}"></script>
-  <script defer src="{{ url_for('static', filename='js/common.js') }}"></script>
+  {# Core JS — jQuery (sync, required by inline scripts) + Redesign common #}
+  <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/common-redesign.js') }}"></script>
   {# Redesign JS modules #}
   <script defer src="{{ url_for('static', filename='js/redesign-shell.js') }}"></script>
   <script defer src="{{ url_for('static', filename='js/redesign-theme.js') }}"></script>

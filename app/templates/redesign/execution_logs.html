@@ -47,18 +47,18 @@
     <button type="submit" name="outcome" value="not_success" class="el-f-btn{{ ' active' if outcome in ('not_success', None, '') }}">非成功</button>
     <button type="submit" name="outcome" value="all" class="el-f-btn{{ ' active' if outcome == 'all' }}">全部</button>
     <button type="submit" name="outcome" value="fail" class="el-f-btn{{ ' active' if outcome == 'fail' }}">仅失败</button>
-    <button type="submit" name="outcome" value="timeout" class="el-f-btn{{ ' active' if outcome == 'timeout' }}">仅异常</button>
+    <button type="submit" name="outcome" value="exception" class="el-f-btn{{ ' active' if outcome == 'exception' }}">仅异常</button>
     <button type="submit" name="outcome" value="success" class="el-f-btn{{ ' active' if outcome == 'success' }}">仅成功</button>
   </div>
   <div class="el-f-sep"></div>
   {% if not cron_info %}
-  <input class="el-f-input" type="text" name="task_name" value="{{ keywords.get('task_name','') }}" placeholder="任务名称">
+  <input class="el-f-input" type="text" name="task_name" value="{{ keywords.get('task_name','') }}" placeholder="任务名称" aria-label="任务名称">
   {% else %}
-  <input class="el-f-input" type="text" name="content" value="{{ keywords.get('content','') }}" placeholder="搜索内容">
+  <input class="el-f-input" type="text" name="content" value="{{ keywords.get('content','') }}" placeholder="搜索内容" aria-label="搜索内容">
   {% endif %}
-  <input class="el-f-input el-f-date" type="text" name="start_time" value="{{ keywords.get('start_time','') }}" placeholder="开始时间">
+  <input class="el-f-input el-f-date" type="text" name="start_time" value="{{ keywords.get('start_time','') }}" placeholder="开始时间" aria-label="开始时间">
   <span style="color:var(--cp-text-faint)">—</span>
-  <input class="el-f-input el-f-date" type="text" name="end_time" value="{{ keywords.get('end_time','') }}" placeholder="结束时间">
+  <input class="el-f-input el-f-date" type="text" name="end_time" value="{{ keywords.get('end_time','') }}" placeholder="结束时间" aria-label="结束时间">
   <div class="el-f-spacer"></div>
   <button type="submit" class="el-btn el-btn-accent el-btn-xs">搜索</button>
   <a href="{{ base_url }}" class="el-btn el-btn-line el-btn-xs">重置</a>
@@ -146,7 +146,7 @@
     <span class="el-foot-count">
       {% if outcome in ('not_success', None, '') %}{{ page_data.total }} total (non-success)
       {% elif outcome == 'fail' %}{{ page_data.total }} total (failures)
-      {% elif outcome == 'timeout' %}{{ page_data.total }} total (timeouts)
+      {% elif outcome == 'exception' %}{{ page_data.total }} total (exceptions)
       {% elif outcome == 'success' %}{{ page_data.total }} total (success)
       {% else %}{{ page_data.total }} total{% endif %}
     </span>
@@ -216,8 +216,9 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     if (document.querySelector('.cp-modal-overlay')) return;
-    var resetBtn = document.querySelector('a[href$="job_log_all_list"]');
-    if (resetBtn && document.activeElement.tagName !== 'INPUT') {
+    if (document.activeElement.tagName === 'INPUT') return;
+    var resetBtn = document.querySelector('.el-filters a[href]');
+    if (resetBtn) {
       resetBtn.click();
     }
   }

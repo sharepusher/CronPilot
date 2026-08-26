@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Redesign 功能页全量审查 — 问题复盘与修复计划</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:1100px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14px;}
+h1{font-size:22px;border-bottom:2px solid #0891b2;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:36px;border-left:4px solid #0891b2;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:24px;}
+h4{font-size:13px;color:#475569;margin-top:16px;margin-bottom:4px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+.critical{background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:12px 16px;margin:12px 0;}
+.medium{background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:13px;}
+.insight{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px 16px;margin:12px 0;}
+.metric{display:inline-block;background:#ecfdf5;border:1px solid #86efac;border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600;color:#166534;margin-right:6px;}
+.skip{display:inline-block;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:1px 8px;font-size:12px;color:#64748b;margin-right:6px;}
+</style>
+</head>
+<body>
+
+<h1>Redesign 功能页全量审查 — 问题复盘与修复计划</h1>
+
+<p><strong>审查范围</strong>：<code>app/templates/redesign/</code> 全部 23 个功能页<br>
+<strong>审查维度</strong>：HTML 结构 · JavaScript · 安全性 · UX · 功能 bug · 可访问性<br>
+<strong>发现统计</strong>：Critical 2 · Medium ~35 · Low ~40<br>
+<strong>关联文档</strong>：<code>doc/design/Redesign前端代码质量评估与优化计划.html</code></p>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>一、系统性根因分析</h2>
+
+<h3>1.1 为什么出现 77 个问题</h3>
+
+<p>这些问题来源于三个阶段的不同决策：</p>
+
+<table>
+<tr><th>阶段</th><th>焦点</th><th>产出</th><th>遗留</th></tr>
+<tr><td>Phase 1：功能实现</td><td>Mockup 还原 + 功能完整性</td><td>23 个完整页面 + 4 个 JS 模块</td><td>安全/可访问性/边界场景未系统覆盖</td></tr>
+<tr><td>Phase 2：安全加固</td><td>CSRF、XSS、POST-only</td><td>S1-S5 安全修复</td><td>部分页面安全模式不一致（如 onclick 注入遗漏）</td></tr>
+<tr><td>Phase 3：CSS 架构（R1）</td><td>消除技术债 + 建立防护</td><td>零内联 CSS + CI 门禁</td><td>功能 bug / UX / 可访问性不在范围内</td></tr>
+</table>
+
+<h3>1.2 五层 Why（结构性根因）</h3>
+
+<table>
+<tr><th>Why</th><th>问题</th></tr>
+<tr><td>1</td><td>存在 2 个 Critical bug + 35 个 Medium 级别问题</td></tr>
+<tr><td>2</td><td>功能验收只测"正向路径"，未覆盖边界场景（如 cpRetire 不传 reason）</td></tr>
+<tr><td>3</td><td>开发时 DoD = "功能在正常场景下工作" + "视觉与 Mockup 一致"</td></tr>
+<tr><td>4</td><td>无系统性的安全/可访问性/边界场景检查清单</td></tr>
+<tr><td>5</td><td>Redesign 是 UI 迁移（v1→v2），优先级是视觉一致性而非功能完善</td></tr>
+</table>
+
+<div class="insight">
+<strong>核心认知</strong>：这些不是"低质量代码"，而是<strong>有意的范围取舍</strong>——先交付 UI 一致性，再逐步补齐边界防护。现在是"补齐"的正确时机。
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>二、问题分类与必要性评估</h2>
+
+<h3>2.1 Critical — 必须修复（影响核心业务流程）</h3>
+
+<div class="critical">
+<h4>C1: dashboard.html — cpRetire 不传 reason 导致下线永远失败</h4>
+<p><strong>问题</strong>：Dashboard 快捷下线按钮调用 <code>cpRetire()</code>，只传 <code>{id, csrf_token}</code>，不传 <code>reason</code> 字段。后端 <code>validate_retire_reason(reason)</code> 检查 1-500 字符，reason=None 必定失败。</p>
+<p><strong>影响</strong>：用户点击下线 → 确认 → Toast 显示错误信息。功能完全不可用。</p>
+<p><strong>修复方案</strong>：在 CpConfirm 对话框中增加 reason textarea（参考 users.html 的 deactivation modal 模式），或改为跳转到 <code>/cron_retire?id=xx</code> 专用页面。</p>
+<p><strong>必要性</strong>：<span class="metric">必须修复</span> — 功能不可用</p>
+</div>
+
+<div class="critical">
+<h4>C2: user_form.html — 停用用户仍展示"启用"选项</h4>
+<p><strong>问题</strong>：编辑已停用用户时，<code>is_active</code> 下拉框仍包含 <code>value="1"</code>（启用）选项。虽然后端 <code>update_user()</code> 会拦截，但 UI 误导管理员认为可以恢复。</p>
+<p><strong>影响</strong>：管理员操作后收到错误提示，体验割裂。违反"停用不可恢复"策略的 UI 一致性。</p>
+<p><strong>修复方案</strong>：当 <code>user.is_active == 0</code> 时，隐藏 <code>is_active</code> 下拉或改为只读展示"已停用"。</p>
+<p><strong>必要性</strong>：<span class="metric">必须修复</span> — UI 与业务策略矛盾</p>
+</div>
+
+<h3>2.2 Medium — 建议修复（按优先级排序）</h3>
+
+<h4>M1: 功能性 Bug（必须修复）</h4>
+<table>
+<tr><th>#</th><th>页面</th><th>问题</th><th>修复方案</th><th>必要性</th></tr>
+<tr><td>M1</td><td>tags.html</td><td>状态映射错误：<code>status === 2</code> 标为"已暂停"，实际 cron 状态码 <code>0=暂停, -1=下线</code></td><td>改为 <code>=== 0</code></td><td><span class="metric">必须</span></td></tr>
+<tr><td>M2</td><td>execution_logs.html</td><td>Esc 快捷键选择器 <code>a[href$="job_log_all_list"]</code> 在单任务视图下匹配失败</td><td>改为通用选择器（如表单 reset 或 base_url 链接）</td><td><span class="metric">建议</span></td></tr>
+</table>
+
+<h4>M2: 安全性问题（建议修复）</h4>
+<table>
+<tr><th>#</th><th>页面</th><th>问题</th><th>修复方案</th><th>必要性</th></tr>
+<tr><td>M3</td><td>task_detail / run_inspector</td><td><code>onclick="cpCopy('{{ keyword }}'...)"</code> — keyword 含引号时 JS 断裂</td><td>改用 <code>data-keyword</code> + 事件委托</td><td><span class="metric">建议</span> — 低概率但可被触发</td></tr>
+</table>
+
+<h4>M3: UX 问题（可选修复）</h4>
+<table>
+<tr><th>#</th><th>页面</th><th>问题</th><th>修复方案</th><th>必要性</th></tr>
+<tr><td>M4</td><td>dashboard/task_detail/registration_review</td><td>AJAX 操作无 loading 状态，用户可重复点击</td><td>confirm 回调中禁用按钮 + 文案追加"中…"</td><td><span class="metric">建议</span></td></tr>
+<tr><td>M5</td><td>register/user_form/user_profile/complete_profile</td><td><code>job_title_other</code> 选中时 JS 不设 <code>required</code></td><td>change 事件中 toggle <code>required</code></td><td><span class="metric">建议</span></td></tr>
+<tr><td>M6</td><td>register</td><td>无客户端密码匹配/组选择验证</td><td>submit 前 JS 检查</td><td><span class="skip">可选</span> — 后端兜底</td></tr>
+<tr><td>M7</td><td>change_password</td><td>无客户端新密码 === 确认密码检查</td><td>同上</td><td><span class="skip">可选</span></td></tr>
+<tr><td>M8</td><td>api_token</td><td>使用已废弃 <code>document.execCommand('copy')</code></td><td>改用 <code>navigator.clipboard.writeText()</code></td><td><span class="skip">可选</span> — 当前仍可工作</td></tr>
+</table>
+
+<h4>M4: 可访问性问题（建议批量修复）</h4>
+<table>
+<tr><th>#</th><th>问题模式</th><th>影响页面</th><th>修复方案</th><th>必要性</th></tr>
+<tr><td>M9</td><td>Icon-only 按钮无 <code>aria-label</code></td><td>dashboard, users, execution_logs</td><td>逐个添加 <code>aria-label</code></td><td><span class="metric">建议</span></td></tr>
+<tr><td>M10</td><td><code>&lt;label&gt;</code> 缺少 <code>for</code> 关联</td><td>user_form, group_form, cron_retire 等 8 页</td><td>逐个添加 <code>for/id</code></td><td><span class="metric">建议</span></td></tr>
+<tr><td>M11</td><td>register 确认模态框无 <code>role="dialog"</code> / focus trap</td><td>register</td><td>添加 ARIA + 键盘处理</td><td><span class="metric">建议</span></td></tr>
+<tr><td>M12</td><td><code>&lt;a onclick="..." href="javascript:;"&gt;</code> 代替 button</td><td>dashboard, tags</td><td>改为 <code>&lt;button type="button"&gt;</code></td><td><span class="skip">可选</span></td></tr>
+</table>
+
+<h3>2.3 Low — 不建议单独修复（ROI 过低）</h3>
+
+<table>
+<tr><th>问题模式</th><th>数量</th><th>为什么不单独修复</th></tr>
+<tr><td>Clipboard API 无 <code>.catch()</code></td><td>4 处</td><td>静默失败对内部工具用户无感知影响</td></tr>
+<tr><td>残留 <code>style=""</code> 属性（var-only）</td><td>~8 处</td><td>使用 CSS 变量的 inline style 已在 <code>check_ui_contract.py</code> 允许名单中</td></tr>
+<tr><td>Pagination 伪 <code>&lt;a&gt;…&lt;/a&gt;</code> 椭圆号</td><td>3 处</td><td>视觉纯装饰，不影响功能</td></tr>
+<tr><td><code>&lt;table&gt;</code> 缺 <code>&lt;caption&gt;</code> / scope</td><td>全部</td><td>管理后台表格数据已有标题行上下文</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>三、修复计划 — 分批实施</h2>
+
+<div class="insight">
+<strong>总体策略</strong>：按"影响面 × 修复确定性"排序。功能 bug 优先于 UX 优先于可访问性。每批独立可验收。
+</div>
+
+<h3>Batch 1：Critical Bug 修复（0.5 天）</h3>
+<table>
+<tr><th>项</th><th>文件</th><th>修复</th><th>验收</th></tr>
+<tr><td>C1</td><td><code>dashboard.html</code></td><td>cpRetire 改为跳转到 <code>/cron_retire?id=xx</code>（复用已有带 reason 的专用页面），或在 CpConfirm 中加 textarea 收集 reason 后 POST</td><td>浏览器下线操作 → 跳转到下线页 / 成功 toast</td></tr>
+<tr><td>C2</td><td><code>user_form.html</code></td><td>当 <code>user.is_active == 0</code> 时，隐藏 is_active 行或改为只读"已停用"文本</td><td>编辑停用用户 → 不展示"启用"选项</td></tr>
+</table>
+
+<h3>Batch 2：功能性 Bug + 安全修复（0.5 天）</h3>
+<table>
+<tr><th>项</th><th>文件</th><th>修复</th><th>验收</th></tr>
+<tr><td>M1</td><td><code>tags.html</code></td><td><code>status === 2</code> → <code>=== 0</code></td><td>含已暂停任务的标签 → 正确显示"已暂停"</td></tr>
+<tr><td>M2</td><td><code>execution_logs.html</code></td><td>Esc handler 改为查找表单 action URL 或 <code>.el-filters</code> 内链接</td><td>单任务日志页按 Esc → 跳回全量日志</td></tr>
+<tr><td>M3</td><td><code>task_detail.html</code> + <code>run_inspector.html</code></td><td>onclick 内联改为 <code>data-keyword</code> + 事件委托</td><td>keyword 含 <code>'</code> 时复制不报错</td></tr>
+</table>
+
+<h3>Batch 3：UX 改善（1 天）</h3>
+<table>
+<tr><th>项</th><th>文件</th><th>修复</th><th>验收</th></tr>
+<tr><td>M4</td><td>dashboard/task_detail/registration_review</td><td>AJAX confirm 操作添加 loading 状态</td><td>连续快击 → 第二次被拦截</td></tr>
+<tr><td>M5</td><td>register/user_form/user_profile/complete_profile</td><td>job_title_other change 事件 toggle required</td><td>选"其他" → 提交空值 → 浏览器原生提示</td></tr>
+<tr><td>M8</td><td>api_token</td><td>execCommand → navigator.clipboard + fallback</td><td>复制按钮在 HTTPS/localhost 下工作</td></tr>
+</table>
+
+<h3>Batch 4：可访问性系统性补全（1 天）</h3>
+<table>
+<tr><th>项</th><th>文件</th><th>修复</th><th>验收</th></tr>
+<tr><td>M9</td><td>dashboard/users/execution_logs</td><td>icon 按钮添加 <code>aria-label</code></td><td>axe-core 扫描无"button without label"</td></tr>
+<tr><td>M10</td><td>8 个表单页</td><td><code>&lt;label for&gt;</code> + input <code>id</code></td><td>点击 label → 聚焦对应 input</td></tr>
+<tr><td>M11</td><td>register.html</td><td>确认模态框添加 ARIA + focus trap + Escape</td><td>键盘 Tab 不逃出模态框；Esc 关闭</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>四、不做的项目及理由</h2>
+
+<table>
+<tr><th>问题</th><th>为什么不做</th></tr>
+<tr><td>M6/M7 客户端密码匹配验证</td><td>后端已完整校验；客户端验证是 UX 增强而非 bug 修复；<code>js-ajax-form</code> 模式下后端错误通过 toast 反馈</td></tr>
+<tr><td>M12 <code>&lt;a onclick&gt;</code> 改 <code>&lt;button&gt;</code></td><td>语义改善但功能完全等价；改动需同步修改 CSS（<code>&lt;a&gt;</code> → <code>&lt;button&gt;</code> 会丢失样式）；ROI 过低</td></tr>
+<tr><td>所有 Low 级问题</td><td>见 2.3 节分析——对用户无感知影响</td></tr>
+<tr><td>login.html 错误信息位置</td><td>设计遵循 Mockup；移动位置属于 UX 重设计而非 bug 修复</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>五、验收标准</h2>
+
+<h3>5.1 Batch 1-2（Critical + 功能 bug）</h3>
+<pre>
+# C1: Dashboard 下线操作
+curl -s -b cookie.txt -X POST "http://127.0.0.1:5001/cron_retire" \
+  -d "id=TEST_ID&amp;reason=测试下线&amp;csrf_token=TOKEN"
+# → errcode=0 或跳转成功
+
+# C2: 停用用户编辑页
+curl -s -b cookie.txt "http://127.0.0.1:5001/rbac/users_edit?id=DEACTIVATED_USER_ID" \
+  | grep -c 'value="1".*启用'
+# → 0（不出现"启用"选项）
+
+# M1: Tags 状态码
+# 创建暂停状态任务 → 查看包含该任务的标签详情 → 状态显示"已暂停"
+
+# M2: Esc 快捷键
+# 打开 /job_log_list?id=1 → 按 Esc → 跳回全量日志页
+
+# M3: onclick 注入
+# 创建 keyword 含单引号的任务 → 任务详情页 → 复制按钮不报错
+</pre>
+
+<h3>5.2 Batch 3-4（UX + A11y）</h3>
+<pre>
+# M4: loading 状态
+# Dashboard 操作按钮 → 点击 → 按钮 disabled + 文案变化
+
+# M5: job_title_other required
+# 注册页选"其他" → 空提交 → 浏览器原生"请填写此字段"
+
+# M9: aria-label
+grep -c 'aria-label' app/templates/redesign/dashboard.html  # ≥ 5
+
+# M10: label for
+grep -c 'for=' app/templates/redesign/user_form.html  # ≥ 6
+
+# M11: 模态框 a11y
+# register.html 确认模态框 → Tab 循环在模态内 → Esc 关闭
+</pre>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>六、风险</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td>C1 修复方案选择（跳转 vs 内嵌 textarea）影响 UX 一致性</td><td>中</td><td>低</td><td>跳转方案最安全（复用已有完整页面）；内嵌方案需参考 users.html deactivation modal</td></tr>
+<tr><td>M3 事件委托改造影响已有 onclick 逻辑</td><td>低</td><td>中</td><td>改动范围仅 copy 按钮，不影响其他 onclick</td></tr>
+<tr><td>M10 添加 id 属性可能与其他元素冲突</td><td>极低</td><td>低</td><td>使用唯一前缀如 <code>uf-field-xxx</code></td></tr>
+<tr><td>Batch 4 可访问性改造影响视觉</td><td>极低</td><td>低</td><td>ARIA 属性不影响视觉渲染</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>七、时间线</h2>
+
+<table>
+<tr><th>Batch</th><th>内容</th><th>预估工时</th><th>依赖</th></tr>
+<tr><td>1</td><td>2 个 Critical bug</td><td>0.5 天</td><td>无</td></tr>
+<tr><td>2</td><td>功能 bug + 安全</td><td>0.5 天</td><td>无（可与 B1 合并）</td></tr>
+<tr><td>3</td><td>UX 改善</td><td>1 天</td><td>B1/B2 先完成</td></tr>
+<tr><td>4</td><td>可访问性补全</td><td>1 天</td><td>B3 先完成</td></tr>
+<tr><th colspan="2">合计</th><th>3 天</th><th></th></tr>
+</table>
+
+<p><strong>推荐策略</strong>：Batch 1+2 合并为一天交付（修复所有功能性问题），Batch 3+4 视用户优先级决定是否执行。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Redesign功能页全量审查与修复计划.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

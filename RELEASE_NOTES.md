@@ -7,6 +7,163 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### Fix — 执行记录「仅异常」筛选按钮失效修复与语义优化
+
+- **Bug 修复**：「仅异常」按钮发送 `outcome=timeout`，但后端白名单不包含该值，导致按钮完全失效（行为等同于「非成功」，且无法显示选中态高亮）
+- **语义优化**：将「仅异常」的过滤逻辑从单一 `timeout` 改为 `error + timeout`（系统层异常），与「仅失败」（`fail`，应用层错误）形成清晰互补关系，满足 **非成功 = 仅失败 ∪ 仅异常** 的集合分割
+- **视觉优化**：筛选按钮选中态的指示圆点从黑色（`currentColor`）改为系统主题色 `var(--cp-signal)`
+- 新增 3 条 `job_log_outcome_clause` 单元测试覆盖 `exception` 输入
+- 设计文档：`doc/design/执行记录筛选条件Bug修复与视觉优化设计.html`
+
+**Files changed:** `app/main/views.py`, `app/services/job_log_filter.py`, `app/templates/redesign/execution_logs.html`, `app/static/css/redesign-pages.css`, `tests/test_job_log_outcome_filter.py`
+
+### Enhancement — F5: common.js 精简（Redesign JS 载荷 -62%）
+
+- 新建 `app/static/js/common-redesign.js`（142 行），使用 `$.ajax()` + `CpToast` 替代 Wind 插件链
+- `_base.html` 移除 `wind.js`（27 KB）+ `common.js`（39 KB），替换为 `common-redesign.js`（6 KB）
+- 消除 3 个 lazy-load 插件（ajaxForm 37 KB + artDialog 16 KB + validate 46 KB）的隐式加载
+- Redesign 页面 JS 总载荷从 ~257 KB 降至 ~98 KB
+- v1 页面完全不受影响（`admin_base.html` 引用链未改动）
+- **修复**：移除 `jquery.js` 的 `defer` 属性（inline script 依赖 `$` 必须同步加载）
+- 设计文档：`doc/design/F5-common-js精简设计.html`
+- 复盘文档：`doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`
+
+**Files changed:** `app/static/js/common-redesign.js` (new), `app/templates/redesign/_base.html`
+
+### Fix — P0 CSS/模板缺陷修复（3 项）
+
+**F1-1: keyframe 名称修正**
+- `redesign-pages.css:1193` 的 `animation: healthPulse` 修正为 `animation: cp-health-pulse`
+- 修复仪表盘失败任务健康指示器脉冲动画无效的问题
+
+**F1-2: 缺失 token 定义**
+- 在 `console-theme.css` 的 `.cp-shell` 作用域定义 `--cp-hover`、`--cp-font-ui`、`--cp-signal-border`、`--cp-radius`
+- 提供暗色主题对应值（`--cp-hover: rgba(255,255,255,0.06)`）
+- 修复复制按钮 hover 背景、Run Inspector 字体、sidebar toggle 圆角降级问题
+
+**F1-3: 操作记录 v2 业务组名显示**
+- view 层向 v2 模板传递 `task_group_map`
+- 模板从 `cron.group_id`（已迁移字段）改为 `task_group_map.get(cron.id)`
+- 修复操作记录页永远不显示任务所属业务组名称的问题
+
+**Files changed:** `redesign-pages.css`, `console-theme.css`, `app/main/views.py`, `operation_log.html`
+
+### Enhancement — F2: CSS Token 可达性 CI 门禁
+
+- 新增 `scripts/check_css_token_reachability.py`：
+  - 扫描 `var(--cp-*)` 引用，交叉验证 `:root` / `.cp-shell` 中定义存在性
+  - 扫描 `animation:` 属性值，验证对应 `@keyframes` 在加载链中存在
+  - 正确处理 CSS 时间单位（`0.3s`）和 `!important` 避免误报
+- CI 命令：`python scripts/check_css_token_reachability.py --check`
+- 预防 P0-1/P0-2/P0-3 类 CSS silent failure 再次发生
+
+**Files changed:** `scripts/check_css_token_reachability.py`, `AGENTS.md`
+
+### Enhancement — F4a: CSS 作用域补全
+
+- Task Detail (`.td-*` 48 selectors)、Run Inspector (`.ri-*` 23 selectors)、Task Form (`.tf-*` 63 selectors) 三个最大无作用域区段的选择器全部添加 `.cp-page-*` 前缀
+- Scope 覆盖率从 32% (219/691) 提升至 51% (354/691)
+- 零视觉变更——仅增加 CSS 特异性层级，隔离跨页面样式泄漏风险
+- 所有 CI 门禁通过（token 可达性、颜色审计、sidebar 权限）
+
+**Files changed:** `redesign-pages.css`
+
+### Enhancement — D1+D3 A11y 属性补全 + CI Lint
+
+**D1: aria-label 属性补全（11 项）**
+- Command Palette 搜索框、API Token 输入框、操作记录搜索、用户搜索、标签编辑输入
+- 任务表单标签输入、用户表单/注册页岗位输入
+- 所有按钮和输入元素现在均有 accessible name
+
+**D3: A11y CI Lint 规则**
+- `check_ui_contract.py` 新增 `a11y-button`（按钮无 aria-label/title/可见文本）和 `a11y-input`（文本输入无 aria-label/label[for]）检查
+- 当前 0 违规
+
+**Files changed:** `check_ui_contract.py` + 9 template files
+
+### Enhancement — R3 功能补全: Command Palette 搜索 + Mobile 侧边栏
+
+**Command Palette 搜索实现**
+- 动态从侧边栏 DOM 构建导航注册表（权限感知：只显示当前用户可见的页面）
+- 实时模糊匹配（支持页面名称 + 所属区段关键词）
+- 键盘导航：↑↓ 切换高亮 → Enter 跳转 → Escape 关闭
+- 打开时自动展示前 10 项；无结果时显示"无匹配结果"
+
+**Mobile 侧边栏连接**
+- 新增 `.cp-mobile-toggle` 汉堡按钮（topbar 左侧，桌面端隐藏，≤768px 显示）
+- `.mobile-open` 类控制侧边栏固定弹出 + 半透明遮罩
+- 点击遮罩区域自动关闭侧边栏
+- 公开 API：`CpShell.openMobileSidebar()` / `CpShell.closeMobileSidebar()`
+
+**Files changed:** `redesign-shell.js`, `_topbar.html`, `redesign-layout.css`, `redesign-components.css`
+
+### Enhancement — R2 Minimal: Accent 统一 + 3 页 Scope 补充
+
+**Accent 统一**（26 处）
+- `redesign-pages.css`：19 处 `--cp-accent` → `--cp-signal`、3 处 `--cp-accent-bg` → `--cp-signal-bg`、2 处 `--cp-accent-ring` → `--cp-signal-bg`
+- `redesign-mockup-shared.css`：`.f-input:focus` box-shadow 从 `--cp-accent-ring` → `--cp-signal-bg`
+- `run_inspector.html`：执行中 badge 从 `--cp-accent-bg`/`--cp-accent` → `--cp-signal-bg`/`--cp-signal`
+
+**3 页 Scope 补充**
+- `task_detail.html`：新增 `{% block main_class %} cp-page-task-detail{% endblock %}`
+- `task_form.html`：新增 `{% block main_class %} cp-page-task-form{% endblock %}`
+- `run_inspector.html`：新增 `{% block main_class %} cp-page-run-inspector{% endblock %}`
+
+**效果**：Redesign 全部页面现在使用统一的 `--cp-signal` 色系，与 Design Token 语义对齐；全部页面均具备 `.cp-page-*` CSS scope class。
+
+**设计文档**：`doc/design/Phase-R2-R3必要性分析与根因复盘.html`（§ 推荐的最小执行项）
+
+**Files changed:** `redesign-pages.css`, `redesign-mockup-shared.css`, `task_detail.html`, `task_form.html`, `run_inspector.html`
+
+### Enhancement — CSS 死代码清理与命名统一（OPT-CSS-CLEANUP-01）
+
+**Batch A — 死代码删除**
+- `redesign-components.css` 从 825 行精简至 396 行（-52%），删除 71 个从未被模板/JS 引用的选择器块（含 `.cp-table`、`.cp-pagination`、`.cp-form-*`、`.cp-badge-*`、`.cp-health-*`、`.cp-chip`、`.cp-search`、`.cp-skeleton`、`.cp-btn--danger/ghost/sm/lg/success` 等 Phase 0 遗留组件）
+
+**Batch B — 命名冲突修复**
+- 移除 `redesign-mockup-shared.css` 中从未使用的 `[data-tip]` tooltip 规则
+- 将 `redesign-pages.css` 中全局 `[data-tooltip]` 覆盖规则加 `.cp-page-dashboard` scope，避免影响其他页面 tooltip 样式
+- 修复 `console-theme.css` 中引用未定义 Token `--cp-active-bg` → 改用 `--cp-signal-bg`
+- 修正 `prefers-reduced-motion` 中错误选择器：`.toast-item` → `.toast`、删除不存在的 `.cp-confirm-box`/`.cp-shimmer`
+
+**Batch C — CI 门禁**
+- 新增 `scripts/check_dead_css.py --check`：检测 components.css 中无引用的类名，阈值 0
+
+**设计文档**：`doc/design/CSS死代码清理与命名统一设计.html`
+
+**Files changed:** `redesign-components.css`, `redesign-mockup-shared.css`, `redesign-pages.css`, `console-theme.css`, `scripts/check_dead_css.py`
+
+### Fix — Redesign 功能页质量审查 Batch 1+2 修复
+
+**Critical Bug 修复**
+- **C1** `dashboard.html` `cpRetire()` 缺少 `reason` 字段导致下线操作永远失败 — 改用 `CpModal` 带 textarea 输入下线原因后再 POST。
+- **C2** `user_form.html` 编辑已停用用户时仍展示"启用"选项，与"停用不可恢复"策略矛盾 — 停用用户改为只读展示"已停用（不可恢复）"。
+
+**Medium Bug 修复**
+- **M1** `tags.html` 任务状态映射 `status === 2` 错误（不存在该值）— 修正为 `=== 0`（暂停），并增加 `-1`（已下线）分支。
+- **M2** `execution_logs.html` Esc 快捷键在单任务视图下失效（选择器 `a[href$="job_log_all_list"]` 不匹配）— 改为定位 `.el-filters a[href]` 重置链接。
+- **M3** `task_detail.html` + `run_inspector.html` 复制按钮 `onclick="cpCopy('{{ var }}')"` 存在 XSS 注入风险 — 改用 `data-copy-text` 属性 + 事件委托。
+
+**复盘文档**：`doc/postmortem/2026-08-Redesign功能页质量缺陷结构性复盘.html`
+
+**Files changed:** `dashboard.html`, `user_form.html`, `tags.html`, `execution_logs.html`, `task_detail.html`, `run_inspector.html`, `redesign-pages.css`
+
+### Enhancement — Redesign 功能页 Batch 3 UX 改善
+
+- **M4** `task_detail.html` / `registration_review.html` AJAX 操作添加 loading 状态（按钮 disabled + "提交中…"文案），防止重复提交。
+- **M5** `user_form.html` / `register.html` / `complete_profile.html` "岗位类型"选中"其他"时动态设置 `required`，空提交触发浏览器原生校验。（`user_profile.html` 已有此逻辑无需改动）
+- **M8** `api_token.html` 复制按钮优先使用 `navigator.clipboard.writeText()`，不支持时 fallback 到 `document.execCommand('copy')`。
+
+**Files changed:** `task_detail.html`, `registration_review.html`, `user_form.html`, `register.html`, `complete_profile.html`, `api_token.html`
+
+### Enhancement — Redesign 功能页 Batch 4 可访问性补全
+
+- **M9** `dashboard.html` / `users.html` icon-only 按钮添加 `aria-label`（立即执行、更多操作、停用用户）。
+- **M10** `user_form.html` / `group_form.html` / `cron_retire.html` 表单 `<label>` 添加 `for` 属性关联对应 `<input>`/`<select>`/`<textarea>` 的 `id`。
+- **M11** `register.html` 确认模态框添加 `role="dialog"` + `aria-modal="true"` + `aria-labelledby` + Escape 键关闭 + 关闭后返回焦点到触发按钮。
+
+**Files changed:** `dashboard.html`, `users.html`, `user_form.html`, `group_form.html`, `cron_retire.html`, `register.html`
+
 ### Fix — Tier 3-5: CSS 规范化 + 可访问性 + 后端日志 + JS 兼容性
 
 **CSS 规范 (S2, S3)**

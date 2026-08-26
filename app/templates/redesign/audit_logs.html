@@ -7,7 +7,7 @@
 
 <div class="pg-audit-filter-bar">
   <form method="GET" action="{{ url_for('rbac.audit_logs') }}" class="pg-search-row">
-    <input class="f-input pg-input-sm" type="text" name="username" value="{{ search.username or '' }}" placeholder="搜索用户名…">
+    <input class="f-input pg-input-sm" type="text" name="username" value="{{ search.username or '' }}" placeholder="搜索用户名…" aria-label="搜索用户名">
     {% if chip %}<input type="hidden" name="chip" value="{{ chip }}">{% endif %}
     <button type="submit" class="btn-c btn-line btn-xs">搜索</button>
     {% if search.username %}

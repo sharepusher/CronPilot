@@ -26,6 +26,8 @@
 
 **表单防重复提交（强制）**：所有 POST 表单须有防重复提交保护。`js-ajax-form` 已有 `common.js` loading 守卫；非 Ajax POST 表单由 `common.js` 全局守卫自动保护（`cp-submitting` 标记）。独立页面（不继承 `admin_base.html`）须显式引入 `common.js`。静态门禁 `tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard`。
 
+**Redesign JS 依赖规则（强制 · F5）**：Redesign `_base.html` 使用 `common-redesign.js` 替代 `common.js` + `wind.js`。**jQuery 必须同步加载（无 `defer`）**——inline `<script>` 中的 `$(function(){})` 依赖 `$` 在解析时可用。其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）使用 `defer`，因为它们仅通过 DOM ready 回调或用户事件访问。**禁止**在 `_base.html` 的 `jquery.js` 标签上添加 `defer`/`async`。自检：`grep 'defer.*jquery\|async.*jquery' app/templates/redesign/_base.html && echo "FAIL" || echo "OK"`。**违反教训**：2026-08 F5 保留了 Phase R5 添加的 `defer`，导致 API Token 页面 Copy/Reset 按钮完全失效，详见 `doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`。
+
 **表单必填字段标注规范（强制）**：必填字段必须在 `<label>` 内用 `<span class="uf-req">*</span>` 标注，禁止在 label 外单独添加「必填」文字 span 或使用 inline style 标明必填；下拉 placeholder option 不写「（必填）」。验证命令：`grep -n '必填' app/templates/redesign/user_form.html` 应只出现在 hint 描述文本内，而非独立 span 标签中。
 
 **大文件修改前结构分析（强制）**：修改 300+ 行的 JS/Python/模板文件前，必须用 AST 或手动追踪 `{}`/`def`/`class` 嵌套确认插入点的实际作用域；插入后须在运行时（CDP/`python -c`）确认代码在预期时机执行，禁止仅靠静态 `grep` 判断。详 `.cursor/rules/cronpilot-project.mdc`「大文件修改前结构分析」。
@@ -90,7 +92,9 @@ bash scripts/verify_all.sh --docker-fresh  # Docker 空库 + changeme 登录冒�
 bash scripts/assert_framework_pins.sh   # Phase D3：断言 Framework pin 与 requirements.txt 一致
 python scripts/audit_hardcoded_colors.py --check  # 颜色审计：检查模板/Vue 中是否有硬编码颜色
 python scripts/audit_hardcoded_colors.py --mapping # 查看色值→令牌完整映射表
-python scripts/check_ui_contract.py --check        # UI 契约门禁：inline-style / legacy-class / inline-css-volume（≤3 行）
+python scripts/check_ui_contract.py --check        # UI 契约门禁：inline-style / legacy-class / inline-css-volume（≤3 行）/ a11y-button / a11y-input
+python scripts/check_dead_css.py --check            # CSS 死代码检测：components.css 中每个类须有模板/JS 消费者
+python scripts/check_css_token_reachability.py --check  # CSS token 可达性：var(--cp-*) 定义存在 + animation-name 有 @keyframes
 python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES + Unreleased 残留 + 版本总览表
 python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.html 是否在 index.html 中注册
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）

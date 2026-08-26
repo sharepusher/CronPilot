@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Redesign P0/P1 问题根因分析与修复设计</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 2em; color: #1a1a2e; }
+h1 { border-bottom: 3px solid #0891b2; padding-bottom: 0.3em; }
+h2 { color: #0891b2; margin-top: 2em; border-left: 4px solid #0891b2; padding-left: 0.5em; }
+h3 { color: #334155; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #d1d5db; padding: 0.5em 0.8em; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #1e293b; color: #e2e8f0; padding: 1em; border-radius: 6px; overflow-x: auto; }
+.severity-p0 { background: #fef2f2; border-left: 4px solid #dc2626; padding: 0.5em 1em; margin: 1em 0; }
+.severity-p1 { background: #fffbeb; border-left: 4px solid #d97706; padding: 0.5em 1em; margin: 1em 0; }
+.root-cause { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 0.5em 1em; margin: 1em 0; }
+.fix-block { background: #eff6ff; border-left: 4px solid #2563eb; padding: 0.5em 1em; margin: 1em 0; }
+.meta { color: #64748b; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>Redesign P0/P1 问题根因分析与修复设计</h1>
+
+<p class="meta">文档版本: v1.0 | 创建时间: 2026-08-24 | 关联: OPT-P1-16 (UI Redesign)</p>
+
+<h2>1. 问题总览</h2>
+
+<p>本轮全面代码评审在 CSS 架构（3,606 行）、JS 模块（1,595 行）、模板层（24 模板）、后端视图层（~2,500 行）四个维度中发现以下 P0/P1 级问题：</p>
+
+<table>
+<thead>
+<tr><th>优先级</th><th>问题</th><th>影响</th><th>发现方式</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>P0-1</strong></td><td><code>@keyframes healthPulse</code> 被引用但未定义（已定义的是 <code>cp-health-pulse</code>）</td><td>仪表盘失败任务脉冲动画完全无效</td><td>CSS 静态分析</td></tr>
+<tr><td><strong>P0-2</strong></td><td><code>--cp-hover</code> token 未在 <code>:root</code> 中定义</td><td>复制按钮 hover 背景降级为 transparent</td><td>CSS token 交叉引用</td></tr>
+<tr><td><strong>P0-3</strong></td><td><code>--cp-font-ui</code> token 未定义</td><td>Run Inspector 配置网格字体降级为浏览器默认</td><td>CSS token 交叉引用</td></tr>
+<tr><td><strong>P0-4</strong></td><td>操作记录 v2 模板引用 <code>cron.group_id</code> 但该字段已从模型删除</td><td>操作记录页永远不显示任务所属业务组名称</td><td>模型字段 vs 模板交叉审查</td></tr>
+<tr><td><strong>P1-1</strong></td><td><code>redesign-pages.css</code> 膨胀至 1,848 行（占 51.2%），含多套并行组件系统</td><td>维护成本随页面增加线性增长</td><td>架构度量</td></tr>
+<tr><td><strong>P1-2</strong></td><td>4 套按钮 / 3 套分页 / 2 套表格并行存在</td><td>视觉不一致、开发者选择困难</td><td>组件重复度分析</td></tr>
+<tr><td><strong>P1-3</strong></td><td>~69% 页面选择器未使用 <code>.cp-page-*</code> 作用域包裹</td><td>跨页面样式泄漏风险</td><td>作用域覆盖率审计</td></tr>
+<tr><td><strong>P1-4</strong></td><td><code>common.js</code> 加载 1,082 行但 Redesign 仅需 ~200 行</td><td>每页多解析 ~780 行死代码</td><td>JS 依赖分析</td></tr>
+</tbody>
+</table>
+
+<h2>2. 根因分析 (5-Why)</h2>
+
+<h3>2.1 P0-1: keyframe 名称不匹配</h3>
+
+<div class="severity-p0">
+<strong>现象</strong>：<code>redesign-pages.css:1193</code> 引用 <code>animation: healthPulse</code>，但第 555 行定义的是 <code>@keyframes cp-health-pulse</code>。
+</div>
+
+<div class="root-cause">
+<strong>Why-1</strong>：为什么引用名与定义名不一致？<br>
+→ 两段代码来自不同的开发阶段。<code>cp-health-pulse</code> 在 task_detail 页面实现时定义（Phase 2 早期），使用了重构后的命名前缀；<code>.hc-dot</code> 健康指示器是后来为仪表盘实现时添加的，开发者凭记忆写了旧名 <code>healthPulse</code>。<br><br>
+
+<strong>Why-2</strong>：为什么凭记忆而不查已有定义？<br>
+→ 1,848 行的 pages.css 单体文件中搜索困难；且 keyframe 定义（第 555 行）与引用点（第 1193 行）相距 638 行，视觉不可达。<br><br>
+
+<strong>Why-3</strong>：为什么没有 CI 门禁拦截？<br>
+→ 现有 CI 检查覆盖硬编码颜色、内联 CSS 体积、死 CSS class，但<strong>不覆盖 animation-name 可达性</strong>。CSS 语言本身对未定义 keyframe 不报错（浏览器静默忽略）。<br><br>
+
+<strong>Why-4</strong>：为什么开发者没在浏览器中发现？<br>
+→ 脉冲动画是一个微弱的 box-shadow 呼吸效果，缺失时 dot 仍然正常显示静态红点——视觉差异在快速验收中极易忽略。<br><br>
+
+<strong>Why-5</strong>：为什么代码 Review 没有捕获？<br>
+→ 项目处于快速迭代模式，单次 PR 变更量大，reviewer 关注功能正确性而非 CSS 动画细节。
+</div>
+
+<h3>2.2 P0-2/P0-3: 未定义 Token 引用</h3>
+
+<div class="severity-p0">
+<strong>现象</strong>：<code>var(--cp-hover)</code>（第 573 行）和 <code>var(--cp-font-ui)</code>（第 446 行）在 <code>console-theme.css</code> 的 <code>:root</code> 中无对应定义。
+</div>
+
+<div class="root-cause">
+<strong>Why-1</strong>：为什么使用了不存在的 token？<br>
+→ 开发者在实现 task_detail 复制按钮和 run_inspector 配置网格时，基于 Design Token 的<strong>命名推测</strong>（cp-hover 看起来应该存在）而非查阅 <code>console-theme.css</code> 的实际定义。<br><br>
+
+<strong>Why-2</strong>：为什么命名推测会出错？<br>
+→ token 词表存在<strong>双轨命名</strong>：legacy 系列（<code>--cp-muted</code>、<code>--cp-bg</code>）和 redesign 系列（<code>--cp-text-muted</code>、<code>--cp-canvas</code>）。不存在 <code>--cp-hover</code> 但存在 <code>--cp-surface-hover</code>（实际上也未定义 — 命名空间膨胀但未落地）。<br><br>
+
+<strong>Why-3</strong>：为什么 CI 不检查 token 可达性？<br>
+→ <code>audit_hardcoded_colors.py</code> 只检查硬编码 hex 值是否出现（正向检查）。<strong>反向检查</strong>（引用的 <code>var(--cp-*)</code> 是否在 :root 中有定义）不在现有门禁范围内。CSS 语言对 undefined custom property 不报错（降级为 initial value）。<br><br>
+
+<strong>Why-4</strong>：为什么浏览器验收未发现？<br>
+→ <code>--cp-hover</code> 降级为 transparent，复制按钮 hover 效果"几乎不可见"但不报错。<code>--cp-font-ui</code> 降级为 serif 默认字体，但 run_inspector 页面使用频率低，且配置网格字体差异不明显。<br><br>
+
+<strong>Why-5（结构根因）</strong>：<br>
+→ <strong>CSS Custom Properties 的 "silent failure" 特性</strong>是根本原因——它不像编程语言的 undefined variable 会抛 error。在 JS/Python 中引用未定义变量会立即报错；CSS 中只是静默降级，需要人工视觉检查才能发现。
+</div>
+
+<h3>2.3 P0-4: 操作记录 group_id 引用已迁移字段</h3>
+
+<div class="severity-p0">
+<strong>现象</strong>：<code>operation_log.html:41</code> 使用 <code>cron.group_id</code>，但 OPT-P1-11 已将 <code>group_id</code> 从 <code>CronInfos</code> 模型迁移到 <code>task_groups</code> 关联表。view 层虽计算了 <code>task_group_map</code> 但未传递给 v2 模板。
+</div>
+
+<div class="root-cause">
+<strong>Why-1</strong>：为什么模板引用了已删除的字段？<br>
+→ v2 操作记录模板在 OPT-P1-11 模型迁移<strong>之后</strong>编写，但开发者参考了<strong>v1 模板的旧模式</strong>（v1 也曾使用 <code>cron.group_id</code>，后来才改为 <code>task_group_map</code>）。<br><br>
+
+<strong>Why-2</strong>：为什么 view 层计算了 task_group_map 却没传给 v2 模板？<br>
+→ v2 模板的 render_template 调用（第 1147-1159 行）是独立编写的，不是从 v1 分支机械复制。开发者在 v2 分支中传递了 <code>cron_by_id</code> 和 <code>group_name_by_id</code>，认为模板可以通过 <code>cron.group_id → group_name_by_id.get()</code> 路径取得组名——但没意识到 <code>cron.group_id</code> 已不存在。<br><br>
+
+<strong>Why-3</strong>：为什么测试没捕获？<br>
+→ 操作记录页的测试验证的是<strong>列表渲染不报错 + 分页正确</strong>；组名显示为空（None → Jinja 渲染为空字符串）不会导致 500，只是静默不显示。<br><br>
+
+<strong>Why-4</strong>：为什么浏览器验收没发现？<br>
+→ 操作记录表格在多数测试数据中操作目标本就不关联业务组（操作如"修改密码"、"登录"不涉及任务），因此空白组名列不引起注意。<br><br>
+
+<strong>Why-5（结构根因）</strong>：<br>
+→ <strong>Dual-track UI 架构的隐含代价</strong>——v1 和 v2 共享同一 view 函数但各自独立的 render_template 调用和独立模板。当模型发生迁移时，v1 模板被更新但 v2 模板的上下文需求未被交叉验证。缺少<strong>模型字段可达性的自动化检查</strong>。
+</div>
+
+<h3>2.4 P1-1/P1-2/P1-3: CSS 单体膨胀与组件并行</h3>
+
+<div class="severity-p1">
+<strong>现象</strong>：<code>redesign-pages.css</code> 1,848 行中含 4 套按钮、3 套分页、2 套完整表格系统；69% 选择器未被 <code>.cp-page-*</code> 包裹。
+</div>
+
+<div class="root-cause">
+<strong>Why-1</strong>：为什么存在多套并行组件？<br>
+→ 每个页面由独立开发周期实现（Dashboard → Users → Tags → Execution Logs → ...），每个阶段的开发者做出局部最优决策（"我需要一个按钮" → 新建 <code>.el-btn</code>）而非复用已有 <code>.btn-c</code>。<br><br>
+
+<strong>Why-2</strong>：为什么不复用？<br>
+→ <strong>可发现性差</strong>——1,848 行文件中已有的组件不容易被新页面的开发者发现。且 <code>mockup-shared.css</code> vs <code>components.css</code> vs <code>pages.css</code> 三处都可能有可复用的组件，需要三处搜索。<br><br>
+
+<strong>Why-3</strong>：为什么作用域只覆盖 31%？<br>
+→ <code>.cp-page-*</code> 约定在 Phase R1 Batch 3（2026-08-14）引入，但 pages.css 中已有约 800 行在此之前编写的无作用域代码。Phase R1 聚焦于<strong>内联样式提取</strong>而非<strong>已提取代码的作用域补全</strong>。<br><br>
+
+<strong>Why-4</strong>：为什么没有 CI 阻断组件重复？<br>
+→ 现有门禁检测的是<strong>绝对错误</strong>（硬编码颜色、内联样式超限、死代码）。"组件重复"是<strong>架构退化</strong>而非单点错误——需要人工架构审查或语义分析工具，超出了 lint 能力。<br><br>
+
+<strong>Why-5（结构根因）</strong>：<br>
+→ <strong>"功能完整性作为唯一 DoD（Definition of Done）"</strong>——每个页面的验收标准是"功能正确 + 视觉接近 Mockup"，不包括"使用共享组件 + 无选择器重复"。缺少<strong>组件注册表</strong>和<strong>新建 vs 复用的决策流程</strong>。
+</div>
+
+<h3>2.5 P1-4: common.js 加载冗余</h3>
+
+<div class="severity-p1">
+<strong>现象</strong>：每个 Redesign 页面加载 1,082 行 <code>common.js</code>，实际仅使用 ~200 行（Ajax form 守卫 + CSRF 注入 + 防重复提交）。
+</div>
+
+<div class="root-cause">
+<strong>Why-1</strong>：为什么不拆分？<br>
+→ 项目使用<strong>无构建工具的 vanilla JS</strong>（无 webpack/rollup/esbuild），不支持 tree-shaking 或 code-splitting。<br><br>
+
+<strong>Why-2</strong>：为什么不手工拆？<br>
+→ <code>common.js</code> 是 IIFE 包裹的单体，内部函数互相引用（如 <code>success()</code> 调用 <code>redirect()</code>，<code>upload_file()</code> 使用内部 <code>$form</code> 变量）。拆分需要仔细分析依赖图。<br><br>
+
+<strong>Why-3</strong>：为什么 v1 代码在 Redesign 页面不出错？<br>
+→ v1 代码依赖的 DOM 元素（artDialog 容器、checkbox helper 等）在 Redesign 模板中不存在；jQuery 选择器返回空集时静默不执行。<code>data-ui-mode</code> gating 进一步隔离了 console-mode 搜索逻辑。<br><br>
+
+<strong>Why-4（结构根因）</strong>：<br>
+→ <strong>Dual-track 架构的共享层成本</strong>——v1 和 v2 共存期间，base template 必须同时为两套 UI 加载公共 JS，因为 Ajax form 守卫和 CSRF 注入是两套 UI 共享的安全基础设施。在 v2 成为唯一 UI 之前，完全拆分的收益不确定。
+</div>
+
+<h2>3. 问题成因的共性模式</h2>
+
+<p>8 个 P0/P1 问题归纳为 3 类结构性根因：</p>
+
+<table>
+<thead>
+<tr><th>模式</th><th>问题</th><th>工程原理</th></tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Silent Failure</strong><br>（静默降级）</td>
+<td>P0-1, P0-2, P0-3</td>
+<td>CSS 语言设计决定了未定义的 keyframe/custom property 不报错——浏览器静默降级为初始值。与 JS/Python 的 undefined 报错形成对比。无 CI 门禁覆盖这一类"合法但错误"的代码。</td>
+</tr>
+<tr>
+<td><strong>Dual-track Drift</strong><br>（双轨漂移）</td>
+<td>P0-4, P1-4</td>
+<td>v1/v2 共存架构下，模型迁移只更新了一侧模板；共享 JS 只有一侧真正使用。双轨系统的维护成本 ≈ 2N 但收益 < 2×。缺少<strong>跨模板上下文一致性检查</strong>。</td>
+</tr>
+<tr>
+<td><strong>Local Optimum Trap</strong><br>（局部最优陷阱）</td>
+<td>P1-1, P1-2, P1-3</td>
+<td>每个页面独立实现时，新建组件比搜索+复用已有组件的<strong>即时成本更低</strong>。没有全局组件注册表或 "先搜后建" 的强制流程。单页面 DoD 不包含 "使用共享组件"。</td>
+</tr>
+</tbody>
+</table>
+
+<h2>4. 修复方案</h2>
+
+<h3>4.1 Batch F1: P0 即时修复（预估 30 分钟）</h3>
+
+<div class="fix-block">
+<strong>F1-1: keyframe 名称修正</strong><br>
+<code>redesign-pages.css:1193</code>: <code>animation: healthPulse</code> → <code>animation: cp-health-pulse</code><br><br>
+
+<strong>F1-2: 定义缺失 token</strong><br>
+在 <code>console-theme.css</code> 的 <code>.cp-shell</code> 作用域内添加：<br>
+<code>--cp-hover: var(--cp-surface-hover, rgba(0,0,0,0.04));</code><br>
+<code>--cp-font-ui: var(--cp-font-sans);</code><br>
+同时在 <code>[data-theme="dark"] .cp-shell</code> 中提供暗色值。<br><br>
+
+<strong>F1-3: 操作记录上下文修复</strong><br>
+① view 层：在 v2 render_template 调用中添加 <code>task_group_map=task_group_map</code><br>
+② 模板层：将 <code>cron.group_id</code> 引用改为 <code>task_group_map.get(cron.id)</code> + <code>group_name_by_id.get(group_id)</code><br><br>
+
+<strong>验收</strong>：<br>
+- <code>grep -n "healthPulse" app/static/css/</code> → 0 matches<br>
+- <code>python3 -c "..."</code> 验证所有 <code>var(--cp-*)</code> 在 :root 中有定义（见 F2 CI 脚本）<br>
+- <code>curl</code> 操作记录页确认任务组名正常渲染
+</div>
+
+<h3>4.2 Batch F2: Token 可达性 CI 门禁（预估 1 小时）</h3>
+
+<div class="fix-block">
+<strong>新脚本：<code>scripts/check_css_token_reachability.py</code></strong><br><br>
+
+功能：<br>
+① 扫描 <code>app/static/css/redesign-*.css</code> 中所有 <code>var(--cp-*)</code> 引用<br>
+② 扫描 <code>console-theme.css</code> 中 <code>:root</code> 和 <code>.cp-shell</code> 内的 <code>--cp-*:</code> 定义<br>
+③ 交叉验证：引用 ⊆ 定义。差集即为 P0 候选。<br>
+④ 额外检查：<code>animation:</code> 属性值是否在同文件或加载链中有 <code>@keyframes</code> 定义<br><br>
+
+门禁集成：<code>.github/workflows/ui-contract.yml</code> 中添加一步。<br>
+AGENTS.md 快速命令：<code>python scripts/check_css_token_reachability.py --check</code><br><br>
+
+<strong>这直接解决了 P0-1/P0-2/P0-3 的结构根因</strong>——将 "CSS silent failure" 转化为 CI 显式错误。
+</div>
+
+<h3>4.3 Batch F3: 操作记录模板字段守卫（预估 30 分钟）</h3>
+
+<div class="fix-block">
+<strong>新测试：<code>tests/test_template_model_fields.py</code></strong><br><br>
+
+功能：<br>
+对每个 v2 模板中 <code>{{ xxx.field }}</code> 的字段引用，验证对应 SQLAlchemy model 上确实存在该属性。<br>
+实现方式：正则提取模板变量 + model <code>__table__.columns</code> 交叉验证。<br><br>
+
+<strong>这直接解决了 P0-4 的结构根因</strong>——模型迁移时自动发现所有引用已删除字段的模板。
+</div>
+
+<h3>4.4 Batch F4: CSS 组件注册表 + 复用约束（预估 2 小时）</h3>
+
+<div class="fix-block">
+<strong>目标</strong>：解决 P1-1/P1-2/P1-3 — 消除组件并行、推进作用域覆盖<br><br>
+
+<strong>步骤 1：建立组件注册表</strong><br>
+在 <code>doc/design/redesign-component-registry.html</code> 中列出所有共享组件的权威定义位置：<br>
+- Button: <code>.btn-c</code> @ <code>redesign-mockup-shared.css</code><br>
+- Table: <code>.c-table</code> @ <code>redesign-mockup-shared.css</code><br>
+- Pagination: <code>.c-pg</code> @ <code>redesign-mockup-shared.css</code><br>
+- Input: <code>.f-input</code> @ <code>redesign-mockup-shared.css</code><br>
+- ...<br><br>
+
+<strong>步骤 2：迁移并行组件</strong><br>
+- <code>.el-table</code>（execution logs 独立表格）→ 用 <code>.c-table</code> 替换<br>
+- <code>.el-pg</code>（execution logs 独立分页）→ 用 <code>.c-pg</code> 替换<br>
+- <code>.hf-pg-*</code>（dashboard 独立分页）→ 用 <code>.c-pg</code> 替换<br>
+- <code>.el-btn-accent</code> → 用 <code>.btn-c .btn-accent</code> 替换<br><br>
+
+<strong>步骤 3：作用域补全</strong><br>
+对 <code>redesign-pages.css</code> 中无 <code>.cp-page-*</code> 包裹的选择器，逐页面添加 scope 前缀。<br>
+预期将 scope 覆盖率从 31% → 90%+。<br><br>
+
+<strong>验收</strong>：<br>
+- <code>grep -c "\.el-table\|\.el-pg\|\.hf-pg" app/static/css/redesign-pages.css</code> → 0<br>
+- Sidebar 权限回归测试通过<br>
+- 每页截图对比无视觉退化
+</div>
+
+<h3>4.5 Batch F5: common.js 精简（预估 1.5 小时）</h3>
+
+<div class="fix-block">
+<strong>目标</strong>：解决 P1-4 — Redesign 页面不再加载 v1 死代码<br><br>
+
+<strong>方案</strong>：提取 <code>app/static/js/common-redesign.js</code>（~200 行），仅包含：<br>
+- CSRF token 注入（<code>$.ajaxSetup</code> + <code>beforeSend</code>）<br>
+- <code>js-ajax-form</code> 表单守卫<br>
+- POST 防重复提交守卫（<code>cp-submitting</code>）<br>
+- <code>getCookie</code> / <code>setCookie</code> 工具函数<br><br>
+
+<strong>模板变更</strong>：<code>_base.html</code> 中将 <code>common.js</code> 替换为 <code>common-redesign.js</code>（v1 的 admin_base 继续加载完整 common.js）<br><br>
+
+<strong>验收</strong>：<br>
+- Redesign 页面 Network 面板确认不加载 <code>common.js</code><br>
+- 所有 <code>js-ajax-form</code> 表单 CRUD 正常<br>
+- 防重复提交守卫正常<br>
+- v1 页面不受影响
+</div>
+
+<h2>5. 分批执行计划</h2>
+
+<table>
+<thead>
+<tr><th>批次</th><th>内容</th><th>预估</th><th>验收标准</th><th>可独立交付</th></tr>
+</thead>
+<tbody>
+<tr><td>F1</td><td>P0 即时修复（3 个点位）</td><td>30 min</td><td>动画可见 + token 有值 + 组名显示</td><td>✓</td></tr>
+<tr><td>F2</td><td>Token 可达性 CI 门禁</td><td>1 h</td><td><code>--check</code> 通过 + CI green</td><td>✓</td></tr>
+<tr><td>F3</td><td>模板字段守卫测试</td><td>30 min</td><td>测试覆盖 operation_log + dashboard 模板</td><td>✓</td></tr>
+<tr><td>F4</td><td>CSS 组件合并 + 作用域补全</td><td>2 h</td><td>并行组件归零 + scope 90%+</td><td>✓</td></tr>
+<tr><td>F5</td><td>common.js 精简</td><td>1.5 h</td><td>Redesign 加载量 -780 行 + 功能不退化</td><td>✓</td></tr>
+</tbody>
+</table>
+
+<h2>6. 预防体系 — 为什么现有 CI 没有拦住这些问题</h2>
+
+<h3>6.1 现有门禁覆盖范围</h3>
+
+<table>
+<thead>
+<tr><th>CI 门禁</th><th>覆盖</th><th>盲区</th></tr>
+</thead>
+<tbody>
+<tr><td><code>audit_hardcoded_colors.py</code></td><td>硬编码 hex 值</td><td>未定义 token 引用（P0-2/3）</td></tr>
+<tr><td><code>check_ui_contract.py</code></td><td>内联样式、legacy class、a11y</td><td>动画名可达性（P0-1）</td></tr>
+<tr><td><code>check_dead_css.py</code></td><td>未引用的 CSS class</td><td>引用了不存在的 token/keyframe</td></tr>
+<tr><td><code>test_redesign_sidebar</code></td><td>权限矩阵</td><td>模板字段是否与 model 对齐（P0-4）</td></tr>
+<tr><td>人工 Review</td><td>功能正确性、安全</td><td>CSS 动画微差、组件重复度</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 新增门禁（本方案 F2+F3）填补的盲区</h3>
+
+<table>
+<thead>
+<tr><th>新门禁</th><th>覆盖的盲区</th><th>检测能力</th></tr>
+</thead>
+<tbody>
+<tr><td><code>check_css_token_reachability.py</code></td><td>P0-1/2/3 — silent failure</td><td>引用的 token 是否已定义；animation 是否有 keyframe</td></tr>
+<tr><td><code>test_template_model_fields.py</code></td><td>P0-4 — dual-track drift</td><td>模板 <code>{{ obj.field }}</code> 是否在 model 中存在</td></tr>
+</tbody>
+</table>
+
+<h2>7. 风险评估</h2>
+
+<table>
+<thead>
+<tr><th>批次</th><th>回归风险</th><th>缓解措施</th></tr>
+</thead>
+<tbody>
+<tr><td>F1</td><td>低 — 纯 CSS token 添加 + 模板引用修正</td><td>restart + 页面截图对比</td></tr>
+<tr><td>F2</td><td>极低 — 新增脚本不改业务代码</td><td>CI dry-run 确认无误报</td></tr>
+<tr><td>F3</td><td>极低 — 新增测试不改业务代码</td><td>确认测试不破坏开发数据库（内存 DB）</td></tr>
+<tr><td>F4</td><td><strong>中等</strong> — 大面积选择器重命名</td><td>逐页面截图对比；sidebar 权限回归；每页 curl 200 确认</td></tr>
+<tr><td>F5</td><td><strong>中等</strong> — JS 拆分可能遗漏依赖</td><td>全量表单 CRUD 测试；浏览器 Console 零错误</td></tr>
+</tbody>
+</table>
+
+<h2>8. 行业对标</h2>
+
+<p>以下是同类问题在业界的常见处理方式对比：</p>
+
+<table>
+<thead>
+<tr><th>问题</th><th>CronPilot 现状</th><th>业界成熟实践</th></tr>
+</thead>
+<tbody>
+<tr><td>CSS token 可达性</td><td>CI 不检查</td><td>Stylelint <code>custom-property-no-missing-var-function</code> + PostCSS 自定义插件</td></tr>
+<tr><td>Animation 可达性</td><td>CI 不检查</td><td>Stylelint <code>no-unknown-animations</code>（需启用 postcss 解析）</td></tr>
+<tr><td>模板-模型一致性</td><td>无检查</td><td>Django: <code>django-template-lint</code>; Rails: 类型检查 + strong params; Flask: 自定义 CI</td></tr>
+<tr><td>组件重复</td><td>人工 Review</td><td>Storybook 组件注册 + 设计系统文档 + PR bot 提示</td></tr>
+<tr><td>JS bundle size</td><td>全量加载</td><td>Rollup/esbuild code-splitting + 动态 import</td></tr>
+</tbody>
+</table>
+
+<p>CronPilot 选择<strong>轻量级自建脚本</strong>（而非引入 Stylelint/PostCSS 工具链）是正确的——项目规模不大，引入重型依赖的维护成本不值得。自建 Python 脚本可控、可定制、与已有 CI 一致。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Redesign-P0P1问题根因分析与修复设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -7,6 +7,9 @@ Scans app/templates/redesign/ for violations:
      layout-only shortcuts (display/width/height/position).
   2. Legacy Bootstrap / Simpleboot class usage.
   3. Hardcoded hex colors inside style="" HTML attributes.
+  4. Inline <style> blocks exceeding INLINE_CSS_MAX_LINES.
+  5. Buttons without accessible name (aria-label/title/text).
+  6. Text inputs without accessible label (aria-label/label[for]).
 
 Usage:
   python scripts/check_ui_contract.py          # full report (exit 0 always)
@@ -200,6 +203,83 @@ def check_inline_css_volume(lines: list, filepath: str) -> list:
     return violations
 
 
+_BUTTON_RE = re.compile(r'<button\b([^>]*)>', re.IGNORECASE)
+_INPUT_TEXT_RE = re.compile(
+    r'<input\b([^>]*\btype=["\']text["\'][^>]*)>', re.IGNORECASE
+)
+_HAS_ARIA_LABEL = re.compile(r'\baria-label(ledby)?=')
+_HAS_TITLE = re.compile(r'\btitle=')
+_HAS_TEXT_CHILD = re.compile(r'>([^<]+)</')
+_IS_HIDDEN = re.compile(r'\btype=["\']hidden["\']', re.IGNORECASE)
+_HAS_ID = re.compile(r'\bid=["\']([^"\']+)["\']')
+_A11Y_EXEMPT = re.compile(r'a11y-exempt')
+
+
+def check_button_a11y(lines: list, filepath: str) -> list:
+    """Buttons must have aria-label, title, or visible text content."""
+    violations = []
+
+    for lineno, line in enumerate(lines, 1):
+        if _A11Y_EXEMPT.search(line):
+            continue
+        for m in _BUTTON_RE.finditer(line):
+            attrs = m.group(1)
+            if _HAS_ARIA_LABEL.search(attrs) or _HAS_TITLE.search(attrs):
+                continue
+            rest_of_line = line[m.end():]
+            text_after_tags = re.sub(r'<[^>]*>', '', rest_of_line).strip()
+            if text_after_tags and not text_after_tags.startswith('{%'):
+                continue
+            has_text = False
+            for ahead in range(lineno, min(lineno + 4, len(lines))):
+                check = lines[ahead]
+                if '</button' in check:
+                    text_in_line = re.sub(r'<[^>]*>|{%[^%]*%}', '', check)
+                    if text_in_line.strip():
+                        has_text = True
+                    break
+                text_in_line = re.sub(r'<[^>]*>|{%[^%]*%}', '', check)
+                if text_in_line.strip():
+                    has_text = True
+                    break
+            if has_text:
+                continue
+            violations.append({
+                'file': filepath,
+                'line': lineno,
+                'type': 'a11y-button',
+                'detail': '<button> lacks aria-label, title, or visible text',
+            })
+    return violations
+
+
+def check_input_a11y(lines: list, filepath: str) -> list:
+    """Text inputs must have aria-label or an associated <label for="id">."""
+    violations = []
+    full_text = '\n'.join(lines)
+    label_fors = set(re.findall(r'\bfor=["\']([^"\']+)["\']', full_text))
+
+    for lineno, line in enumerate(lines, 1):
+        if _A11Y_EXEMPT.search(line):
+            continue
+        for m in _INPUT_TEXT_RE.finditer(line):
+            attrs = m.group(1)
+            if _HAS_ARIA_LABEL.search(attrs):
+                continue
+            id_match = _HAS_ID.search(attrs)
+            if id_match and id_match.group(1) in label_fors:
+                continue
+            if 'disabled' in attrs:
+                continue
+            violations.append({
+                'file': filepath,
+                'line': lineno,
+                'type': 'a11y-input',
+                'detail': '<input type="text"> lacks aria-label or label[for] association',
+            })
+    return violations
+
+
 def scan() -> list:
     """Run all checks on every .html file in REDESIGN_DIR."""
     if not REDESIGN_DIR.exists():
@@ -219,6 +299,8 @@ def scan() -> list:
         all_violations.extend(check_legacy_classes(lines, rel))
         all_violations.extend(check_hex_in_style_attr(lines, rel))
         all_violations.extend(check_inline_css_volume(lines, rel))
+        all_violations.extend(check_button_a11y(lines, rel))
+        all_violations.extend(check_input_a11y(lines, rel))
 
     return all_violations
 

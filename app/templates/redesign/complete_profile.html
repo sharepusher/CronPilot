@@ -68,7 +68,7 @@
           {% endfor %}
         </select>
         <div class="auth-other-wrap" id="cp-job-title-other-wrap">
-          <input type="text" name="job_title_other" class="auth-input" maxlength="20" placeholder="具体岗位（限 20 字符）" />
+          <input type="text" name="job_title_other" class="auth-input" maxlength="20" placeholder="具体岗位（限 20 字符）" aria-label="具体岗位" />
         </div>
       </div>
       {% else %}
@@ -95,9 +95,13 @@
     var sel = document.getElementById('cp-job-title-select');
     var wrap = document.getElementById('cp-job-title-other-wrap');
     if (sel && wrap) {
+      var otherInp = wrap.querySelector('input[name="job_title_other"]');
       sel.addEventListener('change', function() {
-        wrap.style.display = this.value === 'other' ? 'block' : 'none';
+        var show = this.value === 'other';
+        wrap.style.display = show ? 'block' : 'none';
+        if (otherInp) otherInp.required = show;
       });
+      if (sel.value === 'other' && otherInp) otherInp.required = true;
     }
 
     var form = document.getElementById('profile-form');

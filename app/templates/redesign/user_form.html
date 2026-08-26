@@ -62,12 +62,12 @@
 
     <!-- Username row -->
     <div class="uf-row">
-      <label class="uf-label">用户名 <span class="uf-req">*</span></label>
+      <label class="uf-label" for="uf-username">用户名 <span class="uf-req">*</span></label>
       {% if user %}
       <input type="text" class="f-input uf-input" value="{{ user.username }}" disabled />
       <span class="uf-hint">用户名不可修改</span>
       {% else %}
-      <input type="text" name="username" class="f-input uf-input" required maxlength="64" placeholder="如 zhangsan" />
+      <input type="text" name="username" id="uf-username" class="f-input uf-input" required maxlength="64" placeholder="如 zhangsan" />
       <span class="uf-hint">建议使用公司邮箱前缀（如 zhangsan@company.com → zhangsan）</span>
       {% endif %}
     </div>
@@ -83,7 +83,7 @@
 
     <!-- Role -->
     <div class="uf-row">
-      <label class="uf-label">角色 <span class="uf-req">*</span></label>
+      <label class="uf-label" for="uf-role-select">角色 <span class="uf-req">*</span></label>
       <select name="role" class="f-input uf-select" id="uf-role-select">
         {% for r in roles %}
         <option value="{{ r }}"{% if user and user.role == r %} selected{% elif not user and r == 'viewer' %} selected{% endif %}>{{ r }}</option>
@@ -94,21 +94,21 @@
 
     <!-- Email -->
     <div class="uf-row">
-      <label class="uf-label">邮箱</label>
-      <input type="email" name="email" class="f-input uf-input" maxlength="128" value="{{ user.email if user and user.email else '' }}" placeholder="user@company.com" />
+      <label class="uf-label" for="uf-email">邮箱</label>
+      <input type="email" name="email" id="uf-email" class="f-input uf-input" maxlength="128" value="{{ user.email if user and user.email else '' }}" placeholder="user@company.com" />
       <span class="uf-hint">可选；留空则用户首次登录后补填</span>
     </div>
 
     <!-- Nickname -->
     <div class="uf-row">
-      <label class="uf-label">花名</label>
-      <input type="text" name="nickname" class="f-input uf-input uf-input-short" maxlength="64" value="{{ user.nickname if user and user.nickname else '' }}" />
+      <label class="uf-label" for="uf-nickname">花名</label>
+      <input type="text" name="nickname" id="uf-nickname" class="f-input uf-input uf-input-short" maxlength="64" value="{{ user.nickname if user and user.nickname else '' }}" />
       <span class="uf-hint">可选</span>
     </div>
 
     <!-- Job title -->
     <div class="uf-row">
-      <label class="uf-label">岗位类型 <span class="uf-req">*</span></label>
+      <label class="uf-label" for="uf-job-title-select">岗位类型 <span class="uf-req">*</span></label>
       <div class="uf-row-inline">
         <select name="job_title" class="f-input uf-select" id="uf-job-title-select" required>
           <option value="">-- 请选择岗位 --</option>
@@ -117,7 +117,7 @@
           {% endfor %}
         </select>
         <span id="uf-job-title-other-wrap" style="display:none">
-          <input type="text" name="job_title_other" class="f-input uf-input-other" maxlength="20" value="{% if user and user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="请填写具体岗位" />
+          <input type="text" name="job_title_other" class="f-input uf-input-other" maxlength="20" value="{% if user and user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="请填写具体岗位" aria-label="具体岗位" />
         </span>
       </div>
     </div>
@@ -147,10 +147,14 @@
     {% if user %}
     <div class="uf-row">
       <label class="uf-label">状态</label>
+      {% if user.is_active %}
       <select name="is_active" class="f-input uf-select">
-        <option value="1"{% if user.is_active %} selected{% endif %}>启用</option>
-        <option value="0"{% if not user.is_active %} selected{% endif %}>停用</option>
+        <option value="1" selected>启用</option>
+        <option value="0">停用（不可恢复）</option>
       </select>
+      {% else %}
+      <span class="f-input uf-select uf-disabled">已停用（不可恢复）</span>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -205,8 +209,13 @@
     var jtSel = document.getElementById('uf-job-title-select');
     var jtWrap = document.getElementById('uf-job-title-other-wrap');
     if (!jtSel || !jtWrap) return;
-    jtSel.addEventListener('change', function(){ jtWrap.style.display = (this.value === 'other') ? 'inline-flex' : 'none'; });
-    if (jtSel.value === 'other') jtWrap.style.display = 'inline-flex';
+    var jtOther = jtWrap.querySelector('input[name="job_title_other"]');
+    jtSel.addEventListener('change', function(){
+        var show = this.value === 'other';
+        jtWrap.style.display = show ? 'inline-flex' : 'none';
+        if (jtOther) jtOther.required = show;
+    });
+    if (jtSel.value === 'other') { jtWrap.style.display = 'inline-flex'; if (jtOther) jtOther.required = true; }
 })();
 </script>
 {% endblock %}

@@ -128,8 +128,8 @@
   </div>
 
   <div class="auth-modal-overlay" id="reg-confirm-modal">
-    <div class="auth-modal">
-      <div class="auth-modal-head">确认注册信息</div>
+    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="reg-modal-title">
+      <div class="auth-modal-head" id="reg-modal-title">确认注册信息</div>
       <div class="auth-modal-body">
         <p>请仔细核对以下信息，确认无误后提交：</p>
         <table><tbody id="confirm-summary"></tbody></table>
@@ -181,10 +181,15 @@
     });
 
     jobTitleSelect.addEventListener('change', function() {
-      otherWrapper.style.display = this.value === 'other' ? 'block' : 'none';
+      var show = this.value === 'other';
+      otherWrapper.style.display = show ? 'block' : 'none';
+      var otherInput = otherWrapper.querySelector('input[name="job_title_other"]');
+      if (otherInput) otherInput.required = show;
     });
     if (jobTitleSelect.value === 'other') {
       otherWrapper.style.display = 'block';
+      var otherInput = otherWrapper.querySelector('input[name="job_title_other"]');
+      if (otherInput) otherInput.required = true;
     }
 
     document.querySelectorAll('.toggle-vis').forEach(function(btn) {
@@ -242,9 +247,16 @@
 
     modalCancelBtn.addEventListener('click', function() {
       modal.classList.remove('open');
+      submitBtn.focus();
     });
     modal.addEventListener('click', function(e) {
-      if (e.target === modal) modal.classList.remove('open');
+      if (e.target === modal) { modal.classList.remove('open'); submitBtn.focus(); }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal.classList.contains('open')) {
+        modal.classList.remove('open');
+        submitBtn.focus();
+      }
     });
 
     confirmBtn.addEventListener('click', function() {

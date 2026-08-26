@@ -127,7 +127,8 @@ $(document).on('click', '.js-approve-btn', function() {
         confirmText: '确认批准',
         cancelText: '取消',
         onConfirm: function(overlay, close) {
-            close();
+            var btn = overlay.querySelector('.cp-modal-confirm-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
             submitForm(approveUrl, { csrf_token: csrfToken, id: id });
         }
     });
@@ -147,6 +148,8 @@ $(document).on('click', '.js-reject-btn', function() {
         confirmClass: 'btn-c btn-danger-c',
         cancelText: '取消',
         onConfirm: function(overlay, close) {
+            var btn = overlay.querySelector('.cp-modal-confirm-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
             var comment = document.getElementById('rr-reject-comment').value.trim();
             submitForm(rejectUrl, { csrf_token: csrfToken, id: id, comment: comment });
         }

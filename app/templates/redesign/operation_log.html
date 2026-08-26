@@ -8,7 +8,7 @@
 <p class="pg-desc">本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / 启动 / 暂停 / 下线）。登录与权限事件见{% if has_perm('audit:read') %}<a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。</p>
 
 <form method="GET" action="{{ url_for('main.operation_log_list') }}" class="pg-toolbar pg-search">
-  <input class="f-input pg-input-md" type="text" name="keyword" value="{{ search_keyword or '' }}" placeholder="搜索操作人/对象…">
+  <input class="f-input pg-input-md" type="text" name="keyword" value="{{ search_keyword or '' }}" placeholder="搜索操作人/对象…" aria-label="搜索操作人或对象">
   <select class="f-input pg-select" name="action">
     <option value="">全部操作</option>
     <option value="create_cron"{% if keywords.get('action') == 'create_cron' %} selected{% endif %}>创建任务</option>
@@ -38,7 +38,8 @@
     <tbody>
       {% for item in page_data.items %}
       {% set cron = cron_by_id.get(item.target_id) if item.target_id else none %}
-      {% set group_name = group_name_by_id.get(cron.group_id) if cron and cron.group_id else none %}
+      {% set cron_group_id = task_group_map.get(cron.id) if cron else none %}
+      {% set group_name = group_name_by_id.get(cron_group_id) if cron_group_id else none %}
       {% set detail_text = format_detail_summary(item.action, item.detail_json) %}
       <tr>
         <td class="cp-fw-600">{{ item.operator_name or '—' }}</td>

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>F5: common.js 精简 — 设计文档</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:2px solid #333;padding-bottom:.5rem}
+h2{margin-top:2.5rem;color:#1a1a2e;border-left:4px solid #5c6bc0;padding-left:.8rem}
+h3{color:#333;margin-top:1.5rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:.6rem .8rem;text-align:left;font-size:.9rem}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.5}
+.danger{color:#e74c3c} .success{color:#27ae60} .warn{color:#f39c12}
+.metric-box{display:inline-block;padding:.5rem 1rem;margin:.5rem .5rem .5rem 0;border-radius:4px;border:1px solid #ddd}
+.metric-box strong{display:block;font-size:1.5rem}
+.metric-box span{font-size:.8rem;color:#666}
+blockquote{border-left:3px solid #5c6bc0;margin:1rem 0;padding:.5rem 1rem;background:#f8f8ff}
+</style>
+</head>
+<body>
+
+<h1>F5: common.js 精简 — 设计文档</h1>
+<p><strong>编号</strong>：F5（Redesign-P0P1 修复计划第 5 批）<br>
+<strong>状态</strong>：待确认<br>
+<strong>创建日期</strong>：2026-08-24<br>
+<strong>关联</strong>：<code>doc/design/Redesign-P0P1问题根因分析与修复设计.html</code> F5 节</p>
+
+<!-- ============================================ -->
+<h2>1. 问题陈述</h2>
+
+<h3>1.1 现状</h3>
+<p>当前 Redesign 每个页面的 <code>_base.html</code> 加载以下 JS 文件链：</p>
+<pre>
+jquery.js       →  92,554 bytes
+wind.js         →  26,770 bytes   ← 模块加载器（仅 v1 需要）
+common.js       →  38,969 bytes   ← 1,083 行（含 v1-only 功能 ~850 行）
+  ├── Wind.use('ajaxForm')       →  37,413 bytes (lazy)
+  ├── Wind.use('artDialog')      →  16,359 bytes (lazy)
+  ├── Wind.use('validate')       →  46,342 bytes (lazy)
+  └── Wind.use('noty')           →  24,970 bytes (lazy, unused in Redesign)
+</pre>
+
+<p><strong>Redesign 页面实际触发的 JS 总载荷：~257 KB</strong>（含 lazy-load 的 3 个插件，因为 <code>common.js</code> 初始化代码在 DOM ready 时检测到 <code>.js-ajax-form</code> 即触发加载）</p>
+
+<h3>1.2 Redesign 的实际需求</h3>
+<p>通过全量 <code>grep</code> 分析 <code>app/templates/redesign/</code> 中的引用：</p>
+<table>
+<tr><th>功能</th><th>使用点</th><th>来源</th></tr>
+<tr><td><code>js-ajax-form</code> + <code>js-ajax-submit</code> 表单提交</td><td>7 个模板</td><td>common.js (line 62-226)</td></tr>
+<tr><td>POST 防重复提交守卫</td><td>全局（自动）</td><td>common.js (line 1065-1083)</td></tr>
+<tr><td><code>$.ajax</code> CSRF header 注入</td><td>tags.html (4处)</td><td>各页面自行注入</td></tr>
+<tr><td><code>getCookie()</code></td><td>0（Redesign 不直接调用）</td><td>common.js (line 475-490)</td></tr>
+</table>
+
+<p><strong class="danger">不需要但被加载的功能：</strong></p>
+<table>
+<tr><th>功能模块</th><th>行数</th><th>对 Redesign 的价值</th></tr>
+<tr><td>IE placeholder polyfill</td><td>19-41</td><td class="danger">零（IE 不支持）</td></tr>
+<tr><td>artDialog 弹窗打开（<code>js-dialog</code>）</td><td>44-59</td><td class="danger">零（Redesign 用 CpConfirm/CpModal）</td></tr>
+<tr><td>artDialog 批量删除（<code>js-ajax-delete</code>）</td><td>242-287</td><td class="danger">零</td></tr>
+<tr><td>artDialog 通用确认（<code>js-ajax-dialog-btn</code>）</td><td>290-346</td><td class="danger">零</td></tr>
+<tr><td>复选框全选（<code>js-check-wrap</code>）</td><td>348-414</td><td class="danger">零</td></tr>
+<tr><td>datePicker 初始化</td><td>417-444</td><td class="danger">零</td></tr>
+<tr><td>tabs 插件初始化</td><td>447-452</td><td class="danger">零</td></tr>
+<tr><td><code>open_iframe_dialog</code> / map / upload 系列</td><td>509-657</td><td class="danger">零</td></tr>
+<tr><td><code>artdialog_alert</code> / <code>error()</code> / <code>success()</code></td><td>658-722</td><td class="danger">零（有 CpToast）</td></tr>
+<tr><td><code>upload_file()</code></td><td>725-778</td><td class="danger">零</td></tr>
+<tr><td>v1 Console 搜索模块（<code>_cpSearch</code>）</td><td>831-1063</td><td class="danger">零（有 CpShell Command Palette）</td></tr>
+<tr><td>v1 UI mode/theme/sidebar 函数</td><td>791-822</td><td class="danger">零（有 redesign-shell.js）</td></tr>
+</table>
+
+<p><strong>核心发现</strong>：Redesign 需要 <code>common.js</code> 的 <strong>仅 ~130 行</strong>（表单提交守卫 + 防重复提交），却被迫加载 1,083 行 + 3 个 jQuery 插件（~100 KB lazy）。</p>
+
+<h3>1.3 影响量化</h3>
+<div>
+<div class="metric-box"><strong class="danger">165 KB</strong><span>冗余 JS 载荷</span></div>
+<div class="metric-box"><strong class="danger">19 次</strong><span>Wind.use 调用（含 HTTP 请求）</span></div>
+<div class="metric-box"><strong class="danger">850 行</strong><span>永不执行的死代码</span></div>
+<div class="metric-box"><strong class="danger">2 套</strong><span>重复功能（Toast/Confirm/Search）</span></div>
+</div>
+
+<!-- ============================================ -->
+<h2>2. 根因分析（5-Why 复盘）</h2>
+
+<h3>2.1 结构性根因</h3>
+<blockquote>
+<p><strong>Why-1</strong>：为什么 Redesign 页面加载了 1,083 行的 <code>common.js</code>？<br>
+→ 因为 <code>_base.html</code> 直接复制了 v1 <code>admin_base.html</code> 的 script 引用链。</p>
+
+<p><strong>Why-2</strong>：为什么复制而不是从零设计 JS 依赖？<br>
+→ 因为 <code>js-ajax-form</code> 表单机制被 7 个 Redesign 模板复用，它依赖 <code>common.js</code> 内的 handler。</p>
+
+<p><strong>Why-3</strong>：为什么不先将 handler 单独提取？<br>
+→ 因为 handler 内部硬编码依赖 <code>Wind.use('ajaxForm', 'artDialog', 'validate', ...)</code>，三者形成不可拆分的依赖束。</p>
+
+<p><strong>Why-4</strong>：为什么 handler 需要 artDialog 和 validate？<br>
+→ artDialog 用于批量操作确认对话框（<code>data-subcheck</code>），validate 用于 jQuery Validate 客户端校验。<strong>但 Redesign 模板不使用这两个功能</strong>——Redesign 用 HTML5 <code>required</code> + CpConfirm。</p>
+
+<p><strong>Why-5（根因）</strong>：为什么 handler 没有按职责拆分？<br>
+→ <code>common.js</code> 是 2018 年原始项目的"单一入口" JS 文件，当时所有页面共用一个行为层，不存在模块边界概念。Redesign 开发时以「功能优先、快速上线」为 DoD，没有将 <strong>JS 依赖切割</strong> 纳入架构治理，导致新旧两套 UI 共享了一个未拆分的行为层。</p>
+</blockquote>
+
+<h3>2.2 问题模式分类</h3>
+<table>
+<tr><th>模式</th><th>表现</th><th>根本原因</th></tr>
+<tr><td><strong>Dead Coupling</strong>（死耦合）</td><td>850 行从不执行的代码被每页加载</td><td>单文件 + 无条件初始化</td></tr>
+<tr><td><strong>Plugin Cascade</strong>（插件级联）</td><td>3 个 jQuery 插件通过 Wind.use lazy-load 但每页都触发</td><td>handler 内 <code>if ($('form.js-ajax-form').length)</code> 为 true → 触发 cascade</td></tr>
+<tr><td><strong>Feature Duplication</strong>（功能重复）</td><td>Toast/Confirm/Search 在 common.js 和 redesign-*.js 中各有一套</td><td>新模块创建时未移除旧模块引用</td></tr>
+</table>
+
+<h3>2.3 历史演进图</h3>
+<pre>
+2018:  common.js (v1-only, 单入口)
+         │
+2026-07: Redesign 启动 → _base.html 引入 common.js（"先跑通再优化"）
+         │
+2026-07: 创建 redesign-shell.js → 重复实现了 sidebar/search
+         │
+2026-07: 创建 redesign-toast.js → 重复实现了通知
+         │
+2026-07: 创建 redesign-confirm.js → 重复实现了对话框
+         │
+2026-08: 功能完备 → common.js 中 850 行成为 Dead Code
+         │
+2026-08(now): F5 → 正式切割，消除 Dead Coupling
+</pre>
+
+<!-- ============================================ -->
+<h2>3. 方案设计</h2>
+
+<h3>3.1 架构目标</h3>
+<pre>
+┌─────────── v1 (admin_base.html) ───────────┐
+│  jquery.js + wind.js + common.js           │  ← 不动，保持 v1 功能完整
+│  + artDialog + ajaxForm + validate + noty  │
+└────────────────────────────────────────────┘
+
+┌─────────── v2 Redesign (_base.html) ───────┐
+│  jquery.js + <strong>common-redesign.js</strong>            │  ← 新建 ~150 行
+│  + redesign-shell.js                       │
+│  + redesign-theme.js                       │
+│  + redesign-toast.js                       │
+│  + redesign-confirm.js                     │
+└────────────────────────────────────────────┘
+</pre>
+
+<h3>3.2 <code>common-redesign.js</code> 功能清单</h3>
+<table>
+<tr><th>#</th><th>功能</th><th>实现方式</th><th>行数估算</th></tr>
+<tr><td>1</td><td>CSRF token 全局注入</td><td><code>$.ajaxSetup({ beforeSend: ... })</code> 读取 <code>&lt;meta name="csrf-token"&gt;</code></td><td>~15</td></tr>
+<tr><td>2</td><td><code>js-ajax-form</code> 提交 handler</td><td>使用 <code>$.ajax()</code> + <code>$form.serialize()</code> 替代 Wind.use('ajaxForm') 的 <code>$.fn.ajaxSubmit</code></td><td>~70</td></tr>
+<tr><td>3</td><td>表单提交成功/失败反馈</td><td>使用 <code>CpToast.success()</code> / <code>CpToast.error()</code> 替代 artDialog/noty 的 <code>tips_success/tips_error</code></td><td>~10</td></tr>
+<tr><td>4</td><td>POST 防重复提交守卫</td><td>对非 <code>js-ajax-form</code> 的 POST 表单禁用按钮 + 文案变更</td><td>~20</td></tr>
+<tr><td>5</td><td><code>getCookie()</code> / <code>setCookie()</code></td><td>直接复制（无外部依赖）</td><td>~25</td></tr>
+<tr><td>6</td><td>IIFE 包裹 + 'use strict'</td><td>—</td><td>~5</td></tr>
+<tr><td colspan="3"><strong>总计</strong></td><td><strong>~145 行</strong></td></tr>
+</table>
+
+<h3>3.3 关键设计决策</h3>
+
+<h4>D1: 为什么用 <code>$.ajax()</code> 替代 <code>$.fn.ajaxSubmit()</code>？</h4>
+<p><code>ajaxForm.js</code>（37 KB）的核心功能是将 <code>&lt;form&gt;</code> 的输入序列化后通过 AJAX 提交。jQuery 内置的 <code>$.ajax({ data: $form.serialize() })</code> 可完全等价替代此行为。Redesign 表单无文件上传需求（文件上传在 v1 用 <code>upload_file()</code>），因此不需要 <code>ajaxForm.js</code> 的 iframe-based file upload 能力。</p>
+
+<h4>D2: 为什么不再需要 jQuery Validate？</h4>
+<p>分析 7 个 Redesign <code>js-ajax-form</code> 模板：</p>
+<ul>
+<li><code>task_form.html</code>：HTML5 <code>required</code> + 后端校验</li>
+<li><code>cron_retire.html</code>：单 textarea <code>required</code></li>
+<li><code>group_form.html</code>：单 input <code>required</code></li>
+<li><code>users_set_active.html</code>：radio <code>required</code></li>
+<li><code>user_profile.html</code>：后端校验</li>
+<li><code>change_password.html</code>：HTML5 <code>minlength</code> + 后端</li>
+<li><code>user_form.html</code>：HTML5 <code>required</code> + 后端</li>
+</ul>
+<p>无一使用 jQuery Validate 的 <code>rules</code> / <code>messages</code> 配置。HTML5 内置校验 + 后端验证已覆盖全部需求。</p>
+
+<h4>D3: 为什么移除 <code>wind.js</code>？</h4>
+<p><code>wind.js</code>（27 KB）是一个自定义模块加载器（类 AMD），其唯一用途是按需加载 <code>artDialog</code>、<code>ajaxForm</code>、<code>validate</code>、<code>noty</code>、<code>datePicker</code>、<code>layer</code> 等 v1 插件。Redesign 不使用任何这些插件（已有原生替代），因此 <code>wind.js</code> 无存在价值。</p>
+
+<h4>D4: <code>data-subcheck</code> 功能如何处理？</h4>
+<p><code>grep</code> 确认 <code>app/templates/redesign/</code> 中无任何 <code>data-subcheck</code>、<code>data-msg</code>、<code>data-action</code> 属性使用。此功能仅在 v1 模板中存在（批量选择 + artDialog 确认），完全不迁移到 <code>common-redesign.js</code>。</p>
+
+<h4>D5: 成功/失败反馈的行为差异</h4>
+<table>
+<tr><th>行为</th><th>common.js (v1)</th><th>common-redesign.js (v2)</th></tr>
+<tr><td>成功通知</td><td><code>$('&lt;span class="tips_success"&gt;').appendTo($btn.parent())</code></td><td><code>CpToast.success(data.errmsg)</code></td></tr>
+<tr><td>失败通知</td><td><code>$('&lt;span class="tips_error"&gt;').appendTo($btn.parent())</code></td><td><code>CpToast.error(data.errmsg)</code></td></tr>
+<tr><td>跳转</td><td><code>window.location.href = data.url</code></td><td>相同</td></tr>
+<tr><td>无 url 且 errcode===0</td><td><code>reloadPage(window)</code></td><td><code>location.href = location.pathname + location.search</code>（内联）</td></tr>
+</table>
+
+<!-- ============================================ -->
+<h2>4. 范围</h2>
+
+<h3>4.1 变更文件</h3>
+<table>
+<tr><th>文件</th><th>操作</th><th>说明</th></tr>
+<tr><td><code>app/static/js/common-redesign.js</code></td><td class="success">新建</td><td>~145 行 IIFE 模块</td></tr>
+<tr><td><code>app/templates/redesign/_base.html</code></td><td>修改</td><td>移除 <code>wind.js</code> + <code>common.js</code>，替换为 <code>common-redesign.js</code></td></tr>
+</table>
+
+<h3>4.2 不动文件</h3>
+<ul>
+<li><code>app/static/js/common.js</code> — 不修改（v1 继续使用）</li>
+<li><code>app/static/js/wind.js</code> — 不删除（v1 继续使用）</li>
+<li><code>app/templates/admin_base.html</code> — 不修改</li>
+<li>所有 v1 模板（<code>app/templates/*.html</code>、<code>app/templates/rbac/*.html</code>）— 不修改</li>
+<li>所有 Redesign 功能模板 — 不修改（<code>js-ajax-form</code> class 约定不变）</li>
+</ul>
+
+<!-- ============================================ -->
+<h2>5. 详细实现</h2>
+
+<h3>5.1 <code>common-redesign.js</code> 完整代码设计</h3>
+<pre>
+/**
+ * CronPilot Redesign — Common Utilities
+ * ======================================
+ * Replaces common.js + wind.js for Redesign pages.
+ * Dependencies: jQuery (only), CpToast (redesign-toast.js)
+ *
+ * Provides:
+ *  1. CSRF token global AJAX injection
+ *  2. js-ajax-form submit handler (no Wind/ajaxForm/validate dependency)
+ *  3. POST form anti-double-submit guard
+ *  4. getCookie / setCookie utilities
+ */
+;(function($) {
+  'use strict';
+
+  /* ====== 1. CSRF Token Global Injection ====== */
+  $.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+      if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
+        var token = $('meta[name=csrf-token]').attr('content');
+        if (token) {
+          xhr.setRequestHeader('X-CSRFToken', token);
+        }
+      }
+    }
+  });
+
+  /* ====== 2. js-ajax-form Submit Handler ====== */
+  $(document).on('click', 'button.js-ajax-submit', function(e) {
+    var $btn = $(this);
+    var $form = $btn.closest('form.js-ajax-form');
+    if (!$form.length) return;
+
+    // Prevent native form submission
+    e.preventDefault();
+
+    // Loading guard
+    if ($btn.data('loading')) return;
+
+    // HTML5 validation check
+    if ($form[0].checkValidity && !$form[0].checkValidity()) {
+      $form[0].reportValidity();
+      return;
+    }
+
+    // Enter loading state
+    $btn.data('loading', true);
+    var origText = $btn.text();
+    $btn.text(origText + '中…').prop('disabled', true).addClass('disabled');
+
+    // Determine action URL
+    var url = $btn.data('action') || $form.attr('action');
+
+    // Inject CSRF token into form data
+    var formData = $form.serialize();
+    var csrfToken = $('meta[name=csrf-token]').attr('content');
+    var csrfParam = $('meta[name=csrf-param]').attr('content') || 'csrf_token';
+    if (csrfToken) {
+      formData += '&' + encodeURIComponent(csrfParam)
+                + '=' + encodeURIComponent(csrfToken);
+    }
+
+    $.ajax({
+      url: url,
+      type: 'POST',
+      data: formData,
+      dataType: 'json',
+      success: function(data) {
+        // Reset button
+        $btn.removeClass('disabled').prop('disabled', false)
+            .text(origText);
+
+        // Show feedback via CpToast
+        if (data.errmsg && window.CpToast) {
+          if (data.errcode === 0) {
+            CpToast.success(data.errmsg);
+          } else {
+            CpToast.error(data.errmsg);
+          }
+        }
+
+        // Handle redirect or reload
+        if (data.url) {
+          window.location.href = data.url;
+        } else if (data.errcode === 0) {
+          var loc = window.location;
+          loc.href = loc.pathname + loc.search;
+        }
+      },
+      error: function(xhr) {
+        $btn.removeClass('disabled').prop('disabled', false)
+            .text(origText);
+        try {
+          var resp = JSON.parse(xhr.responseText);
+          if (window.CpToast) CpToast.error(resp.errmsg || '操作失败');
+        } catch(ex) {
+          if (window.CpToast) CpToast.error('网络错误，请重试');
+        }
+      },
+      complete: function() {
+        $btn.data('loading', false);
+      }
+    });
+  });
+
+  // Prevent native form submission for js-ajax-form
+  $(document).on('submit', 'form.js-ajax-form', function(e) {
+    e.preventDefault();
+  });
+
+  /* ====== 3. POST Anti-Double-Submit Guard ====== */
+  $(document).on('submit', 'form:not(.js-ajax-form)', function() {
+    var $form = $(this);
+    if ($form.attr('method') &&
+        $form.attr('method').toLowerCase() !== 'post') return;
+    var $btn = $form.find('[type="submit"]');
+    if (!$btn.length) return;
+    if ($btn.data('cp-submitting')) return false;
+    $btn.data('cp-submitting', true);
+    var origText = $btn.is('input') ? $btn.val() : $btn.text();
+    if ($btn.is('input')) {
+      $btn.val(origText + '中…');
+    } else {
+      $btn.text(origText + '中…');
+    }
+    $btn.prop('disabled', true).addClass('disabled');
+    setTimeout(function() {
+      $btn.data('cp-submitting', false)
+          .prop('disabled', false).removeClass('disabled');
+      if ($btn.is('input')) { $btn.val(origText); }
+      else { $btn.text(origText); }
+    }, 3000);
+  });
+
+  /* ====== 4. Cookie Utilities ====== */
+  window.getCookie = function(name) {
+    var nameEQ = name + '=';
+    var ca = document.cookie.split(';');
+    for (var i = 0; i &lt; ca.length; i++) {
+      var c = ca[i].replace(/^\s+/, '');
+      if (c.indexOf(nameEQ) === 0) {
+        return c.substring(nameEQ.length);
+      }
+    }
+    return null;
+  };
+
+  window.setCookie = function(name, value, days) {
+    var expire = new Date();
+    if (!days) days = 1;
+    expire.setTime(expire.getTime() + 86400000 * days);
+    document.cookie = name + '=' + encodeURIComponent(value)
+      + ';path=/;expires=' + expire.toUTCString() + ';samesite=lax';
+  };
+
+})(jQuery);
+</pre>
+
+<!-- ============================================ -->
+<h2>6. 分批执行计划</h2>
+
+<p>此变更范围小且原子化，<strong>不分批</strong>，单次交付：</p>
+<table>
+<tr><th>步骤</th><th>操作</th><th>验收</th></tr>
+<tr><td>1</td><td>创建 <code>app/static/js/common-redesign.js</code></td><td>文件存在，语法正确 (<code>node -c</code>)</td></tr>
+<tr><td>2</td><td>修改 <code>_base.html</code>：移除 wind.js + common.js 行，添加 common-redesign.js</td><td><code>grep 'wind.js\|common.js' app/templates/redesign/_base.html</code> 无结果</td></tr>
+<tr><td>3</td><td>restart 服务</td><td><code>lsof -nP -iTCP:5001 -sTCP:LISTEN</code></td></tr>
+<tr><td>4</td><td>验证 js-ajax-form 7 模板</td><td>逐一 CRUD 测试（见验收章节）</td></tr>
+<tr><td>5</td><td>验证 v1 页面不受影响</td><td>v1 <code>/cron_list</code> 功能正常</td></tr>
+</table>
+
+<!-- ============================================ -->
+<h2>7. 验收标准</h2>
+
+<h3>7.1 功能验收</h3>
+<table>
+<tr><th>#</th><th>场景</th><th>步骤</th><th>期望结果</th></tr>
+<tr><td>V1</td><td>CSRF 注入</td><td>浏览器 DevTools → Network → 任意 <code>$.ajax POST</code></td><td>请求头含 <code>X-CSRFToken</code></td></tr>
+<tr><td>V2</td><td>js-ajax-form 提交</td><td>创建任务组 → 填写表单 → 点击保存</td><td>① 按钮显示"保存中…" ② Toast 成功 ③ 跳转/刷新</td></tr>
+<tr><td>V3</td><td>js-ajax-form 失败</td><td>提交无效数据（如空必填字段绕过 HTML5 校验）</td><td>Toast 错误提示 + 按钮恢复</td></tr>
+<tr><td>V4</td><td>防重复提交</td><td>搜索表单快速连击提交按钮</td><td>首次提交后按钮禁用 3 秒</td></tr>
+<tr><td>V5</td><td>HTML5 校验</td><td>task_form 不填名称直接提交</td><td>浏览器原生 required 提示</td></tr>
+<tr><td>V6</td><td>tags.html 自定义 AJAX</td><td>创建/重命名/删除标签</td><td>正常工作（不依赖 common.js）</td></tr>
+<tr><td>V7</td><td>v1 页面隔离</td><td>访问 <code>/cron_list</code>（v1）</td><td>artDialog/datePicker/全选正常</td></tr>
+</table>
+
+<h3>7.2 性能验收</h3>
+<table>
+<tr><th>指标</th><th>Before</th><th>After</th><th>验证方式</th></tr>
+<tr><td>JS 文件数</td><td>6 (jquery + wind + common + shell + theme + toast + confirm)</td><td>6 (jquery + <strong>common-redesign</strong> + shell + theme + toast + confirm)</td><td>Network 面板</td></tr>
+<tr><td>JS 总载荷</td><td>~257 KB</td><td>~108 KB</td><td><code>curl -s</code> 各文件 | <code>wc -c</code></td></tr>
+<tr><td>Lazy-load HTTP 请求</td><td>3 (ajaxForm + artDialog + validate)</td><td>0</td><td>Network 面板无额外 .js 请求</td></tr>
+</table>
+
+<h3>7.3 CI 门禁验证</h3>
+<pre>
+python -m unittest tests.test_ajax_form_guard -v    # 表单守卫静态门禁
+python scripts/audit_hardcoded_colors.py --check    # 颜色审计
+python scripts/check_css_token_reachability.py --check  # Token 可达性
+bash scripts/cronpilot.sh test                      # 全量单测
+</pre>
+
+<!-- ============================================ -->
+<h2>8. 风险评估与缓解</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td>某 Redesign 模板隐式依赖 common.js 未发现的功能</td><td>低</td><td>高</td><td><code>grep</code> 已确认无直接调用；7 模板逐一功能测试</td></tr>
+<tr><td><code>$.ajax()</code> 的 <code>data: $form.serialize()</code> 与 <code>$.fn.ajaxSubmit</code> 行为差异</td><td>中</td><td>中</td><td>差异仅在文件上传（iframe 方式），Redesign 无文件上传表单</td></tr>
+<tr><td>第三方 Redesign 页面 JS（<code>{% block js %}</code>）间接依赖 Wind/artDialog</td><td>低</td><td>高</td><td><code>grep Wind</code> + <code>grep artDialog</code> 全量扫描 Redesign templates</td></tr>
+<tr><td>v1 页面受影响</td><td>零</td><td>—</td><td>v1 使用独立的 <code>admin_base.html</code>，script 引用链完全独立</td></tr>
+<tr><td>Toast 在 AJAX handler 调用时未加载（执行顺序）</td><td>低</td><td>中</td><td>所有 script 均 <code>defer</code>，按文档顺序执行；toast 在 common-redesign 之前无需加载，因为 AJAX handler 在用户交互时触发，此时所有 defer 脚本已完成</td></tr>
+</table>
+
+<h3>8.1 回滚方案</h3>
+<p>恢复 <code>_base.html</code> 中的 <code>wind.js</code> + <code>common.js</code> 行即可（单行 git revert）。<code>common-redesign.js</code> 文件存留不影响任何功能。</p>
+
+<!-- ============================================ -->
+<h2>9. 测试漏洞分析</h2>
+
+<h3>9.1 现有测试覆盖</h3>
+<table>
+<tr><th>测试</th><th>覆盖范围</th><th>能否发现本问题</th></tr>
+<tr><td><code>test_ajax_form_guard.py</code></td><td>检查模板中 <code>js-ajax-form</code> 必须配对 <code>js-ajax-submit</code></td><td class="danger">否 — 仅检查 HTML 结构，不检查 JS runtime</td></tr>
+<tr><td><code>cronpilot.sh test</code></td><td>后端单元测试</td><td class="danger">否 — 不涉及前端 JS</td></tr>
+<tr><td>浏览器手动验证</td><td>端到端</td><td class="success">是 — 但依赖人工执行</td></tr>
+</table>
+
+<h3>9.2 建议新增测试</h3>
+<p>F5 完成后建议添加：</p>
+<ul>
+<li><strong>JS 语法检查</strong>：<code>node -c app/static/js/common-redesign.js</code>（加入 CI）</li>
+<li><strong>依赖隔离断言</strong>：<code>grep -c 'Wind\.' app/static/js/common-redesign.js</code> 应为 0</li>
+<li><strong>页面 JS 加载断言</strong>：<code>curl /redesign/dashboard | grep 'common-redesign.js'</code> 且 <code>grep -v 'common.js'</code></li>
+</ul>
+
+<!-- ============================================ -->
+<h2>10. 预防方案</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证方式</th></tr>
+<tr><td>P1</td><td>CI 门禁：Redesign base 模板禁止引用 <code>wind.js</code> / <code>common.js</code></td><td><code>scripts/check_ui_contract.py</code> 新增规则</td><td><code>grep 'wind.js\|common.js' app/templates/redesign/_base.html && exit 1</code></td></tr>
+<tr><td>P2</td><td>AGENTS.md 规范：Redesign 新增 JS 依赖时禁止引入 v1 模块加载器</td><td><code>AGENTS.md</code> "JS 依赖"节</td><td>Code Review 检查</td></tr>
+<tr><td>P3</td><td><code>common-redesign.js</code> 头部注释声明零 Wind 依赖约束</td><td>文件顶部 JSDoc</td><td><code>grep 'Wind' common-redesign.js | wc -l</code> === 0</td></tr>
+</table>
+
+<!-- ============================================ -->
+<h2>11. _base.html 变更 Diff 预览</h2>
+
+<pre>
+--- a/app/templates/redesign/_base.html
++++ b/app/templates/redesign/_base.html
+@@ -47,9 +47,8 @@
+   {# Core JS — jQuery + shared utilities #}
+   &lt;script&gt;var GV = {ROOT: "/", WEB_ROOT: "", JS_ROOT: "{{ url_for('static', filename='js/') }}", UPLOAD_URL: "/"};&lt;/script&gt;
+   &lt;script defer src="{{ url_for('static', filename='js/jquery.js') }}"&gt;&lt;/script&gt;
+-  &lt;script defer src="{{ url_for('static', filename='js/wind.js') }}"&gt;&lt;/script&gt;
+-  &lt;script defer src="{{ url_for('static', filename='js/common.js') }}"&gt;&lt;/script&gt;
++  &lt;script defer src="{{ url_for('static', filename='js/common-redesign.js') }}"&gt;&lt;/script&gt;
+   {# Redesign JS modules #}
+   &lt;script defer src="{{ url_for('static', filename='js/redesign-shell.js') }}"&gt;&lt;/script&gt;
+</pre>
+
+<!-- ============================================ -->
+<h2>12. 文档引用</h2>
+<ul>
+<li><code>doc/design/Redesign-P0P1问题根因分析与修复设计.html</code> — F5 章节</li>
+<li><code>doc/design/Redesign前端代码质量评估与优化计划.html</code> — 整体优化规划</li>
+<li><code>doc/design/Phase-R2-R3必要性分析与根因复盘.html</code> — JS 模块化根因</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="F5-common-js精简设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -39,7 +39,7 @@ def _parse_log_outcome_param():
     raw = (request.args.get('outcome') or '').strip().lower()
     if raw in ('', 'all'):
         return 'all'
-    if raw in ('success', 'fail', 'error', 'not_success', 'unknown'):
+    if raw in ('success', 'fail', 'error', 'not_success', 'unknown', 'exception'):
         return raw
     return 'not_success'
 
@@ -656,7 +656,7 @@ def job_log_list():
         raw = (request.args.get('outcome') or '').strip().lower()
         if raw in ('', 'all'):
             outcome = 'all'
-        elif raw in ('success', 'fail', 'error', 'not_success', 'unknown'):
+        elif raw in ('success', 'fail', 'error', 'not_success', 'unknown', 'exception'):
             outcome = raw
         else:
             outcome = 'all'
@@ -1156,6 +1156,7 @@ def operation_log_list():
             operation_result_label=operation_result_label,
             cron_by_id=cron_by_id,
             group_name_by_id=group_name_by_id,
+            task_group_map=task_group_map,
         )
 
     return render_template(

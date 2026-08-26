@@ -1,6 +1,8 @@
 {% extends "redesign/_base.html" %}
 {% block title %}执行 #{{ log_id_short }} — CronPilot{% endblock %}
 
+{% block main_class %} cp-page-run-inspector{% endblock %}
+
 {% block breadcrumb %}
 <nav class="cp-breadcrumb">
   <a href="{{ url_for('main.cron_list') }}">任务中心</a>
@@ -29,7 +31,7 @@
   {# ─── Header ─── #}
   <div class="ri-header">
     <span class="ri-id">执行 #{{ log_id_short }}
-      <button class="cp-copy-btn" onclick="cpCopy('{{ log_id_short }}', this)" title="复制 ID">
+      <button class="cp-copy-btn" data-copy-text="{{ log_id_short }}" title="复制 ID">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
     </span>
@@ -40,7 +42,7 @@
     {% elif jl.status in ('fail', 'error') %}
       <span class="ri-badge fail">× 失败</span>
     {% elif jl.status == 'running' %}
-      <span class="ri-badge ok" style="background:var(--cp-accent-bg);color:var(--cp-accent)">◎ 执行中</span>
+      <span class="ri-badge ok" style="background:var(--cp-signal-bg);color:var(--cp-signal)">◎ 执行中</span>
     {% else %}
       <span class="ri-badge" style="background:var(--cp-surface-3);color:var(--cp-muted)">{{ jl.status or '未知' }}</span>
     {% endif %}
@@ -143,6 +145,11 @@ function cpCopy(text, btn) {
     CpToast.success('已复制');
   }
 }
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-copy-text]');
+  if (btn) { cpCopy(btn.getAttribute('data-copy-text'), btn); }
+});
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && !document.querySelector('.cp-modal-overlay')) {

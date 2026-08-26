@@ -96,7 +96,7 @@
   </select>
   {% endif %}
   <form method="get" action="{{ url_for('main.cron_list') }}" style="display:contents">
-    <input class="f-input" type="text" name="task_name" value="{{ keyword.get('task_name','') }}" placeholder="任务名模糊匹配">
+    <input class="f-input" type="text" name="task_name" value="{{ keyword.get('task_name','') }}" placeholder="任务名模糊匹配" aria-label="任务名模糊匹配">
     {% if scope_view %}<input type="hidden" name="scope_view" value="{{ scope_view }}">{% endif %}
     {% if scope_group_id %}<input type="hidden" name="group_id" value="{{ scope_group_id }}">{% endif %}
   </form>
@@ -194,7 +194,7 @@
         <td>
           <div class="row-acts">
             {% if has_perm('cron:write') and item.status == 1 and item.req_url %}
-            <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" title="立即执行">
+            <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" title="立即执行" aria-label="立即执行">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </button>
             {% endif %}
@@ -203,7 +203,7 @@
             </a>
             {% if has_perm('cron:write') and item.status != -1 %}
             <div class="c-dd">
-              <button class="act-btn" onclick="this.parentElement.classList.toggle('open')" title="更多">
+              <button class="act-btn" onclick="this.parentElement.classList.toggle('open')" title="更多" aria-label="更多操作">
                 <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
               </button>
               <div class="c-dd-menu">
@@ -322,16 +322,45 @@ document.addEventListener('click', function(e) {
 
 /* ── Retire task ── */
 function cpRetire(cronId, btn) {
-  CpConfirm.show({ title: '下线任务', body: '下线后任务将不再执行且无法恢复运行状态，确认下线？', confirmText: '确认下线', cancelText: '取消' }).then(function(confirmed) {
-    if (!confirmed) return;
-    $.post('/cron_retire', {id: cronId, csrf_token: _cpCsrf}, function(r) {
-      if (r.errcode === 0) {
-        CpToast.success('已下线');
-        setTimeout(function() { location.reload(); }, 600);
-      } else {
-        CpToast.error(r.errmsg || '操作失败');
+  var bodyHtml = '<p style="margin:0 0 8px">下线后任务将不再执行且无法恢复，确认下线？</p>' +
+    '<textarea id="cp-retire-reason" class="f-input" rows="3" maxlength="500" placeholder="请填写下线原因（必填，1～500 字）" style="width:100%;resize:vertical"></textarea>' +
+    '<div id="cp-retire-err" style="color:var(--cp-error);font-size:12px;margin-top:4px;display:none"></div>';
+  CpModal({
+    title: '下线任务',
+    bodyHtml: bodyHtml,
+    confirmText: '确认下线',
+    cancelText: '取消',
+    danger: true,
+    onConfirm: function(overlay, close) {
+      var ta = overlay.querySelector('#cp-retire-reason');
+      var errEl = overlay.querySelector('#cp-retire-err');
+      var reason = (ta.value || '').trim();
+      if (!reason) {
+        errEl.textContent = '请填写下线原因';
+        errEl.style.display = 'block';
+        ta.focus();
+        return;
       }
-    }).fail(function() { CpToast.error('网络错误'); });
+      if (reason.length > 500) {
+        errEl.textContent = '下线原因不超过 500 字';
+        errEl.style.display = 'block';
+        ta.focus();
+        return;
+      }
+      $.post('/cron_retire', {id: cronId, reason: reason, csrf_token: _cpCsrf}, function(r) {
+        if (r.errcode === 0) {
+          close();
+          CpToast.success('已下线');
+          setTimeout(function() { location.reload(); }, 600);
+        } else {
+          errEl.textContent = r.errmsg || '操作失败';
+          errEl.style.display = 'block';
+        }
+      }).fail(function() {
+        errEl.textContent = '网络错误';
+        errEl.style.display = 'block';
+      });
+    }
   });
 }
 </script>

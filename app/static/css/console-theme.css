@@ -270,6 +270,10 @@
   --cp-success:       #0F9D66;   /* Mockup: --success */
   --cp-danger:        #D64545;   /* Mockup: --danger */
   --cp-warn:          #B7791F;   /* Mockup: --warning */
+  --cp-hover:         rgba(0, 0, 0, 0.04);  /* 通用 hover 背景 */
+  --cp-font-ui:       var(--cp-font-sans);  /* UI 正文字体（等同 --cp-font-sans）*/
+  --cp-signal-border: var(--cp-signal);     /* signal 色边框（默认等同 signal） */
+  --cp-radius:        6px;                  /* 通用圆角 */
 }
 
 html[data-theme="dark"] .cp-shell {
@@ -281,6 +285,7 @@ html[data-theme="dark"] .cp-shell {
   --cp-success:         #34D399;   /* Mockup dark: --success */
   --cp-danger:          #F16565;   /* Mockup dark: --danger */
   --cp-warn:            #F5A623;   /* Mockup dark: --warning */
+  --cp-hover:           rgba(255, 255, 255, 0.06);  /* 暗色 hover 背景 */
 }
 
 /* ============================================================
@@ -378,5 +383,5 @@ html[data-theme="dark"] .cp-shell {
   font-size: 13px;
 }
 #tag-suggest .tag-suggest-item:hover {
-  background: var(--cp-active-bg);
+  background: var(--cp-signal-bg);
 }

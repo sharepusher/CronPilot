@@ -24,6 +24,19 @@ class TestJobLogOutcomeClause(unittest.TestCase):
         for v in ('success', 'fail', 'error', 'unknown'):
             self.assertIsNotNone(job_log_outcome_clause(v))
 
+    def test_exception_returns_clause(self):
+        clause = job_log_outcome_clause('exception')
+        self.assertIsNotNone(clause)
+
+    def test_exception_covers_error_and_timeout(self):
+        clause = job_log_outcome_clause('exception')
+        clause_str = str(clause.compile(compile_kwargs={"literal_binds": True}))
+        self.assertIn('error', clause_str)
+        self.assertIn('timeout', clause_str)
+
+    def test_timeout_raw_is_unknown(self):
+        self.assertIsNone(job_log_outcome_clause('timeout'))
+
 
 if __name__ == '__main__':
     unittest.main()

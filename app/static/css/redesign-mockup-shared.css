@@ -45,7 +45,7 @@
   font-size: 12px; color: var(--cp-ink); font-family: inherit;
 }
 .f-input::placeholder { color: var(--cp-text-faint); }
-.f-input:focus { outline: none; border-color: var(--cp-signal); box-shadow: 0 0 0 2px var(--cp-accent-ring); }
+.f-input:focus { outline: none; border-color: var(--cp-signal); box-shadow: 0 0 0 2px var(--cp-signal-bg); }
 select.f-input {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
@@ -209,15 +209,4 @@ select.f-input {
   vertical-align: middle;
 }
 
-/* ===== Tooltip-like title enhancement ===== */
-[data-tip] { position: relative; cursor: help; }
-[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute; bottom: calc(100% + 4px); left: 50%;
-  transform: translateX(-50%); padding: 4px 8px;
-  background: var(--cp-ink); color: var(--cp-bg);
-  font-size: 11px; border-radius: 4px; white-space: nowrap;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.15s;
-}
-[data-tip]:hover::after { opacity: 1; }
+/* [data-tip] tooltip removed — unused; templates use [data-tooltip] (defined in pages.css) */

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：Redesign 实施产生 77 个质量缺陷的结构性分析</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1a1a2e;font-size:14px;}
+h1{font-size:22px;border-bottom:2px solid #dc2626;padding-bottom:8px;}
+h2{font-size:18px;color:#0f172a;margin-top:36px;border-left:4px solid #dc2626;padding-left:10px;}
+h3{font-size:15px;color:#334155;margin-top:24px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;}
+th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;}
+th{background:#f1f5f9;font-weight:600;}
+code{background:#f1f5f9;padding:2px 5px;border-radius:3px;font-size:12px;font-family:"JetBrains Mono",monospace;}
+pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;line-height:1.6;}
+.warn{background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:12px 16px;margin:12px 0;}
+.insight{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px 16px;margin:12px 0;}
+</style>
+</head>
+<body>
+
+<h1>复盘：Redesign 实施产生 77 个质量缺陷的结构性分析</h1>
+
+<p><strong>审查时间</strong>：2026-08-24<br>
+<strong>审查范围</strong>：<code>app/templates/redesign/</code> 全部 23 个功能页<br>
+<strong>关联设计</strong>：<code>doc/design/Redesign功能页全量审查与修复计划.html</code><br>
+<strong>严重度分布</strong>：Critical 2 · Medium ~35 · Low ~40</p>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>一、Bug 定位</h2>
+
+<h3>Critical（功能不可用）</h3>
+<table>
+<tr><th>编号</th><th>文件</th><th>位置</th><th>现象</th></tr>
+<tr><td>C1</td><td><code>dashboard.html</code></td><td>行 324-336</td><td><code>cpRetire()</code> POST 到 <code>/cron_retire</code> 缺 <code>reason</code> 字段 → <code>validate_retire_reason(None)</code> 返回错误 → 下线操作永远失败</td></tr>
+<tr><td>C2</td><td><code>user_form.html</code></td><td>行 146-155</td><td>编辑停用用户时仍展示 <code>&lt;option value="1"&gt;启用&lt;/option&gt;</code>，与"停用不可恢复"策略矛盾</td></tr>
+</table>
+
+<h3>Medium（数据错误 + 安全 + UX）</h3>
+<table>
+<tr><th>编号</th><th>文件</th><th>问题</th></tr>
+<tr><td>M1</td><td><code>tags.html:179-181</code></td><td>状态映射 <code>status === 2</code> 应为 <code>=== 0</code>（暂停）</td></tr>
+<tr><td>M2</td><td><code>execution_logs.html:219</code></td><td>Esc 选择器 <code>a[href$="job_log_all_list"]</code> 在单任务视图失效</td></tr>
+<tr><td>M3</td><td><code>task_detail.html / run_inspector.html</code></td><td><code>onclick="cpCopy('{{ keyword }}')"</code> — keyword 含引号时 JS 断裂</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>二、根因（行为层分析）</h2>
+
+<h3>2.1 直接技术根因</h3>
+
+<table>
+<tr><th>Bug</th><th>直接原因</th><th>行为层原因</th></tr>
+<tr><td>C1 cpRetire 缺 reason</td><td>开发者参照 <code>cpToggleStatus</code>（不需要 reason）的 POST 模式写了 cpRetire</td><td><strong>无接口契约对照机制</strong>——调用后端前不验证参数清单</td></tr>
+<tr><td>C2 is_active 展示"启用"</td><td>模板无条件渲染 is_active 字段（仅判断 <code>{% if user %}</code>）</td><td><strong>策略知识与 UI 实现分离</strong>——service 层策略未传达到模板层</td></tr>
+<tr><td>M1 状态码=2</td><td>开发者凭记忆写 <code>2=暂停</code>（实际为 <code>0=暂停</code>）</td><td><strong>无枚举常量前端共享</strong>——Python model 定义 ≠ JS 可访问</td></tr>
+<tr><td>M3 onclick 注入</td><td>Jinja <code>{{ }}</code> 直接嵌入 JS 字符串上下文</td><td><strong>安全编码规范只覆盖 HTML 层</strong>——JS 字符串上下文的 XSS 不在检查项中</td></tr>
+</table>
+
+<h3>2.2 系统性根因（Why × 5）</h3>
+
+<table>
+<tr><th>层级</th><th>问题</th><th>原因</th></tr>
+<tr><td>Why-1</td><td>23 页中有 77 个质量缺陷</td><td>开发时未执行全维度质量审查</td></tr>
+<tr><td>Why-2</td><td>为什么没执行？</td><td>验收标准 = 视觉还原 + 正向路径功能正常</td></tr>
+<tr><td>Why-3</td><td>为什么验收标准只有 2 维？</td><td>Redesign 定位为"UI 迁移"而非"功能重写"，因此沿用旧标准</td></tr>
+<tr><td>Why-4</td><td>为什么 UI 迁移不要求边界验收？</td><td>假设"v1 已验证过功能完整性，v2 只是换皮"——但实际重写了所有 JS 交互</td></tr>
+<tr><td>Why-5</td><td>为什么重写 JS 没触发完整测试？</td><td><strong>无 E2E 测试基础设施</strong>——手动测试只覆盖正向路径</td></tr>
+</table>
+
+<div class="warn">
+<strong>核心结构性根因</strong>：Redesign 被定位为"UI 换皮"，但实际上重写了所有前端交互逻辑（JS/AJAX/事件处理），等价于功能重写。然而验收标准仍停留在"换皮"级别（只看视觉一致性），未升级为"重写"级别（需覆盖边界/安全/可访问性）。
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>三、测试漏洞</h2>
+
+<table>
+<tr><th>测试层级</th><th>现有覆盖</th><th>无法发现的问题</th></tr>
+<tr><td>Python 单元测试</td><td>service 层逻辑、校验器</td><td>前端是否正确传递参数（C1）、UI 是否对齐策略（C2）</td></tr>
+<tr><td><code>test_ajax_form_guard</code></td><td>form 结构完整性</td><td>AJAX 手写 POST 的字段完整性</td></tr>
+<tr><td><code>test_redesign_sidebar</code></td><td>导航权限可见性</td><td>页面内部功能 bug</td></tr>
+<tr><td><code>verify_golden_path.sh</code></td><td>关键路径 HTTP 200</td><td>具体表单操作的成功/失败结果</td></tr>
+<tr><td><strong>缺失层</strong></td><td colspan="2"><strong>前端 → 后端参数契约测试</strong>：对比模板 AJAX 调用字段与后端 endpoint 必需参数</td></tr>
+<tr><td><strong>缺失层</strong></td><td colspan="2"><strong>E2E 浏览器测试</strong>：模拟用户操作全流程（点击 → 确认 → 结果验证）</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>四、修复计划</h2>
+
+<p>详见 <code>doc/design/Redesign功能页全量审查与修复计划.html</code> §三：</p>
+<ul>
+<li><strong>Batch 1</strong>：2 个 Critical bug（C1 + C2）</li>
+<li><strong>Batch 2</strong>：功能 bug + 安全（M1 + M2 + M3）</li>
+<li><strong>Batch 3</strong>：UX 改善（loading state + required + clipboard）</li>
+<li><strong>Batch 4</strong>：可访问性补全（aria-label + label-for + modal ARIA）</li>
+</ul>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>五、防护测试</h2>
+
+<table>
+<tr><th>新增测试</th><th>覆盖内容</th><th>验证命令</th></tr>
+<tr><td><code>tests/test_frontend_api_contract.py</code></td><td>模板 AJAX 调用字段与后端 endpoint 必需参数对照</td><td><code>python -m unittest tests.test_frontend_api_contract -v</code></td></tr>
+<tr><td><code>scripts/check_status_constants.py</code></td><td>模板中硬编码 <code>status === N</code> 与 model 定义一致性</td><td><code>python scripts/check_status_constants.py --check</code></td></tr>
+<tr><td><code>scripts/check_a11y_basics.py</code></td><td>icon button 有 aria-label、label 有 for、form 有 CSRF</td><td><code>python scripts/check_a11y_basics.py --check</code></td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>六、同类排查</h2>
+
+<table>
+<tr><th>模式</th><th>搜索方法</th><th>发现</th></tr>
+<tr><td>硬编码状态码</td><td><code>grep -rn "status === [0-9]" app/templates/redesign/</code></td><td>tags.html 1 处（M1）</td></tr>
+<tr><td>onclick 内联 Jinja 变量</td><td><code>grep -n "onclick=.*{{" app/templates/redesign/</code></td><td>task_detail + run_inspector 2 处（M3）</td></tr>
+<tr><td>POST 调用可能缺字段</td><td>手动对比 $.post 参数 vs request.values.get 列表</td><td>cpRetire 1 处（C1）</td></tr>
+<tr><td>策略冲突 UI 字段</td><td><code>grep -n "is_active" app/templates/redesign/</code></td><td>user_form 1 处（C2）</td></tr>
+</table>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>七、预防方案</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>解决问题</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+<td>P1</td>
+<td><strong>新页面交付检查清单</strong>（4 维度：功能/安全/边界/可访问性），每维度有具体检查项</td>
+<td>Why-2 验收标准不全</td>
+<td><code>.cursor/rules/cronpilot-format-guard.mdc</code> 新增「新页面交付质量检查清单」节</td>
+<td><code>grep "交付质量检查" .cursor/rules/cronpilot-format-guard.mdc</code></td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>前端 API 参数契约测试</strong>：CI 自动对比模板 AJAX 字段名与后端 endpoint 必需参数</td>
+<td>C1 缺字段</td>
+<td><code>scripts/check_frontend_api_contract.py</code> + <code>.github/workflows/ui-contract.yml</code></td>
+<td><code>python scripts/check_frontend_api_contract.py --check</code></td>
+</tr>
+<tr>
+<td>P3</td>
+<td><strong>状态枚举前端共享</strong>：在 <code>_base.html</code> 的 GV 对象中注入后端状态常量，或在模板中使用 <code>{% set %}</code> 引用 Python 常量</td>
+<td>M1 状态码硬编码</td>
+<td><code>app/templates/redesign/_base.html</code> GV 扩展 + 修改 tags.html 引用</td>
+<td><code>grep -c "status === [0-9]" app/templates/redesign/*.html</code> = 0</td>
+</tr>
+<tr>
+<td>P4</td>
+<td><strong>JS 上下文 XSS 检查</strong>：CI 脚本扫描模板中 <code>onclick="...{{ }}..."</code> 模式并报错</td>
+<td>M3 onclick 注入</td>
+<td><code>scripts/check_ui_contract.py</code> 新增 <code>check_onclick_injection()</code></td>
+<td><code>python scripts/check_ui_contract.py --check</code></td>
+</tr>
+</table>
+
+<div class="insight">
+<strong>预防体系设计原则</strong>：每个预防措施对应一个可自动化验证的 CI 门禁。不依赖人工 Code Review 的纪律性（已被证明不可靠），而是让 CI 在 push/PR 时自动拦截。
+</div>
+
+<!-- ═════════════════════════════════════════════════════════ -->
+<h2>八、复盘质量自检</h2>
+
+<table>
+<tr><th>检查项</th><th>状态</th></tr>
+<tr><td>Q1: 预防方案是否新增了可验证的措施？</td><td>✓ 4 项 CI 门禁/测试/检查清单，每项附验证命令</td></tr>
+<tr><td>Q2: 预防方案能否被第三方重现验证？</td><td>✓ 每项给出了文件路径 + 命令</td></tr>
+<tr><td>Q3: 根因是否追到行为层？</td><td>✓ Why×5 追到"Redesign 定位为 UI 迁移但实际是功能重写，验收未升级"</td></tr>
+<tr><td>Q4: 预防方案与根因是否因果对应？</td><td>✓ P1→Why-2, P2→C1, P3→M1, P4→M3</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-Redesign功能页质量缺陷结构性复盘.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

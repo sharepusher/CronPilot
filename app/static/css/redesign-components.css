@@ -3,6 +3,9 @@
  * ========================================
  * OPT-P1-16 Phase 1: Base UI components for the new architecture.
  * All classes prefixed with .cp- to avoid Bootstrap/Simpleboot collision.
+ *
+ * Active consumers: task_form, task_detail, dashboard, _welcome, _base,
+ *                   redesign-confirm.js, redesign-toast.js, redesign-shell.js
  */
 
 /* ====== Buttons ====== */
@@ -61,80 +64,6 @@
   color: var(--cp-on-filled);
 }
 
-.cp-btn--danger {
-  background: transparent;
-  border-color: var(--cp-danger);
-  color: var(--cp-danger);
-}
-
-.cp-btn--danger:hover {
-  background: var(--cp-danger-bg);
-}
-
-.cp-btn--ghost {
-  border-color: transparent;
-  background: transparent;
-  color: var(--cp-text-muted);
-}
-
-.cp-btn--ghost:hover {
-  background: var(--cp-surface-2);
-  color: var(--cp-ink);
-}
-
-.cp-btn--sm {
-  padding: 3px 10px;
-  font-size: 11.5px;
-}
-
-.cp-btn--lg {
-  padding: 10px 20px;
-  font-size: 14px;
-}
-
-/* ====== Tables ====== */
-.cp-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-lg);
-  background: var(--cp-surface);
-}
-
-.cp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-}
-
-.cp-table th {
-  padding: 10px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--cp-text-faint);
-  background: var(--cp-surface-2);
-  border-bottom: 1px solid var(--cp-border);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.cp-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--cp-border);
-  color: var(--cp-ink);
-  vertical-align: middle;
-  transition: background 0.12s;
-}
-
-.cp-table tr:last-child td {
-  border-bottom: none;
-}
-
-.cp-table tr:hover td {
-  background: var(--cp-surface-3);
-}
-
 /* ====== Cards ====== */
 .cp-card {
   background: var(--cp-surface);
@@ -181,258 +110,6 @@
   line-height: 1.2;
 }
 
-.cp-stat--danger .cp-stat-value { color: var(--cp-danger); }
-.cp-stat--warning .cp-stat-value { color: var(--cp-warn); }
-.cp-stat--success .cp-stat-value { color: var(--cp-success); }
-
-/* ====== Badges ====== */
-.cp-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.cp-badge--success {
-  background: var(--cp-success-bg-2);
-  color: var(--cp-success-text);
-}
-
-.cp-badge--danger {
-  background: var(--cp-danger-bg);
-  color: var(--cp-danger);
-}
-
-.cp-badge--warning {
-  background: var(--cp-warn-bg-2);
-  color: var(--cp-warn);
-}
-
-.cp-badge--info {
-  background: var(--cp-accent-bg-2);
-  color: var(--cp-accent-blue);
-}
-
-.cp-badge--neutral {
-  background: var(--cp-surface-2);
-  color: var(--cp-text-muted);
-}
-
-/* ====== Health Indicator ====== */
-.cp-health {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.cp-health-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.cp-health--healthy .cp-health-dot { background: var(--cp-success); }
-.cp-health--warning .cp-health-dot { background: var(--cp-warn-icon); }
-.cp-health--failing .cp-health-dot { background: var(--cp-danger); }
-
-/* ====== Filters ====== */
-.cp-filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.cp-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border: 1px solid var(--cp-border);
-  border-radius: 16px;
-  font-size: 12px;
-  color: var(--cp-text-muted);
-  background: var(--cp-surface);
-  cursor: pointer;
-  transition: all 0.15s;
-  text-decoration: none;
-}
-
-.cp-chip:hover {
-  border-color: var(--cp-border-strong);
-  background: var(--cp-surface-2);
-}
-
-.cp-chip.active {
-  background: var(--cp-signal-bg);
-  border-color: var(--cp-signal);
-  color: var(--cp-signal);
-  font-weight: 500;
-}
-
-.cp-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-md);
-  background: var(--cp-surface);
-  font-size: 12px;
-  transition: border-color 0.15s;
-}
-
-.cp-search:focus-within {
-  border-color: var(--cp-signal);
-  box-shadow: 0 0 0 2px var(--cp-signal-bg);
-}
-
-.cp-search input {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 12px;
-  color: var(--cp-ink);
-  width: 140px;
-  font-family: var(--cp-font-sans);
-}
-
-.cp-search input::placeholder {
-  color: var(--cp-text-faint);
-}
-
-/* ====== Form System ====== */
-.cp-form-section {
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-lg);
-  padding: 20px 24px;
-  margin-bottom: 16px;
-}
-
-.cp-form-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cp-ink);
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--cp-border);
-}
-
-.cp-form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.cp-form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.cp-form-group label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--cp-ink);
-  margin-bottom: 5px;
-}
-
-.cp-form-group label .required {
-  color: var(--cp-danger);
-  margin-left: 2px;
-}
-
-.cp-form-group input,
-.cp-form-group select,
-.cp-form-group textarea {
-  padding: 7px 12px;
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-md);
-  font-size: 13px;
-  font-family: var(--cp-font-sans);
-  color: var(--cp-ink);
-  background: var(--cp-surface);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.cp-form-group input:focus,
-.cp-form-group select:focus,
-.cp-form-group textarea:focus {
-  outline: none;
-  border-color: var(--cp-signal);
-  box-shadow: 0 0 0 2px var(--cp-signal-bg);
-}
-
-.cp-form-group input::placeholder,
-.cp-form-group textarea::placeholder {
-  color: var(--cp-text-faint);
-}
-
-.cp-form-group .help {
-  font-size: 11px;
-  color: var(--cp-text-faint);
-  margin-top: 4px;
-}
-
-.cp-form-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 16px;
-}
-
-/* ====== Pagination ====== */
-.cp-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 20px;
-  font-size: 12px;
-}
-
-.cp-pg-btn {
-  min-width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-md);
-  background: var(--cp-surface);
-  color: var(--cp-text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.cp-pg-btn:hover {
-  border-color: var(--cp-signal);
-  color: var(--cp-signal);
-}
-
-.cp-pg-btn.active {
-  background: var(--cp-signal);
-  border-color: var(--cp-signal);
-  color: var(--cp-on-filled);
-}
-
-.cp-pg-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.cp-pg-info {
-  margin: 0 12px;
-  color: var(--cp-text-faint);
-}
-
 /* ====== Buttons (Modal / shared .btn) ====== */
 .btn {
   display: inline-flex;
@@ -453,39 +130,6 @@
 
 .btn:hover {
   background: var(--cp-surface-2);
-}
-
-.btn.btn-primary {
-  background: var(--cp-signal);
-  border-color: var(--cp-signal);
-  color: var(--cp-on-filled);
-}
-
-.btn.btn-primary:hover {
-  background: var(--cp-signal-hover);
-  border-color: var(--cp-signal-hover);
-  color: var(--cp-on-filled);
-}
-
-.btn.btn-ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--cp-text-muted);
-}
-
-.btn.btn-ghost:hover {
-  background: var(--cp-surface-2);
-  color: var(--cp-ink);
-}
-
-.btn.btn-danger {
-  border-color: var(--cp-danger);
-  color: var(--cp-danger);
-  background: transparent;
-}
-
-.btn.btn-danger:hover {
-  background: var(--cp-danger-bg);
 }
 
 /* ====== Empty State ====== */
@@ -649,28 +293,6 @@
   to { transform: scale(1); opacity: 1; }
 }
 
-/* ====== Skeleton Loading ====== */
-.cp-skeleton {
-  background: linear-gradient(90deg, var(--cp-surface-2) 25%, var(--cp-border) 50%, var(--cp-surface-2) 75%);
-  background-size: 200% 100%;
-  animation: cpShimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
-@keyframes cpShimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
-}
-
-.cp-skeleton-line {
-  height: 12px;
-  margin-bottom: 10px;
-  border-radius: 4px;
-}
-
-.cp-skeleton-line.short { width: 40%; }
-.cp-skeleton-line.medium { width: 70%; }
-
 /* ====== Command Palette ====== */
 .cp-cmd-overlay {
   display: none;
@@ -719,29 +341,36 @@
   padding: 8px 0;
 }
 
-.cp-cmd-group-label {
-  padding: 6px 18px 4px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--cp-text-faint);
-}
-
 .cp-cmd-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   padding: 8px 18px;
-  font-size: 13px;
   color: var(--cp-ink);
-  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
   transition: background 0.1s;
 }
 
 .cp-cmd-item:hover,
-.cp-cmd-item.focused {
+.cp-cmd-item.active {
   background: var(--cp-signal-bg);
+}
+
+.cp-cmd-item-label {
+  font-weight: 500;
+}
+
+.cp-cmd-item-section {
+  font-size: 11px;
+  color: var(--cp-text-faint);
+}
+
+.cp-cmd-empty {
+  padding: 24px 18px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--cp-text-faint);
 }
 
 .cp-cmd-footer {
@@ -764,10 +393,6 @@
 }
 
 /* ====== Utility ====== */
-.cp-mono { font-family: var(--cp-font-mono); }
-.cp-muted { color: var(--cp-text-muted); }
-.cp-faint { color: var(--cp-text-faint); }
-.cp-danger-text { color: var(--cp-danger); }
 .cp-success-text { color: var(--cp-success); }
 
 /* Typography micro-utilities (Phase 2A) */
@@ -786,39 +411,18 @@
 
 /* Spacing micro-utilities (Phase 2A) */
 .cp-mt-8  { margin-top: 8px; }
-.cp-mb-12 { margin-bottom: 12px; }
 .cp-mt-40 { margin-top: 40px; }
 .cp-opacity-60 { opacity: 0.6; }
 
-/* Button: success variant (Phase 2A) */
-.cp-btn--success {
-  background: var(--cp-success);
-  border-color: var(--cp-success);
-  color: var(--cp-on-filled);
-}
-.cp-btn--success:hover {
-  background: var(--cp-success);
-  border-color: var(--cp-success);
-  opacity: 0.88;
-  color: var(--cp-on-filled);
-}
-
 /* ══════════════════════════════════════════════════════════════════
    Accessibility: prefers-reduced-motion
-   Covers global component animations (toast, modal, shimmer).
+   Covers global component animations (toast, modal).
    ══════════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .toast-item,
+  .toast,
   .cp-modal-overlay,
-  .cp-modal,
-  .cp-confirm-box {
+  .cp-modal {
     animation: none !important;
     transition: none !important;
-  }
-
-  .cp-shimmer,
-  [class*="shimmer"] {
-    animation: none !important;
-    background-image: none !important;
   }
 }

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：F5 jQuery defer 导致 inline script 失效</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:2px solid #e74c3c;padding-bottom:.5rem}
+h2{color:#333;margin-top:2rem;border-left:4px solid #e74c3c;padding-left:.8rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;font-size:.9rem}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<h1>复盘：F5 jQuery defer 导致 inline script 失效</h1>
+<p><strong>日期</strong>：2026-08-24<br>
+<strong>触发</strong>：F5 common.js 精简后，API Token 页面复制/重置按钮失效<br>
+<strong>严重程度</strong>：P0（功能不可用）<br>
+<strong>修复时间</strong>：&lt;5 分钟</p>
+
+<h2>1. Bug 定位</h2>
+<p><code>app/templates/redesign/api_token.html</code> 的 <code>{% block js %}</code> 内联脚本：</p>
+<pre>
+&lt;script&gt;
+$(function() {         // ← 此处 $ 为 undefined
+    $('#tk-copy-btn').on('click', function() { ... });
+    $('#tk-reset-btn').on('click', function() { ... });
+});
+&lt;/script&gt;
+</pre>
+<p>当 <code>jquery.js</code> 带 <code>defer</code> 属性时，inline script 在 HTML 解析过程中立即执行，而 jQuery 延迟到解析完毕后才执行。导致 <code>$</code> 未定义 → 所有按钮事件绑定失败。</p>
+
+<h2>2. 根因分析</h2>
+<p><strong>直接原因</strong>：F5 变更保留了 Phase R5 添加的 <code>defer</code> 属性在 <code>jquery.js</code> 上。</p>
+<p><strong>深层原因</strong>：Phase R5 性能优化时对 <code>defer</code> 语义理解不完整——<code>defer</code> 仅适用于不被 inline script 直接依赖的库。jQuery 作为 inline script 的基础依赖，不应 defer。</p>
+<p><strong>为什么之前未暴露</strong>：Phase R5 之后存在 <code>&lt;script&gt;var GV={...}&lt;/script&gt;</code> inline 块在 jQuery 之前，可能在某些浏览器/缓存条件下改变了解析时序。F5 移除该行后，时序竞争变得确定性，问题 100% 复现。</p>
+
+<h2>3. 测试漏洞</h2>
+<table>
+<tr><th>现有测试</th><th>能否拦截</th><th>原因</th></tr>
+<tr><td><code>test_ajax_form_guard</code></td><td>否</td><td>仅检查 HTML 结构，不涉及 JS runtime</td></tr>
+<tr><td>curl 验证</td><td>否</td><td>只检查 HTTP 状态和静态 HTML</td></tr>
+<tr><td>手动浏览器验证</td><td>是</td><td>需打开 DevTools console 查看 ReferenceError</td></tr>
+</table>
+
+<h2>4. 修复</h2>
+<p><code>app/templates/redesign/_base.html</code>：移除 <code>jquery.js</code> 的 <code>defer</code> 属性。</p>
+<pre>
+-  &lt;script defer src="jquery.js"&gt;&lt;/script&gt;
++  &lt;script src="jquery.js"&gt;&lt;/script&gt;
+</pre>
+<p>其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）保持 <code>defer</code>，因为它们仅通过 DOM ready 回调或用户交互事件访问。</p>
+
+<h2>5. 防护测试</h2>
+<p>CI 门禁命令：</p>
+<pre>grep 'defer.*jquery\|jquery.*defer' app/templates/redesign/_base.html &amp;&amp; echo "FAIL: jQuery must not be deferred" &amp;&amp; exit 1 || echo "OK"</pre>
+
+<h2>6. 同类排查</h2>
+<table>
+<tr><th>模板</th><th>inline JS 中的 $ 使用</th><th>是否安全</th></tr>
+<tr><td>api_token.html</td><td><code>$(function(){...})</code></td><td>✓ jQuery 同步加载</td></tr>
+<tr><td>change_password.html</td><td><code>$(function(){...})</code></td><td>✓</td></tr>
+<tr><td>user_profile.html</td><td><code>$(function(){...})</code></td><td>✓</td></tr>
+<tr><td>users.html</td><td><code>$(function(){...})</code></td><td>✓</td></tr>
+<tr><td>registration_review.html</td><td><code>$(function(){...})</code></td><td>✓</td></tr>
+<tr><td>dashboard.html</td><td><code>$.post</code> 在用户交互 handler 内</td><td>✓</td></tr>
+<tr><td>tags.html</td><td><code>$.ajax</code> 在 click handler 内</td><td>✓</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr><td>CI 门禁：禁止 jquery.js 使用 defer</td><td><code>scripts/check_ui_contract.py</code> 或 CI yaml</td><td><code>grep 'defer.*jquery' app/templates/redesign/_base.html &amp;&amp; exit 1</code></td></tr>
+<tr><td>规范：jQuery 同步加载约束写入 AGENTS.md</td><td><code>AGENTS.md</code> "JS 依赖" 节</td><td>grep "jQuery.*同步\|jQuery.*sync" AGENTS.md</td></tr>
+<tr><td>设计文档增加 defer 使用规则</td><td><code>doc/design/F5-common-js精简设计.html</code></td><td>文档审阅</td></tr>
+</table>
+
+<p><strong>核心规则</strong>：凡被 inline <code>&lt;script&gt;</code> 直接依赖的外部库（如 jQuery），<strong>禁止使用 <code>defer</code></strong>。<code>defer</code> 仅适用于通过 DOM ready 回调或事件 handler 间接引用的模块。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-F5-jQuery-defer-inline-script.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

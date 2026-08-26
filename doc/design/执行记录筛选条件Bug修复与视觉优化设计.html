@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>执行记录筛选条件 Bug 修复与视觉优化设计</title>
+<style>
+body { max-width: 900px; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.7; color: #1a1a1a; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #0ea5e9; padding-bottom: .5rem; }
+h2 { margin-top: 2rem; color: #0369a1; }
+h3 { margin-top: 1.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f0f9ff; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+.tag-bug { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.tag-ux { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+.tag-postmortem { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+
+<h1>执行记录筛选条件 Bug 修复与视觉优化设计</h1>
+
+<p><strong>编号</strong>：OPT-P1-16 子项（执行记录页筛选条件）<br>
+<strong>状态</strong>：待确认<br>
+<strong>创建</strong>：2026-08-26<br>
+<strong>涉及页面</strong>：<code>app/templates/redesign/execution_logs.html</code></p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 <span class="tag tag-bug">Bug</span> 「仅异常」按钮完全失效</h3>
+
+<p>执行记录页筛选栏有五个按钮：非成功 / 全部 / 仅失败 / 仅异常 / 仅成功。其中「仅异常」按钮发送 <code>outcome=timeout</code>，但后端解析函数不识别该值，导致按钮完全失效（等同于「非成功」的行为，且无法显示选中态）。</p>
+
+<h3>1.2 <span class="tag tag-bug">Bug</span> 「仅异常」语义设计缺陷</h3>
+
+<p>即使后端识别了 <code>timeout</code>，该按钮仅筛选超时记录（<code>status='timeout'</code>），遗漏了同属「系统异常」的 <code>error</code> 状态（URL 安全拦截、任务不存在等）。用户无法区分「仅异常」和「非成功」的实际差异，且「仅超时」作为独立按钮价值不高。</p>
+
+<h3>1.3 <span class="tag tag-ux">UX</span> 筛选按钮选中指示点为黑色</h3>
+
+<p>选中筛选按钮前面有一个 5px 小圆点（<code>.el-f-btn.active::before</code>），使用 <code>background: currentColor</code> 继承文字色 <code>var(--cp-ink)</code>，在浅色主题下呈现为黑色，偏重且与系统交互主题色不统一。</p>
+
+<h2>2. 根因</h2>
+
+<h3>2.1 Bug 根因（后端白名单遗漏）</h3>
+
+<p><code>timeout</code> 状态是 OPT-P1-01b 引入的，但模板添加「仅异常」按钮时，<strong>未同步更新三处后端白名单/分支</strong>：</p>
+
+<ol>
+  <li><code>_parse_log_outcome_param()</code>（<code>views.py:42</code>）白名单：<code>('success', 'fail', 'error', 'not_success', 'unknown')</code> — 缺 <code>'timeout'</code></li>
+  <li><code>job_log_list</code> 视图（<code>views.py:659</code>）内联白名单 — 同上</li>
+  <li><code>job_log_outcome_clause()</code>（<code>job_log_filter.py</code>）— 缺 <code>timeout</code> 分支</li>
+</ol>
+
+<p>结果：<code>'timeout'</code> 被 fallback 处理为 <code>'not_success'</code>，按钮行为等同于「非成功」；且 <code>outcome='not_success'</code> 回传模板后，<code>outcome == 'timeout'</code> 永不成立，高亮也失效。</p>
+
+<h3>2.2 语义设计根因</h3>
+
+<p>按钮 <code>value="timeout"</code> 仅映射单一状态值，但系统中「非应用层错误」实际包含两种状态：</p>
+
+<table>
+  <tr><th>status 值</th><th>display 名称</th><th>产生场景</th><th>性质</th></tr>
+  <tr><td><code>fail</code></td><td>失败</td><td>HTTP 4xx/5xx、响应体关键词命中</td><td><strong>应用层</strong> — 目标服务返回了错误</td></tr>
+  <tr><td><code>error</code></td><td>异常</td><td>URL 被 SSRF 拦截、任务不存在、内部错误</td><td><strong>系统层</strong> — 请求未发出</td></tr>
+  <tr><td><code>timeout</code></td><td>超时</td><td>连接超时、读取超时</td><td><strong>系统层</strong> — 请求已发出但无响应</td></tr>
+</table>
+
+<p><code>error</code> 和 <code>timeout</code> 同属「系统/基础设施层问题」，与 <code>fail</code>（应用层问题）形成自然的语义分界。原设计让「仅异常」仅筛选 <code>timeout</code>，既遗漏了 <code>error</code>，也无法为用户提供与「非成功」不同的排障视角。</p>
+
+<h3>2.3 颜色根因</h3>
+
+<p>筛选栏开发时使用 <code>currentColor</code> 做快速实现，未对齐系统主题色 <code>var(--cp-signal)</code>。</p>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 重新定义「仅异常」语义 + 修复后端</h3>
+
+<p>将「仅异常」的过滤逻辑从 <code>status = 'timeout'</code> 改为 <code>status IN ('error', 'timeout')</code>，形成与「仅失败」的清晰互补关系：</p>
+
+<table>
+  <tr><th>按钮</th><th>outcome 值</th><th>过滤逻辑</th><th>含义</th></tr>
+  <tr><td><strong>非成功</strong></td><td><code>not_success</code></td><td><code>status IN ('fail', 'error', 'timeout')</code></td><td>排障总览 — 所有出问题的记录</td></tr>
+  <tr><td><strong>全部</strong></td><td><code>all</code></td><td>无过滤</td><td>不限</td></tr>
+  <tr><td><strong>仅失败</strong></td><td><code>fail</code></td><td><code>status = 'fail'</code></td><td>应用层 — HTTP 错误、关键词命中</td></tr>
+  <tr><td><strong>仅异常</strong></td><td><code>exception</code></td><td><code>status IN ('error', 'timeout')</code></td><td>系统层 — 超时、连接失败、URL 被拦截</td></tr>
+  <tr><td><strong>仅成功</strong></td><td><code>success</code></td><td><code>status = 'success'</code></td><td>仅看成功</td></tr>
+</table>
+
+<p>关键等式：<strong>非成功 = 仅失败 ∪ 仅异常</strong>，三者形成完美的集合分割。</p>
+
+<p>具体代码变更：</p>
+
+<table>
+  <tr><th>文件</th><th>位置</th><th>变更</th></tr>
+  <tr>
+    <td><code>app/main/views.py</code></td>
+    <td><code>_parse_log_outcome_param()</code></td>
+    <td>白名单追加 <code>'exception'</code></td>
+  </tr>
+  <tr>
+    <td><code>app/main/views.py</code></td>
+    <td><code>job_log_list</code> 视图内联白名单</td>
+    <td>同上追加 <code>'exception'</code></td>
+  </tr>
+  <tr>
+    <td><code>app/services/job_log_filter.py</code></td>
+    <td><code>job_log_outcome_clause()</code></td>
+    <td>新增分支：<code>if o == 'exception': return JobLog.status.in_((STATUS_ERROR, STATUS_TIMEOUT))</code></td>
+  </tr>
+  <tr>
+    <td><code>app/templates/redesign/execution_logs.html</code></td>
+    <td>「仅异常」按钮</td>
+    <td><code>value="timeout"</code> → <code>value="exception"</code>；active 判断 <code>outcome == 'timeout'</code> → <code>outcome == 'exception'</code></td>
+  </tr>
+</table>
+
+<h3>3.2 筛选指示点改为主题色 <span class="tag tag-ux">UX</span></h3>
+
+<table>
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr>
+    <td><code>app/static/css/redesign-pages.css</code></td>
+    <td><code>.el-f-btn.active::before</code> 的 <code>background: currentColor</code> → <code>background: var(--cp-signal)</code></td>
+  </tr>
+</table>
+
+<p><code>var(--cp-signal)</code> 是系统的交互主题色（蓝色系），在亮/暗色主题中均有定义，与 <code>:focus-visible</code> 等交互反馈色一致。</p>
+
+<h2>4. 范围</h2>
+
+<h3>改动范围</h3>
+<table>
+  <tr><th>文件</th><th>改动类型</th></tr>
+  <tr><td><code>app/main/views.py</code></td><td>两处白名单追加 <code>'exception'</code></td></tr>
+  <tr><td><code>app/services/job_log_filter.py</code></td><td>新增 <code>exception</code> 分支</td></tr>
+  <tr><td><code>app/templates/redesign/execution_logs.html</code></td><td>按钮 value 和 active 判断修改</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td><code>.el-f-btn.active::before</code> 颜色变量替换</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+  <li>不修改按钮文案（「仅异常」保持不变，与 <code>job_log_display.py</code> 中 <code>STATUS_ERROR</code> 的显示名「异常」一致）</li>
+  <li>不新增/删除筛选按钮</li>
+  <li>不修改结果列的状态指示点颜色（已有语义化着色）</li>
+  <li>不修改 v1 旧版模板</li>
+  <li>不修改底部 footer 中的 total 描述文案（保持英文）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p>本次改动涉及 4 个文件共约 8 行变更，<strong>一批交付</strong>。</p>
+
+<table>
+  <tr><th>步骤</th><th>内容</th><th>可独立验收</th></tr>
+  <tr><td>1</td><td>修复后端白名单/分支 + 模板 value/active 修改 + CSS 颜色</td><td>✅ restart 后浏览器验收</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<h3>6.1 自动化验收</h3>
+<pre>
+bash scripts/cronpilot.sh test
+python scripts/check_ui_contract.py --check
+python scripts/audit_hardcoded_colors.py --check
+</pre>
+
+<h3>6.2 手动/浏览器验收（restart 后）</h3>
+
+<table>
+  <tr><th>#</th><th>步骤</th><th>期望结果</th></tr>
+  <tr>
+    <td>1</td>
+    <td>访问 <code>/job_log_all_list</code>，默认为「非成功」选中</td>
+    <td>「非成功」按钮 active，前面有<strong>蓝色</strong>小圆点（非黑色）</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>点击「仅异常」按钮</td>
+    <td>URL 出现 <code>?outcome=exception</code>；「仅异常」按钮显示为 active（蓝色圆点）；结果列中仅显示「异常」和「超时」状态的记录</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>点击「仅失败」按钮</td>
+    <td>URL 出现 <code>?outcome=fail</code>；仅显示「失败」状态的记录；与「仅异常」的结果集<strong>无交集</strong></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>验证集合关系：「非成功」记录数 = 「仅失败」记录数 + 「仅异常」记录数</td>
+    <td>footer 中 total 数字验证等式成立</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>五个按钮逐一点击，检查高亮状态切换</td>
+    <td>每个按钮点击后自身 active（蓝色圆点），其他按钮不显示圆点</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>从任务详情页进入单任务执行记录，点击「仅异常」</td>
+    <td>同样正常筛选</td>
+  </tr>
+</table>
+
+<h3>6.3 防护测试</h3>
+
+<p>新增/扩展 <code>job_log_outcome_clause</code> 的单元测试，覆盖 <code>'exception'</code> 输入：</p>
+<ul>
+  <li><code>job_log_outcome_clause('exception')</code> 应生成 <code>status IN ('error', 'timeout')</code> 条件</li>
+  <li><code>job_log_outcome_clause('timeout')</code> 应返回 <code>None</code>（不再是合法输入，归入 fallback）</li>
+  <li>原有 <code>'fail'</code>、<code>'not_success'</code>、<code>'success'</code>、<code>'all'</code> 行为不变</li>
+</ul>
+
+<h2>7. 风险</h2>
+
+<table>
+  <tr><th>风险</th><th>评估</th><th>缓解</th></tr>
+  <tr>
+    <td>修改过滤逻辑影响已有筛选行为</td>
+    <td>低 — <code>fail</code>/<code>not_success</code>/<code>success</code>/<code>all</code> 的逻辑完全不变；仅新增 <code>exception</code> 分支</td>
+    <td>单测覆盖所有 outcome 值</td>
+  </tr>
+  <tr>
+    <td>旧 URL 中 <code>outcome=timeout</code> 的书签/收藏失效</td>
+    <td>极低 — <code>timeout</code> 此前本就是死值（fallback 到 not_success），改后行为不变（仍 fallback）</td>
+    <td>不需额外处理</td>
+  </tr>
+  <tr>
+    <td>CSS 颜色改变影响暗色主题</td>
+    <td>低 — <code>var(--cp-signal)</code> 在暗色主题中已有定义</td>
+    <td>亮/暗主题各验证一次</td>
+  </tr>
+</table>
+
+<hr>
+
+<h2>复盘：「仅异常」筛选按钮失效 <span class="tag tag-postmortem">复盘</span></h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/main/views.py</code> 的 <code>_parse_log_outcome_param()</code>（第 42 行）和 <code>job_log_list</code> 视图（第 659 行）白名单缺少 <code>'timeout'</code>；<code>app/services/job_log_filter.py</code> 的 <code>job_log_outcome_clause()</code> 缺少 <code>timeout</code> 分支。</p>
+
+<h3>2. 根因</h3>
+<p><code>timeout</code> 状态在 OPT-P1-01b 引入，模板添加「仅异常」按钮时发送 <code>value="timeout"</code>，但后端三处白名单/分支未同步更新。根本原因是 <strong>新增枚举值时未执行「新增枚举值扩展检查清单」</strong>（<code>cronpilot-backend.mdc</code> 已有该清单），未对所有消费点做全局搜索。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>现有测试 <code>test_b1_execution_status</code> 覆盖了 <code>timeout</code> 状态的写入和显示，但<strong>未覆盖 outcome 筛选参数解析</strong> — 没有测试用例验证「以 <code>outcome=timeout</code> 请求执行记录页时返回正确结果集」。筛选参数的端到端测试缺失。</p>
+
+<h3>4. 修复</h3>
+<p>见上方「方案 3.1」— 重新定义按钮值为 <code>exception</code>，覆盖 <code>error</code> + <code>timeout</code> 两种系统层异常状态。</p>
+
+<h3>5. 防护测试</h3>
+<p>新增 <code>job_log_outcome_clause</code> 单元测试（见「验收 6.3」），覆盖 <code>'exception'</code> 输入产生正确 SQL 条件。</p>
+
+<h3>6. 同类排查</h3>
+<p>检查 <code>_parse_log_outcome_param()</code> 白名单中已有的所有值是否均在 <code>job_log_outcome_clause()</code> 中有对应分支：</p>
+<ul>
+  <li><code>success</code> ✅ 有分支</li>
+  <li><code>fail</code> ✅ 有分支</li>
+  <li><code>error</code> ✅ 有分支</li>
+  <li><code>not_success</code> ✅ 有分支</li>
+  <li><code>unknown</code> ✅ 有分支</li>
+</ul>
+<p>现有值均已覆盖，问题仅出在新增的 <code>timeout</code> 值。其他消费点（<code>should_alert</code>、<code>update_job_health</code>、<code>cron_repository</code>）均已包含 <code>STATUS_TIMEOUT</code>。</p>
+
+<h3>7. 预防方案</h3>
+
+<ol>
+  <li><strong>outcome 参数测试覆盖</strong>（落地位置：<code>tests/test_job_log_filter.py</code>）：新增 <code>test_outcome_clause_exception</code> 等用例，确保每个合法 outcome 值在 <code>job_log_outcome_clause</code> 中都有正确的 SQL 输出。后续新增按钮时，测试缺失将在 CI 中暴露。</li>
+  <li><strong>白名单与模板 value 交叉验证</strong>（落地位置：<code>scripts/check_ui_contract.py</code> 或独立脚本）：建议后续迭代中新增门禁，提取模板中 <code>name="outcome" value="xxx"</code> 的所有值，验证每个值在后端解析函数中有对应处理。当前改动量小，先通过人工 code review + 单测覆盖保证。</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="执行记录筛选条件Bug修复与视觉优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

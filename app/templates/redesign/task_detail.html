@@ -1,6 +1,8 @@
 {% extends "redesign/_base.html" %}
 {% block title %}{{ cif.task_name }} — CronPilot{% endblock %}
 
+{% block main_class %} cp-page-task-detail{% endblock %}
+
 {% block css %}
 <style>
 .td-empty-logs { padding: 16px 0; }
@@ -22,7 +24,7 @@
     <div class="td-title">{{ cif.task_name }}</div>
     <div class="td-id">
       {{ cif.task_keyword or ('task-' ~ cif.id) }}
-      <button class="cp-copy-btn" onclick="cpCopy('{{ cif.task_keyword or ('task-' ~ cif.id) }}', this)" title="复制任务 ID">
+      <button class="cp-copy-btn" data-copy-text="{{ cif.task_keyword or ('task-' ~ cif.id) }}" title="复制任务 ID" aria-label="复制任务 ID">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
     </div>
@@ -154,6 +156,8 @@ function cpRunNow(taskId) {
     confirmText: '执行',
   }).then(function(ok) {
     if (!ok) return;
+    var btns = document.querySelectorAll('.td-header button');
+    btns.forEach(function(b) { b.disabled = true; });
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/cron_run_now?id=' + taskId);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -169,12 +173,17 @@ function cpRunNow(taskId) {
           }
         } else {
           CpToast.error(r.errmsg || '执行失败');
+          btns.forEach(function(b) { b.disabled = false; });
         }
       } catch(e) {
         CpToast.error('请求异常');
+        btns.forEach(function(b) { b.disabled = false; });
       }
     };
-    xhr.onerror = function() { CpToast.error('网络错误'); };
+    xhr.onerror = function() {
+      CpToast.error('网络错误');
+      btns.forEach(function(b) { b.disabled = false; });
+    };
     xhr.send('');
   });
 }
@@ -188,6 +197,8 @@ function cpToggleTask(taskId, newStatus) {
     danger: newStatus === 0,
   }).then(function(ok) {
     if (!ok) return;
+    var btns = document.querySelectorAll('.td-header button');
+    btns.forEach(function(b) { b.disabled = true; });
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/update_status?id=' + taskId);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -201,12 +212,17 @@ function cpToggleTask(taskId, newStatus) {
           setTimeout(function() { location.reload(); }, 800);
         } else {
           CpToast.error(r.errmsg || action + '失败');
+          btns.forEach(function(b) { b.disabled = false; });
         }
       } catch(e) {
         CpToast.error('请求异常');
+        btns.forEach(function(b) { b.disabled = false; });
       }
     };
-    xhr.onerror = function() { CpToast.error('网络错误'); };
+    xhr.onerror = function() {
+      CpToast.error('网络错误');
+      btns.forEach(function(b) { b.disabled = false; });
+    };
     xhr.send('');
   });
 }
@@ -232,6 +248,11 @@ function cpCopy(text, btn) {
     CpToast.success('已复制');
   }
 }
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-copy-text]');
+  if (btn) { cpCopy(btn.getAttribute('data-copy-text'), btn); }
+});
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && !document.querySelector('.cp-modal-overlay')) {

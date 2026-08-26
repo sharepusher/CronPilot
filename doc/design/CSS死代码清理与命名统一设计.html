@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CSS 死代码清理与命名统一设计 — CronPilot</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:960px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:2px solid #333;padding-bottom:.3em}
+h2{margin-top:2em;border-bottom:1px solid #ddd;padding-bottom:.2em}
+h3{margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:0.9em}
+th,td{border:1px solid #ddd;padding:8px 10px;text-align:left}
+th{background:#f5f5f5;font-weight:600}
+tr:nth-child(even){background:#fafafa}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:0.88em}
+pre{background:#f5f5f5;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+.metric{display:inline-block;background:#e8f4f8;padding:4px 10px;border-radius:4px;margin:2px;font-size:0.9em}
+.danger{color:#c0392b;font-weight:600}
+.warning{color:#d35400;font-weight:600}
+.safe{color:#27ae60;font-weight:600}
+blockquote{border-left:4px solid #3498db;margin:1em 0;padding:0.5em 1em;background:#f8fbfd}
+.timeline{border-left:3px solid #3498db;margin:1em 0;padding-left:1.5em}
+.timeline dt{font-weight:600;margin-top:1em}
+.timeline dd{margin-left:0;color:#555}
+</style>
+</head>
+<body>
+
+<h1>CSS 死代码清理与命名统一设计</h1>
+
+<p><strong>文档编号</strong>：OPT-CSS-CLEANUP-01<br>
+<strong>状态</strong>：待确认<br>
+<strong>关联</strong>：Phase R1（已完成）、Phase R2（CSS 命名规范化）后续<br>
+<strong>日期</strong>：2026-08-24</p>
+
+<hr>
+
+<h2>一、问题</h2>
+
+<p>经全量审计，<code>redesign-components.css</code>（825 行）中 <span class="danger">55% 的代码（71/129 选择器块）从未被任何模板或 JS 引用</span>。跨 5 个 CSS 文件还存在 <span class="warning">12 组语义重叠</span>（同一功能多套实现）和 <span class="warning">5 处命名冲突</span>。</p>
+
+<h3>量化现状</h3>
+
+<table>
+<tr><th>指标</th><th>当前值</th><th>目标</th></tr>
+<tr><td>components.css 死代码率</td><td class="danger">55%（~450 行）</td><td>&lt;5%</td></tr>
+<tr><td>语义重叠组数</td><td class="warning">12 组</td><td>0（每种功能单一规范实现）</td></tr>
+<tr><td>未定义 Token 引用</td><td class="warning">2 处</td><td>0</td></tr>
+<tr><td>表格系统并行数</td><td>4 套（.cp-table / .c-table / .el-table / .tg-task-tbl）</td><td>1 规范 + N 合理扩展</td></tr>
+<tr><td>按钮系统并行数</td><td>5 套（.btn-c / .cp-btn / .btn / .el-btn / .auth-btn）</td><td>≤3（有明确边界）</td></tr>
+<tr><td>分页系统并行数</td><td>4 套（.cp-pagination / .c-pg / .hf-pg / .el-pg）</td><td>1 规范 + 1 页面扩展</td></tr>
+<tr><td>筛选条系统并行数</td><td>6 套</td><td>1 基础 + N 语义扩展</td></tr>
+</table>
+
+<h2>二、根因分析</h2>
+
+<h3>2.1 架构演化时间线</h3>
+
+<dl class="timeline">
+<dt>Phase 0 — 组件库先行设计</dt>
+<dd>在 Mockup 确定前，基于「通用组件库」思维设计了 <code>.cp-table</code>、<code>.cp-pagination</code>、<code>.cp-form-*</code>、<code>.cp-badge-*</code>、<code>.cp-health-*</code>、<code>.cp-chip</code> 等全套组件。假设前提：<strong>「一套组件适配所有页面」</strong>。</dd>
+
+<dt>Phase 1 — Mockup 确定</dt>
+<dd>设计师交付的 Mockup 使用了独立命名体系（<code>.c-table</code>、<code>.btn-c</code>、<code>.f-input</code>、<code>.page-head</code>），与 Phase 0 的 <code>.cp-*</code> 不兼容。为快速对齐 Mockup，新增 <code>redesign-mockup-shared.css</code> 直接复刻 Mockup 命名。</dd>
+
+<dt>Phase 2 — 逐页实现</dt>
+<dd>每个页面实现时，开发者面临「用 .cp-* 还是用 Mockup .c-*」的选择。由于 Mockup 是验收标准，绝大多数选择了 Mockup 命名。同时为页面特化需求（如 Dashboard 动画、Exec Logs 黏性表头），创建了 <code>.hf-*</code>、<code>.el-*</code> 等页面前缀。</dd>
+
+<dt>Phase 3 — Phase R1 CSS 架构统一</dt>
+<dd>Phase R1 重点解决了<strong>内联 CSS 迁移</strong>（2010 行 → 0 行）和<strong>硬编码颜色消除</strong>，但未触及组件库死代码和命名分裂问题。原因：R1 的设计约束是「零视觉变化」——删除死代码虽无视觉影响，但属于独立工作项，超出 R1 范围。</dd>
+</dl>
+
+<h3>2.2 五层根因追溯（Why × 5）</h3>
+
+<table>
+<tr><th>层级</th><th>问题</th><th>回答</th></tr>
+<tr><td><strong>Why 1</strong></td><td>为什么有 55% 死代码？</td><td>Phase 0 组件库被 Mockup 体系完整替代，但未清理旧代码</td></tr>
+<tr><td><strong>Why 2</strong></td><td>为什么 Mockup 体系替代了组件库？</td><td>Mockup 由设计师交付，命名体系与工程预设的 <code>.cp-*</code> 不同，团队选择"对齐 Mockup"而非"重构 Mockup 命名"</td></tr>
+<tr><td><strong>Why 3</strong></td><td>为什么没在 Mockup 确定时统一命名？</td><td>快速迭代压力 + 组件库已写好 → 两套并存成本在当时看来比"推翻重写"更低</td></tr>
+<tr><td><strong>Why 4</strong></td><td>为什么后续（Phase R1）没清理？</td><td>R1 聚焦内联 CSS 迁移（已有明确 ROI），死代码清理被定义为独立 OPT 项，等待工程空闲窗口</td></tr>
+<tr><td><strong>Why 5</strong></td><td>为什么缺少自动化门禁阻止死代码累积？</td><td>现有 CI 门禁覆盖<strong>活跃代码质量</strong>（颜色审计、内联 CSS 体积），但无<strong>死代码检测</strong>工具</td></tr>
+</table>
+
+<h3>2.3 结构性产因分类</h3>
+
+<table>
+<tr><th>产因类型</th><th>占比</th><th>具体表现</th></tr>
+<tr><td><strong>设计→实现命名断层</strong></td><td>~60%</td><td>组件库 <code>.cp-*</code> vs Mockup <code>.c-*/.btn-c/.f-input</code> 全面冲突</td></tr>
+<tr><td><strong>乐观预设（YAGNI 反面）</strong></td><td>~25%</td><td>Skeleton loading、badge 色彩变体、form 系统在当时无消费者即已定义</td></tr>
+<tr><td><strong>页面特化漂移</strong></td><td>~10%</td><td>各页独立创建 filter/chip/pagination 变体而非复用公共组件</td></tr>
+<tr><td><strong>重构遗留</strong></td><td>~5%</td><td>R1 迁移后 <code>.cp-muted</code>、<code>.cp-faint</code> 等工具类被 Token 变量替代但未删除</td></tr>
+</table>
+
+<h2>三、必要性分析</h2>
+
+<h3>3.1 为什么现在必须清理？</h3>
+
+<table>
+<tr><th>维度</th><th>当前痛点</th><th>不清理的后果</th></tr>
+<tr><td><strong>开发效率</strong></td><td>新开发者面对 5 套按钮系统、4 套表格系统，无法判断该用哪个</td><td>持续生成新的变体系统，债务指数级增长</td></tr>
+<tr><td><strong>维护风险</strong></td><td>修改 <code>.btn</code> 或 <code>.cp-btn</code> 时无法确定影响面（因为部分定义从未被引用）</td><td>重构时误删活跃代码 or 不敢删任何代码</td></tr>
+<tr><td><strong>认知负载</strong></td><td>825 行组件 CSS 中 450 行是噪声，阅读时需脑内过滤</td><td>Code review 效率下降，Bug 定位时间增加</td></tr>
+<tr><td><strong>加载体积</strong></td><td>~450 行死代码 ≈ 12KB gzip 前（实际 gzip ≈ 2–3KB），对首屏渲染无感知影响</td><td>体积影响可忽略，但信号噪声比持续恶化</td></tr>
+<tr><td><strong>CI 门禁缺口</strong></td><td>无自动检测防止新增死 CSS</td><td>每次迭代可能新增未消费的"预留"样式</td></tr>
+</table>
+
+<h3>3.2 预期收益</h3>
+
+<table>
+<tr><th>收益</th><th>量化</th></tr>
+<tr><td>组件文件体积减少</td><td>825 → ~375 行（-54%）</td></tr>
+<tr><td>选择器块减少</td><td>129 → 58（-55%）</td></tr>
+<tr><td>按钮系统收敛</td><td>5 套 → 3 套（规范 + 兼容 + auth，有明确文档边界）</td></tr>
+<tr><td>表格系统收敛</td><td>4 套 → 2 套（.c-table 规范 + .el-table 合理扩展）</td></tr>
+<tr><td>新增 CI 门禁</td><td>防止同类问题复发</td></tr>
+</table>
+
+<h3>3.3 不做 / 推迟的风险评估</h3>
+
+<blockquote>
+<strong>结论：清理死代码的 ROI 极高（零回归风险 + 高可维护性收益）</strong>。这不是一个"锦上添花"的优化，而是阻止技术债复利增长的必要操作。
+</blockquote>
+
+<p>当前时机最佳的原因：Phase R1 刚完成全量 CSS 迁移，所有模板已稳定在新结构上；再过 1–2 个迭代周期后，开发者可能基于死代码创建新变体，清理成本会上升。</p>
+
+<h2>四、方案</h2>
+
+<h3>4.1 清理策略：分三批递进</h3>
+
+<table>
+<tr><th>批次</th><th>范围</th><th>风险</th><th>行数影响</th></tr>
+<tr><td><strong>Batch A</strong></td><td>删除 100% 确认死代码（0 引用）</td><td class="safe">零</td><td>-~380 行</td></tr>
+<tr><td><strong>Batch B</strong></td><td>修复命名冲突 + 合并重复定义</td><td class="warning">低</td><td>净减 ~50 行</td></tr>
+<tr><td><strong>Batch C</strong></td><td>新增 CI 门禁脚本</td><td class="safe">零</td><td>+~80 行（新脚本）</td></tr>
+</table>
+
+<h3>4.2 Batch A — 死代码删除清单</h3>
+
+<p>以下选择器块经全量 <code>grep</code> 确认在 <code>app/templates/redesign/*.html</code>、<code>app/static/js/redesign-*.js</code>、<code>app/static/js/common.js</code> 中<strong>零引用</strong>：</p>
+
+<table>
+<tr><th>分类</th><th>选择器</th><th>行范围（approx）</th></tr>
+<tr><td>表格</td><td><code>.cp-table-wrap</code>, <code>.cp-table</code>, <code>.cp-table th/td/tr</code></td><td>96–136</td></tr>
+<tr><td>分页</td><td><code>.cp-pagination</code>, <code>.cp-pg-btn</code>, <code>.cp-pg-info</code></td><td>391–434</td></tr>
+<tr><td>表单</td><td><code>.cp-form-section*</code>, <code>.cp-form-row</code>, <code>.cp-form-group*</code>, <code>.cp-form-actions</code></td><td>311–388</td></tr>
+<tr><td>筛选</td><td><code>.cp-filters</code>, <code>.cp-chip*</code>, <code>.cp-search*</code></td><td>245–308</td></tr>
+<tr><td>徽章</td><td><code>.cp-badge*</code>（全部 6 个变体）</td><td>189–223</td></tr>
+<tr><td>健康度</td><td><code>.cp-health*</code>（3 色变体 + base）</td><td>226–242</td></tr>
+<tr><td>按钮变体</td><td><code>.cp-btn--danger/ghost/sm/lg/success</code></td><td>64–93, 794–804</td></tr>
+<tr><td>Legacy .btn 变体</td><td><code>.btn.btn-primary/ghost/danger</code>（含 hover）</td><td>458–489</td></tr>
+<tr><td>Stat 色彩</td><td><code>.cp-stat--danger/warning/success</code></td><td>184–186</td></tr>
+<tr><td>骨架屏</td><td><code>.cp-skeleton*</code>（含 keyframe）</td><td>653–672</td></tr>
+<tr><td>Command 结果项</td><td><code>.cp-cmd-group-label</code>, <code>.cp-cmd-item*</code></td><td>722–745</td></tr>
+<tr><td>工具类</td><td><code>.cp-mono</code>, <code>.cp-muted</code>, <code>.cp-faint</code>, <code>.cp-danger-text</code>, <code>.cp-mb-12</code></td><td>767–770, 789</td></tr>
+<tr><td>Motion（错误选择器）</td><td><code>.toast-item</code>, <code>.cp-confirm-box</code>, <code>.cp-shimmer</code>, <code>[class*="shimmer"]</code></td><td>810–824</td></tr>
+</table>
+
+<h3>4.3 Batch B — 命名冲突修复</h3>
+
+<table>
+<tr><th>问题</th><th>修复方案</th><th>影响</th></tr>
+<tr><td><code>[data-tooltip]</code> 在 pages.css 中重复定义（L633 和 L1279）</td><td>将 L1279 的 Dashboard 覆盖规则加 <code>.cp-page-dashboard</code> scope</td><td>其他页面 tooltip 颜色恢复一致</td></tr>
+<tr><td><code>prefers-reduced-motion</code> 中引用不存在的 <code>.toast-item</code></td><td>改为 <code>.toast</code>（实际 class）</td><td>Toast 在 reduce-motion 下正确降级</td></tr>
+<tr><td><code>prefers-reduced-motion</code> 中引用不存在的 <code>.cp-confirm-box</code></td><td>改为 <code>.cp-modal</code>（实际 class）</td><td>Modal 在 reduce-motion 下正确降级</td></tr>
+<tr><td>mockup-shared 中 <code>[data-tip]</code> 从未使用</td><td>删除该规则</td><td>零影响</td></tr>
+<tr><td><code>--cp-active-bg</code> Token 引用但未定义</td><td>在 console-theme.css 中定义，或改用 <code>--cp-signal-bg</code></td><td>tag-suggest hover 正常着色</td></tr>
+</table>
+
+<h3>4.4 Batch C — CI 门禁</h3>
+
+<p>新增脚本 <code>scripts/check_dead_css.py</code>：</p>
+
+<pre>
+逻辑：
+1. 解析 redesign-components.css 中所有类名选择器
+2. 对每个类名在 app/templates/redesign/*.html + app/static/js/*.js 中 grep
+3. 仅标记模板/JS 中引用为 0 且不属于"CSS-internal"（如 keyframe 被同文件引用）的类
+4. 输出警告；--check 模式下非零计数则 exit 1
+
+集成：
+- .github/workflows/ui-contract.yml 新增 step
+- 阈值：初始允许 ≤5 个未引用类（为 CSS-internal 预留），后续收紧到 0
+</pre>
+
+<h2>五、范围</h2>
+
+<h3>改动文件</h3>
+
+<table>
+<tr><th>文件</th><th>操作</th></tr>
+<tr><td><code>app/static/css/redesign-components.css</code></td><td>删除 Batch A 所列选择器块（-~380 行），修复 Batch B 中 motion selectors</td></tr>
+<tr><td><code>app/static/css/redesign-pages.css</code></td><td>Batch B：scope [data-tooltip] 覆盖规则</td></tr>
+<tr><td><code>app/static/css/redesign-mockup-shared.css</code></td><td>Batch B：删除 [data-tip]</td></tr>
+<tr><td><code>app/static/css/console-theme.css</code></td><td>Batch B：定义 <code>--cp-active-bg</code> 或改引用</td></tr>
+<tr><td><code>scripts/check_dead_css.py</code></td><td>Batch C：新建</td></tr>
+<tr><td><code>.github/workflows/ui-contract.yml</code></td><td>Batch C：新增 step</td></tr>
+</table>
+
+<h3>明确不做</h3>
+
+<ul>
+<li>不改任何模板 HTML（本次只删 CSS 死代码）</li>
+<li>不合并 <code>.btn-c</code> / <code>.cp-btn</code> / <code>.btn</code> 三套按钮（它们各有活跃消费者，合并需单独设计）</li>
+<li>不合并 <code>.el-table</code> 进 <code>.c-table</code>（exec-logs 的黏性表头是合理特化）</li>
+<li>不修改 <code>redesign-auth.css</code>（独立系统，零冲突）</li>
+<li>不删 <code>.cp-btn</code> / <code>.cp-btn--primary</code>（在 task_detail/task_form/dashboard 中活跃使用）</li>
+<li>不改页面级前缀（<code>.hf-*</code>, <code>.el-*</code> 等已通过 <code>.cp-page-*</code> scope 隔离）</li>
+</ul>
+
+<h2>六、分批实施</h2>
+
+<table>
+<tr><th>批次</th><th>交付物</th><th>验收门禁</th><th>预估耗时</th></tr>
+<tr><td><strong>Batch A</strong></td><td>删除 components.css 死代码</td><td>① <code>.venv-py311/bin/python -m unittest tests.test_redesign_sidebar -v</code>（12 green）<br>② CSS brace balance 检查<br>③ <code>curl</code> 验证 5 个关键页面无 500<br>④ 硬编码颜色审计通过</td><td>15 min</td></tr>
+<tr><td><strong>Batch B</strong></td><td>修复 5 处命名冲突</td><td>① 同 Batch A 门禁<br>② <code>grep "toast-item\|cp-confirm-box\|data-tip" app/static/css/</code> = 0<br>③ <code>grep "cp-active-bg" app/static/css/console-theme.css</code> 有定义</td><td>10 min</td></tr>
+<tr><td><strong>Batch C</strong></td><td>CI 脚本 + workflow 集成</td><td>① <code>python scripts/check_dead_css.py --check</code> exit 0<br>② GitHub Actions dry-run 通过</td><td>20 min</td></tr>
+</table>
+
+<h2>七、验收标准</h2>
+
+<ol>
+<li><code>redesign-components.css</code> 行数 ≤ 400（当前 825）</li>
+<li>全量 <code>grep</code> 确认 components.css 中每个类名在模板/JS 中有 ≥1 引用（或为 CSS-internal 如 keyframe 被同文件引用）</li>
+<li><code>prefers-reduced-motion</code> 中所有选择器在非-motion 上下文中有定义</li>
+<li><code>python scripts/check_dead_css.py --check</code> = 0 violations</li>
+<li>所有现有测试通过（<code>bash scripts/cronpilot.sh test</code>）</li>
+<li>5 个关键页面（Dashboard、Users、Tags、Execution Logs、Task Detail）浏览器可正常渲染</li>
+</ol>
+
+<h2>八、风险</h2>
+
+<table>
+<tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+<tr><td>误删活跃代码</td><td>极低</td><td>页面样式异常</td><td>每个待删类名经 <code>rg</code> 三重验证（HTML/JS/CSS cross-ref）；仅删零引用项</td></tr>
+<tr><td>JS 动态生成的类名遗漏</td><td>低</td><td>Toast/Modal 样式丢失</td><td>JS 文件已被扫描；<code>redesign-confirm.js</code>/<code>redesign-toast.js</code> 中的类名已标记为 JS-ONLY（保留）</td></tr>
+<tr><td>未来功能需要被删组件</td><td>中</td><td>需重写</td><td>Skeleton loading / Form system 未来如需实现，应基于当时的设计重新定义（YAGNI 原则），而非复用 Phase 0 遗留</td></tr>
+<tr><td>CI 脚本误报</td><td>低</td><td>开发者 confusion</td><td>白名单机制（CSS-internal keyframes / 动态创建 class）</td></tr>
+</table>
+
+<h2>九、复盘与预防机制</h2>
+
+<h3>9.1 此类问题为何未被早期发现？</h3>
+
+<table>
+<tr><th>检测环节</th><th>缺失原因</th></tr>
+<tr><td>Code Review</td><td>新增 CSS 时只关注「能否工作」，未关注「旧定义是否应删除」</td></tr>
+<tr><td>CI 门禁</td><td>现有门禁覆盖活跃代码质量（颜色/内联体积），无死代码检测</td></tr>
+<tr><td>设计文档</td><td>Phase 0 → Phase 1 切换时未产出「组件库废弃清单」</td></tr>
+<tr><td>重构 checklist</td><td>Phase R1 scope 明确排除了死代码清理，但未将其列为明确的后续 TODO</td></tr>
+</table>
+
+<h3>9.2 预防措施（Batch C 实现）</h3>
+
+<ol>
+<li><strong>CI 死代码检测</strong>：<code>scripts/check_dead_css.py --check</code> 在每次 PR 中运行</li>
+<li><strong>组件库新增规范</strong>：在 <code>.cursor/rules/cronpilot-format-guard.mdc</code> 追加「新增组件类必须在同 PR 中至少有 1 个模板/JS 消费者」</li>
+<li><strong>定期审计</strong>：在 Phase R2 或 v2.1.0 发布前执行一次全量扫描</li>
+</ol>
+
+<h2>十、附录：完整活跃类清单（Batch A 后保留）</h2>
+
+<table>
+<tr><th>分类</th><th>保留的选择器</th><th>消费者</th></tr>
+<tr><td>按钮</td><td><code>.cp-btn</code>, <code>.cp-btn--primary</code></td><td>task_form, task_detail, dashboard</td></tr>
+<tr><td>Legacy 按钮</td><td><code>.btn</code>（base only）</td><td>tags.html modals, registration_review, task_detail</td></tr>
+<tr><td>卡片</td><td><code>.cp-card</code>, <code>.cp-card-title</code></td><td>_welcome.html</td></tr>
+<tr><td>统计</td><td><code>.cp-stats</code>, <code>.cp-stat</code>, <code>.cp-stat-label/value</code></td><td>_welcome.html</td></tr>
+<tr><td>空状态</td><td><code>.cp-empty-state</code>, <code>.empty-title/desc</code></td><td>execution_logs, task_detail, run_inspector</td></tr>
+<tr><td>Toast</td><td><code>.toast-container</code>, <code>.toast*</code></td><td>_base.html + redesign-toast.js</td></tr>
+<tr><td>Modal</td><td><code>.cp-modal-overlay/modal/header/body/footer</code></td><td>redesign-confirm.js + 模板 Escape 守卫</td></tr>
+<tr><td>Command Palette</td><td><code>.cp-cmd-overlay/box/input/results/footer/kbd</code></td><td>_base.html + redesign-shell.js</td></tr>
+<tr><td>工具类</td><td><code>.cp-success-text</code>, <code>.cp-fw-600</code>, <code>.cp-text-xs</code>, <code>.cp-text-muted-sm</code>, <code>.cp-text-faint-sm</code>, <code>.cp-mt-8/40</code>, <code>.cp-opacity-60</code></td><td>多页面</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="CSS死代码清理与命名统一设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

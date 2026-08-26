@@ -497,10 +497,32 @@
   display: none;
 }
 
+/* ====== Mobile Toggle Button ====== */
+.cp-mobile-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--cp-ink);
+  border-radius: var(--cp-radius);
+  cursor: pointer;
+}
+
+.cp-mobile-toggle:hover {
+  background: var(--cp-surface-2);
+}
+
 /* ====== Mobile Responsive ====== */
 @media (max-width: 768px) {
   .cp-shell {
     grid-template-columns: 1fr;
+  }
+
+  .cp-mobile-toggle {
+    display: flex;
   }
 
   .cp-sidebar {
@@ -510,11 +532,20 @@
     left: 0;
     width: 260px;
     height: 100vh;
+    z-index: 9000;
     box-shadow: 4px 0 16px rgba(0,0,0,0.15);
   }
 
   .cp-sidebar.mobile-open {
     display: flex;
+  }
+
+  body.cp-mobile-overlay-active::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 8999;
   }
 
   .cp-topbar {

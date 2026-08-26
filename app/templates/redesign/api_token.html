@@ -10,7 +10,7 @@
   <div class="tk-section">
     <label class="tk-label">我的 Token</label>
     <div class="tk-token-row">
-      <input type="text" class="f-input tk-token-input" value="{{ api_token }}" readonly id="api-token-display" />
+      <input type="text" class="f-input tk-token-input" value="{{ api_token }}" readonly id="api-token-display" aria-label="API Token" />
       <button type="button" class="btn-c btn-line btn-xs" id="tk-copy-btn">复制</button>
       <button type="button" class="btn-c btn-danger-c btn-xs" id="tk-reset-btn"
               data-href="{{ url_for('rbac.api_token_reset') }}"
@@ -60,11 +60,19 @@
 $(function() {
     $('#tk-copy-btn').on('click', function() {
         var inp = document.getElementById('api-token-display');
-        inp.select();
-        document.execCommand('copy');
         var $btn = $(this);
-        $btn.text('已复制');
-        setTimeout(function() { $btn.text('复制'); }, 1500);
+        var text = inp.value || inp.textContent;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function() {
+                $btn.text('已复制');
+                setTimeout(function() { $btn.text('复制'); }, 1500);
+            });
+        } else {
+            inp.select();
+            document.execCommand('copy');
+            $btn.text('已复制');
+            setTimeout(function() { $btn.text('复制'); }, 1500);
+        }
     });
 
     $('#tk-reset-btn').on('click', function() {

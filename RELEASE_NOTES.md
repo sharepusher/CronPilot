@@ -7,6 +7,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### Enhancement — 任务中心筛选按钮视觉统一与文案优化
+
+- 任务中心筛选按钮（`.f-btn`）选中态增加蓝色圆点指示，与执行记录页视觉一致
+- 「连续失败」改名为「持续异常」（Stats 卡片、Stat-line、筛选按钮），更贴近运维用户的关注视角
+- Exception Panel 中的事实性描述「连续失败 X 次」保持不变
+- 设计文档：`doc/design/任务中心筛选按钮视觉统一与文案优化设计.html`
+
+**Files changed:** `app/static/css/redesign-pages.css`, `app/templates/redesign/dashboard.html`
+
 ### Fix — 执行记录「仅异常」筛选按钮失效修复与语义优化
 
 - **Bug 修复**：「仅异常」按钮发送 `outcome=timeout`，但后端白名单不包含该值，导致按钮完全失效（行为等同于「非成功」，且无法显示选中态高亮）

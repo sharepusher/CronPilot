@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>任务中心筛选按钮视觉统一与文案优化设计</title>
+<style>
+body { max-width: 960px; margin: 2rem auto; font-family: system-ui, -apple-system, sans-serif; line-height: 1.7; color: #1a1a1a; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #0ea5e9; padding-bottom: .5rem; }
+h2 { margin-top: 2rem; color: #0369a1; }
+h3 { margin-top: 1.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f0f9ff; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
+
+/* Demo styles */
+.demo-box { border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin: 16px 0; background: #fafbfc; }
+.demo-box h4 { margin: 0 0 12px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+.demo-row { display: flex; gap: 40px; flex-wrap: wrap; }
+.demo-col { flex: 1; min-width: 320px; }
+.demo-label { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+/* Simulated filter bar */
+.sim-filters { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; background: #fff; border-radius: 8px; }
+.sim-group { display: flex; align-items: center; gap: 4px; }
+.sim-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-right: 4px; font-weight: 600; }
+.sim-sep { width: 1px; height: 14px; background: #e5e7eb; }
+
+/* Current (before) button style */
+.sim-btn-old { padding: 4px 9px; border-radius: 5px; font-size: 12px; color: #64748b; border: 1px solid transparent; background: none; cursor: default; font-family: inherit; display: inline-block; }
+.sim-btn-old.active { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; font-weight: 600; }
+
+/* Proposed (after) button style */
+.sim-btn-new { padding: 4px 9px; border-radius: 5px; font-size: 12px; color: #64748b; border: 1px solid transparent; background: none; cursor: default; font-family: inherit; display: inline-flex; align-items: center; }
+.sim-btn-new.active { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; font-weight: 600; }
+.sim-btn-new.active::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #3D6FE0; margin-right: 3px; flex-shrink: 0; }
+
+/* Stats card simulation */
+.sim-stats { display: flex; gap: 12px; margin-top: 8px; }
+.sim-stat { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; flex: 1; background: #fff; text-align: center; }
+.sim-stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+.sim-stat-value { font-size: 22px; font-weight: 700; }
+.sim-stat-value.danger { color: #b91c1c; }
+.sim-stat-value.warning { color: #d97706; }
+.sim-stat-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+/* Stat-line simulation */
+.sim-statline { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+.sim-statline b { color: #0f172a; }
+.sim-statline .danger { color: #b91c1c; font-weight: 600; }
+.sim-statline .warn { color: #d97706; font-weight: 600; }
+
+/* Annotation */
+.anno { display: inline-block; font-size: 10px; background: #dbeafe; color: #1d4ed8; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.anno-change { background: #fef3c7; color: #92400e; }
+.anno-keep { background: #f0fdf4; color: #166534; }
+</style>
+</head>
+<body>
+
+<h1>任务中心筛选按钮视觉统一与文案优化设计</h1>
+
+<p><strong>状态</strong>：待确认<br>
+<strong>创建</strong>：2026-08-26<br>
+<strong>前置</strong>：执行记录筛选条件 Bug 修复与视觉优化（已交付）</p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>任务中心（Dashboard）的筛选按钮 <code>.f-btn</code> 与执行记录页的 <code>.el-f-btn</code> 存在两处不一致：</p>
+
+<ul>
+  <li><strong>视觉</strong>：执行记录页按钮选中时有蓝色小圆点指示，任务中心按钮选中时仅有背景色和加粗，缺少圆点</li>
+  <li><strong>文案</strong>：筛选按钮「连续失败」直译了技术概念 <code>consecutive_failures</code>，对运维用户来说不够直观——用户更关心的是「这些任务现在还坏着」而非「失败了几次」</li>
+</ul>
+
+<h2>2. 方案对比 Demo</h2>
+
+<h3>2.1 筛选按钮：选中态对比</h3>
+
+<div class="demo-box">
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="demo-label">当前（Before）— 无圆点，选中仅背景色</div>
+      <div class="sim-filters">
+        <div class="sim-group">
+          <span class="sim-label">异常</span>
+          <span class="sim-btn-old active">连续失败</span>
+          <span class="sim-btn-old">今日失败</span>
+        </div>
+        <div class="sim-sep"></div>
+        <div class="sim-group">
+          <span class="sim-label">状态</span>
+          <span class="sim-btn-old">运行中</span>
+          <span class="sim-btn-old">已暂停</span>
+          <span class="sim-btn-old">全部</span>
+        </div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="demo-label">优化后（After）— 蓝色圆点 + 文案改名</div>
+      <div class="sim-filters">
+        <div class="sim-group">
+          <span class="sim-label">异常</span>
+          <span class="sim-btn-new active">持续异常</span>
+          <span class="sim-btn-new">今日失败</span>
+        </div>
+        <div class="sim-sep"></div>
+        <div class="sim-group">
+          <span class="sim-label">状态</span>
+          <span class="sim-btn-new">运行中</span>
+          <span class="sim-btn-new">已暂停</span>
+          <span class="sim-btn-new">全部</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>2.2 选中态切换效果</h3>
+
+<div class="demo-box">
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="demo-label">选中「今日失败」时</div>
+      <div class="sim-filters">
+        <div class="sim-group">
+          <span class="sim-label">异常</span>
+          <span class="sim-btn-new">持续异常</span>
+          <span class="sim-btn-new active">今日失败</span>
+        </div>
+        <div class="sim-sep"></div>
+        <div class="sim-group">
+          <span class="sim-label">状态</span>
+          <span class="sim-btn-new">运行中</span>
+          <span class="sim-btn-new">已暂停</span>
+          <span class="sim-btn-new">全部</span>
+        </div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="demo-label">选中「运行中」时</div>
+      <div class="sim-filters">
+        <div class="sim-group">
+          <span class="sim-label">异常</span>
+          <span class="sim-btn-new">持续异常</span>
+          <span class="sim-btn-new">今日失败</span>
+        </div>
+        <div class="sim-sep"></div>
+        <div class="sim-group">
+          <span class="sim-label">状态</span>
+          <span class="sim-btn-new active">运行中</span>
+          <span class="sim-btn-new">已暂停</span>
+          <span class="sim-btn-new">全部</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>2.3 Stats 卡片 + Stat-line 文案对比</h3>
+
+<div class="demo-box">
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="demo-label">当前（Before）</div>
+      <div class="sim-statline"><b>12</b> 个任务 · <span class="danger">3</span> 连续失败 · <span class="warn">5</span> 今日告警</div>
+      <div class="sim-stats">
+        <div class="sim-stat">
+          <div class="sim-stat-label">异常任务</div>
+          <div class="sim-stat-value danger">2</div>
+          <div class="sim-stat-sub">需要立即关注</div>
+        </div>
+        <div class="sim-stat">
+          <div class="sim-stat-label">连续失败</div>
+          <div class="sim-stat-value warning">3</div>
+          <div class="sim-stat-sub">≥3 次连续失败</div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="demo-label">优化后（After）</div>
+      <div class="sim-statline"><b>12</b> 个任务 · <span class="danger">3</span> 持续异常 <span class="anno anno-change">改</span> · <span class="warn">5</span> 今日告警</div>
+      <div class="sim-stats">
+        <div class="sim-stat">
+          <div class="sim-stat-label">异常任务</div>
+          <div class="sim-stat-value danger">2</div>
+          <div class="sim-stat-sub">需要立即关注</div>
+        </div>
+        <div class="sim-stat">
+          <div class="sim-stat-label">持续异常 <span class="anno anno-change">改</span></div>
+          <div class="sim-stat-value warning">3</div>
+          <div class="sim-stat-sub">≥3 次连续失败即标记</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>2.4 Exception Panel 详情（不变）</h3>
+
+<div class="demo-box">
+  <div class="demo-label">Exception Panel 中的事实性描述保持不变 <span class="anno anno-keep">保留</span></div>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;font-size:13px;color:#334155;margin-top:8px;">
+    <span style="color:#b91c1c;font-weight:600;">×5</span>&nbsp;
+    <span style="font-weight:600;">数据同步任务</span>&nbsp;
+    <span style="color:#64748b;">连续失败 5 次 · 最近失败: 2026-08-26 09:30</span>&nbsp;
+    <span style="color:#3D6FE0;text-decoration:none;">查看详情 →</span>
+  </div>
+</div>
+
+<h2>3. 文案变更清单</h2>
+
+<table>
+  <tr><th>位置（行号）</th><th>旧文案</th><th>新文案</th><th>标注</th></tr>
+  <tr><td>筛选按钮（第 71 行）</td><td>连续失败</td><td>持续异常</td><td><span class="anno anno-change">改</span></td></tr>
+  <tr><td>Stats 卡片标签（第 29 行）</td><td>连续失败</td><td>持续异常</td><td><span class="anno anno-change">改</span></td></tr>
+  <tr><td>Stat-line（第 18 行）</td><td>连续失败</td><td>持续异常</td><td><span class="anno anno-change">改</span></td></tr>
+  <tr><td>Stats 卡片副文本（第 31 行）</td><td>≥N 次连续失败</td><td>≥N 次连续失败即标记</td><td><span class="anno anno-change">改</span>（保留技术含义作为解释）</td></tr>
+  <tr><td>Exception Panel 详情（第 59 行）</td><td>连续失败 X 次</td><td>连续失败 X 次</td><td><span class="anno anno-keep">保留</span>（事实描述）</td></tr>
+</table>
+
+<h2>4. 范围</h2>
+
+<table>
+  <tr><th>文件</th><th>改动类型</th></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td><code>.f-btn.active</code> 增加 <code>::before</code> 伪元素 + <code>display: inline-flex</code></td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>3 处「连续失败」→「持续异常」+ 1 处副文本优化</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+  <li>不修改后端 <code>health</code> 参数值（仍为 <code>'failing'</code>）</li>
+  <li>不修改 <code>job_health_service.py</code> 代码</li>
+  <li>不修改 Exception Panel 中的事实性描述文案</li>
+  <li>不新增/删除筛选按钮</li>
+</ul>
+
+<h2>5. 分批</h2>
+<p>2 个文件、约 6 行变更，一批交付。</p>
+
+<h2>6. 验收</h2>
+<table>
+  <tr><th>#</th><th>步骤</th><th>期望结果</th></tr>
+  <tr><td>1</td><td>访问 <code>/cron_list</code>，点击「持续异常」</td><td>按钮显示 active 态（蓝色圆点 + 背景高亮）</td></tr>
+  <tr><td>2</td><td>点击「今日失败」</td><td>蓝色圆点转移到该按钮</td></tr>
+  <tr><td>3</td><td>Stats 卡片</td><td>标签显示「持续异常」</td></tr>
+  <tr><td>4</td><td>页面顶部 stat-line</td><td>显示「X 持续异常」</td></tr>
+  <tr><td>5</td><td>Exception Panel 内的详情文案</td><td>仍显示「连续失败 X 次」</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+<p>低风险。仅 CSS 视觉增强和 4 处模板文案替换，不涉及后端逻辑。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="任务中心筛选按钮视觉统一与文案优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

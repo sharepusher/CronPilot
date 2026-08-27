@@ -344,8 +344,11 @@ def edit_profile():
         return redirect('/rbac/login')
 
     def _user_groups_display():
+        from app.rbac.policy import user_bypasses_scope
         gids = get_user_group_ids_for_user(user.id)
         if not gids:
+            if user_bypasses_scope(user.role, user.username, group_ids=gids):
+                return '全局（不受组限制）'
             return '未分配'
         groups = db.session.scalars(
             select(ResourceGroup).where(ResourceGroup.id.in_(gids))

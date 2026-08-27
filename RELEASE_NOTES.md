@@ -21,6 +21,26 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **设计文档**：`doc/design/执行记录标识符与术语统一设计.html`
 
+### 新增 — 关键路由冒烟测试脚本
+
+**工具**：`python scripts/smoke_routes.py --check`
+
+**覆盖**：86 条路由（v1 + v2 双版本 × 43 条），包括：
+- GET 页面渲染：任务中心、执行记录、详情页、用户管理、标签管理等全部核心页面
+- POST 表单提交：登录（有效/无效）、注册、新增任务、创建标签、切换状态
+- API 端点：健康检查、任务列表、执行记录、详情查询
+- 错误路径：404、不存在的 ID、无权限
+- 内容断言：关键文案存在性验证
+
+**模式**：
+- `--check`：内存 SQLite 全量冒烟（CI 门禁模式，含 seed 数据路由，86 条/4.3s）
+- `--live`：对运行中的服务做 HTTP 冒烟
+- `--ui v1/v2`：仅测指定 UI 版本
+
+**目的**：弥补单元测试无法覆盖 view → repo → model → template 完整渲染链路的盲区。跨层重命名、Jinja2 filter 注册变更等改动后必须运行。
+
+**教训来源**：2026-08 `log_id → trace_id` 重命名事故 — 650 单元测试全通过但详情页 500。
+
 ### Bugfix — Dashboard 统计指标受 UI 筛选条件影响
 
 **影响**：Redesign Dashboard 顶部统计卡片（任务总数、持续异常、逾期、今日成功率）随列表筛选（状态/标签/搜索）变化，误导用户以为全局数据在波动。
@@ -57,6 +77,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 5 个 `<select>` 添加 `aria-label`（task_form × 3、user_form、operation_log）
 - 侧边栏 collapse 按钮添加 `aria-expanded` + `aria-label="切换侧栏"`（含 JS 动态更新）
 - Dashboard 6 个 filter toggle 添加 `aria-pressed` 标记当前选中状态
+
+### Improvement — 用户管理业务组列显示优化
+
+- 业务组列从显示前 2 个 tag 改为只显示第 1 个 + `+N` 收缩标记
+- `+N` 标记 hover 时通过 CSS tooltip 展示完整组名列表（用「、」连接）
+- 列宽从 140px 收窄至 110px，行高一致性提升
+
+**设计文档**：`doc/design/用户管理业务组列显示优化设计.html`
 
 ### Bugfix — 迁移脚本误清零有效时间戳
 

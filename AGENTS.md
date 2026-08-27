@@ -32,7 +32,9 @@
 
 **大文件修改前结构分析（强制）**：修改 300+ 行的 JS/Python/模板文件前，必须用 AST 或手动追踪 `{}`/`def`/`class` 嵌套确认插入点的实际作用域；插入后须在运行时（CDP/`python -c`）确认代码在预期时机执行，禁止仅靠静态 `grep` 判断。详 `.cursor/rules/cronpilot-project.mdc`「大文件修改前结构分析」。
 
-**连续 StrReplace 后必须读回验证（强制 · 2026-08 路由丢失事故教训）**：对同一文件连续执行 ≥ 2 次 StrReplace 时，每次替换完成后**必须 Read 受影响行（±20 行）**确认关键装饰器/语句未被下一次替换覆盖或消除。验证路由完整性：`python scripts/check_route_completeness.py --check app/rbac/views.py`。
+**连续 StrReplace 后必须读回验证（强制 · 2026-08 路由丢失事故教训）**：对同一文件连续执行 ≥ 2 次 StrReplace 时，每次替换完成后**必须 Read 受影响行（±20 行）**确认关键装饰器/语句未被下一次替换覆盖或消除。验证路由完整性：`python scripts/check_route_completeness.py --check app/rbac/views.py`。**跨批次重命名后**，须 `rg` 全仓库确认被调用方的旧方法名/旧属性名不存在于任何调用方中。自检：`rg "旧方法名" app/ --glob '*.py' && echo FAIL || echo OK`。**违反教训**：2026-08 B2 重命名 Repo 方法后，B4 未同步 views.py 调用方，导致详情页 500。
+
+**关键路由冒烟测试（强制 · 2026-08 trace_id 重命名事故教训）**：凡涉及跨层重命名（model→service→repo→view→template）、Jinja2 filter 注册变更、模板语法变更等影响渲染链路的改动，实现完成后必须运行 `python scripts/smoke_routes.py --check` 确认 86 条路由（v1+v2 双版本，含 GET/POST/API/错误路径）渲染无 500。对运行中的服务可用 `--live` 模式。该脚本覆盖 view→repo→model→template 完整链路，弥补单元测试无法覆盖的盲区。**违反教训**：2026-08 `log_id → trace_id` 跨 5 批重命名，单元测试全通过但详情页 500，因 `views.py` 调用了已重命名的 Repository 方法。
 
 **表单交互变更影响分析（强制）**：改 button type、引入模态框确认、改用 AJAX 提交等表单交互变更时，必须 `grep` 全局 JS（`common.js` 等）中 `[type="submit"]`、`form:not(...)` 等选择器的监听，确认改动后选择器仍能匹配；明确提交方式（原生 `form.submit()` vs jQuery `.submit()`）与全局守卫的交互结果；**端到端验证必须覆盖「填写→模态→确认→跳转/响应」全流程**。详 `.cursor/rules/cronpilot-project.mdc`「表单交互变更影响分析」。
 
@@ -100,6 +102,8 @@ python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.ht
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
 python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
 python scripts/check_postmortem_completeness.py --check  # 复盘文档化完整性：HTML↔MD + RELEASE_NOTES 引用 + 代码变更同步
+python scripts/smoke_routes.py --check             # 关键路由冒烟：86 条路由 v1+v2 含 GET/POST/API/错误路径（跨层重命名/模板变更后必跑）
+python scripts/smoke_routes.py --live --check      # 对运行中的服务做 HTTP 冒烟（16 条非 seed 路由）
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```

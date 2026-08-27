@@ -4,7 +4,7 @@
 
 # 全站图标迁移至 Heroicons 设计
 
-**状态**：待确认  |  **日期**：2026-08-27  |  **关联**：OPT-P1-16 Redesign
+**状态**：已完成  |  **日期**：2026-08-27  |  **关联**：OPT-P1-16 Redesign
 
 **前置**：[图标规范化与替换设计](图标规范化与替换设计.html) B1-B3 已完成（密码 Eye/Eye-Slash、查看详情、API Token 入口）
 
@@ -25,49 +25,49 @@ B1-B3 仅按最小 diff 原则替换了有语义问题的图标（密码 Eye、�
 | # | 位置 | 语义 | 当前 Feather | → Heroicons | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | \_sidebar.html（13 处） | | | | | |
-| 1 | 任务中心 | 四宫格 | 4 个 rect | `squares-2x2` | 待迁移 |
-| 2 | 执行记录 | 文档 | file-text | `document-text` | 待迁移 |
-| 3 | 业务组 | 多人 | users | `user-group` | 待迁移 |
-| 4 | 标签 | 标签 | tag | `tag` | 待迁移 |
-| 5 | 用户管理 | 用户 | user | `user` | 待迁移 |
-| 6 | 注册审批 | 用户+加号 | user-plus | `user-plus` | 待迁移 |
-| 7 | 访问审计 | 盾牌 | shield | `shield-check` | 待迁移 |
-| 8 | 变更记录 | 时钟 | clock | `clock` | 待迁移 |
-| 9 | 个人资料 | 用户 | user | `user` | 待迁移 |
-| 10 | 修改密码 | 锁 | lock | `lock-closed` | 待迁移 |
+| 1 | 任务中心 | 四宫格 | 4 个 rect | `squares-2x2` | B4 已完成 |
+| 2 | 执行记录 | 文档 | file-text | `document-text` | B4 已完成 |
+| 3 | 业务组 | 多人 | users | `user-group` | B4 已完成 |
+| 4 | 标签 | 标签 | tag | `tag` | B4 已完成 |
+| 5 | 用户管理 | 用户 | user | `user` | B4 已完成 |
+| 6 | 注册审批 | 用户+加号 | user-plus | `user-plus` | B4 已完成 |
+| 7 | 访问审计 | 盾牌 | shield | `shield-check` | B4 已完成 |
+| 8 | 变更记录 | 时钟 | clock | `clock` | B4 已完成 |
+| 9 | 个人资料 | 用户 | user | `user` | B4 已完成 |
+| 10 | 修改密码 | 锁 | lock | `lock-closed` | B4 已完成 |
 | 11 | API Token | 终端 | — | `command-line` | B3 已完成 |
-| 12 | API 文档 | 代码 | code | `code-bracket` | 待迁移 |
-| 13-14 | 收起/展开按钮 | 箭头 | chevron-right/left | `chevron-right` / `chevron-left` | 待迁移 |
+| 12 | API 文档 | 代码 | code | `code-bracket` | B4 已完成 |
+| 13-14 | 收起/展开按钮 | 箭头 | chevron-right/left | `chevron-right` / `chevron-left` | B4 已完成 |
 | \_topbar.html（9 处） | | | | | |
-| 15 | 移动端菜单 | 汉堡 | menu (3 lines) | `bars-3` | 待迁移 |
-| 16 | 搜索按钮 | 放大镜 | search | `magnifying-glass` | 待迁移 |
-| 17 | 浅色模式 | 太阳 | sun | `sun` | 待迁移 |
-| 18 | 深色模式 | 月亮 | moon | `moon` | 待迁移 |
-| 19 | 通知按钮 | 铃铛 | bell | `bell` | 待迁移 |
-| 20 | 用户下拉箭头 | 箭头 | chevron-down | `chevron-down` | 待迁移 |
-| 21 | 修改密码(下拉) | 锁 | lock | `lock-closed` | 待迁移 |
+| 15 | 移动端菜单 | 汉堡 | menu (3 lines) | `bars-3` | B5 已完成 |
+| 16 | 搜索按钮 | 放大镜 | search | `magnifying-glass` | B5 已完成 |
+| 17 | 浅色模式 | 太阳 | sun | `sun` | B5 已完成 |
+| 18 | 深色模式 | 月亮 | moon | `moon` | B5 已完成 |
+| 19 | 通知按钮 | 铃铛 | bell | `bell` | B5 已完成 |
+| 20 | 用户下拉箭头 | 箭头 | chevron-down | `chevron-down` | B5 已完成 |
+| 21 | 修改密码(下拉) | 锁 | lock | `lock-closed` | B5 已完成 |
 | 22 | API Token(下拉) | 终端 | — | `command-line` | B3 已完成 |
-| 23 | 切换经典界面 | 刷新 | refresh-ccw | `arrow-path` | 待迁移 |
-| 24 | 退出登录 | 退出 | log-out | `arrow-right-start-on-rectangle` | 待迁移 |
+| 23 | 切换经典界面 | 刷新 | refresh-ccw | `arrow-path` | B5 已完成 |
+| 24 | 退出登录 | 退出 | log-out | `arrow-right-start-on-rectangle` | B5 已完成 |
 | \_users\_rows.html（3 处） | | | | | |
-| 25 | 修改密码(操作) | 锁 | lock | `lock-closed` | 待迁移 |
-| 26 | 重置密码(操作) | 钥匙 | key | `key` | 待迁移 |
-| 27 | 停用用户 | 禁止 | slash | `no-symbol` | 待迁移 |
+| 25 | 修改密码(操作) | 锁 | lock | `lock-closed` | B6 已完成 |
+| 26 | 重置密码(操作) | 钥匙 | key | `key` | B6 已完成 |
+| 27 | 停用用户 | 禁止 | slash | `no-symbol` | B6 已完成 |
 | dashboard.html（2 处） | | | | | |
-| 28 | 异常任务面板 | 日历+时钟 | calendar-clock (自定义) | `calendar-days` | 待迁移 |
-| 29 | 空状态 | 日历(48px) | calendar (自定义 48x48) | 保留（非标准图标） | 特殊处理 |
+| 28 | 异常任务面板 | 日历+时钟 | calendar-clock (自定义) | `calendar-days` | B7 已完成 |
+| 29 | 空状态 | 日历(48px) | calendar (自定义 48x48) | 保留（stroke:1.5 调整） | B7 已完成 |
 | \_dashboard\_rows.html（1 处） | | | | | |
-| 30 | 执行记录按钮 | 文档 | file | `document-text` | 待迁移 |
+| 30 | 执行记录按钮 | 文档 | file | `document-text` | B7 已完成 |
 | run\_inspector.html（3 处） | | | | | |
-| 31-32 | 面包屑箭头 | 箭头 | chevron-right | `chevron-right` | 待迁移 |
-| 33 | 复制按钮 | 剪贴板 | clipboard-copy | `clipboard-document` | 待迁移 |
+| 31-32 | 面包屑箭头 | 箭头 | chevron-right | `chevron-right` | B8 已完成 |
+| 33 | 复制按钮 | 剪贴板 | clipboard-copy | `clipboard-document` | B8 已完成 |
 | task\_detail.html（4 处） | | | | | |
-| 34 | 面包屑箭头 | 箭头 | chevron-right | `chevron-right` | 待迁移 |
-| 35 | 复制按钮 | 剪贴板 | clipboard-copy | `clipboard-document` | 待迁移 |
-| 36 | 暂停按钮 | 暂停 | pause | `pause` | 待迁移 |
-| 37 | 编辑按钮 | 编辑 | edit | `pencil-square` | 待迁移 |
+| 34 | 面包屑箭头 | 箭头 | chevron-right | `chevron-right` | B8 已完成 |
+| 35 | 复制按钮 | 剪贴板 | clipboard-copy | `clipboard-document` | B8 已完成 |
+| 36 | 暂停按钮 | 暂停 | pause | `pause` | B8 已完成 |
+| 37 | 编辑按钮 | 编辑 | edit | `pencil-square` | B8 已完成 |
 | groups.html（1 处） | | | | | |
-| 38 | 成员计数 | 多人 | users | `users` | 待迁移 |
+| 38 | 成员计数 | 多人 | users | `users` | B9 已完成 |
 
 ## 5. 对比 Demo
 

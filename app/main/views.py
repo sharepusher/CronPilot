@@ -269,6 +269,7 @@ def cron_list():
             scope_groups = list_resource_groups()
         except Exception:
             pass
+    show_group_column = len(scope_groups) > 1
 
     if 'page' in keyword:
         del keyword['page']
@@ -356,6 +357,7 @@ def cron_list():
                 last_run_map=last_run_map,
                 next_run_map=next_run_map,
                 overdue_map=overdue_map,
+                show_group_column=show_group_column,
             )
             rows_html = render_template('redesign/_dashboard_rows.html', **partial_ctx)
             pagination_html = render_template('redesign/_dashboard_pagination.html', **partial_ctx)
@@ -396,6 +398,7 @@ def cron_list():
             next_run_map=next_run_map,
             overdue_map=overdue_map,
             overdue_count=overdue_count,
+            show_group_column=show_group_column,
         )
 
     return render_template(

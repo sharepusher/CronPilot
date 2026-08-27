@@ -7,6 +7,28 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 改进 — 全站图标迁移至 Heroicons
+
+全站 Redesign 模板中的 Feather 图标（stroke-width: 2）统一迁移至 Heroicons Outline（stroke-width: 1.5），共替换 **53 个 SVG** 跨 11 个模板文件。
+
+**B1-B3（语义修正）**：
+- 密码可见性 Eye/Eye-Slash：3 个页面 7 组图标 → Heroicons 更精致的 stroke:1.5 版本
+- 查看详情：Eye → Document-Text（消除与密码切换的语义冲突）
+- API Token 导航：Key → Command-Line（消除与重置密码的语义混淆）
+- Token 重置：Refresh → Arrow-Path
+
+**B4-B9（全站统一）**：
+- 侧边栏导航（14 个）：squares-2x2、document-text、user-group、tag、user、user-plus、shield-check、clock、lock-closed、code-bracket、chevron-right/left
+- 顶栏工具与用户菜单（9 个）：bars-3、magnifying-glass、sun、moon、bell、chevron-down、lock-closed、arrow-path、arrow-right-start-on-rectangle
+- 用户管理操作列（3 个）：lock-closed、key、no-symbol
+- Dashboard（2 个）：calendar-days、document-text
+- 详情页与面包屑（7 个）：chevron-right、clipboard-document、pause、pencil-square
+- 业务组成员（1 个）：users
+
+**验收**：`rg 'stroke-width="2"' app/templates/redesign/` → 0 结果（全站清零）
+
+**设计文档**：`doc/design/图标规范化与替换设计.html`、`doc/design/全站图标迁移至Heroicons设计.html`
+
 ### 改进 — 系统管理菜单文案优化
 
 侧边栏「操作记录」→「变更记录」、「审计」→「访问审计」，更清晰地区分任务配置变更日志与安全访问事件日志。

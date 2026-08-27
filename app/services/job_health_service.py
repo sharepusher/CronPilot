@@ -66,7 +66,7 @@ def _should_throttle_success(prev_updated_at, now_at, throttle_seconds=SUCCESS_T
     return (now - prev) < throttle_seconds
 
 
-def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron_config=None):
+def update_job_health(cron_info_id, outcome, at, trace_id='', threshold=None, cron_config=None):
     """根据单次 Run outcome 更新 job_health；返回 JobHealth 或 None。"""
     if not cron_info_id:
         return None
@@ -88,7 +88,7 @@ def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron
         row.last_fail_at = at or ''
         row.last_run_at = at or ''
         row.last_run_status = outcome
-        row.last_run_log_id = log_id or ''
+        row.last_run_trace_id = trace_id or ''
         row.health_status = (
             HEALTH_FAILING if row.consecutive_failures >= n else HEALTH_OK
         )
@@ -104,7 +104,7 @@ def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron
         row.last_success_at = at or ''
         row.last_run_at = at or ''
         row.last_run_status = STATUS_SUCCESS
-        row.last_run_log_id = log_id or ''
+        row.last_run_trace_id = trace_id or ''
         row.health_status = HEALTH_OK
         row.updated_at = at or ''
         db.session.commit()
@@ -115,7 +115,7 @@ def update_job_health(cron_info_id, outcome, at, log_id='', threshold=None, cron
 
     row.last_run_at = at or ''
     row.last_run_status = STATUS_SUCCESS
-    row.last_run_log_id = log_id or ''
+    row.last_run_trace_id = trace_id or ''
     row.health_status = HEALTH_OK
     row.updated_at = at or ''
     db.session.commit()

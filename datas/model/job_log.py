@@ -10,12 +10,13 @@ from app import db
 class JobLog(db.Model):
     __tablename__ = 'job_log'
     id: Mapped[int] = mapped_column(primary_key=True)
-    log_id: Mapped[str] = mapped_column(
+    trace_id: Mapped[str] = mapped_column(
+        'trace_id',
         db.String(65),
         nullable=False,
         index=True,
         server_default='',
-        default='log id 用uuid生成唯一id,用来用户更新',
+        default='',
     )
     cron_info_id: Mapped[int] = mapped_column(
         db.Integer, nullable=False, default=0, index=True

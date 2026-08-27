@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""执行记录 log_id 必填（与回调 / add_log 可追溯）。"""
+"""执行记录 trace_id 必填（与回调 / add_log 可追溯）。"""
 import os
 import unittest
 from unittest.mock import patch
@@ -23,19 +23,19 @@ class TestJobLogAlwaysHasLogId(unittest.TestCase):
             from datas.model.job_health import JobHealth  # noqa: F401
             db.create_all()
 
-    def test_save_job_log_generates_log_id_when_missing(self):
+    def test_save_job_log_generates_trace_id_when_missing(self):
         from app.crons import _save_job_log
         from datas.model.job_log import JobLog
 
         with self.app.app_context():
             with patch('app.crons._notify_job_outcome'):
                 jl = _save_job_log(1, '请求链接不存在', '2026-07-13 12:00:00', 0)
-            self.assertTrue(jl.log_id)
-            self.assertGreaterEqual(len(jl.log_id), 8)
+            self.assertTrue(jl.trace_id)
+            self.assertGreaterEqual(len(jl.trace_id), 8)
             row = self.db.session.get(JobLog, jl.id)
-            self.assertEqual(row.log_id, jl.log_id)
+            self.assertEqual(row.trace_id, jl.trace_id)
 
-    def test_save_job_log_keeps_provided_log_id(self):
+    def test_save_job_log_keeps_provided_trace_id(self):
         from app.crons import _save_job_log
 
         with self.app.app_context():
@@ -45,10 +45,10 @@ class TestJobLogAlwaysHasLogId(unittest.TestCase):
                     'ok',
                     '2026-07-13 12:00:00',
                     0.1,
-                    log_id='fixed-uuid-for-test',
+                    trace_id='fixed-uuid-for-test',
                     status='success',
                 )
-            self.assertEqual(jl.log_id, 'fixed-uuid-for-test')
+            self.assertEqual(jl.trace_id, 'fixed-uuid-for-test')
 
 
 if __name__ == '__main__':

@@ -280,7 +280,7 @@ def cron_logs():
     ).all()
     items = [{
         'id': row.id,
-        'log_id': row.log_id or '',
+        'trace_id': row.trace_id or '',
         'status': row.status or '',
         'http_status': row.http_status,
         'fail_reason': row.fail_reason or '',
@@ -358,16 +358,16 @@ def cron_detail():
 @api.get('/cron/log/detail')
 @api.doc(
     summary='查询单条执行日志详情（只读）',
-    description='按 `id`（或 `log_id`）查询单条执行日志详情，受任务 Scope 控制。',
+    description='按 `id`（或 `trace_id`）查询单条执行日志详情，受任务 Scope 控制。',
     tags=['查询'],
 )
 def cron_log_detail():
     from . import check_api_scope
 
     id_raw = (request.args.get('id') or '').strip()
-    log_id = (request.args.get('log_id') or '').strip()
-    if not id_raw and not log_id:
-        return api_return(errcode=1, errmsg='id 或 log_id 至少提供一个')
+    trace_id_param = (request.args.get('trace_id') or '').strip()
+    if not id_raw and not trace_id_param:
+        return api_return(errcode=1, errmsg='id 或 trace_id 至少提供一个')
 
     log = None
     if id_raw:
@@ -375,9 +375,9 @@ def cron_log_detail():
             log = db.session.get(JobLog, int(id_raw))
         except (TypeError, ValueError):
             return api_return(errcode=1, errmsg='id 参数无效')
-    elif log_id:
+    elif trace_id_param:
         log = db.session.scalars(
-            select(JobLog).where(JobLog.log_id == log_id)
+            select(JobLog).where(JobLog.trace_id == trace_id_param)
         ).first()
     if not log:
         return api_return(errcode=1, errmsg='任务不存在')
@@ -392,7 +392,7 @@ def cron_log_detail():
     from datas.utils.times import hms_to_str
     return api_return(errcode=0, errmsg='ok', data={
         'id': log.id,
-        'log_id': log.log_id or '',
+        'trace_id': log.trace_id or '',
         'task_name': cron.task_name,
         'cron_info_id': log.cron_info_id,
         'status': log.status or '',
@@ -415,7 +415,7 @@ def cron_log_detail():
 @api.doc(
     summary='业务方回传执行进度',
     description=(
-        '业务方在处理 CronPilot 回调时，可调用此接口写入阶段性进度记录。\n\n'
+        '业务方在处理 CronPilot 定时触发时，可调用此接口写入阶段性进度记录。\n\n'
         '**认证**：conf.ini 配置 `api_access_token` 后，需通过 '
         '`Authorization: Bearer <token>` Header 或 `access_token` query/form 参数传递。'
     ),
@@ -423,16 +423,16 @@ def cron_log_detail():
 )
 @api.input(AddLogIn, location='form', arg_name='form_data')
 def cron_add_log(form_data):
-    cronpilot_log_id = form_data.get('cronpilot_log_id')
+    cronpilot_trace_id = form_data.get('cronpilot_trace_id')
     content = form_data.get('content')
 
     jl = db.session.scalars(
-        select(JobLog).where(JobLog.log_id == cronpilot_log_id)
+        select(JobLog).where(JobLog.trace_id == cronpilot_trace_id)
     ).first()
     if not jl:
-        return api_return(errcode=1, errmsg='cronpilot_log_id 不存在')
+        return api_return(errcode=1, errmsg='cronpilot_trace_id 不存在')
 
-    jli = JobLogItems(log_id=cronpilot_log_id, content=content)
+    jli = JobLogItems(trace_id=cronpilot_trace_id, content=content)
     db.session.add(jli)
     db.session.commit()
 

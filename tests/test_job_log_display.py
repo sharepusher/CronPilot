@@ -17,7 +17,7 @@ class TestJobLogDisplay(unittest.TestCase):
         )
         self.assertEqual(
             job_log_status_line(None, '回调URL安全校验未通过'),
-            ('未执行回调', 'muted'),
+            ('未执行触发', 'muted'),
         )
 
     def test_badge(self):

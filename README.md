@@ -355,10 +355,10 @@ scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 
 | 参数 | 说明 |
 |------|------|
-| `cronpilot_log_id` | 本次执行唯一 ID（UUID） |
+| `cronpilot_trace_id` | 本次执行追踪码（UUID） |
 | `cronpilot_sign` | 对现有 query + log_id 按 ASCII 排序拼接后 MD5（见 `get_cronpilot_sign`） |
 
-长任务进度回传：`POST /api/cron/add_log`，必传 `cronpilot_log_id`、`content`。
+长任务进度回传：`POST /api/cron/add_log`，必传 `cronpilot_trace_id`、`content`。
 
 ## 配置项（节选）
 

@@ -1,6 +1,6 @@
 {# CronPilot Redesign — Execution Logs (Mockup-aligned)
    7-column table matching Mockup Console mode:
-   LOG ID | 任务名称 | 返回内容 | 执行时间 | 耗时 | 结果 | 操作
+   # | 任务名称 | 返回内容 | 执行时间 | 耗时 | 结果 | 操作
    Filter bar: button group + task name + date range + search/reset #}
 {% extends "redesign/_base.html" %}
 {% block title %}执行记录 — CronPilot{% endblock %}
@@ -69,7 +69,7 @@
 <div class="el-table-wrap">
   <table class="el-table">
     <thead><tr>
-      <th class="elc-id">LOG ID</th>
+      <th class="elc-id">#</th>
       <th class="elc-name">任务名称</th>
       <th class="elc-body">返回内容</th>
       <th class="elc-time">执行时间</th>
@@ -182,7 +182,7 @@ document.addEventListener('click', function(e) {
   }
 
   function rebindInteractions() {
-    document.querySelectorAll('.log-id').forEach(function(el) {
+    document.querySelectorAll('.record-id').forEach(function(el) {
       el.onclick = function() {
         var id = el.getAttribute('data-id');
         navigator.clipboard.writeText(id).then(function() {

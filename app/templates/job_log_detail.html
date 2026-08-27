@@ -39,8 +39,8 @@
         {% if jl.fail_reason %}
         <p class="help-block" style="margin-top:0">失败原因：<code>{{ jl.fail_reason }}</code></p>
         {% endif %}
-        {% if jl.log_id %}
-        <p class="help-block" style="margin-top:0">log_id: <code>{{ jl.log_id }}</code></p>
+        {% if jl.trace_id %}
+        <p class="help-block" style="margin-top:0">追踪码: <code>{{ jl.trace_id }}</code></p>
         {% endif %}
         {% if cif and cif.req_url %}
         <p class="help-block" style="margin-top:0">触发 URL: <code>{{ cif.req_url }}</code></p>

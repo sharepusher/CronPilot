@@ -46,14 +46,14 @@ class JobLogRepository(BaseRepository):
             stmt, page_query, scalars=False, count_stmt=count_stmt,
         )
 
-    def get_by_log_id(self, log_id):
+    def get_by_trace_id(self, trace_id):
         return self.scalars_first(
-            select(JobLog).where(JobLog.log_id == log_id)
+            select(JobLog).where(JobLog.trace_id == trace_id)
         )
 
-    def items_for_log_id(self, log_id):
-        if not log_id:
+    def items_for_trace_id(self, trace_id):
+        if not trace_id:
             return []
         return self.scalars_all(
-            select(JobLogItems).where(JobLogItems.log_id == log_id)
+            select(JobLogItems).where(JobLogItems.trace_id == trace_id)
         )

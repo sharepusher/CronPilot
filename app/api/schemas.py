@@ -34,7 +34,7 @@ class CronUpsertIn(Schema):
     req_body = String(
         required=False,
         load_default=None,
-        metadata={'description': 'POST 时的 JSON 对象字符串（系统会注入 cronpilot_log_id / cronpilot_sign）'},
+        metadata={'description': 'POST 时的 JSON 对象字符串（系统会注入 cronpilot_trace_id / cronpilot_sign）'},
     )
     run_date = String(
         required=False,
@@ -84,9 +84,9 @@ class CronRetireIn(Schema):
 
 class AddLogIn(Schema):
     """POST /api/cron/add_log — 业务方回传执行进度。"""
-    cronpilot_log_id = String(
+    cronpilot_trace_id = String(
         required=True,
-        metadata={'description': 'CronPilot 发给业务方的执行记录 ID（trace_id）'},
+        metadata={'description': 'CronPilot 定时触发时生成的追踪码 (UUID)'},
     )
     content = String(
         required=True,

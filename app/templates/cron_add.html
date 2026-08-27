@@ -221,14 +221,14 @@
                             <option value="POST">POST</option>
                         </select>
                         <input type="text" name="req_url" required placeholder="https://example.com/job" style="width:70%;">
-                        <span class="field-hint">* 必填；到点由调度器对目标发起 GET/POST。GET 时系统附加 query 参数 cronpilot_log_id / cronpilot_sign；POST 时写入 JSON Body（不覆盖已有同名字段）。</span>
+                        <span class="field-hint">* 必填；到点由调度器对目标发起 GET/POST。GET 时系统附加 query 参数 cronpilot_trace_id / cronpilot_sign；POST 时写入 JSON Body（不覆盖已有同名字段）。</span>
                     </div>
                 </div>
                 <div class="control-group" id="req_body_div" data-field="req_body" style="display:none;">
                     <label class="control-label">请求 JSON Body</label>
                     <div class="controls">
                         <textarea name="req_body" rows="4" style="width:85%;" placeholder='{"task_name": "example"}'></textarea>
-                        <span class="field-hint">仅 POST 时生效；须为 JSON 对象。可留空，系统仍会注入 cronpilot_log_id / cronpilot_sign。</span>
+                        <span class="field-hint">仅 POST 时生效；须为 JSON 对象。可留空，系统仍会注入 cronpilot_trace_id / cronpilot_sign。</span>
                     </div>
                 </div>
                 <div class="control-group" data-field="timeout_sec">

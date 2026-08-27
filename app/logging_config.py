@@ -10,7 +10,7 @@ Provides:
 Field contract (every log record):
   timestamp / level / logger / message / filename / lineno / thread
   trace_id    — UUID4 per HTTP request (X-Request-Id header or auto-generated)
-                or cronpilot_log_id for scheduler invocations
+                or cronpilot_trace_id for scheduler invocations
   cron_id     — numeric cron task id (scheduler jobs only)
   task_name   — human-readable task name (scheduler jobs only)
   duration_ms — wall-clock ms for a completed scheduler invocation

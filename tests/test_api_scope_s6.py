@@ -352,9 +352,9 @@ class TestReadonlyQueryApis(unittest.TestCase):
             self.db.session.add(TaskGroup(task_id=c_post.id, group_id=g1.id))
 
             self.db.session.add_all([
-                JobLog(cron_info_id=c_g1.id, log_id='lg-1', status='success', create_time=str_to_hms('2026-01-01 10:00:00')),
-                JobLog(cron_info_id=c_g1.id, log_id='lg-2', status='fail', fail_reason='timeout', create_time=str_to_hms('2026-01-01 10:05:00')),
-                JobLog(cron_info_id=c_g2.id, log_id='lg-3', status='success', create_time=str_to_hms('2026-01-01 10:06:00')),
+                JobLog(cron_info_id=c_g1.id, trace_id='lg-1', status='success', create_time=str_to_hms('2026-01-01 10:00:00')),
+                JobLog(cron_info_id=c_g1.id, trace_id='lg-2', status='fail', fail_reason='timeout', create_time=str_to_hms('2026-01-01 10:05:00')),
+                JobLog(cron_info_id=c_g2.id, trace_id='lg-3', status='success', create_time=str_to_hms('2026-01-01 10:06:00')),
             ])
             self.db.session.commit()
 

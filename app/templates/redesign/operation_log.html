@@ -9,7 +9,7 @@
 
 <form method="GET" action="{{ url_for('main.operation_log_list') }}" class="pg-toolbar pg-search">
   <input class="f-input pg-input-md" type="text" name="keyword" value="{{ search_keyword or '' }}" placeholder="搜索操作人/对象…" aria-label="搜索操作人或对象">
-  <select class="f-input pg-select" name="action">
+  <select class="f-input pg-select" name="action" aria-label="筛选操作类型">
     <option value="">全部操作</option>
     <option value="create_cron"{% if keywords.get('action') == 'create_cron' %} selected{% endif %}>创建任务</option>
     <option value="update_cron"{% if keywords.get('action') == 'update_cron' %} selected{% endif %}>修改任务</option>

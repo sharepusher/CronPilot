@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>执行记录标识符与术语统一设计</title>
+<style>
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #3D6FE0; padding-bottom: .5rem; }
+  h2 { margin-top: 2rem; color: #2c3e50; }
+  h3 { margin-top: 1.5rem; color: #34495e; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f7fa; font-weight: 600; }
+  code { background: #f0f2f5; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f0f2f5; padding: 12px 16px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+  .warn { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 14px; margin: 1rem 0; }
+  .info { background: #e8f4fd; border-left: 4px solid #3D6FE0; padding: 10px 14px; margin: 1rem 0; }
+  .danger { background: #fde8e8; border-left: 4px solid #e74c3c; padding: 10px 14px; margin: 1rem 0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; }
+  .tag-break { background: #fde8e8; color: #c0392b; }
+  .tag-safe { background: #e8f8e8; color: #27ae60; }
+</style>
+</head>
+<body>
+
+<h1>执行记录标识符与术语统一设计</h1>
+<p><strong>状态</strong>：待确认 &nbsp;|&nbsp; <strong>作者</strong>：AI Agent &nbsp;|&nbsp; <strong>日期</strong>：2026-08-26</p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 标识符命名歧义</h3>
+<p>当前执行记录系统中存在两个标识符，使用了容易混淆的命名：</p>
+
+<table>
+  <tr><th>现状</th><th>数据源</th><th>实际含义</th><th>用户认知</th></tr>
+  <tr>
+    <td>列表页列头 <strong>"LOG ID"</strong> → 显示 <code>18463</code></td>
+    <td><code>job_log.id</code>（数据库自增主键）</td>
+    <td>数据库内部序号</td>
+    <td>"这是日志的 ID"</td>
+  </tr>
+  <tr>
+    <td>详情页标题 <strong>"执行 #ca04c15c"</strong></td>
+    <td><code>job_log.log_id</code> UUID 前 8 位</td>
+    <td>跨系统追踪码</td>
+    <td>"这是什么？跟列表里的 18463 什么关系？"</td>
+  </tr>
+  <tr>
+    <td>详情页元数据 <strong>"Log ID"</strong> → 显示完整 UUID</td>
+    <td><code>job_log.log_id</code></td>
+    <td>同上</td>
+    <td>"又一个 Log ID？跟上面哪个一样？"</td>
+  </tr>
+</table>
+
+<p><strong>核心问题</strong>：用户在列表看到 <code>18463</code>，点进详情后看到 <code>#ca04c15c</code>，两者之间没有任何可见关联。</p>
+
+<h3>1.2 代码层命名不一致</h3>
+<p><code>app/crons.py</code> 中同一个值在 4 行内用了两个名字：</p>
+<pre>cronpilot_log_id = str(uuid.uuid1())    # 生成时叫 "log_id"
+_ctx_trace_id.set(cronpilot_log_id)      # 设上下文时叫 "trace_id"</pre>
+
+<h3>1.3 术语不准确</h3>
+<p>多处文档和代码注释使用"<strong>回调</strong>"（callback）描述 CronPilot 发起的定时请求。实际上 CronPilot 是主动发起方（trigger），不存在被动回调的语义。准确术语应为"<strong>定时触发</strong>"或"<strong>调度请求</strong>"。</p>
+<p>"<strong>回调</strong>"出现在约 60+ 文件中，共 200+ 处引用。</p>
+
+<h2>2. 根因</h2>
+<ol>
+  <li><strong>早期设计未区分标识符用途</strong>：<code>log_id</code> 字段名暗示"日志的 ID"，但实际用途是跨系统追踪码（trace ID），与数据库主键 <code>id</code> 语义冲突。</li>
+  <li><strong>UI 列头 "LOG ID" 使用了数据库主键</strong>：列表页 "LOG ID" 展示 <code>id</code>（自增序号），详情页 "执行 #" 展示 <code>log_id</code>（UUID），从列表到详情的导航链路中标识符发生了无声切换。</li>
+  <li><strong>外部协议参数命名传播</strong>：<code>cronpilot_log_id</code> 作为定时触发请求的参数名传递给目标服务，名称中的 "log" 进一步强化了歧义。</li>
+  <li><strong>术语惯性</strong>：项目早期（xiaoniu_cron 时期）使用"回调"描述定时触发行为，后续文档沿用未更正。</li>
+</ol>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 标识符重命名（一步到位）</h3>
+<div class="info">CronPilot 是开源项目，当前无已知外部集成方，可直接重命名而无需兼容过渡。</div>
+
+<table>
+  <tr><th>变更项</th><th>旧名</th><th>新名</th><th>影响标记</th></tr>
+  <tr>
+    <td>Model 属性</td>
+    <td><code>JobLog.log_id</code></td>
+    <td><code>JobLog.trace_id</code></td>
+    <td><span class="tag tag-safe">内部</span></td>
+  </tr>
+  <tr>
+    <td>Model 属性</td>
+    <td><code>JobLogItems.log_id</code></td>
+    <td><code>JobLogItems.trace_id</code></td>
+    <td><span class="tag tag-safe">内部</span></td>
+  </tr>
+  <tr>
+    <td>Model 属性</td>
+    <td><code>JobHealth.last_run_log_id</code></td>
+    <td><code>JobHealth.last_run_trace_id</code></td>
+    <td><span class="tag tag-safe">内部</span></td>
+  </tr>
+  <tr>
+    <td>数据库列</td>
+    <td><code>job_log.log_id</code><br><code>job_log_items.log_id</code><br><code>job_health.last_run_log_id</code></td>
+    <td><code>job_log.trace_id</code><br><code>job_log_items.trace_id</code><br><code>job_health.last_run_trace_id</code></td>
+    <td><span class="tag tag-break">迁移</span></td>
+  </tr>
+  <tr>
+    <td>调度触发参数</td>
+    <td><code>cronpilot_log_id</code></td>
+    <td><code>cronpilot_trace_id</code></td>
+    <td><span class="tag tag-break">API</span></td>
+  </tr>
+  <tr>
+    <td>API 入参</td>
+    <td><code>POST /api/cron/add_log</code> 的 <code>cronpilot_log_id</code></td>
+    <td>改为 <code>cronpilot_trace_id</code></td>
+    <td><span class="tag tag-break">API</span></td>
+  </tr>
+  <tr>
+    <td>签名函数</td>
+    <td><code>get_cronpilot_sign()</code> — 参数名参与签名</td>
+    <td>参数名跟着改，签名值随之更新</td>
+    <td><span class="tag tag-break">协议</span></td>
+  </tr>
+  <tr>
+    <td>内部变量</td>
+    <td><code>cronpilot_log_id = str(uuid.uuid1())</code></td>
+    <td><code>trace_id = str(uuid.uuid1())</code></td>
+    <td><span class="tag tag-safe">内部</span></td>
+  </tr>
+</table>
+
+<h3>3.2 UI 标识符展示优化</h3>
+
+<table>
+  <tr><th>页面</th><th>元素</th><th>旧展示</th><th>新展示</th></tr>
+  <tr>
+    <td>执行记录列表</td>
+    <td>列头</td>
+    <td><code>LOG ID</code>（显示 <code>id</code>）</td>
+    <td><code>#</code>（显示 <code>id</code>，行业惯例序号列标记）</td>
+  </tr>
+  <tr>
+    <td>执行记录详情</td>
+    <td>页面标题</td>
+    <td><code>执行 #ca04c15c</code>（UUID 前 8 位）</td>
+    <td><code>执行记录 #18463</code>（数字序号，与列表一致）</td>
+  </tr>
+  <tr>
+    <td>执行记录详情</td>
+    <td>面包屑</td>
+    <td><code>执行 #ca04c15c</code></td>
+    <td><code>#18463</code></td>
+  </tr>
+  <tr>
+    <td>执行记录详情</td>
+    <td>元数据区</td>
+    <td><code>Log ID: a13114a8-...</code></td>
+    <td><code>追踪码 (Trace ID): a13114a8-...</code>（可复制）</td>
+  </tr>
+  <tr>
+    <td>执行记录详情</td>
+    <td>浏览器标签</td>
+    <td><code>执行 #ca04c15c — CronPilot</code></td>
+    <td><code>执行记录 #18463 — CronPilot</code></td>
+  </tr>
+  <tr>
+    <td>v1 列表页</td>
+    <td>列头</td>
+    <td><code>log_id</code>（显示 UUID）</td>
+    <td><code>追踪码</code>（显示 UUID，与 redesign 元数据标签一致）</td>
+  </tr>
+</table>
+
+<div class="info"><strong>认知连贯性</strong>：用户在列表看到 <code>#18463</code> → 点击 → 详情标题 <code>执行记录 #18463</code>。追踪码（UUID）作为开发者级信息，降至元数据区域单独标注。</div>
+
+<div class="danger"><strong>⚠️ 实现安全边界</strong>：<code>job_log.id</code>（自增 PK，int 类型）<strong>绝对不改名</strong>。本次重命名仅涉及 <code>log_id</code>（UUID 追踪码，str 类型）→ <code>trace_id</code>。改名后 <code>jl.id</code> 仍是数字序号（18463），<code>jl.trace_id</code> 是 UUID 字符串（a13114a8-...），类型和名称完全不同，混淆风险为零。</div>
+
+<h3>3.3 术语修正</h3>
+<p>将用户可见的"回调"术语修正为"定时触发"。</p>
+
+<table>
+  <tr><th>位置</th><th>旧文案</th><th>新文案</th></tr>
+  <tr>
+    <td>任务表单提示</td>
+    <td><code>GET 时系统附加 query 参数 cronpilot_log_id / cronpilot_sign</code></td>
+    <td><code>定时触发时系统附加 query 参数 cronpilot_trace_id / cronpilot_sign</code></td>
+  </tr>
+  <tr>
+    <td>任务表单提示</td>
+    <td><code>系统仍会注入 cronpilot_log_id / cronpilot_sign</code></td>
+    <td><code>系统仍会注入 cronpilot_trace_id / cronpilot_sign</code></td>
+  </tr>
+  <tr>
+    <td>API Schema 描述</td>
+    <td><code>CronPilot 发给业务方的执行记录 ID</code></td>
+    <td><code>CronPilot 定时触发时生成的追踪码 (UUID)</code></td>
+  </tr>
+</table>
+
+<div class="warn"><strong>关于"回调"全量替换</strong>：项目中约 60+ 文件含"回调"一词（200+ 处），大多在架构文档和设计文档中。本次设计<strong>仅修正用户可见的模板文案和 API Schema 描述</strong>中的术语，文档层面的全量替换作为独立低优先级任务跟踪，避免 diff 膨胀。</div>
+
+<h2>4. 范围</h2>
+
+<h3>4.1 代码变更清单</h3>
+
+<table>
+  <tr><th>文件</th><th>变更类型</th><th>详情</th></tr>
+  <tr><td colspan="3"><strong>Model 层（3 文件）</strong></td></tr>
+  <tr><td><code>datas/model/job_log.py</code></td><td>属性重命名</td><td><code>log_id</code> → <code>trace_id</code></td></tr>
+  <tr><td><code>datas/model/job_log_items.py</code></td><td>属性重命名</td><td><code>log_id</code> → <code>trace_id</code></td></tr>
+  <tr><td><code>datas/model/job_health.py</code></td><td>属性重命名</td><td><code>last_run_log_id</code> → <code>last_run_trace_id</code></td></tr>
+  <tr><td colspan="3"><strong>服务 / 调度层（4 文件）</strong></td></tr>
+  <tr><td><code>app/crons.py</code></td><td>变量 + 参数名</td><td><code>cronpilot_log_id</code> → <code>trace_id</code>（内部）、<code>cronpilot_trace_id</code>（外部参数）</td></tr>
+  <tr><td><code>app/services/job_health_service.py</code></td><td>参数名</td><td><code>log_id</code> → <code>trace_id</code></td></tr>
+  <tr><td><code>app/services/job_log_display.py</code></td><td>文案修正</td><td>第 31 行 <code>'未执行回调'</code> → <code>'未执行触发'</code>（用户可见返回值）</td></tr>
+  <tr><td><code>app/common/functions.py</code></td><td>无变更</td><td><code>get_cronpilot_sign()</code> 函数本身不引用参数名</td></tr>
+  <tr><td colspan="3"><strong>API 层（2 文件）</strong></td></tr>
+  <tr><td><code>app/api/views.py</code></td><td>参数名</td><td><code>cronpilot_log_id</code> → <code>cronpilot_trace_id</code></td></tr>
+  <tr><td><code>app/api/schemas.py</code></td><td>字段名 + 描述</td><td><code>cronpilot_log_id</code> → <code>cronpilot_trace_id</code></td></tr>
+  <tr><td colspan="3"><strong>Repository 层（1 文件）</strong></td></tr>
+  <tr><td><code>app/repositories/job_log_repository.py</code></td><td>方法名 + 属性引用</td><td><code>get_by_log_id()</code> → <code>get_by_trace_id()</code>；<code>items_for_log_id()</code> → <code>items_for_trace_id()</code></td></tr>
+  <tr><td colspan="3"><strong>View 层（1 文件）</strong></td></tr>
+  <tr><td><code>app/main/views.py</code></td><td>模板变量 + 方法调用 + URL 参数</td><td><code>log_id_short</code> → 改为传递 <code>jl.id</code>（数字 ID）；方法调用跟着 Repo 改；<code>job_log_item_list</code> 路由的 <code>request.args.get('log_id')</code> → <code>request.args.get('trace_id')</code></td></tr>
+  <tr><td colspan="3"><strong>模板层（8 文件）</strong></td></tr>
+  <tr><td><code>app/templates/redesign/execution_logs.html</code></td><td>列头 + 注释</td><td><code>LOG ID</code> → <code>#</code></td></tr>
+  <tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>标题 + 面包屑 + 元数据</td><td>使用数字 ID；UUID 标注为"追踪码"</td></tr>
+  <tr><td><code>app/templates/redesign/_exec_logs_rows.html</code></td><td>注释 + CSS class</td><td>注释 <code>COL 1: LOG ID</code> → <code>COL 1: #</code>；CSS class <code>log-id</code> → <code>record-id</code>（注意：<code>data-id="{{ log.id }}"</code> 展示的是 PK，<strong>不改</strong>）</td></tr>
+  <tr><td><code>app/templates/job_log_all_list.html</code></td><td>列头 + 数据</td><td><code>log_id</code> → <code>追踪码</code></td></tr>
+  <tr><td><code>app/templates/job_log_list.html</code></td><td>列头 + 数据</td><td><code>log_id</code> → <code>追踪码</code></td></tr>
+  <tr><td><code>app/templates/cron_add.html</code></td><td>提示文案</td><td>参数名 + 术语更新</td></tr>
+  <tr><td><code>app/templates/cron_edit.html</code></td><td>提示文案</td><td>参数名 + 术语更新</td></tr>
+  <tr><td><code>app/templates/redesign/task_form.html</code></td><td>提示文案</td><td>参数名 + 术语更新</td></tr>
+  <tr><td colspan="3"><strong>数据库迁移（1 文件）</strong></td></tr>
+  <tr><td><code>scripts/ensure_business_tables.py</code></td><td>列重命名</td><td>3 张表的列名迁移（<code>ALTER TABLE RENAME COLUMN</code>）</td></tr>
+  <tr><td colspan="3"><strong>测试（5 文件）</strong></td></tr>
+  <tr><td><code>tests/test_cronpilot_sign.py</code></td><td>参数名</td><td>测试数据中 <code>cronpilot_log_id</code> → <code>cronpilot_trace_id</code></td></tr>
+  <tr><td><code>tests/test_job_log_id.py</code></td><td>引用更新</td><td>Model 属性名跟着改</td></tr>
+  <tr><td><code>tests/test_job_health.py</code></td><td>引用更新</td><td>Model 属性名跟着改</td></tr>
+  <tr><td><code>tests/test_api_scope_s6.py</code></td><td>参数名</td><td>API 调用中的参数名更新</td></tr>
+  <tr><td><code>tests/test_rbac_phase.py</code></td><td>引用更新</td><td>若有 <code>log_id</code> 引用则更新</td></tr>
+  <tr><td colspan="3"><strong>配置 / 规则（3 文件）</strong></td></tr>
+  <tr><td><code>.cursor/rules/cronpilot-project.mdc</code></td><td>协议描述</td><td><code>cronpilot_log_id</code> → <code>cronpilot_trace_id</code></td></tr>
+  <tr><td><code>AGENTS.md</code></td><td>协议描述</td><td>同上</td></tr>
+  <tr><td><code>app/logging_config.py</code></td><td>注释</td><td>注释中的术语更新</td></tr>
+  <tr><td colspan="3"><strong>文档（选择性更新，仅核心文件）</strong></td></tr>
+  <tr><td><code>README.md</code></td><td>协议表格</td><td>参数名 + 术语更新</td></tr>
+  <tr><td><code>RELEASE_NOTES.md</code></td><td>新增变更条目</td><td>记录 API Breaking Change</td></tr>
+</table>
+
+<h3>4.2 明确不做</h3>
+<ul>
+  <li><strong>文档全量"回调"→"定时触发"替换</strong>：涉及 60+ 文件 200+ 处，作为独立 OPT 跟踪</li>
+  <li><strong>数据库表名变更</strong>：<code>job_log</code>、<code>job_log_items</code> 表名保持不变</li>
+  <li><strong>函数名变更</strong>：<code>get_cronpilot_sign()</code> 保持不变（函数本身不涉及 log_id 语义）</li>
+  <li><strong>路由路径变更</strong>：<code>/job_log_detail</code>、<code>/job_log_all_list</code> 等 URL 路径保持不变</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收方式</th></tr>
+  <tr>
+    <td><strong>B1: Model + 迁移</strong></td>
+    <td>3 个 Model 文件属性重命名 + <code>ensure_business_tables.py</code> 列迁移</td>
+    <td><code>cronpilot.sh test</code> 确认编译通过（部分测试会因引用旧名而 fail，预期行为）</td>
+  </tr>
+  <tr>
+    <td><strong>B2: 服务 + Repo + 测试</strong></td>
+    <td><code>crons.py</code> / <code>job_health_service.py</code> / <code>job_log_repository.py</code> / 5 个测试文件</td>
+    <td><code>cronpilot.sh test</code> 全通过（0 新增失败）</td>
+  </tr>
+  <tr>
+    <td><strong>B3: API + Schema</strong></td>
+    <td><code>api/views.py</code> / <code>api/schemas.py</code></td>
+    <td>API 测试通过 + <code>/docs</code> Swagger 页面参数名正确</td>
+  </tr>
+  <tr>
+    <td><strong>B4: View + 模板 + UI</strong></td>
+    <td><code>main/views.py</code> 模板变量 + 8 个模板文件 + CSS class</td>
+    <td>restart → 浏览器验证列表 "#" 列头 + 详情页标题用数字 ID + 元数据显示"追踪码"</td>
+  </tr>
+  <tr>
+    <td><strong>B5: 配置 + 文档</strong></td>
+    <td><code>.cursor/rules/</code> / <code>AGENTS.md</code> / <code>README.md</code> / <code>RELEASE_NOTES.md</code></td>
+    <td><code>html_docs_to_markdown.py --check</code> 通过</td>
+  </tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<h3>6.1 自动化验收</h3>
+<pre>
+# 全量测试
+bash scripts/cronpilot.sh test
+
+# 旧名残留检查（应无结果）
+rg "\.log_id\b" datas/model/ app/ --glob '*.py' | grep -v '__pycache__' | grep -v 'test_job_log_outcome'
+rg "cronpilot_log_id" app/ --glob '*.py'
+rg "LOG ID" app/templates/
+
+# 数据库列名验证
+sqlite3 datas/job_log.sqlite "PRAGMA table_info(job_log);" | grep trace_id
+sqlite3 datas/job_log.sqlite "PRAGMA table_info(job_log_items);" | grep trace_id
+sqlite3 datas/job_log.sqlite "PRAGMA table_info(job_health);" | grep last_run_trace_id
+
+# 文档同步
+python scripts/html_docs_to_markdown.py --check
+</pre>
+
+<h3>6.2 浏览器验收</h3>
+<table>
+  <tr><th>步骤</th><th>操作</th><th>期望结果</th></tr>
+  <tr>
+    <td>1</td>
+    <td>访问执行记录列表 <code>/job_log_all_list</code></td>
+    <td>第一列列头显示 <code>#</code>，非 <code>LOG ID</code></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>点击某行进入详情页</td>
+    <td>页面标题为 <code>执行记录 #18463</code>（与列表序号一致），非 UUID 前缀</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>查看详情页元数据区域</td>
+    <td>显示 <code>追踪码</code> 标签 + 完整 UUID，可复制</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>查看面包屑导航</td>
+    <td>显示 <code>#18463</code>，非 UUID</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>新建/编辑任务，查看 URL 提示文案</td>
+    <td>提示中显示 <code>cronpilot_trace_id</code>，无"回调"字样</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>触发任务执行，检查目标 URL 收到的参数</td>
+    <td>参数名为 <code>cronpilot_trace_id</code>（非 <code>cronpilot_log_id</code>）</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>调用 <code>POST /api/cron/add_log</code>，使用新参数名</td>
+    <td><code>cronpilot_trace_id</code> 参数被正确识别</td>
+  </tr>
+</table>
+
+<h3>6.3 v1 模板验收</h3>
+<table>
+  <tr><th>步骤</th><th>操作</th><th>期望结果</th></tr>
+  <tr>
+    <td>1</td>
+    <td>v1 执行记录列表（非 redesign）</td>
+    <td>列头显示"追踪码"，显示 UUID 值</td>
+  </tr>
+</table>
+
+<h2>7. 风险</h2>
+
+<table>
+  <tr><th>风险</th><th>概率</th><th>影响</th><th>缓解措施</th></tr>
+  <tr>
+    <td>SQLite <code>ALTER TABLE RENAME COLUMN</code> 需要 3.25.0+（2018-09-15）</td>
+    <td>低</td>
+    <td>中</td>
+    <td>Python 3.8+ 内置 SQLite 均 ≥ 3.25；迁移脚本增加版本检查</td>
+  </tr>
+  <tr>
+    <td>MySQL <code>ALTER TABLE CHANGE COLUMN</code> 对大表加锁</td>
+    <td>中</td>
+    <td>中</td>
+    <td>job_log 表可能较大；文档提示在低峰期执行迁移脚本</td>
+  </tr>
+  <tr>
+    <td>签名算法中参数名变更导致旧签名失效</td>
+    <td>确定</td>
+    <td>低（无已知外部集成）</td>
+    <td>RELEASE_NOTES 标注 <code>⚠️ API Breaking Change</code></td>
+  </tr>
+  <tr>
+    <td>漏改某处引用导致运行时 AttributeError</td>
+    <td>中</td>
+    <td>高</td>
+    <td>全量测试 + <code>rg</code> 旧名残留检查 + import smoke test</td>
+  </tr>
+</table>
+
+<div class="danger"><strong>⚠️ API Breaking Change</strong>：定时触发参数名从 <code>cronpilot_log_id</code> 改为 <code>cronpilot_trace_id</code>，签名计算随之变化。已部署的目标服务如有验签逻辑，需同步更新参数名。<code>POST /api/cron/add_log</code> 接口入参名同步变更。</div>
+
+<h2>附录 A：受影响文件完整清单</h2>
+<h3>代码层（~20 文件）</h3>
+<pre>
+datas/model/job_log.py
+datas/model/job_log_items.py
+datas/model/job_health.py
+app/crons.py
+app/api/views.py
+app/api/schemas.py
+app/main/views.py
+app/repositories/job_log_repository.py
+app/services/job_health_service.py
+app/services/job_log_display.py
+app/logging_config.py
+scripts/ensure_business_tables.py
+tests/test_cronpilot_sign.py
+tests/test_job_log_id.py
+tests/test_job_health.py
+tests/test_api_scope_s6.py
+tests/test_rbac_phase.py
+</pre>
+
+<h3>模板层（8 文件）</h3>
+<pre>
+app/templates/redesign/execution_logs.html
+app/templates/redesign/run_inspector.html
+app/templates/redesign/_exec_logs_rows.html
+app/templates/redesign/task_form.html
+app/templates/job_log_all_list.html
+app/templates/job_log_list.html
+app/templates/cron_add.html
+app/templates/cron_edit.html
+</pre>
+
+<h3>配置 / 文档层（~5 文件）</h3>
+<pre>
+.cursor/rules/cronpilot-project.mdc
+AGENTS.md
+README.md
+RELEASE_NOTES.md
+doc/design/执行记录标识符与术语统一设计.html（本文件）
+</pre>
+
+<h2>实施复盘：views.py 方法调用未同步更新</h2>
+
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr><th>要素</th><th>内容</th></tr>
+  <tr><td>Bug 定位</td><td><code>app/main/views.py</code> 第 703/716/738 行：<code>repo.get_by_log_id()</code> 和 <code>repo.items_for_log_id()</code> 在 B2 已将 Repo 方法重命名为 <code>get_by_trace_id</code> / <code>items_for_trace_id</code> 后仍使用旧名，用户访问详情页触发 <code>AttributeError</code></td></tr>
+  <tr><td>根因</td><td>B2 批次改了被调用方（Repo），B4 批次改了调用方的其他部分（模板变量、URL 参数），但调用方对 Repo 方法名的引用落在两个批次的 gap 中，未被任一批次的变更清单覆盖</td></tr>
+  <tr><td>测试漏洞</td><td>644 个单元测试不覆盖 <code>job_log_detail</code> 路由的端到端渲染（View → Repo 跨模块调用链）</td></tr>
+  <tr><td>修复</td><td>3 处 <code>items_for_log_id</code> → <code>items_for_trace_id</code>，1 处 <code>get_by_log_id</code> → <code>get_by_trace_id</code></td></tr>
+  <tr><td>防护测试</td><td>全仓库 grep 确认无残留旧方法名：<code>rg "_log_id\(|_for_log_id|by_log_id" app/ --glob '*.py'</code></td></tr>
+  <tr><td>同类排查</td><td>已确认：全仓库无其他 <code>_log_id(</code> / <code>by_log_id</code> / <code>_for_log_id</code> 残留</td></tr>
+  <tr><td>预防方案</td><td>跨批次重命名后，须 <code>rg</code> 全仓库确认旧方法名不存在于任何调用方。规则追加到 <code>.cursor/rules/cronpilot-project.mdc</code>「连续 StrReplace 后必须读回验证」章节</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="执行记录标识符与术语统一设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

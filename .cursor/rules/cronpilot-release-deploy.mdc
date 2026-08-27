@@ -45,7 +45,7 @@ alwaysApply: false
 - [ ] **文档已同步**：`RELEASE_NOTES` + 相关 `doc/*.html`；`html_docs_to_markdown.py --check` 通过
 - [ ] **同一 commit** 含代码与文档（除非用户要求拆 PR）
 - [ ] 未提交 `conf.ini`、数据库文件、虚拟环境
-- [ ] 对接方已知 `cronpilot_log_id` / `cronpilot_sign` / `add_log` 协议
+- [ ] 对接方已知 `cronpilot_trace_id` / `cronpilot_sign` / `add_log` 协议
 
 ## GitHub
 

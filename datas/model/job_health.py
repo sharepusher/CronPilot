@@ -14,8 +14,8 @@ class JobHealth(db.Model):
     cron_info_id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     last_run_at: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0)
     last_run_status: Mapped[Optional[str]] = mapped_column(db.String(16), nullable=True)
-    last_run_log_id: Mapped[str] = mapped_column(
-        db.String(65), nullable=False, default=''
+    last_run_trace_id: Mapped[str] = mapped_column(
+        'last_run_trace_id', db.String(65), nullable=False, default=''
     )
     last_success_at: Mapped[int] = mapped_column(
         db.BigInteger, nullable=False, default=0

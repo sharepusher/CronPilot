@@ -10,8 +10,8 @@
 {% endif %}
 {% set is_fail = log.status in ('fail', 'error', 'timeout') %}
 <tr{% if is_fail %} class="row-fail"{% endif %}>
-  {# COL 1: LOG ID (clickable to copy) #}
-  <td><span class="el-mono log-id" data-id="{{ log.id }}">{{ log.id }}</span></td>
+  {# COL 1: # (clickable to copy) #}
+  <td><span class="el-mono record-id" data-id="{{ log.id }}">{{ log.id }}</span></td>
   {# COL 2: 任务名称 #}
   <td>
     <a class="el-task-name" href="{{ url_for('main.task_detail_v2', id=task.id) if task else '#' }}">{{ task.task_name if task else '—' }}</a>

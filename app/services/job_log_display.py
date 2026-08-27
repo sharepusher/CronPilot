@@ -28,7 +28,7 @@ def job_log_status_line(http_status, content):
         '请求链接不存在',
         '请求链接有误，请检查一下',
     ):
-        return '未执行回调', 'muted'
+        return '未执行触发', 'muted'
     if text:
         return '—', 'muted'
     return '—', 'muted'

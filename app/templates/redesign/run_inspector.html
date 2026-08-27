@@ -1,5 +1,5 @@
 {% extends "redesign/_base.html" %}
-{% block title %}执行 #{{ log_id_short }} — CronPilot{% endblock %}
+{% block title %}执行 #{{ record_id }} — CronPilot{% endblock %}
 
 {% block main_class %} cp-page-run-inspector{% endblock %}
 
@@ -11,7 +11,7 @@
   <a href="{{ url_for('main.task_detail_v2', id=cif.id) }}">{{ cif.task_name }}</a>
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   {% endif %}
-  <span class="current">执行 #{{ log_id_short }}</span>
+  <span class="current">执行 #{{ record_id }}</span>
   <span class="kbd-hint"><kbd>Esc</kbd> 返回</span>
 </nav>
 {% endblock %}
@@ -30,8 +30,8 @@
 
   {# ─── Header ─── #}
   <div class="ri-header">
-    <span class="ri-id">执行 #{{ log_id_short }}
-      <button class="cp-copy-btn" data-copy-text="{{ log_id_short }}" title="复制 ID">
+    <span class="ri-id">执行 #{{ record_id }}
+      <button class="cp-copy-btn" data-copy-text="{{ record_id }}" title="复制 ID">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
     </span>
@@ -112,7 +112,7 @@
         <span class="cfg-label">任务</span><span class="cfg-value">{{ cif.task_name if cif else '—' }}</span>
         <span class="cfg-label">业务组</span><span class="cfg-value">{{ group_name or '全局' }}</span>
         <span class="cfg-label">触发方式</span><span class="cfg-value">{{ trigger_type }}</span>
-        <span class="cfg-label">Log ID</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ jl.log_id or '—' }}</span>
+        <span class="cfg-label">追踪码</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ jl.trace_id or '—' }}</span>
         <span class="cfg-label">超时阈值</span><span class="cfg-value">{{ jl.timeout_sec or 5 }}s</span>
       </div>
     </div>

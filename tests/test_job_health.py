@@ -171,7 +171,7 @@ class TestCronListHealthFilters(unittest.TestCase):
 
         db.session.add(
             JobLog(
-                log_id='log-today-fail-1',
+                trace_id='log-today-fail-1',
                 cron_info_id=t_today.id,
                 content='',
                 status=STATUS_FAIL,

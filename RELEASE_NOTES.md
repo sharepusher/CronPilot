@@ -7,6 +7,20 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### ⚠️ API Breaking Change — 执行记录标识符与术语统一
+
+**变更**：全量重命名 `log_id`（UUID 追踪码）为 `trace_id`，消除与数据库主键 `id` 的歧义。
+
+**代码变更**：
+- **模型层**：`JobLog.log_id` → `JobLog.trace_id`（`mapped_column('log_id', ...)`，数据库列名通过迁移脚本 `ALTER TABLE RENAME COLUMN` 同步更改）；`JobLogItems.log_id` → `JobLogItems.trace_id`；`JobHealth.last_run_log_id` → `JobHealth.last_run_trace_id`
+- **外部 API 参数**：定时触发请求参数 `cronpilot_log_id` → `cronpilot_trace_id`（影响签名计算）；`POST /api/cron/add_log` 入参 `cronpilot_log_id` → `cronpilot_trace_id`；`GET /api/cron/log_detail` 查询参数 `log_id` → `trace_id`，响应字段 `log_id` → `trace_id`
+- **UI 显示**：列表页列头 `log_id` → `追踪码`；详情页 `Log ID` → `追踪码`；标题 `执行 #<hash>` 保留（使用 `trace_id` 前 8 位）
+- **术语**：用户可见文本中 `回调` → `定时触发`（内部安全校验字符串保留以兼容历史日志数据）
+
+**迁移**：`scripts/ensure_business_tables.py` 自动执行 `ALTER TABLE RENAME COLUMN`（SQLite 3.25+ / MySQL 8.0+）
+
+**设计文档**：`doc/design/执行记录标识符与术语统一设计.html`
+
 ### Bugfix — Dashboard 统计指标受 UI 筛选条件影响
 
 **影响**：Redesign Dashboard 顶部统计卡片（任务总数、持续异常、逾期、今日成功率）随列表筛选（状态/标签/搜索）变化，误导用户以为全局数据在波动。
@@ -22,6 +36,28 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 **复盘**：`doc/design/Dashboard统计指标Scope隔离修复设计.html`
 
+### Refactor — DashboardService 提取
+
+从 `app/main/views.py` 的 `cron_list()` God Function（242 行）中提取域逻辑到独立 Service 层：
+
+- **新增** `app/services/dashboard_service.py`（231 行）：croniter 调度计算、逾期检测、TTL 缓存
+- **views.py** 从 1,420 行降至 1,258 行（−162 行）
+- 统计计算通过 `DashboardService.compute_stats()` 和 `compute_page_context()` 独立可测试
+
+**设计文档**：`doc/design/DashboardService提取重构设计.html`
+
+### Improvement — 按钮系统统一 + A11y 补全
+
+**按钮统一**：
+- 消除 `.cp-btn` / `.btn-c` 双系统，全部统一为 `btn-c` + 修饰符（`btn-accent` / `btn-line` / `btn-danger-c`）
+- 删除 `redesign-components.css` 中未使用的 `.cp-btn` 定义（−54 行）
+- 迁移 4 处 `.cp-btn cp-btn--primary` → `btn-c btn-accent`（dashboard / task_detail / task_form）
+
+**A11y 补全**：
+- 5 个 `<select>` 添加 `aria-label`（task_form × 3、user_form、operation_log）
+- 侧边栏 collapse 按钮添加 `aria-expanded` + `aria-label="切换侧栏"`（含 JS 动态更新）
+- Dashboard 6 个 filter toggle 添加 `aria-pressed` 标记当前选中状态
+
 ### Bugfix — 迁移脚本误清零有效时间戳
 
 **影响**：Dashboard "今日失败"等时间维度统计全部归零。
@@ -35,6 +71,16 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 **防护测试**：`tests/test_timestamp_utils.py::TestMigrationCleanupPreservesNumericText`（3 条用例）
 
 **复盘**：`doc/postmortem/2026-08-迁移脚本清零有效时间戳.html`
+
+### Enhancement — 孤儿 Job 监控告警
+
+APScheduler 中存在的孤儿 job（对应 cron_infos 记录已不存在）现在会：
+- 触发时递增 Prometheus counter `cronpilot_orphan_job_detected_total`
+- 日志级别从 warning 升级为 error，包含处理指引
+
+清理了 10 个历史孤儿 job（来自旧版 `cron_del` 的 `try/except:pass` 导致 `remove_job` 失败后残留）。
+
+**设计文档**：`doc/design/孤儿Job监控告警设计.html`
 
 ### Enhancement — 任务中心筛选 AJAX 化（OPT-P1-17）
 

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>孤儿 Job 监控告警设计</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #333; }
+h1 { border-bottom: 2px solid #3182ce; padding-bottom: 0.5rem; }
+h2 { color: #2d3748; margin-top: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3rem; }
+h3 { color: #4a5568; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+th { background: #f7fafc; }
+code { background: #edf2f7; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+.tag { display: inline-block; background: #ebf4ff; color: #3182ce; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>孤儿 Job 监控告警设计</h1>
+<p><span class="tag">OPT-P1</span> <span class="tag">监控</span> <span class="tag">APScheduler</span></p>
+
+<h2>1. 问题</h2>
+
+<p>APScheduler 的持久化 jobstore（<code>datas/cron.sqlite</code>）中存在 7 个"孤儿 job"——对应的 <code>cron_infos</code> 记录已不存在。每次触发时，<code>cron_do()</code> 检测到任务不存在，写入一条 error 日志到 <code>job_log</code>，但<strong>无告警通知运维</strong>。</p>
+
+<p><strong>影响</strong>：</p>
+<ul>
+<li>17,770 条无意义的"定时任务不存在" job_log 记录（其中 <code>cron_16</code> 每分钟 1 条）</li>
+<li>运维无法从外部监控系统感知此异常</li>
+<li>"今日失败次数"指标被无意义 error 拉高（虽然 JOIN cron_infos 后不计入，但历史记录累积）</li>
+<li>scheduler 线程资源被无意义回调消耗</li>
+</ul>
+
+<h2>2. 根因</h2>
+
+<h3>2.1 历史路径（已封死）</h3>
+<p>旧版 <code>cron_del</code> / <code>cron_batch_del</code>（commit <code>1f73cb0</code> 之前）：</p>
+<pre>db.session.delete(cif)
+db.session.commit()
+try:
+    scheduler.remove_job('cron_%s' % cron_id)
+except:
+    pass  # ← 吞掉所有异常，job 残留在 cron.sqlite</pre>
+
+<p>该路径已于 <code>1f73cb0</code>（feat: lifecycle replace delete with retire）封死，返回 HTTP 410。<strong>当前代码不存在能产生新孤儿的路径。</strong></p>
+
+<h3>2.2 数据来源</h3>
+<table>
+<tr><th>孤儿 cron_id</th><th>触发频率</th><th>产生原因</th><th>证据</th></tr>
+<tr><td>9, 10</td><td>5min / 10min</td><td>旧版 cron_del 删除后 remove_job 失败</td><td>操作日志有 create_cron 记录（b4-test-task, b4-browser-test）</td></tr>
+<tr><td>12, 14, 16, 19, 20</td><td>2min / 5min / 1min / 30min / 30min</td><td>cron.sqlite 继承自更早开发环境，对应的 cron_infos 从未在当前库中创建</td><td>job_log 第 1 条即为 "定时任务不存在"；无创建操作日志</td></tr>
+</table>
+
+<h3>2.3 为何未被发现</h3>
+<ul>
+<li><code>cron_do()</code> 只写 <code>warning</code> 级别日志，无 Prometheus 指标</li>
+<li><code>cron_check()</code> 只做正向对账（cron_infos → APScheduler），不做反向</li>
+<li>Dashboard "今日失败" JOIN cron_infos 过滤掉了这些 orphan 日志，从 UI 看不到异常</li>
+</ul>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 核心原则</h3>
+<ul>
+<li><strong>只告警不自愈</strong>：异常状态应由人工介入处理，不静默消除</li>
+<li><strong>执行记录如实记录</strong>：APScheduler 触发了 cron_do = 一次执行事件，job_log 保持写入</li>
+<li><strong>升级可见性</strong>：日志从 warning → error + Prometheus counter</li>
+</ul>
+
+<h3>3.2 改动</h3>
+
+<table>
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>app/metrics.py</code></td><td>新增 <code>ORPHAN_JOB_DETECTED = Counter('cronpilot_orphan_job_detected_total', ..., ['cron_id'])</code></td></tr>
+<tr><td><code>app/crons.py</code></td><td><code>cron_do()</code> 中 <code>if not cif:</code> 分支：① 日志 warning → error ② 递增 Prometheus counter</td></tr>
+<tr><td><code>datas/cron.sqlite</code></td><td>一次性清理当前 7 个已知孤儿 job</td></tr>
+</table>
+
+<h3>3.3 代码变更详情</h3>
+
+<h4>app/metrics.py</h4>
+<pre># 新增（在 JOBS_ACTIVE 之后）
+ORPHAN_JOB_DETECTED = Counter(
+    'cronpilot_orphan_job_detected_total',
+    'Scheduler job fired but cron_infos record missing (should not happen)',
+    ['cron_id'],
+)</pre>
+
+<h4>app/crons.py — cron_do() 分支</h4>
+<pre>if not cif:
+    # Prometheus: 递增孤儿检测计数
+    ORPHAN_JOB_DETECTED.labels(cron_id=str(cron_id)).inc()
+    
+    saved_jl = _save_job_log(
+        cron_id, "定时任务不存在", nows, 0, log_id=cronpilot_log_id,
+    )
+    current_app.logger.error(
+        "ORPHAN_JOB: scheduler has cron_%s but cron_infos record missing. "
+        "Root cause: likely legacy cron_del without remove_job. "
+        "Action: manually remove from cron.sqlite.",
+        cron_id,
+        extra={"event": "cron.orphan_detected", "cron_id": cron_id},
+    )
+    ...</pre>
+
+<h4>一次性清理</h4>
+<pre>sqlite3 datas/cron.sqlite \
+  "DELETE FROM apscheduler_jobs WHERE id IN ('cron_9','cron_10','cron_12','cron_14','cron_16','cron_19','cron_20')"</pre>
+
+<h3>3.4 告警规则（Alertmanager / Grafana）</h3>
+<pre>- alert: CronPilotOrphanJobFiring
+  expr: increase(cronpilot_orphan_job_detected_total[10m]) > 0
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "检测到孤儿 scheduler job (cron_{{ $labels.cron_id }})"
+    description: |
+      APScheduler 中的 cron_{{ $labels.cron_id }} 在 cron_infos 表中无对应记录。
+      可能原因：旧版删除残留、手动 DB 操作、数据迁移不完整。
+      处理：sqlite3 datas/cron.sqlite "DELETE FROM apscheduler_jobs WHERE id='cron_{{ $labels.cron_id }}'"</pre>
+
+<h2>4. 范围</h2>
+
+<h3>4.1 改动范围</h3>
+<ul>
+<li><code>app/metrics.py</code> — 新增 1 个 Counter</li>
+<li><code>app/crons.py</code> — <code>cron_do()</code> 中 2 行变更（日志级别 + counter）</li>
+<li><code>datas/cron.sqlite</code> — 一次性 DELETE 7 条记录</li>
+</ul>
+
+<h3>4.2 不做</h3>
+<ul>
+<li>不做自愈（不调用 <code>scheduler.remove_job()</code>）</li>
+<li>不做反向对账（<code>cron_check</code> 不改动）</li>
+<li>不改 job_log 写入逻辑（执行记录保持如实记录）</li>
+<li>不修改 Dashboard 统计逻辑（已有 JOIN 过滤孤儿）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p>改动量极小（3 个文件、约 10 行代码），<strong>单批交付</strong>。</p>
+
+<table>
+<tr><th>步骤</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>1</td><td>app/metrics.py + app/crons.py 代码变更</td><td>✅ 单测 + 重启验证</td></tr>
+<tr><td>2</td><td>清理当前 7 个孤儿</td><td>✅ 重启后无 "定时任务不存在" 日志</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<table>
+<tr><th>#</th><th>验收项</th><th>命令/方法</th></tr>
+<tr><td>1</td><td>Prometheus counter 可见</td><td><code>curl http://127.0.0.1:5001/metrics 2>/dev/null | grep orphan</code>（如 Prometheus 启用）</td></tr>
+<tr><td>2</td><td>孤儿清理后无新 error 日志</td><td>重启后 <code>tail -f datas/logs/local-server.log | grep ORPHAN_JOB</code> 无输出</td></tr>
+<tr><td>3</td><td>清理生效</td><td><code>sqlite3 datas/cron.sqlite "SELECT count(*) FROM apscheduler_jobs WHERE id IN ('cron_9','cron_10','cron_12','cron_14','cron_16','cron_19','cron_20')"</code> → 0</td></tr>
+<tr><td>4</td><td>正常任务不受影响</td><td>触发已有任务（id 1-8）仍正常写入 job_log</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+
+<ul>
+<li><strong>低</strong>：改动量极小（2 行代码 + 1 行 metrics 定义），不影响正常执行路径</li>
+<li><strong>残余风险</strong>：如果未来出现新孤儿（手动 DB 操作等），由于不自愈，会持续消耗 scheduler 线程和产生 ERROR 日志，直到人工清理。这是有意设计（可见性优先于静默修复）</li>
+<li><strong>Prometheus 依赖</strong>：如果 prometheus_client 未安装，counter 降级为 NoOp（现有 metrics.py 已有此降级机制），告警依赖日志而非指标</li>
+</ul>
+
+<hr>
+<p><em>创建时间：2026-08-26 | 关联：迁移脚本清零有效时间戳复盘（<code>doc/postmortem/2026-08-迁移脚本清零有效时间戳.html</code>）</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="孤儿Job监控告警设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

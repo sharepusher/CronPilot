@@ -66,6 +66,7 @@ def main():
         _ensure_tags_description_column()
         _drop_resource_groups_code_column(backend=backend)
         _migrate_time_columns_to_bigint()
+        _rename_log_id_to_trace_id(backend=backend)
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
         ensure_existing_users_have_token()
@@ -733,6 +734,53 @@ def _alter_column_to_bigint_mysql(table, col):
             ))
     except Exception as e:
         print('WARN: ALTER %s.%s 失败: %s' % (table, col, e))
+
+
+def _rename_log_id_to_trace_id(backend='sqlite'):
+    """Rename log_id columns to trace_id across 3 tables (idempotent).
+
+    Tables: job_log.log_id, job_log_items.log_id, job_health.last_run_log_id.
+    """
+    from sqlalchemy import inspect as sa_inspect, text
+
+    insp = sa_inspect(db.engine)
+    _RENAMES = [
+        ('job_log', 'log_id', 'trace_id'),
+        ('job_log_items', 'log_id', 'trace_id'),
+        ('job_health', 'last_run_log_id', 'last_run_trace_id'),
+    ]
+    renamed = []
+    for table, old_col, new_col in _RENAMES:
+        if not insp.has_table(table):
+            continue
+        existing = {c['name'] for c in insp.get_columns(table)}
+        if new_col in existing:
+            continue
+        if old_col not in existing:
+            continue
+        try:
+            with db.engine.begin() as conn:
+                if backend == 'sqlite':
+                    conn.execute(text(
+                        'ALTER TABLE %s RENAME COLUMN %s TO %s' % (table, old_col, new_col)
+                    ))
+                else:
+                    col_info = [c for c in insp.get_columns(table) if c['name'] == old_col][0]
+                    col_type = str(col_info['type'])
+                    nullable = 'NULL' if col_info.get('nullable', True) else 'NOT NULL'
+                    default = col_info.get('default', '')
+                    default_clause = ("DEFAULT '%s'" % default) if default else ''
+                    conn.execute(text(
+                        'ALTER TABLE %s CHANGE COLUMN %s %s %s %s %s'
+                        % (table, old_col, new_col, col_type, nullable, default_clause)
+                    ))
+            renamed.append('%s.%s' % (table, new_col))
+        except Exception as e:
+            print('WARN: rename %s.%s -> %s failed: %s' % (table, old_col, new_col, e))
+    if renamed:
+        print('OK: log_id -> trace_id 列重命名完成 ->', ', '.join(renamed))
+    else:
+        print('OK: trace_id 列已存在，无需重命名')
 
 
 if __name__ == '__main__':

@@ -58,6 +58,15 @@ try:
         ['state'],
     )
 
+    # ------------------------------------------------------------------ #
+    # Orphan job detection (scheduler job without cron_infos record)       #
+    # ------------------------------------------------------------------ #
+    ORPHAN_JOB_DETECTED = Counter(
+        'cronpilot_orphan_job_detected_total',
+        'Scheduler job fired but cron_infos record missing (should not happen)',
+        ['cron_id'],
+    )
+
     _PROMETHEUS_AVAILABLE = True
 
 except ImportError:
@@ -72,3 +81,4 @@ except ImportError:
 
     _noop = _NoOp()
     JOB_TOTAL = JOB_DURATION = TRIGGER_DELAY = JOB_LOG_WRITE_BYTES = JOBS_ACTIVE = _noop
+    ORPHAN_JOB_DETECTED = _noop

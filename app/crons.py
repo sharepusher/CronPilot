@@ -11,7 +11,7 @@ from flask import current_app
 from sqlalchemy import func, select, text
 
 from app.logging_config import _ctx_cron_id, _ctx_duration_ms, _ctx_status, _ctx_task_name, _ctx_trace_id
-from app.metrics import JOB_DURATION, JOB_LOG_WRITE_BYTES, JOB_TOTAL, TRIGGER_DELAY, _ctx_enqueue_time, JOBS_ACTIVE
+from app.metrics import JOB_DURATION, JOB_LOG_WRITE_BYTES, JOB_TOTAL, TRIGGER_DELAY, _ctx_enqueue_time, JOBS_ACTIVE, ORPHAN_JOB_DETECTED
 from app import scheduler, db
 from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
 from app.services.job_log_outcome import (
@@ -49,7 +49,7 @@ def _notify_job_outcome(task_name, content, status):
         )
 
 
-def _create_pending_log(cron_id, nows, log_id, timeout_sec=None):
+def _create_pending_log(cron_id, nows, trace_id, timeout_sec=None):
     """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
     raise NotImplementedError("_create_pending_log removed in Plan-B: use _save_job_log with terminal status directly")
 
@@ -65,7 +65,7 @@ def _update_log_running(jl, started_at):
             jl.cron_info_id,
             status,
             jl.create_time,
-            log_id=jl.log_id,
+            trace_id=jl.trace_id,
             cron_config=current_app.config.get('CRON_CONFIG'),
         )
     except Exception:
@@ -87,7 +87,7 @@ def _save_job_log(
     nows,
     take_time,
     task_name=None,
-    log_id='',
+    trace_id='',
     http_status=None,
     status=None,
     fail_reason=None,
@@ -96,15 +96,14 @@ def _save_job_log(
 ):
     if status is None:
         status, fail_reason = pre_request_outcome(content)
-    # 每条执行记录必有 log_id，便于与回调 / add_log / 文件日志相互印证
-    if not log_id:
-        log_id = str(uuid.uuid1())
+    if not trace_id:
+        trace_id = str(uuid.uuid1())
     jl = JobLog(
         cron_info_id=cron_id,
         content=content,
         create_time=nows,
         take_time=take_time,
-        log_id=log_id,
+        trace_id=trace_id,
         http_status=http_status,
         status=status,
         fail_reason=fail_reason,
@@ -120,7 +119,7 @@ def _save_job_log(
             cron_id,
             status,
             nows,
-            log_id=log_id,
+            trace_id=trace_id,
             cron_config=current_app.config.get('CRON_CONFIG'),
         )
     except Exception:
@@ -154,12 +153,11 @@ def cron_check_db_sleep():
 def cron_do(cron_id):
     saved_jl = None
     with scheduler.app.app_context():
-        # 一次触发一个 log_id：预检失败 / HTTP / 异常共用，保证可追溯
-        cronpilot_log_id = str(uuid.uuid1())
+        trace_id = str(uuid.uuid1())
         nows = utc_now_hms()
         t0 = time.time()
         task_name = None
-        _ctx_trace_id.set(cronpilot_log_id)
+        _ctx_trace_id.set(trace_id)
         _ctx_cron_id.set(str(cron_id))
 
         # 默认超时（秒）；per-task 值在 cif 加载后覆盖
@@ -172,16 +170,20 @@ def cron_do(cron_id):
             cif = db.session.get(CronInfos, cron_id)
 
             if not cif:
+                ORPHAN_JOB_DETECTED.labels(cron_id=str(cron_id)).inc()
                 saved_jl = _save_job_log(
                     cron_id,
                     "定时任务不存在",
                     nows,
                     0,
-                    log_id=cronpilot_log_id,
+                    trace_id=trace_id,
                 )
-                current_app.logger.warning(
-                    "cron task not found",
-                    extra={"event": "cron.not_found"},
+                current_app.logger.error(
+                    "ORPHAN_JOB: scheduler has cron_%s but cron_infos record "
+                    "missing. Likely legacy cron_del residue. "
+                    "Action: remove from cron.sqlite.",
+                    cron_id,
+                    extra={"event": "cron.orphan_detected", "cron_id": cron_id},
                 )
             else:
                 req_url = cif.req_url
@@ -194,7 +196,7 @@ def cron_do(cron_id):
                         nows,
                         0,
                         task_name=task_name,
-                        log_id=cronpilot_log_id,
+                        trace_id=trace_id,
                     )
                     current_app.logger.warning(
                         "cron url missing",
@@ -208,7 +210,7 @@ def cron_do(cron_id):
                             nows,
                             0,
                             task_name=task_name,
-                            log_id=cronpilot_log_id,
+                            trace_id=trace_id,
                         )
                         current_app.logger.warning(
                             "cron url invalid scheme",
@@ -223,7 +225,7 @@ def cron_do(cron_id):
                                 nows,
                                 0,
                                 task_name=task_name,
-                                log_id=cronpilot_log_id,
+                                trace_id=trace_id,
                             )
                             current_app.logger.warning(
                                 "cron ssrf validation failed",
@@ -245,7 +247,7 @@ def cron_do(cron_id):
                                         ps = pp.split('&')
                                     parmas = {d.split('=')[0]: d.split('=')[1] for d in ps}
 
-                                parmas['cronpilot_log_id'] = cronpilot_log_id
+                                parmas['cronpilot_trace_id'] = trace_id
                                 cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
 
                                 req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
@@ -266,8 +268,8 @@ def cron_do(cron_id):
                                         post_body = parsed_body if isinstance(parsed_body, dict) else {}
                                     else:
                                         post_body = {}
-                                    if 'cronpilot_log_id' not in post_body:
-                                        post_body['cronpilot_log_id'] = cronpilot_log_id
+                                    if 'cronpilot_trace_id' not in post_body:
+                                        post_body['cronpilot_trace_id'] = trace_id
                                     if 'cronpilot_sign' not in post_body:
                                         post_body['cronpilot_sign'] = cronpilot_sign
                                     req = _http.post(
@@ -280,7 +282,7 @@ def cron_do(cron_id):
                                     req = _http.get(
                                         req_url,
                                         params={
-                                            'cronpilot_log_id': cronpilot_log_id,
+                                            'cronpilot_trace_id': trace_id,
                                             'cronpilot_sign': cronpilot_sign,
                                         },
                                         timeout=timeout_sec,
@@ -308,7 +310,7 @@ def cron_do(cron_id):
                                     nows,
                                     time.time() - t0,
                                     task_name=task_name,
-                                    log_id=cronpilot_log_id,
+                                    trace_id=trace_id,
                                     http_status=req.status_code,
                                     status=run_status,
                                     fail_reason=fail_reason,
@@ -338,7 +340,7 @@ def cron_do(cron_id):
                                     nows,
                                     time.time() - t0,
                                     task_name=task_name,
-                                    log_id=cronpilot_log_id,
+                                    trace_id=trace_id,
                                     status=fin_status,
                                     fail_reason=exception_fail_reason(e),
                                     started_at=started_at,
@@ -363,7 +365,7 @@ def cron_do(cron_id):
                         nows,
                         time.time() - t0,
                         task_name=task_name,
-                        log_id=cronpilot_log_id,
+                        trace_id=trace_id,
                         status=STATUS_ERROR,
                         fail_reason=exception_fail_reason(e),
                     )
@@ -380,7 +382,7 @@ def cron_do(cron_id):
             )
             wechat_info_err(
                 '定时任务发生严重错误',
-                'log_id:%s 返回信息:%s' % (cronpilot_log_id, str(e)),
+                'trace_id:%s 返回信息:%s' % (trace_id, str(e)),
             )
 
         finally:

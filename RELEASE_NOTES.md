@@ -7,6 +7,145 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### Bugfix — Dashboard 统计指标受 UI 筛选条件影响
+
+**影响**：Redesign Dashboard 顶部统计卡片（任务总数、持续异常、逾期、今日成功率）随列表筛选（状态/标签/搜索）变化，误导用户以为全局数据在波动。
+
+**根因**：`cron_list()` 视图中 `filter_arr` 同时承载 Scope 过滤（权限+业务组）和 UI 展示过滤（状态/标签/搜索），统计函数直接使用 `filter_arr` 导致卡片数据被展示条件污染。
+
+**修复**：
+- 将 `filter_arr` 拆分为 `scope_filters`（仅权限+组）和 `filter_arr`（scope + UI 展示条件）
+- 所有统计函数（`metrics` / `count_consecutive_failing` / `status_counts` / `today_success_rate` / `_cached_overdue_stats`）改用 `scope_filters`
+- 分离缓存 key：`_stats_cache_key`（scope-only）和 `_list_cache_key`（scope + display filters）
+
+**防护测试**：`tests/test_dashboard_stats_stability.py`（3 条用例）
+
+**复盘**：`doc/design/Dashboard统计指标Scope隔离修复设计.html`
+
+### Bugfix — 迁移脚本误清零有效时间戳
+
+**影响**：Dashboard "今日失败"等时间维度统计全部归零。
+
+**根因**：`scripts/ensure_business_tables.py` 的清理条件 `typeof(col) = 'text'` 覆盖了 SQLite VARCHAR 列中存储的有效 BIGINT 时间戳（纯数字文本 typeof 也是 'text'），每次服务重启时将其清零。
+
+**修复**：
+- `_column_needs_migration()` 仅对日期格式文本（`LIKE '____-__-__%'`）触发迁移
+- `_convert_column_data()` 清理条件收窄：仅清零 `CAST(col AS INTEGER) = 0` 的非数字文本
+
+**防护测试**：`tests/test_timestamp_utils.py::TestMigrationCleanupPreservesNumericText`（3 条用例）
+
+**复盘**：`doc/postmortem/2026-08-迁移脚本清零有效时间戳.html`
+
+### Enhancement — 任务中心筛选 AJAX 化（OPT-P1-17）
+
+任务中心（Redesign v2）筛选操作改为 AJAX 局部刷新，不再整页重载。点击异常/状态筛选、切换组/标签、搜索任务名、翻页时页面滚动位置保持稳定，表格区域局部更新。
+
+**交互优化**：
+- 筛选按钮 click → AJAX fetch → 仅更新表格 + 分页 + 统计数字
+- URL 通过 `history.replaceState` 同步更新，刷新页面后筛选状态保持
+- JS 未加载时降级为整页刷新（可用）
+
+**规范新增**：
+- `.cursor/rules/cronpilot-project.mdc` 追加"Redesign 交互回归约束"：v1 已有 AJAX 交互的功能，v2 不得降级为整页刷新
+- 复盘文档：`doc/postmortem/2026-08-Redesign筛选交互降级.html`
+
+### Enhancement — 执行记录筛选 AJAX 化（OPT-P1-18）
+
+执行记录页（Redesign v2）筛选操作改为 AJAX 局部刷新，复用 OPT-P1-17 相同的 partial 模式。覆盖两个入口：单任务执行记录（`/job_log_list`）和全局执行记录（`/job_log_all_list`）。
+
+**交互优化**：
+- 5 个结果按钮（非成功/全部/仅失败/仅异常/仅成功）→ AJAX fetch → 表格 + 分页局部更新
+- 任务名/内容搜索 300ms debounce → 自动刷新
+- 翻页链接拦截 → 局部更新
+- URL 通过 `history.replaceState` 同步
+- JS 未加载时降级为整页刷新
+
+**新增文件**：
+- `app/templates/redesign/_exec_logs_rows.html` — tbody partial
+- `app/templates/redesign/_exec_logs_pagination.html` — 分页 partial
+- `tests/test_exec_logs_partial.py` — 5 条回归测试
+
+### Enhancement — 操作记录与审计日志筛选 AJAX 化（OPT-P1-19）
+
+操作记录页（`/operation_log_list`）、审计日志页（`/rbac/audit-logs`）和用户管理页（`/rbac/users`）的 Redesign v2 筛选操作改为 AJAX 局部刷新，复用 OPT-P1-17/18 相同的 partial 模式。
+
+**交互优化**：
+- 操作记录：操作类型下拉 + 关键词搜索 → AJAX fetch → 表格 + 分页局部更新
+- 审计日志：5 个 chip 按钮（全部/登录成功/登录失败/权限拒绝/用户管理）+ 用户名搜索 → AJAX fetch → 表格 + 分页局部更新
+- 用户管理：3 个 chip 按钮（全部/启用/停用）+ 用户名搜索 → AJAX fetch → 表格 + 分页 + 状态计数局部更新
+- 翻页链接拦截 → 局部更新
+- URL 通过 `history.replaceState` 同步
+- JS 未加载时降级为整页刷新
+
+**新增文件**：
+- `app/templates/redesign/_oplog_rows.html` — 操作记录 tbody partial
+- `app/templates/redesign/_oplog_pagination.html` — 操作记录分页 partial
+- `app/templates/redesign/_audit_logs_rows.html` — 审计日志 tbody partial
+- `app/templates/redesign/_audit_logs_pagination.html` — 审计日志分页 partial
+- `app/templates/redesign/_users_rows.html` — 用户管理 tbody partial
+- `app/templates/redesign/_users_pagination.html` — 用户管理分页 partial
+- `tests/test_oplog_audit_partial.py` — 10 条回归测试
+
+### Bugfix — test_rbac_phase 测试维护债务修复（9F+1E）
+
+**影响**：`test_rbac_phase.py` 中 9 failures + 1 error 长期潜伏未被日常 CI 发现。
+
+**修复**：
+- **Category A**：恢复 `/check_pass` 路由的 `next` 参数透传 + POST 307 语义（`app/main/views.py`）
+- **Category B**：5 处测试 POST data 补充 `job_title: 'tech'`（OPT-P1-10 新增验证后测试未同步）
+- **Category C**：3 个 TestCase setUp 补充 Tag/TaskTag/TaskGroup model imports（OPT-P1-11 新增表后旧测试未更新）
+
+**预防措施**：创建 `tests/_all_models.py` 全模型导入辅助模块，避免未来新增模型时旧测试遗漏 import。
+
+**复盘**：`doc/postmortem/2026-08-test-rbac-phase-maintenance-debt.html`
+
+### Enhancement — 时间戳存储格式迁移至 BIGINT UTC（OPT-P2-14）
+
+全量时间戳字段从 `VARCHAR(25)` 本地时间字符串迁移为 `BIGINT` 百毫秒 UTC epoch，提升查询性能和跨时区一致性。
+
+**数据模型**：9 个 Model、22 个时间戳字段全部迁移至 `db.BigInteger`
+
+**核心工具库** `datas/utils/times.py`：
+- `utc_now_hms()` — 当前 UTC 时间百毫秒 epoch
+- `str_to_hms()` / `hms_to_str()` — 字符串 ↔ BIGINT 互转
+- `hms_to_display()` — BIGINT → 本地时间显示字符串
+- `datetime_to_hms()` / `hms_to_datetime()` — datetime ↔ BIGINT 互转
+- `local_today_start_hms()` / `local_tomorrow_start_hms()` — 日期范围查询
+
+**Jinja2 过滤器**：`|hms_display`、`|hms_date`、`|hms_time`、`|hms_short`
+
+**数据迁移脚本**：`ensure_business_tables.py` 新增 `_migrate_time_columns_to_bigint()`，幂等执行，支持 SQLite / MySQL 双后端，T-A 策略（历史本地时间转真正 UTC）
+
+**写入路径**：7 个服务文件的 20+ 调用点从 `get_now_time()` 迁移到 `utc_now_hms()`
+
+**读取路径**：`JobLog.create_time.like(today + '%')` 等字符串查询改为 BIGINT 范围查询；API 返回保持 ISO 字符串兼容
+
+**模板适配**：25 个模板（redesign + v1）全部使用 `|hms_display` 过滤器
+
+**测试**：41 条新增时间工具单测 + 10 个测试文件数据适配 = 617 tests, 0 新增失败
+
+**⚠️ API 兼容说明**：`/api/cron/logs` 的 `create_time` 字段仍返回 ISO 字符串（通过 `hms_to_str()` 转换），API 消费者无需修改
+
+**设计文档**：`doc/design/时间戳迁移至BIGINT-UTC设计.html`
+
+**Files changed:** `datas/utils/times.py`, `datas/model/*.py` (9 files), `app/__init__.py`, `app/services/*.py` (3 files), `app/rbac/services.py`, `app/rbac/views.py`, `app/crons.py`, `app/main/views.py`, `app/api/views.py`, `app/repositories/*.py` (3 files), `scripts/ensure_business_tables.py`, `app/templates/**/*.html` (25 files), `tests/*.py` (11 files)
+
+### Enhancement — 任务中心「逾期未执行」提示功能
+
+- 新增「逾期未执行」独立维度：当任务超过调度间隔 × 2（最小 10 分钟）仍未执行时标记为逾期
+- Stats 卡片：新增「逾期未执行」琥珀色卡片，显示逾期任务数量
+- Stat-line：新增「逾期」计数，使用琥珀色高亮
+- 筛选按钮：新增「逾期未执行」独立筛选，支持按逾期状态过滤任务列表
+- Exception Panel：逾期任务显示琥珀色图标 + 「逾期 Xh」标签
+- 健康度列：逾期任务显示琥珀色「逾期」/「异常 · 逾期」badge
+- 逾期判定逻辑：使用 `croniter` 计算调度间隔，与最近一次执行时间比较；暂停/停用/一次性任务排除
+- 新增 12 条单元测试覆盖逾期判定逻辑
+- **性能优化 L1（复合索引）**：`ensure_business_tables.py` 自动创建复合索引 `ix_job_log_cron_id_create_time (cron_info_id, create_time)`，启用 Covering Index Scan，`MAX(create_time) GROUP BY` 查询提速 ~5x（实测 1000 ID 查询从 26.8ms 降至 5.5ms）
+- **性能优化 L2（进程内 TTL 缓存）**：`_cached_overdue_stats()` 对逾期统计结果进行 30s TTL 缓存（按用户 scope 隔离），Dashboard 重复加载耗时从 776ms 降至 73ms（10.6x 提速）
+- 设计文档含详细性能分析（SQLite/MySQL 基准、并发场景、阶梯式优化路线图）：`doc/design/任务中心逾期未执行提示设计.html`
+
+**Files changed:** `app/main/views.py`, `app/repositories/cron_repository.py`, `app/templates/redesign/dashboard.html`, `app/static/css/redesign-pages.css`, `tests/test_overdue_detection.py` (new), `scripts/ensure_business_tables.py`
+
 ### Enhancement — 任务中心筛选按钮视觉统一与文案优化
 
 - 任务中心筛选按钮（`.f-btn`）选中态增加蓝色圆点指示，与执行记录页视觉一致
@@ -34,6 +173,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - Redesign 页面 JS 总载荷从 ~257 KB 降至 ~98 KB
 - v1 页面完全不受影响（`admin_base.html` 引用链未改动）
 - **修复**：移除 `jquery.js` 的 `defer` 属性（inline script 依赖 `$` 必须同步加载）
+- **UX 增强**：errcode≠0 的资源守卫跳转延迟 800ms，让错误 Toast 有时间被用户阅读
 - 设计文档：`doc/design/F5-common-js精简设计.html`
 - 复盘文档：`doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`
 

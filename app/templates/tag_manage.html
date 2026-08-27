@@ -38,7 +38,7 @@
                 <td>{% if t.group_id %}{{ group_name_map.get(t.group_id, '—') }}{% else %}<span style="color:var(--cp-muted)">全局</span>{% endif %}</td>
                 <td>{% if t.task_count > 0 %}<a href="javascript:;" class="btn-tag-tasks" data-id="{{ t.id }}" style="text-decoration:underline">{{ t.task_count }}</a>{% else %}0{% endif %}</td>
                 <td>{{ t.created_by or '—' }}</td>
-                <td>{{ t.create_time or '—' }}</td>
+                <td>{{ t.create_time|hms_display or '—' }}</td>
                 <td>
                     <a href="javascript:;" class="btn-tag-edit"
                        data-id="{{ t.id }}"

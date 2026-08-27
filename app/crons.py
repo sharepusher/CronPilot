@@ -31,7 +31,7 @@ from app.services.url_security import validate_callback_url, validate_and_resolv
 from configs import configs
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
-from datas.utils.times import get_now_time
+from datas.utils.times import utc_now_hms
 
 
 def _notify_job_outcome(task_name, content, status):
@@ -109,7 +109,7 @@ def _save_job_log(
         status=status,
         fail_reason=fail_reason,
         started_at=started_at,
-        finished_at=get_now_time(),
+        finished_at=utc_now_hms(),
         timeout_sec=timeout_sec,
     )
     db.session.add(jl)
@@ -156,7 +156,7 @@ def cron_do(cron_id):
     with scheduler.app.app_context():
         # 一次触发一个 log_id：预检失败 / HTTP / 异常共用，保证可追溯
         cronpilot_log_id = str(uuid.uuid1())
-        nows = get_now_time()
+        nows = utc_now_hms()
         t0 = time.time()
         task_name = None
         _ctx_trace_id.set(cronpilot_log_id)
@@ -232,7 +232,7 @@ def cron_do(cron_id):
                         else:
                             # 预检通过：记录 started_at，HTTP 结束后一次终态写入（方案 B：1-write）
                             timeout_sec = int(cif.timeout_sec) if cif.timeout_sec else _DEFAULT_TIMEOUT_SEC
-                            started_at = get_now_time()
+                            started_at = utc_now_hms()
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
                                 parmas = {}

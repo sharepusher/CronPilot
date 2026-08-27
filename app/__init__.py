@@ -15,6 +15,16 @@ db = SQLAlchemy()
 
 isCreate = False
 
+
+def register_hms_filters(app):
+    """Register BIGINT timestamp Jinja2 filters. Reusable in test setups."""
+    from datas.utils.times import hms_to_display, hms_to_date_str
+    app.jinja_env.filters['hms_display'] = hms_to_display
+    app.jinja_env.filters['hms_date'] = hms_to_date_str
+    app.jinja_env.filters['hms_time'] = lambda v: hms_to_display(v, '%H:%M:%S')
+    app.jinja_env.filters['hms_short'] = lambda v: hms_to_display(v, '%m-%d %H:%M')
+
+
 def create_app(config_name):
     app = APIFlask(
         __name__,
@@ -49,6 +59,8 @@ def create_app(config_name):
     app.jinja_env.filters['humanize_schedule'] = humanize_schedule
     app.jinja_env.filters['format_cron_expression'] = format_cron_expression
     app.jinja_env.filters['format_duration'] = format_duration
+
+    register_hms_filters(app)
     scheduler.app = app
     if app.config.get('CRONPILOT_SCHEDULER_ENABLED', True):
         scheduler.init_app(app)

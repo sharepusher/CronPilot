@@ -10,7 +10,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from app import db
+from app import db, register_hms_filters
 from app.services.job_health_service import (
     DEFAULT_FAILING_THRESHOLD,
     HEALTH_FAILING,
@@ -99,6 +99,7 @@ class TestCronListHealthFilters(unittest.TestCase):
             'health_failing_threshold': '3',
         }
         db.init_app(app)
+        register_hms_filters(app)
         from app.main import main as main_blueprint
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(main_blueprint)
@@ -130,13 +131,13 @@ class TestCronListHealthFilters(unittest.TestCase):
         from datas.model.job_health import JobHealth
         from datas.model.job_log import JobLog
         from datas.model.rbac_user import RbacUser
-        from datas.utils.times import get_now_time, get_today
+        from datas.utils.times import get_today, str_to_hms, utc_now_hms
 
-        adm = RbacUser(username='adm_hf', role='admin', is_active=1, create_time=get_now_time())
+        adm = RbacUser(username='adm_hf', role='admin', is_active=1, create_time=utc_now_hms())
         adm.set_password('pass')
         db.session.add(adm)
 
-        now = get_now_time()
+        now = utc_now_hms()
         today = get_today()
         t_ok = CronInfos(
             task_name='ok_today_clean',
@@ -174,13 +175,13 @@ class TestCronListHealthFilters(unittest.TestCase):
                 cron_info_id=t_today.id,
                 content='',
                 status=STATUS_FAIL,
-                create_time=today + ' 10:00:00',
+                create_time=str_to_hms(today + ' 10:00:00'),
             )
         )
         db.session.add(
             JobHealth(
                 cron_info_id=t_today.id,
-                last_run_at=today + ' 10:00:00',
+                last_run_at=str_to_hms(today + ' 10:00:00'),
                 last_run_status=STATUS_FAIL,
                 consecutive_failures=1,
                 health_status=HEALTH_OK,
@@ -189,7 +190,7 @@ class TestCronListHealthFilters(unittest.TestCase):
         db.session.add(
             JobHealth(
                 cron_info_id=t_streak.id,
-                last_run_at=today + ' 11:00:00',
+                last_run_at=str_to_hms(today + ' 11:00:00'),
                 last_run_status=STATUS_FAIL,
                 consecutive_failures=3,
                 health_status=HEALTH_FAILING,

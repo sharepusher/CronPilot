@@ -15,7 +15,7 @@
 
         {% if already %}
         <div class="alert alert-info">任务「{{ cif.task_name }}」已下线。
-            {% if cif.retired_at %}<br>下线于 {{ cif.retired_at }}{% endif %}
+            {% if cif.retired_at %}<br>下线于 {{ cif.retired_at|hms_display }}{% endif %}
             {% if cif.retire_reason %}<br>原因：{{ cif.retire_reason }}{% endif %}
         </div>
         <p><a href="{{ url_for('main.cron_list') }}" class="btn">返回列表</a></p>

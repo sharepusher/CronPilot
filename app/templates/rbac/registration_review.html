@@ -57,7 +57,7 @@
                     {% endif %}
                 </td>
                 <td title="{{ req.reason }}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ req.reason }}</td>
-                <td>{{ req.create_time[:16] if req.create_time else '' }}</td>
+                <td>{{ req.create_time|hms_display or '' }}</td>
                 <td>
                     {% if req.status == 'pending' %}
                     <span class="label" style="background:var(--cp-warn-icon);color:var(--cp-surface)">待审批</span>

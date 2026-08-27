@@ -34,7 +34,7 @@
                     <tr>
                         <td>{{ item.log_id }}</td>
                         <td>{{ job_log_result_cell(item) }}</td>
-                        <td>{{ item.create_time }}</td>
+                        <td>{{ item.create_time|hms_display }}</td>
                         <td>{{ item.take_time }}</td>
                         <td><a href="javascript:;" onclick="open_iframe_dialog('{{ url_for('main.job_log_detail', id=item.id) }}','执行详情',{width: '80%',
         height: '80%'})">查看详情</a></td>

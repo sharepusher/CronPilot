@@ -64,7 +64,7 @@
             {% for item in page_data.items %}
             {% set cif = cron_by_id.get(item.target_id) %}
             <tr>
-                <td>{{ item.create_time }}</td>
+                <td>{{ item.create_time|hms_display }}</td>
                 <td title="{{ item.action }}">{{ operation_action_label(item.action, item.detail_json) }}</td>
                 <td>{{ item.operator_name }}</td>
                 <td style="color:var(--cp-muted);font-size:12px">{{ item.operator_roles_json }}</td>

@@ -9,7 +9,7 @@
 <div class="cr-card cr-card-info">
   <div class="cr-info-title">任务「{{ cif.task_name }}」已下线</div>
   {% if cif.retired_at %}
-  <div class="cr-info-row">下线于 {{ cif.retired_at }}</div>
+  <div class="cr-info-row">下线于 {{ cif.retired_at|hms_display }}</div>
   {% endif %}
   {% if cif.retire_reason %}
   <div class="cr-info-row">原因：{{ cif.retire_reason }}</div>

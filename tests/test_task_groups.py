@@ -11,6 +11,7 @@ if ROOT not in sys.path:
 
 from flask import Flask
 from app import db as _db
+from datas.utils.times import str_to_hms, utc_now_hms
 
 
 def _make_app():
@@ -93,7 +94,7 @@ class TestTagModel(unittest.TestCase):
     def test_create_tag(self):
         with self.app.app_context():
             from datas.model.tag import Tag
-            t = Tag(name='JP', created_by='admin', create_time='2026-08-05', update_time='2026-08-05')
+            t = Tag(name='JP', created_by='admin', create_time=str_to_hms('2026-08-05 00:00:00'), update_time=str_to_hms('2026-08-05 00:00:00'))
             self.db.session.add(t)
             self.db.session.commit()
             self.assertIsNotNone(t.id)
@@ -103,9 +104,9 @@ class TestTagModel(unittest.TestCase):
         with self.app.app_context():
             from datas.model.tag import Tag
             from sqlalchemy.exc import IntegrityError
-            self.db.session.add(Tag(name='JP', group_id=1, created_by='a', create_time='t', update_time='t'))
+            self.db.session.add(Tag(name='JP', group_id=1, created_by='a', create_time=utc_now_hms(), update_time=utc_now_hms()))
             self.db.session.commit()
-            self.db.session.add(Tag(name='JP', group_id=1, created_by='b', create_time='t', update_time='t'))
+            self.db.session.add(Tag(name='JP', group_id=1, created_by='b', create_time=utc_now_hms(), update_time=utc_now_hms()))
             with self.assertRaises(IntegrityError):
                 self.db.session.commit()
 
@@ -113,8 +114,8 @@ class TestTagModel(unittest.TestCase):
         """不同组内同名标签可共存。"""
         with self.app.app_context():
             from datas.model.tag import Tag
-            self.db.session.add(Tag(name='JP', group_id=1, created_by='a', create_time='t', update_time='t'))
-            self.db.session.add(Tag(name='JP', group_id=2, created_by='b', create_time='t', update_time='t'))
+            self.db.session.add(Tag(name='JP', group_id=1, created_by='a', create_time=utc_now_hms(), update_time=utc_now_hms()))
+            self.db.session.add(Tag(name='JP', group_id=2, created_by='b', create_time=utc_now_hms(), update_time=utc_now_hms()))
             self.db.session.commit()
             count = self.db.session.query(Tag).filter_by(name='JP').count()
             self.assertEqual(count, 2)

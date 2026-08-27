@@ -79,7 +79,7 @@
                     <span style="color:var(--cp-warn);font-size:11px">未分组</span>
                     {% endif %}
                 </td>
-                <td>{{ item.create_time }}</td>
+                <td>{{ item.create_time|hms_display }}</td>
                 <td class="user-ops" style="white-space:nowrap">
                     {% if is_self %}
                     <a class="btn cp-btn-sm btn-primary" href="{{ url_for('rbac.change_password') }}">修改密码</a>

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 from configs import configs
 from datas.model.rbac_audit_log import RbacAuditLog
 from datas.model.rbac_user import RbacUser
-from datas.utils.times import get_now_time
+from datas.utils.times import datetime_to_hms, utc_now_hms
 
 from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions, is_seed_admin_username
 
@@ -110,7 +110,7 @@ def ensure_seed_admin():
         username=SEED_ADMIN_USERNAME,
         role='admin',
         is_active=1,
-        create_time=get_now_time(),
+        create_time=utc_now_hms(),
     )
     if is_hashed_password(login_pwd):
         user.password_hash = login_pwd
@@ -196,7 +196,7 @@ def write_audit_log(action='', resource='', status='allow', user_id=None, userna
             resource=resource or '',
             ip=ip if ip is not None else (request.remote_addr or ''),
             status=status,
-            create_time=get_now_time(),
+            create_time=utc_now_hms(),
             actor_group_ids=_actor_group_ids_csv(),
         )
         db.session.add(entry)
@@ -366,7 +366,7 @@ def _auto_issue_token(user):
     from datetime import datetime, timedelta
 
     user.api_token = secrets.token_urlsafe(32)
-    user.api_token_expires_at = (datetime.now() + timedelta(days=API_TOKEN_TTL_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+    user.api_token_expires_at = datetime_to_hms(datetime.now() + timedelta(days=API_TOKEN_TTL_DAYS))
 
 
 def create_user(username, role='viewer', email='', nickname='', job_title=''):
@@ -402,7 +402,7 @@ def create_user(username, role='viewer', email='', nickname='', job_title=''):
         role=role,
         is_active=1,
         must_reset_password=1,
-        create_time=get_now_time(),
+        create_time=utc_now_hms(),
         email=(email or '').strip() or None,
         nickname=(nickname or '').strip() or None,
         job_title=(job_title or '').strip() or None,
@@ -611,7 +611,7 @@ def create_resource_group(name, description=''):
     group = ResourceGroup(
         name=name,
         description=description,
-        create_time=get_now_time(),
+        create_time=utc_now_hms(),
     )
     try:
         db.session.add(group)
@@ -888,7 +888,7 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
         reason=reason,
         status='pending',
         pending_username=username,
-        create_time=get_now_time(),
+        create_time=utc_now_hms(),
     )
     req.set_password(password)
     try:
@@ -984,7 +984,7 @@ def approve_registration(request_id, reviewer_id=None):
         req.status = 'rejected'
         req.pending_username = None
         req.review_comment = '用户名已被占用'
-        req.update_time = get_now_time()
+        req.update_time = utc_now_hms()
         db.session.commit()
         return {'ok': False, 'msg': '用户名"%s"已被占用，申请已自动拒绝' % req.username}
     # 删除同名的已停用旧记录（释放 UNIQUE 约束）
@@ -1008,7 +1008,7 @@ def approve_registration(request_id, reviewer_id=None):
         nickname=req.nickname or None,
         is_active=1,
         must_reset_password=0,
-        create_time=get_now_time(),
+        create_time=utc_now_hms(),
     )
     _auto_issue_token(user)
     try:
@@ -1023,7 +1023,7 @@ def approve_registration(request_id, reviewer_id=None):
         req.status = 'approved'
         req.pending_username = None
         req.reviewer_id = reviewer_id or session.get('user_id')
-        req.update_time = get_now_time()
+        req.update_time = utc_now_hms()
         db.session.commit()
     except Exception:
         logger.exception('approve_registration failed for request_id=%s', request_id)
@@ -1046,7 +1046,7 @@ def reject_registration(request_id, comment=''):
     req.pending_username = None
     req.reviewer_id = session.get('user_id')
     req.review_comment = (comment or '').strip()[:500]
-    req.update_time = get_now_time()
+    req.update_time = utc_now_hms()
     try:
         db.session.commit()
     except Exception:
@@ -1065,18 +1065,19 @@ def expire_stale_registrations():
     from datetime import datetime, timedelta
     from datas.model.rbac_registration_request import RbacRegistrationRequest
 
-    cutoff = (datetime.now() - timedelta(days=REGISTRATION_EXPIRE_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+    cutoff_dt = datetime.now() - timedelta(days=REGISTRATION_EXPIRE_DAYS)
+    cutoff_hms = datetime_to_hms(cutoff_dt)
     stale = db.session.scalars(
         select(RbacRegistrationRequest).where(
             RbacRegistrationRequest.status == 'pending',
-            RbacRegistrationRequest.create_time < cutoff,
+            RbacRegistrationRequest.create_time < cutoff_hms,
         )
     ).all()
     expired_names = []
     for req in stale:
         req.status = 'expired'
         req.pending_username = None
-        req.update_time = get_now_time()
+        req.update_time = utc_now_hms()
         expired_names.append(req.username)
     if expired_names:
         try:

@@ -53,7 +53,7 @@
     <td style="vertical-align:middle" class="cron-audit-cell">
         <div class="audit-line">
             <span class="audit-k">最近执行</span>
-            {% if h and h.last_run_at %}<span class="audit-v">{{ h.last_run_at }}</span>{% else %}<span class="audit-muted">—</span>{% endif %}
+            {% if h and h.last_run_at %}<span class="audit-v">{{ h.last_run_at|hms_display }}</span>{% else %}<span class="audit-muted">—</span>{% endif %}
         </div>
         {% if not h or not h.last_run_at %}
         {% set empty_hint = item|schedule_empty_hint(item.status) %}
@@ -63,7 +63,7 @@
         {% endif %}
         <div class="audit-line">
             <span class="audit-k">最近发布</span>
-            {% if item.last_operator_name %}<span class="audit-v">{{ item.last_operator_name }}{% if item.last_operated_at %} · {{ item.last_operated_at }}{% endif %}</span>{% else %}<span class="audit-muted">未记录</span>{% endif %}
+            {% if item.last_operator_name %}<span class="audit-v">{{ item.last_operator_name }}{% if item.last_operated_at %} · {{ item.last_operated_at|hms_display }}{% endif %}</span>{% else %}<span class="audit-muted">未记录</span>{% endif %}
         </div>
     </td>
     <td style="vertical-align:middle" class="cron-life-cell">

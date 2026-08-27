@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>操作记录与审计日志筛选AJAX化设计 — OPT-P1-19</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.6}h1{border-bottom:2px solid #333}h2{margin-top:2rem;color:#1a5276}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}th{background:#f5f5f5}code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:0.9em}pre{background:#f7f7f7;padding:12px;border-radius:4px;overflow-x:auto}</style>
+</head>
+<body>
+<h1>操作记录与审计日志筛选 AJAX 化（OPT-P1-19）</h1>
+<p><strong>状态</strong>：设计待确认<br>
+<strong>关联</strong>：OPT-P1-17/18（同模式已交付）<br>
+<strong>日期</strong>：2026-08-26</p>
+
+<h2>1. 问题</h2>
+<p>操作记录（<code>redesign/operation_log.html</code>）和审计日志（<code>redesign/audit_logs.html</code>）的筛选/搜索/翻页均使用 <code>&lt;form method="GET"&gt;</code>，每次操作触发整页刷新并滚动到顶部。</p>
+
+<h2>2. 方案</h2>
+<p>复用 OPT-P1-17/18 相同的 AJAX partial 模式。</p>
+
+<h3>2.1 操作记录</h3>
+<table>
+<tr><th>筛选控件</th><th>行为</th></tr>
+<tr><td>关键词输入</td><td>300ms debounce → doFetch()</td></tr>
+<tr><td>操作类型下拉</td><td>change → doFetch()</td></tr>
+<tr><td>搜索按钮</td><td>form submit 拦截</td></tr>
+<tr><td>清除链接</td><td>click 拦截 → 清空 state → doFetch()</td></tr>
+<tr><td>翻页链接</td><td>事件委托 → doFetch()</td></tr>
+</table>
+
+<h3>2.2 审计日志</h3>
+<table>
+<tr><th>筛选控件</th><th>行为</th></tr>
+<tr><td>用户名搜索</td><td>form submit 拦截 + 300ms debounce</td></tr>
+<tr><td>类型 chip 链接</td><td>click 拦截 → doFetch()</td></tr>
+<tr><td>清除链接</td><td>click 拦截 → 清空 state → doFetch()</td></tr>
+<tr><td>翻页链接</td><td>事件委托 → doFetch()</td></tr>
+</table>
+
+<h3>2.3 用户管理</h3>
+<table>
+<tr><th>筛选控件</th><th>行为</th></tr>
+<tr><td>用户名搜索</td><td>form submit 拦截 + 300ms debounce</td></tr>
+<tr><td>状态 chip（全部/启用/停用）</td><td>click 拦截 → doFetch()</td></tr>
+<tr><td>清除链接</td><td>click 拦截 → 清空 state → doFetch()</td></tr>
+<tr><td>翻页链接</td><td>事件委托 → doFetch()</td></tr>
+</table>
+<p><strong>特殊点</strong>：AJAX 响应额外返回 <code>counts</code>（total/active/inactive）用于更新顶部状态计数 chip 和成员数副标题。事件委托式 jQuery 监听（<code>$(document).on('click', '.um-deactivate-btn')</code>）确保 DOM 更新后模态框和确认操作仍可用。</p>
+
+<h2>3. 范围</h2>
+<table>
+<tr><th>改动</th><th>文件</th></tr>
+<tr><td>操作记录 partial 模板</td><td><code>_oplog_rows.html</code> + <code>_oplog_pagination.html</code>（新增）</td></tr>
+<tr><td>审计日志 partial 模板</td><td><code>_audit_logs_rows.html</code> + <code>_audit_logs_pagination.html</code>（新增）</td></tr>
+<tr><td>用户管理 partial 模板</td><td><code>_users_rows.html</code> + <code>_users_pagination.html</code>（新增）</td></tr>
+<tr><td>后端 partial 分支</td><td><code>app/main/views.py</code>（operation_log_list）<br><code>app/rbac/views.py</code>（audit_logs, users_list）</td></tr>
+<tr><td>前端 AJAX JS</td><td><code>operation_log.html</code> + <code>audit_logs.html</code> + <code>users.html</code></td></tr>
+<tr><td>回归测试</td><td><code>tests/test_oplog_audit_partial.py</code>（新增，10 条）</td></tr>
+</table>
+<p><strong>明确不做</strong>：不修改 v1 模板、不改列结构。</p>
+
+<h2>4. 验收</h2>
+<ol>
+<li>单测通过：<code>.venv-py311/bin/python -m unittest tests.test_oplog_audit_partial -v</code></li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code> → 浏览器验证筛选不刷新页面</li>
+</ol>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="操作记录与审计日志AJAX化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -64,7 +64,7 @@
                 </div>
                 <div class="control-group">
                     <label class="control-label">创建时间</label>
-                    <div class="controls"><span>{{ user.create_time }}</span></div>
+                    <div class="controls"><span>{{ user.create_time|hms_display }}</span></div>
                 </div>
                 <div class="form-actions">
                     <a class="btn" href="{{ url_for('rbac.users_list') }}">返回列表</a>

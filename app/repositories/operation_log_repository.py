@@ -40,10 +40,12 @@ class OperationLogRepository(BaseRepository):
                 )
         if action:
             filters.append(OperationLog.action == action)
+        if beg_time or end_time:
+            from datas.utils.times import str_to_hms
         if beg_time:
-            filters.append(OperationLog.create_time >= beg_time)
+            filters.append(OperationLog.create_time >= str_to_hms(beg_time + ' 00:00:00'))
         if end_time:
-            filters.append(OperationLog.create_time <= end_time)
+            filters.append(OperationLog.create_time <= str_to_hms(end_time + ' 23:59:59'))
 
         if not bypass_scope:
             visible_ids = select(CronInfos.id)

@@ -88,11 +88,7 @@
 {% block js %}
 <script>
 (function(){
-    function escHtml(s) {
-        var d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
+    function escHtml(s) { return window.escHtml ? window.escHtml(s) : s; }
     var csrfMeta = document.querySelector('meta[name="csrf-token"]');
     var csrfToken = csrfMeta ? csrfMeta.content : '';
 

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>DashboardService 提取重构设计</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2rem;color:#1a1a2e;border-left:4px solid #3D6FE0;padding-left:.8rem}
+h3{margin-top:1.5rem;color:#2d3748}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.82rem}
+blockquote{border-left:3px solid #3D6FE0;margin:1rem 0;padding:.5rem 1rem;background:#f8f9ff}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8rem;font-weight:600}
+.tag-refactor{background:#dbeafe;color:#1e40af}
+.tag-p2{background:#fef9c3;color:#854d0e}
+</style>
+</head>
+<body>
+
+<h1>DashboardService 提取重构设计</h1>
+<p><span class="tag tag-refactor">重构</span> <span class="tag tag-p2">优先级 P2</span><br>
+<strong>日期</strong>：2026-08-26<br>
+<strong>触发原因</strong>：Dashboard 统计指标 Scope 隔离修复后识别的架构债务<br>
+<strong>影响范围</strong>：<code>app/main/views.py</code>（<code>cron_list()</code> 函数）→ 新增 <code>app/services/dashboard_service.py</code></p>
+
+<h2>1. 问题</h2>
+<p><code>cron_list()</code> 视图函数当前 <strong>242 行</strong>，承载 7 种不同职责（请求解析、Scope 构建、统计计算、列表查询、标签作用域、v1/v2/partial 三路径渲染、croniter 调度计算），违反 Single Responsibility Principle，导致：</p>
+<ul>
+<li><strong>Bug 风险</strong>：scope_filters vs filter_arr 混用（已触发一次 Bug）</li>
+<li><strong>可测试性差</strong>：统计逻辑只能通过集成测试（Flask app + session）覆盖</li>
+<li><strong>维护成本高</strong>：每轮 Dashboard 需求叠加在同一函数中，认知负载持续增长</li>
+<li><strong>Code Review 困难</strong>：242 行函数中的变量作用域和执行路径难以追踪</li>
+</ul>
+
+<h2>2. 根因</h2>
+
+<h3>2.1 演进路径</h3>
+<table>
+<tr><th>阶段</th><th>功能引入</th><th>行数增长</th></tr>
+<tr><td>v1 简单列表</td><td>filter + paginate + render</td><td>~60</td></tr>
+<tr><td>OPT-P2-12 RBAC Scope</td><td>scope_clause 构建</td><td>+40</td></tr>
+<tr><td>OPT-P1-16 Redesign v2</td><td>metrics / stats / overdue / next_run / v2 render</td><td>+100</td></tr>
+<tr><td>OPT-P1-17 AJAX Partial</td><td>三种返回模式</td><td>+50</td></tr>
+<tr><td>OPT-P1-11 标签筛选</td><td>tag scope 逻辑</td><td>+20</td></tr>
+<tr><td>本次修复</td><td>scope_filters 拆分</td><td>+10</td></tr>
+</table>
+
+<h3>2.2 结构性根因</h3>
+<ol>
+<li><strong>缺乏「读操作 Service」概念</strong>：<code>cron_service.py</code> 只处理写操作（add/edit/retire），读路径直接 View → Repository</li>
+<li><strong>v1/v2 共用路由</strong>：「渐进式迁移」策略导致一个函数服务两种 UI 需求</li>
+<li><strong>无复杂度门禁</strong>：CI 没有 McCabe/Radon 拦截 >100 行的函数</li>
+<li><strong>helper 外溢</strong>：<code>_compute_next_runs</code>、<code>_compute_overdue_map</code>、<code>_cached_overdue_stats</code> 虽然是独立函数，但定义在 <code>views.py</code> 中而非 Service 层</li>
+</ol>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 新增 DashboardService</h3>
+<pre>
+# app/services/dashboard_service.py
+
+class DashboardService:
+    """Dashboard 统计指标计算服务。
+
+    职责：
+    - 基于 scope_filters 计算全局统计（不含 UI 展示过滤）
+    - 计算当前页任务的运行详情（last_run, next_run, overdue_map）
+    - 管理逾期缓存生命周期
+    """
+
+    def __init__(self, repo):
+        self.repo = repo
+
+    def compute_stats(self, scope_filters, cron_config=None):
+        """返回 Dashboard 统计卡片数据。
+
+        Args:
+            scope_filters: 权限 + 组过滤条件（不含 UI 展示条件）
+            cron_config: CRON_CONFIG 字典
+
+        Returns:
+            dict: {metrics, consecutive_failing, status_counts,
+                   today_success_rate, overdue_count}
+        """
+        metrics = self.repo.metrics(list(scope_filters), cron_config=cron_config)
+        return {
+            'metrics': metrics,
+            'consecutive_failing': self.repo.count_consecutive_failing(scope_filters),
+            'status_counts': self.repo.status_counts(scope_filters),
+            'today_success_rate': self.repo.today_success_rate(scope_filters),
+            'overdue_count': self._cached_overdue_count(scope_filters),
+        }
+
+    def compute_page_context(self, page_items):
+        """返回当前页任务的运行详情。
+
+        Args:
+            page_items: 当前页 CronInfos 对象列表
+
+        Returns:
+            dict: {last_run_map, next_run_map, overdue_map}
+        """
+        task_ids = [item.id for item in page_items]
+        page_last_exec = self.repo.last_exec_time_by_ids(task_ids)
+        return {
+            'last_run_map': self.repo.last_run_details_by_ids(task_ids),
+            'next_run_map': self._compute_next_runs(page_items),
+            'overdue_map': self._compute_overdue_map(page_items, page_last_exec),
+        }
+
+    def overdue_ids_for_list(self, cache_key, filter_arr):
+        """列表过滤 health='overdue' 时获取逾期 ID 集合。"""
+        _, ids = self._cached_overdue_stats(cache_key, filter_arr)
+        return ids
+
+    # --- 私有方法（从 views.py 迁移） ---
+
+    def _cached_overdue_count(self, scope_filters):
+        """统计卡片用：仅计数，缓存 key 基于 scope。"""
+        ...
+
+    def _cached_overdue_stats(self, cache_key, filter_arr):
+        """带 TTL 缓存的逾期计算（计数 + ID 集合）。"""
+        ...  # 迁移自 views.py _cached_overdue_stats
+
+    def _compute_next_runs(self, items):
+        """croniter 计算下次执行时间。"""
+        ...  # 迁移自 views.py _compute_next_runs
+
+    def _compute_overdue_map(self, items, last_exec_map):
+        """逾期检测。"""
+        ...  # 迁移自 views.py _compute_overdue_map
+</pre>
+
+<h3>3.2 重构后的 View 函数（伪代码）</h3>
+<pre>
+@main.route('/cron_list', methods=['GET', 'POST'])
+@require_permission('cron:read')
+def cron_list():
+    # ① 解析请求参数（~10 行）
+    keyword = request.args.to_dict()
+    page_query = PageQuery.from_args(request.args)
+    task_name = keyword.get('task_name')
+    ...
+
+    # ② 构建 filters（~15 行）
+    scope_filters = _build_scope_filters(role, group_ids, username, keyword)
+    filter_arr = _build_display_filters(scope_filters, keyword)
+
+    # ③ 列表查询 + 辅助数据（~15 行）
+    repo = _cron_repo()
+    page_data = repo.paginate_list(page_query, filters=filter_arr, ...)
+    health_by_id = repo.health_by_cron_ids([item.id for item in page_data.items])
+    task_group_map = _build_task_group_map(...)
+    task_tag_map = build_task_tag_map(...)
+
+    # ④ v1 partial 快速返回（~5 行）
+    if partial and ui_version == 'v1':
+        return _render_v1_partial(page_data, ...)
+
+    # ⑤ v2 统计 + 渲染（委托 DashboardService）（~20 行）
+    if ui_version == 'v2':
+        svc = DashboardService(repo)
+        stats = svc.compute_stats(scope_filters, cron_config)
+        page_ctx = svc.compute_page_context(page_data.items)
+        if partial:
+            return _render_v2_partial(stats, page_ctx, ...)
+        return _render_v2_full(stats, page_ctx, ...)
+
+    # ⑥ v1 全量渲染（~10 行）
+    return _render_v1_full(page_data, ...)
+</pre>
+<p>预期总行数：<strong>~80 行</strong>（从 242 行降低 67%）。</p>
+
+<h3>3.3 保留在 View 中的内容</h3>
+<table>
+<tr><th>内容</th><th>原因</th></tr>
+<tr><td><code>request.args</code> 解析</td><td>Controller 天然职责</td></tr>
+<tr><td><code>session</code> 读取</td><td>Flask context 绑定</td></tr>
+<tr><td>scope_filters 构建</td><td>依赖 session，适合留在 view 层（或提取为工具函数）</td></tr>
+<tr><td>渲染分支（v1/v2/partial）</td><td>响应格式选择是 Controller 的工作</td></tr>
+</table>
+
+<h3>3.4 迁移函数清单</h3>
+<table>
+<tr><th>当前位置（views.py）</th><th>目标位置</th><th>行数</th></tr>
+<tr><td><code>_compute_next_runs()</code></td><td><code>DashboardService._compute_next_runs()</code></td><td>59</td></tr>
+<tr><td><code>_compute_overdue_map()</code></td><td><code>DashboardService._compute_overdue_map()</code></td><td>~30</td></tr>
+<tr><td><code>_cached_overdue_stats()</code></td><td><code>DashboardService._cached_overdue_stats()</code></td><td>23</td></tr>
+<tr><td><code>_format_relative_time()</code></td><td><code>DashboardService._format_relative_time()</code></td><td>10</td></tr>
+<tr><td><code>_overdue_cache</code> + <code>_OVERDUE_CACHE_TTL</code></td><td>Service 实例变量或模块级</td><td>2</td></tr>
+<tr><td><strong>合计</strong></td><td></td><td><strong>~124 行</strong></td></tr>
+</table>
+
+<h2>4. 范围</h2>
+<table>
+<tr><th>文件</th><th>变更类型</th></tr>
+<tr><td><code>app/services/dashboard_service.py</code></td><td><strong>新增</strong>：DashboardService 类 + 迁移函数</td></tr>
+<tr><td><code>app/main/views.py</code></td><td>修改：cron_list() 重构 + 删除迁移出的 helper</td></tr>
+<tr><td><code>tests/test_dashboard_stats_stability.py</code></td><td>修改：增加 Service 层纯单元测试</td></tr>
+</table>
+
+<p><strong>不做</strong>：</p>
+<ul>
+<li>不改变 Repository 层 API</li>
+<li>不改变模板渲染逻辑</li>
+<li>不改变 v1 路径行为</li>
+<li>不改变 AJAX partial 返回结构</li>
+<li>不引入新依赖</li>
+</ul>
+
+<h2>5. 分批</h2>
+<table>
+<tr><th>批次</th><th>内容</th><th>验收</th></tr>
+<tr><td>Batch 1</td><td>创建 <code>dashboard_service.py</code> + 迁移 <code>_compute_next_runs</code> / <code>_format_relative_time</code></td><td>新测试通过 + 原测试不破</td></tr>
+<tr><td>Batch 2</td><td>迁移 <code>_compute_overdue_map</code> + <code>_cached_overdue_stats</code> + 缓存逻辑</td><td>同上 + <code>test_dashboard_stats_stability</code> 通过</td></tr>
+<tr><td>Batch 3</td><td>在 <code>cron_list()</code> 中引入 <code>DashboardService</code>，替换内联调用</td><td>全量测试 + restart 验证</td></tr>
+<tr><td>Batch 4</td><td>从 <code>views.py</code> 删除已迁移的 helper；提取 <code>_build_scope_filters()</code> / <code>_build_display_filters()</code></td><td>views.py 行数 &lt;100 行（cron_list） + CI 绿</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+<ol>
+<li><code>.venv-py311/bin/python -m unittest tests.test_dashboard_stats_stability -v</code> — 全部通过</li>
+<li><code>bash scripts/cronpilot.sh test</code> — 无新增失败</li>
+<li><code>cron_list()</code> 函数体行数 ≤ 100 行（<code>wc -l</code> 或 <code>radon cc</code> 验证）</li>
+<li><code>DashboardService</code> 有独立单元测试（不依赖 Flask app context）</li>
+<li>浏览器验证：Dashboard 统计卡片在筛选切换时保持稳定</li>
+</ol>
+
+<h2>7. 风险</h2>
+<table>
+<tr><th>风险</th><th>概率</th><th>缓解</th></tr>
+<tr><td>重构引入回归 Bug</td><td>低</td><td>逐批迁移 + 每批测试验证</td></tr>
+<tr><td>缓存行为变化（进程级 → 实例级）</td><td>低</td><td>保持模块级缓存 dict，不绑定实例</td></tr>
+<tr><td>v1 路径意外受影响</td><td>极低</td><td>v1 不使用 DashboardService</td></tr>
+<tr><td>Service 粒度过细（over-engineering）</td><td>低</td><td>仅提取已证明的域逻辑；不做 interface 抽象</td></tr>
+</table>
+
+<h2>8. 行业对标</h2>
+<table>
+<tr><th>设计原则</th><th>来源</th><th>对齐度</th></tr>
+<tr><td>Single Responsibility Principle</td><td>SOLID</td><td>✅ Service 只管统计</td></tr>
+<tr><td>Thin Controller</td><td>Rails/Django/Flask best practice</td><td>✅ View 仅协调</td></tr>
+<tr><td>Extract when changing for two reasons</td><td>Fowler - Refactoring</td><td>✅ stats vs list 是两种变更原因</td></tr>
+<tr><td>Service Layer pattern</td><td>PoEAA</td><td>✅ 读写分离 Service</td></tr>
+<tr><td>Domain Logic ≠ Application Logic</td><td>DDD</td><td>✅ croniter/overdue 是域逻辑</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+<a href="index.html">文档索引</a> · <a href="DashboardService提取重构设计.md">Markdown</a>
+</footer>
+</body>
+</html>

@@ -41,9 +41,16 @@ def get_failing_threshold(cron_config=None):
 
 
 def _parse_time_to_epoch(timestr):
-    """YYYY-mm-dd HH:MM:SS → epoch；解析失败返回 None。"""
+    """BIGINT 百毫秒 → epoch 秒；兼容旧格式字符串。解析失败返回 None。"""
     if not timestr:
         return None
+    try:
+        val = int(timestr)
+        if val <= 0:
+            return None
+        return val / 10.0
+    except (ValueError, TypeError):
+        pass
     try:
         import time
         return time.mktime(time.strptime(str(timestr)[:19], '%Y-%m-%d %H:%M:%S'))

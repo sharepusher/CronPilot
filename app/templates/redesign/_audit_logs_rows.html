@@ -1,0 +1,33 @@
+{# Partial: Audit log table rows — rendered by both full page and AJAX partial #}
+{% for item in page_data.items %}
+<tr{% if item.status == 'deny' %} class="pg-row-deny"{% endif %}>
+  <td class="mono cp-text-xs pg-time-cell">{{ item.create_time|hms_display or '—' }}</td>
+  <td class="cp-fw-600{% if item.status == 'deny' %} pg-user-deny{% endif %}">{{ item.username or '未知' }}</td>
+  <td>
+    {% if item.action == 'user:login' and item.status != 'deny' %}
+      <span class="pg-audit-badge pg-audit-badge-ok">登录成功</span>
+    {% elif item.action == 'user:login' and item.status == 'deny' %}
+      <span class="pg-audit-badge pg-audit-badge-fail">登录失败</span>
+    {% elif item.action == 'user:logout' %}
+      <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) }}</span>
+    {% elif item.action in ['permission:deny', 'scope:deny', 'api:deny'] %}
+      <span class="pg-audit-badge pg-audit-badge-warn">{{ audit_action_label(item.action) }}</span>
+    {% elif item.action and item.action.startswith('user:') %}
+      <span class="pg-audit-badge pg-audit-badge-manage">{{ audit_action_label(item.action) }}</span>
+    {% else %}
+      <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) or '—' }}</span>
+    {% endif %}
+  </td>
+  <td class="cp-text-xs pg-desc-cell">{{ audit_resource_label(item.action, item.resource) }}</td>
+  <td class="mono cp-text-xs cp-text-muted">{{ item.ip or '—' }}</td>
+  <td>
+    {% if item.status == 'deny' %}
+      <span class="pg-audit-result-deny">拒绝</span>
+    {% else %}
+      <span class="pg-audit-result-ok">允许</span>
+    {% endif %}
+  </td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="pg-empty">暂无审计记录</td></tr>
+{% endfor %}

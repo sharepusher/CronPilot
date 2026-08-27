@@ -38,7 +38,7 @@
                 <td>{{ g.id }}</td>
                 <td>{{ g.name }}</td>
                 <td>{{ g.description }}</td>
-                <td>{{ g.create_time }}</td>
+                <td>{{ g.create_time|hms_display }}</td>
                 <td><a href="{{ url_for('rbac.groups_edit', id=g.id) }}">编辑</a></td>
             </tr>
             {% else %}

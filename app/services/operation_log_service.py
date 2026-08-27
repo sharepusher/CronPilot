@@ -11,7 +11,7 @@ from sqlalchemy import delete, func, select
 from app import db
 from app.rbac.policy import ROLE_PERMISSIONS
 from datas.model.operation_log import OperationLog
-from datas.utils.times import get_now_time
+from datas.utils.times import utc_now_hms
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ def record_operation(
         if client_ip is None:
             client_ip = _client_ip()
         row = OperationLog(
-            create_time=get_now_time(),
+            create_time=utc_now_hms(),
             action=action or '',
             channel=channel or '',
             operator_type=operator.operator_type or '',

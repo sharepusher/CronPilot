@@ -15,11 +15,11 @@
     {% endif %}
   </form>
   <div class="pg-chips">
-    <a class="pg-chip{% if not chip %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', username=search.username) }}">全部</a>
-    <a class="pg-chip{% if chip == 'login_ok' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='login_ok', username=search.username) }}">登录成功</a>
-    <a class="pg-chip{% if chip == 'login_fail' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='login_fail', username=search.username) }}">登录失败</a>
-    <a class="pg-chip{% if chip == 'perm_deny' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='perm_deny', username=search.username) }}">权限拒绝</a>
-    <a class="pg-chip{% if chip == 'user_manage' %} pg-chip-active{% endif %}" href="{{ url_for('rbac.audit_logs', chip='user_manage', username=search.username) }}">用户管理</a>
+    <a class="pg-chip{% if not chip %} pg-chip-active{% endif %}" data-chip="" href="{{ url_for('rbac.audit_logs', username=search.username) }}">全部</a>
+    <a class="pg-chip{% if chip == 'login_ok' %} pg-chip-active{% endif %}" data-chip="login_ok" href="{{ url_for('rbac.audit_logs', chip='login_ok', username=search.username) }}">登录成功</a>
+    <a class="pg-chip{% if chip == 'login_fail' %} pg-chip-active{% endif %}" data-chip="login_fail" href="{{ url_for('rbac.audit_logs', chip='login_fail', username=search.username) }}">登录失败</a>
+    <a class="pg-chip{% if chip == 'perm_deny' %} pg-chip-active{% endif %}" data-chip="perm_deny" href="{{ url_for('rbac.audit_logs', chip='perm_deny', username=search.username) }}">权限拒绝</a>
+    <a class="pg-chip{% if chip == 'user_manage' %} pg-chip-active{% endif %}" data-chip="user_manage" href="{{ url_for('rbac.audit_logs', chip='user_manage', username=search.username) }}">用户管理</a>
   </div>
 </div>
 
@@ -35,62 +35,12 @@
         <th>结果</th>
       </tr>
     </thead>
-    <tbody>
-      {% for item in page_data.items %}
-      <tr{% if item.status == 'deny' %} class="pg-row-deny"{% endif %}>
-        <td class="mono cp-text-xs pg-time-cell">{{ item.create_time or '—' }}</td>
-        <td class="cp-fw-600{% if item.status == 'deny' %} pg-user-deny{% endif %}">{{ item.username or '未知' }}</td>
-        <td>
-          {% if item.action == 'user:login' and item.status != 'deny' %}
-            <span class="pg-audit-badge pg-audit-badge-ok">登录成功</span>
-          {% elif item.action == 'user:login' and item.status == 'deny' %}
-            <span class="pg-audit-badge pg-audit-badge-fail">登录失败</span>
-          {% elif item.action == 'user:logout' %}
-            <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) }}</span>
-          {% elif item.action in ['permission:deny', 'scope:deny', 'api:deny'] %}
-            <span class="pg-audit-badge pg-audit-badge-warn">{{ audit_action_label(item.action) }}</span>
-          {% elif item.action and item.action.startswith('user:') %}
-            <span class="pg-audit-badge pg-audit-badge-manage">{{ audit_action_label(item.action) }}</span>
-          {% else %}
-            <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) or '—' }}</span>
-          {% endif %}
-        </td>
-        <td class="cp-text-xs pg-desc-cell">{{ audit_resource_label(item.action, item.resource) }}</td>
-        <td class="mono cp-text-xs cp-text-muted">{{ item.ip or '—' }}</td>
-        <td>
-          {% if item.status == 'deny' %}
-            <span class="pg-audit-result-deny">拒绝</span>
-          {% else %}
-            <span class="pg-audit-result-ok">允许</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6" class="pg-empty">暂无审计记录</td></tr>
-      {% endfor %}
+    <tbody id="cp-audit-tbody">
+      {% include 'redesign/_audit_logs_rows.html' %}
     </tbody>
   </table>
-  <div class="c-foot">
-    <span class="count">{{ page_data.total }} total</span>
-    <div class="c-pg">
-      {% set pg_extra = {} %}
-      {% if search.username %}{% set _ = pg_extra.update({'username': search.username}) %}{% endif %}
-      {% if chip %}{% set _ = pg_extra.update({'chip': chip}) %}{% endif %}
-      {% if page_data.has_prev %}
-      <a href="{{ url_for('rbac.audit_logs', page=page_data.page - 1, **pg_extra) }}">‹</a>
-      {% endif %}
-      {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-        {% if p %}
-        <a{% if p == page_data.page %} class="active"{% endif %}
-           href="{{ url_for('rbac.audit_logs', page=p, **pg_extra) }}">{{ p }}</a>
-        {% else %}
-        <a>…</a>
-        {% endif %}
-      {% endfor %}
-      {% if page_data.has_next %}
-      <a href="{{ url_for('rbac.audit_logs', page=page_data.page + 1, **pg_extra) }}">›</a>
-      {% endif %}
-    </div>
+  <div class="c-foot" id="cp-audit-pagination">
+    {% include 'redesign/_audit_logs_pagination.html' %}
   </div>
 </div>
 {% endblock %}
@@ -99,4 +49,111 @@
 <style>
 /* Audit Logs — styles moved to redesign-pages.css */
 </style>
+{% endblock %}
+
+{% block js %}
+<script>
+/* ══ OPT-P1-19: AJAX Filter for Audit Logs ══ */
+(function() {
+  var _baseUrl = '{{ url_for("rbac.audit_logs") }}';
+  var _state = {
+    username: '{{ search.username or "" }}',
+    chip: '{{ chip or "" }}',
+    page: '1'
+  };
+  var _debounceTimer = null;
+
+  function buildUrl(includePartial) {
+    var params = [];
+    if (_state.username) params.push('username=' + encodeURIComponent(_state.username));
+    if (_state.chip) params.push('chip=' + encodeURIComponent(_state.chip));
+    if (_state.page && _state.page !== '1') params.push('page=' + _state.page);
+    if (includePartial) params.push('partial=1');
+    return _baseUrl + (params.length ? '?' + params.join('&') : '');
+  }
+
+  function doFetch() {
+    fetch(buildUrl(true), { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var tbody = document.getElementById('cp-audit-tbody');
+        var pagination = document.getElementById('cp-audit-pagination');
+        if (tbody) tbody.innerHTML = data.rows || '';
+        if (pagination) pagination.innerHTML = data.pagination || '';
+        history.replaceState(null, '', buildUrl(false));
+        updateChipActive();
+      })
+      .catch(function() { CpToast.error('加载失败，请刷新重试'); });
+  }
+
+  function updateChipActive() {
+    var chips = document.querySelectorAll('.pg-chips .pg-chip');
+    chips.forEach(function(c) {
+      c.classList.remove('pg-chip-active');
+      var chipVal = c.dataset.chip || '';
+      if (chipVal === _state.chip) c.classList.add('pg-chip-active');
+    });
+  }
+
+  var chips = document.querySelectorAll('.pg-chips .pg-chip');
+  chips.forEach(function(c) {
+    c.addEventListener('click', function(e) {
+      e.preventDefault();
+      _state.chip = c.dataset.chip || '';
+      _state.page = '1';
+      doFetch();
+    });
+  });
+
+  var form = document.querySelector('.pg-search-row');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var input = form.querySelector('input[name="username"]');
+      if (input) _state.username = input.value.trim();
+      _state.page = '1';
+      doFetch();
+    });
+  }
+
+  var usernameInput = document.querySelector('.pg-search-row input[name="username"]');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', function() {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = setTimeout(function() {
+        _state.username = usernameInput.value.trim();
+        _state.page = '1';
+        doFetch();
+      }, 300);
+    });
+  }
+
+  var clearBtn = document.querySelector('.pg-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      _state.username = '';
+      _state.chip = '';
+      _state.page = '1';
+      if (usernameInput) usernameInput.value = '';
+      doFetch();
+    });
+  }
+
+  var paginationEl = document.getElementById('cp-audit-pagination');
+  if (paginationEl) {
+    paginationEl.addEventListener('click', function(e) {
+      var link = e.target.closest('a.c-pg-btn');
+      if (!link) return;
+      e.preventDefault();
+      var href = link.getAttribute('href');
+      var match = href && href.match(/[?&]page=(\d+)/);
+      if (match) {
+        _state.page = match[1];
+        doFetch();
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>时间戳存储格式优化评估 — VARCHAR vs DATETIME vs BIGINT</title>
+<style>
+body { max-width: 960px; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.7; color: #1a1a1a; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #0ea5e9; padding-bottom: .5rem; }
+h2 { margin-top: 2rem; color: #0369a1; }
+h3 { margin-top: 1.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f0f9ff; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.good { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.bad { background: #fef2f2; border-left: 4px solid #ef4444; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+.tag-curr { background: #dbeafe; color: #1e40af; }
+.tag-rec { background: #dcfce7; color: #166534; }
+.tag-alt { background: #fef3c7; color: #92400e; }
+.winner { background: #dcfce7; }
+.loser { background: #fef2f2; }
+.neutral { background: #f8fafc; }
+.vs-table td:first-child { font-weight: 600; white-space: nowrap; }
+.perf-chart { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.perf-bar { height: 18px; border-radius: 3px; min-width: 4px; }
+.perf-label { font-size: 12px; color: #475569; white-space: nowrap; }
+.section-status { float: right; font-size: 0.8em; }
+</style>
+</head>
+<body>
+
+<h1>时间戳存储格式优化评估 <span class="tag tag-curr">评估文档</span></h1>
+
+<p><strong>文档编号</strong>：OPT-PERF-TIMESTAMP<br>
+<strong>关联</strong>：OPT-P2-13（逾期检测性能优化）<br>
+<strong>创建</strong>：2026-08-26<br>
+<strong>状态</strong>：<span class="tag tag-curr">待确认</span></p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>CronPilot 全部 <strong>9 张表、20 个时间字段</strong>均使用 <code>VARCHAR(25)</code> 存储 ISO 8601 格式字符串
+（<code>'YYYY-MM-DD HH:MM:SS'</code>）。项目同时支持 SQLite 和 MySQL 双后端，需要评估：</p>
+
+<ol>
+<li>当前方案在不同规模下的性能瓶颈在哪里？</li>
+<li>迁移到 <code>DATETIME</code>（数据库原生类型）或 <code>BIGINT</code>（Unix 时间戳）是否值得？</li>
+<li>投入产出比最优的优化路径是什么？</li>
+</ol>
+
+<h2>2. 现状盘点</h2>
+
+<h3>2.1 字段清单</h3>
+
+<table>
+<thead>
+<tr><th>表</th><th>时间字段</th><th>数据量级</th><th>关键查询模式</th><th>索引</th></tr>
+</thead>
+<tbody>
+<tr style="background:#fff7ed">
+  <td><strong><code>job_log</code></strong></td>
+  <td><code>create_time</code>, <code>started_at</code>, <code>finished_at</code></td>
+  <td><strong>高增长</strong>（每次执行 +1 行）</td>
+  <td><code>LIKE 'date%'</code>, <code>BETWEEN</code>, <code>MAX() GROUP BY</code>, <code>ORDER BY</code></td>
+  <td>单列 + 复合 <code>(cron_info_id, create_time)</code></td>
+</tr>
+<tr>
+  <td><code>operation_log</code></td>
+  <td><code>create_time</code></td>
+  <td>中（变更审计）</td>
+  <td><code>&gt;=</code>/<code>&lt;=</code> 范围</td>
+  <td>有</td>
+</tr>
+<tr>
+  <td><code>rbac_audit_logs</code></td>
+  <td><code>create_time</code></td>
+  <td>中（登录审计）</td>
+  <td><code>&gt;=</code>/<code>&lt;=</code> 范围</td>
+  <td>有</td>
+</tr>
+<tr>
+  <td><code>cron_infos</code></td>
+  <td><code>created_at</code>, <code>updated_at</code>, <code>retired_at</code>, <code>last_operated_at</code></td>
+  <td>低（百级）</td>
+  <td>展示、排序</td>
+  <td>created_at/updated_at 有</td>
+</tr>
+<tr>
+  <td><code>job_health</code></td>
+  <td><code>last_run_at</code>, <code>last_success_at</code>, <code>last_fail_at</code>, <code>updated_at</code></td>
+  <td>低（= 任务数）</td>
+  <td>展示、逾期计算中 Python 解析</td>
+  <td>updated_at 有</td>
+</tr>
+<tr>
+  <td><code>rbac_users</code></td>
+  <td><code>create_time</code>, <code>last_login_at</code>, <code>api_token_expires_at</code></td>
+  <td>低（用户数）</td>
+  <td>展示、过期比较</td>
+  <td>create_time 有</td>
+</tr>
+<tr>
+  <td><code>rbac_registration_requests</code></td>
+  <td><code>create_time</code>, <code>update_time</code></td>
+  <td>低</td>
+  <td>展示</td>
+  <td>create_time 有</td>
+</tr>
+<tr>
+  <td><code>tags</code></td>
+  <td><code>create_time</code>, <code>update_time</code></td>
+  <td>低</td>
+  <td>展示</td>
+  <td>双索引</td>
+</tr>
+<tr>
+  <td><code>resource_groups</code></td>
+  <td><code>create_time</code></td>
+  <td>低</td>
+  <td>展示</td>
+  <td>有</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.2 当前写入方式</h3>
+
+<pre>
+# datas/utils/times.py
+def get_now_time(format='%Y-%m-%d %H:%M:%S'):
+    return time.strftime(format, time.localtime(time.time()))
+
+def get_today(format='%Y-%m-%d'):
+    return time.strftime(format, time.localtime(time.time()))
+</pre>
+
+<p>所有写入路径统一调用 <code>get_now_time()</code> 返回字符串后赋值。</p>
+
+<h3>2.3 关键查询模式</h3>
+
+<table>
+<thead>
+<tr><th>模式</th><th>当前写法</th><th>出现次数</th><th>涉及表</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>当日过滤</td>
+  <td><code>create_time.like(today + '%')</code></td>
+  <td>5 处</td>
+  <td><code>job_log</code></td>
+</tr>
+<tr>
+  <td>范围过滤</td>
+  <td><code>create_time.between(beg, end)</code> 或 <code>&gt;=</code>/<code>&lt;=</code></td>
+  <td>4 处</td>
+  <td><code>job_log</code>, <code>operation_log</code>, <code>rbac_audit_logs</code></td>
+</tr>
+<tr>
+  <td>聚合</td>
+  <td><code>func.max(create_time).group_by(cron_info_id)</code></td>
+  <td>1 处</td>
+  <td><code>job_log</code></td>
+</tr>
+<tr>
+  <td>排序</td>
+  <td><code>order_by(create_time.desc())</code></td>
+  <td>多处</td>
+  <td>所有带时间列的表</td>
+</tr>
+<tr>
+  <td>Python 解析</td>
+  <td><code>datetime.strptime(ct, '%Y-%m-%d %H:%M:%S')</code></td>
+  <td>3 处</td>
+  <td><code>job_log</code>, <code>rbac_users</code></td>
+</tr>
+<tr>
+  <td>过期判断</td>
+  <td><code>datetime.strptime() &gt; datetime.now()</code></td>
+  <td>1 处</td>
+  <td><code>rbac_users</code>（API Token）</td>
+</tr>
+</tbody>
+</table>
+
+<h2>3. 三种方案全维度对比</h2>
+
+<h3>3.1 存储与类型特性</h3>
+
+<table class="vs-table">
+<thead>
+<tr><th>维度</th><th><span class="tag tag-curr">VARCHAR(25)</span> 现状</th><th><span class="tag tag-alt">DATETIME</span></th><th><span class="tag tag-alt">BIGINT</span> (Unix)</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>存储值示例</td>
+  <td><code>'2026-08-26 09:55:00'</code></td>
+  <td><code>2026-08-26 09:55:00</code></td>
+  <td><code>1787860500</code></td>
+</tr>
+<tr>
+  <td>MySQL 存储大小</td>
+  <td class="loser">19 字节 + VARCHAR 开销 ≈ <strong>21 字节</strong></td>
+  <td class="neutral"><strong>8 字节</strong>（DATETIME）<br>4 字节（TIMESTAMP，Y2038 限制）</td>
+  <td class="winner"><strong>8 字节</strong></td>
+</tr>
+<tr>
+  <td>SQLite 存储大小</td>
+  <td class="neutral">19 字节（TEXT affinity）</td>
+  <td class="neutral">19 字节（TEXT affinity，<strong>无原生 DATETIME</strong>）</td>
+  <td class="winner"><strong>8 字节</strong>（INTEGER affinity）</td>
+</tr>
+<tr>
+  <td>人类可读性</td>
+  <td class="winner">直接可读</td>
+  <td class="winner">直接可读</td>
+  <td class="loser">不可读，需转换</td>
+</tr>
+<tr>
+  <td>数据库可调试性</td>
+  <td class="winner"><code>SELECT * FROM job_log</code> → 直接看到时间</td>
+  <td class="winner">同左</td>
+  <td class="loser">需 <code>FROM_UNIXTIME()</code> 或 <code>datetime(v, 'unixepoch')</code></td>
+</tr>
+<tr>
+  <td>类型安全</td>
+  <td class="loser">无 — <code>'not-a-date'</code> 可写入</td>
+  <td class="winner">MySQL 强校验</td>
+  <td class="neutral">整数校验（不排除非法值如负数）</td>
+</tr>
+<tr>
+  <td>时区</td>
+  <td class="loser">无，隐式依赖服务器时区</td>
+  <td class="loser">DATETIME 无时区；TIMESTAMP 有但有 Y2038</td>
+  <td class="winner">天然 UTC（或约定为本地）</td>
+</tr>
+<tr>
+  <td>精度</td>
+  <td class="neutral">秒级（格式决定）</td>
+  <td class="winner">MySQL 8 支持微秒 <code>DATETIME(6)</code></td>
+  <td class="neutral">秒级（可扩展为毫秒用 13 位）</td>
+</tr>
+<tr>
+  <td>空值语义</td>
+  <td class="loser"><code>''</code> 和 <code>NULL</code> 混用</td>
+  <td class="winner"><code>NULL</code> 清晰</td>
+  <td class="winner"><code>NULL</code> 或 <code>0</code> 清晰</td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.2 索引与查询性能</h3>
+
+<table class="vs-table">
+<thead>
+<tr><th>查询场景</th><th><span class="tag tag-curr">VARCHAR(25)</span></th><th><span class="tag tag-alt">DATETIME</span></th><th><span class="tag tag-alt">BIGINT</span></th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>当日过滤</strong><br><small>「今天所有记录」</small></td>
+  <td class="neutral">
+    <code>LIKE 'YYYY-MM-DD%'</code><br>
+    B-tree 前缀扫描 ✓<br>
+    MySQL 优化器有时保守退化全扫
+  </td>
+  <td class="winner">
+    <code>&gt;= DATE AND &lt; DATE+1</code><br>
+    确定性范围扫描 ✓<br>
+    优化器一定走索引
+  </td>
+  <td class="winner">
+    <code>&gt;= ts AND &lt; ts+86400</code><br>
+    整数范围扫描 ✓<br>
+    最快（整数比较）
+  </td>
+</tr>
+<tr>
+  <td><strong>范围过滤</strong><br><small>「时间区间」</small></td>
+  <td class="neutral">
+    <code>BETWEEN 'str1' AND 'str2'</code><br>
+    字符串比较 ✓（ISO 8601 字典序=时间序）
+  </td>
+  <td class="winner">
+    <code>BETWEEN dt1 AND dt2</code><br>
+    原生日期比较
+  </td>
+  <td class="winner">
+    <code>BETWEEN int1 AND int2</code><br>
+    整数比较，最高效
+  </td>
+</tr>
+<tr>
+  <td><strong>MAX() GROUP BY</strong><br><small>「最近执行时间」</small></td>
+  <td class="neutral">
+    字符串 MAX ✓（字典序正确）<br>
+    复合索引已支持 Loose Index Scan
+  </td>
+  <td class="neutral">
+    DATETIME MAX ✓<br>
+    复合索引同样支持
+  </td>
+  <td class="winner">
+    整数 MAX ✓<br>
+    比较操作最少
+  </td>
+</tr>
+<tr>
+  <td><strong>ORDER BY</strong></td>
+  <td class="winner">字典序=时间序 ✓</td>
+  <td class="winner">原生排序 ✓</td>
+  <td class="winner">整数排序 ✓</td>
+</tr>
+<tr>
+  <td><strong>日期函数</strong><br><small>按月/按周聚合</small></td>
+  <td class="loser">
+    需 <code>SUBSTR(create_time,1,7)</code><br>
+    无法利用原生日期函数
+  </td>
+  <td class="winner">
+    <code>YEAR()</code>, <code>MONTH()</code>, <code>DATE()</code><br>
+    MySQL 原生函数
+  </td>
+  <td class="neutral">
+    <code>FROM_UNIXTIME()</code> 后再用日期函数<br>
+    需两步转换
+  </td>
+</tr>
+<tr>
+  <td><strong>Python 端解析</strong></td>
+  <td class="neutral">
+    <code>strptime(ct, fmt)</code><br>
+    每次需解析字符串
+  </td>
+  <td class="winner">
+    SQLAlchemy 自动映射为 <code>datetime</code> 对象<br>
+    零解析成本
+  </td>
+  <td class="neutral">
+    <code>datetime.fromtimestamp(v)</code><br>
+    比 strptime 快 ~5x
+  </td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.3 性能基准估算（MySQL InnoDB，100 万行 job_log）</h3>
+
+<table>
+<thead>
+<tr><th>操作</th><th>VARCHAR(25)</th><th>DATETIME</th><th>BIGINT</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>当日过滤（LIKE vs 范围）</td>
+  <td>~3.5 ms</td>
+  <td class="winner">~2.0 ms</td>
+  <td class="winner">~1.8 ms</td>
+  <td>LIKE 前缀 vs 确定性范围扫描</td>
+</tr>
+<tr>
+  <td>索引大小（单列，100 万行）</td>
+  <td>~25 MB</td>
+  <td>~12 MB</td>
+  <td class="winner">~10 MB</td>
+  <td>索引越小 → 缓存命中率越高</td>
+</tr>
+<tr>
+  <td>表数据大小（3 个时间列）</td>
+  <td>~63 MB</td>
+  <td>~24 MB</td>
+  <td class="winner">~24 MB</td>
+  <td>节省 ~39 MB / 100 万行</td>
+</tr>
+<tr>
+  <td>Python strptime（1000 次解析）</td>
+  <td>~2.1 ms</td>
+  <td class="winner">0 ms（ORM 自动映射）</td>
+  <td>~0.4 ms（fromtimestamp）</td>
+  <td>DATETIME 省去解析步骤</td>
+</tr>
+<tr>
+  <td>INSERT 写入</td>
+  <td>~0.08 ms</td>
+  <td>~0.08 ms</td>
+  <td class="winner">~0.06 ms</td>
+  <td>差异极小</td>
+</tr>
+</tbody>
+</table>
+
+<div class="note">
+<strong>SQLite 特殊说明</strong>：SQLite 没有原生 DATETIME 类型（<a href="https://sqlite.org/datatype3.html">Type Affinity</a>），
+声明 <code>DATETIME</code> 实际仍按 TEXT 存储。因此在 SQLite 后端，VARCHAR 与 DATETIME <strong>性能无差别</strong>。
+BIGINT 在 SQLite 中按 INTEGER 存储，索引比较确实更快。
+</div>
+
+<h3>3.4 迁移成本与风险</h3>
+
+<table class="vs-table">
+<thead>
+<tr><th>维度</th><th><span class="tag tag-curr">VARCHAR(25)</span> 保持现状</th><th><span class="tag tag-alt">DATETIME</span> 迁移</th><th><span class="tag tag-alt">BIGINT</span> 迁移</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>改动文件数</td>
+  <td class="winner">0</td>
+  <td class="loser">~50 文件（Model + Repository + Views + Tests + Scripts + API + Templates）</td>
+  <td class="loser">~55 文件（同上 + 所有展示层需格式化）</td>
+</tr>
+<tr>
+  <td>数据迁移</td>
+  <td class="winner">无</td>
+  <td class="neutral">
+    MySQL: <code>ALTER TABLE ... MODIFY COLUMN ... DATETIME</code>（自动转换）<br>
+    SQLite: 需建新表 + 复制数据（无 ALTER COLUMN）
+  </td>
+  <td class="loser">
+    需遍历所有行 <code>UNIX_TIMESTAMP(create_time)</code> 更新<br>
+    SQLite: <code>strftime('%s', create_time)</code>
+  </td>
+</tr>
+<tr>
+  <td>API 兼容性</td>
+  <td class="winner">无影响</td>
+  <td class="neutral">
+    <code>to_json()</code> 方法需显式 <code>.strftime()</code><br>
+    外部消费者若依赖字符串格式则为 Breaking Change
+  </td>
+  <td class="loser">
+    <strong>Breaking Change</strong> — API 返回整数而非字符串<br>
+    或增加序列化层还原为字符串
+  </td>
+</tr>
+<tr>
+  <td>SQLite/MySQL 双后端兼容</td>
+  <td class="winner">天然兼容</td>
+  <td class="loser">
+    SQLite 无原生 DATETIME → ORM Mapped[datetime] 与 SQLite TEXT 需映射层<br>
+    日期函数语法不同（<code>DATE()</code> vs <code>date()</code>）
+  </td>
+  <td class="winner">
+    两个后端均原生支持 INTEGER<br>
+    统一的整数比较语义
+  </td>
+</tr>
+<tr>
+  <td>空值处理</td>
+  <td class="loser">需统一 <code>''</code> 为 <code>NULL</code></td>
+  <td class="winner"><code>NULL</code> 即可</td>
+  <td class="winner"><code>NULL</code> 即可</td>
+</tr>
+<tr>
+  <td>回滚难度</td>
+  <td>—</td>
+  <td class="neutral">可逆（DATETIME → VARCHAR 转回）</td>
+  <td class="neutral">可逆（timestamp → strftime 转回）</td>
+</tr>
+<tr>
+  <td>测试覆盖影响</td>
+  <td class="winner">无</td>
+  <td class="loser">所有涉及时间的单测需改写断言</td>
+  <td class="loser">同上 + 展示层测试全部需更新</td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.5 综合评分</h3>
+
+<table>
+<thead>
+<tr><th>评估维度</th><th>权重</th><th>VARCHAR(25)</th><th>DATETIME</th><th>BIGINT</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>查询性能（MySQL）</td><td>25%</td>
+  <td>6 / 10</td><td class="winner">8 / 10</td><td class="winner">9 / 10</td>
+</tr>
+<tr>
+  <td>查询性能（SQLite）</td><td>15%</td>
+  <td>7 / 10</td><td>7 / 10</td><td class="winner">8 / 10</td>
+</tr>
+<tr>
+  <td>存储效率</td><td>10%</td>
+  <td>4 / 10</td><td>8 / 10</td><td class="winner">9 / 10</td>
+</tr>
+<tr>
+  <td>开发体验</td><td>15%</td>
+  <td>7 / 10</td><td class="winner">9 / 10</td><td>5 / 10</td>
+</tr>
+<tr>
+  <td>可调试性</td><td>10%</td>
+  <td class="winner">9 / 10</td><td class="winner">9 / 10</td><td>3 / 10</td>
+</tr>
+<tr>
+  <td>迁移成本</td><td>15%</td>
+  <td class="winner">10 / 10</td><td>4 / 10</td><td>3 / 10</td>
+</tr>
+<tr>
+  <td>双后端兼容性</td><td>10%</td>
+  <td class="winner">9 / 10</td><td>4 / 10</td><td>8 / 10</td>
+</tr>
+<tr style="font-weight:bold; border-top: 2px solid #333">
+  <td>加权总分</td><td>100%</td>
+  <td>7.2</td><td>6.8</td><td>6.5</td>
+</tr>
+</tbody>
+</table>
+
+<div class="note">
+<strong>关键洞察</strong>：在当前项目规模和双后端约束下，VARCHAR(25) 的综合分数最高。
+DATETIME 在 MySQL-only 场景下更优，但 SQLite 兼容性拖累了总分。
+BIGINT 查询性能最强但可读性和迁移成本是最大短板。
+</div>
+
+<h2>4. 根因分析</h2>
+
+<p>当前 VARCHAR 方案的性能劣势<strong>并非源于存储格式本身</strong>，而是源于两个可独立优化的查询写法问题：</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>根因</th><th>影响</th><th>是否需要改存储格式才能修复</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>R1</td>
+  <td><code>LIKE 'date%'</code> 日期过滤</td>
+  <td>MySQL 优化器可能不选择索引范围扫描</td>
+  <td><strong>否</strong> — 改为 <code>&gt;= / &lt;</code> 范围比较即可（VARCHAR 字典序=时间序）</td>
+</tr>
+<tr>
+  <td>R2</td>
+  <td>Python 端 <code>strptime()</code> 解析</td>
+  <td>逾期检测等场景需将字符串转回 datetime 对象</td>
+  <td><strong>否</strong> — 可用切片 + 整数比较替代 strptime（见下方方案 B）</td>
+</tr>
+</tbody>
+</table>
+
+<h2>5. 推荐方案</h2>
+
+<h3>方案 B（推荐）：查询模式优化 — 不改存储，只改查询写法</h3>
+
+<div class="good">
+<strong>核心思路</strong>：保留 VARCHAR(25) 存储不变，将 5 处 <code>LIKE 'date%'</code> 改为确定性范围比较，
+同时用切片替代 strptime 降低 Python 解析开销。<br>
+<strong>改动量</strong>：~10 行代码 | 0 数据迁移 | 0 API 变更 | 0 测试大改
+</div>
+
+<h4>5.1 LIKE → 范围比较（5 处）</h4>
+
+<pre>
+# 当前写法（R1）
+JobLog.create_time.like(today + '%')
+
+# 优化写法
+from datas.utils.times import get_today
+today = get_today()  # '2026-08-26'
+JobLog.create_time &gt;= today + ' 00:00:00'
+JobLog.create_time &lt;  _next_day(today) + ' 00:00:00'
+
+# 辅助函数
+def _next_day(date_str):
+    """'2026-08-26' → '2026-08-27'"""
+    from datetime import datetime, timedelta
+    d = datetime.strptime(date_str, '%Y-%m-%d')
+    return (d + timedelta(days=1)).strftime('%Y-%m-%d')
+</pre>
+
+<p><strong>影响的代码位置</strong>：</p>
+<table>
+<thead><tr><th>#</th><th>文件</th><th>行</th><th>上下文</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>app/repositories/cron_repository.py</code></td><td>38</td><td><code>paginate_list</code> → today_fail 子查询</td></tr>
+<tr><td>2</td><td><code>app/repositories/cron_repository.py</code></td><td>73</td><td><code>dashboard_metrics</code> → 今日失败任务数</td></tr>
+<tr><td>3</td><td><code>app/repositories/cron_repository.py</code></td><td>172</td><td><code>today_success_rate</code> → 今日成功率</td></tr>
+<tr><td>4</td><td><code>app/main/views.py</code></td><td>639</td><td><code>cron_detail</code> → 任务详情今日总执行</td></tr>
+<tr><td>5</td><td><code>app/main/views.py</code></td><td>644</td><td><code>cron_detail</code> → 任务详情今日成功数</td></tr>
+</tbody>
+</table>
+
+<h4>5.2 strptime 优化（可选）</h4>
+
+<pre>
+# 当前写法（R2，逾期检测中）
+last_dt = datetime.strptime(last_run_str, '%Y-%m-%d %H:%M:%S')
+
+# 优化写法：切片 + 直接构造（~3x faster than strptime）
+def _fast_parse(s):
+    """将 'YYYY-MM-DD HH:MM:SS' 高效解析为 datetime，无格式校验开销。"""
+    return datetime(int(s[:4]), int(s[5:7]), int(s[8:10]),
+                    int(s[11:13]), int(s[14:16]), int(s[17:19]))
+</pre>
+
+<h4>5.3 空值语义统一（可选）</h4>
+
+<p>为可选时间字段（<code>retired_at</code>、<code>last_login_at</code> 等）统一 <code>default=''</code> → <code>default=None</code>，
+查询时用 <code>IS NOT NULL</code> 而非 <code>!= ''</code>。此项为渐进式清理，不影响现有查询正确性。</p>
+
+<h3>远期方案路线图（非当前优先）</h3>
+
+<table>
+<thead>
+<tr><th>阶段</th><th>触发条件</th><th>动作</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>L0（现在）</td>
+  <td>查询写法可优化</td>
+  <td>方案 B：LIKE → 范围比较 + strptime 优化</td>
+</tr>
+<tr>
+  <td>L1（已完成）</td>
+  <td>MAX() GROUP BY 性能</td>
+  <td>复合索引 <code>(cron_info_id, create_time)</code></td>
+</tr>
+<tr>
+  <td>L2（已完成）</td>
+  <td>CPU 热点（croniter）</td>
+  <td>进程级 TTL 缓存</td>
+</tr>
+<tr>
+  <td>L3（远期）</td>
+  <td>MySQL 生产 + <code>job_log</code> &gt; 500 万行</td>
+  <td>方案 C：<code>job_log</code> 新增 <code>created_at_ts BIGINT</code> 列双写，索引切换</td>
+</tr>
+<tr>
+  <td>L4（远期）</td>
+  <td>放弃 SQLite 后端 + MySQL-only</td>
+  <td>方案 A：全量迁移到 DATETIME + 统一 ORM datetime 映射</td>
+</tr>
+</tbody>
+</table>
+
+<h2>6. 方案 B 实施范围</h2>
+
+<h3>6.1 改动文件</h3>
+
+<table>
+<thead><tr><th>文件</th><th>改动内容</th><th>行数估计</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>datas/utils/times.py</code></td>
+  <td>新增 <code>next_day()</code> 辅助函数</td>
+  <td>+5</td>
+</tr>
+<tr>
+  <td><code>app/repositories/cron_repository.py</code></td>
+  <td>3 处 <code>.like(today+'%')</code> → <code>&gt;= / &lt;</code></td>
+  <td>~9</td>
+</tr>
+<tr>
+  <td><code>app/main/views.py</code></td>
+  <td>2 处 <code>.like(today+'%')</code> → <code>&gt;= / &lt;</code></td>
+  <td>~6</td>
+</tr>
+<tr>
+  <td><code>app/main/views.py</code></td>
+  <td><code>_compute_overdue_map</code> 中 strptime → <code>_fast_parse</code>（可选）</td>
+  <td>~5</td>
+</tr>
+<tr>
+  <td><code>tests/test_timestamp_query.py</code></td>
+  <td>新增范围比较正确性测试</td>
+  <td>~30</td>
+</tr>
+</tbody>
+</table>
+
+<h3>6.2 明确不做</h3>
+
+<ul>
+<li>不修改任何表的 Column 类型定义</li>
+<li>不执行数据迁移</li>
+<li>不改变 API 响应格式</li>
+<li>不改变 <code>get_now_time()</code> / <code>get_today()</code> 的返回值</li>
+<li>不涉及 SQLite → MySQL 迁移</li>
+</ul>
+
+<h2>7. 分批</h2>
+
+<table>
+<thead><tr><th>批次</th><th>内容</th><th>可独立验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>Batch 1</td>
+  <td><code>datas/utils/times.py</code> 新增 <code>next_day()</code> + <code>cron_repository.py</code> 3 处改写</td>
+  <td>✓ 单测 + Dashboard 验收</td>
+</tr>
+<tr>
+  <td>Batch 2</td>
+  <td><code>views.py</code> 2 处改写 + <code>_fast_parse</code> 优化</td>
+  <td>✓ 任务详情页验收</td>
+</tr>
+<tr>
+  <td>Batch 3</td>
+  <td>新增 <code>tests/test_timestamp_query.py</code> 测试</td>
+  <td>✓ <code>cronpilot.sh test</code> 通过</td>
+</tr>
+</tbody>
+</table>
+
+<h2>8. 验收</h2>
+
+<table>
+<thead><tr><th>#</th><th>验收项</th><th>命令 / 方法</th></tr></thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td>所有 <code>.like(today+'%')</code> 已替换</td>
+  <td><code>grep -rn "\.like(today" app/</code> → 应为 0 结果</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>单元测试通过</td>
+  <td><code>bash scripts/cronpilot.sh test</code></td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>Dashboard 今日统计正确</td>
+  <td>restart → 浏览器登录 → Dashboard 页面数据与数据库手动查询对照</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>任务详情今日数据正确</td>
+  <td>点击任意任务 → 验证今日总执行/成功数</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>API 响应格式不变</td>
+  <td><code>curl /api/cron/job_log_list</code> → <code>create_time</code> 仍为字符串</td>
+</tr>
+</tbody>
+</table>
+
+<h2>9. 风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>next_day()</code> 跨月/跨年边界</td>
+  <td>低</td>
+  <td>高（日期计算错误）</td>
+  <td>使用 <code>timedelta(days=1)</code> 而非字符串拼接，天然处理 12-31 → 01-01</td>
+</tr>
+<tr>
+  <td>范围比较 vs LIKE 结果差异</td>
+  <td>极低</td>
+  <td>中（数据不一致）</td>
+  <td><code>LIKE 'YYYY-MM-DD%'</code> 与 <code>&gt;= 'YYYY-MM-DD 00:00:00' AND &lt; 'YYYY-MM-DD+1 00:00:00'</code> 对 ISO 8601 完全等价</td>
+</tr>
+<tr>
+  <td>回归风险</td>
+  <td>低</td>
+  <td>低</td>
+  <td>全量单测 + restart 验收</td>
+</tr>
+</tbody>
+</table>
+
+<h2>10. 附录：为什么不立即全量迁移？</h2>
+
+<h3>A. SQLite 无原生 DATETIME — 改了也白改</h3>
+
+<p>CronPilot 默认部署使用 SQLite。SQLite 的
+<a href="https://sqlite.org/datatype3.html">Type Affinity</a> 机制意味着：</p>
+
+<pre>
+-- 声明为 DATETIME 的列
+CREATE TABLE t (created_at DATETIME);
+
+-- 实际存储亲和性为 NUMERIC → 但字符串值按 TEXT 存储
+-- 性能与 VARCHAR 完全相同
+</pre>
+
+<p>只有放弃 SQLite 后端（L4 阶段），迁移到 DATETIME 才有实际的数据库层面收益。</p>
+
+<h3>B. BIGINT 的可读性代价</h3>
+
+<p>BIGINT 查询性能最优，但：</p>
+<ul>
+<li>数据库运维排查时 <code>SELECT * FROM job_log LIMIT 5</code> 看到的是 <code>1787860500</code> 而非 <code>'2026-08-26 09:55:00'</code></li>
+<li>API 响应需增加序列化层维持字符串格式（否则为 Breaking Change）</li>
+<li>所有模板展示需 <code>datetime.fromtimestamp().strftime()</code></li>
+<li>改动规模 ~55 文件，回归测试工作量大</li>
+</ul>
+
+<p>在 CronPilot 当前规模（百级任务、万~十万级日志）下，BIGINT 带来的毫秒级查询提升<strong>不值得</strong>承受如此大的迁移成本。</p>
+
+<h3>C. 投入产出比对照</h3>
+
+<table>
+<thead><tr><th>方案</th><th>改动量</th><th>MySQL 查询提升</th><th>SQLite 查询提升</th><th>ROI</th></tr></thead>
+<tbody>
+<tr>
+  <td class="winner">方案 B（查询优化）</td>
+  <td>~20 行</td>
+  <td>~40–70%（LIKE→范围）</td>
+  <td>~5–10%</td>
+  <td><strong>极高</strong></td>
+</tr>
+<tr>
+  <td>方案 A（全量 DATETIME）</td>
+  <td>~50 文件</td>
+  <td>~15–30%（在 B 基础上额外）</td>
+  <td>0%</td>
+  <td>低</td>
+</tr>
+<tr>
+  <td>方案 C（BIGINT 双写）</td>
+  <td>~30 文件</td>
+  <td>~20–40%（在 B 基础上额外）</td>
+  <td>~10–15%</td>
+  <td>中</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+<footer>
+<p><small>文档版本 1.0 | 2026-08-26 | CronPilot 时间戳存储格式优化评估</small></p>
+ · <a href="时间戳存储格式优化评估.md">Markdown</a> · <a href="index.html">索引</a></footer>
+
+</body>
+</html>

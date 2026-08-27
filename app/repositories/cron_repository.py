@@ -5,7 +5,7 @@ from sqlalchemy import desc, func, select
 from datas.model.cron_infos import CronInfos
 from datas.model.job_health import JobHealth
 from datas.model.job_log import JobLog
-from datas.utils.times import get_today
+from datas.utils.times import local_today_start_hms, local_tomorrow_start_hms
 
 from app.repositories.base import BaseRepository
 from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
@@ -18,8 +18,11 @@ class CronRepository(BaseRepository):
         page_query,
         filters=None,
         health=None,
+        overdue_ids=None,
     ):
-        """任务中心主列表。filters 为已组装的 where 子句列表（含 Scope）。"""
+        """任务中心主列表。filters 为已组装的 where 子句列表（含 Scope）。
+        overdue_ids: 预计算的逾期任务 ID 集合，当 health='overdue' 时使用。
+        """
         filters = list(filters or [])
         stmt = select(CronInfos)
         health = (health or '').strip().lower()
@@ -29,14 +32,18 @@ class CronRepository(BaseRepository):
                 .where(JobHealth.health_status == HEALTH_FAILING)
             )
         elif health == 'today_fail':
-            today = get_today()
             today_fail_ids = (
                 select(JobLog.cron_info_id)
-                .where(JobLog.create_time.like(today + '%'))
+                .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
                 .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT]))
                 .distinct()
             )
             stmt = stmt.where(CronInfos.id.in_(today_fail_ids))
+        elif health == 'overdue' and overdue_ids is not None:
+            if overdue_ids:
+                stmt = stmt.where(CronInfos.id.in_(list(overdue_ids)))
+            else:
+                stmt = stmt.where(CronInfos.id == -1)
         if filters:
             stmt = stmt.where(*filters)
         stmt = stmt.order_by(desc(CronInfos.status), desc(CronInfos.task_name))
@@ -57,12 +64,11 @@ class CronRepository(BaseRepository):
             .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
             .where(JobHealth.health_status == HEALTH_FAILING)
         )
-        today = get_today()
         today_fail_stmt = (
             select(func.count())
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-            .where(JobLog.create_time.like(today + '%'))
+            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
             .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT]))
         )
         if base_filters:
@@ -160,19 +166,17 @@ class CronRepository(BaseRepository):
     def today_success_rate(self, base_filters=None):
         """今日成功率 = 今日成功次数 / 今日总执行次数。"""
         base_filters = list(base_filters or [])
-        today = get_today()
-        time_clause = JobLog.create_time.like(today + '%')
         total_stmt = (
             select(func.count())
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-            .where(time_clause)
+            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
         )
         success_stmt = (
             select(func.count())
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-            .where(time_clause)
+            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
             .where(JobLog.status == STATUS_SUCCESS)
         )
         if base_filters:
@@ -183,6 +187,22 @@ class CronRepository(BaseRepository):
         if total == 0:
             return 100.0
         return round(success / total * 100, 1)
+
+    def last_exec_time_by_ids(self, cron_ids):
+        """每个任务最近一条 JobLog 的 create_time（不限 status）。
+        返回 {cron_id: 'YYYY-MM-DD HH:MM:SS'}。
+        """
+        if not cron_ids:
+            return {}
+        stmt = (
+            select(JobLog.cron_info_id, func.max(JobLog.create_time))
+            .where(JobLog.cron_info_id.in_(cron_ids))
+            .group_by(JobLog.cron_info_id)
+        )
+        result = {}
+        for row in self.execute_all(stmt):
+            result[row[0]] = row[1]
+        return result
 
     def last_run_details_by_ids(self, cron_ids):
         """获取每个任务最后一条 JobLog 的 http_status/take_time/fail_reason/create_time。

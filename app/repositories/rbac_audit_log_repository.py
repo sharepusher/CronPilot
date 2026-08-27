@@ -25,9 +25,11 @@ def _apply_search_filters(stmt, username=None, action=None, status=None,
     if status:
         stmt = stmt.where(RbacAuditLog.status == status)
     if time_from:
-        stmt = stmt.where(RbacAuditLog.create_time >= time_from)
+        from datas.utils.times import str_to_hms
+        stmt = stmt.where(RbacAuditLog.create_time >= str_to_hms(time_from + ' 00:00:00'))
     if time_to:
-        stmt = stmt.where(RbacAuditLog.create_time <= time_to + ' 23:59:59')
+        from datas.utils.times import str_to_hms
+        stmt = stmt.where(RbacAuditLog.create_time <= str_to_hms(time_to + ' 23:59:59'))
     return stmt
 
 

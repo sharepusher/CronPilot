@@ -33,7 +33,7 @@
             <div class="control-group">
                 <label class="control-label">有效期至</label>
                 <div class="controls">
-                    <span style="line-height:30px;color:var(--cp-ink)">{{ api_token_expires_at }}</span>
+                    <span style="line-height:30px;color:var(--cp-ink)">{{ api_token_expires_at|hms_display }}</span>
                 </div>
             </div>
             {% endif %}

@@ -40,7 +40,7 @@
         <td>{{ req.nickname or '—' }}</td>
         <td>{{ req.email }}</td>
         <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
-        <td class="mono cp-text-xs">{{ req.create_time[:16] if req.create_time else '—' }}</td>
+        <td class="mono cp-text-xs">{{ req.create_time|hms_display or '—' }}</td>
         <td>
           {% if req.status == 'pending' %}
           <button type="button" class="btn-c btn-accent btn-xs js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">通过</button>
@@ -93,11 +93,7 @@ var approveUrl = '{{ url_for("rbac.registration_approve") }}';
 var rejectUrl = '{{ url_for("rbac.registration_reject") }}';
 var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
 
-function escHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+function escHtml(s) { return window.escHtml ? window.escHtml(s) : s; }
 
 function submitForm(action, fields) {
     var form = document.createElement('form');

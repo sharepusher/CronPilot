@@ -1,0 +1,61 @@
+{# Partial: Execution logs table rows — rendered by both full page and AJAX partial #}
+{% for row in page_data.items %}
+{# Determine log and task from row structure #}
+{% if cron_info %}
+  {% set log = row %}
+  {% set task = cron_info %}
+{% else %}
+  {% set log = row[0] %}
+  {% set task = row[1] %}
+{% endif %}
+{% set is_fail = log.status in ('fail', 'error', 'timeout') %}
+<tr{% if is_fail %} class="row-fail"{% endif %}>
+  {# COL 1: LOG ID (clickable to copy) #}
+  <td><span class="el-mono log-id" data-id="{{ log.id }}">{{ log.id }}</span></td>
+  {# COL 2: 任务名称 #}
+  <td>
+    <a class="el-task-name" href="{{ url_for('main.task_detail_v2', id=task.id) if task else '#' }}">{{ task.task_name if task else '—' }}</a>
+  </td>
+  {# COL 3: 返回内容 — smart display: strip HTML, show meaningful summary #}
+  <td>
+    {% if log.content %}
+      {% if log.content[:9] == '<!doctype' or log.content[:5] == '<html' or log.content[:5] == '<?xml' %}
+        {# HTML/XML response — extract meaningful hint #}
+        {% if log.http_status %}
+        <code class="el-content-code{% if log.http_status >= 400 %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">HTTP {{ log.http_status }} · HTML Response ({{ log.content|length }} bytes)</code>
+        {% else %}
+        <code class="el-content-code is-unknown" title="{{ log.content[:300] }}">HTML Response ({{ log.content|length }} bytes)</code>
+        {% endif %}
+      {% else %}
+      <code class="el-content-code{% if log.status in ('fail','error') %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">{{ log.content[:80] }}</code>
+      {% endif %}
+    {% elif log.fail_reason %}
+    <code class="el-content-code is-fail" title="{{ log.fail_reason }}">{{ log.fail_reason }}</code>
+    {% else %}
+    <span style="color:var(--cp-text-faint)">—</span>
+    {% endif %}
+  </td>
+  {# COL 4: 执行时间 #}
+  <td><span class="el-mono">{{ log.create_time|hms_display or '—' }}</span></td>
+  {# COL 5: 耗时 #}
+  <td><span class="el-mono">{{ log.take_time|format_duration }}</span></td>
+  {# COL 6: 结果 #}
+  <td>
+    {% if log.status == 'success' %}
+    <span class="el-log-result el-log-success"><span class="el-log-dot"></span> 成功</span>
+    {% elif log.status == 'timeout' %}
+    <span class="el-log-result el-log-timeout"><span class="el-log-dot"></span> 超时</span>
+    {% elif log.status in ('fail', 'error') %}
+    <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败</span>
+    {% elif log.status == 'running' %}
+    <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 执行中</span>
+    {% else %}
+    <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 未知</span>
+    {% endif %}
+  </td>
+  {# COL 7: 操作 #}
+  <td>
+    <a class="el-btn el-btn-line el-btn-xs" href="{{ url_for('main.job_log_detail', id=log.id) }}">详情</a>
+  </td>
+</tr>
+{% endfor %}

@@ -15,7 +15,7 @@ from datas.model.task_group import TaskGroup  # noqa: F401
 from datas.model.tag import Tag  # noqa: F401
 from datas.model.task_tag import TaskTag  # noqa: F401
 from datas.model.operation_log import OperationLog  # noqa: F401
-from datas.utils.times import get_now_time
+from datas.utils.times import utc_now_hms
 
 
 class TestCronEditPreservesPause(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestCronEditPreservesPause(unittest.TestCase):
         self.ctx = self.app.app_context()
         self.ctx.push()
         db.create_all()
-        now = get_now_time()
+        now = utc_now_hms()
         self.cif = CronInfos(
             task_name='paused-job',
             task_keyword='kw',

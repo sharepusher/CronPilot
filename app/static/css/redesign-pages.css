@@ -1182,6 +1182,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .health-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
 .health-badge.ok { background: var(--cp-success-bg); color: var(--cp-success); }
 .health-badge.danger { background: var(--cp-danger-bg, rgba(220,38,38,0.08)); color: var(--cp-danger); }
+.health-badge.overdue { background: var(--cp-warn-bg); color: var(--cp-warn); }
 .health-badge.off { background: var(--cp-surface-2); color: var(--cp-text-faint); }
 .health-badge.unknown { background: var(--cp-surface-2); color: var(--cp-text-faint); }
 
@@ -1195,6 +1196,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hc-dot.dot-unknown { background: var(--cp-text-faint); }
 .hc-dot.dot-run { background: var(--cp-signal); animation: c-pulse 1.8s ease-in-out infinite; }
 .hc-dot.dot-off { background: var(--cp-text-faint); }
+.hc-dot.dot-overdue { background: var(--cp-warn); }
 @keyframes c-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--cp-signal-bg); } 50% { box-shadow: 0 0 0 4px var(--cp-signal-bg); } }
 
 /* Action icon buttons */
@@ -1225,11 +1227,9 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-pg-btn.active { background: var(--cp-signal-bg); color: var(--cp-signal); font-weight: 700; }
 .hf-pg-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-/* Page header */
-.hf-page-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-.hf-page-head h1 { font-size: 16px; font-weight: 600; margin: 0; }
-.stat-line { font-size: 11.5px; color: var(--cp-text-faint); font-family: var(--cp-font-mono); }
-.stat-line b { color: var(--cp-ink); font-weight: 600; }
+/* Page header — dashboard overrides on .page-head */
+.cp-page-dashboard .page-head { align-items: flex-start; }
+.cp-page-dashboard .page-head h1 { font-size: 16px; }
 
 /* Stats Cards (4-column grid) */
 .hf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--cp-border); border: 1px solid var(--cp-border); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
@@ -1239,6 +1239,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-stat-value.signal { color: var(--cp-signal); }
 .hf-stat-value.danger { color: var(--cp-danger); }
 .hf-stat-value.warning { color: var(--cp-warn); }
+.hf-stat-value.overdue { color: var(--cp-warn); }
 .hf-stat-sub { font-size: 11px; color: var(--cp-text-faint); margin-top: 4px; }
 
 /* Exception Panel */
@@ -1249,6 +1250,8 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-exception-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--cp-border); font-size: 12.5px; }
 .hf-exception-item:last-child { border-bottom: none; }
 .hf-ex-icon { color: var(--cp-danger); font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.hf-ex-icon.overdue { color: var(--cp-warn); }
+.hf-ex-overdue { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: var(--cp-warn-bg); color: var(--cp-warn); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .hf-ex-name { font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hf-ex-detail { color: var(--cp-text-muted); font-size: 11.5px; flex: 2; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hf-ex-action { color: var(--cp-signal); font-size: 12px; font-weight: 500; white-space: nowrap; text-decoration: none; }
@@ -1445,10 +1448,10 @@ a.tc-name:hover { color: var(--cp-signal); }
 
 /* ─── Execution Logs ─────────────────────────────────────────── */
 
-/* Page Head */
-.el-page-head { margin-bottom: 0; display: flex; align-items: baseline; justify-content: space-between; }
-.el-page-head h1 { font-size: 16px; font-weight: 600; margin: 0; }
-.el-page-head .stat-line { color: var(--cp-text-muted); font-size: 11.5px; margin-top: 3px; }
+/* Page Head — exec-logs overrides on .page-head */
+.cp-page-exec-logs .page-head { margin-bottom: 0; }
+.cp-page-exec-logs .page-head h1 { font-size: 16px; }
+.cp-page-exec-logs .page-head .stat-line { color: var(--cp-text-muted); margin-top: 3px; }
 
 /* Task Info Card */
 .el-task-card { display: flex; align-items: center; gap: 16px; background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
@@ -1742,6 +1745,15 @@ a.tc-name:hover { color: var(--cp-signal); }
 .cp-page-pw .pf-req { color: var(--cp-danger); }
 .cp-page-pw .pf-select { appearance: auto; cursor: pointer; }
 .cp-page-pw .pf-other-wrap { margin-top: 8px; }
+.cp-page-pw .pf-value { font-size: 13px; color: var(--cp-ink); }
+.cp-page-pw .pf-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.cp-page-pw .pf-card-title { font-size: 14px; font-weight: 600; color: var(--cp-ink); }
+.cp-page-pw .pf-edit-btn { font-size: 12px; padding: 4px 12px; height: 28px; }
+.cp-page-pw .pf-info-list { margin: 0; padding: 0; }
+.cp-page-pw .pf-info-item { display: flex; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--cp-border); }
+.cp-page-pw .pf-info-item:last-child { border-bottom: none; }
+.cp-page-pw .pf-info-item dt { flex: 0 0 110px; font-size: 12px; font-weight: 600; color: var(--cp-text-muted); }
+.cp-page-pw .pf-info-item dd { margin: 0; font-size: 13px; color: var(--cp-ink); }
 
 /* ══════════════════════════════════════════════════════════════════
    Registration Review Page (.cp-page-reg-review)

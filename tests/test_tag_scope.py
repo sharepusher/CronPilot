@@ -57,25 +57,25 @@ class TestTagScope(unittest.TestCase):
         from datas.model.resource_group import ResourceGroup
         from datas.model.user_group import UserGroup
         from datas.model.tag import Tag
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
-        g1 = ResourceGroup(name='GroupA', description='', create_time=get_now_time())
-        g2 = ResourceGroup(name='GroupB', description='', create_time=get_now_time())
+        g1 = ResourceGroup(name='GroupA', description='', create_time=utc_now_hms())
+        g2 = ResourceGroup(name='GroupB', description='', create_time=utc_now_hms())
         self.db.session.add_all([g1, g2])
         self.db.session.flush()
         self.g1_id = g1.id
         self.g2_id = g2.id
 
-        biz_admin = RbacUser(username='biz_a', role='admin', is_active=1, create_time=get_now_time())
+        biz_admin = RbacUser(username='biz_a', role='admin', is_active=1, create_time=utc_now_hms())
         biz_admin.set_password('pass')
         self.db.session.add(biz_admin)
         self.db.session.flush()
         self.db.session.add(UserGroup(user_id=biz_admin.id, group_id=g1.id))
         self.biz_admin_id = biz_admin.id
 
-        tag_g1 = Tag(name='tag-g1', group_id=g1.id, created_by='seed', create_time=get_now_time(), update_time=get_now_time())
-        tag_g2 = Tag(name='tag-g2', group_id=g2.id, created_by='seed', create_time=get_now_time(), update_time=get_now_time())
-        tag_global = Tag(name='tag-global', group_id=None, created_by='seed', create_time=get_now_time(), update_time=get_now_time())
+        tag_g1 = Tag(name='tag-g1', group_id=g1.id, created_by='seed', create_time=utc_now_hms(), update_time=utc_now_hms())
+        tag_g2 = Tag(name='tag-g2', group_id=g2.id, created_by='seed', create_time=utc_now_hms(), update_time=utc_now_hms())
+        tag_global = Tag(name='tag-global', group_id=None, created_by='seed', create_time=utc_now_hms(), update_time=utc_now_hms())
         self.db.session.add_all([tag_g1, tag_g2, tag_global])
         self.db.session.flush()
         self.tag_g1_id = tag_g1.id

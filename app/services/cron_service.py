@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app import db, scheduler
 from app.services.cron_validator import validate_cron_form, validate_retire_reason
 from datas.model.cron_infos import CronInfos
-from datas.utils.times import get_now_time
+from datas.utils.times import utc_now_hms
 
 # 系统自动下线固定文案（LIFECYCLE-2）
 _log = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def stamp_last_operator(cif, operator=None):
 
     op = operator if operator is not None else resolve_operator_from_request()
     cif.last_operator_name = (getattr(op, 'operator_name', None) or '')[:120]
-    cif.last_operated_at = get_now_time()
+    cif.last_operated_at = utc_now_hms()
 
 
 def build_scheduler_kwargs(normalized):
@@ -79,7 +79,7 @@ def apply_normalized_to_model(cif, normalized):
     cif.req_method = normalized.get('req_method', 'GET')
     cif.req_body = normalized.get('req_body', '')
     cif.timeout_sec = normalized.get('timeout_sec')
-    cif.updated_at = get_now_time()
+    cif.updated_at = utc_now_hms()
     if 'scope_type' in normalized:
         cif.scope_type = normalized['scope_type'] or 'GLOBAL'
 
@@ -87,7 +87,7 @@ def apply_normalized_to_model(cif, normalized):
 def create_cron(normalized):
     from app.services.operation_log_service import record_operation, snapshot_cron
 
-    now = get_now_time()
+    now = utc_now_hms()
     cif = CronInfos(
         task_name=normalized['task_name'],
         task_keyword=normalized['task_keyword'],
@@ -185,7 +185,7 @@ def apply_retire(cif, reason, operator=None):
     """将任务标为下线并写原因/时间；调用方负责 remove_job 与 commit。"""
     cif.status = -1
     cif.retire_reason = reason
-    cif.retired_at = get_now_time()
+    cif.retired_at = utc_now_hms()
     stamp_last_operator(cif, operator=operator)
     db.session.add(cif)
 

@@ -17,7 +17,7 @@
               data-csrf="{{ csrf_token }}">重置</button>
     </div>
     {% if api_token_expires_at %}
-    <div class="tk-expires">有效期至：<span class="mono">{{ api_token_expires_at }}</span></div>
+    <div class="tk-expires">有效期至：<span class="mono">{{ api_token_expires_at|hms_display }}</span></div>
     {% endif %}
   </div>
 

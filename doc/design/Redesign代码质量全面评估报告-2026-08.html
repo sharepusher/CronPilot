@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot Redesign 代码质量全面评估报告（2026-08）</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:1020px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.8rem}
+h2{margin-top:2.5rem;color:#1a1a2e;border-left:4px solid #3D6FE0;padding-left:.8rem}
+h3{color:#333;margin-top:1.5rem}
+h4{color:#555;margin-top:1.2rem;font-size:1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.82rem;line-height:1.5}
+.score{display:inline-block;font-size:1.5rem;font-weight:700;padding:4px 12px;border-radius:6px;margin-right:8px}
+.score-a{background:#d4edda;color:#155724}
+.score-b{background:#fff3cd;color:#856404}
+.score-c{background:#f8d7da;color:#721c24}
+blockquote{border-left:3px solid #3D6FE0;margin:1rem 0;padding:.5rem 1rem;background:#f8f9ff}
+.metric{display:inline-block;padding:.4rem .8rem;margin:.3rem;border:1px solid #ddd;border-radius:4px;font-size:.85rem}
+.metric strong{display:block;font-size:1.3rem;color:#3D6FE0}
+.p0{color:#dc3545;font-weight:700} .p1{color:#fd7e14;font-weight:600} .p2{color:#ffc107} .p3{color:#6c757d}
+</style>
+</head>
+<body>
+
+<h1>CronPilot Redesign 代码质量全面评估报告</h1>
+<p><strong>评估日期</strong>：2026-08-26<br>
+<strong>评估范围</strong>：Redesign 前端（CSS/JS/Templates）+ 后端（Flask Views/Services/Repositories）<br>
+<strong>基准版本</strong>：当前工作区（含 F1–F5 + D1/D3 修复）<br>
+<strong>参考文件</strong>：<code>doc/design/CronPilot-2026-redesign-mockup.html</code></p>
+
+<!-- ======================================== -->
+<h2>1. 综合评分</h2>
+
+<table>
+<tr><th>维度</th><th>评分</th><th>关键指标</th></tr>
+<tr><td>CSS 架构</td><td><span class="score score-b">B+</span></td><td>Token-first 设计；3,230 行 5 文件分层；但双组件系统并存</td></tr>
+<tr><td>JS 模块</td><td><span class="score score-a">A-</span></td><td>655 行精简 IIFE；零 Wind 依赖；载荷 -62%</td></tr>
+<tr><td>模板层</td><td><span class="score score-b">B</span></td><td>继承体系清晰；inline CSS 清零；命名碎片化</td></tr>
+<tr><td>后端架构</td><td><span class="score score-b">B+</span></td><td>Service→Repository 分层；安全基础扎实；View 层膨胀</td></tr>
+<tr><td><strong>综合</strong></td><td><span class="score score-b"><strong>B+</strong></span></td><td>工程化水平高于同类项目，主要债务在前端命名统一</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>2. CSS 架构评估</h2>
+
+<h3>2.1 量化概览</h3>
+<div>
+<span class="metric"><strong>3,230</strong>Redesign CSS 总行数</span>
+<span class="metric"><strong>92</strong>Design Tokens 定义</span>
+<span class="metric"><strong>76</strong>暗色覆盖 Tokens</span>
+<span class="metric"><strong>5</strong>CSS 文件分层</span>
+<span class="metric"><strong>15</strong>页面作用域</span>
+<span class="metric"><strong>0</strong>硬编码颜色</span>
+</div>
+
+<h3>2.2 架构分层</h3>
+<pre>
+console-theme.css (387行)     ← Design Tokens + 暗色主题
+  ↓
+redesign-layout.css (568行)   ← Shell Grid (sidebar + topbar + main)
+  ↓
+redesign-components.css (428行) ← .cp-btn, .cp-modal, toast, cmd-palette
+  ↓
+redesign-pages.css (1,854行)  ← .cp-page-{name} 作用域页面样式
+  ↓
+redesign-mockup-shared.css (212行) ← .btn-c, .c-table, .f-input 共享原语
+</pre>
+
+<h3>2.3 优势</h3>
+<ul>
+<li><strong>Token-first</strong>：92 个 CSS 变量覆盖色彩、字号、间距、圆角，支撑主题切换</li>
+<li><strong>暗色完整</strong>：76 个色值 token 有 dark override，非色值 token 合理共享</li>
+<li><strong>CI 门禁矩阵</strong>：硬编码颜色、inline CSS 行数、dead CSS、token 可达性、A11y lint 5 道自动检查</li>
+<li><strong>页面隔离机制</strong>：<code>{% block main_class %}</code> + <code>.cp-page-xxx</code> 前缀隔离</li>
+</ul>
+
+<h3>2.4 问题</h3>
+<table>
+<tr><th>优先级</th><th>问题</th><th>详情</th></tr>
+<tr><td class="p1">P1</td><td>双按钮系统并存</td><td><code>.cp-btn--primary</code>（8 处）vs <code>.btn-c btn-accent</code>（40+ 处）；新人不知该用哪个</td></tr>
+<tr><td class="p1">P1</td><td>双页头系统</td><td><code>.cp-page-head</code>（layout）vs <code>.page-head</code>（mockup）vs <code>.hf-page-head</code>（dashboard）</td></tr>
+<tr><td class="p2">P2</td><td>作用域不完整</td><td><code>cp-page-tags</code>/<code>cp-page-oplog</code>/<code>cp-page-audit</code> 声明但 CSS 中无对应块</td></tr>
+<tr><td class="p2">P2</td><td>15 种页面前缀</td><td><code>td-</code>/<code>el-</code>/<code>hf-</code>/<code>um-</code>/<code>tf-</code>/<code>tg-</code> 等无统一规则</td></tr>
+<tr><td class="p3">P3</td><td>Legacy 1,066 行</td><td><code>console-mode.css</code> 在 v2 路径不加载但仍维护</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>3. JS 模块评估</h2>
+
+<h3>3.1 量化概览</h3>
+<div>
+<span class="metric"><strong>655</strong>Redesign JS 总行数</span>
+<span class="metric"><strong>5</strong>IIFE 模块</span>
+<span class="metric"><strong>0</strong>Wind 依赖</span>
+<span class="metric"><strong>-62%</strong>载荷缩减</span>
+<span class="metric"><strong>4/5</strong>模块为原生 DOM</span>
+</div>
+
+<h3>3.2 模块清单</h3>
+<table>
+<tr><th>模块</th><th>行数</th><th>jQuery?</th><th>公共 API</th></tr>
+<tr><td><code>common-redesign.js</code></td><td>142</td><td>是</td><td><code>getCookie</code>/<code>setCookie</code> + CSRF + form handler</td></tr>
+<tr><td><code>redesign-shell.js</code></td><td>226</td><td>否</td><td><code>CpShell.{toggleSidebar,openPalette,...}</code></td></tr>
+<tr><td><code>redesign-confirm.js</code></td><td>171</td><td>否</td><td><code>CpConfirm.show()</code> + <code>CpModal()</code></td></tr>
+<tr><td><code>redesign-toast.js</code></td><td>81</td><td>否</td><td><code>CpToast.{success,error,warning}</code></td></tr>
+<tr><td><code>redesign-theme.js</code></td><td>35</td><td>否</td><td><code>CpTheme.set()</code></td></tr>
+</table>
+
+<h3>3.3 优势</h3>
+<ul>
+<li><strong>极度精简</strong>：655 行替代 v1 的 2,000+ 行 + 125 KB 插件链</li>
+<li><strong>职责单一</strong>：每个模块一个关注点，无交叉依赖</li>
+<li><strong>安全优先</strong>：CSRF 全局注入、<code>textContent</code> 防 XSS、<code>samesite=lax</code></li>
+<li><strong>Promise-based</strong> <code>CpConfirm</code>，现代交互模式</li>
+</ul>
+
+<h3>3.4 问题</h3>
+<table>
+<tr><th>优先级</th><th>问题</th><th>影响</th></tr>
+<tr><td class="p3">INFO</td><td><code>data.url</code> 错误跳转延迟</td><td>已增强：errcode≠0 时延迟 800ms 再跳转，让用户有时间阅读错误 Toast</td></tr>
+<tr><td class="p2">P2</td><td><code>CpModal</code> 可堆叠，每实例独立注册 Escape</td><td>多模态叠加行为不确定</td></tr>
+<tr><td class="p2">P2</td><td><code>escHtml()</code> 重复定义</td><td><code>redesign-shell.js</code> + <code>tags.html</code> 各一份</td></tr>
+<tr><td class="p2">P2</td><td>jQuery 仍全局加载 (92 KB)</td><td>4/5 模块不使用，仅因 inline scripts 和 form handler</td></tr>
+<tr><td class="p3">P3</td><td>Anti-double-submit 3s 固定超时</td><td>慢网络下可能重复提交</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>4. 模板层评估</h2>
+
+<h3>4.1 量化概览</h3>
+<div>
+<span class="metric"><strong>27</strong>模板文件</span>
+<span class="metric"><strong>4,044</strong>总行数</span>
+<span class="metric"><strong>20</strong>Shell 页面</span>
+<span class="metric"><strong>4</strong>独立 Auth 页面</span>
+<span class="metric"><strong>0</strong>inline CSS 实质行</span>
+<span class="metric"><strong>7</strong>Ajax Form 模板</span>
+</div>
+
+<h3>4.2 继承体系</h3>
+<pre>
+redesign/_base.html (Shell)
+├── _sidebar.html ({% include %})
+├── _topbar.html ({% include %})
+└── 20 page templates ({% extends %})
+    ├── dashboard.html (373行)
+    ├── task_form.html (364行)
+    ├── tags.html (341行)
+    └── ...
+
+独立 Auth 页面 (无 extends)
+├── login.html (91行)
+├── register.html (274行)
+├── forgot_password.html (33行)
+└── complete_profile.html (119行)
+</pre>
+
+<h3>4.3 Block 结构</h3>
+<table>
+<tr><th>Block</th><th>位置</th><th>用途</th><th>使用率</th></tr>
+<tr><td><code>title</code></td><td>&lt;title&gt;</td><td>页面标题</td><td>100%</td></tr>
+<tr><td><code>main_class</code></td><td>&lt;main&gt; class</td><td>CSS 作用域（如 <code>cp-page-dashboard</code>）</td><td>95%</td></tr>
+<tr><td><code>content</code></td><td>&lt;main&gt; 内</td><td>页面主体</td><td>100%</td></tr>
+<tr><td><code>css</code></td><td>&lt;head&gt; 末尾</td><td>页面 CSS（现为占位注释）</td><td>63%</td></tr>
+<tr><td><code>js</code></td><td>&lt;/body&gt; 前</td><td>页面脚本</td><td>48% (13/27)</td></tr>
+<tr><td><code>breadcrumb</code></td><td>content 前</td><td>面包屑导航</td><td>11%</td></tr>
+</table>
+
+<h3>4.4 问题</h3>
+<table>
+<tr><th>优先级</th><th>问题</th><th>详情</th></tr>
+<tr><td class="p1">P1</td><td>命名碎片化</td><td>必填标记 4 种（<code>tf-required</code>/<code>uf-req</code>/<code>auth-req</code>/<code>tg-req</code>）；工具栏 4 种前缀</td></tr>
+<tr><td class="p2">P2</td><td>~35 个 inline style 属性</td><td><code>display:none</code>、<code>opacity:0.5</code>、<code>font-size:12px</code> 等</td></tr>
+<tr><td class="p2">P2</td><td><code>onclick=""</code> 与 addEventListener 混用</td><td>CSP nonce 不兼容；测试困难</td></tr>
+<tr><td class="p3">P3</td><td>中英混杂文案</td><td><code>{{ tags|length }} total</code> 在中文 UI 中</td></tr>
+<tr><td class="p3">P3</td><td>Block 排序不一致</td><td>部分文件 css→content→js，部分 content→css→js</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>5. 后端架构评估</h2>
+
+<h3>5.1 量化概览</h3>
+<div>
+<span class="metric"><strong>4</strong>Blueprint</span>
+<span class="metric"><strong>14</strong>Service 文件</span>
+<span class="metric"><strong>8</strong>Repository 文件</span>
+<span class="metric"><strong>7</strong>权限字符串</span>
+<span class="metric"><strong>3</strong>角色 + Seed</span>
+</div>
+
+<h3>5.2 分层架构</h3>
+<pre>
+HTTP Request
+  ↓
+Blueprint Views (thin controllers)     ← main/ rbac/ api/ docs/
+  ↓
+Services (business rules)              ← app/services/ (14 files)
+  ↓
+Repositories (complex queries)         ← app/repositories/ (8 files)
+  ↓
+SQLAlchemy ORM                         ← datas/model/ (SA 2.0 style)
+</pre>
+
+<h3>5.3 安全架构</h3>
+<table>
+<tr><th>层面</th><th>实现</th></tr>
+<tr><td>认证</td><td>Flask Session + PBKDF2 密码哈希 + 登录限流</td></tr>
+<tr><td>授权</td><td>3 角色 RBAC + 7 权限字符串 + 资源 Scope 隔离</td></tr>
+<tr><td>CSRF</td><td>Meta tag + <code>@csrf_protect</code> 装饰器 + AJAX header 注入</td></tr>
+<tr><td>SSRF</td><td>回调 URL 安全校验（私有 IP / 非 HTTP 协议拦截）</td></tr>
+<tr><td>Open Redirect</td><td><code>safe_next_url()</code> 校验 next 参数</td></tr>
+<tr><td>审计</td><td>操作日志 + RBAC 审计日志自动记录</td></tr>
+<tr><td>API 认证</td><td>全局 token + 用户 token (TTL + scope cache)</td></tr>
+</table>
+
+<h3>5.4 问题</h3>
+<table>
+<tr><th>优先级</th><th>问题</th><th>详情</th></tr>
+<tr><td class="p1">P1</td><td>View 层膨胀</td><td><code>main/views.py</code> ~1,300 行：controller + query 组装 + 缓存 + 双模板分发</td></tr>
+<tr><td class="p2">P2</td><td>三重渲染路径</td><td>v1/v2/partial AJAX 上下文须手动同步，漏传变量导致页面错误</td></tr>
+<tr><td class="p2">P2</td><td>RBAC 写绕过 Repository</td><td><code>rbac/services.py</code> 直接 <code>db.session.commit()</code></td></tr>
+<tr><td class="p2">P2</td><td>异常静默吞没</td><td><code>write_audit_log</code> 等 except → rollback 无日志</td></tr>
+<tr><td class="p3">P3</td><td>三种响应构造模式</td><td>service dict / <code>web_api_return</code> / <code>api_return</code></td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>6. CI 门禁覆盖</h2>
+
+<table>
+<tr><th>门禁</th><th>命令</th><th>状态</th></tr>
+<tr><td>硬编码颜色</td><td><code>audit_hardcoded_colors.py --check</code></td><td>✅ 0 违规</td></tr>
+<tr><td>Inline CSS 行数</td><td><code>check_ui_contract.py --check</code></td><td>✅ ≤3 行</td></tr>
+<tr><td>Dead CSS</td><td><code>check_dead_css.py --check</code></td><td>✅ components.css</td></tr>
+<tr><td>Token 可达性</td><td><code>check_css_token_reachability.py --check</code></td><td>✅ 0 undefined</td></tr>
+<tr><td>A11y Lint</td><td><code>check_ui_contract.py --check</code> (a11y-button/input)</td><td>✅ 0 违规</td></tr>
+<tr><td>HTML↔MD 同步</td><td><code>html_docs_to_markdown.py --check</code></td><td>✅</td></tr>
+<tr><td>版本一致性</td><td><code>check_version_consistency.py --check</code></td><td>✅</td></tr>
+<tr><td>Ajax Form 守卫</td><td><code>test_ajax_form_guard</code></td><td>✅</td></tr>
+<tr><td>Sidebar 权限回归</td><td><code>test_redesign_sidebar</code></td><td>✅</td></tr>
+<tr><td>Scope 隔离</td><td><code>test_rbac_scope.TestScopeIntegration</code></td><td>✅</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>7. 技术债优先级矩阵</h2>
+
+<table>
+<tr><th>优先级</th><th>债务</th><th>推荐行动</th><th>工作量</th><th>收益</th></tr>
+<tr><td class="p3">INFO</td><td><code>data.url</code> 错误跳转延迟</td><td>已增强：errcode≠0 时延迟 800ms 再跳转</td><td>0.5h</td><td>让错误 Toast 有时间被用户阅读</td></tr>
+<tr><td class="p1">P1</td><td>双按钮系统</td><td>统一到 <code>.btn-c</code> 系列，废弃 <code>.cp-btn</code></td><td>4h</td><td>降低认知负担 50%</td></tr>
+<tr><td class="p1">P1</td><td>双页头系统</td><td>统一到 <code>.page-head</code>，废弃 <code>.cp-page-head</code></td><td>2h</td><td>消除歧义</td></tr>
+<tr><td class="p1">P1</td><td>View 层膨胀</td><td>提取 <code>DashboardViewHelper</code>、<code>PartialRenderer</code></td><td>8h</td><td>可测试性+可读性</td></tr>
+<tr><td class="p2">P2</td><td>inline style 清理</td><td>逐页提取为 CSS class</td><td>3h</td><td>规范一致性</td></tr>
+<tr><td class="p2">P2</td><td>jQuery 渐进消除</td><td><code>common-redesign.js</code> 改用 <code>fetch</code> + FormData</td><td>4h</td><td>JS 载荷再降 92 KB</td></tr>
+<tr><td class="p2">P2</td><td>RBAC repo 统一</td><td>写操作走 <code>RbacRepository</code></td><td>4h</td><td>分层一致</td></tr>
+<tr><td class="p2">P2</td><td>三重渲染同步</td><td>引入 <code>@dataclass RenderContext</code></td><td>6h</td><td>防漏传变量</td></tr>
+<tr><td class="p3">P3</td><td><code>escHtml</code> 重复</td><td>提取到共享模块</td><td>0.5h</td><td>DRY</td></tr>
+<tr><td class="p3">P3</td><td>Block 排序不一致</td><td>统一为 title→main_class→css→content→js</td><td>1h</td><td>代码风格</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>8. 架构亮点（值得保持）</h2>
+
+<ol>
+<li><strong>Token → Layout → Components → Pages 四层 CSS</strong> — 工业级设计系统基础</li>
+<li><strong>655 行 IIFE JS 微框架</strong> — F5 精简成果：-62% 载荷，零外部依赖</li>
+<li><strong>Permission-aware sidebar + Scope 隔离</strong> — 安全架构完整</li>
+<li><strong>10 道 CI 门禁</strong> — 颜色/CSS/A11y/版本/权限全覆盖</li>
+<li><strong>设计先行 + 复盘强制</strong> — 工程流程成熟度优秀</li>
+<li><strong>统一 API 契约</strong> — <code>{errcode, errmsg, result, url}</code> 前后端对齐</li>
+<li><strong>资源 Scope 三层</strong> — policy(策略) + scope(过滤) + authorize(对象) 层层防护</li>
+</ol>
+
+<!-- ======================================== -->
+<h2>9. 对比 Mockup 对齐度</h2>
+
+<p>对比 <code>doc/design/CronPilot-2026-redesign-mockup.html</code>：</p>
+
+<table>
+<tr><th>页面</th><th>对齐度</th><th>偏差</th></tr>
+<tr><td>Dashboard (Health-First)</td><td>90%</td><td>Stats 指标名顺序正确；表格列数对齐；Exception Panel 已实现</td></tr>
+<tr><td>Task Detail</td><td>85%</td><td>缺少部分 icon-only 按钮；时间轴样式略简化</td></tr>
+<tr><td>Execution Logs</td><td>90%</td><td>筛选条件完整；表格列对齐</td></tr>
+<tr><td>Operation Log</td><td>85%</td><td>列结构正确；业务组名显示已修复 (F1-3)</td></tr>
+<tr><td>User Management</td><td>90%</td><td>表格+搜索完整</td></tr>
+<tr><td>Tags</td><td>85%</td><td>云视图+表格视图完整；缺少批量操作面板</td></tr>
+<tr><td>Auth Pages</td><td>95%</td><td>高度对齐 Mockup 设计</td></tr>
+</table>
+
+<!-- ======================================== -->
+<h2>10. 结论</h2>
+
+<blockquote>
+<p>CronPilot 的 Redesign 重构整体达到 <strong>B+ 水平</strong>。在安全性（RBAC + Scope + CSRF + SSRF）、CI 自动化（10 道门禁）、CSS Token 设计方面达到了工业级标准。JS 模块层是本次重构的最大亮点，655 行替代了 2,000+ 行 + 125 KB 插件链。</p>
+<p>主要的质量风险集中在：<strong>前端命名碎片化</strong>（15 种页面前缀 + 双按钮/双页头系统，为快速迭代的结构性产物）和 <strong>后端 view 层膨胀</strong>（1,300 行 + 三重渲染路径，为双 UI 轨道的复杂度代价）。</p>
+<p>建议优先修复 P0（<code>data.url</code> errcode 检查），然后按 P1 优先级渐进统一命名系统。</p>
+</blockquote>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Redesign代码质量全面评估报告-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

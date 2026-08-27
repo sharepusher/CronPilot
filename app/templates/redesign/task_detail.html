@@ -137,9 +137,9 @@
       <span class="td-cfg-label">创建人</span>
       <span class="td-cfg-value">{{ cif.last_operator_name or '—' }}</span>
       <span class="td-cfg-label">创建时间</span>
-      <span class="td-cfg-value">{{ cif.created_at or '—' }}</span>
+      <span class="td-cfg-value">{{ cif.created_at|hms_display or '—' }}</span>
       <span class="td-cfg-label">最后修改</span>
-      <span class="td-cfg-value">{{ cif.updated_at or cif.last_operated_at or '—' }}</span>
+      <span class="td-cfg-value">{{ (cif.updated_at or cif.last_operated_at)|hms_display or '—' }}</span>
     </div>
   </div>
 </div>

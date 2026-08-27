@@ -361,6 +361,8 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 
 **Scope 隔离回归测试（强制 · 2026-08）**：凡修改 `app/rbac/scope.py`、`app/rbac/policy.py`（`user_bypasses_scope`）、`app/main/views.py`（`build_scope_filter_clause` 调用）时，必须运行 `python -m unittest tests.test_rbac_scope.TestScopeIntegration -v` 确认 Scope 隔离完整。覆盖场景：单组 operator 不可见其他组；双组 operator 可见两组；Biz Admin 有组时受限；Seed Admin 绕过全部。
 
+**Redesign 交互回归约束（强制 · 2026-08 追加）**：凡 v1 已有 AJAX 交互的功能（筛选、翻页、搜索），v2 Redesign 必须保持等效或优化交互方式，**不得降级为整页刷新**。Redesign 设计文档须包含"交互模式对比"维度（v1 行为 vs v2 行为）。验证命令：`grep -n "onchange.*location.href" app/templates/redesign/dashboard.html | wc -l`（修复后应为 0）。**根因复盘**：2026-08 任务中心筛选交互降级事件 — v2 去 Vue 依赖时丢弃了 AJAX 筛选逻辑而未用原生 JS 重写，详见 `doc/postmortem/2026-08-Redesign筛选交互降级.html`。
+
 ### 本地进程与热更新（强制 · 防「刷新无效」）
 
 **事实**：`scripts/start_local_full.sh` 以 `app.run(..., debug=False, use_reloader=False)` 常驻。Flask `DEBUG=False` 时 **Jinja 默认不按 mtime 重载模板**；Python 模块亦只在进程启动时 import 一次。因此改 `app/**/*.py` 或 `app/templates/**` 后，**浏览器刷新不能加载新代码**。

@@ -1,0 +1,29 @@
+{# Partial: Execution logs pagination — rendered by both full page and AJAX partial #}
+<span class="el-foot-count">
+  {% if outcome in ('not_success', None, '') %}{{ page_data.total }} total (non-success)
+  {% elif outcome == 'fail' %}{{ page_data.total }} total (failures)
+  {% elif outcome == 'exception' %}{{ page_data.total }} total (exceptions)
+  {% elif outcome == 'success' %}{{ page_data.total }} total (success)
+  {% else %}{{ page_data.total }} total{% endif %}
+</span>
+{% if page_data.pages > 1 %}
+<div class="el-pg">
+  {% if page_data.has_prev %}
+  <a class="el-pg-btn" href="?page={{ page_data.prev_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}{% if keywords.get('id') %}&id={{ keywords.id }}{% endif %}">‹</a>
+  {% else %}
+  <span class="el-pg-btn disabled">‹</span>
+  {% endif %}
+  {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+    {% if p %}
+    <a class="el-pg-btn{{ ' active' if p == page_data.page }}" href="?page={{ p }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}{% if keywords.get('id') %}&id={{ keywords.id }}{% endif %}">{{ p }}</a>
+    {% else %}
+    <span class="el-pg-btn disabled">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page_data.has_next %}
+  <a class="el-pg-btn" href="?page={{ page_data.next_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}{% if keywords.get('id') %}&id={{ keywords.id }}{% endif %}">›</a>
+  {% else %}
+  <span class="el-pg-btn disabled">›</span>
+  {% endif %}
+</div>
+{% endif %}

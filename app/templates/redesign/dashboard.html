@@ -13,9 +13,9 @@
 
 {% block content %}
 {# ═══ Page Header (Mockup: title left + stat-line right) ═══ #}
-<div class="hf-page-head">
+<div class="page-head">
   <div><h1>任务中心</h1><div class="sub">管理与监控所有定时任务</div></div>
-  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ metrics.today_fail_runs }}</span> 今日告警</div>
+  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ overdue_count }}</span> 逾期 · {{ metrics.today_fail_runs }} 今日告警</div>
 </div>
 
 {# ═══ Stats Cards (Mockup B: 4-column Health-First metrics) ═══ #}
@@ -31,9 +31,9 @@
     <div class="hf-stat-sub">≥{{ metrics.failing_threshold }} 次连续失败即标记</div>
   </div>
   <div class="hf-stat">
-    <div class="hf-stat-label">运行中</div>
-    <div class="hf-stat-value signal">{{ metrics.running }}</div>
-    <div class="hf-stat-sub">当前正在执行</div>
+    <div class="hf-stat-label">逾期未执行</div>
+    <div class="hf-stat-value overdue">{{ overdue_count }}</div>
+    <div class="hf-stat-sub">超过 2 倍调度间隔</div>
   </div>
   <div class="hf-stat">
     <div class="hf-stat-label">今日失败次数</div>
@@ -54,9 +54,10 @@
     {% set cron = row[0] %}
     {% set health = row[1] %}
     <div class="hf-exception-item">
-      <span class="hf-ex-icon">×{{ health.consecutive_failures }}</span>
+      <span class="hf-ex-icon{% if overdue_map.get(cron.id) %} overdue{% endif %}">×{{ health.consecutive_failures }}</span>
       <span class="hf-ex-name">{{ cron.task_name }}</span>
-      <span class="hf-ex-detail">连续失败 {{ health.consecutive_failures }} 次{% if health.last_fail_at %} · 最近失败: {{ health.last_fail_at[:16] }}{% endif %}</span>
+      <span class="hf-ex-detail">连续失败 {{ health.consecutive_failures }} 次{% if health.last_fail_at %} · 最近失败: {{ health.last_fail_at|hms_display }}{% endif %}</span>
+      {% if overdue_map.get(cron.id) %}<span class="hf-ex-overdue">{{ overdue_map[cron.id] }}</span>{% endif %}
       <a class="hf-ex-action" href="{{ url_for('main.job_log_list', id=cron.id) }}">查看详情 →</a>
     </div>
     {% endfor %}
@@ -65,38 +66,39 @@
 {% endif %}
 
 {# ═══ Filters (Mockup dual-dimension: 异常 | 状态 | group | tag | search) ═══ #}
-<div class="console-filters">
-  <div class="f-group">
+<div class="console-filters" id="cp-filters">
+  <div class="f-group" data-filter-dimension="health">
     <span class="f-label">异常</span>
-    <a class="f-btn{{ ' active' if keyword.get('health') == 'failing' }}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id or '') }}">持续异常</a>
-    <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}">今日失败</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'failing' }}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="failing">持续异常</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="today_fail">今日失败</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'overdue' }}" href="{{ url_for('main.cron_list', health='overdue', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="overdue">逾期未执行</a>
   </div>
   <div class="f-sep"></div>
-  <div class="f-group">
+  <div class="f-group" data-filter-dimension="status">
     <span class="f-label">状态</span>
-    <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}">运行中</a>
-    <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}">已暂停</a>
-    <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}">全部</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="1">运行中</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="0">已暂停</a>
+    <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="">全部</a>
   </div>
   <div class="f-sep"></div>
   {% if scope_groups %}
-  <select class="f-select" onchange="location.href=this.value">
-    <option value="{{ url_for('main.cron_list', scope_view='all') }}"{% if not scope_group_id %} selected{% endif %}>全部（可见）</option>
+  <select class="f-select" id="cp-filter-group" data-filter-key="scope">
+    <option value="all|"{% if not scope_group_id %} selected{% endif %}>全部（可见）</option>
     {% for grp in scope_groups %}
-    <option value="{{ url_for('main.cron_list', scope_view='group', group_id=grp.id) }}"{% if scope_group_id == grp.id %} selected{% endif %}>{{ grp.name }}</option>
+    <option value="group|{{ grp.id }}"{% if scope_group_id == grp.id %} selected{% endif %}>{{ grp.name }}</option>
     {% endfor %}
   </select>
   {% endif %}
   {% if all_tag_names %}
-  <select class="f-select" onchange="location.href=this.value">
-    <option value="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}"{% if not current_tag %} selected{% endif %}>全部标签</option>
+  <select class="f-select" id="cp-filter-tag" data-filter-key="tag">
+    <option value=""{% if not current_tag %} selected{% endif %}>全部标签</option>
     {% for tname in all_tag_names %}
-    <option value="{{ url_for('main.cron_list', tag=tname, scope_view=scope_view, group_id=scope_group_id or '') }}"{% if current_tag == tname %} selected{% endif %}>{{ tname }}</option>
+    <option value="{{ tname }}"{% if current_tag == tname %} selected{% endif %}>{{ tname }}</option>
     {% endfor %}
   </select>
   {% endif %}
-  <form method="get" action="{{ url_for('main.cron_list') }}" style="display:contents">
-    <input class="f-input" type="text" name="task_name" value="{{ keyword.get('task_name','') }}" placeholder="任务名模糊匹配" aria-label="任务名模糊匹配">
+  <form method="get" action="{{ url_for('main.cron_list') }}" style="display:contents" id="cp-filter-search-form">
+    <input class="f-input" type="text" name="task_name" id="cp-filter-task-name" value="{{ keyword.get('task_name','') }}" placeholder="任务名模糊匹配" aria-label="任务名模糊匹配">
     {% if scope_view %}<input type="hidden" name="scope_view" value="{{ scope_view }}">{% endif %}
     {% if scope_group_id %}<input type="hidden" name="group_id" value="{{ scope_group_id }}">{% endif %}
   </form>
@@ -121,134 +123,14 @@
       <th class="hfc-group">业务组</th>
       <th class="hfc-act">操作</th>
     </tr></thead>
-    <tbody>
-      {% for item in page_data.items %}
-      {% set h = health_by_id.get(item.id) %}
-      {% set lr = last_run_map.get(item.id, {}) %}
-      <tr{% if item.status == -1 %} class="row-retired"{% endif %}>
-        {# COL 1: Task (name + task_id + lifecycle + tags) #}
-        <td>
-          <a href="{{ url_for('main.task_detail_v2', id=item.id) }}" class="tc-name{% if h and h.health_status == 'failing' %} failing{% endif %}" data-tooltip="{{ item.task_name }}">{{ item.task_name }}</a>
-          <div class="tc-id">{{ item.task_keyword or '—' }}</div>
-          <div class="tc-tags">
-            {% if item.status == 1 %}<span class="tc-lifecycle active">运行中</span>
-            {% elif item.status == 0 %}<span class="tc-lifecycle paused">已暂停</span>
-            {% elif item.status == -1 %}<span class="tc-lifecycle retired">已下线</span>{% endif %}
-            {% set tags = task_tag_map.get(item.id, []) if task_tag_map is defined else [] %}
-            {% for tag in tags[:3] %}<span class="tc-tag">{{ tag }}</span>{% endfor %}
-            {% if tags|length > 3 %}<span class="tc-tag">+{{ tags|length - 3 }}</span>{% endif %}
-          </div>
-        </td>
-        {# COL 2: Schedule (human text + cron expr) #}
-        <td>
-          {% if item.run_date %}
-          <div class="sched-human">{{ item.run_date }}</div>
-          <div class="sched-expr">一次性</div>
-          {% else %}
-          <div class="sched-human">{{ item|humanize_schedule }}</div>
-          <div class="sched-expr">{{ item|format_cron_expression or '—' }}</div>
-          {% endif %}
-        </td>
-        {# COL 3: Health (badge text) #}
-        <td>
-          {% if item.status == -1 %}
-          <span class="health-badge off">已下线</span>
-          {% elif h and h.health_status == 'failing' %}
-          <span class="health-badge danger"><span class="hc-dot dot-fail"></span>异常</span>
-          {% elif h and h.health_status == 'ok' %}
-          <span class="health-badge ok"><span class="hc-dot dot-ok"></span>健康</span>
-          {% else %}
-          <span class="health-badge unknown">N/A</span>
-          {% endif %}
-        </td>
-        {# COL 4: Last Run (http_status + duration + relative time) #}
-        <td class="lr-cell">
-          {% if lr %}
-          <div class="lr-status">
-            <span class="lr-pin" style="background:var({% if lr.get('status') == 'success' %}--cp-success{% elif lr.get('status') in ['fail','error','timeout'] %}--cp-danger{% else %}--cp-text-faint{% endif %})"></span>
-            {{ lr.get('http_status', '—') }}
-          </div>
-          <div class="lr-duration">{{ lr.get('take_time', '—') }}s</div>
-          <div class="lr-time">{{ lr.get('create_time', '—')[-8:] if lr.get('create_time') else '—' }}</div>
-          {% else %}
-          <span class="lr-time">—</span>
-          {% endif %}
-        </td>
-        {# COL 5: Next Run (relative time) #}
-        <td>
-          {% set nr = next_run_map.get(item.id, '—') %}
-          <span class="nr{% if item.status == 0 %} paused{% elif item.status == -1 %} offline{% elif 'min' in nr %} imminent{% endif %}">{{ nr }}</span>
-        </td>
-        {# COL 6: Business Group #}
-        <td>
-          <span class="sc">
-            {%- if item.scope_type == 'GLOBAL' -%}—{%- else -%}
-              {%- set gids = task_group_map.get(item.id, []) if task_group_map is defined else [] -%}
-              {%- if gids is iterable and gids is not string -%}
-                {%- for gid in gids %}{{ group_name_by_id.get(gid, '—') }}{% if not loop.last %}, {% endif %}{%- endfor -%}
-              {%- elif gids -%}{{ group_name_by_id.get(gids, '—') }}{%- else -%}—{%- endif -%}
-            {%- endif -%}
-          </span>
-        </td>
-        {# COL 7: Actions (icon buttons) #}
-        <td>
-          <div class="row-acts">
-            {% if has_perm('cron:write') and item.status == 1 and item.req_url %}
-            <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" title="立即执行" aria-label="立即执行">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-            {% endif %}
-            <a class="act-btn" href="{{ url_for('main.job_log_list', id=item.id) }}" title="执行记录">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-            </a>
-            {% if has_perm('cron:write') and item.status != -1 %}
-            <div class="c-dd">
-              <button class="act-btn" onclick="this.parentElement.classList.toggle('open')" title="更多" aria-label="更多操作">
-                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-              </button>
-              <div class="c-dd-menu">
-                {% if item.status == 1 %}
-                <a onclick="cpToggleStatus({{ item.id }}, 0, this)">暂停</a>
-                {% elif item.status == 0 %}
-                <a onclick="cpToggleStatus({{ item.id }}, 1, this)">恢复</a>
-                {% endif %}
-                <a href="{{ url_for('main.cron_edit', id=item.id) }}">编辑</a>
-                <div class="c-div"></div>
-                <a class="c-danger" onclick="cpRetire({{ item.id }}, this)">下线</a>
-              </div>
-            </div>
-            {% endif %}
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
+    <tbody id="cp-dashboard-tbody">
+      {% include 'redesign/_dashboard_rows.html' %}
     </tbody>
   </table>
 
 {# ═══ Pagination (inside table wrap — matches Mockup c-foot) ═══ #}
-<div class="hf-pagination">
-  <div class="hf-pg-info">{{ page_data.total }} total</div>
-  {% if page_data.pages > 1 %}
-  <div class="hf-pg-nav">
-    {% if page_data.has_prev %}
-    <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.prev_num, **keyword) }}">‹</a>
-    {% else %}
-    <span class="hf-pg-btn disabled">‹</span>
-    {% endif %}
-    {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
-      {% if p %}
-      <a class="hf-pg-btn{{ ' active' if p == page_data.page }}" href="{{ url_for('main.cron_list', page=p, **keyword) }}">{{ p }}</a>
-      {% else %}
-      <span class="hf-pg-btn disabled">…</span>
-      {% endif %}
-    {% endfor %}
-    {% if page_data.has_next %}
-    <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.next_num, **keyword) }}">›</a>
-    {% else %}
-    <span class="hf-pg-btn disabled">›</span>
-    {% endif %}
-  </div>
-  {% endif %}
+<div class="hf-pagination" id="cp-dashboard-pagination">
+  {% include 'redesign/_dashboard_pagination.html' %}
 </div>
 </div>
 
@@ -363,5 +245,149 @@ function cpRetire(cronId, btn) {
     }
   });
 }
+
+/* ══ OPT-P1-17: AJAX Filter (no full page reload) ══ */
+(function() {
+  var _baseUrl = '{{ url_for("main.cron_list") }}';
+  var _state = {
+    health: '{{ keyword.get("health", "") }}',
+    status: '{{ keyword.get("status", "") }}',
+    scope_view: '{{ scope_view or "" }}',
+    group_id: '{{ scope_group_id or "" }}',
+    tag: '{{ current_tag or "" }}',
+    task_name: '{{ keyword.get("task_name", "") }}',
+    page: '{{ keyword.get("page", "1") }}'
+  };
+  var _debounceTimer = null;
+
+  function buildUrl(includePartial) {
+    var params = [];
+    if (_state.health) params.push('health=' + encodeURIComponent(_state.health));
+    if (_state.status) params.push('status=' + encodeURIComponent(_state.status));
+    if (_state.scope_view) params.push('scope_view=' + encodeURIComponent(_state.scope_view));
+    if (_state.group_id) params.push('group_id=' + encodeURIComponent(_state.group_id));
+    if (_state.tag) params.push('tag=' + encodeURIComponent(_state.tag));
+    if (_state.task_name) params.push('task_name=' + encodeURIComponent(_state.task_name));
+    if (_state.page && _state.page !== '1') params.push('page=' + _state.page);
+    if (includePartial) params.push('partial=1');
+    return _baseUrl + (params.length ? '?' + params.join('&') : '');
+  }
+
+  function doFetch() {
+    var url = buildUrl(true);
+    fetch(url, { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var tbody = document.getElementById('cp-dashboard-tbody');
+        var pagination = document.getElementById('cp-dashboard-pagination');
+        if (tbody) tbody.innerHTML = data.rows || '';
+        if (pagination) pagination.innerHTML = data.pagination || '';
+        updateStats(data.stats);
+        updateFilterActive();
+        history.replaceState(null, '', buildUrl(false));
+      })
+      .catch(function() { CpToast.error('加载失败，请刷新重试'); });
+  }
+
+  function updateStats(stats) {
+    if (!stats) return;
+    var els = document.querySelectorAll('.hf-stat-value');
+    if (els[0]) els[0].textContent = stats.failing;
+    if (els[1]) els[1].textContent = stats.consecutive_failing;
+    if (els[2]) els[2].textContent = stats.overdue_count;
+    if (els[3]) els[3].textContent = stats.today_fail_runs;
+    var statLine = document.querySelector('.stat-line');
+    if (statLine) {
+      statLine.innerHTML = '<b>' + stats.total + '</b> 个任务 · <span style="color:var(--cp-danger)">' +
+        stats.consecutive_failing + '</span> 持续异常 · <span style="color:var(--cp-warn)">' +
+        stats.overdue_count + '</span> 逾期 · ' + stats.today_fail_runs + ' 今日告警';
+    }
+  }
+
+  function updateFilterActive() {
+    var filterBar = document.getElementById('cp-filters');
+    if (!filterBar) return;
+    filterBar.querySelectorAll('.f-btn[data-filter-key="health"]').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.filterVal === _state.health);
+    });
+    filterBar.querySelectorAll('.f-btn[data-filter-key="status"]').forEach(function(btn) {
+      if (btn.dataset.filterVal === '') {
+        btn.classList.toggle('active', !_state.status && !_state.health);
+      } else {
+        btn.classList.toggle('active', btn.dataset.filterVal === _state.status);
+      }
+    });
+  }
+
+  document.getElementById('cp-filters').addEventListener('click', function(e) {
+    var btn = e.target.closest('.f-btn[data-filter-key]');
+    if (!btn) return;
+    e.preventDefault();
+    var key = btn.dataset.filterKey;
+    var val = btn.dataset.filterVal;
+    if (key === 'health') {
+      _state.health = (_state.health === val) ? '' : val;
+      _state.status = '';
+    } else if (key === 'status') {
+      _state.status = val;
+      _state.health = '';
+    }
+    _state.page = '1';
+    doFetch();
+  });
+
+  var groupSelect = document.getElementById('cp-filter-group');
+  if (groupSelect) {
+    groupSelect.addEventListener('change', function() {
+      var parts = this.value.split('|');
+      _state.scope_view = parts[0] || '';
+      _state.group_id = parts[1] || '';
+      _state.page = '1';
+      doFetch();
+    });
+  }
+
+  var tagSelect = document.getElementById('cp-filter-tag');
+  if (tagSelect) {
+    tagSelect.addEventListener('change', function() {
+      _state.tag = this.value;
+      _state.page = '1';
+      doFetch();
+    });
+  }
+
+  var searchForm = document.getElementById('cp-filter-search-form');
+  var searchInput = document.getElementById('cp-filter-task-name');
+  if (searchForm) {
+    searchForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      _state.task_name = searchInput.value.trim();
+      _state.page = '1';
+      doFetch();
+    });
+  }
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = setTimeout(function() {
+        _state.task_name = searchInput.value.trim();
+        _state.page = '1';
+        doFetch();
+      }, 300);
+    });
+  }
+
+  document.getElementById('cp-dashboard-pagination').addEventListener('click', function(e) {
+    var link = e.target.closest('a.hf-pg-btn');
+    if (!link) return;
+    e.preventDefault();
+    var href = link.getAttribute('href');
+    var match = href && href.match(/[?&]page=(\d+)/);
+    if (match) {
+      _state.page = match[1];
+      doFetch();
+    }
+  });
+})();
 </script>
 {% endblock %}

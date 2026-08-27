@@ -28,8 +28,8 @@ class RbacUser(db.Model):
     api_token: Mapped[str] = mapped_column(
         db.String(64), nullable=True, unique=True, index=True, default=None
     )
-    api_token_expires_at: Mapped[str] = mapped_column(
-        db.String(25), nullable=True, default=None
+    api_token_expires_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, nullable=True, default=None
     )
     email: Mapped[Optional[str]] = mapped_column(
         db.String(128), nullable=True, index=True, default=None
@@ -42,10 +42,10 @@ class RbacUser(db.Model):
     nickname: Mapped[Optional[str]] = mapped_column(
         db.String(64), nullable=True, default=None
     )
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    create_time: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)
     # B3：最近登录时间（登录成功时更新）
-    last_login_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), nullable=True, default=None
+    last_login_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, nullable=True, default=None
     )
 
     def set_password(self, plain):

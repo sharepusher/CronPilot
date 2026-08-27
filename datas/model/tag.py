@@ -27,9 +27,9 @@ class Tag(db.Model):
     created_by: Mapped[str] = mapped_column(
         db.String(120), nullable=False, default=''
     )
-    create_time: Mapped[str] = mapped_column(
-        db.String(25), nullable=False, default='', index=True
+    create_time: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0, index=True
     )
-    update_time: Mapped[str] = mapped_column(
-        db.String(25), nullable=False, default='', index=True
+    update_time: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0, index=True
     )

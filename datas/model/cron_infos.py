@@ -35,17 +35,17 @@ class CronInfos(db.Model):
     status: Mapped[Optional[int]] = mapped_column(
         db.SMALLINT, default=True, doc='运行状态，0停止1运行中-1结束任务'
     )
-    created_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), default='', index=True, doc='创建时间'
+    created_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, default=None, index=True, doc='创建时间'
     )
-    updated_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), default='', index=True, doc='最后配置编辑时间'
+    updated_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, default=None, index=True, doc='最后配置编辑时间'
     )
     retire_reason: Mapped[Optional[str]] = mapped_column(
         db.String(500), default='', doc='下线原因'
     )
-    retired_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), default='', doc='下线时刻'
+    retired_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, default=None, doc='下线时刻'
     )
     scope_type: Mapped[str] = mapped_column(
         db.String(16),
@@ -61,10 +61,10 @@ class CronInfos(db.Model):
         default='',
         doc='最近发布/编辑/下线操作人展示名',
     )
-    last_operated_at: Mapped[str] = mapped_column(
-        db.String(25),
+    last_operated_at: Mapped[int] = mapped_column(
+        db.BigInteger,
         nullable=False,
-        default='',
+        default=0,
         doc='最近发布/编辑/下线时间',
     )
     timeout_sec: Mapped[Optional[int]] = mapped_column(

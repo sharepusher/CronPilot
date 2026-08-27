@@ -13,7 +13,7 @@
         {% set line = jl.http_status|job_log_status_line(jl.content) %}
         <p>
             {% if cif %}<strong>{{ cif.task_name }}</strong> · {% endif %}
-            {{ jl.create_time }}
+            {{ jl.create_time|hms_display }}
             {% if badge[0] %}
             · <span class="label {{ badge_cls }}">{{ badge[0] }}</span>
             {% endif %}
@@ -31,9 +31,9 @@
         </p>
         {% if jl.started_at or jl.finished_at %}
         <p class="help-block" style="margin-top:0">
-            {% if jl.started_at %}开始执行：{{ jl.started_at }}{% endif %}
+            {% if jl.started_at %}开始执行：{{ jl.started_at|hms_display }}{% endif %}
             {% if jl.started_at and jl.finished_at %} · {% endif %}
-            {% if jl.finished_at %}完成时间：{{ jl.finished_at }}{% endif %}
+            {% if jl.finished_at %}完成时间：{{ jl.finished_at|hms_display }}{% endif %}
         </p>
         {% endif %}
         {% if jl.fail_reason %}

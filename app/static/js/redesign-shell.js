@@ -106,11 +106,7 @@
     activeIdx = 0;
   }
 
-  function escHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
+  function escHtml(s) { return window.escHtml ? window.escHtml(s) : s; }
 
   function filterRegistry(query) {
     if (!query) return registry.slice(0, 10);

@@ -16,6 +16,8 @@ import unittest
 
 from flask import Flask, session
 
+from app import register_hms_filters
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, ROOT)
 
@@ -61,6 +63,7 @@ class TestRedesignSidebarPermissions(unittest.TestCase):
 
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
 
         from app.main import main as main_blueprint
         from app.rbac import rbac as rbac_blueprint
@@ -89,11 +92,11 @@ class TestRedesignSidebarPermissions(unittest.TestCase):
         from datas.model.rbac_user import RbacUser
         from datas.model.resource_group import ResourceGroup
         from datas.model.user_group import UserGroup
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
         from werkzeug.security import generate_password_hash
 
-        now = get_now_time()
+        now = utc_now_hms()
         pw = generate_password_hash('test123')
         grp = ResourceGroup(name='TestGroup', description='测试组', create_time=now)
         cls.db.session.add(grp)
@@ -209,6 +212,7 @@ class TestRedesignSidebarHTTPAccess(unittest.TestCase):
 
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
 
         from app.main import main as main_blueprint
         from app.rbac import rbac as rbac_blueprint
@@ -237,11 +241,11 @@ class TestRedesignSidebarHTTPAccess(unittest.TestCase):
         from datas.model.rbac_user import RbacUser
         from datas.model.resource_group import ResourceGroup
         from datas.model.user_group import UserGroup
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
         from werkzeug.security import generate_password_hash
 
-        now = get_now_time()
+        now = utc_now_hms()
         pw = generate_password_hash('test123')
         grp = ResourceGroup(name='TestGroup2', description='测试组', create_time=now)
         cls.db.session.add(grp)

@@ -12,15 +12,15 @@ from app import db
 class JobHealth(db.Model):
     __tablename__ = 'job_health'
     cron_info_id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    last_run_at: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    last_run_at: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0)
     last_run_status: Mapped[Optional[str]] = mapped_column(db.String(16), nullable=True)
     last_run_log_id: Mapped[str] = mapped_column(
         db.String(65), nullable=False, default=''
     )
-    last_success_at: Mapped[str] = mapped_column(
-        db.String(25), nullable=False, default=''
+    last_success_at: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0
     )
-    last_fail_at: Mapped[str] = mapped_column(db.String(25), nullable=False, default='')
+    last_fail_at: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0)
     consecutive_failures: Mapped[int] = mapped_column(
         db.Integer, nullable=False, default=0
     )
@@ -30,4 +30,4 @@ class JobHealth(db.Model):
         default='unknown',
         doc='ok | failing | unknown',
     )
-    updated_at: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    updated_at: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：迁移脚本清零有效时间戳</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #333; }
+h1 { border-bottom: 2px solid #e53e3e; padding-bottom: 0.5rem; }
+h2 { color: #2d3748; margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+th { background: #f7fafc; }
+code { background: #edf2f7; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+.severity { color: #e53e3e; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>复盘：迁移脚本清零有效时间戳（2026-08）</h1>
+
+<p><strong>影响</strong>：<span class="severity">P0 — 数据破坏</span>。Dashboard "今日失败"等时间相关统计全部归零，用户无法查看任何时间维度的执行记录统计。</p>
+
+<h2>1. Bug 定位</h2>
+<p>文件：<code>scripts/ensure_business_tables.py</code>，函数 <code>_convert_column_data()</code>，第 706-713 行（修复前）。</p>
+<p>清理 SQL：</p>
+<pre>UPDATE job_log SET create_time = 0
+WHERE create_time = ''
+   OR (create_time IS NOT NULL AND typeof(create_time) = 'text')</pre>
+<p>该语句在每次服务重启时执行（<code>ensure_business_tables.sh</code> → <code>_ensure_bigint_timestamps()</code>），将所有 <code>typeof() = 'text'</code> 的 <code>create_time</code> 值清零——包括有效的纯数字文本（如 <code>'17877473677'</code>）。</p>
+
+<h2>2. 根因</h2>
+
+<table>
+<tr><th>层</th><th>问题</th></tr>
+<tr><td>SQLite 物理模式</td><td><code>job_log.create_time</code> 列类型仍为 <code>VARCHAR(25)</code>（SQLite 不做 ALTER COLUMN TYPE），SQLAlchemy <code>Mapped[int] + BigInteger</code> 写入的整数在存储层是 text affinity</td></tr>
+<tr><td>typeof() 判断</td><td>SQLite 的 <code>typeof()</code> 返回的是<strong>值的存储类型</strong>而非列声明类型。VARCHAR 列中写入的整数 17877473677 的 typeof 为 <code>'text'</code></td></tr>
+<tr><td>清理条件过宽</td><td>原条件 <code>typeof(col) = 'text'</code> 覆盖了所有文本值，未区分「合法数字文本」和「需要清零的非法文本」</td></tr>
+<tr><td>_column_needs_migration 误触发</td><td>采样条件只看 typeof = text，不检查值是否为日期格式，导致纯数字文本也触发迁移流程</td></tr>
+<tr><td>每次重启执行</td><td>迁移脚本在 <code>cronpilot.sh start</code> 中无条件调用，每次重启均执行上述清零</td></tr>
+</table>
+
+<p><strong>行为层根因</strong>：时间戳迁移设计时未考虑"列已切换到 BigInteger 写入但物理类型仍为 VARCHAR"的过渡态。开发者假设 typeof='text' 等价于"未迁移的旧日期字符串"，但在 SQLite 的 VARCHAR 列中，即使写入整数也会被存为 text。</p>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>现有 <code>tests/test_timestamp_utils.py</code> 仅测试 <code>times.py</code> 的工具函数，不测试迁移脚本逻辑</li>
+<li>无集成测试模拟"写入 BIGINT 时间戳 → 重启 → 检查值是否保留"的全流程</li>
+<li>迁移脚本开发时仅在"全部是旧日期字符串"的库上测试，从未在"已有 BIGINT 值"的库上回归</li>
+</ul>
+
+<h2>4. 修复</h2>
+
+<p><strong>修改 1</strong>：<code>_column_needs_migration()</code> — 仅当列中存在<strong>日期格式文本</strong>时才触发迁移（<code>LIKE '____-__-__%'</code>）：</p>
+<pre>row = db.session.execute(text(
+    "SELECT %s FROM %s WHERE %s IS NOT NULL "
+    "AND %s != '' AND %s != '0' AND typeof(%s) = 'text' "
+    "AND %s LIKE '____-__-__%%' LIMIT 1"
+    % (col, table, col, col, col, col, col)
+)).fetchone()
+return row is not None</pre>
+
+<p><strong>修改 2</strong>：<code>_convert_column_data()</code> 清理条件 — 仅清零空字符串和无法解析为数字的文本：</p>
+<pre>cleanup_sql = (
+    "UPDATE %s SET %s = 0 WHERE %s = '' "
+    "OR (%s IS NOT NULL AND typeof(%s) = 'text' "
+    "AND CAST(%s AS INTEGER) = 0 AND %s != '0')"
+    % (table, col, col, col, col, col, col)
+)</pre>
+<p>逻辑：<code>CAST('17877473677' AS INTEGER)</code> = 17877473677（非零，保留）；<code>CAST('abc' AS INTEGER)</code> = 0（清零）；空字符串直接清零。</p>
+
+<h2>5. 防护测试</h2>
+
+<p>文件：<code>tests/test_timestamp_utils.py</code>，类 <code>TestMigrationCleanupPreservesNumericText</code>（3 条用例）：</p>
+<ul>
+<li><code>test_numeric_text_not_zeroed_by_cleanup_condition</code>：模拟 SQLite VARCHAR 列中存有效数字和无效文本，验证清理后数字保留、无效文本归零</li>
+<li><code>test_needs_migration_ignores_numeric_text</code>：验证纯数字文本不触发迁移检测</li>
+<li><code>test_needs_migration_detects_date_text</code>：验证日期格式文本正确触发迁移检测</li>
+</ul>
+
+<p>运行命令：<code>python3 -m unittest tests.test_timestamp_utils.TestMigrationCleanupPreservesNumericText -v</code></p>
+
+<h2>6. 同类排查</h2>
+
+<p>检查 <code>_ensure_bigint_timestamps()</code> 影响的所有表和列：</p>
+<table>
+<tr><th>表</th><th>列</th><th>风险</th></tr>
+<tr><td>job_log</td><td>create_time, started_at, finished_at</td><td>已修复</td></tr>
+<tr><td>cron_infos</td><td>create_time, update_time</td><td>同逻辑，已被修复覆盖</td></tr>
+<tr><td>operation_log</td><td>create_time</td><td>同逻辑，已被修复覆盖</td></tr>
+<tr><td>rbac_audit_log</td><td>create_time</td><td>同逻辑，已被修复覆盖</td></tr>
+<tr><td>rbac_user</td><td>create_time, last_login_at</td><td>同逻辑，已被修复覆盖</td></tr>
+<tr><td>rbac_registration_request</td><td>create_time, reviewed_at</td><td>同逻辑，已被修复覆盖</td></tr>
+</table>
+<p>修复是在公共函数 <code>_column_needs_migration</code> 和 <code>_convert_column_data</code> 中进行的，所有表的所有时间戳列均被覆盖。</p>
+
+<h2>7. 预防方案</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr>
+<td>1</td>
+<td>防护测试：3 条用例覆盖清理逻辑和迁移检测逻辑</td>
+<td><code>tests/test_timestamp_utils.py::TestMigrationCleanupPreservesNumericText</code></td>
+<td><code>python3 -m unittest tests.test_timestamp_utils.TestMigrationCleanupPreservesNumericText -v</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>迁移脚本自身判断改为仅日期格式触发，纯数字不触发</td>
+<td><code>scripts/ensure_business_tables.py::_column_needs_migration()</code></td>
+<td>重启后日志输出 "OK: 时间戳列已是 BIGINT，无需迁移"</td>
+</tr>
+<tr>
+<td>3</td>
+<td>清理条件收窄：仅 CAST 为 0 的非空文本才清零</td>
+<td><code>scripts/ensure_business_tables.py::_convert_column_data()</code></td>
+<td>连续两次 restart 后 <code>sqlite3 datas/job_log.sqlite "SELECT count(*) FROM job_log WHERE create_time != 0"</code> 值不减</td>
+</tr>
+</table>
+
+<hr>
+<p><em>创建时间：2026-08-26 | 关联：时间戳迁移至BIGINT-UTC设计（<code>doc/design/时间戳迁移至BIGINT-UTC设计.html</code>）</em></p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-迁移脚本清零有效时间戳.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

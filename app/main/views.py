@@ -152,6 +152,98 @@ def _format_relative_time(total_seconds):
         return 'in {}d'.format(total_seconds // 86400)
 
 
+_overdue_cache = {}
+_OVERDUE_CACHE_TTL = 30
+
+
+def _cached_overdue_stats(cache_key, repo, filter_arr):
+    """进程内 TTL 缓存 overdue_count 和 overdue_ids（30s）。
+    避免每次 Dashboard 加载都全量查询 + croniter 计算。
+    """
+    import time as _time
+    now = _time.time()
+    if cache_key in _overdue_cache:
+        cached_time, cached_result = _overdue_cache[cache_key]
+        if now - cached_time < _OVERDUE_CACHE_TTL:
+            return cached_result
+    all_active = repo.scalars_all(
+        select(CronInfos).where(CronInfos.status == 1).where(*filter_arr) if filter_arr
+        else select(CronInfos).where(CronInfos.status == 1)
+    )
+    all_active_ids = [c.id for c in all_active]
+    last_exec_map = repo.last_exec_time_by_ids(all_active_ids) if all_active_ids else {}
+    overdue_map_all = _compute_overdue_map(all_active, last_exec_map)
+    result = (len(overdue_map_all), set(overdue_map_all.keys()))
+    _overdue_cache[cache_key] = (now, result)
+    stale = [k for k, (t, _) in _overdue_cache.items() if now - t > _OVERDUE_CACHE_TTL * 3]
+    for k in stale:
+        del _overdue_cache[k]
+    return result
+
+
+def _compute_overdue_map(cron_items, last_exec_map):
+    """计算逾期任务。返回 {cron_id: '逾期 Xh'} 字典（仅含逾期任务）。
+
+    逾期 = (now - last_exec) > max(interval × 2, 600s)
+    排除：已暂停(0)、已下线(-1)、一次性任务(run_date非空)、无调度表达式
+    """
+    from datetime import datetime
+    try:
+        from croniter import croniter
+    except ImportError:
+        return {}
+    result = {}
+    now = datetime.now()
+    for item in cron_items:
+        if item.status != 1:
+            continue
+        run_date = getattr(item, 'run_date', '') or ''
+        if run_date.strip():
+            continue
+        minute = (getattr(item, 'minute', '') or '*').strip() or '*'
+        hour = (getattr(item, 'hour', '') or '*').strip() or '*'
+        day = (getattr(item, 'day', '') or '*').strip() or '*'
+        day_of_week = (getattr(item, 'day_of_week', '') or '*').strip() or '*'
+        cron_expr = '{} {} {} * {}'.format(minute, hour, day, day_of_week)
+        if cron_expr == '* * * * *':
+            continue
+        try:
+            ci = croniter(cron_expr, now)
+            next1 = ci.get_next(datetime)
+            next2 = ci.get_next(datetime)
+            interval_sec = (next2 - next1).total_seconds()
+        except (ValueError, KeyError):
+            continue
+        threshold = max(interval_sec * 2, 600)
+        last_exec_val = last_exec_map.get(item.id)
+        if not last_exec_val:
+            continue
+        try:
+            from datas.utils.times import hms_to_datetime, str_to_hms
+            if isinstance(last_exec_val, str):
+                last_exec = hms_to_datetime(str_to_hms(last_exec_val))
+            elif isinstance(last_exec_val, (int, float)):
+                last_exec = hms_to_datetime(last_exec_val)
+            else:
+                last_exec = last_exec_val
+            if last_exec is None:
+                continue
+            if getattr(last_exec, 'tzinfo', None) is not None:
+                last_exec = last_exec.astimezone().replace(tzinfo=None)
+            gap = (now - last_exec).total_seconds()
+        except (ValueError, TypeError):
+            continue
+        if gap > threshold:
+            if gap < 3600:
+                label = '逾期 {}min'.format(int(gap // 60))
+            elif gap < 86400:
+                label = '逾期 {}h'.format(int(gap // 3600))
+            else:
+                label = '逾期 {}d'.format(int(gap // 86400))
+            result[item.id] = label
+    return result
+
+
 def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
     """可视范围内的二次过滤；越权 group_id 回退 all。返回 (scope_view, group_id, clause|None)。"""
     sv = (scope_view or 'all').strip().lower()
@@ -256,13 +348,13 @@ def cron_list():
     task_name = keyword.get('task_name')
     role = session.get('role') or ''
     group_ids = session_group_ids()
-    filter_arr = []
-    if task_name:
-        filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
     username = session.get('username') or ''
+
+    # scope_filters: permission + group (for global stats)
+    scope_filters = []
     scope_clause = build_scope_filter_clause(role, group_ids, username=username)
     if scope_clause is not None:
-        filter_arr.append(scope_clause)
+        scope_filters.append(scope_clause)
 
     scope_view, scope_group_id, ui_scope_clause = _parse_ui_scope_view(
         role,
@@ -271,7 +363,12 @@ def cron_list():
         keyword.get('group_id'),
     )
     if ui_scope_clause is not None:
-        filter_arr.append(ui_scope_clause)
+        scope_filters.append(ui_scope_clause)
+
+    # filter_arr: scope + UI display filters (for list query)
+    filter_arr = list(scope_filters)
+    if task_name:
+        filter_arr.append(CronInfos.task_name.like('%{}%'.format(task_name)))
 
     life_status = keyword.get('status')
     if life_status in ('0', '1', '-1'):
@@ -291,10 +388,35 @@ def cron_list():
     health = (keyword.get('health') or '').strip().lower()
     repo = _cron_repo()
     metrics = repo.metrics(
-        list(filter_arr),
+        list(scope_filters),
         cron_config=current_app.config.get('CRON_CONFIG'),
     )
-    page_data = repo.paginate_list(page_query, filters=filter_arr, health=health)
+
+    # Overdue cache keys:
+    # - _stats_cache_key: scope-only (for v2 stats cards, unaffected by UI filters)
+    # - _list_cache_key: scope + display filters (for list-level overdue filtering)
+    _stats_cache_key = (
+        session.get('user_id', ''),
+        scope_view,
+        scope_group_id,
+    )
+    _list_cache_key = (
+        session.get('user_id', ''),
+        scope_view,
+        scope_group_id,
+        task_name or '',
+        tag_filter,
+    )
+    _overdue_ids = None
+    if health == 'overdue':
+        _overdue_count_cached, _overdue_ids = _cached_overdue_stats(
+            _list_cache_key, repo, filter_arr,
+        )
+
+    page_data = repo.paginate_list(
+        page_query, filters=filter_arr, health=health,
+        overdue_ids=_overdue_ids,
+    )
 
     health_by_id = repo.health_by_cron_ids([item.id for item in page_data.items])
 
@@ -335,7 +457,7 @@ def cron_list():
         task_group_map=task_group_map,
         task_tag_map=task_tag_map,
     )
-    if request.args.get('partial') == '1':
+    if request.args.get('partial') == '1' and getattr(g, 'ui_version', 'v1') != 'v2':
         rows_html = render_template('_cron_list_rows.html', **partial_ctx)
         pagination_html = render_template('_cron_pagination.html', **partial_ctx)
         return jsonify({'rows': rows_html, 'pagination': pagination_html})
@@ -368,15 +490,50 @@ def cron_list():
 
     # OPT-P1-16: Redesign dual-track — serve new Shell if ui_version == 'v2'
     if getattr(g, 'ui_version', 'v1') == 'v2':
-        # Additional context for Health-First dashboard
-        consecutive_failing = repo.count_consecutive_failing(filter_arr)
-        status_counts = repo.status_counts(filter_arr)
-        today_success_rate = repo.today_success_rate(filter_arr)
+        # Additional context for Health-First dashboard (stats use scope_filters only)
+        consecutive_failing = repo.count_consecutive_failing(scope_filters)
+        status_counts = repo.status_counts(scope_filters)
+        today_success_rate = repo.today_success_rate(scope_filters)
         # B1: last run details (http_status, take_time, fail_reason) per task
         task_ids_for_run = [item.id for item in page_data.items]
         last_run_map = repo.last_run_details_by_ids(task_ids_for_run)
         # B1: next_run_at via croniter
         next_run_map = _compute_next_runs(page_data.items)
+        # Overdue detection: compute for current page items
+        page_last_exec = repo.last_exec_time_by_ids(task_ids_for_run)
+        overdue_map = _compute_overdue_map(page_data.items, page_last_exec)
+        overdue_count, _ = _cached_overdue_stats(
+            _stats_cache_key, repo, scope_filters,
+        )
+
+        # OPT-P1-17: AJAX partial refresh for v2 dashboard filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                keyword=keyword,
+                health_by_id=health_by_id,
+                group_name_by_id=group_name_by_id,
+                task_group_map=task_group_map,
+                task_tag_map=task_tag_map,
+                last_run_map=last_run_map,
+                next_run_map=next_run_map,
+                overdue_map=overdue_map,
+            )
+            rows_html = render_template('redesign/_dashboard_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_dashboard_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'stats': {
+                    'failing': metrics['failing'],
+                    'consecutive_failing': consecutive_failing,
+                    'overdue_count': overdue_count,
+                    'today_fail_runs': metrics['today_fail_runs'],
+                    'total': metrics['total'],
+                    'today_success_rate': today_success_rate,
+                },
+                'total': page_data.total,
+            })
         return render_template(
             'redesign/dashboard.html',
             active_nav='dashboard',
@@ -399,6 +556,8 @@ def cron_list():
             today_success_rate=today_success_rate,
             last_run_map=last_run_map,
             next_run_map=next_run_map,
+            overdue_map=overdue_map,
+            overdue_count=overdue_count,
         )
 
     return render_template(
@@ -520,17 +679,16 @@ def task_detail_v2():
     # 24h success rate
     repo = CronRepository(db.session)
     from sqlalchemy import func as sa_func
-    from datas.utils.times import get_today
-    today = get_today()
+    from datas.utils.times import local_today_start_hms, local_tomorrow_start_hms
     total_today = db.session.scalar(
         select(sa_func.count()).select_from(JobLog)
         .where(JobLog.cron_info_id == cif.id)
-        .where(JobLog.create_time.like(today + '%'))
+        .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
     ) or 0
     success_today = db.session.scalar(
         select(sa_func.count()).select_from(JobLog)
         .where(JobLog.cron_info_id == cif.id)
-        .where(JobLog.create_time.like(today + '%'))
+        .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
         .where(JobLog.status == 'success')
     ) or 0
     success_rate = round(success_today / total_today * 100, 1) if total_today > 0 else 100.0
@@ -576,11 +734,8 @@ def task_detail_v2():
             time_fmt = '{}ms'.format(int(raw_time * 1000))
         else:
             time_fmt = '—'
-        # Extract short time from create_time
-        ct = rl.create_time or ''
-        time_short = ct[11:16] if len(ct) >= 16 else ct
         recent_runs.append({
-            'time_short': time_short,
+            'create_time': rl.create_time or 0,
             'status': rl.status or '',
             'http_status': rl.http_status or '—',
             'take_time': time_fmt,
@@ -671,6 +826,21 @@ def job_log_list():
 
     # OPT-P1-16: Redesign dual-track
     if getattr(g, 'ui_version', 'v1') == 'v2':
+        # OPT-P1-18: AJAX partial refresh for execution logs filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                keywords=keywords,
+                outcome=outcome,
+                cron_info=cif,
+            )
+            rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'total': page_data.total,
+            })
         return render_template(
             'redesign/execution_logs.html',
             active_nav='logs',
@@ -845,6 +1015,21 @@ def job_log_all_list():
 
     # OPT-P1-16: Redesign dual-track
     if getattr(g, 'ui_version', 'v1') == 'v2':
+        # OPT-P1-18: AJAX partial refresh for execution logs filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                keywords=keywords,
+                outcome=outcome,
+                cron_info=None,
+            )
+            rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'total': page_data.total,
+            })
         return render_template(
             'redesign/execution_logs.html',
             active_nav='logs',
@@ -1145,6 +1330,26 @@ def operation_log_list():
     task_group_map = _build_task_group_map(oplog_task_ids)
 
     if getattr(g, 'ui_version', 'v1') == 'v2':
+        # OPT-P1-19: AJAX partial refresh for operation log filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                keywords=keywords,
+                search_keyword=search_keyword,
+                operation_action_label=operation_action_label,
+                format_detail_summary=format_detail_summary,
+                operation_result_label=operation_result_label,
+                cron_by_id=cron_by_id,
+                group_name_by_id=group_name_by_id,
+                task_group_map=task_group_map,
+            )
+            rows_html = render_template('redesign/_oplog_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_oplog_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'total': page_data.total,
+            })
         return render_template(
             'redesign/operation_log.html',
             active_nav='optlog',
@@ -1201,8 +1406,13 @@ def cron_batch_del():
 
 @main.route('/check_pass', methods=['GET', 'POST'])
 def check_pass():
-    """Legacy shim — redirect to RBAC login."""
-    return redirect('/rbac/login')
+    """Legacy shim — redirect to RBAC login, preserving next param."""
+    next_url = request.args.get('next', '')
+    target = '/rbac/login'
+    if next_url:
+        target = '/rbac/login?next=' + next_url
+    code = 307 if request.method == 'POST' else 302
+    return redirect(target, code=code)
 
 @main.route('/logout')
 def logout():

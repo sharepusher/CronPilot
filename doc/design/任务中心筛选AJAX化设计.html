@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>任务中心筛选 AJAX 化设计</title></head>
+<body>
+<h1>任务中心筛选 AJAX 化设计</h1>
+<p>编号：OPT-P1-17 · 状态：设计中 · 日期：2026-08-26</p>
+
+<h2>1. 问题</h2>
+<p>Redesign (v2) 任务中心（<code>redesign/dashboard.html</code>）每次过滤操作（异常/状态/组/标签/搜索/翻页）均触发整页 GET 刷新，浏览器滚动位置重置到顶部。用户在查看下方表格时，每次点击筛选按钮都会导致页面跳回顶部，需要重新滚动定位，体验很差。</p>
+
+<h2>2. 根因</h2>
+<ul>
+  <li>异常/状态筛选按钮使用 <code>&lt;a href="..."&gt;</code> 整页跳转</li>
+  <li>组/标签下拉使用 <code>onchange="location.href=this.value"</code> 整页跳转</li>
+  <li>任务名搜索使用 <code>&lt;form method="get"&gt;</code> 原生表单提交</li>
+  <li>分页使用 <code>&lt;a href="..."&gt;</code> 整页跳转</li>
+  <li>Legacy v1 已通过 <code>partial=1</code> AJAX 模式解决此问题，但 v2 未沿用该模式</li>
+</ul>
+
+<h2>3. 方案</h2>
+<h3>推荐方案：AJAX 局部刷新</h3>
+<p>将筛选/翻页操作改为 AJAX 请求，仅更新表格区域（table body + pagination），不刷新整页，页面滚动位置自然保持稳定。</p>
+
+<h4>3.1 后端改动</h4>
+<p>在 <code>cron_list()</code> 视图函数的 v2 分支中，增加 <code>partial=1</code> 支持。返回 JSON 包含：</p>
+<ul>
+  <li><code>rows</code>：表格 tbody 内容（新建局部模板 <code>redesign/_dashboard_rows.html</code>）</li>
+  <li><code>pagination</code>：分页 HTML（新建局部模板 <code>redesign/_dashboard_pagination.html</code>）</li>
+  <li><code>stats</code>：统计数字（异常/逾期/今日失败等），用于更新顶部 Stats Cards</li>
+  <li><code>total</code>：总数（用于分页信息）</li>
+</ul>
+
+<h4>3.2 前端改动（<code>dashboard.html</code> 内 JS）</h4>
+<ol>
+  <li>拦截所有筛选按钮的 click 事件（<code>.f-btn</code> 链接），阻止默认跳转，改用 <code>fetch</code> 请求</li>
+  <li>拦截下拉框 change 事件，阻止 <code>location.href</code> 赋值</li>
+  <li>拦截搜索表单 submit 事件，改用 AJAX</li>
+  <li>拦截分页链接 click 事件</li>
+  <li>AJAX 成功后：更新 table tbody innerHTML、pagination innerHTML、Stats Cards 数字</li>
+  <li>用 <code>history.replaceState</code> 更新 URL（不触发导航）</li>
+  <li>更新筛选按钮的 active 状态 class</li>
+</ol>
+
+<h4>3.3 备选方案（不推荐）：滚动锚点</h4>
+<p>在所有筛选链接 href 后加 <code>#filters</code>，页面加载后浏览器自动滚动到锚点位置。缺点：仍有整页刷新闪烁，体验不如 AJAX 方案。</p>
+
+<h2>4. 范围</h2>
+<h3>改动文件</h3>
+<table border="1" cellpadding="4">
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/main/views.py</code></td><td>v2 分支增加 <code>partial=1</code> JSON 响应</td></tr>
+  <tr><td><code>app/templates/redesign/_dashboard_rows.html</code></td><td>新建：抽取 table tbody 渲染逻辑</td></tr>
+  <tr><td><code>app/templates/redesign/_dashboard_pagination.html</code></td><td>新建：抽取 pagination 渲染逻辑</td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>① include 新局部模板 ② 筛选元素改为 JS 拦截 ③ 新增 AJAX 筛选 JS 逻辑</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+  <li>不改动 Exception Panel（异常面板）的 AJAX 更新（保持首次加载时数据即可，筛选后不更新异常面板）</li>
+  <li>不改动 v1 legacy 的现有 AJAX 逻辑</li>
+  <li>不引入任何新依赖</li>
+  <li>不改动数据模型或 API</li>
+</ul>
+
+<h2>5. 分批</h2>
+<table border="1" cellpadding="4">
+  <tr><th>批次</th><th>内容</th><th>验收标准</th></tr>
+  <tr><td>Batch 1</td><td>后端 partial 支持 + 局部模板抽取</td><td><code>curl '/cron_list?partial=1'</code> 返回 JSON 且 rows 非空</td></tr>
+  <tr><td>Batch 2</td><td>前端 AJAX 筛选 JS + URL 更新 + active 状态同步</td><td>浏览器中点击筛选按钮，页面不刷新，表格内容更新，URL 变化，滚动位置不变</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+<ol>
+  <li><code>bash scripts/cronpilot.sh test</code> 全量通过</li>
+  <li>浏览器验证：登录后进入任务中心 → 滚动到表格区域 → 点击"持续异常"筛选按钮 → 页面不刷新、滚动位置不变、表格内容更新</li>
+  <li>浏览器验证：切换组下拉 → 页面不刷新、表格更新</li>
+  <li>浏览器验证：输入任务名搜索 → 回车或自动触发 → 页面不刷新、表格更新</li>
+  <li>浏览器验证：点击分页 → 页面不刷新、表格更新</li>
+  <li>浏览器验证：筛选后浏览器地址栏 URL 正确反映当前筛选条件</li>
+  <li>浏览器验证：刷新页面后筛选状态保持（因 URL 已更新）</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>Stats Cards 数据一致性</strong>：AJAX 刷新时同步更新 stats 数字，确保与筛选条件一致</li>
+  <li><strong>Exception Panel</strong>：首次加载时渲染，筛选后不更新（面板展示的是全局异常概览，与当前筛选无关）</li>
+  <li><strong>回归风险</strong>：筛选逻辑纯前端拦截，后端不变，回归面小</li>
+  <li><strong>降级</strong>：JS 加载失败时筛选链接仍为原始 href，降级为整页刷新（可用）</li>
+</ul>
+
+<h2>8. 交互契约</h2>
+<table border="1" cellpadding="4">
+  <tr><th>元素</th><th>原行为</th><th>新行为</th></tr>
+  <tr><td><code>.f-btn</code> 筛选按钮</td><td><code>&lt;a href&gt;</code> 整页跳转</td><td>JS click → AJAX fetch → 更新表格</td></tr>
+  <tr><td><code>.f-select</code> 下拉框</td><td><code>onchange="location.href=..."</code></td><td>JS change → AJAX fetch → 更新表格</td></tr>
+  <tr><td>任务名搜索 form</td><td><code>&lt;form method=get&gt;</code> 提交</td><td>JS submit → AJAX fetch → 更新表格（增加 300ms 防抖）</td></tr>
+  <tr><td>分页链接</td><td><code>&lt;a href&gt;</code> 整页跳转</td><td>JS click → AJAX fetch → 更新表格 + 滚动到表格顶部</td></tr>
+</table>
+
+<p><strong>CSS class 变更</strong>：无新增可见 DOM 行；仅 JS 行为变更。</p>
+<p><strong>降级策略</strong>：所有筛选元素保留原始 href/action 属性，JS 未加载时降级为整页跳转。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="任务中心筛选AJAX化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

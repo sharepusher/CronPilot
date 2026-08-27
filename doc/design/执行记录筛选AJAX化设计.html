@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>执行记录筛选AJAX化设计 — OPT-P1-18</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;line-height:1.6}h1{border-bottom:2px solid #333}h2{margin-top:2rem;color:#1a5276}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}th{background:#f5f5f5}code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:0.9em}pre{background:#f7f7f7;padding:12px;border-radius:4px;overflow-x:auto}</style>
+</head>
+<body>
+<h1>执行记录筛选 AJAX 化设计（OPT-P1-18）</h1>
+<p><strong>状态</strong>：设计待确认<br>
+<strong>关联</strong>：OPT-P1-17（任务中心筛选 AJAX 化已完成）<br>
+<strong>日期</strong>：2026-08-26</p>
+
+<h2>1. 问题</h2>
+<p>执行记录页面（<code>redesign/execution_logs.html</code>）在用户排障时需要频繁切换筛选条件（非成功/全部/仅失败/仅异常/仅成功），每次点击按钮触发 <code>&lt;form method="get"&gt;</code> 提交 → 整页重载 → 滚动位置回到顶部。</p>
+<p>在排障场景中，用户可能在数百条记录中反复切换筛选条件对比问题模式，整页刷新严重影响工作效率和连贯性。</p>
+
+<h2>2. 根因</h2>
+<p>执行记录页面的 5 个结果筛选按钮使用 <code>&lt;button type="submit" name="outcome" value="xxx"&gt;</code>，搜索和翻页使用标准 HTML 表单/链接。这是浏览器的原生导航行为：每次触发都是一个新的 HTTP GET 请求，浏览器必然重置 scroll position。</p>
+<p>v2 redesign 时只重构了视觉样式，未引入 AJAX 局部刷新机制。</p>
+
+<h2>3. 方案</h2>
+<p>复用 OPT-P1-17 的 AJAX partial 模式：</p>
+<ol>
+<li>将表格 tbody 和分页区域拆为独立 Jinja2 partial 模板</li>
+<li>后端在 <code>partial=1</code> 时返回 JSON（含 rows HTML + pagination HTML + total）</li>
+<li>前端 IIFE 拦截所有筛选事件，通过 <code>fetch</code> 获取 JSON 并更新 DOM</li>
+<li><code>history.replaceState</code> 保持 URL 同步</li>
+<li>JS 未加载时降级为整页刷新（按钮保留原 type="submit"）</li>
+</ol>
+
+<h3>3.1 前端改动</h3>
+<table>
+<tr><th>控件</th><th>现状</th><th>AJAX 后</th></tr>
+<tr><td>5 个结果按钮</td><td><code>type="submit"</code> 触发表单提交</td><td>JS 拦截 click → <code>doFetch()</code>；<code>type</code> 改为 <code>"button"</code>，降级时由隐藏 submit 兜底</td></tr>
+<tr><td>任务名称/内容搜索</td><td>表单提交</td><td>300ms debounce input + form submit 拦截</td></tr>
+<tr><td>日期范围</td><td>表单提交</td><td>change 事件触发 doFetch()</td></tr>
+<tr><td>搜索按钮</td><td><code>type="submit"</code></td><td>form onsubmit 拦截</td></tr>
+<tr><td>重置链接</td><td><code>&lt;a href="..."&gt;</code> 整页导航</td><td>JS 拦截 → 清空 state → doFetch()</td></tr>
+<tr><td>翻页链接</td><td><code>&lt;a href="?page=N"&gt;</code></td><td>JS 事件委托 → 提取 page → doFetch()</td></tr>
+</table>
+
+<h3>3.2 后端改动</h3>
+<p>在 <code>job_log_list()</code> 和 <code>job_log_all_list()</code> 的 v2 分支中，<code>partial=1</code> 时返回：</p>
+<pre><code>{
+  "rows": "&lt;渲染后的 tbody HTML&gt;",
+  "pagination": "&lt;渲染后的分页 HTML&gt;",
+  "total": 125
+}</code></pre>
+
+<h3>3.3 新增 partial 模板</h3>
+<ul>
+<li><code>app/templates/redesign/_exec_logs_rows.html</code> — tbody 循环（从 execution_logs.html 第 81-140 行提取）</li>
+<li><code>app/templates/redesign/_exec_logs_pagination.html</code> — 分页区域（从第 144-170 行提取）</li>
+</ul>
+
+<h2>4. 范围</h2>
+<table>
+<tr><th>改动</th><th>文件</th></tr>
+<tr><td>后端 partial 分支</td><td><code>app/main/views.py</code>（job_log_list + job_log_all_list）</td></tr>
+<tr><td>Partial 模板拆分</td><td><code>app/templates/redesign/_exec_logs_rows.html</code>（新增）<br><code>app/templates/redesign/_exec_logs_pagination.html</code>（新增）</td></tr>
+<tr><td>主模板 AJAX JS</td><td><code>app/templates/redesign/execution_logs.html</code></td></tr>
+<tr><td>回归测试</td><td><code>tests/test_exec_logs_partial.py</code>（新增）</td></tr>
+</table>
+<p><strong>明确不做</strong>：</p>
+<ul>
+<li>不修改 v1 模板（<code>job_log_list.html</code> / <code>job_log_all_list.html</code>）</li>
+<li>不改变列数、列头文案、CSS class</li>
+<li>不添加新功能（如实时刷新、WebSocket）</li>
+</ul>
+
+<h2>5. 分批</h2>
+<ol>
+<li><strong>Batch 1</strong>：拆 partial 模板 + 后端 <code>partial=1</code> JSON 响应 → 单测验证</li>
+<li><strong>Batch 2</strong>：前端 AJAX JS（筛选按钮 + 搜索 + 翻页）→ 浏览器验证</li>
+</ol>
+
+<h2>6. 验收</h2>
+<ol>
+<li><code>.venv-py311/bin/python -m unittest tests.test_exec_logs_partial -v</code> — 全部通过</li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code> → 浏览器访问执行记录页</li>
+<li>点击「仅失败」→ 页面不滚动、表格内容更新、URL 含 <code>outcome=fail</code></li>
+<li>输入任务名称 → 300ms 后表格自动更新</li>
+<li>点击翻页 → 页面不滚动</li>
+<li>JS 禁用时 → 各按钮/链接仍可整页刷新正常使用</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+<li><strong>日期选择器兼容</strong>：现有 <code>.js-datetime</code> 可能依赖第三方库（如 WindUI），AJAX 刷新后需重新绑定 → 在 <code>doFetch</code> 回调中处理</li>
+<li><strong>content-code 展开状态丢失</strong>：AJAX 更新 innerHTML 后，展开的 <code>.expanded</code> 状态会丢失 → 可接受（用户正在切换筛选，旧展开状态无意义）</li>
+<li><strong>两个入口共用模板</strong>：<code>job_log_list</code>（单任务）和 <code>job_log_all_list</code>（全局）使用同一模板，partial JS 需根据 <code>cron_info</code> 存在与否确定 base URL</li>
+</ul>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="执行记录筛选AJAX化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

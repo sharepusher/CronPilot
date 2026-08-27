@@ -32,15 +32,15 @@ class JobLog(db.Model):
     fail_reason: Mapped[Optional[str]] = mapped_column(
         db.String(128), nullable=True, doc='失败原因短标签'
     )
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    create_time: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)
     take_time: Mapped[Optional[str]] = mapped_column(
         db.String(25), default='', doc='耗时时间'
     )
-    started_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), nullable=True, doc='HTTP 请求发出时间'
+    started_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, nullable=True, doc='HTTP 请求发出时间'
     )
-    finished_at: Mapped[Optional[str]] = mapped_column(
-        db.String(25), nullable=True, doc='执行终态时间（success/fail/timeout/error）'
+    finished_at: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, nullable=True, doc='执行终态时间（success/fail/timeout/error）'
     )
     timeout_sec: Mapped[Optional[int]] = mapped_column(
         db.Integer, nullable=True, doc='本次执行的超时阈值（秒）；NULL 表示使用系统默认'

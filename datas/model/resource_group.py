@@ -14,4 +14,4 @@ class ResourceGroup(db.Model):
     description: Mapped[str] = mapped_column(
         db.String(255), nullable=False, default=''
     )
-    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    create_time: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)

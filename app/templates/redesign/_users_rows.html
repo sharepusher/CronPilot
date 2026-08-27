@@ -1,0 +1,88 @@
+{# Partial: User management table rows — rendered by both full page and AJAX partial #}
+{% for item in page_data.items %}
+{% set is_self = current_user and current_user.user_id == item.id %}
+<tr{% if not item.is_active %} class="cp-opacity-60"{% endif %}>
+  <td>
+    <div class="um-user-cell">
+      <div class="um-avatar">{{ ((item.nickname or item.username) or 'U')[0] | upper }}</div>
+      <div class="um-user-info">
+        <span class="cp-fw-600">{{ item.username }}{% if is_self %}<span class="um-me">当前</span>{% endif %}</span>
+        {% if item.email %}<div class="um-email">{{ item.email }}</div>{% endif %}
+      </div>
+    </div>
+  </td>
+  <td class="col-nickname" title="{{ item.nickname or '' }}">{{ item.nickname or '—' }}</td>
+  <td>{% if item.job_title %}{% if item.job_title.startswith('other:') %}{{ item.job_title[6:] }}{% else %}{{ job_title_map.get(item.job_title, item.job_title) }}{% endif %}{% else %}—{% endif %}</td>
+  <td><span class="u-role u-role-{{ item.role }}">{{ item.role }}</span></td>
+  <td class="col-groups-cell">
+    {% set groups = user_groups_map.get(item.id, []) %}
+    {% if groups %}
+      {% for g in groups[:2] %}<span class="um-group-tag">{{ g }}</span>{% endfor %}
+      {% if groups|length > 2 %}<span class="um-group-tag um-group-more" title="{{ groups[2:]|join(', ') }}">+{{ groups|length - 2 }}</span>{% endif %}
+    {% else %}—{% endif %}
+  </td>
+  <td>
+    {% if item.is_active %}
+    <span class="u-badge u-active">启用</span>
+    {% else %}
+    <span class="u-badge u-inactive">停用</span>
+    {% if item.status_reason %}
+    <div class="um-reason">{{ item.status_reason }}</div>
+    {% endif %}
+    {% endif %}
+  </td>
+  <td>
+    {% if item.must_reset_password %}
+    <span class="u-badge u-reset">待重置</span>
+    {% else %}
+    <span class="u-badge u-normal">正常</span>
+    {% endif %}
+  </td>
+  {% set ll = item.last_login_at %}
+  <td class="col-last-login mono cp-text-xs" title="{{ ll|hms_display }}">{% if ll %}{{ ll|hms_date }}<br><span class="um-time-sub">{{ (ll|hms_time)[:5] }}</span>{% else %}—{% endif %}</td>
+  <td>
+    {% if is_self %}
+    <div class="um-ops">
+      <a class="um-icon-btn" href="{{ url_for('rbac.change_password') }}" data-tooltip="修改密码">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+      </a>
+      <span class="um-ops-hint">账号/角色不可自改</span>
+    </div>
+    {% elif item.is_active %}
+    <div class="um-ops">
+      <a class="um-icon-btn" href="{{ url_for('rbac.users_edit', id=item.id) }}" data-tooltip="编辑用户">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/></svg>
+      </a>
+      <a class="um-icon-btn um-confirm-action"
+         href="{{ url_for('rbac.users_reset_password') }}?id={{ item.id }}"
+         data-tooltip="重置密码"
+         data-confirm-title="重置密码"
+         data-confirm-body="确定触发重置用户「{{ item.username }}」的密码？密码将恢复为 changeme，且须改密后才能继续使用。"
+         data-csrf="{{ csrf_token }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15 3l3 3"/></svg>
+      </a>
+      <a class="um-icon-btn um-confirm-action"
+         href="{{ url_for('rbac.users_reset_token') }}?id={{ item.id }}"
+         data-tooltip="重置 API Token"
+         data-confirm-title="重置 API Token"
+         data-confirm-body="确定重置用户「{{ item.username }}」的 API Token？当前 Token 将立即失效，调用方需重新获取。"
+         data-csrf="{{ csrf_token }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 12A8.5 8.5 0 0121 9M21 9V3M21 9h-6"/><path d="M20.5 12A8.5 8.5 0 013 15M3 15v6M3 15h6"/></svg>
+      </a>
+      <button class="um-icon-btn um-icon-btn-danger um-deactivate-btn"
+              data-user-id="{{ item.id }}"
+              data-username="{{ item.username }}"
+              data-role="{{ item.role }}"
+              data-csrf="{{ csrf_token }}"
+              data-tooltip="停用用户" type="button" aria-label="停用用户 {{ item.username }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>
+      </button>
+    </div>
+    {% else %}
+    <a href="{{ url_for('rbac.users_view') }}?id={{ item.id }}" class="um-icon-btn" data-tooltip="查看信息" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="8" r="4"/><path d="M3 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}

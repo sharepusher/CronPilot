@@ -30,11 +30,11 @@ class RbacRegistrationRequest(db.Model):
     review_comment: Mapped[Optional[str]] = mapped_column(
         db.String(500), nullable=True, default=None
     )
-    create_time: Mapped[str] = mapped_column(
-        db.String(25), nullable=False, default='', index=True
+    create_time: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0, index=True
     )
-    update_time: Mapped[Optional[str]] = mapped_column(
-        db.String(25), nullable=True, default=None
+    update_time: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger, nullable=True, default=None
     )
     # 竞态防护：pending 状态时设为 username，其他状态设为 NULL。
     # UNIQUE 索引保证同一 username 只能有一条 pending 记录。

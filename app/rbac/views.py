@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from flask import current_app, g, redirect, render_template, request, session
+from flask import current_app, g, jsonify, redirect, render_template, request, session
 from sqlalchemy import select
 from app import db
 from app.common.functions import web_api_return
@@ -225,10 +225,10 @@ def login():
         # B3: update last_login_at
         try:
             from datas.model.rbac_user import RbacUser
-            from datetime import datetime
+            from datas.utils.times import utc_now_hms
             _u = db.session.get(RbacUser, result['user_id'])
             if _u is not None:
-                _u.last_login_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                _u.last_login_at = utc_now_hms()
                 db.session.commit()
         except Exception:
             current_app.logger.warning('last_login_at update failed for user_id=%s', result.get('user_id'), exc_info=True)
@@ -338,15 +338,28 @@ def change_password():
 def edit_profile():
     """当前登录用户自助修改花名、邮箱、岗位类型（Y1）。"""
     from datas.model.rbac_user import RbacUser
+    from datas.model.resource_group import ResourceGroup
     user = db.session.get(RbacUser, session.get('user_id'))
     if not user:
         return redirect('/rbac/login')
+
+    def _user_groups_display():
+        gids = get_user_group_ids_for_user(user.id)
+        if not gids:
+            return '未分配'
+        groups = db.session.scalars(
+            select(ResourceGroup).where(ResourceGroup.id.in_(gids))
+        ).all()
+        names = [g.name for g in groups if g.name]
+        return ', '.join(names) if names else '未分配'
+
     if request.method == 'GET':
         return render_template(
             'redesign/user_profile.html',
             user=user,
             job_title_choices=JOB_TITLE_CHOICES,
             active_nav='profile',
+            user_groups_display=_user_groups_display(),
         )
     raw_job_title = request.values.get('job_title', '')
     if raw_job_title == 'other':
@@ -372,6 +385,7 @@ def edit_profile():
         active_nav='profile',
         form_msg=result['msg'],
         form_ok=result['ok'],
+        user_groups_display=_user_groups_display(),
     )
 
 
@@ -471,6 +485,30 @@ def users_list():
 
     # B5: v2 redesign dual-track
     if getattr(g, 'ui_version', 'v1') == 'v2':
+        # OPT-P1-19: AJAX partial refresh for user management filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                user_groups_map=user_groups_map,
+                search_username=search_username,
+                job_title_map=job_title_map,
+                chip=chip,
+                cnt_total=cnt_total,
+                cnt_active=cnt_active,
+                cnt_inactive=cnt_inactive,
+            )
+            rows_html = render_template('redesign/_users_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_users_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'total': page_data.total,
+                'counts': {
+                    'total': cnt_total,
+                    'active': cnt_active,
+                    'inactive': cnt_inactive,
+                },
+            })
         return render_template(
             'redesign/users.html',
             active_nav='users',
@@ -997,6 +1035,23 @@ def audit_logs():
         viewer_group_ids = session.get('group_ids') or []
         page_data = repo.paginate_by_scope(page_query, viewer_group_ids, **search)
     if getattr(g, 'ui_version', 'v1') == 'v2':
+        # OPT-P1-19: AJAX partial refresh for audit logs filters
+        if request.args.get('partial') == '1':
+            partial_ctx = dict(
+                page_data=page_data,
+                audit_action_label=audit_action_label,
+                audit_resource_label=audit_resource_label,
+                audit_status_label=audit_status_label,
+                search=search,
+                chip=chip,
+            )
+            rows_html = render_template('redesign/_audit_logs_rows.html', **partial_ctx)
+            pagination_html = render_template('redesign/_audit_logs_pagination.html', **partial_ctx)
+            return jsonify({
+                'rows': rows_html,
+                'pagination': pagination_html,
+                'total': page_data.total,
+            })
         return render_template(
             'redesign/audit_logs.html',
             active_nav='audit',

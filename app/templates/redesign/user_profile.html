@@ -6,7 +6,7 @@
 <div class="page-head">
   <div>
     <h1>个人资料</h1>
-    <div class="sub">修改花名、邮箱和岗位类型</div>
+    <div class="sub">查看和管理您的账号信息</div>
   </div>
 </div>
 
@@ -16,7 +16,59 @@
 </div>
 {% endif %}
 
-<div class="pw-card">
+{# ─── 查看模式 ─── #}
+<div class="pw-card" id="pf-view-card">
+  <div class="pf-card-head">
+    <span class="pf-card-title">账号信息</span>
+    <button type="button" class="btn-c btn-accent pf-edit-btn" id="pf-enter-edit">编辑</button>
+  </div>
+
+  <dl class="pf-info-list">
+    <div class="pf-info-item">
+      <dt>账号</dt>
+      <dd>{{ user.username }}</dd>
+    </div>
+    <div class="pf-info-item">
+      <dt>角色</dt>
+      <dd>{{ user.role }}</dd>
+    </div>
+    <div class="pf-info-item">
+      <dt>花名</dt>
+      <dd>{{ user.nickname or '—' }}</dd>
+    </div>
+    <div class="pf-info-item">
+      <dt>邮箱</dt>
+      <dd>{{ user.email or '—' }}</dd>
+    </div>
+    <div class="pf-info-item">
+      <dt>岗位类型</dt>
+      <dd>
+        {%- set current_jt = user.job_title or '' -%}
+        {%- set is_other = current_jt.startswith('other:') -%}
+        {%- if is_other -%}
+          其他（{{ current_jt[6:] }}）
+        {%- elif current_jt -%}
+          {%- for code, label in job_title_choices -%}
+            {%- if code == current_jt %}{{ label }}{% endif -%}
+          {%- endfor -%}
+        {%- else -%}
+          —
+        {%- endif -%}
+      </dd>
+    </div>
+    <div class="pf-info-item">
+      <dt>所属业务组</dt>
+      <dd>{{ user_groups_display or '未分配' }}</dd>
+    </div>
+  </dl>
+</div>
+
+{# ─── 编辑模式 ─── #}
+<div class="pw-card" id="pf-edit-card" style="display:none">
+  <div class="pf-card-head">
+    <span class="pf-card-title">编辑个人资料</span>
+  </div>
+
   <form method="post" class="js-ajax-form" action="{{ url_for('rbac.edit_profile') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -59,9 +111,14 @@
       </div>
     </div>
 
+    <div class="pw-row">
+      <label class="pw-label">所属业务组（不可自行修改）</label>
+      <span class="pf-value">{{ user_groups_display or '未分配' }}</span>
+    </div>
+
     <div class="pw-actions">
       <button type="submit" class="btn-c btn-accent js-ajax-submit">保存</button>
-      <a class="btn-c btn-line" href="{{ url_for('main.cron_list') }}">返回</a>
+      <button type="button" class="btn-c btn-line" id="pf-cancel-edit">取消</button>
     </div>
   </form>
 </div>
@@ -69,13 +126,26 @@
 
 {% block css %}
 <style>
-/* User Profile — styles moved to redesign-pages.css (scoped via .cp-page-pw) */
+/* View/edit toggle — minimal styles in redesign-pages.css */
 </style>
 {% endblock %}
 
 {% block js %}
 <script>
 $(document).ready(function() {
+    var $viewCard = $('#pf-view-card');
+    var $editCard = $('#pf-edit-card');
+
+    $('#pf-enter-edit').on('click', function() {
+        $viewCard.hide();
+        $editCard.show();
+    });
+
+    $('#pf-cancel-edit').on('click', function() {
+        $editCard.hide();
+        $viewCard.show();
+    });
+
     var $sel = $('#pf-job-title');
     var $wrap = $('#pf-other-wrap');
     $sel.on('change', function() {

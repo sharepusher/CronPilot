@@ -249,6 +249,7 @@
   border-color: var(--cp-border);
   color: var(--cp-ink);
 }
+.cp-topbar-icon-btn:disabled { opacity: 0.5; cursor: default; }
 
 .cp-topbar-user {
   position: relative;

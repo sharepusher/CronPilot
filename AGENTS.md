@@ -148,6 +148,8 @@ bash scripts/check_pending_sync.sh
 
 **Redesign Mockup 逐节对照（强制 · 2026-08 追加）**：实现 `doc/design/CronPilot-2026-redesign-mockup.html` 中已定义的任何页面时，必须：① 先 `Read` Mockup 对应 `view-*` 区块的**完整 HTML**（不可凭记忆）；② 列出所有关键结构（CSS class、列数、组件层级、按钮类型）；③ 实现后 `curl + grep` 验证关键 class 存在于渲染 HTML；④ 交付前截图逐区域对照。**违反教训**：2026-08 首次 Phase 2 实现因未逐节对照源码，导致 Exception Panel 完全缺失、7 列降为 5 列、icon 按钮变文字按钮，触发全量重写。
 
+**Redesign 交互回归约束（强制 · 2026-08 追加）**：凡 v1 已有 AJAX 交互的功能（筛选、翻页、搜索），v2 Redesign 必须保持等效或优化交互方式，不得降级为整页刷新。设计文档须包含"交互模式对比"维度（v1 行为 vs v2 行为）。验证命令：`grep -n "onchange.*location.href" app/templates/redesign/dashboard.html | wc -l`（修复后应为 0）。详见 `doc/postmortem/2026-08-Redesign筛选交互降级.html`。
+
 **Mockup 评估权威文件（强制 · 2026-08 追加）**：进行 Mockup 对比评估前，必须先确认参考文件为 `doc/design/CronPilot-2026-redesign-mockup.html`（项目内部设计规格，含完整 view-* 区块）。`Downloads` 目录中的 HTML 文件为外部演示版（简化版），不得作为实施依据。若用户提供 Downloads 路径，必须交叉核查内部文件，以内部文件为准。验证命令：`grep -l "mockup" doc/design/*.html`（应包含 `CronPilot-2026-redesign-mockup.html`）。**违反教训**：2026-08 连续 7 轮评估均错误使用外部简化版 Mockup，导致操作记录目标列数完全相反（5 列 vs 正确的 7 列），详见 `doc/postmortem/2026-08-错误Mockup文件评估复盘.html`。
 
 **AskQuestion 前置门禁（强制 + Hook 程序化强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。**程序化强制**：`.cursor/hooks.json` 配置了 L1（`postToolUse` 每次编辑后注入提醒）+ L2（`stop` prompt hook 结束前评估是否遗漏复盘）。纯文字规范已被证明反复失效（3+ 次），Hook 为硬约束层。

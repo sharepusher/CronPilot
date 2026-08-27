@@ -11,6 +11,7 @@ if ROOT not in sys.path:
 from flask import Flask
 
 from app.main import main as main_blueprint
+from datas.utils.times import utc_now_hms, str_to_hms
 
 
 def _make_app():
@@ -31,8 +32,9 @@ def _make_app():
         'url_allow_hosts': '',
         'url_ssrf_observe_only': '1',
     }
-    from app import db
+    from app import db, register_hms_filters
     db.init_app(app)
+    register_hms_filters(app)
     app.register_blueprint(main_blueprint)
     from app.rbac import rbac as rbac_blueprint
     app.register_blueprint(rbac_blueprint)
@@ -70,7 +72,7 @@ class TestRegistrationModel(unittest.TestCase):
                 reason='Need access',
                 status='pending',
                 pending_username='test',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -89,7 +91,7 @@ class TestRegistrationModel(unittest.TestCase):
                 email='a@corp.com', username='dup',
                 password_hash='h', role='operator', group_ids='1',
                 status='pending', pending_username='dup',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(req1)
             self.db.session.commit()
@@ -98,7 +100,7 @@ class TestRegistrationModel(unittest.TestCase):
                 email='b@corp.com', username='dup',
                 password_hash='h', role='viewer', group_ids='1',
                 status='pending', pending_username='dup',
-                create_time='2026-08-03 10:01:00',
+                create_time=str_to_hms('2026-08-03 10:01:00'),
             )
             self.db.session.add(req2)
             with self.assertRaises(IntegrityError):
@@ -114,7 +116,7 @@ class TestRegistrationModel(unittest.TestCase):
                 email='a@corp.com', username='reapply',
                 password_hash='h', role='operator', group_ids='1',
                 status='rejected', pending_username=None,
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(req1)
             self.db.session.commit()
@@ -124,7 +126,7 @@ class TestRegistrationModel(unittest.TestCase):
                 email='a@corp.com', username='reapply',
                 password_hash='h', role='operator', group_ids='1',
                 status='pending', pending_username='reapply',
-                create_time='2026-08-03 11:00:00',
+                create_time=str_to_hms('2026-08-03 11:00:00'),
             )
             self.db.session.add(req2)
             self.db.session.commit()
@@ -138,7 +140,7 @@ class TestRegistrationModel(unittest.TestCase):
                 password_hash='hash',
                 role='viewer',
                 email='emailuser@corp.com',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(user)
             self.db.session.commit()
@@ -155,7 +157,7 @@ class TestRegistrationModel(unittest.TestCase):
                 email='profileuser@corp.com',
                 job_title='tech',
                 nickname='小红',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(user)
             self.db.session.commit()
@@ -171,7 +173,7 @@ class TestRegistrationModel(unittest.TestCase):
                 username='noprofile',
                 password_hash='hash',
                 role='viewer',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(user)
             self.db.session.commit()
@@ -186,7 +188,7 @@ class TestRegistrationModel(unittest.TestCase):
                 username='noemail',
                 password_hash='hash',
                 role='viewer',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(user)
             self.db.session.commit()
@@ -229,7 +231,7 @@ class TestSubmitRegistration(unittest.TestCase):
             self.db.create_all()
             # 创建一个业务组
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='研发组', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -476,7 +478,7 @@ class TestSubmitRegistration(unittest.TestCase):
                 username='existing',
                 password_hash='hash',
                 role='viewer',
-                create_time='2026-08-03',
+                create_time=str_to_hms('2026-08-03 00:00:00'),
             )
             user.set_password('pass')
             self.db.session.add(user)
@@ -539,7 +541,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='研发组', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -684,7 +686,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
                 job_title='tech', nickname='AdminReq',
                 reason='apply admin',
                 status='pending', pending_username='admin_applicant',
-                create_time='2026-08-03 10:00:00',
+                create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -759,13 +761,13 @@ class TestDisableNoReenable(unittest.TestCase):
             self.db.create_all()
             user = RbacUser(
                 username='disabled_user', role='operator',
-                is_active=0, create_time='2026-08-04 00:00:00',
+                is_active=0, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             user.set_password('pass123')
             self.db.session.add(user)
             admin = RbacUser(
                 username='admin', role='admin',
-                is_active=1, create_time='2026-08-04 00:00:00',
+                is_active=1, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
@@ -788,7 +790,7 @@ class TestDisableNoReenable(unittest.TestCase):
         """停用用户可用同一用户名重新注册。"""
         with self.app.app_context():
             from datas.model.resource_group import ResourceGroup
-            g = ResourceGroup(name='测试组', create_time='2026-08-04')
+            g = ResourceGroup(name='测试组', create_time=str_to_hms('2026-08-04 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
             gid = g.id
@@ -817,15 +819,15 @@ class TestDisabledUserFrozen(unittest.TestCase):
             self.db.create_all()
             user = RbacUser(
                 username='frozen_user', role='operator',
-                is_active=1, create_time='2026-08-04 00:00:00',
+                is_active=1, create_time=str_to_hms('2026-08-04 00:00:00'),
                 api_token='old_token_value',
-                api_token_expires_at='2026-09-01 00:00:00',
+                api_token_expires_at=str_to_hms('2026-09-01 00:00:00'),
             )
             user.set_password('pass123')
             self.db.session.add(user)
             admin = RbacUser(
                 username='admin', role='admin',
-                is_active=1, create_time='2026-08-04 00:00:00',
+                is_active=1, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
@@ -873,13 +875,13 @@ class TestUpdateUserNoReenable(unittest.TestCase):
             self.db.create_all()
             user = RbacUser(
                 username='disabled_user', role='operator',
-                is_active=0, create_time='2026-08-04 00:00:00',
+                is_active=0, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             user.set_password('pass123')
             self.db.session.add(user)
             admin = RbacUser(
                 username='admin', role='admin',
-                is_active=1, create_time='2026-08-04 00:00:00',
+                is_active=1, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
@@ -909,13 +911,13 @@ class TestCreateUserReplacesDisabled(unittest.TestCase):
             self.db.create_all()
             old = RbacUser(
                 username='recycled', role='operator',
-                is_active=0, create_time='2026-07-01 00:00:00',
+                is_active=0, create_time=str_to_hms('2026-07-01 00:00:00'),
             )
             old.set_password('oldpass')
             self.db.session.add(old)
             admin = RbacUser(
                 username='admin', role='admin',
-                is_active=1, create_time='2026-08-04 00:00:00',
+                is_active=1, create_time=str_to_hms('2026-08-04 00:00:00'),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
@@ -950,11 +952,11 @@ class TestNonAdminCannotSelectGlobal(unittest.TestCase):
             self.db.create_all()
             admin = RbacUser(
                 username='admin', role='admin',
-                is_active=1, create_time='t',
+                is_active=1, create_time=utc_now_hms(),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
-            g = ResourceGroup(name='测试组', create_time='t')
+            g = ResourceGroup(name='测试组', create_time=utc_now_hms())
             self.db.session.add(g)
             self.db.session.commit()
             self.admin_id = admin.id
@@ -1024,7 +1026,7 @@ class TestAdminRegistrationWithAllGroups(unittest.TestCase):
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
-            g = ResourceGroup(name='研发组', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -1114,7 +1116,7 @@ class TestCheckRegistrationStatus(unittest.TestCase):
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
-            g = ResourceGroup(name='研发组', create_time='2026-08-03')
+            g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
             self.group_id = g.id
@@ -1211,7 +1213,7 @@ class TestExpireStaleRegistrations(unittest.TestCase):
                 group_ids='1',
                 reason='old request',
                 status='pending',
-                create_time='2026-01-01 00:00:00',
+                create_time=str_to_hms('2026-01-01 00:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -1229,7 +1231,6 @@ class TestExpireStaleRegistrations(unittest.TestCase):
     def test_recent_pending_not_expired(self):
         with self.app.app_context():
             from datas.model.rbac_registration_request import RbacRegistrationRequest
-            from datas.utils.times import get_now_time
             req = RbacRegistrationRequest(
                 email='recent@corp.com',
                 username='recent',
@@ -1238,7 +1239,7 @@ class TestExpireStaleRegistrations(unittest.TestCase):
                 group_ids='1',
                 reason='recent request',
                 status='pending',
-                create_time=get_now_time(),
+                create_time=utc_now_hms(),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -1311,7 +1312,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             # 创建 admin 用户
             admin = RbacUser(
                 username='admin', role='admin',
-                create_time='2026-08-03 00:00:00',
+                create_time=str_to_hms('2026-08-03 00:00:00'),
             )
             admin.set_password('changeme')
             self.db.session.add(admin)
@@ -1378,7 +1379,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
                 job_title='tech', nickname='集成',
                 reason='integration test',
                 status='pending', pending_username='integ',
-                create_time='2026-08-03 12:00:00',
+                create_time=str_to_hms('2026-08-03 12:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -1431,7 +1432,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
                 job_title='qa', nickname='审批测试',
                 reason='approval test',
                 status='pending', pending_username='approve_integ',
-                create_time='2026-08-03 12:00:00',
+                create_time=str_to_hms('2026-08-03 12:00:00'),
             )
             req.set_password('Test1234')
             self.db.session.add(req)
@@ -1465,7 +1466,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
                 job_title='ops', nickname='拒绝测试',
                 reason='reject test',
                 status='pending', pending_username='reject_integ',
-                create_time='2026-08-03 12:00:00',
+                create_time=str_to_hms('2026-08-03 12:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -1530,7 +1531,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
                 job_title='tech', nickname='提示测试',
                 reason='hint test',
                 status='pending', pending_username='pending_hint',
-                create_time='2026-08-03 12:00:00',
+                create_time=str_to_hms('2026-08-03 12:00:00'),
             )
             self.db.session.add(req)
             self.db.session.commit()
@@ -1551,14 +1552,14 @@ class TestProfileCompletionGate(unittest.TestCase):
             # admin-created 用户：无 email/nickname/job_title
             u = RbacUser(
                 username='newbie', role='operator', is_active=1,
-                must_reset_password=0, create_time='t',
+                must_reset_password=0, create_time=utc_now_hms(),
             )
             u.set_password('pass')
             self.db.session.add(u)
             # 已完善用户：有全部信息
             u2 = RbacUser(
                 username='complete', role='operator', is_active=1,
-                must_reset_password=0, create_time='t',
+                must_reset_password=0, create_time=utc_now_hms(),
                 email='c@test.com', nickname='Complete', job_title='tech',
             )
             u2.set_password('pass')

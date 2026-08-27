@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>任务中心「逾期未执行」提示设计</title>
+<style>
+body { max-width: 900px; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.7; color: #1a1a1a; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #0ea5e9; padding-bottom: .5rem; }
+h2 { margin-top: 2rem; color: #0369a1; }
+h3 { margin-top: 1.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f0f9ff; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+.tag-ux { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+
+/* ═══ Demo styles ═══ */
+.demo-container { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 1rem 0; background: #f8fafc; }
+.demo-label { font-size: 12px; color: #64748b; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+.demo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+.demo-row:last-child { border-bottom: none; }
+.demo-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.demo-icon.danger { background: #fef2f2; color: #dc2626; }
+.demo-icon.warn { background: #fffbeb; color: #d97706; }
+.demo-name { font-weight: 500; flex: 1; }
+.demo-detail { font-size: 12px; color: #64748b; flex: 2; }
+.demo-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+.demo-badge.overdue { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.demo-badge.active-fail { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* Health badge demos */
+.hb { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.hb.danger { background: #fef2f2; color: #dc2626; }
+.hb.warn { background: #fffbeb; color: #d97706; }
+.hb.ok { background: #f0fdf4; color: #16a34a; }
+.hb-dot { width: 6px; height: 6px; border-radius: 50%; }
+.hb-dot.red { background: #dc2626; }
+.hb-dot.amber { background: #d97706; }
+.hb-dot.green { background: #16a34a; }
+
+/* Stats demo */
+.demo-stats { display: flex; gap: 12px; margin: 1rem 0; }
+.demo-stat { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; flex: 1; background: white; }
+.demo-stat-label { font-size: 12px; color: #64748b; }
+.demo-stat-value { font-size: 24px; font-weight: 700; margin: 4px 0; }
+.demo-stat-value.danger { color: #dc2626; }
+.demo-stat-value.warn { color: #d97706; }
+.demo-stat-sub { font-size: 11px; color: #94a3b8; }
+
+/* Comparison table */
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 1rem 0; }
+.vs-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.vs-title { font-weight: 600; margin-bottom: 8px; }
+.vs-box.before { background: #fff5f5; border-color: #fecaca; }
+.vs-box.after { background: #f0fdf4; border-color: #bbf7d0; }
+</style>
+</head>
+<body>
+
+<h1>任务中心「逾期未执行」提示设计</h1>
+
+<p><strong>编号</strong>：OPT-P1-16 子项（Dashboard 逾期提示）<br>
+<strong>状态</strong>：已交付<br>
+<strong>创建</strong>：2026-08-26<br>
+<strong>涉及页面</strong>：<code>app/templates/redesign/dashboard.html</code>、<code>app/main/views.py</code></p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>用户在 Dashboard 上看到「持续异常: 4」但「今日失败: 3」（或更少），所有任务都配置了每小时执行，数据差异让用户困惑——以为是系统 bug。</p>
+
+<p><strong>实际原因</strong>：「持续异常」是累积健康状态（<code>consecutive_failures ≥ 3</code>），一旦标记会持续保持直到任务成功执行。某些任务虽然处于「持续异常」状态，但由于服务重启等原因<strong>今天还没有被调度执行</strong>，因此不会出现在「今日失败」中。</p>
+
+<p>当前 Dashboard <strong>没有任何视觉提示</strong>来区分：</p>
+<ul>
+  <li><strong>活跃异常</strong>：任务今天执行了但失败了（正在持续失败）</li>
+  <li><strong>逾期未执行</strong>：任务已经超过预期调度间隔未执行（可能是调度器问题、服务中断等）</li>
+</ul>
+
+<h2>2. 根因</h2>
+
+<p>Dashboard 的 Exception Panel 和健康度列只展示了 <code>JobHealth.health_status</code>（ok / failing）和 <code>consecutive_failures</code> 计数，<strong>缺少「上次执行时间 vs 调度间隔」的对比逻辑</strong>。</p>
+
+<p>用户无法仅从界面判断一个「持续异常」的任务是「一直在跑但一直失败」还是「很久没跑了」，两者的排障优先级和处理方式完全不同：</p>
+
+<table>
+  <tr><th>状态</th><th>含义</th><th>处理方式</th></tr>
+  <tr><td>持续异常 + 活跃失败</td><td>任务在执行但回调目标有问题</td><td>检查目标服务 / URL 配置</td></tr>
+  <tr><td>持续异常 + 逾期未执行</td><td>任务没有被调度器触发</td><td>检查服务是否运行 / 调度是否正确</td></tr>
+</table>
+
+<h2>3. 方案对比分析</h2>
+
+<p>「逾期」和「持续异常」是两个<strong>正交维度</strong>。一个任务可以处于以下四种状态之一：</p>
+
+<table>
+  <tr><th></th><th>未逾期（在调度间隔内执行过）</th><th>已逾期（超过调度间隔未执行）</th></tr>
+  <tr><td><strong>健康</strong></td><td>正常 — 无需关注</td><td>⚠ 调度器可能异常</td></tr>
+  <tr><td><strong>持续异常</strong></td><td>🔴 正在失败 — 检查目标服务</td><td>🟠 已停跑 — 先恢复调度</td></tr>
+</table>
+
+<p>下面从专业角度对比三种实现方案：</p>
+
+<h3>方案 A：独立维度 — 逾期作为独立筛选 + Stats 卡片</h3>
+
+<p><strong>核心思路</strong>：将「逾期」视为与「持续异常」平行的独立维度，新增筛选按钮和 Stats 卡片。</p>
+
+<div class="demo-container">
+  <div class="demo-label">筛选栏（新增「逾期」按钮）</div>
+  <div style="display: flex; gap: 8px; margin: 8px 0;">
+    <span style="font-size: 12px; color: #64748b; line-height: 28px;">异常</span>
+    <span style="padding: 4px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">持续异常</span>
+    <span style="padding: 4px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; background: white;">今日失败</span>
+    <span style="padding: 4px 12px; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; background: #fffbeb; color: #92400e; font-weight: 600;">逾期未执行</span>
+  </div>
+  <div class="demo-label" style="margin-top: 12px;">Stats 卡片（新增「逾期」卡片）</div>
+  <div class="demo-stats">
+    <div class="demo-stat">
+      <div class="demo-stat-label">持续异常</div>
+      <div class="demo-stat-value danger">3</div>
+      <div class="demo-stat-sub">≥3 次连续失败</div>
+    </div>
+    <div class="demo-stat">
+      <div class="demo-stat-label">逾期未执行</div>
+      <div class="demo-stat-value warn">2</div>
+      <div class="demo-stat-sub">超过 2 倍调度间隔</div>
+    </div>
+    <div class="demo-stat">
+      <div class="demo-stat-label">今日失败次数</div>
+      <div class="demo-stat-value danger">5</div>
+      <div class="demo-stat-sub">4 个任务 · 成功率 60%</div>
+    </div>
+  </div>
+</div>
+
+<table>
+  <tr><th>维度</th><th>评估</th></tr>
+  <tr><td><strong>信息完整性</strong></td><td>⭐⭐⭐ 覆盖全部四种组合（健康+逾期 / 异常+逾期 / 异常+未逾期 / 健康+正常），不遗漏「健康但逾期」的调度器异常场景</td></tr>
+  <tr><td><strong>认知负担</strong></td><td>⭐⭐ 中 — 新增 1 个筛选按钮 + 1 个 Stats 卡片，需要用户理解逾期与异常的区别；初次使用可能困惑「逾期和持续异常有什么关系」</td></tr>
+  <tr><td><strong>实现成本</strong></td><td>⭐ 高 — 需新增 <code>health=overdue</code> 筛选参数、repo 查询、Stats 统计、模板渲染；约 5-6 个文件 ~200 行改动</td></tr>
+  <tr><td><strong>扩展性</strong></td><td>⭐⭐⭐ 后续可扩展为独立的「调度健康度」维度，支持更多状态（如「超时」「跳过」等）</td></tr>
+  <tr><td><strong>边界场景</strong></td><td>⭐⭐⭐ 能发现「健康但逾期」这种纯调度器问题，这是方案 B/C 覆盖不到的</td></tr>
+  <tr><td><strong>适用规模</strong></td><td>⭐⭐⭐ 适合任务数 50+ 的生产环境，筛选入口帮助快速定位</td></tr>
+</table>
+
+<h3>方案 B：子维度 — 仅在异常任务上追加逾期标签</h3>
+
+<p><strong>核心思路</strong>：不新增独立筛选，只在已有的「持续异常」视图中标注哪些是逾期的。</p>
+
+<div class="demo-container">
+  <div class="demo-label">Exception Panel（逾期任务加琥珀色标签）</div>
+  <div class="demo-row">
+    <div class="demo-icon danger">×139</div>
+    <div class="demo-name">global-shared-task</div>
+    <div class="demo-detail">连续失败 139 次 · 最近失败: 2026-08-26 11:05</div>
+  </div>
+  <div class="demo-row">
+    <div class="demo-icon warn">×119</div>
+    <div class="demo-name">cross-group-tag-test</div>
+    <div class="demo-detail">连续失败 119 次 · 最近失败: 2026-08-25 19:45</div>
+    <div class="demo-badge overdue">逾期 14h</div>
+  </div>
+  <div class="demo-label" style="margin-top: 12px;">Stats 卡片（持续异常细分）</div>
+  <div class="demo-stats">
+    <div class="demo-stat">
+      <div class="demo-stat-label">持续异常</div>
+      <div class="demo-stat-value warn">4</div>
+      <div class="demo-stat-sub">3 在执行 · 1 逾期</div>
+    </div>
+  </div>
+</div>
+
+<table>
+  <tr><th>维度</th><th>评估</th></tr>
+  <tr><td><strong>信息完整性</strong></td><td>⭐⭐ 覆盖「异常+逾期」和「异常+未逾期」的区分，但<strong>遗漏「健康+逾期」场景</strong>（任务本来健康但调度器停了）</td></tr>
+  <tr><td><strong>认知负担</strong></td><td>⭐⭐⭐ 低 — 不新增筛选入口，用户只需理解「逾期」是异常任务上的附加信息</td></tr>
+  <tr><td><strong>实现成本</strong></td><td>⭐⭐ 中 — 约 3-4 个文件 ~120 行改动，无需新增筛选参数和 repo 统计</td></tr>
+  <tr><td><strong>扩展性</strong></td><td>⭐⭐ 中 — 后续如需覆盖「健康+逾期」需重构为方案 A</td></tr>
+  <tr><td><strong>边界场景</strong></td><td>⭐ 「健康但逾期」不可见，用户只有在主动检查任务详情页的「下次执行」后才可能发现</td></tr>
+  <tr><td><strong>适用规模</strong></td><td>⭐⭐ 适合任务数 &lt; 50 的场景，用户可以肉眼扫描异常面板</td></tr>
+</table>
+
+<h3>方案 C：轻量 — 仅在表格健康度列显示逾期标记</h3>
+
+<p><strong>核心思路</strong>：最小改动，仅在表格的「健康度」列为逾期任务显示不同的 badge 颜色和文案。</p>
+
+<div class="demo-container">
+  <div class="demo-label">表格健康度列（逾期用琥珀色 badge）</div>
+  <table style="background: white;">
+    <tr><th>任务</th><th>调度策略</th><th>健康度</th><th>最近执行</th></tr>
+    <tr>
+      <td>global-shared-task</td><td>每小时 :05</td>
+      <td><span class="hb danger"><span class="hb-dot red"></span>异常</span></td>
+      <td>11:05 (51min ago)</td>
+    </tr>
+    <tr>
+      <td>cross-group-tag-test</td><td>每小时 :45</td>
+      <td><span class="hb warn"><span class="hb-dot amber"></span>逾期</span></td>
+      <td>昨天 19:45 (14h ago)</td>
+    </tr>
+    <tr>
+      <td>normal-task</td><td>每小时 :00</td>
+      <td><span class="hb ok"><span class="hb-dot green"></span>健康</span></td>
+      <td>11:00 (56min ago)</td>
+    </tr>
+  </table>
+</div>
+
+<table>
+  <tr><th>维度</th><th>评估</th></tr>
+  <tr><td><strong>信息完整性</strong></td><td>⭐⭐⭐ 表格中每个任务都会计算逾期状态，包括「健康+逾期」的情况（badge 显示琥珀色「逾期」而非绿色「健康」）</td></tr>
+  <tr><td><strong>认知负担</strong></td><td>⭐⭐⭐ 最低 — 不新增任何筛选/统计 UI，用户在已有表格中自然看到颜色差异</td></tr>
+  <tr><td><strong>实现成本</strong></td><td>⭐⭐⭐ 低 — 约 2-3 个文件 ~80 行改动，仅修改模板条件渲染 + 后端传递 overdue_map</td></tr>
+  <tr><td><strong>扩展性</strong></td><td>⭐⭐ 中 — 后续可渐进增加筛选按钮（升级到方案 A）</td></tr>
+  <tr><td><strong>边界场景</strong></td><td>⭐⭐ 能发现「健康+逾期」，但没有汇总统计，用户需逐行扫描；大量任务时效率低</td></tr>
+  <tr><td><strong>适用规模</strong></td><td>⭐⭐ 适合任务数 &lt; 30 的场景，任务多时逐行扫描不现实</td></tr>
+</table>
+
+<h3>三方案综合对比</h3>
+
+<table>
+  <tr><th>评估维度</th><th>方案 A（独立维度）</th><th>方案 B（子维度）</th><th>方案 C（轻量）</th></tr>
+  <tr><td>信息完整性</td><td>⭐⭐⭐ 全覆盖</td><td>⭐⭐ 漏「健康+逾期」</td><td>⭐⭐⭐ 全覆盖</td></tr>
+  <tr><td>认知负担</td><td>⭐⭐ 中</td><td>⭐⭐⭐ 低</td><td>⭐⭐⭐ 最低</td></tr>
+  <tr><td>实现成本</td><td>~200 行</td><td>~120 行</td><td>~80 行</td></tr>
+  <tr><td>扩展性</td><td>⭐⭐⭐ 好</td><td>⭐⭐ 中</td><td>⭐⭐ 中</td></tr>
+  <tr><td>边界场景覆盖</td><td>⭐⭐⭐ 全</td><td>⭐ 部分</td><td>⭐⭐ 全但无汇总</td></tr>
+  <tr><td>适用规模</td><td>50+ 任务</td><td>&lt;50 任务</td><td>&lt;30 任务</td></tr>
+</table>
+
+<h3>推荐与最终选择</h3>
+
+<p><strong>初始推荐</strong>：方案 B+C 组合（子维度 + 表格标记）——认知负担低、实现简单。</p>
+
+<p><strong>最终选择</strong>：<strong>方案 A（独立维度）</strong>——用户基于以下理由选择 A：</p>
+<ol>
+  <li>独立筛选按钮可直接过滤出全部逾期任务，适合任务量增长后的管理需求</li>
+  <li>独立 Stats 卡片让「逾期」与「持续异常」并列展示，运维一眼可判断系统健康度</li>
+  <li>扩展性好——后续可扩展为独立的「调度健康度」维度</li>
+</ol>
+
+<hr>
+
+<h2>4. 实现方案详细设计（方案 A — 独立维度）</h2>
+
+<h3>4.1 逾期判定逻辑</h3>
+
+<pre>
+逾期 = (当前时间 - 上次执行时间) > max(调度间隔 × 2, 10min)
+
+调度间隔 = 由 croniter 从 cron 表达式计算相邻两次执行的时间差
+上次执行时间 = 最近一条 JobLog.create_time（不限 status）
+最小阈值 = 10 分钟（避免高频任务频繁闪烁）
+</pre>
+
+<p class="note"><strong>排除条件</strong>：一次性任务（<code>run_date</code> 非空）、已暂停（<code>status=0</code>）、已下线（<code>status=-1</code>）不参与逾期判定。</p>
+
+<h3>4.2 展示位置（方案 A — 独立维度）</h3>
+
+<h4>① 独立筛选按钮 + Stats 卡片</h4>
+
+<p>在筛选栏新增「逾期未执行」按钮（琥珀色高亮），点击后通过 <code>health=overdue</code> 参数过滤出全部逾期任务。同时新增「逾期未执行」Stats 卡片，Stat-line 增加琥珀色逾期计数。</p>
+
+<h4>② Exception Panel — 逾期任务标注</h4>
+
+<div class="vs">
+  <div class="vs-box before">
+    <div class="vs-title">当前（Before）</div>
+    <div class="demo-container">
+      <div class="demo-label">需要关注的任务（4）</div>
+      <div class="demo-row">
+        <div class="demo-icon danger">×139</div>
+        <div class="demo-name">global-shared-task</div>
+        <div class="demo-detail">连续失败 139 次 · 最近失败: 2026-08-26 11:05</div>
+      </div>
+      <div class="demo-row">
+        <div class="demo-icon danger">×119</div>
+        <div class="demo-name">cross-group-tag-test</div>
+        <div class="demo-detail">连续失败 119 次 · 最近失败: 2026-08-25 19:45</div>
+      </div>
+    </div>
+    <p style="font-size: 12px; color: #94a3b8;">⚠ 两个任务外观相同，无法区分排障优先级</p>
+  </div>
+  <div class="vs-box after">
+    <div class="vs-title">优化后（After）</div>
+    <div class="demo-container">
+      <div class="demo-label">需要关注的任务（4）</div>
+      <div class="demo-row">
+        <div class="demo-icon danger">×139</div>
+        <div class="demo-name">global-shared-task</div>
+        <div class="demo-detail">连续失败 139 次 · 最近失败: 2026-08-26 11:05</div>
+      </div>
+      <div class="demo-row">
+        <div class="demo-icon warn">×119</div>
+        <div class="demo-name">cross-group-tag-test</div>
+        <div class="demo-detail">连续失败 119 次 · 最近失败: 2026-08-25 19:45</div>
+        <div class="demo-badge overdue">逾期 14h</div>
+      </div>
+    </div>
+    <p style="font-size: 12px; color: #16a34a;">✓ 逾期任务琥珀色图标 + 逾期时长标签；正常异常的保持原样不加标签</p>
+  </div>
+</div>
+
+<h4>② 表格健康度列 — 逾期 badge</h4>
+
+<div class="vs">
+  <div class="vs-box before">
+    <div class="vs-title">当前（Before）</div>
+    <table>
+      <tr><th>任务</th><th>健康度</th></tr>
+      <tr><td>global-shared-task</td><td><span class="hb danger"><span class="hb-dot red"></span>异常</span></td></tr>
+      <tr><td>cross-group-tag-test</td><td><span class="hb danger"><span class="hb-dot red"></span>异常</span></td></tr>
+      <tr><td>some-healthy-task</td><td><span class="hb ok"><span class="hb-dot green"></span>健康</span></td></tr>
+    </table>
+  </div>
+  <div class="vs-box after">
+    <div class="vs-title">优化后（After）</div>
+    <table>
+      <tr><th>任务</th><th>健康度</th></tr>
+      <tr><td>global-shared-task</td><td><span class="hb danger"><span class="hb-dot red"></span>异常</span></td></tr>
+      <tr><td>cross-group-tag-test</td><td><span class="hb warn"><span class="hb-dot amber"></span>异常 · 逾期</span></td></tr>
+      <tr><td>some-healthy-task</td><td><span class="hb warn"><span class="hb-dot amber"></span>逾期</span></td></tr>
+    </table>
+    <p style="font-size: 12px; color: #16a34a;">✓ 逾期覆盖原 badge：异常+逾期 → 琥珀色「异常 · 逾期」；健康+逾期 → 琥珀色「逾期」</p>
+  </div>
+</div>
+
+<h4>③ Stats 卡片副标题 — 持续异常细分</h4>
+
+<div class="vs">
+  <div class="vs-box before">
+    <div class="vs-title">当前</div>
+    <div class="demo-stats">
+      <div class="demo-stat">
+        <div class="demo-stat-label">持续异常</div>
+        <div class="demo-stat-value warn">4</div>
+        <div class="demo-stat-sub">≥3 次连续失败即标记</div>
+      </div>
+    </div>
+  </div>
+  <div class="vs-box after">
+    <div class="vs-title">优化后</div>
+    <div class="demo-stats">
+      <div class="demo-stat">
+        <div class="demo-stat-label">持续异常</div>
+        <div class="demo-stat-value warn">4</div>
+        <div class="demo-stat-sub">3 在执行 · 1 逾期</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>4.3 Stats 卡片副标题 — 持续异常细分</h3>
+
+<div class="vs">
+  <div class="vs-box before">
+    <div class="vs-title">当前</div>
+    <div class="demo-stats">
+      <div class="demo-stat">
+        <div class="demo-stat-label">持续异常</div>
+        <div class="demo-stat-value warn">4</div>
+        <div class="demo-stat-sub">≥3 次连续失败即标记</div>
+      </div>
+    </div>
+  </div>
+  <div class="vs-box after">
+    <div class="vs-title">优化后</div>
+    <div class="demo-stats">
+      <div class="demo-stat">
+        <div class="demo-stat-label">持续异常</div>
+        <div class="demo-stat-value warn">4</div>
+        <div class="demo-stat-sub">≥3 次连续失败即标记</div>
+      </div>
+      <div class="demo-stat">
+        <div class="demo-stat-label">逾期未执行</div>
+        <div class="demo-stat-value warn">2</div>
+        <div class="demo-stat-sub">超过 2 倍调度间隔</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>4.4 颜色语义对照</h3>
+
+<table>
+  <tr><th>状态</th><th>颜色</th><th>CSS 变量</th><th>含义</th></tr>
+  <tr><td>健康</td><td>绿色</td><td><code>var(--cp-success)</code></td><td>运行正常</td></tr>
+  <tr><td>异常</td><td>红色</td><td><code>var(--cp-danger)</code></td><td>持续失败且近期有执行</td></tr>
+  <tr><td>逾期</td><td>琥珀色</td><td><code>var(--cp-warn)</code></td><td>超过调度间隔未执行（可叠加异常状态）</td></tr>
+  <tr><td>未知</td><td>灰色</td><td>—</td><td>无健康数据</td></tr>
+</table>
+
+<h3>4.5 后端实现</h3>
+
+<table>
+  <tr><th>文件</th><th>变更</th><th>调用路径</th></tr>
+  <tr>
+    <td><code>app/main/views.py</code></td>
+    <td>新增 <code>_compute_overdue_map(cron_items, last_exec_map)</code> 函数：<br>
+    ① 遍历活跃任务，用 croniter 解析 cron 表达式计算调度间隔<br>
+    ② 排除已暂停/已下线/一次性/通配 <code>* * * * *</code> 任务（提前 continue 剪枝）<br>
+    ③ 阈值 = <code>max(interval × 2, 600s)</code>，与 <code>last_exec_map</code> 中的上次执行时间比较<br>
+    ④ 返回 <code>{cron_id: '逾期 Xh'}</code>（仅含逾期任务）<br>
+    ⑤ 在 <code>cron_list()</code> 的 v2 分支中调用两次：一次用于当前页面的 <code>overdue_map</code>，一次用于全量 <code>overdue_count</code></td>
+    <td><code>cron_list() → _compute_overdue_map()</code></td>
+  </tr>
+  <tr>
+    <td><code>app/repositories/cron_repository.py</code></td>
+    <td>新增 <code>last_exec_time_by_ids(cron_ids)</code>：<br>
+    <code>SELECT cron_info_id, MAX(create_time) FROM job_log WHERE cron_info_id IN (...) GROUP BY cron_info_id</code><br>
+    命中 <code>ix_job_log_cron_info_id</code> 索引，返回 <code>{cron_id: datetime_str}</code><br><br>
+    扩展 <code>paginate_list()</code>：新增 <code>overdue_ids</code> 参数，当 <code>health='overdue'</code> 时使用 <code>CronInfos.id.in_(overdue_ids)</code> 过滤</td>
+    <td><code>cron_list() → repo.last_exec_time_by_ids()<br>cron_list() → repo.paginate_list(overdue_ids=...)</code></td>
+  </tr>
+  <tr>
+    <td><code>app/templates/redesign/dashboard.html</code></td>
+    <td>① <strong>筛选按钮</strong>：新增「逾期未执行」独立筛选，使用 <code>health=overdue</code> URL 参数<br>
+    ② <strong>Stats 卡片</strong>：新增琥珀色「逾期未执行」卡片，显示 <code>overdue_count</code><br>
+    ③ <strong>Stat-line</strong>：新增琥珀色「逾期」计数<br>
+    ④ <strong>Exception Panel</strong>：逾期任务图标 <code>.warn</code> + 追加「逾期 Xh」琥珀色标签<br>
+    ⑤ <strong>健康度列</strong>：逾期任务显示琥珀色 badge「逾期」/「异常 · 逾期」</td>
+    <td>模板条件渲染</td>
+  </tr>
+  <tr>
+    <td><code>app/static/css/redesign-pages.css</code></td>
+    <td>新增 <code>.health-badge.overdue</code>、<code>.hc-dot.dot-overdue</code>、<code>.hf-stat-value.overdue</code>、<code>.hf-ex-icon.overdue</code>、<code>.hf-ex-overdue</code></td>
+    <td>CSS 样式</td>
+  </tr>
+  <tr>
+    <td><code>tests/test_overdue_detection.py</code></td>
+    <td>12 条单元测试覆盖：逾期判定、非逾期判定、暂停/一次性排除、格式化、最小阈值、通配跳过、多任务混合</td>
+    <td>单元测试</td>
+  </tr>
+</table>
+
+<h3>4.6 请求处理流程</h3>
+
+<pre>
+GET /cron_list
+│
+├─ 1. 解析 scope/过滤参数 → filter_arr
+├─ 2. repo.metrics() → 基础统计
+│
+├─ 3. [仅 health=overdue 时] 预计算逾期 ID 集合
+│   ├─ repo.scalars_all(status=1) → all_active      ← Q2
+│   ├─ repo.last_exec_time_by_ids(all_active_ids)    ← Q3
+│   └─ _compute_overdue_map() → _overdue_ids         ← C1 (croniter)
+│
+├─ 4. repo.paginate_list(overdue_ids=...)            ← WHERE id IN (overdue_ids)
+│
+├─ 5. [v2 分支] 逾期渲染数据
+│   ├─ repo.last_exec_time_by_ids(page_ids)          ← Q1 (当前页面)
+│   ├─ _compute_overdue_map(page_items) → overdue_map ← C1' (当前页面)
+│   └─ [复用或重新计算] overdue_count                  ← 复用步骤 3 或 Q2+Q3+C1
+│
+└─ 6. render_template('dashboard.html', overdue_map=..., overdue_count=...)
+</pre>
+
+<h2>5. 范围</h2>
+
+<h3>改动范围</h3>
+<table>
+  <tr><th>文件</th><th>改动类型</th></tr>
+  <tr><td><code>app/main/views.py</code></td><td>新增 <code>_compute_overdue_map()</code>；v2 分支传递 <code>overdue_map</code> + <code>overdue_count</code></td></tr>
+  <tr><td><code>app/repositories/cron_repository.py</code></td><td>新增 <code>last_exec_time_by_ids()</code></td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>Exception Panel / 健康度列 / Stats 副标题条件渲染</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>新增 <code>.health-badge.overdue</code>、<code>.hf-ex-overdue</code></td></tr>
+  <tr><td><code>tests/test_overdue_detection.py</code></td><td>新增逾期检测逻辑单元测试</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+  <li>不修改调度器逻辑（逾期只是诊断提示，不触发补跑）</li>
+  <li>不修改 v1 旧版模板</li>
+  <li>不修改 <code>JobHealth</code> 模型（逾期是实时计算，不持久化存储）</li>
+  <li>不持久化逾期状态到数据库（每次请求实时计算，保证数据一致性）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<table>
+  <tr><th>步骤</th><th>内容</th><th>可独立验收</th></tr>
+  <tr><td>1</td><td>后端逻辑：<code>last_exec_time_by_ids()</code> + <code>_compute_overdue_set()</code> + 单元测试</td><td>✅ 通过单元测试验证逾期判定准确性</td></tr>
+  <tr><td>2</td><td>模板 + CSS：Exception Panel / 健康度列 / Stats 副标题渲染</td><td>✅ restart 后浏览器验收视觉效果</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<h3>6.1 自动化验收</h3>
+<pre>
+bash scripts/cronpilot.sh test
+python scripts/check_ui_contract.py --check
+python scripts/audit_hardcoded_colors.py --check
+</pre>
+
+<h3>6.2 单元测试验收</h3>
+<ul>
+  <li><code>test_overdue_when_interval_exceeded</code>：上次执行时间超过 2 倍间隔 → 标记为逾期</li>
+  <li><code>test_not_overdue_within_interval</code>：上次执行时间在 2 倍间隔内 → 不标记</li>
+  <li><code>test_paused_task_not_overdue</code>：已暂停的任务不参与逾期判定</li>
+  <li><code>test_one_shot_task_not_overdue</code>：一次性任务（<code>run_date</code> 非空）不参与逾期判定</li>
+  <li><code>test_overdue_duration_format</code>：逾期时长格式化正确（如「逾期 2h」「逾期 1d」）</li>
+</ul>
+
+<h3>6.3 浏览器验收（restart 后）</h3>
+<table>
+  <tr><th>#</th><th>步骤</th><th>期望结果</th></tr>
+  <tr>
+    <td>1</td>
+    <td>以 davytest 登录 → 任务中心，查看 Exception Panel</td>
+    <td>逾期任务（如 <code>cross-group-tag-test</code>）显示琥珀色图标 + 「逾期 Xh」标签；活跃失败任务显示红色图标</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>查看表格「健康度」列</td>
+    <td>逾期任务的 badge 为琥珀色「逾期」，活跃失败任务为红色「异常」</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>查看「持续异常」Stats 卡片</td>
+    <td>副标题显示「X 活跃 · Y 逾期」细分</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>等待逾期任务的下一次调度执行后刷新</td>
+    <td>执行后任务从「逾期」变为「异常」（如果仍然失败）</td>
+  </tr>
+</table>
+
+<h2>7. 性能分析</h2>
+
+<h3>7.1 架构决策：实时计算 vs 持久化</h3>
+
+<table>
+  <tr><th>方式</th><th>优势</th><th>劣势</th><th>适用规模</th></tr>
+  <tr>
+    <td><strong>实时计算（当前方案）</strong></td>
+    <td>零维护成本，数据始终准确，无需迁移脚本和后台任务</td>
+    <td>每次页面加载都需计算，CPU 和 SQL 开销随任务数线性增长</td>
+    <td>&lt; 500 个活跃任务</td>
+  </tr>
+  <tr>
+    <td>持久化到 <code>JobHealth</code></td>
+    <td>页面加载时直接读取，无 croniter 开销</td>
+    <td>需后台定时更新、数据可能滞后、增加模型迁移和运维复杂度</td>
+    <td>&gt; 500 个活跃任务</td>
+  </tr>
+</table>
+
+<p class="note"><strong>选择理由</strong>：CronPilot 典型部署规模 10-200 个任务，实时计算在此范围内性能充裕（见下方基准测试）。持久化方案的运维复杂度（后台 worker + 状态同步 + 数据库迁移）远超收益。当任务数超过 500 时，可考虑升级为持久化方案。</p>
+
+<h3>7.2 新增查询分析</h3>
+
+<p>逾期功能在每次 Dashboard 加载时新增以下 SQL 查询和计算步骤：</p>
+
+<table>
+  <tr><th>#</th><th>操作</th><th>SQL 语句</th><th>索引利用</th><th>时间复杂度</th></tr>
+  <tr>
+    <td>Q1</td>
+    <td>当前页面任务的最近执行时间</td>
+    <td><code>SELECT cron_info_id, MAX(create_time) FROM job_log WHERE cron_info_id IN (:page_ids) GROUP BY cron_info_id</code></td>
+    <td>✅ <code>ix_job_log_cron_info_id</code></td>
+    <td>O(page_size × log_depth)</td>
+  </tr>
+  <tr>
+    <td>Q2</td>
+    <td>全量活跃任务查询（Stats 卡片 + 筛选时）</td>
+    <td><code>SELECT * FROM cron_infos WHERE status = 1</code></td>
+    <td>全表扫描（cron_infos 表小）</td>
+    <td>O(N_active)</td>
+  </tr>
+  <tr>
+    <td>Q3</td>
+    <td>全量活跃任务的最近执行时间</td>
+    <td>同 Q1，<code>IN</code> 参数为全部活跃 ID</td>
+    <td>✅ <code>ix_job_log_cron_info_id</code></td>
+    <td>O(N_active × log_depth)</td>
+  </tr>
+  <tr>
+    <td>C1</td>
+    <td>croniter 调度间隔计算</td>
+    <td>纯 Python 计算（无 SQL）</td>
+    <td>—</td>
+    <td>O(N_active)</td>
+  </tr>
+</table>
+
+<p>其中 Q1 仅在 v2 渲染分支执行（当前页面）；Q2+Q3+C1 在需要 <code>overdue_count</code>（Stats 卡片）或 <code>health=overdue</code>（筛选过滤）时执行。</p>
+
+<h3>7.3 实测基准（SQLite，17,628 条日志，6 个活跃任务）</h3>
+
+<table>
+  <tr><th>测量项</th><th>耗时</th><th>占 Dashboard 总耗时比例</th></tr>
+  <tr>
+    <td>Dashboard 总耗时（含模板渲染）</td>
+    <td><strong>212.7 ms</strong></td>
+    <td>100%</td>
+  </tr>
+  <tr>
+    <td>全部 SQL 查询（29 条）</td>
+    <td>48.6 ms</td>
+    <td>22.9%</td>
+  </tr>
+  <tr>
+    <td>Python + croniter + Jinja 渲染</td>
+    <td>164.0 ms</td>
+    <td>77.1%</td>
+  </tr>
+  <tr>
+    <td colspan="3" style="background: #f0f9ff; font-weight: 600;">逾期功能新增开销</td>
+  </tr>
+  <tr>
+    <td>Q1: <code>last_exec_time_by_ids</code>（当前页 4 任务）</td>
+    <td>1.03 ms</td>
+    <td>0.5%</td>
+  </tr>
+  <tr>
+    <td>Q2: <code>scalars_all(CronInfos)</code>（全量活跃任务）</td>
+    <td>0.43 ms</td>
+    <td>0.2%</td>
+  </tr>
+  <tr>
+    <td>Q3: <code>last_exec_time_by_ids</code>（全量 6 任务）</td>
+    <td>0.22 ms</td>
+    <td>0.1%</td>
+  </tr>
+  <tr>
+    <td><strong>逾期功能 SQL 总开销</strong></td>
+    <td><strong>1.68 ms</strong></td>
+    <td><strong>0.8%</strong></td>
+  </tr>
+</table>
+
+<p class="note"><strong>结论</strong>：逾期功能新增 SQL 开销仅占 Dashboard 总耗时的 <strong>0.8%</strong>。Dashboard 瓶颈在已有的 <code>job_log</code> 统计查询（今日失败/成功率等，占 ~43ms / 88% SQL 时间），而非逾期功能。</p>
+
+<h3>7.4 开销分解与规模化预估</h3>
+
+<p>逾期功能的开销由两个<strong>独立瓶颈</strong>组成，各有独立的优化路径：</p>
+
+<table>
+  <tr><th>瓶颈</th><th>本质</th><th>增长方式</th><th>优化手段</th></tr>
+  <tr>
+    <td><strong>SQL: <code>MAX(create_time) GROUP BY</code></strong></td>
+    <td>数据库 I/O</td>
+    <td>与 <code>job_log</code> 总行数和每任务日志深度相关</td>
+    <td><strong>复合索引</strong> <code>(cron_info_id, create_time)</code></td>
+  </tr>
+  <tr>
+    <td><strong>CPU: <code>croniter</code> 调度间隔计算</strong></td>
+    <td>纯 CPU 计算</td>
+    <td>与活跃任务数严格线性（~0.21 ms/任务）</td>
+    <td><strong>结果缓存</strong>（30-60s TTL）</td>
+  </tr>
+</table>
+
+<h4>7.4.1 SQL 开销：单列索引 vs 复合索引</h4>
+
+<p><code>MAX(create_time) GROUP BY cron_info_id</code> 在两种索引策略下的 MySQL InnoDB 行为完全不同：</p>
+
+<table>
+  <tr><th></th><th>单列索引 <code>ix_job_log_cron_info_id</code>（当前）</th><th>复合索引 <code>(cron_info_id, create_time)</code></th></tr>
+  <tr>
+    <td><strong>查询计划</strong></td>
+    <td>Index Scan → 按 <code>cron_info_id</code> 分组后，<strong>逐行回表</strong>读取 <code>create_time</code> 做 MAX 聚合</td>
+    <td><strong>Loose Index Scan</strong>（Skip Scan） → 直接跳到每组 B+ 树最后一个叶子节点，取 MAX 值，<strong>无需回表</strong></td>
+  </tr>
+  <tr>
+    <td><strong>I/O 模式</strong></td>
+    <td>每行一次随机 I/O（聚簇索引 → 数据页），总 I/O = Σ(每任务日志行数)</td>
+    <td>每组一次 B+ 树 seek（顺序 I/O），总 I/O = 任务数</td>
+  </tr>
+  <tr>
+    <td><strong>EXPLAIN Extra</strong></td>
+    <td><code>Using where; Using index</code></td>
+    <td><code>Using index for group-by (loose index scan)</code> — 覆盖索引扫描</td>
+  </tr>
+</table>
+
+<p><strong>MySQL 性能对比（100 条日志/任务 vs 1000 条日志/任务）</strong>：</p>
+
+<table>
+  <tr><th rowspan="2">活跃任务</th><th colspan="2">100 logs/task（每小时 × 4 天）</th><th colspan="2">1000 logs/task（每小时 × 42 天）</th></tr>
+  <tr><th>单列索引</th><th>复合索引</th><th>单列索引</th><th>复合索引</th></tr>
+  <tr><td>50</td><td>7.5 ms</td><td>1.0 ms</td><td>55 ms</td><td>1.0 ms</td></tr>
+  <tr><td>200</td><td>30 ms</td><td>4.0 ms</td><td>220 ms</td><td>4.0 ms</td></tr>
+  <tr><td>500</td><td>75 ms</td><td>10 ms</td><td>550 ms</td><td>10 ms</td></tr>
+  <tr><td>2000</td><td>300 ms</td><td>40 ms</td><td>2200 ms</td><td>40 ms</td></tr>
+  <tr><td>5000</td><td>750 ms</td><td>100 ms</td><td>5500 ms</td><td>100 ms</td></tr>
+</table>
+
+<p class="note"><strong>关键发现</strong>：复合索引的性能<strong>与日志深度无关</strong>（Loose Index Scan 跳过中间行），仅与任务数线性相关。即使在 5000 任务 × 1000 条日志/任务的场景下，复合索引也只需 ~100 ms——而单列索引需要 5.5 秒。</p>
+
+<h4>7.4.2 CPU 开销：croniter 基准与缓存摊薄</h4>
+
+<p><strong>croniter 实测基准</strong>（每任务 ~0.21 ms，严格线性）：</p>
+
+<table>
+  <tr><th>活跃任务</th><th>croniter 耗时</th><th>备注</th></tr>
+  <tr><td>50</td><td>10.8 ms</td><td>无感知</td></tr>
+  <tr><td>200</td><td>40.3 ms</td><td>可接受</td></tr>
+  <tr><td>500</td><td>100.8 ms</td><td>gevent 中会阻塞同 worker 协程</td></tr>
+  <tr><td>1000</td><td>205.4 ms</td><td>需要缓存</td></tr>
+  <tr><td>2000</td><td>419.7 ms</td><td>需要缓存</td></tr>
+  <tr><td>5000</td><td>1012.4 ms</td><td>需要缓存 + 考虑后台计算</td></tr>
+</table>
+
+<p><strong>30 秒缓存 TTL 摊薄后</strong>（假设 1 req/s 平均访问频率）：</p>
+
+<table>
+  <tr><th>活跃任务</th><th>完整计算</th><th>30s 缓存摊薄后</th><th>评估</th></tr>
+  <tr><td>200</td><td>48 ms</td><td>1.6 ms/req</td><td>✅ 无感知</td></tr>
+  <tr><td>500</td><td>120 ms</td><td>4.0 ms/req</td><td>✅ 无感知</td></tr>
+  <tr><td>1000</td><td>240 ms</td><td>8.0 ms/req</td><td>✅ 可接受</td></tr>
+  <tr><td>2000</td><td>480 ms</td><td>16 ms/req</td><td>✅ 可接受</td></tr>
+  <tr><td>5000</td><td>1200 ms</td><td>40 ms/req</td><td>⚠ 可接受但需监控</td></tr>
+</table>
+
+<h4>7.4.3 综合方案路线图</h4>
+
+<table>
+  <tr><th>规模</th><th>SQL 策略</th><th>CPU 策略</th><th>总逾期开销</th><th>评估</th></tr>
+  <tr>
+    <td><strong>&lt; 200 任务</strong>（当前方案）</td>
+    <td>单列索引即可</td>
+    <td>每次实时计算</td>
+    <td>&lt; 50 ms</td>
+    <td>✅ 当前实现充足</td>
+  </tr>
+  <tr>
+    <td><strong>200-500 任务</strong></td>
+    <td>添加复合索引 <code>(cron_info_id, create_time)</code></td>
+    <td>添加 Flask-Caching（30s TTL）</td>
+    <td>SQL ~10 ms + 摊薄 ~4 ms</td>
+    <td>✅ 复合索引 + 缓存</td>
+  </tr>
+  <tr>
+    <td><strong>500-2000 任务</strong></td>
+    <td>复合索引（必须）</td>
+    <td>Flask-Caching（30s TTL，必须）</td>
+    <td>SQL ~40 ms + 摊薄 ~16 ms</td>
+    <td>✅ 复合索引 + 缓存</td>
+  </tr>
+  <tr>
+    <td><strong>2000-5000 任务</strong></td>
+    <td>复合索引</td>
+    <td>缓存 + 后台 worker（60s 周期预计算）</td>
+    <td>SQL ~100 ms（后台） + 读缓存 ~0</td>
+    <td>✅ 需后台 worker 消除前台 CPU 峰值</td>
+  </tr>
+  <tr>
+    <td><strong>&gt; 5000 任务</strong></td>
+    <td>复合索引 + 考虑按时间分区</td>
+    <td>后台 worker 写入 <code>JobHealth.is_overdue</code></td>
+    <td>Dashboard 直接 JOIN 读取，无前台计算</td>
+    <td>⚠ 需要持久化方案</td>
+  </tr>
+</table>
+
+<p class="note"><strong>修正说明</strong>：初版设计在 2000 任务时直接推荐持久化，未充分评估复合索引 + 缓存的覆盖能力。<strong>复合索引使 SQL 开销与日志深度脱钩</strong>（Loose Index Scan），缓存使 croniter CPU 开销摊薄到每请求几毫秒。两者组合可有效支撑 5000 任务级别。持久化方案（后台 worker + <code>JobHealth.is_overdue</code> 字段）仅在超过 5000 任务或需要消除所有前台计算峰值时才必要。</p>
+
+<h3>7.5 性能保底策略</h3>
+
+<h4>已内置的保护措施</h4>
+
+<table>
+  <tr><th>措施</th><th>效果</th></tr>
+  <tr>
+    <td><code>ix_job_log_cron_info_id</code> 索引</td>
+    <td><code>MAX(create_time) GROUP BY cron_info_id</code> 查询命中索引（EXPLAIN 显示 SEARCH USING INDEX），避免全表扫描</td>
+  </tr>
+  <tr>
+    <td>页面维度 vs 全量维度分离</td>
+    <td>当前页面的 <code>overdue_map</code> 仅查询 page_size（默认 20）个任务 ID；全量 <code>overdue_count</code> 查询所有活跃任务</td>
+  </tr>
+  <tr>
+    <td><code>health=overdue</code> 筛选时复用</td>
+    <td>预计算的 <code>_overdue_ids</code> 在筛选和计数之间复用，避免重复计算</td>
+  </tr>
+  <tr>
+    <td>排除规则提前剪枝</td>
+    <td>已暂停、已下线、一次性任务、通配 <code>* * * * *</code> 在循环首部 <code>continue</code>，不进入 croniter 计算</td>
+  </tr>
+</table>
+
+<h4>阶梯式优化路径</h4>
+
+<table>
+  <tr><th>优化措施</th><th>触发条件</th><th>实施方式</th><th>预期收益</th></tr>
+  <tr>
+    <td><strong>L1: 复合索引</strong></td>
+    <td>任务 &gt; 200 或 job_log &gt; 500K 行</td>
+    <td><code>CREATE INDEX ix_job_log_cron_id_create_time ON job_log (cron_info_id, create_time)</code></td>
+    <td>SQL 查询提速 5-55x（取决于日志深度）</td>
+  </tr>
+  <tr>
+    <td><strong>L2: Flask-Caching</strong></td>
+    <td>任务 &gt; 200</td>
+    <td><code>@cache.cached(timeout=30, key_prefix='overdue_count_{scope}')</code> 缓存 <code>overdue_count</code></td>
+    <td>croniter CPU 开销摊薄 30x</td>
+  </tr>
+  <tr>
+    <td><strong>L3: 后台 Worker</strong></td>
+    <td>任务 &gt; 2000 或需消除前台峰值</td>
+    <td>APScheduler interval job（60s）调用 <code>_compute_overdue_map()</code>，结果写入 Redis / 进程内缓存</td>
+    <td>前台请求零 croniter 计算</td>
+  </tr>
+  <tr>
+    <td><strong>L4: 持久化</strong></td>
+    <td>任务 &gt; 5000 或需要实时逾期查询（不接受缓存延迟）</td>
+    <td><code>JobHealth</code> 新增 <code>is_overdue</code> / <code>overdue_since</code> 字段；后台 worker 每分钟更新；Dashboard 直接 JOIN 读取</td>
+    <td>Dashboard 无逾期相关额外查询</td>
+  </tr>
+</table>
+
+<h3>7.6 MySQL 场景深度分析</h3>
+
+<p>CronPilot 支持 SQLite（开发/小规模）和 MySQL（生产推荐）两种后端。以下分析 MySQL 场景下逾期功能的性能特征。</p>
+
+<h4>7.6.1 索引利用差异</h4>
+
+<table>
+  <tr><th>查询</th><th>SQLite</th><th>MySQL (InnoDB)</th><th>优化建议</th></tr>
+  <tr>
+    <td><code>MAX(create_time) WHERE cron_info_id IN (...) GROUP BY cron_info_id</code></td>
+    <td>SEARCH USING INDEX <code>ix_job_log_cron_info_id</code> — 索引扫描 + 逐行回表取 <code>create_time</code></td>
+    <td>同左 — 单列索引命中后仍需回表读取 <code>create_time</code> 列</td>
+    <td>如任务 &gt; 200：添加<strong>复合索引</strong> <code>(cron_info_id, create_time)</code> 使查询变为<strong>覆盖索引扫描（Index-Only Scan）</strong>，避免回表</td>
+  </tr>
+  <tr>
+    <td><code>LIKE 'YYYY-MM-DD%'</code>（已有的今日失败/成功率查询）</td>
+    <td>前缀匹配可用索引</td>
+    <td>VARCHAR LIKE 前缀可用 <code>ix_job_log_create_time</code>；但因 <code>create_time</code> 为 <code>VARCHAR(25)</code> 而非 <code>DATETIME</code>，无法利用 MySQL 的<strong>范围分区</strong>和<strong>原生日期函数加速</strong></td>
+    <td>长期：将 <code>create_time</code> 改为 <code>DATETIME</code> 类型可获得更好的范围查询性能（需要数据迁移）</td>
+  </tr>
+</table>
+
+<p class="note"><strong>关键发现</strong>：逾期功能的 <code>MAX(create_time) GROUP BY</code> 查询缺少 <code>(cron_info_id, create_time)</code> 复合索引。当前单列索引 <code>ix_job_log_cron_info_id</code> 需要逐行回表取 <code>create_time</code> 做 MAX 聚合。在 MySQL 中每次回表是一次随机 I/O（B+ 树叶子节点 → 聚簇索引），当单任务日志量大（如每小时 1 条 × 365 天 = 8760 行/任务）时，回表成本显著。</p>
+
+<h4>7.6.2 MySQL 性能预估</h4>
+
+<table>
+  <tr><th>场景</th><th>活跃任务</th><th><code>job_log</code> 行数</th><th>单列索引 SQL</th><th>复合索引 SQL</th><th>推荐</th></tr>
+  <tr>
+    <td>小型</td>
+    <td>20</td>
+    <td>~50K</td>
+    <td>&lt; 5 ms</td>
+    <td>&lt; 1 ms</td>
+    <td>当前实现即可</td>
+  </tr>
+  <tr>
+    <td>中型</td>
+    <td>100</td>
+    <td>~1M</td>
+    <td>~15-110 ms</td>
+    <td>~2 ms</td>
+    <td>添加复合索引</td>
+  </tr>
+  <tr>
+    <td>大型</td>
+    <td>500</td>
+    <td>~5M</td>
+    <td>~75-550 ms</td>
+    <td>~10 ms</td>
+    <td>复合索引 + 缓存</td>
+  </tr>
+  <tr>
+    <td>超大型</td>
+    <td>2000</td>
+    <td>~20M+</td>
+    <td>~300-2200 ms</td>
+    <td>~40 ms</td>
+    <td>复合索引 + 缓存</td>
+  </tr>
+  <tr>
+    <td>极大型</td>
+    <td>5000</td>
+    <td>~50M+</td>
+    <td>&gt; 5s（不可用）</td>
+    <td>~100 ms</td>
+    <td>复合索引 + 后台 worker</td>
+  </tr>
+</table>
+
+<p><strong>单列索引范围</strong>取决于日志深度：下限为 100 条/任务（新部署），上限为 1000 条/任务（运行 42 天的每小时任务）。复合索引利用 <strong>Loose Index Scan</strong>（MySQL 优化器直接跳到每组 B+ 树最后一个叶子节点取 MAX），<strong>性能与日志深度无关</strong>，仅与任务数线性增长。</p>
+
+<h4>7.6.3 复合索引优化方案</h4>
+
+<pre>
+-- 当任务数 > 200 且 job_log > 1M 行时推荐添加
+CREATE INDEX ix_job_log_cron_id_create_time ON job_log (cron_info_id, create_time);
+
+-- MySQL EXPLAIN 预期：
+-- type: range
+-- key: ix_job_log_cron_id_create_time
+-- Extra: Using index (覆盖索引，无需回表)
+</pre>
+
+<p><strong>影响评估</strong>：</p>
+<ul>
+  <li><strong>写性能</strong>：每条 job_log INSERT 多维护一个 B+ 树索引，约增加 5-10% 写入延迟</li>
+  <li><strong>存储</strong>：每行额外 ~40 字节索引条目（cron_info_id INT + create_time VARCHAR(25)），100 万行 ≈ 40MB</li>
+  <li><strong>读性能</strong>：<code>MAX(create_time) GROUP BY cron_info_id</code> 从回表扫描变为覆盖索引扫描，预期提速 5-10x</li>
+  <li><strong>附带收益</strong>：已有的 <code>last_run_details_by_ids()</code>、<code>today_fail</code> 等查询也可受益</li>
+</ul>
+
+<h3>7.7 并发场景分析</h3>
+
+<h4>7.7.1 生产部署架构</h4>
+
+<table>
+  <tr><th>层级</th><th>配置</th><th>并发模型</th></tr>
+  <tr>
+    <td>HTTP 入口</td>
+    <td>Gunicorn (<code>gun.py</code>)</td>
+    <td>2 个 OS worker 进程 × gevent 协程（默认上限 1000/worker）</td>
+  </tr>
+  <tr>
+    <td>数据库连接</td>
+    <td>Flask-SQLAlchemy</td>
+    <td>默认 <code>QueuePool</code>：<code>pool_size=5</code>, <code>max_overflow=10</code>（每 worker）</td>
+  </tr>
+  <tr>
+    <td>调度器</td>
+    <td>APScheduler ThreadPool</td>
+    <td><code>max_workers=30</code> 线程（文件锁防多 worker 重复调度）</td>
+  </tr>
+</table>
+
+<h4>7.7.2 并发风险评估</h4>
+
+<table>
+  <tr><th>风险</th><th>场景</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td><strong>CPU 阻塞</strong></td>
+    <td>500+ 任务时 <code>croniter</code> 循环 ~120ms 是<strong>纯 CPU 计算</strong>，不会被 gevent 协程切换器中断</td>
+    <td>同 worker 内其他 greenlet 被阻塞 ~120ms</td>
+    <td>① 200+ 任务时加缓存层（30s TTL）减少计算频率<br>② 或将计算移到后台线程（<code>gevent.spawn</code>）释放当前协程</td>
+  </tr>
+  <tr>
+    <td><strong>连接池争用</strong></td>
+    <td>高并发下多个 Dashboard 请求同时执行 overdue 全量查询，叠加已有的 29 条 SQL</td>
+    <td>每个 Dashboard 请求使用 ~29 条 SQL 查询，若 30 个并发请求 → ~870 条 SQL 排队，可能触发 <code>pool_timeout</code></td>
+    <td>① <code>SQLALCHEMY_ENGINE_OPTIONS</code> 中增加 <code>pool_size</code> 和 <code>max_overflow</code><br>② Dashboard 结果页面级缓存（30s 内不重复查询）<br>③ 合并冗余 COUNT 查询</td>
+  </tr>
+  <tr>
+    <td><strong>全量查询内存</strong></td>
+    <td><code>repo.scalars_all(CronInfos, status=1)</code> 加载全部活跃任务 ORM 对象到内存</td>
+    <td>500 任务 × ~2KB/对象 ≈ 1MB（可接受）；2000 任务 ≈ 4MB</td>
+    <td>超大规模时改为 <code>select(CronInfos.id, CronInfos.minute, ...)</code> 轻量元组查询</td>
+  </tr>
+  <tr>
+    <td><strong>重复计算</strong></td>
+    <td>非 <code>health=overdue</code> 路径下，Stats 卡片仍需全量 <code>overdue_count</code>，每次请求重复计算</td>
+    <td>每次 Dashboard 加载都执行 Q2+Q3+C1（全量查询 + croniter 循环）</td>
+    <td>Flask-Caching <code>overdue_count</code> 缓存 30-60 秒</td>
+  </tr>
+</table>
+
+<h4>7.7.3 数据库连接池配置建议</h4>
+
+<p>当前 <code>config.py</code> 仅配置了 <code>pool_recycle=3000</code>，其余使用 SQLAlchemy 默认值。MySQL 生产环境建议：</p>
+
+<pre>
+# config.py — 生产 MySQL 连接池建议
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_recycle': 3000,
+    'pool_size': 10,       # 默认 5，Dashboard 高并发时可能不足
+    'max_overflow': 20,    # 默认 10，允许突发连接
+    'pool_timeout': 30,    # 默认 30s，超时即抛异常
+    'pool_pre_ping': True, # 每次从池中取连接前先 ping，避免 MySQL 8h 超时断开
+}
+</pre>
+
+<h4>7.7.4 已有 Dashboard SQL 瓶颈对比</h4>
+
+<p>逾期功能的性能影响需要放在 Dashboard <strong>已有查询负担</strong>的上下文中理解：</p>
+
+<table>
+  <tr><th>查询类别</th><th>查询数</th><th>耗时（6 任务 / 17K 日志）</th><th>瓶颈分析</th></tr>
+  <tr>
+    <td><strong>已有: 今日统计</strong>（metrics.today_fail + success_rate）</td>
+    <td>3 条</td>
+    <td><strong>42.8 ms</strong>（占 SQL 总耗时 88%）</td>
+    <td>每条都 JOIN + LIKE 全天日志扫描；<code>create_time</code> 为 VARCHAR 无法利用 DATE 范围</td>
+  </tr>
+  <tr>
+    <td><strong>已有: 基础 COUNT</strong>（metrics + status_counts + failing）</td>
+    <td>7 条</td>
+    <td>1.2 ms</td>
+    <td>cron_infos / job_health 表小，无瓶颈</td>
+  </tr>
+  <tr>
+    <td><strong>已有: 分页 + 详情</strong>（paginate + health + groups + tags）</td>
+    <td>14 条</td>
+    <td>2.8 ms</td>
+    <td>索引命中，数据量小</td>
+  </tr>
+  <tr>
+    <td style="background: #f0f9ff;"><strong>逾期: 新增查询</strong></td>
+    <td>3 条</td>
+    <td><strong>1.68 ms</strong>（占 SQL 总耗时 3.5%）</td>
+    <td>GROUP BY + 索引扫描</td>
+  </tr>
+  <tr>
+    <td style="background: #f0f9ff;"><strong>逾期: croniter 计算</strong></td>
+    <td>—</td>
+    <td>&lt; 1 ms（6 任务）</td>
+    <td>纯 CPU，线性增长</td>
+  </tr>
+</table>
+
+<p class="note"><strong>结论</strong>：Dashboard 性能的真正瓶颈是<strong>已有的「今日统计」查询</strong>（3 条占 88% SQL 时间），逾期功能新增开销仅占 3.5%。如需优化 Dashboard 整体性能，优先级应为：① 将 <code>create_time</code> 改为 <code>DATETIME</code> 并使用范围查询；② 添加 <code>(cron_info_id, create_time)</code> 复合索引；③ 页面级结果缓存 30-60 秒。</p>
+
+<h3>7.8 <code>create_time</code> 字段类型对性能的影响</h3>
+
+<p><code>job_log.create_time</code> 当前为 <code>VARCHAR(25)</code>（格式 <code>'YYYY-MM-DD HH:MM:SS'</code>），而非 <code>DATETIME</code>。这对逾期功能和已有查询都有影响：</p>
+
+<table>
+  <tr><th>影响</th><th><code>VARCHAR(25)</code>（当前）</th><th><code>DATETIME</code>（理想）</th></tr>
+  <tr>
+    <td>范围查询</td>
+    <td><code>LIKE 'YYYY-MM-DD%'</code> — 字符串前缀匹配，无法利用 MySQL 分区</td>
+    <td><code>BETWEEN '2026-08-26' AND '2026-08-27'</code> — 原生范围扫描，可利用日期分区</td>
+  </tr>
+  <tr>
+    <td><code>MAX()</code> 聚合</td>
+    <td>字典序比较（<code>YYYY-MM-DD</code> 格式恰好等价时间序），<strong>功能正确</strong></td>
+    <td>原生时间比较，无需字符串解析，<strong>更高效</strong></td>
+  </tr>
+  <tr>
+    <td>Python 解析</td>
+    <td>需要 <code>datetime.strptime()</code> 解析字符串（<code>_compute_overdue_map</code> 第 194 行）</td>
+    <td>SQLAlchemy 自动转为 <code>datetime</code> 对象，无需手动解析</td>
+  </tr>
+  <tr>
+    <td>存储空间</td>
+    <td>25 字节/行</td>
+    <td>8 字节/行（节省 68%）</td>
+  </tr>
+  <tr>
+    <td>索引效率</td>
+    <td>B+ 树按字节序排列，25 字节 key</td>
+    <td>8 字节 key，索引更紧凑，缓存命中率更高</td>
+  </tr>
+</table>
+
+<p class="note"><strong>注意</strong>：<code>create_time VARCHAR → DATETIME</code> 迁移是一个独立优化项（影响全站 <code>job_log</code> 相关查询），不在本功能范围内。但本功能的 Python 解析逻辑（<code>strptime</code>）已兼容两种类型（第 193-196 行的 <code>isinstance</code> 检查）。</p>
+
+<h2>8. 风险</h2>
+
+<table>
+  <tr><th>风险</th><th>评估</th><th>缓解</th></tr>
+  <tr>
+    <td>croniter 计算间隔可能对复杂 cron 表达式不准</td>
+    <td>低 — 项目中绝大多数是简单的 <code>*/N * * * *</code> 表达式</td>
+    <td>取相邻两次执行的间隔，覆盖单元测试中的常见表达式</td>
+  </tr>
+  <tr>
+    <td>新增 SQL 查询影响页面加载性能</td>
+    <td>低 — 实测新增 1.68 ms（占 Dashboard 总耗时 0.8%），索引命中</td>
+    <td><code>GROUP BY cron_info_id</code> 单次批量查询 + 索引 <code>ix_job_log_cron_info_id</code></td>
+  </tr>
+  <tr>
+    <td>croniter 计算 CPU 开销随任务数线性增长</td>
+    <td>低（&lt;200 任务）/ 中（200-500 任务）</td>
+    <td>实测 500 任务 ~120 ms；超 200 任务可加缓存层或后台预计算</td>
+  </tr>
+  <tr>
+    <td>全量活跃任务查询（<code>overdue_count</code>）在大数据量下偏慢</td>
+    <td>低 — <code>cron_infos</code> 表通常 &lt; 500 行</td>
+    <td><code>status = 1</code> 过滤后行数很少；未来可缓存 30-60 秒</td>
+  </tr>
+  <tr>
+    <td>2 倍间隔阈值过于敏感或过于迟钝</td>
+    <td>中 — 每分钟执行的任务 2 分钟就报逾期，每天执行的任务 2 天才报</td>
+    <td>使用 <code>max(interval × 2, 10min)</code> 作为最小阈值，避免高频任务频繁闪烁</td>
+  </tr>
+  <tr>
+    <td><code>health=overdue</code> 筛选时需预计算全量</td>
+    <td>低 — 仅在用户点击筛选按钮时触发</td>
+    <td>预计算结果复用于分页和计数；非筛选路径不执行全量计算</td>
+  </tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="任务中心逾期未执行提示设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

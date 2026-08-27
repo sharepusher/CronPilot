@@ -71,8 +71,10 @@
           }
         }
 
-        if (data.url) {
+        if (data.url && data.errcode === 0) {
           window.location.href = data.url;
+        } else if (data.url && data.errcode !== 0) {
+          setTimeout(function() { window.location.href = data.url; }, 800);
         } else if (data.errcode === 0) {
           var loc = window.location;
           loc.href = loc.pathname + loc.search;
@@ -137,6 +139,13 @@
     expire.setTime(expire.getTime() + 86400000 * days);
     document.cookie = name + '=' + encodeURIComponent(value) +
       ';path=/;expires=' + expire.toUTCString() + ';samesite=lax';
+  };
+
+  /* ====== 5. HTML Escape Utility ====== */
+  window.escHtml = function(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   };
 
 })(jQuery);

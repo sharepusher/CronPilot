@@ -157,27 +157,27 @@ class TestScopeIntegration(unittest.TestCase):
         from datas.model.resource_group import ResourceGroup
         from datas.model.user_group import UserGroup
         from datas.model.task_group import TaskGroup
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
-        g1 = ResourceGroup(name='组A', description='', create_time=get_now_time())
-        g2 = ResourceGroup(name='组B', description='', create_time=get_now_time())
+        g1 = ResourceGroup(name='组A', description='', create_time=utc_now_hms())
+        g2 = ResourceGroup(name='组B', description='', create_time=utc_now_hms())
         self.db.session.add_all([g1, g2])
         self.db.session.flush()
         self.g1_id = g1.id
         self.g2_id = g2.id
 
-        op = RbacUser(username='op_a', role='operator', is_active=1, create_time=get_now_time())
+        op = RbacUser(username='op_a', role='operator', is_active=1, create_time=utc_now_hms())
         op.set_password('pass')
-        vw = RbacUser(username='vw_a', role='viewer', is_active=1, create_time=get_now_time())
+        vw = RbacUser(username='vw_a', role='viewer', is_active=1, create_time=utc_now_hms())
         vw.set_password('pass')
-        adm = RbacUser(username='adm', role='admin', is_active=1, create_time=get_now_time())
+        adm = RbacUser(username='adm', role='admin', is_active=1, create_time=utc_now_hms())
         adm.set_password('pass')
         self.db.session.add_all([op, vw, adm])
         self.db.session.flush()
         self.db.session.add(UserGroup(user_id=op.id, group_id=g1.id))
         self.db.session.add(UserGroup(user_id=vw.id, group_id=g1.id))
 
-        now = get_now_time()
+        now = utc_now_hms()
         c_global = CronInfos(
             task_name='global_task',
             task_keyword='kw',
@@ -301,11 +301,11 @@ class TestScopeIntegration(unittest.TestCase):
         """OPT-P1-16 回归：双组 operator 可见两个组的任务 + GLOBAL。"""
         from datas.model.rbac_user import RbacUser
         from datas.model.user_group import UserGroup
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
         with self.app.app_context():
             multi_op = RbacUser(username='op_multi', role='operator',
-                                is_active=1, create_time=get_now_time())
+                                is_active=1, create_time=utc_now_hms())
             multi_op.set_password('pass')
             self.db.session.add(multi_op)
             self.db.session.flush()
@@ -325,11 +325,11 @@ class TestScopeIntegration(unittest.TestCase):
         """OPT-P1-16 回归：Biz Admin 有 group_ids 时受 scope 限制（仅看自己组 + GLOBAL）。"""
         from datas.model.rbac_user import RbacUser
         from datas.model.user_group import UserGroup
-        from datas.utils.times import get_now_time
+        from datas.utils.times import utc_now_hms
 
         with self.app.app_context():
             biz_adm = RbacUser(username='biz_adm_g1', role='admin',
-                               is_active=1, create_time=get_now_time())
+                               is_active=1, create_time=utc_now_hms())
             biz_adm.set_password('pass')
             self.db.session.add(biz_adm)
             self.db.session.flush()
@@ -367,26 +367,27 @@ class TestAuditLogActorGroups(unittest.TestCase):
     def _seed_audit_data(self):
         """写入测试审计数据，覆盖各种 actor_group_ids 场景。"""
         from datas.model.rbac_audit_log import RbacAuditLog
+        from datas.utils.times import str_to_hms
 
         entries = [
             RbacAuditLog(id=1, username='admin', action='user:login',
                          resource='admin', actor_group_ids='',
-                         create_time='2026-07-31 10:00:00'),
+                         create_time=str_to_hms('2026-07-31 10:00:00')),
             RbacAuditLog(id=2, username='mgr_a', action='user:login',
                          resource='mgr_a', actor_group_ids=',1,2,',
-                         create_time='2026-07-31 10:01:00'),
+                         create_time=str_to_hms('2026-07-31 10:01:00')),
             RbacAuditLog(id=3, username='mgr_b', action='user:password_reset',
                          resource='user_x', actor_group_ids=',3,4,',
-                         create_time='2026-07-31 10:02:00'),
+                         create_time=str_to_hms('2026-07-31 10:02:00')),
             RbacAuditLog(id=4, username='user_x', action='user:login',
                          resource='user_x', actor_group_ids=',1,3,',
-                         create_time='2026-07-31 10:03:00'),
+                         create_time=str_to_hms('2026-07-31 10:03:00')),
             RbacAuditLog(id=5, username='user_y', action='permission:deny',
                          resource='cron:write', actor_group_ids=',2,',
-                         status='deny', create_time='2026-07-31 10:04:00'),
+                         status='deny', create_time=str_to_hms('2026-07-31 10:04:00')),
             RbacAuditLog(id=6, username='old_user', action='user:login',
                          resource='old_user', actor_group_ids='',
-                         create_time='2026-07-01 10:00:00'),
+                         create_time=str_to_hms('2026-07-01 10:00:00')),
         ]
         for e in entries:
             self.db.session.add(e)
@@ -486,10 +487,12 @@ class TestAuditLogActorGroups(unittest.TestCase):
         from app.services.pagination import PageQuery
 
         with self.app.app_context():
+            from datas.utils.times import str_to_hms
+
             tricky = RbacAuditLog(
                 id=100, username='tricky', action='user:login',
                 resource='tricky', actor_group_ids=',13,',
-                create_time='2026-07-31 11:00:00',
+                create_time=str_to_hms('2026-07-31 11:00:00'),
             )
             self.db.session.add(tricky)
             self.db.session.commit()

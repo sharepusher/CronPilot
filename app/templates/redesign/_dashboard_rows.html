@@ -1,0 +1,105 @@
+{# Partial: Dashboard table rows — rendered by both full page and AJAX partial #}
+{% for item in page_data.items %}
+{% set h = health_by_id.get(item.id) %}
+{% set lr = last_run_map.get(item.id, {}) %}
+<tr{% if item.status == -1 %} class="row-retired"{% endif %}>
+  {# COL 1: Task (name + task_id + lifecycle + tags) #}
+  <td>
+    <a href="{{ url_for('main.task_detail_v2', id=item.id) }}" class="tc-name{% if h and h.health_status == 'failing' %} failing{% endif %}" data-tooltip="{{ item.task_name }}">{{ item.task_name }}</a>
+    <div class="tc-id">{{ item.task_keyword or '—' }}</div>
+    <div class="tc-tags">
+      {% if item.status == 1 %}<span class="tc-lifecycle active">运行中</span>
+      {% elif item.status == 0 %}<span class="tc-lifecycle paused">已暂停</span>
+      {% elif item.status == -1 %}<span class="tc-lifecycle retired">已下线</span>{% endif %}
+      {% set tags = task_tag_map.get(item.id, []) if task_tag_map is defined else [] %}
+      {% for tag in tags[:3] %}<span class="tc-tag">{{ tag }}</span>{% endfor %}
+      {% if tags|length > 3 %}<span class="tc-tag">+{{ tags|length - 3 }}</span>{% endif %}
+    </div>
+  </td>
+  {# COL 2: Schedule (human text + cron expr) #}
+  <td>
+    {% if item.run_date %}
+    <div class="sched-human">{{ item.run_date }}</div>
+    <div class="sched-expr">一次性</div>
+    {% else %}
+    <div class="sched-human">{{ item|humanize_schedule }}</div>
+    <div class="sched-expr">{{ item|format_cron_expression or '—' }}</div>
+    {% endif %}
+  </td>
+  {# COL 3: Health (badge text) #}
+  <td>
+    {% if item.status == -1 %}
+    <span class="health-badge off">已下线</span>
+    {% elif overdue_map.get(item.id) and h and h.health_status == 'failing' %}
+    <span class="health-badge overdue"><span class="hc-dot dot-overdue"></span>异常 · 逾期</span>
+    {% elif overdue_map.get(item.id) %}
+    <span class="health-badge overdue"><span class="hc-dot dot-overdue"></span>逾期</span>
+    {% elif h and h.health_status == 'failing' %}
+    <span class="health-badge danger"><span class="hc-dot dot-fail"></span>异常</span>
+    {% elif h and h.health_status == 'ok' %}
+    <span class="health-badge ok"><span class="hc-dot dot-ok"></span>健康</span>
+    {% else %}
+    <span class="health-badge unknown">N/A</span>
+    {% endif %}
+  </td>
+  {# COL 4: Last Run (http_status + duration + relative time) #}
+  <td class="lr-cell">
+    {% if lr %}
+    <div class="lr-status">
+      <span class="lr-pin" style="background:var({% if lr.get('status') == 'success' %}--cp-success{% elif lr.get('status') in ['fail','error','timeout'] %}--cp-danger{% else %}--cp-text-faint{% endif %})"></span>
+      {{ lr.get('http_status', '—') }}
+    </div>
+    <div class="lr-duration">{{ lr.get('take_time', '—') }}s</div>
+    <div class="lr-time">{{ lr.get('create_time', 0)|hms_time or '—' }}</div>
+    {% else %}
+    <span class="lr-time">—</span>
+    {% endif %}
+  </td>
+  {# COL 5: Next Run (relative time) #}
+  <td>
+    {% set nr = next_run_map.get(item.id, '—') %}
+    <span class="nr{% if item.status == 0 %} paused{% elif item.status == -1 %} offline{% elif 'min' in nr %} imminent{% endif %}">{{ nr }}</span>
+  </td>
+  {# COL 6: Business Group #}
+  <td>
+    <span class="sc">
+      {%- if item.scope_type == 'GLOBAL' -%}—{%- else -%}
+        {%- set gids = task_group_map.get(item.id, []) if task_group_map is defined else [] -%}
+        {%- if gids is iterable and gids is not string -%}
+          {%- for gid in gids %}{{ group_name_by_id.get(gid, '—') }}{% if not loop.last %}, {% endif %}{%- endfor -%}
+        {%- elif gids -%}{{ group_name_by_id.get(gids, '—') }}{%- else -%}—{%- endif -%}
+      {%- endif -%}
+    </span>
+  </td>
+  {# COL 7: Actions (icon buttons) #}
+  <td>
+    <div class="row-acts">
+      {% if has_perm('cron:write') and item.status == 1 and item.req_url %}
+      <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" title="立即执行" aria-label="立即执行">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      {% endif %}
+      <a class="act-btn" href="{{ url_for('main.job_log_list', id=item.id) }}" title="执行记录">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+      </a>
+      {% if has_perm('cron:write') and item.status != -1 %}
+      <div class="c-dd">
+        <button class="act-btn" onclick="this.parentElement.classList.toggle('open')" title="更多" aria-label="更多操作">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+        </button>
+        <div class="c-dd-menu">
+          {% if item.status == 1 %}
+          <a onclick="cpToggleStatus({{ item.id }}, 0, this)">暂停</a>
+          {% elif item.status == 0 %}
+          <a onclick="cpToggleStatus({{ item.id }}, 1, this)">恢复</a>
+          {% endif %}
+          <a href="{{ url_for('main.cron_edit', id=item.id) }}">编辑</a>
+          <div class="c-div"></div>
+          <a class="c-danger" onclick="cpRetire({{ item.id }}, this)">下线</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+{% endfor %}

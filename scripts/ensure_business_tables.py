@@ -59,11 +59,13 @@ def main():
         _ensure_rbac_registration_requests_columns()
         _ensure_rbac_audit_logs_columns()
         _ensure_time_column_indexes()
+        _ensure_composite_indexes()
         _migrate_group_id_to_task_groups()
         _ensure_tags_group_id_column()
         _migrate_tags_group_isolation()
         _ensure_tags_description_column()
         _drop_resource_groups_code_column(backend=backend)
+        _migrate_time_columns_to_bigint()
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
         ensure_existing_users_have_token()
@@ -100,9 +102,9 @@ def _ensure_job_log_columns():
     if 'fail_reason' not in cols:
         alters.append('ALTER TABLE job_log ADD COLUMN fail_reason VARCHAR(128)')
     if 'started_at' not in cols:
-        alters.append("ALTER TABLE job_log ADD COLUMN started_at VARCHAR(25)")
+        alters.append("ALTER TABLE job_log ADD COLUMN started_at BIGINT")
     if 'finished_at' not in cols:
-        alters.append("ALTER TABLE job_log ADD COLUMN finished_at VARCHAR(25)")
+        alters.append("ALTER TABLE job_log ADD COLUMN finished_at BIGINT")
     if 'timeout_sec' not in cols:
         alters.append("ALTER TABLE job_log ADD COLUMN timeout_sec INTEGER")
     if not alters:
@@ -125,13 +127,13 @@ def _ensure_cron_infos_columns(backend=''):
     cols = {c['name'] for c in insp.get_columns('cron_infos')}
     alters = []
     if 'created_at' not in cols:
-        alters.append("ALTER TABLE cron_infos ADD COLUMN created_at VARCHAR(25) DEFAULT ''")
+        alters.append("ALTER TABLE cron_infos ADD COLUMN created_at BIGINT DEFAULT 0")
     if 'updated_at' not in cols:
-        alters.append("ALTER TABLE cron_infos ADD COLUMN updated_at VARCHAR(25) DEFAULT ''")
+        alters.append("ALTER TABLE cron_infos ADD COLUMN updated_at BIGINT DEFAULT 0")
     if 'retire_reason' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN retire_reason VARCHAR(500) DEFAULT ''")
     if 'retired_at' not in cols:
-        alters.append("ALTER TABLE cron_infos ADD COLUMN retired_at VARCHAR(25) DEFAULT ''")
+        alters.append("ALTER TABLE cron_infos ADD COLUMN retired_at BIGINT DEFAULT 0")
     if 'scope_type' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN scope_type VARCHAR(16) DEFAULT 'GLOBAL'")
     # group_id 已迁移至 task_groups 表（OPT-P1-11），不再补列
@@ -149,7 +151,7 @@ def _ensure_cron_infos_columns(backend=''):
         )
     if 'last_operated_at' not in cols:
         alters.append(
-            "ALTER TABLE cron_infos ADD COLUMN last_operated_at VARCHAR(25) DEFAULT ''"
+            "ALTER TABLE cron_infos ADD COLUMN last_operated_at BIGINT DEFAULT 0"
         )
     if 'timeout_sec' not in cols:
         alters.append('ALTER TABLE cron_infos ADD COLUMN timeout_sec INTEGER')
@@ -186,7 +188,7 @@ def _ensure_rbac_users_columns():
         )
     if 'api_token_expires_at' not in cols:
         alters.append(
-            'ALTER TABLE rbac_users ADD COLUMN api_token_expires_at VARCHAR(25)'
+            'ALTER TABLE rbac_users ADD COLUMN api_token_expires_at BIGINT'
         )
     if 'email' not in cols:
         alters.append(
@@ -202,7 +204,7 @@ def _ensure_rbac_users_columns():
         )
     if 'last_login_at' not in cols:
         alters.append(
-            'ALTER TABLE rbac_users ADD COLUMN last_login_at VARCHAR(25)'
+            'ALTER TABLE rbac_users ADD COLUMN last_login_at BIGINT'
         )
     if not alters:
         return
@@ -318,6 +320,41 @@ def _ensure_time_column_indexes():
             db.session.rollback()
     if created:
         print('OK: 时间列索引已创建 ->', ', '.join(created))
+
+
+def _ensure_composite_indexes():
+    """补建复合索引（幂等）。
+
+    job_log (cron_info_id, create_time) — 逾期检测和最近执行时间查询
+    使用 Loose Index Scan 加速 MAX(create_time) GROUP BY cron_info_id。
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    composite_targets = [
+        ('job_log', 'ix_job_log_cron_id_create_time', ['cron_info_id', 'create_time']),
+    ]
+    created = []
+    for table, idx_name, columns in composite_targets:
+        if not insp.has_table(table):
+            continue
+        existing_cols = {c['name'] for c in insp.get_columns(table)}
+        if not all(c in existing_cols for c in columns):
+            continue
+        existing_indexes = {idx['name'] for idx in insp.get_indexes(table)}
+        if idx_name in existing_indexes:
+            continue
+        col_list = ', '.join(columns)
+        try:
+            db.session.execute(
+                text('CREATE INDEX %s ON %s (%s)' % (idx_name, table, col_list))
+            )
+            db.session.commit()
+            created.append('%s(%s)' % (table, col_list))
+        except Exception:
+            db.session.rollback()
+    if created:
+        print('OK: 复合索引已创建 ->', ', '.join(created))
 
 
 def _migrate_group_id_to_task_groups():
@@ -555,7 +592,7 @@ def _drop_resource_groups_code_column(backend='sqlite'):
                 '  id INTEGER PRIMARY KEY,'
                 '  name VARCHAR(64) NOT NULL DEFAULT \'\' UNIQUE,'
                 '  description VARCHAR(255) NOT NULL DEFAULT \'\','
-                '  create_time VARCHAR(25) NOT NULL DEFAULT \'\''
+                '  create_time BIGINT NOT NULL DEFAULT 0'
                 ')'
             ))
             conn.execute(text(
@@ -572,6 +609,130 @@ def _drop_resource_groups_code_column(backend='sqlite'):
     except Exception:
         pass
     print('OK: resource_groups 已移除 code 列，name 已加 UNIQUE')
+
+
+def _migrate_time_columns_to_bigint():
+    """将所有时间戳列的 VARCHAR 数据迁移为 BIGINT（百毫秒 UTC）。
+
+    幂等：已经是整数的列跳过。支持 SQLite / MySQL 双后端。
+    迁移策略 T-A：将历史本地时间转换为真正的 UTC。
+    """
+    import time
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    backend = business_db_backend(str(db.engine.url))
+
+    _TS_COLUMNS = [
+        ('job_log', ['create_time', 'started_at', 'finished_at']),
+        ('cron_infos', ['created_at', 'updated_at', 'retired_at', 'last_operated_at']),
+        ('job_health', ['last_run_at', 'last_success_at', 'last_fail_at', 'updated_at']),
+        ('operation_log', ['create_time']),
+        ('rbac_audit_logs', ['create_time']),
+        ('rbac_users', ['api_token_expires_at', 'create_time', 'last_login_at']),
+        ('rbac_registration_requests', ['create_time', 'update_time']),
+        ('tags', ['create_time', 'update_time']),
+        ('resource_groups', ['create_time']),
+    ]
+
+    migrated_total = 0
+    for table, columns in _TS_COLUMNS:
+        if not insp.has_table(table):
+            continue
+        existing_cols = {c['name'] for c in insp.get_columns(table)}
+        for col in columns:
+            if col not in existing_cols:
+                continue
+            if not _column_needs_migration(table, col, backend):
+                continue
+            count = _convert_column_data(table, col, backend)
+            if count >= 0:
+                migrated_total += count
+                if backend == 'mysql':
+                    _alter_column_to_bigint_mysql(table, col)
+    if migrated_total:
+        print('OK: 时间戳迁移至 BIGINT 完成 -> %d 行' % migrated_total)
+    else:
+        print('OK: 时间戳列已是 BIGINT，无需迁移')
+
+
+def _column_needs_migration(table, col, backend):
+    """检测列是否仍包含 VARCHAR 时间数据（需要迁移）。
+    注意：纯数字文本（如 '17877473677'）是 VARCHAR 列中存储的有效
+    BIGINT 时间戳，不应触发迁移。只有日期格式字符串才需要迁移。
+    """
+    from sqlalchemy import text
+
+    if backend == 'sqlite':
+        row = db.session.execute(text(
+            "SELECT %s FROM %s WHERE %s IS NOT NULL "
+            "AND %s != '' AND %s != '0' AND typeof(%s) = 'text' "
+            "AND %s LIKE '____-__-__%%' LIMIT 1"
+            % (col, table, col, col, col, col, col)
+        )).fetchone()
+        return row is not None
+    else:
+        row = db.session.execute(text(
+            "SELECT %s FROM %s WHERE %s IS NOT NULL "
+            "AND %s != '' AND %s != '0' LIMIT 1" % (col, table, col, col, col)
+        )).fetchone()
+        if row is None:
+            return False
+        val = row[0]
+        return isinstance(val, str) and len(val) >= 10 and val[:4].isdigit()
+
+
+def _convert_column_data(table, col, backend):
+    """将列中的 VARCHAR 时间数据转换为 BIGINT 百毫秒 UTC。返回影响行数。"""
+    from sqlalchemy import text
+
+    if backend == 'sqlite':
+        sql = (
+            "UPDATE %s SET %s = CAST(strftime('%%s', %s, 'utc') AS INTEGER) * 10 "
+            "WHERE %s IS NOT NULL AND %s != '' AND typeof(%s) = 'text' "
+            "AND %s LIKE '____-__-__%%'"
+            % (table, col, col, col, col, col, col)
+        )
+    else:
+        sql = (
+            "UPDATE %s SET %s = UNIX_TIMESTAMP(%s) * 10 "
+            "WHERE %s IS NOT NULL AND %s != '' AND %s != '0' "
+            "AND %s REGEXP '^[0-9]{4}-'"
+            % (table, col, col, col, col, col, col)
+        )
+
+    with db.engine.begin() as conn:
+        result = conn.execute(text(sql))
+        count = result.rowcount
+
+    # 空字符串 → 0（默认值）；注意不能清除纯数字文本（如 '17877473677'），
+    # 那是 VARCHAR 列中存储的有效 BIGINT 时间戳。
+    if backend == 'sqlite':
+        cleanup_sql = (
+            "UPDATE %s SET %s = 0 WHERE %s = '' "
+            "OR (%s IS NOT NULL AND typeof(%s) = 'text' AND CAST(%s AS INTEGER) = 0 AND %s != '0')"
+            % (table, col, col, col, col, col, col)
+        )
+    else:
+        cleanup_sql = "UPDATE %s SET %s = 0 WHERE %s = ''" % (table, col, col)
+    with db.engine.begin() as conn:
+        conn.execute(text(cleanup_sql))
+
+    print('  %s.%s -> %d 行已转换' % (table, col, count))
+    return count
+
+
+def _alter_column_to_bigint_mysql(table, col):
+    """MySQL 专用：ALTER COLUMN 类型为 BIGINT。"""
+    from sqlalchemy import text
+
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                'ALTER TABLE %s MODIFY COLUMN %s BIGINT' % (table, col)
+            ))
+    except Exception as e:
+        print('WARN: ALTER %s.%s 失败: %s' % (table, col, e))
 
 
 if __name__ == '__main__':

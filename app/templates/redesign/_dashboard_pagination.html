@@ -1,0 +1,23 @@
+{# Partial: Dashboard pagination — rendered by both full page and AJAX partial #}
+<div class="hf-pg-info">{{ page_data.total }} total</div>
+{% if page_data.pages > 1 %}
+<div class="hf-pg-nav">
+  {% if page_data.has_prev %}
+  <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.prev_num, **keyword) }}">‹</a>
+  {% else %}
+  <span class="hf-pg-btn disabled">‹</span>
+  {% endif %}
+  {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+    {% if p %}
+    <a class="hf-pg-btn{{ ' active' if p == page_data.page }}" href="{{ url_for('main.cron_list', page=p, **keyword) }}">{{ p }}</a>
+    {% else %}
+    <span class="hf-pg-btn disabled">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page_data.has_next %}
+  <a class="hf-pg-btn" href="{{ url_for('main.cron_list', page=page_data.next_num, **keyword) }}">›</a>
+  {% else %}
+  <span class="hf-pg-btn disabled">›</span>
+  {% endif %}
+</div>
+{% endif %}

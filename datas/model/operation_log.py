@@ -12,8 +12,8 @@ from app import db
 class OperationLog(db.Model):
     __tablename__ = 'operation_log'
     id: Mapped[int] = mapped_column(primary_key=True)
-    create_time: Mapped[str] = mapped_column(
-        db.String(25), nullable=False, default='', index=True
+    create_time: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0, index=True
     )
     action: Mapped[str] = mapped_column(db.String(32), nullable=False, default='')
     channel: Mapped[str] = mapped_column(db.String(8), nullable=False, default='')

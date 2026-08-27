@@ -263,10 +263,11 @@ def cron_logs():
         except (TypeError, ValueError):
             return api_return(errcode=1, errmsg='http_status 参数无效')
         log_filters.append(JobLog.http_status == http_status)
+    from datas.utils.times import str_to_hms, hms_to_str
     if beg_time:
-        log_filters.append(JobLog.create_time >= beg_time)
+        log_filters.append(JobLog.create_time >= str_to_hms(beg_time + ' 00:00:00'))
     if end_time:
-        log_filters.append(JobLog.create_time <= end_time)
+        log_filters.append(JobLog.create_time <= str_to_hms(end_time + ' 23:59:59'))
     total = db.session.scalar(
         select(func.count()).select_from(JobLog).where(*log_filters)
     ) or 0
@@ -283,7 +284,7 @@ def cron_logs():
         'status': row.status or '',
         'http_status': row.http_status,
         'fail_reason': row.fail_reason or '',
-        'create_time': row.create_time or '',
+        'create_time': hms_to_str(row.create_time) or '',
         'take_time': row.take_time or '',
         'started_at': row.started_at or '',
         'finished_at': row.finished_at or '',
@@ -388,6 +389,7 @@ def cron_log_detail():
     if denied is not None:
         return denied
 
+    from datas.utils.times import hms_to_str
     return api_return(errcode=0, errmsg='ok', data={
         'id': log.id,
         'log_id': log.log_id or '',
@@ -397,7 +399,7 @@ def cron_log_detail():
         'http_status': log.http_status,
         'fail_reason': log.fail_reason or '',
         'content': log.content or '',
-        'create_time': log.create_time or '',
+        'create_time': hms_to_str(log.create_time) or '',
         'take_time': log.take_time or '',
         'started_at': log.started_at or '',
         'finished_at': log.finished_at or '',

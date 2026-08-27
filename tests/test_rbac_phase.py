@@ -4,10 +4,12 @@ from unittest.mock import patch
 
 from flask import Flask, render_template, session
 
+from app import register_hms_filters
 from app.main import main as main_blueprint
 from app.rbac.context import make_has_perm
 from app.rbac.policy import has_permission
 from app.rbac.services import get_role_permission_set
+from datas.utils.times import str_to_hms, utc_now_hms
 
 
 class TestCheckPassForward(unittest.TestCase):
@@ -66,6 +68,7 @@ class TestRbacLogin(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -135,6 +138,7 @@ class TestChangeOwnPassword(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -145,7 +149,7 @@ class TestChangeOwnPassword(unittest.TestCase):
             from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             db.create_all()
-            u = RbacUser(username='op1', role='operator', is_active=1, create_time='t')
+            u = RbacUser(username='op1', role='operator', is_active=1, create_time=utc_now_hms())
             u.set_password('oldpass1')
             db.session.add(u)
             db.session.commit()
@@ -227,6 +231,7 @@ class TestR3Permissions(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -282,6 +287,7 @@ class TestLifecycleNoDelete(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -314,8 +320,8 @@ class TestLifecycleNoDelete(unittest.TestCase):
                 task_keyword='说明',
                 req_url='https://example.com/x',
                 status=1,
-                created_at='2026-01-01 00:00:00',
-                updated_at='2026-01-01 00:00:00',
+                created_at=str_to_hms('2026-01-01 00:00:00'),
+                updated_at=str_to_hms('2026-01-01 00:00:00'),
             )
             db.session.add(cif)
             db.session.commit()
@@ -362,6 +368,7 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -371,14 +378,17 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
         with app.app_context():
             from datas.model.cron_infos import CronInfos  # noqa: F401
             from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             db.create_all()
             cif = CronInfos(
                 task_name='visible-retire',
                 task_keyword='说明',
                 req_url='https://example.com/r',
                 status=1,
-                created_at='t',
-                updated_at='t',
+                created_at=utc_now_hms(),
+                updated_at=utc_now_hms(),
             )
             db.session.add(cif)
             db.session.commit()
@@ -435,6 +445,7 @@ class TestNavHasPerm(unittest.TestCase):
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
+        register_hms_filters(app)
         self.app = app
 
     def _render_nav(self, role):
@@ -508,6 +519,7 @@ class TestNotFound(unittest.TestCase):
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
+        register_hms_filters(app)
         self.client = app.test_client()
 
     def test_guest_404_renders_minimal_page(self):
@@ -542,6 +554,7 @@ class TestApiDocReadonly(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -554,7 +567,7 @@ class TestApiDocReadonly(unittest.TestCase):
                 role='viewer',
                 is_active=1,
                 must_reset_password=0,
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             user.set_password('viewer-pass')
             db.session.add(user)
@@ -598,6 +611,7 @@ class TestRbacUsersManage(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -614,7 +628,7 @@ class TestRbacUsersManage(unittest.TestCase):
                 name='Default',
                 
                 description='',
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             db.session.add(g)
             db.session.commit()
@@ -641,6 +655,7 @@ class TestRbacUsersManage(unittest.TestCase):
                 'username': 'alice',
                 'role': 'viewer',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
@@ -682,6 +697,7 @@ class TestRbacUsersManage(unittest.TestCase):
                 'username': 'bob',
                 'role': 'viewer',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -693,7 +709,7 @@ class TestRbacUsersManage(unittest.TestCase):
         from datas.model.user_group import UserGroup
 
         with self.app.app_context():
-            user = RbacUser(username='davy', role='viewer', is_active=1, create_time='t')
+            user = RbacUser(username='davy', role='viewer', is_active=1, create_time=utc_now_hms())
             user.set_password('x')
             self.db.session.add(user)
             self.db.session.commit()
@@ -709,6 +725,7 @@ class TestRbacUsersManage(unittest.TestCase):
                 'role': 'operator',
                 'is_active': '1',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
@@ -726,7 +743,7 @@ class TestRbacUsersManage(unittest.TestCase):
         from datas.model.rbac_user import RbacUser
 
         with self.app.app_context():
-            admin = RbacUser(username='solo', role='admin', is_active=1, create_time='t')
+            admin = RbacUser(username='solo', role='admin', is_active=1, create_time=utc_now_hms())
             admin.set_password('x')
             self.db.session.add(admin)
             self.db.session.commit()
@@ -750,9 +767,9 @@ class TestRbacUsersManage(unittest.TestCase):
         from datas.model.rbac_user import RbacUser
 
         with self.app.app_context():
-            a1 = RbacUser(username='a1', role='admin', is_active=1, create_time='t')
+            a1 = RbacUser(username='a1', role='admin', is_active=1, create_time=utc_now_hms())
             a1.set_password('x')
-            a2 = RbacUser(username='a2', role='admin', is_active=1, create_time='t')
+            a2 = RbacUser(username='a2', role='admin', is_active=1, create_time=utc_now_hms())
             a2.set_password('x')
             self.db.session.add_all([a1, a2])
             self.db.session.commit()
@@ -790,6 +807,7 @@ class TestForcedPasswordReset(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -801,12 +819,16 @@ class TestForcedPasswordReset(unittest.TestCase):
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.resource_group import ResourceGroup
             from datas.model.user_group import UserGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.cron_infos import CronInfos  # noqa: F401
             db.create_all()
             g = ResourceGroup(
                 name='Default',
                 
                 description='',
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             db.session.add(g)
             admin = RbacUser(
@@ -814,7 +836,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 role='admin',
                 is_active=1,
                 must_reset_password=0,
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             admin.set_password('admin-pass')
             existing = RbacUser(
@@ -822,7 +844,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 role='viewer',
                 is_active=1,
                 must_reset_password=0,
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             existing.set_password('oldie-pass')
             db.session.add_all([admin, existing])
@@ -861,6 +883,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 'username': 'newbie',
                 'role': 'viewer',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
                 'password': 'ignored-secret',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
@@ -952,7 +975,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 role='operator',
                 is_active=1,
                 must_reset_password=0,
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             target.set_password('live-pass')
             self.db.session.add(target)
@@ -1036,6 +1059,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 'role': 'viewer',
                 'is_active': '1',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
                 'password': 'hacked-pass',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
@@ -1057,7 +1081,7 @@ class TestForcedPasswordReset(unittest.TestCase):
                 is_active=0,
                 must_reset_password=1,
                 status_reason='请假停用',
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             disabled.set_password('x')
             self.db.session.add(disabled)
@@ -1192,6 +1216,7 @@ class TestRbacAuditLogs(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -1225,7 +1250,7 @@ class TestRbacAuditLogs(unittest.TestCase):
                     resource='admin',
                     ip='127.0.0.1',
                     status='allow',
-                    create_time='2026-07-14 10:00:00',
+                    create_time=str_to_hms('2026-07-14 10:00:00'),
                 )
             )
             self.db.session.commit()
@@ -1271,6 +1296,7 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -1285,13 +1311,16 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             db.create_all()
             for name, role, pwd in (
                 ('tri_admin', 'admin', 'admin-pass'),
                 ('tri_op', 'operator', 'op-pass'),
                 ('tri_view', 'viewer', 'view-pass'),
             ):
-                u = RbacUser(username=name, role=role, is_active=1, create_time='t')
+                u = RbacUser(username=name, role=role, is_active=1, create_time=utc_now_hms())
                 u.set_password(pwd)
                 db.session.add(u)
             db.session.commit()
@@ -1440,6 +1469,7 @@ class TestUserTopbar(unittest.TestCase):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -1455,7 +1485,7 @@ class TestUserTopbar(unittest.TestCase):
                 name='支付业务',
                 
                 description='',
-                create_time='t',
+                create_time=utc_now_hms(),
             )
             db.session.add(g)
             db.session.commit()

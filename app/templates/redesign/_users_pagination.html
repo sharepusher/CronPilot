@@ -1,0 +1,21 @@
+{# Partial: User management pagination — rendered by both full page and AJAX partial #}
+<span class="count">{{ page_data.total }} total</span>
+<div class="c-pg">
+  {% if page_data.has_prev %}
+  <a class="c-pg-btn" href="{{ url_for('rbac.users_list', page=page_data.page - 1, username=search_username or '', chip=chip or '') }}">‹</a>
+  {% else %}
+  <span class="c-pg-btn disabled">‹</span>
+  {% endif %}
+  {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}
+    <a class="c-pg-btn{{ ' active' if p == page_data.page }}" href="{{ url_for('rbac.users_list', page=p, username=search_username or '', chip=chip or '') }}">{{ p }}</a>
+    {% else %}
+    <span class="c-pg-btn disabled">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page_data.has_next %}
+  <a class="c-pg-btn" href="{{ url_for('rbac.users_list', page=page_data.page + 1, username=search_username or '', chip=chip or '') }}">›</a>
+  {% else %}
+  <span class="c-pg-btn disabled">›</span>
+  {% endif %}
+</div>

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from flask import Flask
 from sqlalchemy import select
 
+from app import register_hms_filters
 from app.main import main as main_blueprint
 from app.services.operation_log_service import (
     OperatorContext,
@@ -100,6 +101,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
         }
         from app import db
         db.init_app(app)
+        register_hms_filters(app)
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
@@ -128,10 +130,10 @@ class TestOperationLogListAndWrite(unittest.TestCase):
         from app import db
         from datas.model.cron_infos import CronInfos
         from datas.model.operation_log import OperationLog
-        from datas.utils.times import get_now_time
+        from datas.utils.times import get_now_time, utc_now_hms, str_to_hms
 
         with self.app.app_context():
-            now = get_now_time()
+            now = utc_now_hms()
             cif = CronInfos(
                 task_name='daily',
                 task_keyword='kw',
@@ -145,7 +147,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             db.session.flush()
             db.session.add(
                 OperationLog(
-                    create_time='2026-07-14 10:00:00',
+                    create_time=str_to_hms('2026-07-14 10:00:00'),
                     action='create_cron',
                     channel='web',
                     operator_type='user',
@@ -177,11 +179,12 @@ class TestOperationLogListAndWrite(unittest.TestCase):
     def test_admin_lists_rows(self):
         from app import db
         from datas.model.operation_log import OperationLog
+        from datas.utils.times import str_to_hms
 
         with self.app.app_context():
             db.session.add(
                 OperationLog(
-                    create_time='2026-07-14 10:00:00',
+                    create_time=str_to_hms('2026-07-14 10:00:00'),
                     action='create_cron',
                     channel='web',
                     operator_type='user',
@@ -270,6 +273,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
         from app import db
         from datas.model.cron_infos import CronInfos
         from datas.model.operation_log import OperationLog
+        from datas.utils.times import str_to_hms
 
         with self.app.app_context():
             cif = CronInfos(
@@ -277,8 +281,8 @@ class TestOperationLogListAndWrite(unittest.TestCase):
                 task_keyword='说明',
                 req_url='https://example.com/x',
                 status=1,
-                created_at='2026-01-01 00:00:00',
-                updated_at='2026-01-01 00:00:00',
+                created_at=str_to_hms('2026-01-01 00:00:00'),
+                updated_at=str_to_hms('2026-01-01 00:00:00'),
             )
             db.session.add(cif)
             db.session.commit()
@@ -309,12 +313,13 @@ class TestOperationLogListAndWrite(unittest.TestCase):
     def test_trim_keeps_newest(self):
         from app import db
         from datas.model.operation_log import OperationLog
+        from datas.utils.times import str_to_hms
 
         with self.app.app_context():
             for i in range(5):
                 db.session.add(
                     OperationLog(
-                        create_time='2026-07-14 10:0%d:00' % i,
+                        create_time=str_to_hms('2026-07-14 10:0%d:00' % i),
                         action='create_cron',
                         channel='web',
                         operator_type='user',

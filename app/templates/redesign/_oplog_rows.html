@@ -1,0 +1,29 @@
+{# Partial: Operation log table rows — rendered by both full page and AJAX partial #}
+{% for item in page_data.items %}
+{% set cron = cron_by_id.get(item.target_id) if item.target_id else none %}
+{% set cron_group_id = task_group_map.get(cron.id) if cron else none %}
+{% set group_name = group_name_by_id.get(cron_group_id) if cron_group_id else none %}
+{% set detail_text = format_detail_summary(item.action, item.detail_json) %}
+<tr>
+  <td class="cp-fw-600">{{ item.operator_name or '—' }}</td>
+  <td title="{{ item.action }}"><span class="op-badge op-badge-{{ item.action.replace('_', '-') }}">{{ operation_action_label(item.action, item.detail_json) }}</span></td>
+  <td class="pg-obj-cell">
+    {% if item.task_name %}<div class="pg-task-name">{{ item.task_name }}</div>{% endif %}
+    <div class="pg-obj-sub">任务{% if group_name %} · {{ group_name }}{% endif %}</div>
+  </td>
+  <td class="pg-detail-cell" title="{{ item.detail_json }}">
+    {% if detail_text and detail_text != '—' %}{{ detail_text }}{% else %}<span class="pg-muted">—</span>{% endif %}
+  </td>
+  <td>
+    {% if item.result == 'ok' or not item.result %}
+    <span class="pg-result-ok">✓ 成功</span>
+    {% else %}
+    <span class="pg-result-fail">✗ {{ operation_result_label(item.result) }}</span>
+    {% endif %}
+  </td>
+  <td class="mono cp-text-xs">{{ item.create_time|hms_display or '—' }}</td>
+  <td class="mono cp-text-xs">{{ item.client_ip or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="pg-empty">暂无操作记录</td></tr>
+{% endfor %}

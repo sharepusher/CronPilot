@@ -58,7 +58,7 @@
             {% for item in page_data.items %}
             <tr>
                 <td>{{ item.id }}</td>
-                <td>{{ item.create_time }}</td>
+                <td>{{ item.create_time|hms_display }}</td>
                 <td>{{ item.username }}</td>
                 <td>{% if item.user_id is not none %}{{ item.user_id }}{% else %}<span style="color:var(--cp-muted)">—</span>{% endif %}</td>
                 <td title="{{ item.action }}">{{ audit_action_label(item.action) }}</td>

@@ -14,7 +14,7 @@
 
 {% block content %}
 {# ═══ Page Header ═══ #}
-<div class="el-page-head">
+<div class="page-head">
   <div>
     <h1>执行记录</h1>
     <div class="stat-line">{% if cron_info %}{{ cron_info.task_name }} 的执行历史{% else %}全部任务的调度执行历史{% endif %}</div>
@@ -77,102 +77,20 @@
       <th class="elc-result">结果</th>
       <th class="elc-act">操作</th>
     </tr></thead>
-    <tbody>
-      {% for row in page_data.items %}
-      {# Determine log and task from row structure #}
-      {% if cron_info %}
-        {% set log = row %}
-        {% set task = cron_info %}
-      {% else %}
-        {% set log = row[0] %}
-        {% set task = row[1] %}
-      {% endif %}
-      {% set is_fail = log.status in ('fail', 'error', 'timeout') %}
-      <tr{% if is_fail %} class="row-fail"{% endif %}>
-        {# COL 1: LOG ID (clickable to copy) #}
-        <td><span class="el-mono log-id" data-id="{{ log.id }}">{{ log.id }}</span></td>
-        {# COL 2: 任务名称 #}
-        <td>
-          <a class="el-task-name" href="{{ url_for('main.task_detail_v2', id=task.id) if task else '#' }}">{{ task.task_name if task else '—' }}</a>
-        </td>
-        {# COL 3: 返回内容 — smart display: strip HTML, show meaningful summary #}
-        <td>
-          {% if log.content %}
-            {% if log.content[:9] == '<!doctype' or log.content[:5] == '<html' or log.content[:5] == '<?xml' %}
-              {# HTML/XML response — extract meaningful hint #}
-              {% if log.http_status %}
-              <code class="el-content-code{% if log.http_status >= 400 %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">HTTP {{ log.http_status }} · HTML Response ({{ log.content|length }} bytes)</code>
-              {% else %}
-              <code class="el-content-code is-unknown" title="{{ log.content[:300] }}">HTML Response ({{ log.content|length }} bytes)</code>
-              {% endif %}
-            {% else %}
-            <code class="el-content-code{% if log.status in ('fail','error') %} is-fail{% elif log.status == 'timeout' %} is-timeout{% elif log.status == 'success' %} is-success{% else %} is-unknown{% endif %}" title="{{ log.content[:300] }}">{{ log.content[:80] }}</code>
-            {% endif %}
-          {% elif log.fail_reason %}
-          <code class="el-content-code is-fail" title="{{ log.fail_reason }}">{{ log.fail_reason }}</code>
-          {% else %}
-          <span style="color:var(--cp-text-faint)">—</span>
-          {% endif %}
-        </td>
-        {# COL 4: 执行时间 #}
-        <td><span class="el-mono">{{ log.create_time or '—' }}</span></td>
-        {# COL 5: 耗时 #}
-        <td><span class="el-mono">{{ log.take_time|format_duration }}</span></td>
-        {# COL 6: 结果 #}
-        <td>
-          {% if log.status == 'success' %}
-          <span class="el-log-result el-log-success"><span class="el-log-dot"></span> 成功</span>
-          {% elif log.status == 'timeout' %}
-          <span class="el-log-result el-log-timeout"><span class="el-log-dot"></span> 超时</span>
-          {% elif log.status in ('fail', 'error') %}
-          <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败</span>
-          {% elif log.status == 'running' %}
-          <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 执行中</span>
-          {% else %}
-          <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 未知</span>
-          {% endif %}
-        </td>
-        {# COL 7: 操作 #}
-        <td>
-          <a class="el-btn el-btn-line el-btn-xs" href="{{ url_for('main.job_log_detail', id=log.id) }}">详情</a>
-        </td>
-      </tr>
-      {% endfor %}
+    <tbody id="cp-exec-tbody">
+      {% include 'redesign/_exec_logs_rows.html' %}
     </tbody>
   </table>
 
   {# ═══ Footer (Mockup: c-foot inside table-wrap) ═══ #}
-  <div class="el-foot">
-    <span class="el-foot-count">
-      {% if outcome in ('not_success', None, '') %}{{ page_data.total }} total (non-success)
-      {% elif outcome == 'fail' %}{{ page_data.total }} total (failures)
-      {% elif outcome == 'exception' %}{{ page_data.total }} total (exceptions)
-      {% elif outcome == 'success' %}{{ page_data.total }} total (success)
-      {% else %}{{ page_data.total }} total{% endif %}
-    </span>
-    {% if page_data.pages > 1 %}
-    <div class="el-pg">
-      {% if page_data.has_prev %}
-      <a href="?page={{ page_data.prev_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">‹</a>
-      {% endif %}
-      {% for p in page_data.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
-        {% if p %}
-        <a class="{{ 'active' if p == page_data.page }}" href="?page={{ p }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">{{ p }}</a>
-        {% else %}
-        <span class="disabled">…</span>
-        {% endif %}
-      {% endfor %}
-      {% if page_data.has_next %}
-      <a href="?page={{ page_data.next_num }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}{% if keywords.get('content') %}&content={{ keywords.content }}{% endif %}{% if keywords.get('start_time') %}&start_time={{ keywords.start_time }}{% endif %}{% if keywords.get('end_time') %}&end_time={{ keywords.end_time }}{% endif %}{% if keywords.get('group_id') %}&group_id={{ keywords.group_id }}{% endif %}">›</a>
-      {% endif %}
-    </div>
-    {% endif %}
+  <div class="el-foot" id="cp-exec-pagination">
+    {% include 'redesign/_exec_logs_pagination.html' %}
   </div>
 </div>
 
 {% else %}
 {# ═══ Empty State ═══ #}
-<div class="cp-empty-state cp-mt-40">
+<div class="cp-empty-state cp-mt-40" id="cp-exec-empty">
   <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="10" width="36" height="28" rx="4"/><path d="M6 18h36"/></svg>
   <div class="empty-title">暂无执行记录</div>
   <div class="empty-desc">{% if keywords.get('task_name') or keywords.get('content') or (outcome and outcome not in ('not_success', 'all')) %}未找到匹配的记录，请调整筛选条件{% elif cron_info %}该任务暂未产生执行记录{% else %}系统暂未产生任何执行记录{% endif %}</div>
@@ -189,60 +107,188 @@ document.addEventListener('click', function(e) {
   });
 });
 
+/* ══ OPT-P1-18: AJAX Filter (no full page reload) ══ */
+(function() {
+  var _baseUrl = '{{ url_for("main.job_log_list", id=cron_info.id) if cron_info else url_for("main.job_log_all_list") }}';
+  var _state = {
+    outcome: '{{ outcome or "not_success" }}',
+    task_name: '{{ keywords.get("task_name", "") }}',
+    content: '{{ keywords.get("content", "") }}',
+    start_time: '{{ keywords.get("start_time", "") }}',
+    end_time: '{{ keywords.get("end_time", "") }}',
+    group_id: '{{ keywords.get("group_id", "") }}',
+    page: '{{ keywords.get("page", "1") }}'
+  };
+  var _debounceTimer = null;
+  var _hasCronInfo = {{ 'true' if cron_info else 'false' }};
+
+  function buildUrl(includePartial) {
+    var params = [];
+    if (_hasCronInfo) params.push('id={{ cron_info.id if cron_info else "" }}');
+    if (_state.outcome && _state.outcome !== 'not_success') params.push('outcome=' + encodeURIComponent(_state.outcome));
+    if (!_state.outcome || _state.outcome === 'not_success') { /* default, omit */ }
+    else { /* already added above */ }
+    if (_state.task_name) params.push('task_name=' + encodeURIComponent(_state.task_name));
+    if (_state.content) params.push('content=' + encodeURIComponent(_state.content));
+    if (_state.start_time) params.push('start_time=' + encodeURIComponent(_state.start_time));
+    if (_state.end_time) params.push('end_time=' + encodeURIComponent(_state.end_time));
+    if (_state.group_id) params.push('group_id=' + encodeURIComponent(_state.group_id));
+    if (_state.page && _state.page !== '1') params.push('page=' + _state.page);
+    if (includePartial) params.push('partial=1');
+    return _baseUrl + (params.length ? '?' + params.join('&') : '');
+  }
+
+  function doFetch() {
+    var url = buildUrl(true);
+    fetch(url, { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var tbody = document.getElementById('cp-exec-tbody');
+        var pagination = document.getElementById('cp-exec-pagination');
+        var emptyState = document.getElementById('cp-exec-empty');
+        var tableWrap = document.querySelector('.el-table-wrap');
+        if (data.total > 0) {
+          if (tbody) tbody.innerHTML = data.rows || '';
+          if (pagination) pagination.innerHTML = data.pagination || '';
+          if (tableWrap) tableWrap.style.display = '';
+          if (emptyState) emptyState.style.display = 'none';
+          if (!tableWrap && emptyState) {
+            location.reload();
+            return;
+          }
+        } else {
+          if (tableWrap) tableWrap.style.display = 'none';
+          if (emptyState) {
+            emptyState.style.display = '';
+            emptyState.querySelector('.empty-desc').textContent = '未找到匹配的记录，请调整筛选条件';
+          } else if (tbody) {
+            tbody.innerHTML = '';
+            if (pagination) pagination.innerHTML = '<span class="el-foot-count">0 total</span>';
+          }
+        }
+        updateFilterActive();
+        rebindInteractions();
+        history.replaceState(null, '', buildUrl(false));
+      })
+      .catch(function() { CpToast.error('加载失败，请刷新重试'); });
+  }
+
+  function updateFilterActive() {
+    var buttons = document.querySelectorAll('.el-f-btn');
+    buttons.forEach(function(btn) {
+      var val = btn.getAttribute('data-outcome') || btn.getAttribute('value') || '';
+      btn.classList.toggle('active', val === _state.outcome);
+    });
+  }
+
+  function rebindInteractions() {
+    document.querySelectorAll('.log-id').forEach(function(el) {
+      el.onclick = function() {
+        var id = el.getAttribute('data-id');
+        navigator.clipboard.writeText(id).then(function() {
+          el.classList.add('copied');
+          setTimeout(function() { el.classList.remove('copied'); }, 1200);
+        });
+      };
+    });
+    document.querySelectorAll('.el-content-code').forEach(function(el) {
+      el.onclick = function(e) {
+        e.stopPropagation();
+        el.classList.toggle('expanded');
+      };
+    });
+  }
+
+  /* Intercept outcome filter buttons */
+  var filterGroup = document.querySelector('.el-f-group');
+  if (filterGroup) {
+    filterGroup.addEventListener('click', function(e) {
+      var btn = e.target.closest('.el-f-btn');
+      if (!btn) return;
+      e.preventDefault();
+      _state.outcome = btn.getAttribute('data-outcome') || btn.value || 'not_success';
+      _state.page = '1';
+      doFetch();
+    });
+    filterGroup.querySelectorAll('.el-f-btn').forEach(function(btn) {
+      btn.setAttribute('data-outcome', btn.value || '');
+      btn.type = 'button';
+    });
+  }
+
+  /* Intercept search form submit */
+  var form = document.querySelector('.el-filters');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var taskInput = form.querySelector('input[name="task_name"]');
+      var contentInput = form.querySelector('input[name="content"]');
+      var startInput = form.querySelector('input[name="start_time"]');
+      var endInput = form.querySelector('input[name="end_time"]');
+      if (taskInput) _state.task_name = taskInput.value.trim();
+      if (contentInput) _state.content = contentInput.value.trim();
+      if (startInput) _state.start_time = startInput.value.trim();
+      if (endInput) _state.end_time = endInput.value.trim();
+      _state.page = '1';
+      doFetch();
+    });
+  }
+
+  /* Debounced input search */
+  var searchInput = document.querySelector('.el-f-input[name="task_name"]') || document.querySelector('.el-f-input[name="content"]');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = setTimeout(function() {
+        if (searchInput.name === 'task_name') _state.task_name = searchInput.value.trim();
+        else _state.content = searchInput.value.trim();
+        _state.page = '1';
+        doFetch();
+      }, 300);
+    });
+  }
+
+  /* Intercept reset link */
+  var resetBtn = document.querySelector('.el-filters a.el-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      _state.outcome = 'not_success';
+      _state.task_name = '';
+      _state.content = '';
+      _state.start_time = '';
+      _state.end_time = '';
+      _state.group_id = '';
+      _state.page = '1';
+      var inputs = document.querySelectorAll('.el-f-input');
+      inputs.forEach(function(inp) { inp.value = ''; });
+      doFetch();
+    });
+  }
+
+  /* Intercept pagination clicks (event delegation) */
+  var paginationEl = document.getElementById('cp-exec-pagination');
+  if (paginationEl) {
+    paginationEl.addEventListener('click', function(e) {
+      var link = e.target.closest('a.el-pg-btn');
+      if (!link) return;
+      e.preventDefault();
+      var href = link.getAttribute('href');
+      var match = href && href.match(/[?&]page=(\d+)/);
+      if (match) {
+        _state.page = match[1];
+        doFetch();
+      }
+    });
+  }
+})();
+
 /* Date range inputs — connect to Wind datePicker if available */
 (function() {
   var startInput = document.querySelector('input[name="start_time"]');
   var endInput = document.querySelector('input[name="end_time"]');
   if (startInput) startInput.classList.add('js-datetime');
   if (endInput) endInput.classList.add('js-datetime');
-})();
-
-/* Search clear button — inject × button when input has value */
-(function() {
-  var searchInputs = document.querySelectorAll('.el-f-input[name="task_name"],.el-f-input[name="content"]');
-  searchInputs.forEach(function(input) {
-    if (!input.value) return;
-    var clear = document.createElement('span');
-    clear.className = 'el-input-clear';
-    clear.textContent = '×';
-    clear.title = '清除';
-    clear.onclick = function() { input.value = ''; input.focus(); clear.remove(); };
-    input.parentElement.style.position = 'relative';
-    input.insertAdjacentElement('afterend', clear);
-  });
-})();
-
-/* Keyboard shortcuts: Esc = reset, Enter in input = submit */
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    if (document.querySelector('.cp-modal-overlay')) return;
-    if (document.activeElement.tagName === 'INPUT') return;
-    var resetBtn = document.querySelector('.el-filters a[href]');
-    if (resetBtn) {
-      resetBtn.click();
-    }
-  }
-});
-
-/* Relative time tooltip for execution time cells */
-(function() {
-  var monoCells = document.querySelectorAll('.el-table tbody td:nth-child(4) .el-mono');
-  monoCells.forEach(function(cell) {
-    var text = cell.textContent.trim();
-    if (text === '—' || !text) return;
-    var d = new Date(text.replace(' ', 'T'));
-    if (isNaN(d.getTime())) return;
-    var diff = Date.now() - d.getTime();
-    var minutes = Math.floor(diff / 60000);
-    var hours = Math.floor(minutes / 60);
-    var days = Math.floor(hours / 24);
-    var relative;
-    if (days > 0) relative = days + ' 天前';
-    else if (hours > 0) relative = hours + ' 小时前';
-    else if (minutes > 0) relative = minutes + ' 分钟前';
-    else relative = '刚刚';
-    cell.title = relative;
-  });
 })();
 
 /* Duration color coding: > 5s = warn, > 30s = critical */
@@ -265,23 +311,16 @@ document.addEventListener('keydown', function(e) {
   });
 })();
 
-/* Click LOG ID to copy */
-document.querySelectorAll('.log-id').forEach(function(el) {
-  el.addEventListener('click', function() {
-    var id = el.getAttribute('data-id');
-    navigator.clipboard.writeText(id).then(function() {
-      el.classList.add('copied');
-      setTimeout(function() { el.classList.remove('copied'); }, 1200);
-    });
-  });
-});
-
-/* Click content to expand/collapse */
-document.querySelectorAll('.el-content-code').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    e.stopPropagation();
-    el.classList.toggle('expanded');
-  });
+/* Keyboard shortcuts: Esc = reset */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.querySelector('.cp-modal-overlay')) return;
+    if (document.activeElement.tagName === 'INPUT') return;
+    var resetBtn = document.querySelector('.el-filters a[href]');
+    if (resetBtn) {
+      resetBtn.click();
+    }
+  }
 });
 </script>
 {% endblock %}

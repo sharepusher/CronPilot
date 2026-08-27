@@ -55,9 +55,9 @@
   <div class="ri-meta">
     <span>HTTP <strong>{{ jl.http_status or '—' }}</strong></span>
     <span>耗时 <strong>{{ take_time_display }}{% if jl.status == 'timeout' %} (超时){% endif %}</strong></span>
-    <span>开始 <strong>{{ jl.started_at or jl.create_time or '—' }}</strong></span>
+    <span>开始 <strong>{{ (jl.started_at or jl.create_time)|hms_display or '—' }}</strong></span>
     {% if jl.finished_at %}
-    <span>结束 <strong>{{ jl.finished_at }}</strong></span>
+    <span>结束 <strong>{{ jl.finished_at|hms_display }}</strong></span>
     {% endif %}
     <span>触发方式 <strong>{{ trigger_type }}</strong></span>
     {% if jl.fail_reason %}

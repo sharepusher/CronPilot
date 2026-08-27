@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>时间戳全量迁移至 BIGINT (UTC) 设计方案</title>
+<style>
+body { max-width: 960px; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.7; color: #1a1a1a; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #0ea5e9; padding-bottom: .5rem; }
+h2 { margin-top: 2rem; color: #0369a1; }
+h3 { margin-top: 1.5rem; }
+h4 { margin-top: 1rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+th { background: #f0f9ff; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.88em; }
+.note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.good { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.bad { background: #fef2f2; border-left: 4px solid #ef4444; padding: 10px 14px; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+.tag-draft { background: #dbeafe; color: #1e40af; }
+.tag-break { background: #fef2f2; color: #dc2626; }
+.winner { background: #dcfce7; }
+.phase-box { border: 2px solid #0ea5e9; border-radius: 8px; padding: 16px; margin: 1rem 0; }
+.phase-title { color: #0369a1; font-weight: bold; font-size: 1.1em; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>时间戳全量迁移至 BIGINT (UTC) 设计方案 <span class="tag tag-draft">待确认</span></h1>
+
+<p><strong>文档编号</strong>：OPT-PERF-TIMESTAMP-BIGINT<br>
+<strong>前置文档</strong>：<code>doc/design/时间戳存储格式优化评估.html</code>（三方案对比）<br>
+<strong>创建</strong>：2026-08-26<br>
+<strong>状态</strong>：<span class="tag tag-draft">待确认</span><br>
+<strong>已确认决策</strong>：时区策略 = <strong>方案 T-A（真正转 UTC）</strong>；展示层时区 = <strong>方案 C（全局配置 + 预留 tz 参数）</strong></p>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>当前所有时间字段使用 <code>VARCHAR(25)</code> 存储 <code>'YYYY-MM-DD HH:MM:SS'</code> 格式字符串，存在以下问题：</p>
+
+<ol>
+<li><strong>存储膨胀</strong>：19 字节 + VARCHAR 开销 vs BIGINT 的 8 字节（~2.6x 浪费）</li>
+<li><strong>查询效率</strong>：字符串比较慢于整数比较，<code>LIKE 'date%'</code> 模式不够确定</li>
+<li><strong>无时区语义</strong>：隐式依赖服务器本地时区，多机/多时区部署时有歧义</li>
+<li><strong>应用层解析开销</strong>：每次比较需 <code>strptime()</code> 解析字符串</li>
+<li><strong>空值语义混乱</strong>：<code>''</code> 和 <code>NULL</code> 混用</li>
+</ol>
+
+<h2>2. 根因</h2>
+
+<p>项目早期为快速实现，所有时间字段统一使用 <code>VARCHAR</code> 存储格式化字符串。
+随着执行日志量增长和逾期检测等实时计算功能引入，字符串格式的性能与语义局限性逐渐暴露。</p>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 目标格式</h3>
+
+<table>
+<thead><tr><th>属性</th><th>规格</th></tr></thead>
+<tbody>
+<tr><td>存储类型</td><td><code>BIGINT</code>（SQLAlchemy: <code>db.BigInteger</code>）</td></tr>
+<tr><td>时区</td><td><strong>UTC</strong>（写入时统一转 UTC，展示时按需转本地）</td></tr>
+<tr><td>精度</td><td><strong>百毫秒</strong>（hectomillisecond，10 ticks/sec）</td></tr>
+<tr><td>单位</td><td>自 1970-01-01 00:00:00 UTC 起的百毫秒计数</td></tr>
+<tr><td>示例值</td><td><code>2026-08-26 09:55:00.000 UTC</code> → <code>17878605000</code></td></tr>
+<tr><td>范围</td><td><code>0</code> ~ <code>2^63-1</code>（远超 Y2038，可用至 ~29 亿年）</td></tr>
+</tbody>
+</table>
+
+<h4>3.1.1 百毫秒精度决策分析</h4>
+
+<table>
+<thead><tr><th>精度选项</th><th>单位</th><th>数值位数</th><th>适用场景</th><th>CronPilot 适配度</th></tr></thead>
+<tbody>
+<tr>
+  <td>秒 (s)</td>
+  <td>1 tick/s</td>
+  <td>10 位（当前年代）</td>
+  <td>传统 Unix timestamp</td>
+  <td>不足 — 任务执行耗时需亚秒精度</td>
+</tr>
+<tr class="winner">
+  <td><strong>百毫秒 (100ms)</strong></td>
+  <td>10 ticks/s</td>
+  <td>11 位（当前年代）</td>
+  <td>调度系统、日志记录</td>
+  <td><strong>最佳</strong> — 满足调度精度，数值紧凑</td>
+</tr>
+<tr>
+  <td>毫秒 (ms)</td>
+  <td>1000 ticks/s</td>
+  <td>13 位（当前年代）</td>
+  <td>Java/JS 生态标准</td>
+  <td>超需 — cron 最小粒度为秒，100ms 已足够</td>
+</tr>
+<tr>
+  <td>微秒 (μs)</td>
+  <td>10⁶ ticks/s</td>
+  <td>16 位</td>
+  <td>数据库内部、高频交易</td>
+  <td>远超需求</td>
+</tr>
+</tbody>
+</table>
+
+<div class="note">
+<strong>百毫秒 vs 毫秒权衡</strong>：<br>
+• 百毫秒值（11 位）比毫秒值（13 位）短 2 位，日志肉眼更易阅读<br>
+• CronPilot 最高频场景是 cron 执行（最快 <code>*/1 * * * *</code> = 每分钟），百毫秒精度远超调度需求<br>
+• <code>take_time</code>（执行耗时）当前精度为 0.001s，转换后 <code>int(float_seconds * 10)</code> → 个位数精度已够用（如 3.18s → 32 百毫秒）<br>
+• <strong>注意</strong>：若未来需要与 Java/JS 生态集成（如 Kafka、Elasticsearch），毫秒是更通用的约定。该迁移成本极低（全局 <code>×10</code> / <code>÷10</code>）。
+</div>
+
+<h3>3.2 核心工具函数设计</h3>
+
+<pre>
+# datas/utils/times.py — 重构后
+
+import time
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
+
+# ═══ 写入 ═══
+
+def utc_now_hms():
+    """当前 UTC 时间，百毫秒精度 BIGINT。"""
+    return int(time.time() * 10)
+
+def utc_today_start_hms():
+    """今日 UTC 00:00:00 对应的百毫秒 BIGINT。"""
+    now = datetime.now(UTC)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(midnight.timestamp() * 10)
+
+def utc_tomorrow_start_hms():
+    """明日 UTC 00:00:00 对应的百毫秒 BIGINT。"""
+    now = datetime.now(UTC)
+    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(tomorrow.timestamp() * 10)
+
+# ═══ 展示（BIGINT → 可读字符串）═══
+
+def hms_to_display(hms_value, fmt='%Y-%m-%d %H:%M:%S', tz=None):
+    """百毫秒 BIGINT → 本地可读字符串。
+    tz=None 时使用服务器本地时区（向下兼容现有展示行为）。
+    """
+    if not hms_value:
+        return ''
+    try:
+        ts = int(hms_value) / 10.0
+        dt = datetime.fromtimestamp(ts, tz=tz)
+        return dt.strftime(fmt)
+    except (ValueError, TypeError, OSError):
+        return ''
+
+def hms_to_datetime(hms_value):
+    """百毫秒 BIGINT → datetime (UTC)。"""
+    if not hms_value:
+        return None
+    return datetime.fromtimestamp(int(hms_value) / 10.0, tz=UTC)
+
+def datetime_to_hms(dt):
+    """datetime → 百毫秒 BIGINT。"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return int(dt.timestamp() * 10)
+
+# ═══ 兼容（旧格式字符串 ↔ BIGINT 互转）═══
+
+def str_to_hms(time_str):
+    """'YYYY-MM-DD HH:MM:SS' → 百毫秒 BIGINT（假定为 UTC）。
+    用于数据迁移和旧测试数据。
+    """
+    if not time_str or time_str.strip() == '':
+        return None
+    try:
+        dt = datetime.strptime(str(time_str)[:19], '%Y-%m-%d %H:%M:%S')
+        dt = dt.replace(tzinfo=UTC)
+        return int(dt.timestamp() * 10)
+    except (ValueError, TypeError):
+        return None
+
+def hms_to_str(hms_value, fmt='%Y-%m-%d %H:%M:%S'):
+    """百毫秒 BIGINT → 'YYYY-MM-DD HH:MM:SS' 字符串。
+    用于 API 响应和展示层兼容。
+    """
+    return hms_to_display(hms_value, fmt=fmt)
+
+# ═══ 向下兼容（过渡期保留，标记 Deprecated）═══
+
+def get_now_time(format='%Y-%m-%d %H:%M:%S'):
+    """[DEPRECATED] 旧接口兼容，返回本地时间字符串。
+    新代码应使用 utc_now_hms()。
+    """
+    return time.strftime(format, time.localtime(time.time()))
+
+def get_today(format='%Y-%m-%d'):
+    """[DEPRECATED] 旧接口兼容。
+    新代码应使用 utc_today_start_hms()。
+    """
+    return time.strftime(format, time.localtime(time.time()))
+</pre>
+
+<h3>3.3 Model 变更示例</h3>
+
+<pre>
+# 迁移前（VARCHAR）
+class JobLog(db.Model):
+    create_time: Mapped[str] = mapped_column(db.String(25), nullable=False, default='', index=True)
+    started_at: Mapped[Optional[str]] = mapped_column(db.String(25), nullable=True)
+    finished_at: Mapped[Optional[str]] = mapped_column(db.String(25), nullable=True)
+
+# 迁移后（BIGINT）
+class JobLog(db.Model):
+    create_time: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)
+    started_at: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True)
+    finished_at: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True)
+</pre>
+
+<h3>3.4 查询模式迁移</h3>
+
+<table>
+<thead><tr><th>场景</th><th>迁移前</th><th>迁移后</th></tr></thead>
+<tbody>
+<tr>
+  <td>当日过滤</td>
+  <td><code>create_time.like(today + '%')</code></td>
+  <td><code>create_time &gt;= utc_today_start_hms(),<br>create_time &lt; utc_tomorrow_start_hms()</code></td>
+</tr>
+<tr>
+  <td>时间区间</td>
+  <td><code>create_time.between(beg_str, end_str)</code></td>
+  <td><code>create_time &gt;= str_to_hms(beg_str),<br>create_time &lt;= str_to_hms(end_str)</code></td>
+</tr>
+<tr>
+  <td>最近执行</td>
+  <td><code>func.max(create_time)</code> → <code>strptime</code></td>
+  <td><code>func.max(create_time)</code> → <code>hms_to_datetime(v)</code></td>
+</tr>
+<tr>
+  <td>耗时比较</td>
+  <td><code>datetime.strptime(ct) - datetime.strptime(st)</code></td>
+  <td><code>(create_time - started_at) / 10.0</code>（直接得秒数）</td>
+</tr>
+<tr>
+  <td>过期判断</td>
+  <td><code>strptime(expires_at) &gt; now()</code></td>
+  <td><code>expires_at &gt; utc_now_hms()</code></td>
+</tr>
+<tr>
+  <td>写入</td>
+  <td><code>create_time=get_now_time()</code></td>
+  <td><code>create_time=utc_now_hms()</code></td>
+</tr>
+<tr>
+  <td>展示</td>
+  <td>直接使用字符串</td>
+  <td>模板 filter <code>{{ val|hms_display }}</code> 或 view 层 <code>hms_to_display(v)</code></td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.5 API 响应兼容策略</h3>
+
+<div class="bad">
+<strong>⚠️ API Breaking Change</strong>：外部 API（<code>/api/cron/*</code>）目前返回时间字符串（如 <code>"create_time": "2026-08-26 09:55:00"</code>）。
+迁移后若直接返回 BIGINT，所有 API 消费者将失败。
+</div>
+
+<p><strong>推荐策略</strong>：API 响应层增加序列化适配，<strong>对外仍返回 ISO 8601 字符串</strong>：</p>
+
+<pre>
+# app/api/views.py — 序列化示例
+from datas.utils.times import hms_to_str
+
+result = {
+    'create_time': hms_to_str(row.create_time),  # "2026-08-26 09:55:00"
+    'started_at': hms_to_str(row.started_at),
+    'finished_at': hms_to_str(row.finished_at),
+}
+</pre>
+
+<p>API 消费者无感知。未来若需返回 BIGINT，可新增 <code>?format=epoch</code> 参数或 v2 API。</p>
+
+<h3>3.6 模板展示适配</h3>
+
+<pre>
+# app/__init__.py — 注册 Jinja2 filter
+from datas.utils.times import hms_to_display
+
+app.jinja_env.filters['hms_display'] = hms_to_display
+app.jinja_env.filters['hms_date'] = lambda v: hms_to_display(v, '%Y-%m-%d')
+app.jinja_env.filters['hms_time'] = lambda v: hms_to_display(v, '%H:%M:%S')
+app.jinja_env.filters['hms_short'] = lambda v: hms_to_display(v, '%m-%d %H:%M')
+</pre>
+
+<pre>
+{# 模板中使用 #}
+&lt;td&gt;{{ item.create_time|hms_display }}&lt;/td&gt;
+&lt;td&gt;{{ item.updated_at|hms_short }}&lt;/td&gt;
+</pre>
+
+<h2>4. 影响范围</h2>
+
+<h3>4.1 变更统计</h3>
+
+<table>
+<thead><tr><th>分类</th><th>文件/位置</th><th>变更类型</th><th>行数估计</th></tr></thead>
+<tbody>
+<tr><td rowspan="6"><strong>Model 定义</strong><br>(9 个 Model)</td>
+  <td><code>datas/model/job_log.py</code></td><td>String→BigInteger (3 字段)</td><td>~6</td></tr>
+<tr><td><code>datas/model/cron_infos.py</code></td><td>String→BigInteger (4 字段)</td><td>~8</td></tr>
+<tr><td><code>datas/model/job_health.py</code></td><td>String→BigInteger (4 字段)</td><td>~8</td></tr>
+<tr><td><code>datas/model/operation_log.py</code></td><td>String→BigInteger (1 字段)</td><td>~2</td></tr>
+<tr><td><code>datas/model/rbac_audit_log.py</code></td><td>String→BigInteger (1 字段)</td><td>~2</td></tr>
+<tr><td><code>datas/model/rbac_user.py</code> / <code>rbac_registration_request.py</code> / <code>tag.py</code> / <code>resource_group.py</code></td><td>String→BigInteger (7 字段)</td><td>~14</td></tr>
+
+<tr><td rowspan="3"><strong>工具 / 服务层</strong></td>
+  <td><code>datas/utils/times.py</code></td><td>重构核心</td><td>~80</td></tr>
+<tr><td><code>app/services/*.py</code> (cron_service, operation_log_service, tag_service, cron_validator, job_health_service, rbac/services)</td><td><code>get_now_time()</code> → <code>utc_now_hms()</code></td><td>~30</td></tr>
+<tr><td><code>app/crons.py</code></td><td>写入路径迁移</td><td>~10</td></tr>
+
+<tr><td rowspan="2"><strong>Repository 层</strong></td>
+  <td><code>app/repositories/cron_repository.py</code></td><td>LIKE → 范围比较 + strptime 去除</td><td>~15</td></tr>
+<tr><td><code>app/repositories/rbac_audit_log_repository.py</code> / <code>operation_log_repository.py</code></td><td>字符串比较 → 整数比较</td><td>~8</td></tr>
+
+<tr><td rowspan="2"><strong>View 层</strong></td>
+  <td><code>app/main/views.py</code></td><td>查询迁移 + 展示适配</td><td>~30</td></tr>
+<tr><td><code>app/api/views.py</code></td><td>序列化适配 <code>hms_to_str()</code></td><td>~20</td></tr>
+
+<tr><td><strong>模板层</strong></td>
+  <td>~20 个 HTML 模板</td><td>直接引用 → <code>|hms_display</code> filter</td><td>~35</td></tr>
+
+<tr><td><strong>迁移脚本</strong></td>
+  <td><code>scripts/ensure_business_tables.py</code></td><td>新增列类型迁移函数</td><td>~120</td></tr>
+
+<tr><td><strong>测试</strong></td>
+  <td>~12 个测试文件</td><td>时间数据从字符串 → BIGINT</td><td>~100</td></tr>
+
+<tr style="font-weight: bold; border-top: 2px solid #333;">
+  <td colspan="2">合计</td><td></td><td>~490 行</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 明确不做</h3>
+
+<ul>
+<li>不变更 <code>take_time</code> 字段格式（已为 VARCHAR 存储秒数字符串，独立处理）</li>
+<li>不变更 <code>log_id</code>（UUID 字符串，非时间戳）</li>
+<li>不变更 <code>cron_infos</code> 的调度字段（<code>run_date</code>、<code>minute</code>、<code>hour</code> 等 — 这些是 cron 表达式，非时间戳）</li>
+<li>不在本轮引入 MySQL 分区表</li>
+<li>不修改外部 API 的 JSON 响应格式（仍返回 ISO 8601 字符串）</li>
+</ul>
+
+<h2>5. 分批实施计划</h2>
+
+<div class="phase-box">
+<div class="phase-title">Phase T1：基础设施 + 工具层</div>
+<table>
+<thead><tr><th>任务</th><th>文件</th><th>验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>重构 <code>datas/utils/times.py</code></td>
+  <td><code>datas/utils/times.py</code></td>
+  <td>新旧函数单测通过：<code>utc_now_hms</code> / <code>str_to_hms</code> / <code>hms_to_display</code> 互转精度验证</td>
+</tr>
+<tr>
+  <td>注册 Jinja2 filter</td>
+  <td><code>app/__init__.py</code></td>
+  <td><code>hms_display</code> filter 在模板中可用</td>
+</tr>
+<tr>
+  <td>新增 <code>tests/test_timestamp_utils.py</code></td>
+  <td><code>tests/test_timestamp_utils.py</code></td>
+  <td>覆盖：UTC 转换、百毫秒精度、空值处理、字符串互转、跨日/跨月/跨年边界</td>
+</tr>
+</tbody>
+</table>
+<p><strong>独立验收</strong>：此阶段不修改任何 Model 或数据库，纯代码层新增，<code>cronpilot.sh test</code> 全通过。</p>
+</div>
+
+<div class="phase-box">
+<div class="phase-title">Phase T2：Model 层迁移 + 数据迁移脚本</div>
+<table>
+<thead><tr><th>任务</th><th>文件</th><th>验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>所有 Model 的时间字段 <code>String(25)</code> → <code>BigInteger</code></td>
+  <td>9 个 <code>datas/model/*.py</code></td>
+  <td>Model 定义与 DB schema 对齐</td>
+</tr>
+<tr>
+  <td>数据迁移脚本 <code>_migrate_time_columns_to_bigint()</code></td>
+  <td><code>scripts/ensure_business_tables.py</code></td>
+  <td>幂等执行，支持 SQLite / MySQL 双后端</td>
+</tr>
+<tr>
+  <td>迁移脚本测试</td>
+  <td><code>tests/test_ensure_business_tables.py</code></td>
+  <td>空库 → 新建 BIGINT 列；旧库 → 数据正确迁移</td>
+</tr>
+</tbody>
+</table>
+<p><strong>独立验收</strong>：迁移脚本在 SQLite 测试库上执行，数据正确转换，<code>.tables</code> + 抽样验证。</p>
+</div>
+
+<div class="phase-box">
+<div class="phase-title">Phase T3：写入路径迁移（服务层 + 调度器）</div>
+<table>
+<thead><tr><th>任务</th><th>文件</th><th>验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>所有 <code>get_now_time()</code> → <code>utc_now_hms()</code></td>
+  <td><code>app/services/*.py</code>, <code>app/crons.py</code>, <code>app/rbac/services.py</code></td>
+  <td>新写入的记录 <code>create_time</code> 为 BIGINT</td>
+</tr>
+<tr>
+  <td>写入路径测试</td>
+  <td>相关测试文件</td>
+  <td>创建任务/用户/日志后查 DB 值为整数</td>
+</tr>
+</tbody>
+</table>
+<p><strong>独立验收</strong>：手动触发一次 cron 执行 → <code>job_log.create_time</code> 为 BIGINT 值。</p>
+</div>
+
+<div class="phase-box">
+<div class="phase-title">Phase T4：读取路径迁移（Repository + View + API）</div>
+<table>
+<thead><tr><th>任务</th><th>文件</th><th>验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>Repository 查询迁移</td>
+  <td><code>app/repositories/*.py</code></td>
+  <td>LIKE → 整数范围；strptime → 整数比较</td>
+</tr>
+<tr>
+  <td>View 层展示适配</td>
+  <td><code>app/main/views.py</code></td>
+  <td>逾期检测、耗时计算等直接用整数</td>
+</tr>
+<tr>
+  <td>API 序列化</td>
+  <td><code>app/api/views.py</code></td>
+  <td>API 响应仍为 ISO 8601 字符串</td>
+</tr>
+</tbody>
+</table>
+<p><strong>独立验收</strong>：Dashboard + 执行记录 + 任务详情页面数据正确展示。</p>
+</div>
+
+<div class="phase-box">
+<div class="phase-title">Phase T5：模板层适配 + 全量回归</div>
+<table>
+<thead><tr><th>任务</th><th>文件</th><th>验收</th></tr></thead>
+<tbody>
+<tr>
+  <td>所有模板中直接引用 → <code>|hms_display</code></td>
+  <td>~20 个 <code>app/templates/redesign/*.html</code></td>
+  <td>所有页面时间展示正确</td>
+</tr>
+<tr>
+  <td>全量测试回归</td>
+  <td>—</td>
+  <td><code>cronpilot.sh test</code> + <code>verify_golden_path.sh</code> + 浏览器 4 角色验证</td>
+</tr>
+<tr>
+  <td>清理废弃函数</td>
+  <td><code>datas/utils/times.py</code></td>
+  <td>移除 <code>get_now_time()</code>、<code>get_today()</code>、<code>get_next_time()</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>独立验收</strong>：全站所有页面时间展示正确 + 全量测试通过 + API 响应格式不变。</p>
+</div>
+
+<h2>6. 数据迁移策略</h2>
+
+<h3>6.1 SQLite 迁移（需要建新表）</h3>
+
+<p>SQLite 不支持 <code>ALTER COLUMN</code>，需要：</p>
+
+<pre>
+-- 1. 创建新表（BIGINT 类型）
+CREATE TABLE job_log_new (
+    id INTEGER PRIMARY KEY,
+    log_id VARCHAR(65) NOT NULL DEFAULT '',
+    cron_info_id INTEGER NOT NULL DEFAULT 0,
+    content TEXT NOT NULL DEFAULT '',
+    http_status INTEGER,
+    status VARCHAR(16),
+    fail_reason VARCHAR(128),
+    create_time BIGINT NOT NULL DEFAULT 0,      -- 原 VARCHAR(25)
+    take_time VARCHAR(25) DEFAULT '',
+    started_at BIGINT,                           -- 原 VARCHAR(25)
+    finished_at BIGINT,                          -- 原 VARCHAR(25)
+    timeout_sec INTEGER
+);
+
+-- 2. 迁移数据（VARCHAR → BIGINT，本地时间 → UTC）
+--    'utc' 修饰符：告诉 SQLite "输入是本地时间，请输出 UTC epoch"
+INSERT INTO job_log_new
+SELECT id, log_id, cron_info_id, content, http_status, status, fail_reason,
+       CASE WHEN create_time = '' OR create_time IS NULL THEN 0
+            ELSE CAST(strftime('%s', create_time, 'utc') AS INTEGER) * 10
+       END,
+       take_time,
+       CASE WHEN started_at = '' OR started_at IS NULL THEN NULL
+            ELSE CAST(strftime('%s', started_at, 'utc') AS INTEGER) * 10
+       END,
+       CASE WHEN finished_at = '' OR finished_at IS NULL THEN NULL
+            ELSE CAST(strftime('%s', finished_at, 'utc') AS INTEGER) * 10
+       END,
+       timeout_sec
+FROM job_log;
+
+-- 3. 替换旧表
+DROP TABLE job_log;
+ALTER TABLE job_log_new RENAME TO job_log;
+
+-- 4. 重建索引
+CREATE INDEX ix_job_log_log_id ON job_log (log_id);
+CREATE INDEX ix_job_log_cron_info_id ON job_log (cron_info_id);
+CREATE INDEX ix_job_log_create_time ON job_log (create_time);
+CREATE INDEX ix_job_log_cron_id_create_time ON job_log (cron_info_id, create_time);
+</pre>
+
+<h3>6.2 MySQL 迁移（原地 ALTER）</h3>
+
+<pre>
+-- 0. 确保 session 时区与旧数据一致（方案 T-A 关键步骤）
+SET time_zone = '+08:00';  -- 根据实际服务器时区调整
+
+-- 1. 新增临时列
+ALTER TABLE job_log ADD COLUMN create_time_new BIGINT DEFAULT 0;
+
+-- 2. 填充数据（本地时间 → UTC epoch × 10）
+UPDATE job_log SET create_time_new =
+    CASE WHEN create_time = '' OR create_time IS NULL THEN 0
+         ELSE UNIX_TIMESTAMP(create_time) * 10
+    END;
+
+-- 3. 重命名（MySQL 8.0+）
+ALTER TABLE job_log DROP COLUMN create_time;
+ALTER TABLE job_log CHANGE create_time_new create_time BIGINT NOT NULL DEFAULT 0;
+
+-- 4. 重建索引
+CREATE INDEX ix_job_log_create_time ON job_log (create_time);
+</pre>
+
+<div class="note">
+<strong>MySQL 大表注意</strong>：<code>job_log</code> 若超过 100 万行，<code>UPDATE</code> 和 <code>ALTER TABLE</code>
+需使用在线 DDL 或 pt-online-schema-change 避免锁表。建议在低峰期执行。
+</div>
+
+<h3>6.3 迁移安全措施</h3>
+
+<table>
+<thead><tr><th>措施</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>备份验证</td><td>迁移前 <code>cp datas/job_log.sqlite datas/job_log.sqlite.bak</code></td></tr>
+<tr><td>幂等设计</td><td>检测列类型后再执行迁移，已迁移的跳过</td></tr>
+<tr><td>抽样验证</td><td>迁移后随机取 10 条记录，<code>hms_to_str(new_value) == old_value</code></td></tr>
+<tr><td>回滚能力</td><td>保留 <code>.bak</code> 文件 7 天；MySQL 保留旧列为 <code>_old</code> 后缀</td></tr>
+</tbody>
+</table>
+
+<h2>7. 验收</h2>
+
+<table>
+<thead><tr><th>#</th><th>验收项</th><th>命令 / 方法</th></tr></thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td>所有 Model 时间字段为 BIGINT</td>
+  <td><code>grep -rn "db.String(25)" datas/model/ | grep -i "time\|_at"</code> → 0 结果</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>无残留 <code>get_now_time()</code> 调用（测试除外）</td>
+  <td><code>grep -rn "get_now_time\|get_today" app/</code> → 0 结果</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>无残留 <code>LIKE</code> 日期过滤</td>
+  <td><code>grep -rn "\.like(today" app/</code> → 0 结果</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>API 响应格式不变</td>
+  <td><code>curl /api/cron/job_log_list</code> → <code>create_time</code> 仍为 <code>"YYYY-MM-DD HH:MM:SS"</code></td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>全量测试通过</td>
+  <td><code>bash scripts/cronpilot.sh test</code></td>
+</tr>
+<tr>
+  <td>6</td>
+  <td>黄金路径验证</td>
+  <td><code>bash scripts/verify_golden_path.sh</code></td>
+</tr>
+<tr>
+  <td>7</td>
+  <td>数据库值为整数</td>
+  <td><code>sqlite3 datas/job_log.sqlite "SELECT typeof(create_time), create_time FROM job_log LIMIT 3"</code> → <code>integer</code></td>
+</tr>
+<tr>
+  <td>8</td>
+  <td>Dashboard 今日统计正确</td>
+  <td>浏览器登录 → Dashboard 数据正确</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td>4 角色浏览器验证</td>
+  <td>Seed Admin / Biz Admin / Operator / Viewer 各页面时间展示正确</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td>逾期检测功能正常</td>
+  <td>Dashboard 逾期统计与迁移前一致</td>
+</tr>
+</tbody>
+</table>
+
+<h2>8. 风险</h2>
+
+<table>
+<thead><tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>SQLite strftime 时区</strong>：SQLite <code>strftime('%s', ...)</code> 假定输入为 UTC</td>
+  <td>中</td>
+  <td>高（旧数据实为本地时间，转换后偏移）</td>
+  <td>迁移脚本中对本地时区旧数据做偏移补偿：<code>CAST(strftime('%s', ct, 'utc') AS INTEGER) * 10</code></td>
+</tr>
+<tr>
+  <td><strong>大表迁移性能</strong>：<code>job_log</code> 百万行级建新表+复制</td>
+  <td>低~中</td>
+  <td>中（迁移期间服务不可用）</td>
+  <td>提供停机迁移 + 在线迁移两种路径，默认停机（安全）</td>
+</tr>
+<tr>
+  <td><strong>跨时区数据歧义</strong>：旧数据为本地时间，新数据为 UTC</td>
+  <td>中</td>
+  <td>中（展示时偏移）</td>
+  <td>迁移脚本统一转 UTC；展示层 <code>hms_to_display()</code> 按服务器本地时区还原</td>
+</tr>
+<tr>
+  <td><strong>API 消费者断裂</strong></td>
+  <td>低</td>
+  <td>高</td>
+  <td>API 序列化层确保对外仍返回 ISO 8601 字符串</td>
+</tr>
+<tr>
+  <td><strong>测试全面性</strong>：12 个测试文件需同步改</td>
+  <td>中</td>
+  <td>中（遗漏导致假绿）</td>
+  <td>分 Phase 逐步迁移；每 Phase 独立验收</td>
+</tr>
+<tr>
+  <td><strong>百毫秒精度非标准</strong>：未来集成时需适配</td>
+  <td>低</td>
+  <td>低</td>
+  <td>集成时 <code>×10</code>/<code>÷10</code> 转毫秒；或届时全局切换精度（改 <code>*10</code> 为 <code>*1000</code>）</td>
+</tr>
+</tbody>
+</table>
+
+<h2>9. 时区迁移策略 <span class="tag" style="background:#dcfce7;color:#166534;">已确认：方案 T-A</span></h2>
+
+<div class="good">
+<strong>决策</strong>：采用 <strong>方案 T-A — 真正转 UTC</strong>。旧数据（服务器本地时间）在迁移时转换为 UTC epoch，
+新写入代码一律使用 <code>time.time()</code>（天然 UTC）。
+</div>
+
+<h3>9.1 迁移转换公式</h3>
+
+<h4>SQLite 转换</h4>
+
+<div class="note">
+<strong>SQLite <code>strftime</code> 时区行为解析</strong>：<br>
+• <code>strftime('%s', '2026-08-26 09:55:00')</code> → 将输入视为 <strong>UTC</strong>，返回 UTC epoch<br>
+• <code>strftime('%s', '2026-08-26 09:55:00', 'utc')</code> → 将输入视为<strong>本地时间</strong>，返回 UTC epoch ← <strong>这才是正确的</strong><br>
+• 注意：SQLite 的 <code>'utc'</code> 修饰符含义是"请把输入理解为本地时间，然后输出 UTC"（反直觉但正确）
+</div>
+
+<pre>
+-- SQLite：旧数据为本地时间 → 使用 'utc' 修饰符将本地时间转为 UTC epoch
+-- 然后 × 10 得到百毫秒
+CASE WHEN create_time = '' OR create_time IS NULL THEN 0
+     ELSE CAST(strftime('%s', create_time, 'utc') AS INTEGER) * 10
+END
+
+-- 验证示例（假设服务器 UTC+8）：
+-- 输入: '2026-08-26 09:55:00'（本地 UTC+8 = UTC 01:55:00）
+-- strftime('%s', '2026-08-26 09:55:00', 'utc')
+--   → 先按本地解析 → 减去 8h → 输出 UTC epoch of 01:55:00
+--   → 1787831700
+-- × 10 → 17878317000 ← 正确的 UTC 百毫秒
+</pre>
+
+<h4>MySQL 转换</h4>
+
+<pre>
+-- MySQL：UNIX_TIMESTAMP() 自动按 @@session.time_zone 解释输入
+-- 需确保 session time_zone 与旧数据写入时的服务器时区一致
+
+-- 迁移脚本开头设置 session 时区
+SET time_zone = '+08:00';  -- 根据实际服务器时区调整
+
+-- 转换
+CASE WHEN create_time = '' OR create_time IS NULL THEN 0
+     ELSE UNIX_TIMESTAMP(create_time) * 10
+END
+
+-- 验证：
+-- UNIX_TIMESTAMP('2026-08-26 09:55:00') with time_zone='+08:00'
+-- → 1787831700 (= 2026-08-26 01:55:00 UTC)
+-- × 10 → 17878317000 ← 与 SQLite 结果一致 ✓
+</pre>
+
+<h4>Python 迁移脚本中的时区检测</h4>
+
+<pre>
+import time
+
+def _detect_tz_offset():
+    """检测服务器当前时区偏移量（秒），用于迁移验证。
+    UTC+8 → 返回 28800
+    """
+    return -time.timezone if time.daylight == 0 else -time.altzone
+
+def _verify_migration_sample(old_str, new_bigint):
+    """验证单条迁移数据的正确性。
+    old_str: '2026-08-26 09:55:00'（本地时间）
+    new_bigint: 17878317000（UTC 百毫秒）
+    """
+    from datetime import datetime, timezone, timedelta
+    local_dt = datetime.strptime(old_str, '%Y-%m-%d %H:%M:%S')
+    tz_offset = _detect_tz_offset()
+    local_tz = timezone(timedelta(seconds=tz_offset))
+    local_dt = local_dt.replace(tzinfo=local_tz)
+    expected_hms = int(local_dt.timestamp() * 10)
+    assert new_bigint == expected_hms, \
+        f"Migration mismatch: {old_str} → expected {expected_hms}, got {new_bigint}"
+</pre>
+
+<h3>9.2 新代码写入方式（迁移后）</h3>
+
+<pre>
+# 写入：time.time() 天然返回 UTC epoch（float 秒）
+def utc_now_hms():
+    return int(time.time() * 10)
+
+# 展示：fromtimestamp 默认按服务器本地时区还原
+def hms_to_display(hms_value, fmt='%Y-%m-%d %H:%M:%S', tz=None):
+    if not hms_value:
+        return ''
+    ts = int(hms_value) / 10.0
+    dt = datetime.fromtimestamp(ts, tz=tz)  # tz=None → 本地时区
+    return dt.strftime(fmt)
+</pre>
+
+<p>用户看到的时间与迁移前完全一致（本地时间展示），但数据库中存储的是 UTC epoch。</p>
+
+<h3>9.3 迁移验证清单</h3>
+
+<table>
+<thead><tr><th>#</th><th>验证项</th><th>方法</th></tr></thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td>时区偏移量探测</td>
+  <td>迁移脚本开头打印 <code>_detect_tz_offset()</code>，人工确认与服务器时区一致</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>SQLite 转换公式验证</td>
+  <td><code>SELECT strftime('%s', '2026-08-26 09:55:00', 'utc')</code> → 比对 Python 计算结果</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>迁移后抽样 10 条</td>
+  <td><code>_verify_migration_sample(old, new)</code> 全部通过</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>展示不变验证</td>
+  <td>迁移前截图 vs 迁移后截图，所有页面时间展示一致</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>跨日边界验证</td>
+  <td><code>utc_today_start_hms()</code> 在 UTC+8 00:00 和 08:00 各执行一次，确认"今日"范围正确</td>
+</tr>
+</tbody>
+</table>
+
+<h3>9.4 方案 T-B 备选说明（未采用）</h3>
+
+<p>方案 T-B（保持原值含义）迁移更简单但数据语义不纯正，不支持多时区部署。
+若未来发现 T-A 迁移导致时区偏移问题，可回退到 T-B 作为降级方案。</p>
+
+<h2>10. 附录：全量字段迁移清单</h2>
+
+<table>
+<thead><tr><th>#</th><th>表</th><th>字段</th><th>当前类型</th><th>目标类型</th><th>NULL 策略</th><th>默认值</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>job_log</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>2</td><td><code>job_log</code></td><td><code>started_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>3</td><td><code>job_log</code></td><td><code>finished_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>4</td><td><code>cron_infos</code></td><td><code>created_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>5</td><td><code>cron_infos</code></td><td><code>updated_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>6</td><td><code>cron_infos</code></td><td><code>retired_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>7</td><td><code>cron_infos</code></td><td><code>last_operated_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>8</td><td><code>job_health</code></td><td><code>last_run_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>9</td><td><code>job_health</code></td><td><code>last_success_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>10</td><td><code>job_health</code></td><td><code>last_fail_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>11</td><td><code>job_health</code></td><td><code>updated_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>12</td><td><code>operation_log</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>13</td><td><code>rbac_audit_logs</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>14</td><td><code>rbac_users</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>15</td><td><code>rbac_users</code></td><td><code>last_login_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>16</td><td><code>rbac_users</code></td><td><code>api_token_expires_at</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>17</td><td><code>rbac_registration_requests</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>18</td><td><code>rbac_registration_requests</code></td><td><code>update_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NULL</td><td>NULL</td></tr>
+<tr><td>19</td><td><code>tags</code></td><td><code>create_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+<tr><td>20</td><td><code>tags</code></td><td><code>update_time</code></td><td>VARCHAR(25)</td><td>BIGINT</td><td>NOT NULL</td><td>0</td></tr>
+</tbody>
+</table>
+
+<hr>
+<footer>
+<p><small>文档版本 1.0 | 2026-08-26 | CronPilot 时间戳全量迁移至 BIGINT (UTC) 设计方案</small></p>
+ · <a href="时间戳迁移至BIGINT-UTC设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+
+</body>
+</html>

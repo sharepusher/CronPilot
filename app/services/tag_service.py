@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from datas.model.tag import Tag
 from datas.model.task_tag import TaskTag
-from datas.utils.times import get_now_time
+from datas.utils.times import utc_now_hms
 
 
 def _build_tag_query(name, group_id):
@@ -39,7 +39,7 @@ def get_or_create_tag(name, created_by='', group_id=None):
     tag = db.session.scalars(q).first()
     if tag:
         return tag
-    now = get_now_time()
+    now = utc_now_hms()
     tag = Tag(name=name, group_id=group_id, created_by=created_by,
               create_time=now, update_time=now)
     try:
@@ -180,7 +180,7 @@ def create_tag(name, group_id=None, description='', created_by=''):
         q = q.where(Tag.group_id.is_(None))
     if db.session.scalars(q).first():
         return False, '同组内已存在同名标签「{}」'.format(name)
-    now = get_now_time()
+    now = utc_now_hms()
     tag = Tag(name=name, group_id=group_id, description=description,
               created_by=created_by, create_time=now, update_time=now)
     db.session.add(tag)
@@ -219,7 +219,7 @@ def update_tag(tag_id, new_name=None, description=None):
         tag.description = description
         changed = True
     if changed:
-        tag.update_time = get_now_time()
+        tag.update_time = utc_now_hms()
         db.session.commit()
     return True, '保存成功'
 

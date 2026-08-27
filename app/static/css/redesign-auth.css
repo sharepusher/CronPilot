@@ -169,3 +169,4 @@ body {
 .auth-modal-btn-primary { background: var(--cp-signal); color: var(--cp-on-filled); border-color: var(--cp-signal); }
 .auth-modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .auth-field-reason { margin-bottom: 18px; }
+.auth-group-all-label { display: none; font-weight: 600; }

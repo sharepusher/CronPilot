@@ -470,14 +470,14 @@ class TestNavHasPerm(unittest.TestCase):
     def test_admin_nav_shows_users_and_audit(self):
         html = self._render_nav('admin')
         self.assertIn('用户管理', html)
-        self.assertIn('审计', html)
-        self.assertIn('操作记录', html)
+        self.assertIn('访问审计', html)
+        self.assertIn('变更记录', html)
 
     def test_operator_nav_hides_audit(self):
         html = self._render_nav('operator')
-        self.assertNotIn('审计', html)
+        self.assertNotIn('访问审计', html)
         self.assertNotIn('用户管理', html)
-        self.assertIn('操作记录', html)
+        self.assertIn('变更记录', html)
 
     def test_any_role_nav_shows_change_password(self):
         for role in ('admin', 'operator', 'viewer'):
@@ -502,9 +502,9 @@ class TestNavHasPerm(unittest.TestCase):
 
     def test_viewer_nav_hides_operation_and_rbac(self):
         html = self._render_nav('viewer')
-        self.assertNotIn('操作记录', html)
+        self.assertNotIn('变更记录', html)
         self.assertNotIn('用户管理', html)
-        self.assertNotIn('审计', html)
+        self.assertNotIn('访问审计', html)
 
 
 class TestNotFound(unittest.TestCase):
@@ -1343,7 +1343,7 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
         self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
 
-        # operator：可写任务 + 操作记录；不可退休/管用户/RBAC 审计
+        # operator：可写任务 + 变更记录；不可退休/管用户/访问审计
         self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
         self.assertEqual(self.client.get('/cron_list').status_code, 200)
         self.assertEqual(self.client.get('/cron_add').status_code, 200)
@@ -1352,7 +1352,7 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         self.assertEqual(self.client.get('/rbac/audit-logs').status_code, 403)
         self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
 
-        # admin：用户管理 + RBAC 审计 + 操作记录
+        # admin：用户管理 + 访问审计 + 变更记录
         self.assertEqual(self._login('tri_admin', 'admin-pass').status_code, 302)
         self.assertEqual(self.client.get('/cron_add').status_code, 200)
         self.assertEqual(self.client.get('/rbac/users').status_code, 200)
@@ -1360,11 +1360,11 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         self.assertEqual(self.client.get('/operation_log_list').status_code, 200)
         list_html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn('用户管理', list_html)
-        self.assertIn('审计', list_html)
-        self.assertIn('操作记录', list_html)
+        self.assertIn('访问审计', list_html)
+        self.assertIn('变更记录', list_html)
         self.assertEqual(self._login('tri_op', 'op-pass').status_code, 302)
         op_list = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('操作记录', op_list)
+        self.assertIn('变更记录', op_list)
         self.assertNotIn('用户管理', op_list)
         self.assertNotIn('/rbac/audit-logs', op_list)
 

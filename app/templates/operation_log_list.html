@@ -17,7 +17,7 @@
         <p style="color:var(--cp-muted);margin:8px 0">
             本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / <strong>启动</strong> / <strong>暂停</strong> / 下线）。
             登录与权限事件见{% if has_perm('audit:read') %}
-            <a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。
+            <a href="{{ url_for('rbac.audit_logs') }}">访问审计</a>{% else %}访问审计（需 admin）{% endif %}。
         </p>
         <form class="well form-search" method="get" action="{{ url_for('main.operation_log_list') }}">
             高级查询：
@@ -85,7 +85,7 @@
                 <td title="{{ item.detail_json }}">{{ format_detail_summary(item.action, item.detail_json) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="color:var(--cp-muted)">暂无操作记录</td></tr>
+            <tr><td colspan="8" style="color:var(--cp-muted)">暂无变更记录</td></tr>
             {% endfor %}
             </tbody>
         </table>

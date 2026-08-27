@@ -135,7 +135,7 @@ class TestJobLogDetailIntegration(unittest.TestCase):
             r = c.get(f'/job_log_detail?id={self.jl.id}')
             self.assertEqual(r.status_code, 200)
             html = r.data.decode()
-            self.assertIn('追踪码', html)
+            self.assertIn('Trace ID', html)
             self.assertIn(self.trace_uuid, html)
             self.assertNotIn('Internal Server Error', html)
 
@@ -148,7 +148,7 @@ class TestJobLogDetailIntegration(unittest.TestCase):
             self.assertEqual(r.status_code, 200)
             html = r.data.decode()
             self.assertNotIn('Internal Server Error', html)
-            self.assertIn('追踪码', html)
+            self.assertIn('Trace ID', html)
             self.assertIn(str(self.jl.id), html)
 
     def test_v1_detail_not_found(self):

@@ -50,8 +50,8 @@
           <a href="javascript:;" class="btn-tag-tasks pg-link" data-id="{{ t.id }}">{{ t.task_count }}</a>
           {% else %}0{% endif %}
         </td>
-        <td style="font-size:12px;color:var(--cp-text-muted)">
-          {% if t.group_id %}{{ group_name_map.get(t.group_id, '—') }}{% else %}<span style="color:var(--cp-text-faint)">全局</span>{% endif %}
+        <td class="tg-scope-cell">
+          {% if t.group_id %}{{ group_name_map.get(t.group_id, '—') }}{% else %}<span class="tg-scope-global">全局</span>{% endif %}
         </td>
         <td class="pg-tasks">
           {% set names = tag_tasks.get(t.id, []) %}
@@ -262,7 +262,7 @@
             success: function(r) {
                 if (r.errcode === 2 && r.data && r.data.need_confirm) {
                     /* 标签有关联任务，需要二次确认 */
-                    var bodyHtml = '<p style="margin:0 0 10px">' + escHtml(r.errmsg || '该标签已与任务关联，删除后任务将失去此标签。') + '</p>';
+                    var bodyHtml = '<p class="cp-modal-p-lg">' + escHtml(r.errmsg || '该标签已与任务关联，删除后任务将失去此标签。') + '</p>';
                     if (r.data.tasks && r.data.tasks.length) {
                         bodyHtml += '<table class="tg-task-tbl"><thead><tr><th>ID</th><th>任务名称</th></tr></thead><tbody>';
                         for (var i = 0; i < r.data.tasks.length; i++) {
@@ -270,7 +270,7 @@
                         }
                         bodyHtml += '</tbody></table>';
                         if (r.data.task_count > r.data.tasks.length) {
-                            bodyHtml += '<p style="font-size:11px;color:var(--cp-text-muted);margin-top:6px">仅展示前 ' + r.data.tasks.length + ' 条，共 ' + r.data.task_count + ' 个任务</p>';
+                            bodyHtml += '<p class="cp-modal-footnote">仅展示前 ' + r.data.tasks.length + ' 条，共 ' + r.data.task_count + ' 个任务</p>';
                         }
                     }
                     CpModal({

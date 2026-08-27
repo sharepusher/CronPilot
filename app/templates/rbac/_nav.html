@@ -21,7 +21,7 @@
     {% endif %}
     {% if has_perm('operation:read') %}
     <li{% if active == 'operation_log' %} class="active"{% endif %}>
-        <a{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>操作记录</a>
+        <a{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>变更记录</a>
     </li>
     {% endif %}
     {% if has_perm('user:manage') %}
@@ -37,7 +37,7 @@
     {% endif %}
     {% if has_perm('audit:read') %}
     <li{% if active == 'audit' %} class="active"{% endif %}>
-        <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>审计</a>
+        <a{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>访问审计</a>
     </li>
     {% endif %}
     {% if has_perm('user:manage') %}

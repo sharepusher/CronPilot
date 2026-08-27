@@ -1,9 +1,9 @@
 {% extends "redesign/_base.html" %}
-{% block title %}审计日志 — CronPilot{% endblock %}
+{% block title %}访问审计 — CronPilot{% endblock %}
 {% block main_class %} cp-page-audit{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>审计日志</h1><div class="sub">RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）</div></div></div>
+<div class="page-head"><div><h1>访问审计</h1><div class="sub">RBAC 身份与权限事件（登录/登出、用户管理、权限拒绝）</div></div></div>
 
 <div class="pg-audit-filter-bar">
   <form method="GET" action="{{ url_for('rbac.audit_logs') }}" class="pg-search-row">

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>侧边栏菜单文案优化 — 操作记录与审计重命名</title></head>
+<body>
+<h1>侧边栏菜单文案优化 — 操作记录与审计重命名</h1>
+<p><strong>日期</strong>：2026-08-27 &nbsp; <strong>状态</strong>：待确认</p>
+
+<hr>
+
+<h2>1. 问题</h2>
+<p>系统管理区域的两个日志类菜单 <strong>「操作记录」</strong> 与 <strong>「审计」</strong> 命名过于笼统，用户难以仅凭侧边栏文案区分二者内容：</p>
+<ul>
+  <li>「操作记录」— 字面上可包含任何操作，未体现其覆盖范围仅限<em>任务配置变更</em>（创建/编辑/启停/下线）</li>
+  <li>「审计」— 太抽象，不清楚审计的对象是安全事件（登录/权限拒绝）还是业务变更</li>
+</ul>
+
+<h2>2. 根因</h2>
+<p>两个功能在 v1 时期独立开发，命名各自选择了通用词汇（「操作」「审计」），缺少从全局导航角度的差异化设计。随着 Redesign 将二者放入同一「系统管理」分组，模糊性被放大。</p>
+
+<h2>3. 方案</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>位置</th><th>旧文案</th><th>新文案</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>侧边栏菜单</td><td>操作记录</td><td><strong>变更记录</strong></td><td>突出"任务配置变更"语义</td></tr>
+    <tr><td>侧边栏菜单</td><td>审计</td><td><strong>访问审计</strong></td><td>突出"登录/权限/访问"安全维度</td></tr>
+    <tr><td>操作记录页标题</td><td>操作记录</td><td><strong>变更记录</strong></td><td>与菜单对齐</td></tr>
+    <tr><td>审计页标题</td><td>审计日志</td><td><strong>访问审计</strong></td><td>与菜单对齐</td></tr>
+    <tr><td>页面副标题</td><td>（保持不变）</td><td>（保持不变）</td><td>副标题已足够详细，无需改动</td></tr>
+    <tr><td>页面交叉引用</td><td>"RBAC 审计"</td><td><strong>"访问审计"</strong></td><td>变更记录页中指向审计页的链接文案</td></tr>
+    <tr><td>空态提示</td><td>"暂无操作记录"</td><td><strong>"暂无变更记录"</strong></td><td>_oplog_rows.html / operation_log_list.html</td></tr>
+    <tr><td>空态提示</td><td>"暂无审计记录"</td><td><strong>"暂无访问审计记录"</strong></td><td>_audit_logs_rows.html / rbac/audit_logs.html</td></tr>
+    <tr><td>角色提示</td><td>"看操作记录…RBAC审计"</td><td><strong>"看变更记录…访问审计"</strong></td><td>user_form.html / users_add.html</td></tr>
+  </tbody>
+</table>
+
+<p><strong>不改动</strong>：</p>
+<ul>
+  <li>路由 URL（<code>/operation_log_list</code>、<code>/audit_logs</code>）— 内部标识，不影响用户认知</li>
+  <li>权限字符串（<code>operation:read</code>、<code>audit:read</code>）— 后端逻辑标识</li>
+  <li>Python 函数名 / 数据库字段 — 无用户可见影响</li>
+  <li>页面副标题 — 已有详细解释，无需重复改动</li>
+</ul>
+
+<h2>4. 范围</h2>
+
+<h3>4.1 Redesign (v2) 模板</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead><tr><th>文件</th><th>改动点</th></tr></thead>
+  <tbody>
+    <tr><td><code>app/templates/redesign/_sidebar.html</code></td><td>菜单项文案 + title 属性（2 处）</td></tr>
+    <tr><td><code>app/templates/redesign/audit_logs.html</code></td><td>block title + h1 标题</td></tr>
+    <tr><td><code>app/templates/redesign/operation_log.html</code></td><td>block title + h1 标题 + 交叉引用链接文案</td></tr>
+    <tr><td><code>app/templates/redesign/_oplog_rows.html</code></td><td>空态 "暂无操作记录" → "暂无变更记录"</td></tr>
+    <tr><td><code>app/templates/redesign/_audit_logs_rows.html</code></td><td>空态 "暂无审计记录" → "暂无访问审计记录"</td></tr>
+    <tr><td><code>app/templates/redesign/user_form.html</code></td><td>角色提示文案</td></tr>
+  </tbody>
+</table>
+
+<h3>4.2 v1 模板（保持一致）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead><tr><th>文件</th><th>改动点</th></tr></thead>
+  <tbody>
+    <tr><td><code>app/templates/rbac/_sidebar_console.html</code></td><td>"操作记录" → "变更记录"，"审计" → "访问审计"</td></tr>
+    <tr><td><code>app/templates/rbac/_nav.html</code></td><td>同上</td></tr>
+    <tr><td><code>app/templates/rbac/audit_logs.html</code></td><td>交叉引用 "操作记录" → "变更记录" + 空态提示</td></tr>
+    <tr><td><code>app/templates/operation_log_list.html</code></td><td>交叉引用 + 空态提示</td></tr>
+    <tr><td><code>app/templates/rbac/users_add.html</code></td><td>角色提示文案</td></tr>
+  </tbody>
+</table>
+
+<h3>4.3 Python 注释（保持一致）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead><tr><th>文件</th><th>改动点</th></tr></thead>
+  <tbody>
+    <tr><td><code>app/rbac/policy.py</code></td><td>角色注释中 "操作记录" → "变更记录"，"RBAC 审计" → "访问审计"</td></tr>
+  </tbody>
+</table>
+
+<h2>5. 分批</h2>
+<p>本次改动为纯文案替换，无逻辑/样式变更，不涉及数据库。<strong>一批完成</strong>，所有文件同步修改，避免中间状态文案不一致。</p>
+
+<h2>6. 验收</h2>
+<ol>
+  <li><code>bash scripts/cronpilot.sh restart --daemon</code> — 重启服务</li>
+  <li>浏览器访问侧边栏 → 确认菜单文案为「变更记录」「访问审计」</li>
+  <li>访问变更记录页（<code>/operation_log_list</code>）→ 页面标题为「变更记录」，交叉引用指向「访问审计」</li>
+  <li>访问访问审计页（<code>/rbac/audit_logs</code>）→ 页面标题为「访问审计」</li>
+  <li>v1 页面导航同步验证（<code>?v=1</code> 或直接访问 v1 路径）</li>
+  <li><code>python -m unittest tests.test_redesign_sidebar -v</code> — 侧边栏权限回归</li>
+  <li><code>python scripts/smoke_routes.py --check</code> — 路由冒烟</li>
+  <li><code>grep -rn "操作记录\|RBAC 审计\|RBAC审计" app/templates/ app/rbac/policy.py</code> — 确认无残留旧文案（仅允许在纯历史语境注释中出现）</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>低</strong>：纯文案替换，无逻辑变更，无数据库影响</li>
+  <li><strong>回归面</strong>：侧边栏权限测试中可能硬编码了旧文案字符串 → 实现时需检查测试代码是否需同步更新</li>
+  <li><strong>用户习惯</strong>：已有用户可能短暂不适应新名称，副标题保持不变可降低过渡成本</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="侧边栏菜单文案优化-操作记录与审计重命名.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

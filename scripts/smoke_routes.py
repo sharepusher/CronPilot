@@ -68,7 +68,7 @@ ROUTES_RBAC_GET = [
 ]
 
 ROUTES_WITH_DATA = [
-    ('GET', '/job_log_detail?id={log_id}',           True, 'seed', (200,),    '追踪码',  '执行记录详情'),
+    ('GET', '/job_log_detail?id={log_id}',           True, 'seed', (200,),    'Trace ID',  '执行记录详情'),
     ('GET', '/task_detail?id={cron_id}',              True, 'seed', (200, 302), None,     '任务详情'),
     ('GET', '/cron_edit?id={cron_id}',                True, 'seed', (200,),    None,      '编辑任务'),
     ('GET', '/job_log_list?id={cron_id}',             True, 'seed', (200,),    None,      '任务执行记录列表'),

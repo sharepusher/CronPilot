@@ -7,6 +7,40 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 改进 — 系统管理菜单文案优化
+
+侧边栏「操作记录」→「变更记录」、「审计」→「访问审计」，更清晰地区分任务配置变更日志与安全访问事件日志。
+- v1 / v2 导航、页面标题、交叉引用、空态提示、角色提示文案同步更新
+- 路由 URL、权限字符串、数据库字段不变
+
+### 改进 — 执行记录术语规范化
+
+- 执行记录详情中「追踪码」→「Trace ID」，更贴近技术用户习惯
+- `error_keyword` 配置默认值从 `fail,error` 改为空（不启用响应体关键词检查），避免 HTTP 200 被误判为失败
+
+### 改进 — Inline Style 清零（CI 全绿）
+
+消除 Redesign 模板中残留的 10 处 inline style 违规，提取为语义化 CSS class：
+- 新增 `.cp-modal-p`、`.cp-modal-p-lg`、`.cp-modal-err`、`.cp-modal-footnote`、`.cp-modal-textarea` 等模态框工具类
+- 新增 `.lr-pin-ok/.lr-pin-fail/.lr-pin-unknown` 替代 status dot 动态 background
+- 新增 `.tg-scope-cell/.tg-scope-global` 替代标签作用域列 inline style
+- 新增 `.auth-group-all-label` 替代注册页 admin-only label 的 display:none
+- CI 门禁 `check_ui_contract.py --check` 从 10 violations → **0 violations**
+
+### 文档 — 代码质量评估报告 R4
+
+新增 `doc/design/Redesign代码质量全面评估报告-R4-2026-08.html`：综合评分 B+ (80/100)，覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
+
+### 修复 — 文档链接 140 处 broken 归零
+
+- 创建 `doc/design/index.html`、`doc/postmortem/index.html`、`doc/design/screenshots/eval6/index.html` 目录索引页
+- 修正 `UI重设计-groups-tags-方案对比Demo.html` 中 Mockup 文件名引用错误
+- `check_doc_links.py --check`：991 个引用扫描 → 0 broken
+
+### 文档 — 代码质量评估报告 R3
+
+新增 `doc/design/Redesign代码质量全面评估报告-R3-2026-08.html`：综合评分 B+（78/100），覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
+
 ### ⚠️ API Breaking Change — 执行记录标识符与术语统一
 
 **变更**：全量重命名 `log_id`（UUID 追踪码）为 `trace_id`，消除与数据库主键 `id` 的歧义。

@@ -31,7 +31,10 @@ api_access_token=
 # 默认 0（未设置同等于 0），开启前请确保已给所有 API 调用方配置好 token，避免误锁生产。
 api_access_token_required=0
 api_key=
-error_keyword=fail,error
+# 响应体错误关键词（不区分大小写，逗号分隔）。回调返回 HTTP 200 时，若响应体包含任一关键词则标记为失败。
+# 留空 = 仅靠 HTTP 状态码判定成败（推荐）。常见 JSON API 的字段名含 error/fail，极易误判。
+# 示例：error_keyword=FATAL,Exception,traceback（仅匹配真正的异常标志）
+error_keyword=
 fail_on_http_4xx_5xx=1
 error_web_hook=
 qywechat_corpid=

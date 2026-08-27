@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>执行结果判定逻辑优化设计</title></head>
+<body>
+<h1>执行结果判定逻辑优化设计</h1>
+<p><strong>日期</strong>：2026-08-27 &nbsp; <strong>状态</strong>：待确认</p>
+
+<hr>
+
+<h2>1. 问题</h2>
+<p>用户反馈：HTTP 200 的请求在执行记录中被标记为"失败"，详情页"错误"字段显示 <code>keyword</code>，开始/结束时间为空。</p>
+<ul>
+  <li><strong>误判原因</strong>：<code>conf.ini</code> 中 <code>error_keyword=fail,error</code> 对<strong>所有任务</strong>的响应体做子字符串匹配。绝大多数 JSON API（如 <code>{"error_code": 0, "msg": "success"}</code>）都包含 <code>error</code> 字样，导致 HTTP 200 也被判定为失败。</li>
+  <li><strong>可读性差</strong>：失败原因码（<code>keyword</code>、<code>http_4xx</code>、<code>http_5xx</code>、<code>timeout</code>、<code>connection</code>、<code>internal</code>、<code>blocked_url</code>）直接展示给用户，用户无法理解含义。</li>
+  <li><strong>不可定制</strong>：<code>error_keyword</code> 是全局配置，所有任务共用同一套关键词，无法按任务差异化。</li>
+</ul>
+
+<h2>2. 根因</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>问题</th><th>根因</th></tr></thead>
+  <tbody>
+    <tr><td>HTTP 200 被判失败</td><td><code>keyword_matched()</code> 做全文子字符串匹配（<code>any(kw in text for kw in keywords)</code>），不理解 JSON 结构；默认关键词 <code>fail,error</code> 太宽泛</td></tr>
+    <tr><td>错误显示 "keyword"</td><td>模板直接输出 <code>jl.fail_reason</code> 原始码，未做人类可读映射</td></tr>
+    <tr><td>开始/结束时间为空</td><td><code>started_at</code>/<code>finished_at</code> 字段是后续版本添加的；早期记录不含这两个字段</td></tr>
+  </tbody>
+</table>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 判定链重构（核心改动）</h3>
+<p>当前判定链（<code>evaluate_http_response</code>）：</p>
+<pre>
+HTTP 5xx → fail (http_5xx)
+HTTP 4xx → fail (http_4xx)      ← 受 fail_on_http_4xx_5xx 控制
+响应体含 error_keyword → fail (keyword)
+其他 → success
+</pre>
+
+<p><strong>新判定链</strong>：</p>
+<pre>
+HTTP 5xx → fail (http_5xx)
+HTTP 4xx → fail (http_4xx)      ← 受 fail_on_http_4xx_5xx 控制
+响应体关键词匹配 → fail (keyword:实际匹配词)  ← 增强：记录实际匹配到的关键词
+其他 → success
+</pre>
+
+<p><strong>关键改进</strong>：</p>
+<ol>
+  <li><strong>默认值改为空</strong>：<code>conf.ini.example</code> 中 <code>error_keyword=</code>（空，不启用）。当前 <code>fail,error</code> 太宽泛，对绝大多数用户造成困扰。</li>
+  <li><strong>fail_reason 记录实际匹配词</strong>：<code>fail_reason</code> 从 <code>'keyword'</code> 改为 <code>'keyword:error'</code>（冒号后为实际匹配到的关键词），方便排查。</li>
+  <li><strong>注释增强</strong>：<code>conf.ini.example</code> 中加入配置说明和示例。</li>
+</ol>
+
+<h3>3.2 UI 可读性改进</h3>
+<p>新增 <code>fail_reason</code> → 人类可读文案映射（类似 <code>operation_action_label</code>）：</p>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>fail_reason 码</th><th>显示文案</th></tr></thead>
+  <tbody>
+    <tr><td><code>http_4xx</code></td><td>HTTP 客户端错误 (4xx)</td></tr>
+    <tr><td><code>http_5xx</code></td><td>HTTP 服务端错误 (5xx)</td></tr>
+    <tr><td><code>keyword</code>（旧格式）</td><td>响应体关键词匹配</td></tr>
+    <tr><td><code>keyword:xxx</code>（新格式）</td><td>响应体包含关键词「xxx」</td></tr>
+    <tr><td><code>timeout</code></td><td>请求超时</td></tr>
+    <tr><td><code>connection</code></td><td>连接失败</td></tr>
+    <tr><td><code>internal</code></td><td>内部错误</td></tr>
+    <tr><td><code>blocked_url</code></td><td>URL 安全拦截</td></tr>
+  </tbody>
+</table>
+<p>实现方式：新增 Jinja2 filter <code>fail_reason_label</code>，模板中 <code>{{ jl.fail_reason|fail_reason_label }}</code>。</p>
+
+<h3>3.3 方案对比（未来可选扩展，本轮不做）</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>扩展方向</th><th>描述</th><th>复杂度</th></tr></thead>
+  <tbody>
+    <tr><td>每任务 error_keyword 覆盖</td><td>在 cron_infos 增加字段，允许单任务自定义关键词</td><td>高（DB 迁移 + 表单 UI）</td></tr>
+    <tr><td>JSON 路径匹配</td><td>支持 <code>$.errcode != 0</code> 等 JSONPath 表达式</td><td>高（新依赖 + 表达式引擎）</td></tr>
+    <tr><td>正则匹配</td><td>error_keyword 支持正则而非纯子串</td><td>中（安全风险：ReDoS）</td></tr>
+  </tbody>
+</table>
+<p>本轮聚焦 3.1 + 3.2，投入产出比最高。</p>
+
+<h2>4. 范围</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead><tr><th>文件</th><th>改动</th></tr></thead>
+  <tbody>
+    <tr><td><code>app/services/job_log_outcome.py</code></td><td><code>keyword_matched()</code> 返回匹配到的关键词；<code>evaluate_http_response()</code> 将匹配词写入 fail_reason</td></tr>
+    <tr><td><code>app/__init__.py</code> 或 filter 注册处</td><td>注册 <code>fail_reason_label</code> Jinja2 filter</td></tr>
+    <tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>使用 <code>fail_reason_label</code> filter 替代原始码</td></tr>
+    <tr><td><code>app/templates/redesign/_exec_logs_rows.html</code></td><td>同上</td></tr>
+    <tr><td><code>app/templates/job_log_detail.html</code></td><td>同上（v1）</td></tr>
+    <tr><td><code>app/templates/_job_log_result_cell.html</code></td><td>同上（v1）</td></tr>
+    <tr><td><code>conf.ini.example</code></td><td><code>error_keyword=</code>（默认空）+ 详细注释说明用法</td></tr>
+    <tr><td><code>conf.ci.ini</code></td><td>同上</td></tr>
+    <tr><td><code>tests/test_b1_execution_status.py</code></td><td>新增 keyword 匹配 + fail_reason 格式测试</td></tr>
+  </tbody>
+</table>
+
+<p><strong>不改</strong>：</p>
+<ul>
+  <li>数据库模型 — <code>fail_reason</code> 字段仍为字符串，兼容旧格式</li>
+  <li>用户现有的 <code>conf.ini</code> — 只改 example 文件的默认值，不主动修改用户配置</li>
+  <li>HTTP 状态码判定逻辑 — 4xx/5xx 判定不变</li>
+</ul>
+
+<h2>5. 分批</h2>
+<ol>
+  <li><strong>B1</strong>：<code>job_log_outcome.py</code> 改造 + 测试（纯后端，可独立验收）</li>
+  <li><strong>B2</strong>：<code>fail_reason_label</code> filter + 模板更新（UI 层，B1 通过后进行）</li>
+  <li><strong>B3</strong>：<code>conf.ini.example</code> 默认值 + 注释更新</li>
+</ol>
+
+<h2>6. 验收</h2>
+<ol>
+  <li>单元测试：<code>error_keyword=fail,error</code> 时，<code>{"error_code": 0}</code> → fail + <code>fail_reason='keyword:error'</code></li>
+  <li>单元测试：<code>error_keyword=</code>（空）时，<code>{"error_code": 0}</code> → success</li>
+  <li>单元测试：<code>error_keyword=FATAL</code> 时，<code>"all ok"</code> → success</li>
+  <li>模板验证：执行记录详情页显示"响应体包含关键词「error」"而非裸码 <code>keyword</code></li>
+  <li>兼容性：旧 <code>fail_reason='keyword'</code> 记录仍能正确显示为"响应体关键词匹配"</li>
+  <li><code>python scripts/smoke_routes.py --check</code> — 路由冒烟</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>低</strong>：<code>fail_reason</code> 格式从 <code>keyword</code> 变为 <code>keyword:xxx</code>，新旧格式在同一数据库共存，filter 需同时处理两种格式</li>
+  <li><strong>用户配置</strong>：不主动修改用户 <code>conf.ini</code>，但可建议用户将 <code>error_keyword</code> 清空或改为更精确的关键词</li>
+  <li><strong>向后兼容</strong>：已有 <code>fail_reason='keyword'</code> 的历史记录不受影响，filter 向后兼容</li>
+</ul>
+
+<h2>附：追踪码文案优化</h2>
+<p><strong>问题</strong>：执行记录详情中 <code>trace_id</code> 字段的中文翻译「追踪码」不够专业，技术用户更习惯直接看 <code>Trace ID</code>。</p>
+<p><strong>方案</strong>：全局将「追踪码」替换为「Trace ID」。</p>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead><tr><th>文件</th><th>改动</th></tr></thead>
+  <tbody>
+    <tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>label "追踪码" → "Trace ID"</td></tr>
+    <tr><td><code>app/templates/job_log_all_list.html</code></td><td>表头 <code>&lt;th&gt;追踪码&lt;/th&gt;</code> → <code>&lt;th&gt;Trace ID&lt;/th&gt;</code></td></tr>
+    <tr><td><code>app/templates/job_log_list.html</code></td><td>同上</td></tr>
+    <tr><td><code>app/templates/job_log_detail.html</code></td><td>"追踪码:" → "Trace ID:"</td></tr>
+    <tr><td><code>app/api/schemas.py</code></td><td>description 中 "追踪码" → "Trace ID"</td></tr>
+    <tr><td><code>scripts/smoke_routes.py</code></td><td>断言字符串同步</td></tr>
+    <tr><td><code>tests/test_job_log_detail_integration.py</code></td><td>断言字符串同步</td></tr>
+  </tbody>
+</table>
+<p><strong>不改</strong>：数据库字段名 <code>trace_id</code>、Python 变量名、路由参数 — 保持不变。</p>
+<p><strong>验收</strong>：<code>python scripts/smoke_routes.py --check</code> + 浏览器执行记录详情页确认标签为 "Trace ID"。</p>
+
+<hr>
+
+<h2>8. 用户当前问题的即时建议</h2>
+<p>在方案实施之前，用户可以直接修改 <code>conf.ini</code>：</p>
+<pre>
+# 方式一：清空关键词（仅靠 HTTP 状态码判定）
+error_keyword=
+
+# 方式二：使用更精确的关键词（避免误判）
+error_keyword=FATAL,Exception,traceback
+</pre>
+<p>修改后需重启 CronPilot 生效。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="执行结果判定逻辑优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

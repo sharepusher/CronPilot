@@ -86,7 +86,7 @@ class AddLogIn(Schema):
     """POST /api/cron/add_log — 业务方回传执行进度。"""
     cronpilot_trace_id = String(
         required=True,
-        metadata={'description': 'CronPilot 定时触发时生成的追踪码 (UUID)'},
+        metadata={'description': 'CronPilot 定时触发时生成的 Trace ID (UUID)'},
     )
     content = String(
         required=True,

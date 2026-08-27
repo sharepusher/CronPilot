@@ -119,7 +119,7 @@ $(document).on('click', '.js-approve-btn', function() {
         : '';
     CpModal({
         title: '批准注册申请',
-        bodyHtml: '<p style="margin:0 0 8px;font-size:13px">确认批准用户 <strong>' + escHtml(username) + '</strong> 的注册申请？</p>' + warnHtml,
+        bodyHtml: '<p class="cp-modal-p">确认批准用户 <strong>' + escHtml(username) + '</strong> 的注册申请？</p>' + warnHtml,
         confirmText: '确认批准',
         cancelText: '取消',
         onConfirm: function(overlay, close) {
@@ -134,7 +134,7 @@ $(document).on('click', '.js-reject-btn', function() {
     var id = $(this).data('id');
     var username = $(this).data('username');
     var bodyHtml =
-        '<p style="margin:0 0 10px;font-size:13px">拒绝用户 <strong>' + escHtml(username) + '</strong> 的注册申请</p>' +
+        '<p class="cp-modal-p-lg">拒绝用户 <strong>' + escHtml(username) + '</strong> 的注册申请</p>' +
         '<div class="rr-fg"><label>拒绝原因（可选）</label>' +
         '<textarea id="rr-reject-comment" class="rr-textarea" maxlength="500" placeholder="请填写拒绝原因…"></textarea></div>';
     CpModal({

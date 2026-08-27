@@ -46,7 +46,7 @@
   <td class="lr-cell">
     {% if lr %}
     <div class="lr-status">
-      <span class="lr-pin" style="background:var({% if lr.get('status') == 'success' %}--cp-success{% elif lr.get('status') in ['fail','error','timeout'] %}--cp-danger{% else %}--cp-text-faint{% endif %})"></span>
+      <span class="lr-pin{% if lr.get('status') == 'success' %} lr-pin-ok{% elif lr.get('status') in ['fail','error','timeout'] %} lr-pin-fail{% else %} lr-pin-unknown{% endif %}"></span>
       {{ lr.get('http_status', '—') }}
     </div>
     <div class="lr-duration">{{ lr.get('take_time', '—') }}s</div>

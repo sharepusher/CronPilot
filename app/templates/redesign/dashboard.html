@@ -204,9 +204,9 @@ document.addEventListener('click', function(e) {
 
 /* ── Retire task ── */
 function cpRetire(cronId, btn) {
-  var bodyHtml = '<p style="margin:0 0 8px">下线后任务将不再执行且无法恢复，确认下线？</p>' +
-    '<textarea id="cp-retire-reason" class="f-input" rows="3" maxlength="500" placeholder="请填写下线原因（必填，1～500 字）" style="width:100%;resize:vertical"></textarea>' +
-    '<div id="cp-retire-err" style="color:var(--cp-error);font-size:12px;margin-top:4px;display:none"></div>';
+  var bodyHtml = '<p class="cp-modal-p">下线后任务将不再执行且无法恢复，确认下线？</p>' +
+    '<textarea id="cp-retire-reason" class="f-input cp-modal-textarea" rows="3" maxlength="500" placeholder="请填写下线原因（必填，1～500 字）"></textarea>' +
+    '<div id="cp-retire-err" class="cp-modal-err"></div>';
   CpModal({
     title: '下线任务',
     bodyHtml: bodyHtml,

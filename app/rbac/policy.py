@@ -1,11 +1,11 @@
 ROLE_PERMISSIONS = {
-    # viewer：只读任务与执行日志；不可见操作记录 / RBAC 用户与审计
+    # viewer：只读任务与执行日志；不可见变更记录 / RBAC 用户与访问审计
     'viewer': {'cron:read', 'log:read'},
-    # operator：可写任务 + 查看任务配置变更历史；不可下线、不可管用户、不可看 RBAC 审计
+    # operator：可写任务 + 查看任务配置变更历史；不可下线、不可管用户、不可看访问审计
     'operator': {
         'cron:read', 'cron:write', 'log:read', 'operation:read',
     },
-    # admin：全部 + 下线 + 用户管理 + RBAC 审计 + 操作记录
+    # admin：全部 + 下线 + 用户管理 + 访问审计 + 变更记录
     'admin': {
         'cron:read', 'cron:write', 'cron:retire',
         'log:read', 'operation:read', 'user:manage', 'audit:read',

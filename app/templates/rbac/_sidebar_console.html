@@ -35,7 +35,7 @@
         {% endif %}
         {% if has_perm('operation:read') %}
         <a class="cp-nav-item{% if active == 'operation_log' %} active{% endif %}"{% if active != 'operation_log' %} href="{{ url_for('main.operation_log_list') }}"{% endif %}>
-            <i class="fa fa-list-alt"></i><span>操作记录</span>
+            <i class="fa fa-list-alt"></i><span>变更记录</span>
         </a>
         {% endif %}
 
@@ -57,7 +57,7 @@
         {% endif %}
         {% if has_perm('audit:read') %}
         <a class="cp-nav-item{% if active == 'audit' %} active{% endif %}"{% if active != 'audit' %} href="{{ url_for('rbac.audit_logs') }}"{% endif %}>
-            <i class="fa fa-shield"></i><span>审计</span>
+            <i class="fa fa-shield"></i><span>访问审计</span>
         </a>
         {% endif %}
         {% if has_perm('user:manage') %}

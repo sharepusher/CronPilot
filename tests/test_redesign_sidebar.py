@@ -4,7 +4,7 @@
 验证新界面侧边栏在不同角色下的导航可见性：
   - Seed Admin：全部 12 项可见
   - Biz Admin：全部 12 项可见
-  - Operator：7 项可见（含操作记录，无系统配置/管理）
+  - Operator：7 项可见（含变更记录，无系统配置/管理）
   - Viewer：6 项可见（最小只读集，含个人资料）
 
 本测试属于回归门禁，任何侧边栏权限逻辑修改后必须通过。
@@ -26,13 +26,13 @@ sys.path.insert(0, ROOT)
 ADMIN_NAV = {
     '任务中心', '执行记录',
     '业务组', '标签',
-    '用户管理', '注册审批', '审计', '操作记录',
+    '用户管理', '注册审批', '访问审计', '变更记录',
     '个人资料', '修改密码', 'API Token', 'API 文档',
 }
 
 OPERATOR_NAV = {
     '任务中心', '执行记录',
-    '操作记录',
+    '变更记录',
     '个人资料', '修改密码', 'API Token', 'API 文档',
 }
 
@@ -179,14 +179,14 @@ class TestRedesignSidebarPermissions(unittest.TestCase):
     def test_operator_no_admin_items(self):
         """Operator 不应看到任何管理项。"""
         nav = self._render_sidebar('test_operator')
-        admin_only = {'用户管理', '注册审批', '审计', '业务组', '标签'}
+        admin_only = {'用户管理', '注册审批', '访问审计', '业务组', '标签'}
         self.assertEqual(nav & admin_only, set(),
                          f"Operator sees admin items: {nav & admin_only}")
 
     def test_viewer_no_operation_log(self):
-        """Viewer 不应看到操作记录（需 operation:read）。"""
+        """Viewer 不应看到变更记录（需 operation:read）。"""
         nav = self._render_sidebar('test_viewer')
-        self.assertNotIn('操作记录', nav)
+        self.assertNotIn('变更记录', nav)
 
 
 class TestRedesignSidebarHTTPAccess(unittest.TestCase):

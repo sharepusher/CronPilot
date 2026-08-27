@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘 — 文档链接 140 处 broken（index.html 缺失）</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; color: #1e293b; line-height: 1.7; }
+h1 { font-size: 1.4rem; border-bottom: 2px solid #0891b2; padding-bottom: 6px; }
+h2 { font-size: 1.15rem; color: #0891b2; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; font-size: 0.9em; }
+th { background: #f8fafc; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.88em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 0.85em; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>复盘 — 文档链接 140 处 broken（index.html 缺失 + Mockup 文件名错误）</h1>
+<p><strong>日期</strong>：2026-08-26 &nbsp;|&nbsp; <strong>严重程度</strong>：Low（仅影响文档导航，不影响功能）</p>
+
+<h2>1. Bug 定位</h2>
+<p><code>python scripts/check_doc_links.py --check</code> 报告 140 个 broken 链接：</p>
+<ul>
+  <li>138 处：<code>doc/design/*.html</code> 和 <code>doc/postmortem/*.html</code> 中 footer 的 <code>&lt;a href="index.html"&gt;</code> 指向不存在的目录级 <code>index.html</code></li>
+  <li>2 处：<code>doc/design/UI重设计-groups-tags-方案对比Demo.html</code> 引用 <code>CronPilot-2026-full-mockup.html</code>（实际为 <code>CronPilot-2026-redesign-mockup.html</code>）</li>
+</ul>
+
+<h2>2. 根因</h2>
+<ul>
+  <li><strong>index.html 缺失</strong>：<code>scripts/html_docs_to_markdown.py</code> 的 <code>inject_md_footer()</code> 函数无条件注入 <code>&lt;a href="index.html"&gt;</code> 作为相对链接。设计假设每个子目录有 index 文件，但 <code>doc/design/</code> 和 <code>doc/postmortem/</code> 从未创建过。</li>
+  <li><strong>Mockup 文件名错误</strong>：早期设计文档使用外部版文件名 <code>CronPilot-2026-full-mockup.html</code>，后来内部规范改为 <code>CronPilot-2026-redesign-mockup.html</code>，引用未同步更新。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<p><code>check_doc_links.py</code> 能发现问题但未在 CI 中作为阻断性门禁执行。<code>html_docs_to_markdown.py</code> 注入 footer 后未验证链接可达性。</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>创建 <code>doc/design/index.html</code>、<code>doc/postmortem/index.html</code>、<code>doc/design/screenshots/eval6/index.html</code></li>
+  <li>修正 3 处 <code>CronPilot-2026-full-mockup.html</code> → <code>CronPilot-2026-redesign-mockup.html</code></li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<pre>python scripts/check_doc_links.py --check
+# 期望输出：✓ 文档链接检查通过（扫描 991 个引用，0 broken）。</pre>
+
+<h2>6. 同类排查</h2>
+<ul>
+  <li><code>grep -r "full-mockup" doc/</code> — 确认仅此一个文件引用了错误文件名</li>
+  <li>所有 <code>doc/</code> 子目录（design/postmortem/screenshots/eval6）现在都有 <code>index.html</code></li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<table>
+<thead><tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr></thead>
+<tbody>
+<tr>
+  <td>将 <code>check_doc_links.py --check</code> 作为 CI 阻断性门禁</td>
+  <td>CI workflow / 本地 <code>cronpilot.sh test</code></td>
+  <td><code>python scripts/check_doc_links.py --check</code></td>
+</tr>
+<tr>
+  <td>未来新增 <code>doc/</code> 子目录时，同步创建 <code>index.html</code></td>
+  <td><code>.cursor/rules/cronpilot-documentation.mdc</code>（已有相关规范）</td>
+  <td><code>ls doc/*/index.html</code></td>
+</tr>
+</tbody>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-doc-links-broken-index.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

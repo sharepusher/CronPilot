@@ -1,11 +1,11 @@
 {% extends "redesign/_base.html" %}
-{% block title %}操作记录 — CronPilot{% endblock %}
+{% block title %}变更记录 — CronPilot{% endblock %}
 {% block main_class %} cp-page-oplog{% endblock %}
 
 {% block content %}
-<div class="page-head"><div><h1>操作记录</h1><div class="sub">任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）</div></div></div>
+<div class="page-head"><div><h1>变更记录</h1><div class="sub">任务配置变更审计（创建 / 编辑 / 启动 / 暂停 / 下线）</div></div></div>
 
-<p class="pg-desc">本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / 启动 / 暂停 / 下线）。登录与权限事件见{% if has_perm('audit:read') %}<a href="{{ url_for('rbac.audit_logs') }}">RBAC 审计</a>{% else %}RBAC 审计（需 admin）{% endif %}。</p>
+<p class="pg-desc">本页为<strong>任务配置变更</strong>审计（创建 / 编辑 / 启动 / 暂停 / 下线）。登录与权限事件见{% if has_perm('audit:read') %}<a href="{{ url_for('rbac.audit_logs') }}">访问审计</a>{% else %}访问审计（需 admin）{% endif %}。</p>
 
 <form method="GET" action="{{ url_for('main.operation_log_list') }}" class="pg-toolbar pg-search">
   <input class="f-input pg-input-md" type="text" name="keyword" value="{{ search_keyword or '' }}" placeholder="搜索操作人/对象…" aria-label="搜索操作人或对象">

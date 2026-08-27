@@ -16,7 +16,7 @@
 
         <p style="color:var(--cp-muted);margin:8px 0 4px">
             本页为 <strong>RBAC 身份与权限审计</strong>（登录/登出、用户管理、权限拒绝）。
-            任务添加/编辑等业务变更请到「操作记录」页查看。
+            任务添加/编辑等业务变更请到「变更记录」页查看。
         </p>
 
         <form method="GET" action="{{ url_for('rbac.audit_logs') }}" class="rbac-search-form rbac-audit-search">
@@ -67,7 +67,7 @@
                 <td title="{{ item.status }}">{{ audit_status_label(item.status) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="color:var(--cp-muted)">暂无审计记录</td></tr>
+            <tr><td colspan="8" style="color:var(--cp-muted)">暂无访问审计记录</td></tr>
             {% endfor %}
             </tbody>
         </table>

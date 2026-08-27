@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot — 图标规范化与替换设计</title>
+<style>
+body { font-family: system-ui, -apple-system, sans-serif; max-width: 1020px; margin: 2em auto; padding: 0 1em; line-height: 1.7; color: #1a1a1a; }
+h1 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+h2 { margin-top: 2em; color: #1e40af; }
+h3 { color: #374151; }
+h4 { color: #4b5563; margin-top: 1.5em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 14px; }
+th { background: #f3f4f6; font-weight: 600; }
+code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+.problem { background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px 14px; margin: 1em 0; }
+.solution { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 8px 14px; margin: 1em 0; }
+.scope { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 8px 14px; margin: 1em 0; }
+.necessity { background: #f5f3ff; border-left: 4px solid #7c3aed; padding: 10px 14px; margin: 1em 0; }
+.recommend { background: #ecfdf5; border: 2px solid #059669; padding: 12px 16px; margin: 1em 0; border-radius: 6px; }
+.verdict { font-weight: 600; margin-top: 8px; }
+.verdict.yes { color: #059669; }
+.verdict.optional { color: #d97706; }
+
+/* Demo styles */
+.demo-section { margin: 2em 0; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa; }
+.demo-row { display: flex; align-items: center; gap: 20px; margin: 12px 0; padding: 10px 16px; background: #fff; border-radius: 6px; border: 1px solid #e5e7eb; flex-wrap: wrap; }
+.demo-label { width: 100px; font-size: 13px; color: #6b7280; flex-shrink: 0; font-weight: 500; }
+.demo-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+.demo-tag.current { background: #fee2e2; color: #991b1b; }
+.demo-tag.lucide { background: #fef3c7; color: #92400e; }
+.demo-tag.hero { background: #dbeafe; color: #1e40af; }
+.demo-tag.phosphor { background: #e0e7ff; color: #3730a3; }
+.demo-tag.tabler { background: #d1fae5; color: #065f46; }
+.demo-tag.winner { background: #059669; color: #fff; }
+
+/* Icon button demos */
+.ib { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; color: #6b7280; flex-shrink: 0; }
+.ib svg { width: 14px; height: 14px; }
+.ib.lg { width: 36px; height: 36px; }
+.ib.lg svg { width: 18px; height: 18px; }
+.ib.xl { width: 44px; height: 44px; }
+.ib.xl svg { width: 24px; height: 24px; }
+
+/* Password input demo */
+.pw-demo { position: relative; display: inline-flex; align-items: center; }
+.pw-demo input { padding: 6px 34px 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; width: 150px; background: #fff; }
+.pw-demo .pw-btn { position: absolute; right: 6px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: none; background: none; color: #9ca3af; border-radius: 4px; }
+.pw-demo .pw-btn svg { width: 14px; height: 14px; }
+
+.icon-grid { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.icon-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; background: #f9fafb; border: 1px solid #e5e7eb; min-width: 60px; }
+.icon-cell .sz { font-size: 10px; color: #9ca3af; }
+
+.star { color: #f59e0b; }
+.score { display: inline-block; min-width: 18px; text-align: center; font-weight: 700; }
+.score.s5 { color: #059669; }
+.score.s4 { color: #0d9488; }
+.score.s3 { color: #d97706; }
+.score.s2 { color: #dc2626; }
+</style>
+</head>
+<body>
+
+<h1>图标规范化与替换设计</h1>
+<p><strong>状态</strong>：待确认 &nbsp;|&nbsp; <strong>日期</strong>：2026-08-27 &nbsp;|&nbsp; <strong>关联</strong>：OPT-P1-16 Redesign</p>
+
+<!-- ===== 1. 问题 ===== -->
+<h2>1. 问题</h2>
+
+<div class="problem">
+<strong>P1. 密码可见性切换图标不够精致</strong> — 登录、注册、修改密码页共 7 处 Eye/Eye-Off 图标在 14px 下线条偏粗、斜线贴边杂乱。
+</div>
+<div class="problem">
+<strong>P2. 「查看详情」与密码切换共用 Eye 图标</strong> — 语义冲突，违反 WCAG 3.2.4 一致性标识。
+</div>
+<div class="problem">
+<strong>P3. 密码重置 (Key) 与 API Token 入口 (Key) 语义混淆</strong> — 同一 Key 图标代表两种不同操作。
+</div>
+<div class="problem">
+<strong>P4. 停用/启用用户「查看」图标不一致</strong> — 同一操作使用不同图标（Eye vs User）。
+</div>
+
+<!-- ===== 2. 必要性分析 ===== -->
+<h2>2. 必要性分析</h2>
+
+<div class="necessity">
+<strong>P1 · 密码 Eye 精细化</strong>：必要性 <strong>中</strong> — 视觉渲染问题，非语义问题。原因是当前 Feather Icons stroke-width=2 在 14px 下偏粗。<br>
+<strong>P2 · 查看详情 Eye → 别的图标</strong>：必要性 <strong>高</strong> — Eye 在行业中强绑定「密码可见性切换」（GitHub/GitLab/AWS/Vercel 均不用 Eye 表示"查看详情"），违反 WCAG 3.2.4。<br>
+<strong>P3 · API Token Key → 别的图标</strong>：必要性 <strong>高</strong> — Key 已被「重置密码」占用，侧边栏相邻两项（Lock/Key）14px 下难区分。<br>
+<strong>P4 · 停用状态查看图标统一</strong>：必要性 <strong>中</strong> — 一致性问题，随 P2 一并修复。
+</div>
+
+<!-- ===== 3. 图标库方案对比 ===== -->
+<h2>3. 图标库方案对比</h2>
+
+<p>CronPilot 技术约束：Flask + Jinja2 模板、无 JS 构建步骤、inline SVG 方式（复制 path）、深色/浅色主题 <code>currentColor</code>。</p>
+
+<h3>3.1 候选方案概览</h3>
+
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>A. Lucide</th>
+<th>B. Heroicons</th>
+<th>C. Phosphor</th>
+<th>D. Tabler</th>
+</tr>
+</thead>
+<tbody>
+<tr><td><strong>定位</strong></td><td>Feather 社区维护版</td><td>Tailwind 官方图标库</td><td>多权重设计系统</td><td>管理面板/Dashboard</td></tr>
+<tr><td><strong>图标数量</strong></td><td>1,500+</td><td>292</td><td>5,400+</td><td>5,000+</td></tr>
+<tr><td><strong>viewBox</strong></td><td>24×24</td><td>24×24</td><td>256×256</td><td>24×24</td></tr>
+<tr><td><strong>默认 stroke-width</strong></td><td>2</td><td>1.5</td><td>fill（非 stroke）</td><td>2</td></tr>
+<tr><td><strong>渲染方式</strong></td><td>stroke</td><td>stroke</td><td>fill path</td><td>stroke</td></tr>
+<tr><td><strong>变体</strong></td><td>outline only</td><td>outline + solid + mini</td><td>6 权重 (thin→duotone)</td><td>outline + filled</td></tr>
+<tr><td><strong>许可证</strong></td><td>ISC (MIT 兼容)</td><td>MIT</td><td>MIT</td><td>MIT</td></tr>
+<tr><td><strong>维护</strong></td><td>活跃（社区）</td><td>活跃（Tailwind Labs）</td><td>活跃（设计团队）</td><td>活跃（社区）</td></tr>
+<tr><td><strong>npm 周下载</strong></td><td>~5M</td><td>~3M</td><td>~1M</td><td>~2M</td></tr>
+<tr><td><strong>推荐场景</strong></td><td>React/Vue SPA</td><td>Tailwind 项目</td><td>设计系统</td><td><strong>管理面板</strong></td></tr>
+</tbody>
+</table>
+
+<h3>3.2 CronPilot 适配评分</h3>
+
+<table>
+<thead>
+<tr>
+<th>评分维度</th>
+<th>权重</th>
+<th>A. Lucide</th>
+<th>B. Heroicons</th>
+<th>C. Phosphor</th>
+<th>D. Tabler</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>14px 渲染清晰度</strong></td>
+<td>30%</td>
+<td><span class="score s3">3</span> stroke:2 偏粗</td>
+<td><span class="score s5">5</span> stroke:1.5 最佳</td>
+<td><span class="score s4">4</span> fill 清晰但风格不同</td>
+<td><span class="score s3">3</span> stroke:2 同 Lucide</td>
+</tr>
+<tr>
+<td><strong>迁移成本</strong></td>
+<td>25%</td>
+<td><span class="score s5">5</span> 与现有最接近</td>
+<td><span class="score s4">4</span> 同 viewBox 仅换 path</td>
+<td><span class="score s2">2</span> viewBox 256 需全部重写</td>
+<td><span class="score s4">4</span> 同 viewBox 仅换 path</td>
+</tr>
+<tr>
+<td><strong>视觉精致度</strong></td>
+<td>20%</td>
+<td><span class="score s4">4</span> 几何精确</td>
+<td><span class="score s5">5</span> 圆润精致</td>
+<td><span class="score s5">5</span> 设计系统级</td>
+<td><span class="score s3">3</span> 实用优先</td>
+</tr>
+<tr>
+<td><strong>图标覆盖度</strong></td>
+<td>15%</td>
+<td><span class="score s4">4</span> 1500+ 充足</td>
+<td><span class="score s3">3</span> 292 仅够用</td>
+<td><span class="score s5">5</span> 5400+ 超大</td>
+<td><span class="score s5">5</span> 5000+ 超大</td>
+</tr>
+<tr>
+<td><strong>技术兼容性</strong></td>
+<td>10%</td>
+<td><span class="score s5">5</span> 24x24 stroke + currentColor</td>
+<td><span class="score s5">5</span> 24x24 stroke + currentColor</td>
+<td><span class="score s3">3</span> 256x256 fill + currentColor</td>
+<td><span class="score s5">5</span> 24x24 stroke + currentColor</td>
+</tr>
+<tr>
+<td colspan="2"><strong>加权总分</strong></td>
+<td><strong>4.15</strong></td>
+<td><strong>4.55 ★</strong></td>
+<td><strong>3.65</strong></td>
+<td><strong>3.85</strong></td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.3 各方案详细分析</h3>
+
+<h4>A. Lucide（Feather 社区版）</h4>
+<p><strong>优势</strong>：与当前 Feather 图标最接近，迁移成本最低（仅替换 path data）。1,500+ 图标，活跃维护，shadcn/ui 默认。</p>
+<p><strong>劣势</strong>：<code>stroke-width: 2</code> 在 14px 下与当前 Feather 问题相同——线条偏粗，这正是用户反馈的核心痛点。换 Lucide 不解决"不够专业"的根本问题。</p>
+<p><strong>结论</strong>：迁移轻松但视觉改善有限。仅做语义修正（P2/P3）时可选。</p>
+
+<h4>B. Heroicons（Tailwind 官方）</h4>
+<p><strong>优势</strong>：<code>stroke-width: 1.5</code> 是关键差异化——<strong>比 Feather/Lucide/Tabler 的 2px 细 25%</strong>，14px 渲染下线条更精致、留白更充分。由 Tailwind Labs 设计团队维护，每个图标经过严格像素对齐。同 viewBox (24×24)、同渲染方式 (stroke + currentColor)，迁移仅需替换 path data。</p>
+<p><strong>劣势</strong>：仅 292 个图标，是最小的集合。但 CronPilot 当前只使用约 20 个不同图标，292 完全覆盖（含 eye, eye-slash, lock-closed, key, document-text, command-line, arrow-path, no-symbol, users, shield-check 等）。</p>
+<p><strong>结论</strong>：直接解决"14px 下不够专业"的核心问题。292 图标对管理面板充足。</p>
+
+<h4>C. Phosphor（多权重设计系统）</h4>
+<p><strong>优势</strong>：6 种权重（thin/light/regular/bold/fill/duotone），视觉层次最丰富。5,400+ 图标数量最多。设计系统级品质。</p>
+<p><strong>劣势</strong>：viewBox 为 256×256、使用 fill path 而非 stroke——与 CronPilot 现有 <code>viewBox="0 0 24 24" stroke="currentColor"</code> 体系完全不同。迁移需重写所有 SVG 容器属性。fill path 在 14px 下与 stroke 的视觉风格差异大，可能与现有页面元素不协调。</p>
+<p><strong>结论</strong>：品质最高但迁移成本最大，且 fill 风格与现有 stroke 体系冲突。适合全新项目，不适合渐进替换。</p>
+
+<h4>D. Tabler（管理面板专用）</h4>
+<p><strong>优势</strong>：5,000+ 图标专为管理面板设计，覆盖度最高。与 Lucide 同源 (24×24 viewBox, stroke-width:2)，迁移简单。</p>
+<p><strong>劣势</strong>：与 Lucide 同样的 <code>stroke-width: 2</code> 问题。Tabler 的 Eye 图标使用 <code>r="2"</code>（比 Lucide r=3 更小），但整体线条粗细一致。不解决核心视觉问题。</p>
+<p><strong>结论</strong>：图标最多但视觉改善与 Lucide 相当。</p>
+
+<!-- ===== 4. 图标对比 Demo ===== -->
+<h2>4. 图标对比 Demo</h2>
+
+<p>以下为 4 个图标库的实际 SVG 对比，均在真实渲染尺寸下展示。</p>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 1：密码可见性 Eye-Off（隐藏态 — 最能体现差异的图标）</h3>
+<p style="font-size:13px;color:#6b7280">对比各库在 14px（实际使用）和 24px（放大）下的渲染效果。重点关注斜线精度和线条粗细。</p>
+
+<div class="demo-row">
+  <span class="demo-label">当前 Feather</span>
+  <div class="icon-grid">
+    <div class="icon-cell">
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+      <span class="sz">14px</span>
+    </div>
+    <div class="icon-cell">
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+      <span class="sz">24px</span>
+    </div>
+  </div>
+  <span class="demo-tag current">stroke:2 · 斜线贴边</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">A. Lucide</span>
+  <div class="icon-grid">
+    <div class="icon-cell">
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></span>
+      <span class="sz">14px</span>
+    </div>
+    <div class="icon-cell">
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></span>
+      <span class="sz">24px</span>
+    </div>
+  </div>
+  <span class="demo-tag lucide">stroke:2 · 斜线缩短 · 结构更清晰</span>
+</div>
+
+<div class="demo-row" style="background:#f0f9ff">
+  <span class="demo-label">B. Heroicons</span>
+  <div class="icon-grid">
+    <div class="icon-cell" style="border-color:#3b82f6">
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></span>
+      <span class="sz">14px</span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6">
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></span>
+      <span class="sz">24px</span>
+    </div>
+  </div>
+  <span class="demo-tag hero">stroke:1.5 · 线条精致 · 留白充分</span>
+  <span class="demo-tag winner">★ 14px 最佳</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">C. Phosphor</span>
+  <div class="icon-grid">
+    <div class="icon-cell">
+      <span class="ib"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></svg></span>
+      <span class="sz">14px</span>
+    </div>
+    <div class="icon-cell">
+      <span class="ib xl"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></svg></span>
+      <span class="sz">24px</span>
+    </div>
+  </div>
+  <span class="demo-tag phosphor">fill path · viewBox 256 · 风格迥异</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">D. Tabler</span>
+  <div class="icon-grid">
+    <div class="icon-cell">
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg></span>
+      <span class="sz">14px</span>
+    </div>
+    <div class="icon-cell">
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg></span>
+      <span class="sz">24px</span>
+    </div>
+  </div>
+  <span class="demo-tag tabler">stroke:2 · 瞳孔 r=2 更小 · 整体紧凑</span>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 2：Lock（修改密码入口）</h3>
+
+<div class="demo-row">
+  <span class="demo-label">14px 对比</span>
+  <div class="icon-grid">
+    <div class="icon-cell"><span class="demo-tag current" style="font-size:10px">Feather</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag lucide" style="font-size:10px">Lucide</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6"><span class="demo-tag hero" style="font-size:10px">Heroicons</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag phosphor" style="font-size:10px">Phosphor</span>
+      <span class="ib"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag tabler" style="font-size:10px">Tabler</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6"/><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg></span>
+    </div>
+  </div>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">24px 放大</span>
+  <div class="icon-grid">
+    <div class="icon-cell"><span class="demo-tag current" style="font-size:10px">Feather</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag lucide" style="font-size:10px">Lucide</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6"><span class="demo-tag hero" style="font-size:10px">Heroicons</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag phosphor" style="font-size:10px">Phosphor</span>
+      <span class="ib xl"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag tabler" style="font-size:10px">Tabler</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6"/><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></svg></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 3：Terminal / Command-Line（API Token 入口）</h3>
+
+<div class="demo-row">
+  <span class="demo-label">14px 对比</span>
+  <div class="icon-grid">
+    <div class="icon-cell"><span class="demo-tag lucide" style="font-size:10px">Lucide</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg></span>
+      <span class="sz">&gt;_</span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6"><span class="demo-tag hero" style="font-size:10px">Heroicons</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></span>
+      <span class="sz">[&gt;_]</span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag tabler" style="font-size:10px">Tabler</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5l-5 5"/><path d="M12 19l7 0"/></svg></span>
+      <span class="sz">&gt;_</span>
+    </div>
+  </div>
+  <span style="font-size:12px;color:#6b7280">Heroicons 带窗口框（更像终端应用），Lucide/Tabler 为纯 &gt;_ 符号</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">24px 放大</span>
+  <div class="icon-grid">
+    <div class="icon-cell"><span class="demo-tag lucide" style="font-size:10px">Lucide</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg></span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6"><span class="demo-tag hero" style="font-size:10px">Heroicons</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag tabler" style="font-size:10px">Tabler</span>
+      <span class="ib xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5l-5 5"/><path d="M12 19l7 0"/></svg></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 4：Document-Text / File-Text（查看详情）</h3>
+
+<div class="demo-row">
+  <span class="demo-label">14px 对比</span>
+  <div class="icon-grid">
+    <div class="icon-cell"><span class="demo-tag lucide" style="font-size:10px">Lucide</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+    </div>
+    <div class="icon-cell" style="border-color:#3b82f6"><span class="demo-tag hero" style="font-size:10px">Heroicons</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg></span>
+    </div>
+    <div class="icon-cell"><span class="demo-tag tabler" style="font-size:10px">Tabler</span>
+      <span class="ib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/><path d="M9 9l1 0"/><path d="M9 13l6 0"/><path d="M9 17l6 0"/></svg></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 5：用户管理操作列完整按钮组</h3>
+<p style="font-size:13px;color:#6b7280">模拟实际表格操作列，展示 4 个图标的整体协调性。</p>
+
+<div class="demo-row">
+  <span class="demo-label">当前 Feather</span>
+  <div class="icon-grid" style="gap:3px">
+    <span class="ib" title="查看(Eye)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7"/></svg></span>
+    <span class="ib" title="重置密码(Key)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15 3l3 3"/></svg></span>
+    <span class="ib" title="重置Token(Refresh)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 12A8.5 8.5 0 0121 9M21 9V3M21 9h-6"/><path d="M20.5 12A8.5 8.5 0 013 15M3 15v6M3 15h6"/></svg></span>
+    <span class="ib" title="停用(Ban)" style="color:#dc2626"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></span>
+  </div>
+  <span style="font-size:11px;color:#6b7280">Eye(查看) · Key(密码) · Refresh(Token) · Ban</span>
+</div>
+
+<div class="demo-row" style="background:#f0f9ff">
+  <span class="demo-label">Heroicons 方案</span>
+  <div class="icon-grid" style="gap:3px">
+    <span class="ib" title="查看(DocumentText)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg></span>
+    <span class="ib" title="重置密码(Key)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"/></svg></span>
+    <span class="ib" title="重置Token(ArrowPath)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg></span>
+    <span class="ib" title="停用(NoSymbol)" style="color:#dc2626"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636"/></svg></span>
+  </div>
+  <span style="font-size:11px;color:#6b7280">DocText(查看) · Key(密码) · ArrowPath(Token) · NoSymbol</span>
+  <span class="demo-tag winner">★ 推荐</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">Lucide 方案</span>
+  <div class="icon-grid" style="gap:3px">
+    <span class="ib" title="查看(FileText)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+    <span class="ib" title="重置密码(Key)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg></span>
+    <span class="ib" title="重置Token(RotateCW)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>
+    <span class="ib" title="停用(Ban)" style="color:#dc2626"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></span>
+  </div>
+  <span style="font-size:11px;color:#6b7280">FileText(查看) · Key(密码) · RotateCW(Token) · Ban</span>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 6：密码输入框内 Toggle（实际使用场景）</h3>
+
+<div class="demo-row">
+  <span class="demo-label">当前 Feather</span>
+  <span class="pw-demo"><input type="password" value="password" readonly><span class="pw-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span></span>
+  <span class="demo-tag current">stroke:2</span>
+</div>
+
+<div class="demo-row" style="background:#f0f9ff">
+  <span class="demo-label">Heroicons</span>
+  <span class="pw-demo"><input type="password" value="password" readonly><span class="pw-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></span></span>
+  <span class="demo-tag winner">★ stroke:1.5 线条更精致</span>
+</div>
+
+<div class="demo-row">
+  <span class="demo-label">Lucide</span>
+  <span class="pw-demo"><input type="password" value="password" readonly><span class="pw-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></span></span>
+  <span class="demo-tag lucide">stroke:2 结构更清晰</span>
+</div>
+</div>
+
+<!-- ===== 5. 推荐方案 ===== -->
+<h2>5. 推荐方案</h2>
+
+<div class="recommend">
+<h3 style="margin-top:0">推荐：B. Heroicons Outline</h3>
+<p><strong>核心理由</strong>：</p>
+<ol>
+<li><strong>stroke-width: 1.5 是关键差异</strong> — 比 Feather/Lucide/Tabler 的 2px 细 25%，这直接解决了用户反馈"图标不够专业"的核心问题。在 14px 渲染尺寸下，1.5px 的线条更精致、留白更充分、整体更现代</li>
+<li><strong>迁移成本低</strong> — 同样是 24×24 viewBox + stroke + currentColor 体系，只需替换 SVG path data，不改 CSS 或 JS</li>
+<li><strong>292 图标完全够用</strong> — CronPilot 管理面板当前使用约 20 个不同图标，Heroicons 292 个图标全覆盖（eye, eye-slash, lock-closed, key, document-text, command-line, arrow-path, no-symbol, users, shield-check, pencil-square, clipboard, tag, cog 等）</li>
+<li><strong>专业团队维护</strong> — Tailwind Labs 设计团队维护，每个图标经过严格的像素对齐和视觉测试</li>
+<li><strong>行业标杆</strong> — GitHub, Vercel, Linear 等产品的图标精致度与 Heroicons 同级</li>
+</ol>
+
+<p><strong>与 Lucide 对比的关键决策点</strong>：</p>
+<table style="max-width:600px">
+<tr><td>如果核心诉求是</td><td>"不够专业/精致"</td><td>→ <strong>Heroicons</strong>（stroke 更细）</td></tr>
+<tr><td>如果核心诉求是</td><td>"语义混乱"</td><td>→ Lucide 也能解决（仅换图标类型）</td></tr>
+<tr><td>如果核心诉求是</td><td>"最小改动"</td><td>→ Lucide（path 最接近现有）</td></tr>
+</table>
+</div>
+
+<!-- ===== 6. 范围 ===== -->
+<h2>6. 范围（按推荐方案 Heroicons）</h2>
+
+<div class="scope">
+<strong>改动范围</strong>：替换 6 个模板文件中的 SVG path data
+<ul>
+<li><code>login.html</code> — Eye/Eye-Slash 替换（2 组）</li>
+<li><code>register.html</code> — Eye/Eye-Slash 替换（2 组）</li>
+<li><code>change_password.html</code> — Eye/Eye-Slash 替换（3 组）</li>
+<li><code>_users_rows.html</code> — 查看 Eye→DocumentText（2处）、Token 重置→ArrowPath（1处）</li>
+<li><code>_sidebar.html</code> — API Token Key→CommandLine（1处）</li>
+<li><code>_topbar.html</code> — API Token Key→CommandLine（1处）</li>
+</ul>
+
+<strong>同步变更</strong>：所有已替换的图标统一调整 <code>stroke-width</code> 为 1.5
+
+<strong>明确不做</strong>：
+<ul>
+<li>不全量替换全站图标（侧边栏导航、Dashboard 等暂保留现有 Feather，后续统一迁移）</li>
+<li>不变更 CSS 类名、布局结构、交互行为</li>
+<li>不涉及 v1 模板</li>
+</ul>
+</div>
+
+<!-- ===== 7. 分批 ===== -->
+<h2>7. 分批</h2>
+<table>
+<thead><tr><th>批次</th><th>内容</th><th>文件</th></tr></thead>
+<tbody>
+<tr><td>B1</td><td>密码 Eye/Eye-Slash → Heroicons 版（7 组）</td><td>login / register / change_password</td></tr>
+<tr><td>B2</td><td>用户管理操作图标：查看→DocumentText + Token→ArrowPath</td><td>_users_rows</td></tr>
+<tr><td>B3</td><td>API Token 导航：Key→CommandLine</td><td>_sidebar + _topbar</td></tr>
+</tbody>
+</table>
+
+<!-- ===== 8. 验收 ===== -->
+<h2>8. 验收</h2>
+<table>
+<thead><tr><th>批次</th><th>验收方式</th></tr></thead>
+<tbody>
+<tr><td>B1</td><td>① restart → 登录页 Eye-Slash 线条明显比旧版更细 ② 点击切换正常</td></tr>
+<tr><td>B2</td><td>① 用户管理操作列「查看」为文件图标 ② 「Token 重置」为双向旋转箭头 ③ tooltip 正确</td></tr>
+<tr><td>B3</td><td>① 侧边栏 API Token 为终端窗口图标 ② 与相邻的 Lock（修改密码）视觉明确区分</td></tr>
+</tbody>
+</table>
+
+<!-- ===== 9. 风险 ===== -->
+<h2>9. 风险</h2>
+<ul>
+<li><strong>低风险</strong>：仅替换 SVG path 和 stroke-width，不改 class/事件/布局</li>
+<li><strong>视觉一致性</strong>：本轮仅替换 6 个文件中的问题图标，侧边栏导航等其他图标暂保留 Feather (stroke:2)。两种粗细在同一页面中需要在验收时评估是否突兀，如有需要可在后续统一迁移全站图标</li>
+<li><strong>回退</strong>：Git revert 单 commit 即可还原</li>
+</ul>
+
+<!-- ===== 附录 ===== -->
+<h2>附录：图标语义注册表（Icon Semantic Registry）</h2>
+<table>
+<thead><tr><th>编号</th><th>语义</th><th>图标</th><th>Heroicons 名称</th><th>禁止用途</th></tr></thead>
+<tbody>
+<tr><td>I-01</td><td>密码可见性切换</td><td>Eye / Eye-Slash</td><td><code>eye</code> / <code>eye-slash</code></td><td>禁止用于"查看详情"</td></tr>
+<tr><td>I-02</td><td>查看详情/信息</td><td>Document-Text</td><td><code>document-text</code></td><td>禁止用于"下载"</td></tr>
+<tr><td>I-03</td><td>修改密码（入口）</td><td>Lock-Closed</td><td><code>lock-closed</code></td><td>—</td></tr>
+<tr><td>I-04</td><td>重置密码（管理员）</td><td>Key</td><td><code>key</code></td><td>禁止用于"API Token"</td></tr>
+<tr><td>I-05</td><td>API Token（入口）</td><td>Command-Line</td><td><code>command-line</code></td><td>—</td></tr>
+<tr><td>I-06</td><td>重置 API Token</td><td>Arrow-Path</td><td><code>arrow-path</code></td><td>—</td></tr>
+<tr><td>I-07</td><td>停用用户</td><td>No-Symbol</td><td><code>no-symbol</code></td><td>—</td></tr>
+<tr><td>I-08</td><td>编辑</td><td>Pencil-Square</td><td><code>pencil-square</code></td><td>—</td></tr>
+<tr><td>I-09</td><td>复制</td><td>Clipboard-Document</td><td><code>clipboard-document</code></td><td>—</td></tr>
+<tr><td>I-10</td><td>审计</td><td>Shield-Check</td><td><code>shield-check</code></td><td>—</td></tr>
+</tbody>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="图标规范化与替换设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

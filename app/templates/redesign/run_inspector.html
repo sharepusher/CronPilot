@@ -112,7 +112,7 @@
         <span class="cfg-label">任务</span><span class="cfg-value">{{ cif.task_name if cif else '—' }}</span>
         <span class="cfg-label">业务组</span><span class="cfg-value">{{ group_name or '全局' }}</span>
         <span class="cfg-label">触发方式</span><span class="cfg-value">{{ trigger_type }}</span>
-        <span class="cfg-label">追踪码</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ jl.trace_id or '—' }}</span>
+        <span class="cfg-label">Trace ID</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ jl.trace_id or '—' }}</span>
         <span class="cfg-label">超时阈值</span><span class="cfg-value">{{ jl.timeout_sec or 5 }}s</span>
       </div>
     </div>

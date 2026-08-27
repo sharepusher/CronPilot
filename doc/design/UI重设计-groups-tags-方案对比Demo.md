@@ -4,9 +4,9 @@
 
 CronPilot — Groups & Tags 视觉方案对比
 
-设计评估 Demo · 对应 Mockup: CronPilot-2026-full-mockup.html · 2026-08
+设计评估 Demo · 对应 Mockup: CronPilot-2026-redesign-mockup.html · 2026-08
 
-[查看原始 Mockup →](CronPilot-2026-full-mockup.html)
+[查看原始 Mockup →](CronPilot-2026-redesign-mockup.html)
 
 ☀
 ☾
@@ -274,7 +274,7 @@ P0 4
 3. 登录管理员账号 → 访问 `/rbac/groups`（卡片网格）→ 访问 `/rbac/tags`（上云下表）  
 4. `python -m unittest tests.test_redesign_sidebar -v` → 12 个用例全通过
 
-CronPilot 2026 设计评估 · [原始 Mockup](CronPilot-2026-full-mockup.html) · 生成于 2026-08-18
+CronPilot 2026 设计评估 · [原始 Mockup](CronPilot-2026-redesign-mockup.html) · 生成于 2026-08-18
 
 [文档索引](index.html) · [Markdown](UI重设计-groups-tags-方案对比Demo.md) · [索引](index.html)
 

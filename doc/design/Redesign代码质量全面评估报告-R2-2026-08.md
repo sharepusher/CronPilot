@@ -118,7 +118,7 @@ jQuery (sync, no defer)         ← inline scripts 依赖 $
 | Service | `services/cron_service.py` | A- | 单一职责：CRUD + 调度注册 + 操作日志 |
 | Repository | `repositories/cron_repository.py` | B+ | SA 2.0 select()；有展示逻辑越界 |
 | View (RBAC) | `rbac/views.py` | B | 委托 Service；2 个函数 >100 行 |
-| View (Main) | `main/views.py` | C+ | 1,420 行；God function；域逻辑混入 |
+| View (Main) | `main/views.py` | B | 1,258 行；DashboardService 已提取；v1/v2 双渲染仍在 |
 
 ### 3.2 复杂度热点
 
@@ -169,11 +169,11 @@ _base.html (shell + assets + blocks)
 | `registration_review.html` | 2 | JS modal HTML 中的 margin/font-size |
 | `register.html` | 1 | display:none toggle |
 
-### 4.4 Accessibility（C+）
+### 4.4 Accessibility（B）
 
-**已做**：nav aria-label、cmd palette aria-label、theme aria-pressed、user modal role=dialog
+**已做**：nav aria-label、cmd palette aria-label、theme aria-pressed、user modal role=dialog、**select aria-label ×5**、**sidebar aria-expanded + aria-label**、**dashboard filter aria-pressed ×6**
 
-**缺失**：filter select 无 label 关联、sidebar collapse 缺 aria-expanded、user menu 用 div 不可键盘访问、dashboard filter 用 <a> 作 toggle button
+**缺失**：user menu 用 div 不可键盘访问（需重构为 role=menu）
 
 ## 五、CI 门禁覆盖（A-）
 
@@ -196,25 +196,27 @@ _base.html (shell + assets + blocks)
 | escHtml 重复 | P2 | 统一到 window.escHtml，残留 2 fallback shim | ↗ 部分修复 |
 | Dashboard stats 随筛选变化 | 未识别 | scope\_filters 隔离修复 | ✅ 本轮修复 |
 | Inline style violations | 未计数 | 10 个（主要在 JS modal HTML） | 已量化 |
-| Views God function | 未评估 | cron\_list 242 行（C+） | 已识别 |
+| Views God function | 未评估 | DashboardService 已提取；views.py 1,258 行 | ✅ 本轮修复 |
+| 按钮双系统 (.cp-btn/.btn-c) | 未识别 | 统一为 btn-c；.cp-btn 定义已删除（−54 行） | ✅ 本轮修复 |
+| A11y 基线（select/sidebar/filter） | C+ | aria-label ×5、aria-expanded ×1、aria-pressed ×6 | ✅ 本轮补全（→B） |
 
 ## 七、优先改进路线图
 
-| # | 改进项 | 预期收益 | 工作量 | 依赖 |
+| # | 改进项 | 预期收益 | 工作量 | 状态 |
 | --- | --- | --- | --- | --- |
-| 1 | 提取 `DashboardService`（filter/stats/overdue/next\_run） | 消除 God function；提升可测试性 | 中 | 无 |
-| 2 | 提取共享 `CpListFilter` JS 模块 | 消除 3× AJAX filter 重复 | 低 | 无 |
-| 3 | 统一按钮 API | CSS 一致性 | 低 | 需设计确认 |
-| 4 | Shadow/overlay token 化 | dark mode 完整性 | 低 | 无 |
-| 5 | Filter select + sidebar a11y 补全 | a11y 合规 | 低 | 无 |
-| 6 | `redesign-pages.css` 全局选择器 → .cp-page-\* scope | CSS 隔离安全 | 中 | #3 |
-| 7 | Inline style 消除（10 violations → 0） | CI 全绿 | 低 | 无 |
+| 1 | 提取 `DashboardService` | 消除 God function；提升可测试性 | 中 | ✅ 已完成 |
+| 2 | 提取共享 `CpListFilter` JS 模块 | 消除 3× AJAX filter 重复 | 低 | ⏸️ 暂缓（待下一列表页） |
+| 3 | 统一按钮 API | CSS 一致性 | 低 | ✅ 已完成（.cp-btn→btn-c） |
+| 4 | Shadow/overlay token 化 | dark mode 完整性 | 低 | ⏸️ 暂缓（无功能影响） |
+| 5 | Filter select + sidebar a11y 补全 | a11y 合规 | 低 | ✅ 已完成 |
+| 6 | `redesign-pages.css` 全局选择器 → .cp-page-\* scope | CSS 隔离安全 | 中 | ⏸️ 暂缓（无冲突发生） |
+| 7 | Inline style 消除（10 violations → 0） | CI 全绿 | 低 | ❌ 不执行（合理使用场景） |
 
 ## 八、结论
 
-> CronPilot Redesign 代码处于**「生产可用、架构意图清晰、维护成本中等」**的 B 级水平。
+> CronPilot Redesign 代码处于**「生产可用、架构意图清晰、维护成本可控」**的 B+ 级水平。
 >
-> 安全基线和 CI 门禁达到 A 级标准；主要质量瓶颈在视图层复杂度（God function）和 CSS/JS 组件级重复。这些是渐进式迁移过程中的典型技术债，不影响功能正确性和安全性。
+> 安全基线和 CI 门禁达到 A 级标准；DashboardService 提取解决了 God function；按钮系统已统一；A11y 基线从 C+ 提升至 B。剩余技术债（AJAX filter 重复、shadow token、pages.css scope）为非紧急项，不影响功能正确性和安全性。
 
 **核心优势**：
 
@@ -222,12 +224,14 @@ _base.html (shell + assets + blocks)
 2. Token 化色彩系统 + 6 个 CI 门禁持续拦截回归
 3. Service/Repository 分层在 CRUD 路径上执行良好
 4. JS 安全默认值（CSRF 注入、textContent 防 XSS、SameSite cookie）
+5. **统一按钮 API（btn-c）+ A11y 属性覆盖（aria-label/pressed/expanded）**
+6. **DashboardService 独立可测试，统计指标 scope 隔离**
 
-**核心风险**：
+**剩余技术债（已评估，暂缓执行）**：
 
-1. `cron_list()` 242 行 God function 持续累积复杂度
-2. v1/v2 双轨 + AJAX partial 三重渲染路径产生重复代码
-3. `redesign-pages.css` 1,861 行单体缺乏 scope 纪律
+1. `CpListFilter` JS 模块提取（3 页面 ~424 行 AJAX IIFE 重复）— 待下一列表页开发
+2. Shadow/overlay token 化（19 处 rgba 硬编码）— 待 dark mode 用户反馈
+3. `redesign-pages.css` 中 ~365 行全局选择器未加 `.cp-page-*` scope — 待冲突发生
 
 [文档索引](index.html) · [Markdown](Redesign代码质量全面评估报告-R2-2026-08.md)
 

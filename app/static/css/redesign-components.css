@@ -4,65 +4,8 @@
  * OPT-P1-16 Phase 1: Base UI components for the new architecture.
  * All classes prefixed with .cp- to avoid Bootstrap/Simpleboot collision.
  *
- * Active consumers: task_form, task_detail, dashboard, _welcome, _base,
- *                   redesign-confirm.js, redesign-toast.js, redesign-shell.js
+ * Active consumers: _base, redesign-confirm.js, redesign-toast.js, redesign-shell.js
  */
-
-/* ====== Buttons ====== */
-.cp-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 12.5px;
-  font-weight: 500;
-  font-family: var(--cp-font-sans);
-  line-height: 1.4;
-  border: 1px solid var(--cp-border);
-  border-radius: var(--cp-radius-md);
-  background: var(--cp-surface);
-  color: var(--cp-ink);
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.cp-btn:hover {
-  background: var(--cp-surface-2);
-  border-color: var(--cp-border-strong);
-  text-decoration: none;
-  color: var(--cp-ink);
-}
-
-.cp-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--cp-signal-bg);
-}
-
-.cp-btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.cp-btn:disabled,
-.cp-btn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.cp-btn--primary {
-  background: var(--cp-signal);
-  border-color: var(--cp-signal);
-  color: var(--cp-on-filled);
-}
-
-.cp-btn--primary:hover {
-  background: var(--cp-signal-hover);
-  border-color: var(--cp-signal-hover);
-  color: var(--cp-on-filled);
-}
 
 /* ====== Cards ====== */
 .cp-card {

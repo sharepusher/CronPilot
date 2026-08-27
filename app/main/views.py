@@ -79,169 +79,9 @@ def _scope_groups_for_form():
     return [g for g in all_groups if g.id in allowed]
 
 
-def _compute_next_runs(cron_items):
-    """B1: 用 croniter 计算每个任务的下次执行时间。
-    返回 {cron_id: '相对时间字符串'} 如 'in 3 min', 'in 2h'。
-    status != 1 的任务返回对应状态文案。
-
-    CronInfos 的调度字段：
-    - run_date: 一次性定时（如 '2026-08-15 10:00:00'），非空时 trigger='date'
-    - minute, hour, day, day_of_week: 周期性 cron trigger 的各字段
-    """
-    from datetime import datetime
-    try:
-        from croniter import croniter
-    except ImportError:
-        return {}
-    result = {}
-    now = datetime.now()
-    for item in cron_items:
-        if item.status == 0:
-            result[item.id] = '已暂停'
-        elif item.status == -1:
-            result[item.id] = '已下线'
-        else:
-            run_date = getattr(item, 'run_date', '') or ''
-            if run_date.strip():
-                # 一次性任务：直接解析 run_date 为目标时间
-                try:
-                    target = datetime.strptime(run_date.strip(), '%Y-%m-%d %H:%M:%S')
-                    if target <= now:
-                        result[item.id] = '已执行'
-                    else:
-                        delta = target - now
-                        total_seconds = int(delta.total_seconds())
-                        result[item.id] = _format_relative_time(total_seconds)
-                except (ValueError, TypeError):
-                    result[item.id] = '—'
-                continue
-            # 周期性 cron 任务：从各字段组装 5 段 cron 表达式
-            minute = getattr(item, 'minute', '') or '*'
-            hour = getattr(item, 'hour', '') or '*'
-            day = getattr(item, 'day', '') or '*'
-            day_of_week = getattr(item, 'day_of_week', '') or '*'
-            cron_expr = '{} {} {} * {}'.format(
-                minute.strip() or '*',
-                hour.strip() or '*',
-                day.strip() or '*',
-                day_of_week.strip() or '*',
-            )
-            if cron_expr == '* * * * *':
-                result[item.id] = '—'
-                continue
-            try:
-                cron = croniter(cron_expr, now)
-                next_dt = cron.get_next(datetime)
-                delta = next_dt - now
-                total_seconds = int(delta.total_seconds())
-                result[item.id] = _format_relative_time(total_seconds)
-            except (ValueError, KeyError):
-                result[item.id] = '—'
-    return result
 
 
-def _format_relative_time(total_seconds):
-    """格式化秒数为相对时间字符串。"""
-    if total_seconds < 60:
-        return 'in <1 min'
-    elif total_seconds < 3600:
-        return 'in {} min'.format(total_seconds // 60)
-    elif total_seconds < 86400:
-        return 'in {}h'.format(total_seconds // 3600)
-    else:
-        return 'in {}d'.format(total_seconds // 86400)
 
-
-_overdue_cache = {}
-_OVERDUE_CACHE_TTL = 30
-
-
-def _cached_overdue_stats(cache_key, repo, filter_arr):
-    """进程内 TTL 缓存 overdue_count 和 overdue_ids（30s）。
-    避免每次 Dashboard 加载都全量查询 + croniter 计算。
-    """
-    import time as _time
-    now = _time.time()
-    if cache_key in _overdue_cache:
-        cached_time, cached_result = _overdue_cache[cache_key]
-        if now - cached_time < _OVERDUE_CACHE_TTL:
-            return cached_result
-    all_active = repo.scalars_all(
-        select(CronInfos).where(CronInfos.status == 1).where(*filter_arr) if filter_arr
-        else select(CronInfos).where(CronInfos.status == 1)
-    )
-    all_active_ids = [c.id for c in all_active]
-    last_exec_map = repo.last_exec_time_by_ids(all_active_ids) if all_active_ids else {}
-    overdue_map_all = _compute_overdue_map(all_active, last_exec_map)
-    result = (len(overdue_map_all), set(overdue_map_all.keys()))
-    _overdue_cache[cache_key] = (now, result)
-    stale = [k for k, (t, _) in _overdue_cache.items() if now - t > _OVERDUE_CACHE_TTL * 3]
-    for k in stale:
-        del _overdue_cache[k]
-    return result
-
-
-def _compute_overdue_map(cron_items, last_exec_map):
-    """计算逾期任务。返回 {cron_id: '逾期 Xh'} 字典（仅含逾期任务）。
-
-    逾期 = (now - last_exec) > max(interval × 2, 600s)
-    排除：已暂停(0)、已下线(-1)、一次性任务(run_date非空)、无调度表达式
-    """
-    from datetime import datetime
-    try:
-        from croniter import croniter
-    except ImportError:
-        return {}
-    result = {}
-    now = datetime.now()
-    for item in cron_items:
-        if item.status != 1:
-            continue
-        run_date = getattr(item, 'run_date', '') or ''
-        if run_date.strip():
-            continue
-        minute = (getattr(item, 'minute', '') or '*').strip() or '*'
-        hour = (getattr(item, 'hour', '') or '*').strip() or '*'
-        day = (getattr(item, 'day', '') or '*').strip() or '*'
-        day_of_week = (getattr(item, 'day_of_week', '') or '*').strip() or '*'
-        cron_expr = '{} {} {} * {}'.format(minute, hour, day, day_of_week)
-        if cron_expr == '* * * * *':
-            continue
-        try:
-            ci = croniter(cron_expr, now)
-            next1 = ci.get_next(datetime)
-            next2 = ci.get_next(datetime)
-            interval_sec = (next2 - next1).total_seconds()
-        except (ValueError, KeyError):
-            continue
-        threshold = max(interval_sec * 2, 600)
-        last_exec_val = last_exec_map.get(item.id)
-        if not last_exec_val:
-            continue
-        try:
-            from datas.utils.times import hms_to_datetime, str_to_hms
-            if isinstance(last_exec_val, str):
-                last_exec = hms_to_datetime(str_to_hms(last_exec_val))
-            elif isinstance(last_exec_val, (int, float)):
-                last_exec = hms_to_datetime(last_exec_val)
-            else:
-                last_exec = last_exec_val
-            if last_exec is None:
-                continue
-            if getattr(last_exec, 'tzinfo', None) is not None:
-                last_exec = last_exec.astimezone().replace(tzinfo=None)
-            gap = (now - last_exec).total_seconds()
-        except (ValueError, TypeError):
-            continue
-        if gap > threshold:
-            if gap < 3600:
-                label = '逾期 {}min'.format(int(gap // 60))
-            elif gap < 86400:
-                label = '逾期 {}h'.format(int(gap // 3600))
-            else:
-                label = '逾期 {}d'.format(int(gap // 86400))
-            result[item.id] = label
-    return result
 
 
 def _parse_ui_scope_view(role, group_ids, scope_view, group_id_raw):
@@ -409,9 +249,9 @@ def cron_list():
     )
     _overdue_ids = None
     if health == 'overdue':
-        _overdue_count_cached, _overdue_ids = _cached_overdue_stats(
-            _list_cache_key, repo, filter_arr,
-        )
+        from app.services.dashboard_service import DashboardService
+        _svc_tmp = DashboardService(repo)
+        _overdue_ids = _svc_tmp.overdue_ids_for_list(_list_cache_key, filter_arr)
 
     page_data = repo.paginate_list(
         page_query, filters=filter_arr, health=health,
@@ -490,21 +330,19 @@ def cron_list():
 
     # OPT-P1-16: Redesign dual-track — serve new Shell if ui_version == 'v2'
     if getattr(g, 'ui_version', 'v1') == 'v2':
-        # Additional context for Health-First dashboard (stats use scope_filters only)
-        consecutive_failing = repo.count_consecutive_failing(scope_filters)
-        status_counts = repo.status_counts(scope_filters)
-        today_success_rate = repo.today_success_rate(scope_filters)
-        # B1: last run details (http_status, take_time, fail_reason) per task
-        task_ids_for_run = [item.id for item in page_data.items]
-        last_run_map = repo.last_run_details_by_ids(task_ids_for_run)
-        # B1: next_run_at via croniter
-        next_run_map = _compute_next_runs(page_data.items)
-        # Overdue detection: compute for current page items
-        page_last_exec = repo.last_exec_time_by_ids(task_ids_for_run)
-        overdue_map = _compute_overdue_map(page_data.items, page_last_exec)
-        overdue_count, _ = _cached_overdue_stats(
-            _stats_cache_key, repo, scope_filters,
-        )
+        from app.services.dashboard_service import DashboardService
+        dashboard_svc = DashboardService(repo)
+
+        stats = dashboard_svc.compute_stats(scope_filters, cron_config=current_app.config.get('CRON_CONFIG'))
+        consecutive_failing = stats['consecutive_failing']
+        status_counts = stats['status_counts']
+        today_success_rate = stats['today_success_rate']
+        overdue_count = stats['overdue_count']
+
+        page_ctx_data = dashboard_svc.compute_page_context(page_data.items)
+        last_run_map = page_ctx_data['last_run_map']
+        next_run_map = page_ctx_data['next_run_map']
+        overdue_map = page_ctx_data['overdue_map']
 
         # OPT-P1-17: AJAX partial refresh for v2 dashboard filters
         if request.args.get('partial') == '1':
@@ -860,9 +698,9 @@ def job_log_list():
 @main.route('/job_log_item_list', methods=['GET', 'POST'])
 @require_permission('log:read')
 def job_log_item_list():
-    log_id = request.args.get('log_id')
+    trace_id = request.args.get('trace_id')
     repo = _job_log_repo()
-    jl = repo.get_by_log_id(log_id)
+    jl = repo.get_by_trace_id(trace_id)
     if not jl:
         if getattr(g, 'ui_version', 'v1') == 'v2':
             return redirect(url_for('main.job_log_detail', id=0))
@@ -875,7 +713,7 @@ def job_log_item_list():
     if getattr(g, 'ui_version', 'v1') == 'v2':
         return redirect(url_for('main.job_log_detail', id=jl.id))
 
-    page_data = repo.items_for_log_id(log_id)
+    page_data = repo.items_for_trace_id(trace_id)
 
     return render_template("job_log_item_list.html", page_data=page_data)
 
@@ -890,18 +728,17 @@ def job_log_detail():
         if getattr(g, 'ui_version', 'v1') == 'v2':
             return render_template("redesign/run_inspector.html",
                                    active_nav='logs', jl=None, cif=None, items=[],
-                                   log_id_short='—', take_time_display='—',
+                                   record_id='—', take_time_display='—',
                                    trigger_type='—', group_name='', health=None)
         return render_template("job_log_detail.html", jl=None, cif=None, items=[])
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
-    items = repo.items_for_log_id(jl.log_id) if jl.log_id else []
+    items = repo.items_for_trace_id(jl.trace_id) if jl.trace_id else []
 
-    # B3: v2 redesign → Run Inspector template
     if getattr(g, 'ui_version', 'v1') == 'v2':
-        log_id_short = (jl.log_id or str(jl.id))[:8]
+        record_id = jl.id
         raw_time = getattr(jl, 'take_time', None) or 0
         try:
             raw_time = float(raw_time)
@@ -957,7 +794,7 @@ def job_log_detail():
             jl=jl,
             cif=cif,
             items=items,
-            log_id_short=log_id_short,
+            record_id=record_id,
             take_time_display=take_time_display,
             trigger_type=trigger_type,
             group_name=group_name,

@@ -96,6 +96,9 @@ body {
 .toggle-vis { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--cp-text-faint); border-radius: 4px; border: none; background: none; padding: 0; }
 .toggle-vis:hover { color: var(--cp-text); background: var(--cp-surface-2); }
 .toggle-vis svg { width: 14px; height: 14px; }
+.toggle-vis .icon-visible { display: none; }
+.toggle-vis.is-visible .icon-hidden { display: none; }
+.toggle-vis.is-visible .icon-visible { display: block; }
 
 /* Checkbox group (register: group selection) */
 .auth-checkbox-group { border: 1px solid var(--cp-border-strong); border-radius: 6px; padding: 8px 10px; max-height: 80px; overflow-y: auto; font-size: 12.5px; }

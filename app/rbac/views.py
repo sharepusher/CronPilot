@@ -770,7 +770,7 @@ def users_edit():
 @rbac.route('/users/view', methods=['GET'])
 @require_permission('user:manage')
 def users_view():
-    """Read-only view for deactivated users."""
+    """Read-only detail view for any user (active or deactivated)."""
     user_id = request.args.get('id')
     try:
         user_id = int(user_id)

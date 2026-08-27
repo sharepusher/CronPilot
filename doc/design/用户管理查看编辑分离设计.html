@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>用户管理查看-编辑分离设计</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1e293b; }
+h1 { font-size: 1.5rem; border-bottom: 2px solid #0891b2; padding-bottom: 0.5rem; }
+h2 { font-size: 1.2rem; margin-top: 2rem; color: #0891b2; }
+h3 { font-size: 1rem; margin-top: 1.5rem; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.85rem; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.88em; }
+.flow { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 12px 0; font-family: monospace; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<h1>用户管理 — 查看/编辑分离设计</h1>
+<p><strong>日期</strong>：2026-08-26 · <strong>状态</strong>：待确认</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>一、问题</h2>
+<p>当前用户列表的操作列直接提供「编辑」入口，点击即进入表单编辑模式。当管理员只想查看用户信息（角色、组、状态等）时，被迫进入编辑界面，有误操作风险；且缺乏「只看不改」的友好路径。</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>二、方案</h2>
+
+<h3>2.1 交互流程</h3>
+<div class="flow">
+用户列表
+├── [活跃用户] 操作列：👁查看 | 🔑重置密码 | 🔄重置Token | ⊘停用
+│   └── 查看 → 用户详情页（只读）
+│       └── [编辑] 按钮 → 编辑表单（当前 users_edit）
+│
+├── [停用用户] 操作列：👁查看（现有行为不变）
+│   └── 查看 → 用户详情页（只读，无编辑按钮）
+│
+└── [自己] 操作列：🔑修改密码（现有行为不变）
+</div>
+
+<h3>2.2 详情页（view_mode）变更</h3>
+<table>
+<tr><th>位置</th><th>当前</th><th>优化后</th></tr>
+<tr><td>标题</td><td>「查看用户信息」</td><td>「用户详情 — {username}」</td></tr>
+<tr><td>状态行</td><td>硬编码「已停用」</td><td>根据 <code>user.is_active</code> 动态显示</td></tr>
+<tr><td>操作区</td><td>只有「← 返回」</td><td>活跃用户：「编辑」+「返回」；停用用户：只有「返回」</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>三、范围</h2>
+
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/templates/redesign/_users_rows.html</code></td><td>活跃用户操作列：「编辑」图标改为「查看」图标，链接到 <code>users_view</code></td></tr>
+<tr><td><code>app/templates/redesign/user_form.html</code></td><td>view_mode 区域：① 状态动态化 ② 活跃用户显示「编辑」按钮</td></tr>
+<tr><td><code>app/rbac/views.py</code></td><td><code>users_view()</code> 去掉仅限停用的限制（docstring 说 "Read-only view for deactivated users" 需更新）</td></tr>
+</table>
+
+<p><strong>不做</strong>：不改路由 URL（<code>/users/view</code> 已存在）；不改 v1 模板；不新增路由。</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>四、详细代码设计</h2>
+
+<h3>4.1 _users_rows.html 操作列变更</h3>
+<pre>
+Before:
+  &lt;a class="um-icon-btn" href="{{ url_for('rbac.users_edit', id=item.id) }}" data-tooltip="编辑用户"&gt;
+    &lt;svg .../&gt; (pencil icon)
+  &lt;/a&gt;
+
+After:
+  &lt;a class="um-icon-btn" href="{{ url_for('rbac.users_view') }}?id={{ item.id }}" data-tooltip="查看详情"&gt;
+    &lt;svg .../&gt; (eye icon)
+  &lt;/a&gt;
+</pre>
+
+<h3>4.2 user_form.html view_mode 修改</h3>
+<pre>
+Before (状态行):
+  &lt;span class="u-badge u-inactive"&gt;已停用&lt;/span&gt;
+
+After:
+  {% if user.is_active %}
+  &lt;span class="u-badge u-active"&gt;启用&lt;/span&gt;
+  {% else %}
+  &lt;span class="u-badge u-inactive"&gt;已停用&lt;/span&gt;
+  {% endif %}
+
+Before (操作区):
+  &lt;a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}"&gt;← 返回&lt;/a&gt;
+
+After:
+  {% if user.is_active and not view_mode_readonly %}
+  &lt;a class="btn-c btn-accent" href="{{ url_for('rbac.users_edit', id=user.id) }}"&gt;编辑&lt;/a&gt;
+  {% endif %}
+  &lt;a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}"&gt;← 返回用户管理&lt;/a&gt;
+</pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>五、分批</h2>
+<p>单批完成（3 文件，各改 ~5 行）</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>六、验收</h2>
+<ol>
+<li>restart 后打开 <code>/rbac/users</code></li>
+<li>活跃用户行：操作列第一个图标为「查看详情」（eye icon）</li>
+<li>点击 → 进入用户详情页（只读）</li>
+<li>详情页状态显示「启用」（绿色）</li>
+<li>详情页底部有「编辑」+ 「返回」两个按钮</li>
+<li>点击「编辑」→ 正常进入编辑表单</li>
+<li>停用用户行：操作列仍为「查看信息」（行为不变）</li>
+<li>停用用户详情页：无「编辑」按钮，只有「返回」</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>七、风险</h2>
+<ul>
+<li>管理员多一次点击才能编辑 — 可接受（防误操作的收益 > 额外一次点击的成本）</li>
+<li>原「编辑」快捷方式消失 — 用户需适应，必要时可在详情页添加键盘快捷键 <code>E</code> 进入编辑</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+<a href="index.html">文档索引</a>
+ · <a href="用户管理查看编辑分离设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

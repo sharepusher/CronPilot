@@ -39,20 +39,22 @@
   </div>
   <div class="uf-row">
     <label class="uf-label">状态</label>
+    {% if user.is_active %}
+    <span class="u-badge u-active" style="display:inline-block">启用</span>
+    {% else %}
     <span class="u-badge u-inactive" style="display:inline-block">已停用</span>
+    {% endif %}
   </div>
-  {% if user.status_reason %}
+  {% if not user.is_active %}
   <div class="uf-row">
     <label class="uf-label">停用原因</label>
-    <span class="uf-hint-block">{{ user.status_reason }}</span>
-  </div>
-  {% else %}
-  <div class="uf-row">
-    <label class="uf-label">停用原因</label>
-    <span class="uf-hint-block uf-hint-empty">—（未填写）</span>
+    <span class="uf-hint-block">{{ user.status_reason or '—（未填写）' }}</span>
   </div>
   {% endif %}
   <div class="uf-actions">
+    {% if user.is_active %}
+    <a class="btn-c btn-accent" href="{{ url_for('rbac.users_edit', id=user.id) }}">编辑</a>
+    {% endif %}
     <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">← 返回用户管理</a>
   </div>
   {% else %}
@@ -148,7 +150,7 @@
     <div class="uf-row">
       <label class="uf-label">状态</label>
       {% if user.is_active %}
-      <select name="is_active" class="f-input uf-select">
+      <select name="is_active" class="f-input uf-select" aria-label="用户状态">
         <option value="1" selected>启用</option>
         <option value="0">停用（不可恢复）</option>
       </select>

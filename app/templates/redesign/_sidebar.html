@@ -109,7 +109,7 @@
     {% endif %}
   </nav>
 
-  <button class="cp-collapse-btn" onclick="CpShell.toggleSidebar()" title="{{ '展开侧栏' if sidebar_collapsed else '收起侧栏' }}">
+  <button class="cp-collapse-btn" onclick="CpShell.toggleSidebar()" title="{{ '展开侧栏' if sidebar_collapsed else '收起侧栏' }}" aria-expanded="{{ 'false' if sidebar_collapsed else 'true' }}" aria-label="切换侧栏">
     <svg class="cp-collapse-icon expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
     <svg class="cp-collapse-icon collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
   </button>

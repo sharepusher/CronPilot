@@ -4,7 +4,17 @@ import unittest
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from app.main.views import _compute_overdue_map
+from app.services.dashboard_service import DashboardService
+
+
+class _FakeRepo:
+    pass
+
+
+def _compute_overdue_map(items, last_exec_map):
+    """Wrapper to call DashboardService.compute_overdue_map for tests."""
+    svc = DashboardService(_FakeRepo())
+    return svc.compute_overdue_map(items, last_exec_map)
 
 
 def _task(tid, status=1, minute='0', hour='*', day='*', dow='*', run_date=''):

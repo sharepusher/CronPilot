@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>用户管理业务组列显示优化设计</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1e293b; }
+h1 { font-size: 1.5rem; border-bottom: 2px solid #0891b2; padding-bottom: 0.5rem; }
+h2 { font-size: 1.2rem; margin-top: 2rem; color: #0891b2; }
+h3 { font-size: 1rem; margin-top: 1.5rem; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.85rem; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.88em; }
+.demo-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 12px 0; background: #fafafa; }
+.demo-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+.tag { display: inline-block; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 10px; padding: 0 5px; line-height: 16px; margin-right: 2px; }
+.tag-more { background: #ecfeff; color: #0891b2; border-color: #0891b2; cursor: pointer; position: relative; }
+.tag-more:hover .tooltip { display: block; }
+.tooltip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; font-size: 11px; padding: 6px 10px; border-radius: 5px; white-space: nowrap; z-index: 10; }
+.tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #1e293b; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.choice { border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.choice.recommended { border-color: #0891b2; }
+.choice-label { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 10px; }
+.choice.recommended .choice-label { color: #0891b2; }
+.highlight { background: #fef3c7; padding: 2px 4px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>用户管理 — 业务组列显示优化设计</h1>
+<p><strong>编号</strong>：UI-OPT-用户组显示 · <strong>日期</strong>：2026-08-26 · <strong>状态</strong>：待确认</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>一、问题</h2>
+
+<p>当前「用户管理」表格的「业务组」列最多显示 2 个 tag，超出部分以 <code>+N</code> 展示并通过浏览器原生 <code>title</code> 提示剩余组名。</p>
+
+<p><strong>问题</strong>：</p>
+<ul>
+<li>当用户属于 2+ 组时，tag 换行导致表格行高不一致</li>
+<li>列宽 140px 装 2 个 tag 后空间紧张，长组名被截断</li>
+<li>原生 <code>title</code> tooltip 延迟 ~700ms 且无法定制样式</li>
+<li>2 个 tag 占位仍然偏多，尤其在 1440px 视口下横向空间紧张</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>二、方案对比</h2>
+
+<div class="compare-grid">
+  <div class="choice recommended">
+    <div class="choice-label">✅ 方案 A：只显示 1 个 + CSS Tooltip（推荐）</div>
+    <div class="demo-box">
+      <div class="demo-title">单组用户</div>
+      <span class="tag">运维组</span>
+    </div>
+    <div class="demo-box">
+      <div class="demo-title">多组用户（悬停 +N 展开）</div>
+      <span class="tag">运维组</span>
+      <span class="tag tag-more">+2
+        <span class="tooltip">研发组、测试组</span>
+      </span>
+    </div>
+    <div class="demo-box">
+      <div class="demo-title">无组用户</div>
+      <span style="color:#94a3b8;">—</span>
+    </div>
+    <p style="font-size:12px;color:#475569;margin-top:10px;"><strong>优点</strong>：行高一致；列宽可缩至 100px；即时 tooltip 无延迟<br>
+    <strong>缺点</strong>：需鼠标悬停才能看完整组列表</p>
+  </div>
+
+  <div class="choice">
+    <div class="choice-label">方案 B：保留 2 个 + CSS Tooltip</div>
+    <div class="demo-box">
+      <div class="demo-title">多组用户（悬停 +N 展开）</div>
+      <span class="tag">运维组</span>
+      <span class="tag">研发组</span>
+      <span class="tag tag-more">+1
+        <span class="tooltip">测试组</span>
+      </span>
+    </div>
+    <p style="font-size:12px;color:#475569;margin-top:10px;"><strong>优点</strong>：信息密度稍高<br>
+    <strong>缺点</strong>：列宽仍需 140px+；2 tag 仍可能换行</p>
+  </div>
+</div>
+
+<div class="choice" style="margin-top:12px;">
+  <div class="choice-label">方案 C：点击弹出浮层</div>
+  <div class="demo-box">
+    <div class="demo-title">多组用户（点击展开面板）</div>
+    <span class="tag">运维组</span>
+    <span class="tag tag-more" style="cursor:pointer;">+2 ▾</span>
+    <p style="font-size:11px;color:#94a3b8;margin-top:4px;">→ 点击弹出下拉面板显示全部组</p>
+  </div>
+  <p style="font-size:12px;color:#475569;margin-top:10px;"><strong>优点</strong>：移动端友好；可展示更多信息<br>
+  <strong>缺点</strong>：需要 JS；交互成本高（额外点击）；触控设备才有价值</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>三、推荐方案详细设计（方案 A）</h2>
+
+<h3>3.1 模板变更</h3>
+<pre>
+文件：app/templates/redesign/_users_rows.html
+
+&lt;td class="col-groups-cell"&gt;
+  {% set groups = user_groups_map.get(item.id, []) %}
+  {% if groups %}
+    &lt;span class="um-group-tag"&gt;{{ groups[0] }}&lt;/span&gt;
+    {% if groups|length &gt; 1 %}
+    &lt;span class="um-group-tag um-group-more"
+          data-tooltip="{{ groups[1:]|join('、') }}"&gt;+{{ groups|length - 1 }}&lt;/span&gt;
+    {% endif %}
+  {% else %}—{% endif %}
+&lt;/td&gt;
+</pre>
+
+<h3>3.2 CSS 变更</h3>
+<pre>
+文件：app/static/css/redesign-pages.css（.cp-page-users 作用域内）
+
+/* 业务组 hover tooltip */
+.cp-page-users .um-group-more[data-tooltip] { position: relative; }
+.cp-page-users .um-group-more[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cp-ink);
+  color: var(--cp-surface);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 100;
+  pointer-events: none;
+}
+</pre>
+
+<h3>3.3 列宽调整</h3>
+<pre>
+.cp-page-users .c-table .col-groups { width: 110px; }  /* 140px → 110px */
+</pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>四、范围</h2>
+
+<table>
+<tr><th>文件</th><th>变更类型</th><th>描述</th></tr>
+<tr><td><code>app/templates/redesign/_users_rows.html</code></td><td>修改</td><td>groups 循环改为 <code>[:1]</code>，+N tooltip 改用 <code>data-tooltip</code></td></tr>
+<tr><td><code>app/static/css/redesign-pages.css</code></td><td>修改</td><td>添加 <code>.um-group-more[data-tooltip]:hover::after</code> 样式</td></tr>
+</table>
+
+<p><strong>不做</strong>：</p>
+<ul>
+<li>不改 v1 模板（<code>rbac/users.html</code>）</li>
+<li>不新增 JS</li>
+<li>不改后端数据结构</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>五、分批</h2>
+<p>单批完成（改动 ≤10 行，2 文件）</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>六、验收</h2>
+<ol>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+<li>浏览器访问 <code>http://127.0.0.1:5001/rbac/users</code></li>
+<li>验证：单组用户 — 只显示 1 个 tag，行高正常</li>
+<li>验证：多组用户 — 显示 1 tag + "+N"，悬停 +N 弹出 tooltip 显示完整组名</li>
+<li>验证：无组用户 — 显示 "—"</li>
+<li>验证：tooltip 在 1440px 视口下不超出屏幕</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>七、风险</h2>
+<ul>
+<li>若组名特别长（>20 字），tooltip 的 <code>max-width: 280px</code> 会截断 — 可接受（已设 <code>text-overflow: ellipsis</code>）</li>
+<li>CSS tooltip 在触控设备上无法触发 — 可接受（管理后台以桌面使用为主）</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+<a href="index.html">文档索引</a>
+ · <a href="用户管理业务组列显示优化设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

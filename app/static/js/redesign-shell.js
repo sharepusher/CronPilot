@@ -18,6 +18,8 @@
     shell.classList.toggle('collapsed');
     var collapsed = shell.classList.contains('collapsed') ? '1' : '0';
     document.cookie = 'cp_sidebar_collapsed=' + collapsed + ';path=/;max-age=31536000;samesite=lax';
+    var btn = document.querySelector('.cp-collapse-btn');
+    if (btn) btn.setAttribute('aria-expanded', collapsed === '0' ? 'true' : 'false');
   }
 
   /* ====== Mobile Sidebar ====== */

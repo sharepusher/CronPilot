@@ -47,14 +47,14 @@
   <div class="td-actions">
     {% if perms and 'cron:write' in perms %}
       {% if cif.status == 1 %}
-        <button class="cp-btn cp-btn--primary" onclick="cpRunNow({{ cif.id }})">
+        <button class="btn-c btn-accent" onclick="cpRunNow({{ cif.id }})">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>立即执行
         </button>
         <button class="btn" onclick="cpToggleTask({{ cif.id }}, 0)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>暂停
         </button>
       {% elif cif.status == 0 %}
-        <button class="cp-btn cp-btn--primary" onclick="cpToggleTask({{ cif.id }}, 1)">
+        <button class="btn-c btn-accent" onclick="cpToggleTask({{ cif.id }}, 1)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>恢复
         </button>
       {% endif %}

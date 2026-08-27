@@ -69,16 +69,16 @@
 <div class="console-filters" id="cp-filters">
   <div class="f-group" data-filter-dimension="health">
     <span class="f-label">异常</span>
-    <a class="f-btn{{ ' active' if keyword.get('health') == 'failing' }}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="failing">持续异常</a>
-    <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="today_fail">今日失败</a>
-    <a class="f-btn{{ ' active' if keyword.get('health') == 'overdue' }}" href="{{ url_for('main.cron_list', health='overdue', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="overdue">逾期未执行</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'failing' }}" href="{{ url_for('main.cron_list', health='failing', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="failing" aria-pressed="{{ 'true' if keyword.get('health') == 'failing' else 'false' }}">持续异常</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="today_fail" aria-pressed="{{ 'true' if keyword.get('health') == 'today_fail' else 'false' }}">今日失败</a>
+    <a class="f-btn{{ ' active' if keyword.get('health') == 'overdue' }}" href="{{ url_for('main.cron_list', health='overdue', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="overdue" aria-pressed="{{ 'true' if keyword.get('health') == 'overdue' else 'false' }}">逾期未执行</a>
   </div>
   <div class="f-sep"></div>
   <div class="f-group" data-filter-dimension="status">
     <span class="f-label">状态</span>
-    <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="1">运行中</a>
-    <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="0">已暂停</a>
-    <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="">全部</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="1" aria-pressed="{{ 'true' if keyword.get('status') == '1' else 'false' }}">运行中</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="0" aria-pressed="{{ 'true' if keyword.get('status') == '0' else 'false' }}">已暂停</a>
+    <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="" aria-pressed="{{ 'true' if not keyword.get('status') and not keyword.get('health') else 'false' }}">全部</a>
   </div>
   <div class="f-sep"></div>
   {% if scope_groups %}
@@ -141,7 +141,7 @@
   <div class="hf-empty-title">暂无任务</div>
   <div class="hf-empty-desc">{% if keyword.get('task_name') or keyword.get('status') or keyword.get('health') %}未找到匹配的任务，请调整筛选条件{% else %}创建第一个定时任务来开始{% endif %}</div>
   {% if has_perm('cron:write') and not keyword.get('task_name') %}
-  <a href="{{ url_for('main.cron_add') }}" class="cp-btn cp-btn--primary cp-mt-8">新建任务</a>
+  <a href="{{ url_for('main.cron_add') }}" class="btn-c btn-accent cp-mt-8">新建任务</a>
   {% endif %}
 </div>
 {% endif %}

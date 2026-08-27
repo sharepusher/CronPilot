@@ -40,7 +40,7 @@
         <input type="hidden" name="group_id" value="{{ scope_groups[0].id }}">
         <div class="tf-static-value">{{ scope_groups[0].name }} <span class="tf-hint">仅同组可见</span></div>
         {% elif scope_groups|length > 1 %}
-        <select name="group_id" required class="tf-select">
+        <select name="group_id" required class="tf-select" aria-label="选择业务组">
           {% for g in scope_groups %}
           <option value="{{ g.id }}" {{ 'selected' if is_edit and current_group_id == g.id }}>{{ g.name }}</option>
           {% endfor %}
@@ -66,7 +66,7 @@
       </div>
       <div class="tf-field" id="group_id_row" {% if not scope_groups %}style="display:none"{% endif %}>
         <label class="tf-label">业务组</label>
-        <select name="group_id" id="group_id_select" class="tf-select">
+        <select name="group_id" id="group_id_select" class="tf-select" aria-label="选择业务组">
           {% for g in scope_groups or [] %}
           <option value="{{ g.id }}" {{ 'selected' if is_edit and current_group_id == g.id }}>{{ g.name }}</option>
           {% endfor %}
@@ -152,7 +152,7 @@
       <div class="tf-field" data-field="req_url">
         <label class="tf-label">触发 URL <span class="tf-required">*</span></label>
         <div class="tf-url-group">
-          <select name="req_method" class="tf-select tf-method-select">
+          <select name="req_method" class="tf-select tf-method-select" aria-label="请求方法">
             <option value="GET" {{ 'selected' if not is_edit or cif.req_method == 'GET' }}>GET</option>
             <option value="POST" {{ 'selected' if is_edit and cif.req_method == 'POST' }}>POST</option>
           </select>
@@ -167,7 +167,7 @@
         <label class="tf-label">请求 JSON Body</label>
         <textarea name="req_body" class="tf-textarea" rows="4"
                   placeholder='{"task_name": "example"}'>{{ cif.req_body if is_edit else '' }}</textarea>
-        <span class="tf-hint">仅 POST 时生效；须为 JSON 对象；系统会注入 cronpilot_log_id / cronpilot_sign</span>
+        <span class="tf-hint">仅 POST 时生效；须为 JSON 对象；系统会注入 cronpilot_trace_id / cronpilot_sign</span>
       </div>
 
       <div class="tf-field" data-field="timeout_sec">
@@ -179,7 +179,7 @@
 
     {# ─── Actions ─── #}
     <div class="tf-actions">
-      <button type="submit" class="cp-btn cp-btn--primary js-ajax-submit">
+      <button type="submit" class="btn-c btn-accent js-ajax-submit">
         {{ '保存修改' if is_edit else '添加' }}
       </button>
       <a class="btn" href="{{ url_for('main.task_detail_v2', id=cif.id) if is_edit else url_for('main.cron_list') }}">返回</a>

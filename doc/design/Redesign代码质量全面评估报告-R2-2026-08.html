@@ -131,7 +131,7 @@ jQuery (sync, no defer)         ← inline scripts 依赖 $
 <tr><td>Service</td><td><code>services/cron_service.py</code></td><td>A-</td><td>单一职责：CRUD + 调度注册 + 操作日志</td></tr>
 <tr><td>Repository</td><td><code>repositories/cron_repository.py</code></td><td>B+</td><td>SA 2.0 select()；有展示逻辑越界</td></tr>
 <tr><td>View (RBAC)</td><td><code>rbac/views.py</code></td><td>B</td><td>委托 Service；2 个函数 >100 行</td></tr>
-<tr><td>View (Main)</td><td><code>main/views.py</code></td><td>C+</td><td>1,420 行；God function；域逻辑混入</td></tr>
+<tr><td>View (Main)</td><td><code>main/views.py</code></td><td>B</td><td>1,258 行；DashboardService 已提取；v1/v2 双渲染仍在</td></tr>
 </table>
 
 <h3>3.2 复杂度热点</h3>
@@ -182,9 +182,9 @@ _base.html (shell + assets + blocks)
 <tr><td><code>register.html</code></td><td>1</td><td>display:none toggle</td></tr>
 </table>
 
-<h3>4.4 Accessibility（C+）</h3>
-<p><strong>已做</strong>：nav aria-label、cmd palette aria-label、theme aria-pressed、user modal role=dialog</p>
-<p><strong>缺失</strong>：filter select 无 label 关联、sidebar collapse 缺 aria-expanded、user menu 用 div 不可键盘访问、dashboard filter 用 &lt;a&gt; 作 toggle button</p>
+<h3>4.4 Accessibility（B）</h3>
+<p><strong>已做</strong>：nav aria-label、cmd palette aria-label、theme aria-pressed、user modal role=dialog、<strong>select aria-label ×5</strong>、<strong>sidebar aria-expanded + aria-label</strong>、<strong>dashboard filter aria-pressed ×6</strong></p>
+<p><strong>缺失</strong>：user menu 用 div 不可键盘访问（需重构为 role=menu）</p>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2>五、CI 门禁覆盖（A-）</h2>
@@ -210,29 +210,31 @@ _base.html (shell + assets + blocks)
 <tr><td>escHtml 重复</td><td>P2</td><td>统一到 window.escHtml，残留 2 fallback shim</td><td>↗ 部分修复</td></tr>
 <tr><td>Dashboard stats 随筛选变化</td><td>未识别</td><td>scope_filters 隔离修复</td><td>✅ 本轮修复</td></tr>
 <tr><td>Inline style violations</td><td>未计数</td><td>10 个（主要在 JS modal HTML）</td><td>已量化</td></tr>
-<tr><td>Views God function</td><td>未评估</td><td>cron_list 242 行（C+）</td><td>已识别</td></tr>
+<tr><td>Views God function</td><td>未评估</td><td>DashboardService 已提取；views.py 1,258 行</td><td>✅ 本轮修复</td></tr>
+<tr><td>按钮双系统 (.cp-btn/.btn-c)</td><td>未识别</td><td>统一为 btn-c；.cp-btn 定义已删除（−54 行）</td><td>✅ 本轮修复</td></tr>
+<tr><td>A11y 基线（select/sidebar/filter）</td><td>C+</td><td>aria-label ×5、aria-expanded ×1、aria-pressed ×6</td><td>✅ 本轮补全（→B）</td></tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2>七、优先改进路线图</h2>
 
 <table>
-<tr><th>#</th><th>改进项</th><th>预期收益</th><th>工作量</th><th>依赖</th></tr>
-<tr><td>1</td><td>提取 <code>DashboardService</code>（filter/stats/overdue/next_run）</td><td>消除 God function；提升可测试性</td><td>中</td><td>无</td></tr>
-<tr><td>2</td><td>提取共享 <code>CpListFilter</code> JS 模块</td><td>消除 3× AJAX filter 重复</td><td>低</td><td>无</td></tr>
-<tr><td>3</td><td>统一按钮 API</td><td>CSS 一致性</td><td>低</td><td>需设计确认</td></tr>
-<tr><td>4</td><td>Shadow/overlay token 化</td><td>dark mode 完整性</td><td>低</td><td>无</td></tr>
-<tr><td>5</td><td>Filter select + sidebar a11y 补全</td><td>a11y 合规</td><td>低</td><td>无</td></tr>
-<tr><td>6</td><td><code>redesign-pages.css</code> 全局选择器 → .cp-page-* scope</td><td>CSS 隔离安全</td><td>中</td><td>#3</td></tr>
-<tr><td>7</td><td>Inline style 消除（10 violations → 0）</td><td>CI 全绿</td><td>低</td><td>无</td></tr>
+<tr><th>#</th><th>改进项</th><th>预期收益</th><th>工作量</th><th>状态</th></tr>
+<tr><td>1</td><td>提取 <code>DashboardService</code></td><td>消除 God function；提升可测试性</td><td>中</td><td>✅ 已完成</td></tr>
+<tr><td>2</td><td>提取共享 <code>CpListFilter</code> JS 模块</td><td>消除 3× AJAX filter 重复</td><td>低</td><td>⏸️ 暂缓（待下一列表页）</td></tr>
+<tr><td>3</td><td>统一按钮 API</td><td>CSS 一致性</td><td>低</td><td>✅ 已完成（.cp-btn→btn-c）</td></tr>
+<tr><td>4</td><td>Shadow/overlay token 化</td><td>dark mode 完整性</td><td>低</td><td>⏸️ 暂缓（无功能影响）</td></tr>
+<tr><td>5</td><td>Filter select + sidebar a11y 补全</td><td>a11y 合规</td><td>低</td><td>✅ 已完成</td></tr>
+<tr><td>6</td><td><code>redesign-pages.css</code> 全局选择器 → .cp-page-* scope</td><td>CSS 隔离安全</td><td>中</td><td>⏸️ 暂缓（无冲突发生）</td></tr>
+<tr><td>7</td><td>Inline style 消除（10 violations → 0）</td><td>CI 全绿</td><td>低</td><td>❌ 不执行（合理使用场景）</td></tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2>八、结论</h2>
 
 <blockquote>
-<p>CronPilot Redesign 代码处于<strong>「生产可用、架构意图清晰、维护成本中等」</strong>的 B 级水平。</p>
-<p>安全基线和 CI 门禁达到 A 级标准；主要质量瓶颈在视图层复杂度（God function）和 CSS/JS 组件级重复。这些是渐进式迁移过程中的典型技术债，不影响功能正确性和安全性。</p>
+<p>CronPilot Redesign 代码处于<strong>「生产可用、架构意图清晰、维护成本可控」</strong>的 B+ 级水平。</p>
+<p>安全基线和 CI 门禁达到 A 级标准；DashboardService 提取解决了 God function；按钮系统已统一；A11y 基线从 C+ 提升至 B。剩余技术债（AJAX filter 重复、shadow token、pages.css scope）为非紧急项，不影响功能正确性和安全性。</p>
 </blockquote>
 
 <p><strong>核心优势</strong>：</p>
@@ -241,13 +243,15 @@ _base.html (shell + assets + blocks)
 <li>Token 化色彩系统 + 6 个 CI 门禁持续拦截回归</li>
 <li>Service/Repository 分层在 CRUD 路径上执行良好</li>
 <li>JS 安全默认值（CSRF 注入、textContent 防 XSS、SameSite cookie）</li>
+<li><strong>统一按钮 API（btn-c）+ A11y 属性覆盖（aria-label/pressed/expanded）</strong></li>
+<li><strong>DashboardService 独立可测试，统计指标 scope 隔离</strong></li>
 </ol>
 
-<p><strong>核心风险</strong>：</p>
+<p><strong>剩余技术债（已评估，暂缓执行）</strong>：</p>
 <ol>
-<li><code>cron_list()</code> 242 行 God function 持续累积复杂度</li>
-<li>v1/v2 双轨 + AJAX partial 三重渲染路径产生重复代码</li>
-<li><code>redesign-pages.css</code> 1,861 行单体缺乏 scope 纪律</li>
+<li><code>CpListFilter</code> JS 模块提取（3 页面 ~424 行 AJAX IIFE 重复）— 待下一列表页开发</li>
+<li>Shadow/overlay token 化（19 处 rgba 硬编码）— 待 dark mode 用户反馈</li>
+<li><code>redesign-pages.css</code> 中 ~365 行全局选择器未加 <code>.cp-page-*</code> scope — 待冲突发生</li>
 </ol>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">

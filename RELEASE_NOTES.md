@@ -7,6 +7,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 安全修复 — 静默异常审计 Batch S1+S2
+
+- **⚠️ API Breaking Change**: `api/__init__.py` `_api_token_guard()` 中 `configs()` 读取失败时，原行为为赋予 admin 权限并放行；现改为返回 HTTP 500 + 记录错误日志。正常配置环境下无影响。
+- 删除死代码文件 `app/api/auth.py`（文件头已注明"未启用"，从未被路由引用）
+- 裸 `except:` → `except Exception:`（`CuBackgroundScheduler.py`、`CuGeventScheduler.py` 各 1 处），防止捕获 `KeyboardInterrupt`/`SystemExit`
+- 补充 `_resolve_user_token` 和 `_write_api_deny_audit` 的 `logger.warning` 日志
+- 详见 [静默异常审计与优化方案](doc/design/静默异常审计与优化方案-2026-08.html)
+
 ### 重大变更 — V1 UI 下线 Batch 1–3（完全移除 V1）
 
 V2 Redesign UI 现在是唯一界面。V1 全部模板、JS、CSS 及第三方插件已物理删除。

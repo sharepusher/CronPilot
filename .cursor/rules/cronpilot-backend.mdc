@@ -236,6 +236,16 @@ alwaysApply: false
 - 典型失误（2026-08 标签删除）：新编写的 JS 使用了 `r.code` / `r.msg` 导致条件判断全部失效，Modal 不弹出。
 - **自检**：新写 AJAX 回调前先 `grep 'errcode' datas/utils/json.py` 确认项目响应结构。
 
+## 配置读取异常必须拒绝而非放行（强制 · 2026-08 安全审计教训）
+
+凡在 `except Exception` 中处理配置文件读取（`configs()`、`conf.ini` 解析等）失败：
+
+- **禁止**：降级为"放行"或"赋予高权限"（如 `request._api_scope = {'role': 'admin'}`）。
+- **必须**：返回拒绝响应（HTTP 500 / 401）+ `logger.error(exc_info=True)`。
+- **原则**：基础设施故障时应倾向于"拒绝/限制"而非"放行/提权"。
+- **违反教训**：2026-08 全面 Code Review 发现 `api/__init__.py` `_api_token_guard()` 配置读取失败时赋予 admin 权限并放行所有 API 请求。详见 `doc/design/静默异常审计与优化方案-2026-08.html` C-7。
+- **自检**：`grep -n "request._api_scope.*admin" app/api/__init__.py | grep -c "except" && echo WARN || echo OK`
+
 ## 静态文档路由
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。

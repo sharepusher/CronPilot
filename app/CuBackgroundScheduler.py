@@ -128,7 +128,7 @@ class CuBackgroundScheduler(BackgroundScheduler):
                                 try:
                                     self.update_cron_info(job.id)
                                     self.remove_job(job.id, jobstore_alias)
-                                except:
+                                except Exception:
                                     self._logger.error('Error remove job "%s" to executor "%s"',
                                                            job, job.executor)
 

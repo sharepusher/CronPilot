@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 静默异常审计与优化方案 (2026-08)</title>
+</head>
+<body>
+<h1>CronPilot 静默异常审计与优化方案 (2026-08)</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>创建日期</th><td>2026-08-28</td></tr>
+<tr><th>来源</th><td>2026-08-28 全面 Code Review · P0-3 静默异常 + P0-4 裸 except</td></tr>
+<tr><th>评估基线</th><td>v3.0.0 (commit 280bc69)</td></tr>
+<tr><th>状态</th><td>设计待确认</td></tr>
+<tr><th>关联文档</th><td><a href="代码质量优化方案-2026-08.html">代码质量优化方案（总览）</a> · <a href="../postmortem/2026-08-全面CodeReview复盘.html">全面 Code Review 复盘</a></td></tr>
+</table>
+
+<hr>
+
+<h2>1. 问题背景</h2>
+
+<p>全面 Code Review 对 <code>app/</code> 目录下全部 Python 文件中的 <strong>140 个 except 处理器</strong>进行了逐处审计。审计的核心问题不是"有没有加日志"，而是<strong>"沉默的异常是否合理"</strong>——即 except 块中既无 log 也无 raise 的处理方式，在该上下文中是否是正确的设计选择。</p>
+
+<p>初始 Code Review 将 16 处 <code>except Exception: pass</code> 或 <code>return []</code> 简单标记为"静默异常吞没"。深度分析后发现这一定性过于粗糙：<strong>沉默不等于错误</strong>，很多场景中沉默恰好是正确的处理方式（防御性降级、输入校验、双重故障恢复）。真正的问题是少数场景中沉默掩盖了安全风险或运维盲区。</p>
+
+<hr>
+
+<h2>2. 审计方法论</h2>
+
+<h3>2.1 分析框架</h3>
+<p>对每个 except 处理器，按以下三层判断：</p>
+<ol>
+<li><strong>是否应该是异常？</strong> — 如果 try/except 处理的是预期内的正常情况（如用户输入转换失败），那么它本质是条件分支，不是异常处理。沉默是正确的。</li>
+<li><strong>如果是真正的异常，当前降级方向是否安全？</strong> — 降级应该倾向于"拒绝/限制"而非"放行/提权"。降级方向反安全的，是安全问题。</li>
+<li><strong>降级方向安全但无日志，是否可接受？</strong> — 取决于持续性故障的可发现性。一次性故障无日志可以接受（有 TTL/重试），持续性故障无日志不可接受（功能静默消失）。</li>
+</ol>
+
+<h3>2.2 统计概览</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>处理模式</th><th>数量</th><th>说明</th></tr>
+<tr><td>SILENT（无日志）</td><td>70</td><td>本次审计重点</td></tr>
+<tr><td>LOGGED（有日志）</td><td>30</td><td>已合理处理</td></tr>
+<tr><td>HANDLED（返回错误给调用方）</td><td>35</td><td>通过返回值传达错误</td></tr>
+<tr><td>ROLLBACK-ONLY</td><td>5</td><td>仅做回滚，无日志也无返回</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>140</strong></td><td></td></tr>
+</table>
+
+<hr>
+
+<h2>3. 70 个 SILENT except 分类审计</h2>
+
+<h3>类型 A：输入解析 <code>(TypeError, ValueError)</code> — ~35 处</h3>
+
+<h4>模式</h4>
+<pre>
+try:
+    gid = int(group_id_raw)
+except (TypeError, ValueError):
+    return 'all', None, None
+</pre>
+
+<h4>分布</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>行号（示例）</th><th>处数</th></tr>
+<tr><td><code>app/main/views.py</code></td><td>L96, L159, L175, L409, L500, L518, L569, L669, L713, L756</td><td>10</td></tr>
+<tr><td><code>app/api/views.py</code></td><td>L22, L26</td><td>2</td></tr>
+<tr><td><code>app/rbac/views.py</code></td><td>L729, L749, L780, L803, L824, L943, L1118, L1134</td><td>8</td></tr>
+<tr><td><code>app/services/</code></td><td>pagination, dashboard_service, cron_schedule_display, job_health_service, cron_validator, operation_log_service</td><td>10</td></tr>
+<tr><td><code>app/repositories/cron_repository.py</code></td><td>L238, L265</td><td>2</td></tr>
+<tr><td><code>app/gunicorn_logger.py</code></td><td>L57, L67</td><td>2</td></tr>
+<tr><td><strong>小计</strong></td><td></td><td><strong>~35</strong></td></tr>
+</table>
+
+<h4>分析</h4>
+<p><strong>这不是异常——是预期内的正常情况。</strong></p>
+<p>HTTP 请求参数来自用户输入，<code>int(request.args.get('page'))</code> 对 <code>None</code>、空字符串、非数字字符串抛出 <code>TypeError</code>/<code>ValueError</code> 是完全可预期的。在输入校验上下文中，try/except 等价于 <code>if isinstance(x, str) and x.isdigit()</code> 的条件分支——Python 社区推荐 EAFP（Easier to Ask Forgiveness than Permission）风格，try/except 恰好是惯用写法。</p>
+<p>加日志的后果：每次有人在 URL 中打错参数格式、每次爬虫发送非法请求、每次翻页组件传入空值，都会产生一条 WARNING 日志。在任何有公网暴露的环境中，这种噪音在小时级别就会淹没真正有价值的日志。</p>
+
+<h4>结论</h4>
+<p><strong>不加日志。</strong>建议提取 <code>safe_int(val, default)</code>/<code>safe_float(val, default)</code> 工具函数消除分散的 try/except 模式，提升代码清晰度和一致性。</p>
+
+<h4>工具函数设计</h4>
+<pre>
+# app/common/safe_cast.py
+
+def safe_int(val, default=None):
+    """将任意值转为 int，失败时返回 default。"""
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
+
+def safe_float(val, default=None):
+    """将任意值转为 float，失败时返回 default。"""
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+</pre>
+<p>~35 处 try/except 可统一替换为 <code>gid = safe_int(group_id_raw)</code>，消除视觉噪音。</p>
+
+<hr>
+
+<h3>类型 B：可选依赖 / 特性检测 — 3 处</h3>
+
+<h4>清单</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>位置</th><th>代码</th><th>说明</th></tr>
+<tr><td>1</td><td><code>app/__init__.py</code> L156</td><td><code>try: import xxx</code></td><td>可选模块不存在时 graceful fallback</td></tr>
+<tr><td>2</td><td><code>app/metrics.py</code> L72</td><td><code>try: from prometheus_client import ...</code></td><td>Prometheus 未安装时使用 no-op shim</td></tr>
+<tr><td>3</td><td><code>app/services/dashboard_service.py</code> L126/L180</td><td><code>try: from croniter import croniter</code></td><td>croniter 不可用时跳过"下次执行时间"计算</td></tr>
+</table>
+
+<h4>分析</h4>
+<p>这是标准 Python 可选依赖模式。<code>try: import X except ImportError: X = None</code> 被广泛使用于 Django、Flask、requests 等主流库。加日志既无意义（安装了就有，没安装就没有，日志改变不了什么），也可能误导（让人以为缺少某个必需依赖）。</p>
+
+<h4>结论</h4>
+<p><strong>不改。</strong>完全合理的标准模式。</p>
+
+<hr>
+
+<h3>类型 C：基础设施 / DB 故障的静默降级 — 10 处</h3>
+
+<p>这是审计中发现问题最多的类别。<strong>真正的异常——DB 查询失败、配置文件不可读不是预期行为。</strong></p>
+
+<h4>详细清单</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>位置</th><th>触发条件</th><th>当前处理</th><th>评估</th><th>动作</th></tr>
+<tr><td>C-1</td><td><code>main/views.py</code> L74</td><td><code>list_resource_groups()</code> DB 查询失败</td><td>返回空列表</td><td>分组下拉消失但无人知晓</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>C-2</td><td><code>main/views.py</code> L270</td><td>bypass 用户刷新 scope_groups 失败</td><td>pass，使用旧数据</td><td>降级到旧数据合理，持续失败会导致权限变更不生效</td><td>可加 <code>logger.debug</code></td></tr>
+<tr><td>C-3</td><td><code>main/views.py</code> L465</td><td>croniter 计算下次执行时间</td><td>pass</td><td>cron 表达式可能非法，本质是类型 A（输入解析）</td><td>不改</td></tr>
+<tr><td>C-4</td><td><code>main/views.py</code> L1048</td><td>同 C-2</td><td>同 C-2</td><td>同 C-2</td><td>同 C-2</td></tr>
+<tr><td>C-5</td><td><code>rbac/context.py</code> L83</td><td>当前用户组列表 DB 查询失败</td><td>清缓存，返回空列表</td><td>导航/权限功能可能静默消失</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>C-6</td><td><code>rbac/__init__.py</code> L49</td><td>启动时用户计数查询失败</td><td>返回 0</td><td>启动阶段 DB 故障应被发现</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>C-7</td><td><code>api/__init__.py</code> L67</td><td><code>configs()</code> 读取失败</td><td><strong>赋予 admin scope + 放行</strong></td><td><strong>⚠️ 安全问题：降级方向反安全</strong></td><td><strong>安全修复（见第 5 节）</strong></td></tr>
+<tr><td>C-8</td><td><code>api/__init__.py</code> L150</td><td>用户 token 查库失败</td><td>返回 None → 最终 401</td><td>降级方向安全（拒绝），但持续失败会拒绝全部 token 用户</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>C-9</td><td><code>api/auth.py</code> L33</td><td>API 配置读取失败</td><td><strong>返回 True（允许请求）</strong></td><td><strong>⚠️ 安全问题：降级方向反安全（但该文件为死代码）</strong></td><td><strong>安全修复（见第 5 节）</strong></td></tr>
+<tr><td>C-10</td><td><code>services/job_health_service.py</code> L32, L57</td><td>配置/时间戳字符串解析</td><td>使用默认值/返回 None</td><td>本质是类型 A（输入解析）</td><td>不改</td></tr>
+</table>
+
+<h4>关键发现：降级方向安全性</h4>
+<p>10 处中有 2 处（C-7、C-9）的降级方向是<strong>反安全</strong>的——基础设施故障时应该倾向于"拒绝请求"而非"放行/提权"。</p>
+<ul>
+<li><strong>C-7</strong>：当 <code>conf.ini</code> 不可读时，<code>_api_token_guard</code> 将 <code>request._api_scope</code> 设为 <code>{'role': 'admin'}</code> 并 <code>return None</code>（放行）——等同于所有 API 请求获得 admin 权限。</li>
+<li><strong>C-9</strong>：<code>api/auth.py</code> 中 <code>verify_token</code> 在配置读取失败时 <code>return True</code>（允许请求）。但该文件已确认为死代码（文件头注释明确声明 <code>token_auth</code> 从未被路由引用），运行时无风险。</li>
+</ul>
+<p>其余 8 处的降级方向均安全：失败时返回空列表、默认值或拒绝请求。这些只是"需要日志"的运维问题，不是安全问题。</p>
+
+<hr>
+
+<h3>类型 D：Fire-and-forget 操作的静默失败 — 3 处</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>位置</th><th>操作</th><th>评估</th><th>动作</th></tr>
+<tr><td>D-1</td><td><code>api/__init__.py</code> L181</td><td>API 鉴权拒绝审计日志写入失败 → pass</td><td>安全事件不可追溯</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>D-2</td><td><code>rbac/services.py</code> L688</td><td>scope 缓存失效失败 → pass</td><td>权限变更延迟生效</td><td>加 <code>logger.debug</code></td></tr>
+<tr><td>D-3</td><td><code>rbac/services.py</code> L1085</td><td>过期注册申请 commit 失败 → rollback + return</td><td>过期申请堆积</td><td><strong>加 logger.warning</strong></td></tr>
+</table>
+
+<h4>分析</h4>
+<p>Fire-and-forget 操作（"做了最好，做不了也没关系"）的静默失败在单次发生时可以接受，但<strong>持续失败</strong>会导致功能退化且无法被发现。特别是 D-1（审计日志写入失败）——如果审计日志本身不可靠，那么整个审计功能的价值被削弱。</p>
+
+<hr>
+
+<h3>类型 E：双重故障恢复 — 4 处</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>位置</th><th>模式</th><th>说明</th></tr>
+<tr><td><code>crons.py</code> L78</td><td><code>try: db.session.rollback() except: pass</code></td><td>主操作失败后 rollback 也失败（如连接断开）</td></tr>
+<tr><td><code>crons.py</code> L132</td><td>同上</td><td>同上</td></tr>
+<tr><td><code>crons.py</code> L372</td><td>同上</td><td>同上</td></tr>
+<tr><td><code>operation_log_service.py</code> L238</td><td>同上</td><td>同上</td></tr>
+</table>
+
+<h4>分析</h4>
+<p><strong>这是唯一合理使用 pass 的场景。</strong>当主操作已经失败并记录了日志，rollback 是最后的清理尝试。如果 rollback 也失败（通常意味着 DB 连接已断开），此时没有任何有意义的动作可以执行——重试 rollback 不会成功，抛出异常会掩盖原始错误。外层的 except 已经记录了主操作的失败原因。</p>
+<p><strong>注意</strong>：这 4 处中有 2 处是裸 <code>except:</code>（非 <code>except Exception:</code>），属于 P0-4 的修复范围，但 pass 本身无需改动。</p>
+
+<h4>结论</h4>
+<p><strong>不改 pass。</strong>裸 <code>except:</code> 改为 <code>except Exception:</code> 即可（P0-4 范围）。</p>
+
+<hr>
+
+<h3>类型 F：调度器锁竞争和重试 — 6 处</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>位置</th><th>触发条件</th><th>评估</th><th>动作</th></tr>
+<tr><td>F-1</td><td><code>CuBackgroundScheduler.py</code> L22</td><td><code>int(row[6])</code> 时间戳解析</td><td>类型 A（输入解析），合理</td><td>不改</td></tr>
+<tr><td>F-2</td><td><code>CuBackgroundScheduler.py</code> L36-43</td><td>锁获取降级链</td><td>合理：MySQL 锁 → SQLite 锁 → 无锁</td><td>不改（已有日志）</td></tr>
+<tr><td>F-3</td><td><code>CuBackgroundScheduler.py</code> L45</td><td>整个 <code>update_cron_info</code> 放弃</td><td>放弃标记一次性任务下线需关注</td><td><strong>加 logger.warning</strong></td></tr>
+<tr><td>F-4</td><td><code>CuBackgroundScheduler.py</code> L61</td><td>锁竞争</td><td>多进程竞争正常</td><td>不改</td></tr>
+<tr><td>F-5</td><td><code>CuBackgroundScheduler.py</code> L131</td><td>job remove 失败</td><td>已有 <code>self._logger.error</code></td><td>裸 except → except Exception（P0-4）</td></tr>
+<tr><td>F-6</td><td><code>CuGeventScheduler.py</code> L132</td><td>同 F-5</td><td>同 F-5</td><td>同 F-5</td></tr>
+</table>
+
+<hr>
+
+<h3>类型 G：Service 层 catch → rollback → return — ~20 处</h3>
+
+<h4>模式</h4>
+<pre>
+# rbac/services.py 典型模式
+def create_user(self, ...):
+    try:
+        user = User(...)
+        db.session.add(user)
+        db.session.commit()
+        return user, None
+    except Exception:
+        db.session.rollback()
+        return None, '创建失败'
+</pre>
+
+<h4>分布</h4>
+<p>全部位于 <code>app/rbac/services.py</code>，覆盖以下操作：</p>
+<ul>
+<li>用户 CRUD：create_user、update_user、set_user_active、change_password、reset_password_admin</li>
+<li>组 CRUD：create_group、update_group、delete_group</li>
+<li>组成员管理：set_user_groups</li>
+<li>API Token：auto_issue_missing_tokens、revoke_token、regenerate_token</li>
+<li>注册审批：submit_registration、approve_registration、reject_registration、batch_expire_registrations</li>
+<li>配置文件：complete_profile</li>
+</ul>
+
+<h4>分析</h4>
+<p><strong>错误已通过返回值传达给用户</strong>（前端会显示"创建失败"等提示），但<strong>完全没有服务端日志</strong>意味着：</p>
+<ul>
+<li>约束冲突（用户名重复）→ 返回"创建失败"，但运维不知道是重复还是别的原因</li>
+<li>连接超时（DB 问题）→ 返回"创建失败"，但运维不知道是 DB 故障</li>
+<li>SQL 错误（代码 bug）→ 返回"保存失败"，但开发者无法排查</li>
+</ul>
+<p>所有这些都混为一条"保存失败"，对运维和开发都是黑盒。</p>
+
+<p><strong>证据</strong>：同文件中 L1028（<code>approve_registration</code>）<strong>已有</strong> <code>logger.exception('approve_registration commit failed ...')</code>，说明开发者在复杂操作中知道要加日志——其余 19 处是批量实现 CRUD 时遗漏。</p>
+
+<h4>特别关注</h4>
+<ul>
+<li><strong>L146</strong>（<code>auto_issue_missing_tokens</code>）：ROLLBACK-ONLY，无 return error 也无日志。调用方不知道操作是否成功——用户 API Token 没签上但无人知晓。</li>
+<li><strong>L204</strong>（<code>revoke_token</code>）：同上。Token 未被实际撤销但接口返回成功。</li>
+</ul>
+
+<h4>结论</h4>
+<p><strong>统一加 <code>logger.exception('...')</code></strong>，使用语义化的日志消息（如 <code>'user create commit failed user=%s'</code>），帮助运维区分根因。</p>
+
+<hr>
+
+<h2>4. 审计总结</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>类型</th><th>数量</th><th>动作</th><th>原因</th><th>优先级</th></tr>
+<tr><td>A: 输入解析</td><td>~35</td><td>不改日志，可提取 <code>safe_int</code> 工具函数</td><td>不是异常，是预期内的输入校验</td><td>可选（P2）</td></tr>
+<tr><td>B: 可选依赖</td><td>3</td><td>不改</td><td>标准 Python 模式</td><td>—</td></tr>
+<tr><td>C: 基础设施故障</td><td>10</td><td>5 处加日志 + <strong>2 处安全修复</strong></td><td>真正的异常应被记录；配置失败放行是安全风险</td><td><strong>P0（安全）/ P1（日志）</strong></td></tr>
+<tr><td>D: Fire-and-forget</td><td>3</td><td>3 处加日志</td><td>持续失败需被发现</td><td>P1</td></tr>
+<tr><td>E: 双重故障恢复</td><td>4</td><td>不改 pass；裸 except 改为 except Exception</td><td>pass 是唯一合理选择</td><td>P0-4（裸 except 部分）</td></tr>
+<tr><td>F: 调度器</td><td>6</td><td>1 处加日志 + 2 处裸 except 修改</td><td>F-3 放弃操作需关注</td><td>P0-4 / P1</td></tr>
+<tr><td>G: Service 层</td><td>~20</td><td>~19 处加 <code>logger.exception</code></td><td>CRUD 失败对运维是黑盒</td><td>P1</td></tr>
+</table>
+
+<h4>行动项汇总</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>优先级</th><th>动作</th><th>处数</th></tr>
+<tr><td><strong>P0（安全）</strong></td><td>C-7 <code>api/__init__.py</code> 配置失败放行 → 改为拒绝 500 + 记日志</td><td>1</td></tr>
+<tr><td><strong>P0（安全）</strong></td><td>C-9 <code>api/auth.py</code> 死代码 → 删除文件</td><td>1</td></tr>
+<tr><td><strong>P0（代码）</strong></td><td>裸 <code>except:</code> → <code>except Exception:</code>（E-1/E-2/F-5/F-6 中的 2 处裸 except）</td><td>2</td></tr>
+<tr><td><strong>P1（日志）</strong></td><td>C-1/C-5/C-6/C-8 + D-1/D-3 + F-3 加 <code>logger.warning</code></td><td>7</td></tr>
+<tr><td><strong>P1（日志）</strong></td><td>G 类 ~19 处加 <code>logger.exception</code></td><td>~19</td></tr>
+<tr><td><strong>P1（日志）</strong></td><td>C-2/C-4/D-2 加 <code>logger.debug</code></td><td>3</td></tr>
+<tr><td><strong>P2（可选）</strong></td><td>A 类 ~35 处提取 <code>safe_int</code>/<code>safe_float</code> 工具函数</td><td>~35</td></tr>
+</table>
+
+<hr>
+
+<h2>5. 安全问题详细分析与修复方案</h2>
+
+<h3>5.1 C-7：<code>api/__init__.py</code> L64-69 — 配置不可读时赋予 admin 权限</h3>
+
+<h4>现状代码</h4>
+<pre>
+# _api_token_guard() L64-69
+try:
+    from configs import configs as _configs
+    api_access_token = _configs('api_access_token') or ''
+except Exception:
+    request._api_scope = {'role': 'admin'}  # ← 所有 API 获得 admin
+    return None                              # ← 放行
+</pre>
+
+<h4>攻击场景</h4>
+<p>当 <code>conf.ini</code> 损坏、权限变更（chmod 000）或磁盘 I/O 错误导致配置不可读时，所有 API 请求将绕过认证直接获得 admin 权限。在容器化环境中，ConfigMap/Volume 挂载异常可触发此条件。</p>
+
+<h4>推荐修复</h4>
+<pre>
+except Exception:
+    current_app.logger.error(
+        'API token guard: failed to read config, denying request',
+        exc_info=True
+    )
+    return api_return(errcode=1, errmsg='服务配置异常，请联系管理员'), 500
+</pre>
+<p>效果：配置不可读 → 拒绝请求（500）+ 记录日志 + 不泄露具体错误。</p>
+
+<h4>补充修复</h4>
+<ul>
+<li><code>_resolve_user_token</code> L150 的 <code>except Exception: return None</code>：应加 <code>logger.warning('user token resolution failed', exc_info=True)</code>。当前 return None 在 <code>api_access_token</code> 为空时会走到 admin scope 路径。</li>
+<li><code>_write_api_deny_audit</code> L181 的 <code>except Exception: pass</code>：应加 <code>logger.warning</code>。审计日志写入失败意味着安全事件不可追溯。</li>
+</ul>
+
+<h3>5.2 C-9：<code>api/auth.py</code> L30-34 — 死代码中的安全隐患</h3>
+
+<h4>关键发现</h4>
+<p><strong>该文件为死代码</strong>——文件头注释明确声明 <code>token_auth</code> 从未被路由引用，实际生效的鉴权是 <code>_api_token_guard</code>。<code>verify_token</code> 在运行时不会被调用。</p>
+
+<h4>处理方案</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>选项</th><th>方案</th><th>优劣</th></tr>
+<tr><td>A（推荐）</td><td>删除 <code>api/auth.py</code></td><td>彻底消除风险；减少维护负担和认知误导；需要时可从 git 恢复</td></tr>
+<tr><td>B</td><td>修改 <code>return True</code> → <code>return False</code></td><td>防御性修改；保留历史参考；不影响运行时</td></tr>
+</table>
+<p>鉴于该文件已明确标注为"未启用"，推荐方案 A——纳入死代码清理批次统一处理。</p>
+
+<hr>
+
+<h2>6. 裸 except（P0-4）修复方案</h2>
+
+<h3>现状</h3>
+<p>2 处裸 <code>except:</code> 位于 APScheduler 调度器的定制补丁中：</p>
+<ul>
+<li><code>app/CuBackgroundScheduler.py</code> L131</li>
+<li><code>app/CuGeventScheduler.py</code> L132</li>
+</ul>
+
+<h3>问题</h3>
+<p>裸 <code>except:</code> 会捕获 <code>KeyboardInterrupt</code>（Ctrl+C）和 <code>SystemExit</code>（<code>sys.exit()</code>），阻止进程正常退出。虽然在 APScheduler 内部循环中这两个异常不太可能出现（调度器线程不会接收 SIGINT），但从防御角度应改为 <code>except Exception:</code>。</p>
+
+<h3>修复</h3>
+<pre>
+# CuBackgroundScheduler.py L131 和 CuGeventScheduler.py L132
+# 修改前：
+except:
+# 修改后：
+except Exception:
+</pre>
+<p>这两处 except 块后面已有 <code>self._logger.error(...)</code>，因此只需改异常捕获范围，不需要改处理逻辑。</p>
+
+<h3>验收</h3>
+<pre>
+# 裸 except 为 0
+grep -rn "except:" app/ --include=*.py | grep -v "except " | wc -l
+# 预期输出：0
+
+# ruff E722 规则（如果已引入 ruff）
+ruff check app/ --select E722
+# 预期输出：All checks passed!
+</pre>
+
+<hr>
+
+<h2>7. 根因复盘</h2>
+
+<h3>7.1 为什么 70 个 SILENT except 积累到今天？</h3>
+
+<p><strong>类型 A（35 处输入解析）</strong>：不是问题。try/except 是 Python EAFP 风格的正确写法。积累的原因是每个 View 函数独立处理参数转换，缺少共享的 <code>safe_int</code> 工具函数。</p>
+
+<p><strong>类型 G（20 处 Service 层无日志）</strong>：<code>rbac/services.py</code> 在 OPT-P1-10 期间从 View 层批量迁移 CRUD 逻辑到 Service 层。迁移过程中，开发者正确地将 <code>db.session.commit()</code> 包裹在 try/except 中并做了 rollback，但未统一添加日志。证据是同文件中 <code>approve_registration</code>（需求更复杂、开发者更谨慎时）有 <code>logger.exception</code>，而简单的 CRUD 方法（create_user、update_user 等）在快速实现时遗漏了。</p>
+
+<p><strong>类型 C-7（安全问题）</strong>：<code>api/__init__.py</code> 的 <code>_api_token_guard</code> 是上游继承代码。原始设计可能是"无 API token 时默认放行所有请求（admin 模式）"——在早期无 RBAC 的阶段这是合理的简化。随着 RBAC 引入，该 fallback 路径的语义从"便利"变成了"安全漏洞"，但因为它位于 <code>except</code> 块中（正常运行时不会触发），所以没有在 RBAC 审计中被检查到。</p>
+
+<h3>7.2 为什么之前的 Code Review / Bugbot 没有发现？</h3>
+
+<p>CronPilot 的 Code Review 规范（<code>.cursor/rules/</code>）聚焦于：</p>
+<ul>
+<li>设计合理性（设计先行 + 确认闭环）</li>
+<li>功能正确性（测试覆盖 + 冒烟路由）</li>
+<li>安全合规（CSRF、XSS、SSRF、Open Redirect）</li>
+<li>UI 一致性（颜色审计、CSS 契约、DOM 对照）</li>
+</ul>
+<p>但不包含"异常处理合理性审计"维度。静默异常在单次 diff review 中难以发现（每个 except 块看起来都是合理的防御性代码），需要全量审计才能暴露模式级别的问题。</p>
+
+<h3>7.3 预防方案</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>措施</th><th>落地位置</th><th>覆盖范围</th></tr>
+<tr><td>ruff E722 规则检测裸 except</td><td><code>pyproject.toml</code> [tool.ruff] + CI workflow</td><td>P0-4</td></tr>
+<tr><td><code>.cursor/rules/cronpilot-backend.mdc</code> 新增"Service 层 except 必须有 logger"规范</td><td><code>.cursor/rules/cronpilot-backend.mdc</code></td><td>G 类</td></tr>
+<tr><td><code>safe_int</code>/<code>safe_float</code> 工具函数 + <code>.cursor/rules/</code> 推荐使用</td><td><code>app/common/safe_cast.py</code></td><td>A 类</td></tr>
+<tr><td>"配置读取 except 必须拒绝而非放行"规范</td><td><code>.cursor/rules/cronpilot-backend.mdc</code></td><td>C-7 同类</td></tr>
+</table>
+
+<hr>
+
+<h2>8. 实施批次</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>批次</th><th>内容</th><th>处数</th><th>预估工时</th></tr>
+<tr><td><strong>Batch S1（安全）</strong></td><td>C-7 配置失败改为拒绝 500 + C-9 删除死代码文件</td><td>2</td><td>1 小时</td></tr>
+<tr><td><strong>Batch S2（裸 except）</strong></td><td>P0-4 裸 except → except Exception</td><td>2</td><td>15 分钟</td></tr>
+<tr><td><strong>Batch L1（加日志-Service）</strong></td><td>G 类 ~19 处 Service 层加 <code>logger.exception</code></td><td>~19</td><td>2 小时</td></tr>
+<tr><td><strong>Batch L2（加日志-基础设施）</strong></td><td>C-1/C-5/C-6/C-8 + D-1/D-3 + F-3 加 warning/debug</td><td>10</td><td>1 小时</td></tr>
+<tr><td><strong>Batch T1（工具函数）</strong></td><td>A 类提取 <code>safe_int</code>/<code>safe_float</code> + 替换 35 处</td><td>~35</td><td>2 小时</td></tr>
+</table>
+
+<p>每个 Batch 可独立 commit 和验收。Batch S1 优先级最高（安全问题）。</p>
+
+<hr>
+
+<h2>9. 验收标准</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>批次</th><th>验收命令</th><th>期望结果</th></tr>
+<tr><td>Batch S1</td><td><code>grep -A3 "except Exception" app/api/__init__.py | grep -c "api_return.*500"</code></td><td>1（配置失败返回 500）</td></tr>
+<tr><td>Batch S1</td><td><code>test -f app/api/auth.py && echo "EXISTS" || echo "DELETED"</code></td><td>DELETED</td></tr>
+<tr><td>Batch S2</td><td><code>grep -rn "except:" app/ --include=*.py | grep -v "except " | wc -l</code></td><td>0</td></tr>
+<tr><td>Batch L1</td><td><code>grep -c "logger.exception" app/rbac/services.py</code></td><td>≥20（原有 1 + 新增 19）</td></tr>
+<tr><td>Batch L2</td><td><code>grep -c "logger.warning" app/main/views.py app/rbac/context.py app/rbac/__init__.py app/api/__init__.py</code></td><td>各文件增加对应数量</td></tr>
+<tr><td>Batch T1</td><td><code>grep -c "safe_int\|safe_float" app/main/views.py app/rbac/views.py app/api/views.py</code></td><td>≥20（替换后的调用数）</td></tr>
+<tr><td>通用</td><td><code>bash scripts/cronpilot.sh test</code></td><td>全通过</td></tr>
+<tr><td>通用</td><td><code>python scripts/smoke_routes.py --check</code></td><td>86 路由通过</td></tr>
+</table>
+
+<hr>
+
+<p style="font-size:0.85em;color:#666;">
+本文档从 <a href="代码质量优化方案-2026-08.html">代码质量优化方案</a> 中提取静默异常相关分析独立成文。<br>
+2026-08-28 创建 · 140 个 except 逐处审计 · 7 类分类 · 2 处安全问题 · 5 个实施批次<br>
+<a href="../design/index.html">文档索引</a> · <a href="静默异常审计与优化方案-2026-08.md">Markdown 版</a>
+</p>
+
+</body>
+</html>

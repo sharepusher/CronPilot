@@ -102,6 +102,7 @@ python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.ht
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
 python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
 python scripts/check_postmortem_completeness.py --check  # 复盘文档化完整性：HTML↔MD + RELEASE_NOTES 引用 + 代码变更同步
+python scripts/check_brand_svg_consistency.py --check  # 品牌 SVG include 链完整性：_brand_paths → _brand_block/sidebar → 4 auth 模板
 python scripts/smoke_routes.py --check             # 关键路由冒烟：86 条路由 v1+v2 含 GET/POST/API/错误路径（跨层重命名/模板变更后必跑）
 python scripts/smoke_routes.py --live --check      # 对运行中的服务做 HTTP 冒烟（16 条非 seed 路由）
 python scripts/html_docs_to_markdown.py --check
@@ -131,6 +132,8 @@ bash scripts/check_pending_sync.sh
 **querySelector CSS class 可达性（强制）**：模板中 `document.querySelector('.xxx')` 引用的 CSS class 必须先 `grep` 确认在 CSS 文件或 JS 创建的 DOM 中有实际定义。禁止凭记忆或假设的 class 名编写选择器。自检命令：`grep -rn "cp-confirm-overlay" app/templates/ && echo "FAIL: non-existent class" || echo "OK"`。**违反教训**：2026-08 Escape 键守卫使用了不存在的 `.cp-confirm-overlay`（实际为 `.cp-modal-overlay`），导致对话框打开时按 Escape 仍触发页面导航。
 
 **异常信息脱敏（强制）**：`except Exception` 的 catch-all 分支中，**禁止** `web_api_return(msg=str(e))` 或 `api_return(errmsg=str(e))` 将异常原始文本返回前端/API 调用方。必须返回通用错误信息（如 `'服务器内部错误，请稍后重试'`），异常详情仅写入 `current_app.logger.error` 或 `logging.getLogger().error()`。自检：`grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ | grep -v "logger\|logging" && echo FAIL || echo OK`（注意搜索范围是整个 `app/` 目录，不限于特定文件）。**违反教训**：2026-08 P0-3 修复 `cron_add` 的 `str(e)` 时搜索范围仅限 `main/views.py` + `rbac/views.py`，遗漏了 `decorated.py` 中 API 装饰器的同源问题（S5）。
+
+**配置读取异常必须拒绝而非放行（强制 · 2026-08 安全审计）**：凡在 `except Exception` 中处理配置文件读取（`configs()`、`conf.ini` 解析等）失败，**禁止**降级为"放行"或"赋予高权限"。**必须**返回拒绝响应（HTTP 500/401）+ `logger.error(exc_info=True)`。原则：基础设施故障时倾向"拒绝/限制"而非"放行/提权"。自检：`grep -n "request._api_scope.*admin" app/api/__init__.py | grep -c "except" && echo WARN || echo OK`。**违反教训**：2026-08 `_api_token_guard()` 配置读取失败时赋予 admin 权限并放行所有 API 请求。详 `.cursor/rules/cronpilot-backend.mdc`。
 
 **innerHTML XSS 防护（强制 · S4）**：模板 JS 中凡从 `data-*` / `dataset` 取值后拼入 `innerHTML` / `bodyHtml`，**必须**经 `escHtml()` 转义或改用 `textContent` + DOM API。Jinja2 自动转义仅保护 HTML 解析阶段，浏览器解码后 jQuery `.data()` 返回原始字符串 → 拼入 innerHTML 即为二次注入。自检：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml && echo WARN || echo OK`。**违反教训**：2026-08 `registration_review.html` 的 `username` 和 `tags.html` 的 `tagName` 未转义直接拼 HTML，可触发存储型 XSS。
 

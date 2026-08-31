@@ -1,9 +1,12 @@
 #!/usr/bin/python3 
 # -*- coding:utf-8 -*-
+import logging
 import time
 
 from apiflask import APIBlueprint
 from flask import request
+
+logger = logging.getLogger(__name__)
 
 api = APIBlueprint('api', __name__, tag='CronPilot Open API')
 
@@ -65,8 +68,10 @@ def _api_token_guard():
         from configs import configs as _configs
         api_access_token = _configs('api_access_token') or ''
     except Exception:
-        request._api_scope = {'role': 'admin'}
-        return None
+        logger.error('API token guard: failed to read config, denying request',
+                     exc_info=True)
+        from datas.utils.json import api_return
+        return api_return(errcode=1, errmsg='服务配置异常，请联系管理员'), 500
 
     token = _extract_bearer_token()
 
@@ -148,6 +153,7 @@ def _resolve_user_token(token):
             _SCOPE_CACHE[token]['expired'] = True
         return scope
     except Exception:
+        logger.warning('user token resolution failed', exc_info=True)
         return None
 
 
@@ -179,7 +185,7 @@ def _write_api_deny_audit():
         from app.rbac.services import write_audit_log
         write_audit_log(action='api:deny', resource=request.path, status='deny')
     except Exception:
-        pass
+        logger.warning('api deny audit write failed', exc_info=True)
 
 
 from . import views

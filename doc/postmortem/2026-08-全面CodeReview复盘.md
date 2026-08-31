@@ -602,8 +602,56 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 
 ---
 
-本复盘覆盖 2026-08-28 全面 Code Review 的全部发现 + Batch 0 深度根因分析 + Batch S1+S2 实施复盘。修复方案见 [代码质量优化方案](../design/代码质量优化方案-2026-08.html) · [静默异常审计专项](../design/静默异常审计与优化方案-2026-08.html)。  
+本复盘覆盖 2026-08-28 全面 Code Review 的全部发现 + Batch 0 深度根因分析 + Batch S1+S2 实施复盘 + P0-1 测试门禁统一实施复盘。修复方案见 [代码质量优化方案](../design/代码质量优化方案-2026-08.html) · [静默异常审计专项](../design/静默异常审计与优化方案-2026-08.html) · [测试门禁统一方案](../design/测试门禁统一方案-2026-08.html)。  
 [设计文档索引](../design/index.html) · [Markdown 版](2026-08-全面CodeReview复盘.md)
+
+---
+
+## P0-1 测试门禁统一实施复盘（2026-08-28）
+
+### P0-1-1. Bug 定位
+
+CI workflow（`.github/workflows/unit-tests.yml`）仅显式列举 5 个测试模块（`test_p0_phase_a`、`test_cronpilot_sign`、`test_ajax_form_guard`、`test_orm_legacy_guard`、`test_mapped_model_guard`），而项目实际有 51 个测试模块（634 个用例）。本地命令 `cronpilot.sh test` 列举 32 个模块，其余 19 个模块完全不在任何自动化门禁中。
+
+特别严重的是：安全修复的 3 个防护测试模块（`test_safe_redirect` · `test_logout_csrf` · `test_tag_scope`）不在 CI 中执行，安全回归无法被 CI 拦截。
+
+### P0-1-2. 根因
+
+1. **双份硬编码列表**：CI workflow 和 `cronpilot.sh` 各维护一份独立的模块名列表，新增测试后需手动同步两个文件，无任何自动化检查。
+2. **CI 配置从未跟上增长**：workflow 创建于 Phase A 初期（5 个模块），之后只有 `cronpilot.sh` 的列表被逐步扩充到 32 个模块，CI 始终保持 5 个。
+3. **交付闭环盲区**：每个 OPT/安全修复的交付闭环关注"本地测试通过"，未包含"CI 配置已同步"的检查项。
+4. **最近 2 个月更快漂移**：Redesign + 安全修复期间新增 19 个模块，因为开发节奏快，连 `cronpilot.sh` 的列表也未更新。
+
+### P0-1-3. 测试漏洞
+
+项目缺少"测试模块覆盖率门禁"——没有自动化机制验证 `tests/` 下所有 `test_*.py` 是否都被 CI/local 执行。现有 CI 门禁检查代码质量（ruff、颜色审计、HTML↔MD 同步等），但不检查测试覆盖完整性。
+
+### P0-1-4. 修复
+
+将 CI 和 local test 命令从显式模块列表改为 `python -m unittest discover -s tests -p "test_*.py" -v`。改动 2 个文件各 1 行命令。
+
+### P0-1-5. 防护测试
+
+改为 `discover` 后，**任何新增的 `tests/test_*.py` 文件自动纳入 CI**，无需额外操作。这本身就是防护机制——消除了"忘记更新列表"的可能性。
+
+验证命令：`bash scripts/cronpilot.sh test`（期望 Ran 634 tests, OK, skipped=11）。
+
+### P0-1-6. 同类排查
+
+检查了其他 CI workflow 是否也存在类似的"硬编码列表"问题：
+
+- `ruff-lint.yml`：使用 `ruff check app/` 自动扫描全目录，无此问题。
+- `docs-sync.yml`：使用 `html_docs_to_markdown.py --check` 自动扫描，无此问题。
+- `hardcoded-colors.yml`：使用审计脚本自动扫描，无此问题。
+
+结论：仅 `unit-tests.yml` 存在此问题，其他 CI workflow 均已使用自动发现机制。
+
+### P0-1-7. 预防方案
+
+1. **根因消除**（已实施）：改为 `unittest discover`，消除硬编码列表。落地位置：`.github/workflows/unit-tests.yml` + `scripts/cronpilot.sh`。
+2. **交付闭环补充**：建议在 `.cursor/rules/cronpilot-project.mdc` 的"优化验收"表中追加：新增测试文件后无需额外操作（discover 自动纳入），但需确认 `cronpilot.sh test` 的 Ran 计数增加。
+
+验证命令：`bash scripts/cronpilot.sh test 2>&1 | grep "^Ran"`（期望计数 ≥ 634）。
 
 ---
 

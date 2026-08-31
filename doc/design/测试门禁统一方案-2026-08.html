@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 测试门禁统一方案 (2026-08)</title>
+</head>
+<body>
+<h1>CronPilot 测试门禁统一方案 (2026-08)</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>创建日期</th><td>2026-08-28</td></tr>
+<tr><th>编号</th><td>P0-1（代码质量优化方案）</td></tr>
+<tr><th>来源</th><td>2026-08-28 全面 Code Review</td></tr>
+<tr><th>评估基线</th><td>v3.0.0 (commit 280bc69)</td></tr>
+<tr><th>状态</th><td>已实施（2026-08-28）</td></tr>
+<tr><th>关联文档</th><td>
+  <a href="代码质量优化方案-2026-08.html">代码质量优化方案（总览）</a> ·
+  <a href="../postmortem/2026-08-全面CodeReview复盘.html">全面 Code Review 复盘</a>
+</td></tr>
+</table>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>项目共有 <strong>51 个测试模块、634 个用例</strong>，全部通过（11 个集成用例因无运行服务正确 skip）。但 CI（GitHub Actions）仅门禁其中 <strong>5 个模块</strong>（约 28 个用例），本地命令 <code>cronpilot.sh test</code> 仅执行 <strong>32 个模块</strong>（约 427 个用例），剩余 <strong>19 个模块（207 个用例）完全不在任何自动化门禁中</strong>。</p>
+
+<h3>1.1 三级断裂现状</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>级别</th><th>机制</th><th>模块数</th><th>用例数</th><th>自动触发</th></tr>
+<tr><td><strong>CI 门禁</strong></td><td><code>unit-tests.yml</code> 显式列名</td><td>5</td><td>~28</td><td>push/PR 自动</td></tr>
+<tr><td><strong>本地门禁</strong></td><td><code>cronpilot.sh test</code> 显式列名</td><td>32</td><td>~427</td><td>开发者手动</td></tr>
+<tr><td><strong>无门禁</strong></td><td>不在任何列表中</td><td>19</td><td>~207</td><td>无</td></tr>
+<tr><td><strong>合计</strong></td><td><code>unittest discover</code></td><td>51</td><td>634</td><td>—</td></tr>
+</table>
+
+<h3>1.2 无门禁的 19 个模块</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>模块</th><th>用例数</th><th>覆盖功能</th><th>创建来源</th></tr>
+<tr><td>1</td><td>test_redesign_sidebar</td><td>12</td><td>Redesign 侧边栏 4 角色权限回归</td><td>OPT-P1-16</td></tr>
+<tr><td>2</td><td>test_safe_redirect</td><td>11</td><td>Open redirect 防护（P0-2 安全）</td><td>安全修复</td></tr>
+<tr><td>3</td><td>test_logout_csrf</td><td>4</td><td>登出 CSRF 防护（S1 安全）</td><td>安全修复</td></tr>
+<tr><td>4</td><td>test_tag_scope</td><td>9</td><td>标签 CRUD scope 隔离（S3 安全）</td><td>安全修复</td></tr>
+<tr><td>5</td><td>test_login_limiter</td><td>6</td><td>登录防暴破限流（P0-13）</td><td>OPT-P0-13</td></tr>
+<tr><td>6</td><td>test_import_smoke</td><td>4</td><td>Blueprint 路由模块 import 冒烟</td><td>防护性</td></tr>
+<tr><td>7</td><td>test_csrf_integration</td><td>11</td><td>CSRF 全链路集成（需运行服务时 skip）</td><td>安全修复</td></tr>
+<tr><td>8</td><td>test_cron_ops_integration</td><td>7</td><td>CronStatusCell 操作全链路集成（需运行服务时 skip）</td><td>OPT</td></tr>
+<tr><td>9</td><td>test_dashboard_partial</td><td>8</td><td>Dashboard AJAX 局部刷新（P1-17）</td><td>OPT-P1-17</td></tr>
+<tr><td>10</td><td>test_dashboard_stats_stability</td><td>6</td><td>Dashboard 统计不随筛选变化</td><td>OPT</td></tr>
+<tr><td>11</td><td>test_exec_logs_partial</td><td>9</td><td>执行记录 AJAX 局部刷新（P1-18）</td><td>OPT-P1-18</td></tr>
+<tr><td>12</td><td>test_oplog_audit_partial</td><td>11</td><td>操作记录/审计日志 AJAX 局部刷新（P1-19）</td><td>OPT-P1-19</td></tr>
+<tr><td>13</td><td>test_job_log_detail_integration</td><td>6</td><td>执行记录详情页端到端渲染</td><td>Phase B</td></tr>
+<tr><td>14</td><td>test_overdue_detection</td><td>10</td><td>超时检测逻辑</td><td>功能开发</td></tr>
+<tr><td>15</td><td>test_timestamp_utils</td><td>26</td><td>时间戳工具函数</td><td>基础设施</td></tr>
+<tr><td>16</td><td>test_check_ui_contract</td><td>41</td><td>UI 契约门禁脚本自身的测试</td><td>CI 门禁</td></tr>
+<tr><td>17</td><td>test_logging_format</td><td>6</td><td>日志格式契约（JSON + ISO-8601）</td><td>可观测性</td></tr>
+<tr><td>18</td><td>test_metrics</td><td>12</td><td>指标采集</td><td>可观测性</td></tr>
+<tr><td>19</td><td>test_ui_mode</td><td>12</td><td>UI 模式上下文处理器</td><td>OPT-P2-14</td></tr>
+</table>
+
+<p><strong>特别值得注意</strong>：#2-#4 是安全修复的防护测试，<code>.cursor/rules/</code> 中明确要求"修复后必须有防护测试"，但这些测试实际上不在 CI 中执行，意味着安全回归无法被 CI 拦截。</p>
+
+<h2>2. 根因</h2>
+
+<h3>2.1 直接原因：硬编码模块列表 + 手动同步</h3>
+
+<p>CI workflow 和 <code>cronpilot.sh test</code> 各维护一份<strong>独立的硬编码模块名列表</strong>。新增测试模块后需要同时更新两个文件的两份列表，这一步在开发流程中没有任何自动化检查，完全依赖开发者记忆。</p>
+
+<h3>2.2 历史原因：CI 配置从未跟上测试增长</h3>
+
+<ol>
+<li><strong>Phase A 初期</strong>（2026-03）：CI workflow 创建时只有 5 个核心守卫模块，这是正确的起点。</li>
+<li><strong>功能迭代期</strong>（2026-04—07）：<code>cronpilot.sh test</code> 的列表随功能开发逐步从 5 扩充到 32 个模块，但 CI workflow 始终保持 5 个未变。原因是每个 OPT/安全修复的交付闭环关注的是"本地测试通过"，而非"CI 配置已更新"。</li>
+<li><strong>Redesign + 安全修复期</strong>（2026-07—08）：新增 19 个模块连 <code>cronpilot.sh test</code> 的列表也未更新，测试存在但完全无门禁。</li>
+</ol>
+
+<h3>2.3 结构性原因：无"测试覆盖率门禁"防止漂移</h3>
+
+<p>项目有 CI 门禁检查代码质量（ruff、颜色审计、HTML↔MD 同步、前端构建等），但<strong>没有"测试模块覆盖率"门禁</strong>——即没有自动化机制验证"tests/ 下所有 test_*.py 是否都被 CI 执行"。</p>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 推荐方案：unittest discover（方案 A）</h3>
+
+<p>将 CI 和 local test 的命令都改为 <code>python -m unittest discover -s tests -p "test_*.py" -v</code>。</p>
+
+<h4>优点</h4>
+<ul>
+<li><strong>一劳永逸</strong>——新增测试文件自动纳入，根因（手动同步）被彻底消除</li>
+<li>CI 和 local 行为完全一致，消除"本地通过 CI 不跑"的断裂</li>
+<li>改动极小（CI 改 1 行命令，<code>cronpilot.sh</code> 改 1 行命令）</li>
+<li>Python <code>unittest discover</code> 是标准实践（Django、Flask 社区广泛使用）</li>
+</ul>
+
+<h4>风险与应对</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>风险</th><th>概率</th><th>应对</th></tr>
+<tr>
+<td>CI 耗时增加（5 模块 → 51 模块）</td>
+<td>必然</td>
+<td>实测 87 秒/版本 × 4 版本 ≈ 6 分钟。可接受；若不可接受可缩减版本矩阵到 3.8+3.11 两个</td>
+</tr>
+<tr>
+<td>未来有人写了需要外部依赖的测试但没正确 skip</td>
+<td>低</td>
+<td>CI 会立即报红暴露（这是 discover 的优势而非劣势）</td>
+</tr>
+<tr>
+<td>集成测试在 CI 中意外运行</td>
+<td>无</td>
+<td>已有 <code>skipUnless(CRONPILOT_BASE_URL)</code> 保护，CI 不设此变量即正确 skip</td>
+</tr>
+</table>
+
+<h3>3.2 备选方案：扩充显式列表（方案 B）</h3>
+
+<p>将 CI workflow 的模块列表更新为全部 51 个模块。</p>
+
+<h4>缺点</h4>
+<ul>
+<li><strong>根因未解决</strong>——每次新增测试文件仍需同步修改两份列表</li>
+<li>维护负担持续存在</li>
+<li>需要额外的"列表完整性检查"脚本才能防止再次漂移</li>
+</ul>
+
+<p><strong>结论：推荐方案 A。</strong></p>
+
+<h2>4. 范围</h2>
+
+<h3>4.1 改动文件</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>.github/workflows/unit-tests.yml</code></td><td>命令从显式模块列表改为 <code>discover</code>；step 名称更新</td></tr>
+<tr><td><code>scripts/cronpilot.sh</code></td><td><code>test)</code> 分支命令从显式列表改为 <code>discover</code></td></tr>
+</table>
+
+<h3>4.2 不做的事</h3>
+
+<ul>
+<li>不修改任何测试文件内容</li>
+<li>不变更 Python 版本矩阵（保持 3.8/3.9/3.10/3.11）</li>
+<li>不变更 CI 触发条件（paths filter 保持不变）</li>
+<li>不引入 pytest（保持 unittest，减少变更面）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p>本方案改动极小（2 个文件各改 1 行命令），<strong>单批次交付</strong>即可。</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>步骤</th><th>动作</th><th>验收</th></tr>
+<tr>
+<td>1</td>
+<td>修改 <code>.github/workflows/unit-tests.yml</code></td>
+<td>diff 确认只改了命令行</td>
+</tr>
+<tr>
+<td>2</td>
+<td>修改 <code>scripts/cronpilot.sh</code></td>
+<td>diff 确认只改了 test 分支</td>
+</tr>
+<tr>
+<td>3</td>
+<td>本地运行 <code>bash scripts/cronpilot.sh test</code> 确认 634 用例全通过</td>
+<td>exit code 0, 634 ran, 11 skipped</td>
+</tr>
+<tr>
+<td>4</td>
+<td>文档更新</td>
+<td><code>RELEASE_NOTES.md</code> + <code>html_docs_to_markdown.py --check</code></td>
+</tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<h3>6.1 本地验收</h3>
+<pre>
+# 改后运行
+bash scripts/cronpilot.sh test
+# 期望：Ran 634 tests ... OK (skipped=11)
+
+# 确认 discover 等价
+.venv-py311/bin/python -m unittest discover -s tests -p "test_*.py" 2&gt;&amp;1 | tail -5
+# 期望：Ran 634 tests ... OK (skipped=11)
+</pre>
+
+<h3>6.2 CI 验收</h3>
+<p>push 后 GitHub Actions <code>Unit tests</code> workflow 在 4 个 Python 版本上均绿，且日志中包含"Ran 634 tests"（或更多，随测试增长）。</p>
+
+<h3>6.3 回归保障</h3>
+<p>改为 discover 后，<strong>未来新增的 <code>tests/test_*.py</code> 文件自动纳入 CI</strong>，无需任何额外操作。这本身就是验收标准的核心：消除手动同步的需求。</p>
+
+<h2>7. 风险</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>风险</th><th>等级</th><th>说明</th></tr>
+<tr>
+<td>回归风险</td>
+<td>极低</td>
+<td>不修改任何测试代码或业务代码，只改运行命令</td>
+</tr>
+<tr>
+<td>CI 耗时增加</td>
+<td>低</td>
+<td>从 ~5 秒增加到 ~87 秒/版本，总计 ~6 分钟。若未来不可接受，可另行优化版本矩阵</td>
+</tr>
+<tr>
+<td>降级/回滚</td>
+<td>—</td>
+<td>只需将命令改回显式列表即可恢复原状</td>
+</tr>
+</table>
+
+<hr>
+
+<h2>附录 A：CI 仅门禁 5 个模块的历史时间线</h2>
+
+<ol>
+<li><strong>2026-03 Phase A</strong>：创建 <code>unit-tests.yml</code>，列入 5 个核心守卫模块：<code>test_p0_phase_a</code>（ORM 安全）、<code>test_cronpilot_sign</code>（签名）、<code>test_ajax_form_guard</code>（Ajax 表单）、<code>test_orm_legacy_guard</code>（ORM 旧 API）、<code>test_mapped_model_guard</code>（模型映射）。</li>
+<li><strong>2026-04—06</strong>：功能迭代新增 27 个测试模块到 <code>cronpilot.sh test</code>，CI workflow 未更新。</li>
+<li><strong>2026-07—08</strong>：Redesign + 安全修复新增 19 个测试模块，连 <code>cronpilot.sh test</code> 也未更新。</li>
+<li><strong>2026-08-28</strong>：全面 Code Review 发现 CI 仅门禁 5/51 模块。</li>
+</ol>
+
+<h2>附录 B：11 个 skip 用例详情</h2>
+
+<p>全部位于集成测试模块，通过 <code>@unittest.skipUnless(os.environ.get('CRONPILOT_BASE_URL'), ...)</code> 保护。CI 不设置此环境变量，因此正确 skip。</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>模块</th><th>skip 用例数</th><th>原因</th></tr>
+<tr><td>test_csrf_integration</td><td>6</td><td>需要运行中的服务 + CRONPILOT_BASE_URL</td></tr>
+<tr><td>test_cron_ops_integration</td><td>5</td><td>需要运行中的服务 + CRONPILOT_BASE_URL</td></tr>
+</table>
+
+<hr>
+
+<p style="font-size:0.85em;color:#666;">
+本文档源自 2026-08-28 全面 Code Review · P0-1 测试门禁统一。<br>
+<a href="代码质量优化方案-2026-08.html">代码质量优化总览</a> · <a href="../postmortem/2026-08-全面CodeReview复盘.html">全面 Code Review 复盘</a> · <a href="测试门禁统一方案-2026-08.md">Markdown 版</a>
+</p>
+
+</body>
+</html>

@@ -7,6 +7,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程质量 — 测试门禁统一（P0-1）
+
+- CI workflow 从显式列举 5 个测试模块改为 `unittest discover`，覆盖全部 51 个模块（634 用例）
+- `cronpilot.sh test` 同步改为 `discover`，消除 CI 和本地测试的覆盖差异
+- 原 CI 仅门禁 5/51 模块（~28 用例），安全修复防护测试（`test_safe_redirect` · `test_logout_csrf` · `test_tag_scope`）完全不在 CI 中执行
+- 改为 discover 后，新增测试文件自动纳入 CI，无需手动维护模块列表
+- 详见 [测试门禁统一方案](doc/design/测试门禁统一方案-2026-08.html) · [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) P0-1 实施复盘
+
 ### 工程质量 — Ruff Lint 工具链引入 + 代码清理（Batch 0）
 
 - 新增 `pyproject.toml` 配置 ruff（target Python 3.8，select E/W/F/I 四组规则）

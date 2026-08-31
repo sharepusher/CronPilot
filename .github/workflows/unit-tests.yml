@@ -52,6 +52,6 @@ jobs:
       - name: Prepare conf.ini (SQLite, no external DB)
         run: cp conf.ci.ini conf.ini
 
-      - name: Run P0, sign, and static guards
+      - name: Run all unit tests (discover)
         run: |
-          python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign tests.test_ajax_form_guard tests.test_orm_legacy_guard tests.test_mapped_model_guard -v
+          python -m unittest discover -s tests -p "test_*.py" -v

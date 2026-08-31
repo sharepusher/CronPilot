@@ -1,4 +1,8 @@
+import logging
+
 from flask import Blueprint
+
+logger = logging.getLogger(__name__)
 
 rbac = Blueprint('rbac', __name__, url_prefix='/rbac')
 
@@ -49,6 +53,7 @@ def _get_pending_reg_count():
             return repo.get_pending_count_all()
         return repo.get_pending_count_by_groups(session.get('group_ids') or [])
     except Exception:
+        logger.warning('pending_registration_count: DB query failed', exc_info=True)
         return 0
 
 

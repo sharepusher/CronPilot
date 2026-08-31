@@ -20,6 +20,19 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 新增 CI workflow `.github/workflows/ruff-lint.yml`（阻断模式，push/PR 触发）
 - 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) B0-8/B0-9
 
+### 可观测性 — 静默异常加日志 Batch L1+L2
+
+- **Batch L1（Service 层）**：`app/rbac/services.py` 中 16 处 `except Exception: rollback + return error` 新增 `logger.exception(...)`，覆盖用户/组/Token/注册等全部 CRUD 操作。日志包含操作名称和关键标识（user_id/username/group_id），帮助区分约束冲突、连接超时、SQL 错误等不同根因。
+- **Batch L2（基础设施/Fire-and-forget）**：
+  - C-1 `main/views.py` 分组下拉查询失败 → `logger.warning`
+  - C-5 `rbac/context.py` 用户组列表 DB 查询失败 → `logger.warning`
+  - C-6 `rbac/__init__.py` 待审注册计数查询失败 → `logger.warning`
+  - C-2/C-4 `main/views.py` bypass scope 刷新失败 → `logger.debug`
+  - D-2 `rbac/services.py` scope 缓存失效失败 → `logger.debug`
+  - F-3 `CuBackgroundScheduler.py` 一次性任务标记下线失败 → `self._logger.warning`
+  - C-8/D-1 `api/__init__.py` — 已在 Batch S1 中完成
+- 详见 [静默异常审计与优化方案](doc/design/静默异常审计与优化方案-2026-08.html)
+
 ### 安全修复 — 静默异常审计 Batch S1+S2
 
 - **⚠️ API Breaking Change**: `api/__init__.py` `_api_token_guard()` 中 `configs()` 读取失败时，原行为为赋予 admin 权限并放行；现改为返回 HTTP 500 + 记录错误日志。正常配置环境下无影响。

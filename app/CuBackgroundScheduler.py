@@ -41,9 +41,10 @@ class CuBackgroundScheduler(BackgroundScheduler):
                             cif.status = -1
                             db.session.commit()
                     except Exception:
+                        self._logger.warning('update_cron_info fallback failed for cron_pk=%s', cron_pk, exc_info=True)
                         db.session.rollback()
         except Exception:
-            pass
+            self._logger.warning('update_cron_info abandoned for cron_pk=%s', cron_pk, exc_info=True)
 
     def _process_jobs(self):
         """

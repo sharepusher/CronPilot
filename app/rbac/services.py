@@ -120,6 +120,7 @@ def ensure_seed_admin():
         db.session.add(user)
         db.session.commit()
     except Exception:
+        logger.exception('ensure_seed_admin commit failed')
         db.session.rollback()
         return False
     return True
@@ -144,6 +145,7 @@ def ensure_existing_users_have_token():
         db.session.commit()
         print('OK: 已为 %d 名存量用户补签 API Token' % len(users))
     except Exception:
+        logger.exception('ensure_existing_users_have_token commit failed for %d users', len(users))
         db.session.rollback()
 
 
@@ -202,6 +204,7 @@ def write_audit_log(action='', resource='', status='allow', user_id=None, userna
         db.session.add(entry)
         db.session.commit()
     except Exception:
+        logger.exception('write_audit_log commit failed action=%s resource=%s', action, resource)
         db.session.rollback()
 
 
@@ -316,6 +319,7 @@ def save_profile_completion(user_id, email, nickname, job_title):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('save_profile_completion commit failed user_id=%s', user.id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败，请重试'}
     return {'ok': True, 'msg': '个人信息已补全'}
@@ -355,6 +359,7 @@ def update_own_profile(user_id, email, nickname, job_title):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('update_own_profile commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败，请重试'}
     return {'ok': True, 'msg': '个人资料已更新'}
@@ -413,6 +418,7 @@ def create_user(username, role='viewer', email='', nickname='', job_title=''):
         db.session.add(user)
         db.session.commit()
     except Exception:
+        logger.exception('create_user commit failed username=%s', username)
         db.session.rollback()
         return {'ok': False, 'msg': '创建失败'}
     write_audit_log(action='user:create', resource=username)
@@ -447,6 +453,7 @@ def update_user(user_id, role=None, is_active=None):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('update_user commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
     write_audit_log(action='user:update', resource=user.username)
@@ -499,6 +506,7 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('set_user_active commit failed user_id=%s active=%s', user_id, want_active)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
     action = 'user:enable' if want_active else 'user:disable'
@@ -529,6 +537,7 @@ def trigger_password_reset(user_id, actor_user_id=None):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('trigger_password_reset commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '触发重置失败'}
     write_audit_log(action='user:password_reset', resource=user.username)
@@ -563,6 +572,7 @@ def change_own_password(user_id, old_password, new_password, confirm_password):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('change_own_password commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
     write_audit_log(
@@ -617,6 +627,7 @@ def create_resource_group(name, description=''):
         db.session.add(group)
         db.session.commit()
     except Exception:
+        logger.exception('create_resource_group commit failed name=%s', name)
         db.session.rollback()
         return {'ok': False, 'msg': '创建失败'}
     write_audit_log(action='group:create', resource=name)
@@ -644,6 +655,7 @@ def update_resource_group(group_id, name=None, description=None):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('update_resource_group commit failed group_id=%s', group_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
     write_audit_log(action='group:update', resource=group.name)
@@ -673,6 +685,7 @@ def issue_user_api_token(user_id):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('issue_user_api_token commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '签发失败', 'token': '', 'expires_at': ''}
     _invalidate_api_scope_cache(user_id)
@@ -686,7 +699,7 @@ def _invalidate_api_scope_cache(user_id):
         from app.api import invalidate_user_scope_cache
         invalidate_user_scope_cache(user_id)
     except Exception:
-        pass
+        logger.debug('_invalidate_api_scope_cache failed user_id=%s', user_id, exc_info=True)
 
 
 def set_user_groups(user_id, group_ids, role=None, username=None):
@@ -739,6 +752,7 @@ def set_user_groups(user_id, group_ids, role=None, username=None):
             _auto_issue_token(user)
         db.session.commit()
     except Exception:
+        logger.exception('set_user_groups commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存业务组失败'}
     write_audit_log(action='user:update', resource='%s:groups' % user.username)
@@ -1050,6 +1064,7 @@ def reject_registration(request_id, comment=''):
     try:
         db.session.commit()
     except Exception:
+        logger.exception('reject_registration commit failed request_id=%s', request_id)
         db.session.rollback()
         return {'ok': False, 'msg': '操作失败'}
     write_audit_log(
@@ -1084,6 +1099,7 @@ def expire_stale_registrations():
         try:
             db.session.commit()
         except Exception:
+            logger.exception('expire_stale_registrations commit failed count=%d', len(expired_names))
             db.session.rollback()
             return
         for name in expired_names:

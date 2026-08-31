@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import json
+import logging
 import traceback
 
 from flask import current_app, jsonify, redirect, render_template, request, session, url_for
@@ -30,6 +31,8 @@ from datas.model.task_group import TaskGroup
 from datas.utils.json import json_response
 
 from . import main
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_log_outcome_param():
@@ -72,6 +75,7 @@ def _scope_groups_for_form():
     try:
         all_groups = list_resource_groups()
     except Exception:
+        logger.warning('_scope_groups_for_form: list_resource_groups failed', exc_info=True)
         return []
     if _session_bypasses_scope():
         return all_groups
@@ -268,7 +272,7 @@ def cron_list():
             group_name_by_id = {g.id: g.name for g in list_resource_groups()}
             scope_groups = list_resource_groups()
         except Exception:
-            pass
+            logger.debug('cron_list: bypass scope_groups refresh failed', exc_info=True)
     show_group_column = len(scope_groups) > 1
 
     if 'page' in keyword:
@@ -1046,7 +1050,7 @@ def operation_log_list():
             scope_groups = list_resource_groups()
             group_name_by_id = {g.id: g.name for g in scope_groups}
         except Exception:
-            pass
+            logger.debug('execution_logs: bypass scope_groups refresh failed', exc_info=True)
 
     if 'page' in keywords:
         del keywords['page']

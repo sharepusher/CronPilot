@@ -1,4 +1,8 @@
+import logging
+
 from flask import g, session
+
+logger = logging.getLogger(__name__)
 
 from .policy import is_seed_admin_username, role_bypasses_scope, user_bypasses_scope
 from .services import get_role_permission_set
@@ -81,6 +85,7 @@ def get_current_user_groups():
             select(ResourceGroup).where(ResourceGroup.id.in_(ids))
         ).all()
     except Exception:
+        logger.warning('get_current_user_groups: DB query failed, returning empty', exc_info=True)
         g._current_user_groups = []
         return []
     by_id = {int(r.id): r.name for r in rows}

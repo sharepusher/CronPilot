@@ -2,12 +2,11 @@
 """JobLog 列表查询。"""
 from sqlalchemy import desc, func, select
 
+from app.repositories.base import BaseRepository
+from app.services.job_log_filter import job_log_outcome_clause
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.job_log_items import JobLogItems
-
-from app.repositories.base import BaseRepository
-from app.services.job_log_filter import job_log_outcome_clause
 
 
 class JobLogRepository(BaseRepository):

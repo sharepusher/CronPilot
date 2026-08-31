@@ -6,9 +6,9 @@ N = health_failing_threshold：连续失败达到 N 次才标 failing（默认 3
 """
 from __future__ import absolute_import
 
-from configs import configs
 from app import db
 from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
+from configs import configs
 from datas.model.job_health import JobHealth
 
 HEALTH_OK = 'ok'

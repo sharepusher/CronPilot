@@ -83,6 +83,7 @@ bash scripts/cronpilot.sh start --daemon   # 自动匹配 Python 3.8–3.11
 bash scripts/cronpilot.sh restart --daemon # 改代码/模板后必跑（先停后启，默认 --force）
 bash scripts/cronpilot.sh stop
 bash scripts/cronpilot.sh test
+ruff check app/                            # Python lint 门禁（E/W/F/I 规则，0 违规）
 python -m unittest tests.test_redesign_sidebar -v  # Redesign 侧边栏 4 角色权限回归
 python -m unittest tests.test_rbac_scope.TestScopeIntegration -v  # Scope 隔离回归（含多组/Biz Admin）
 bash scripts/ensure_business_tables.sh   # SQLite/MySQL 业务库建表补列（生产启动亦会调用）
@@ -110,6 +111,8 @@ bash scripts/check_pending_sync.sh
 ```
 
 **JS hidden input 命名冲突防护（强制）**：凡 JS 动态追加 `<input type="hidden" name="xxx">`，必须检查同表单内无同名可见 input，如有则移除可见 input 的 `name`，确保隐藏 input 独占字段名（Flask `request.form.get()` 返回第一个同名值，可见 input 在前导致后端拿到空值）。
+
+**Ruff lint 门禁（强制 · 2026-08）**：`ruff check app/` 必须通过（0 违规）。凡 commit 涉及函数废弃、变量移除、模板参数删减、import 变更，须在提交前运行 `ruff check app/` 确认无新增 F841（未使用变量）/ F811（未使用导入）/ F821（不可达代码）违规。配置：`pyproject.toml`（select E/W/F/I；target py38）。CI：`.github/workflows/ruff-lint.yml`。**违反教训**：2026-08 重命名事件中多次引入未使用 import 和废弃变量残留，手动 review 均未发现，ruff 一次扫描即全捕获。
 
 **Import 可达性验证（强制）**：编写 `from xxx import yyy` 前**必须** `grep` 确认 `yyy` 在目标模块中存在，禁止凭记忆写 import。`tests/test_import_smoke.py` 覆盖所有 Blueprint 路由模块的顶层 import。
 

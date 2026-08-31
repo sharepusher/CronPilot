@@ -15,7 +15,7 @@ from contextvars import ContextVar
 _ctx_enqueue_time: ContextVar[float] = ContextVar('enqueue_time', default=0.0)
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge
+    from prometheus_client import Counter, Gauge, Histogram
 
     # ------------------------------------------------------------------ #
     # Job execution metrics                                                #

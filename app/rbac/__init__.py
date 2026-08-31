@@ -5,6 +5,8 @@ rbac = Blueprint('rbac', __name__, url_prefix='/rbac')
 
 @rbac.app_context_processor
 def inject_rbac_context():
+    from app.security.csrf import inject_csrf_context
+
     from .context import (
         get_current_group_ids,
         get_current_user,
@@ -13,7 +15,6 @@ def inject_rbac_context():
         role_badge_class,
         role_display_name,
     )
-    from app.security.csrf import inject_csrf_context
     has_perm = make_has_perm()
     ctx = {
         'current_user': get_current_user(),
@@ -34,8 +35,9 @@ def _get_pending_reg_count():
     if 'is_login' not in session:
         return 0
     try:
-        from app.repositories.registration_request_repository import RegistrationRequestRepository
         from app import db
+        from app.repositories.registration_request_repository import RegistrationRequestRepository
+
         from .policy import is_seed_admin_username, user_bypasses_scope
         repo = RegistrationRequestRepository(db.session)
         bypasses = user_bypasses_scope(

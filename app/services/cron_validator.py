@@ -2,8 +2,8 @@
 """Cron 任务表单校验（Web / API 共用）。"""
 from datas.utils.times import get_now_time
 
-from .url_security import validate_callback_url
 from .cron_schedule_display import schedule_configured_from_normalized
+from .url_security import validate_callback_url
 
 _WEEK_NAMES = frozenset(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
 

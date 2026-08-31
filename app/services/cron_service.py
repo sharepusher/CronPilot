@@ -117,8 +117,9 @@ def create_cron(normalized):
     # OPT-P1-11：标签 — 同步 task_tags（标签隔离：传递 group_id）
     tag_names = normalized.get('tag_names')
     if tag_names is not None:
-        from app.services.tag_service import sync_task_tags
         from flask import session as flask_session
+
+        from app.services.tag_service import sync_task_tags
         sync_task_tags(cif.id, tag_names,
                        created_by=flask_session.get('username') or '',
                        group_id=group_id)
@@ -159,8 +160,9 @@ def update_cron(cif, normalized, resume_after_save=False):
     # OPT-P1-11：同步标签（标签隔离：传递 group_id）
     tag_names = normalized.get('tag_names')
     if tag_names is not None:
-        from app.services.tag_service import sync_task_tags
         from flask import session as flask_session
+
+        from app.services.tag_service import sync_task_tags
         task_gid = new_group_id if new_group_id is not None else normalized.get('group_id')
         sync_task_tags(cif.id, tag_names,
                        created_by=flask_session.get('username') or '',

@@ -15,7 +15,6 @@ from sqlalchemy import select
 
 from datas.model.cron_infos import CronInfos
 
-
 _overdue_cache = {}
 _OVERDUE_CACHE_TTL = 30
 

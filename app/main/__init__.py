@@ -21,4 +21,4 @@ def _schedule_empty_hint_filter(item, status=None):
     return schedule_empty_hint(item, status)
 
 
-from . import views, errors
+from . import errors, views

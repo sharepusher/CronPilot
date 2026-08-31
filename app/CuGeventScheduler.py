@@ -1,4 +1,4 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 import os
 from datetime import datetime, timedelta
@@ -6,7 +6,7 @@ from threading import TIMEOUT_MAX
 
 import portalocker
 import six
-from apscheduler.events import JobSubmissionEvent, EVENT_JOB_MAX_INSTANCES, EVENT_JOB_SUBMITTED
+from apscheduler.events import EVENT_JOB_MAX_INSTANCES, EVENT_JOB_SUBMITTED, JobSubmissionEvent
 from apscheduler.executors.base import MaxInstancesReachedError
 from apscheduler.schedulers.base import STATE_PAUSED
 from apscheduler.schedulers.gevent import GeventScheduler
@@ -59,7 +59,7 @@ class CuGeventScheduler(GeventScheduler):
         wait_seconds = None
         try:
             portalocker.lock(f, portalocker.LOCK_EX | portalocker.LOCK_NB)
-        except Exception as exc:
+        except Exception:
             f.close()
         else:
             if self.state == STATE_PAUSED:

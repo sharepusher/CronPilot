@@ -1,10 +1,9 @@
 # -*- coding:utf-8 -*-
 from sqlalchemy import asc, desc, distinct, func, select
 
+from app.repositories.base import BaseRepository
 from datas.model.rbac_user import RbacUser
 from datas.model.user_group import UserGroup
-
-from app.repositories.base import BaseRepository
 
 
 class RbacUserRepository(BaseRepository):

@@ -1,9 +1,8 @@
 # -*- coding:utf-8 -*-
 from sqlalchemy import desc, select
 
-from datas.model.rbac_registration_request import RbacRegistrationRequest
-
 from app.repositories.base import BaseRepository
+from datas.model.rbac_registration_request import RbacRegistrationRequest
 
 
 class RegistrationRequestRepository(BaseRepository):
@@ -27,22 +26,30 @@ class RegistrationRequestRepository(BaseRepository):
         )
         return self.scalars_first(stmt)
 
-    def paginate_all(self, page_query, status=None):
+    def paginate_all(self, page_query, status=None, search_username=None):
         """全量分页（种子/全局 admin）。"""
         stmt = select(RbacRegistrationRequest).order_by(
             desc(RbacRegistrationRequest.id)
         )
         if status:
             stmt = stmt.where(RbacRegistrationRequest.status == status)
+        if search_username:
+            stmt = stmt.where(
+                RbacRegistrationRequest.username.ilike('%%%s%%' % search_username)
+            )
         return self.paginate(stmt, page_query)
 
-    def paginate_by_groups(self, page_query, group_ids, status=None):
+    def paginate_by_groups(self, page_query, group_ids, status=None, search_username=None):
         """按组管理员：仅返回 group_ids 有交集的申请。"""
         stmt = select(RbacRegistrationRequest).order_by(
             desc(RbacRegistrationRequest.id)
         )
         if status:
             stmt = stmt.where(RbacRegistrationRequest.status == status)
+        if search_username:
+            stmt = stmt.where(
+                RbacRegistrationRequest.username.ilike('%%%s%%' % search_username)
+            )
         # group_ids 存储为逗号分隔，用 LIKE 匹配交集
         conditions = []
         for gid in group_ids:

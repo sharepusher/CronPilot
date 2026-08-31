@@ -7,7 +7,6 @@
 """
 from functools import lru_cache
 
-
 DOC_ITEMS = [
     {
         'id': 'api-test',

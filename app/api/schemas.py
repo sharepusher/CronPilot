@@ -9,7 +9,7 @@ API 请求/响应 Schema（marshmallow）。
 - 所有可选字段显式 required=False，避免 marshmallow 4.x 行为差异导致歧义。
 """
 from apiflask import Schema
-from apiflask.fields import String, Integer
+from apiflask.fields import Integer, String
 from apiflask.validators import Length, OneOf, Range
 
 

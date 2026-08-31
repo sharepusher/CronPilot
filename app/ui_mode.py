@@ -5,7 +5,7 @@ Jinja templates so that `<html>` can render the correct `data-ui-mode` and
 `data-theme` attributes on first paint (SSR, no FOUC).
 """
 
-from flask import request, current_app
+from flask import current_app, request
 
 _VALID_UI_MODES = ('classic', 'console')
 _VALID_THEMES = ('light', 'dark')

@@ -1,17 +1,18 @@
 from urllib.parse import quote
 
-from flask import current_app, g, jsonify, redirect, render_template, request, session
+from flask import current_app, jsonify, redirect, render_template, request, session
 from sqlalchemy import select
+
 from app import db
 from app.common.functions import web_api_return
-from app.services.pagination import PageQuery
 from app.repositories.rbac_audit_log_repository import RbacAuditLogRepository
 from app.repositories.rbac_user_repository import RbacUserRepository
+from app.security.csrf import csrf_protect, ensure_csrf_token
+from app.services.pagination import PageQuery
 
 from . import rbac
 from .decorators import require_login, require_permission
 from .login_limiter import check_login_limit, record_login_failure, record_login_success
-from app.security.csrf import csrf_protect, ensure_csrf_token
 from .policy import is_seed_admin_username, user_bypasses_scope
 from .safe_redirect import safe_next_url
 from .services import (
@@ -21,6 +22,7 @@ from .services import (
     REGISTRATION_ROLES,
     ROLE_ORDER,
     VALID_ROLES,
+    approve_registration,
     audit_action_label,
     audit_resource_label,
     audit_status_label,
@@ -33,9 +35,10 @@ from .services import (
     get_user_by_id,
     get_user_group_ids_for_user,
     list_resource_groups,
-    set_user_groups,
-    approve_registration,
     reject_registration,
+    save_profile_completion,
+    set_user_active,
+    set_user_groups,
     submit_registration,
     trigger_password_reset,
     update_own_profile,
@@ -44,10 +47,8 @@ from .services import (
     user_in_management_scope,
     user_must_reset_password,
     user_needs_profile_completion,
-    save_profile_completion,
     validate_groups_for_role,
     write_audit_log,
-    set_user_active,
 )
 
 
@@ -869,10 +870,12 @@ def groups_list():
     group_task_counts = {}
     group_top_users = {}  # {group_id: ['张', '李', '王']}
     if group_ids:
-        from datas.model.user_group import UserGroup
-        from datas.model.task_group import TaskGroup
+        from sqlalchemy import func
+        from sqlalchemy import select as sa_select
+
         from datas.model.rbac_user import RbacUser
-        from sqlalchemy import func, select as sa_select
+        from datas.model.task_group import TaskGroup
+        from datas.model.user_group import UserGroup
         # 用户数
         rows = db.session.execute(
             sa_select(UserGroup.group_id, func.count(UserGroup.user_id))
@@ -1037,13 +1040,14 @@ def registration_review():
 
     page_query = PageQuery.from_args(request.args)
     status_filter = (request.args.get('status') or '').strip() or None
+    search_username = (request.args.get('username') or '').strip() or None
     repo = RegistrationRequestRepository(db.session)
 
     if _actor_bypasses_scope():
-        page_data = repo.paginate_all(page_query, status=status_filter)
+        page_data = repo.paginate_all(page_query, status=status_filter, search_username=search_username)
     else:
         actor_gids = session.get('group_ids') or []
-        page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter)
+        page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter, search_username=search_username)
         # 按组管理员：隐藏其业务组未完全覆盖的 admin 角色申请
         # __ALL__ 申请仅种子/全局 admin 可见（上方已走 _actor_bypasses_scope 分支）
         actor_gids_set = set(actor_gids)
@@ -1063,8 +1067,9 @@ def registration_review():
     disabled_usernames = set()
     pending_usernames = [r.username for r in page_data.items if r.status == 'pending']
     if pending_usernames:
-        from datas.model.rbac_user import RbacUser
         from sqlalchemy import select as sa_select
+
+        from datas.model.rbac_user import RbacUser
         disabled_users = db.session.scalars(
             sa_select(RbacUser.username).where(
                 RbacUser.username.in_(pending_usernames),
@@ -1073,6 +1078,31 @@ def registration_review():
         ).all()
         disabled_usernames = set(disabled_users)
 
+    # group_name_map: {group_id: group_name} for resolving group_ids in detail rows
+    from datas.model.resource_group import ResourceGroup
+    all_groups = db.session.execute(
+        select(ResourceGroup.id, ResourceGroup.name)
+    ).all()
+    group_name_map = {g.id: g.name for g in all_groups}
+
+    # reviewer_map: {user_id: username} for resolving reviewer_id in detail rows
+    reviewer_ids = set()
+    for r in page_data.items:
+        if r.reviewer_id:
+            reviewer_ids.add(r.reviewer_id)
+    reviewer_map = {}
+    if reviewer_ids:
+        from datas.model.rbac_user import RbacUser as RU
+        reviewers = db.session.execute(
+            select(RU.id, RU.username).where(RU.id.in_(reviewer_ids))
+        ).all()
+        reviewer_map = {rv.id: rv.username for rv in reviewers}
+
+    if _actor_bypasses_scope():
+        pending_count = repo.get_pending_count_all()
+    else:
+        pending_count = repo.get_pending_count_by_groups(session.get('group_ids') or [])
+
     return render_template(
         'redesign/registration_review.html',
         active_nav='reg-review',
@@ -1080,6 +1110,10 @@ def registration_review():
         status_filter=status_filter or '',
         job_title_map=job_title_map,
         disabled_usernames=disabled_usernames,
+        group_name_map=group_name_map,
+        reviewer_map=reviewer_map,
+        search_username=search_username or '',
+        pending_count=pending_count,
     )
 
 
@@ -1116,13 +1150,67 @@ def registration_reject():
     )
 
 
+@rbac.route('/registration_review/batch_approve', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def registration_batch_approve():
+    """批量批准注册申请。"""
+    ids_raw = request.values.get('ids', '')
+    ids = []
+    for s in ids_raw.split(','):
+        s = s.strip()
+        if s.isdigit():
+            ids.append(int(s))
+    if not ids:
+        return web_api_return(code=1, msg='未选择任何申请')
+    ok_count, fail_msgs = 0, []
+    for rid in ids:
+        result = approve_registration(rid)
+        if result['ok']:
+            ok_count += 1
+        else:
+            fail_msgs.append('#%d: %s' % (rid, result['msg']))
+    msg = '成功 %d 条' % ok_count
+    if fail_msgs:
+        msg += '，失败 %d 条（%s）' % (len(fail_msgs), '；'.join(fail_msgs))
+    return web_api_return(code=0, msg=msg, url='/rbac/registration_review')
+
+
+@rbac.route('/registration_review/batch_reject', methods=['POST'])
+@require_permission('user:manage')
+@csrf_protect
+def registration_batch_reject():
+    """批量拒绝注册申请。"""
+    ids_raw = request.values.get('ids', '')
+    comment = request.values.get('comment', '')
+    ids = []
+    for s in ids_raw.split(','):
+        s = s.strip()
+        if s.isdigit():
+            ids.append(int(s))
+    if not ids:
+        return web_api_return(code=1, msg='未选择任何申请')
+    ok_count, fail_msgs = 0, []
+    for rid in ids:
+        result = reject_registration(rid, comment=comment)
+        if result['ok']:
+            ok_count += 1
+        else:
+            fail_msgs.append('#%d: %s' % (rid, result['msg']))
+    msg = '成功 %d 条' % ok_count
+    if fail_msgs:
+        msg += '，失败 %d 条（%s）' % (len(fail_msgs), '；'.join(fail_msgs))
+    return web_api_return(code=0, msg=msg, url='/rbac/registration_review')
+
+
 # ─── OPT-P1-11：标签管理 ───────────────────────────────────────────
 @rbac.route('/tags', methods=['GET'])
 @require_permission('user:manage')
 def tag_manage():
+    from sqlalchemy import select as sa_select
+
     from app.services.tag_service import all_tags_with_count
     from datas.model.resource_group import ResourceGroup
-    from sqlalchemy import select as sa_select
     # scope 过滤：seed admin / __ALL__ admin 看全部，manager admin 只看自己组
     if _actor_bypasses_scope():
         tags = all_tags_with_count(group_id='__ALL__')

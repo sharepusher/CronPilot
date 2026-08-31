@@ -1,0 +1,27 @@
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+]
+ignore = [
+    "E501",  # line too long (handled by line-length above, many existing violations)
+    "E402",  # module level import not at top of file (Flask pattern: conditional imports)
+    "E741",  # ambiguous variable name (existing codebase uses single-letter vars)
+    "F401",  # imported but unused (some __init__.py re-exports intentionally)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/__init__.py" = ["F841"]
+"app/CuBackgroundScheduler.py" = ["E501"]
+"app/CuGeventScheduler.py" = ["E501"]
+"tests/*" = ["E501", "F841"]
+"scripts/*" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "datas", "configs", "config"]

@@ -7,6 +7,19 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程质量 — Ruff Lint 工具链引入 + 代码清理（Batch 0）
+
+- 新增 `pyproject.toml` 配置 ruff（target Python 3.8，select E/W/F/I 四组规则）
+- 自动修复 66 处（import 排序 49、行尾空白 7、文件末尾缺换行 7、冗余 f-prefix 1、未使用 `as exc` 绑定 2）
+- 手动修复 21 处（详见根因分析）：
+  - 删除 `crons.py` `_update_log_running()` 中 `raise` 后 22 行不可达死代码（F821 ×5）
+  - `type(x)==T` → `isinstance(x, T)`：`decorated.py`（5 处）+ `crons.py`（1 处）（E721 ×6）
+  - 移除 `main/views.py` 和 `rbac/views.py` 中从未使用的 Flask `g` 导入（F811 ×8）
+  - 删除 4 处未使用变量赋值（F841）：`role`、`recent_ok_tasks`（**消除 Dashboard 无用 SQL 查询**）、`repo`、`CRON_CONFIG`
+- per-file-ignores 从 7 条精简为 3 条（仅保留 `isCreate` F841 + 长行 E501）
+- 新增 CI workflow `.github/workflows/ruff-lint.yml`（阻断模式，push/PR 触发）
+- 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) B0-8/B0-9
+
 ### 安全修复 — 静默异常审计 Batch S1+S2
 
 - **⚠️ API Breaking Change**: `api/__init__.py` `_api_token_guard()` 中 `configs()` 读取失败时，原行为为赋予 admin 权限并放行；现改为返回 HTTP 500 + 记录错误日志。正常配置环境下无影响。

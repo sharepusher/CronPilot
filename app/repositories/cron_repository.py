@@ -2,14 +2,13 @@
 """CronInfos 列表 / 指标 / 侧栏查询（业务 SQL 在此，不进 BaseRepository）。"""
 from sqlalchemy import desc, func, select
 
+from app.repositories.base import BaseRepository
+from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
+from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
 from datas.model.cron_infos import CronInfos
 from datas.model.job_health import JobHealth
 from datas.model.job_log import JobLog
 from datas.utils.times import local_today_start_hms, local_tomorrow_start_hms
-
-from app.repositories.base import BaseRepository
-from app.services.job_health_service import HEALTH_FAILING, get_failing_threshold
-from app.services.job_log_outcome import STATUS_ERROR, STATUS_FAIL, STATUS_SUCCESS, STATUS_TIMEOUT
 
 
 class CronRepository(BaseRepository):

@@ -2,15 +2,10 @@
 import json
 import traceback
 
+from flask import current_app, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import and_, desc, select
 
-from app import scheduler, db
-from datas.model.cron_infos import CronInfos
-from datas.model.job_log import JobLog
-from datas.utils.json import json_response
-from . import main
-from flask import render_template, request, redirect, session, current_app, url_for, jsonify, g
-
+from app import db, scheduler
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
 from app.rbac.policy import effective_permissions, role_bypasses_scope, user_bypasses_scope
 from app.rbac.safe_redirect import safe_next_url
@@ -21,15 +16,20 @@ from app.rbac.scope import (
     normalize_scope_fields,
     user_can_assign_group,
 )
-from datas.model.task_group import TaskGroup
 from app.rbac.services import list_resource_groups
+from app.repositories.cron_repository import CronRepository
+from app.repositories.job_log_repository import JobLogRepository
+from app.repositories.operation_log_repository import OperationLogRepository
 from app.security.csrf import csrf_protect
 from app.services.cron_service import add_cron_web, edit_cron_web
 from app.services.job_log_filter import job_log_outcome_clause
 from app.services.pagination import PageQuery
-from app.repositories.cron_repository import CronRepository
-from app.repositories.job_log_repository import JobLogRepository
-from app.repositories.operation_log_repository import OperationLogRepository
+from datas.model.cron_infos import CronInfos
+from datas.model.job_log import JobLog
+from datas.model.task_group import TaskGroup
+from datas.utils.json import json_response
+
+from . import main
 
 
 def _parse_log_outcome_param():
@@ -43,7 +43,7 @@ def _parse_log_outcome_param():
         return raw
     return 'not_success'
 
-from ..common.functions import wechat_info_err, web_api_return
+from ..common.functions import web_api_return, wechat_info_err
 
 
 def _cron_repo():
@@ -128,7 +128,6 @@ def _build_task_group_map(task_ids):
 
 def _scope_form_context():
     """非 admin：任务强制落在所属业务组，不可选 GLOBAL。"""
-    role = session.get('role') or ''
     groups = _scope_groups_for_form()
     locked = not _session_bypasses_scope()
     return {
@@ -218,8 +217,9 @@ def cron_list():
     tag_filter = (keyword.get('tag') or '').strip()
     if tag_filter:
         from sqlalchemy import select as sa_select
-        from datas.model.task_tag import TaskTag
+
         from datas.model.tag import Tag
+        from datas.model.task_tag import TaskTag
         tag_task_ids = sa_select(TaskTag.task_id).join(
             Tag, Tag.id == TaskTag.tag_id
         ).where(Tag.name == tag_filter).correlate(None).scalar_subquery()
@@ -280,7 +280,6 @@ def cron_list():
         keyword.pop('group_id', None)
 
     failing_tasks = repo.top_failing(filter_arr, limit=5)
-    recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
 
     # OPT-P1-11：构建 task_id -> [group_id, ...] 映射 + 标签映射
     task_ids = [item.id for item in page_data.items]
@@ -454,8 +453,9 @@ def task_detail_v2():
     # Next run (using croniter if available)
     next_run = ''
     try:
-        from croniter import croniter
         from datetime import datetime as _dt
+
+        from croniter import croniter
         cron_5 = '{} {} {} {} {}'.format(
             cif.minute or '*', cif.hour or '*', cif.day or '*',
             '*', cif.day_of_week or '*'
@@ -466,8 +466,8 @@ def task_detail_v2():
         pass
 
     # 24h success rate
-    repo = CronRepository(db.session)
     from sqlalchemy import func as sa_func
+
     from datas.utils.times import local_today_start_hms, local_tomorrow_start_hms
     total_today = db.session.scalar(
         select(sa_func.count()).select_from(JobLog)

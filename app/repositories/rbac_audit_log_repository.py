@@ -1,9 +1,8 @@
 # -*- coding:utf-8 -*-
 from sqlalchemy import desc, or_, select
 
-from datas.model.rbac_audit_log import RbacAuditLog
-
 from app.repositories.base import BaseRepository
+from datas.model.rbac_audit_log import RbacAuditLog
 
 # Pseudo-action 'user:manage' expands to all user-management action codes.
 _USER_MANAGE_ACTIONS = [

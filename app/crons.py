@@ -1,4 +1,4 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 import datetime
 import json
@@ -10,10 +10,18 @@ import requests
 from flask import current_app
 from sqlalchemy import func, select, text
 
+from app import db, scheduler
+from app.common.functions import get_cronpilot_sign, single_task, wechat_info_err
 from app.logging_config import _ctx_cron_id, _ctx_duration_ms, _ctx_status, _ctx_task_name, _ctx_trace_id
-from app.metrics import JOB_DURATION, JOB_LOG_WRITE_BYTES, JOB_TOTAL, TRIGGER_DELAY, _ctx_enqueue_time, JOBS_ACTIVE, ORPHAN_JOB_DETECTED
-from app import scheduler, db
-from app.common.functions import wechat_info_err, single_task, get_cronpilot_sign
+from app.metrics import (
+    JOB_DURATION,
+    JOB_LOG_WRITE_BYTES,
+    JOB_TOTAL,
+    JOBS_ACTIVE,
+    ORPHAN_JOB_DETECTED,
+    TRIGGER_DELAY,
+    _ctx_enqueue_time,
+)
 from app.services.job_log_outcome import (
     STATUS_ERROR,
     STATUS_FAIL,
@@ -27,7 +35,7 @@ from app.services.job_log_outcome import (
 )
 from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.scheduler_db import fetch_apscheduler_job_ids
-from app.services.url_security import validate_callback_url, validate_and_resolve_url, make_pinned_session
+from app.services.url_security import make_pinned_session, validate_and_resolve_url, validate_callback_url
 from configs import configs
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
@@ -57,28 +65,6 @@ def _create_pending_log(cron_id, nows, trace_id, timeout_sec=None):
 def _update_log_running(jl, started_at):
     """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
     raise NotImplementedError("_update_log_running removed in Plan-B: started_at passed directly to _save_job_log")
-    db.session.add(jl)
-    db.session.commit()
-    try:
-        from app.services.job_health_service import update_job_health
-        update_job_health(
-            jl.cron_info_id,
-            status,
-            jl.create_time,
-            trace_id=jl.trace_id,
-            cron_config=current_app.config.get('CRON_CONFIG'),
-        )
-    except Exception:
-        current_app.logger.exception(
-            'health update failed',
-            extra={"event": "health.update_failed"},
-        )
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-    if task_name:
-        _notify_job_outcome(task_name, content, status)
 
 
 def _save_job_log(
@@ -295,7 +281,7 @@ def cron_do(cron_id):
                                 except Exception:
                                     pass
 
-                                if type(ret) == dict:
+                                if isinstance(ret, dict):
                                     ret = json.dumps(ret, ensure_ascii=False)
 
                                 run_status, fail_reason = evaluate_http_response(

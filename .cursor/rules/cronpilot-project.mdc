@@ -459,7 +459,8 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 - 单元测试：`python -m unittest tests.test_p0_phase_a tests.test_cronpilot_sign -v` 或 `bash scripts/cronpilot.sh test`
 - 集成冒烟：`bash scripts/verify_golden_path.sh`；全量 `bash scripts/verify_all.sh`（Docker 用 `--docker-only --with-compose`）
 - 用例应覆盖真实行为（SSRF、密码、校验、JSON、签名），不写无意义断言。
-- CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**、**Hardcoded color audit**、**Frontend dist freshness**；改 `doc/*.html` 后须 `--check` 通过。
+- CI 已配置：**Unit tests**、**Docs HTML ↔ Markdown sync**、**Hardcoded color audit**、**Frontend dist freshness**、**Ruff lint**（E/W/F/I 规则）；改 `doc/*.html` 后须 `--check` 通过。
+- **Ruff lint 门禁（强制 · 2026-08）**：`ruff check app/` 必须通过（0 违规）。凡 commit 涉及函数废弃、变量移除、模板参数删减、import 变更，须在提交前运行 `ruff check app/` 确认无新增 F841（未使用变量）/ F811（未使用导入）/ F821（不可达代码）违规。配置文件：`pyproject.toml`。CI workflow：`.github/workflows/ruff-lint.yml`。
 - **顺序**：见上文「交付闭环」5 步。Docker 验收后若需用户手工验证，**保持容器运行**，给出 URL/密码，勿擅自 `docker compose down`。
 
 ### 测试数据库隔离（强制 · 2026-08 system err 事故教训）

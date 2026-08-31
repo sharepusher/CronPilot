@@ -1,4 +1,4 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 import base64
 import hashlib
@@ -179,7 +179,7 @@ def dd_push(content):
         secret = config.get('dingding_secret')
 
         if not webhook and not secret:
-            current_app.logger.error(f'钉钉通知提醒未设置')
+            current_app.logger.error('钉钉通知提醒未设置')
             return
 
         # 每个机器人每分钟最多发送20条消息到群里，如果超过20条，会限流10分钟。

@@ -1,10 +1,11 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 from functools import wraps
 
-from flask import session, redirect
+from flask import redirect, session
 
 from datas.utils.json import api_return
+
 
 def api_err_return(code=1,msg='',data=''):
     return code,msg,data
@@ -17,11 +18,11 @@ def api_deal_return(func):
     def gen_status(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
-            if type(result)==str:
+            if isinstance(result, str):
                 return api_return(errcode=0,errmsg=result)
-            if type(result)==list or type(result)==dict:
+            if isinstance(result, (list, dict)):
                 return api_return(errcode=0,errmsg='success',data=result)
-            if type(result)==tuple:
+            if isinstance(result, tuple):
                 if len(result)==2:
                     errmsg=result[0]
                     if errmsg is None or errmsg=="":

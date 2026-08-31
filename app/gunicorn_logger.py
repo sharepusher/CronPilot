@@ -20,7 +20,6 @@ from logging.handlers import TimedRotatingFileHandler
 
 from gunicorn.glogging import Logger
 
-
 _basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _ACCESS_LOG_PATH = os.path.join(_basedir, 'datas', 'logs', 'access.log')
 

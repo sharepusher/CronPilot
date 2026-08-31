@@ -4,10 +4,9 @@ from apiflask import APIFlask
 from flask_apscheduler import APScheduler
 from flask_sqlalchemy import SQLAlchemy
 
-from config import config
-from app.logging_config import setup_logging, _ctx_trace_id
-
 from app.CuBackgroundScheduler import CuBackgroundScheduler
+from app.logging_config import _ctx_trace_id, setup_logging
+from config import config
 
 scheduler = APScheduler(scheduler=CuBackgroundScheduler())
 
@@ -18,7 +17,7 @@ isCreate = False
 
 def register_hms_filters(app):
     """Register BIGINT timestamp Jinja2 filters. Reusable in test setups."""
-    from datas.utils.times import hms_to_display, hms_to_date_str
+    from datas.utils.times import hms_to_date_str, hms_to_display
     app.jinja_env.filters['hms_display'] = hms_to_display
     app.jinja_env.filters['hms_date'] = hms_to_date_str
     app.jinja_env.filters['hms_time'] = lambda v: hms_to_display(v, '%H:%M:%S')
@@ -42,15 +41,21 @@ def create_app(config_name):
 
     @app.before_request
     def _inject_trace_id():
-        from flask import g, request as _req
+        from flask import g
+        from flask import request as _req
         tid = _req.headers.get('X-Request-Id') or str(_uuid.uuid4())
         g.trace_id = tid
         _ctx_trace_id.set(tid)
 
 
     db.init_app(app)
-    from app.services.job_log_display import job_log_badge, job_log_content_preview, job_log_status_line, job_log_status_badge_class
     from app.services.cron_schedule_display import format_cron_expression, format_duration, humanize_schedule
+    from app.services.job_log_display import (
+        job_log_badge,
+        job_log_content_preview,
+        job_log_status_badge_class,
+        job_log_status_line,
+    )
 
     app.jinja_env.filters['job_log_status_line'] = job_log_status_line
     app.jinja_env.filters['job_log_content_preview'] = job_log_content_preview
@@ -125,7 +130,8 @@ def _register_metrics_endpoint(app):
     """
     try:
         import prometheus_client
-        from flask import Response, abort, request as _req, session
+        from flask import Response, abort, session
+        from flask import request as _req
 
         @app.route('/metrics')
         def metrics():
@@ -144,13 +150,13 @@ def _register_metrics_endpoint(app):
 
             prom_dir = __import__('os').environ.get('PROMETHEUS_MULTIPROC_DIR')
             if prom_dir:
-                from prometheus_client import CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
+                from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
                 from prometheus_client.multiprocess import MultiProcessCollector
                 registry = CollectorRegistry()
                 MultiProcessCollector(registry)
                 data = generate_latest(registry)
             else:
-                from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+                from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
                 data = generate_latest()
             return Response(data, mimetype=CONTENT_TYPE_LATEST)
     except ImportError:

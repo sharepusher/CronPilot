@@ -480,6 +480,67 @@ Batch 0 本身即为预防方案——引入 ruff 后，上述通用代码质量
 
 Lint 工具链缺失的根因**不是疏忽**，而是**路径依赖**：项目在早期选择了"问题驱动的自定义审计脚本"作为代码质量保障路径，这条路径在领域特定维度上高度有效（24 个脚本、10 个 CI workflow），但天然不覆盖通用代码风格问题。引入 ruff 不是"补缺"，而是**在自定义审计体系之上叠加通用 lint 层**，两者互补而非替代。
 
+### B0-8. 实施结果（2026-08-28）
+
+| 步骤 | 结果 |
+| --- | --- |
+| 安装 ruff | ruff 0.16.5 安装到 `.venv-py311` |
+| 创建 `pyproject.toml` | target-version = "py38"，select E/W/F/I，全局忽略 E501/E402/E741/F401 |
+| 基线检查 | 88 个违规（I001:49, F811:8, W292:7, W291:7, F841:6, E721:5, F821:5, F541:1） |
+| 自动修复（`ruff --fix`） | 66 个自动修复（import 排序、行尾空白、文件末尾缺换行、冗余 f-prefix、未使用 as exc 绑定） |
+| 手动修复 22 处 | 详见下方 B0-9 各项根因分析与修复 |
+| 最终结果 | `ruff check app/` → All checks passed!（仅保留 1 个 per-file-ignore：`isCreate` F841 跟踪在 P2-4） |
+| CI workflow | `.github/workflows/ruff-lint.yml`（阻断模式，push/PR 触发） |
+| 冒烟路由 | `smoke_routes.py --check`：86/86 通过 |
+
+### B0-9. 22 处手动修复根因分析
+
+#### B0-9a. F821：不可达死代码（5 处，`app/crons.py`）
+
+**定位**：`_update_log_running()` 在 `raise NotImplementedError` 后保留了 22 行原始函数体，其中引用了未定义的 `status`、`task_name`、`content`。
+
+**根因**：commit `52fe136`（2026-07-29，"B1 执行状态机"）同时废弃了两个函数，但采用了不一致的废弃模式——`_create_pending_log` 做了干净的 stub（仅 `raise`），而 `_update_log_running` 保留了原始实现作为"参考"。更严重的是，commit `943853b`（2026-08-27）甚至修改了不可达代码中的一行（添加 `trace_id=jl.trace_id`），说明后续开发者没有注意到这段代码不可达。
+
+**修复**：删除 `raise` 之后的 22 行不可达代码。
+
+#### B0-9b. E721：type 比较风格（6 处，`decorated.py` + `crons.py`）
+
+**定位**：`type(result)==str` 等写法（`decorated.py:21-25`，`crons.py:306`）。
+
+**根因**：全部继承自上游 `xiaoniu_cron`（commit `f3c5807`，2026-05-29 首次提交）。`decorated.py` 自首次提交以来仅被修改过一次（`f8eb4f6` 修复 exception handler），该次修改聚焦于安全修复而非风格重构。
+
+**修复**：`type(x)==T` → `isinstance(x, T)`。纯风格改善，行为无差异。
+
+#### B0-9c. F811：Flask `g` 死导入（8 处，`main/views.py` + `rbac/views.py`）
+
+**定位**：`from flask import ..., g, ...` 但 Flask `g`（请求上下文代理）从未作为 `g.xxx` 使用。文件中所有 `g.id`、`g.name` 均为列表推导循环变量。
+
+**根因**：commit `f8eb4f6`（2026-08-24，"Redesign UI v2"）在两个文件中添加了 `g` 到 Flask import。当时 `g` 已未被用作请求上下文——开发者看到推导中的 `g.id` 引用后误认为需要从 Flask 导入 `g`，实际上推导内的 `g` 是独立的循环变量（Python 3 推导有独立作用域）。
+
+**修复**：从两个文件的 Flask import 行中移除 `g`。
+
+#### B0-9d. F841：未使用变量赋值（4 处）
+
+| 位置 | 变量 | 引入 commit | 根因 |
+| --- | --- | --- | --- |
+| `main/views.py:131` | `role` | `18ac8b70`（2026-07-14） | Resource Scope 功能首次实现时添加，后改用 `_session_bypasses_scope()` 替代，赋值遗留 |
+| `main/views.py:284` | `recent_ok_tasks` | `2dde5e61`（2026-07-20） | Phase B Repo 重构时引入，V1 下线后（`7302e0a`）V2 模板不使用该变量，但 `render_template()` 参数删除时遗留了查询赋值——**每次 Dashboard 加载执行一次无用 SQL** |
+| `main/views.py:471` | `repo` | `f8eb4f6`（2026-08-24） | `task_detail_v2()` 开发中创建 Repository 实例备用，最终改用直接 `db.session` 查询，实例化遗留 |
+| `api/views.py:501` | `CRON_CONFIG` | `ac90b7fc`（2026-07-24） | API 契约标准化重构后该函数不再需要 `CRON_CONFIG`，但赋值遗留 |
+
+**修复**：删除全部 4 处无用赋值。`recent_ok_tasks` 的删除额外带来 Dashboard 性能改善（减少一次 `top_recent_ok` SQL 查询）。
+
+#### B0-9e. 共性根因与预防方案
+
+**共性**：22 个违规无一是"新写代码时犯的错误"，全部是**增量重构中的清理遗漏**——废弃函数、移除模板变量、替换查询方式时未同步清理相关引用。
+
+**预防方案**：
+
+1. **ruff CI 门禁**（已实施）：`.github/workflows/ruff-lint.yml` 在 push/PR 时自动检测 F821/F811/F841/E721 等违规
+2. **流程规范**（建议追加到 `.cursor/rules/cronpilot-project.mdc`）：凡 commit 涉及函数废弃、变量移除、模板参数删减，必须 `ruff check app/` 确认无新增 F841/F811 违规
+
+**验证命令**：`ruff check app/ --statistics`（应输出空，即 0 违规）
+
 ---
 
 ## Batch S1+S2 实施复盘：API 鉴权配置失败放行 + 裸 except + 死代码（2026-08-28）

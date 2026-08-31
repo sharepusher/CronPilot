@@ -4,7 +4,7 @@
 用户自由输入标签 → 自动去重入库 → 后续可自动补全。
 管理员可重命名、删除。
 """
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app import db

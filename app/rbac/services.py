@@ -1063,6 +1063,7 @@ def reject_registration(request_id, comment=''):
 def expire_stale_registrations():
     """将超过 REGISTRATION_EXPIRE_DAYS 天的 pending 申请标记为 expired。"""
     from datetime import datetime, timedelta
+
     from datas.model.rbac_registration_request import RbacRegistrationRequest
 
     cutoff_dt = datetime.now() - timedelta(days=REGISTRATION_EXPIRE_DAYS)

@@ -1,18 +1,19 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
-from flask import request, current_app
+from flask import current_app, request
 from sqlalchemy import func, select
 
-from app import scheduler, db
+from app import db, scheduler
 from app.decorated import api_deal_return, api_err_return
+from app.services.cron_service import upsert_cron_by_task_name
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.job_log_items import JobLogItems
 from datas.utils.json import api_return
-from app.services.cron_service import upsert_cron_by_task_name
-from . import api
-from .schemas import CronUpsertIn, CronStatusIn, CronRetireIn, AddLogIn
+
 from ..crons import cron_do
+from . import api
+from .schemas import AddLogIn, CronRetireIn, CronStatusIn, CronUpsertIn
 
 
 def _parse_limit_offset(limit_default=20, limit_max=100):
@@ -66,8 +67,8 @@ def _query_scope_context():
 def api_auth_token():
     import base64
 
-    from datas.model.rbac_user import RbacUser
     from app.rbac.services import issue_user_api_token
+    from datas.model.rbac_user import RbacUser
 
     username = request.values.get('username', '')
     password = request.values.get('password', '')
@@ -263,7 +264,7 @@ def cron_logs():
         except (TypeError, ValueError):
             return api_return(errcode=1, errmsg='http_status 参数无效')
         log_filters.append(JobLog.http_status == http_status)
-    from datas.utils.times import str_to_hms, hms_to_str
+    from datas.utils.times import hms_to_str, str_to_hms
     if beg_time:
         log_filters.append(JobLog.create_time >= str_to_hms(beg_time + ' 00:00:00'))
     if end_time:
@@ -455,6 +456,7 @@ def cron_add_log(form_data):
 @api.input(CronRetireIn, location='form', arg_name='form_data')
 def cron_retire_api(form_data):
     from app.services.cron_service import retire_cron_by_task_name
+
     from . import check_api_scope
 
     task_name = form_data.get('task_name')
@@ -495,8 +497,6 @@ def cron_status(form_data):
 
     task_name = form_data.get('task_name')
     status = form_data.get('status')
-
-    CRON_CONFIG = current_app.config.get('CRON_CONFIG')
 
     ci = db.session.scalars(
         select(CronInfos).where(CronInfos.task_name == task_name)

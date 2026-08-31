@@ -2,10 +2,9 @@
 """OperationLog 列表查询。"""
 from sqlalchemy import and_, desc, or_, select
 
+from app.repositories.base import BaseRepository
 from datas.model.cron_infos import CronInfos
 from datas.model.operation_log import OperationLog
-
-from app.repositories.base import BaseRepository
 
 
 class OperationLogRepository(BaseRepository):

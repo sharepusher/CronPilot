@@ -7,7 +7,6 @@ from urllib.parse import urlparse, urlunparse
 import requests
 from requests.adapters import HTTPAdapter
 
-
 _BLOCKED_HOSTS = frozenset({
     'localhost',
     'metadata.google.internal',

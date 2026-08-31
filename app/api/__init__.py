@@ -1,4 +1,4 @@
-#!/usr/bin/python3 
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 import logging
 import time
@@ -116,10 +116,12 @@ def _resolve_user_token(token):
 
     try:
         from datetime import datetime
+
         from sqlalchemy import select
+
         from app import db
-        from datas.model.rbac_user import RbacUser
         from app.rbac.scope import get_user_group_ids
+        from datas.model.rbac_user import RbacUser
 
         user = db.session.scalars(
             select(RbacUser).where(RbacUser.api_token == token)

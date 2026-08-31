@@ -174,80 +174,55 @@ class TestCronListRunNowButton(unittest.TestCase):
             sess['username'] = 'ops_admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-write="true"', html)
-        self.assertIn('/cron_run_now?', html)
-        self.assertIn('health-dot', html)
-        self.assertIn('jumbotron', html)
+        self.assertIn('cp-page-dashboard', html)
+        self.assertIn('cpRunNow(', html)
+        self.assertIn("$.post('/cron_run_now'", html)
+        self.assertIn('act-btn run', html)
+        self.assertIn('health-badge', html)
 
     def test_vue_mount_point_data_attrs_present(self):
-        """Vue 挂载点 data-* 属性由服务端渲染，URL props 按权限条件出现。状态徽章由 Jinja 渲染。"""
+        """Redesign dashboard: inline JS posts id in request body (not Vue data-* props)."""
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'admin'
             sess['username'] = 'ops_admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        # 挂载点 id 前缀
-        self.assertIn('id="cron-ops-', html)
-        # 核心 props（所有角色均有）
-        self.assertIn('data-cron-id=', html)
-        self.assertIn('data-status=', html)
-        self.assertIn('data-can-write=', html)
-        self.assertIn('data-can-retire=', html)
-        self.assertIn('data-has-url=', html)
-        self.assertIn('data-log-url=', html)
-        # admin 有 cron:write → write URL props 存在
-        self.assertIn('data-update-url=', html)
-        self.assertIn('data-run-url=', html)
-        self.assertIn('data-edit-url=', html)
-        # admin 有 cron:retire → retire URL 存在
-        self.assertIn('data-retire-url=', html)
-        # Vue bundle 已引入
-        self.assertIn('dist/cron-status-cell.js', html)
-        # 状态徽章由 Jinja 渲染（id="status-badge-N"）
-        self.assertIn('id="status-badge-', html)
+        self.assertIn('cp-dashboard-tbody', html)
+        self.assertIn('function cpRunNow(cronId', html)
+        self.assertIn("$.post('/cron_run_now', {id: cronId", html)
+        self.assertIn('function cpToggleStatus(cronId', html)
+        self.assertIn("$.post('/update_status', {id: cronId", html)
+        self.assertIn('function cpRetire(cronId', html)
+        self.assertIn("$.post('/cron_retire', {id: cronId", html)
+        self.assertIn('tc-lifecycle active', html)
 
     def test_vue_mount_point_viewer_no_write_or_retire_url(self):
-        """viewer 角色无 cron:write / cron:retire，write/retire URL props 不出现在 HTML。"""
+        """viewer 无 cron:write：无立即执行/编辑/下线操作按钮。"""
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'viewer'
             sess['username'] = 'viewer'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-write="false"', html)
-        self.assertIn('data-can-retire="false"', html)
-        self.assertNotIn('data-update-url=', html)
-        self.assertNotIn('data-run-url=', html)
-        self.assertNotIn('data-edit-url=', html)
-        self.assertNotIn('data-retire-url=', html)
-        self.assertNotIn('/update_status?', html)
-        self.assertNotIn('/cron_retire?', html)
+        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        self.assertNotIn('onclick="cpRunNow(', tbody)
+        self.assertNotIn('onclick="cpRetire(', tbody)
+        self.assertNotIn('act-btn run', tbody)
+        self.assertNotIn('/cron_add', html)
 
     def test_run_url_already_contains_id_param(self):
-        """data-run-url / data-update-url 由 url_for 生成时已含 ?id=N。
-        Vue 组件必须直接使用该 URL，不得再追加 ?id=。
-        本测试拦截"URL 双拼"bug（props.runUrl + '?id=' + cronId → id=1?id=1）。"""
+        """Redesign AJAX 通过 POST body 传 id，脚本中不得拼接 ?id= 查询参数。"""
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'admin'
             sess['username'] = 'ops_admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        import re
-        # data-run-url 值须包含 ?id= 且值中不能再出现第二个 ?
-        run_urls = re.findall(r'data-run-url="([^"]+)"', html)
-        self.assertTrue(run_urls, 'data-run-url 属性未找到')
-        for url in run_urls:
-            self.assertIn('?id=', url, 'data-run-url 应已含 ?id= 参数')
-            # URL 里不应出现两个 ?（双拼特征）
-            self.assertEqual(url.count('?'), 1, f'data-run-url 含多个 ?，疑似双拼: {url}')
-        # data-update-url 同样检查
-        update_urls = re.findall(r'data-update-url="([^"]+)"', html)
-        self.assertTrue(update_urls, 'data-update-url 属性未找到')
-        for url in update_urls:
-            self.assertIn('?id=', url)
-            self.assertEqual(url.count('?'), 1, f'data-update-url 含多个 ?，疑似双拼: {url}')
+        self.assertIn("$.post('/cron_run_now', {id: cronId", html)
+        self.assertIn("$.post('/update_status', {id: cronId", html)
+        self.assertNotIn('/cron_run_now?', html)
+        self.assertNotIn('/update_status?', html)
 
     def test_viewer_no_run_now_button(self):
         with self.client.session_transaction() as sess:
@@ -256,8 +231,8 @@ class TestCronListRunNowButton(unittest.TestCase):
             sess['username'] = 'viewer'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-write="false"', html)
-        self.assertNotIn('data-can-write="true"', html)
+        self.assertNotIn('act-btn run', html)
+        self.assertNotIn('onclick="cpRunNow(', html)
 
 
 if __name__ == '__main__':

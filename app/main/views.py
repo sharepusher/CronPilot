@@ -288,25 +288,6 @@ def cron_list():
     from app.services.tag_service import build_task_tag_map
     task_tag_map = build_task_tag_map(task_ids)
 
-    partial_ctx = dict(
-        page_data=page_data,
-        keyword=keyword,
-        health_by_id=health_by_id,
-        group_name_by_id=group_name_by_id,
-        scope_view=scope_view,
-        scope_group_id=scope_group_id,
-        task_group_map=task_group_map,
-        task_tag_map=task_tag_map,
-    )
-    if request.args.get('partial') == '1' and getattr(g, 'ui_version', 'v1') != 'v2':
-        rows_html = render_template('_cron_list_rows.html', **partial_ctx)
-        pagination_html = render_template('_cron_pagination.html', **partial_ctx)
-        return jsonify({'rows': rows_html, 'pagination': pagination_html})
-
-    failing_tasks = repo.top_failing(filter_arr, limit=5)
-    recent_ok_tasks = repo.top_recent_ok(filter_arr, limit=5)
-    scope_groups_json = json.dumps([{'id': g.id, 'name': g.name} for g in scope_groups])
-
     # OPT-P1-11：标签列表供筛选下拉（按用户可见组隔离）
     from app.services.tag_service import all_tags
     gids = session_group_ids()
@@ -327,103 +308,75 @@ def cron_list():
     else:
         visible_tags = all_tags(group_id=None)
     all_tag_names = sorted(set(t['name'] for t in visible_tags))
-    all_tags_json = json.dumps(all_tag_names, ensure_ascii=False)
 
-    # OPT-P1-16: Redesign dual-track — serve new Shell if ui_version == 'v2'
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        from app.services.dashboard_service import DashboardService
-        dashboard_svc = DashboardService(repo)
+    from app.services.dashboard_service import DashboardService
+    dashboard_svc = DashboardService(repo)
 
-        stats = dashboard_svc.compute_stats(scope_filters, cron_config=current_app.config.get('CRON_CONFIG'))
-        consecutive_failing = stats['consecutive_failing']
-        status_counts = stats['status_counts']
-        today_success_rate = stats['today_success_rate']
-        overdue_count = stats['overdue_count']
+    stats = dashboard_svc.compute_stats(scope_filters, cron_config=current_app.config.get('CRON_CONFIG'))
+    consecutive_failing = stats['consecutive_failing']
+    status_counts = stats['status_counts']
+    today_success_rate = stats['today_success_rate']
+    overdue_count = stats['overdue_count']
 
-        page_ctx_data = dashboard_svc.compute_page_context(page_data.items)
-        last_run_map = page_ctx_data['last_run_map']
-        next_run_map = page_ctx_data['next_run_map']
-        overdue_map = page_ctx_data['overdue_map']
+    page_ctx_data = dashboard_svc.compute_page_context(page_data.items)
+    last_run_map = page_ctx_data['last_run_map']
+    next_run_map = page_ctx_data['next_run_map']
+    overdue_map = page_ctx_data['overdue_map']
 
-        # OPT-P1-17: AJAX partial refresh for v2 dashboard filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                keyword=keyword,
-                health_by_id=health_by_id,
-                group_name_by_id=group_name_by_id,
-                task_group_map=task_group_map,
-                task_tag_map=task_tag_map,
-                last_run_map=last_run_map,
-                next_run_map=next_run_map,
-                overdue_map=overdue_map,
-                show_group_column=show_group_column,
-            )
-            rows_html = render_template('redesign/_dashboard_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_dashboard_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'stats': {
-                    'failing': metrics['failing'],
-                    'consecutive_failing': consecutive_failing,
-                    'overdue_count': overdue_count,
-                    'today_fail_runs': metrics['today_fail_runs'],
-                    'total': metrics['total'],
-                    'today_success_rate': today_success_rate,
-                },
-                'total': page_data.total,
-            })
-        return render_template(
-            'redesign/dashboard.html',
-            active_nav='dashboard',
+    # OPT-P1-17: AJAX partial refresh for v2 dashboard filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             keyword=keyword,
-            metrics=metrics,
             health_by_id=health_by_id,
-            scope_groups=scope_groups,
             group_name_by_id=group_name_by_id,
-            scope_view=scope_view,
-            scope_group_id=scope_group_id,
-            list_role=role,
             task_group_map=task_group_map,
             task_tag_map=task_tag_map,
-            current_tag=tag_filter,
-            failing_tasks=failing_tasks,
-            consecutive_failing=consecutive_failing,
-            status_counts=status_counts,
-            all_tag_names=all_tag_names,
-            today_success_rate=today_success_rate,
             last_run_map=last_run_map,
             next_run_map=next_run_map,
             overdue_map=overdue_map,
-            overdue_count=overdue_count,
             show_group_column=show_group_column,
         )
-
+        rows_html = render_template('redesign/_dashboard_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_dashboard_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'stats': {
+                'failing': metrics['failing'],
+                'consecutive_failing': consecutive_failing,
+                'overdue_count': overdue_count,
+                'today_fail_runs': metrics['today_fail_runs'],
+                'total': metrics['total'],
+                'today_success_rate': today_success_rate,
+            },
+            'total': page_data.total,
+        })
     return render_template(
-        "cron_list.html",
+        'redesign/dashboard.html',
+        active_nav='dashboard',
         page_data=page_data,
         keyword=keyword,
         metrics=metrics,
         health_by_id=health_by_id,
         scope_groups=scope_groups,
-        scope_groups_json=scope_groups_json,
         group_name_by_id=group_name_by_id,
         scope_view=scope_view,
         scope_group_id=scope_group_id,
-        scope_nav_mode=(
-            'sidebar' if bypass or len(scope_groups) >= 5
-            else ('segment' if scope_groups else 'none')
-        ),
-        is_admin_scope=bypass,
         list_role=role,
-        failing_tasks=failing_tasks,
-        recent_ok_tasks=recent_ok_tasks,
         task_group_map=task_group_map,
         task_tag_map=task_tag_map,
-        all_tags_json=all_tags_json,
         current_tag=tag_filter,
+        failing_tasks=failing_tasks,
+        consecutive_failing=consecutive_failing,
+        status_counts=status_counts,
+        all_tag_names=all_tag_names,
+        today_success_rate=today_success_rate,
+        last_run_map=last_run_map,
+        next_run_map=next_run_map,
+        overdue_map=overdue_map,
+        overdue_count=overdue_count,
+        show_group_column=show_group_column,
     )
 
 
@@ -436,9 +389,8 @@ def api_doc():
     username = session.get('username') or ''
     permission_set = effective_permissions(role, username)
     docs = list_readonly_docs(permission_set)
-    tpl = 'redesign/api_doc.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'api_doc.html'
     return render_template(
-        tpl,
+        'redesign/api_doc.html',
         docs=docs,
         current_role=role,
         active_nav='apidoc',
@@ -461,10 +413,6 @@ def task_detail_v2():
     denied = authorize_resource('cron:read', cif)
     if denied:
         return denied
-
-    # v1 fallback: redirect to cron_edit page (legacy)
-    if getattr(g, 'ui_version', 'v1') != 'v2':
-        return redirect(url_for('main.cron_edit', id=cif.id))
 
     # ─── Aggregate data for detail cards ───
     from datas.model.job_health import JobHealth
@@ -625,21 +573,13 @@ def job_log_list():
             page_data = repo.paginate_empty(page_query)
             if 'page' in keywords:
                 del keywords['page']
-            # OPT-P1-16: v2 early return for not-found task
-            if getattr(g, 'ui_version', 'v1') == 'v2':
-                return render_template(
-                    'redesign/execution_logs.html',
-                    active_nav='logs',
-                    page_data=page_data,
-                    keywords=keywords,
-                    outcome='all',
-                    cron_info=None,
-                )
             return render_template(
-                "job_log_list.html",
+                'redesign/execution_logs.html',
+                active_nav='logs',
                 page_data=page_data,
                 keywords=keywords,
                 outcome='all',
+                cron_info=None,
             )
         denied = authorize_resource('log:read', cif)
         if denied:
@@ -665,37 +605,28 @@ def job_log_list():
     if content_keyword:
         keywords['content'] = content_keyword
 
-    # OPT-P1-16: Redesign dual-track
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        # OPT-P1-18: AJAX partial refresh for execution logs filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                keywords=keywords,
-                outcome=outcome,
-                cron_info=cif,
-            )
-            rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'total': page_data.total,
-            })
-        return render_template(
-            'redesign/execution_logs.html',
-            active_nav='logs',
+    # OPT-P1-18: AJAX partial refresh for execution logs filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             keywords=keywords,
             outcome=outcome,
             cron_info=cif,
         )
-
+        rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'total': page_data.total,
+        })
     return render_template(
-        "job_log_list.html",
+        'redesign/execution_logs.html',
+        active_nav='logs',
         page_data=page_data,
         keywords=keywords,
         outcome=outcome,
+        cron_info=cif,
     )
 
 @main.route('/job_log_item_list', methods=['GET', 'POST'])
@@ -705,20 +636,13 @@ def job_log_item_list():
     repo = _job_log_repo()
     jl = repo.get_by_trace_id(trace_id)
     if not jl:
-        if getattr(g, 'ui_version', 'v1') == 'v2':
-            return redirect(url_for('main.job_log_detail', id=0))
-        return render_template("job_log_item_list.html", page_data=[])
+        return redirect(url_for('main.job_log_detail', id=0))
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return redirect(url_for('main.job_log_detail', id=jl.id))
-
-    page_data = repo.items_for_trace_id(trace_id)
-
-    return render_template("job_log_item_list.html", page_data=page_data)
+    return redirect(url_for('main.job_log_detail', id=jl.id))
 
 
 @main.route('/job_log_detail', methods=['GET'])
@@ -728,84 +652,79 @@ def job_log_detail():
     repo = _job_log_repo()
     jl = repo.get(JobLog, job_log_id)
     if not jl:
-        if getattr(g, 'ui_version', 'v1') == 'v2':
-            return render_template("redesign/run_inspector.html",
-                                   active_nav='logs', jl=None, cif=None, items=[],
-                                   record_id='—', take_time_display='—',
-                                   trigger_type='—', group_name='', health=None)
-        return render_template("job_log_detail.html", jl=None, cif=None, items=[])
+        return render_template("redesign/run_inspector.html",
+                               active_nav='logs', jl=None, cif=None, items=[],
+                               record_id='—', take_time_display='—',
+                               trigger_type='—', group_name='', health=None)
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
     items = repo.items_for_trace_id(jl.trace_id) if jl.trace_id else []
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        record_id = jl.id
-        raw_time = getattr(jl, 'take_time', None) or 0
+    record_id = jl.id
+    raw_time = getattr(jl, 'take_time', None) or 0
+    try:
+        raw_time = float(raw_time)
+    except (TypeError, ValueError):
+        raw_time = 0
+    if raw_time >= 1:
+        take_time_display = '{:.1f}s'.format(raw_time)
+    elif raw_time > 0:
+        take_time_display = '{}ms'.format(int(raw_time * 1000))
+    else:
+        take_time_display = '—'
+    # Determine trigger type
+    trigger_type = '定时调度'
+    # Get group name and health for context
+    group_name = ''
+    health = None
+    if cif:
+        from datas.model.resource_group import ResourceGroup
+        grp_row = db.session.execute(
+            select(TaskGroup.group_id).where(TaskGroup.task_id == cif.id)
+        ).first()
+        if grp_row:
+            rg = db.session.get(ResourceGroup, grp_row[0])
+            if rg:
+                group_name = rg.name
+        from datas.model.job_health import JobHealth
+        health = db.session.get(JobHealth, cif.id)
+    # Compute relative time (time_ago)
+    time_ago = ''
+    from datetime import datetime
+    started_raw = getattr(jl, 'started_at', None) or getattr(jl, 'create_time', None)
+    if started_raw:
         try:
-            raw_time = float(raw_time)
-        except (TypeError, ValueError):
-            raw_time = 0
-        if raw_time >= 1:
-            take_time_display = '{:.1f}s'.format(raw_time)
-        elif raw_time > 0:
-            take_time_display = '{}ms'.format(int(raw_time * 1000))
-        else:
-            take_time_display = '—'
-        # Determine trigger type
-        trigger_type = '定时调度'
-        # Get group name and health for context
-        group_name = ''
-        health = None
-        if cif:
-            from datas.model.resource_group import ResourceGroup
-            grp_row = db.session.execute(
-                select(TaskGroup.group_id).where(TaskGroup.task_id == cif.id)
-            ).first()
-            if grp_row:
-                rg = db.session.get(ResourceGroup, grp_row[0])
-                if rg:
-                    group_name = rg.name
-            from datas.model.job_health import JobHealth
-            health = db.session.get(JobHealth, cif.id)
-        # Compute relative time (time_ago)
-        time_ago = ''
-        from datetime import datetime
-        started_raw = getattr(jl, 'started_at', None) or getattr(jl, 'create_time', None)
-        if started_raw:
-            try:
-                if isinstance(started_raw, str):
-                    started_dt = datetime.strptime(started_raw, '%Y-%m-%d %H:%M:%S')
-                else:
-                    started_dt = started_raw
-                delta = datetime.now() - started_dt
-                secs = int(delta.total_seconds())
-                if secs < 60:
-                    time_ago = '刚刚'
-                elif secs < 3600:
-                    time_ago = '{}分钟前'.format(secs // 60)
-                elif secs < 86400:
-                    time_ago = '{}小时前'.format(secs // 3600)
-                else:
-                    time_ago = '{}天前'.format(secs // 86400)
-            except (ValueError, TypeError):
-                pass
-        return render_template(
-            "redesign/run_inspector.html",
-            active_nav='logs',
-            jl=jl,
-            cif=cif,
-            items=items,
-            record_id=record_id,
-            take_time_display=take_time_display,
-            trigger_type=trigger_type,
-            group_name=group_name,
-            health=health,
-            time_ago=time_ago,
-        )
-
-    return render_template("job_log_detail.html", jl=jl, cif=cif, items=items)
+            if isinstance(started_raw, str):
+                started_dt = datetime.strptime(started_raw, '%Y-%m-%d %H:%M:%S')
+            else:
+                started_dt = started_raw
+            delta = datetime.now() - started_dt
+            secs = int(delta.total_seconds())
+            if secs < 60:
+                time_ago = '刚刚'
+            elif secs < 3600:
+                time_ago = '{}分钟前'.format(secs // 60)
+            elif secs < 86400:
+                time_ago = '{}小时前'.format(secs // 3600)
+            else:
+                time_ago = '{}天前'.format(secs // 86400)
+        except (ValueError, TypeError):
+            pass
+    return render_template(
+        "redesign/run_inspector.html",
+        active_nav='logs',
+        jl=jl,
+        cif=cif,
+        items=items,
+        record_id=record_id,
+        take_time_display=take_time_display,
+        trigger_type=trigger_type,
+        group_name=group_name,
+        health=health,
+        time_ago=time_ago,
+    )
 
 
 @main.route('/job_log_all_list', methods=['GET', 'POST'])
@@ -853,38 +772,29 @@ def job_log_all_list():
         del keywords['page']
     keywords['outcome'] = outcome
 
-    # OPT-P1-16: Redesign dual-track
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        # OPT-P1-18: AJAX partial refresh for execution logs filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                keywords=keywords,
-                outcome=outcome,
-                cron_info=None,
-            )
-            rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'total': page_data.total,
-            })
-        return render_template(
-            'redesign/execution_logs.html',
-            active_nav='logs',
+    # OPT-P1-18: AJAX partial refresh for execution logs filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             keywords=keywords,
             outcome=outcome,
             cron_info=None,
-            scope_groups=_scope_groups_for_form(),
         )
-
+        rows_html = render_template('redesign/_exec_logs_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_exec_logs_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'total': page_data.total,
+        })
     return render_template(
-        "job_log_all_list.html",
+        'redesign/execution_logs.html',
+        active_nav='logs',
         page_data=page_data,
         keywords=keywords,
         outcome=outcome,
+        cron_info=None,
+        scope_groups=_scope_groups_for_form(),
     )
 
 
@@ -927,22 +837,14 @@ def cron_add():
             current_app.logger.error('cron_add exception: %s\n%s', e, trace_info)
             return web_api_return(code=1, msg='服务器内部错误，请稍后重试')
 
-    # B4: v2 redesign → task_form.html
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return render_template(
-            "redesign/task_form.html",
-            active_nav='tasks',
-            cif=None,
-            is_edit=False,
-            is_dev=is_dev,
-            current_group_id=None,
-            current_tags=[],
-            **scope_ctx,
-        )
-
     return render_template(
-        "cron_add.html",
+        "redesign/task_form.html",
+        active_nav='tasks',
+        cif=None,
+        is_edit=False,
         is_dev=is_dev,
+        current_group_id=None,
+        current_tags=[],
         **scope_ctx,
     )
 
@@ -983,22 +885,11 @@ def cron_edit():
     current_group_id = get_task_group_id(cif.id)
     current_tags = get_task_tag_names(cif.id)
 
-    # B4: v2 redesign → task_form.html
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return render_template(
-            "redesign/task_form.html",
-            active_nav='tasks',
-            cif=cif,
-            is_edit=True,
-            is_dev=is_dev,
-            current_group_id=current_group_id,
-            current_tags=current_tags,
-            **scope_ctx,
-        )
-
     return render_template(
-        "cron_edit.html",
+        "redesign/task_form.html",
+        active_nav='tasks',
         cif=cif,
+        is_edit=True,
         is_dev=is_dev,
         current_group_id=current_group_id,
         current_tags=current_tags,
@@ -1083,7 +974,7 @@ def cron_retire():
     denied = authorize_resource('cron:retire', cif)
     if denied:
         return denied
-    tpl = 'redesign/cron_retire.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'cron_retire.html'
+    tpl = 'redesign/cron_retire.html'
     if cif.status == -1:
         if request.method == 'GET' and not request.values.get('reason'):
             return render_template(tpl, cif=cif, already=True)
@@ -1169,30 +1060,9 @@ def operation_log_list():
     oplog_task_ids = [cif.id for cif in cron_by_id.values()]
     task_group_map = _build_task_group_map(oplog_task_ids)
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        # OPT-P1-19: AJAX partial refresh for operation log filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                keywords=keywords,
-                search_keyword=search_keyword,
-                operation_action_label=operation_action_label,
-                format_detail_summary=format_detail_summary,
-                operation_result_label=operation_result_label,
-                cron_by_id=cron_by_id,
-                group_name_by_id=group_name_by_id,
-                task_group_map=task_group_map,
-            )
-            rows_html = render_template('redesign/_oplog_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_oplog_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'total': page_data.total,
-            })
-        return render_template(
-            'redesign/operation_log.html',
-            active_nav='optlog',
+    # OPT-P1-19: AJAX partial refresh for operation log filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             keywords=keywords,
             search_keyword=search_keyword,
@@ -1203,20 +1073,25 @@ def operation_log_list():
             group_name_by_id=group_name_by_id,
             task_group_map=task_group_map,
         )
-
+        rows_html = render_template('redesign/_oplog_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_oplog_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'total': page_data.total,
+        })
     return render_template(
-        'operation_log_list.html',
+        'redesign/operation_log.html',
+        active_nav='optlog',
         page_data=page_data,
         keywords=keywords,
-        scope_view=scope_view,
-        scope_group_id=scope_group_id,
-        scope_groups=scope_groups,
-        group_name_by_id=group_name_by_id,
-        cron_by_id=cron_by_id,
-        task_group_map=task_group_map,
+        search_keyword=search_keyword,
         operation_action_label=operation_action_label,
-        operation_result_label=operation_result_label,
         format_detail_summary=format_detail_summary,
+        operation_result_label=operation_result_label,
+        cron_by_id=cron_by_id,
+        group_name_by_id=group_name_by_id,
+        task_group_map=task_group_map,
     )
 
 
@@ -1244,17 +1119,3 @@ def cron_batch_del():
     return json_response(errcode=1, errmsg='已禁止删除任务，请使用下线', status=410)
 
 
-@main.route('/check_pass', methods=['GET', 'POST'])
-def check_pass():
-    """Legacy shim — redirect to RBAC login, preserving next param."""
-    next_url = request.args.get('next', '')
-    target = '/rbac/login'
-    if next_url:
-        target = '/rbac/login?next=' + next_url
-    code = 307 if request.method == 'POST' else 302
-    return redirect(target, code=code)
-
-@main.route('/logout')
-def logout():
-    """Legacy shim — redirect to RBAC login (session clear requires POST to /rbac/logout)."""
-    return redirect('/rbac/login')

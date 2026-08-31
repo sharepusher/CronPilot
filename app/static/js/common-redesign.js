@@ -1,10 +1,10 @@
 /**
- * CronPilot Redesign — Common Utilities
+ * CronPilot — Common Utilities
  * ======================================
- * Replaces common.js + wind.js for Redesign pages.
+ * Core JS for all pages (AJAX form handling, CSRF, anti-double-submit).
  *
  * Dependencies: jQuery (only), CpToast (redesign-toast.js)
- * Constraint: ZERO Wind.use / artDialog / ajaxForm / validate dependency.
+ * Constraint: ZERO third-party plugin dependency.
  *
  * Provides:
  *  1. CSRF token global AJAX injection

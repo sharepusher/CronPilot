@@ -1391,10 +1391,11 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             html = resp.data.decode()
             self.assertIn('integ@corp.com', html)
             self.assertIn('待审批', html)
-            self.assertIn('✓ 批准', html)
-            self.assertIn('✗ 拒绝', html)
-            self.assertIn('approveModal', html)
-            self.assertIn('rejectModal', html)
+            self.assertIn('js-approve-btn', html)
+            self.assertIn('>通过</button>', html)
+            self.assertIn('js-reject-btn', html)
+            self.assertIn('>拒绝</button>', html)
+            self.assertIn('CpModal', html)
 
     def test_registration_review_status_filter(self):
         """状态筛选参数不导致 500。"""

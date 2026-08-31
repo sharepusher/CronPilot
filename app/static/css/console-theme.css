@@ -11,7 +11,7 @@
  *   1. 纯收编——变量值取自现有代码中的实际色值，不引入新颜色
  *   2. 不改变视觉效果——替换前后用户看到的颜色完全一致
  *   3. 不引入主题切换——仅提供单一变量定义层
- *   4. --cp-* 前缀避免与 simpleboot/bootstrap 冲突
+ *   4. --cp-* 前缀为项目命名空间
  *
  * 覆盖范围: 57 个独立色值 / 191 处硬编码 / 21 个文件
  */
@@ -27,7 +27,7 @@
   --cp-neutral:   #9ca3af;   /* 图标/开关默认态 — change_password 密码眼睛图标 (gray-400) */
 
   /* ====== 背景/表面 ====== */
-  --cp-surface:   #ffffff;   /* 卡片/面板/topbar hover — admin_base topbar a:hover */
+  --cp-surface:   #ffffff;   /* 卡片/面板/topbar hover */
   --cp-surface-2: #f1f5f9;   /* 次级面板/斑马行 — cron_list chip 默认底、users 筛选底 (slate-100) */
   --cp-surface-3: #f8fafc;   /* 极浅背景 — cron_list 状态提示底、users 停用行底 (slate-50) */
 
@@ -64,7 +64,7 @@
   --cp-danger-bg:           #fef2f2;  /* 危险提示底色 — cron_list 异常 chip 未选中底、CronFormValidator 错误底 (red-50) */
   --cp-danger-border:       #fecaca;  /* 危险提示边框 — CronFormValidator 错误边框 (red-200) */
   --cp-danger-border-light: #fca5a5;  /* 浅危险边框 — cron_list 异常 chip 未选中边框 (red-300) */
-  --cp-label-danger:        #c0392b;  /* label-danger 覆写 — simpleboot 恢复语义红 */
+  --cp-label-danger:        #c0392b;  /* label-danger 语义红 */
 
   /* ====== 警告色系 ====== */
   --cp-warn:           #b45309;  /* 警告主色/文字 — cron_add/edit 提示文字、operation_log 8 处 (amber-700) */
@@ -79,7 +79,7 @@
   --cp-warn-border:    #fcd34d;  /* 警告边框 — cron_add/edit 提示条边框 (yellow-300) */
   --cp-warn-border-2:  #fde68a;  /* 次级警告边框 — cron_list 警告指示条 (yellow-200) */
 
-  /* ====== 执行状态机 (admin_base.html label 覆写) ====== */
+  /* ====== 执行状态机 (label 覆写) ====== */
   --cp-state-running:      #0284c7;  /* 执行中 (sky-600) */
   --cp-state-pending:      #94a3b8;  /* 待执行底色 (slate-400) */
   --cp-state-pending-text: #1e293b;  /* 待执行文字 (slate-800) */
@@ -94,11 +94,6 @@
 
   /* ====== 填充按钮前景色 ====== */
   --cp-on-filled:     #ffffff;  /* 填充（accent/danger）按钮上的文字色 */
-
-  /* ====== Topbar ====== */
-  --cp-topbar-bg:    #2c3e50;  /* topbar 背景 (Flat UI midnight blue) */
-  --cp-topbar-text:  #ecf0f1;  /* topbar 文字 (Flat UI silver) */
-  --cp-topbar-muted: #7f8c8d;  /* topbar 分隔符 (Flat UI asbestos) */
 
   /* ====== 已下线 chip (cron_list stone 色板) ====== */
   --cp-retired-text:   #57534e;  /* 已下线文字 (stone-600) */
@@ -233,11 +228,6 @@
   /* ====== 填充按钮前景色 ====== */
   --cp-on-filled:     #ffffff;
 
-  /* ====== Topbar ====== */
-  --cp-topbar-bg:    #1e1e2e;
-  --cp-topbar-text:  #e2e8f0;
-  --cp-topbar-muted: #52525b;
-
   /* ====== 已下线 ====== */
   --cp-retired-text:   #a8a29e;
   --cp-retired-bg:     #292524;
@@ -289,11 +279,7 @@ html[data-theme="dark"] .cp-shell {
 }
 
 /* ============================================================
-   语义覆写类（从 admin_base.html inline <style> 迁移）
-   ============================================================
-   以下类定义可替代 admin_base.html 中的硬编码样式块。
-   迁移方式：引入本文件后，删除 admin_base.html 对应的
-   inline 样式规则即可，视觉效果完全不变。
+   语义覆写类
    ============================================================ */
 
 /* 执行状态徽标 */
@@ -301,19 +287,6 @@ html[data-theme="dark"] .cp-shell {
 .label-running { background-color: var(--cp-state-running); }
 .label-pending { background-color: var(--cp-state-pending); color: var(--cp-state-pending-text); }
 .label-danger  { background-color: var(--cp-label-danger); }
-
-/* 角色徽标（保持 .rbac-topbar 前缀以匹配原始特异性） */
-.rbac-topbar .topbar-role-seed     { background-color: var(--cp-role-seed); }
-.rbac-topbar .topbar-role-admin    { background-color: var(--cp-role-admin); }
-.rbac-topbar .topbar-role-operator { background-color: var(--cp-role-operator); }
-.rbac-topbar .topbar-role-viewer   { background-color: var(--cp-role-viewer); }
-.rbac-topbar .topbar-role-default  { background-color: var(--cp-role-default); }
-
-/* Topbar 容器 */
-.rbac-topbar { background-color: var(--cp-topbar-bg); color: var(--cp-topbar-text); }
-.rbac-topbar .topbar-sep { color: var(--cp-topbar-muted); }
-.rbac-topbar a { color: var(--cp-topbar-text); }
-.rbac-topbar a:hover { color: var(--cp-surface); }
 
 /* ============================================================
    Inline Chip 标签输入（OPT-P1-11）

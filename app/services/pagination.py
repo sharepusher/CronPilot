@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 """Query Contract：管理端列表分页入参/出参 DTO（与 FSA Query.paginate 解耦）。
 
-模板契约见 app/templates/admin_page.html：
+Redesign 分页模板契约（如 redesign/_pagination.html）：
 items / page / pages / has_prev / has_next / prev_num / next_num / iter_pages()
 """
 from __future__ import division
@@ -42,7 +42,7 @@ class PageQuery(object):
 
 
 class PaginationResult(object):
-    """分页出参；兼容 admin_page.html 宏（对齐 FSA 2.x Pagination 语义）。"""
+    """分页出参；对齐 FSA 2.x Pagination 语义，供 Redesign 模板渲染。"""
 
     __slots__ = (
         'items', 'page', 'per_page', 'total', 'pages',

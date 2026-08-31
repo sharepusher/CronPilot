@@ -9,7 +9,7 @@ Usage:
 Checks every class selector in redesign-components.css against:
   - app/templates/redesign/*.html
   - app/static/js/redesign-*.js
-  - app/static/js/common.js
+  - app/static/js/common-redesign.js
 
 Classes that are ONLY referenced internally (e.g. keyframe names used within
 the same file, or nested selectors like `.parent .child` where .child never
@@ -98,7 +98,7 @@ def collect_search_files():
                 files.append(os.path.join(TEMPLATE_DIR, fname))
 
     js_patterns = ['redesign-shell.js', 'redesign-theme.js',
-                   'redesign-toast.js', 'redesign-confirm.js', 'common.js']
+                   'redesign-toast.js', 'redesign-confirm.js', 'common-redesign.js']
     for fname in js_patterns:
         fpath = os.path.join(JS_DIR, fname)
         if os.path.isfile(fpath):

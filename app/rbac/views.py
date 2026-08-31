@@ -112,14 +112,6 @@ def _users_form_response(ok, msg, url='/rbac/users', template=None, **ctx):
     if ok:
         return redirect(url)
     if template:
-        if getattr(g, 'ui_version', 'v1') == 'v2':
-            v2_map = {
-                'rbac/users_add.html': 'redesign/user_form.html',
-                'rbac/users_edit.html': 'redesign/user_form.html',
-                'rbac/groups_add.html': 'redesign/group_form.html',
-                'rbac/groups_edit.html': 'redesign/group_form.html',
-            }
-            template = v2_map.get(template, template)
         return render_template(template, form_msg=msg, roles=ROLE_ORDER, **ctx)
     return redirect(url)
 
@@ -183,9 +175,8 @@ def login():
         reg_username = request.args.get('reg_username', '')
         if reg_username:
             reg_status = check_registration_status(reg_username)
-        tpl = 'redesign/login.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/login.html'
         return render_template(
-            tpl,
+            'redesign/login.html',
             next_url=safe_next_url(request.args.get('next', '')),
             msg=msg,
             reg_status=reg_status,
@@ -260,9 +251,8 @@ def register():
     """用户注册申请页面（OPT-P1-10）。"""
     groups = list_resource_groups()
     if request.method == 'GET':
-        tpl = 'redesign/register.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/register.html'
         return render_template(
-            tpl,
+            'redesign/register.html',
             roles=REGISTRATION_ROLES,
             groups=groups,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -284,9 +274,8 @@ def register():
     )
     if result['ok']:
         return redirect('/rbac/login?msg=%s' % quote(result['msg']))
-    tpl = 'redesign/register.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/register.html'
     return render_template(
-        tpl,
+        'redesign/register.html',
         roles=REGISTRATION_ROLES,
         groups=groups,
         job_title_choices=JOB_TITLE_CHOICES,
@@ -298,8 +287,7 @@ def register():
 @rbac.route('/forgot_password', methods=['GET'])
 def forgot_password():
     """忘记密码提示页面（OPT-P1-10）。"""
-    tpl = 'redesign/forgot_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/forgot_password.html'
-    return render_template(tpl)
+    return render_template('redesign/forgot_password.html')
 
 
 @rbac.route('/password', methods=['GET', 'POST'])
@@ -309,8 +297,7 @@ def change_password():
     """任意已登录用户修改自己的密码；成功后清空会话并要求重新登录。"""
     force_reset = _password_force_reset()
     if request.method == 'GET':
-        tpl = 'redesign/change_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/change_password.html'
-        return render_template(tpl, force_reset=force_reset, active_nav='password')
+        return render_template('redesign/change_password.html', force_reset=force_reset, active_nav='password')
     result = change_own_password(
         session.get('user_id'),
         request.values.get('old_password', ''),
@@ -328,8 +315,7 @@ def change_password():
         )
     if result['ok']:
         return redirect(login_url)
-    tpl = 'redesign/change_password.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/change_password.html'
-    return render_template(tpl, form_msg=result['msg'], force_reset=force_reset, active_nav='password')
+    return render_template('redesign/change_password.html', form_msg=result['msg'], force_reset=force_reset, active_nav='password')
 
 
 @rbac.route('/profile', methods=['GET', 'POST'])
@@ -420,9 +406,8 @@ def complete_profile():
         if _wants_ajax_json():
             return web_api_return(code=1, msg=msg)
         db.session.refresh(user)
-    tpl = 'redesign/complete_profile.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/complete_profile.html'
     return render_template(
-        tpl,
+        'redesign/complete_profile.html',
         user=user,
         job_title_choices=JOB_TITLE_CHOICES,
         form_msg=msg,
@@ -435,9 +420,8 @@ def api_token_page():
     """展示当前用户的 API Token（独立页面）。"""
     from datas.model.rbac_user import RbacUser
     me = db.session.get(RbacUser, session.get('user_id'))
-    tpl = 'redesign/api_token.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/api_token.html'
     return render_template(
-        tpl,
+        'redesign/api_token.html',
         api_token=me.api_token if me else '',
         api_token_expires_at=me.api_token_expires_at if me else '',
         active_nav='api-token',
@@ -486,35 +470,9 @@ def users_list():
     user_groups_map = _build_user_groups_map(user_ids) if user_ids else {}
     job_title_map = dict(JOB_TITLE_CHOICES)
 
-    # B5: v2 redesign dual-track
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        # OPT-P1-19: AJAX partial refresh for user management filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                user_groups_map=user_groups_map,
-                search_username=search_username,
-                job_title_map=job_title_map,
-                chip=chip,
-                cnt_total=cnt_total,
-                cnt_active=cnt_active,
-                cnt_inactive=cnt_inactive,
-            )
-            rows_html = render_template('redesign/_users_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_users_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'total': page_data.total,
-                'counts': {
-                    'total': cnt_total,
-                    'active': cnt_active,
-                    'inactive': cnt_inactive,
-                },
-            })
-        return render_template(
-            'redesign/users.html',
-            active_nav='users',
+    # OPT-P1-19: AJAX partial refresh for user management filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             user_groups_map=user_groups_map,
             search_username=search_username,
@@ -524,13 +482,29 @@ def users_list():
             cnt_active=cnt_active,
             cnt_inactive=cnt_inactive,
         )
-
+        rows_html = render_template('redesign/_users_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_users_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'total': page_data.total,
+            'counts': {
+                'total': cnt_total,
+                'active': cnt_active,
+                'inactive': cnt_inactive,
+            },
+        })
     return render_template(
-        'rbac/users.html',
+        'redesign/users.html',
+        active_nav='users',
         page_data=page_data,
         user_groups_map=user_groups_map,
         search_username=search_username,
         job_title_map=job_title_map,
+        chip=chip,
+        cnt_total=cnt_total,
+        cnt_active=cnt_active,
+        cnt_inactive=cnt_inactive,
     )
 
 
@@ -546,9 +520,8 @@ def users_add():
         groups = [g for g in list_resource_groups() if g.id in actor_gids]
     locked_group = _get_locked_group(bypass, groups)
     if request.method == 'GET':
-        tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_add.html'
         return render_template(
-            tpl,
+            'redesign/user_form.html',
             roles=ROLE_ORDER,
             groups=groups,
             locked_group=locked_group,
@@ -565,7 +538,7 @@ def users_add():
         return _users_form_response(
             False,
             '仅 admin 角色可选择「全部（全局权限）」',
-            template='rbac/users_add.html',
+            template='redesign/user_form.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -575,7 +548,7 @@ def users_add():
         return _users_form_response(
             False,
             groups_err,
-            template='rbac/users_add.html',
+            template='redesign/user_form.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -584,7 +557,7 @@ def users_add():
         return _users_form_response(
             False,
             '请先创建业务组，再添加非管理员用户',
-            template='rbac/users_add.html',
+            template='redesign/user_form.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -595,7 +568,7 @@ def users_add():
         return _users_form_response(
             False,
             '岗位类型为必填项，请选择岗位',
-            template='rbac/users_add.html',
+            template='redesign/user_form.html',
             groups=groups,
             default_password=DEFAULT_USER_PASSWORD,
             job_title_choices=JOB_TITLE_CHOICES,
@@ -608,7 +581,7 @@ def users_add():
             return _users_form_response(
                 False,
                 '选择「其他」时须填写自定义岗位名称',
-                template='rbac/users_add.html',
+                template='redesign/user_form.html',
                 groups=groups,
                 default_password=DEFAULT_USER_PASSWORD,
                 job_title_choices=JOB_TITLE_CHOICES,
@@ -633,14 +606,14 @@ def users_add():
             return _users_form_response(
                 False,
                 bound['msg'],
-                template='rbac/users_add.html',
+                template='redesign/user_form.html',
                 groups=groups,
                 default_password=DEFAULT_USER_PASSWORD,
             )
     return _users_form_response(
         result['ok'],
         result['msg'],
-        template='rbac/users_add.html',
+        template='redesign/user_form.html',
         groups=groups,
         default_password=DEFAULT_USER_PASSWORD,
     )
@@ -680,9 +653,8 @@ def users_edit():
         job_title_choices=JOB_TITLE_CHOICES,
     )
     if request.method == 'GET':
-        tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_edit.html'
         return render_template(
-            tpl,
+            'redesign/user_form.html',
             user=user,
             roles=ROLE_ORDER,
             **edit_ctx,
@@ -696,7 +668,7 @@ def users_edit():
         return _users_form_response(
             False,
             '仅 admin 角色可选择「全部（全局权限）」',
-            template='rbac/users_edit.html',
+            template='redesign/user_form.html',
             user=user,
             **edit_ctx,
         )
@@ -705,7 +677,7 @@ def users_edit():
         return _users_form_response(
             False,
             groups_err,
-            template='rbac/users_edit.html',
+            template='redesign/user_form.html',
             user=user,
             **edit_ctx,
         )
@@ -727,7 +699,7 @@ def users_edit():
                 return _users_form_response(
                     False,
                     '选择「其他」时须填写自定义岗位名称',
-                    template='rbac/users_edit.html',
+                    template='redesign/user_form.html',
                     user=user,
                     **edit_ctx,
                 )
@@ -736,7 +708,7 @@ def users_edit():
             return _users_form_response(
                 False,
                 '岗位类型为必填项，请选择岗位',
-                template='rbac/users_edit.html',
+                template='redesign/user_form.html',
                 user=user,
                 **edit_ctx,
             )
@@ -761,7 +733,7 @@ def users_edit():
     return _users_form_response(
         result['ok'],
         result['msg'],
-        template='rbac/users_edit.html',
+        template='redesign/user_form.html',
         user=user,
         **edit_ctx,
     )
@@ -783,9 +755,8 @@ def users_view():
     if denied:
         return denied
     user_groups_map = _build_user_groups_map([user_id])
-    tpl = 'redesign/user_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_edit.html'
     return render_template(
-        tpl,
+        'redesign/user_form.html',
         user=user,
         view_mode=True,
         user_groups_map=user_groups_map,
@@ -861,7 +832,7 @@ def users_set_active():
     denied = _check_management_scope(user_id)
     if denied:
         return denied
-    tpl = 'redesign/users_set_active.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/users_set_active.html'
+    tpl = 'redesign/users_set_active.html'
     if request.method == 'GET':
         return render_template(
             tpl,
@@ -931,20 +902,13 @@ def groups_list():
                 tmp[gid].append(display)
         group_top_users = tmp
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return render_template(
-            'redesign/groups.html',
-            active_nav='groups',
-            groups=groups,
-            group_user_counts=group_user_counts,
-            group_task_counts=group_task_counts,
-            group_top_users=group_top_users,
-            can_create_group=bypass,
-        )
-
     return render_template(
-        'rbac/groups.html',
+        'redesign/groups.html',
+        active_nav='groups',
         groups=groups,
+        group_user_counts=group_user_counts,
+        group_task_counts=group_task_counts,
+        group_top_users=group_top_users,
         can_create_group=bypass,
     )
 
@@ -956,8 +920,7 @@ def groups_add():
     if not _actor_bypasses_scope():
         return _users_form_response(False, '按组管理员不可创建新业务组', url='/rbac/groups')
     if request.method == 'GET':
-        tpl = 'redesign/group_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/groups_add.html'
-        return render_template(tpl)
+        return render_template('redesign/group_form.html')
     result = create_resource_group(
         request.values.get('name', ''),
         request.values.get('description', ''),
@@ -966,7 +929,7 @@ def groups_add():
         result['ok'],
         result['msg'],
         url='/rbac/groups',
-        template='rbac/groups_add.html',
+        template='redesign/group_form.html',
     )
 
 
@@ -987,8 +950,7 @@ def groups_edit():
     if not group:
         return _users_form_response(False, '业务组不存在', url='/rbac/groups')
     if request.method == 'GET':
-        tpl = 'redesign/group_form.html' if getattr(g, 'ui_version', 'v1') == 'v2' else 'rbac/groups_edit.html'
-        return render_template(tpl, group=group)
+        return render_template('redesign/group_form.html', group=group)
     result = update_resource_group(
         group_id,
         name=request.values.get('name', group.name),
@@ -1001,7 +963,7 @@ def groups_edit():
         result['ok'],
         result['msg'],
         url='/rbac/groups',
-        template='rbac/groups_edit.html',
+        template='redesign/group_form.html',
         group=group,
     )
 
@@ -1037,43 +999,32 @@ def audit_logs():
     else:
         viewer_group_ids = session.get('group_ids') or []
         page_data = repo.paginate_by_scope(page_query, viewer_group_ids, **search)
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        # OPT-P1-19: AJAX partial refresh for audit logs filters
-        if request.args.get('partial') == '1':
-            partial_ctx = dict(
-                page_data=page_data,
-                audit_action_label=audit_action_label,
-                audit_resource_label=audit_resource_label,
-                audit_status_label=audit_status_label,
-                search=search,
-                chip=chip,
-            )
-            rows_html = render_template('redesign/_audit_logs_rows.html', **partial_ctx)
-            pagination_html = render_template('redesign/_audit_logs_pagination.html', **partial_ctx)
-            return jsonify({
-                'rows': rows_html,
-                'pagination': pagination_html,
-                'total': page_data.total,
-            })
-        return render_template(
-            'redesign/audit_logs.html',
-            active_nav='audit',
+    # OPT-P1-19: AJAX partial refresh for audit logs filters
+    if request.args.get('partial') == '1':
+        partial_ctx = dict(
             page_data=page_data,
             audit_action_label=audit_action_label,
             audit_resource_label=audit_resource_label,
             audit_status_label=audit_status_label,
             search=search,
             chip=chip,
-            AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,
         )
-
+        rows_html = render_template('redesign/_audit_logs_rows.html', **partial_ctx)
+        pagination_html = render_template('redesign/_audit_logs_pagination.html', **partial_ctx)
+        return jsonify({
+            'rows': rows_html,
+            'pagination': pagination_html,
+            'total': page_data.total,
+        })
     return render_template(
-        'rbac/audit_logs.html',
+        'redesign/audit_logs.html',
+        active_nav='audit',
         page_data=page_data,
         audit_action_label=audit_action_label,
-        audit_status_label=audit_status_label,
         audit_resource_label=audit_resource_label,
+        audit_status_label=audit_status_label,
         search=search,
+        chip=chip,
         AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,
     )
 
@@ -1106,11 +1057,6 @@ def registration_review():
             return req_gids.issubset(actor_gids_set)
         page_data.items = [r for r in page_data.items if _can_see_admin_req(r)]
 
-    # 获取业务组名映射
-    group_name_map = {}
-    for grp in list_resource_groups():
-        group_name_map[grp.id] = grp.name
-
     job_title_map = dict(JOB_TITLE_CHOICES)
 
     # 检查哪些申请用户名曾被停用（用于审批时提示）
@@ -1127,21 +1073,11 @@ def registration_review():
         ).all()
         disabled_usernames = set(disabled_users)
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return render_template(
-            'redesign/registration_review.html',
-            active_nav='reg-review',
-            page_data=page_data,
-            status_filter=status_filter or '',
-            job_title_map=job_title_map,
-            disabled_usernames=disabled_usernames,
-        )
-
     return render_template(
-        'rbac/registration_review.html',
+        'redesign/registration_review.html',
+        active_nav='reg-review',
         page_data=page_data,
         status_filter=status_filter or '',
-        group_name_map=group_name_map,
         job_title_map=job_title_map,
         disabled_usernames=disabled_usernames,
     )
@@ -1213,20 +1149,14 @@ def tag_manage():
             _, tasks = get_tag_tasks(t['id'], limit=5)
             tag_tasks[t['id']] = [task['name'] for task in tasks]
 
-    if getattr(g, 'ui_version', 'v1') == 'v2':
-        return render_template(
-            'redesign/tags.html',
-            active_nav='tags',
-            tags=tags,
-            tag_tasks=tag_tasks,
-            group_name_map=group_name_map,
-            scope_groups=scope_groups,
-            is_bypass=_actor_bypasses_scope(),
-        )
-
     return render_template(
-        'tag_manage.html', tags=tags, group_name_map=group_name_map,
-        scope_groups=scope_groups, is_bypass=_actor_bypasses_scope(),
+        'redesign/tags.html',
+        active_nav='tags',
+        tags=tags,
+        tag_tasks=tag_tasks,
+        group_name_map=group_name_map,
+        scope_groups=scope_groups,
+        is_bypass=_actor_bypasses_scope(),
     )
 
 

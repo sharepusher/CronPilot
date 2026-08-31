@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def page_not_found(e):
     is_login = session.get('is_login')
     return render_template(
-        'errors/error.html',
+        'redesign/error.html',
         icon='fa-search',
         title='页面不存在',
         description='请求的页面地址无效或已被移除。',
@@ -30,7 +30,7 @@ def internal_server_error(e):
     except Exception:
         is_login = False
     return render_template(
-        'errors/error.html',
+        'redesign/error.html',
         icon='fa-exclamation-triangle',
         title='系统繁忙',
         description='系统遇到临时问题，请稍后重试。如持续出现请联系管理员。',

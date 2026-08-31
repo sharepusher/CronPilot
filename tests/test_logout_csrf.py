@@ -3,7 +3,6 @@
 Verifies:
 - /rbac/logout rejects GET (405)
 - /rbac/logout accepts POST (302 redirect to login)
-- Legacy /logout and /check_pass redirect to /rbac/login
 """
 
 import os
@@ -77,18 +76,6 @@ class TestLogoutCSRF(unittest.TestCase):
         self.assertIn('/rbac/login', resp.headers['Location'])
         with self.client.session_transaction() as sess:
             self.assertNotIn('is_login', sess)
-
-    def test_legacy_logout_redirects_to_login(self):
-        """GET /logout (legacy) redirects to /rbac/login."""
-        resp = self.client.get('/logout')
-        self.assertEqual(resp.status_code, 302)
-        self.assertIn('/rbac/login', resp.headers['Location'])
-
-    def test_legacy_check_pass_redirects_to_login(self):
-        """GET /check_pass (legacy) redirects to /rbac/login."""
-        resp = self.client.get('/check_pass')
-        self.assertEqual(resp.status_code, 302)
-        self.assertIn('/rbac/login', resp.headers['Location'])
 
 
 if __name__ == '__main__':

@@ -32,24 +32,18 @@ body {
 .auth-card-md { width: 420px; }
 .auth-card-lg { width: 440px; padding: 32px 28px; }
 
-/* ─── Logo ───────────────────────────────────────────────────── */
-.auth-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 28px;
-  color: var(--cp-text);
+/* ─── Brand (居中堆叠 · OPT-P1-16) ─────────────────────────── */
+.auth-brand { text-align: center; margin-bottom: 28px; }
+.auth-brand-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--cp-signal-bg);
+  border: 1px solid var(--cp-signal-border, var(--cp-border));
+  margin: 0 auto 10px;
 }
-.auth-logo-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: var(--cp-signal);
-  display: inline-block;
-  flex-shrink: 0;
-}
+.auth-brand-icon svg { width: 28px; height: 28px; }
+.auth-brand-name { font-size: 18px; font-weight: 700; color: var(--cp-text); letter-spacing: -0.01em; }
+.auth-tagline { font-size: 12px; color: var(--cp-text-faint); margin-top: 4px; letter-spacing: 0.03em; }
 
 /* ─── Typography ─────────────────────────────────────────────── */
 .auth-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
@@ -147,7 +141,7 @@ body {
 
 /* ─── Forgot-Password Page ────────────────────────────────────── */
 .auth-card--center { text-align: center; }
-.auth-card--center .auth-logo { justify-content: center; }
+.auth-card--center .auth-brand { margin-bottom: 20px; }
 .auth-lock-icon { margin-bottom: 16px; color: var(--cp-text-faint); }
 .auth-desc { font-size: 13px; color: var(--cp-text-muted); margin-bottom: 24px; line-height: 1.7; }
 .auth-info-box { background: var(--cp-surface-2); border: 1px solid var(--cp-border); border-radius: 8px; padding: 14px; font-size: 12.5px; color: var(--cp-text-muted); line-height: 1.6; text-align: left; }

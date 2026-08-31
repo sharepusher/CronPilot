@@ -18,7 +18,6 @@
   <table class="c-table">
     <thead>
       <tr>
-        <th>ID</th>
         <th>用户名</th>
         <th>花名</th>
         <th>邮箱</th>
@@ -30,7 +29,6 @@
     <tbody>
       {% for req in page_data.items %}
       <tr>
-        <td class="mono">{{ req.id }}</td>
         <td class="cp-fw-600">
           {{ req.username }}
           {% if req.username in disabled_usernames %}
@@ -45,15 +43,22 @@
           {% if req.status == 'pending' %}
           <button type="button" class="btn-c btn-accent btn-xs js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">通过</button>
           <button type="button" class="btn-c btn-danger-c btn-xs js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">拒绝</button>
-          {% elif req.status == 'rejected' and req.review_comment %}
+          {% elif req.status == 'approved' %}
+          <span class="pg-audit-badge pg-audit-badge-ok">已通过</span>
+          {% elif req.status == 'rejected' %}
+          <span class="pg-audit-badge pg-audit-badge-fail">已拒绝</span>
+          {% if req.review_comment %}
           <span class="pg-comment" title="{{ req.review_comment }}">{{ req.review_comment[:15] }}{% if req.review_comment|length > 15 %}…{% endif %}</span>
+          {% endif %}
+          {% elif req.status == 'expired' %}
+          <span class="pg-audit-badge pg-audit-badge-muted">已过期</span>
           {% else %}
           <span class="pg-muted">—</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="pg-empty">暂无注册申请</td></tr>
+      <tr><td colspan="6" class="pg-empty">暂无注册申请</td></tr>
       {% endfor %}
     </tbody>
   </table>

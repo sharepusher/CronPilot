@@ -46,7 +46,7 @@ def _extract_vue_selectors(vue_src):
 
 
 class TestCronFormNameGuard(unittest.TestCase):
-    """cron_add.html / cron_edit.html 的 name 属性必须覆盖 Vue 组件依赖的全部字段。"""
+    """redesign/task_form.html 的 name 属性必须覆盖 Vue 组件依赖的全部字段。"""
 
     def _check_template(self, template_name):
         path = os.path.join(TEMPLATES, template_name)
@@ -72,11 +72,8 @@ class TestCronFormNameGuard(unittest.TestCase):
             '%s 缺少 CronFormValidator.vue 依赖的 form class: %s' % (template_name, missing_classes),
         )
 
-    def test_cron_add_has_required_names(self):
-        self._check_template('cron_add.html')
-
-    def test_cron_edit_has_required_names(self):
-        self._check_template('cron_edit.html')
+    def test_task_form_has_required_names(self):
+        self._check_template(os.path.join('redesign', 'task_form.html'))
 
 
 class TestVueSelectorsMatchGuardList(unittest.TestCase):

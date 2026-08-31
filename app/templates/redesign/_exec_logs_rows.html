@@ -39,14 +39,16 @@
   <td><span class="el-mono">{{ log.create_time|hms_display or '—' }}</span></td>
   {# COL 5: 耗时 #}
   <td><span class="el-mono">{{ log.take_time|format_duration }}</span></td>
-  {# COL 6: 结果 #}
+  {# COL 6: 结果 (fail/error/timeout 细分 + fail_reason 子标签) #}
   <td>
     {% if log.status == 'success' %}
     <span class="el-log-result el-log-success"><span class="el-log-dot"></span> 成功</span>
+    {% elif log.status == 'fail' %}
+    <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败{% if log.fail_reason == 'http_4xx' %}<span class="el-log-sub"> · 4xx</span>{% elif log.fail_reason == 'http_5xx' %}<span class="el-log-sub"> · 5xx</span>{% elif log.fail_reason == 'keyword' %}<span class="el-log-sub"> · 关键词</span>{% endif %}</span>
+    {% elif log.status == 'error' %}
+    <span class="el-log-result el-log-error"><span class="el-log-dot"></span> 异常{% if log.fail_reason == 'connection' %}<span class="el-log-sub"> · 连接</span>{% elif log.fail_reason == 'blocked_url' %}<span class="el-log-sub"> · URL拦截</span>{% endif %}</span>
     {% elif log.status == 'timeout' %}
     <span class="el-log-result el-log-timeout"><span class="el-log-dot"></span> 超时</span>
-    {% elif log.status in ('fail', 'error') %}
-    <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败</span>
     {% elif log.status == 'running' %}
     <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 执行中</span>
     {% else %}

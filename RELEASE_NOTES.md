@@ -7,6 +7,50 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 重大变更 — V1 UI 下线 Batch 1–3（完全移除 V1）
+
+V2 Redesign UI 现在是唯一界面。V1 全部模板、JS、CSS 及第三方插件已物理删除。
+
+**Batch 1（默认切换）**:
+- `app/ui_mode.py`: Cookie 默认值 `v1` → `v2`
+- `app/__init__.py`: `before_request` 中默认值 `v1` → `v2`，移除 `CRONPILOT_FORCE_NEW_UI` 覆盖逻辑
+- `scripts/start_local_full.sh`: 移除冗余的 `CRONPILOT_FORCE_NEW_UI=true`
+
+**Batch 2（分支清理）**:
+- `app/main/views.py`: 移除 15 处 `ui_version` 条件分支，净减约 205 行
+- `app/rbac/views.py`: 移除 20 处 `ui_version` 条件分支，净减约 207 行
+- `app/__init__.py`: 移除 `_set_ui_version()` before_request 钩子
+- `app/ui_mode.py`: 移除 `_VALID_UI_VERSIONS` 及 `ui_version` 相关代码
+- 19 个测试更新为 V2 断言（dashboard rows、retire、run-now、topbar、audit logs、registration review）
+
+**Batch 3（物理删除）**:
+- 删除 V1 模板 36 个（`app/templates/*.html` + `rbac/*.html` + `errors/error.html`）
+- 删除 V1 JS 8 个（`common.js`、`wind.js`、`ajaxForm.js`、`bootstrap.min.js`、`requests.js`、`signs.js`、`tag-input.js`、`md5.js`）
+- 删除 V1 CSS 2 个（`bootstrap.min.css`、`console-mode.css`）
+- 删除 V1 第三方插件目录 5 个（`artDialog/`、`datePicker/`、`jquery.validate/`、`noty/`、`simpleboot/`）
+- 新建 `redesign/error.html`（V2 独立错误页，覆盖 404/403/500）
+- `errors.py`、`decorators.py` 错误处理指向 V2 error 模板
+- 移除 `_users_form_response()` 中的 V1→V2 template_map
+- 移除 topbar "切换到经典界面" 链接
+- 12 个 V1 专属测试移除（V2 sidebar 已由 `test_redesign_sidebar` 12 条覆盖）
+
+**⚠️ 不可回退**：Batch 3 后不再支持 V1 回退。如需回退需从 git 历史恢复 V1 资产。
+
+**设计文档**: `doc/design/V1下线方案设计.html`、`doc/design/V1下线Pre-check报告-2026-08.html`、`doc/design/Redesign代码质量全面评估报告-R6-2026-08.html`
+
+**Batch 4（注释 + Dead CSS 清理）**:
+- `console-theme.css`: 移除 6 处过时的 V1 引用注释（admin_base、simpleboot）；删除 18 行 Dead CSS（`.rbac-topbar` 选择器 + `--cp-topbar-*` token，V2 无消费者）
+- `common-redesign.js`: 更新文件头注释，移除 V1 引用
+- `execution_logs.html`: 更新过时的 datePicker 注释
+
+**Batch 5（Legacy Shim 删除）**:
+- 删除 `/check_pass` 路由 shim（8 行）和 `/logout` GET shim（3 行）
+- 删除对应测试 7 个（test_rbac_phase.py 5 个 + test_logout_csrf.py 2 个）
+
+**设计文档**: `doc/design/V1下线Batch4-5方案设计.html`、`doc/design/V1下线完成报告-Batch1-3-2026-08.html`
+
+---
+
 ### 改进 — 全站图标迁移至 Heroicons
 
 全站 Redesign 模板中的 Feather 图标（stroke-width: 2）统一迁移至 Heroicons Outline（stroke-width: 1.5），共替换 **53 个 SVG** 跨 11 个模板文件。
@@ -37,6 +81,18 @@ Dashboard 任务列表「业务组」列和组筛选下拉改为按用户可见�
 - 逻辑 `show_group_column = len(scope_groups) > 1`，AJAX 分页/筛选上下文同步传入
 
 **设计文档**：`doc/design/任务列表业务组列条件展示设计.html`
+
+### 改进 — 执行记录结果列细分展示
+
+执行记录「结果」列从统一的「失败」细分为四种状态 + fail_reason 子标签：
+- **失败**（`fail`）：HTTP 4xx · 5xx · 关键词
+- **异常**（`error`）：连接 · URL拦截（橙色 `--cp-warn`）
+- **超时**（`timeout`）
+- **成功**（`success`）
+
+新增 CSS class：`.el-log-error`、`.el-log-timeout`、`.el-log-sub`
+
+**设计文档**：`doc/design/执行记录结果列细分展示设计.html`
 
 ### 改进 — 系统管理菜单文案优化
 

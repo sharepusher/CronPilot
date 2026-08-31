@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>V1 下线 Batch 4-5 方案设计</title>
+</head>
+<body>
+<h1>V1 下线 Batch 4–5 方案设计</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文档类型</th><td>设计方案</td></tr>
+<tr><th>前置依赖</th><td>Batch 1-3 已完成（<a href="V1下线完成报告-Batch1-3-2026-08.html">完成报告</a>）</td></tr>
+<tr><th>日期</th><td>2026-08-31</td></tr>
+</table>
+
+<h2>0. 现状摘要</h2>
+
+<p>Batch 1-3 已完成 V1 的主体移除：所有 V1 模板（36）、独立 JS（8）、CSS（2）、第三方插件（5 目录）均已物理删除。当前仓库中 V1 残余仅存在于<strong>注释</strong>、<strong>Dead CSS</strong>、<strong>Legacy 路由 shim</strong> 和<strong>目录命名历史</strong>四个维度。</p>
+
+<p><strong>注意</strong>：原方案设计中的 Batch 4（删除 V1 静态资源）已在 Batch 3 执行中合并完成。以下 Batch 4-5 为<strong>重编号后的剩余清理工作</strong>。</p>
+
+<h2>1. 问题：V1 残余引用分析</h2>
+
+<h3>1.1 注释中的 V1 引用（无功能影响）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>文件</th><th>行号</th><th>内容</th><th>影响</th></tr>
+<tr><td>C1</td><td>console-theme.css</td><td>14</td><td><code>--cp-* 前缀避免与 simpleboot/bootstrap 冲突</code></td><td>注释，已无实际冲突</td></tr>
+<tr><td>C2</td><td>console-theme.css</td><td>30</td><td><code>admin_base topbar a:hover</code></td><td>注释，token 仍有效</td></tr>
+<tr><td>C3</td><td>console-theme.css</td><td>67</td><td><code>label-danger 覆写 — simpleboot 恢复语义红</code></td><td>注释，类仍被使用</td></tr>
+<tr><td>C4</td><td>console-theme.css</td><td>82</td><td><code>执行状态机 (admin_base.html label 覆写)</code></td><td>注释，标题</td></tr>
+<tr><td>C5</td><td>console-theme.css</td><td>292-296</td><td>迁移说明块：<code>从 admin_base.html inline style 迁移</code></td><td>过时说明</td></tr>
+<tr><td>C6</td><td>common-redesign.js</td><td>4</td><td><code>Replaces common.js + wind.js</code></td><td>历史上下文</td></tr>
+<tr><td>C7</td><td>common-redesign.js</td><td>7</td><td><code>ZERO Wind.use / artDialog / ajaxForm</code></td><td>约束说明</td></tr>
+<tr><td>C8</td><td>execution_logs.html</td><td>286</td><td><code>connect to Wind datePicker if available</code></td><td>过时注释</td></tr>
+</table>
+
+<h3>1.2 Dead CSS：V1 Topbar 遗留（~25 行）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>类型</th><th>内容</th><th>行号</th><th>V2 消费者</th></tr>
+<tr><td>Token（Light）</td><td><code>--cp-topbar-bg</code>、<code>--cp-topbar-text</code>、<code>--cp-topbar-muted</code></td><td>99-101</td><td><strong>无</strong>（仅 .rbac-topbar 引用）</td></tr>
+<tr><td>Token（Dark）</td><td>同上（dark theme 覆写）</td><td>237-239</td><td><strong>无</strong></td></tr>
+<tr><td>Selector</td><td><code>.rbac-topbar</code> 及 <code>.topbar-role-*</code>、<code>.topbar-sep</code></td><td>305-316</td><td><strong>无</strong>（V2 topbar 使用 .cp-topbar）</td></tr>
+</table>
+<p>验证方法：<code>grep -rn "rbac-topbar\|topbar-role-\|topbar-sep\|cp-topbar-bg\|cp-topbar-text\|cp-topbar-muted" app/templates/ app/static/js/</code> — 预期返回空。</p>
+
+<h3>1.3 Legacy 路由 Shim（功能性）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>路由</th><th>方法</th><th>行为</th><th>内部引用</th><th>外部可能性</th></tr>
+<tr><td>/check_pass</td><td>GET/POST</td><td>307/302 redirect → /rbac/login</td><td>无模板/代码引用</td><td>旧版书签、第三方集成</td></tr>
+<tr><td>/logout</td><td>GET</td><td>302 redirect → /rbac/login</td><td>无模板/代码引用</td><td>旧版书签</td></tr>
+</table>
+<p>这两个 shim 的测试覆盖：<code>test_rbac_phase.py</code>（5 个用例）+ <code>test_logout_csrf.py</code>（1 个用例）。</p>
+
+<h3>1.4 目录命名：<code>redesign/</code> 前缀</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>维度</th><th>数据</th></tr>
+<tr><td>Python 中 <code>'redesign/'</code> 引用</td><td>60 处（views 39 + views 20 + errors 2 + decorators 1 + services 1 + tests/scripts 7）</td></tr>
+<tr><td>模板内 <code>{% extends</code> / <code>{% include</code></td><td>~30 处（所有继承 _base 和 include 局部模板的引用）</td></tr>
+<tr><td>变更涉及文件</td><td>~15 个 Python 文件 + 38 个模板文件</td></tr>
+</table>
+
+<h2>2. 根因：为什么有这些残余</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>残余类型</th><th>根因</th></tr>
+<tr><td>注释</td><td>Batch 3 执行时聚焦于功能性文件删除，注释中的历史引用不影响功能，未列入清理范围</td></tr>
+<tr><td>Dead CSS</td><td><code>.rbac-topbar</code> 类组在 V1→V2 过渡期用于共享 topbar 样式，V2 启用独立 topbar 后失去消费者</td></tr>
+<tr><td>Legacy shim</td><td>设计预留的向后兼容层，防止旧版书签/外部集成断链</td></tr>
+<tr><td>redesign/ 命名</td><td>V1/V2 共存期间的命名空间隔离策略，设计时即标注为"下线后可选重组"</td></tr>
+</table>
+
+<h2>3. 方案</h2>
+
+<h3>Batch 4：注释更新 + Dead CSS 清理（低风险，建议执行）</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>子项</th><th>操作</th><th>风险</th></tr>
+<tr><td>4a</td><td>更新 <code>console-theme.css</code> 中 6 处注释：移除过时的 admin_base/simpleboot 引用，改为当前上下文描述</td><td>零风险（仅注释）</td></tr>
+<tr><td>4b</td><td>删除 <code>console-theme.css</code> 中 Dead CSS：<code>.rbac-topbar</code> 相关选择器（12 行）+ <code>--cp-topbar-*</code> token（6 行）</td><td>低风险（已确认无消费者）</td></tr>
+<tr><td>4c</td><td>更新 <code>common-redesign.js</code> 文件头注释（2 处）和 <code>execution_logs.html</code> 注释（1 处）</td><td>零风险（仅注释）</td></tr>
+</table>
+
+<p><strong>验收</strong>：<code>python scripts/check_dead_css.py --check</code>（dead ≤ 0）+ <code>python scripts/check_css_token_reachability.py --check</code>（all reachable）+ 432 tests pass。</p>
+
+<h3>Batch 5a：Legacy 路由 Shim 处理（低风险，需决策）</h3>
+
+<p><strong>决策点</strong>：是否保留 <code>/check_pass</code> 和 <code>/logout</code> redirect shim？</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>选项</th><th>优点</th><th>缺点</th></tr>
+<tr><td><strong>A. 保留 + 标注废弃</strong>（推荐）</td><td>旧书签/外部集成不断链；维护成本极低（共 10 行代码）</td><td>多 2 个路由</td></tr>
+<tr><td>B. 删除</td><td>代码更干净</td><td>可能断裂外部集成；需删 6 个测试</td></tr>
+<tr><td>C. 保留但返回 410 Gone</td><td>语义更准确；外部调用方能感知废弃</td><td>破坏现有重定向行为</td></tr>
+</table>
+
+<p><strong>执行决策</strong>：用户确认删除。已在 Batch 5 中删除 <code>/check_pass</code> 和 <code>/logout</code> shim，连同 7 个对应测试。</p>
+
+<h3>Batch 5b：模板目录重组 <code>redesign/</code> → 根目录（高影响，需决策）</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>选项</th><th>工作量</th><th>优点</th><th>缺点</th></tr>
+<tr><td><strong>A. 不重组</strong>（推荐）</td><td>0</td><td>无风险、无 diff、无 merge 冲突；<code>redesign/</code> 目录名作为历史标记无害</td><td>目录名不够简洁</td></tr>
+<tr><td>B. 重组（<code>redesign/</code> → 根）</td><td>高（~90+ 文件改动）</td><td>目录结构更干净</td><td>60+ Python render_template 路径变更 + 30+ 模板内 extends/include 变更 + 15 测试/脚本变更 = ~90+ 处修改；产生巨大 diff；高 merge 冲突风险</td></tr>
+</table>
+
+<p><strong>推荐方案 A</strong>：不重组。理由如下：</p>
+<ol>
+<li><strong>收益/成本比极低</strong>：~90 处改动仅为目录名美化，不带来任何功能改进或性能提升</li>
+<li><strong>Flask 模板目录支持子目录</strong>：<code>render_template('redesign/xxx.html')</code> 是 Flask 标准用法，不存在技术债务</li>
+<li><strong>高回归风险</strong>：涉及 views、errors、decorators、services、pagination、tests、CI scripts 共 ~15 个 Python 文件，任一遗漏都会导致 500</li>
+<li><strong>"redesign" 命名无误导</strong>：V1 已删除，目录名只是历史命名，不影响新开发者理解</li>
+<li><strong>与并行开发冲突</strong>：若有其他分支在开发中，大规模路径变更将导致严重 merge 冲突</li>
+</ol>
+
+<h2>4. 范围</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>Batch</th><th>涉及文件</th><th>预计 diff 行数</th></tr>
+<tr><td>4（注释 + Dead CSS）</td><td><code>console-theme.css</code>、<code>common-redesign.js</code>、<code>execution_logs.html</code></td><td>~25 行删除 + ~10 行注释修改</td></tr>
+<tr><td>5a（Legacy shim 标注）</td><td><code>app/main/views.py</code></td><td>~5 行修改（docstring 更新）</td></tr>
+<tr><td>5b（目录重组）</td><td><strong>推荐不做</strong></td><td>—</td></tr>
+</table>
+
+<h3>明确不做</h3>
+<ul>
+<li>不重组 <code>redesign/</code> 目录（方案 A）</li>
+<li>不删除 <code>/check_pass</code>、<code>/logout</code> legacy shim（方案 A，保留兼容）</li>
+<li>不修改 <code>console-theme.css</code> 中仍在使用的 token/class（如 <code>.label-timeout</code>、<code>--cp-role-*</code>）</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>步骤</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>Step 1（Batch 4）</td><td>更新 console-theme.css 注释（6 处）+ 删除 Dead CSS（18 行）+ 更新 JS/模板注释（3 处）</td><td>✓ dead_css + token_reachability + 全量测试</td></tr>
+<tr><td>Step 2（Batch 5a）</td><td>更新 legacy shim docstring 标注废弃</td><td>✓ 全量测试</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>门禁</th><th>命令</th><th>预期</th></tr>
+<tr><td>Dead CSS</td><td><code>python scripts/check_dead_css.py --check</code></td><td>≤ 0</td></tr>
+<tr><td>Token 可达性</td><td><code>python scripts/check_css_token_reachability.py --check</code></td><td>all reachable</td></tr>
+<tr><td>V1 引用清零</td><td><code>grep -n "admin_base\|simpleboot\|artDialog\|wind\.js" app/static/css/console-theme.css</code></td><td>0 matches（仅注释也已更新）</td></tr>
+<tr><td>全量测试</td><td><code>bash scripts/cronpilot.sh test</code></td><td>432 pass</td></tr>
+<tr><td>服务启动</td><td><code>bash scripts/cronpilot.sh restart --daemon</code></td><td>PID 存在</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>风险</th><th>等级</th><th>缓解</th></tr>
+<tr><td>Dead CSS 误删导致样式丢失</td><td>极低</td><td>已通过 grep 确认 <code>.rbac-topbar</code> 在 V2 模板/JS 中无消费者</td></tr>
+<tr><td>Legacy shim 删除导致外部断链</td><td>—</td><td>方案选择保留（不删除）</td></tr>
+<tr><td>注释更新引入语法错误</td><td>极低</td><td>注释不影响运行时，CI 全量测试覆盖</td></tr>
+</table>
+
+<h2>8. 必要性评估总结</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>项目</th><th>必要性</th><th>工作量</th><th>建议</th></tr>
+<tr><td>Batch 4：注释 + Dead CSS</td><td><strong>建议执行</strong>（代码卫生 + CI 门禁趋零）</td><td>低（~30 分钟）</td><td>✅ 执行</td></tr>
+<tr><td>Batch 5a：Legacy shim 标注</td><td>可选（维护性提升）</td><td>极低（~5 分钟）</td><td>✅ 顺手执行</td></tr>
+<tr><td>Batch 5b：目录重组</td><td><strong>不推荐</strong>（收益 ≈ 0，风险高）</td><td>高（~2 小时 + review）</td><td>❌ 不做</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="V1下线Batch4-5方案设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

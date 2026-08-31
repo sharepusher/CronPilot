@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot V1 下线方案 — 设计文档</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 40px 20px; line-height: 1.7; color: #1a1a1a; }
+h1 { font-size: 1.8em; border-bottom: 2px solid #0891b2; padding-bottom: 8px; }
+h2 { font-size: 1.4em; color: #0891b2; margin-top: 2em; }
+h3 { font-size: 1.15em; color: #334155; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: 0.92em; }
+th { background: #f8fafc; font-weight: 600; }
+code { background: #f1f5f9; padding: 2px 5px; border-radius: 3px; font-size: 0.88em; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; overflow-x: auto; font-size: 0.85em; }
+.warn { background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; padding: 12px; margin: 12px 0; }
+.danger { background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px; margin: 12px 0; }
+.ok { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px; margin: 12px 0; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.metric-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; background: #fafbfc; }
+.metric-card .label { font-size: 0.82em; color: #64748b; }
+.metric-card .value { font-size: 1.4em; font-weight: 700; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>CronPilot V1（Legacy UI）下线方案</h1>
+<p><strong>日期</strong>：2026-08-26 &nbsp;|&nbsp; <strong>编号</strong>：OPT-P1-16 Phase Final &nbsp;|&nbsp; <strong>状态</strong>：设计评审中</p>
+
+<h2>1. 问题陈述</h2>
+
+<p>CronPilot 当前运行 <strong>双轨 UI 系统</strong>：V1（Legacy Simpleboot + Bootstrap 3）和 V2（Redesign 自研架构）。
+双轨通过 Cookie <code>cp_ui_version</code> 或配置项 <code>CRONPILOT_FORCE_NEW_UI=1</code> 切换。</p>
+
+<h3>1.1 双轨代价量化</h3>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="label">V1 模板文件</div><div class="value">36 个</div></div>
+  <div class="metric-card"><div class="label">V1 模板行数</div><div class="value">4,249</div></div>
+  <div class="metric-card"><div class="label">V1 专属 JS</div><div class="value">1,918 行</div></div>
+  <div class="metric-card"><div class="label">V1 专属 CSS</div><div class="value">~1,070 行</div></div>
+  <div class="metric-card"><div class="label">Views 中分支代码</div><div class="value">35 处</div></div>
+  <div class="metric-card"><div class="label">可删除静态资源</div><div class="value">10 文件</div></div>
+</div>
+
+<h3>1.2 维护痛点</h3>
+<ul>
+  <li><strong>双倍测试成本</strong>：每个功能需验证 V1 和 V2 两条路径</li>
+  <li><strong>代码膨胀</strong>：views.py 中 35 处 <code>getattr(g, 'ui_version', 'v1') == 'v2'</code> 三元表达式</li>
+  <li><strong>依赖锁定</strong>：V1 依赖 Bootstrap 3 + Simpleboot + artDialog + ajaxForm + wind.js 等不再维护的库</li>
+  <li><strong>安全负债</strong>：V1 模板中硬编码颜色、inline style 不受 CI 门禁监管（CI 仅覆盖 <code>redesign/</code> 目录）</li>
+  <li><strong>认知负荷</strong>：新贡献者需理解两套模板系统的关系</li>
+</ul>
+
+<h2>2. 前置条件评估</h2>
+
+<div class="ok">
+<strong>✓ V2 功能完备性</strong>：Redesign 已实现 20 个功能页面，覆盖 V1 的全部 18 个页面 + 2 个新增页面（Command Palette、user_profile）。
+</div>
+
+<table>
+<thead><tr><th>V1 页面</th><th>V2 对应</th><th>功能对等</th></tr></thead>
+<tbody>
+<tr><td><code>cron_list.html</code></td><td><code>redesign/dashboard.html</code></td><td>✓ 已增强（AJAX Filter + Exception Panel）</td></tr>
+<tr><td><code>cron_add.html</code></td><td><code>redesign/task_form.html</code></td><td>✓ 全功能</td></tr>
+<tr><td><code>cron_edit.html</code></td><td><code>redesign/task_form.html</code> (is_edit)</td><td>✓ 合并模板</td></tr>
+<tr><td><code>cron_retire.html</code></td><td><code>redesign/cron_retire.html</code></td><td>✓</td></tr>
+<tr><td><code>job_log_all_list.html</code></td><td><code>redesign/execution_logs.html</code></td><td>✓ 已增强（AJAX）</td></tr>
+<tr><td><code>job_log_list.html</code></td><td><code>redesign/execution_logs.html</code></td><td>✓ 合并</td></tr>
+<tr><td><code>job_log_detail.html</code></td><td><code>redesign/run_inspector.html</code></td><td>✓ 已增强</td></tr>
+<tr><td><code>operation_log_list.html</code></td><td><code>redesign/operation_log.html</code></td><td>✓</td></tr>
+<tr><td><code>tag_manage.html</code></td><td><code>redesign/tags.html</code></td><td>✓ 已增强（CpModal）</td></tr>
+<tr><td><code>rbac/login.html</code></td><td><code>redesign/login.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/register.html</code></td><td><code>redesign/register.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/change_password.html</code></td><td><code>redesign/change_password.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/complete_profile.html</code></td><td><code>redesign/complete_profile.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/users.html</code> + <code>users_add/edit</code></td><td><code>redesign/users.html</code> + <code>user_form.html</code></td><td>✓ 已增强（查看/编辑分离）</td></tr>
+<tr><td><code>rbac/groups.html</code> + <code>add/edit</code></td><td><code>redesign/groups.html</code> + <code>group_form.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/audit_logs.html</code></td><td><code>redesign/audit_logs.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/registration_review.html</code></td><td><code>redesign/registration_review.html</code></td><td>✓</td></tr>
+<tr><td><code>rbac/api_token.html</code></td><td><code>redesign/api_token.html</code></td><td>✓</td></tr>
+</tbody>
+</table>
+
+<h2>3. 下线方案</h2>
+
+<h3>3.1 策略选择</h3>
+
+<table>
+<thead><tr><th>方案</th><th>描述</th><th>推荐</th></tr></thead>
+<tbody>
+<tr><td><strong>A. 硬切</strong></td><td>直接删除 V1，<code>FORCE_NEW_UI=1</code> 为默认</td><td>✓ 推荐</td></tr>
+<tr><td>B. 过渡期</td><td>保留 V1 代码 1 个版本周期，通过 deprecation warning 引导</td><td>适用于外部用户多的项目</td></tr>
+<tr><td>C. 渐进式</td><td>按页面逐个下线 V1（先 Dashboard → 最后 Login）</td><td>复杂度高，不推荐</td></tr>
+</tbody>
+</table>
+
+<p><strong>推荐方案 A</strong> 的理由：CronPilot 为内部工具型项目，用户群可控；V2 已稳定运行；无第三方 API 兼容性顾虑。</p>
+
+<h3>3.2 分批执行计划</h3>
+
+<table>
+<thead><tr><th>批次</th><th>内容</th><th>影响</th><th>可回滚</th></tr></thead>
+<tbody>
+<tr><td><strong>Batch 1</strong><br>Default V2</td>
+    <td>
+      <ol>
+        <li><code>ui_mode.py</code>：默认值 <code>v1</code> → <code>v2</code></li>
+        <li><code>app/__init__.py</code>：移除 <code>CRONPILOT_FORCE_NEW_UI</code> 判断</li>
+        <li>更新 README/部署文档，说明 V2 为唯一 UI</li>
+      </ol>
+    </td>
+    <td>所有用户默认看到 V2；V1 代码仍保留可通过 Cookie 切回</td>
+    <td>✓ 设置 Cookie <code>cp_ui_version=v1</code> 即可回退</td>
+</tr>
+<tr><td><strong>Batch 2</strong><br>删除分支逻辑</td>
+    <td>
+      <ol>
+        <li>views.py：消除 35 处 <code>ui_version</code> 三元分支，直接使用 V2 模板路径</li>
+        <li>删除 <code>app/ui_mode.py</code> 中的 <code>ui_version</code> 相关代码</li>
+        <li>删除 <code>app/__init__.py</code> 中的 <code>_set_ui_version()</code></li>
+        <li>删除 <code>_VALID_UI_VERSIONS</code> 常量</li>
+      </ol>
+    </td>
+    <td>Views 层精简约 100 行；不可再通过 Cookie 切回 V1</td>
+    <td>✗ 不可回滚（需 git revert）</td>
+</tr>
+<tr><td><strong>Batch 3</strong><br>删除 V1 模板</td>
+    <td>
+      <ol>
+        <li>删除 <code>app/templates/*.html</code>（除 <code>index.html</code>）— 17 文件</li>
+        <li>删除 <code>app/templates/rbac/*.html</code> — 18 文件</li>
+        <li>删除 <code>app/templates/admin_base.html</code></li>
+        <li>共 36 个模板文件，约 4,249 行</li>
+      </ol>
+    </td>
+    <td>模板目录清爽，仅保留 <code>redesign/</code></td>
+    <td>✗ git revert</td>
+</tr>
+<tr><td><strong>Batch 4</strong><br>删除 V1 静态资源</td>
+    <td>
+      <ol>
+        <li>删除 <code>app/static/js/common.js</code> (1,082 行)</li>
+        <li>删除 <code>app/static/js/wind.js</code> (836 行)</li>
+        <li>删除 <code>app/static/js/ajaxForm.js</code></li>
+        <li>删除 <code>app/static/js/bootstrap.min.js</code></li>
+        <li>删除 <code>app/static/js/md5.js</code></li>
+        <li>删除 <code>app/static/js/requests.js</code></li>
+        <li>删除 <code>app/static/js/signs.js</code></li>
+        <li>删除 <code>app/static/js/tag-input.js</code></li>
+        <li>删除 <code>app/static/css/bootstrap.min.css</code></li>
+        <li>删除 <code>app/static/css/console-mode.css</code> (1,066 行)</li>
+        <li>删除 <code>app/static/js/simpleboot/</code> 目录</li>
+        <li>删除 <code>app/static/js/artDialog/</code> 目录</li>
+      </ol>
+    </td>
+    <td>减少约 3,000+ 行 JS + 若干第三方库</td>
+    <td>✗ git revert</td>
+</tr>
+<tr><td><strong>Batch 5</strong><br>清理残余引用</td>
+    <td>
+      <ol>
+        <li>全局搜索残余 <code>admin_base</code>、<code>simpleboot</code>、<code>artDialog</code> 引用</li>
+        <li>更新 <code>tests/test_ajax_form_guard.py</code>（如有 V1 模板相关用例）</li>
+        <li>更新 CI 门禁范围（<code>check_ui_contract.py</code> 可移除 V1 排除规则）</li>
+        <li>清理 <code>console-theme.css</code> 中仅 V1 使用的变量（如 <code>--cp-topbar-*</code>）</li>
+        <li>模板目录重组：<code>redesign/</code> → <code>templates/</code>（可选，见 3.4）</li>
+      </ol>
+    </td>
+    <td>最终清洁状态</td>
+    <td>✗ git revert</td>
+</tr>
+</tbody>
+</table>
+
+<h3>3.3 影响量化（预期收益）</h3>
+
+<div class="metric-grid">
+  <div class="metric-card"><div class="label">删除文件数</div><div class="value" style="color:#059669">~50</div></div>
+  <div class="metric-card"><div class="label">删除代码行</div><div class="value" style="color:#059669">~9,000+</div></div>
+  <div class="metric-card"><div class="label">views.py 净减行数</div><div class="value" style="color:#059669">~100</div></div>
+  <div class="metric-card"><div class="label">消除三元分支</div><div class="value" style="color:#059669">35 处</div></div>
+</div>
+
+<h3>3.4 模板目录重组（可选，Batch 5 之后）</h3>
+
+<div class="warn">
+<strong>可选决策</strong>：下线 V1 后，<code>app/templates/redesign/</code> 中的文件成为唯一模板。
+是否将它们移到 <code>app/templates/</code> 根目录？
+</div>
+
+<table>
+<thead><tr><th>方案</th><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td>保持 <code>redesign/</code> 子目录</td><td>零改动；git history 连续</td><td>路径略长；"redesign" 名称过时</td></tr>
+<tr><td>移到根 <code>templates/</code></td><td>路径简洁；语义清晰</td><td>需改 35+ 处 <code>render_template</code> 路径；git blame 断裂</td></tr>
+<tr><td>重命名为 <code>templates/views/</code></td><td>语义中性</td><td>同上 + 额外重命名工作</td></tr>
+</tbody>
+</table>
+
+<p><strong>建议</strong>：保持 <code>redesign/</code> 子目录。名称可在下一个 major version 时统一重命名（通过 git mv + 全局替换），当前改动的 ROI 过低。</p>
+
+<h2>4. 风险评估</h2>
+
+<table>
+<thead><tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr></thead>
+<tbody>
+<tr><td>V2 存在未发现的功能缺失</td><td>低</td><td>中</td><td>Batch 1 先默认 V2 但保留回退能力</td></tr>
+<tr><td>外部集成依赖 V1 特定 DOM 结构</td><td>极低</td><td>低</td><td>无外部浏览器自动化集成</td></tr>
+<tr><td>删除后发现测试依赖 V1 模板</td><td>低</td><td>低</td><td>Batch 2 前全量运行测试</td></tr>
+<tr><td>用户习惯 V1 界面不适应</td><td>低</td><td>低</td><td>Batch 1 阶段提供回退 Cookie 说明</td></tr>
+</tbody>
+</table>
+
+<h2>5. 验收标准</h2>
+
+<table>
+<thead><tr><th>批次</th><th>验收条件</th></tr></thead>
+<tbody>
+<tr><td>Batch 1</td><td>无 Cookie 时默认加载 V2；<code>cronpilot.sh test</code> 全绿；浏览器登录→操作→登出正常</td></tr>
+<tr><td>Batch 2</td><td>views.py 无 <code>ui_version</code> 引用；测试全绿；设置 <code>cp_ui_version=v1</code> Cookie 不再生效</td></tr>
+<tr><td>Batch 3</td><td><code>ls app/templates/*.html</code> 仅剩 <code>index.html</code>（如有）；<code>app/templates/rbac/</code> 目录已删除；测试全绿</td></tr>
+<tr><td>Batch 4</td><td><code>ls app/static/js/</code> 仅包含 redesign 模块 + jquery；测试全绿；浏览器无 404</td></tr>
+<tr><td>Batch 5</td><td><code>grep -r "admin_base\|simpleboot\|artDialog\|wind\.js" app/</code> 返回空；CI 全绿</td></tr>
+</tbody>
+</table>
+
+<h2>6. 不做清单</h2>
+
+<ul>
+  <li><strong>不删除 <code>jquery.js</code></strong> — V2 仍依赖 jQuery（<code>common-redesign.js</code>）</li>
+  <li><strong>不删除 <code>console-theme.css</code></strong> — V2 的 Design Token 来源</li>
+  <li><strong>不重命名 <code>redesign/</code> 目录</strong>（见 3.4 分析）</li>
+  <li><strong>不改变 URL 路由</strong> — 所有用户可见 URL 不变</li>
+  <li><strong>不影响 API 层</strong> — <code>app/api/views.py</code> 无 UI 版本分支</li>
+</ul>
+
+<h2>7. 时间线建议</h2>
+
+<table>
+<thead><tr><th>阶段</th><th>建议时间点</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Batch 1（默认 V2）</td><td>立即可执行</td><td>风险最低，可回滚</td></tr>
+<tr><td>Batch 2-5（完全下线）</td><td>Batch 1 稳定运行 1-2 周后</td><td>确认无功能缺失再执行不可逆操作</td></tr>
+<tr><td>或一次性全做</td><td>立即</td><td>如果对 V2 功能完备性有信心</td></tr>
+</tbody>
+</table>
+
+<h2>8. 附：待删除文件完整清单</h2>
+
+<h3>模板（36 文件 · 4,249 行）</h3>
+<pre>
+app/templates/_cron_list_rows.html
+app/templates/_cron_pagination.html
+app/templates/_job_log_result_cell.html
+app/templates/admin_base.html
+app/templates/admin_page.html
+app/templates/api_doc.html
+app/templates/check_pass.html
+app/templates/cron_add.html
+app/templates/cron_edit.html
+app/templates/cron_list.html
+app/templates/cron_retire.html
+app/templates/index.html
+app/templates/job_log_all_list.html
+app/templates/job_log_detail.html
+app/templates/job_log_item_list.html
+app/templates/job_log_list.html
+app/templates/operation_log_list.html
+app/templates/tag_manage.html
+app/templates/rbac/_nav.html
+app/templates/rbac/_sidebar_console.html
+app/templates/rbac/_topbar.html
+app/templates/rbac/api_token.html
+app/templates/rbac/audit_logs.html
+app/templates/rbac/change_password.html
+app/templates/rbac/complete_profile.html
+app/templates/rbac/forgot_password.html
+app/templates/rbac/groups.html
+app/templates/rbac/groups_add.html
+app/templates/rbac/groups_edit.html
+app/templates/rbac/login.html
+app/templates/rbac/register.html
+app/templates/rbac/registration_review.html
+app/templates/rbac/users.html
+app/templates/rbac/users_add.html
+app/templates/rbac/users_edit.html
+app/templates/rbac/users_set_active.html
+</pre>
+
+<h3>静态资源（10+ 文件 · ~3,000+ 行）</h3>
+<pre>
+app/static/js/common.js         (1,082 行)
+app/static/js/wind.js           (836 行)
+app/static/js/ajaxForm.js
+app/static/js/bootstrap.min.js
+app/static/js/md5.js
+app/static/js/requests.js
+app/static/js/signs.js
+app/static/js/tag-input.js
+app/static/css/bootstrap.min.css
+app/static/css/console-mode.css  (1,066 行)
+app/static/js/simpleboot/       (整个目录)
+app/static/js/artDialog/        (整个目录)
+</pre>
+
+<h3>Python 代码变更</h3>
+<pre>
+app/ui_mode.py               — 删除 ui_version 相关（保留 theme/ui_mode 如仍使用）
+app/__init__.py              — 删除 _set_ui_version() + CRONPILOT_FORCE_NEW_UI
+app/main/views.py            — 消除 15 处三元分支
+app/rbac/views.py            — 消除 20 处三元分支
+</pre>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="V1下线方案设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

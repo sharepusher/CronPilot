@@ -46,7 +46,7 @@ if [ ! -f conf.ini ]; then
 fi
 
 export FLASK_CONFIG=development
-export CRONPILOT_FORCE_NEW_UI=true
+# CRONPILOT_FORCE_NEW_UI removed — V2 is now the default (Batch 1 decommission).
 bash "$ROOT/scripts/ensure_business_tables.sh"
 
 pids=$(cronpilot_listen_pids "$LOCAL_PORT")

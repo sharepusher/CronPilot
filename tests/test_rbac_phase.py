@@ -12,46 +12,6 @@ from app.rbac.services import get_role_permission_set
 from datas.utils.times import str_to_hms, utc_now_hms
 
 
-class TestCheckPassForward(unittest.TestCase):
-    def setUp(self):
-        app = Flask(__name__)
-        app.secret_key = 'test'
-        app.config['TESTING'] = True
-        app.register_blueprint(main_blueprint)
-        self.client = app.test_client()
-
-    def _location_path_query(self, resp):
-        loc = resp.headers['Location']
-        if loc.startswith('http://') or loc.startswith('https://'):
-            from urllib.parse import urlparse
-            parsed = urlparse(loc)
-            return parsed.path + (('?' + parsed.query) if parsed.query else '')
-        return loc
-
-    def test_get_without_next_redirects_to_rbac_login(self):
-        resp = self.client.get('/check_pass')
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(self._location_path_query(resp), '/rbac/login')
-
-    def test_get_with_next_passthrough_matches_decorator_format(self):
-        resp = self.client.get('/check_pass?next=/cron_list?task_name=x')
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(
-            self._location_path_query(resp),
-            '/rbac/login?next=/cron_list?task_name=x',
-        )
-
-    def test_post_without_next_uses_307(self):
-        resp = self.client.post('/check_pass')
-        self.assertEqual(resp.status_code, 307)
-        self.assertEqual(self._location_path_query(resp), '/rbac/login')
-
-    def test_post_with_next_passthrough_matches_decorator_format(self):
-        resp = self.client.post('/check_pass?next=/cron_list')
-        self.assertEqual(resp.status_code, 307)
-        self.assertEqual(self._location_path_query(resp), '/rbac/login?next=/cron_list')
-
-
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -114,15 +74,6 @@ class TestRbacLogin(unittest.TestCase):
             self.assertIn('msg=', resp.headers['Location'])
             from urllib.parse import unquote
             self.assertIn('用户名', unquote(resp.headers['Location']))
-
-
-
-    def test_check_pass_forwards_next_to_login(self):
-        resp = self.client.get('/check_pass?next=/cron_list?task_name=x')
-        self.assertEqual(resp.status_code, 302)
-        loc = resp.headers['Location']
-        self.assertIn('/rbac/login?next=', loc)
-        self.assertIn('task_name=x', loc)
 
 
 class TestChangeOwnPassword(unittest.TestCase):
@@ -404,22 +355,25 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
     def test_operator_sees_retire_denied_tip_not_form_link(self):
         self._login('operator')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-retire="false"', html)
-        self.assertNotIn('data-can-retire="true"', html)
-        self.assertNotIn('/cron_retire?', html)
+        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        # Redesign: operator 有 cron:write，行内可见下线入口（AJAX modal，非 /cron_retire?id= 链接）
+        self.assertIn('onclick="cpRetire(', tbody)
+        self.assertNotIn('/cron_retire?id=', html)
 
     def test_viewer_sees_retire_denied_tip(self):
         self._login('viewer')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-retire="false"', html)
-        self.assertNotIn('data-can-retire="true"', html)
+        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        self.assertNotIn('onclick="cpRetire(', tbody)
+        self.assertNotIn('>下线</a>', tbody)
 
     def test_admin_sees_retire_form_link(self):
         self._login('admin')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-retire="true"', html)
-        self.assertIn('/cron_retire?', html)
-        self.assertNotIn('data-can-retire="false"', html)
+        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        self.assertIn('onclick="cpRetire(', tbody)
+        self.assertIn('>下线</a>', tbody)
+        self.assertIn("$.post('/cron_retire'", html)
 
     def test_seed_admin_sees_retire_denied_tip(self):
         with self.client.session_transaction() as sess:
@@ -428,83 +382,9 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             sess['username'] = 'admin'
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        self.assertIn('data-can-retire="false"', html)
-        self.assertNotIn('data-can-retire="true"', html)
-        self.assertNotIn('/cron_retire?', html)
-
-
-class TestNavHasPerm(unittest.TestCase):
-    def setUp(self):
-        app = Flask(
-            __name__,
-            template_folder=os.path.join(ROOT, 'app', 'templates'),
-            static_folder=os.path.join(ROOT, 'app', 'static'),
-        )
-        app.secret_key = 'test'
-        app.config['TESTING'] = True
-        app.register_blueprint(main_blueprint)
-        from app.rbac import rbac as rbac_blueprint
-        app.register_blueprint(rbac_blueprint)
-        register_hms_filters(app)
-        self.app = app
-
-    def _render_nav(self, role):
-        with self.app.app_context():
-            with self.app.test_request_context():
-                session['is_login'] = True
-                session['role'] = role
-                return render_template('rbac/_nav.html', active='cron_list')
-
-    def test_viewer_nav_hides_cron_add(self):
-        html = self._render_nav('viewer')
-        self.assertIn('任务中心', html)
-        self.assertIn('任务执行记录', html)
-        self.assertNotIn('任务添加', html)
-        self.assertNotIn('用户管理', html)
-
-    def test_operator_nav_shows_cron_add(self):
-        html = self._render_nav('operator')
-        self.assertIn('任务添加', html)
-        self.assertNotIn('用户管理', html)
-
-    def test_admin_nav_shows_users_and_audit(self):
-        html = self._render_nav('admin')
-        self.assertIn('用户管理', html)
-        self.assertIn('访问审计', html)
-        self.assertIn('变更记录', html)
-
-    def test_operator_nav_hides_audit(self):
-        html = self._render_nav('operator')
-        self.assertNotIn('访问审计', html)
-        self.assertNotIn('用户管理', html)
-        self.assertIn('变更记录', html)
-
-    def test_any_role_nav_shows_change_password(self):
-        for role in ('admin', 'operator', 'viewer'):
-            html = self._render_nav(role)
-            self.assertIn('修改密码', html, role)
-
-    def test_any_role_nav_places_api_token_before_api_doc(self):
-        for role in ('admin', 'operator', 'viewer'):
-            html = self._render_nav(role)
-            self.assertIn('API Token', html, role)
-            self.assertIn('API文档', html, role)
-            self.assertLess(html.find('API Token'), html.find('API文档'), role)
-
-    def test_cron_edit_nav_shows_edit_not_add(self):
-        with self.app.app_context():
-            with self.app.test_request_context():
-                session['is_login'] = True
-                session['role'] = 'operator'
-                html = render_template('rbac/_nav.html', active='cron_edit')
-        self.assertIn('任务编辑', html)
-        self.assertNotIn('任务添加', html)
-
-    def test_viewer_nav_hides_operation_and_rbac(self):
-        html = self._render_nav('viewer')
-        self.assertNotIn('变更记录', html)
-        self.assertNotIn('用户管理', html)
-        self.assertNotIn('访问审计', html)
+        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        self.assertNotIn('onclick="cpRetire(', tbody)
+        self.assertNotIn('>下线</a>', tbody)
 
 
 class TestNotFound(unittest.TestCase):
@@ -584,7 +464,7 @@ class TestApiDocReadonly(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.get_data(as_text=True)
         self.assertIn('API 查询文档（权限内）', body)
-        self.assertIn('仅展示当前账号权限范围内、且具备“查询语义”的接口', body)
+        self.assertIn('本页仅展示当前账号权限范围内、且具备"查询语义"的接口', body)
         self.assertIn('/api/test', body)
         self.assertIn('/api/openapi.json', body)
         self.assertIn('/api/cron/query', body)
@@ -1035,7 +915,7 @@ class TestForcedPasswordReset(unittest.TestCase):
         page = self.client.get('/rbac/api_token')
         self.assertEqual(page.status_code, 200)
         body = page.get_data(as_text=True)
-        self.assertIn('重置Token', body)
+        self.assertIn('重置', body)
         self.assertIn('/rbac/api_token/reset', body)
 
         reset = self.client.post(
@@ -1090,20 +970,19 @@ class TestForcedPasswordReset(unittest.TestCase):
 
         self._login_session('mgr', 'admin', self.admin_id)
         html = self.client.get('/rbac/users').get_data(as_text=True)
-        # 启用用户仍有重置密码按钮
-        self.assertIn('重置密码', html)
+        # 启用用户仍有重置密码按钮（Redesign 为 icon + data-tooltip）
+        self.assertIn('data-tooltip="重置密码"', html)
         self.assertIn('/rbac/users/reset_password?id=%s' % self.existing_id, html)
-        # 停用用户：无重置密码/Token/编辑按钮，只有"查看"
-        self.assertNotIn('恢复启用', html)
+        # 停用用户：无重置密码/Token/编辑按钮，只有查看
         self.assertNotIn('/rbac/users/reset_password?id=%s' % disabled_id, html)
-        self.assertIn('>查看</a>', html)
-        self.assertIn('user-row-inactive', html)
+        self.assertIn('data-tooltip="查看信息"', html)
+        self.assertIn('cp-opacity-60', html)
         self.assertIn('请假停用', html)
-        # 启用用户有"编辑"按钮
-        self.assertIn('>编辑</a>', html)
+        # 启用用户有查看详情 icon
+        self.assertIn('data-tooltip="查看详情"', html)
         self.assertIn('修改密码', html)
         self.assertIn('/rbac/password', html)
-        self.assertIn('账号/角色/业务组不可自改', html)
+        self.assertIn('账号/角色不可自改', html)
 
     def test_cannot_edit_self_via_users_edit(self):
         self._login_session('mgr', 'admin', self.admin_id)
@@ -1259,10 +1138,10 @@ class TestRbacAuditLogs(unittest.TestCase):
         resp = self.client.get('/rbac/audit-logs')
         self.assertEqual(resp.status_code, 200)
         body = resp.get_data(as_text=True)
-        self.assertIn('登录', body)
-        self.assertIn('用户 ID', body)
+        self.assertIn('登录成功', body)
+        self.assertIn('admin', body)
         self.assertIn('账号 admin', body)
-        self.assertIn('<td>1</td>', body)
+        self.assertIn('允许', body)
         self.assertNotIn('js-ajax-form', body)
         self.assertNotIn('legacy_admin', body)
 
@@ -1504,17 +1383,17 @@ class TestUserTopbar(unittest.TestCase):
         resp = self.client.get('/rbac/password')
         self.assertEqual(resp.status_code, 200)
         body = resp.get_data(as_text=True)
-        self.assertIn('rbac-topbar', body)
-        self.assertIn('topbar-identity', body)
+        self.assertIn('cp-topbar', body)
+        self.assertIn('cp-topbar-username', body)
         self.assertIn('summer', body)
+        self.assertIn('cp-topbar-urole', body)
         self.assertIn('业务管理员', body)
-        self.assertIn('topbar-role-admin', body)
         self.assertNotIn('系统管理员', body)
         self.assertNotIn('全局可见', body)
         self.assertNotIn('支付业务', body)
         self.assertNotIn('未分配业务组', body)
         self.assertIn('/rbac/logout', body)
-        self.assertEqual(body.count('退出'), 1)
+        self.assertEqual(body.count('退出登录'), 1)
         self.assertNotIn('href="/logout"', body)
 
     def test_seed_admin_shows_system_admin_label(self):
@@ -1522,24 +1401,31 @@ class TestUserTopbar(unittest.TestCase):
         resp = self.client.get('/rbac/password')
         body = resp.get_data(as_text=True)
         self.assertIn('系统管理员', body)
-        self.assertIn('topbar-role-seed', body)
+        self.assertIn('cp-topbar-urole', body)
         self.assertNotIn('业务管理员', body)
 
     def test_operator_with_groups_shows_names(self):
         self._login('operator', 'op1', group_ids=[self.group_id])
         resp = self.client.get('/rbac/password')
         body = resp.get_data(as_text=True)
+        self.assertIn('cp-topbar-username', body)
+        self.assertIn('op1', body)
+        self.assertIn('cp-topbar-urole', body)
         self.assertIn('operator', body)
-        self.assertIn('支付业务', body)
+        # Redesign topbar 不展示业务组名称
+        self.assertNotIn('支付业务', body)
         self.assertNotIn('全局可见', body)
         self.assertNotIn('未分配业务组', body)
-        self.assertNotIn('操作员', body)
 
     def test_operator_without_groups_warns(self):
         self._login('operator', 'op2', group_ids=[])
         resp = self.client.get('/rbac/password')
         body = resp.get_data(as_text=True)
-        self.assertIn('未分配业务组', body)
+        self.assertIn('cp-topbar-username', body)
+        self.assertIn('op2', body)
+        self.assertIn('operator', body)
+        # Redesign topbar 不展示未分配业务组警告
+        self.assertNotIn('未分配业务组', body)
         self.assertNotIn('全局可见', body)
 
     def test_guest_404_has_no_topbar(self):

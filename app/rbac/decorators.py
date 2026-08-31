@@ -82,7 +82,7 @@ def _forbidden_response(permission):
             status=403,
         )
     return render_template(
-        'errors/error.html',
+        'redesign/error.html',
         icon='fa-lock',
         title='无权访问',
         description='您没有权限访问此页面，如需开通请联系管理员。',

@@ -88,19 +88,6 @@ def create_app(config_name):
     from app.ui_mode import inject_ui_mode
     app.context_processor(inject_ui_mode)
 
-    # OPT-P1-16: Set g.ui_version for views to branch template selection
-    from app.ui_mode import _VALID_UI_VERSIONS
-
-    @app.before_request
-    def _set_ui_version():
-        from flask import g, request as _req
-        ui_version = _req.cookies.get('cp_ui_version', 'v1')
-        if app.config.get('CRONPILOT_FORCE_NEW_UI'):
-            ui_version = 'v2'
-        if ui_version not in _VALID_UI_VERSIONS:
-            ui_version = 'v1'
-        g.ui_version = ui_version
-
     _register_metrics_endpoint(app)
     _register_api_error_handlers(app)
 

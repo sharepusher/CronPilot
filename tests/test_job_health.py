@@ -209,15 +209,14 @@ class TestCronListHealthFilters(unittest.TestCase):
         self._login_admin()
         html = self.client.get('/?health=today_fail').get_data(as_text=True)
         self.assertIn('today_fail_only', html)
-        self.assertIn('today_fail_only', html)
-        self.assertIn('cabin-name', html)
+        self.assertIn('tc-name', html)
         self.assertNotIn('ok_today_clean', html)
         self.assertIn('health=today_fail', html)
         self.assertNotIn('opt-p2-13-metrics', html)
-        # filter chips are now Vue-rendered; server HTML carries data-current-health instead
-        self.assertIn('data-current-health="today_fail"', html)
-        self.assertIn('运行与发布', html)
-        self.assertIn('data-cron-id', html)
+        # Redesign dashboard: health filter chips use data-filter-val
+        self.assertIn('data-filter-val="today_fail"', html)
+        self.assertIn('今日失败', html)
+        self.assertIn('cp-dashboard-tbody', html)
 
     def test_failing_filter_requires_health_status(self):
         self._login_admin()

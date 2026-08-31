@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot — 认证页品牌标识与产品描述设计</title>
+<style>
+body { font-family: system-ui, -apple-system, sans-serif; max-width: 1060px; margin: 2em auto; padding: 0 1em; line-height: 1.7; color: #1a1a1a; }
+h1 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+h2 { margin-top: 2em; color: #1e40af; }
+h3 { color: #374151; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 14px; }
+th { background: #f3f4f6; font-weight: 600; }
+code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+.problem { background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px 14px; margin: 1em 0; }
+.scope { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 8px 14px; margin: 1em 0; }
+.recommend { background: #ecfdf5; border: 2px solid #059669; padding: 12px 16px; margin: 1em 0; border-radius: 6px; }
+.demo-section { margin: 2em 0; padding: 24px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; }
+.demo-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.demo-tag.old { background: #fee2e2; color: #991b1b; }
+.demo-tag.new { background: #dbeafe; color: #1e40af; }
+.demo-tag.winner { background: #059669; color: #fff; }
+.score { display: inline-block; min-width: 18px; text-align: center; font-weight: 700; }
+.score.s5 { color: #059669; }
+.score.s4 { color: #0d9488; }
+.score.s3 { color: #d97706; }
+
+/* ─── Mock Auth Card Base ─── */
+.mock-bg { background: #f8fafc; padding: 32px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.mock-bg-dark { background: #0f172a; }
+.mock-card { width: 360px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+.mock-field { margin-bottom: 14px; }
+.mock-label { font-size: 12.5px; font-weight: 500; margin-bottom: 5px; display: block; color: #374151; }
+.mock-label-row { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; }
+.mock-label-row a { color: #3b82f6; text-decoration: none; font-size: 11.5px; }
+.mock-input { width: 100%; height: 38px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 12px; font-size: 13px; background: #fff; color: #9ca3af; box-sizing: border-box; }
+.mock-btn { width: 100%; height: 38px; border: none; border-radius: 6px; background: #3b82f6; color: #fff; font-size: 14px; font-weight: 600; cursor: default; margin-top: 4px; }
+.mock-footer { margin-top: 18px; text-align: center; font-size: 12px; color: #6b7280; }
+.mock-footer a { color: #3b82f6; text-decoration: none; }
+.mock-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+
+/* ─── Layout A: Centered Brand ─── */
+.la-brand { text-align: center; margin-bottom: 28px; }
+.la-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; margin: 0 auto 10px; }
+.la-icon svg { width: 28px; height: 28px; }
+.la-name { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+.la-tagline { font-size: 12px; color: #94a3b8; margin-top: 4px; letter-spacing: 0.03em; }
+.la-title { font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 4px; color: #1e293b; }
+.la-subtitle { font-size: 12.5px; color: #64748b; text-align: center; margin-bottom: 22px; }
+
+/* ─── Layout B: Inline Refined ─── */
+.lb-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.lb-logo svg { width: 22px; height: 22px; flex-shrink: 0; }
+.lb-name { font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+.lb-tagline { font-size: 11.5px; color: #94a3b8; margin-bottom: 26px; letter-spacing: 0.02em; }
+.lb-sep { display: inline-block; width: 1px; height: 14px; background: #d1d5db; margin: 0 10px; vertical-align: middle; }
+.lb-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; color: #1e293b; }
+.lb-subtitle { font-size: 12.5px; color: #64748b; margin-bottom: 22px; }
+
+/* ─── Layout C: Brand Strip ─── */
+.lc-card { width: 360px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+.lc-strip { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 20px 28px; color: #fff; }
+.lc-strip-logo { display: flex; align-items: center; gap: 10px; }
+.lc-strip-logo svg { width: 22px; height: 22px; }
+.lc-strip-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.lc-strip-tagline { font-size: 11.5px; color: rgba(255,255,255,0.7); margin-top: 4px; letter-spacing: 0.02em; }
+.lc-body { padding: 24px 28px 28px; }
+.lc-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #1e293b; }
+.lc-subtitle { font-size: 12.5px; color: #64748b; margin-bottom: 20px; }
+
+/* ─── Dark Mode Demo ─── */
+.mock-bg-dark { background: #16161e; }
+.mock-card-dark { width: 360px; background: #1e1e2e; border: 1px solid #2e2e42; border-radius: 12px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); color: #e2e8f0; }
+.mock-card-dark .mock-label { color: #e2e8f0; }
+.mock-card-dark .mock-label-row { color: #e2e8f0; }
+.mock-card-dark .mock-label-row a { color: #4C8DFF; }
+.mock-card-dark .mock-input { background: #1e1e2e; border-color: #2e2e42; color: #565C64; }
+.mock-card-dark .mock-btn { background: #4C8DFF; }
+.mock-card-dark .mock-footer { color: #8B9198; }
+.mock-card-dark .mock-footer a { color: #4C8DFF; }
+.mock-card-dark .la-brand .la-name { color: #e2e8f0; }
+.mock-card-dark .la-brand .la-tagline { color: #565C64; }
+.mock-card-dark .la-icon { background: linear-gradient(135deg, #1e2a4a 0%, #1e3a5f 100%); border-color: #2e2e42; }
+.mock-card-dark .la-title { color: #e2e8f0; }
+.mock-card-dark .la-subtitle { color: #8B9198; }
+.lc-card-dark { width: 360px; background: #1e1e2e; border: 1px solid #2e2e42; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.3); color: #e2e8f0; }
+.lc-card-dark .lc-body { color: #e2e8f0; }
+.lc-card-dark .lc-title { color: #e2e8f0; }
+.lc-card-dark .lc-subtitle { color: #8B9198; }
+.lc-card-dark .mock-label { color: #e2e8f0; }
+.lc-card-dark .mock-input { background: #1e1e2e; border-color: #2e2e42; color: #565C64; }
+.lc-card-dark .mock-btn { background: #4C8DFF; }
+.lc-card-dark .mock-footer { color: #8B9198; }
+.lc-strip-problem { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 20px 28px; color: #fff; position: relative; }
+.lc-strip-problem::after { content: "⚠️ 渐变与暗色背景对比度不足"; position: absolute; right: 12px; top: 8px; font-size: 10px; background: rgba(239,68,68,0.9); color: #fff; padding: 2px 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h1>认证页品牌标识与产品描述设计</h1>
+<p><strong>状态</strong>：待确认 &nbsp;|&nbsp; <strong>日期</strong>：2026-08-28 &nbsp;|&nbsp; <strong>关联</strong>：OPT-P1-16 Redesign</p>
+
+<!-- ===== 1. 问题 ===== -->
+<h2>1. 问题</h2>
+<div class="problem">
+<strong>P1. 认证页 Logo 与管理端不一致</strong> — 4 个认证页面使用 9px 蓝色方点（<code>.auth-logo-dot</code>）作为品牌标识，而管理端侧边栏使用自定义 SVG 括号+时钟图标。品牌识别断裂：用户从登录页进入主界面后看到完全不同的 Logo。
+</div>
+<div class="problem">
+<strong>P2. 缺少产品定位描述</strong> — 认证页只显示 "CronPilot" 品牌名，首次访问的用户无法快速了解产品定位。行业最佳实践（Supabase、Railway、PlanetScale）均在认证页展示产品定位 tagline。
+</div>
+
+<!-- ===== 2. 根因 ===== -->
+<h2>2. 根因</h2>
+<p>认证页面独立于 <code>_base.html</code>，Logo 区域在初始设计时使用了简化的方点占位符。产品描述在 Redesign 中未纳入认证页设计范围。</p>
+
+<!-- ===== 3. 行业参考 ===== -->
+<h2>3. 行业参考</h2>
+<table>
+<thead><tr><th>产品</th><th>Logo 形式</th><th>品牌布局</th><th>Tagline</th></tr></thead>
+<tbody>
+<tr><td><strong>Linear</strong></td><td>几何 Logo 图标</td><td>居中堆叠（图标 → 名称）</td><td>无（品牌知名度足够）</td></tr>
+<tr><td><strong>Vercel</strong></td><td>三角形标记</td><td>居中堆叠</td><td>"Log in to Vercel"</td></tr>
+<tr><td><strong>Supabase</strong></td><td>SVG Logo</td><td>居中堆叠</td><td>"The Open Source Firebase Alternative"</td></tr>
+<tr><td><strong>Railway</strong></td><td>图标 + 文字 inline</td><td>左对齐</td><td>"Infrastructure made simple"</td></tr>
+<tr><td><strong>PlanetScale</strong></td><td>图标 + 文字 inline</td><td>左对齐</td><td>"The database platform"</td></tr>
+<tr><td><strong>Doppler</strong></td><td>大型 Logo 居中</td><td>卡片上方居中</td><td>"The #1 SecretOps Platform"</td></tr>
+</tbody>
+</table>
+<p><strong>洞察</strong>：品牌知名度较高的产品（Linear、Vercel）倾向居中堆叠布局；B2B/基础设施产品（Supabase、Railway、PlanetScale）普遍附带产品定位 tagline。CronPilot 作为内部工具类产品，应采用 tagline 帮助首次用户建立认知。</p>
+
+<!-- ===== 4. 方案对比 ===== -->
+<h2>4. 三种布局方案对比</h2>
+
+<h3>方案 A：居中堆叠品牌（Linear/Vercel 风格）</h3>
+<p>品牌图标以 48px 圆角方块承载，居中显示。品牌名和 tagline 居中排列。整体庄重、对称、有仪式感。</p>
+
+<h3>方案 B：左对齐品牌 + 独立 tagline（Railway/PlanetScale 风格）</h3>
+<p>品牌图标与名称内联左对齐，tagline 作为独立行。保持信息层次的同时更紧凑。</p>
+
+<h3>方案 C：品牌色带 + 表单分区（企业级风格）</h3>
+<p>卡片顶部为品牌主色渐变条，白色字体展示品牌信息。表单在下方白色区域。视觉层次最强，企业感最重。</p>
+
+<table>
+<thead><tr><th>评分维度</th><th>权重</th><th>A. 居中堆叠</th><th>B. 左对齐</th><th>C. 品牌色带</th></tr></thead>
+<tbody>
+<tr><td><strong>品牌冲击力</strong></td><td>25%</td><td><span class="score s5">5</span> 居中 + 大图标</td><td><span class="score s4">4</span> 紧凑但专业</td><td><span class="score s5">5</span> 色带醒目</td></tr>
+<tr><td><strong>信息层次</strong></td><td>20%</td><td><span class="score s5">5</span> 品牌→tagline→操作</td><td><span class="score s4">4</span> 品牌+tagline→操作</td><td><span class="score s5">5</span> 分区最清晰</td></tr>
+<tr><td><strong>空间利用</strong></td><td>20%</td><td><span class="score s3">3</span> 品牌区占 ~90px</td><td><span class="score s5">5</span> 最紧凑 ~50px</td><td><span class="score s4">4</span> 色带占 ~60px</td></tr>
+<tr><td><strong>移动端适配</strong></td><td>15%</td><td><span class="score s5">5</span> 居中天然响应式</td><td><span class="score s5">5</span> 左对齐天然响应</td><td><span class="score s4">4</span> 色带渐变需适配</td></tr>
+<tr><td><strong>暗色主题兼容</strong></td><td>10%</td><td><span class="score s5">5</span> currentColor + CSS 变量，零额外代码</td><td><span class="score s5">5</span> currentColor + CSS 变量，零额外代码</td><td><span class="score s3">3</span> 渐变色硬编码，暗色需额外维护一组值（见 Demo E）</td></tr>
+<tr><td><strong>迁移成本</strong></td><td>10%</td><td><span class="score s4">4</span> 重构 Logo 区</td><td><span class="score s5">5</span> 最小改动</td><td><span class="score s3">3</span> 新增色带结构</td></tr>
+<tr><td colspan="2"><strong>加权总分</strong></td><td><strong>4.55 ★</strong></td><td><strong>4.60 ★</strong></td><td><strong>4.10</strong></td></tr>
+</tbody>
+</table>
+
+<!-- ===== 5. Tagline 文案选择 ===== -->
+<h2>5. Tagline 文案对比</h2>
+<table>
+<thead><tr><th>#</th><th>文案</th><th>语言</th><th>特点</th><th>推荐度</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>定时调度管理平台</td><td>中文</td><td>直接、用户友好</td><td>★★★★</td></tr>
+<tr><td>T2</td><td>定时任务编排与监控平台</td><td>中文</td><td>更精确，但稍长</td><td>★★★</td></tr>
+<tr><td>T3</td><td>Scheduled Task Orchestration</td><td>英文</td><td>专业、国际化，但中文用户理解成本高</td><td>★★★</td></tr>
+<tr><td>T4</td><td>Cron Job Management Platform</td><td>英文</td><td>最技术化，适合开发者</td><td>★★★</td></tr>
+<tr><td>T5</td><td>定时任务调度中心</td><td>中文</td><td>简洁、有官方感</td><td>★★★★★</td></tr>
+</tbody>
+</table>
+<p><strong>推荐 T5</strong>：「定时任务调度中心」— 5 个字精准传达产品定位，"调度中心"暗示了管理+监控+编排的综合能力，且符合中文 B2B 工具的命名惯例（如 "数据中台"、"监控中心"）。</p>
+
+<!-- ===== 6. 实际渲染 Demo ===== -->
+<h2>6. 实际渲染 Demo</h2>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo 0：当前版本（基线）</h3>
+<div class="mock-bg">
+<div class="mock-card">
+  <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:28px;color:#1a1a1a">
+    <span style="width:9px;height:9px;border-radius:2px;background:#3b82f6;display:inline-block"></span>CronPilot
+  </div>
+  <div style="font-size:17px;font-weight:600;margin-bottom:4px">欢迎回来</div>
+  <div style="font-size:12.5px;color:#64748b;margin-bottom:22px">登录你的工作空间</div>
+  <div class="mock-field"><span class="mock-label">用户名</span><input class="mock-input" placeholder="请输入用户名" readonly></div>
+  <div class="mock-field"><div class="mock-label-row"><span>密码</span><a>忘记密码？</a></div><input class="mock-input" type="password" placeholder="••••••••" readonly></div>
+  <button class="mock-btn">登录</button>
+  <div class="mock-footer">还没有账号？<a>申请注册</a></div>
+</div>
+</div>
+<p style="text-align:center;font-size:12px;color:#ef4444;margin-top:8px">问题：蓝色方点无品牌辨识度，无产品定位描述</p>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo A：居中堆叠品牌（推荐）</h3>
+<p style="font-size:13px;color:#6b7280">品牌图标以淡蓝渐变方块承载，居中堆叠。庄重、有仪式感，适合管理平台。</p>
+<div class="mock-bg">
+<div class="mock-card">
+  <div class="la-brand">
+    <div class="la-icon">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M6 3H3v18h3" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M18 3h3v18h-3" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="la-name">CronPilot</div>
+    <div class="la-tagline">定时任务调度中心</div>
+  </div>
+  <div class="la-title">欢迎回来</div>
+  <div class="la-subtitle">登录你的工作空间</div>
+  <div class="mock-field"><span class="mock-label">用户名</span><input class="mock-input" placeholder="请输入用户名" readonly></div>
+  <div class="mock-field"><div class="mock-label-row"><span>密码</span><a>忘记密码？</a></div><input class="mock-input" type="password" placeholder="••••••••" readonly></div>
+  <button class="mock-btn">登录</button>
+  <div class="mock-footer">还没有账号？<a>申请注册</a></div>
+</div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo B：左对齐品牌 + 独立 tagline</h3>
+<p style="font-size:13px;color:#6b7280">紧凑布局，品牌图标与文字内联。最小化高度开销，适合注册等长表单。</p>
+<div class="mock-bg">
+<div class="mock-card">
+  <div class="lb-logo">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="lb-name">CronPilot</span>
+  </div>
+  <div class="lb-tagline">定时任务调度中心</div>
+  <div class="lb-title">欢迎回来</div>
+  <div class="lb-subtitle">登录你的工作空间</div>
+  <div class="mock-field"><span class="mock-label">用户名</span><input class="mock-input" placeholder="请输入用户名" readonly></div>
+  <div class="mock-field"><div class="mock-label-row"><span>密码</span><a>忘记密码？</a></div><input class="mock-input" type="password" placeholder="••••••••" readonly></div>
+  <button class="mock-btn">登录</button>
+  <div class="mock-footer">还没有账号？<a>申请注册</a></div>
+</div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo C：品牌色带 + 表单分区</h3>
+<p style="font-size:13px;color:#6b7280">卡片顶部品牌色渐变条，白色文字。下方白色区域放表单。企业感最强。</p>
+<div class="mock-bg">
+<div class="lc-card">
+  <div class="lc-strip">
+    <div class="lc-strip-logo">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M6 3H3v18h3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M18 3h3v18h-3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="12 7 12 12 15.5 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="lc-strip-name">CronPilot</span>
+    </div>
+    <div class="lc-strip-tagline">定时任务调度中心</div>
+  </div>
+  <div class="lc-body">
+    <div class="lc-title">欢迎回来</div>
+    <div class="lc-subtitle">登录你的工作空间</div>
+    <div class="mock-field"><span class="mock-label">用户名</span><input class="mock-input" placeholder="请输入用户名" readonly></div>
+    <div class="mock-field"><div class="mock-label-row"><span>密码</span><a>忘记密码？</a></div><input class="mock-input" type="password" placeholder="••••••••" readonly></div>
+    <button class="mock-btn">登录</button>
+    <div class="mock-footer">还没有账号？<a>申请注册</a></div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo D：A/B/C 三方案并排对比</h3>
+<div class="mock-row">
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px"><span class="demo-tag new">A 居中</span> <span class="demo-tag winner">★</span></p>
+<div class="mock-card" style="width:280px;padding:24px 20px">
+  <div class="la-brand" style="margin-bottom:20px">
+    <div class="la-icon" style="width:40px;height:40px;margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M6 3H3v18h3" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="la-name" style="font-size:16px">CronPilot</div>
+    <div class="la-tagline" style="font-size:11px">定时任务调度中心</div>
+  </div>
+  <div style="font-size:15px;font-weight:600;text-align:center;margin-bottom:3px">欢迎回来</div>
+  <div style="font-size:11.5px;color:#64748b;text-align:center;margin-bottom:16px">登录你的工作空间</div>
+  <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:34px;font-size:12px"></div>
+  <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:34px;font-size:12px"></div>
+  <button class="mock-btn" style="height:34px;font-size:13px">登录</button>
+</div>
+</div>
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px"><span class="demo-tag new">B 左对齐</span></p>
+<div class="mock-card" style="width:280px;padding:24px 20px">
+  <div class="lb-logo" style="margin-bottom:3px"><svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px"><path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lb-name" style="font-size:15px">CronPilot</span></div>
+  <div class="lb-tagline" style="margin-bottom:20px;font-size:11px">定时任务调度中心</div>
+  <div style="font-size:15px;font-weight:600;margin-bottom:3px">欢迎回来</div>
+  <div style="font-size:11.5px;color:#64748b;margin-bottom:16px">登录你的工作空间</div>
+  <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:34px;font-size:12px"></div>
+  <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:34px;font-size:12px"></div>
+  <button class="mock-btn" style="height:34px;font-size:13px">登录</button>
+</div>
+</div>
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px"><span class="demo-tag new">C 色带</span></p>
+<div class="lc-card" style="width:280px">
+  <div class="lc-strip" style="padding:14px 20px">
+    <div class="lc-strip-logo"><svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px"><path d="M6 3H3v18h3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lc-strip-name" style="font-size:15px">CronPilot</span></div>
+    <div class="lc-strip-tagline" style="font-size:11px">定时任务调度中心</div>
+  </div>
+  <div style="padding:18px 20px 24px">
+    <div style="font-size:15px;font-weight:600;margin-bottom:3px">欢迎回来</div>
+    <div style="font-size:11.5px;color:#64748b;margin-bottom:16px">登录你的工作空间</div>
+    <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:34px;font-size:12px"></div>
+    <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:34px;font-size:12px"></div>
+    <button class="mock-btn" style="height:34px;font-size:13px">登录</button>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="demo-section">
+<h3 style="margin-top:0">Demo E：暗色主题对比（Dark Mode）</h3>
+<p style="font-size:13px;color:#6b7280">CronPilot 支持暗色主题（<code>Cookie: cp_theme=dark</code>）。以下展示三种方案在暗色模式下的实际表现差异，直观说明方案 C 的"渐变色需双套"问题。</p>
+
+<div class="mock-row">
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#4C8DFF;margin-bottom:8px"><span class="demo-tag winner">A 居中 · Dark ✓</span></p>
+<div class="mock-bg mock-bg-dark" style="padding:20px 12px;border-radius:10px">
+<div class="mock-card-dark" style="width:260px;padding:22px 18px">
+  <div class="la-brand" style="margin-bottom:18px">
+    <div class="la-icon" style="width:40px;height:40px;margin-bottom:8px;background:linear-gradient(135deg,#1e2a4a 0%,#1e3a5f 100%);border-color:#2e2e42"><svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M6 3H3v18h3" stroke="#4C8DFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="#4C8DFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="la-name" style="font-size:15px;color:#e2e8f0">CronPilot</div>
+    <div class="la-tagline" style="font-size:10.5px;color:#565C64">定时任务调度中心</div>
+  </div>
+  <div style="font-size:14px;font-weight:600;text-align:center;margin-bottom:3px;color:#e2e8f0">欢迎回来</div>
+  <div style="font-size:11px;color:#8B9198;text-align:center;margin-bottom:14px">登录你的工作空间</div>
+  <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+  <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+  <button class="mock-btn" style="height:32px;font-size:12px;background:#4C8DFF">登录</button>
+</div>
+</div>
+<p style="font-size:11px;color:#059669;margin-top:6px">✓ 图标容器用 CSS 变量，自动适配暗色<br>✓ 无需额外维护代码</p>
+</div>
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#4C8DFF;margin-bottom:8px"><span class="demo-tag new">B 左对齐 · Dark ✓</span></p>
+<div class="mock-bg mock-bg-dark" style="padding:20px 12px;border-radius:10px">
+<div class="mock-card-dark" style="width:260px;padding:22px 18px">
+  <div class="lb-logo" style="margin-bottom:3px"><svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px"><path d="M6 3H3v18h3" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#4C8DFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lb-name" style="font-size:14px;color:#e2e8f0">CronPilot</span></div>
+  <div class="lb-tagline" style="margin-bottom:18px;font-size:10.5px;color:#565C64">定时任务调度中心</div>
+  <div style="font-size:14px;font-weight:600;margin-bottom:3px;color:#e2e8f0">欢迎回来</div>
+  <div style="font-size:11px;color:#8B9198;margin-bottom:14px">登录你的工作空间</div>
+  <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+  <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+  <button class="mock-btn" style="height:32px;font-size:12px;background:#4C8DFF">登录</button>
+</div>
+</div>
+<p style="font-size:11px;color:#059669;margin-top:6px">✓ SVG 用 currentColor 随文字色变<br>✓ 无需额外维护代码</p>
+</div>
+
+<div style="text-align:center">
+<p style="font-size:12px;font-weight:600;color:#ef4444;margin-bottom:8px"><span class="demo-tag old">C 色带 · Dark ⚠️</span></p>
+<div class="mock-bg mock-bg-dark" style="padding:20px 12px;border-radius:10px">
+<div class="lc-card-dark" style="width:260px">
+  <div class="lc-strip-problem" style="padding:12px 18px">
+    <div class="lc-strip-logo"><svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px"><path d="M6 3H3v18h3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 3h3v18h-3" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12 7 12 12 15.5 14" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lc-strip-name" style="font-size:14px">CronPilot</span></div>
+    <div class="lc-strip-tagline" style="font-size:10.5px">定时任务调度中心</div>
+  </div>
+  <div style="padding:16px 18px 20px">
+    <div style="font-size:14px;font-weight:600;margin-bottom:3px;color:#e2e8f0">欢迎回来</div>
+    <div style="font-size:11px;color:#8B9198;margin-bottom:14px">登录你的工作空间</div>
+    <div class="mock-field"><input class="mock-input" placeholder="用户名" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+    <div class="mock-field"><input class="mock-input" type="password" placeholder="••••••" readonly style="height:32px;font-size:11px;background:#1e1e2e;border-color:#2e2e42;color:#565C64"></div>
+    <button class="mock-btn" style="height:32px;font-size:12px;background:#4C8DFF">登录</button>
+  </div>
+</div>
+</div>
+<p style="font-size:11px;color:#ef4444;margin-top:6px">⚠️ 渐变色带与暗色背景对比度降低<br>⚠️ 需额外维护 dark 专用渐变值</p>
+</div>
+
+</div>
+
+<p style="margin-top:16px;font-size:13px;padding:10px 14px;background:#eff6ff;border-radius:6px;border-left:3px solid #3b82f6"><strong>结论</strong>：方案 A/B 的品牌元素（SVG <code>currentColor</code> + CSS 变量背景）<strong>天然适配暗色主题</strong>，无需额外代码。方案 C 的 <code>linear-gradient</code> 硬编码色值在暗色模式下对比度不足，需为暗色单独维护一组渐变值（<code>[data-theme="dark"] .lc-strip { background: ... }</code>），即"<strong>渐变色需双套</strong>"。</p>
+</div>
+
+<!-- ===== 7. 推荐方案 ===== -->
+<h2>7. 推荐方案</h2>
+<div class="recommend">
+<h3 style="margin-top:0">推荐：方案 A（居中堆叠）+ T5 tagline</h3>
+<p><strong>核心理由</strong>：</p>
+<ol>
+<li><strong>仪式感与庄重</strong> — 居中布局是 Linear、Vercel、Supabase 等一线 SaaS 的标准，传达"专业管理平台"定位</li>
+<li><strong>品牌识别强</strong> — 48px 图标容器（淡蓝渐变背景 + 品牌 SVG）在页面中占据视觉焦点，比 9px 方点提升数倍辨识度</li>
+<li><strong>层次分明</strong> — 品牌区（图标+名称+tagline） → 操作区（标题+副标题+表单）天然分层，无信息混杂</li>
+<li><strong>暗色主题兼容好</strong> — 图标容器背景色可用 CSS 变量适配</li>
+</ol>
+<p><strong>与方案 B 差异</strong>：B 更紧凑（适合长表单如注册页），但品牌冲击力弱于 A。建议登录/忘记密码用 A，注册/补全资料如空间紧张也可用 A（卡片宽度足够）。</p>
+<p><strong>与方案 C 差异</strong>：C 企业感最强但暗色主题需维护渐变色双套，且色带在移动端小屏幕上压缩表单空间。</p>
+</div>
+
+<!-- ===== 8. 范围 ===== -->
+<h2>8. 范围</h2>
+<div class="scope">
+<strong>改动范围</strong>：
+<ul>
+<li><code>login.html</code> — 替换 Logo 为居中堆叠品牌区 + tagline</li>
+<li><code>register.html</code> — 同上</li>
+<li><code>forgot_password.html</code> — 同上</li>
+<li><code>complete_profile.html</code> — 同上</li>
+<li><code>redesign-auth.css</code> — 新增 <code>.auth-brand</code>（容器）、<code>.auth-brand-icon</code>（图标方块）、<code>.auth-brand-name</code>（名称）、<code>.auth-tagline</code>（tagline）样式；调整 <code>.auth-logo</code> 的 margin</li>
+</ul>
+
+<strong>CSS class 变更明细</strong>：
+<table>
+<thead><tr><th>操作</th><th>选择器</th><th>属性</th></tr></thead>
+<tbody>
+<tr><td>新增</td><td><code>.auth-brand</code></td><td><code>text-align: center; margin-bottom: 28px;</code></td></tr>
+<tr><td>新增</td><td><code>.auth-brand-icon</code></td><td><code>display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: var(--cp-signal-bg); border: 1px solid var(--cp-signal-border, var(--cp-border)); margin: 0 auto 10px;</code></td></tr>
+<tr><td>新增</td><td><code>.auth-brand-icon svg</code></td><td><code>width: 28px; height: 28px;</code></td></tr>
+<tr><td>新增</td><td><code>.auth-brand-name</code></td><td><code>font-size: 18px; font-weight: 700; color: var(--cp-text); letter-spacing: -0.01em;</code></td></tr>
+<tr><td>新增</td><td><code>.auth-tagline</code></td><td><code>font-size: 12px; color: var(--cp-text-faint); margin-top: 4px; letter-spacing: 0.03em;</code></td></tr>
+<tr><td>删除</td><td><code>.auth-logo</code>（整个块）</td><td>替换为 <code>.auth-brand</code></td></tr>
+<tr><td>删除</td><td><code>.auth-logo-dot</code></td><td>不再使用</td></tr>
+</tbody>
+</table>
+
+<strong>HTML 变更</strong>：
+<table>
+<thead><tr><th>变更类型</th><th>旧值</th><th>新值</th></tr></thead>
+<tbody>
+<tr><td>替换 Logo 区域</td><td><code>&lt;div class="auth-logo"&gt;&lt;span class="auth-logo-dot"&gt;...CronPilot&lt;/div&gt;</code></td><td><code>&lt;div class="auth-brand"&gt;...SVG + CronPilot + tagline&lt;/div&gt;</code></td></tr>
+</tbody>
+</table>
+
+<strong>明确不做</strong>：
+<ul>
+<li>不改变 <code>auth-title</code> / <code>auth-subtitle</code> 内容</li>
+<li>不改变表单结构、JS、交互逻辑</li>
+<li>不涉及 v1 模板、<code>_base.html</code></li>
+<li>不改变卡片宽度或整体布局</li>
+</ul>
+</div>
+
+<!-- ===== 9. 分批 ===== -->
+<h2>9. 分批</h2>
+<p>单批完成（共 5 个文件、约 30 行改动）：</p>
+<ol>
+<li>在 <code>redesign-auth.css</code> 中新增 <code>.auth-brand*</code> 和 <code>.auth-tagline</code> 样式</li>
+<li>替换 4 个模板的 Logo 区域</li>
+<li><code>restart</code> → 浏览器验收 4 个页面</li>
+</ol>
+
+<!-- ===== 10. 验收 ===== -->
+<h2>10. 验收</h2>
+<table>
+<thead><tr><th>门禁</th><th>方法</th></tr></thead>
+<tbody>
+<tr><td>品牌图标存在</td><td><code>curl -s .../rbac/login | grep 'auth-brand-icon'</code> → 有输出</td></tr>
+<tr><td>Tagline 文案</td><td><code>curl -s .../rbac/login | grep '定时任务调度中心'</code> → 有输出</td></tr>
+<tr><td>旧方点已移除</td><td><code>curl -s .../rbac/login | grep 'auth-logo-dot'</code> → 无输出</td></tr>
+<tr><td>4 页面一致性</td><td>login / register / forgot_password / complete_profile 均有品牌区</td></tr>
+<tr><td>CSS 审计</td><td><code>python scripts/check_ui_contract.py --check</code></td></tr>
+<tr><td>颜色审计</td><td><code>python scripts/audit_hardcoded_colors.py --check</code></td></tr>
+</tbody>
+</table>
+
+<!-- ===== 11. 风险 ===== -->
+<h2>11. 风险</h2>
+<ul>
+<li><strong>低风险</strong>：仅替换 Logo HTML + 新增 CSS class，不改表单逻辑或 JS</li>
+<li><strong>视觉</strong>：居中品牌区增加约 90px 高度，380px 宽度的卡片仍远低于视口高度</li>
+<li><strong>回退</strong>：Git revert 单 commit</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="认证页品牌标识与产品描述设计.md">Markdown</a></footer>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>V1 UI 下线完成报告 — Batch 1-3</title>
+</head>
+<body>
+<h1>V1 UI 下线完成报告（Batch 1–3）</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>执行日期</th><td>2026-08-26 ~ 2026-08-31</td></tr>
+<tr><th>方案设计</th><td><a href="V1下线方案设计.html">V1下线方案设计.html</a></td></tr>
+<tr><th>Pre-check 报告</th><td><a href="V1下线Pre-check报告-2026-08.html">V1下线Pre-check报告-2026-08.html</a></td></tr>
+<tr><th>代码评估</th><td><a href="Redesign代码质量全面评估报告-R6-2026-08.html">R6 评估报告（A- 87/100）</a></td></tr>
+<tr><th>测试状态</th><td>432 pass / 0 fail</td></tr>
+<tr><th>CI 门禁</th><td>7/7 核心门禁全绿</td></tr>
+</table>
+
+<h2>1. 执行摘要</h2>
+<p>CronPilot V1 UI（基于 Bootstrap 3 + Simpleboot + artDialog + Wind.js 的旧版管理界面）已完全从代码库中移除。V2 Redesign UI（基于自建 Design Token + 模块化 CSS + jQuery IIFE 的新版界面）是现在唯一的前端实现。</p>
+
+<h2>2. 分批执行记录</h2>
+
+<h3>2.1 Batch 1 — 默认切换到 V2（2026-08-26）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td>app/ui_mode.py</td><td>Cookie 默认值 <code>v1</code> → <code>v2</code>；移除 <code>CRONPILOT_FORCE_NEW_UI</code> 覆盖逻辑</td></tr>
+<tr><td>app/__init__.py</td><td><code>before_request</code> 默认值 <code>v1</code> → <code>v2</code></td></tr>
+<tr><td>scripts/start_local_full.sh</td><td>移除 <code>export CRONPILOT_FORCE_NEW_UI=true</code></td></tr>
+</table>
+<p><strong>回退机制</strong>：用户可设置 Cookie <code>cp_ui_version=v1</code> 暂时回退。</p>
+
+<h3>2.2 Batch 2 — 条件分支清理（2026-08-26）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td>app/main/views.py</td><td>移除 15 处 <code>if ui_version == 'v2'</code> 分支，净减约 205 行</td></tr>
+<tr><td>app/rbac/views.py</td><td>移除 20 处 <code>if ui_version</code> 分支，净减约 207 行；删除 <code>template_map</code></td></tr>
+<tr><td>app/__init__.py</td><td>移除 <code>_set_ui_version()</code> before_request 钩子</td></tr>
+<tr><td>app/ui_mode.py</td><td>移除 <code>_VALID_UI_VERSIONS</code> 及全部 <code>ui_version</code> 代码</td></tr>
+<tr><td>tests/ (4 files)</td><td>19 个测试更新为 V2 断言</td></tr>
+</table>
+<p><strong>回退机制</strong>：不可在线回退，需从 git 历史恢复。</p>
+
+<h3>2.3 Batch 3 — 物理删除 V1 资产（2026-08-31）</h3>
+
+<h4>删除的文件（51 个文件 + 5 个目录）</h4>
+
+<p><strong>V1 模板（36 个）</strong></p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>类别</th><th>文件</th><th>V2 对应</th></tr>
+<tr><td>基础布局</td><td>admin_base.html, admin_page.html</td><td>redesign/_base.html</td></tr>
+<tr><td>首页/任务</td><td>index.html, cron_list.html</td><td>redesign/dashboard.html</td></tr>
+<tr><td>任务表单</td><td>cron_add.html, cron_edit.html</td><td>redesign/task_form.html</td></tr>
+<tr><td>任务下线</td><td>cron_retire.html</td><td>redesign/cron_retire.html</td></tr>
+<tr><td>日志</td><td>job_log_*.html (4个), operation_log_list.html</td><td>redesign/execution_logs.html, run_inspector.html, operation_log.html</td></tr>
+<tr><td>局部模板</td><td>_cron_list_rows.html, _cron_pagination.html, _job_log_result_cell.html</td><td>redesign/_dashboard_rows.html 等</td></tr>
+<tr><td>其他</td><td>api_doc.html, check_pass.html, tag_manage.html</td><td>redesign/api_doc.html, 路由 redirect, redesign/tags.html</td></tr>
+<tr><td>错误页</td><td>errors/error.html</td><td>redesign/error.html（新建）</td></tr>
+<tr><td>RBAC</td><td>rbac/*.html (18个: login, register, users, groups, audit 等)</td><td>redesign/ 对应文件</td></tr>
+</table>
+
+<p><strong>V1 JS（8 个文件）</strong></p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>用途</th><th>V2 替代</th></tr>
+<tr><td>common.js</td><td>V1 核心工具（AJAX form、Cookie、防重复提交等）</td><td>common-redesign.js</td></tr>
+<tr><td>wind.js</td><td>V1 UI 框架（模块加载器 + datePicker 等）</td><td>redesign-shell.js</td></tr>
+<tr><td>ajaxForm.js</td><td>jQuery 表单序列化插件</td><td>common-redesign.js 内置 $.ajax</td></tr>
+<tr><td>bootstrap.min.js</td><td>Bootstrap 3 JS</td><td>redesign-confirm.js (CpConfirm)</td></tr>
+<tr><td>requests.js</td><td>HTTP 请求封装</td><td>common-redesign.js</td></tr>
+<tr><td>signs.js</td><td>前端签名工具</td><td>后端签名，前端无需</td></tr>
+<tr><td>tag-input.js</td><td>标签输入组件</td><td>tags.html 内联 JS</td></tr>
+<tr><td>md5.js</td><td>MD5 哈希工具</td><td>不需要</td></tr>
+</table>
+
+<p><strong>V1 CSS（2 个文件）</strong></p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>用途</th><th>V2 替代</th></tr>
+<tr><td>bootstrap.min.css</td><td>Bootstrap 3 样式</td><td>6 个 redesign-*.css</td></tr>
+<tr><td>console-mode.css</td><td>V1 控制台模式</td><td>redesign-layout.css</td></tr>
+</table>
+
+<p><strong>V1 第三方插件目录（5 个）</strong></p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>目录</th><th>用途</th><th>V2 替代</th></tr>
+<tr><td>artDialog/</td><td>V1 弹窗组件</td><td>CpConfirm / CpModal</td></tr>
+<tr><td>datePicker/</td><td>V1 日期选择器</td><td>HTML5 date input</td></tr>
+<tr><td>jquery.validate/</td><td>V1 表单校验</td><td>HTML5 required + 后端校验</td></tr>
+<tr><td>noty/</td><td>V1 通知弹窗</td><td>CpToast</td></tr>
+<tr><td>simpleboot/</td><td>V1 UI 框架主题</td><td>Design Token (console-theme.css)</td></tr>
+</table>
+
+<h4>修改的文件（3 个）</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td>app/main/errors.py</td><td><code>'errors/error.html'</code> → <code>'redesign/error.html'</code>（2 处）</td></tr>
+<tr><td>app/rbac/decorators.py</td><td><code>'errors/error.html'</code> → <code>'redesign/error.html'</code>（1 处）</td></tr>
+<tr><td>app/templates/redesign/_base.html</td><td>更新注释：标注 admin_base.html 已在 Batch 3 移除</td></tr>
+</table>
+
+<h4>新建的文件（1 个）</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>说明</th></tr>
+<tr><td>app/templates/redesign/error.html</td><td>V2 独立错误页（不继承 _base.html，覆盖 404/403/500）</td></tr>
+</table>
+
+<h4>测试变更</h4>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>类型</th><th>数量</th><th>说明</th></tr>
+<tr><td>移除 V1 专属测试</td><td>-12</td><td>V1 sidebar 导航（V2 已由 test_redesign_sidebar 覆盖）、V1 common.js 守卫、V1 表单字段名</td></tr>
+<tr><td>新增 V2 等效测试</td><td>+3</td><td>补充 V2 断言</td></tr>
+<tr><td>净减测试函数</td><td>-9</td><td>652 → 643 个测试函数</td></tr>
+</table>
+
+<h2>3. 量化影响</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>Batch 前</th><th>Batch 后</th><th>变化</th></tr>
+<tr><td>模板文件数</td><td>73 (36 V1 + 37 V2)</td><td>38 (V2 only)</td><td>-35</td></tr>
+<tr><td>JS 文件数</td><td>14 + 5 dirs</td><td>7</td><td>-12 files, -5 dirs</td></tr>
+<tr><td>CSS 文件数</td><td>8</td><td>6</td><td>-2</td></tr>
+<tr><td>views.py 总行数</td><td>~2,830</td><td>2,418</td><td>-412 (-15%)</td></tr>
+<tr><td>ui_version 条件分支</td><td>35</td><td>0</td><td>-35</td></tr>
+<tr><td>运行测试数</td><td>441</td><td>432</td><td>-9</td></tr>
+<tr><td>测试通过率</td><td>100%</td><td>100%</td><td>—</td></tr>
+<tr><td>CI 门禁</td><td>7/7 绿</td><td>7/7 绿</td><td>—</td></tr>
+</table>
+
+<h2>4. 保留的 V2 资产清单</h2>
+
+<h3>4.1 模板（38 个）</h3>
+<p>全部位于 <code>app/templates/redesign/</code>：_audit_logs_pagination, _audit_logs_rows, _base, _dashboard_pagination, _dashboard_rows, _exec_logs_pagination, _exec_logs_rows, _oplog_pagination, _oplog_rows, _sidebar, _topbar, _users_pagination, _users_rows, _welcome, api_doc, api_token, audit_logs, change_password, complete_profile, cron_retire, dashboard, error, execution_logs, forgot_password, group_form, groups, login, operation_log, register, registration_review, run_inspector, tags, task_detail, task_form, user_form, user_profile, users, users_set_active</p>
+
+<h3>4.2 JS（7 个文件）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>加载方式</th><th>行数</th></tr>
+<tr><td>jquery.js</td><td>同步</td><td>—（压缩）</td></tr>
+<tr><td>common-redesign.js</td><td>defer</td><td>151</td></tr>
+<tr><td>redesign-shell.js</td><td>defer</td><td>224</td></tr>
+<tr><td>redesign-theme.js</td><td>defer</td><td>35</td></tr>
+<tr><td>redesign-toast.js</td><td>defer</td><td>81</td></tr>
+<tr><td>redesign-confirm.js</td><td>defer</td><td>171</td></tr>
+</table>
+
+<h3>4.3 CSS（6 个文件）</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>行数</th><th>职责</th></tr>
+<tr><td>console-theme.css</td><td>387</td><td>Design Token</td></tr>
+<tr><td>redesign-layout.css</td><td>569</td><td>Application Shell</td></tr>
+<tr><td>redesign-components.css</td><td>371</td><td>通用组件</td></tr>
+<tr><td>redesign-pages.css</td><td>1,883</td><td>页面专属 (.cp-page-*)</td></tr>
+<tr><td>redesign-mockup-shared.css</td><td>212</td><td>跨页面表格标准</td></tr>
+<tr><td>redesign-auth.css</td><td>166</td><td>认证页</td></tr>
+</table>
+
+<h2>5. 完整性验证清单</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>检查项</th><th>结果</th></tr>
+<tr><td>V2 模板 38 个完整</td><td>✅ PASS</td></tr>
+<tr><td>V2 JS 7 个完整</td><td>✅ PASS</td></tr>
+<tr><td>V2 CSS 6 个完整</td><td>✅ PASS</td></tr>
+<tr><td>_base.html 引用的 11 个资源全部存在</td><td>✅ PASS</td></tr>
+<tr><td>认证页引用的 2 个资源全部存在</td><td>✅ PASS</td></tr>
+<tr><td>render_template 32 个引用全部有磁盘文件</td><td>✅ PASS</td></tr>
+<tr><td>Vue dist 4 个构建产物完整</td><td>✅ PASS</td></tr>
+<tr><td>Python 模块 import 冒烟</td><td>✅ PASS</td></tr>
+<tr><td>全量测试 432 pass / 0 fail</td><td>✅ PASS</td></tr>
+<tr><td>check_ui_contract (0 violations)</td><td>✅ PASS</td></tr>
+<tr><td>audit_hardcoded_colors (0 found)</td><td>✅ PASS</td></tr>
+<tr><td>check_dead_css (0 dead)</td><td>✅ PASS</td></tr>
+<tr><td>check_css_token_reachability (all reachable)</td><td>✅ PASS</td></tr>
+<tr><td>check_doc_links (1046 refs, 0 broken)</td><td>✅ PASS</td></tr>
+<tr><td>html_docs_to_markdown (all synced)</td><td>✅ PASS</td></tr>
+<tr><td>服务启动 + 登录页渲染</td><td>✅ PASS (PID 90220)</td></tr>
+</table>
+
+<h2>6. 后续建议</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>Batch</th><th>内容</th><th>状态</th></tr>
+<tr><td>Batch 4</td><td>清理 API 兼容层（如 check_pass 路由 shim）</td><td>可选</td></tr>
+<tr><td>Batch 5</td><td>仓库级清理（.gitignore、CI 配置、文档引用）</td><td>可选</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="V1下线完成报告-Batch1-3-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

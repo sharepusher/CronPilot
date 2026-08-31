@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>执行记录结果列细分展示设计</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
+h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+h2 { margin-top: 32px; color: #111827; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; font-size: 14px; }
+th { background: #f9fafb; font-weight: 600; }
+code { background: #f3f4f6; padding: 2px 5px; border-radius: 3px; font-size: 13px; }
+.meta { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+.red { color: #dc2626; } .amber { color: #b45309; } .purple { color: #9333ea; } .green { color: #059669; }
+</style>
+</head>
+<body>
+
+<h1>执行记录结果列细分展示设计</h1>
+<div class="meta">状态：已确认 · 2026-08-27 · Redesign Execution Logs</div>
+
+<h2>1. 问题</h2>
+<p>执行记录（<code>_exec_logs_rows.html</code>）结果列将 <code>fail</code>（HTTP 4xx/5xx/关键词命中）和 <code>error</code>（请求前异常/连接异常）合并显示为同一个「失败」，
+但筛选按钮区分了「仅失败」和「仅异常」，导致用户点击「仅异常」后看到的记录依然标注「失败」，语义混乱。</p>
+
+<h2>2. 根因</h2>
+<p>模板中 <code>{% elif log.status in ('fail', 'error') %}</code> 将两种不同状态合并处理，未利用 <code>fail_reason</code> 字段细分。</p>
+
+<h2>3. 方案</h2>
+<p>拆分 <code>fail</code> 和 <code>error</code> 状态，并利用 <code>fail_reason</code> 字段提供细分标签：</p>
+
+<table>
+  <tr><th>status</th><th>fail_reason</th><th>实际数量</th><th>显示文案</th><th>颜色</th></tr>
+  <tr><td>success</td><td>—</td><td>17</td><td class="green">成功</td><td>绿 <code>--cp-success</code></td></tr>
+  <tr><td>fail</td><td>http_4xx</td><td>908</td><td class="red">失败 · 4xx</td><td>红 <code>--cp-danger</code></td></tr>
+  <tr><td>fail</td><td>http_5xx</td><td>0</td><td class="red">失败 · 5xx</td><td>红</td></tr>
+  <tr><td>fail</td><td>keyword</td><td>254</td><td class="red">失败 · 关键词</td><td>红</td></tr>
+  <tr><td>error</td><td>internal</td><td>17,897</td><td class="amber">异常</td><td>橙 <code>--cp-warn</code></td></tr>
+  <tr><td>error</td><td>connection</td><td>183</td><td class="amber">异常 · 连接</td><td>橙</td></tr>
+  <tr><td>error</td><td>blocked_url</td><td>0</td><td class="amber">异常 · URL拦截</td><td>橙</td></tr>
+  <tr><td>timeout</td><td>timeout</td><td>3</td><td class="purple">超时</td><td>紫 <code>--cp-state-timeout</code></td></tr>
+</table>
+
+<h2>4. 范围</h2>
+<table>
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/templates/redesign/_exec_logs_rows.html</code></td><td>COL 6 结果列拆分：fail/error 独立分支 + fail_reason 子标签</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>新增 <code>.el-log-error</code> 样式（橙色 <code>--cp-warn</code>），区别于 <code>.el-log-fail</code>（红色）</td></tr>
+</table>
+<p><strong>不做</strong>：v1 模板（无颜色编码结果列，仅文本展示）；后端状态值不变。</p>
+
+<h2>5. 分批</h2>
+<p>单批完成（CSS + 模板，约 20 行改动）。</p>
+
+<h2>6. 验收</h2>
+<ol>
+  <li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+  <li>登录后访问执行记录 → 切换「仅异常」筛选 → 结果列显示「异常」/「异常 · 连接」而非「失败」</li>
+  <li>切换「仅失败」→ 结果列显示「失败 · 4xx」/「失败 · 关键词」</li>
+  <li><code>python scripts/smoke_routes.py --check</code> 通过</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><code>fail_reason</code> 可能为空（旧数据）→ 回退到仅显示主标签（「失败」/「异常」）</li>
+</ul>
+
+<div style="margin-top: 40px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af;">
+  <a href="../index.html">文档索引</a> · <a href="执行记录结果列细分展示设计.md">Markdown</a>
+</div>
+
+</body>
+</html>

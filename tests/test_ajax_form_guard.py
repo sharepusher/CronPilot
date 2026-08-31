@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
-"""静态门禁：管理端 js-ajax-form 必须配对 js-ajax-submit。
+"""静态门禁：Redesign js-ajax-form 必须配对 js-ajax-submit。
 
-simpleboot common.js 仅在 button.js-ajax-submit 点击后设置 $btn；
+common-redesign.js 仅在 button.js-ajax-submit 点击后设置 $btn；
 缺 class 会导致 Ajax 未接管、浏览器整页提交落在裸 JSON。
 """
 import os
@@ -53,22 +53,19 @@ class TestAjaxFormGuard(unittest.TestCase):
         self.assertEqual(
             failures,
             [],
-            '管理端 Ajax 表单须同时含 js-ajax-form 与 js-ajax-submit（对照 cron_add.html）。\n'
+            '管理端 Ajax 表单须同时含 js-ajax-form 与 js-ajax-submit（对照 redesign/task_form.html）。\n'
             + '\n'.join(failures),
         )
 
     def test_known_ajax_pages_still_guarded(self):
         """样板页与用户管理页须保留配对，防止误删提交按钮。"""
         must = (
-            'cron_add.html',
-            'cron_edit.html',
-            'cron_retire.html',
-            os.path.join('rbac', 'users_add.html'),
-            os.path.join('rbac', 'users_edit.html'),
-            os.path.join('rbac', 'users_set_active.html'),
-            os.path.join('rbac', 'groups_add.html'),
-            os.path.join('rbac', 'groups_edit.html'),
-            os.path.join('rbac', 'change_password.html'),
+            os.path.join('redesign', 'task_form.html'),
+            os.path.join('redesign', 'cron_retire.html'),
+            os.path.join('redesign', 'user_form.html'),
+            os.path.join('redesign', 'users_set_active.html'),
+            os.path.join('redesign', 'group_form.html'),
+            os.path.join('redesign', 'change_password.html'),
         )
         for name in must:
             path = os.path.join(TEMPLATES, name)
@@ -89,18 +86,18 @@ POST_FORM = re.compile(
 
 
 class TestAntiDoubleSubmitGuard(unittest.TestCase):
-    """全局防重复提交门禁：所有含 POST 表单的模板必须加载 common.js。"""
+    """全局防重复提交门禁：所有含 POST 表单的模板必须加载 common-redesign.js 或等效守卫。"""
 
-    def test_common_js_has_global_guard(self):
-        """common.js 须包含全局 POST 表单防重复提交守卫。"""
-        path = os.path.join(ROOT, 'app', 'static', 'js', 'common.js')
+    def test_common_redesign_js_has_global_guard(self):
+        """common-redesign.js 须包含全局 POST 表单防重复提交守卫。"""
+        path = os.path.join(ROOT, 'app', 'static', 'js', 'common-redesign.js')
         with open(path, 'r', encoding='utf-8') as f:
             content = f.read()
         self.assertIn('cp-submitting', content,
-                      'common.js 须包含全局防重复提交守卫（cp-submitting 标记）')
+                      'common-redesign.js 须包含全局防重复提交守卫（cp-submitting 标记）')
 
-    def test_standalone_post_forms_include_common_js(self):
-        """不继承 admin_base.html 的 POST 表单页须显式引入 common.js 或内联等效防重复提交守卫。"""
+    def test_standalone_post_forms_include_guard(self):
+        """不继承 _base.html 的 POST 表单页须显式引入 common-redesign.js 或内联等效防重复提交守卫。"""
         failures = []
         for path in _iter_html_templates():
             basename = os.path.basename(path)
@@ -110,9 +107,9 @@ class TestAntiDoubleSubmitGuard(unittest.TestCase):
                 html = f.read()
             if not POST_FORM.search(html):
                 continue
-            if 'admin_base.html' in html or "extends" in html:
+            if 'redesign/_base.html' in html or "extends" in html:
                 continue
-            if 'common.js' in html:
+            if 'common-redesign.js' in html:
                 continue
             if '.disabled' in html and ('submitting' in html.lower() or '中…' in html):
                 continue
@@ -121,7 +118,7 @@ class TestAntiDoubleSubmitGuard(unittest.TestCase):
         self.assertEqual(
             failures,
             [],
-            '独立 POST 表单页须引入 common.js 或内联等效防重复提交守卫：\n'
+            '独立 POST 表单页须引入 common-redesign.js 或内联等效防重复提交守卫：\n'
             + '\n'.join(failures),
         )
 

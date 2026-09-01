@@ -1072,10 +1072,10 @@ a:focus-visible {
   padding-top: 16px;
 }
 
+.cp-page-task-form .tf-actions .btn-c,
 .cp-page-task-form .tf-actions .btn {
-  padding: 10px 24px;
-  font-size: 14px;
-  border-radius: 6px;
+  min-height: 32px;
+  padding: 6px 16px;
 }
 
 /* ─── Section Entrance Animation ─── */

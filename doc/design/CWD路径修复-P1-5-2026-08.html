@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot CWD 路径修复 P1-5 (2026-08)</title>
+</head>
+<body>
+<h1>CronPilot CWD 路径修复 P1-5 (2026-08)</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>创建日期</th><td>2026-08-28</td></tr>
+<tr><th>编号</th><td>P1-5（代码质量优化方案）</td></tr>
+<tr><th>来源</th><td>2026-08-28 全面 Code Review</td></tr>
+<tr><th>状态</th><td>已实施（2026-08-28）</td></tr>
+<tr><th>关联文档</th><td><a href="代码质量优化方案-2026-08.html">代码质量优化方案（总览）</a></td></tr>
+</table>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p><code>configs.py</code> 第 22 行 <code>cp.read('conf.ini', encoding='utf-8')</code> 使用 CWD 相对路径读取配置文件。<code>ConfigParser.read()</code> 在文件不存在时<strong>静默返回空列表</strong>（不报错），导致所有配置项变为空字符串或默认值。如果进程的工作目录不是项目根目录，配置将完全失效。</p>
+
+<h2>2. 根因</h2>
+
+<p>上游 <code>xiaoniu_cron</code> 原始代码使用相对路径。启动脚本（<code>start_local_full.sh</code>、<code>run_production.sh</code>）都会 <code>cd</code> 到项目根目录后再启动 Python，因此问题从未在正常部署中暴露。</p>
+<p>同文件第 7 行已定义 <code>_proj_root = os.path.dirname(os.path.abspath(__file__))</code> 并用于 SQLite URL 解析，但 <code>conf.ini</code> 读取未使用此变量——属于"修了一半"的历史遗留。</p>
+
+<h2>3. 方案</h2>
+
+<pre>
+# configs.py 第 22 行
+# 修复前
+cp.read('conf.ini', encoding='utf-8')
+
+# 修复后
+cp.read(os.path.join(_proj_root, 'conf.ini'), encoding='utf-8')
+</pre>
+
+<h2>4. 范围</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>configs.py</code></td><td>第 22 行，<code>'conf.ini'</code> → <code>os.path.join(_proj_root, 'conf.ini')</code></td></tr>
+</table>
+
+<p><strong>不做的事</strong>：不改变 <code>configs()</code> 的接口或返回结构；不修改其他文件中对 <code>configs()</code> 的调用方式。</p>
+
+<h2>5. 分批</h2>
+
+<p>单行修改，<strong>单步交付</strong>。</p>
+
+<h2>6. 验收</h2>
+
+<pre>
+# 单元测试
+bash scripts/cronpilot.sh test
+# 期望：634+ tests, OK
+
+# 路由冒烟（验证配置读取链路正常）
+python scripts/smoke_routes.py --check
+# 期望：86/86 routes pass
+
+# ruff
+ruff check configs.py
+# 期望：0 violations
+</pre>
+
+<h2>7. 风险</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>风险</th><th>等级</th><th>说明</th></tr>
+<tr><td>回归风险</td><td>极低</td><td><code>_proj_root</code> 就是 <code>configs.py</code> 所在目录（= 项目根），与现有启动脚本 <code>cd</code> 到项目根后的行为完全等价</td></tr>
+<tr><td>部署兼容</td><td>无</td><td>Docker 和裸机部署均将项目完整复制，<code>conf.ini</code> 始终与 <code>configs.py</code> 同目录</td></tr>
+</table>
+
+<hr>
+
+<p style="font-size:0.85em;color:#666;">
+本文档源自 2026-08-28 全面 Code Review · P1-5 CWD 路径修复。<br>
+<a href="代码质量优化方案-2026-08.html">代码质量优化总览</a> · <a href="CWD路径修复-P1-5-2026-08.md">Markdown 版</a>
+</p>
+
+</body>
+</html>

@@ -7,6 +7,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 修复 — CWD 相对路径消除（P1-5）
+
+- `configs.py` 的 `conf.ini` 读取从 CWD 相对路径改为基于 `__file__` 的绝对路径（`os.path.join(_proj_root, 'conf.ini')`）
+- 消除"启动脚本未 `cd` 到项目根目录时配置静默失效"的潜在故障模式
+- 详见 [CWD 路径修复](doc/design/CWD路径修复-P1-5-2026-08.html)
+
 ### 重构 — 状态切换逻辑统一（P1-2）
 
 - Web 端 `POST /update_status` 和 API 端 `POST /api/cron/status` 的暂停/恢复逻辑统一到 `cron_service.toggle_status()`

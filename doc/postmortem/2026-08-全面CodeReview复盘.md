@@ -705,4 +705,43 @@ CI workflow（`.github/workflows/unit-tests.yml`）仅显式列举 5 个测试�
 
 ---
 
+## P1-5 CWD 路径修复实施复盘（2026-08-28）
+
+### P1-5-1. Bug 定位
+
+`configs.py` 第 22 行 `cp.read('conf.ini', encoding='utf-8')` 使用 CWD 相对路径。`ConfigParser.read()` 在文件不存在时静默返回空列表（不报错），导致所有配置项变为空字符串或默认值。
+
+### P1-5-2. 根因
+
+上游 `xiaoniu_cron` 原始代码即使用相对路径。CronPilot 在修复 SQLite URL 路径问题时引入了 `_proj_root` 变量（第 7 行），但未同步修复 `conf.ini` 的读取路径——属于"修了一半"的遗留。正常部署脚本都会 `cd` 到项目根目录，因此问题从未暴露。
+
+### P1-5-3. 测试漏洞
+
+现有测试全部在项目根目录下运行（`cronpilot.sh` 显式 `cd "$ROOT"`），无法覆盖"非项目根 CWD"场景。要检测此问题需要一个从其他目录启动 Python 的测试用例，但这类测试在当前测试框架中不切实际（需要 subprocess 启动）。
+
+### P1-5-4. 修复
+
+`cp.read('conf.ini', ...)` → `cp.read(os.path.join(_proj_root, 'conf.ini'), ...)`。1 行修改。
+
+### P1-5-5. 防护测试
+
+634 个单元测试全通过（配置读取链路在多数测试中被间接调用）。86/86 smoke routes 通过。
+
+### P1-5-6. 同类排查
+
+检查项目中其他相对路径使用：
+
+- `config.py`：`basedir = os.path.abspath(os.path.dirname(__file__))` + `os.path.join(basedir, ...)` — 已使用绝对路径，无问题。
+- `app/__init__.py`：DB URL 通过 `configs()` 获取，已被 `_resolve_sqlite_url()` 转为绝对路径 — 无问题。
+- `scripts/*.sh`：全部使用 `ROOT="$(cd "$(dirname "$0")/.." && pwd)"` — 无问题。
+
+结论：`configs.py` 的 `conf.ini` 是项目中唯一使用 CWD 相对路径的关键配置读取点。
+
+### P1-5-7. 预防方案
+
+1. **根因已消除**：改用 `os.path.join(_proj_root, 'conf.ini')`。落地位置：`configs.py` 第 22 行。
+2. **ruff 不覆盖此类问题**：CWD 相对路径是逻辑问题而非语法问题，无法通过 linter 检测。建议在 Code Review checklist 中保留关注。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

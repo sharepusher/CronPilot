@@ -3,7 +3,6 @@
 import os
 from configparser import ConfigParser, NoOptionError, NoSectionError
 
-
 _proj_root = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -19,7 +18,7 @@ def _resolve_sqlite_url(url):
 
 def configs(key = None):
     cp = ConfigParser()
-    cp.read('conf.ini',encoding='utf-8')
+    cp.read(os.path.join(_proj_root, 'conf.ini'), encoding='utf-8')
     if key:
         try:
             val = cp.get('default', key)

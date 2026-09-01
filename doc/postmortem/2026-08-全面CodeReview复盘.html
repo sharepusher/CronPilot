@@ -618,5 +618,39 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 <li><strong>验证命令</strong>：<code>grep -rn "scheduler\.\(pause_job\|resume_job\|remove_job\|add_job\)" app/main/ app/api/ app/rbac/ && echo "WARN: scheduler 直接调用应在 service 层" || echo "OK"</code></li>
 </ol>
 
+<hr>
+
+<h2>P1-5 CWD 路径修复实施复盘（2026-08-28）</h2>
+
+<h3>P1-5-1. Bug 定位</h3>
+<p><code>configs.py</code> 第 22 行 <code>cp.read('conf.ini', encoding='utf-8')</code> 使用 CWD 相对路径。<code>ConfigParser.read()</code> 在文件不存在时静默返回空列表（不报错），导致所有配置项变为空字符串或默认值。</p>
+
+<h3>P1-5-2. 根因</h3>
+<p>上游 <code>xiaoniu_cron</code> 原始代码即使用相对路径。CronPilot 在修复 SQLite URL 路径问题时引入了 <code>_proj_root</code> 变量（第 7 行），但未同步修复 <code>conf.ini</code> 的读取路径——属于"修了一半"的遗留。正常部署脚本都会 <code>cd</code> 到项目根目录，因此问题从未暴露。</p>
+
+<h3>P1-5-3. 测试漏洞</h3>
+<p>现有测试全部在项目根目录下运行（<code>cronpilot.sh</code> 显式 <code>cd "$ROOT"</code>），无法覆盖"非项目根 CWD"场景。要检测此问题需要一个从其他目录启动 Python 的测试用例，但这类测试在当前测试框架中不切实际（需要 subprocess 启动）。</p>
+
+<h3>P1-5-4. 修复</h3>
+<p><code>cp.read('conf.ini', ...)</code> → <code>cp.read(os.path.join(_proj_root, 'conf.ini'), ...)</code>。1 行修改。</p>
+
+<h3>P1-5-5. 防护测试</h3>
+<p>634 个单元测试全通过（配置读取链路在多数测试中被间接调用）。86/86 smoke routes 通过。</p>
+
+<h3>P1-5-6. 同类排查</h3>
+<p>检查项目中其他相对路径使用：</p>
+<ul>
+<li><code>config.py</code>：<code>basedir = os.path.abspath(os.path.dirname(__file__))</code> + <code>os.path.join(basedir, ...)</code> — 已使用绝对路径，无问题。</li>
+<li><code>app/__init__.py</code>：DB URL 通过 <code>configs()</code> 获取，已被 <code>_resolve_sqlite_url()</code> 转为绝对路径 — 无问题。</li>
+<li><code>scripts/*.sh</code>：全部使用 <code>ROOT="$(cd "$(dirname "$0")/.." && pwd)"</code> — 无问题。</li>
+</ul>
+<p>结论：<code>configs.py</code> 的 <code>conf.ini</code> 是项目中唯一使用 CWD 相对路径的关键配置读取点。</p>
+
+<h3>P1-5-7. 预防方案</h3>
+<ol>
+<li><strong>根因已消除</strong>：改用 <code>os.path.join(_proj_root, 'conf.ini')</code>。落地位置：<code>configs.py</code> 第 22 行。</li>
+<li><strong>ruff 不覆盖此类问题</strong>：CWD 相对路径是逻辑问题而非语法问题，无法通过 linter 检测。建议在 Code Review checklist 中保留关注。</li>
+</ol>
+
 </body>
 </html>

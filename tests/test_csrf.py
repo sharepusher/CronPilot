@@ -107,7 +107,7 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
 
     def test_post_with_token_ok(self):
         self._login()
-        with patch('app.main.views.scheduler') as sch:
+        with patch('app.services.cron_service.scheduler') as sch:
             sch.pause_job.return_value = None
             sch.resume_job.return_value = None
             resp = self.client.post(

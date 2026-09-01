@@ -17,6 +17,56 @@ RETIRE_REASON_EXECUTOR = '调度执行器异常移除（系统）'
 RETIRE_REASON_ORPHAN = 'JobStore 无对应任务，系统对账下线'
 
 
+def toggle_status(cron_id, target_status=None):
+    """切换或设定任务运行状态（0=暂停 / 1=运行）。
+
+    Web 端和 API 端共用此函数，确保调度器操作、审计日志行为一致。
+
+    Args:
+        cron_id: 任务主键
+        target_status: None 表示 toggle（0↔1），0 或 1 表示指定目标值
+
+    Returns:
+        (ok, msg, old_status, new_status)
+        ok=False 时 msg 为错误信息；ok=True 且 old==new 时表示状态未变。
+    """
+    from app.services.operation_log_service import record_operation
+
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return False, '项目不存在', None, None
+    if cif.status == -1:
+        return False, '任务已下线，不能启动或暂停；请新建任务', None, None
+
+    old = cif.status
+    if target_status is None:
+        new = 1 if old == 0 else 0
+    else:
+        new = int(target_status)
+
+    if old == new:
+        msg = '已启动' if new == 1 else '已暂停'
+        return True, msg, old, new
+
+    if new == 1:
+        scheduler.resume_job('cron_%s' % cif.id)
+    else:
+        scheduler.pause_job('cron_%s' % cif.id)
+
+    cif.status = new
+    db.session.add(cif)
+    db.session.commit()
+
+    record_operation(
+        action='toggle_status',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail={'status': {'old': old, 'new': new}},
+    )
+    msg = '已启动' if new == 1 else '已暂停'
+    return True, msg, old, new
+
+
 def stamp_last_operator(cif, operator=None):
     """写入最近发布/编辑/下线操作人（列表「发布人」列）。"""
     from app.services.operation_log_service import resolve_operator_from_request

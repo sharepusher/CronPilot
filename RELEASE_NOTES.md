@@ -7,6 +7,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 重构 — 状态切换逻辑统一（P1-2）
+
+- Web 端 `POST /update_status` 和 API 端 `POST /api/cron/status` 的暂停/恢复逻辑统一到 `cron_service.toggle_status()`
+- 消除双写：调度器操作（`resume_job`/`pause_job`）、持久化、审计日志由 service 层统一处理
+- **审计日志行为修正**：Web 端从"无条件记录"改为"状态实际变化时才记录"（与 API 端对齐），消除重复点击产生的冗余审计记录
+- 副效果：`main/views.py` 和 `api/views.py` 不再直接 import `scheduler`
+- 详见 [状态切换统一方案](doc/design/状态切换统一方案-P1-2-2026-08.html)
+
 ### 工程质量 — 测试门禁统一（P0-1）
 
 - CI workflow 从显式列举 5 个测试模块改为 `unittest discover`，覆盖全部 51 个模块（634 用例）

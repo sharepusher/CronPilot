@@ -124,7 +124,7 @@ class TestTokenExpiry(unittest.TestCase):
 
     def _post_status(self, token):
         with patch('configs.configs', return_value='global-tok'), \
-             patch('app.api.views.scheduler') as ms:
+             patch('app.services.cron_service.scheduler') as ms:
             ms.pause_job.return_value = None
             ms.resume_job.return_value = None
             return self.client.post('/api/cron/status',
@@ -186,7 +186,7 @@ class TestScopeIsolation(unittest.TestCase):
 
     def _post(self, task_name, token='bot-tok'):
         with patch('configs.configs', return_value='global-tok'), \
-             patch('app.api.views.scheduler') as ms:
+             patch('app.services.cron_service.scheduler') as ms:
             ms.pause_job.return_value = None
             ms.resume_job.return_value = None
             return self.client.post('/api/cron/status',
@@ -231,7 +231,7 @@ class TestScopeIsolation(unittest.TestCase):
 
     def test_empty_global_passthrough(self):
         with patch('configs.configs', return_value=''), \
-             patch('app.api.views.scheduler') as ms:
+             patch('app.services.cron_service.scheduler') as ms:
             ms.pause_job.return_value = None
             resp = self.client.post('/api/cron/status', data={'task_name': 't-g1'})
         self.assertNotEqual(resp.status_code, 401)

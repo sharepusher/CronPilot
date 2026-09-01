@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 状态切换统一方案 P1-2 (2026-08)</title>
+</head>
+<body>
+<h1>CronPilot 状态切换统一方案 P1-2 (2026-08)</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>创建日期</th><td>2026-08-28</td></tr>
+<tr><th>编号</th><td>P1-2（代码质量优化方案）</td></tr>
+<tr><th>来源</th><td>2026-08-28 全面 Code Review</td></tr>
+<tr><th>状态</th><td>已实施（2026-08-28）</td></tr>
+<tr><th>关联文档</th><td>
+  <a href="代码质量优化方案-2026-08.html">代码质量优化方案（总览）</a> ·
+  <a href="../postmortem/2026-08-全面CodeReview复盘.html">全面 Code Review 复盘</a>
+</td></tr>
+</table>
+
+<hr>
+
+<h2>1. 问题</h2>
+
+<p>任务暂停/恢复的业务逻辑在两个 View 层各实现一份：</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>维度</th><th>Web 端 <code>main/views.py</code> L904-936</th><th>API 端 <code>api/views.py</code> L510-540</th></tr>
+<tr><td>入口</td><td><code>POST /update_status</code></td><td><code>POST /api/cron/edit</code> status 字段</td></tr>
+<tr><td>切换模式</td><td>仅 toggle（0↔1）</td><td>toggle + 指定目标值</td></tr>
+<tr><td>调度器操作</td><td><code>scheduler.resume_job / pause_job</code></td><td>同</td></tr>
+<tr><td>持久化</td><td><code>db.session.add + commit</code></td><td>同</td></tr>
+<tr><td>审计日志</td><td>无条件记录</td><td>仅 <code>old != new</code> 时记录</td></tr>
+</table>
+
+<p><strong>行为分歧</strong>：Web 端重复点击"暂停"会产生冗余审计记录，API 端不会。两套逻辑独立维护，未来任何规则变更（如加通知、加批量操作）需改两处。</p>
+
+<h2>2. 根因</h2>
+
+<ol>
+<li>Web 端最初是唯一入口，toggle 逻辑写在 view 中合理。</li>
+<li>API 端添加时选择了重写而非提取，因为需求略有不同（支持指定目标值）。</li>
+<li>缺少"第二个消费者出现时强制提取到 service 层"的工程纪律。</li>
+<li><code>cron_service.py</code> 已有 <code>create_cron</code>、<code>update_cron</code>、<code>apply_retire</code>，但 toggle 在 API 端添加时未触发"去 service 层复用"的检查。</li>
+</ol>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 提取 <code>cron_service.toggle_status()</code></h3>
+
+<p>在 <code>app/services/cron_service.py</code> 中新增函数：</p>
+
+<pre>
+def toggle_status(cron_id, target_status=None):
+    """切换或设定任务状态（0=暂停/1=运行）。
+
+    Args:
+        cron_id: 任务 ID
+        target_status: None=toggle, 0=暂停, 1=恢复
+
+    Returns:
+        (ok, msg, old_status, new_status)
+        ok=False 时 msg 为错误信息
+    """
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return False, '项目不存在', None, None
+    if cif.status == -1:
+        return False, '任务已下线，不能启动或暂停；请新建任务', None, None
+
+    old = cif.status
+    if target_status is None:
+        new = 1 if old == 0 else 0
+    else:
+        new = target_status
+
+    if old == new:
+        return True, '状态未变', old, new
+
+    if new == 1:
+        scheduler.resume_job('cron_%s' % cif.id)
+    else:
+        scheduler.pause_job('cron_%s' % cif.id)
+    cif.status = new
+    db.session.add(cif)
+    db.session.commit()
+
+    record_operation(
+        action='toggle_status',
+        target_id=cif.id,
+        task_name=cif.task_name or '',
+        detail={'status': {'old': old, 'new': new}},
+    )
+    msg = '已启动' if new == 1 else '已暂停'
+    return True, msg, old, new
+</pre>
+
+<h3>3.2 调用方改造</h3>
+
+<p><strong>Web 端</strong>（<code>main/views.py</code> <code>update_status</code>）：</p>
+<ul>
+<li>保留权限检查、CSRF、scope 授权</li>
+<li>替换 toggle + db + scheduler 逻辑为 <code>toggle_status(id)</code> 调用</li>
+<li>根据返回值构造 <code>web_api_return</code></li>
+</ul>
+
+<p><strong>API 端</strong>（<code>api/views.py</code> <code>cron_edit</code> 状态切换部分）：</p>
+<ul>
+<li>保留 API Token 鉴权、scope 检查</li>
+<li>替换 toggle/指定状态 + db + scheduler 逻辑为 <code>toggle_status(id, target_status)</code> 调用</li>
+<li>根据返回值构造 <code>api_return</code></li>
+</ul>
+
+<h3>3.3 审计日志行为统一</h3>
+
+<p>统一为 <code>old != new</code> 时才记录审计日志（API 端当前行为）。Web 端当前无条件记录的行为是一个 minor bug——重复点击不应产生冗余审计记录。</p>
+
+<h2>4. 范围</h2>
+
+<h3>4.1 改动文件</h3>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>app/services/cron_service.py</code></td><td>新增 <code>toggle_status()</code> 函数（~30 行）</td></tr>
+<tr><td><code>app/main/views.py</code></td><td><code>update_status()</code> 替换 ~15 行业务逻辑为 service 调用</td></tr>
+<tr><td><code>app/api/views.py</code></td><td><code>cron_edit()</code> 中状态切换部分替换 ~20 行为 service 调用</td></tr>
+</table>
+
+<h3>4.2 不做的事</h3>
+<ul>
+<li>不改变 Web 端和 API 端的入口 URL 或参数格式</li>
+<li>不改变权限检查、CSRF、scope 逻辑（这些保留在 View 层）</li>
+<li>不引入新的 API 端点</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<p><strong>单批次交付</strong>，改动 3 个文件。</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>步骤</th><th>动作</th><th>验收</th></tr>
+<tr><td>1</td><td><code>cron_service.py</code> 新增 <code>toggle_status()</code></td><td>函数存在且可 import</td></tr>
+<tr><td>2</td><td><code>main/views.py</code> 改调 service</td><td>Web 端 toggle 正常（restart + curl/浏览器）</td></tr>
+<tr><td>3</td><td><code>api/views.py</code> 改调 service</td><td>API 端 toggle + 指定状态正常</td></tr>
+<tr><td>4</td><td>测试验证</td><td><code>cronpilot.sh test</code> + <code>smoke_routes.py --check</code></td></tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<pre>
+# 单元测试（含 toggle 相关的 test_cron_edit_status）
+bash scripts/cronpilot.sh test
+# 期望：634+ tests, OK
+
+# 路由冒烟（覆盖 /update_status 和 /api/cron/edit）
+python scripts/smoke_routes.py --check
+# 期望：86/86 routes pass
+
+# Web 端验收
+bash scripts/cronpilot.sh restart --daemon
+curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
+# 期望：200
+
+# ruff 检查
+ruff check app/services/cron_service.py app/main/views.py app/api/views.py
+# 期望：0 violations
+</pre>
+
+<h2>7. 风险</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>风险</th><th>等级</th><th>应对</th></tr>
+<tr><td>调度器 resume/pause 时序变化</td><td>低</td><td>service 函数保持完全相同的调用顺序（先 scheduler 再 db），无时序变化</td></tr>
+<tr><td>审计日志行为变化</td><td>低</td><td>Web 端从"无条件记录"变为"状态变化时记录"，行为更合理。如需保留旧行为可配置</td></tr>
+<tr><td>回归面</td><td>低</td><td><code>smoke_routes.py</code> 覆盖 <code>/update_status</code> 和 <code>/api/cron/edit</code></td></tr>
+</table>
+
+<hr>
+
+<p style="font-size:0.85em;color:#666;">
+本文档源自 2026-08-28 全面 Code Review · P1-2 状态切换统一。<br>
+<a href="代码质量优化方案-2026-08.html">代码质量优化总览</a> · <a href="状态切换统一方案-P1-2-2026-08.md">Markdown 版</a>
+</p>
+
+</body>
+</html>

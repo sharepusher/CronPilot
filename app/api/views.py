@@ -3,7 +3,7 @@
 from flask import current_app, request
 from sqlalchemy import func, select
 
-from app import db, scheduler
+from app import db
 from app.decorated import api_deal_return, api_err_return
 from app.services.cron_service import upsert_cron_by_task_name
 from datas.model.cron_infos import CronInfos
@@ -507,38 +507,10 @@ def cron_status(form_data):
     if denied is not None:
         return denied
 
-    if ci.status == -1:
-        return api_return(errcode=1, errmsg='任务已下线，不能再操作；请使用新的任务名称新建')
+    from app.services.cron_service import toggle_status
 
-    from app.services.operation_log_service import record_operation
-
-    old_status = ci.status
-    if status is None:
-        if ci.status == 0:
-            ci.status = 1
-            scheduler.resume_job('cron_%s' % ci.id)
-        else:
-            ci.status = 0
-            scheduler.pause_job('cron_%s' % ci.id)
-    else:
-        if status == 0 and ci.status != 0:
-            ci.status = 0
-            scheduler.pause_job('cron_%s' % ci.id)
-        if status == 1 and ci.status != 1:
-            ci.status = 1
-            scheduler.resume_job('cron_%s' % ci.id)
-
-    db.session.add(ci)
-    db.session.commit()
-    if old_status != ci.status:
-        record_operation(
-            action='toggle_status',
-            target_id=ci.id,
-            task_name=ci.task_name or '',
-            detail={'status': {'old': old_status, 'new': ci.status}},
-        )
-
-    return api_return(errcode=0, errmsg='ok')
+    ok, msg, _old, _new = toggle_status(ci.id, target_status=status)
+    return api_return(errcode=0 if ok else 1, errmsg=msg)
 
 
 # ---------------------------------------------------------------------------

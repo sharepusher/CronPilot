@@ -568,5 +568,55 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 </ol>
 <p>验证命令：<code>bash scripts/cronpilot.sh test 2>&amp;1 | grep "^Ran"</code>（期望计数 ≥ 634）。</p>
 
+<hr>
+
+<h2>P1-2 状态切换统一实施复盘（2026-08-28）</h2>
+
+<h3>P1-2-1. Bug 定位</h3>
+<p>任务暂停/恢复的业务逻辑在 Web 端（<code>main/views.py</code> <code>update_status</code>）和 API 端（<code>api/views.py</code> <code>cron_status</code>）各有独立实现。两条路径的审计日志行为存在分歧：Web 端无条件记录，API 端仅在 <code>old != new</code> 时记录。</p>
+
+<h3>P1-2-2. 根因</h3>
+<ol>
+<li>Web 端最初是唯一入口，toggle 逻辑写在 view 中合理。</li>
+<li>API 端添加时选择了重写而非提取，因为需求略有不同（支持指定目标状态）。</li>
+<li>缺少"第二个消费者出现时强制提取到 service 层"的工程纪律。</li>
+<li><code>cron_service.py</code> 已有 <code>create_cron</code>、<code>update_cron</code>、<code>apply_retire</code>，但 toggle 在 API 端添加时未触发"去 service 层复用"的检查。</li>
+</ol>
+
+<h3>P1-2-3. 测试漏洞</h3>
+<p>现有测试（<code>test_cron_edit_status</code>）仅测试 Web 端的 toggle，未覆盖 API 端的指定状态功能。<code>test_api_scope_s6</code> 和 <code>test_csrf</code> 通过 mock <code>scheduler</code> 测试了调用链路，但 mock 目标绑定在 view 层（<code>app.main.views.scheduler</code>），重构后需同步更新为 <code>app.services.cron_service.scheduler</code>。</p>
+
+<h3>P1-2-4. 修复</h3>
+<ul>
+<li>新增 <code>cron_service.toggle_status(cron_id, target_status=None)</code>：统一 toggle + 指定状态两种模式、调度器操作、审计日志。</li>
+<li>Web 端 <code>update_status()</code>：从 ~30 行业务逻辑缩减到调用 service 函数的 1 行。</li>
+<li>API 端 <code>cron_status()</code>：从 ~30 行业务逻辑缩减到调用 service 函数的 1 行。</li>
+<li>两个 views 模块移除了不再需要的 <code>scheduler</code> import。</li>
+<li>测试中 4 处 <code>patch('app.*.views.scheduler')</code> 更新为 <code>patch('app.services.cron_service.scheduler')</code>。</li>
+</ul>
+
+<h3>P1-2-5. 防护测试</h3>
+<ul>
+<li><code>test_csrf.test_post_with_token_ok</code>：验证 Web 端 toggle 通过 CSRF 检查后正确调用 service。</li>
+<li><code>test_api_scope_s6</code>（3 处）：验证 API 端 toggle 通过 scope 检查后正确调用 service。</li>
+<li><code>smoke_routes.py</code> 覆盖 <code>POST /update_status</code> 路由。</li>
+</ul>
+<p>验证命令：<code>bash scripts/cronpilot.sh test</code>（634 用例全通过）+ <code>python scripts/smoke_routes.py --check</code>（86/86 路由通过）。</p>
+
+<h3>P1-2-6. 同类排查</h3>
+<p>检查了其他可能存在"Web + API 双写"的业务逻辑：</p>
+<ul>
+<li><strong>任务创建/更新</strong>：已由 <code>cron_service.create_cron()</code> / <code>update_cron()</code> 统一。</li>
+<li><strong>任务下线</strong>：已由 <code>cron_service.retire_cron_by_id()</code> / <code>retire_cron_by_task_name()</code> 统一。</li>
+<li><strong>审计日志记录</strong>：全部通过 <code>record_operation()</code> 统一。</li>
+</ul>
+<p>结论：toggle_status 是最后一个未统一的 CRUD 操作。修复后 cron_service 覆盖了创建、更新、下线、状态切换全部写操作。</p>
+
+<h3>P1-2-7. 预防方案</h3>
+<ol>
+<li><strong>工程纪律</strong>：在 <code>.cursor/rules/cronpilot-backend.mdc</code> 中追加：当第二个入口（Web/API/内部调用）需要相同业务逻辑时，必须先检查 <code>app/services/</code> 是否已有可复用函数；若无则先提取再调用，禁止在 view 层重写。</li>
+<li><strong>验证命令</strong>：<code>grep -rn "scheduler\.\(pause_job\|resume_job\|remove_job\|add_job\)" app/main/ app/api/ app/rbac/ && echo "WARN: scheduler 直接调用应在 service 层" || echo "OK"</code></li>
+</ol>
+
 </body>
 </html>

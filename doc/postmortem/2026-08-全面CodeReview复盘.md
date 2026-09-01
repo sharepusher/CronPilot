@@ -655,4 +655,54 @@ CI workflow（`.github/workflows/unit-tests.yml`）仅显式列举 5 个测试�
 
 ---
 
+## P1-2 状态切换统一实施复盘（2026-08-28）
+
+### P1-2-1. Bug 定位
+
+任务暂停/恢复的业务逻辑在 Web 端（`main/views.py` `update_status`）和 API 端（`api/views.py` `cron_status`）各有独立实现。两条路径的审计日志行为存在分歧：Web 端无条件记录，API 端仅在 `old != new` 时记录。
+
+### P1-2-2. 根因
+
+1. Web 端最初是唯一入口，toggle 逻辑写在 view 中合理。
+2. API 端添加时选择了重写而非提取，因为需求略有不同（支持指定目标状态）。
+3. 缺少"第二个消费者出现时强制提取到 service 层"的工程纪律。
+4. `cron_service.py` 已有 `create_cron`、`update_cron`、`apply_retire`，但 toggle 在 API 端添加时未触发"去 service 层复用"的检查。
+
+### P1-2-3. 测试漏洞
+
+现有测试（`test_cron_edit_status`）仅测试 Web 端的 toggle，未覆盖 API 端的指定状态功能。`test_api_scope_s6` 和 `test_csrf` 通过 mock `scheduler` 测试了调用链路，但 mock 目标绑定在 view 层（`app.main.views.scheduler`），重构后需同步更新为 `app.services.cron_service.scheduler`。
+
+### P1-2-4. 修复
+
+- 新增 `cron_service.toggle_status(cron_id, target_status=None)`：统一 toggle + 指定状态两种模式、调度器操作、审计日志。
+- Web 端 `update_status()`：从 ~30 行业务逻辑缩减到调用 service 函数的 1 行。
+- API 端 `cron_status()`：从 ~30 行业务逻辑缩减到调用 service 函数的 1 行。
+- 两个 views 模块移除了不再需要的 `scheduler` import。
+- 测试中 4 处 `patch('app.*.views.scheduler')` 更新为 `patch('app.services.cron_service.scheduler')`。
+
+### P1-2-5. 防护测试
+
+- `test_csrf.test_post_with_token_ok`：验证 Web 端 toggle 通过 CSRF 检查后正确调用 service。
+- `test_api_scope_s6`（3 处）：验证 API 端 toggle 通过 scope 检查后正确调用 service。
+- `smoke_routes.py` 覆盖 `POST /update_status` 路由。
+
+验证命令：`bash scripts/cronpilot.sh test`（634 用例全通过）+ `python scripts/smoke_routes.py --check`（86/86 路由通过）。
+
+### P1-2-6. 同类排查
+
+检查了其他可能存在"Web + API 双写"的业务逻辑：
+
+- **任务创建/更新**：已由 `cron_service.create_cron()` / `update_cron()` 统一。
+- **任务下线**：已由 `cron_service.retire_cron_by_id()` / `retire_cron_by_task_name()` 统一。
+- **审计日志记录**：全部通过 `record_operation()` 统一。
+
+结论：toggle\_status 是最后一个未统一的 CRUD 操作。修复后 cron\_service 覆盖了创建、更新、下线、状态切换全部写操作。
+
+### P1-2-7. 预防方案
+
+1. **工程纪律**：在 `.cursor/rules/cronpilot-backend.mdc` 中追加：当第二个入口（Web/API/内部调用）需要相同业务逻辑时，必须先检查 `app/services/` 是否已有可复用函数；若无则先提取再调用，禁止在 view 层重写。
+2. **验证命令**：`grep -rn "scheduler\.\(pause_job\|resume_job\|remove_job\|add_job\)" app/main/ app/api/ app/rbac/ && echo "WARN: scheduler 直接调用应在 service 层" || echo "OK"`
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

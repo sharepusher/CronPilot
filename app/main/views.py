@@ -6,7 +6,7 @@ import traceback
 from flask import current_app, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import and_, desc, select
 
-from app import db, scheduler
+from app import db
 from app.rbac.decorators import authorize_resource, require_permission, session_group_ids
 from app.rbac.policy import effective_permissions, role_bypasses_scope, user_bypasses_scope
 from app.rbac.safe_redirect import safe_next_url
@@ -905,35 +905,17 @@ def cron_edit():
 @require_permission('cron:write')
 @csrf_protect
 def update_status():
-    from app.services.operation_log_service import record_operation
+    from app.services.cron_service import toggle_status
 
     id = request.values.get('id') or request.args.get('id')
     cif = db.session.get(CronInfos, id)
     if not cif:
-        return web_api_return(code=1, msg='项目不存在',url='/cron_list')
+        return web_api_return(code=1, msg='项目不存在', url='/cron_list')
     denied = authorize_resource('cron:write', cif)
     if denied:
         return denied
-    if cif.status == -1:
-        return web_api_return(code=1, msg='任务已下线，不能启动或暂停；请新建任务')
-    status = cif.status
-    _status = 0
-    if status == 0:
-        _status = 1
-        scheduler.resume_job('cron_%s' % cif.id)
-    else:
-        scheduler.pause_job('cron_%s' % cif.id)
-    cif.status = _status
-    db.session.add(cif)
-    db.session.commit()
-    record_operation(
-        action='toggle_status',
-        target_id=cif.id,
-        task_name=cif.task_name or '',
-        detail={'status': {'old': status, 'new': _status}},
-    )
-    msg = '已启动' if _status == 1 else '已暂停'
-    return web_api_return(code=0, msg=msg)
+    ok, msg, _old, _new = toggle_status(cif.id)
+    return web_api_return(code=0 if ok else 1, msg=msg)
 
 
 @main.route('/cron_run_now', methods=['POST'])

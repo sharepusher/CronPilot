@@ -142,6 +142,8 @@ bash scripts/check_pending_sync.sh
 
 **scheduler 操作与 DB 事务顺序（强制 · 2026-08）**：先 `db.session.commit()` 持久化状态，再调用 scheduler 操作；scheduler 失败时回滚 DB + 日志记录。禁止先操作 scheduler 再 commit。**违反教训**：2026-08 `toggle_status()` 先 scheduler 再 commit，commit 失败时状态不一致。
 
+**API scope 缓存形状一致性（强制 · 2026-08 S-4 教训）**：`_set_cached_user_scope` 必须缓存完整 scope dict（含 `role='user'`, `user_role`, `expired`, `group_ids` 等所有键），禁止按字段解构后重组为不同形状的 dict。缓存 dict 与 fresh scope dict 的 key 集合必须一致（仅多 `ts` 时间戳）。自检：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestCacheMechanics.test_cache_shape_matches_fresh_scope -v`。**违反教训**：2026-08 S-4 `_set_cached_user_scope` 将 `user.role`（'admin'）存入 `role` 键，缓存命中后 `check_api_scope()` 误判为全局 token，Biz Admin 可操作任意组任务。
+
 **文件路径必须使用绝对路径（强制 · 2026-08）**：`open()` / `os.path.exists()` 等文件操作路径必须基于 `os.path.abspath(__file__)` 构建，禁止 CWD 相对路径。自检：`grep -n 'open("' app/ -r | grep -v "os.path" && echo WARN || echo OK`。**违反教训**：`scheduler.lock` CWD 相对路径导致多实例防护失效。
 
 **innerHTML XSS 防护（强制 · S4）**：模板 JS 中凡从 `data-*` / `dataset` 取值后拼入 `innerHTML` / `bodyHtml`，**必须**经 `escHtml()` 转义或改用 `textContent` + DOM API。Jinja2 自动转义仅保护 HTML 解析阶段，浏览器解码后 jQuery `.data()` 返回原始字符串 → 拼入 innerHTML 即为二次注入。**Jinja2 变量在 JS 字符串上下文**：凡 `{{ variable }}` 出现在 `<script>` 标签内的 JS 字符串拼接中（非 HTML 属性上下文），**必须**使用 `{{ variable|tojson }}` 输出（等效 JSON.stringify，转义引号/反斜杠/换行），禁止直接 `{{ variable }}` 拼入 JS 字符串。自检：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml && echo WARN || echo OK`。**违反教训**：2026-08 `registration_review.html` 的 `username` 和 `tags.html` 的 `tagName` 未转义直接拼 HTML；`tags.html:99` 的 `{{ g.name }}` 直接拼入 JS 字符串构建 `<option>` 元素。

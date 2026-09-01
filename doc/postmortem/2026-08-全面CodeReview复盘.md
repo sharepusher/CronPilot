@@ -1159,4 +1159,46 @@ AJAX 筛选功能（OPT-P1-17）开发时，从 v1 模板中沿用了 `'{{ value
 
 ---
 
+## Code Review R4 — S-4 API Scope 缓存 role 键碰撞根因分析（2026-08-28）
+
+### 1. Bug 定位
+
+`app/api/__init__.py` 第 27-30 行（`_set_cached_user_scope`）和第 149 行（调用点）。
+
+缓存函数将 `user.role`（如 `'admin'`）存入 cache dict 的 `role` 键，而 fresh scope 用 `{'role': 'user', 'user_role': user.role}`。缓存命中后 `check_api_scope()` 的 `scope.get('role') == 'admin'` 判断直接放行，跳过所有 group scope 检查。
+
+### 2. 根因（5-Why）
+
+1. **为什么缓存返回的 dict 导致 scope bypass？**—— 缓存 dict 中 `role='admin'`，而 `check_api_scope()` 以 `role=='admin'` 判断全局 token bypass。
+2. **为什么缓存 dict 中 role 是 'admin'？**—— `_set_cached_user_scope(token, user.id, user.role, ...)` 将 `user.role`（Biz Admin 的角色值为 `'admin'`）直接存入 `role` 键。
+3. **为什么 fresh scope 用 'user' 但缓存用 user.role？**—— 两个 dict 独立构建：fresh scope 在 S6 设计时引入了 `role/user_role` 双键语义，但缓存函数沿用了更早的按字段传参模式，没有同步更新。
+4. **为什么测试没有发现？**—— 测试只覆盖 operator 角色（`user.role='operator'`），缓存中 `role='operator'` 不匹配 admin bypass 条件。且内存 DB 测试中缓存不跨请求持续。
+5. **为什么 S6 实现时没有检查缓存一致性？**—— S6 关注的是 scope 隔离逻辑本身（fresh 路径），缓存被视为 "性能优化" 而非安全关键路径，缺乏"缓存形状必须与 fresh scope 一致"的显式约束。
+
+### 3. 测试漏洞
+
+- `tests/test_api_scope_s6.py` 只测试 `operator` 角色，未覆盖 `admin` 角色的 scope 行为
+- 所有 scope 测试使用内存 DB + 每次 fresh 创建 app，缓存从未被跨请求复用
+- 缺少"缓存命中路径"与"首次解析路径"行为一致性的断言
+
+### 4. 修复
+
+将 `_set_cached_user_scope` 改为接收完整 scope dict 并原样缓存（加 `ts` 时间戳），消除 cache dict 与 fresh scope dict 的形状差异。同时移除了冗余的 `expired` 后置写入逻辑。
+
+### 5. 防护测试
+
+新增 `test_cache_shape_matches_fresh_scope`：验证缓存 dict 的 `role` 键始终为 `'user'`、`user_role` 为真实角色、且包含 `expired` 和 `group_ids` 键。
+
+### 6. 同类排查
+
+`_query_scope_context()`（`api/views.py`）直接从 `request._api_scope` 读取，不涉及独立缓存，无同类问题。`invalidate_user_scope_cache()` 按 `user_id` 匹配，fresh scope dict 已包含此字段，功能不受影响。
+
+### 7. 预防方案
+
+- **落地 1**：`_set_cached_user_scope` 函数签名改为 `(token, scope)`，直接缓存 scope dict，从设计上消除形状不一致的可能（已实施，`app/api/__init__.py`）
+- **落地 2**：`test_cache_shape_matches_fresh_scope` 回归测试永久防止 cache dict key 集合退化（已实施，`tests/test_api_scope_s6.py`）
+- **落地 3**：`.cursor/rules/cronpilot-backend.mdc` 新增 "API scope 缓存形状一致性" 规则：凡修改 `_set_cached_user_scope` 或 `_resolve_user_token`，必须运行 `test_cache_shape_matches_fresh_scope` 确认缓存与 fresh scope 形状一致
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

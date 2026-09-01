@@ -1072,12 +1072,6 @@ a:focus-visible {
   padding-top: 16px;
 }
 
-.cp-page-task-form .tf-actions .btn-c,
-.cp-page-task-form .tf-actions .btn {
-  min-height: 32px;
-  padding: 6px 16px;
-}
-
 /* ─── Section Entrance Animation ─── */
 @keyframes tf-section-fadein {
   from { opacity: 0; transform: translateY(8px); }

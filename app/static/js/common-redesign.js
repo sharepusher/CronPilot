@@ -68,6 +68,16 @@
             CpToast.success(data.errmsg);
           } else {
             CpToast.error(data.errmsg);
+            var fk = (data.result && data.result.field) || (data.data && data.data.field);
+            if (fk) {
+              var $el = $form.find('[data-field="' + fk + '"]');
+              if (!$el.length) $el = $form.find('#' + fk);
+              if ($el.length) {
+                $form.find('.tf-field-error').removeClass('tf-field-error');
+                $el.addClass('tf-field-error');
+                $el[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
           }
         }
 

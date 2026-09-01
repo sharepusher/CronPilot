@@ -1,11 +1,10 @@
 import os
+
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
 from configs import configs
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-
-redis_host = configs('redis_host')
 
 # OPT-P0-10：公开默认值；生产路径须拒绝（见 is_weak_secret_key / ProductionConfig.init_app）
 DEFAULT_SECRET_KEY = 'hard to guess string'
@@ -53,11 +52,6 @@ class Config:
     CRONPILOT_SCHEDULER_ENABLED = os.environ.get(
         'CRONPILOT_SCHEDULER_ENABLED', 'true'
     ).lower() not in ('0', 'false', 'no')
-
-    # OPT-P1-16: 新 UI 全局强制开关（环境变量 CRONPILOT_FORCE_NEW_UI=true 覆盖所有用户 Cookie）
-    CRONPILOT_FORCE_NEW_UI = os.environ.get(
-        'CRONPILOT_FORCE_NEW_UI', 'false'
-    ).lower() in ('1', 'true', 'yes')
 
     CRON_DB_URL = configs('cron_db_url')
 

@@ -744,4 +744,61 @@ CI workflow（`.github/workflows/unit-tests.yml`）仅显式列举 5 个测试�
 
 ---
 
+## P2-4 死代码清理实施复盘（2026-08-28）
+
+### P2-4-1. Bug 定位
+
+项目中存在 5 处确认的死代码，分布在 4 个文件中：
+
+| # | 项目 | 文件 | 类型 |
+| --- | --- | --- | --- |
+| 1 | `isCreate = False` | `app/__init__.py` L15 | 赋值后从未读取（F841） |
+| 2 | `_create_pending_log` / `_update_log_running` | `app/crons.py` L60-67 | 仅 `raise NotImplementedError` 的桩函数，无调用者 |
+| 3 | `CRONPILOT_FORCE_NEW_UI` | `config.py` L57-60 | V1 下线后运行时无消费者；3 个测试文件设置无效值 |
+| 4 | `redis_host = configs('redis_host')` | `config.py` L8 | 模块级冗余调用，实际通过 `configs()` 字典传递 |
+| 5 | `login_required` 装饰器 | `app/decorated.py` L39-46 | 已被 RBAC `@require_permission` 完全替代 |
+
+### P2-4-2. 根因
+
+- **#1 `isCreate`**：上游 `xiaoniu_cron` 遗留，原用途为一次性数据库初始化标记。CronPilot 在 Phase A ORM 迁移中已改用 `db.create_all()`，但未清理此变量。
+- **#2 桩函数**：Plan-B 执行记录方案弃用了 pending→running 两步写入模式，改为直接写终态。保守地保留了函数签名并标注"供外部测试兼容"，但实际无测试调用。属于"弃用时留了退路但永远没用上"。
+- **#3 `CRONPILOT_FORCE_NEW_UI`**：V1→V2 过渡期的灰度开关。V1 下线 Batch 1-3（commit `7302e0a`）已移除 `ui_mode.py` 中的消费逻辑和 `start_local_full.sh` 中的环境变量导出，但 `config.py` 定义和测试中的设置未同步清理。属于"下线清理不彻底"。
+- **#4 `redis_host`**：上游代码在 `config.py` 模块级别读取了所有配置键，包括 `redis_host`，但 `Config` 类并不使用它（Redis 配置通过 `CRON_CONFIG = configs()` 字典传递）。属于"配置读取模式不统一的残留"。
+- **#5 `login_required`**：RBAC 系统（OPT-P2-10）引入 `@require_permission` 后完全替代了简单的 session 检查，但 `decorated.py` 中的旧装饰器未清理。无代码引用它。
+
+**共性根因**：5 项均属于"功能演进后的残留"——新机制替代了旧代码，但旧代码未在替代时同步删除。缺少"删除旧代码"作为功能交付的必选步骤。
+
+### P2-4-3. 测试漏洞
+
+ruff `F841`（unused variable）可检测 #1（`isCreate`），但无法检测 #2-#5（函数定义、类属性、模块级变量不属于 F841 范围）。需要更高级的死代码检测工具（如 `vulture`）或人工 Code Review。
+
+`F401`（unused import）可检测 #5 关联的 `redirect/session` 导入，但项目 `pyproject.toml` 全局忽略了 F401（因 `__init__.py` re-export 场景）。
+
+### P2-4-4. 修复
+
+- #1：删除 `isCreate = False` 及其空行；移除 `pyproject.toml` 中 `app/__init__.py` 的 F841 per-file-ignore。
+- #2：删除两个桩函数（共 8 行）。
+- #3：删除 `config.py` 中 `CRONPILOT_FORCE_NEW_UI` 定义（4 行）+ 3 个测试文件中的 `app.config['CRONPILOT_FORCE_NEW_UI'] = True`（3 行）。
+- #4：删除 `config.py` 中 `redis_host = configs('redis_host')`（1 行）+ ruff 自动修复 import 排序。
+- #5：删除 `login_required` 函数（9 行）+ 移除因此变为 unused 的 `from flask import redirect, session`（1 行）。
+
+### P2-4-5. 防护测试
+
+- 634 个单元测试全通过（移除 `CRONPILOT_FORCE_NEW_UI` 设置后 3 个测试仍通过，确认该设置已无效）
+- 86/86 smoke routes 通过
+- ruff check 全通过（含 F841 对 `app/__init__.py` 的检查）
+
+### P2-4-6. 同类排查
+
+ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 仅为 E501（行长度）和 tests/scripts 目录。ruff 可检测新增的 unused variable。
+
+项目中其他可能的死代码（已在代码质量优化方案中评估但暂不处理）：`CuGeventScheduler`（作为 `CuBackgroundScheduler` 的备选方案保留）、`caches()` 函数（`configs.py`，Redis 集群缓存配置读取，保留备用）。
+
+### P2-4-7. 预防方案
+
+1. **ruff F841 门禁**：移除 `app/__init__.py` 的 F841 per-file-ignore 后，CI 将自动拦截新增的 unused variable。落地位置：`pyproject.toml`。验证：`.venv-py311/bin/ruff check app/__init__.py`。
+2. **功能下线清理规范**：凡下线/替代旧功能时，须在同一批次中搜索并清理所有相关的配置定义、测试设置、文档引用。V1 下线时 `CRONPILOT_FORCE_NEW_UI` 遗漏即为此类疏忽。检查命令：`rg "FEATURE_FLAG_NAME" --type py --type html`。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

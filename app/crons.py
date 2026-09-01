@@ -57,16 +57,6 @@ def _notify_job_outcome(task_name, content, status):
         )
 
 
-def _create_pending_log(cron_id, nows, trace_id, timeout_sec=None):
-    """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
-    raise NotImplementedError("_create_pending_log removed in Plan-B: use _save_job_log with terminal status directly")
-
-
-def _update_log_running(jl, started_at):
-    """[方案B已弃用] 保留签名供外部测试兼容，内部不再调用。"""
-    raise NotImplementedError("_update_log_running removed in Plan-B: started_at passed directly to _save_job_log")
-
-
 def _save_job_log(
     cron_id,
     content,

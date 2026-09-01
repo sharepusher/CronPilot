@@ -652,5 +652,60 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 <li><strong>ruff 不覆盖此类问题</strong>：CWD 相对路径是逻辑问题而非语法问题，无法通过 linter 检测。建议在 Code Review checklist 中保留关注。</li>
 </ol>
 
+<hr>
+
+<h2>P2-4 死代码清理实施复盘（2026-08-28）</h2>
+
+<h3>P2-4-1. Bug 定位</h3>
+<p>项目中存在 5 处确认的死代码，分布在 4 个文件中：</p>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>#</th><th>项目</th><th>文件</th><th>类型</th></tr>
+<tr><td>1</td><td><code>isCreate = False</code></td><td><code>app/__init__.py</code> L15</td><td>赋值后从未读取（F841）</td></tr>
+<tr><td>2</td><td><code>_create_pending_log</code> / <code>_update_log_running</code></td><td><code>app/crons.py</code> L60-67</td><td>仅 <code>raise NotImplementedError</code> 的桩函数，无调用者</td></tr>
+<tr><td>3</td><td><code>CRONPILOT_FORCE_NEW_UI</code></td><td><code>config.py</code> L57-60</td><td>V1 下线后运行时无消费者；3 个测试文件设置无效值</td></tr>
+<tr><td>4</td><td><code>redis_host = configs('redis_host')</code></td><td><code>config.py</code> L8</td><td>模块级冗余调用，实际通过 <code>configs()</code> 字典传递</td></tr>
+<tr><td>5</td><td><code>login_required</code> 装饰器</td><td><code>app/decorated.py</code> L39-46</td><td>已被 RBAC <code>@require_permission</code> 完全替代</td></tr>
+</table>
+
+<h3>P2-4-2. 根因</h3>
+<ul>
+<li><strong>#1 <code>isCreate</code></strong>：上游 <code>xiaoniu_cron</code> 遗留，原用途为一次性数据库初始化标记。CronPilot 在 Phase A ORM 迁移中已改用 <code>db.create_all()</code>，但未清理此变量。</li>
+<li><strong>#2 桩函数</strong>：Plan-B 执行记录方案弃用了 pending→running 两步写入模式，改为直接写终态。保守地保留了函数签名并标注"供外部测试兼容"，但实际无测试调用。属于"弃用时留了退路但永远没用上"。</li>
+<li><strong>#3 <code>CRONPILOT_FORCE_NEW_UI</code></strong>：V1→V2 过渡期的灰度开关。V1 下线 Batch 1-3（commit <code>7302e0a</code>）已移除 <code>ui_mode.py</code> 中的消费逻辑和 <code>start_local_full.sh</code> 中的环境变量导出，但 <code>config.py</code> 定义和测试中的设置未同步清理。属于"下线清理不彻底"。</li>
+<li><strong>#4 <code>redis_host</code></strong>：上游代码在 <code>config.py</code> 模块级别读取了所有配置键，包括 <code>redis_host</code>，但 <code>Config</code> 类并不使用它（Redis 配置通过 <code>CRON_CONFIG = configs()</code> 字典传递）。属于"配置读取模式不统一的残留"。</li>
+<li><strong>#5 <code>login_required</code></strong>：RBAC 系统（OPT-P2-10）引入 <code>@require_permission</code> 后完全替代了简单的 session 检查，但 <code>decorated.py</code> 中的旧装饰器未清理。无代码引用它。</li>
+</ul>
+<p><strong>共性根因</strong>：5 项均属于"功能演进后的残留"——新机制替代了旧代码，但旧代码未在替代时同步删除。缺少"删除旧代码"作为功能交付的必选步骤。</p>
+
+<h3>P2-4-3. 测试漏洞</h3>
+<p>ruff <code>F841</code>（unused variable）可检测 #1（<code>isCreate</code>），但无法检测 #2-#5（函数定义、类属性、模块级变量不属于 F841 范围）。需要更高级的死代码检测工具（如 <code>vulture</code>）或人工 Code Review。</p>
+<p><code>F401</code>（unused import）可检测 #5 关联的 <code>redirect/session</code> 导入，但项目 <code>pyproject.toml</code> 全局忽略了 F401（因 <code>__init__.py</code> re-export 场景）。</p>
+
+<h3>P2-4-4. 修复</h3>
+<ul>
+<li>#1：删除 <code>isCreate = False</code> 及其空行；移除 <code>pyproject.toml</code> 中 <code>app/__init__.py</code> 的 F841 per-file-ignore。</li>
+<li>#2：删除两个桩函数（共 8 行）。</li>
+<li>#3：删除 <code>config.py</code> 中 <code>CRONPILOT_FORCE_NEW_UI</code> 定义（4 行）+ 3 个测试文件中的 <code>app.config['CRONPILOT_FORCE_NEW_UI'] = True</code>（3 行）。</li>
+<li>#4：删除 <code>config.py</code> 中 <code>redis_host = configs('redis_host')</code>（1 行）+ ruff 自动修复 import 排序。</li>
+<li>#5：删除 <code>login_required</code> 函数（9 行）+ 移除因此变为 unused 的 <code>from flask import redirect, session</code>（1 行）。</li>
+</ul>
+
+<h3>P2-4-5. 防护测试</h3>
+<ul>
+<li>634 个单元测试全通过（移除 <code>CRONPILOT_FORCE_NEW_UI</code> 设置后 3 个测试仍通过，确认该设置已无效）</li>
+<li>86/86 smoke routes 通过</li>
+<li>ruff check 全通过（含 F841 对 <code>app/__init__.py</code> 的检查）</li>
+</ul>
+
+<h3>P2-4-6. 同类排查</h3>
+<p>ruff F841 现在对 <code>app/__init__.py</code> 不再被豁免。剩余 per-file-ignores 仅为 E501（行长度）和 tests/scripts 目录。ruff 可检测新增的 unused variable。</p>
+<p>项目中其他可能的死代码（已在代码质量优化方案中评估但暂不处理）：<code>CuGeventScheduler</code>（作为 <code>CuBackgroundScheduler</code> 的备选方案保留）、<code>caches()</code> 函数（<code>configs.py</code>，Redis 集群缓存配置读取，保留备用）。</p>
+
+<h3>P2-4-7. 预防方案</h3>
+<ol>
+<li><strong>ruff F841 门禁</strong>：移除 <code>app/__init__.py</code> 的 F841 per-file-ignore 后，CI 将自动拦截新增的 unused variable。落地位置：<code>pyproject.toml</code>。验证：<code>.venv-py311/bin/ruff check app/__init__.py</code>。</li>
+<li><strong>功能下线清理规范</strong>：凡下线/替代旧功能时，须在同一批次中搜索并清理所有相关的配置定义、测试设置、文档引用。V1 下线时 <code>CRONPILOT_FORCE_NEW_UI</code> 遗漏即为此类疏忽。检查命令：<code>rg "FEATURE_FLAG_NAME" --type py --type html</code>。</li>
+</ol>
+
 </body>
 </html>

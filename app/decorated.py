@@ -2,8 +2,6 @@
 # -*- coding:utf-8 -*-
 from functools import wraps
 
-from flask import redirect, session
-
 from datas.utils.json import api_return
 
 
@@ -35,13 +33,3 @@ def api_deal_return(func):
             logging.getLogger(__name__).error('api_deal_return exception: %s', e, exc_info=True)
             return api_return(errcode=1,errmsg='服务器内部错误')
     return gen_status
-
-def login_required(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if 'is_login' not in session:
-            return redirect('/rbac/login')
-
-        return func(*args, **kwargs)
-
-    return wrapper

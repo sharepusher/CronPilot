@@ -12,8 +12,6 @@ scheduler = APScheduler(scheduler=CuBackgroundScheduler())
 
 db = SQLAlchemy()
 
-isCreate = False
-
 
 def register_hms_filters(app):
     """Register BIGINT timestamp Jinja2 filters. Reusable in test setups."""

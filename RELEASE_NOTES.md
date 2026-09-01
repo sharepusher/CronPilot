@@ -7,6 +7,25 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 增强 — 集成测试自动探测
+
+- `test_csrf_integration.py` 和 `test_cron_ops_integration.py` 新增本地服务自动探测（:5001/:5860）
+- 无需手动设置 `CRONPILOT_BASE_URL` 环境变量，服务运行时集成测试自动执行
+- 新增 `SKIP_INTEGRATION=1` 环境变量支持强制跳过
+- skipped 测试从 11 个减少到 6 个（剩余 6 个因无测试任务数据跳过，非连接问题）
+- 详见 [集成测试自动探测优化](doc/design/集成测试自动探测优化-2026-08.html)
+
+### 清理 — 死代码移除（P2-4）
+
+- 移除 5 项确认死代码：
+  - `isCreate` 变量（`app/__init__.py`）— 上游遗留，从未被读取
+  - `_create_pending_log` / `_update_log_running` 桩函数（`app/crons.py`）— Plan-B 弃用后仅 `raise NotImplementedError`，无调用者
+  - `CRONPILOT_FORCE_NEW_UI` 配置（`config.py`）— V1 下线后运行时无消费者；同步清理 3 个测试文件中的无效设置
+  - `redis_host` 模块级变量（`config.py`）— 冗余的配置读取，实际通过 `configs()` 字典传递
+  - `login_required` 装饰器（`app/decorated.py`）— 已被 RBAC `@require_permission` 完全替代，无使用点
+- 同步更新 `pyproject.toml` 移除 `app/__init__.py` 的 F841 per-file-ignore
+- 详见 [代码质量优化方案](doc/design/代码质量优化方案-2026-08.html) P2-4 · [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) P2-4 实施复盘
+
 ### 修复 — CWD 相对路径消除（P1-5）
 
 - `configs.py` 的 `conf.ini` 读取从 CWD 相对路径改为基于 `__file__` 的绝对路径（`os.path.join(_proj_root, 'conf.ini')`）

@@ -11,17 +11,15 @@
 - seed admin 无 cron:write，不能创建任务
 - 若本地无 operator 账号，可手动在管理端创建，然后通过环境变量传入
 
-运行（本地服务须有 operator 账号）：
-  CRONPILOT_BASE_URL=http://127.0.0.1:5001 \\
-  CRONPILOT_WRITER_USER=your_operator \\
-  CRONPILOT_WRITER_PASS=yourpass \\
+运行（本地服务须有 operator 账号，自动探测 :5001/:5860）：
   python -m unittest tests.test_cron_ops_integration -v
 
-Docker：
-  CRONPILOT_BASE_URL=http://127.0.0.1:5860 \\
-  CRONPILOT_WRITER_USER=your_operator \\
-  CRONPILOT_WRITER_PASS=yourpass \\
+指定地址 / 账号：
+  CRONPILOT_BASE_URL=http://... CRONPILOT_WRITER_USER=op CRONPILOT_WRITER_PASS=pw \\
   python -m unittest tests.test_cron_ops_integration -v
+
+强制跳过：
+  SKIP_INTEGRATION=1 python -m unittest tests.test_cron_ops_integration -v
 
 若未设置 CRONPILOT_WRITER_USER，会尝试 'op_testf1'（本地开发账号）；
 创建任务失败时测试自动跳过（skip），不会 fail。
@@ -41,8 +39,19 @@ VIEWER_USER = os.environ.get('CRONPILOT_VIEWER_USER', 'integration-viewer')
 VIEWER_PASS = os.environ.get('CRONPILOT_VIEWER_PASS', 'changeme')
 
 _SKIP_REASON = None
-if not BASE_URL:
-    _SKIP_REASON = 'CRONPILOT_BASE_URL not set; skipping integration tests'
+if os.environ.get('SKIP_INTEGRATION', '').lower() in ('1', 'true', 'yes'):
+    _SKIP_REASON = 'SKIP_INTEGRATION=1; skipping integration tests'
+elif not BASE_URL:
+    import requests as _req
+    for _port in (5001, 5860):
+        try:
+            _req.get('http://127.0.0.1:%d/rbac/login' % _port, timeout=2)
+            BASE_URL = 'http://127.0.0.1:%d' % _port
+            break
+        except Exception:
+            pass
+    if not BASE_URL:
+        _SKIP_REASON = 'No CronPilot service on :5001 or :5860; set CRONPILOT_BASE_URL or start the service'
 else:
     try:
         import requests as _req

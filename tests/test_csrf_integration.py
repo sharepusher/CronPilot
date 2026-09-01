@@ -7,13 +7,13 @@
 
 测试方式：
   - 通过 requests.Session 模拟完整 cookie/CSRF 流程（GET 页面 → 提取 token → POST）
-  - 默认跳过（SKIP_INTEGRATION=1 或服务未运行），可通过环境变量 CRONPILOT_BASE_URL 指定地址
+  - 自动探测本地服务（:5001 或 :5860），无需手动设置环境变量
+  - 可通过 CRONPILOT_BASE_URL 指定地址，SKIP_INTEGRATION=1 强制跳过
 
-运行示例（本地服务 :5001）：
-  CRONPILOT_BASE_URL=http://127.0.0.1:5001 python -m unittest tests.test_csrf_integration -v
-
-运行示例（Docker :5860）：
-  CRONPILOT_BASE_URL=http://127.0.0.1:5860 python -m unittest tests.test_csrf_integration -v
+运行示例：
+  python -m unittest tests.test_csrf_integration -v          # 自动探测本地服务
+  CRONPILOT_BASE_URL=http://... python -m unittest tests.test_csrf_integration -v  # 指定地址
+  SKIP_INTEGRATION=1 python -m unittest tests.test_csrf_integration -v             # 强制跳过
 """
 import os
 import re
@@ -24,8 +24,19 @@ LOGIN_USER = os.environ.get('CRONPILOT_USER', 'admin')
 LOGIN_PASS = os.environ.get('CRONPILOT_PASS', 'changeme')
 
 _SKIP_REASON = None
-if not BASE_URL:
-    _SKIP_REASON = 'CRONPILOT_BASE_URL not set; skipping integration tests'
+if os.environ.get('SKIP_INTEGRATION', '').lower() in ('1', 'true', 'yes'):
+    _SKIP_REASON = 'SKIP_INTEGRATION=1; skipping integration tests'
+elif not BASE_URL:
+    import requests as _req
+    for _port in (5001, 5860):
+        try:
+            _req.get('http://127.0.0.1:%d/rbac/login' % _port, timeout=2)
+            BASE_URL = 'http://127.0.0.1:%d' % _port
+            break
+        except Exception:
+            pass
+    if not BASE_URL:
+        _SKIP_REASON = 'No CronPilot service on :5001 or :5860; set CRONPILOT_BASE_URL or start the service'
 else:
     try:
         import requests as _req

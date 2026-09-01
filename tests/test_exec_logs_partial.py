@@ -24,7 +24,6 @@ def _make_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['WTF_CSRF_ENABLED'] = False
-    app.config['CRONPILOT_FORCE_NEW_UI'] = True
     app.config['CRON_CONFIG'] = {
         'is_dev': '0',
         'block_private_ip': '0',

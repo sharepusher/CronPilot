@@ -1055,5 +1055,44 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 <h4>4. 修复</h4>
 <p>将 <code>_state</code> 对象整体改为 <code>var _state = {{ state_dict|tojson }};</code>，在 Python view 中构建 dict 传入模板。或逐字段改为 <code>{{ value|tojson }}</code>。</p>
 
+<hr>
+<h2>Code Review R4 — S-4 API Scope 缓存 role 键碰撞根因分析（2026-08-28）</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/api/__init__.py</code> 第 27-30 行（<code>_set_cached_user_scope</code>）和第 149 行（调用点）。</p>
+<p>缓存函数将 <code>user.role</code>（如 <code>'admin'</code>）存入 cache dict 的 <code>role</code> 键，而 fresh scope 用 <code>{'role': 'user', 'user_role': user.role}</code>。缓存命中后 <code>check_api_scope()</code> 的 <code>scope.get('role') == 'admin'</code> 判断直接放行，跳过所有 group scope 检查。</p>
+
+<h3>2. 根因（5-Why）</h3>
+<ol>
+<li><b>为什么缓存返回的 dict 导致 scope bypass？</b>—— 缓存 dict 中 <code>role='admin'</code>，而 <code>check_api_scope()</code> 以 <code>role=='admin'</code> 判断全局 token bypass。</li>
+<li><b>为什么缓存 dict 中 role 是 'admin'？</b>—— <code>_set_cached_user_scope(token, user.id, user.role, ...)</code> 将 <code>user.role</code>（Biz Admin 的角色值为 <code>'admin'</code>）直接存入 <code>role</code> 键。</li>
+<li><b>为什么 fresh scope 用 'user' 但缓存用 user.role？</b>—— 两个 dict 独立构建：fresh scope 在 S6 设计时引入了 <code>role/user_role</code> 双键语义，但缓存函数沿用了更早的按字段传参模式，没有同步更新。</li>
+<li><b>为什么测试没有发现？</b>—— 测试只覆盖 operator 角色（<code>user.role='operator'</code>），缓存中 <code>role='operator'</code> 不匹配 admin bypass 条件。且内存 DB 测试中缓存不跨请求持续。</li>
+<li><b>为什么 S6 实现时没有检查缓存一致性？</b>—— S6 关注的是 scope 隔离逻辑本身（fresh 路径），缓存被视为 "性能优化" 而非安全关键路径，缺乏"缓存形状必须与 fresh scope 一致"的显式约束。</li>
+</ol>
+
+<h3>3. 测试漏洞</h3>
+<ul>
+<li><code>tests/test_api_scope_s6.py</code> 只测试 <code>operator</code> 角色，未覆盖 <code>admin</code> 角色的 scope 行为</li>
+<li>所有 scope 测试使用内存 DB + 每次 fresh 创建 app，缓存从未被跨请求复用</li>
+<li>缺少"缓存命中路径"与"首次解析路径"行为一致性的断言</li>
+</ul>
+
+<h3>4. 修复</h3>
+<p>将 <code>_set_cached_user_scope</code> 改为接收完整 scope dict 并原样缓存（加 <code>ts</code> 时间戳），消除 cache dict 与 fresh scope dict 的形状差异。同时移除了冗余的 <code>expired</code> 后置写入逻辑。</p>
+
+<h3>5. 防护测试</h3>
+<p>新增 <code>test_cache_shape_matches_fresh_scope</code>：验证缓存 dict 的 <code>role</code> 键始终为 <code>'user'</code>、<code>user_role</code> 为真实角色、且包含 <code>expired</code> 和 <code>group_ids</code> 键。</p>
+
+<h3>6. 同类排查</h3>
+<p><code>_query_scope_context()</code>（<code>api/views.py</code>）直接从 <code>request._api_scope</code> 读取，不涉及独立缓存，无同类问题。<code>invalidate_user_scope_cache()</code> 按 <code>user_id</code> 匹配，fresh scope dict 已包含此字段，功能不受影响。</p>
+
+<h3>7. 预防方案</h3>
+<ul>
+<li><b>落地 1</b>：<code>_set_cached_user_scope</code> 函数签名改为 <code>(token, scope)</code>，直接缓存 scope dict，从设计上消除形状不一致的可能（已实施，<code>app/api/__init__.py</code>）</li>
+<li><b>落地 2</b>：<code>test_cache_shape_matches_fresh_scope</code> 回归测试永久防止 cache dict key 集合退化（已实施，<code>tests/test_api_scope_s6.py</code>）</li>
+<li><b>落地 3</b>：<code>.cursor/rules/cronpilot-backend.mdc</code> 新增 "API scope 缓存形状一致性" 规则：凡修改 <code>_set_cached_user_scope</code> 或 <code>_resolve_user_token</code>，必须运行 <code>test_cache_shape_matches_fresh_scope</code> 确认缓存与 fresh scope 形状一致</li>
+</ul>
+
 </body>
 </html>

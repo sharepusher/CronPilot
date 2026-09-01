@@ -7,6 +7,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 安全修复 — R4 API Scope 缓存 role 键碰撞（S-4）
+
+- **P0 权限提升**：`_set_cached_user_scope` 将 `user.role`（如 `'admin'`）存入缓存 dict 的 `role` 键，而 fresh scope 固定 `role='user'`。缓存命中后 `check_api_scope()` 误判为全局 token，完全跳过 group scope 检查。Biz Admin 第二次 API 请求即可操作任意组任务。
+- **修复**：`_set_cached_user_scope` 改为缓存完整 scope dict（`dict(scope, ts=time.time())`），确保缓存与 fresh scope 形状一致
+- **回归测试**：新增 `test_cache_shape_matches_fresh_scope`，断言缓存 dict 的 `role` 始终为 `'user'`
+
 ### 增强 — 表单字段级错误提示（OPT-P1-14）
 
 **Phase 1 — 任务表单（task_form.html）**

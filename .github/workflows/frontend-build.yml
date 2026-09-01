@@ -38,8 +38,8 @@ jobs:
         run: |
           if ! git diff --exit-code app/static/dist/; then
             echo "ERROR: app/static/dist/ is stale."
-            echo "Run 'cd frontend && npm ci && npm run build' locally and commit both dist files."
-            echo "(builds: cron-status-cell.js, cron-filter-bar.js, cron-form-validator.js, cron-form-validator.css)"
+            echo "Run 'cd frontend && npm ci && npm run build' locally and commit the dist files."
+            echo "(builds: cron-form-validator.js, cron-form-validator.css)"
             exit 1
           fi
           echo "OK: app/static/dist/ matches the current frontend/src build."

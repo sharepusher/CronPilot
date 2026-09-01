@@ -7,8 +7,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "vite build && vite build --config vite.config.filter-bar.js && vite build --config vite.config.form-validator.js",
-    "dev": "vite build --watch"
+    "build": "vite build --config vite.config.form-validator.js",
+    "dev": "vite build --config vite.config.form-validator.js --watch"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",

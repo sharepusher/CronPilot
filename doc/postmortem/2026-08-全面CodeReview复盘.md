@@ -801,6 +801,62 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 ---
 
+## P2-6 V1 遗留静态资源清理复盘（2026-08-28）
+
+### P2-6-1. Bug 定位
+
+3 个静态资源文件（共 ~207 KB）在 V1 UI 下线后仍留在仓库中，无任何模板引用：
+
+- `app/static/dist/cron-filter-bar.js`（69 KB）— V1 Vue island 组件
+- `app/static/dist/cron-status-cell.js`（67 KB）— V1 Vue island 组件
+- `app/static/jquery.js`（92 KB）— `js/jquery.js` 的重复副本（MD5 完全一致）
+
+同时保留了对应的 Vue 源文件（2 组件 + 2 mount + 1 composable，约 14 KB）和 2 个 Vite 配置文件，且 `npm run build` 每次仍无效构建这 2 个组件。
+
+### P2-6-2. 根因
+
+1. **Vue dist 文件**：2026-07 OPT-P2-14 引入 Vue 3 岛式架构，为 V1 模板创建了 3 个 IIFE 格式的 Vue 组件（status-cell、filter-bar、form-validator）。2026-08 V1 全面下线（commit `7302e0a`）时仅清理了模板和 CSS，**未同步清理构建产物和 Vue 源码**。
+2. **CI "保护"效应**：`frontend-build.yml` 的 `git diff --exit-code app/static/dist/` 检查确保所有构建产物与源码同步 — 如果删除 dist 文件但不改构建配置，CI 会因 `npm run build` 重新生成而失败。这形成了一个删除死锁：**删除需要同时改 4 处**（dist 文件 + Vite 配置 + package.json + CI 提示），增加了"顺手清理"的门槛。
+3. **jQuery 重复**：Phase A（`f3c5807`）将 jQuery 引入时在 `app/static/` 和 `app/static/js/` 放了两份。V1 模板引用根目录副本，Redesign 统一引用 `js/jquery.js`，下线时根目录副本遗漏。
+
+### P2-6-3. 测试漏洞
+
+- 无"未使用静态资源检测"机制 — 没有脚本扫描 `app/static/` 中的文件是否被任何模板的 `url_for('static', ...)` 引用
+- `frontend-build.yml` 仅验证"构建产物与源码同步"，不验证"构建产物是否被消费"
+
+### P2-6-4. 修复
+
+- 删除 3 个 dist 文件 + 1 个 jQuery 副本
+- 删除 5 个 Vue 源文件（`CronStatusCell.vue`、`CronFilterBar.vue`、`useCronToast.js`、2 个 mount 文件）
+- 删除 2 个 Vite 配置文件（`vite.config.js`、`vite.config.filter-bar.js`）
+- `package.json` build 脚本精简为仅 `vite build --config vite.config.form-validator.js`
+- `frontend-build.yml` 错误提示文案同步更新
+
+### P2-6-5. 防护测试
+
+- `npm run build`：仅产出 `cron-form-validator.js`（66 KB）+ `cron-form-validator.css`（847 B）
+- `smoke_routes.py --check`：86/86 通过（含 task\_form 页面，验证 form-validator 加载正常）
+- `test_form_name_guard`：Vue 组件选择器匹配测试通过
+- `ls app/static/dist/`：仅 2 个文件
+
+### P2-6-6. 同类排查
+
+检查 `app/static/` 下是否还有其他未被引用的文件：
+
+- `app/static/js/jquery.js` — `_base.html:47` 引用，**在用**
+- `app/static/dist/cron-form-validator.*` — `task_form.html:192-193` 引用，**在用**
+- `app/static/css/` — 6 个 CSS 文件均被模板引用，**全部在用**
+- `app/static/js/common-redesign.js` 等 5 个 JS — 均被 `_base.html` 或认证页引用，**在用**
+
+结论：清理后 `app/static/` 下无其他未使用文件。
+
+### P2-6-7. 预防方案
+
+1. **功能下线清理规范**（已有）：`.cursor/rules/cronpilot-project.mdc` P2-4-7 的"功能下线清理规范"要求下线功能时 `rg "FEATURE_NAME"` 全仓库搜索清理。本次遗漏的根因是该规范创建时间晚于 V1 下线。
+2. **前端构建产物审计**（建议）：在 `frontend-build.yml` 中追加步骤：构建后对比 `app/static/dist/` 文件列表与预期列表，存在意外文件则告警。验证：`ls app/static/dist/ | sort | diff - <(echo -e "cron-form-validator.css\ncron-form-validator.js")`。**暂不实施**（当前已无同类问题）。
+
+---
+
 ## P0-1 XSS：tags.html group name JS 字符串注入修复复盘（2026-08-28）
 
 ### XSS-1. Bug 定位

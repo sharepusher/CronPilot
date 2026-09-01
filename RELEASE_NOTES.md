@@ -22,6 +22,16 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 涉及模板：`_dashboard_rows.html`（3 处）、`_topbar.html`（3 处）、`run_inspector.html`（1 处）、`task_detail.html`（1 处）、`registration_review.html`（1 处）
 - 新增 Tooltip 分类规范写入 `.cursor/rules/cronpilot-format-guard.mdc` 和 `AGENTS.md`
 
+### 清理 — V1 遗留 Vue 组件 + 重复 jQuery 移除（P2-6）
+
+- 删除 2 个未使用 Vue dist 构建产物（`cron-filter-bar.js` 69KB、`cron-status-cell.js` 67KB）— V1 岛式架构组件，V1 下线后无模板引用
+- 删除对应 Vue 源文件（2 组件 + 2 mount + 1 composable）和 2 个 Vite 配置文件
+- 删除 `app/static/jquery.js` 根目录重复副本（92KB，MD5 与 `js/jquery.js` 完全一致）
+- `frontend/package.json` build 脚本精简为仅构建 `cron-form-validator`（唯一仍在使用的 Vue 组件）
+- `frontend-build.yml` CI 提示文案同步更新
+- 共计移除 ~207KB 死资源 + ~14KB Vue 源码
+- 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) P2-6 复盘
+
 ### 工程质量 — smoke_routes 纳入 CI
 
 - 新增 `.github/workflows/smoke-routes.yml`，在 push/PR 时自动运行 `smoke_routes.py --check`（86 条路由渲染链路冒烟）

@@ -708,6 +708,64 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 </ol>
 
 <hr>
+<h2>P2-6 V1 遗留静态资源清理复盘（2026-08-28）</h2>
+
+<h3>P2-6-1. Bug 定位</h3>
+<p>3 个静态资源文件（共 ~207 KB）在 V1 UI 下线后仍留在仓库中，无任何模板引用：</p>
+<ul>
+<li><code>app/static/dist/cron-filter-bar.js</code>（69 KB）— V1 Vue island 组件</li>
+<li><code>app/static/dist/cron-status-cell.js</code>（67 KB）— V1 Vue island 组件</li>
+<li><code>app/static/jquery.js</code>（92 KB）— <code>js/jquery.js</code> 的重复副本（MD5 完全一致）</li>
+</ul>
+<p>同时保留了对应的 Vue 源文件（2 组件 + 2 mount + 1 composable，约 14 KB）和 2 个 Vite 配置文件，且 <code>npm run build</code> 每次仍无效构建这 2 个组件。</p>
+
+<h3>P2-6-2. 根因</h3>
+<ol>
+<li><strong>Vue dist 文件</strong>：2026-07 OPT-P2-14 引入 Vue 3 岛式架构，为 V1 模板创建了 3 个 IIFE 格式的 Vue 组件（status-cell、filter-bar、form-validator）。2026-08 V1 全面下线（commit <code>7302e0a</code>）时仅清理了模板和 CSS，<strong>未同步清理构建产物和 Vue 源码</strong>。</li>
+<li><strong>CI "保护"效应</strong>：<code>frontend-build.yml</code> 的 <code>git diff --exit-code app/static/dist/</code> 检查确保所有构建产物与源码同步 — 如果删除 dist 文件但不改构建配置，CI 会因 <code>npm run build</code> 重新生成而失败。这形成了一个删除死锁：<strong>删除需要同时改 4 处</strong>（dist 文件 + Vite 配置 + package.json + CI 提示），增加了"顺手清理"的门槛。</li>
+<li><strong>jQuery 重复</strong>：Phase A（<code>f3c5807</code>）将 jQuery 引入时在 <code>app/static/</code> 和 <code>app/static/js/</code> 放了两份。V1 模板引用根目录副本，Redesign 统一引用 <code>js/jquery.js</code>，下线时根目录副本遗漏。</li>
+</ol>
+
+<h3>P2-6-3. 测试漏洞</h3>
+<ul>
+<li>无"未使用静态资源检测"机制 — 没有脚本扫描 <code>app/static/</code> 中的文件是否被任何模板的 <code>url_for('static', ...)</code> 引用</li>
+<li><code>frontend-build.yml</code> 仅验证"构建产物与源码同步"，不验证"构建产物是否被消费"</li>
+</ul>
+
+<h3>P2-6-4. 修复</h3>
+<ul>
+<li>删除 3 个 dist 文件 + 1 个 jQuery 副本</li>
+<li>删除 5 个 Vue 源文件（<code>CronStatusCell.vue</code>、<code>CronFilterBar.vue</code>、<code>useCronToast.js</code>、2 个 mount 文件）</li>
+<li>删除 2 个 Vite 配置文件（<code>vite.config.js</code>、<code>vite.config.filter-bar.js</code>）</li>
+<li><code>package.json</code> build 脚本精简为仅 <code>vite build --config vite.config.form-validator.js</code></li>
+<li><code>frontend-build.yml</code> 错误提示文案同步更新</li>
+</ul>
+
+<h3>P2-6-5. 防护测试</h3>
+<ul>
+<li><code>npm run build</code>：仅产出 <code>cron-form-validator.js</code>（66 KB）+ <code>cron-form-validator.css</code>（847 B）</li>
+<li><code>smoke_routes.py --check</code>：86/86 通过（含 task_form 页面，验证 form-validator 加载正常）</li>
+<li><code>test_form_name_guard</code>：Vue 组件选择器匹配测试通过</li>
+<li><code>ls app/static/dist/</code>：仅 2 个文件</li>
+</ul>
+
+<h3>P2-6-6. 同类排查</h3>
+<p>检查 <code>app/static/</code> 下是否还有其他未被引用的文件：</p>
+<ul>
+<li><code>app/static/js/jquery.js</code> — <code>_base.html:47</code> 引用，<strong>在用</strong></li>
+<li><code>app/static/dist/cron-form-validator.*</code> — <code>task_form.html:192-193</code> 引用，<strong>在用</strong></li>
+<li><code>app/static/css/</code> — 6 个 CSS 文件均被模板引用，<strong>全部在用</strong></li>
+<li><code>app/static/js/common-redesign.js</code> 等 5 个 JS — 均被 <code>_base.html</code> 或认证页引用，<strong>在用</strong></li>
+</ul>
+<p>结论：清理后 <code>app/static/</code> 下无其他未使用文件。</p>
+
+<h3>P2-6-7. 预防方案</h3>
+<ol>
+<li><strong>功能下线清理规范</strong>（已有）：<code>.cursor/rules/cronpilot-project.mdc</code> P2-4-7 的"功能下线清理规范"要求下线功能时 <code>rg "FEATURE_NAME"</code> 全仓库搜索清理。本次遗漏的根因是该规范创建时间晚于 V1 下线。</li>
+<li><strong>前端构建产物审计</strong>（建议）：在 <code>frontend-build.yml</code> 中追加步骤：构建后对比 <code>app/static/dist/</code> 文件列表与预期列表，存在意外文件则告警。验证：<code>ls app/static/dist/ | sort | diff - &lt;(echo -e "cron-form-validator.css\ncron-form-validator.js")</code>。<strong>暂不实施</strong>（当前已无同类问题）。</li>
+</ol>
+
+<hr>
 <h2>P0-1 XSS：tags.html group name JS 字符串注入修复复盘（2026-08-28）</h2>
 
 <h3>XSS-1. Bug 定位</h3>

@@ -262,6 +262,16 @@ alwaysApply: false
 - **禁止**：先操作 scheduler 再 commit — 若 commit 失败，scheduler 已变更但 DB 未更新，造成不一致。
 - **违反教训**：2026-08 `toggle_status()` 先 `scheduler.resume/pause_job` 再 `db.commit()`，commit 失败时 scheduler 与 DB 状态不一致。
 
+## BIGINT 时间戳列比较必须使用 hms 工具函数（强制 · 2026-08 R3 教训）
+
+凡涉及 BIGINT 时间戳列（`*_at` 列，存储百毫秒纪元值）的比较操作：
+
+- **必须**使用 `utc_now_hms()` / `str_to_hms()` / `datetime_to_hms()` 进行比较
+- **禁止** `datetime.strptime()` 解析 BIGINT 值（Phase A 迁移后所有时间戳列为 int，非 datetime 字符串）
+- **测试 fixture**：设置 BIGINT 时间戳列值时必须使用 `datetime_to_hms()`，禁止 `strftime()` 字符串
+- **自检**：`grep -rn 'strptime' app/ | grep -v '#' && echo WARN || echo OK`
+- **违反教训**：2026-08 `_resolve_user_token()` 用 strptime 解析 BIGINT 的 `api_token_expires_at`，TypeError 被静默 catch，Token 永不过期。测试用 strftime 字符串 fixture 绕过了此 bug。
+
 ## 文件路径必须使用绝对路径（强制 · 2026-08）
 
 凡 `open()` / `os.path.exists()` 等文件操作，路径必须基于 `os.path.abspath(__file__)` 或项目根目录常量构建，禁止使用 CWD 相对路径（如 `"scheduler.lock"`、`"conf.ini"`）。

@@ -115,8 +115,6 @@ def _resolve_user_token(token):
         return cached
 
     try:
-        from datetime import datetime
-
         from sqlalchemy import select
 
         from app import db
@@ -131,12 +129,12 @@ def _resolve_user_token(token):
 
         expired = False
         if user.api_token_expires_at:
+            from datas.utils.times import utc_now_hms
             try:
-                exp = datetime.strptime(user.api_token_expires_at, '%Y-%m-%d %H:%M:%S')
-                if datetime.now() > exp:
+                if utc_now_hms() > int(user.api_token_expires_at):
                     expired = True
             except (ValueError, TypeError):
-                pass
+                expired = True
 
         group_ids = get_user_group_ids(user.id)
         scope = {

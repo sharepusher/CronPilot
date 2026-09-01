@@ -979,5 +979,81 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 </ul>
 <p>落地位置：<code>.cursor/rules/cronpilot-project.mdc</code>"Bug 修复复盘"章节追加"同类排查必须按根因搜索"要求。</p>
 
+<hr>
+<h2>Code Review R3 — P0/P1 安全与正确性问题根因分析（2026-08-28）</h2>
+
+<h3>R3-P0-1：API Token 过期校验永远不生效</h3>
+
+<h4>1. Bug 定位</h4>
+<p><code>app/api/__init__.py:135</code> — <code>datetime.strptime(user.api_token_expires_at, '%Y-%m-%d %H:%M:%S')</code> 对 BIGINT 类型的 <code>api_token_expires_at</code> 永远抛出 TypeError，被 <code>except (ValueError, TypeError): pass</code> 静默吞掉，<code>expired</code> 始终为 <code>False</code>。</p>
+
+<h4>2. 根因（5-Why）</h4>
+<ol>
+  <li><strong>Why</strong>：为什么 strptime 对 BIGINT 失败？ — <code>api_token_expires_at</code> 列是 <code>Mapped[Optional[int]]</code>（BIGINT），值为百毫秒纪元整数（如 <code>17259936000</code>），不是 datetime 字符串。</li>
+  <li><strong>Why</strong>：为什么代码用 strptime 而非整数比较？ — <code>_resolve_user_token()</code> 是在 BIGINT 时间戳迁移（Phase A）之前编写的，当时 <code>api_token_expires_at</code> 存储的是 <code>'%Y-%m-%d %H:%M:%S'</code> 格式字符串。</li>
+  <li><strong>Why</strong>：为什么 Phase A 迁移没有同步更新此处？ — Phase A 迁移聚焦于 <code>JobLog</code> / <code>CronInfos</code> 的时间戳列，<code>RbacUser.api_token_expires_at</code> 是后来在 OPT-P2-10（RBAC）中新增的列，使用了新的 BIGINT 格式，但 <code>_resolve_user_token()</code> 的解析代码是从旧逻辑复制的。</li>
+  <li><strong>Why</strong>：为什么测试没发现？ — <code>test_api_scope_s6.py</code> 中测试夹具直接使用 <code>strftime('%Y-%m-%d %H:%M:%S')</code> 字符串格式设置 <code>api_token_expires_at</code>，绕过了 <code>_auto_issue_token()</code> 的 BIGINT 生成逻辑。测试验证了"字符串格式下过期能正确检测"，但生产环境从未生成字符串格式值。</li>
+  <li><strong>Why</strong>：为什么 except 块选择了静默 pass？ — 设计意图是"解析失败 → 视为未设过期 → 放行"，但这个降级策略在 BIGINT 迁移后变成了"永远放行"。</li>
+</ol>
+
+<h4>3. 测试漏洞</h4>
+<p><code>test_api_scope_s6.py</code> 的 <code>test_scope_expired_token</code> 使用字符串格式 fixture，未通过 <code>_auto_issue_token()</code> 端到端测试 token 生命周期。缺少"用 service 层签发 → 验证过期行为"的集成测试。</p>
+
+<h4>4. 修复</h4>
+<p>将 <code>strptime</code> 比较改为 <code>utc_now_hms() > int(user.api_token_expires_at)</code>。同步更新 <code>test_api_scope_s6.py</code> 使用 <code>datetime_to_hms()</code> 格式。</p>
+
+<h4>5. 防护测试</h4>
+<p>更新 <code>test_api_scope_s6.py</code> 中所有 <code>api_token_expires_at</code> fixture 从字符串改为 BIGINT，确保测试与生产格式一致。</p>
+
+<h4>6. 同类排查</h4>
+<p><code>grep -rn 'strptime.*api_token' app/</code> — 仅此一处。<code>grep -rn 'strptime' app/</code> — 无其他时间戳列使用 strptime 解析 BIGINT 值。</p>
+
+<h4>7. 预防方案</h4>
+<ul>
+  <li><strong>规范</strong>：<code>.cursor/rules/cronpilot-backend.mdc</code> 新增"时间戳比较必须使用 hms 工具函数"规则 — 凡涉及 BIGINT 时间戳列（<code>*_at</code>），比较必须使用 <code>utc_now_hms()</code> / <code>str_to_hms()</code>，禁止 strptime。</li>
+  <li><strong>自检命令</strong>：<code>grep -rn 'strptime' app/ | grep -v '#' && echo WARN || echo OK</code></li>
+  <li><strong>测试格式对齐</strong>：测试 fixture 中设置 BIGINT 时间戳列值时必须使用 <code>datetime_to_hms()</code>，禁止 strftime 字符串。</li>
+</ul>
+
+<h3>R3-P0-3：标签编辑弹窗 groupName innerHTML XSS</h3>
+
+<h4>1. Bug 定位</h4>
+<p><code>app/templates/redesign/tags.html:202</code> — <code>(btn.dataset.groupName || '全局')</code> 直接拼入 <code>innerHTML</code>，未经 <code>escHtml()</code> 转义。</p>
+
+<h4>2. 根因</h4>
+<p>同一文件中 <code>data-name</code>（标签名，行 200）和 <code>data-description</code>（行 204）均使用了手动 <code>.replace(/[&lt;&gt;"]/g, ...)</code> 转义，但 <code>data-group-name</code>（行 202）被遗漏。这是因为 group name 被视为"系统数据"（管理员创建）而非"用户输入"，但 HTML 属性值经浏览器解码后仍可包含 XSS payload。</p>
+
+<h4>3. 测试漏洞</h4>
+<p>无针对标签编辑弹窗 HTML 注入的测试用例。<code>test_tag_scope.py</code> 仅覆盖 API 层面的 CRUD，不覆盖 JS 渲染行为。</p>
+
+<h4>4. 修复</h4>
+<p>将 <code>(btn.dataset.groupName || '全局')</code> 改为 <code>escHtml(btn.dataset.groupName || '全局')</code>。</p>
+
+<h4>5. 防护测试</h4>
+<p>可通过 <code>grep</code> 静态检查：<code>grep -n 'dataset\.' app/templates/redesign/tags.html | grep -v 'escHtml\|replace\|\.id\|\.name\.replace' | grep innerHTML</code> 应为空。</p>
+
+<h4>6. 同类排查</h4>
+<p><code>grep -rn 'dataset\.' app/templates/redesign/ | grep -v 'escHtml\|replace\|\.id$' | grep -v '.js:'</code> — 检查其他模板中 dataset 值是否经转义后进入 DOM。</p>
+
+<h4>7. 预防方案</h4>
+<ul>
+  <li><strong>规范强化</strong>：<code>AGENTS.md</code> 的 innerHTML XSS 防护规则补充"HTML data-* 属性值经浏览器解码后等同于原始字符串"警告。</li>
+  <li><strong>自检命令</strong>：<code>rg "dataset\.\w+" app/templates/redesign/ --no-filename -o | sort -u</code> 列出所有 dataset 引用，逐一确认有转义。</li>
+</ul>
+
+<h3>R3-P1-tojson：Dashboard/执行记录/用户列表 JS 模板变量未用 |tojson</h3>
+
+<h4>1. Bug 定位</h4>
+<p><code>dashboard.html:253-259</code>、<code>execution_logs.html:113-120</code>、<code>users.html:198-199</code> — Jinja 变量直接嵌入 JS 单引号字符串字面量，未使用 <code>|tojson</code>。</p>
+
+<h4>2. 根因</h4>
+<p>AJAX 筛选功能（OPT-P1-17）开发时，从 v1 模板中沿用了 <code>'{{ value }}'</code> 模式。v1 模板中此模式也存在，但 v1 已计划下线。Redesign 开发未执行"JS 上下文变量必须用 |tojson"的检查。</p>
+
+<h4>3. 影响</h4>
+<p>非 XSS 代码执行（Jinja2 HTML autoescape 在 &lt;script&gt; 中意外提供了保护），但存在：数据失真（<code>&amp;</code> → <code>&amp;amp;</code>）、JS 中断（URL 含 <code>%0a</code> 换行时）。</p>
+
+<h4>4. 修复</h4>
+<p>将 <code>_state</code> 对象整体改为 <code>var _state = {{ state_dict|tojson }};</code>，在 Python view 中构建 dict 传入模板。或逐字段改为 <code>{{ value|tojson }}</code>。</p>
+
 </body>
 </html>

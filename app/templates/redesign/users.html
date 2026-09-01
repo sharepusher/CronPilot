@@ -195,8 +195,8 @@ $(function() {
 (function() {
   var _baseUrl = '{{ url_for("rbac.users_list") }}';
   var _state = {
-    username: '{{ search_username or "" }}',
-    chip: '{{ chip or "" }}',
+    username: {{ (search_username or "")|tojson }},
+    chip: {{ (chip or "")|tojson }},
     page: '1'
   };
   var _debounceTimer = null;

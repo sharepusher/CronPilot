@@ -7,7 +7,9 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-### 增强 — 表单字段级错误提示（OPT-P1-14 Phase 1）
+### 增强 — 表单字段级错误提示（OPT-P1-14）
+
+**Phase 1 — 任务表单（task_form.html）**
 
 - 任务表单（新建/编辑）验证错误改为**字段旁内联文案**（`.tf-error-msg`），替代全局 Toast
 - 错误文案紧跟出错字段下方显示，带 ⚠ 前缀和 fadeIn 动画，符合格式塔接近性原则
@@ -18,6 +20,20 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 包含 `role="alert"` ARIA 属性（WCAG 无障碍最佳实践）
 - 全量审计 62 个错误场景，15 项 A 类（需修复）、27 项 B 类（合理）、3 项 B+ 类、20 项 C 类
 - 设计文档 `doc/design/表单字段级错误提示设计.html` rev.3
+
+**Phase 2 — 全 RBAC 表单覆盖（6 张表单）**
+
+- `.tf-error-msg` CSS 从 `redesign-pages.css` 提升为 `redesign-components.css` 共享组件
+- JS hint 选择器泛化：`[class*="-hint"]` 通配所有表单 hint 类（`tf-hint`, `cr-hint`, `pw-hint`, `uf-hint`, `gf-hint`, `usa-hint`）
+- 后端 `_users_form_response` 增加 `data` 参数透传，支持 field key 自动推断
+- 6 张表单全部改造：
+  - `cron_retire.html` — 下线原因 → `reason`
+  - `users_set_active.html` — 停用缘由 → `reason`
+  - `group_form.html` — 组名 → `gf-name`、说明 → `gf-desc`
+  - `change_password.html` — 当前密码 → `pwd-old`、新密码 → `pwd-new`、确认 → `pwd-confirm`
+  - `user_form.html` — 用户名/角色/邮箱/岗位/业务组 → 5 个字段
+  - `user_profile.html` — 花名/邮箱/岗位 → 3 个字段
+- 所有表单添加 `novalidate` + 移除 `required`/`minlength` 属性，禁用浏览器原生校验气泡
 
 ### 增强 — 任务详情页健康卡片时间戳
 
@@ -56,6 +72,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 消除恶意组名通过 JS 字符串拼接注入 XSS 的可能性（需 admin 权限创建组，内部工具风险可控但仍应修复）
 - 全面扫描确认其他 Redesign 模板中无同类问题
 - 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) XSS-1 复盘
+
+### 安全修复 — R3 Token 过期 + XSS 防护 + JS tojson
+
+- **P0-1 Token 过期**：`_resolve_user_token()` 的 `strptime` 解析改为 `utc_now_hms()` BIGINT 比较，修复 API Token 永不过期的问题；`except` 分支改为 `expired = True`（fail-closed）
+- **P0-3 tags.html XSS**：标签编辑弹窗 `groupName` 补充 `escHtml()` 转义，防止通过 `data-*` 属性的 HTML 解码注入 innerHTML
+- **P1-tojson 纵深防御**：Dashboard / 执行记录 / 用户管理 / 审计日志 / 操作记录 5 个页面的 JS `_state` 对象和 `_cpCsrf` 改用 `|tojson` 输出，消除 URL 参数中特殊字符导致的数据失真和 JS 中断风险
+- 测试 `test_api_scope_s6.py` 中 `api_token_expires_at` fixture 从 strftime 字符串改为 `datetime_to_hms()` BIGINT，与生产格式对齐
+- 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) R3 根因分析
 
 ### 安全修复 — P0 安全/完整性快修（S-1 / S-2 / S-3）
 

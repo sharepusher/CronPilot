@@ -199,7 +199,7 @@
             '<div class="tg-fg"><label>标签名称 <span class="tg-req">*</span></label>' +
             '<input type="text" id="tg-e-name" class="tg-input" maxlength="64" autocomplete="off" aria-label="标签名称" value="' + btn.dataset.name.replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }) + '"></div>' +
             '<div class="tg-fg"><label>所属业务组</label>' +
-            '<span class="tg-muted">' + (btn.dataset.groupName || '全局') + '</span></div>' +
+            '<span class="tg-muted">' + escHtml(btn.dataset.groupName || '全局') + '</span></div>' +
             '<div class="tg-fg"><label>标签说明</label>' +
             '<input type="text" id="tg-e-desc" class="tg-input" maxlength="255" placeholder="简要描述标签含义" autocomplete="off" aria-label="标签说明" value="' + (btn.dataset.description || '').replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }) + '"></div>' +
             '<div id="tg-e-err" class="tg-err"></div>';

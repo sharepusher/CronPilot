@@ -149,7 +149,7 @@
 
 {% block js %}
 <script>
-var _cpCsrf = '{{ csrf_token }}';
+var _cpCsrf = {{ csrf_token|tojson }};
 
 /* ── Toggle status ── */
 function cpToggleStatus(cronId, newStatus, btn) {
@@ -250,13 +250,13 @@ function cpRetire(cronId, btn) {
 (function() {
   var _baseUrl = '{{ url_for("main.cron_list") }}';
   var _state = {
-    health: '{{ keyword.get("health", "") }}',
-    status: '{{ keyword.get("status", "") }}',
-    scope_view: '{{ scope_view or "" }}',
-    group_id: '{{ scope_group_id or "" }}',
-    tag: '{{ current_tag or "" }}',
-    task_name: '{{ keyword.get("task_name", "") }}',
-    page: '{{ keyword.get("page", "1") }}'
+    health: {{ keyword.get("health", "")|tojson }},
+    status: {{ keyword.get("status", "")|tojson }},
+    scope_view: {{ (scope_view or "")|tojson }},
+    group_id: {{ (scope_group_id or "")|tojson }},
+    tag: {{ (current_tag or "")|tojson }},
+    task_name: {{ keyword.get("task_name", "")|tojson }},
+    page: {{ keyword.get("page", "1")|tojson }}
   };
   var _debounceTimer = null;
 

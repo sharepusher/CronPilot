@@ -111,13 +111,13 @@ document.addEventListener('click', function(e) {
 (function() {
   var _baseUrl = '{{ url_for("main.job_log_list", id=cron_info.id) if cron_info else url_for("main.job_log_all_list") }}';
   var _state = {
-    outcome: '{{ outcome or "not_success" }}',
-    task_name: '{{ keywords.get("task_name", "") }}',
-    content: '{{ keywords.get("content", "") }}',
-    start_time: '{{ keywords.get("start_time", "") }}',
-    end_time: '{{ keywords.get("end_time", "") }}',
-    group_id: '{{ keywords.get("group_id", "") }}',
-    page: '{{ keywords.get("page", "1") }}'
+    outcome: {{ (outcome or "not_success")|tojson }},
+    task_name: {{ keywords.get("task_name", "")|tojson }},
+    content: {{ keywords.get("content", "")|tojson }},
+    start_time: {{ keywords.get("start_time", "")|tojson }},
+    end_time: {{ keywords.get("end_time", "")|tojson }},
+    group_id: {{ keywords.get("group_id", "")|tojson }},
+    page: {{ keywords.get("page", "1")|tojson }}
   };
   var _debounceTimer = null;
   var _hasCronInfo = {{ 'true' if cron_info else 'false' }};

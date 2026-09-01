@@ -14,10 +14,10 @@
 import os
 import sys
 import unittest
-from unittest.mock import patch
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
-from datas.utils.times import str_to_hms
+from datas.utils.times import datetime_to_hms, str_to_hms
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
@@ -26,8 +26,9 @@ if ROOT not in sys.path:
 
 def _make_app():
     from flask import Flask
-    from app import db
+
     import app.api as api_pkg
+    from app import db
 
     app = Flask(__name__)
     app.secret_key = 'test-s6'
@@ -48,8 +49,8 @@ class TestAuthTokenEndpoint(unittest.TestCase):
         self.app, self.db = _make_app()
         self.client = self.app.test_client()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
             self.db.create_all()
             u = RbacUser(username='testuser', role='operator', is_active=1, create_time=str_to_hms('2026-01-01 00:00:00'))
             u.set_password('mypassword')
@@ -105,17 +106,17 @@ class TestTokenExpiry(unittest.TestCase):
         self.app, self.db = _make_app()
         self.client = self.app.test_client()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
-            from datas.model.rbac_audit_log import RbacAuditLog
             from datas.model.cron_infos import CronInfos
+            from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
             self.db.create_all()
-            expired = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+            expired = datetime_to_hms(datetime.now() - timedelta(days=1))
             u = RbacUser(username='expired-user', role='operator', is_active=1,
                          api_token='expired-tok', api_token_expires_at=expired,
                          password_hash='x', create_time=str_to_hms('2026-01-01 00:00:00'))
             u_valid = RbacUser(username='valid-user', role='operator', is_active=1,
                                api_token='valid-tok',
-                               api_token_expires_at=(datetime.now() + timedelta(days=10)).strftime('%Y-%m-%d %H:%M:%S'),
+                               api_token_expires_at=datetime_to_hms(datetime.now() + timedelta(days=10)),
                                password_hash='x', create_time=str_to_hms('2026-01-01 00:00:00'))
             self.db.session.add_all([u, u_valid])
             c = CronInfos(task_name='t1', req_url='http://x.com', scope_type='GLOBAL')
@@ -150,12 +151,12 @@ class TestScopeIsolation(unittest.TestCase):
         self.app, self.db = _make_app()
         self.client = self.app.test_client()
         with self.app.app_context():
-            from datas.model.resource_group import ResourceGroup
-            from datas.model.rbac_user import RbacUser
-            from datas.model.user_group import UserGroup
             from datas.model.cron_infos import CronInfos
-            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.user_group import UserGroup
             self.db.create_all()
 
             g1 = ResourceGroup(name='G1', create_time=str_to_hms('2026-01-01 00:00:00'))
@@ -165,7 +166,7 @@ class TestScopeIsolation(unittest.TestCase):
             self.g1_id = g1.id
             self.g2_id = g2.id
 
-            future = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+            future = datetime_to_hms(datetime.now() + timedelta(days=30))
             u = RbacUser(username='bot', role='operator', is_active=1,
                          api_token='bot-tok', api_token_expires_at=future,
                          password_hash='x', create_time=str_to_hms('2026-01-01 00:00:00'))
@@ -179,7 +180,6 @@ class TestScopeIsolation(unittest.TestCase):
             t2 = CronInfos(task_name='t-g2', req_url='http://x.com', scope_type='GROUP')
             self.db.session.add_all([tg, t1, t2])
             self.db.session.flush()
-            from datas.model.task_group import TaskGroup
             self.db.session.add(TaskGroup(task_id=t1.id, group_id=g1.id))
             self.db.session.add(TaskGroup(task_id=t2.id, group_id=g2.id))
             self.db.session.commit()
@@ -249,8 +249,8 @@ class TestAutoResetOnMutation(unittest.TestCase):
         api_pkg._SCOPE_CACHE.clear()
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup
             from datas.model.user_group import UserGroup
             self.db.create_all()
@@ -272,7 +272,7 @@ class TestAutoResetOnMutation(unittest.TestCase):
             self.assertIsNotNone(u.api_token_expires_at)
 
     def test_password_change_resets_token(self):
-        from app.rbac.services import create_user, change_own_password
+        from app.rbac.services import change_own_password, create_user
 
         with self.app.app_context():
             result = create_user('pwd-test', role='operator')
@@ -312,13 +312,13 @@ class TestReadonlyQueryApis(unittest.TestCase):
         self.app, self.db = _make_app()
         self.client = self.app.test_client()
         with self.app.app_context():
-            from datas.model.resource_group import ResourceGroup
-            from datas.model.rbac_user import RbacUser
-            from datas.model.user_group import UserGroup
             from datas.model.cron_infos import CronInfos
-            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.job_log import JobLog
             from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.user_group import UserGroup
             self.db.create_all()
 
             g1 = ResourceGroup(name='G1', create_time=str_to_hms('2026-01-01 00:00:00'))
@@ -326,7 +326,7 @@ class TestReadonlyQueryApis(unittest.TestCase):
             self.db.session.add_all([g1, g2])
             self.db.session.flush()
 
-            future = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+            future = datetime_to_hms(datetime.now() + timedelta(days=30))
             u = RbacUser(
                 username='reader',
                 role='operator',
@@ -346,7 +346,6 @@ class TestReadonlyQueryApis(unittest.TestCase):
             c_post = CronInfos(task_name='q-post', req_url='http://x.com', req_method='POST', scope_type='GROUP')
             self.db.session.add_all([c_global, c_g1, c_g2, c_post])
             self.db.session.flush()
-            from datas.model.task_group import TaskGroup
             self.db.session.add(TaskGroup(task_id=c_g1.id, group_id=g1.id))
             self.db.session.add(TaskGroup(task_id=c_g2.id, group_id=g2.id))
             self.db.session.add(TaskGroup(task_id=c_post.id, group_id=g1.id))

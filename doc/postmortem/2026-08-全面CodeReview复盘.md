@@ -1070,4 +1070,93 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 ---
 
+## Code Review R3 — P0/P1 安全与正确性问题根因分析（2026-08-28）
+
+### R3-P0-1：API Token 过期校验永远不生效
+
+#### 1. Bug 定位
+
+`app/api/__init__.py:135` — `datetime.strptime(user.api_token_expires_at, '%Y-%m-%d %H:%M:%S')` 对 BIGINT 类型的 `api_token_expires_at` 永远抛出 TypeError，被 `except (ValueError, TypeError): pass` 静默吞掉，`expired` 始终为 `False`。
+
+#### 2. 根因（5-Why）
+
+1. **Why**：为什么 strptime 对 BIGINT 失败？ — `api_token_expires_at` 列是 `Mapped[Optional[int]]`（BIGINT），值为百毫秒纪元整数（如 `17259936000`），不是 datetime 字符串。
+2. **Why**：为什么代码用 strptime 而非整数比较？ — `_resolve_user_token()` 是在 BIGINT 时间戳迁移（Phase A）之前编写的，当时 `api_token_expires_at` 存储的是 `'%Y-%m-%d %H:%M:%S'` 格式字符串。
+3. **Why**：为什么 Phase A 迁移没有同步更新此处？ — Phase A 迁移聚焦于 `JobLog` / `CronInfos` 的时间戳列，`RbacUser.api_token_expires_at` 是后来在 OPT-P2-10（RBAC）中新增的列，使用了新的 BIGINT 格式，但 `_resolve_user_token()` 的解析代码是从旧逻辑复制的。
+4. **Why**：为什么测试没发现？ — `test_api_scope_s6.py` 中测试夹具直接使用 `strftime('%Y-%m-%d %H:%M:%S')` 字符串格式设置 `api_token_expires_at`，绕过了 `_auto_issue_token()` 的 BIGINT 生成逻辑。测试验证了"字符串格式下过期能正确检测"，但生产环境从未生成字符串格式值。
+5. **Why**：为什么 except 块选择了静默 pass？ — 设计意图是"解析失败 → 视为未设过期 → 放行"，但这个降级策略在 BIGINT 迁移后变成了"永远放行"。
+
+#### 3. 测试漏洞
+
+`test_api_scope_s6.py` 的 `test_scope_expired_token` 使用字符串格式 fixture，未通过 `_auto_issue_token()` 端到端测试 token 生命周期。缺少"用 service 层签发 → 验证过期行为"的集成测试。
+
+#### 4. 修复
+
+将 `strptime` 比较改为 `utc_now_hms() > int(user.api_token_expires_at)`。同步更新 `test_api_scope_s6.py` 使用 `datetime_to_hms()` 格式。
+
+#### 5. 防护测试
+
+更新 `test_api_scope_s6.py` 中所有 `api_token_expires_at` fixture 从字符串改为 BIGINT，确保测试与生产格式一致。
+
+#### 6. 同类排查
+
+`grep -rn 'strptime.*api_token' app/` — 仅此一处。`grep -rn 'strptime' app/` — 无其他时间戳列使用 strptime 解析 BIGINT 值。
+
+#### 7. 预防方案
+
+- **规范**：`.cursor/rules/cronpilot-backend.mdc` 新增"时间戳比较必须使用 hms 工具函数"规则 — 凡涉及 BIGINT 时间戳列（`*_at`），比较必须使用 `utc_now_hms()` / `str_to_hms()`，禁止 strptime。
+- **自检命令**：`grep -rn 'strptime' app/ | grep -v '#' && echo WARN || echo OK`
+- **测试格式对齐**：测试 fixture 中设置 BIGINT 时间戳列值时必须使用 `datetime_to_hms()`，禁止 strftime 字符串。
+
+### R3-P0-3：标签编辑弹窗 groupName innerHTML XSS
+
+#### 1. Bug 定位
+
+`app/templates/redesign/tags.html:202` — `(btn.dataset.groupName || '全局')` 直接拼入 `innerHTML`，未经 `escHtml()` 转义。
+
+#### 2. 根因
+
+同一文件中 `data-name`（标签名，行 200）和 `data-description`（行 204）均使用了手动 `.replace(/[<>"]/g, ...)` 转义，但 `data-group-name`（行 202）被遗漏。这是因为 group name 被视为"系统数据"（管理员创建）而非"用户输入"，但 HTML 属性值经浏览器解码后仍可包含 XSS payload。
+
+#### 3. 测试漏洞
+
+无针对标签编辑弹窗 HTML 注入的测试用例。`test_tag_scope.py` 仅覆盖 API 层面的 CRUD，不覆盖 JS 渲染行为。
+
+#### 4. 修复
+
+将 `(btn.dataset.groupName || '全局')` 改为 `escHtml(btn.dataset.groupName || '全局')`。
+
+#### 5. 防护测试
+
+可通过 `grep` 静态检查：`grep -n 'dataset\.' app/templates/redesign/tags.html | grep -v 'escHtml\|replace\|\.id\|\.name\.replace' | grep innerHTML` 应为空。
+
+#### 6. 同类排查
+
+`grep -rn 'dataset\.' app/templates/redesign/ | grep -v 'escHtml\|replace\|\.id$' | grep -v '.js:'` — 检查其他模板中 dataset 值是否经转义后进入 DOM。
+
+#### 7. 预防方案
+
+- **规范强化**：`AGENTS.md` 的 innerHTML XSS 防护规则补充"HTML data-\* 属性值经浏览器解码后等同于原始字符串"警告。
+- **自检命令**：`rg "dataset\.\w+" app/templates/redesign/ --no-filename -o | sort -u` 列出所有 dataset 引用，逐一确认有转义。
+
+### R3-P1-tojson：Dashboard/执行记录/用户列表 JS 模板变量未用 |tojson
+
+#### 1. Bug 定位
+
+`dashboard.html:253-259`、`execution_logs.html:113-120`、`users.html:198-199` — Jinja 变量直接嵌入 JS 单引号字符串字面量，未使用 `|tojson`。
+
+#### 2. 根因
+
+AJAX 筛选功能（OPT-P1-17）开发时，从 v1 模板中沿用了 `'{{ value }}'` 模式。v1 模板中此模式也存在，但 v1 已计划下线。Redesign 开发未执行"JS 上下文变量必须用 |tojson"的检查。
+
+#### 3. 影响
+
+非 XSS 代码执行（Jinja2 HTML autoescape 在 <script> 中意外提供了保护），但存在：数据失真（`&` → `&amp;`）、JS 中断（URL 含 `%0a` 换行时）。
+
+#### 4. 修复
+
+将 `_state` 对象整体改为 `var _state = {{ state_dict|tojson }};`，在 Python view 中构建 dict 传入模板。或逐字段改为 `{{ value|tojson }}`。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

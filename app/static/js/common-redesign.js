@@ -37,7 +37,7 @@
 
     if ($btn.data('loading')) return;
 
-    if ($form[0].checkValidity && !$form[0].checkValidity()) {
+    if (!$form.attr('novalidate') && $form[0].checkValidity && !$form[0].checkValidity()) {
       $form[0].reportValidity();
       return;
     }
@@ -67,21 +67,42 @@
           if (data.errcode === 0) {
             CpToast.success(data.errmsg);
           } else {
-            CpToast.error(data.errmsg);
+            $form.find('.tf-field-error').removeClass('tf-field-error');
+            $form.find('.tf-section-error').removeClass('tf-section-error');
+            $form.find('.tf-error-msg').each(function() {
+              var $prev = $(this).prev('.tf-hint');
+              if ($prev.length) $prev.show();
+              $(this).remove();
+            });
+
             var fk = (data.result && data.result.field) || (data.data && data.data.field);
+            var inlined = false;
             if (fk) {
               var $el = $form.find('[data-field="' + fk + '"]');
               if (!$el.length) $el = $form.find('#' + fk);
               if ($el.length) {
-                $form.find('.tf-field-error').removeClass('tf-field-error');
-                $form.find('.tf-section-error').removeClass('tf-section-error');
-                if ($el.find('.tf-field').length) {
-                  $el.addClass('tf-section-error');
+                var isSection = $el.find('.tf-field').length > 0;
+                $el.addClass(isSection ? 'tf-section-error' : 'tf-field-error');
+
+                var $errMsg = $('<div class="tf-error-msg" role="alert"></div>').text(data.errmsg);
+                if (isSection) {
+                  $el.find('> .tf-label').after($errMsg);
                 } else {
-                  $el.addClass('tf-field-error');
+                  var $hint = $el.find('.tf-hint');
+                  if ($hint.length) {
+                    $hint.hide();
+                    $hint.after($errMsg);
+                  } else {
+                    $el.append($errMsg);
+                  }
                 }
+
                 $el[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                inlined = true;
               }
+            }
+            if (!inlined) {
+              CpToast.error(data.errmsg);
             }
           }
         }

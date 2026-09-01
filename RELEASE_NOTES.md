@@ -7,6 +7,18 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 增强 — 表单字段级错误提示（OPT-P1-14 Phase 1）
+
+- 任务表单（新建/编辑）验证错误改为**字段旁内联文案**（`.tf-error-msg`），替代全局 Toast
+- 错误文案紧跟出错字段下方显示，带 ⚠ 前缀和 fadeIn 动画，符合格式塔接近性原则
+- 有 `field` key 时 → 内联文案 + 不弹 Toast；无 `field` 时 → Toast 降级（通用错误/网络错误）
+- 修改字段内容后自动清除错误状态 + 恢复 hint 文案
+- Section 容器（如 cron_div）：错误文案插入在标签与子字段之间，子字段不全部变红
+- 移除 HTML5 `required` / `min` / `max` 属性 + 添加 `novalidate`，消除浏览器原生校验气泡与自定义 UI 冲突
+- 包含 `role="alert"` ARIA 属性（WCAG 无障碍最佳实践）
+- 全量审计 62 个错误场景，15 项 A 类（需修复）、27 项 B 类（合理）、3 项 B+ 类、20 项 C 类
+- 设计文档 `doc/design/表单字段级错误提示设计.html` rev.3
+
 ### 增强 — 任务详情页健康卡片时间戳
 
 - 健康度卡片新增「首次失败」「末次成功」时间戳行（虚线分隔的次级行）
@@ -44,6 +56,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 消除恶意组名通过 JS 字符串拼接注入 XSS 的可能性（需 admin 权限创建组，内部工具风险可控但仍应修复）
 - 全面扫描确认其他 Redesign 模板中无同类问题
 - 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) XSS-1 复盘
+
+### 安全修复 — P0 安全/完整性快修（S-1 / S-2 / S-3）
+
+- **S-1 add_log scope**：`cron_add_log` API 新增 `check_api_scope()` 校验，按组 scope 限制日志写入权限
+- **S-2 scheduler.lock 绝对路径**：`CuBackgroundScheduler.py` / `CuGeventScheduler.py` 中锁文件路径从 `"scheduler.lock"` 改为 `os.path.join(项目根, "scheduler.lock")`，修复 CWD 不一致时锁失效问题
+- **S-3 toggle_status 事务顺序**：`cron_service.toggle_status()` 先 `db.session.commit()` 再操作 scheduler，scheduler 失败时自动回滚 DB 状态，避免 DB-scheduler 状态不一致
+- 详见 [P0 安全完整性快修设计](doc/design/P0安全完整性快修-2026-08.html) · [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) R2 P0 根因分析
 
 ### 修复 — CSS Token 拼写修正 + 无障碍标注补全
 

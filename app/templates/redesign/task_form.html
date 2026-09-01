@@ -9,13 +9,13 @@
 <div class="tf-container">
   <h1 class="tf-title">{{ '编辑任务' if is_edit else '新建定时任务' }}</h1>
 
-  <form method="post" class="tf-form js-ajax-form js-cron-form"
+  <form method="post" class="tf-form js-ajax-form js-cron-form" novalidate
         action="{{ url_for('main.cron_edit', id=cif.id) if is_edit else url_for('main.cron_add') }}">
     {# ─── Basic Info ─── #}
 
       <div class="tf-field" data-field="task_name">
         <label class="tf-label">任务名称 <span class="tf-required">*</span></label>
-        <input type="text" name="task_name" required class="tf-input"
+        <input type="text" name="task_name" class="tf-input"
                value="{{ cif.task_name if is_edit else '' }}"
                placeholder="例如：订单状态同步"
                {% if is_edit %}readonly{% endif %}>
@@ -24,7 +24,7 @@
 
       <div class="tf-field" data-field="task_keyword">
         <label class="tf-label">任务说明 <span class="tf-required">*</span></label>
-        <input type="text" name="task_keyword" required class="tf-input" maxlength="500"
+        <input type="text" name="task_keyword" class="tf-input" maxlength="500"
                value="{{ cif.task_keyword if is_edit else '' }}"
                placeholder="简要描述任务的用途和目的">
         <span class="tf-hint">必填，1～500 字；可写需求链接、用途等</span>
@@ -40,7 +40,7 @@
         <input type="hidden" name="group_id" value="{{ scope_groups[0].id }}">
         <div class="tf-static-value">{{ scope_groups[0].name }} <span class="tf-hint">仅同组可见</span></div>
         {% elif scope_groups|length > 1 %}
-        <select name="group_id" required class="tf-select" aria-label="选择业务组">
+        <select name="group_id" class="tf-select" aria-label="选择业务组">
           {% for g in scope_groups %}
           <option value="{{ g.id }}" {{ 'selected' if is_edit and current_group_id == g.id }}>{{ g.name }}</option>
           {% endfor %}
@@ -53,7 +53,7 @@
       {% else %}
       <div class="tf-field">
         <label class="tf-label">可见范围 <span class="tf-required">*</span></label>
-        <select name="scope_type" id="scope_type" required class="tf-select">
+        <select name="scope_type" id="scope_type" class="tf-select">
           {% if scope_groups %}
           <option value="GROUP" {{ 'selected' if not is_edit or current_group_id }}>指定业务组</option>
           <option value="GLOBAL" {{ 'selected' if is_edit and not current_group_id }}>全局共享</option>
@@ -95,7 +95,7 @@
 
       <div class="tf-field" data-field="ds_ms">
         <label class="tf-label">定时方式 <span class="tf-required">*</span></label>
-        <select name="ds_ms" id="ds_ms" required class="tf-select">
+        <select name="ds_ms" id="ds_ms" class="tf-select">
           <option value="2" {{ 'selected' if not is_edit or cif.ds_ms == 2 }}>定时模式（Cron）</option>
           <option value="1" {{ 'selected' if is_edit and cif.ds_ms == 1 }}>具体时间（一次性）</option>
         </select>
@@ -156,7 +156,7 @@
             <option value="GET" {{ 'selected' if not is_edit or cif.req_method == 'GET' }}>GET</option>
             <option value="POST" {{ 'selected' if is_edit and cif.req_method == 'POST' }}>POST</option>
           </select>
-          <input type="text" name="req_url" required class="tf-input tf-url-input"
+          <input type="text" name="req_url" class="tf-input tf-url-input"
                  value="{{ cif.req_url if is_edit else '' }}"
                  placeholder="https://your-service.example.com/task/run">
         </div>
@@ -172,7 +172,7 @@
 
       <div class="tf-field" data-field="timeout_sec">
         <label class="tf-label">超时（秒）</label>
-        <input type="number" name="timeout_sec" min="1" max="120" class="tf-input tf-timeout-input"
+        <input type="number" name="timeout_sec" class="tf-input tf-timeout-input"
                value="{{ cif.timeout_sec if is_edit else '' }}" placeholder="5">
         <span class="tf-hint">留空使用默认 5s；有效范围 1–120</span>
       </div>
@@ -198,7 +198,7 @@ function syncScheduleMode() {
   document.getElementById('run_date').style.display = val == '1' ? '' : 'none';
   document.getElementById('cron_div').style.display = val == '1' ? 'none' : '';
   var rdInput = document.getElementById('run_date_input');
-  if (rdInput) rdInput.required = (val == '1');
+  /* required removed: server-side validates with inline error messages */
 }
 
 function syncMethodBody() {
@@ -338,6 +338,16 @@ if (form) {
     var field = e.target.closest('.tf-field');
     if (field && e.target.validity.valid) {
       field.classList.remove('tf-field-error');
+    }
+    var container = e.target.closest('[data-field]');
+    if (container) {
+      container.classList.remove('tf-field-error', 'tf-section-error');
+      var errMsg = container.querySelector('.tf-error-msg');
+      if (errMsg) {
+        var hint = errMsg.previousElementSibling;
+        if (hint && hint.classList.contains('tf-hint')) hint.style.display = '';
+        errMsg.remove();
+      }
     }
   });
 }

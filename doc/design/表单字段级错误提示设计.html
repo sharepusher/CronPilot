@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>表单字段级错误提示设计 — CronPilot</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; line-height: 1.7; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #2563eb; padding-bottom: .4em; }
+  h2 { margin-top: 2em; color: #1e40af; border-bottom: 1px solid #dbeafe; padding-bottom: .3em; }
+  h3 { color: #1e3a5f; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+  th { background: #f0f4ff; }
+  code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 1em; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; }
+  .tag-rec { background: #dcfce7; color: #166534; }
+  .tag-alt { background: #fef3c7; color: #92400e; }
+  .tag-rej { background: #fee2e2; color: #991b1b; }
+  .highlight { background: #fef9c3; padding: 12px; border-left: 3px solid #eab308; margin: 1em 0; }
+  .demo-box { border: 2px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 1.5em 0; background: #fafbfc; }
+  .demo-title { font-weight: 700; margin-bottom: 12px; color: #374151; font-size: 0.95em; }
+  .demo-field { margin-bottom: 16px; position: relative; }
+  .demo-label { display: block; font-size: 13px; color: #374151; margin-bottom: 4px; font-weight: 500; }
+  .demo-label.has-error { color: #dc2626; }
+  .demo-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+  .demo-input.has-error { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1); }
+  .demo-error-msg { font-size: 12px; color: #dc2626; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  .demo-error-msg::before { content: "⚠"; font-size: 11px; }
+  .demo-hint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .demo-toast { position: absolute; top: -8px; right: 0; background: #fff; border: 1px solid #e5e7eb; border-left: 3px solid #dc2626; border-radius: 8px; padding: 8px 12px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); color: #374151; }
+  .demo-section { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .demo-section.has-error { border-color: #fecaca; background: #fef2f2; }
+  .demo-section.has-error > .demo-label { color: #dc2626; }
+  .demo-cron-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; }
+  .vs-divider { text-align: center; font-size: 1.2em; color: #6b7280; margin: 1.5em 0; }
+  .version { color: #6b7280; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<h1>表单字段级错误提示设计</h1>
+<p class="version">版本 rev.1 · 2026-09-01 · 编号 OPT-P1-14</p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 用户痛点</h3>
+<p>当前 Redesign 表单（以任务新建/编辑页为主）的验证错误反馈采用<strong>全局 Toast + 字段高亮</strong>模式：</p>
+<ul>
+  <li><strong>错误文案</strong>：CpToast 固定在视口右上角（<code>position: fixed; top: 16px; right: 16px</code>），4 秒后自动消失</li>
+  <li><strong>字段高亮</strong>：出错字段添加 <code>tf-field-error</code>（红色边框 + 标签变红）或 <code>tf-section-error</code>（仅标签变红）</li>
+  <li><strong>滚动定位</strong>：<code>scrollIntoView({ behavior: 'smooth', block: 'center' })</code></li>
+</ul>
+
+<p><strong>核心缺陷</strong>：错误文案（"任务名称不能为空"）出现在视口右上角，出错字段在表单中部或底部。用户必须「向上看 Toast → 记住错误内容 → 向下看高亮字段 → 理解并修正」，视觉路径断裂。</p>
+
+<h3>1.2 格式塔心理学：接近性原则（Law of Proximity）</h3>
+<p>「空间上相近的元素被感知为同一组」——错误说明文案应与引发错误的输入控件紧密相邻，而非分散在页面不同区域。当前设计违反了这一基本原则。</p>
+
+<h3>1.3 现状快照</h3>
+<table>
+  <tr><th>层级</th><th>机制</th><th>文件</th><th>覆盖</th></tr>
+  <tr><td>1. 全局 Toast</td><td><code>CpToast.error(errmsg)</code></td><td>common-redesign.js:70</td><td>所有 js-ajax-form</td></tr>
+  <tr><td>2. 字段高亮</td><td><code>tf-field-error</code> / <code>tf-section-error</code></td><td>common-redesign.js:76-82</td><td>仅有 data-field 的表单</td></tr>
+  <tr><td>3. 滚动定位</td><td><code>scrollIntoView</code></td><td>common-redesign.js:83</td><td>同上</td></tr>
+  <tr><td>4. 模态框内联</td><td><code>.tg-err</code> / <code>.cp-modal-err</code></td><td>tags.html / dashboard.html</td><td>仅模态框场景</td></tr>
+</table>
+<p><strong>缺失</strong>：表单页面（非模态框）没有<strong>字段旁内联错误文案</strong>机制。</p>
+
+<h2>2. 根因</h2>
+<ol>
+  <li><strong>历史架构</strong>：v1 使用 jQuery <code>alert()</code> 报错，Redesign 升级为 Toast 是进步但未走完最后一步</li>
+  <li><strong>通用框架缺少字段级文案规范</strong>：<code>common-redesign.js</code> 的 AJAX handler 只处理 <code>field</code> 键用于高亮，不处理消息文案的就近显示</li>
+  <li><strong>后端契约未区分</strong>：<code>web_api_return(code=1, msg=err, data={'field': field})</code> 中 <code>msg</code> 同时用于 Toast 文案和（缺失的）字段级文案</li>
+</ol>
+
+<h2>3. 业界模式对比</h2>
+
+<table>
+  <tr>
+    <th>模式</th>
+    <th>代表</th>
+    <th>机制</th>
+    <th>优点</th>
+    <th>缺点</th>
+    <th>适合场景</th>
+  </tr>
+  <tr>
+    <td><span class="tag tag-rec">A · 字段下方内联文案</span></td>
+    <td>Material Design、Ant Design、Bootstrap 5、GitHub</td>
+    <td>在 input 下方显示红色小字</td>
+    <td>空间关联最强；持久可见；无遮挡；业界最通用</td>
+    <td>可能导致布局偏移（可通过预留空间解决）</td>
+    <td><strong>表单页</strong>（CronPilot 主战场）</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-alt">B · 全局 Toast</span></td>
+    <td>Slack、部分后台管理系统</td>
+    <td>固定位置弹出通知</td>
+    <td>实现简单；不影响布局</td>
+    <td>视觉路径断裂；自动消失后信息丢失</td>
+    <td>非表单操作（删除确认、权限变更等）</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-alt">C · Summary + Inline 双层</span></td>
+    <td>W3C WCAG 推荐、gov.uk</td>
+    <td>页面顶部错误摘要 + 字段旁内联</td>
+    <td>最佳无障碍；适合超长表单</td>
+    <td>实现复杂；CronPilot 表单字段数 ≤15，性价比低</td>
+    <td>超长表单 / 政务/无障碍要求高</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-rej">D · Tooltip/Popover</span></td>
+    <td>部分 jQuery 插件</td>
+    <td>字段旁浮动气泡</td>
+    <td>不影响布局</td>
+    <td>可被遮挡；移动端体验差；不够持久</td>
+    <td>不推荐</td>
+  </tr>
+</table>
+
+<h2>4. 方案：A · 字段下方内联文案（推荐）</h2>
+
+<h3>4.1 设计原则</h3>
+<ol>
+  <li><strong>就近显示</strong>：错误文案紧跟在出错字段的 input/select 下方，替代 hint 位置</li>
+  <li><strong>保留 Toast 作为降级</strong>：当后端未返回 <code>field</code> 键时（通用错误），仍用 Toast 全局提示</li>
+  <li><strong>互斥显示</strong>：有 <code>field</code> 时 → 内联文案 + 高亮 + 滚动，<strong>不再 Toast</strong>；无 <code>field</code> 时 → 仅 Toast</li>
+  <li><strong>自动清除</strong>：用户修改出错字段内容时，自动清除该字段的错误状态和文案，恢复原始 hint</li>
+  <li><strong>Section 处理</strong>：对 <code>cron_div</code> 等区段，错误文案使用 <code>insertAfter(label)</code> 插入在区段标签与子字段网格之间</li>
+  <li><strong>无障碍</strong>：<code>.tf-error-msg</code> 添加 <code>role="alert"</code> 属性，使屏幕阅读器自动朗读错误信息（WCAG 最佳实践，参考 React Hook Form / Formik）</li>
+  <li><strong>禁用原生校验</strong>：凡启用 <code>.tf-error-msg</code> 内联文案的表单，必须添加 <code>novalidate</code> 属性。JS 中 <code>checkValidity/reportValidity</code> 对 <code>novalidate</code> 表单自动跳过。原因：浏览器原生校验气泡（如「请填写此字段」）样式不可控，与自定义内联文案冲突</li>
+</ol>
+
+<h3>4.1.1 Hint 隐藏与恢复策略</h3>
+<p>错误文案与 hint 不能同时显示（视觉混乱）。策略：</p>
+<ol>
+  <li><strong>显示错误时</strong>：找到 <code>.tf-hint</code> 元素，<code>style.display = 'none'</code> 隐藏，同时在该位置插入 <code>.tf-error-msg</code></li>
+  <li><strong>清除错误时</strong>：移除 <code>.tf-error-msg</code> DOM 元素，恢复 <code>.tf-hint</code> 的 <code>display</code></li>
+  <li><strong>Section 容器</strong>（如 <code>cron_div</code>）：无直属 <code>.tf-hint</code>，<code>.tf-error-msg</code> 直接 <code>insertAfter</code> 于 <code>.tf-label</code> 后</li>
+</ol>
+
+<h3>4.1.2 Section 插入位置</h3>
+<p>对于 <code>#cron_div</code> 等区段容器，DOM 结构为：</p>
+<pre>
+&lt;div id="cron_div" data-field="cron_div"&gt;
+  &lt;label class="tf-label"&gt;Cron 表达式 *&lt;/label&gt;
+  &lt;!-- ← .tf-error-msg 插入此处 --&gt;
+  &lt;div class="tf-cron-grid"&gt;...子字段...&lt;/div&gt;
+&lt;/div&gt;
+</pre>
+<p>JS 实现须使用 <code>$el.find('> .tf-label').after(errorMsg)</code>，而非简单 <code>append</code>。</p>
+
+<h3>4.2 交互流程</h3>
+<pre>
+用户提交表单
+  └→ 后端返回 { errcode: 1, errmsg: "Cron 表达式不能全部为空", data: { field: "cron_div" } }
+      └→ JS 收到响应
+          ├→ 有 field key?
+          │   ├→ YES: ① 清除所有旧错误状态
+          │   │       ② 找到 [data-field] 或 #id 元素
+          │   │       ③ 添加 tf-field-error / tf-section-error
+          │   │       ④ 在目标元素内插入/更新 .tf-error-msg 内联文案
+          │   │       ⑤ scrollIntoView
+          │   │       ⑥ 不弹 Toast
+          │   └→ NO:  ① CpToast.error(errmsg)（保持现有行为）
+          └→ 用户修改该字段 → input 事件 → 清除该字段的 error 状态 + 移除 .tf-error-msg
+</pre>
+
+<h3>4.3 对比 Demo</h3>
+
+<h4>A · 当前方案（全局 Toast + 高亮）</h4>
+<div class="demo-box" style="position: relative;">
+  <div class="demo-title">新建定时任务</div>
+  <div class="demo-toast">⚠ Cron 表达式不能全部为空</div>
+  <div class="demo-field">
+    <span class="demo-label">任务名称</span>
+    <input class="demo-input" value="我的定时任务" disabled>
+  </div>
+  <div class="demo-section has-error">
+    <span class="demo-label has-error">Cron 表达式 *</span>
+    <div class="demo-cron-grid">
+      <div><span class="demo-label" style="font-size:12px">日（号）</span><input class="demo-input" placeholder="*" disabled></div>
+      <div><span class="demo-label" style="font-size:12px">小时</span><input class="demo-input" placeholder="*" disabled></div>
+      <div><span class="demo-label" style="font-size:12px">分钟</span><input class="demo-input" placeholder="*" disabled></div>
+    </div>
+    <p style="color: #9ca3af; font-size: 12px; margin-top: 8px;">← 标签变红了，但错误描述在右上角 Toast 里，空间分离</p>
+  </div>
+</div>
+
+<div class="vs-divider">↓ 优化后 ↓</div>
+
+<h4>B · 推荐方案（字段旁内联文案）</h4>
+<div class="demo-box">
+  <div class="demo-title">新建定时任务</div>
+  <div class="demo-field">
+    <span class="demo-label">任务名称</span>
+    <input class="demo-input" value="我的定时任务" disabled>
+  </div>
+  <div class="demo-section has-error">
+    <span class="demo-label has-error">Cron 表达式 *</span>
+    <div class="demo-error-msg">Cron 表达式不能全部为空</div>
+    <div class="demo-cron-grid">
+      <div><span class="demo-label" style="font-size:12px">日（号）</span><input class="demo-input" placeholder="*" disabled></div>
+      <div><span class="demo-label" style="font-size:12px">小时</span><input class="demo-input" placeholder="*" disabled></div>
+      <div><span class="demo-label" style="font-size:12px">分钟</span><input class="demo-input" placeholder="*" disabled></div>
+    </div>
+    <p style="color: #16a34a; font-size: 12px; margin-top: 8px;">✓ 错误描述紧跟标签下方，视觉路径连续</p>
+  </div>
+</div>
+
+<h4>C · 单字段错误对比（如：任务名称为空）</h4>
+<div class="demo-box">
+  <div class="demo-title">单字段错误 — 推荐方案效果</div>
+  <div class="demo-field">
+    <span class="demo-label has-error">任务名称 *</span>
+    <input class="demo-input has-error" value="" placeholder="请输入任务名称" disabled>
+    <div class="demo-error-msg">任务名称不能为空</div>
+  </div>
+  <div class="demo-field">
+    <span class="demo-label">回调 URL</span>
+    <input class="demo-input" value="https://example.com/api" disabled>
+    <span class="demo-hint">完整的 HTTP/HTTPS URL</span>
+  </div>
+  <p style="color: #6b7280; font-size: 12px;">说明：正常字段保留 hint，出错字段 hint 被错误文案替换</p>
+</div>
+
+<h3>4.4 CSS 规格</h3>
+<table>
+  <tr><th>属性</th><th>值</th><th>来源</th></tr>
+  <tr><td>文案容器 class</td><td><code>.tf-error-msg</code></td><td>新增</td></tr>
+  <tr><td>字号</td><td><code>12px</code></td><td>与 <code>.tf-hint</code> 一致</td></tr>
+  <tr><td>颜色</td><td><code>var(--cp-danger)</code></td><td>已有 token</td></tr>
+  <tr><td>间距</td><td><code>margin-top: 4px</code></td><td>与 <code>.tf-hint</code> 一致</td></tr>
+  <tr><td>图标</td><td><code>⚠</code> 前缀（CSS <code>::before</code>）</td><td>增强辨识度</td></tr>
+  <tr><td>过渡</td><td><code>fadeIn 0.15s ease</code></td><td>柔和出现，不突兀</td></tr>
+  <tr><td>层级</td><td>文档流内（非 absolute）</td><td>不遮挡其他元素</td></tr>
+  <tr><td>ARIA</td><td><code>role="alert"</code></td><td>WCAG 无障碍：屏幕阅读器自动朗读</td></tr>
+</table>
+
+<h3>4.5 HTML 结构</h3>
+<p>JS 动态插入，无需修改模板：</p>
+<pre>
+&lt;!-- 单字段错误 --&gt;
+&lt;div class="tf-field tf-field-error" data-field="task_name"&gt;
+  &lt;label class="tf-label"&gt;任务名称 *&lt;/label&gt;
+  &lt;input class="tf-input" name="task_name"&gt;
+  &lt;div class="tf-error-msg"&gt;任务名称不能为空&lt;/div&gt;  &lt;!-- JS 动态插入 --&gt;
+  &lt;span class="tf-hint" style="display:none"&gt;...&lt;/span&gt;  &lt;!-- hint 被隐藏 --&gt;
+&lt;/div&gt;
+
+&lt;!-- 区段错误（cron_div） --&gt;
+&lt;div id="cron_div" data-field="cron_div" class="tf-section-error"&gt;
+  &lt;label class="tf-label"&gt;Cron 表达式 *&lt;/label&gt;
+  &lt;div class="tf-error-msg"&gt;Cron 表达式不能全部为空&lt;/div&gt;  &lt;!-- JS 动态插入在 label 后 --&gt;
+  &lt;div class="tf-cron-grid"&gt;...&lt;/div&gt;
+&lt;/div&gt;
+</pre>
+
+<h2>5. 范围</h2>
+
+<h3>5.1 改动文件</h3>
+<table>
+  <tr><th>文件</th><th>改动内容</th><th>影响</th></tr>
+  <tr><td><code>app/static/js/common-redesign.js</code></td><td>AJAX 错误处理：有 field → 内联文案 + 不 Toast；无 field → Toast 降级</td><td>所有 js-ajax-form 表单</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>新增 <code>.tf-error-msg</code> 样式 + fadeIn 动画</td><td>任务表单页</td></tr>
+  <tr><td><code>app/templates/redesign/task_form.html</code></td><td>input 事件清除错误（已有基础，扩展为同时移除 <code>.tf-error-msg</code>）</td><td>任务表单页</td></tr>
+</table>
+
+<h3>5.2 不做什么</h3>
+<ul>
+  <li><strong>不修改后端 API 契约</strong>：<code>web_api_return(code, msg, data={'field': ...})</code> 保持不变</li>
+  <li><strong>不改模态框错误显示</strong>：模态框（tags、retire、deactivate）已有各自的 <code>.tg-err</code> / <code>.cp-modal-err</code> 机制，本轮不统一</li>
+  <li><strong>不新增模板 DOM</strong>：<code>.tf-error-msg</code> 由 JS 动态创建/销毁，不需要在模板中预埋</li>
+  <li><strong>不改 HTML5 原生校验</strong>：<code>checkValidity() / reportValidity()</code> 保持，内联文案仅处理 AJAX 服务端校验</li>
+</ul>
+
+<h2>6. 分批</h2>
+
+<table>
+  <tr><th>批次</th><th>内容</th><th>可独立验收</th></tr>
+  <tr>
+    <td>S1</td>
+    <td>CSS：<code>.tf-error-msg</code> 样式 + fadeIn 动画</td>
+    <td>✓ 手动添加 class 可见效果</td>
+  </tr>
+  <tr>
+    <td>S2</td>
+    <td>JS：<code>common-redesign.js</code> AJAX handler 改造 — 有 field 时插入内联文案 + 不弹 Toast</td>
+    <td>✓ 提交空表单 → cron/名称错误显示在字段旁</td>
+  </tr>
+  <tr>
+    <td>S3</td>
+    <td>JS：input 事件清除 — 用户修改字段时自动移除 <code>.tf-error-msg</code> + 恢复 hint</td>
+    <td>✓ 修改字段内容 → 红色消失 + hint 恢复</td>
+  </tr>
+  <tr>
+    <td>S4</td>
+    <td>验证 + 文档同步</td>
+    <td>✓ restart → 全流程验收</td>
+  </tr>
+</table>
+
+<h2>7. 验收</h2>
+
+<h3>7.1 功能验收</h3>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>新建任务 → 不填任何字段 → 提交</td><td>任务名称字段下方出现红色内联文案；无 Toast</td></tr>
+  <tr><td>2</td><td>修正名称 → 不填 cron → 提交</td><td>cron 区段标签变红 + 标签下方出现内联文案；无 Toast</td></tr>
+  <tr><td>3</td><td>填入非法 cron → 提交</td><td>cron 区段内联文案显示校验错误；子字段不全部变红</td></tr>
+  <tr><td>4</td><td>修改出错字段内容</td><td>内联文案消失 + hint 恢复 + 高亮消除</td></tr>
+  <tr><td>5</td><td>后端返回无 field 的通用错误</td><td>Toast 弹出（降级行为不变）</td></tr>
+  <tr><td>6</td><td>编辑任务页 → 同样测试</td><td>行为一致</td></tr>
+</table>
+
+<h3>7.2 回归验收</h3>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>R1</td><td>标签管理 → 创建空名标签</td><td>模态框内 <code>.tg-err</code> 仍正常（不受影响）</td></tr>
+  <tr><td>R2</td><td>Dashboard 退役弹窗 → 不选任务提交</td><td>模态框内 <code>.cp-modal-err</code> 仍正常</td></tr>
+  <tr><td>R3</td><td>成功操作（如正常添加任务）</td><td>CpToast.success 仍正常弹出</td></tr>
+  <tr><td>R4</td><td>网络错误（如断网提交）</td><td>CpToast.error('网络错误') 仍正常（HTTP error 降级路径）</td></tr>
+</table>
+
+<h3>7.3 门禁命令</h3>
+<pre>
+# 单元测试
+bash scripts/cronpilot.sh test
+
+# 路由冒烟
+.venv-py311/bin/python scripts/smoke_routes.py --check
+
+# UI 契约
+python scripts/check_ui_contract.py --check
+
+# 颜色审计
+python scripts/audit_hardcoded_colors.py --check
+
+# restart + 浏览器验证
+bash scripts/cronpilot.sh restart --daemon
+curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
+</pre>
+
+<h2>8. 风险</h2>
+
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>内联文案导致布局偏移</td>
+    <td>低：<code>.tf-error-msg</code> 高度约 20px，偏移可接受</td>
+    <td>使用 <code>min-height</code> 预留可选；当前表单间距足够</td>
+  </tr>
+  <tr>
+    <td>其他 js-ajax-form 表单（非 task_form）受影响</td>
+    <td>低：目前只有 task_form 有 <code>data-field</code> 标注；其他表单走 Toast 降级</td>
+    <td>逻辑为「有 field → 找元素 → 找到才插入；找不到 → Toast 降级」</td>
+  </tr>
+  <tr>
+    <td>CpToast.success 被误取消</td>
+    <td>中：成功提示消失</td>
+    <td>仅在 <code>errcode !== 0 && field</code> 时取消 Toast；success 路径不变</td>
+  </tr>
+  <tr>
+    <td>Vue CronFormValidator 冲突</td>
+    <td>中：<code>#cron-form-validator</code> 已有 <code>.cron-field-inline-error</code>（URL/JSON 客户端校验），服务端返回 <code>field=cron_div</code> 时可能出现双重错误信息</td>
+    <td>Vue 仅处理 URL/JSON 客户端校验；cron 格式由后端校验。两者字段不重叠（Vue 管 URL/JSON 格式，后端管 cron 表达式非空/格式），不会同时触发</td>
+  </tr>
+  <tr>
+    <td>scrollIntoView + fadeIn 时序</td>
+    <td>低：先插入 DOM 再触发 scrollIntoView 时，fadeIn 动画可能在滚动完成前开始，用户短暂看到空位置</td>
+    <td>CSS fadeIn 仅 0.15s，肉眼几乎不可察；且 <code>.tf-error-msg</code> 在 DOM 中已有文本内容，仅透明度过渡</td>
+  </tr>
+</table>
+
+<h2>9. 全量审计：Redesign 页面错误反馈机制</h2>
+
+<p>对 <code>app/templates/redesign/</code> 下全部 40 个模板文件进行了错误反馈机制审计，共发现 <strong>62 个错误场景</strong>，分为三类：</p>
+
+<h3>9.1 审计总览</h3>
+<table>
+  <tr><th>分类</th><th>数量</th><th>说明</th></tr>
+  <tr><td><strong>A · 需要修复</strong></td><td><strong>15</strong></td><td>表单字段级校验错误使用 Toast 不合理，应改为字段旁内联文案</td></tr>
+  <tr><td>B · 合理使用</td><td>27</td><td>操作确认/系统错误/网络错误等非表单字段场景，Toast 是正确选择</td></tr>
+  <tr><td>B+ · 基本合理</td><td>3</td><td>认证页 SSR banner，距表单近（≤50px），改造收益低</td></tr>
+  <tr><td>C · 已有内联</td><td>20</td><td>模态框 <code>.tg-err</code> / <code>.cp-modal-err</code> / <code>.dm-err</code> / HTML5 原生校验等</td></tr>
+  <tr><td>缺失</td><td>3</td><td>无任何错误处理（标签建议 fetch 静默失败 + 批量操作 POST 无 handler）</td></tr>
+</table>
+
+<h3>9.2 A 类详细清单（18 项）</h3>
+
+<h4>① js-ajax-form 表单服务端校验 → Toast（8 项）</h4>
+<table>
+  <tr><th>页面</th><th>错误场景</th><th>当前机制</th><th>是否有 data-field</th><th>建议</th></tr>
+  <tr><td><code>task_form.html</code></td><td>服务端返回 field key 的校验错误</td><td>Toast + 高亮 + 滚动</td><td>✓（9 个字段）</td><td>改为内联文案，不弹 Toast</td></tr>
+  <tr><td><code>cron_retire.html</code></td><td>退役原因校验</td><td>Toast</td><td>✗</td><td>补 <code>data-field="reason"</code> + 内联</td></tr>
+  <tr><td><code>change_password.html</code></td><td>密码错误/不匹配</td><td>Toast</td><td>✗</td><td>补 data-field + 内联</td></tr>
+  <tr><td><code>user_form.html</code></td><td>用户名冲突/角色/组等</td><td>Toast</td><td>✗</td><td>补 data-field + 内联</td></tr>
+  <tr><td><code>user_profile.html</code></td><td>昵称/邮箱等</td><td>Toast</td><td>✗</td><td>补 data-field + 内联</td></tr>
+  <tr><td><code>group_form.html</code></td><td>组名重复等</td><td>Toast</td><td>✗</td><td>补 data-field + 内联</td></tr>
+  <tr><td><code>users_set_active.html</code></td><td>停用原因为空</td><td>Toast</td><td>✗</td><td>补 data-field + 内联</td></tr>
+</table>
+<p>注：7 个表单缺少 <code>data-field</code>，需在后端返回 field key + 模板补 <code>data-field</code> 后才能启用内联文案。</p>
+
+<h4>② SSR 页顶 Banner 的表单（5 项）</h4>
+<table>
+  <tr><th>页面</th><th>当前机制</th><th>建议</th></tr>
+  <tr><td><code>change_password.html</code></td><td><code>pw-alert-err</code> 页顶 banner</td><td>改为 AJAX 提交 + 字段内联；或保持 banner 但移至字段旁</td></tr>
+  <tr><td><code>user_form.html</code></td><td><code>uf-alert-err</code> 页顶 banner</td><td>同上</td></tr>
+  <tr><td><code>user_profile.html</code></td><td><code>pw-alert-err</code> 页顶 banner</td><td>同上</td></tr>
+  <tr><td><code>group_form.html</code></td><td><code>gf-alert-err</code> 页顶 banner</td><td>同上</td></tr>
+  <tr><td><code>users_set_active.html</code></td><td><code>usa-alert-err</code> 页顶 banner</td><td>同上</td></tr>
+</table>
+<p>注：这些表单同时是 <code>js-ajax-form</code>，AJAX 成功时走 Toast，但 SSR fallback 时走页顶 banner。SSR banner 可在 AJAX 化完善后逐步移除。</p>
+
+<h4>③ 认证页 SSR Banner（3 项 → 降级为 B+ 类）</h4>
+<table>
+  <tr><th>页面</th><th>当前机制</th><th>分类</th><th>理由</th></tr>
+  <tr><td><code>login.html</code></td><td><code>auth-msg-err</code> banner</td><td><strong>B+（基本合理）</strong></td><td>Banner 在表单正上方（≤50px），非长表单，已满足接近性原则</td></tr>
+  <tr><td><code>register.html</code></td><td><code>auth-msg-err</code> banner</td><td><strong>B+</strong></td><td>同上</td></tr>
+  <tr><td><code>complete_profile.html</code></td><td><code>auth-msg-err</code> banner</td><td><strong>B+</strong></td><td>同上</td></tr>
+</table>
+<p>注：认证页使用原生 POST（非 AJAX），SSR banner 在表单上方、距离输入区域近，改造收益不明显。从 A 类降级为 B+（经 Review 修正）。</p>
+
+<h3>9.3 实施优先级建议</h3>
+<table>
+  <tr><th>优先级</th><th>批次</th><th>页面</th><th>改动量</th><th>理由</th></tr>
+  <tr><td>P0</td><td>Phase 1</td><td><code>task_form.html</code></td><td>最小：已有 data-field，仅改 JS + CSS</td><td>使用频率最高的表单；已有字段映射基础</td></tr>
+  <tr><td>P1</td><td>Phase 2</td><td><code>user_form / group_form / cron_retire / users_set_active</code></td><td>中等：需后端补 field key + 模板补 data-field</td><td>管理操作表单，使用频率中等</td></tr>
+  <tr><td>P1</td><td>Phase 3</td><td><code>change_password / user_profile</code></td><td>中等：同上</td><td>个人设置表单</td></tr>
+  <tr><td>P2</td><td>Phase 4</td><td>认证页 banner 优化</td><td>较大：需要评估是否改为 AJAX</td><td>使用频率低（仅登录/注册时）；当前 banner 基本可用</td></tr>
+</table>
+
+<h3>9.4 缺失错误处理（待补）</h3>
+<table>
+  <tr><th>页面</th><th>场景</th><th>建议</th></tr>
+  <tr><td><code>task_form.html</code></td><td>标签建议 fetch 失败</td><td>静默隐藏可接受（非阻断操作），建议 console.warn</td></tr>
+  <tr><td><code>registration_review.html</code></td><td>批量审批 POST 失败</td><td>应补 error 回调 + Toast</td></tr>
+</table>
+
+<h2>版本历史</h2>
+<table>
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.1</td><td>2026-09-01</td><td>初版：问题分析 + 业界对比 + 方案 A 设计 + Demo</td></tr>
+  <tr><td>rev.2</td><td>2026-09-01</td><td>新增：全量审计 62 个错误场景 + 实施优先级 + 缺失处理</td></tr>
+  <tr><td>rev.3</td><td>2026-09-01</td><td>Review 修正：认证页 3 项 A→B+ 降级；补充 hint 恢复策略、Section 插入位置、ARIA role="alert"、Vue 冲突风险、动画时序风险</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="表单字段级错误提示设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

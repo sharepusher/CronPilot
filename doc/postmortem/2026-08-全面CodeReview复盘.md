@@ -801,6 +801,69 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 ---
 
+## P0-1 XSS：tags.html group name JS 字符串注入修复复盘（2026-08-28）
+
+### XSS-1. Bug 定位
+
+`app/templates/redesign/tags.html:99`，新建标签弹窗中构建业务组下拉选项的代码：
+
+```
+{% for g in scope_groups %}groupOptions += '<option value="{{ g.id }}">{{ g.name }}</option>';{% endfor %}
+```
+
+此处 `{{ g.name }}` 在 JS 单引号字符串内，Jinja2 的 HTML 自动转义处理了 `<`、`>`、`&`、`"`、`'`（→ `&#39;`），但这只是 HTML 层面的转义。在 JS 上下文中，虽然当前 Jinja2 3.x 的 `'` 不会直接破坏 JS 单引号字符串，但这种"Jinja2 模板变量直接拼接进 JS 字符串"的模式违反了"上下文正确转义"原则 — 应使用 `|tojson` 确保 JS 上下文安全，或经 `escHtml()` 处理后拼入 HTML。
+
+**攻击面评估**：group name 由 admin 权限用户创建（`@require_permission('user:manage')`），CronPilot 为内部运维工具，实际利用需要 admin 账号创建恶意组名。风险为低概率但高影响（存储型 XSS，所有访问标签页的用户受影响）。
+
+### XSS-2. 根因
+
+1. **原始代码引入**：commit `f8eb4f6`（`feat: Redesign UI v2 + comprehensive code review fixes (36 issues)`）中标签管理页首次实现。开发者采用了 Jinja2 `{% for %}` + JS 字符串拼接的模式来构建动态 `<select>` 选项。
+2. **模式不一致**：同一文件中，重命名弹窗（line 200）使用了手动 `.replace(/[&<>"]/g, ...)` 做 HTML 转义，查看关联任务弹窗使用了 `escHtml()`（line 179）。但新建标签弹窗的 groupOptions 构建没有使用任何转义 — 三个弹窗三种转义策略。
+3. **Jinja2 auto-escape 的安全假象**：开发者可能认为 Jinja2 的 HTML auto-escape 足够保护所有上下文，但 HTML 转义和 JS 转义是不同的安全域。`{{ variable }}` 在 `<script>` 标签内的 JS 字符串中需要 `|tojson` 过滤器（等效于 JSON.stringify，会转义引号、反斜杠、换行等 JS 特殊字符）。
+4. **缺少 JS 上下文安全规范**：项目的 `innerHTML XSS 防护` 规范（AGENTS.md S4）聚焦于"从 `data-*` 取值后拼入 innerHTML"的场景，未明确覆盖"Jinja2 变量直接嵌入 JS 字符串"的场景。
+
+### XSS-3. 测试漏洞
+
+- 现有 `test_tag_scope.py`（9 用例）测试标签 CRUD 的权限和 scope 隔离，但不检查渲染 HTML 中的 JS 字符串安全性。
+- 无 E2E/浏览器测试层：只有单元测试和 HTTP 级集成测试，无法检测 JS 运行时的 XSS 行为。
+- `rg "innerHTML" app/templates/` 可以发现 innerHTML 赋值点，但无法自动判断数据来源是否已转义 — 需要人工审计。
+
+### XSS-4. 修复
+
+将 line 99 从 Jinja2 直接输出改为 `|tojson` + `escHtml()` 双重保护：
+
+```
+{% for g in scope_groups %}groupOptions += '<option value="' + {{ g.id|tojson }} + '">' + escHtml({{ g.name|tojson }}) + '</option>';{% endfor %}
+```
+
+`|tojson` 确保值在 JS 上下文中是安全的字符串字面量（带引号输出），`escHtml()` 确保拼入 innerHTML 时 HTML 实体被转义。
+
+### XSS-5. 防护测试
+
+- `smoke_routes.py --check`：86/86 通过（含标签页面渲染）
+- `test_tag_scope -v`：9/9 通过
+- `test_redesign_sidebar -v`：12/12 通过
+
+### XSS-6. 同类排查
+
+全面扫描所有 Redesign 模板中 Jinja2 变量在 JS 字符串上下文中的使用：
+
+- `tags.html` line 99 — **已修复**（本次）
+- `tags.html` line 200 — 重命名弹窗，使用手动 `.replace()` 转义 `data-name` 属性值，数据源为 HTML `data-*` 属性（已经过 Jinja2 HTML 转义），**安全**
+- `registration_review.html` line 64 — `data-tooltip` 属性中的 Jinja2 变量，HTML 属性上下文，**安全**
+- `_users_rows.html` line 21 — 同上，**安全**
+- `dashboard.html` line 301 — `statLine.innerHTML = stats.total + ...`，数据源为 JSON 数值，**安全**
+- 5 个列表页的 `tbody.innerHTML = data.rows` — 数据源为服务端 Jinja2 渲染的 partial HTML（auto-escape 激活），**低风险**
+
+结论：`tags.html:99` 是唯一一处 Jinja2 变量在 JS 字符串拼接上下文中未经适当转义的点。
+
+### XSS-7. 预防方案
+
+1. **规范补充**：在 `AGENTS.md` 的 innerHTML XSS 防护（S4）条目中追加：凡 Jinja2 `{{ variable }}` 出现在 `<script>` 标签内的 JS 字符串中（非 HTML 属性上下文），**必须**使用 `|tojson` 过滤器输出。禁止直接 `{{ variable }}` 拼入 JS 字符串。自检：`rg "{%.*for.*%}.*\+.*'\{\{" app/templates/ --glob '*.html'`。
+2. **已有门禁覆盖**：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml` 可检测 innerHTML 赋值中缺少 escHtml 的点。
+
+---
+
 ## CSS Token 拼写错误 + 无障碍标注缺失实施复盘（2026-08-28）
 
 ### R2-1. Bug 定位

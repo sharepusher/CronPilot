@@ -96,7 +96,7 @@
     document.getElementById('btn-new-tag').addEventListener('click', function() {
         var groupOptions = '';
         {% if is_bypass %}groupOptions += '<option value="">全局（无组）</option>';{% endif %}
-        {% for g in scope_groups %}groupOptions += '<option value="{{ g.id }}">{{ g.name }}</option>';{% endfor %}
+        {% for g in scope_groups %}groupOptions += '<option value="' + {{ g.id|tojson }} + '">' + escHtml({{ g.name|tojson }}) + '</option>';{% endfor %}
 
         var bodyHtml =
             '<div class="tg-fg"><label>标签名称 <span class="tg-req">*</span></label>' +

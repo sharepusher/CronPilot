@@ -22,6 +22,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 涉及模板：`_dashboard_rows.html`（3 处）、`_topbar.html`（3 处）、`run_inspector.html`（1 处）、`task_detail.html`（1 处）、`registration_review.html`（1 处）
 - 新增 Tooltip 分类规范写入 `.cursor/rules/cronpilot-format-guard.mdc` 和 `AGENTS.md`
 
+### 安全修复 — tags.html group name XSS 防护
+
+- `tags.html` 新建标签弹窗中，业务组下拉选项的 `{{ g.name }}` 从 Jinja2 直接输出改为 `|tojson` + `escHtml()` 双重保护
+- 消除恶意组名通过 JS 字符串拼接注入 XSS 的可能性（需 admin 权限创建组，内部工具风险可控但仍应修复）
+- 全面扫描确认其他 Redesign 模板中无同类问题
+- 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) XSS-1 复盘
+
 ### 修复 — CSS Token 拼写修正 + 无障碍标注补全
 
 - **CSS Token**：`redesign-pages.css` 的 `.rr-warn-block` 中 `var(--cp-warning)` / `var(--cp-warning-bg)` 修正为 `var(--cp-warn-accent)` / `var(--cp-warn-bg)` / `var(--cp-warn-icon)`，移除 fallback 硬编码色值；深色模式下注册审核页警告块现在正确跟随主题

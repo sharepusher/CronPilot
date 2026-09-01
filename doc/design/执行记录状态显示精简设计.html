@@ -76,7 +76,7 @@ ins { color: #059669; text-decoration: none; }
 <body>
 
 <h1>执行记录状态显示精简设计</h1>
-<div class="meta-line">状态：待确认 · 2026-08-31 rev.3 · 修订 <a href="执行记录结果列细分展示设计.html"><code>执行记录结果列细分展示设计</code></a>（2026-08-27 已确认）</div>
+<div class="meta-line">状态：待确认 · 2026-09-01 rev.4 · 修订 <a href="执行记录结果列细分展示设计.html"><code>执行记录结果列细分展示设计</code></a>（2026-08-27 已确认）</div>
 
 <table class="spec" style="margin-top:8px;font-size:12px">
 <thead><tr><th>版本</th><th>日期</th><th>变更说明</th></tr></thead>
@@ -84,6 +84,7 @@ ins { color: #059669; text-decoration: none; }
 <tr><td>rev.1</td><td>2026-08-30</td><td>初稿：列表子标签移除 + 详情页失败原因板块移除</td></tr>
 <tr><td>rev.2</td><td>2026-08-31</td><td>补充 fail_reason 枚举映射表、实现步骤 S1–S7</td></tr>
 <tr><td>rev.3</td><td>2026-09-01</td><td>补充行业参考、扫描效率风险分析、回归验证项、备选方案扩展</td></tr>
+<tr><td>rev.4</td><td>2026-09-01</td><td>新增第 10 节：任务详情页健康卡片时间戳增强分析与对比 Demo</td></tr>
 </tbody>
 </table>
 
@@ -517,6 +518,94 @@ ins { color: #059669; text-decoration: none; }
     <td><code>python scripts/html_docs_to_markdown.py --check</code> 通过</td>
   </tr>
 </table>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 10: Health Card Enhancement
+     ════════════════════════════════════════════════════════════ -->
+<h2>10. 后续增强：任务详情页健康卡片时间戳（待确认）</h2>
+
+<p>执行记录详情页移除「失败原因」板块后，<code>last_fail_at</code> 和 <code>last_success_at</code> 两个时间戳在任何页面均不展示。这两个字段回答了故障排查的第一反应问题：「何时开始出问题？」「上次正常是什么时候？」建议在任务详情页健康卡片中补充展示。</p>
+
+<h3>现状分析</h3>
+
+<table class="spec">
+<thead><tr><th>JobHealth 字段</th><th>任务详情页</th><th>评估</th></tr></thead>
+<tbody>
+<tr><td><code>health_status</code></td><td>✅ 大圆点 + 标签</td><td>已完整</td></tr>
+<tr><td><code>consecutive_failures</code></td><td>✅ 「连续失败 N」</td><td>已完整</td></tr>
+<tr><td>24h 成功率</td><td>✅ 「24h 成功率 N%」</td><td>已完整（计算值）</td></tr>
+<tr><td>P95 延迟</td><td>✅ 条件显示</td><td>已完整</td></tr>
+<tr><td><code>last_fail_at</code></td><td>❌ 无</td><td><strong>应补充</strong></td></tr>
+<tr><td><code>last_success_at</code></td><td>❌ 无</td><td><strong>应补充</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>行业参考</strong>：Grafana（last evaluation time）、Datadog（last triggered）、PagerDuty（last status change）、Uptime Robot（last down/up）均显式展示关键时间戳。</p>
+
+<h3>对比 Demo：健康卡片</h3>
+
+<div class="comparison">
+  <!-- Before -->
+  <div class="panel">
+    <div class="panel-label before">当前</div>
+    <div class="panel-body">
+      <div style="font-size:13px">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 8px;color:#0f172a">健康度</h3>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#b91c1c;display:inline-block"></span>
+          <span style="color:#b91c1c;font-weight:600;font-size:16px">异常</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#64748b">
+          <div>连续失败 <strong style="color:#0f172a">5</strong></div>
+          <div>24h 成功率 <strong style="color:#0f172a">62%</strong></div>
+          <div>P95 延迟 <strong style="color:#0f172a">2.3s</strong></div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#b91c1c;margin-top:10px">⚠ 缺少关键时间线：何时开始失败？上次成功是什么时候？</p>
+    </div>
+  </div>
+
+  <!-- After -->
+  <div class="panel">
+    <div class="panel-label after">增强后</div>
+    <div class="panel-body">
+      <div style="font-size:13px">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 8px;color:#0f172a">健康度</h3>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#b91c1c;display:inline-block"></span>
+          <span style="color:#b91c1c;font-weight:600;font-size:16px">异常</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#64748b">
+          <div>连续失败 <strong style="color:#b91c1c">5</strong></div>
+          <div>24h 成功率 <strong style="color:#0f172a">62%</strong></div>
+          <div>P95 延迟 <strong style="color:#0f172a">2.3s</strong></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:11px;color:#94a3b8;margin-top:6px;padding-top:6px;border-top:1px dashed #e2e8f0">
+          <div>首次失败 <strong style="color:#b91c1c">08-30 14:20</strong></div>
+          <div>末次成功 <strong style="color:#059669">08-29 09:15</strong></div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#059669;margin-top:10px">✓ 完整健康时间线：知道何时出问题 + 上次正常运行的时间点</p>
+    </div>
+  </div>
+</div>
+
+<h3>设计要点</h3>
+<ol>
+<li>时间戳以<strong>次级行</strong>展示（虚线分隔），避免与主指标（计数/百分比/延迟）竞争视觉层级</li>
+<li>「首次失败」标红（<code>--cp-danger</code>），「末次成功」标绿（<code>--cp-signal</code>），颜色语义与健康状态一致</li>
+<li>时间格式使用 <code>MM-DD HH:MM</code>（短格式），避免卡片宽度膨胀</li>
+<li>值为 0（从未失败/从未成功）时显示 <code>—</code>；注意 SQLAlchemy BigInteger 在 SQLite 后端返回 <code>'0'</code>（字符串，truthy），须用 <code>val|hms_short or '—'</code> 或 <code>val|int > 0</code> 判断</li>
+<li>仅在 <code>health_status == 'failing'</code> 时显示首次失败时间（健康状态下不显示）；末次成功始终显示</li>
+</ol>
+
+<h3>实施范围（如确认）</h3>
+<table class="spec">
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>task_detail.html</code></td><td>健康卡片 <code>.td-health-metrics</code> 后新增时间戳行（2 个 <code>td-health-metric</code>，含条件显示逻辑）</td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>可选：<code>.td-health-timeline</code> 次级行样式（虚线分隔 + 小字号）</td></tr>
+</table>
+<p><strong>不需要修改 Python</strong>：视图层已将 <code>health</code> 对象传入模板，<code>last_fail_at</code> / <code>last_success_at</code> 字段可直接访问。</p>
 
 <div style="margin-top: 40px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af;">
   <a href="index.html">文档索引</a> · <a href="执行记录状态显示精简设计.md">Markdown</a>

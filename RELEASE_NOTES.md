@@ -7,6 +7,27 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 增强 — 任务详情页健康卡片时间戳
+
+- 健康度卡片新增「首次失败」「末次成功」时间戳行（虚线分隔的次级行）
+- 仅在 `health_status == 'failing'` 且 `last_fail_at > 0` 时展示「首次失败」
+- 「末次成功」始终展示（值为 0 时显示 `—`）
+- 修复 SQLAlchemy BigInteger 在 SQLite 后端返回字符串 `'0'`（truthy）导致兜底值渲染为空白的问题
+- 同类修复：`dashboard.html` Exception Panel 的 `last_fail_at` truthy 检查改为 `|int > 0`
+- 设计文档 `执行记录状态显示精简设计.html` 更新至 rev.4
+
+### 增强 — Tooltip 即时响应优化
+
+- 将 9 处交互按钮的 `title` 属性替换为 `data-tooltip`，消除浏览器原生 ~800ms 延迟
+- 涉及模板：`_dashboard_rows.html`（3 处）、`_topbar.html`（3 处）、`run_inspector.html`（1 处）、`task_detail.html`（1 处）、`registration_review.html`（1 处）
+- 新增 Tooltip 分类规范写入 `.cursor/rules/cronpilot-format-guard.mdc` 和 `AGENTS.md`
+
+### 修复 — CSS Token 拼写修正 + 无障碍标注补全
+
+- **CSS Token**：`redesign-pages.css` 的 `.rr-warn-block` 中 `var(--cp-warning)` / `var(--cp-warning-bg)` 修正为 `var(--cp-warn-accent)` / `var(--cp-warn-bg)` / `var(--cp-warn-icon)`，移除 fallback 硬编码色值；深色模式下注册审核页警告块现在正确跟随主题
+- **aria-label**：为 `_topbar.html` 的 3 个 icon-only 按钮和 `run_inspector.html` 的 1 个 icon-only 按钮补充 `aria-label` 属性
+- 详见 [全面 CodeReview 复盘](doc/postmortem/2026-08-全面CodeReview复盘.html) R2 实施复盘
+
 ### 增强 — 集成测试自动探测
 
 - `test_csrf_integration.py` 和 `test_cron_ops_integration.py` 新增本地服务自动探测（:5001/:5860）

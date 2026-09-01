@@ -85,6 +85,14 @@
       <div class="td-health-metric">P95 延迟 <strong>{{ p95_latency }}</strong></div>
       {% endif %}
     </div>
+    {% if health %}
+    <div class="td-health-timeline">
+      {% if health.health_status == 'failing' and health.last_fail_at|int > 0 %}
+      <span>首次失败 <strong class="ts-fail">{{ health.last_fail_at|hms_short or '—' }}</strong></span>
+      {% endif %}
+      <span>末次成功 <strong class="ts-ok">{{ health.last_success_at|hms_short or '—' }}</strong></span>
+    </div>
+    {% endif %}
   </div>
 
   {# ─── Schedule Card ─── #}

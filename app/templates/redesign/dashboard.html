@@ -56,7 +56,7 @@
     <div class="hf-exception-item">
       <span class="hf-ex-icon{% if overdue_map.get(cron.id) %} overdue{% endif %}">×{{ health.consecutive_failures }}</span>
       <span class="hf-ex-name">{{ cron.task_name }}</span>
-      <span class="hf-ex-detail">连续失败 {{ health.consecutive_failures }} 次{% if health.last_fail_at %} · 最近失败: {{ health.last_fail_at|hms_display }}{% endif %}</span>
+      <span class="hf-ex-detail">连续失败 {{ health.consecutive_failures }} 次{% if health.last_fail_at|int > 0 %} · 最近失败: {{ health.last_fail_at|hms_display }}{% endif %}</span>
       {% if overdue_map.get(cron.id) %}<span class="hf-ex-overdue">{{ overdue_map[cron.id] }}</span>{% endif %}
       <a class="hf-ex-action" href="{{ url_for('main.job_log_list', id=cron.id) }}">查看详情 →</a>
     </div>

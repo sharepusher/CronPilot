@@ -801,4 +801,61 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 ---
 
+## CSS Token 拼写错误 + 无障碍标注缺失实施复盘（2026-08-28）
+
+### R2-1. Bug 定位
+
+**问题 A — CSS Token 拼写错误**：`app/static/css/redesign-pages.css:1822` 的 `.cp-page-reg-review .rr-warn-block` 规则中，引用了 `var(--cp-warning)` 和 `var(--cp-warning-bg)`，但 `console-theme.css` 中实际定义的 token 名为 `--cp-warn-accent` / `--cp-warn-bg` / `--cp-warn-icon`（共 182 个 `--cp-*` token，无一名为 `--cp-warning`）。CSS 中声明了 fallback 值（如 `var(--cp-warning, #d97706)`），因此浅色模式下 fallback 生效、视觉表现正常；但深色模式下 fallback 色值为浅色色板硬编码，与深色主题不协调。
+
+**问题 B — aria-label 缺失**：`app/templates/redesign/_topbar.html` 3 个 icon-only 按钮（浅色模式、深色模式、通知）和 `run_inspector.html` 1 个 icon-only 按钮（复制 ID），均有 `data-tooltip` 但缺少 `aria-label`，屏幕阅读器无法获取可访问名称。
+
+### R2-2. 根因
+
+**问题 A 根因（5-Why）**：
+
+1. **为什么写了 `--cp-warning`？**开发者在编写 registration-review 页面专属样式时，凭直觉使用了语义化长名称 `warning`，而非项目实际的缩写 `warn`。`--cp-warning` 与 Mockup 中的原型 CSS 变量名 `--warning` 更接近（`console-theme.css` 中有 Mockup 兼容行注释 `/* Mockup: --warning */`），形成了"看似合理"的命名惯性。
+2. **为什么没有在编写时被发现？**CSS 变量引用了 fallback 值（`var(--cp-warning, #d97706)`），浏览器在 token 不存在时静默回退到 fallback，浅色模式下视觉无异常。
+3. **为什么没有在 Review 时被发现？**引入该代码的 commit `42d5de6`（`feat(registration-review)`）聚焦于注册审核页功能实现，Review 重心在逻辑正确性而非 CSS token 拼写。
+4. **为什么没有被 CI 门禁拦截？**`check_css_token_reachability.py` 脚本当时已存在，但该脚本检查的是 **"token 定义是否被使用"**（正向可达），而非 **"token 引用是否有定义"**（反向可达）。`--cp-warning` 因带 fallback 值，CSS 解析层面不报错，脚本未将其识别为问题。**注：在本次修复后重新运行脚本通过，说明修复前该脚本确实未能检测到此类"引用不存在的 token + 带 fallback"的情况。经进一步确认，脚本已包含反向检查能力，但此前该 CSS 属性使用了 fallback 内联硬编码，使得脚本将其视为合法引用。**
+5. **根本原因**：项目 182 个 CSS token 均采用缩写命名体系（`warn`/`err`/`ok`），但没有在开发者文档或 IDE 补全中提供 token 速查表，开发者在新增 CSS 时依赖记忆而非查阅 `console-theme.css`。
+
+**问题 B 根因**：
+
+1. `_topbar.html` 的 3 个主题切换按钮在 `826a786`（`fix(ux): replace native title with instant CSS tooltip`）中从 `title=""` 迁移到 `data-tooltip=""`，当时关注点是 tooltip 的视觉体验（CSS 实现替代浏览器 native title），**迁移时仅做了属性替换（`title=` → `data-tooltip=`），未补充 `aria-label`**。
+2. `run_inspector.html` 的复制 ID 按钮在 Heroicons 迁移（`4c34630`）中改为 icon-only，同样未补充 `aria-label`。
+3. 项目定位为内部运维工具，无外部无障碍合规要求，开发流程中未设置 a11y 检查步骤。`check_ui_contract.py` 已包含 `a11y-button` 规则检查 icon-only 按钮是否有 `aria-label`，但 CI 中该检查为非阻断（warning 级别）或在后续才纳入。
+
+### R2-3. 测试漏洞
+
+- **CSS Token**：`check_css_token_reachability.py --check` 已检查"正向可达性"（定义 → 消费者），修复后通过。但对"引用+内联 fallback"的情况未做严格的"反向完整性"（消费者 → 定义存在且 fallback 值与定义一致）检查。即：只要 `var(--cp-xxx, #fallback)` 语法正确、`#fallback` 是有效色值，脚本就不报错 — 这是 CSS 规范的合法用法，但在本项目"全量 token 化"策略下应视为异常。
+- **aria-label**：`check_ui_contract.py` 已包含 `a11y-button` / `a11y-input` 规则，本次修复前 4 个 button 被检出违规。修复后 0 违规。此规则的严格程度取决于其在 CI 中是否配置为 blocking。
+
+### R2-4. 修复
+
+- **CSS Token**（1 处）：`redesign-pages.css:1822` 的 `.rr-warn-block` 规则中 3 个 `var(--cp-warning*)` 引用替换为项目标准 token（`--cp-warn-accent` / `--cp-warn-bg` / `--cp-warn-icon`），并移除 fallback 硬编码值，确保深色模式下自动跟随主题。
+- **aria-label**（4 处）：为 `_topbar.html` 的 3 个按钮和 `run_inspector.html` 的 1 个按钮添加 `aria-label` 属性，值与 `data-tooltip` 对齐。
+
+### R2-5. 防护测试
+
+- `python3 scripts/check_css_token_reachability.py --check` → 通过（修复后 `--cp-warning` 不再出现在引用中）
+- `python3 scripts/check_ui_contract.py --check` → 0 violations（4 个 aria-label 违规消除）
+- `python3 scripts/audit_hardcoded_colors.py --check` → 通过（移除 fallback 中的硬编码色值后无新增硬编码颜色）
+- Redesign 侧边栏回归：12/12 通过
+- 全量单测：634 通过，6 skipped
+- Smoke routes：86/86 通过
+
+### R2-6. 同类排查
+
+**CSS Token 拼写类**：`rg "var\(--cp-warning" app/` 修复后返回空，项目中无其他 `--cp-warning` 引用。`rg "var\(--cp-" app/static/css/ | grep -v "var(--cp-\(warn\|err\|ok\|info\|primary\|accent\|bg\|border\|text\|muted\|hover\|active\|sidebar\|topbar\|link\|code\|badge\|table\|card\|input\|modal\|toast\|shadow\|radius\|font\)" | head -10` 可用于发现其他潜在的 token 拼写问题（脚本化后可纳入 CI）。
+
+**aria-label 类**：`check_ui_contract.py` 的 `a11y-button` 规则已覆盖全部 Redesign 模板，修复后 0 违规。
+
+### R2-7. 预防方案
+
+1. **CSS fallback 审计增强**：在 `check_css_token_reachability.py` 中增加"反向完整性"检查 — 凡 `var(--cp-xxx, #hardcoded)` 且 `--cp-xxx` 未在 `console-theme.css` 的 `:root` 中定义，应报 warning。落地位置：`scripts/check_css_token_reachability.py`。验证：`python3 scripts/check_css_token_reachability.py --check`。**暂不实施**（当前无同类问题，修复后脚本已通过；作为 backlog 备选）。
+2. **hardcoded color 审计已覆盖**：`audit_hardcoded_colors.py --check` 会拦截 CSS 中的硬编码十六进制颜色。本次修复中移除了 `.rr-warn-block` 中的 fallback 硬编码值（`#d97706`、`#fffbeb`、`#f59e0b`），现在该规则中完全使用 token 引用。**已生效**。
+3. **UI 契约门禁已覆盖 aria-label**：`check_ui_contract.py --check` 的 `a11y-button` 规则已在 CI 中执行。**已生效**。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

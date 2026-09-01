@@ -71,7 +71,7 @@
 
 **API 返回结构变更标注（强制）**：任何 API 字段增删改必须在 RELEASE_NOTES 标注 `⚠️ API Breaking Change`。commit 前 `git diff -- app/api/` 检查字段变化。
 
-**模板兜底值语义化（强制）**：模板 `.get(key, default)` 中禁止 default 为空字符串 `''`，必须使用有语义的兜底文案（`—`、`未知`等）。
+**模板兜底值语义化（强制）**：模板 `.get(key, default)` 中禁止 default 为空字符串 `''`，必须使用有语义的兜底文案（`—`、`未知`等）。**BigInteger 时间戳兜底陷阱**：SQLAlchemy BigInteger 列在 SQLite 后端返回的值可能是字符串（如 `'0'`），`bool('0')` 为 `True`，因此 `{{ val|hms_short if val else '—' }}` 不安全——应使用 `{{ val|hms_short or '—' }}`（利用 `hms_to_display` 对 0/无效值返回空串的行为）或 `{% if val|int > 0 %}`。自检：`rg "if health\." app/templates/ | grep -v "int >" | grep -v "health_status"` 不应有直接 truthy 检查时间戳字段的用法。
 
 **测试数据库隔离（强制 · 2026-08 事故教训）**：测试文件中**严禁** `from manage import app` 或 `from manage import db`（`manage.py` 在模块级别 `create_app('development')` 绑定开发数据库）。所有测试必须使用 `sqlite:///:memory:`。改动测试文件后须在测试完成后 `sqlite3 datas/job_log.sqlite ".tables"` 确认表未被破坏。交付前须 `cronpilot.sh restart` → 浏览器 **POST 登录**（非仅 GET）→ 确认主页正常。详 `.cursor/rules/cronpilot-project.mdc`「测试数据库隔离」。
 

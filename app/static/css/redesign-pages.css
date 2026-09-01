@@ -180,6 +180,25 @@
   color: var(--cp-ink);
 }
 
+.cp-page-task-detail .td-health-timeline {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--cp-muted);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--cp-border);
+}
+
+.cp-page-task-detail .td-health-timeline .ts-fail {
+  color: var(--cp-danger);
+}
+
+.cp-page-task-detail .td-health-timeline .ts-ok {
+  color: var(--cp-signal);
+}
+
 /* Schedule card */
 .cp-page-task-detail .td-schedule-big {
   display: flex;
@@ -1819,7 +1838,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .cp-page-reg-review .rr-col-role { width: 80px; }
 .cp-page-reg-review .rr-col-groups { width: 180px; }
 .cp-page-reg-review .rr-reject-block { margin-top: 12px; font-size: 12px; color: var(--cp-danger); padding: 8px 10px; background: var(--cp-danger-bg); border-radius: 4px; border-left: 3px solid var(--cp-danger); }
-.cp-page-reg-review .rr-warn-block { margin-top: 12px; font-size: 12px; color: var(--cp-warning, #d97706); padding: 8px 10px; background: var(--cp-warning-bg, #fffbeb); border-radius: 4px; border-left: 3px solid var(--cp-warning, #f59e0b); }
+.cp-page-reg-review .rr-warn-block { margin-top: 12px; font-size: 12px; color: var(--cp-warn-accent); padding: 8px 10px; background: var(--cp-warn-bg); border-radius: 4px; border-left: 3px solid var(--cp-warn-icon); }
 .cp-page-reg-review .pg-badge-count { display: inline-block; background: var(--cp-signal-bg); color: var(--cp-signal); font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 10px; vertical-align: middle; position: relative; top: -1px; }
 
 /* ══════════════════════════════════════════════════════════════════

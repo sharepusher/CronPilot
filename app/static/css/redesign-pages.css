@@ -1062,6 +1062,9 @@ a:focus-visible {
 .cp-page-task-form .tf-field-error .tf-label {
   color: var(--cp-danger);
 }
+.cp-page-task-form .tf-section-error > .tf-label {
+  color: var(--cp-danger);
+}
 
 /* ─── Actions ─── */
 

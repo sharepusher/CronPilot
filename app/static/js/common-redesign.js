@@ -74,7 +74,12 @@
               if (!$el.length) $el = $form.find('#' + fk);
               if ($el.length) {
                 $form.find('.tf-field-error').removeClass('tf-field-error');
-                $el.addClass('tf-field-error');
+                $form.find('.tf-section-error').removeClass('tf-section-error');
+                if ($el.find('.tf-field').length) {
+                  $el.addClass('tf-section-error');
+                } else {
+                  $el.addClass('tf-field-error');
+                }
                 $el[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
             }

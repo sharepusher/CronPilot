@@ -70,7 +70,7 @@
             $form.find('.tf-field-error').removeClass('tf-field-error');
             $form.find('.tf-section-error').removeClass('tf-section-error');
             $form.find('.tf-error-msg').each(function() {
-              var $prev = $(this).prev('.tf-hint');
+              var $prev = $(this).prev('[class*="-hint"]');
               if ($prev.length) $prev.show();
               $(this).remove();
             });
@@ -88,7 +88,7 @@
                 if (isSection) {
                   $el.find('> .tf-label').after($errMsg);
                 } else {
-                  var $hint = $el.find('.tf-hint');
+                  var $hint = $el.find('[class*="-hint"]');
                   if ($hint.length) {
                     $hint.hide();
                     $hint.after($errMsg);

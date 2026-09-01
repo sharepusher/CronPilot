@@ -575,6 +575,7 @@ def change_own_password(user_id, old_password, new_password, confirm_password):
         logger.exception('change_own_password commit failed user_id=%s', user_id)
         db.session.rollback()
         return {'ok': False, 'msg': '保存失败'}
+    _invalidate_api_scope_cache(user_id)
     write_audit_log(
         action='user:password',
         resource=user.username,

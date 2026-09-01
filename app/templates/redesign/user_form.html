@@ -58,18 +58,18 @@
     <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">← 返回用户管理</a>
   </div>
   {% else %}
-  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.users_edit') if user else url_for('rbac.users_add') }}">
+  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('rbac.users_edit') if user else url_for('rbac.users_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if user %}<input type="hidden" name="id" value="{{ user.id }}">{% endif %}
 
     <!-- Username row -->
-    <div class="uf-row">
+    <div class="uf-row" data-field="uf-username">
       <label class="uf-label" for="uf-username">用户名 <span class="uf-req">*</span></label>
       {% if user %}
       <input type="text" class="f-input uf-input" value="{{ user.username }}" disabled />
       <span class="uf-hint">用户名不可修改</span>
       {% else %}
-      <input type="text" name="username" id="uf-username" class="f-input uf-input" required maxlength="64" placeholder="如 zhangsan" />
+      <input type="text" name="username" id="uf-username" class="f-input uf-input" maxlength="64" placeholder="如 zhangsan" />
       <span class="uf-hint">建议使用公司邮箱前缀（如 zhangsan@company.com → zhangsan）</span>
       {% endif %}
     </div>
@@ -84,7 +84,7 @@
     {% endif %}
 
     <!-- Role -->
-    <div class="uf-row">
+    <div class="uf-row" data-field="uf-role-select">
       <label class="uf-label" for="uf-role-select">角色 <span class="uf-req">*</span></label>
       <select name="role" class="f-input uf-select" id="uf-role-select">
         {% for r in roles %}
@@ -95,7 +95,7 @@
     </div>
 
     <!-- Email -->
-    <div class="uf-row">
+    <div class="uf-row" data-field="uf-email">
       <label class="uf-label" for="uf-email">邮箱</label>
       <input type="email" name="email" id="uf-email" class="f-input uf-input" maxlength="128" value="{{ user.email if user and user.email else '' }}" placeholder="user@company.com" />
       <span class="uf-hint">可选；留空则用户首次登录后补填</span>
@@ -109,10 +109,10 @@
     </div>
 
     <!-- Job title -->
-    <div class="uf-row">
+    <div class="uf-row" data-field="uf-job-title-select">
       <label class="uf-label" for="uf-job-title-select">岗位类型 <span class="uf-req">*</span></label>
       <div class="uf-row-inline">
-        <select name="job_title" class="f-input uf-select" id="uf-job-title-select" required>
+        <select name="job_title" class="f-input uf-select" id="uf-job-title-select">
           <option value="">-- 请选择岗位 --</option>
           {% for code, label in (job_title_choices or []) %}
           <option value="{{ code }}"{% if user and user.job_title == code %} selected{% elif user and user.job_title and user.job_title.startswith('other') and code == 'other' %} selected{% endif %}>{{ label }}</option>
@@ -125,7 +125,7 @@
     </div>
 
     <!-- Business Groups -->
-    <div class="uf-row">
+    <div class="uf-row" data-field="uf-group-select">
       <label class="uf-label">业务组 <span class="uf-req">*</span></label>
       {% if locked_group %}
       {# R2: 非全局权限用户只有一个业务组，自动锁定不可更改 #}
@@ -215,9 +215,8 @@
     jtSel.addEventListener('change', function(){
         var show = this.value === 'other';
         jtWrap.style.display = show ? 'inline-flex' : 'none';
-        if (jtOther) jtOther.required = show;
     });
-    if (jtSel.value === 'other') { jtWrap.style.display = 'inline-flex'; if (jtOther) jtOther.required = true; }
+    if (jtSel.value === 'other') { jtWrap.style.display = 'inline-flex'; }
 })();
 </script>
 {% endblock %}

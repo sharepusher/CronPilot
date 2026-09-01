@@ -22,7 +22,7 @@
 <div class="cr-card">
   <div class="cr-warn">下线后不可再启/编辑，同类需求请新建任务</div>
 
-  <form method="post" class="js-ajax-form" action="{{ url_for('main.cron_retire') }}">
+  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('main.cron_retire') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="id" value="{{ cif.id }}">
 
@@ -31,9 +31,9 @@
       <span class="cr-value">{{ cif.task_name }}</span>
     </div>
 
-    <div class="cr-row">
+    <div class="cr-row" data-field="reason">
       <label class="cr-label" for="cr-reason">下线原因 <span class="cr-req">*</span></label>
-      <textarea name="reason" id="cr-reason" class="f-input cr-textarea" rows="3" maxlength="500" required></textarea>
+      <textarea name="reason" id="cr-reason" class="f-input cr-textarea" rows="3" maxlength="500"></textarea>
       <span class="cr-hint">必填，1～500 字；下线后不可再启/编辑，同类需求请新建任务</span>
     </div>
 

@@ -106,15 +106,70 @@ def _wants_ajax_json():
     return 'application/json' in accept
 
 
-def _users_form_response(ok, msg, url='/rbac/users', template=None, **ctx):
+def _users_form_response(ok, msg, url='/rbac/users', template=None, data=None, **ctx):
     """Ajax → JSON（含 url 跳转）；普通 POST → 成功重定向 / 失败回渲染表单。"""
     if _wants_ajax_json():
-        return web_api_return(code=0 if ok else 1, msg=msg, url=url if ok else '')
+        if data is None and not ok and template:
+            if 'user_form' in template:
+                data = _user_field_data(msg)
+            elif 'group_form' in template:
+                data = _group_field_data({'ok': ok, 'msg': msg})
+        return web_api_return(code=0 if ok else 1, msg=msg, url=url if ok else '', data=data)
     if ok:
         return redirect(url)
     if template:
         return render_template(template, form_msg=msg, roles=ROLE_ORDER, **ctx)
     return redirect(url)
+
+
+def _group_field_data(result):
+    if result['ok']:
+        return None
+    msg = result.get('msg', '')
+    if '名称' in msg:
+        return {'field': 'gf-name'}
+    if '描述' in msg:
+        return {'field': 'gf-desc'}
+    return None
+
+
+def _user_field_data(msg):
+    if not msg:
+        return None
+    if '用户名' in msg or '已存在' in msg:
+        return {'field': 'uf-username'}
+    if '岗位' in msg:
+        return {'field': 'uf-job-title-select'}
+    if '业务组' in msg or '全局权限' in msg or '全部' in msg:
+        return {'field': 'uf-group-select'}
+    if '角色' in msg:
+        return {'field': 'uf-role-select'}
+    if '邮箱' in msg:
+        return {'field': 'uf-email'}
+    return None
+
+
+def _password_field_data(msg):
+    if '当前密码' in msg:
+        return {'field': 'pwd-old'}
+    if '新密码' in msg:
+        return {'field': 'pwd-new'}
+    if '不一致' in msg:
+        return {'field': 'pwd-confirm'}
+    return None
+
+
+def _profile_field_data(msg):
+    if not msg:
+        return None
+    first = msg.split('；')[0] if '；' in msg else msg
+    if '邮箱' in first:
+        return {'field': 'pf-email'}
+    if '花名' in first:
+        return {'field': 'pf-nickname'}
+    if '岗位' in first:
+        return {'field': 'pf-job-title'}
+    return None
 
 
 def _password_force_reset(user_id=None):
@@ -309,10 +364,14 @@ def change_password():
     if result['ok']:
         session.clear()
     if _wants_ajax_json():
+        pw_field = None
+        if not result['ok']:
+            pw_field = _password_field_data(result['msg'])
         return web_api_return(
             code=0 if result['ok'] else 1,
             msg=result['msg'] if not result['ok'] else '密码已修改，请重新登录',
             url=login_url if result['ok'] else '',
+            data=pw_field,
         )
     if result['ok']:
         return redirect(login_url)
@@ -362,10 +421,14 @@ def edit_profile():
         job_title=raw_job_title,
     )
     if _wants_ajax_json():
+        pf_field = None
+        if not result['ok']:
+            pf_field = _profile_field_data(result['msg'])
         return web_api_return(
             code=0 if result['ok'] else 1,
             msg=result['msg'],
             url='' if not result['ok'] else '',
+            data=pf_field,
         )
     db.session.refresh(user)
     return render_template(
@@ -846,11 +909,13 @@ def users_set_active():
         reason=request.values.get('reason', ''),
         actor_user_id=session.get('user_id'),
     )
+    field_data = {'field': 'reason'} if not result['ok'] and '缘由' in result['msg'] else None
     return _users_form_response(
         result['ok'],
         result['msg'],
         url='/rbac/users',
         template=tpl,
+        data=field_data,
         user=user,
         target_active=is_active,
     )
@@ -933,6 +998,7 @@ def groups_add():
         result['msg'],
         url='/rbac/groups',
         template='redesign/group_form.html',
+        data=_group_field_data(result),
     )
 
 
@@ -967,6 +1033,7 @@ def groups_edit():
         result['msg'],
         url='/rbac/groups',
         template='redesign/group_form.html',
+        data=_group_field_data(result),
         group=group,
     )
 

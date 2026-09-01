@@ -345,7 +345,7 @@ if (form) {
       var errMsg = container.querySelector('.tf-error-msg');
       if (errMsg) {
         var hint = errMsg.previousElementSibling;
-        if (hint && hint.classList.contains('tf-hint')) hint.style.display = '';
+        if (hint && /\b\w+-hint\b/.test(hint.className)) hint.style.display = '';
         errMsg.remove();
       }
     }

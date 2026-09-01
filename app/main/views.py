@@ -969,7 +969,7 @@ def cron_retire():
         return render_template(tpl, cif=cif, already=False)
     err, _ = retire_cron_by_id(id, request.values.get('reason'))
     if err:
-        return web_api_return(code=1, msg=err)
+        return web_api_return(code=1, msg=err, data={'field': 'reason'})
     return web_api_return(code=0, msg='任务已下线', url='/cron_list')
 
 

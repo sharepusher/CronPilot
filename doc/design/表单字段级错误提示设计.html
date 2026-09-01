@@ -40,7 +40,7 @@
 <body>
 
 <h1>表单字段级错误提示设计</h1>
-<p class="version">版本 rev.1 · 2026-09-01 · 编号 OPT-P1-14</p>
+<p class="version">版本 rev.4 · 2026-09-01 · 编号 OPT-P1-14</p>
 
 <h2>1. 问题</h2>
 
@@ -438,12 +438,239 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
   <tr><td><code>registration_review.html</code></td><td>批量审批 POST 失败</td><td>应补 error 回调 + Toast</td></tr>
 </table>
 
+<h2>10. Phase 2 — 全 RBAC 表单覆盖设计</h2>
+
+<h3>10.1 问题</h3>
+<p>Phase 1 仅覆盖了 <code>task_form.html</code>，审计中识别的其余 7 张 A 类表单仍使用全局 Toast 反馈字段级校验错误。用户在修改密码、管理用户/组、下线任务、停用用户、编辑个人资料时，仍面临「错误文案与出错字段空间分离」的体验问题。</p>
+
+<h3>10.2 方案概览</h3>
+<p>基于 Phase 1 已验证的内联文案架构，将覆盖范围扩展到全部 RBAC 表单。核心工作分为四层：</p>
+
+<h4>① 基础设施提升：CSS 共享化</h4>
+<table>
+  <tr><th>变更</th><th>原因</th><th>风险评估</th></tr>
+  <tr>
+    <td><code>.tf-error-msg</code> 从 <code>redesign-pages.css</code>（<code>.cp-page-task-form</code> 作用域下）移入 <code>redesign-components.css</code>（全局）</td>
+    <td>Phase 1 样式限定在 task-form 页面作用域下，其他页面的 <code>.tf-error-msg</code> 无样式。按 CSS 归属决策树，跨页面复用的 UI 组件应放在 <code>redesign-components.css</code></td>
+    <td><strong>低风险</strong>：选择器特异性降低（从 <code>.cp-page-task-form .tf-error-msg</code> 降为 <code>.tf-error-msg</code>），但该类仅由 JS 动态创建，无意外匹配可能</td>
+  </tr>
+</table>
+
+<h4>② 基础设施提升：JS hint 选择器泛化</h4>
+<table>
+  <tr><th>变更</th><th>原因</th><th>风险评估</th></tr>
+  <tr>
+    <td>hint 选择器从 <code>.tf-hint</code> 改为 <code>[class*="-hint"]</code>（CSS attribute 选择器通配）</td>
+    <td>各 RBAC 页面使用不同前缀：<code>cr-hint</code>（cron_retire）、<code>pw-hint</code>（password）、<code>uf-hint</code>（user_form）、<code>gf-hint</code>（group_form）、<code>usa-hint</code>（set_active）。统一查找避免逐页定制</td>
+    <td><strong>低风险</strong>：<code>[class*="-hint"]</code> 匹配所有含 <code>-hint</code> 的类。审计确认无误匹配（如 <code>kbd-hint</code> 在非表单区域，不包含在 <code>[data-field]</code> 容器内）</td>
+  </tr>
+  <tr>
+    <td><code>task_form.html</code> 的 input 事件 hint 恢复从 <code>classList.contains('tf-hint')</code> 改为正则 <code>/\b\w+-hint\b/</code></td>
+    <td>一致性：与 <code>common-redesign.js</code> 的泛化逻辑对齐</td>
+    <td><strong>极低</strong>：仅影响清除时的 hint 恢复识别，正则语义等价于原有判断</td>
+  </tr>
+</table>
+
+<h4>③ 后端 field key 返回</h4>
+<p>Phase 1 中 <code>task_form</code> 的后端已返回 <code>data.field</code>。Phase 2 需要为 RBAC 表单补充：</p>
+<table>
+  <tr><th>表单</th><th>后端策略</th><th>field key 映射规则</th><th>合理性分析</th></tr>
+  <tr>
+    <td><code>cron_retire</code></td>
+    <td>在视图层 <code>views.py</code> 直接 <code>data={'field': 'reason'}</code></td>
+    <td>该表单仅一个输入字段（<code>reason</code>），无歧义</td>
+    <td><strong>合理</strong>：最小 diff，不改服务层</td>
+  </tr>
+  <tr>
+    <td><code>users_set_active</code></td>
+    <td>视图层根据错误消息关键词（<code>'缘由'</code>）匹配 → <code>field='reason'</code></td>
+    <td>该表单仅一个输入字段</td>
+    <td><strong>合理</strong>：关键词匹配可靠（服务层只有两个含「缘由」的错误消息）</td>
+  </tr>
+  <tr>
+    <td><code>group_form</code></td>
+    <td>辅助函数 <code>_group_field_data(result)</code>：<code>'名称'</code> → <code>gf-name</code>，<code>'描述'</code> → <code>gf-desc</code></td>
+    <td>两个字段，关键词不重叠</td>
+    <td><strong>合理</strong>：映射清晰</td>
+  </tr>
+  <tr>
+    <td><code>change_password</code></td>
+    <td>辅助函数 <code>_password_field_data(msg)</code>：<code>'当前密码'</code> → <code>pwd-old</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'不一致'</code> → <code>pwd-confirm</code></td>
+    <td>三个字段，关键词在服务层消息中唯一对应</td>
+    <td><strong>合理</strong>：覆盖所有 5 种错误消息</td>
+  </tr>
+  <tr>
+    <td><code>user_form</code></td>
+    <td><code>_users_form_response</code> 自动推断：当 <code>template</code> 包含 <code>'user_form'</code> 且错误时，调用 <code>_user_field_data(msg)</code></td>
+    <td><code>'用户名'/'已存在'</code> → <code>uf-username</code>，<code>'岗位'</code> → <code>uf-job-title-select</code>，<code>'业务组'/'全局权限'</code> → <code>uf-group-select</code>，<code>'角色'</code> → <code>uf-role-select</code>，<code>'邮箱'</code> → <code>uf-email</code></td>
+    <td><strong>合理但需注意</strong>：关键词匹配依赖服务层消息文案不变。5 个字段关键词不重叠，覆盖了 <code>create_user</code> / <code>update_user</code> / <code>validate_groups_for_role</code> 的所有错误路径。潜在风险：新增错误消息如不含上述关键词，将降级为 Toast（安全降级）</td>
+  </tr>
+  <tr>
+    <td><code>user_profile</code></td>
+    <td>辅助函数 <code>_profile_field_data(msg)</code>：<code>'邮箱'</code> → <code>pf-email</code>，<code>'花名'</code> → <code>pf-nickname</code>，<code>'岗位'</code> → <code>pf-job-title</code></td>
+    <td>三个字段；服务层可能返回多错误用 <code>'；'</code> 连接，取首个错误映射</td>
+    <td><strong>合理</strong>：取首个错误（最先触发）聚焦对应字段，符合「逐个修正」的 UX 模式</td>
+  </tr>
+</table>
+
+<h4>④ 模板变更</h4>
+<p>每张表单的模板变更包含以下 3 项标准化改造：</p>
+<table>
+  <tr><th>改造项</th><th>原因</th><th>影响评估</th></tr>
+  <tr>
+    <td>添加 <code>novalidate</code> 到 <code>&lt;form&gt;</code></td>
+    <td>Phase 1 已验证：HTML5 <code>required</code> / <code>min</code> / <code>max</code> 触发浏览器原生校验气泡，样式与自定义内联文案冲突且不可控</td>
+    <td><strong>无功能影响</strong>：所有校验由后端服务层完成，前端不再双重校验</td>
+  </tr>
+  <tr>
+    <td>移除 <code>required</code> / <code>minlength</code> 属性</td>
+    <td>配合 <code>novalidate</code>；即使有 <code>novalidate</code>，部分浏览器在 JS 调用 <code>checkValidity()</code> 时仍检查这些属性</td>
+    <td><strong>无功能影响</strong>：后端已有等价校验</td>
+  </tr>
+  <tr>
+    <td>添加 <code>data-field="xxx"</code> 到输入字段所在的容器 <code>div</code></td>
+    <td>JS 通过 <code>[data-field]</code> 选择器定位错误显示位置</td>
+    <td><strong>无视觉影响</strong>：data 属性不影响渲染；与 Phase 1 的 <code>task_form</code> 模式完全一致</td>
+  </tr>
+</table>
+
+<h3>10.3 逐表单变更明细与合理性评估</h3>
+
+<h4>10.3.1 cron_retire.html — 下线任务</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>1（<code>reason</code> — 下线原因）</td></tr>
+  <tr><td>后端 field key</td><td><code>views.py</code> 在 <code>retire_cron_by_id()</code> 返回错误时添加 <code>data={'field': 'reason'}</code></td></tr>
+  <tr><td>错误消息</td><td>「请填写下线原因」「下线原因不能超过500字」</td></tr>
+  <tr><td>模板变更</td><td>① <code>novalidate</code>；② <code>data-field="reason"</code>；③ 移除 <code>required</code></td></tr>
+  <tr><td>合理性</td><td><strong>完全合理</strong>。该表单仅有一个输入字段，field key 映射无歧义。改造量最小，风险最低</td></tr>
+</table>
+
+<h4>10.3.2 users_set_active.html — 停用用户</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>1（<code>reason</code> — 停用缘由）</td></tr>
+  <tr><td>后端 field key</td><td>视图层检查 <code>'缘由' in result['msg']</code> → <code>field='reason'</code></td></tr>
+  <tr><td>错误消息</td><td>「请填写缘由」「缘由最长 500 字」</td></tr>
+  <tr><td>模板变更</td><td>同 cron_retire：① <code>novalidate</code>；② <code>data-field="reason"</code>；③ 移除 <code>required</code></td></tr>
+  <tr><td>合理性</td><td><strong>完全合理</strong>。与 cron_retire 同构</td></tr>
+</table>
+
+<h4>10.3.3 group_form.html — 新建/编辑业务组</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>2（<code>gf-name</code> — 组名，<code>gf-desc</code> — 说明）</td></tr>
+  <tr><td>后端 field key</td><td><code>_group_field_data(result)</code>：<code>'名称'</code> → <code>gf-name</code>，<code>'描述'</code> → <code>gf-desc</code></td></tr>
+  <tr><td>错误消息</td><td>「名称不能为空」「名称最长 64 字符」「名称已存在」「描述最长 255 字符」</td></tr>
+  <tr><td>模板变更</td><td>① <code>novalidate</code>；② 两个字段容器加 <code>data-field</code>；③ 移除 <code>required</code></td></tr>
+  <tr><td>自动推断</td><td><code>_users_form_response</code> 自动检测 <code>template='redesign/group_form.html'</code> 时调用 <code>_group_field_data</code>，无需在每个调用点显式传 data</td></tr>
+  <tr><td>合理性</td><td><strong>合理</strong>。组名和描述的错误消息关键词不重叠，映射可靠</td></tr>
+</table>
+
+<h4>10.3.4 change_password.html — 修改密码</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>3（<code>pwd-old</code>、<code>pwd-new</code>、<code>pwd-confirm</code>）</td></tr>
+  <tr><td>后端 field key</td><td><code>_password_field_data(msg)</code>：<code>'当前密码'</code> → <code>pwd-old</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'不一致'</code> → <code>pwd-confirm</code></td></tr>
+  <tr><td>错误消息</td><td>共 5 条，全部有明确关键词对应：请填写当前密码 / 当前密码不正确 / 请填写新密码 / 新密码至少 6 位 / 两次输入的新密码不一致 / 新密码不能与当前密码相同</td></tr>
+  <tr><td>模板变更</td><td>① <code>novalidate</code>；② 3 行加 <code>data-field</code>；③ 移除 <code>required</code> 和 <code>minlength="6"</code></td></tr>
+  <tr><td>特殊考量</td><td>该页面有密码可见性切换按钮（<code>.pw-toggle</code>）和退出登录按钮，本轮不涉及；JS 中 <code>required</code> 动态设置无需清理（无动态 required）</td></tr>
+  <tr><td>合理性</td><td><strong>合理</strong>。密码表单是内联错误收益最高的场景之一（用户连续输错密码时需立即知道哪个字段有问题）</td></tr>
+</table>
+
+<h4>10.3.5 user_form.html — 新建/编辑用户</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>5（<code>uf-username</code>、<code>uf-role-select</code>、<code>uf-email</code>、<code>uf-job-title-select</code>、<code>uf-group-select</code>）</td></tr>
+  <tr><td>后端 field key</td><td><code>_users_form_response</code> 自动推断 + <code>_user_field_data(msg)</code></td></tr>
+  <tr><td>模板变更</td><td>① <code>novalidate</code>；② 5 个字段容器加 <code>data-field</code>；③ 移除 <code>required</code>；④ 移除 JS 中动态设置 <code>jtOther.required</code> 的代码</td></tr>
+  <tr><td>特殊考量</td><td>
+    <ul>
+      <li><strong>多错误源</strong>：<code>create_user</code>、<code>update_user</code>、<code>validate_groups_for_role</code>、<code>set_user_groups</code> 四个函数均可返回错误，通过统一的 <code>_users_form_response</code> + 自动推断覆盖</li>
+      <li><strong>edit 模式无 username</strong>：编辑时用户名字段为 disabled，后端不校验，不会触发 username 错误</li>
+      <li><strong>全局权限选项</strong>：<code>'仅 admin 角色可选择「全部」'</code> 中包含关键词 <code>'全部'</code>，映射到 <code>uf-group-select</code></li>
+    </ul>
+  </td></tr>
+  <tr><td>合理性</td><td><strong>合理但复杂度最高</strong>。关键词匹配方案的 edge case 在于新增错误消息如不含预期关键词会降级为 Toast（安全降级，不会丢失信息）。长期可考虑让服务层直接返回 field key</td></tr>
+</table>
+
+<h4>10.3.6 user_profile.html — 个人资料</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>field 数量</td><td>3（<code>pf-nickname</code>、<code>pf-email</code>、<code>pf-job-title</code>）</td></tr>
+  <tr><td>后端 field key</td><td><code>_profile_field_data(msg)</code>：取首个错误（<code>'；'</code> 分隔）的关键词匹配</td></tr>
+  <tr><td>模板变更</td><td>① <code>novalidate</code>；② 3 个字段加 <code>data-field</code>；③ 移除 <code>required</code>；④ 移除 JS 中 <code>prop('required', true/false)</code></td></tr>
+  <tr><td>特殊考量</td><td>该页面有 view/edit 双模式切换，<code>data-field</code> 仅加在 edit 模式的表单字段上（view 模式无提交行为）</td></tr>
+  <tr><td>合理性</td><td><strong>合理</strong>。服务层 <code>update_own_profile</code> 可能返回多个错误（<code>'；'</code> 连接），取首个聚焦符合逐个修正的 UX 模式</td></tr>
+</table>
+
+<h3>10.4 变更合理性总评</h3>
+
+<h4>合理的方面</h4>
+<ol>
+  <li><strong>架构一致性</strong>：Phase 2 完全复用 Phase 1 已验证的机制（<code>.tf-error-msg</code> + <code>data-field</code> + <code>novalidate</code>），无新增架构概念</li>
+  <li><strong>CSS 归属正确</strong>：按决策树，跨页面复用的组件样式归 <code>redesign-components.css</code></li>
+  <li><strong>安全降级</strong>：所有 field key 匹配失败均降级为 Toast，不丢失任何错误信息</li>
+  <li><strong>后向兼容</strong>：<code>_users_form_response</code> 的 <code>data</code> 参数默认 <code>None</code>，不影响已有调用</li>
+  <li><strong>无 DOM 新增</strong>：<code>.tf-error-msg</code> 由 JS 动态管理，模板仅添加 <code>data-field</code> 属性和 <code>novalidate</code></li>
+</ol>
+
+<h4>需要关注的风险点</h4>
+<table>
+  <tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>关键词匹配方案的脆弱性</td>
+    <td>低</td>
+    <td>新增错误消息可能未被匹配到 field</td>
+    <td>降级为 Toast（安全降级）。长期可在服务层直接返回 <code>field</code> key</td>
+  </tr>
+  <tr>
+    <td><code>[class*="-hint"]</code> 误匹配</td>
+    <td>极低</td>
+    <td>非表单内的 hint 元素被误操作</td>
+    <td>选择器作用域限定在 <code>$el.find()</code> 内，<code>$el</code> 是 <code>[data-field]</code> 容器，非表单区域不受影响</td>
+  </tr>
+  <tr>
+    <td>移除 <code>required</code> 后无前端即时反馈</td>
+    <td>中</td>
+    <td>用户提交空表单后需等待服务端响应才看到错误</td>
+    <td>AJAX 响应通常 &lt; 200ms，体感差异极小。且后端校验是唯一可信来源，消除了前后端校验不一致的可能</td>
+  </tr>
+  <tr>
+    <td>SSR fallback 路径</td>
+    <td>低</td>
+    <td>JS 禁用或 AJAX 失败时，表单走 SSR POST，错误以页顶 banner 显示</td>
+    <td>banner 机制保留不变，不影响 fallback</td>
+  </tr>
+</table>
+
+<h3>10.5 准确性验证</h3>
+<p>以下命令已执行并通过：</p>
+<pre>
+# 全量测试 634 pass / 6 skip / 0 fail
+.venv-py311/bin/python -m unittest discover tests -v
+
+# API 响应验证：change_password 空提交
+curl -X POST /rbac/password -H "X-Requested-With: XMLHttpRequest" -d "old_password=&new_password=&confirm_password="
+→ {"data":{"field":"pwd-old"},"errcode":1,"errmsg":"请填写当前密码"}
+
+# API 响应验证：change_password 密码过短
+curl -X POST /rbac/password -d "old_password=xxx&new_password=abc&confirm_password=abc"
+→ {"data":{"field":"pwd-new"},"errcode":1,"errmsg":"新密码至少 6 位"}
+
+# 静态门禁
+python scripts/check_ui_contract.py --check  → 0 violations
+python scripts/audit_hardcoded_colors.py --check  → 未发现硬编码颜色
+sqlite3 datas/job_log.sqlite ".tables"  → 14 张表完整
+</pre>
+
 <h2>版本历史</h2>
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
   <tr><td>rev.1</td><td>2026-09-01</td><td>初版：问题分析 + 业界对比 + 方案 A 设计 + Demo</td></tr>
   <tr><td>rev.2</td><td>2026-09-01</td><td>新增：全量审计 62 个错误场景 + 实施优先级 + 缺失处理</td></tr>
   <tr><td>rev.3</td><td>2026-09-01</td><td>Review 修正：认证页 3 项 A→B+ 降级；补充 hint 恢复策略、Section 插入位置、ARIA role="alert"、Vue 冲突风险、动画时序风险</td></tr>
+  <tr><td>rev.4</td><td>2026-09-01</td><td>Phase 2 全 RBAC 表单覆盖设计：6 张表单逐表变更明细、合理性评估、风险分析、准确性验证</td></tr>
 </table>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="表单字段级错误提示设计.md">Markdown</a> · <a href="index.html">索引</a></footer>

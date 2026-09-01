@@ -69,7 +69,7 @@
     <span class="pf-card-title">编辑个人资料</span>
   </div>
 
-  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.edit_profile') }}">
+  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('rbac.edit_profile') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
     <div class="pw-row">
@@ -82,24 +82,24 @@
       <input type="text" class="f-input pw-input" value="{{ user.role }}" disabled />
     </div>
 
-    <div class="pw-row">
+    <div class="pw-row" data-field="pf-nickname">
       <label class="pw-label" for="pf-nickname">花名 <span class="pf-req">*</span></label>
       <input type="text" id="pf-nickname" name="nickname" class="f-input pw-input"
-             maxlength="64" required value="{{ user.nickname or '' }}" placeholder="请输入花名" />
+             maxlength="64" value="{{ user.nickname or '' }}" placeholder="请输入花名" />
     </div>
 
-    <div class="pw-row">
+    <div class="pw-row" data-field="pf-email">
       <label class="pw-label" for="pf-email">邮箱 <span class="pf-req">*</span></label>
       <input type="email" id="pf-email" name="email" class="f-input pw-input"
-             maxlength="128" required value="{{ user.email or '' }}" placeholder="user@company.com" />
+             maxlength="128" value="{{ user.email or '' }}" placeholder="user@company.com" />
     </div>
 
-    <div class="pw-row">
+    <div class="pw-row" data-field="pf-job-title">
       <label class="pw-label" for="pf-job-title">岗位类型 <span class="pf-req">*</span></label>
       {% set current_jt = user.job_title or '' %}
       {% set is_other = current_jt.startswith('other:') %}
       {% set other_val = current_jt[6:] if is_other else '' %}
-      <select id="pf-job-title" name="job_title" class="f-input pw-input pf-select" required>
+      <select id="pf-job-title" name="job_title" class="f-input pw-input pf-select">
         <option value="">-- 请选择 --</option>
         {% for code, label in job_title_choices %}
         <option value="{{ code }}" {% if (is_other and code == 'other') or (not is_other and current_jt == code) %}selected{% endif %}>{{ label }}</option>
@@ -151,10 +151,8 @@ $(document).ready(function() {
     $sel.on('change', function() {
         if ($(this).val() === 'other') {
             $wrap.show();
-            $('#pf-job-title-other').prop('required', true);
         } else {
             $wrap.hide();
-            $('#pf-job-title-other').prop('required', false);
         }
     });
 });

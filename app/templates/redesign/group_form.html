@@ -10,17 +10,17 @@
 {% endif %}
 
 <div class="gf-card">
-  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.groups_edit') if group else url_for('rbac.groups_add') }}">
+  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('rbac.groups_edit') if group else url_for('rbac.groups_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if group %}<input type="hidden" name="id" value="{{ group.id }}">{% endif %}
 
-    <div class="gf-row">
+    <div class="gf-row" data-field="gf-name">
       <label class="gf-label" for="gf-name">组名 <span class="gf-req">*</span></label>
-      <input type="text" name="name" id="gf-name" class="f-input gf-input" required maxlength="64" value="{{ group.name if group else '' }}" placeholder="如：订单业务组" />
+      <input type="text" name="name" id="gf-name" class="f-input gf-input" maxlength="64" value="{{ group.name if group else '' }}" placeholder="如：订单业务组" />
       <span class="gf-hint">组名不可重复；建议按业务线命名</span>
     </div>
 
-    <div class="gf-row">
+    <div class="gf-row" data-field="gf-desc">
       <label class="gf-label" for="gf-desc">说明</label>
       <textarea name="description" id="gf-desc" class="f-input gf-textarea" maxlength="256" rows="3" placeholder="可选；描述该业务组的职责范围">{{ group.description if group and group.description else '' }}</textarea>
     </div>

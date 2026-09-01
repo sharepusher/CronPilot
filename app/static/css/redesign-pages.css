@@ -1066,25 +1066,9 @@ a:focus-visible {
   color: var(--cp-danger);
 }
 
-/* ─── Inline Field Error Message ─── */
-.cp-page-task-form .tf-error-msg {
-  font-size: 12px;
-  color: var(--cp-danger);
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  animation: tfErrorFadeIn 0.15s ease;
-}
-.cp-page-task-form .tf-error-msg::before {
-  content: "\26A0";
-  font-size: 11px;
-  flex-shrink: 0;
-}
-@keyframes tfErrorFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* ─── Inline Field Error Message ───
+   Base styles moved to redesign-components.css (.tf-error-msg).
+   Page-scoped overrides (if any) go below. ─── */
 
 /* ─── Actions ─── */
 

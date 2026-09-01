@@ -10,7 +10,7 @@
 {% endif %}
 
 <div class="usa-card">
-  <form method="post" class="js-ajax-form" action="{{ url_for('rbac.users_set_active') }}">
+  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('rbac.users_set_active') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="id" value="{{ user.id }}">
     <input type="hidden" name="is_active" value="{{ target_active }}">
@@ -29,9 +29,9 @@
       {% endif %}
     </div>
 
-    <div class="usa-row">
+    <div class="usa-row" data-field="reason">
       <label class="usa-label">停用缘由 <span class="usa-req">*</span></label>
-      <textarea name="reason" class="f-input usa-textarea" rows="3" maxlength="500" required></textarea>
+      <textarea name="reason" class="f-input usa-textarea" rows="3" maxlength="500"></textarea>
       <span class="usa-hint">必填，1～500 字；将写入审计并显示在用户列表状态旁</span>
     </div>
 

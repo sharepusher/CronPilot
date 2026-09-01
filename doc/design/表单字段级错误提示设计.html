@@ -495,9 +495,9 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
   </tr>
   <tr>
     <td><code>change_password</code></td>
-    <td>辅助函数 <code>_password_field_data(msg)</code>：<code>'当前密码'</code> → <code>pwd-old</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'不一致'</code> → <code>pwd-confirm</code></td>
-    <td>三个字段，关键词在服务层消息中唯一对应</td>
-    <td><strong>合理</strong>：覆盖所有 5 种错误消息</td>
+    <td>辅助函数 <code>_password_field_data(msg)</code>：<code>'不一致'</code> → <code>pwd-confirm</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'当前密码'</code> → <code>pwd-old</code>（<strong>匹配顺序关键</strong>：「新密码不能与当前密码相同」同时含两个关键词，必须先匹配「新密码」）</td>
+    <td>三个字段，关键词按优先级排序避免重叠歧义</td>
+    <td><strong>合理</strong>：覆盖所有 6 种错误消息，rev.5 修正匹配顺序 bug</td>
   </tr>
   <tr>
     <td><code>user_form</code></td>
@@ -571,8 +571,8 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
 <table>
   <tr><th>项目</th><th>内容</th></tr>
   <tr><td>field 数量</td><td>3（<code>pwd-old</code>、<code>pwd-new</code>、<code>pwd-confirm</code>）</td></tr>
-  <tr><td>后端 field key</td><td><code>_password_field_data(msg)</code>：<code>'当前密码'</code> → <code>pwd-old</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'不一致'</code> → <code>pwd-confirm</code></td></tr>
-  <tr><td>错误消息</td><td>共 5 条，全部有明确关键词对应：请填写当前密码 / 当前密码不正确 / 请填写新密码 / 新密码至少 6 位 / 两次输入的新密码不一致 / 新密码不能与当前密码相同</td></tr>
+  <tr><td>后端 field key</td><td><code>_password_field_data(msg)</code>：<code>'不一致'</code> → <code>pwd-confirm</code>，<code>'新密码'</code> → <code>pwd-new</code>，<code>'当前密码'</code> → <code>pwd-old</code>（匹配顺序关键，避免「新密码不能与当前密码相同」误匹配到 pwd-old）</td></tr>
+  <tr><td>错误消息</td><td>共 6 条，全部有明确关键词对应：请填写当前密码 / 当前密码不正确 / 请填写新密码 / 新密码至少 6 位 / 两次输入的新密码不一致 / 新密码不能与当前密码相同</td></tr>
   <tr><td>模板变更</td><td>① <code>novalidate</code>；② 3 行加 <code>data-field</code>；③ 移除 <code>required</code> 和 <code>minlength="6"</code></td></tr>
   <tr><td>特殊考量</td><td>该页面有密码可见性切换按钮（<code>.pw-toggle</code>）和退出登录按钮，本轮不涉及；JS 中 <code>required</code> 动态设置无需清理（无动态 required）</td></tr>
   <tr><td>合理性</td><td><strong>合理</strong>。密码表单是内联错误收益最高的场景之一（用户连续输错密码时需立即知道哪个字段有问题）</td></tr>
@@ -671,6 +671,7 @@ sqlite3 datas/job_log.sqlite ".tables"  → 14 张表完整
   <tr><td>rev.2</td><td>2026-09-01</td><td>新增：全量审计 62 个错误场景 + 实施优先级 + 缺失处理</td></tr>
   <tr><td>rev.3</td><td>2026-09-01</td><td>Review 修正：认证页 3 项 A→B+ 降级；补充 hint 恢复策略、Section 插入位置、ARIA role="alert"、Vue 冲突风险、动画时序风险</td></tr>
   <tr><td>rev.4</td><td>2026-09-01</td><td>Phase 2 全 RBAC 表单覆盖设计：6 张表单逐表变更明细、合理性评估、风险分析、准确性验证</td></tr>
+  <tr><td>rev.5</td><td>2026-09-01</td><td>修复 <code>_password_field_data</code> 关键词匹配顺序 bug：「新密码不能与当前密码相同」误匹配到 pwd-old → 调整为 不一致→新密码→当前密码 优先序</td></tr>
 </table>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="表单字段级错误提示设计.md">Markdown</a> · <a href="index.html">索引</a></footer>

@@ -150,12 +150,12 @@ def _user_field_data(msg):
 
 
 def _password_field_data(msg):
-    if '当前密码' in msg:
-        return {'field': 'pwd-old'}
-    if '新密码' in msg:
-        return {'field': 'pwd-new'}
     if '不一致' in msg:
         return {'field': 'pwd-confirm'}
+    if '新密码' in msg:
+        return {'field': 'pwd-new'}
+    if '当前密码' in msg:
+        return {'field': 'pwd-old'}
     return None
 
 

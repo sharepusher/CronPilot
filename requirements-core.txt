@@ -28,4 +28,6 @@ Flask-HTTPAuth==4.8.1
 flask-marshmallow==1.5.0
 marshmallow==4.3.0
 webargs==8.7.1
+python-json-logger==2.0.7
+croniter==6.0.0
 setuptools>=40,<81

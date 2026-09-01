@@ -377,7 +377,8 @@ function cpRetire(cronId, btn) {
     });
   }
 
-  document.getElementById('cp-dashboard-pagination').addEventListener('click', function(e) {
+  var _pgEl = document.getElementById('cp-dashboard-pagination');
+  _pgEl && _pgEl.addEventListener('click', function(e) {
     var link = e.target.closest('a.hf-pg-btn');
     if (!link) return;
     e.preventDefault();

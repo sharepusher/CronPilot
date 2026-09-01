@@ -442,10 +442,18 @@ class TestReadonlyQueryApis(unittest.TestCase):
 class TestCacheMechanics(unittest.TestCase):
     """缓存 TTL + 事件失效。"""
 
+    def _make_scope(self, user_id=1, user_role='operator', group_ids=None,
+                     is_active=True, username='u', expired=False):
+        return {
+            'role': 'user', 'user_id': user_id, 'user_role': user_role,
+            'username': username, 'group_ids': list(group_ids or [1]),
+            'is_active': is_active, 'expired': expired,
+        }
+
     def test_ttl_expiry(self):
         import app.api as api_pkg
         api_pkg._SCOPE_CACHE.clear()
-        api_pkg._set_cached_user_scope('tok', 1, 'op', [1], True, 'u')
+        api_pkg._set_cached_user_scope('tok', self._make_scope())
         self.assertIsNotNone(api_pkg._get_cached_user_scope('tok'))
         api_pkg._SCOPE_CACHE['tok']['ts'] -= api_pkg._CACHE_TTL + 1
         self.assertIsNone(api_pkg._get_cached_user_scope('tok'))
@@ -453,11 +461,24 @@ class TestCacheMechanics(unittest.TestCase):
     def test_invalidate_user(self):
         import app.api as api_pkg
         api_pkg._SCOPE_CACHE.clear()
-        api_pkg._set_cached_user_scope('tok-a', 1, 'op', [1], True, 'a')
-        api_pkg._set_cached_user_scope('tok-b', 2, 'op', [2], True, 'b')
+        api_pkg._set_cached_user_scope('tok-a', self._make_scope(user_id=1, username='a'))
+        api_pkg._set_cached_user_scope('tok-b', self._make_scope(user_id=2, username='b'))
         api_pkg.invalidate_user_scope_cache(1)
         self.assertIsNone(api_pkg._get_cached_user_scope('tok-a'))
         self.assertIsNotNone(api_pkg._get_cached_user_scope('tok-b'))
+
+    def test_cache_shape_matches_fresh_scope(self):
+        """S-4 regression: cached dict must have role='user', not user.role."""
+        import app.api as api_pkg
+        api_pkg._SCOPE_CACHE.clear()
+        scope = self._make_scope(user_role='admin', group_ids=[1])
+        api_pkg._set_cached_user_scope('tok-admin', scope)
+        cached = api_pkg._get_cached_user_scope('tok-admin')
+        self.assertEqual(cached['role'], 'user',
+                         "cached role must be 'user', not the user's actual role")
+        self.assertEqual(cached['user_role'], 'admin')
+        self.assertIn('expired', cached)
+        self.assertIn('group_ids', cached)
 
 
 if __name__ == '__main__':

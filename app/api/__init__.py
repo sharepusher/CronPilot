@@ -24,11 +24,9 @@ def _get_cached_user_scope(token):
     return None
 
 
-def _set_cached_user_scope(token, user_id, role, group_ids, is_active, username):
-    _SCOPE_CACHE[token] = {
-        'user_id': user_id, 'role': role, 'group_ids': list(group_ids),
-        'is_active': is_active, 'username': username, 'ts': time.time(),
-    }
+def _set_cached_user_scope(token, scope):
+    """缓存完整 scope dict，确保形状与 fresh scope 一致。"""
+    _SCOPE_CACHE[token] = dict(scope, ts=time.time())
 
 
 def invalidate_user_scope_cache(user_id):
@@ -146,11 +144,7 @@ def _resolve_user_token(token):
             'is_active': bool(user.is_active),
             'expired': expired,
         }
-        _set_cached_user_scope(token, user.id, user.role, group_ids, bool(user.is_active), user.username)
-        if expired:
-            scope_copy = dict(scope)
-            scope_copy['expired'] = True
-            _SCOPE_CACHE[token]['expired'] = True
+        _set_cached_user_scope(token, scope)
         return scope
     except Exception:
         logger.warning('user token resolution failed', exc_info=True)

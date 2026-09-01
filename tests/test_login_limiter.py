@@ -14,6 +14,7 @@ from app.rbac.login_limiter import (
     LoginLimiter,
     MAX_FAILURES_PER_IP,
     MAX_FAILURES_PER_USER,
+    IP_WINDOW_SEC,
     IP_LOCKOUT_SEC,
     USER_LOCKOUT_SEC,
     check_login_limit,
@@ -112,7 +113,7 @@ class TestLoginLimiter(unittest.TestCase):
                 self.limiter.record_failure(ip, '')
 
         # 窗口过后再记录一次，不应触发锁定
-        future_time = base_time + 600  # 超过 IP_WINDOW_SEC (300s)
+        future_time = base_time + IP_WINDOW_SEC + 1
         with patch('app.rbac.login_limiter.time.time', return_value=future_time):
             self.limiter.record_failure(ip, '')
             locked, _, _ = self.limiter.is_locked(ip, '')

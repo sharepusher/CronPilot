@@ -2,8 +2,8 @@
 """登录失败限流器（OPT-P0-13）：基于内存的 IP + 用户名双维度防暴破。
 
 策略：
-- 同一 IP：5 次失败 / 5 分钟 → 锁定 15 分钟
-- 同一用户名：10 次失败 / 10 分钟 → 锁定 30 分钟
+- 同一 IP：50 次失败 / 15 分钟 → 锁定 5 分钟
+- 同一用户名：50 次失败 / 30 分钟 → 锁定 10 分钟
 - 登录成功后清除该维度的失败记录
 
 限制：
@@ -16,13 +16,13 @@ import time
 from collections import defaultdict
 
 # ========== 可调配置 ==========
-MAX_FAILURES_PER_IP = 5
-IP_WINDOW_SEC = 300          # 5 分钟滑动窗口
-IP_LOCKOUT_SEC = 900         # 锁定 15 分钟
+MAX_FAILURES_PER_IP = 50
+IP_WINDOW_SEC = 900          # 15 分钟滑动窗口
+IP_LOCKOUT_SEC = 300         # 锁定 5 分钟
 
-MAX_FAILURES_PER_USER = 10
-USER_WINDOW_SEC = 600        # 10 分钟滑动窗口
-USER_LOCKOUT_SEC = 1800      # 锁定 30 分钟
+MAX_FAILURES_PER_USER = 50
+USER_WINDOW_SEC = 1800       # 30 分钟滑动窗口
+USER_LOCKOUT_SEC = 600       # 锁定 10 分钟
 
 
 class LoginLimiter:

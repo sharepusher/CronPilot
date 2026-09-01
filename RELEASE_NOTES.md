@@ -7,6 +7,20 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 修复 — R4 即修批次（B-9 + CI 配置）
+
+- **B-9**：`cron_add_log` 当父任务行缺失时拒绝操作（原来跳过 scope 检查）
+- **CI-P1-8**：`unit-tests.yml` 移除已删 `tests.yml` 引用，新增 `manage.py`/`gun.py` 入口监听
+- **CI-P1-6**：`docker-install-verify.yml` push branches 补全 `master`
+- **CI-P1-7**：`install-full.yml` path filter 新增 `requirements-core.txt`
+
+### 修复 — R4 Visual Regression CI 假绿（CI-1）
+
+- Visual Regression 脚本 PAGES 列表对齐实际路由表（12 条），移除不存在的 URL
+- `login()` 从 `conf.ini` / `CRONPILOT_PASS` 读取密码，不再硬编码 `changeme`
+- `login()` 添加 post-login URL 断言，登录失败时 CI 立即报错
+- 移除不可静态测试的 `run_inspector`；重置 `.platform` 强制 CI 重新生成基线
+
 ### 安全修复 — R4 API Scope 缓存 role 键碰撞（S-4）
 
 - **P0 权限提升**：`_set_cached_user_scope` 将 `user.role`（如 `'admin'`）存入缓存 dict 的 `role` 键，而 fresh scope 固定 `role='user'`。缓存命中后 `check_api_scope()` 误判为全局 token，完全跳过 group scope 检查。Biz Admin 第二次 API 请求即可操作任意组任务。

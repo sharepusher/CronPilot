@@ -1201,4 +1201,76 @@ AJAX 筛选功能（OPT-P1-17）开发时，从 v1 模板中沿用了 `'{{ value
 
 ---
 
+## Code Review R4 — CI-1 Visual Regression CI 假绿根因分析（2026-08-28）
+
+### 1. Bug 定位
+
+`scripts/compare_visual_regression.py` 和 `scripts/capture_visual_baseline.py` 中的 `PAGES` 列表和 `login()` 函数。三个并发缺陷导致 CI 永远通过。
+
+### 2. 根因
+
+- **URL 漂移**：脚本在 Phase 3B 初始化时根据当时路由表编写，之后多次路由重命名但脚本未同步更新。6/13（后改为 6/12）URL 不存在导致重定向回登录页
+- **密码硬编码**：`password="changeme"` 与 CI 的 `ci-test-password` 不匹配，登录永远失败
+- **登录验证缺失**：`wait_for_url(base_url + "/**")` 的 glob 匹配登录页本身，登录失败不会抛异常
+- 结果：所有截图都是登录页 → 基线和当前截图完全相同 → 0% diff → CI 绿色通过
+
+### 3. 测试漏洞
+
+- 无自动化验证 PAGES URL 在路由表中存在
+- CI 无 baseline sanity check（多张截图 MD5 相同应报警）
+- 登录函数未断言 post-login 状态
+
+### 4. 修复
+
+- PAGES 列表对齐实际路由表（12 条），移除不可静态测试的 `run_inspector`
+- `login()` 从 `conf.ini` / `CRONPILOT_PASS` 读取密码；添加 post-login URL 断言
+- 删除 `run_inspector.png` 基线；`.platform` 设为 `stale` 强制重新生成
+
+### 5. 防护测试
+
+登录失败现在会抛出 `RuntimeError`，CI 步骤直接失败。
+
+### 6. 同类排查
+
+`smoke_routes.py` 从 Python 运行时 `url_map` 自动生成路由列表，不存在漂移风险。仅手动维护的 URL 列表有此风险。
+
+### 7. 预防方案
+
+- **落地 1**：`login()` 添加 post-login URL 断言 + 密码从配置读取（已实施）
+- **落地 2**：未来可从 `smoke_routes.py` 的路由表自动生成 PAGES，消除手动维护
+
+---
+
+## Code Review R4 — 即修批次复盘（B-9 + CI 配置修复）（2026-08-28）
+
+### B-9：cron\_add\_log 孤儿日志跳过 scope 检查
+
+#### 1. Bug 定位
+
+`app/api/views.py` 第 437-441 行。当 `db.session.get(CronInfos, jl.cron_info_id)` 返回 `None`（cron 行已删除）时，`if ci:` 条件为 False，跳过 scope 检查但仍允许追加日志内容。
+
+#### 2. 根因
+
+S-1 修复中添加 scope 检查时，采用了 `if ci:` 的防御性写法（避免 cron 行缺失时报错），但未考虑 scope bypass 的安全含义。正确行为应该是：cron 行不存在时拒绝操作，而非跳过检查。
+
+#### 3. 修复
+
+将 `if ci:` 改为 `if not ci: return api_return(errcode=1, errmsg='任务不存在')`，然后无条件执行 `check_api_scope(ci)`。
+
+#### 4. 同类排查
+
+其他使用 `check_api_scope` 的端点（`cron_update_status`、`cron_retire` 等）均已在获取 cron 行后做了 `if not cif: return` 拒绝，无同类问题。
+
+### CI 配置修复
+
+- **CI-P1-8**：`unit-tests.yml` 移除引用已删除的 `tests.yml` 的 path filter 条目，替换为 `manage.py` 和 `gun.py` 入口文件的监听
+- **CI-P1-6**：`docker-install-verify.yml` push branches 从 `[main]` 改为 `[main, master]`，与其他 workflow 对齐
+- **CI-P1-7**：`install-full.yml` path filter 新增 `requirements-core.txt`
+
+#### 共性根因
+
+CI workflow 在初始创建后缺乏系统性一致性审计。路由变更、文件重命名、分支策略变更后未同步更新 CI 配置。**预防方案**：未来可通过 CI 门禁脚本（如 `check_ci_consistency.py`）自动检测 workflow 间的分支策略和 path filter 不一致。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

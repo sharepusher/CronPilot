@@ -435,10 +435,11 @@ def cron_add_log(form_data):
 
     from . import check_api_scope
     ci = db.session.get(CronInfos, jl.cron_info_id)
-    if ci:
-        denied = check_api_scope(ci)
-        if denied is not None:
-            return denied
+    if not ci:
+        return api_return(errcode=1, errmsg='任务不存在')
+    denied = check_api_scope(ci)
+    if denied is not None:
+        return denied
 
     jli = JobLogItems(trace_id=cronpilot_trace_id, content=content)
     db.session.add(jli)

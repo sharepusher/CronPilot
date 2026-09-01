@@ -5,10 +5,12 @@ on:
     branches: [main, master]
     paths:
       - 'requirements.txt'
+      - 'requirements-core.txt'
       - '.github/workflows/install-full.yml'
   pull_request:
     paths:
       - 'requirements.txt'
+      - 'requirements-core.txt'
       - '.github/workflows/install-full.yml'
   workflow_dispatch:
 

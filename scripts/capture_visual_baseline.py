@@ -12,6 +12,7 @@ Requires:
     playwright install chromium
 """
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -20,30 +21,48 @@ BASE_DIR = Path(__file__).parent.parent
 BASELINE_DIR = BASE_DIR / "tests" / "visual_regression" / "baseline"
 
 PAGES = [
-    # (slug, path_with_query)
-    ("dashboard",           "/?cp_ui_version=v2"),
-    ("execution_logs",      "/execution_logs?cp_ui_version=v2"),
-    ("run_inspector",       "/run_inspector?cp_ui_version=v2"),
-    ("task_form",           "/cron_add?cp_ui_version=v2"),
-    ("tags",                "/rbac/tags?cp_ui_version=v2"),
-    ("groups",              "/rbac/groups?cp_ui_version=v2"),
-    ("users",               "/rbac/users?cp_ui_version=v2"),
-    ("registration_review", "/rbac/registration_review?cp_ui_version=v2"),
-    ("audit_logs",          "/rbac/audit_logs?cp_ui_version=v2"),
-    ("operation_log",       "/rbac/operation_log?cp_ui_version=v2"),
-    ("api_token",           "/rbac/api_token?cp_ui_version=v2"),
-    ("change_password",     "/rbac/change_password?cp_ui_version=v2"),
-    ("groups_form",         "/rbac/groups/new?cp_ui_version=v2"),
+    ("dashboard",           "/"),
+    ("execution_logs",      "/job_log_all_list"),
+    ("task_form",           "/cron_add"),
+    ("tags",                "/rbac/tags"),
+    ("groups",              "/rbac/groups"),
+    ("users",               "/rbac/users"),
+    ("registration_review", "/rbac/registration_review"),
+    ("audit_logs",          "/rbac/audit-logs"),
+    ("operation_log",       "/operation_log_list"),
+    ("api_token",           "/rbac/api_token"),
+    ("change_password",     "/rbac/password"),
+    ("groups_form",         "/rbac/groups/add"),
 ]
 
 
-def login(page, base_url: str, username: str = "admin", password: str = "changeme"):
-    """Log in to CronPilot and set the v2 cookie via URL param."""
+def _read_password():
+    """Read login password from env or conf.ini."""
+    pwd = os.environ.get('CRONPILOT_PASS', '')
+    if pwd:
+        return pwd
+    ini = BASE_DIR / "conf.ini"
+    if ini.exists():
+        import configparser
+        cp = configparser.ConfigParser()
+        cp.read(str(ini))
+        pwd = cp.get('default', 'login_pwd', fallback='')
+        if pwd:
+            return pwd
+    return 'changeme'
+
+
+def login(page, base_url: str, username: str = "admin", password: str = ""):
+    """Log in to CronPilot. Reads password from env/conf.ini if not provided."""
+    if not password:
+        password = _read_password()
     page.goto(f"{base_url}/rbac/login")
     page.fill('input[name="username"]', username)
     page.fill('input[name="password"]', password)
     page.click('button[type="submit"], input[type="submit"]')
     page.wait_for_url(f"{base_url}/**", timeout=5000)
+    if "/rbac/login" in page.url:
+        raise RuntimeError(f"Login failed: still on login page ({page.url})")
 
 
 def capture_baseline(base_url: str, width: int = 1280, height: int = 900):

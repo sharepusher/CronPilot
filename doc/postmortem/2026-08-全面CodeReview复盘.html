@@ -1094,5 +1094,71 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 <li><b>落地 3</b>：<code>.cursor/rules/cronpilot-backend.mdc</code> 新增 "API scope 缓存形状一致性" 规则：凡修改 <code>_set_cached_user_scope</code> 或 <code>_resolve_user_token</code>，必须运行 <code>test_cache_shape_matches_fresh_scope</code> 确认缓存与 fresh scope 形状一致</li>
 </ul>
 
+<hr>
+<h2>Code Review R4 — CI-1 Visual Regression CI 假绿根因分析（2026-08-28）</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>scripts/compare_visual_regression.py</code> 和 <code>scripts/capture_visual_baseline.py</code> 中的 <code>PAGES</code> 列表和 <code>login()</code> 函数。三个并发缺陷导致 CI 永远通过。</p>
+
+<h3>2. 根因</h3>
+<ul>
+<li><b>URL 漂移</b>：脚本在 Phase 3B 初始化时根据当时路由表编写，之后多次路由重命名但脚本未同步更新。6/13（后改为 6/12）URL 不存在导致重定向回登录页</li>
+<li><b>密码硬编码</b>：<code>password="changeme"</code> 与 CI 的 <code>ci-test-password</code> 不匹配，登录永远失败</li>
+<li><b>登录验证缺失</b>：<code>wait_for_url(base_url + "/**")</code> 的 glob 匹配登录页本身，登录失败不会抛异常</li>
+<li>结果：所有截图都是登录页 → 基线和当前截图完全相同 → 0% diff → CI 绿色通过</li>
+</ul>
+
+<h3>3. 测试漏洞</h3>
+<ul>
+<li>无自动化验证 PAGES URL 在路由表中存在</li>
+<li>CI 无 baseline sanity check（多张截图 MD5 相同应报警）</li>
+<li>登录函数未断言 post-login 状态</li>
+</ul>
+
+<h3>4. 修复</h3>
+<ul>
+<li>PAGES 列表对齐实际路由表（12 条），移除不可静态测试的 <code>run_inspector</code></li>
+<li><code>login()</code> 从 <code>conf.ini</code> / <code>CRONPILOT_PASS</code> 读取密码；添加 post-login URL 断言</li>
+<li>删除 <code>run_inspector.png</code> 基线；<code>.platform</code> 设为 <code>stale</code> 强制重新生成</li>
+</ul>
+
+<h3>5. 防护测试</h3>
+<p>登录失败现在会抛出 <code>RuntimeError</code>，CI 步骤直接失败。</p>
+
+<h3>6. 同类排查</h3>
+<p><code>smoke_routes.py</code> 从 Python 运行时 <code>url_map</code> 自动生成路由列表，不存在漂移风险。仅手动维护的 URL 列表有此风险。</p>
+
+<h3>7. 预防方案</h3>
+<ul>
+<li><b>落地 1</b>：<code>login()</code> 添加 post-login URL 断言 + 密码从配置读取（已实施）</li>
+<li><b>落地 2</b>：未来可从 <code>smoke_routes.py</code> 的路由表自动生成 PAGES，消除手动维护</li>
+</ul>
+
+<hr>
+<h2>Code Review R4 — 即修批次复盘（B-9 + CI 配置修复）（2026-08-28）</h2>
+
+<h3>B-9：cron_add_log 孤儿日志跳过 scope 检查</h3>
+<h4>1. Bug 定位</h4>
+<p><code>app/api/views.py</code> 第 437-441 行。当 <code>db.session.get(CronInfos, jl.cron_info_id)</code> 返回 <code>None</code>（cron 行已删除）时，<code>if ci:</code> 条件为 False，跳过 scope 检查但仍允许追加日志内容。</p>
+
+<h4>2. 根因</h4>
+<p>S-1 修复中添加 scope 检查时，采用了 <code>if ci:</code> 的防御性写法（避免 cron 行缺失时报错），但未考虑 scope bypass 的安全含义。正确行为应该是：cron 行不存在时拒绝操作，而非跳过检查。</p>
+
+<h4>3. 修复</h4>
+<p>将 <code>if ci:</code> 改为 <code>if not ci: return api_return(errcode=1, errmsg='任务不存在')</code>，然后无条件执行 <code>check_api_scope(ci)</code>。</p>
+
+<h4>4. 同类排查</h4>
+<p>其他使用 <code>check_api_scope</code> 的端点（<code>cron_update_status</code>、<code>cron_retire</code> 等）均已在获取 cron 行后做了 <code>if not cif: return</code> 拒绝，无同类问题。</p>
+
+<h3>CI 配置修复</h3>
+<ul>
+<li><b>CI-P1-8</b>：<code>unit-tests.yml</code> 移除引用已删除的 <code>tests.yml</code> 的 path filter 条目，替换为 <code>manage.py</code> 和 <code>gun.py</code> 入口文件的监听</li>
+<li><b>CI-P1-6</b>：<code>docker-install-verify.yml</code> push branches 从 <code>[main]</code> 改为 <code>[main, master]</code>，与其他 workflow 对齐</li>
+<li><b>CI-P1-7</b>：<code>install-full.yml</code> path filter 新增 <code>requirements-core.txt</code></li>
+</ul>
+
+<h4>共性根因</h4>
+<p>CI workflow 在初始创建后缺乏系统性一致性审计。路由变更、文件重命名、分支策略变更后未同步更新 CI 配置。<b>预防方案</b>：未来可通过 CI 门禁脚本（如 <code>check_ci_consistency.py</code>）自动检测 workflow 间的分支策略和 path filter 不一致。</p>
+
 </body>
 </html>

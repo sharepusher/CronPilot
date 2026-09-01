@@ -14,7 +14,8 @@ on:
       - 'conf.ini.example'
       - 'conf.ci.ini'
       - '.github/workflows/unit-tests.yml'
-      - '.github/workflows/tests.yml'
+      - 'manage.py'
+      - 'gun.py'
   pull_request:
     paths:
       - 'app/**'
@@ -27,7 +28,8 @@ on:
       - 'conf.ini.example'
       - 'conf.ci.ini'
       - '.github/workflows/unit-tests.yml'
-      - '.github/workflows/tests.yml'
+      - 'manage.py'
+      - 'gun.py'
 
 jobs:
   unittest:

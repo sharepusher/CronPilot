@@ -3,7 +3,7 @@ name: Docker install verify
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - "scripts/**"
       - "requirements*.txt"

@@ -55,7 +55,8 @@ class CuGeventScheduler(GeventScheduler):
         ``jobstore_retry_interval`` seconds.
 
         """
-        f = open("scheduler.lock", "wb")
+        _lock_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scheduler.lock")
+        f = open(_lock_path, "wb")
         wait_seconds = None
         try:
             portalocker.lock(f, portalocker.LOCK_EX | portalocker.LOCK_NB)

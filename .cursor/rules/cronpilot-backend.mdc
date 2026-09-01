@@ -246,6 +246,29 @@ alwaysApply: false
 - **违反教训**：2026-08 全面 Code Review 发现 `api/__init__.py` `_api_token_guard()` 配置读取失败时赋予 admin 权限并放行所有 API 请求。详见 `doc/design/静默异常审计与优化方案-2026-08.html` C-7。
 - **自检**：`grep -n "request._api_scope.*admin" app/api/__init__.py | grep -c "except" && echo WARN || echo OK`
 
+## API 端点 scope 校验（强制 · 2026-08 Code Review R2 教训）
+
+凡新增或修改 API 端点（`app/api/views.py`），若操作的资源关联 `cron_id` 或 `CronInfos`，必须在执行业务逻辑前调用 `check_api_scope(ci)` 校验调用方的 scope 权限。
+
+- **自检**：`grep -n "def cron_" app/api/views.py | grep -v "check_api_scope" && echo WARN || echo OK`
+- **违反教训**：2026-08 `cron_add_log` 未校验 scope，导致 scope 受限的 API Token 可向任意任务写入执行日志。
+
+## scheduler 操作与 DB 事务顺序（强制 · 2026-08）
+
+凡涉及 scheduler 状态变更（`resume_job`/`pause_job`/`add_job`/`remove_job`）与数据库状态变更的组合操作：
+
+- **必须**：先 `db.session.commit()` 持久化状态，再调用 scheduler 操作。
+- **scheduler 操作失败时**：回滚 DB 状态（`cif.status = old; db.session.commit()`）+ 日志记录。
+- **禁止**：先操作 scheduler 再 commit — 若 commit 失败，scheduler 已变更但 DB 未更新，造成不一致。
+- **违反教训**：2026-08 `toggle_status()` 先 `scheduler.resume/pause_job` 再 `db.commit()`，commit 失败时 scheduler 与 DB 状态不一致。
+
+## 文件路径必须使用绝对路径（强制 · 2026-08）
+
+凡 `open()` / `os.path.exists()` 等文件操作，路径必须基于 `os.path.abspath(__file__)` 或项目根目录常量构建，禁止使用 CWD 相对路径（如 `"scheduler.lock"`、`"conf.ini"`）。
+
+- **自检**：`grep -n 'open("' app/ -r | grep -v "os.path" && echo WARN || echo OK`
+- **违反教训**：2026-08 `scheduler.lock` 使用 CWD 相对路径，systemd/Docker 以 `/` 为 CWD 启动时锁文件写入错误位置，多实例防护失效。
+
 ## 静态文档路由
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。

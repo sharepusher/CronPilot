@@ -4,6 +4,8 @@ import logging
 
 from sqlalchemy import select
 
+logger = logging.getLogger(__name__)
+
 from app import db, scheduler
 from app.services.cron_validator import validate_cron_form, validate_retire_reason
 from datas.model.cron_infos import CronInfos
@@ -48,14 +50,21 @@ def toggle_status(cron_id, target_status=None):
         msg = '已启动' if new == 1 else '已暂停'
         return True, msg, old, new
 
-    if new == 1:
-        scheduler.resume_job('cron_%s' % cif.id)
-    else:
-        scheduler.pause_job('cron_%s' % cif.id)
-
     cif.status = new
     db.session.add(cif)
     db.session.commit()
+
+    try:
+        if new == 1:
+            scheduler.resume_job('cron_%s' % cif.id)
+        else:
+            scheduler.pause_job('cron_%s' % cif.id)
+    except Exception:
+        logger.error('scheduler op failed after DB commit, rolling back status', exc_info=True)
+        cif.status = old
+        db.session.add(cif)
+        db.session.commit()
+        return False, '调度器操作失败，状态已回滚', None, None
 
     record_operation(
         action='toggle_status',

@@ -138,6 +138,12 @@ bash scripts/check_pending_sync.sh
 
 **配置读取异常必须拒绝而非放行（强制 · 2026-08 安全审计）**：凡在 `except Exception` 中处理配置文件读取（`configs()`、`conf.ini` 解析等）失败，**禁止**降级为"放行"或"赋予高权限"。**必须**返回拒绝响应（HTTP 500/401）+ `logger.error(exc_info=True)`。原则：基础设施故障时倾向"拒绝/限制"而非"放行/提权"。自检：`grep -n "request._api_scope.*admin" app/api/__init__.py | grep -c "except" && echo WARN || echo OK`。**违反教训**：2026-08 `_api_token_guard()` 配置读取失败时赋予 admin 权限并放行所有 API 请求。详 `.cursor/rules/cronpilot-backend.mdc`。
 
+**API 端点 scope 校验（强制 · 2026-08 Code Review R2）**：凡 API 端点操作关联 `cron_id` 或 `CronInfos` 的资源，必须在业务逻辑前调用 `check_api_scope(ci)` 校验 scope 权限。自检：`grep -n "def cron_" app/api/views.py | grep -v "check_api_scope" && echo WARN || echo OK`。**违反教训**：2026-08 `cron_add_log` 未校验 scope，scope 受限 API Token 可向任意任务写入日志。
+
+**scheduler 操作与 DB 事务顺序（强制 · 2026-08）**：先 `db.session.commit()` 持久化状态，再调用 scheduler 操作；scheduler 失败时回滚 DB + 日志记录。禁止先操作 scheduler 再 commit。**违反教训**：2026-08 `toggle_status()` 先 scheduler 再 commit，commit 失败时状态不一致。
+
+**文件路径必须使用绝对路径（强制 · 2026-08）**：`open()` / `os.path.exists()` 等文件操作路径必须基于 `os.path.abspath(__file__)` 构建，禁止 CWD 相对路径。自检：`grep -n 'open("' app/ -r | grep -v "os.path" && echo WARN || echo OK`。**违反教训**：`scheduler.lock` CWD 相对路径导致多实例防护失效。
+
 **innerHTML XSS 防护（强制 · S4）**：模板 JS 中凡从 `data-*` / `dataset` 取值后拼入 `innerHTML` / `bodyHtml`，**必须**经 `escHtml()` 转义或改用 `textContent` + DOM API。Jinja2 自动转义仅保护 HTML 解析阶段，浏览器解码后 jQuery `.data()` 返回原始字符串 → 拼入 innerHTML 即为二次注入。**Jinja2 变量在 JS 字符串上下文**：凡 `{{ variable }}` 出现在 `<script>` 标签内的 JS 字符串拼接中（非 HTML 属性上下文），**必须**使用 `{{ variable|tojson }}` 输出（等效 JSON.stringify，转义引号/反斜杠/换行），禁止直接 `{{ variable }}` 拼入 JS 字符串。自检：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml && echo WARN || echo OK`。**违反教训**：2026-08 `registration_review.html` 的 `username` 和 `tags.html` 的 `tagName` 未转义直接拼 HTML；`tags.html:99` 的 `{{ g.name }}` 直接拼入 JS 字符串构建 `<option>` 元素。
 
 **状态修改操作必须 POST + CSRF（强制 · S1）**：凡状态修改操作（登出、删除、停用、修改等），路由 **必须** 限定 `methods=['POST']`，配合 `@csrf_protect` 装饰器。**禁止**使用 GET 执行状态修改。前端对应的触发元素必须通过隐藏 `<form method="POST">` + CSRF token 提交，或使用 `postNavigate()` 动态构建 POST 表单。自检：`grep -n "methods=\['GET'\]" app/rbac/views.py | grep -v "login\|password\|register\|complete_profile" && echo WARN || echo OK`。防护测试：`.venv-py311/bin/python -m unittest tests.test_logout_csrf -v`（4 条用例）。**违反教训**：2026-08 `/rbac/logout` 接受 GET，攻击者可通过 `<img src="/rbac/logout">` 强制登出已登录用户。

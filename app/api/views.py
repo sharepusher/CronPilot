@@ -433,6 +433,13 @@ def cron_add_log(form_data):
     if not jl:
         return api_return(errcode=1, errmsg='cronpilot_trace_id 不存在')
 
+    from . import check_api_scope
+    ci = db.session.get(CronInfos, jl.cron_info_id)
+    if ci:
+        denied = check_api_scope(ci)
+        if denied is not None:
+            return denied
+
     jli = JobLogItems(trace_id=cronpilot_trace_id, content=content)
     db.session.add(jli)
     db.session.commit()

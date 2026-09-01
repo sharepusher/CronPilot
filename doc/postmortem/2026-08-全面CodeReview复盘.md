@@ -977,4 +977,97 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 ---
 
+## Code Review R2 — P0 安全/完整性问题根因分析（2026-08-28）
+
+全面 Code Review 第二轮发现 3 处 P0 安全/完整性风险。以下为深度根因分析。
+
+### S-1. /api/cron/add\_log 缺少 scope 检查
+
+#### S-1-1. Bug 定位
+
+`app/api/views.py:426-440`，`cron_add_log()` 函数。7 个 API 突变端点均调用 `check_api_scope()`，唯独 `add_log` 未调用。持有 scope 受限 token 的用户如果知道 trace\_id，可向 scope 外任务的日志写入内容。
+
+#### S-1-2. 根因（5-Why 行为层分析）
+
+1. **Why-1**：`add_log` 没有 `check_api_scope()` → 因为 S6 用户级 Token（commit `8979424`）实现时未对 `add_log` 添加。
+2. **Why-2**：S6 实现时为什么遗漏？→ S6 commit 的 diff 显示新增的 scope 检查集中在**新创建的查询端点**（`cron_logs`、`cron_detail`、`cron_log_detail`）和已有的写端点（`retire`、`status`、`crons`）。`add_log` 作为"业务方回传进度"端点，在设计中被归类为"被动写入"，未纳入 scope 检查清单。
+3. **Why-3**：为什么"被动写入"被视为不需要 scope？→ 设计假设"拥有 trace\_id 即代表拥有该任务上下文"（trace\_id 由系统在 `cron_do` 中生成并作为回调参数传递给业务方）。但引入 scope 后，scope 受限用户可能通过其他渠道获得 trace\_id。
+4. **Why-4**：为什么没有测试覆盖？→ `test_api_scope_s6.py` 采用白名单模式逐端点编写，`add_log` 不在列表中（`grep "add_log" tests/test_api_scope_s6.py` → 0 匹配）。
+5. **Why-5**：为什么没有全端点 scope 覆盖门禁？→ 项目无类似"每个 API 端点必须有 scope 检查或显式豁免标注"的自动化守卫。
+
+#### S-1-3. 测试漏洞
+
+`test_api_scope_s6.py` 采用白名单模式（逐个列举覆盖端点），而非黑名单模式（扫描全部 API 端点并断言每个都有 scope 检查）。新增或遗漏端点时测试不会失败。
+
+#### S-1-4. 预防方案
+
+| 措施 | 落地位置 | 验证命令 |
+| --- | --- | --- |
+| 新增 API scope 覆盖守卫：扫描 `api/views.py` 中所有路由函数，断言函数体含 `check_api_scope` 或 `# scope-exempt:` 注释 | `tests/test_api_scope_s6.py` | `grep -n "check_api_scope\|scope-exempt" app/api/views.py` |
+| 在 `.cursor/rules/cronpilot-backend.mdc` 新增规范："新增 API 端点必须调用 `check_api_scope()` 或标注 `# scope-exempt: <reason>`" | `.cursor/rules/cronpilot-backend.mdc` | Code Review |
+
+### S-2. scheduler.lock 使用 CWD 相对路径
+
+#### S-2-1. Bug 定位
+
+`app/CuBackgroundScheduler.py:58` 和 `app/CuGeventScheduler.py:58`：`f = open("scheduler.lock", "wb")`。CWD 不是项目根目录时锁文件路径错误，多 worker 下可能重复轮询任务。
+
+#### S-2-2. 根因
+
+- **继承自上游**：自首次提交（`f3c5807`，2026-06）至今未被修改。后续 6 次涉及该文件的 commit 均未审查此行。
+- **P1-5 同类排查遗漏**：P1-5 修复 `configs.py` 相对路径时，同类排查结论声称"`configs.py` 的 `conf.ini` 是项目中唯一使用 CWD 相对路径的关键配置读取点"。排查范围限于配置读取函数（`cp.read` / `os.path.join(basedir)`），**未覆盖调度器中语义不同但根因相同的 `open("scheduler.lock")`**。
+- **排查按功能分类而非根因分类**：P1-5 的根因是"依赖 CWD = 项目根目录"，但同类排查按"配置文件读取"功能搜索，遗漏了同根因的运行时锁文件操作。
+
+#### S-2-3. 测试漏洞
+
+`test_scheduler_db.py` 仅做 AST 扫描验证文件存在，不测试锁文件获取行为。
+
+#### S-2-4. 预防方案
+
+| 措施 | 落地位置 | 验证命令 |
+| --- | --- | --- |
+| 修正 P1-5 同类排查结论，追加 scheduler.lock 实例；在同类排查规范中强调"按根因搜索全仓库，而非按功能类型" | 本文档 P1-5-6 章节 + `.cursor/rules/cronpilot-project.mdc` | `rg 'open\("(?!/)' app/ --glob '*.py' | grep -v test | grep -v '#'` → 修复后为空 |
+
+### S-3. toggle\_status() 调度器操作先于 DB 提交
+
+#### S-3-1. Bug 定位
+
+`app/services/cron_service.py:51-58`。`scheduler.resume/pause_job` 在 `db.session.commit()` 之前执行。
+
+#### S-3-2. 根因
+
+- **继承自上游**：原始代码在 `app/main/views.py` 的 `update_status()` 中，可追溯到首次提交（`f3c5807`）。顺序即为"先 scheduler 后 commit"。
+- **P1-2 提取时未审查时序**：P1-2 的目标是"消除重复逻辑"，从 Web 视图中机械提取代码。P1-2 设计文档的风险章节提到了"APScheduler 调用时序与事务边界变化"但**未检查 commit 与 scheduler 的相对顺序是否正确**。
+- **原始设计意图**：上游逻辑假设"scheduler 操作失败（如 job 不存在）时不希望 DB 已 commit 错误状态"。这个"乐观策略"在单进程环境中合理，但在 DB 异常场景下导致 scheduler 状态与 DB 不一致。
+
+#### S-3-3. 测试漏洞
+
+现有测试 mock `scheduler`，验证"被调用"但不验证"相对于 commit 的调用顺序"。调用顺序是时序属性，标准 mock.assert\_called\_with 不检查跨对象调用顺序。
+
+#### S-3-4. 预防方案
+
+| 措施 | 落地位置 | 验证命令 |
+| --- | --- | --- |
+| 在 `.cursor/rules/cronpilot-backend.mdc` 新增规范："涉及 scheduler 与 DB 双写的操作，必须 DB commit 在前、scheduler 操作在后，scheduler 失败时回滚 DB" | `.cursor/rules/cronpilot-backend.mdc` | Code Review + `grep -B5 "scheduler\.\(resume\|pause\|add\|remove\)_job" app/services/*.py` 确认 commit 在 scheduler 之前 |
+
+### 共性根因：同类排查范围过窄
+
+| 修复轮次 | 排查了什么 | 遗漏了什么 | 为什么遗漏 |
+| --- | --- | --- | --- |
+| S6 API Scope | 新建查询端点 + 已有写端点 | `add_log`（已有追加端点） | 按"端点类型"分类，"被动追加"被误判为不需 scope |
+| P1-5 CWD 路径 | configs() / config.py / scripts/ | scheduler.lock 的 open() | 按"配置读取"功能排查，未覆盖同根因的运行时文件操作 |
+| P1-2 状态切换 | 函数签名、返回值、审计日志 | commit 与 scheduler 调用顺序 | 按"功能一致性"审查，未分析事务时序 |
+
+#### 预防：改进同类排查规范
+
+每次修复后的同类排查必须按**根因**（而非功能/文件类型）搜索全仓库。示例：
+
+- "CWD 相对路径"根因 → 搜索所有 `open("非绝对路径")` + `cp.read("非绝对路径")`
+- "scope 缺失"根因 → 搜索所有 API 端点，断言每个都有 scope 或豁免标注
+- "事务时序"根因 → 搜索所有 `scheduler.*_job` + `db.session.commit` 共存的函数，验证顺序
+
+落地位置：`.cursor/rules/cronpilot-project.mdc`"Bug 修复复盘"章节追加"同类排查必须按根因搜索"要求。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

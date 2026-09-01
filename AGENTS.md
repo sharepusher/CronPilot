@@ -162,6 +162,8 @@ bash scripts/check_pending_sync.sh
 
 **Mockup 评估权威文件（强制 · 2026-08 追加）**：进行 Mockup 对比评估前，必须先确认参考文件为 `doc/design/CronPilot-2026-redesign-mockup.html`（项目内部设计规格，含完整 view-* 区块）。`Downloads` 目录中的 HTML 文件为外部演示版（简化版），不得作为实施依据。若用户提供 Downloads 路径，必须交叉核查内部文件，以内部文件为准。验证命令：`grep -l "mockup" doc/design/*.html`（应包含 `CronPilot-2026-redesign-mockup.html`）。**违反教训**：2026-08 连续 7 轮评估均错误使用外部简化版 Mockup，导致操作记录目标列数完全相反（5 列 vs 正确的 7 列），详见 `doc/postmortem/2026-08-错误Mockup文件评估复盘.html`。
 
+**Tooltip 分类规范（强制 · 2026-09）**：Redesign 模板中交互按钮（`act-btn`、`um-icon-btn`、`cp-copy-btn`、`cp-theme-btn`、`cp-topbar-icon-btn`）**必须**使用 `data-tooltip="简短文案"`（CSS-only 即时显示），**禁止**使用原生 `title`（800ms+ 延迟）。内容预览 tooltip（截断文本展示，含动态长内容）和侧边栏折叠标签可保持 `title`。自检：`grep -r 'act-btn.*title="[^"]\+"\|um-icon-btn.*title="[^"]\+"\|cp-copy-btn.*title="[^"]\+"' app/templates/redesign/ && echo FAIL || echo OK`（`title=""` 空值为抑制原生 tooltip 的正常用法，不应检出）。详 `.cursor/rules/cronpilot-format-guard.mdc`「Tooltip 分类规范」。
+
 **AskQuestion 前置门禁（强制 + Hook 程序化强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。**程序化强制**：`.cursor/hooks.json` 配置了 L1（`postToolUse` 每次编辑后注入提醒）+ L2（`stop` prompt hook 结束前评估是否遗漏复盘）。纯文字规范已被证明反复失效（3+ 次），Hook 为硬约束层。
 
 **勿改**：上游 `xiaoniu_cron` 仓库（除非用户明确要求）。

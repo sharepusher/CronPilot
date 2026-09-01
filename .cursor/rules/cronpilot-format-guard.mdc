@@ -76,3 +76,23 @@ git diff -- app/templates/ | grep '^+' | grep -v '^+++' | grep -E '<(div|span|td
 - 页面专属 CSS 写入 `redesign-pages.css`，以 `.cp-page-xxx` 选择器包裹
 - **禁止**在模板 `<style>` 块中新增超过 3 行的结构性 CSS
 - 自检命令：`python scripts/check_ui_contract.py --check`（应无 `inline-css-volume` 违规）
+
+## Tooltip 分类规范（追加 2026-09）
+
+Redesign 模板中 tooltip 使用须按以下分类选择机制：
+
+| 场景 | 机制 | 说明 |
+|---|---|---|
+| **操作按钮** tooltip（icon-only 按钮的文字标签） | `data-tooltip="简短文案"` | 即时显示（CSS-only，0.15s 淡入），文案限 ≤10 字 |
+| **内容预览** tooltip（截断文本的完整展示） | `title="{{ 动态内容 }}"` | 可展示多行/长文本，浏览器延迟可接受 |
+| **侧边栏折叠** tooltip（icon 的文字替代） | `title="导航文案"` | 用途明确，延迟可接受 |
+
+**禁止**：在 `act-btn`、`um-icon-btn`、`cp-copy-btn`、`cp-theme-btn`、`cp-topbar-icon-btn` 等交互按钮上使用原生 `title`（必须用 `data-tooltip`）。
+
+**自检命令**：
+```bash
+grep -r 'act-btn.*title="[^"]\+"\|um-icon-btn.*title="[^"]\+"\|cp-copy-btn.*title="[^"]\+"\|cp-theme-btn.*title="[^"]\+"\|cp-topbar-icon-btn.*title="[^"]\+"' app/templates/redesign/ && echo FAIL || echo OK
+```
+注：`title=""` 为抑制原生 tooltip 的正常用法（配合 `data-tooltip`），不应被检出。
+
+**根因复盘**：2026-09 Redesign 操作列 tooltip 延迟事件——CSS-only `[data-tooltip]` 系统在注册审批优化中引入，但未触发全局审计和规范建立，导致 36 处 `title` 中仅 4 处使用了即时 tooltip。详见本轮修复。

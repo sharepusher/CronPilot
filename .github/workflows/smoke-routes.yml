@@ -1,0 +1,42 @@
+name: Smoke routes
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'app/**'
+      - 'datas/**'
+      - 'scripts/smoke_routes.py'
+      - 'requirements-core.txt'
+      - 'conf.ci.ini'
+      - '.github/workflows/smoke-routes.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'datas/**'
+      - 'scripts/smoke_routes.py'
+      - 'requirements-core.txt'
+      - 'conf.ci.ini'
+      - '.github/workflows/smoke-routes.yml'
+
+jobs:
+  smoke:
+    name: Route render smoke (86 routes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install core dependencies
+        run: |
+          python -m pip install --upgrade 'pip<25'
+          pip install -r requirements-core.txt
+
+      - name: Prepare conf.ini
+        run: cp conf.ci.ini conf.ini
+
+      - name: Run smoke route checks
+        run: python scripts/smoke_routes.py --check

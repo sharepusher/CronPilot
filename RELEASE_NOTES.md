@@ -22,6 +22,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 涉及模板：`_dashboard_rows.html`（3 处）、`_topbar.html`（3 处）、`run_inspector.html`（1 处）、`task_detail.html`（1 处）、`registration_review.html`（1 处）
 - 新增 Tooltip 分类规范写入 `.cursor/rules/cronpilot-format-guard.mdc` 和 `AGENTS.md`
 
+### 工程质量 — smoke_routes 纳入 CI
+
+- 新增 `.github/workflows/smoke-routes.yml`，在 push/PR 时自动运行 `smoke_routes.py --check`（86 条路由渲染链路冒烟）
+- 覆盖 view→repo→model→template 全链路，拦截跨层重命名/模板变更导致的 500 错误
+- 此前该检查仅在本地执行，模板渲染错误可能绕过 CI
+
 ### 安全修复 — tags.html group name XSS 防护
 
 - `tags.html` 新建标签弹窗中，业务组下拉选项的 `{{ g.name }}` 从 Jinja2 直接输出改为 `|tojson` + `escHtml()` 双重保护

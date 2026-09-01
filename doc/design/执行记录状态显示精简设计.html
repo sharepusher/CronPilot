@@ -76,7 +76,16 @@ ins { color: #059669; text-decoration: none; }
 <body>
 
 <h1>执行记录状态显示精简设计</h1>
-<div class="meta-line">状态：待确认 · 2026-08-31 rev.2 · 修订 <a href="执行记录结果列细分展示设计.html"><code>执行记录结果列细分展示设计</code></a>（2026-08-27 已确认）</div>
+<div class="meta-line">状态：待确认 · 2026-08-31 rev.3 · 修订 <a href="执行记录结果列细分展示设计.html"><code>执行记录结果列细分展示设计</code></a>（2026-08-27 已确认）</div>
+
+<table class="spec" style="margin-top:8px;font-size:12px">
+<thead><tr><th>版本</th><th>日期</th><th>变更说明</th></tr></thead>
+<tbody>
+<tr><td>rev.1</td><td>2026-08-30</td><td>初稿：列表子标签移除 + 详情页失败原因板块移除</td></tr>
+<tr><td>rev.2</td><td>2026-08-31</td><td>补充 fail_reason 枚举映射表、实现步骤 S1–S7</td></tr>
+<tr><td>rev.3</td><td>2026-09-01</td><td>补充行业参考、扫描效率风险分析、回归验证项、备选方案扩展</td></tr>
+</tbody>
+</table>
 
 <!-- ════════════════════════════════════════════════════════════
      SECTION 1: Problem
@@ -97,6 +106,45 @@ ins { color: #059669; text-decoration: none; }
 <p>2026-08-27 「结果列细分」设计的核心目标是：区分筛选按钮「仅失败」与「仅异常」对应的不同状态。该目标已通过拆分 <code>fail</code> / <code>error</code> 为独立分支（红色「失败」vs 橙色「异常」）实现。子标签当初用于进一步细分原因，但其承载的信息与「返回内容」列完全重叠（HTTP 码可见），实际沦为多余注脚。</p>
 
 <p>详情页「失败原因」板块是早期将多处上下文信息聚合为「诊断摘要」的尝试。各信息源（URL、超时阈值、健康计数）已有专属板块后，聚合板块变为纯冗余，且因未做国际化/格式统一导致中英混排、原始枚举码裸露。</p>
+
+<p><strong>深层根因</strong>：子标签和聚合板块本质上违反了<strong>信息不重复原则</strong>（DRY for UI）——同一信息（HTTP 状态码、失败原因）在列表页的两个列和详情页的两个板块中各展示一次。早期设计缺乏「信息已有展示位置时不重复」的 Review checklist，导致在追加细分功能时未检查信息是否已在其他位置可见。</p>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 2.5: Industry Reference
+     ════════════════════════════════════════════════════════════ -->
+<h2>2b. 行业参考</h2>
+
+<table class="spec">
+<thead><tr><th>产品</th><th>执行日志状态列</th><th>详情页失败信息</th><th>与本设计的对照</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>Grafana Alerting</strong></td>
+  <td>单一状态标签（Firing / Normal / Pending），无子标签</td>
+  <td>Alert Rule Detail 展示完整条件表达式和评估结果，无冗余摘要板块</td>
+  <td>佐证：状态列只做语义分类，详细原因交给详情页的专属板块</td>
+</tr>
+<tr>
+  <td><strong>Datadog Events</strong></td>
+  <td>彩色 dot + 状态文案（OK / Warn / Alert），无附加子标签</td>
+  <td>Event Detail 分板块展示（Monitor 配置、触发条件、相关 Metrics），板块间无信息重叠</td>
+  <td>佐证：状态列保持简洁，详情页各板块职责分明不重复</td>
+</tr>
+<tr>
+  <td><strong>GitHub Actions</strong></td>
+  <td>单一 icon + 状态文案（✓ / ✗ / ⊘），日志链接在行尾</td>
+  <td>Job Detail 按 Step 展开日志，无聚合诊断摘要</td>
+  <td>佐证：列表层面极简，诊断完全交给下钻详情</td>
+</tr>
+<tr>
+  <td><strong>Apache Airflow</strong></td>
+  <td>彩色圆点 + 状态名（success / failed / running），无附加信息</td>
+  <td>Task Instance Detail 按类别分 Tab（Log / XCom / Details），信息分层不重叠</td>
+  <td>佐证：调度领域标杆，状态列不承载诊断信息</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>行业共识</strong>：在可观测性 / 调度 / CI 工具中，执行记录的状态列几乎无一例外地遵循「<strong>单一语义标签 + 颜色区分</strong>」范式。诊断级别的信息（错误码、失败原因、上下文）一律由详情页或展开行承载。CronPilot 的子标签设计偏离了这一行业惯例。</p>
 
 <!-- ════════════════════════════════════════════════════════════
      SECTION 3: Visual Comparison Demo
@@ -334,7 +382,7 @@ ins { color: #059669; text-decoration: none; }
   <tr><td>http_4xx</td><td><del>错误 http_4xx</del></td><td><ins>失败原因 HTTP 4xx</ins></td></tr>
   <tr><td>http_5xx</td><td><del>错误 http_5xx</del></td><td><ins>失败原因 HTTP 5xx</ins></td></tr>
   <tr><td>keyword</td><td><del>错误 keyword</del></td><td><ins>失败原因 关键词匹配</ins></td></tr>
-  <tr><td>timeout</td><td><del>错误 timeout</del></td><td><ins>失败原因 请求超时</ins></td></tr>
+  <tr><td>timeout</td><td><del>错误 timeout</del></td><td><ins>失败原因 请求超时</ins> <sup style="color:#6b7280;font-size:11px">注：CronPilot 的 timeout 语义为「定时任务 HTTP 请求超时」——调度器向任务配置的 <code>req_url</code> 发起 HTTP 请求后，在 <code>timeout_sec</code> 秒内未收到完整响应（<code>requests.exceptions.Timeout</code>）</sup></td></tr>
   <tr><td>connection</td><td><del>错误 connection</del></td><td><ins>失败原因 连接失败</ins></td></tr>
   <tr><td>blocked_url</td><td><del>错误 blocked_url</del></td><td><ins>失败原因 URL 拦截</ins></td></tr>
   <tr><td>internal</td><td><del>错误 internal</del></td><td><ins>失败原因 内部错误</ins></td></tr>
@@ -342,7 +390,19 @@ ins { color: #059669; text-decoration: none; }
 </table>
 
 <h3>备选方案 B：仅清理详情页，保留列表子标签</h3>
-<p>若认为子标签对快速扫描有价值，可仅处理 A2，不动列表。不推荐：子标签携带的信息已在「返回内容」列可见，且视觉上破坏状态标签的简洁性。</p>
+
+<table class="spec">
+<thead><tr><th>维度</th><th>方案 A（推荐）</th><th>方案 B</th></tr></thead>
+<tbody>
+<tr><td>列表结果列</td><td>仅状态文案+颜色</td><td>保留子标签（· 4xx 等）</td></tr>
+<tr><td>详情页</td><td>移除冗余板块 + 可读文案</td><td>同 A</td></tr>
+<tr><td>信息密度</td><td>状态列最简，诊断信息全在「返回内容」列</td><td>状态列含诊断摘要，但与「返回内容」列重叠</td></tr>
+<tr><td>视觉一致性</td><td>全部状态标签宽度均匀</td><td>失败/异常标签宽度不定（因子标签文字长度不同）</td></tr>
+<tr><td>适用场景</td><td>「返回内容」列始终可见</td><td>「返回内容」列被隐藏或宽度极窄时，子标签是唯一快速诊断手段</td></tr>
+</tbody>
+</table>
+
+<p><strong>取舍判断</strong>：方案 B 的唯一优势场景是「返回内容」列不可见时——但 CronPilot 执行记录列表中「返回内容」为固定列（无列隐藏功能），且列宽足以展示 HTTP 码前缀。因此 B 的优势场景在当前产品中不存在。加之行业惯例（§2b）一致支持状态列极简化，<strong>不推荐 B</strong>。</p>
 
 <!-- ════════════════════════════════════════════════════════════
      SECTION 5: Scope
@@ -387,6 +447,14 @@ ins { color: #059669; text-decoration: none; }
       <li>「请求」「元数据」板块内容不变</li>
     </ul>
   </li>
+  <li><strong>回归验证</strong>：
+    <ul>
+      <li>「成功」记录详情页：meta 行无「失败原因」字段，板块结构与精简前一致（无误删）</li>
+      <li>「超时」记录详情页：meta 行显示「失败原因 请求超时」（紫色文案），无「失败原因」板块</li>
+      <li>「异常」记录详情页：meta 行显示「失败原因 连接失败 / URL 拦截」，无「失败原因」板块</li>
+      <li>成功记录列表行：样式与精简前完全一致（回归确认）</li>
+    </ul>
+  </li>
   <li><code>python scripts/smoke_routes.py --check</code> 通过</li>
   <li><code>python scripts/check_dead_css.py --check</code> 通过（确认 <code>.el-log-sub</code> 已清理、无新增死代码）</li>
 </ol>
@@ -399,6 +467,8 @@ ins { color: #059669; text-decoration: none; }
   <li>子标签移除后，列表层面无法一眼区分 4xx / 5xx / 关键词；但该信息已在「返回内容」列和详情页可见，可接受。</li>
   <li><code>fail_reason</code> 为空的旧记录：枚举映射 fallback 到原始值，不影响展示。</li>
   <li>无后端变更、无数据迁移。回滚仅需恢复两处模板改动 + 一条 CSS 规则恢复。</li>
+  <li><strong>列表扫描效率</strong>：移除子标签后，运维人员无法在结果列一眼区分「HTTP 4xx 失败」与「关键词匹配失败」——须查看同行「返回内容」列。<strong>缓解措施</strong>：① CronPilot 已提供筛选按钮（仅失败 / 仅异常 / 仅超时）可快速过滤目标记录，降低逐行扫描需求；② 「返回内容」列在列表中始终可见且位于结果列左侧，HTTP 码（<code>404</code> / <code>502</code>）或关键错误文案在前 10 字符即可辨识。综合评估：扫描效率下降可控，不影响核心诊断工作流。</li>
+  <li><strong>API 消费者兼容</strong>：本次仅修改模板 HTML 渲染层，不影响 API 返回的 <code>status</code> / <code>fail_reason</code> 字段。如有外部脚本解析列表页 HTML（非推荐用法），子标签 DOM 移除可能影响解析——但 CronPilot 有标准 API 端点，应引导使用 API 而非 HTML 解析。</li>
   <li>「失败原因」板块中的<strong>连续失败计数 / 时间戳</strong>（<code>health.consecutive_failures</code> / <code>last_fail_at</code> / <code>last_success_at</code>）：该信息属于<strong>任务级别</strong>健康趋势（非单次执行诊断），语义上更适合放在任务详情页（<code>task_detail_v2</code>）的 job_health 板块中展示。本次移除后如需补回，应作为任务详情页健康面板的独立优化跟进，不在本批次范围内。</li>
 </ul>
 

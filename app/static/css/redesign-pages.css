@@ -1549,7 +1549,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .el-log-error .el-log-dot { background: var(--cp-warn); }
 .el-log-timeout { color: var(--cp-state-timeout); }
 .el-log-timeout .el-log-dot { background: var(--cp-state-timeout); }
-.el-log-sub { font-weight: 400; opacity: 0.75; }
+
 .el-log-unknown { color: var(--cp-text-muted); }
 .el-log-unknown .el-log-dot { background: var(--cp-border-strong); }
 @keyframes statusPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.3); } }

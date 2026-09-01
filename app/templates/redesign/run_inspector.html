@@ -61,22 +61,10 @@
     {% endif %}
     <span>触发方式 <strong>{{ trigger_type }}</strong></span>
     {% if jl.fail_reason %}
-    <span>错误 <strong class="danger-text">{{ jl.fail_reason }}</strong></span>
+    {% set fr_labels = {'http_4xx':'HTTP 4xx', 'http_5xx':'HTTP 5xx', 'keyword':'关键词匹配', 'timeout':'请求超时', 'connection':'连接失败', 'blocked_url':'URL 拦截', 'internal':'内部错误'} %}
+    <span>失败原因 <strong class="danger-text">{{ fr_labels.get(jl.fail_reason, jl.fail_reason) }}</strong></span>
     {% endif %}
   </div>
-
-  {# ─── Failure Section (only for failed runs) ─── #}
-  {% if jl.status in ('fail', 'error', 'timeout') and jl.fail_reason %}
-  <div class="ri-section danger">
-    <div class="ri-section-head">失败原因</div>
-    <div class="ri-section-body"><span class="cp-fw-600" style="color:var(--cp-danger)">{{ jl.fail_reason }}</span>
-{% if cif and cif.req_url %}  Target: {{ cif.req_url }}{% endif %}
-{% if jl.timeout_sec %}  Timeout: {{ jl.timeout_sec }}s{% endif %}
-{% if health and health.consecutive_failures > 0 %}
-连续失败: {{ health.consecutive_failures }}{% if health.last_fail_at %} (since {{ health.last_fail_at }}){% endif %}
-{% if health.last_success_at %}最后成功: {{ health.last_success_at }}{% endif %}{% endif %}</div>
-  </div>
-  {% endif %}
 
   {# ─── Request Section ─── #}
   <div class="ri-section">

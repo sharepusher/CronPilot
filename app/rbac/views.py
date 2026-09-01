@@ -184,6 +184,12 @@ def login():
         )
     username = request.values.get('username', '').strip()
     next_url = safe_next_url(request.values.get('next', ''))
+    # 前置检查：pending/rejected 注册申请直接回显状态，不触发认证和限流计数
+    reg_status = check_registration_status(username) if username else None
+    if reg_status:
+        return redirect(
+            '/rbac/login?reg_username=%s&next=%s' % (quote(username), quote(next_url))
+        )
     # OPT-P0-13: 登录防暴破 — 先检查是否被锁定
     client_ip = request.remote_addr or '0.0.0.0'
     locked, lock_msg, _retry = check_login_limit(client_ip, username)
@@ -197,12 +203,6 @@ def login():
     )
     if not result['ok']:
         record_login_failure(client_ip, username)
-        # 检查是否有注册申请
-        reg_status = check_registration_status(username)
-        if reg_status:
-            return redirect(
-                '/rbac/login?reg_username=%s&next=%s' % (quote(username), quote(next_url))
-            )
         return redirect(
             '/rbac/login?msg=%s&next=%s' % (quote(result['msg']), quote(next_url))
         )
@@ -1143,7 +1143,9 @@ def registration_reject():
         request_id = int(request_id)
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/registration_review')
-    comment = request.values.get('comment', '')
+    comment = request.values.get('comment', '').strip()
+    if not comment:
+        return _users_form_response(False, '请填写拒绝原因', url='/rbac/registration_review')
     result = reject_registration(request_id, comment=comment)
     return _users_form_response(
         result['ok'], result['msg'], url='/rbac/registration_review',
@@ -1182,7 +1184,9 @@ def registration_batch_approve():
 def registration_batch_reject():
     """批量拒绝注册申请。"""
     ids_raw = request.values.get('ids', '')
-    comment = request.values.get('comment', '')
+    comment = request.values.get('comment', '').strip()
+    if not comment:
+        return web_api_return(code=1, msg='请填写拒绝原因')
     ids = []
     for s in ids_raw.split(','):
         s = s.strip()

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot — 执行记录状态显示精简设计</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; line-height: 1.7; color: #1a1a1a; }
+h1 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 4px; }
+h2 { margin-top: 2em; color: #1e40af; }
+h3 { color: #374151; margin-top: 1.2em; }
+table.spec { border-collapse: collapse; width: 100%; margin: 1em 0; }
+table.spec th, table.spec td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 14px; }
+table.spec th { background: #f3f4f6; font-weight: 600; }
+code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+.problem { background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px 14px; margin: 1em 0; }
+.ok { background: #ecfdf5; border-left: 4px solid #059669; padding: 8px 14px; margin: 1em 0; }
+del { color: #ef4444; }
+ins { color: #059669; text-decoration: none; }
+.meta-line { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+
+/* ═══ Visual Demo ═══ */
+.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 1.5em 0; }
+.comparison h3 { grid-column: 1 / -1; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; font-size: 15px; }
+.panel { border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border: 1px solid #e2e8f0; }
+.panel-label { padding: 6px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.panel-label.before { background: #fef2f2; color: #991b1b; }
+.panel-label.after  { background: #ecfdf5; color: #166534; }
+.panel-body { padding: 14px; background: #fff; }
+
+/* Mini table for list demo */
+.mini-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mini-table th { background: #f8fafc; font-weight: 600; color: #475569; padding: 6px 8px; border-bottom: 2px solid #e2e8f0; text-align: left; }
+.mini-table td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.mini-table tr:last-child td { border-bottom: none; }
+.mono { font-family: ui-monospace, 'SF Mono', monospace; font-size: 11px; color: #64748b; }
+
+/* Result badges */
+.r-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.r-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.r-success { color: #059669; }
+.r-success .r-dot { background: #059669; }
+.r-fail { color: #b91c1c; }
+.r-fail .r-dot { background: #b91c1c; }
+.r-error { color: #b45309; }
+.r-error .r-dot { background: #b45309; }
+.r-timeout { color: #9333ea; }
+.r-timeout .r-dot { background: #9333ea; }
+.r-sub { font-weight: 400; opacity: 0.65; }
+.r-content { display: inline-block; padding: 2px 6px; background: #f8fafc; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 11px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-content.c-fail { color: #b91c1c; background: #fef2f2; }
+.r-content.c-error { color: #b45309; background: #fffbeb; }
+
+/* Detail page demo */
+.ri-demo { background: #fff; font-size: 13px; }
+.ri-demo .ri-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ri-demo .ri-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+.ri-demo .ri-b { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; background: #fef2f2; color: #b91c1c; }
+.ri-demo .ri-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: #64748b; padding: 8px 12px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; }
+.ri-demo .ri-meta strong { color: #0f172a; }
+.ri-demo .ri-meta .dt { color: #b91c1c; font-weight: 600; }
+.ri-demo .ri-sec { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.ri-demo .ri-sec.danger { border-color: #b91c1c; }
+.ri-demo .ri-sec-h { padding: 7px 14px; font-size: 12px; font-weight: 600; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.ri-demo .ri-sec.danger .ri-sec-h { color: #b91c1c; background: #fef2f2; border-bottom-color: #fecaca; }
+.ri-demo .ri-sec-b { padding: 10px 14px; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; color: #334155; line-height: 1.6; }
+.ri-demo .ri-sec-b .fw { color: #b91c1c; font-weight: 600; }
+.ri-demo .ri-sec-b .k  { color: #3D6FE0; font-weight: 500; }
+.ri-demo .ri-sec-b .n  { color: #b45309; }
+
+.strikethrough { text-decoration: line-through; color: #b91c1c; opacity: 0.5; }
+.callout { display: inline-block; background: #fef2f2; color: #b91c1c; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 4px; font-weight: 600; }
+.callout-ok { background: #ecfdf5; color: #059669; }
+</style>
+</head>
+<body>
+
+<h1>执行记录状态显示精简设计</h1>
+<div class="meta-line">状态：待确认 · 2026-08-31 rev.2 · 修订 <a href="执行记录结果列细分展示设计.html"><code>执行记录结果列细分展示设计</code></a>（2026-08-27 已确认）</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 1: Problem
+     ════════════════════════════════════════════════════════════ -->
+<h2>1. 问题</h2>
+
+<div class="problem">
+<p><strong>列表「结果」列</strong>：在「失败」/「异常」后追加 <code>· 4xx</code> / <code>· 5xx</code> / <code>· 关键词</code> / <code>· 连接</code> / <code>· URL拦截</code> 子标签。
+但「返回内容」列已展示 HTTP 状态码与响应摘要，<code>fail</code> / <code>error</code> 主标签（不同颜色+不同文案）已完成语义分类，子标签是冗余叠加。视觉上破坏了状态标签的简洁性。</p>
+<p><strong>详情页「失败原因」板块</strong>：混杂原始枚举码（<code>http_4xx</code>）、英文 label（<code>Target:</code>、<code>Timeout:</code>）、健康计数，而这些信息已分布在「请求」「元数据」板块中，是重复且排版混乱的堆叠。同时 meta 行显示的是原始枚举码而非可读文案。</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 2: Root Cause
+     ════════════════════════════════════════════════════════════ -->
+<h2>2. 根因</h2>
+
+<p>2026-08-27 「结果列细分」设计的核心目标是：区分筛选按钮「仅失败」与「仅异常」对应的不同状态。该目标已通过拆分 <code>fail</code> / <code>error</code> 为独立分支（红色「失败」vs 橙色「异常」）实现。子标签当初用于进一步细分原因，但其承载的信息与「返回内容」列完全重叠（HTTP 码可见），实际沦为多余注脚。</p>
+
+<p>详情页「失败原因」板块是早期将多处上下文信息聚合为「诊断摘要」的尝试。各信息源（URL、超时阈值、健康计数）已有专属板块后，聚合板块变为纯冗余，且因未做国际化/格式统一导致中英混排、原始枚举码裸露。</p>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 3: Visual Comparison Demo
+     ════════════════════════════════════════════════════════════ -->
+<h2>3. 对比 Demo</h2>
+
+<h3 style="margin-top:1.5em; border:none; padding:0">3.1 列表「结果」列</h3>
+
+<div class="comparison">
+  <!-- Before: List -->
+  <div class="panel">
+    <div class="panel-label before">当前（Before）</div>
+    <div class="panel-body">
+      <table class="mini-table">
+        <thead><tr><th>#</th><th>返回内容</th><th>耗时</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">1024</td>
+            <td><span class="r-content c-fail">HTTP 404 · HTML Response (3.2KB)</span></td>
+            <td class="mono">1.2s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败<span class="r-sub"> · 4xx</span></span></td>
+          </tr>
+          <tr>
+            <td class="mono">1023</td>
+            <td><span class="r-content c-fail">HTTP 502 · HTML Response (1.8KB)</span></td>
+            <td class="mono">4.5s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败<span class="r-sub"> · 5xx</span></span></td>
+          </tr>
+          <tr>
+            <td class="mono">1022</td>
+            <td><span class="r-content c-fail">{"code":1,"msg":"task expired"}</span></td>
+            <td class="mono">0.8s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败<span class="r-sub"> · 关键词</span></span></td>
+          </tr>
+          <tr>
+            <td class="mono">1021</td>
+            <td><span class="r-content c-error">回调URL安全校验未通过</span></td>
+            <td class="mono">—</td>
+            <td><span class="r-badge r-error"><span class="r-dot"></span> 异常<span class="r-sub"> · URL拦截</span></span></td>
+          </tr>
+          <tr>
+            <td class="mono">1020</td>
+            <td><span class="r-content c-error">ConnectionError: 10.0.0.5:8080</span></td>
+            <td class="mono">5.0s</td>
+            <td><span class="r-badge r-error"><span class="r-dot"></span> 异常<span class="r-sub"> · 连接</span></span></td>
+          </tr>
+          <tr>
+            <td class="mono">1019</td>
+            <td><span class="r-content" style="color:#059669;background:#f0fdf4">{"code":0,"msg":"ok"}</span></td>
+            <td class="mono">0.3s</td>
+            <td><span class="r-badge r-success"><span class="r-dot"></span> 成功</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#b91c1c;margin-top:8px">⚠ 子标签与「返回内容」列信息重叠，视觉杂乱</p>
+    </div>
+  </div>
+
+  <!-- After: List -->
+  <div class="panel">
+    <div class="panel-label after">精简后（After）</div>
+    <div class="panel-body">
+      <table class="mini-table">
+        <thead><tr><th>#</th><th>返回内容</th><th>耗时</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">1024</td>
+            <td><span class="r-content c-fail">HTTP 404 · HTML Response (3.2KB)</span></td>
+            <td class="mono">1.2s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败</span></td>
+          </tr>
+          <tr>
+            <td class="mono">1023</td>
+            <td><span class="r-content c-fail">HTTP 502 · HTML Response (1.8KB)</span></td>
+            <td class="mono">4.5s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败</span></td>
+          </tr>
+          <tr>
+            <td class="mono">1022</td>
+            <td><span class="r-content c-fail">{"code":1,"msg":"task expired"}</span></td>
+            <td class="mono">0.8s</td>
+            <td><span class="r-badge r-fail"><span class="r-dot"></span> 失败</span></td>
+          </tr>
+          <tr>
+            <td class="mono">1021</td>
+            <td><span class="r-content c-error">回调URL安全校验未通过</span></td>
+            <td class="mono">—</td>
+            <td><span class="r-badge r-error"><span class="r-dot"></span> 异常</span></td>
+          </tr>
+          <tr>
+            <td class="mono">1020</td>
+            <td><span class="r-content c-error">ConnectionError: 10.0.0.5:8080</span></td>
+            <td class="mono">5.0s</td>
+            <td><span class="r-badge r-error"><span class="r-dot"></span> 异常</span></td>
+          </tr>
+          <tr>
+            <td class="mono">1019</td>
+            <td><span class="r-content" style="color:#059669;background:#f0fdf4">{"code":0,"msg":"ok"}</span></td>
+            <td class="mono">0.3s</td>
+            <td><span class="r-badge r-success"><span class="r-dot"></span> 成功</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#059669;margin-top:8px">✓ 结果列仅保留状态文案+颜色区分，简洁统一</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="border:none; padding:0">3.2 详情页（执行 #1024 · 失败记录）</h3>
+
+<div class="comparison">
+  <!-- Before: Detail -->
+  <div class="panel">
+    <div class="panel-label before">当前（Before）</div>
+    <div class="panel-body">
+      <div class="ri-demo">
+        <div class="ri-hdr">
+          <span class="ri-title">执行 #1024</span>
+          <span class="ri-b">× 失败</span>
+        </div>
+        <div class="ri-meta">
+          <span>HTTP <strong>404</strong></span>
+          <span>耗时 <strong>1.2s</strong></span>
+          <span>开始 <strong>17:30:05</strong></span>
+          <span>触发方式 <strong>定时调度</strong></span>
+          <span>错误 <strong class="dt">http_4xx</strong></span> <span class="callout">原始枚举码</span>
+        </div>
+        <div class="ri-sec danger">
+          <div class="ri-sec-h">失败原因 <span class="callout">冗余板块</span></div>
+          <div class="ri-sec-b"><span class="fw">http_4xx</span>
+  Target: https://api.example.com/callback
+  Timeout: 5s
+连续失败: 3 (since 2026-08-30 14:20:00)
+最后成功: 2026-08-29 09:15:00</div>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">请求</div>
+          <div class="ri-sec-b"><span class="k">GET</span> https://api.example.com/callback</div>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">响应</div>
+          <div class="ri-sec-b">HTTP/<span class="n">404</span>
+&lt;!doctype html&gt;&lt;html&gt;...&lt;/html&gt;</div>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">元数据</div>
+          <div class="ri-sec-b" style="font-family:system-ui,sans-serif">
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;font-size:12px">
+              <span style="color:#64748b">超时阈值</span><span>5s</span>
+              <span style="color:#64748b">Trace ID</span><span class="mono">a1b2c3d4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#b91c1c;margin-top:8px">⚠ 「失败原因」板块重复了请求 URL、超时阈值；meta 行显示原始枚举码</p>
+    </div>
+  </div>
+
+  <!-- After: Detail -->
+  <div class="panel">
+    <div class="panel-label after">精简后（After）</div>
+    <div class="panel-body">
+      <div class="ri-demo">
+        <div class="ri-hdr">
+          <span class="ri-title">执行 #1024</span>
+          <span class="ri-b">× 失败</span>
+        </div>
+        <div class="ri-meta">
+          <span>HTTP <strong>404</strong></span>
+          <span>耗时 <strong>1.2s</strong></span>
+          <span>开始 <strong>17:30:05</strong></span>
+          <span>触发方式 <strong>定时调度</strong></span>
+          <span>失败原因 <strong class="dt">HTTP 4xx</strong></span> <span class="callout callout-ok">可读文案</span>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">请求</div>
+          <div class="ri-sec-b"><span class="k">GET</span> https://api.example.com/callback</div>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">响应</div>
+          <div class="ri-sec-b">HTTP/<span class="n">404</span>
+&lt;!doctype html&gt;&lt;html&gt;...&lt;/html&gt;</div>
+        </div>
+        <div class="ri-sec">
+          <div class="ri-sec-h">元数据</div>
+          <div class="ri-sec-b" style="font-family:system-ui,sans-serif">
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;font-size:12px">
+              <span style="color:#64748b">超时阈值</span><span>5s</span>
+              <span style="color:#64748b">Trace ID</span><span class="mono">a1b2c3d4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#059669;margin-top:8px">✓ 无冗余板块；meta 行失败原因显示可读中文</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 4: Fail Reason Label Mapping
+     ════════════════════════════════════════════════════════════ -->
+<h2>4. 方案</h2>
+
+<h3>方案 A（推荐）：双处精简</h3>
+
+<h4>A1 — 列表结果列：移除子标签</h4>
+<p>保留 <code>fail</code> / <code>error</code> / <code>timeout</code> 各自独立分支（颜色+文案区分已足够），仅移除 <code>.el-log-sub</code> span：</p>
+
+<table class="spec">
+  <tr><th>status</th><th>当前显示</th><th>精简后</th><th>颜色/样式</th></tr>
+  <tr><td>success</td><td>● 成功</td><td>● 成功</td><td>绿色，不变</td></tr>
+  <tr><td>fail (http_4xx)</td><td><del>× 失败 · 4xx</del></td><td><ins>× 失败</ins></td><td>红色，不变</td></tr>
+  <tr><td>fail (http_5xx)</td><td><del>× 失败 · 5xx</del></td><td><ins>× 失败</ins></td><td>红色，不变</td></tr>
+  <tr><td>fail (keyword)</td><td><del>× 失败 · 关键词</del></td><td><ins>× 失败</ins></td><td>红色，不变</td></tr>
+  <tr><td>error (connection)</td><td><del>× 异常 · 连接</del></td><td><ins>× 异常</ins></td><td>橙色，不变</td></tr>
+  <tr><td>error (blocked_url)</td><td><del>× 异常 · URL拦截</del></td><td><ins>× 异常</ins></td><td>橙色，不变</td></tr>
+  <tr><td>timeout</td><td>⏱ 超时</td><td>⏱ 超时</td><td>紫色，不变</td></tr>
+</table>
+
+<h4>A2 — 详情页：移除冗余板块，改善 fail_reason 可读性</h4>
+
+<p>移除整个 <code>ri-section danger</code>「失败原因」板块：</p>
+
+<table class="spec">
+  <tr><th>原板块内容</th><th>已有展示位置</th><th>处理</th></tr>
+  <tr><td>原始 fail_reason 枚举码</td><td>ri-meta 行</td><td>移除重复；meta 改为可读文案（见下）</td></tr>
+  <tr><td><code>Target:</code> 请求 URL</td><td>「请求」节</td><td>移除</td></tr>
+  <tr><td><code>Timeout:</code> 超时阈值</td><td>「元数据」节</td><td>移除</td></tr>
+  <tr><td>连续失败计数 / 时间戳</td><td>无专属位置</td><td>移除（健康数据由 job_health 体系覆盖）</td></tr>
+</table>
+
+<p>ri-meta 行 <code>fail_reason</code> 枚举码 → 可读文案映射：</p>
+<table class="spec">
+  <tr><th>fail_reason 值</th><th>当前 meta</th><th>精简后 meta</th></tr>
+  <tr><td>http_4xx</td><td><del>错误 http_4xx</del></td><td><ins>失败原因 HTTP 4xx</ins></td></tr>
+  <tr><td>http_5xx</td><td><del>错误 http_5xx</del></td><td><ins>失败原因 HTTP 5xx</ins></td></tr>
+  <tr><td>keyword</td><td><del>错误 keyword</del></td><td><ins>失败原因 关键词匹配</ins></td></tr>
+  <tr><td>timeout</td><td><del>错误 timeout</del></td><td><ins>失败原因 请求超时</ins></td></tr>
+  <tr><td>connection</td><td><del>错误 connection</del></td><td><ins>失败原因 连接失败</ins></td></tr>
+  <tr><td>blocked_url</td><td><del>错误 blocked_url</del></td><td><ins>失败原因 URL 拦截</ins></td></tr>
+  <tr><td>internal</td><td><del>错误 internal</del></td><td><ins>失败原因 内部错误</ins></td></tr>
+  <tr><td>其他/未知</td><td>错误 &lt;raw&gt;</td><td>失败原因 &lt;raw&gt;（fallback）</td></tr>
+</table>
+
+<h3>备选方案 B：仅清理详情页，保留列表子标签</h3>
+<p>若认为子标签对快速扫描有价值，可仅处理 A2，不动列表。不推荐：子标签携带的信息已在「返回内容」列可见，且视觉上破坏状态标签的简洁性。</p>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 5: Scope
+     ════════════════════════════════════════════════════════════ -->
+<h2>5. 范围</h2>
+
+<table class="spec">
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/templates/redesign/_exec_logs_rows.html</code></td><td>COL 6 结果列：移除 <code>.el-log-sub</code> span（<code>fail</code> 和 <code>error</code> 分支各删 1 行条件模板）</td></tr>
+  <tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>移除 <code>ri-section danger</code> 板块（~12 行）；ri-meta 的 <code>fail_reason</code> 映射为可读文案（模板内联 dict）</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>移除 <code>.el-log-sub</code> 规则（1 行）——模板移除所有消费者后成为死代码</td></tr>
+</table>
+
+<p><strong>不做</strong>：后端状态值 / fail_reason 枚举 / 颜色 CSS 变量 / 筛选逻辑 / v1 模板 / 任何 Python 文件。</p>
+
+<p><strong>后续优化建议</strong>（不在本批次）：枚举映射当前以模板内联 dict 实现。后续可考虑在 <code>job_log_outcome.py</code> 中定义 <code>FAIL_REASON_LABELS</code> dict，由视图层传入模板，实现枚举定义与显示文案的单一数据源，便于复用和测试覆盖。</p>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 6: Batching
+     ════════════════════════════════════════════════════════════ -->
+<h2>6. 分批</h2>
+<p>单批完成（两个模板文件，共约 15 行改动，可一次验收）。</p>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 7: Acceptance
+     ════════════════════════════════════════════════════════════ -->
+<h2>7. 验收</h2>
+<ol>
+  <li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+  <li>访问执行记录列表：
+    <ul>
+      <li>切换「仅失败」→ 结果列显示「× 失败」，无 <code>· 4xx</code> / <code>· 关键词</code> 子标签</li>
+      <li>切换「仅异常」→ 结果列显示「× 异常」，无 <code>· 连接</code> / <code>· URL拦截</code> 子标签</li>
+      <li>切换「仅超时」→ 结果列显示「⏱ 超时」，样式与精简前一致（回归确认）</li>
+      <li>「返回内容」列仍正常展示 HTTP 码或响应摘要，未受影响</li>
+    </ul>
+  </li>
+  <li>访问任意失败/异常执行详情页：
+    <ul>
+      <li>页面无「失败原因」红色板块</li>
+      <li>meta 行「失败原因」显示可读中文（如 <code>HTTP 4xx</code>、<code>连接失败</code>）而非原始枚举码</li>
+      <li>「请求」「元数据」板块内容不变</li>
+    </ul>
+  </li>
+  <li><code>python scripts/smoke_routes.py --check</code> 通过</li>
+  <li><code>python scripts/check_dead_css.py --check</code> 通过（确认 <code>.el-log-sub</code> 已清理、无新增死代码）</li>
+</ol>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 8: Risk
+     ════════════════════════════════════════════════════════════ -->
+<h2>8. 风险</h2>
+<ul>
+  <li>子标签移除后，列表层面无法一眼区分 4xx / 5xx / 关键词；但该信息已在「返回内容」列和详情页可见，可接受。</li>
+  <li><code>fail_reason</code> 为空的旧记录：枚举映射 fallback 到原始值，不影响展示。</li>
+  <li>无后端变更、无数据迁移。回滚仅需恢复两处模板改动 + 一条 CSS 规则恢复。</li>
+  <li>「失败原因」板块中的<strong>连续失败计数 / 时间戳</strong>（<code>health.consecutive_failures</code> / <code>last_fail_at</code> / <code>last_success_at</code>）：该信息属于<strong>任务级别</strong>健康趋势（非单次执行诊断），语义上更适合放在任务详情页（<code>task_detail_v2</code>）的 job_health 板块中展示。本次移除后如需补回，应作为任务详情页健康面板的独立优化跟进，不在本批次范围内。</li>
+</ul>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 9: Implementation Steps
+     ════════════════════════════════════════════════════════════ -->
+<h2>9. 实现步骤</h2>
+
+<table class="spec">
+  <tr><th>步骤</th><th>操作</th><th>验证</th></tr>
+  <tr>
+    <td><strong>S1</strong></td>
+    <td><code>_exec_logs_rows.html</code> COL 6：<code>fail</code> 分支移除 <code>{% if log.fail_reason == 'http_4xx' %}...{% endif %}</code> 整段条件子标签；<code>error</code> 分支同理</td>
+    <td><code>grep 'el-log-sub' app/templates/redesign/_exec_logs_rows.html</code> 应无匹配</td>
+  </tr>
+  <tr>
+    <td><strong>S2</strong></td>
+    <td><code>run_inspector.html</code>：移除 <code>{% if jl.status in ('fail','error','timeout') and jl.fail_reason %}</code> 到 <code>{% endif %}</code> 的整个 <code>ri-section danger</code> 板块（~12 行）</td>
+    <td><code>grep 'ri-section danger' app/templates/redesign/run_inspector.html</code> 应无匹配</td>
+  </tr>
+  <tr>
+    <td><strong>S3</strong></td>
+    <td><code>run_inspector.html</code> ri-meta 行：将 <code>错误 &lt;strong class="danger-text"&gt;{{ jl.fail_reason }}&lt;/strong&gt;</code> 替换为模板内联 dict 映射后的可读文案（label 改为「失败原因」）<br>
+      <code>{% set fr_labels = {'http_4xx':'HTTP 4xx', 'http_5xx':'HTTP 5xx', 'keyword':'关键词匹配', 'timeout':'请求超时', 'connection':'连接失败', 'blocked_url':'URL 拦截', 'internal':'内部错误'} %}</code>
+    </td>
+    <td><code>curl</code> 访问失败记录详情页，确认 meta 行显示「失败原因 HTTP 4xx」而非「错误 http_4xx」</td>
+  </tr>
+  <tr>
+    <td><strong>S4</strong></td>
+    <td><code>redesign-pages.css</code>：移除 <code>.el-log-sub { font-weight: 400; opacity: 0.75; }</code>（1 行）</td>
+    <td><code>python scripts/check_dead_css.py --check</code> 无 <code>el-log-sub</code> 相关警告</td>
+  </tr>
+  <tr>
+    <td><strong>S5</strong></td>
+    <td>门禁验证</td>
+    <td><code>python scripts/smoke_routes.py --check</code> 通过；<code>python scripts/check_dead_css.py --check</code> 通过</td>
+  </tr>
+  <tr>
+    <td><strong>S6</strong></td>
+    <td>端到端验收</td>
+    <td><code>cronpilot.sh restart --daemon</code> → 列表筛选「仅失败/仅异常/仅超时」无子标签 → 详情页无冗余板块 + meta 显示可读文案</td>
+  </tr>
+  <tr>
+    <td><strong>S7</strong></td>
+    <td>文档同步</td>
+    <td><code>python scripts/html_docs_to_markdown.py --check</code> 通过</td>
+  </tr>
+</table>
+
+<div style="margin-top: 40px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af;">
+  <a href="index.html">文档索引</a> · <a href="执行记录状态显示精简设计.md">Markdown</a>
+</div>
+
+</body>
+</html>

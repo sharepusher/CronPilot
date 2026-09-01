@@ -3,24 +3,39 @@
 {% block main_class %} cp-page-reg-review{% endblock %}
 
 {% block content %}
-<div class="page-head"><h1>注册审批</h1></div>
+<div class="page-head"><h1>注册审批{% if pending_count %} <span class="pg-badge-count">{{ pending_count }}</span>{% endif %}</h1></div>
 
 <div class="pg-toolbar">
+  <form class="rr-search-form" method="get" action="{{ url_for('rbac.registration_review') }}">
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    <input type="text" name="username" class="rr-search-input" placeholder="按用户名搜索…" value="{{ search_username }}" autocomplete="off" aria-label="按用户名搜索">
+    <button type="submit" class="btn-c btn-accent btn-xs">搜索</button>
+    {% if search_username %}
+    <a href="{{ url_for('rbac.registration_review', status=status_filter or '') }}" class="rr-search-clear">清除</a>
+    {% endif %}
+  </form>
   <span class="pg-filter-label">状态筛选：</span>
-  <a href="{{ url_for('rbac.registration_review') }}" class="btn-c btn-xs{% if not status_filter %} btn-accent{% else %} btn-line{% endif %}">全部</a>
-  <a href="{{ url_for('rbac.registration_review', status='pending') }}" class="btn-c btn-xs{% if status_filter == 'pending' %} btn-accent{% else %} btn-line{% endif %}">待审批</a>
-  <a href="{{ url_for('rbac.registration_review', status='approved') }}" class="btn-c btn-xs{% if status_filter == 'approved' %} btn-accent{% else %} btn-line{% endif %}">已通过</a>
-  <a href="{{ url_for('rbac.registration_review', status='rejected') }}" class="btn-c btn-xs{% if status_filter == 'rejected' %} btn-accent{% else %} btn-line{% endif %}">已拒绝</a>
-  <a href="{{ url_for('rbac.registration_review', status='expired') }}" class="btn-c btn-xs{% if status_filter == 'expired' %} btn-accent{% else %} btn-line{% endif %}">已过期</a>
+  <a href="{{ url_for('rbac.registration_review', username=search_username or '') }}" class="btn-c btn-xs{% if not status_filter %} btn-accent{% else %} btn-line{% endif %}">全部</a>
+  <a href="{{ url_for('rbac.registration_review', status='pending', username=search_username or '') }}" class="btn-c btn-xs{% if status_filter == 'pending' %} btn-accent{% else %} btn-line{% endif %}">待审批</a>
+  <a href="{{ url_for('rbac.registration_review', status='approved', username=search_username or '') }}" class="btn-c btn-xs{% if status_filter == 'approved' %} btn-accent{% else %} btn-line{% endif %}">已通过</a>
+  <a href="{{ url_for('rbac.registration_review', status='rejected', username=search_username or '') }}" class="btn-c btn-xs{% if status_filter == 'rejected' %} btn-accent{% else %} btn-line{% endif %}">已拒绝</a>
+  <a href="{{ url_for('rbac.registration_review', status='expired', username=search_username or '') }}" class="btn-c btn-xs{% if status_filter == 'expired' %} btn-accent{% else %} btn-line{% endif %}">已过期</a>
+</div>
+
+<div class="rr-batch-bar" id="rr-batch-bar" style="display:none">
+  <span class="rr-batch-count">已选 <strong id="rr-sel-count">0</strong> 条</span>
+  <button type="button" class="btn-c btn-accent btn-xs" id="rr-batch-approve-btn">批量通过</button>
+  <button type="button" class="btn-c btn-danger-c btn-xs" id="rr-batch-reject-btn">批量拒绝</button>
 </div>
 
 <div class="c-table-wrap">
   <table class="c-table">
     <thead>
       <tr>
+        <th class="rr-col-chk"><input type="checkbox" id="rr-select-all" title="全选待审批"></th>
         <th>用户名</th>
-        <th>花名</th>
-        <th>邮箱</th>
+        <th class="rr-col-role">申请角色</th>
+        <th class="rr-col-groups">申请业务组</th>
         <th>岗位</th>
         <th>申请时间</th>
         <th class="rr-col-ops">操作</th>
@@ -29,14 +44,27 @@
     <tbody>
       {% for req in page_data.items %}
       <tr>
+        <td class="rr-col-chk">{% if req.status == 'pending' %}<input type="checkbox" class="rr-select" value="{{ req.id }}">{% endif %}</td>
         <td class="cp-fw-600">
           {{ req.username }}
           {% if req.username in disabled_usernames %}
           <span class="pg-warn-tag">曾被停用</span>
           {% endif %}
         </td>
-        <td>{{ req.nickname or '—' }}</td>
-        <td>{{ req.email }}</td>
+        <td><span class="rr-role-tag rr-role-{{ req.role }}">{{ req.role }}</span></td>
+        <td class="rr-groups-cell">
+          {%- if req.group_ids.strip() == '__ALL__' -%}
+            <span class="rr-group-tag rr-group-all">全部业务组</span>
+          {%- else -%}
+            {%- set gid_list = req.group_ids.split(',') | select | list -%}
+            {%- for gid in gid_list[:1] -%}
+              <span class="rr-group-tag">{{ group_name_map.get(gid|int, '组' ~ gid) }}</span>
+            {%- endfor -%}
+            {%- if gid_list|length > 1 -%}
+              <span class="rr-group-more" data-tooltip="{% for gid in gid_list[1:] %}{{ group_name_map.get(gid|int, '组' ~ gid) }}{% if not loop.last %}, {% endif %}{% endfor %}">+{{ gid_list|length - 1 }}</span>
+            {%- endif -%}
+          {%- endif -%}
+        </td>
         <td>{% if req.job_title.startswith('other:') %}{{ req.job_title[6:] }}{% else %}{{ job_title_map.get(req.job_title, req.job_title) }}{% endif %}</td>
         <td class="mono cp-text-xs">{{ req.create_time|hms_display or '—' }}</td>
         <td>
@@ -47,18 +75,44 @@
           <span class="pg-audit-badge pg-audit-badge-ok">已通过</span>
           {% elif req.status == 'rejected' %}
           <span class="pg-audit-badge pg-audit-badge-fail">已拒绝</span>
-          {% if req.review_comment %}
-          <span class="pg-comment" title="{{ req.review_comment }}">{{ req.review_comment[:15] }}{% if req.review_comment|length > 15 %}…{% endif %}</span>
-          {% endif %}
           {% elif req.status == 'expired' %}
           <span class="pg-audit-badge pg-audit-badge-muted">已过期</span>
           {% else %}
           <span class="pg-muted">—</span>
           {% endif %}
+          <button type="button" class="rr-expand-btn js-rr-expand" data-target="rr-detail-{{ req.id }}">详情 ▸</button>
+        </td>
+      </tr>
+      <tr class="rr-detail-row" id="rr-detail-{{ req.id }}" style="display:none">
+        <td colspan="7">
+          <div class="rr-detail-flex">
+            <div class="rr-detail-section">
+              <div class="rr-section-title">补充信息</div>
+              <dl class="rr-dl">
+                <dt>花名</dt><dd>{{ req.nickname or '—' }}</dd>
+                <dt>邮箱</dt><dd>{{ req.email or '—' }}</dd>
+                <dt>申请原因</dt><dd>{{ req.reason or '—' }}</dd>
+              </dl>
+            </div>
+            <div class="rr-detail-section">
+              <div class="rr-section-title">📝 审批结果</div>
+              <dl class="rr-dl">
+                <dt>审批人</dt><dd>{{ reviewer_map.get(req.reviewer_id, '—') }}</dd>
+                <dt>审批时间</dt><dd class="mono cp-text-xs">{{ req.update_time|hms_display or '—' }}</dd>
+              </dl>
+              {%- set gid_list_full = req.group_ids.split(',') | select | list -%}
+              {%- if gid_list_full|length > 2 -%}
+              <div class="rr-warn-block">⚠ 申请 {{ gid_list_full|length }} 个业务组：{% for gid in gid_list_full %}{{ group_name_map.get(gid|int, '组' ~ gid) }}{% if not loop.last %}、{% endif %}{% endfor %}</div>
+              {%- endif -%}
+              {%- if req.status == 'rejected' and req.review_comment -%}
+              <div class="rr-reject-block">拒绝原因：{{ req.review_comment }}</div>
+              {%- endif -%}
+            </div>
+          </div>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="pg-empty">暂无注册申请</td></tr>
+      <tr><td colspan="7" class="pg-empty">暂无注册申请</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -66,18 +120,18 @@
     <span class="count">{{ page_data.total }} total</span>
     <div class="c-pg">
       {% if page_data.has_prev %}
-      <a href="{{ url_for('rbac.registration_review', page=page_data.page - 1, status=status_filter or '') }}">‹</a>
+      <a href="{{ url_for('rbac.registration_review', page=page_data.page - 1, status=status_filter or '', username=search_username or '') }}">‹</a>
       {% endif %}
       {% for p in page_data.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if p %}
         <a{% if p == page_data.page %} class="active"{% endif %}
-           href="{{ url_for('rbac.registration_review', page=p, status=status_filter or '') }}">{{ p }}</a>
+           href="{{ url_for('rbac.registration_review', page=p, status=status_filter or '', username=search_username or '') }}">{{ p }}</a>
         {% else %}
         <a>…</a>
         {% endif %}
       {% endfor %}
       {% if page_data.has_next %}
-      <a href="{{ url_for('rbac.registration_review', page=page_data.page + 1, status=status_filter or '') }}">›</a>
+      <a href="{{ url_for('rbac.registration_review', page=page_data.page + 1, status=status_filter or '', username=search_username or '') }}">›</a>
       {% endif %}
     </div>
   </div>
@@ -115,6 +169,82 @@ function submitForm(action, fields) {
     form.submit();
 }
 
+var batchApproveUrl = '{{ url_for("rbac.registration_batch_approve") }}';
+var batchRejectUrl = '{{ url_for("rbac.registration_batch_reject") }}';
+
+function getSelectedIds() {
+    var ids = [];
+    $('.rr-select:checked').each(function() { ids.push($(this).val()); });
+    return ids;
+}
+function updateBatchBar() {
+    var ids = getSelectedIds();
+    var $bar = $('#rr-batch-bar');
+    if (ids.length > 0) {
+        $('#rr-sel-count').text(ids.length);
+        $bar.show();
+    } else {
+        $bar.hide();
+    }
+}
+
+$('#rr-select-all').on('change', function() {
+    var checked = this.checked;
+    $('.rr-select').prop('checked', checked);
+    updateBatchBar();
+});
+$(document).on('change', '.rr-select', function() {
+    var total = $('.rr-select').length;
+    var checkedCount = $('.rr-select:checked').length;
+    $('#rr-select-all').prop('checked', total > 0 && checkedCount === total);
+    updateBatchBar();
+});
+
+$('#rr-batch-approve-btn').on('click', function() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    CpConfirm.show({
+        title: '批量通过',
+        body: '确认批量通过 ' + ids.length + ' 条注册申请？',
+        confirmText: '确认通过',
+        onConfirm: function() {
+            $.post(batchApproveUrl, { csrf_token: csrfToken, ids: ids.join(',') }, function(r) {
+                if (r.url) { window.location.href = r.url; } else { location.reload(); }
+            });
+        }
+    });
+});
+$('#rr-batch-reject-btn').on('click', function() {
+    var ids = getSelectedIds();
+    if (!ids.length) return;
+    CpModal({
+        title: '批量拒绝',
+        bodyHtml: '<p class="cp-modal-p">批量拒绝 <strong>' + ids.length + '</strong> 条注册申请</p>' +
+            '<div class="rr-fg"><label>拒绝原因 <span class="uf-req">*</span>（将应用到所有选中申请）</label>' +
+            '<textarea id="rr-batch-reject-comment" class="rr-textarea" maxlength="500" placeholder="请填写拒绝原因…"></textarea></div>',
+        confirmText: '确认拒绝',
+        confirmClass: 'btn-c btn-danger-c',
+        cancelText: '取消',
+        onConfirm: function(overlay, close) {
+            var comment = document.getElementById('rr-batch-reject-comment').value.trim();
+            if (!comment) { var ta = document.getElementById('rr-batch-reject-comment'); ta.style.borderColor = 'var(--cp-danger)'; ta.focus(); ta.setAttribute('placeholder', '拒绝原因不能为空'); return; }
+            var btn = overlay.querySelector('.cp-modal-confirm-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
+            $.post(batchRejectUrl, { csrf_token: csrfToken, ids: ids.join(','), comment: comment }, function(r) {
+                if (r.url) { window.location.href = r.url; } else { location.reload(); }
+            });
+        }
+    });
+});
+
+$(document).on('click', '.js-rr-expand', function() {
+    var targetId = $(this).data('target');
+    var $row = $('#' + targetId);
+    var isVisible = $row.is(':visible');
+    $row.toggle();
+    $(this).text(isVisible ? '详情 ▸' : '收起 ▾');
+});
+
 $(document).on('click', '.js-approve-btn', function() {
     var id = $(this).data('id');
     var username = $(this).data('username');
@@ -140,7 +270,7 @@ $(document).on('click', '.js-reject-btn', function() {
     var username = $(this).data('username');
     var bodyHtml =
         '<p class="cp-modal-p-lg">拒绝用户 <strong>' + escHtml(username) + '</strong> 的注册申请</p>' +
-        '<div class="rr-fg"><label>拒绝原因（可选）</label>' +
+        '<div class="rr-fg"><label>拒绝原因 <span class="uf-req">*</span></label>' +
         '<textarea id="rr-reject-comment" class="rr-textarea" maxlength="500" placeholder="请填写拒绝原因…"></textarea></div>';
     CpModal({
         title: '拒绝注册申请',
@@ -149,9 +279,10 @@ $(document).on('click', '.js-reject-btn', function() {
         confirmClass: 'btn-c btn-danger-c',
         cancelText: '取消',
         onConfirm: function(overlay, close) {
+            var comment = document.getElementById('rr-reject-comment').value.trim();
+            if (!comment) { var ta = document.getElementById('rr-reject-comment'); ta.style.borderColor = 'var(--cp-danger)'; ta.focus(); ta.setAttribute('placeholder', '拒绝原因不能为空'); return; }
             var btn = overlay.querySelector('.cp-modal-confirm-btn');
             if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
-            var comment = document.getElementById('rr-reject-comment').value.trim();
             submitForm(rejectUrl, { csrf_token: csrfToken, id: id, comment: comment });
         }
     });

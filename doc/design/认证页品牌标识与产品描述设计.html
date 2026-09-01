@@ -111,7 +111,13 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 
 <!-- ===== 2. 根因 ===== -->
 <h2>2. 根因</h2>
-<p>认证页面独立于 <code>_base.html</code>，Logo 区域在初始设计时使用了简化的方点占位符。产品描述在 Redesign 中未纳入认证页设计范围。</p>
+<p><strong>直接原因</strong>：认证页面独立于 <code>_base.html</code>（自带 <code>&lt;!DOCTYPE&gt;</code>，不继承管理端 Shell），Logo 区域在初始设计时使用了简化的方点占位符（<code>.auth-logo-dot</code>：9px 蓝色圆角方块）。产品描述在 Redesign 中未纳入认证页设计范围。</p>
+<p><strong>系统性根因</strong>：</p>
+<ul>
+<li><strong>设计资产碎片化</strong> — 认证页与管理端的品牌标识（Logo SVG、tagline）缺乏统一的 Design Token 管理。管理端侧边栏在 Redesign 中更新了 SVG 图标，但认证页未被纳入同一设计变更的范围，导致两个入口的品牌表达产生分叉。</li>
+<li><strong>独立模板的 Review 盲区</strong> — 不继承 <code>_base.html</code> 的独立页面（login/register/forgot_password/complete_profile）不在管理端 UI Review 的常规视野内，容易在全局视觉迭代中被遗漏。</li>
+<li><strong>Redesign 范围定义粒度</strong> — Redesign 阶段按"功能模块"（Shell、Dashboard、RBAC 等）划分范围，而非按"用户旅程"（认证→首页→功能页）划分。认证页作为用户旅程的第一触点，反而被归为"边缘页面"而延后处理。</li>
+</ul>
 
 <!-- ===== 3. 行业参考 ===== -->
 <h2>3. 行业参考</h2>
@@ -126,7 +132,22 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 <tr><td><strong>Doppler</strong></td><td>大型 Logo 居中</td><td>卡片上方居中</td><td>"The #1 SecretOps Platform"</td></tr>
 </tbody>
 </table>
-<p><strong>洞察</strong>：品牌知名度较高的产品（Linear、Vercel）倾向居中堆叠布局；B2B/基础设施产品（Supabase、Railway、PlanetScale）普遍附带产品定位 tagline。CronPilot 作为内部工具类产品，应采用 tagline 帮助首次用户建立认知。</p>
+<h3>3b. 同领域调度类产品对标</h3>
+<table>
+<thead><tr><th>产品</th><th>Logo 形式</th><th>品牌布局</th><th>Tagline</th></tr></thead>
+<tbody>
+<tr><td><strong>Apache Airflow</strong></td><td>风车图标</td><td>居中堆叠（图标 → 名称）</td><td>"Airflow™"（无功能描述，依赖品牌知名度）</td></tr>
+<tr><td><strong>Dagster</strong></td><td>几何 Logo</td><td>居中堆叠</td><td>"The data orchestration platform"</td></tr>
+<tr><td><strong>Rundeck</strong></td><td>盾牌图标</td><td>居中堆叠</td><td>"Automate routine operations"</td></tr>
+</tbody>
+</table>
+<p><strong>领域补充洞察</strong>：调度/编排类工具中，Dagster 和 Rundeck 均在认证页附带 tagline 辅助产品认知。Apache Airflow 虽未加 tagline，但依赖其在数据工程领域的高知名度——<em>这恰好佐证了前述规律：知名度不足时 tagline 不可省略</em>。</p>
+
+<h3>3c. 反面案例：缺少 tagline 的负面效果</h3>
+<div class="problem">
+<strong>Jenkins</strong> 登录页仅展示 Logo + "Jenkins" 文字，无任何产品定位描述。新用户（尤其非 DevOps 背景的项目经理）首次访问时常反馈"不确定这个系统是做什么的"。相比之下，同期的 GitLab（"The DevSecOps Platform"）和 CircleCI（"Continuous Integration and Delivery"）通过 tagline 在认证页建立了即时认知。
+</div>
+<p><strong>洞察</strong>：品牌知名度较高的产品（Linear、Vercel、Airflow）倾向居中堆叠布局且可省略 tagline；B2B/基础设施产品（Supabase、Railway、PlanetScale、Dagster）普遍附带产品定位 tagline。CronPilot 作为内部工具类产品，品牌认知度有限，应采用 tagline 帮助首次用户建立认知。</p>
 
 <!-- ===== 4. 方案对比 ===== -->
 <h2>4. 三种布局方案对比</h2>
@@ -152,6 +173,7 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 <tr><td colspan="2"><strong>加权总分</strong></td><td><strong>4.55 ★</strong></td><td><strong>4.60 ★</strong></td><td><strong>4.10</strong></td></tr>
 </tbody>
 </table>
+<p style="font-size:13px;color:#374151;background:#f9fafb;padding:10px 14px;border-radius:6px;border-left:3px solid #6b7280"><strong>评分说明</strong>：A（4.55）与 B（4.60）仅差 0.05，处于统计噪声范围。当定量评分接近时，决策权转向定性判断：A 的居中堆叠在视觉焦点引导和品牌仪式感上优于 B 的紧凑布局——对于管理平台的"第一印象页面"（认证页），仪式感权重应高于空间效率。最终推荐 A。</p>
 
 <!-- ===== 5. Tagline 文案选择 ===== -->
 <h2>5. Tagline 文案对比</h2>
@@ -166,6 +188,17 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 </tbody>
 </table>
 <p><strong>推荐 T5</strong>：「定时任务调度中心」— 5 个字精准传达产品定位，"调度中心"暗示了管理+监控+编排的综合能力，且符合中文 B2B 工具的命名惯例（如 "数据中台"、"监控中心"）。</p>
+
+<h3>5b. 国际化考量</h3>
+<p>若未来有英文部署或多语言需求，中文 tagline 需要英文等价翻译。建议预留翻译映射：</p>
+<table>
+<thead><tr><th>中文</th><th>英文等价</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>定时任务调度中心</td><td>Cron Job Scheduling Hub</td><td>对应 T5，"Hub" 传达"中心"含义</td></tr>
+<tr><td>定时调度管理平台</td><td>Scheduled Task Management Platform</td><td>对应 T1，较正式</td></tr>
+</tbody>
+</table>
+<p>当前阶段无国际化需求，tagline 写在模板内而非 i18n 配置中。若后续引入多语言框架（如 Flask-Babel），tagline 应迁移至消息目录。此项不阻塞当前方案实施。</p>
 
 <!-- ===== 6. 实际渲染 Demo ===== -->
 <h2>6. 实际渲染 Demo</h2>
@@ -385,6 +418,10 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 <p style="margin-top:16px;font-size:13px;padding:10px 14px;background:#eff6ff;border-radius:6px;border-left:3px solid #3b82f6"><strong>结论</strong>：方案 A/B 的品牌元素（SVG <code>currentColor</code> + CSS 变量背景）<strong>天然适配暗色主题</strong>，无需额外代码。方案 C 的 <code>linear-gradient</code> 硬编码色值在暗色模式下对比度不足，需为暗色单独维护一组渐变值（<code>[data-theme="dark"] .lc-strip { background: ... }</code>），即"<strong>渐变色需双套</strong>"。</p>
 </div>
 
+<div style="font-size:12px;color:#6b7280;background:#f9fafb;padding:10px 14px;border-radius:6px;margin:1em 0">
+<strong>📐 Demo vs 实现差异说明</strong>：上述 Demo 中 SVG <code>stroke</code> 使用硬编码色值（如 <code>#1e40af</code>、<code>#3b82f6</code>）是为便于文档内静态渲染。<strong>实际实现</strong>中 SVG 采用 <code>stroke="currentColor"</code>（随 CSS <code>color</code> 变量自动适配主题）和 <code>stroke="var(--cp-signal)"</code>（引用 Design Token），确保暗色主题零额外代码。请以模板源码为实施依据，非 Demo 色值。
+</div>
+
 <!-- ===== 7. 推荐方案 ===== -->
 <h2>7. 推荐方案</h2>
 <div class="recommend">
@@ -426,6 +463,16 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 </tbody>
 </table>
 
+<strong>SVG Accessibility 规格</strong>（WCAG 2.1 合规）：
+<table>
+<thead><tr><th>属性</th><th>值</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>role="img"</code></td><td>加在 <code>&lt;svg&gt;</code> 元素上</td><td>向辅助技术声明这是图片而非可交互元素</td></tr>
+<tr><td><code>aria-label="CronPilot"</code></td><td>加在 <code>&lt;svg&gt;</code> 元素上</td><td>屏幕阅读器读出品牌名（与旁边 <code>.auth-brand-name</code> 文本重复时，也可改为 <code>aria-hidden="true"</code> 避免双重朗读）</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#6b7280"><strong>设计决策</strong>：由于 <code>.auth-brand-name</code> 已以文本展示 "CronPilot"，SVG 采用 <code>aria-hidden="true"</code> 方案更佳，避免屏幕阅读器重复朗读。若未来 Logo 独立展示（无文字名称伴随），则需切换为 <code>role="img" aria-label="CronPilot Logo"</code>。</p>
+
 <strong>HTML 变更</strong>：
 <table>
 <thead><tr><th>变更类型</th><th>旧值</th><th>新值</th></tr></thead>
@@ -433,6 +480,28 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 <tr><td>替换 Logo 区域</td><td><code>&lt;div class="auth-logo"&gt;&lt;span class="auth-logo-dot"&gt;...CronPilot&lt;/div&gt;</code></td><td><code>&lt;div class="auth-brand"&gt;...SVG + CronPilot + tagline&lt;/div&gt;</code></td></tr>
 </tbody>
 </table>
+
+<strong>模板 Include 架构（已实施）</strong>：
+<p>品牌标识 SVG 路径是品牌的原子知识（不可分割），须保持全局唯一来源。通过 Jinja2 <code>{% include %}</code> 实现三层去重架构：</p>
+<pre style="background:#f3f4f6;padding:14px;border-radius:6px;font-size:13px;line-height:1.6;overflow-x:auto">
+_brand_paths.html        ← 唯一来源：3 个 SVG 路径（品牌标识原子知识）
+    ↑ include                     ↑ include
+_brand_block.html        _sidebar.html
+(auth 品牌区：             (管理端侧边栏：
+ 48px icon + name +        20px icon + name
+ tagline)                  无 tagline)
+    ↑ include
+login / register / forgot_password / complete_profile
+</pre>
+<table>
+<thead><tr><th>文件</th><th>职责</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>_brand_paths.html</code></td><td>SVG 路径数据</td><td>3 个 <code>&lt;path&gt;</code>/<code>&lt;polyline&gt;</code> 元素，被所有品牌 SVG 消费者引用</td></tr>
+<tr><td><code>_brand_block.html</code></td><td>认证页品牌区</td><td>48px 图标容器 + 品牌名 + tagline + <code>aria-hidden</code></td></tr>
+<tr><td><code>_sidebar.html</code></td><td>管理端侧边栏</td><td>20px 图标 + 品牌名（无 tagline）+ <code>aria-hidden</code></td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#6b7280"><strong>设计决策</strong>：不在 auth 和 sidebar 之间共享整个品牌块（<code>_brand_block.html</code>），因为两者外层语义不同（<code>&lt;div&gt;</code> 纯展示 vs <code>&lt;a&gt;</code> 可点击导航）、尺寸不同（48px vs 20px）、伴随内容不同（有/无 tagline）。仅共享 SVG 路径数据——这是真正的品牌原子知识，改变路径 = 改变 Logo = 必须全局同步。</p>
 
 <strong>明确不做</strong>：
 <ul>
@@ -445,12 +514,14 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 
 <!-- ===== 9. 分批 ===== -->
 <h2>9. 分批</h2>
-<p>单批完成（共 5 个文件、约 30 行改动）：</p>
+<p>改动量小（共 5 个文件、约 30 行），采用<strong>渐进式单批</strong>策略：</p>
 <ol>
-<li>在 <code>redesign-auth.css</code> 中新增 <code>.auth-brand*</code> 和 <code>.auth-tagline</code> 样式</li>
-<li>替换 4 个模板的 Logo 区域</li>
-<li><code>restart</code> → 浏览器验收 4 个页面</li>
+<li><strong>CSS 基础</strong>：在 <code>redesign-auth.css</code> 中新增 <code>.auth-brand*</code> 和 <code>.auth-tagline</code> 样式，删除旧 <code>.auth-logo</code> / <code>.auth-logo-dot</code></li>
+<li><strong>先验证 login.html</strong>：替换 <code>login.html</code> 的 Logo 区域 → <code>restart</code> → <code>curl</code> 验证品牌区渲染正确（<code>auth-brand-icon</code> 存在、<code>auth-logo-dot</code> 不存在、tagline 文案正确）</li>
+<li><strong>批量替换</strong>：确认 login 正常后，依次替换 <code>register.html</code>、<code>forgot_password.html</code>、<code>complete_profile.html</code></li>
+<li><strong>全量验收</strong>：<code>restart</code> → 浏览器访问 4 个页面，运行 CI 门禁</li>
 </ol>
+<p style="font-size:12px;color:#6b7280"><strong>渐进理由</strong>：先在最常用的 login 页面验证 CSS + HTML 结构正确性，避免 4 个模板同时修改后出现问题时定位困难。由于 4 个模板的 Logo 替换内容完全相同，login 验证通过后批量替换风险极低。</p>
 
 <!-- ===== 10. 验收 ===== -->
 <h2>10. 验收</h2>
@@ -473,6 +544,20 @@ code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13p
 <li><strong>视觉</strong>：居中品牌区增加约 90px 高度，380px 宽度的卡片仍远低于视口高度</li>
 <li><strong>回退</strong>：Git revert 单 commit</li>
 </ul>
+
+<h3>CSS 变量降级策略</h3>
+<p>品牌区样式依赖以下 CSS 变量，任一缺失时的降级行为：</p>
+<table>
+<thead><tr><th>变量</th><th>用途</th><th>降级行为</th></tr></thead>
+<tbody>
+<tr><td><code>--cp-signal-bg</code></td><td>图标容器背景</td><td>若缺失则渲染为透明背景，品牌图标仍可见</td></tr>
+<tr><td><code>--cp-signal-border</code></td><td>图标容器边框</td><td>CSS 中已写 <code>var(--cp-signal-border, var(--cp-border))</code>，自动回退到通用边框色</td></tr>
+<tr><td><code>--cp-text</code></td><td>品牌名颜色</td><td>若缺失则继承 <code>body { color }</code></td></tr>
+<tr><td><code>--cp-text-faint</code></td><td>tagline 颜色</td><td>若缺失则继承 <code>body { color }</code>（视觉层次损失但内容可读）</td></tr>
+<tr><td><code>--cp-signal</code></td><td>SVG 时钟指针色</td><td>若缺失则 stroke 不渲染（指针不可见但括号图标仍完整）</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#6b7280"><strong>设计意图</strong>：<code>.auth-brand-icon</code> 的 <code>border</code> 属性使用双层 fallback（<code>var(--cp-signal-border, var(--cp-border))</code>）是有意为之——<code>--cp-signal-border</code> 是语义化的品牌边框色，<code>--cp-border</code> 是通用边框色。当主题文件只定义通用变量而未定义品牌变量时，仍能保持视觉一致性。</p>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="认证页品牌标识与产品描述设计.md">Markdown</a></footer>
 </body>

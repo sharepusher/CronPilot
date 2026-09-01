@@ -10,17 +10,7 @@
 </head>
 <body>
   <div class="auth-card auth-card-md">
-    <div class="auth-brand">
-      <div class="auth-brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 3H3v18h3" stroke="currentColor" stroke-width="2.5"/>
-          <path d="M18 3h3v18h-3" stroke="currentColor" stroke-width="2.5"/>
-          <polyline points="12 7 12 12 15.5 14" stroke="var(--cp-signal)" stroke-width="2.5"/>
-        </svg>
-      </div>
-      <div class="auth-brand-name">CronPilot</div>
-      <div class="auth-tagline">定时任务调度中心</div>
-    </div>
+    {% include 'redesign/_brand_block.html' %}
     <div class="auth-title">补全个人信息</div>
     <div class="auth-subtitle">首次使用前请填写以下信息，完成后即可进入系统</div>
 

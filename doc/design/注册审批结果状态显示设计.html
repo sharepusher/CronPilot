@@ -263,6 +263,534 @@ $(document).on('click', '.rr-expand-btn', function() {
 <p style="text-align:center;font-size:12px;color:#059669;margin-top:8px">✓ 状态一目了然 &nbsp;|&nbsp; ✓ 展开即可查看角色、业务组、申请原因</p>
 </div>
 
+<!-- ===== 5c. 展开行详情重设计 ===== -->
+<h2>5c. 展开行详情重设计</h2>
+<p><strong>状态</strong>：待确认 &nbsp;|&nbsp; 替换原 4b 设计中的 2 列 Grid 平铺布局</p>
+
+<h3>问题诊断</h3>
+<table>
+<thead><tr><th>#</th><th>问题</th><th>严重性</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>D1</td><td><strong>信息平铺无分组</strong></td><td>高</td><td>申请信息（角色/组/原因）与审批信息（审批人/时间/拒绝原因）混在同一个 2 列 grid 中，无语义分组，认知负担高</td></tr>
+<tr><td>D2</td><td><strong>视觉层次扁平</strong></td><td>高</td><td>所有 label 同样式（11px / muted），所有 value 同样式（13px / ink），无重点突出</td></tr>
+<tr><td>D3</td><td><strong>空间利用低效</strong></td><td>中</td><td><code>padding: 12px 16px</code> + <code>gap: 10px 24px</code> 在宽表格中过于紧凑；2 列 grid 对短值浪费空间，对长文本（申请原因 500 字）又不够</td></tr>
+<tr><td>D4</td><td><strong>左蓝边框语义模糊</strong></td><td>中</td><td><code>border-left: 3px solid signal</code> 在表格行中突兀，更像"侧边标记"而非"展开详情区"</td></tr>
+<tr><td>D5</td><td><strong>状态字段冗余</strong></td><td>低</td><td>主行操作列已有状态标签（已通过/已拒绝），展开行重复显示审批状态</td></tr>
+<tr><td>D6</td><td><strong>字段数量动态跳变</strong></td><td>低</td><td>pending 4 字段、approved 6 字段、rejected 7 字段，展开行高度差异大</td></tr>
+</tbody>
+</table>
+
+<h3>行业参考</h3>
+<table>
+<thead><tr><th>产品</th><th>展开行模式</th><th>关键设计特征</th></tr></thead>
+<tbody>
+<tr><td>Ant Design ProTable</td><td>Descriptions 组件</td><td>分组标题 + 键值对网格，区域间有分隔线</td></tr>
+<tr><td>GitHub PR Files</td><td>文件差异展开</td><td>独立背景色区分、标题栏 + 内容区</td></tr>
+<tr><td>Jira Issue Panel</td><td>侧面板 / inline 卡片</td><td>字段按语义分组（Details / People / Dates），分隔线间隔</td></tr>
+<tr><td>AWS Console</td><td>行展开 Panel</td><td>浅灰卡片底色 + section 标题 + 水平分隔</td></tr>
+</tbody>
+</table>
+
+<h3>三方案可视 Demo</h3>
+
+<!-- 方案 X Demo -->
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 X</span> 左右分区卡片（申请信息 | 审批结果）</h4>
+<table class="mock-table">
+<thead><tr><th style="width:30px"></th><th>用户名</th><th>花名</th><th>邮箱</th><th>岗位</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">liuwei</td><td>小六</td><td>liuwei@co.com</td><td>技术</td><td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;gap:0;background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0">
+    <!-- 左：申请信息 -->
+    <div style="flex:1;padding:16px 24px;border-right:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📋 申请信息</div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">申请编号</span><span style="color:#9ca3af">#6</span>
+        <span style="color:#94a3b8;font-size:12px">申请角色</span><span><span class="mock-role-tag mock-role-admin" style="font-size:12px">admin</span></span>
+        <span style="color:#94a3b8;font-size:12px">申请业务组</span><span><span class="mock-group-tag">风控业务</span></span>
+        <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">需要管理定时任务，负责数据同步模块的日常维护和异常处理</span>
+      </div>
+    </div>
+    <!-- 右：审批结果 -->
+    <div style="flex:1;padding:16px 24px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📝 审批结果</div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">审批状态</span><span><span class="mock-badge mock-badge-warn">待审批</span></span>
+        <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#9ca3af">—</span>
+        <span style="color:#94a3b8;font-size:12px">审批时间</span><span style="color:#9ca3af">—</span>
+      </div>
+    </div>
+  </div>
+</td></tr>
+<!-- 已通过 展开 -->
+<tr>
+  <td></td>
+  <td class="fw600">zhangsan</td><td>张三</td><td>zhang@co.com</td><td>运维</td><td class="mono">08-27 14:20</td>
+  <td><span class="mock-badge mock-badge-ok">已通过</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;gap:0;background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0">
+    <div style="flex:1;padding:16px 24px;border-right:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📋 申请信息</div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">申请编号</span><span style="color:#9ca3af">#5</span>
+        <span style="color:#94a3b8;font-size:12px">申请角色</span><span><span class="mock-role-tag mock-role-operator" style="font-size:12px">operator</span></span>
+        <span style="color:#94a3b8;font-size:12px">申请业务组</span><span><span class="mock-group-tag">技术组</span><span class="mock-group-tag">运维组</span></span>
+        <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">负责运维监控的定时巡检任务配置</span>
+      </div>
+    </div>
+    <div style="flex:1;padding:16px 24px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📝 审批结果</div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">审批状态</span><span><span class="mock-badge mock-badge-ok">已通过</span></span>
+        <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#1e293b">admin</span>
+        <span style="color:#94a3b8;font-size:12px">审批时间</span><span class="mono" style="font-size:12px;color:#64748b">08-27 15:30</span>
+      </div>
+    </div>
+  </div>
+</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#059669;margin-top:8px"><strong>优点</strong>：① 语义分组清晰（左申请/右审批）；② section 标题提供视觉锚点；③ 左右等宽布局空间利用好；④ 审批结果区固定 3 字段，高度稳定</p>
+<p style="font-size:12px;color:#ef4444"><strong>风险</strong>：① 窄屏（<900px）左右挤压需 media query 降级为上下堆叠；② 两个 section 标题占据垂直空间</p>
+</div>
+
+<!-- 方案 Y Demo -->
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 Y</span> 单列描述列表 + 分隔线</h4>
+<table class="mock-table">
+<thead><tr><th style="width:30px"></th><th>用户名</th><th>花名</th><th>邮箱</th><th>岗位</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">liuwei</td><td>小六</td><td>liuwei@co.com</td><td>技术</td><td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0;padding:16px 24px">
+    <div style="display:grid;grid-template-columns:80px 1fr 80px 1fr;gap:8px 16px;font-size:13px;max-width:720px">
+      <span style="color:#94a3b8;font-size:12px">申请编号</span><span style="color:#9ca3af">#6</span>
+      <span style="color:#94a3b8;font-size:12px">申请角色</span><span><span class="mock-role-tag mock-role-admin" style="font-size:12px">admin</span></span>
+      <span style="color:#94a3b8;font-size:12px">申请业务组</span><span><span class="mock-group-tag">风控业务</span></span>
+      <span style="color:#94a3b8;font-size:12px">审批状态</span><span><span class="mock-badge mock-badge-warn">待审批</span></span>
+    </div>
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0;max-width:720px"></div>
+    <div style="display:grid;grid-template-columns:80px 1fr;gap:6px 16px;font-size:13px;max-width:720px">
+      <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">需要管理定时任务，负责数据同步模块的日常维护和异常处理</span>
+    </div>
+  </div>
+</td></tr>
+<!-- 已拒绝 展开 -->
+<tr>
+  <td></td>
+  <td class="fw600">wangwu</td><td>王五</td><td>wang@co.com</td><td>测试</td><td class="mono">08-26 11:00</td>
+  <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0;padding:16px 24px">
+    <div style="display:grid;grid-template-columns:80px 1fr 80px 1fr;gap:8px 16px;font-size:13px;max-width:720px">
+      <span style="color:#94a3b8;font-size:12px">申请编号</span><span style="color:#9ca3af">#3</span>
+      <span style="color:#94a3b8;font-size:12px">申请角色</span><span><span class="mock-role-tag mock-role-operator" style="font-size:12px">operator</span></span>
+      <span style="color:#94a3b8;font-size:12px">申请业务组</span><span><span class="mock-group-tag">技术组</span></span>
+      <span style="color:#94a3b8;font-size:12px">审批状态</span><span><span class="mock-badge mock-badge-fail">已拒绝</span></span>
+      <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#1e293b">admin</span>
+      <span style="color:#94a3b8;font-size:12px">审批时间</span><span class="mono" style="font-size:12px;color:#64748b">08-26 14:00</span>
+    </div>
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0;max-width:720px"></div>
+    <div style="display:grid;grid-template-columns:80px 1fr;gap:6px 16px;font-size:13px;max-width:720px">
+      <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">负责测试环境的定时清理任务</span>
+      <span style="color:#94a3b8;font-size:12px">拒绝原因</span><span style="color:#b91c1c">不符合使用条件，请联系部门负责人确认后重新申请</span>
+    </div>
+  </div>
+</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#059669;margin-top:8px"><strong>优点</strong>：① 最紧凑，垂直空间最少；② 4 列 grid 短字段并排、长文本独占整行；③ 虚线分隔清晰区分结构化字段与自由文本；④ 响应式自然降级</p>
+<p style="font-size:12px;color:#ef4444"><strong>风险</strong>：① 4 列 grid 在窄屏需降级为 2 列；② 信息分组依赖视觉位置而非显式标题</p>
+</div>
+
+<!-- 方案 Z Demo -->
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 Z</span> 顶部摘要条 + 下方详情</h4>
+<table class="mock-table">
+<thead><tr><th style="width:30px"></th><th>用户名</th><th>花名</th><th>邮箱</th><th>岗位</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">liuwei</td><td>小六</td><td>liuwei@co.com</td><td>技术</td><td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <!-- 摘要条 -->
+  <div style="display:flex;align-items:center;gap:16px;padding:10px 24px;background:#eef2ff;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;font-size:12px">
+    <span style="color:#64748b">编号 <strong style="color:#1e293b">#6</strong></span>
+    <span style="color:#64748b">角色 <span class="mock-role-tag mock-role-admin" style="font-size:11px">admin</span></span>
+    <span style="color:#64748b">业务组 <span class="mock-group-tag" style="font-size:11px">风控业务</span></span>
+    <span style="color:#64748b">状态 <span class="mock-badge mock-badge-warn" style="font-size:11px">待审批</span></span>
+  </div>
+  <!-- 详情区 -->
+  <div style="padding:12px 24px;background:var(--cp-surface-2,#f8fafc);font-size:13px">
+    <div style="margin-bottom:4px"><span style="color:#94a3b8;font-size:12px;display:inline-block;width:70px">申请原因</span><span style="color:#1e293b">需要管理定时任务，负责数据同步模块的日常维护和异常处理</span></div>
+  </div>
+</td></tr>
+<!-- 已拒绝 展开 -->
+<tr>
+  <td></td>
+  <td class="fw600">wangwu</td><td>王五</td><td>wang@co.com</td><td>测试</td><td class="mono">08-26 11:00</td>
+  <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;align-items:center;gap:16px;padding:10px 24px;background:#fef2f2;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;font-size:12px">
+    <span style="color:#64748b">编号 <strong style="color:#1e293b">#3</strong></span>
+    <span style="color:#64748b">角色 <span class="mock-role-tag mock-role-operator" style="font-size:11px">operator</span></span>
+    <span style="color:#64748b">业务组 <span class="mock-group-tag" style="font-size:11px">技术组</span></span>
+    <span style="color:#64748b">状态 <span class="mock-badge mock-badge-fail" style="font-size:11px">已拒绝</span></span>
+    <span style="color:#64748b">审批人 <strong style="color:#1e293b">admin</strong></span>
+    <span style="color:#64748b">审批时间 <span class="mono" style="font-size:11px">08-26 14:00</span></span>
+  </div>
+  <div style="padding:12px 24px;background:var(--cp-surface-2,#f8fafc);font-size:13px">
+    <div style="margin-bottom:4px"><span style="color:#94a3b8;font-size:12px;display:inline-block;width:70px">申请原因</span><span style="color:#1e293b">负责测试环境的定时清理任务</span></div>
+    <div><span style="color:#94a3b8;font-size:12px;display:inline-block;width:70px">拒绝原因</span><span style="color:#b91c1c">不符合使用条件，请联系部门负责人确认后重新申请</span></div>
+  </div>
+</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:#059669;margin-top:8px"><strong>优点</strong>：① 摘要条一行扫完关键属性（角色/组/状态）；② 状态色背景（蓝=pending / 红=rejected / 绿=approved）提供即时情绪暗示；③ 长文本独立区域不受布局挤压；④ 最紧凑的垂直占用</p>
+<p style="font-size:12px;color:#ef4444"><strong>风险</strong>：① 摘要条在窄屏可能折行；② 彩色背景需与表格主体区分度调和</p>
+</div>
+
+<h3>三方案评分对比</h3>
+<table>
+<thead><tr><th>维度</th><th>权重</th><th>X. 左右分区</th><th>Y. 描述列表</th><th>Z. 摘要条</th></tr></thead>
+<tbody>
+<tr><td><strong>信息分组清晰度</strong></td><td>30%</td><td>⭐⭐⭐⭐⭐ 显式 section 标题</td><td>⭐⭐⭐ 依赖视觉位置</td><td>⭐⭐⭐⭐ 摘要条 + 详情区</td></tr>
+<tr><td><strong>空间效率</strong></td><td>25%</td><td>⭐⭐⭐ 左右各半</td><td>⭐⭐⭐⭐ 4 列紧凑</td><td>⭐⭐⭐⭐⭐ 摘要一行 + 文本独占</td></tr>
+<tr><td><strong>响应式适应</strong></td><td>15%</td><td>⭐⭐ 需 media query</td><td>⭐⭐⭐⭐ 自然降级</td><td>⭐⭐⭐ 摘要条可能折行</td></tr>
+<tr><td><strong>视觉一致性</strong></td><td>15%</td><td>⭐⭐⭐⭐ 与面板组件一致</td><td>⭐⭐⭐ 与现有 grid 相近</td><td>⭐⭐⭐⭐⭐ 状态色与操作列呼应</td></tr>
+<tr><td><strong>实现复杂度</strong></td><td>15%</td><td>⭐⭐⭐ 中（flex+grid）</td><td>⭐⭐⭐⭐ 低（仅改 CSS）</td><td>⭐⭐⭐ 中（摘要条+详情区）</td></tr>
+<tr style="font-weight:600"><td>综合得分</td><td>100%</td><td>3.75</td><td>3.55</td><td>4.05</td></tr>
+</tbody>
+</table>
+
+<div class="recommend">
+<strong>推荐方案 Z（摘要条 + 下方详情）</strong>：
+<ol>
+<li><strong>信息密度最优</strong> — 摘要条一行包含编号/角色/业务组/状态/审批人/审批时间，一眼扫完关键属性</li>
+<li><strong>状态色即时暗示</strong> — 蓝底（pending）/绿底（approved）/红底（rejected）/灰底（expired）与操作列标签颜色呼应</li>
+<li><strong>长文本无挤压</strong> — 申请原因和拒绝原因在独立区域全宽展示，不受 grid 列宽限制</li>
+<li><strong>垂直空间最少</strong> — pending 行仅 2 行高度（摘要条 + 原因行），比方案 X 节省约 40%</li>
+</ol>
+</div>
+
+<!-- ===== 5d. 信息架构重组：列提升方案 Demo ===== -->
+<h2>5d. 信息架构重组</h2>
+<p><strong>核心问题</strong>：审批决策关键信息（角色 + 业务组）被藏在展开行中，管理员需"展开每一行"才能做决策。<br>
+<strong>解决思路</strong>：将高决策权重字段提升到主行，使列表本身成为"决策面板"。</p>
+
+<h3>方案 A Demo：列提升 — 角色/业务组替换花名/邮箱</h3>
+<p>主行展示：用户名 → <strong>申请角色</strong> → <strong>申请业务组</strong> → 岗位 → 申请时间 → 操作<br>
+花名/邮箱移入展开行（低频查看信息）。</p>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 A</span> 列提升 + S1 折叠显示（多组场景）</h4>
+<table class="mock-table">
+<thead><tr>
+  <th style="width:30px"></th>
+  <th>用户名</th>
+  <th style="width:80px">申请角色</th>
+  <th style="width:180px">申请业务组</th>
+  <th>岗位</th>
+  <th>申请时间</th>
+  <th style="width:190px">操作</th>
+</tr></thead>
+<tbody>
+<!-- 1组 pending -->
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">liuwei</td>
+  <td><span class="mock-role-tag mock-role-admin">admin</span></td>
+  <td><span class="mock-group-tag">风控业务</span></td>
+  <td>技术</td>
+  <td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<!-- 2组 approved -->
+<tr>
+  <td></td>
+  <td class="fw600">zhangsan</td>
+  <td><span class="mock-role-tag mock-role-operator">operator</span></td>
+  <td><span class="mock-group-tag">技术组</span><span class="mock-group-tag">运维组</span></td>
+  <td>运维</td>
+  <td class="mono">08-27 14:20</td>
+  <td><span class="mock-badge mock-badge-ok">已通过</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<!-- 4组 pending — 折叠显示 -->
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">chenqi <span style="font-size:10px;color:#d97706;vertical-align:middle">⚠曾停用</span></td>
+  <td><span class="mock-role-tag mock-role-operator">operator</span></td>
+  <td><span class="mock-group-tag">风控业务</span><span class="mock-group-tag">技术组</span><span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;background:#e0e7ff;color:#4338ca;cursor:help" title="运维组, 数据组">+2</span></td>
+  <td>运维</td>
+  <td class="mono">08-25 10:00</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<!-- __ALL__ rejected -->
+<tr>
+  <td></td>
+  <td class="fw600">wangwu</td>
+  <td><span class="mock-role-tag mock-role-admin">admin</span></td>
+  <td><span class="mock-group-tag" style="background:#fee2e2;color:#991b1b">全部业务组</span></td>
+  <td>测试</td>
+  <td class="mono">08-26 11:00</td>
+  <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<!-- viewer 1组 -->
+<tr>
+  <td></td>
+  <td class="fw600">zhaoliu</td>
+  <td><span class="mock-role-tag mock-role-viewer">viewer</span></td>
+  <td><span class="mock-group-tag">测试业务组</span></td>
+  <td>技术</td>
+  <td class="mono">08-20 08:00</td>
+  <td><span class="mock-badge mock-badge-muted">已过期</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+</tbody>
+</table>
+<p style="font-size:12px;margin-top:8px">
+  <strong style="color:#059669">✓ 一眼识别风险</strong>：admin + 全部业务组（第 4 行）红色高亮，无需展开<br>
+  <strong style="color:#059669">✓ 多组折叠</strong>：第 3 行 4 个组折叠为"2 标签 + <code>+2</code>"，hover 显示完整列表<br>
+  <strong style="color:#059669">✓ 决策零跳转</strong>：角色 + 业务组 + 操作按钮同一行，扫视即可决策
+</p>
+</div>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 A · 展开行</span> 花名/邮箱移入展开行 + 简化审批区</h4>
+<p style="font-size:12px;color:#6b7280;margin-bottom:12px">列提升后，展开行不再重复角色/业务组，改为展示从主行移出的花名/邮箱，加上申请原因和审批信息。</p>
+<table class="mock-table">
+<thead><tr>
+  <th style="width:30px"></th>
+  <th>用户名</th>
+  <th style="width:80px">申请角色</th>
+  <th style="width:180px">申请业务组</th>
+  <th>岗位</th>
+  <th>申请时间</th>
+  <th style="width:190px">操作</th>
+</tr></thead>
+<tbody>
+<!-- pending 展开示例 -->
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">liuwei</td>
+  <td><span class="mock-role-tag mock-role-admin">admin</span></td>
+  <td><span class="mock-group-tag">风控业务</span></td>
+  <td>技术</td>
+  <td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;gap:0;background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0">
+    <div style="flex:1;padding:16px 24px;border-right:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">补充信息</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">花名</span><span style="color:#1e293b">小六</span>
+        <span style="color:#94a3b8;font-size:12px">邮箱</span><span style="color:#1e293b">liuwei@company.com</span>
+        <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">需要管理定时任务，负责数据同步模块的日常维护和异常处理</span>
+      </div>
+    </div>
+    <div style="flex:1;padding:16px 24px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📝 审批结果</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">状态</span><span><span class="mock-badge mock-badge-warn">待审批</span></span>
+        <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#9ca3af">—</span>
+        <span style="color:#94a3b8;font-size:12px">审批时间</span><span style="color:#9ca3af">—</span>
+      </div>
+    </div>
+  </div>
+</td></tr>
+<!-- 4 组折叠 展开示例 -->
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td class="fw600">chenqi <span style="font-size:10px;color:#d97706;vertical-align:middle">⚠曾停用</span></td>
+  <td><span class="mock-role-tag mock-role-operator">operator</span></td>
+  <td><span class="mock-group-tag">风控业务</span><span class="mock-group-tag">技术组</span><span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;background:#e0e7ff;color:#4338ca;cursor:help" title="运维组, 数据组">+2</span></td>
+  <td>运维</td>
+  <td class="mono">08-25 10:00</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;gap:0;background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0">
+    <div style="flex:1;padding:16px 24px;border-right:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">补充信息</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">花名</span><span style="color:#1e293b">小陈</span>
+        <span style="color:#94a3b8;font-size:12px">邮箱</span><span style="color:#1e293b">chen@company.com</span>
+        <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">负责多个业务组的运维监控和巡检任务配置</span>
+      </div>
+    </div>
+    <div style="flex:1;padding:16px 24px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📝 审批结果</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">状态</span><span><span class="mock-badge mock-badge-warn">待审批</span></span>
+        <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#9ca3af">—</span>
+        <span style="color:#94a3b8;font-size:12px">审批时间</span><span style="color:#9ca3af">—</span>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:#64748b;padding:8px 10px;background:#fffbeb;border-radius:4px;border-left:3px solid #f59e0b">
+        ⚠ 申请 4 个业务组：风控业务、技术组、运维组、数据组
+      </div>
+    </div>
+  </div>
+</td></tr>
+<!-- 已拒绝 展开示例 -->
+<tr>
+  <td></td>
+  <td class="fw600">wangwu</td>
+  <td><span class="mock-role-tag mock-role-admin">admin</span></td>
+  <td><span class="mock-group-tag" style="background:#fee2e2;color:#991b1b">全部业务组</span></td>
+  <td>测试</td>
+  <td class="mono">08-26 11:00</td>
+  <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn">收起 ▾</span></td>
+</tr>
+<tr><td colspan="7" style="padding:0 !important">
+  <div style="display:flex;gap:0;background:var(--cp-surface-2,#f8fafc);border-top:1px solid #e2e8f0">
+    <div style="flex:1;padding:16px 24px;border-right:1px solid #e2e8f0">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">补充信息</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">花名</span><span style="color:#1e293b">王五</span>
+        <span style="color:#94a3b8;font-size:12px">邮箱</span><span style="color:#1e293b">wang@company.com</span>
+        <span style="color:#94a3b8;font-size:12px">申请原因</span><span style="color:#1e293b">需要完整管理权限配置定时清理任务</span>
+      </div>
+    </div>
+    <div style="flex:1;padding:16px 24px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">📝 审批结果</div>
+      <div style="display:grid;grid-template-columns:60px 1fr;gap:8px 12px;font-size:13px">
+        <span style="color:#94a3b8;font-size:12px">状态</span><span><span class="mock-badge mock-badge-fail">已拒绝</span></span>
+        <span style="color:#94a3b8;font-size:12px">审批人</span><span style="color:#1e293b">admin</span>
+        <span style="color:#94a3b8;font-size:12px">审批时间</span><span class="mono" style="font-size:12px;color:#64748b">08-26 14:00</span>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:#b91c1c;padding:8px 10px;background:#fef2f2;border-radius:4px;border-left:3px solid #ef4444">
+        拒绝原因：不符合 admin 权限申请条件，建议以 operator 角色重新申请
+      </div>
+    </div>
+  </div>
+</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;margin-top:10px">
+  <strong style="color:#059669">设计要点</strong>：<br>
+  ① 展开行左侧「补充信息」= 从主行移出的花名/邮箱 + 申请原因，<strong>不重复</strong>主行已有的角色/业务组<br>
+  ② 多组场景（第 2 行 chenqi）展开行右侧追加 ⚠ 黄色提示框，列出完整的业务组清单<br>
+  ③ 已拒绝（第 3 行 wangwu）右侧追加红色拒绝原因块，与状态标签颜色呼应<br>
+  ④ 待审批行的审批区显示 `—` 占位，审批后自动填充审批人/时间<br>
+  ⑤ <code>+N</code> 溢出标签使用 <code>cursor: default</code>（非 <code>cursor: help</code>），因其语义为「内容溢出折叠指示器」而非帮助入口<br>
+  ⑥ 折叠阈值 = 1（仅展示第 1 个组名，其余收入 +N），使用 CSS-only <code>data-tooltip</code> 替代原生 <code>title</code> 属性以实现即时提示（无浏览器 ~800ms 延迟）
+</p>
+</div>
+
+<h4>展开行字段变更对照</h4>
+<table>
+<thead><tr><th>字段</th><th>改前位置</th><th>改后位置</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>花名</td><td>主行列</td><td><strong>展开行 · 补充信息区</strong></td><td>低频查看，审批不依赖花名</td></tr>
+<tr><td>邮箱</td><td>主行列</td><td><strong>展开行 · 补充信息区</strong></td><td>低频查看，展开即可复制</td></tr>
+<tr><td>申请角色</td><td>展开行</td><td><strong>主行列（新增）</strong></td><td>高决策权重，一眼识别权限风险</td></tr>
+<tr><td>申请业务组</td><td>展开行</td><td><strong>主行列（新增）</strong></td><td>高决策权重，S1 折叠处理多组</td></tr>
+<tr><td>申请原因</td><td>展开行</td><td>展开行 · 补充信息区</td><td>位置不变，但归入「补充信息」分区</td></tr>
+<tr><td>审批状态</td><td>展开行 + 主行</td><td><strong>仅主行</strong></td><td>展开行不再重复（D5 冗余问题已修复）</td></tr>
+<tr><td>审批人/时间</td><td>展开行</td><td>展开行 · 审批结果区</td><td>位置不变</td></tr>
+<tr><td>拒绝原因</td><td>展开行</td><td>展开行 · 审批结果区（红色提示块）</td><td>视觉突出，与标签颜色呼应</td></tr>
+</tbody>
+</table>
+
+<h3>方案 B Demo：摘要标签 — 用户名下方追加角色/组标签</h3>
+<p>不改列结构，在用户名单元格内追加第二行标签。</p>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">方案 B</span> 摘要标签（列结构不变）</h4>
+<table class="mock-table">
+<thead><tr>
+  <th style="width:30px"></th>
+  <th>用户名</th>
+  <th>花名</th>
+  <th>邮箱</th>
+  <th>岗位</th>
+  <th>申请时间</th>
+  <th style="width:190px">操作</th>
+</tr></thead>
+<tbody>
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td>
+    <div class="fw600">liuwei</div>
+    <div style="margin-top:3px"><span class="mock-role-tag mock-role-admin" style="font-size:10px">admin</span> <span class="mock-group-tag" style="font-size:10px">风控业务</span></div>
+  </td>
+  <td>小六</td>
+  <td>liuwei@co.com</td>
+  <td>技术</td>
+  <td class="mono">08-28 09:30</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<tr>
+  <td><input type="checkbox" disabled></td>
+  <td>
+    <div class="fw600">chenqi <span style="font-size:10px;color:#d97706">⚠曾停用</span></div>
+    <div style="margin-top:3px"><span class="mock-role-tag mock-role-operator" style="font-size:10px">operator</span> <span class="mock-group-tag" style="font-size:10px">风控业务</span> <span class="mock-group-tag" style="font-size:10px">技术组</span> <span style="font-size:10px;color:#4338ca">+2</span></div>
+  </td>
+  <td>小陈</td>
+  <td>chen@co.com</td>
+  <td>运维</td>
+  <td class="mono">08-25 10:00</td>
+  <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+<tr>
+  <td></td>
+  <td>
+    <div class="fw600">wangwu</div>
+    <div style="margin-top:3px"><span class="mock-role-tag mock-role-admin" style="font-size:10px">admin</span> <span class="mock-group-tag" style="font-size:10px;background:#fee2e2;color:#991b1b">全部业务组</span></div>
+  </td>
+  <td>王五</td>
+  <td>wang@co.com</td>
+  <td>测试</td>
+  <td class="mono">08-26 11:00</td>
+  <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn">详情 ▸</span></td>
+</tr>
+</tbody>
+</table>
+<p style="font-size:12px;margin-top:8px">
+  <strong style="color:#059669">✓ 列结构不变</strong>：花名/邮箱保留在主行<br>
+  <strong style="color:#059669">✓ 角色/组可见</strong>：用户名下方标签行提供即时信息<br>
+  <span style="color:#ef4444">✗ 行高增加 ~20px</span>：双行内容影响信息密度<br>
+  <span style="color:#ef4444">✗ 用户名列变宽</span>：标签可能挤压右侧列
+</p>
+</div>
+
+<h3>方案对比总结</h3>
+<table>
+<thead><tr><th>维度</th><th>A. 列提升</th><th>B. 摘要标签</th><th>C. 仅重排展开行</th></tr></thead>
+<tbody>
+<tr><td><strong>决策零跳转</strong></td><td>✅ 角色+组在独立列</td><td>✅ 角色+组在用户名下</td><td>❌ 仍需展开</td></tr>
+<tr><td><strong>信息密度</strong></td><td>⭐⭐⭐⭐⭐ 行高不变</td><td>⭐⭐⭐ 行高+20px</td><td>⭐⭐⭐⭐ 行高不变</td></tr>
+<tr><td><strong>花名/邮箱可见性</strong></td><td>❌ 移入展开行</td><td>✅ 仍在主行</td><td>✅ 仍在主行</td></tr>
+<tr><td><strong>多组处理</strong></td><td>S1 折叠（+N badge）</td><td>S1 折叠（同）</td><td>展开行全显</td></tr>
+<tr><td><strong>改动范围</strong></td><td>中（改 thead+tbody+展开行+CSS）</td><td>小（仅改用户名 td+CSS）</td><td>小（仅改展开行 HTML）</td></tr>
+<tr><td><strong>风险评估</strong></td><td>admin+全部业务组 红色标签一眼识别</td><td>标签较小（10px），识别度略低</td><td>无提升</td></tr>
+</tbody>
+</table>
+
+<div class="recommend">
+<strong>推荐方案 A</strong>（列提升 + S1 折叠显示）：
+<ol>
+<li><strong>决策效率最高</strong> — 角色和业务组占据独立列，扫视即可判断权限风险</li>
+<li><strong>行高不增</strong> — 不同于方案 B 的双行内容，信息密度保持</li>
+<li><strong>风险一目了然</strong> — <code>admin</code> 红标签 + <code>全部业务组</code> 红底标签组合，高权限申请无法忽视</li>
+<li><strong>花名/邮箱代价可接受</strong> — 审批决策不依赖花名/邮箱（身份确认靠用户名），需要时展开一次即可</li>
+</ol>
+</div>
+
 <!-- ===== 6. 与个人资料页的关系 ===== -->
 <h2>6. 与个人资料页模板的关系</h2>
 <table>
@@ -563,8 +1091,285 @@ $(document).on('click', '.rr-expand-btn', function() {
 </tbody>
 </table>
 
-<!-- ===== 12. 风险 ===== -->
-<h2>12. 风险</h2>
+<!-- ===== 12. P2 UX 优化方案 ===== -->
+<h2>12. P2 UX 优化方案</h2>
+<p>基于审批列表数据展示合理性分析，提出以下 3 项 UX 优化建议。</p>
+
+<h3>12a. 默认筛选改为"待审批" <span style="display:inline-block;background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:500;padding:2px 8px;border-radius:4px;vertical-align:middle">已评估 · 不采纳</span></h3>
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin:1em 0;font-size:13px">
+<strong>决策</strong>：保持默认"全部"视图。理由：① CronPilot 审批频次较低，管理员进入审批页面时通常也需要参考历史审批记录（先例、通过率）；② 已有筛选按钮供用户自行过滤 pending；③ 配合 12c badge 数字，管理员入页即可感知待审批数量，无需改变默认视图。
+</div>
+<div class="scope">
+<h4>行业对标</h4>
+<table>
+<thead><tr><th>产品</th><th>默认视图</th><th>可切换全部？</th></tr></thead>
+<tbody>
+<tr><td>GitHub Issues / PR</td><td><code>is:open</code>（待处理）</td><td>Yes</td></tr>
+<tr><td>Jira Board</td><td>Sprint 当前列</td><td>Yes（Backlog）</td></tr>
+<tr><td>GitLab Merge Requests</td><td><code>Open</code></td><td>Yes</td></tr>
+<tr><td>Slack Workflow</td><td>待处理 tab</td><td>Yes（已处理 tab）</td></tr>
+<tr><td>AWS IAM Access Requests</td><td>Pending</td><td>Yes（History）</td></tr>
+</tbody>
+</table>
+<p><strong>结论</strong>：6/6 审批类产品默认展示"待处理"视图。</p>
+
+<h4>信噪比分析</h4>
+<p>假设运行 6 个月的系统（50 个注册申请）：pending 0–3 条、approved ~40 条、rejected ~7 条、expired ~3 条。默认"全部"时信噪比约 6%，审批人需在 50 条中寻找 3 条可操作项。</p>
+
+<h4>实现方式对比</h4>
+<table>
+<thead><tr><th>方式</th><th>实现</th><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td><strong>A. 后端默认（推荐）</strong></td><td><code>views.py</code> 中无 status 参数时默认 <code>pending</code></td><td>首次加载即为 pending，URL 干净</td><td>"全部"需显式传空 status</td></tr>
+<tr><td>B. 前端重定向</td><td>JS <code>location.replace('?status=pending')</code></td><td>不改后端</td><td>额外跳转、页面闪烁</td></tr>
+<tr><td>C. 视觉引导</td><td>"待审批" chip 加 badge 数字</td><td>无行为变更</td><td>首次仍看到全部</td></tr>
+</tbody>
+</table>
+<p><strong>推荐方案 A</strong>：后端默认 <code>status=pending</code>，"全部"按钮显式传 <code>status=</code> 空值，与 GitHub/Jira 实现方式一致。</p>
+
+<h4>Demo 对比</h4>
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag old">当前</span> 默认"全部"— 管理员需人工寻找可操作项</h4>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+  <span style="font-size:12px;color:#64748b;font-weight:500">状态筛选：</span>
+  <span class="mock-badge" style="background:#dbeafe;color:#1e40af;font-weight:600">全部</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">待审批</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已通过</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已拒绝</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已过期</span>
+</div>
+<table class="mock-table">
+<thead><tr><th>用户名</th><th>花名</th><th>邮箱</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr><td class="fw600">liuwei</td><td>小六</td><td>liuwei@co.com</td><td class="mono">08-28 09:30</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span></td></tr>
+<tr><td class="fw600">zhangsan</td><td>张三</td><td>zhang@co.com</td><td class="mono">08-27 14:20</td>
+    <td><span class="mock-badge mock-badge-ok">已通过</span></td></tr>
+<tr><td class="fw600">wangwu</td><td>王五</td><td>wang@co.com</td><td class="mono">08-26 11:00</td>
+    <td><span class="mock-badge mock-badge-fail">已拒绝</span></td></tr>
+<tr><td class="fw600">zhaoliu</td><td>赵六</td><td>zhao@co.com</td><td class="mono">08-20 08:00</td>
+    <td><span class="mock-badge mock-badge-muted">已过期</span></td></tr>
+<tr><td class="fw600">sunba</td><td>孙八</td><td>sun@co.com</td><td class="mono">08-18 16:00</td>
+    <td><span class="mock-badge mock-badge-ok">已通过</span></td></tr>
+</tbody>
+</table>
+<p style="text-align:center;font-size:12px;color:#ef4444;margin-top:6px">↑ 5 条记录中仅 1 条可操作（liuwei），信噪比 20%</p>
+</div>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">改进</span> 默认"待审批"— 聚焦可操作项</h4>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+  <span style="font-size:12px;color:#64748b;font-weight:500">状态筛选：</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">全部</span>
+  <span class="mock-badge" style="background:#dbeafe;color:#1e40af;font-weight:600">待审批 (1)</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已通过</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已拒绝</span>
+  <span class="mock-badge" style="background:#f3f4f6;color:#6b7280">已过期</span>
+</div>
+<table class="mock-table">
+<thead><tr><th>用户名</th><th>花名</th><th>邮箱</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr><td class="fw600">liuwei</td><td>小六</td><td>liuwei@co.com</td><td class="mono">08-28 09:30</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情</span></td></tr>
+</tbody>
+</table>
+<p style="text-align:center;font-size:12px;color:#059669;margin-top:6px">✓ 信噪比 100% — 直接看到全部可操作项，零认知负担</p>
+</div>
+</div>
+
+<h3>12b. 已处理记录淡化显示</h3>
+<div class="scope">
+<h4>设计原则</h4>
+<p>视觉层次（Visual Hierarchy）— 用户注意力应被引导到可操作项上。已处理记录应降低视觉权重，但保持足够可读性供审计查阅。</p>
+
+<h4>方案对比</h4>
+<table>
+<thead><tr><th>方案</th><th>效果</th><th>风险</th></tr></thead>
+<tbody>
+<tr><td><strong>2a. 行背景灰化（推荐）</strong></td><td>已处理行 <code>background: var(--cp-surface-2)</code>、文字 <code>color: var(--cp-text-muted)</code></td><td>需确保与展开行背景色区分（展开行用左蓝边框已区分）</td></tr>
+<tr><td>2b. 透明度降低</td><td><code>opacity: 0.6</code></td><td>过度弱化影响可读性</td></tr>
+<tr><td>2c. 部分列灰化</td><td>仅操作列以外的列文字灰化</td><td>模板改动较多</td></tr>
+</tbody>
+</table>
+<p><strong>推荐 2a</strong>：<code>&lt;tr class="rr-row-done"&gt;</code>（非 pending 行），CSS 设置浅背景 + 降级文字色。</p>
+
+<h4>Demo 对比（"全部"视图下）</h4>
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag old">当前</span> 所有行视觉权重相同</h4>
+<table class="mock-table">
+<thead><tr><th>用户名</th><th>花名</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr><td class="fw600">liuwei</td><td>小六</td><td class="mono">08-28 09:30</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span></td></tr>
+<tr><td class="fw600">zhangsan</td><td>张三</td><td class="mono">08-27 14:20</td>
+    <td><span class="mock-badge mock-badge-ok">已通过</span></td></tr>
+<tr><td class="fw600">wangwu</td><td>王五</td><td class="mono">08-26 11:00</td>
+    <td><span class="mock-badge mock-badge-fail">已拒绝</span></td></tr>
+<tr><td class="fw600">chenqi</td><td>小陈</td><td class="mono">08-25 10:00</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span></td></tr>
+</tbody>
+</table>
+<p style="text-align:center;font-size:12px;color:#ef4444;margin-top:6px">↑ 4 行视觉平等，需逐行阅读操作列才能识别可操作项</p>
+</div>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">改进</span> 已处理行灰化，可操作行突出</h4>
+<table class="mock-table">
+<thead><tr><th>用户名</th><th>花名</th><th>申请时间</th><th style="width:190px">操作</th></tr></thead>
+<tbody>
+<tr><td class="fw600">liuwei</td><td>小六</td><td class="mono">08-28 09:30</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情</span></td></tr>
+<tr style="background:#f8f9fa;color:#9ca3af"><td>zhangsan</td><td>张三</td><td class="mono" style="color:#9ca3af">08-27 14:20</td>
+    <td><span class="mock-badge mock-badge-ok">已通过</span> <span class="mock-expand-btn" style="opacity:0.6">详情</span></td></tr>
+<tr style="background:#f8f9fa;color:#9ca3af"><td>wangwu</td><td>王五</td><td class="mono" style="color:#9ca3af">08-26 11:00</td>
+    <td><span class="mock-badge mock-badge-fail">已拒绝</span> <span class="mock-expand-btn" style="opacity:0.6">详情</span></td></tr>
+<tr><td class="fw600">chenqi</td><td>小陈</td><td class="mono">08-25 10:00</td>
+    <td><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span> <span class="mock-expand-btn">详情</span></td></tr>
+</tbody>
+</table>
+<p style="text-align:center;font-size:12px;color:#059669;margin-top:6px">✓ 视线自然聚焦于白底行（可操作）；灰底行可读但不抢注意力</p>
+</div>
+
+<h4>暗色主题 Demo</h4>
+<div class="demo-section" style="background:#1e1e2e;border-color:#2a2a3c">
+<h4 style="margin-top:0;color:#cdd6f4"><span class="demo-tag new">暗色主题</span> 灰化行仍可辨识</h4>
+<table class="mock-table" style="border-color:#313244">
+<thead><tr style="background:#313244"><th style="color:#a6adc8;border-color:#313244;background:#313244">用户名</th><th style="color:#a6adc8;border-color:#313244;background:#313244">花名</th><th style="color:#a6adc8;border-color:#313244;background:#313244">申请时间</th><th style="color:#a6adc8;border-color:#313244;background:#313244;width:190px">操作</th></tr></thead>
+<tbody>
+<tr style="background:#1e1e2e"><td style="color:#cdd6f4;font-weight:600;border-color:#313244">liuwei</td><td style="color:#cdd6f4;border-color:#313244">小六</td><td class="mono" style="color:#a6adc8;border-color:#313244">08-28 09:30</td>
+    <td style="border-color:#313244"><span class="mock-btn mock-btn-blue">通过</span> <span class="mock-btn mock-btn-red">拒绝</span></td></tr>
+<tr style="background:#2a2a3c"><td style="color:#6c7086;border-color:#313244">zhangsan</td><td style="color:#6c7086;border-color:#313244">张三</td><td class="mono" style="color:#6c7086;border-color:#313244">08-27 14:20</td>
+    <td style="border-color:#313244"><span class="mock-badge" style="background:#1e4620;color:#40c057;font-size:11px">已通过</span></td></tr>
+<tr style="background:#2a2a3c"><td style="color:#6c7086;border-color:#313244">wangwu</td><td style="color:#6c7086;border-color:#313244">王五</td><td class="mono" style="color:#6c7086;border-color:#313244">08-26 11:00</td>
+    <td style="border-color:#313244"><span class="mock-badge" style="background:#4c1d1d;color:#f87171;font-size:11px">已拒绝</span></td></tr>
+</tbody>
+</table>
+<p style="text-align:center;font-size:12px;color:#a6adc8;margin-top:6px">✓ 暗色下灰化行（<code style="color:#a6adc8;background:#313244">#2a2a3c</code>）与正常行（<code style="color:#a6adc8;background:#313244">#1e1e2e</code>）有可辨差异；状态标签保持自身色彩</p>
+</div>
+</div>
+
+<h3>12c. 标题旁待审批数量 badge <span style="display:inline-block;background:#dbeafe;color:#1e40af;font-size:12px;font-weight:500;padding:2px 8px;border-radius:4px;vertical-align:middle">已实施</span></h3>
+<div class="recommend">
+<h4>行业对标</h4>
+<table>
+<thead><tr><th>产品</th><th>位置</th><th>格式</th></tr></thead>
+<tbody>
+<tr><td>GitHub</td><td>Issues tab</td><td><code>Issues (23)</code></td></tr>
+<tr><td>Jira</td><td>Board 标题</td><td><code>Sprint 45 · 7 issues</code></td></tr>
+<tr><td>GitLab</td><td>MR tab</td><td><code>Merge Requests (5)</code></td></tr>
+</tbody>
+</table>
+
+<h4>实现</h4>
+<ul>
+<li><code>views.py</code>：<code>pending_count = repo.count_by_status('pending')</code>（额外 1 次 COUNT 查询，&lt; 1000 行表无性能风险）</li>
+<li>模板：<code>&lt;h1&gt;注册审批{% if pending_count %} &lt;span class="pg-badge-count"&gt;{{ pending_count }}&lt;/span&gt;{% endif %}&lt;/h1&gt;</code></li>
+<li>CSS：<code>.pg-badge-count</code> — 圆角蓝色小标签，参照侧边栏 badge 样式</li>
+</ul>
+<p><strong>优先级</strong>：P2 — 不影响核心功能，提升审批效率感知。</p>
+
+<h4>性能评估</h4>
+<table>
+<thead><tr><th>场景</th><th>数据量</th><th>预期耗时（SQLite WAL）</th><th>预期耗时（MySQL InnoDB）</th></tr></thead>
+<tbody>
+<tr><td>小型部署（1-2 年）</td><td>&lt; 500 行</td><td>&lt; 0.1ms</td><td>&lt; 0.1ms</td></tr>
+<tr><td>中型部署（3-5 年）</td><td>500 - 5,000 行</td><td>&lt; 0.5ms</td><td>&lt; 0.3ms</td></tr>
+<tr><td>大型部署（5+ 年）</td><td>5,000 - 50,000 行</td><td>&lt; 2ms</td><td>&lt; 1ms</td></tr>
+<tr><td>极端场景</td><td>100,000+ 行</td><td>&lt; 5ms</td><td>&lt; 2ms</td></tr>
+</tbody>
+</table>
+<p><strong>分析</strong>：<code>COUNT(*) WHERE status='pending'</code> 命中 <code>status</code> 索引（<code>index=True</code>），pending 行通常 &lt; 10 条，索引扫描 O(log n + k)。新增 1 次 COUNT 查询（页面原有 4 次 → 5 次），增量耗时 &lt; 0.5ms，用户无感知。</p>
+<p><strong>按组管理员路径</strong>：<code>get_pending_count_by_groups()</code> 使用 <code>LIKE '%gid%'</code> 匹配组交集，无法使用索引。但因 pending 行极少（&lt; 10 条），即使逐行字符串匹配也在亚毫秒级完成。<code>LIKE</code> 误匹配（<code>'%1%'</code> 匹配 <code>'15'</code>）是既有架构债（<code>group_ids</code> 逗号分隔存储方案），非 badge 引入的新问题，修复应作为独立的数据模型重构。</p>
+<p><strong>结论</strong>：性能风险极低，不建议添加缓存（引入额外复杂度不值得，缓存失效逻辑反而增加 bug 面）。</p>
+
+<h4>实施详情</h4>
+<ul>
+<li><code>views.py</code>：利用已有 <code>repo.get_pending_count_all()</code> / <code>repo.get_pending_count_by_groups()</code>，传 <code>pending_count</code> 到模板</li>
+<li>模板：<code>&lt;h1&gt;注册审批{% if pending_count %} &lt;span class="pg-badge-count"&gt;{{ pending_count }}&lt;/span&gt;{% endif %}&lt;/h1&gt;</code></li>
+<li>CSS：<code>.pg-badge-count</code> 使用 <code>var(--cp-signal-bg)</code> / <code>var(--cp-signal)</code>，圆角蓝底标签</li>
+</ul>
+
+<h4>Demo 对比</h4>
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag old">当前</span> 纯文本标题，无待办感知</h4>
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:8px 0">
+  <h2 style="margin:0;font-size:18px;color:#1e293b;font-weight:600">注册审批</h2>
+  <p style="margin:4px 0 0;font-size:12px;color:#94a3b8">管理员需浏览列表才能知道有多少待处理</p>
+</div>
+</div>
+
+<div class="demo-section">
+<h4 style="margin-top:0"><span class="demo-tag new">改进</span> 标题旁 badge 数字，入页即感知待办量</h4>
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:8px 0">
+  <h2 style="margin:0;font-size:18px;color:#1e293b;font-weight:600">注册审批 <span style="display:inline-block;background:#dbeafe;color:#1e40af;font-size:13px;font-weight:700;padding:2px 8px;border-radius:10px;vertical-align:middle;position:relative;top:-1px">3</span></h2>
+  <p style="margin:4px 0 0;font-size:12px;color:#94a3b8">一眼看到待审批数量，驱动审批行为</p>
+</div>
+
+<h4 style="margin-top:12px"><span class="demo-tag new">零态</span> badge=0 时自动隐藏</h4>
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:8px 0">
+  <h2 style="margin:0;font-size:18px;color:#1e293b;font-weight:600">注册审批</h2>
+  <p style="margin:4px 0 0;font-size:12px;color:#94a3b8">无待审批时不显示 badge — "没有"不需要视觉指示器</p>
+</div>
+</div>
+</div>
+
+<h3>12d. 审批列表数据展示合理性结论</h3>
+<div class="recommend">
+<p><strong>全量历史展示（当前方案）合理</strong>：</p>
+<ol>
+<li><strong>审计追溯</strong>：审批记录是操作日志的组成部分，管理员需回溯"谁批了谁"</li>
+<li><strong>状态总览</strong>：一眼看到审批通过率、拒绝原因分布</li>
+<li><strong>行业惯例</strong>：GitHub PR、Jira Issue 不默认隐藏已处理项</li>
+</ol>
+<p><strong>种子 admin 不会出现在审批列表</strong>：种子 admin 通过 <code>conf.ini</code> 初始化创建，从未提交注册申请。<code>rbac_registration_requests</code> 表仅记录通过注册页面 (<code>/rbac/register</code>) 提交的申请。</p>
+<p><strong>Self-approve 风险不存在</strong>：申请人在被审批前没有 <code>user_id</code>（账号未创建），无法作为审批人操作自己的申请。</p>
+</div>
+
+<!-- ===== 12e. 三项 UX 优化协同分析 ===== -->
+<h3>12e. 三项 UX 优化协同关系与实施决策</h3>
+<div class="recommend">
+<h4>最终决策</h4>
+<table>
+<thead><tr><th>项</th><th>决策</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td>12a 默认筛选</td><td><span style="background:#f3f4f6;color:#6b7280;padding:2px 6px;border-radius:3px;font-size:11px">不采纳</span></td><td>保持默认"全部"：① 审批频次低，管理员需参考历史先例；② 已有筛选按钮自助过滤；③ badge 已提供待办感知</td></tr>
+<tr><td>12b 已处理行淡化</td><td><span style="background:#fffbeb;color:#d97706;padding:2px 6px;border-radius:3px;font-size:11px">待决策</span></td><td>默认"全部"视图下淡化价值更高（视觉层次引导）；可与 12c 独立实施</td></tr>
+<tr><td>12c badge</td><td><span style="background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:3px;font-size:11px">已实施</span></td><td>标题旁蓝色圆角 badge 显示 pending 数量；性能评估极低风险</td></tr>
+</tbody>
+</table>
+
+<h4>协同关系（更新后）</h4>
+<pre style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;font-size:13px;line-height:1.6;overflow-x:auto">
+12c (badge 数字) ✅ 已实施
+       │
+       ↓ 入页即感知待办量
+       │
+12b (淡化显示) ⏳ 待决策
+       │ 默认"全部"视图下价值更高
+       │ （视觉层次引导可操作行）
+
+12a (默认筛选) ✗ 不采纳
+       保持默认"全部" + 自助筛选
+</pre>
+<p><strong>关键变化</strong>：12a 不采纳后，12b 的价值提升 — 默认"全部"视图下，管理员需要在混合列表中识别可操作项，行级灰化成为主要的视觉引导手段。</p>
+</div>
+
+<h3>12f. 专业性评审补充项</h3>
+
+<h4>12a 补充：首次访问 vs 回访区分</h4>
+<p>新管理员首次进入审批页面时可能需要查看全部历史以了解审批惯例和先例。当前方案 A（后端默认 pending）对此场景的处理：管理员可随时点击"全部"切换到完整视图。此为标准 UX 模式（GitHub/Jira 均如此），新用户学习成本为一次点击，可接受。</p>
+
+<h4>12b 补充：暗色主题交互与视觉 Demo</h4>
+<p><strong>暗色主题风险</strong>：<code>var(--cp-surface-2)</code> 在暗色主题下为深灰（<code>#2a2a3c</code>），<code>var(--cp-text-muted)</code> 为浅灰（<code>#8B9198</code>）。已处理行在暗色下的灰化对比度低于亮色主题。建议实施时需 dark mode 下截图验证，确保灰化行与正常行仍有可辨识的视觉差异。</p>
+<p><strong>与展开行蓝色边框的交互</strong>：灰化行展开后，展开行使用左蓝色边框（<code>border-left: 3px solid var(--cp-signal)</code>）已提供了足够的视觉区分。但需验证灰化行内的状态标签颜色（如绿色"已通过"）是否被 <code>color: var(--cp-text-muted)</code> 覆盖 — <code>.pg-audit-badge-ok</code> 使用了自身 <code>color</code> 属性，应不受行级 <code>color</code> 影响（CSS specificity）。</p>
+
+<h4>12c 补充：badge 更新时机与侧边栏扩展</h4>
+<p><strong>更新时机</strong>：badge 数字在页面加载时由后端渲染。审批通过/拒绝后页面刷新，badge 自动更新。如需无刷新更新（AJAX 审批后即时减数），需额外 JS 逻辑（P3 可选，当前可暂不实现）。</p>
+<p><strong>侧边栏扩展</strong>：更高频可见的 badge 位置是侧边栏"注册审批"导航项。但侧边栏 badge 需额外的全局查询（每次页面加载都执行 COUNT），当前阶段仅在审批页标题显示更合适。侧边栏 badge 可作为后续独立优化。</p>
+<p><strong>badge=0 时的 UX</strong>：方案中 <code>{% if pending_count %}</code> 使 pending=0 时不显示 badge — 这是正确的"零态"处理（"没有待审批"不需要任何视觉指示器），与 GitHub Issues tab 行为一致。</p>
+
+<!-- ===== 13. 风险 ===== -->
+<h2>13. 风险</h2>
 <ul>
 <li><strong>低风险</strong>：模板条件分支 + 展开行 toggle，不改核心审批逻辑</li>
 <li><strong>后端查询</strong>：<code>group_name_map</code> 和 <code>reviewer_map</code> 各一次查询，数据量极小（业务组 &lt; 20，审批人 &lt; 10）</li>
@@ -572,6 +1377,14 @@ $(document).on('click', '.rr-expand-btn', function() {
 <li><strong>批量操作并发</strong>：每条独立调用 <code>approve_registration()</code>，<code>pending_username</code> UNIQUE 约束保证并发安全；单条失败不影响其余（逐条执行 + 汇总结果）</li>
 <li><strong>回退</strong>：Git revert 单 commit（Batch 3/4 的路由新增可独立回退）</li>
 </ul>
+
+<h3>13b. 复盘：pending 用户登录被限流锁定</h3>
+<p><strong>问题</strong>：pending 用户每次尝试登录都被 <code>record_login_failure()</code> 计为失败，5 次后触发 IP 锁定（15 分钟），之后 <code>check_login_limit()</code> 直接返回锁定消息，用户无法看到「注册审核中」提示。</p>
+<p><strong>根因</strong>：<code>check_registration_status()</code> 位于认证失败分支的最后一步，在 <code>record_login_failure()</code> 和 <code>check_login_limit()</code> 之后。pending 用户的状态查询被错误地纳入安全限流统计。</p>
+<p><strong>修复</strong>：将 <code>check_registration_status()</code> 前移到 CSRF 校验之后、限流检查之前。pending/rejected 用户直接返回注册状态，不进入认证和限流流程。</p>
+<p><strong>架构约束</strong>：登录视图的执行顺序必须为：<br>
+① CSRF 校验 → ② <strong>注册状态前置检查</strong>（pending/rejected 直接返回） → ③ 限流检查 → ④ 认证 → ⑤ 失败记录<br>
+验证命令：<code>grep -n 'check_registration_status\|check_login_limit\|authenticate_user' app/rbac/views.py | head -5</code>（注册检查行号 &lt; 限流行号 &lt; 认证行号）。</p>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="注册审批结果状态显示设计.md">Markdown</a></footer>
 </body>

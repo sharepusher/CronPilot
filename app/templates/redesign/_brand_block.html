@@ -1,0 +1,13 @@
+{# Shared auth brand block — single source of truth for all auth pages.
+   Used by: login.html, register.html, forgot_password.html, complete_profile.html
+   SVG paths shared with sidebar via _brand_paths.html.
+   Ref: doc/design/认证页品牌标识与产品描述设计.html §7–§8 #}
+<div class="auth-brand">
+  <div class="auth-brand-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      {% include 'redesign/_brand_paths.html' %}
+    </svg>
+  </div>
+  <div class="auth-brand-name">CronPilot</div>
+  <div class="auth-tagline">定时任务调度中心</div>
+</div>

@@ -1784,11 +1784,43 @@ a.tc-name:hover { color: var(--cp-signal); }
 .cp-page-reg-review .pg-warn-block { padding: 8px 10px; background: var(--cp-warn-bg); border-radius: 4px; color: var(--cp-warn); font-size: 12px; margin-top: 8px; }
 .cp-page-reg-review .pg-comment { font-size: 11px; color: var(--cp-text-muted); cursor: help; }
 .cp-page-reg-review .pg-muted { color: var(--cp-text-faint); }
-.cp-page-reg-review .rr-col-ops { width: 140px; }
 .cp-page-reg-review .rr-fg { margin-bottom: 12px; }
 .cp-page-reg-review .rr-fg label { display: block; font-size: 12px; color: var(--cp-text-muted); margin-bottom: 4px; }
 .cp-page-reg-review .rr-textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--cp-border); border-radius: 6px; background: var(--cp-surface-2); color: var(--cp-text); font-size: 13px; font-family: inherit; resize: vertical; min-height: 72px; box-sizing: border-box; }
 .cp-page-reg-review .rr-textarea:focus { outline: none; border-color: var(--cp-signal); }
+.cp-page-reg-review .rr-search-form { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; }
+.cp-page-reg-review .rr-search-input { height: 28px; width: 160px; border: 1px solid var(--cp-border); border-radius: 4px; padding: 0 8px; font-size: 12px; background: var(--cp-surface); color: var(--cp-text); }
+.cp-page-reg-review .rr-search-input:focus { outline: none; border-color: var(--cp-signal); }
+.cp-page-reg-review .rr-search-clear { font-size: 12px; color: var(--cp-signal); text-decoration: none; }
+.cp-page-reg-review .rr-search-clear:hover { text-decoration: underline; }
+.cp-page-reg-review .rr-col-chk { width: 30px; text-align: center; }
+.cp-page-reg-review .rr-batch-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--cp-surface-2); border-radius: 6px; margin-bottom: 8px; font-size: 12px; color: var(--cp-text-muted); }
+.cp-page-reg-review .rr-batch-count strong { color: var(--cp-ink); }
+.cp-page-reg-review .rr-col-ops { width: 190px; }
+.cp-page-reg-review .rr-expand-btn { display: inline-block; padding: 2px 6px; font-size: 11px; color: var(--cp-signal); cursor: pointer; background: none; border: none; font-family: inherit; white-space: nowrap; }
+.cp-page-reg-review .rr-expand-btn:hover { text-decoration: underline; }
+.cp-page-reg-review .rr-detail-row td { padding: 0 !important; }
+.cp-page-reg-review .rr-detail-flex { display: flex; gap: 0; background: var(--cp-surface-2); border-top: 1px solid var(--cp-border); }
+.cp-page-reg-review .rr-detail-section { flex: 1; padding: 16px 24px; }
+.cp-page-reg-review .rr-detail-section + .rr-detail-section { border-left: 1px solid var(--cp-border); }
+.cp-page-reg-review .rr-section-title { font-size: 11px; font-weight: 600; color: var(--cp-text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.cp-page-reg-review .rr-dl { display: grid; grid-template-columns: 80px 1fr; gap: 8px 12px; font-size: 13px; margin: 0; }
+.cp-page-reg-review .rr-dl dt { color: var(--cp-text-muted); font-size: 12px; font-weight: normal; }
+.cp-page-reg-review .rr-dl dd { margin: 0; color: var(--cp-ink); }
+.cp-page-reg-review .rr-reject-reason { color: var(--cp-danger); }
+.cp-page-reg-review .rr-role-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+.cp-page-reg-review .rr-role-viewer { background: var(--cp-surface-2); color: var(--cp-text-muted); }
+.cp-page-reg-review .rr-role-operator { background: var(--cp-signal-bg); color: var(--cp-signal); }
+.cp-page-reg-review .rr-role-admin { background: var(--cp-danger-bg); color: var(--cp-danger); }
+.cp-page-reg-review .rr-group-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--cp-surface-2); color: var(--cp-text-muted); margin-right: 4px; }
+.cp-page-reg-review .rr-group-all { background: var(--cp-danger-bg); color: var(--cp-danger); }
+.cp-page-reg-review .rr-groups-cell { line-height: 1.8; }
+.cp-page-reg-review .rr-group-more { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; background: var(--cp-signal-bg); color: var(--cp-signal); cursor: default; font-weight: 600; }
+.cp-page-reg-review .rr-col-role { width: 80px; }
+.cp-page-reg-review .rr-col-groups { width: 180px; }
+.cp-page-reg-review .rr-reject-block { margin-top: 12px; font-size: 12px; color: var(--cp-danger); padding: 8px 10px; background: var(--cp-danger-bg); border-radius: 4px; border-left: 3px solid var(--cp-danger); }
+.cp-page-reg-review .rr-warn-block { margin-top: 12px; font-size: 12px; color: var(--cp-warning, #d97706); padding: 8px 10px; background: var(--cp-warning-bg, #fffbeb); border-radius: 4px; border-left: 3px solid var(--cp-warning, #f59e0b); }
+.cp-page-reg-review .pg-badge-count { display: inline-block; background: var(--cp-signal-bg); color: var(--cp-signal); font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 10px; vertical-align: middle; position: relative; top: -1px; }
 
 /* ══════════════════════════════════════════════════════════════════
    API Token Page (.cp-page-api-token)

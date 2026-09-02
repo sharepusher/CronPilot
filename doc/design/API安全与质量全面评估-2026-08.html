@@ -155,8 +155,8 @@ def tag_suggest():
   <tr><th>编号</th><th>描述</th><th>R5 评级</th><th>评估后评级</th><th>修复必要性</th><th>建议动作</th></tr>
   <tr><td>B-13</td><td>API auth 暴力破解</td><td>P1</td><td><b>P1</b></td><td>高（成本低，风险收益比好）</td><td>修复</td></tr>
   <tr><td>B-15</td><td>API 创建任务无 scope</td><td>P1</td><td><b>P1</b></td><td>中（功能缺失，需设计讨论）</td><td>独立规划</td></tr>
-  <tr><td>B-14</td><td>BIGINT 过滤器类型</td><td>P1</td><td><b>P2</b></td><td>低（可工作，语义不完美）</td><td>顺手修</td></tr>
-  <tr><td>B-16</td><td>tag_suggest scope</td><td>P1</td><td><b>P2</b></td><td>低（低敏感数据）</td><td>顺手修</td></tr>
+  <tr><td>B-14</td><td>BIGINT 过滤器类型</td><td>P1</td><td><b>P2</b></td><td>低（可工作，语义不完美）</td><td>✅ 已修复</td></tr>
+  <tr><td>B-16</td><td>tag_suggest scope</td><td>P1</td><td><b>P2</b></td><td>低（低敏感数据）</td><td>✅ 已修复</td></tr>
   <tr><td>Q-1</td><td>Token query string</td><td>P2</td><td><b>P2</b></td><td>低（内部工具）</td><td>标注废弃</td></tr>
   <tr><td>Q-2</td><td>LIKE 通配符</td><td>P2</td><td><b>P2</b></td><td>低（UX 问题）</td><td>API 优化时统一</td></tr>
   <tr><td>—</td><td>鉴权降级全放行</td><td>—</td><td><b>无需修复</b></td><td>无（设计决策）</td><td>保持现状</td></tr>

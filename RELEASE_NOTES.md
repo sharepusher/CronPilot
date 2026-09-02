@@ -7,6 +7,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### API 质量修复 — B-14 BIGINT 过滤器 + B-16 tag_suggest scope
+
+- **B-14**：`/api/cron/query` 的 `updated_from`/`updated_to` 参数原为字符串直接比较 BIGINT 列，结果不可靠；改为使用 `str_to_hms()` 转换后比较，格式无效时返回 400
+- **B-16**：`/api/tags/suggest` 端点原无 scope 校验，非 bypass 用户可查询任意组标签；现检查 `group_id` 是否在调用者 `session_group_ids()` 中
+
 ### 安全修复 — B-13 API Auth 暴力破解限流
 
 - **问题**：`/api/auth/token` 端点接受用户名+密码换取 API Token，但无频率限制，可被暴力破解

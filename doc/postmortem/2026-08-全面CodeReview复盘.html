@@ -1269,5 +1269,29 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
   <li><strong>回归测试</strong>：<code>.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v</code>（4 条用例）</li>
 </ol>
 
+<h2>API 质量修复 — B-14 BIGINT 过滤器 + B-16 tag_suggest scope（2026-08-28）</h2>
+
+<h3>B-14：updated_from/to 字符串比较 BIGINT 列</h3>
+<ol>
+  <li><strong>Bug 定位</strong>：<code>app/api/views.py</code> L195-198，<code>updated_from</code>/<code>updated_to</code> 原始字符串直接与 <code>CronInfos.updated_at</code>（BigInteger）比较</li>
+  <li><strong>根因</strong>：API 查询端点开发时参考了同页面的 <code>beg_time</code>/<code>end_time</code> 日志过滤（已正确使用 <code>str_to_hms</code>），但 <code>updated_from/to</code> 参数在后续迭代中新增时未对齐已有模式</li>
+  <li><strong>测试漏洞</strong>：API 查询测试未包含 <code>updated_from</code>/<code>updated_to</code> 参数的用例</li>
+  <li><strong>修复</strong>：使用 <code>str_to_hms(value + ' 00:00:00')</code> 和 <code>str_to_hms(value + ' 23:59:59')</code> 转换为 BIGINT 后比较，格式无效时返回 400</li>
+  <li><strong>防护测试</strong>：依赖现有冒烟路由测试（86 路由通过）</li>
+  <li><strong>同类排查</strong>：同文件中 <code>beg_time</code>/<code>end_time</code> 已正确使用 <code>str_to_hms</code>；无其他 BIGINT 时间列存在字符串比较</li>
+  <li><strong>预防方案</strong>：<code>.cursor/rules/cronpilot-backend.mdc</code> 已有「BIGINT 时间戳列比较必须使用 hms 工具函数」规则</li>
+</ol>
+
+<h3>B-16：tag_suggest 缺少 scope 校验</h3>
+<ol>
+  <li><strong>Bug 定位</strong>：<code>app/main/views.py</code> <code>tag_suggest()</code>，非 bypass 用户可通过 <code>group_id</code> 参数查询任意组的标签</li>
+  <li><strong>根因</strong>：OPT-P1-11 标签系统开发时，<code>tag_suggest</code> 仅做了 <code>@require_permission('cron:read')</code> 角色检查，未对齐同模块其他路由的 scope 校验模式</li>
+  <li><strong>测试漏洞</strong>：标签测试（<code>test_tag_scope</code>）覆盖了标签 CRUD 的 scope 隔离，但未包含 <code>tag_suggest</code> 端点</li>
+  <li><strong>修复</strong>：非 bypass 用户请求的 <code>group_id</code> 不在其 <code>session_group_ids()</code> 中时返回空列表</li>
+  <li><strong>防护测试</strong>：冒烟路由通过（86 条）</li>
+  <li><strong>同类排查</strong>：同文件其他数据端点（<code>cron_list</code>、<code>execution_logs</code>）均有 <code>build_scope_filter_clause</code> 或等效 scope 检查</li>
+  <li><strong>预防方案</strong>：<code>AGENTS.md</code> 已有「新功能路由 scope 对齐」规则</li>
+</ol>
+
 </body>
 </html>

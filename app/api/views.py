@@ -193,9 +193,17 @@ def cron_query():
             return api_return(errcode=1, errmsg='req_method 参数无效')
         filters.append(CronInfos.req_method == req_method)
     if updated_from:
-        filters.append(CronInfos.updated_at >= updated_from)
+        from datas.utils.times import str_to_hms
+        try:
+            filters.append(CronInfos.updated_at >= str_to_hms(updated_from + ' 00:00:00'))
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='updated_from 格式无效，请使用 YYYY-MM-DD')
     if updated_to:
-        filters.append(CronInfos.updated_at <= updated_to)
+        from datas.utils.times import str_to_hms
+        try:
+            filters.append(CronInfos.updated_at <= str_to_hms(updated_to + ' 23:59:59'))
+        except (TypeError, ValueError):
+            return api_return(errcode=1, errmsg='updated_to 格式无效，请使用 YYYY-MM-DD')
 
     total = db.session.scalar(
         select(func.count()).select_from(CronInfos).where(*filters)

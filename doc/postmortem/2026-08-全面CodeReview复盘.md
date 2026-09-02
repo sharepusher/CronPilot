@@ -1385,6 +1385,28 @@ Web 侧 `tests/test_rbac_phase.py` 有完整的角色-权限矩阵测试（Viewe
    验证命令：`grep -c "check_login_limit\|record_login_failure" app/api/views.py`（应 ≥ 2）
 2. **回归测试**：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v`（4 条用例）
 
+## API 质量修复 — B-14 BIGINT 过滤器 + B-16 tag\_suggest scope（2026-08-28）
+
+### B-14：updated\_from/to 字符串比较 BIGINT 列
+
+1. **Bug 定位**：`app/api/views.py` L195-198，`updated_from`/`updated_to` 原始字符串直接与 `CronInfos.updated_at`（BigInteger）比较
+2. **根因**：API 查询端点开发时参考了同页面的 `beg_time`/`end_time` 日志过滤（已正确使用 `str_to_hms`），但 `updated_from/to` 参数在后续迭代中新增时未对齐已有模式
+3. **测试漏洞**：API 查询测试未包含 `updated_from`/`updated_to` 参数的用例
+4. **修复**：使用 `str_to_hms(value + ' 00:00:00')` 和 `str_to_hms(value + ' 23:59:59')` 转换为 BIGINT 后比较，格式无效时返回 400
+5. **防护测试**：依赖现有冒烟路由测试（86 路由通过）
+6. **同类排查**：同文件中 `beg_time`/`end_time` 已正确使用 `str_to_hms`；无其他 BIGINT 时间列存在字符串比较
+7. **预防方案**：`.cursor/rules/cronpilot-backend.mdc` 已有「BIGINT 时间戳列比较必须使用 hms 工具函数」规则
+
+### B-16：tag\_suggest 缺少 scope 校验
+
+1. **Bug 定位**：`app/main/views.py` `tag_suggest()`，非 bypass 用户可通过 `group_id` 参数查询任意组的标签
+2. **根因**：OPT-P1-11 标签系统开发时，`tag_suggest` 仅做了 `@require_permission('cron:read')` 角色检查，未对齐同模块其他路由的 scope 校验模式
+3. **测试漏洞**：标签测试（`test_tag_scope`）覆盖了标签 CRUD 的 scope 隔离，但未包含 `tag_suggest` 端点
+4. **修复**：非 bypass 用户请求的 `group_id` 不在其 `session_group_ids()` 中时返回空列表
+5. **防护测试**：冒烟路由通过（86 条）
+6. **同类排查**：同文件其他数据端点（`cron_list`、`execution_logs`）均有 `build_scope_filter_clause` 或等效 scope 检查
+7. **预防方案**：`AGENTS.md` 已有「新功能路由 scope 对齐」规则
+
 ---
 
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

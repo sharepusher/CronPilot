@@ -349,6 +349,7 @@ def cron_list():
                 'failing': metrics['failing'],
                 'consecutive_failing': consecutive_failing,
                 'overdue_count': overdue_count,
+                'today_total_runs': metrics['today_total_runs'],
                 'today_fail_runs': metrics['today_fail_runs'],
                 'total': metrics['total'],
                 'today_success_rate': today_success_rate,
@@ -1089,6 +1090,12 @@ def tag_suggest():
     prefix = (request.args.get('q') or '').strip()
     raw_gid = request.args.get('group_id', '').strip()
     group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
+
+    if group_id is not None and not _session_bypasses_scope():
+        user_gids = session_group_ids()
+        if group_id not in user_gids:
+            return jsonify([])
+
     tags = suggest_tags(prefix=prefix, limit=20, group_id=group_id)
     return jsonify(tags)
 

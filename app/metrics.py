@@ -67,6 +67,15 @@ try:
         ['cron_id'],
     )
 
+    # ------------------------------------------------------------------ #
+    # Orphan task gauge (cron_infos record without scheduler job)          #
+    # Updated by cron_check reconciliation — alert only, no auto-retire.  #
+    # ------------------------------------------------------------------ #
+    ORPHAN_TASKS = Gauge(
+        'cronpilot_orphan_tasks',
+        'Active cron_infos records with no matching apscheduler_jobs entry',
+    )
+
     _PROMETHEUS_AVAILABLE = True
 
 except ImportError:
@@ -81,4 +90,4 @@ except ImportError:
 
     _noop = _NoOp()
     JOB_TOTAL = JOB_DURATION = TRIGGER_DELAY = JOB_LOG_WRITE_BYTES = JOBS_ACTIVE = _noop
-    ORPHAN_JOB_DETECTED = _noop
+    ORPHAN_JOB_DETECTED = ORPHAN_TASKS = _noop

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>系统对账安全加固设计 — CronPilot</title>
+<style>
+  body { font: 16px/1.7 -apple-system, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1e293b; }
+  h1 { font-size: 1.6rem; border-bottom: 2px solid #3b82f6; padding-bottom: .5rem; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; color: #1e40af; }
+  h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 600; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: .85em; }
+  .highlight { background: #fef3c7; border-left: 4px solid #f59e0b; padding: .75rem 1rem; margin: 1rem 0; }
+  .danger { background: #fee2e2; border-left: 4px solid #ef4444; padding: .75rem 1rem; margin: 1rem 0; }
+  .success { background: #dcfce7; border-left: 4px solid #22c55e; padding: .75rem 1rem; margin: 1rem 0; }
+  pre { background: #f8fafc; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>系统对账安全加固设计</h1>
+<p><strong>编号</strong>：OPT-P0-18 &nbsp; <strong>版本</strong>：rev.1 &nbsp; <strong>日期</strong>：2026-09-02</p>
+<p><strong>关联</strong>：<code>app/crons.py::cron_check()</code>、<code>app/services/cron_service.py::apply_retire()</code></p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 现状</h3>
+<p><code>cron_check()</code> 定时扫描 <code>cron_infos</code> 与 <code>apscheduler_jobs</code> 的差异，若发现 <code>cron_infos</code> 中存在但 <code>apscheduler_jobs</code> 中不存在的任务（孤儿），<strong>直接调用 <code>apply_retire()</code> 将其永久下线</strong>（<code>status = -1</code>，不可恢复）。</p>
+
+<h3>1.2 预期</h3>
+<p>对账仅负责<strong>检测异常并告警</strong>，不执行任何不可逆操作。孤儿任务的处置由管理员通过 Web UI 手动决策。</p>
+
+<h3>1.3 风险事件（真实案例）</h3>
+<div class="danger">
+<strong>2026-09 事件</strong>：因 <code>conf.ini</code> 数据库 URL 配置错误（<code>sqlite:///:memory:</code>），APScheduler 的 JobStore 指向了临时数据库。服务重启后 <code>apscheduler_jobs</code> 为空，<code>cron_check()</code> 将全部 9 个任务自动下线。管理员在浏览器验收时才发现所有任务状态异常。
+</div>
+
+<h2>2. 根因</h2>
+<table>
+  <tr><th>根因</th><th>描述</th></tr>
+  <tr>
+    <td>检测与修复耦合</td>
+    <td><code>cron_check</code> 将"发现异常"和"执行修复"合并在同一函数中，违反了 <strong>Alerting ≠ Remediation</strong> 原则</td>
+  </tr>
+  <tr>
+    <td>无批量保护</td>
+    <td>无论孤儿数量占比多大，都逐个执行 <code>apply_retire</code>，无熔断机制</td>
+  </tr>
+  <tr>
+    <td>不区分场景</td>
+    <td>JobStore 完全为空（配置错误/迁移中）与个别任务孤立是完全不同的场景，但代码一视同仁</td>
+  </tr>
+  <tr>
+    <td>不可逆操作无确认</td>
+    <td>下线操作在 CronPilot 中不可恢复，但对账自动执行此操作无需人工确认</td>
+  </tr>
+</table>
+
+<h2>3. 行业对照</h2>
+<table>
+  <tr><th>维度</th><th>CronPilot 当前</th><th>Kubernetes</th><th>Airflow</th><th>行业最佳实践</th></tr>
+  <tr>
+    <td>孤儿处理</td>
+    <td><strong>自动下线（不可逆）</strong></td>
+    <td>标记 Suspended（可恢复）</td>
+    <td>标记 deactivated（可恢复）</td>
+    <td>检测 → 告警 → 人工决策</td>
+  </tr>
+  <tr>
+    <td>批量保护</td>
+    <td>无</td>
+    <td>Pod Disruption Budget</td>
+    <td>无批量操作</td>
+    <td>熔断阈值 + 告警</td>
+  </tr>
+  <tr>
+    <td>告警机制</td>
+    <td>操作日志（被动）</td>
+    <td>Event + Metrics</td>
+    <td>Alert Rules</td>
+    <td>结构化日志 + Metrics + Webhook</td>
+  </tr>
+</table>
+
+<h2>4. 方案</h2>
+
+<h3>4.1 核心原则</h3>
+<div class="success">
+<strong>对账只做两件事：检测异常 + 发出告警。绝不自动执行下线等不可逆操作。</strong>
+</div>
+
+<h3>4.2 五步模型：检测 → 标记 → 告警 → 展示 → 人工决策</h3>
+
+<table>
+  <tr><th>步骤</th><th>职责</th><th>实现</th></tr>
+  <tr>
+    <td><strong>1. 检测</strong></td>
+    <td>定时扫描 cron_infos vs apscheduler_jobs 差异</td>
+    <td>保留 <code>cron_check()</code> 的扫描逻辑</td>
+  </tr>
+  <tr>
+    <td><strong>2. 标记</strong></td>
+    <td>将孤儿任务标记为"待确认"状态</td>
+    <td>设置 <code>job_health.reconcile_flag = 'orphan'</code>（或独立字段）</td>
+  </tr>
+  <tr>
+    <td><strong>3. 告警</strong></td>
+    <td>通过日志 + Metrics + 可选 Webhook 通知运维</td>
+    <td><code>logger.warning()</code> + Prometheus <code>cronpilot_orphan_tasks_total</code> gauge</td>
+  </tr>
+  <tr>
+    <td><strong>4. 展示</strong></td>
+    <td>Dashboard 展示孤儿任务提醒</td>
+    <td>统计卡片增加"待确认"计数（或复用"持续异常"面板提示）</td>
+  </tr>
+  <tr>
+    <td><strong>5. 人工决策</strong></td>
+    <td>管理员通过 UI 逐任务处理：恢复调度 / 手动下线 / 标记已知</td>
+    <td>任务列表增加"孤儿"筛选 + 操作按钮</td>
+  </tr>
+</table>
+
+<h3>4.3 实现分批</h3>
+
+<h4>Phase 1（最小可用 · 推荐立即实施）：移除自动下线 + 告警</h4>
+<ul>
+  <li><strong>移除</strong> <code>cron_check()</code> 中对 <code>apply_retire()</code> 的调用</li>
+  <li><strong>替换为</strong> 结构化日志 <code>logger.warning("orphan_detected", ...)</code></li>
+  <li><strong>新增</strong> Prometheus gauge <code>cronpilot_orphan_tasks</code></li>
+  <li><strong>范围</strong>：仅改 <code>app/crons.py</code> + <code>app/metrics.py</code></li>
+  <li><strong>验收</strong>：模拟孤儿场景（手动从 apscheduler_jobs 删除一条），确认日志告警但任务不下线</li>
+</ul>
+
+<h4>Phase 2（增强 · 后续迭代）：Dashboard 展示 + 人工操作入口</h4>
+<ul>
+  <li>Dashboard 统计卡片增加"孤儿任务"计数</li>
+  <li>任务列表增加 <code>health='orphan'</code> 筛选</li>
+  <li>操作列增加"重新加载到调度器"/"确认下线"按钮</li>
+</ul>
+
+<h4>Phase 3（可选 · 长期演进）：Webhook 告警 + 自动恢复</h4>
+<ul>
+  <li>Webhook 通知（微信/钉钉/邮件）</li>
+  <li>"自动恢复调度"选项（将任务重新 add_job 到 APScheduler，而非下线）</li>
+</ul>
+
+<h3>4.4 Phase 1 代码变更</h3>
+
+<pre>
+# app/crons.py — cron_check() 修改前
+for item in cifs:
+    if "cron_%s" % item.id not in job_ids:
+        if item.status == -1:
+            continue
+        apply_retire(item, RETIRE_REASON_ORPHAN, ...)  # ← 删除
+        db.session.commit()                              # ← 删除
+        record_operation(...)                            # ← 保留，改为 action='orphan_detected'
+</pre>
+
+<pre>
+# app/crons.py — cron_check() 修改后
+orphan_count = 0
+for item in cifs:
+    if "cron_%s" % item.id not in job_ids:
+        if item.status == -1:
+            continue
+        orphan_count += 1
+        current_app.logger.warning(
+            "orphan task detected",
+            extra={
+                "event": "cron_check.orphan",
+                "cron_id": item.id,
+                "task_name": item.task_name,
+                "status": item.status,
+            },
+        )
+if orphan_count > 0:
+    ORPHAN_TASKS.set(orphan_count)  # Prometheus gauge
+    current_app.logger.warning(
+        "reconciliation: %d orphan tasks detected, manual action required",
+        orphan_count,
+        extra={"event": "cron_check.orphan_summary", "count": orphan_count},
+    )
+else:
+    ORPHAN_TASKS.set(0)
+</pre>
+
+<h2>5. 范围</h2>
+<table>
+  <tr><th>Phase</th><th>改动文件</th><th>不做</th></tr>
+  <tr>
+    <td>Phase 1</td>
+    <td><code>app/crons.py</code>（移除 apply_retire 调用，替换为日志+metrics）<br><code>app/metrics.py</code>（新增 gauge）</td>
+    <td>不改 UI；不新增数据库字段；不改 <code>apply_retire</code> 函数本身（手动下线仍可用）</td>
+  </tr>
+</table>
+
+<h2>6. 验收</h2>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>正常运行：所有 cron_infos 在 apscheduler_jobs 中有对应</td><td>无告警，<code>ORPHAN_TASKS = 0</code></td></tr>
+  <tr><td>2</td><td>模拟孤儿：手动从 apscheduler_jobs 删除 1 条</td><td>日志出现 <code>orphan task detected</code>，任务状态<strong>不变</strong>（不被下线）</td></tr>
+  <tr><td>3</td><td>模拟全量孤儿：清空 apscheduler_jobs</td><td>日志告警，所有任务状态不变，<code>ORPHAN_TASKS = N</code></td></tr>
+  <tr><td>4</td><td>确认手动下线仍可用</td><td>通过 UI 手动下线任务，<code>apply_retire</code> 正常工作</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>真正的孤儿任务不再自动下线</td>
+    <td>低：孤儿任务不占资源（APScheduler 中已不存在，不会触发回调）；但 Dashboard 统计可能包含</td>
+    <td>Phase 2 增加 UI 展示和操作入口</td>
+  </tr>
+  <tr>
+    <td>告警疲劳</td>
+    <td>中：如果长期不处理孤儿，每次 cron_check 都会重复告警</td>
+    <td>日志去重（仅首次和计数变化时告警）；Phase 2 增加"标记已知"操作</td>
+  </tr>
+</table>
+
+<h2>版本历史</h2>
+<table>
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.1</td><td>2026-09-02</td><td>初版：问题分析 + 行业对照 + 五步模型 + Phase 1 详细设计</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="系统对账安全加固设计.md">Markdown</a></footer>
+</body>
+</html>

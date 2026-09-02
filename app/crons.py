@@ -19,6 +19,7 @@ from app.metrics import (
     JOB_TOTAL,
     JOBS_ACTIVE,
     ORPHAN_JOB_DETECTED,
+    ORPHAN_TASKS,
     TRIGGER_DELAY,
     _ctx_enqueue_time,
 )
@@ -390,48 +391,30 @@ def cron_check():
             job_ids = fetch_apscheduler_job_ids(current_app.config.get('CRON_DB_URL'))
             cifs = db.session.scalars(select(CronInfos)).all()
 
+            orphan_count = 0
             if cifs:
                 for item in cifs:
                     if "cron_%s" % item.id not in job_ids:
                         if item.status == -1:
                             continue
-                        from app.services.cron_service import (
-                            RETIRE_REASON_ORPHAN,
-                            apply_retire,
-                        )
-                        from app.services.operation_log_service import (
-                            OperatorContext,
-                            record_operation,
-                            snapshot_cron,
-                        )
-                        apply_retire(
-                            item,
-                            RETIRE_REASON_ORPHAN,
-                            operator=OperatorContext(
-                                operator_type='system',
-                                operator_name='系统',
-                                roles=['system'],
-                                permissions=['*'],
-                            ),
-                        )
-                        db.session.commit()
-                        record_operation(
-                            action='retire_cron',
-                            channel='system',
-                            operator=OperatorContext(
-                                operator_type='system',
-                                operator_name='系统',
-                                roles=['system'],
-                                permissions=['*'],
-                            ),
-                            target_id=item.id,
-                            task_name=item.task_name or '',
-                            detail={
-                                'reason': item.retire_reason or '',
-                                'retired_at': item.retired_at or '',
-                                'snapshot': snapshot_cron(item),
+                        orphan_count += 1
+                        current_app.logger.warning(
+                            "orphan task detected: cron_%s (%s) — not in JobStore, manual action required",
+                            item.id, item.task_name or '',
+                            extra={
+                                "event": "cron_check.orphan",
+                                "cron_id": item.id,
+                                "task_name": item.task_name or '',
+                                "status": item.status,
                             },
                         )
+            ORPHAN_TASKS.set(orphan_count)
+            if orphan_count > 0:
+                current_app.logger.warning(
+                    "reconciliation complete: %d orphan task(s) detected, no auto-retire — manual action required",
+                    orphan_count,
+                    extra={"event": "cron_check.orphan_summary", "count": orphan_count},
+                )
             # Update active/retired gauge for Prometheus after reconciliation
             all_cifs = db.session.scalars(select(CronInfos)).all()
             active_count = sum(1 for c in all_cifs if c.status != -1)

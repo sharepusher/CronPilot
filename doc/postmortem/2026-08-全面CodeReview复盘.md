@@ -1273,4 +1273,59 @@ CI workflow 在初始创建后缺乏系统性一致性审计。路由变更、�
 
 ---
 
+## Code Review R5 — S-5 API 角色权限缺失根因分析（2026-08-28）
+
+### 1. Bug 定位
+
+`app/api/__init__.py` 的 `check_api_scope()` 函数（第 154-173 行）仅做组可见性（scope）校验，未调用 `effective_permissions()` 做角色能力校验。`app/api/views.py` 中 5 个 POST 端点（`cron_status`、`crons`、`crons_legacy`、`cron_retire_api`、`cron_add_log`）仅调用 `check_api_scope()`，缺失 `check_api_permission()`。
+
+### 2. 根因（5-Why）
+
+1. **Why**：API 写端点不校验角色权限 → **因为 `check_api_scope()` 只做 scope 不做 permission**
+2. **Why**：`check_api_scope()` 没有 permission 校验 → **因为初版 API 只有全局 token（等同 admin），不存在角色概念**
+3. **Why**：引入用户 Token 后未补齐 permission → **因为 OPT-P2-10 RBAC 重构聚焦 Web 侧，API 侧仅补了 scope 隔离（S-1 系列）**
+4. **Why**：API 侧被遗漏 → **因为"API 权限模型"没有作为 RBAC 设计文档的独立章节，也没有 Web/API 权限对比矩阵**
+5. **Why**：缺少对比矩阵 → **因为 API 和 Web 由不同阶段分别开发，权限语义未统一设计**
+
+### 3. 测试漏洞
+
+`tests/test_api_scope_s6.py` 充分覆盖了 scope 隔离（组可见性），但**没有任何测试用例**验证"低权限角色 Token 调用写端点被拒"。测试矩阵存在盲区：只测了"哪些任务可见"，未测"哪些操作可执行"。
+
+Web 侧 `tests/test_rbac_phase.py` 有完整的角色-权限矩阵测试（Viewer 不可写、Operator 不可 retire），但 API 侧无对等测试。
+
+### 4. 修复
+
+在 `app/api/__init__.py` 新增 `check_api_permission(required_perm)`，复用 `effective_permissions()`，在 5 个 POST 端点 scope 检查前调用。详见设计文档 `doc/design/API角色权限校验-S5-2026-08.html`。
+
+### 5. 防护测试
+
+- `test_viewer_cannot_toggle_status`：Viewer Token POST `/api/cron/status` → 403
+- `test_viewer_cannot_create_cron`：Viewer Token POST `/api/cron` → 403
+- `test_viewer_cannot_retire`：Viewer Token POST `/api/cron/retire` → 403
+- `test_operator_cannot_retire`：Operator Token POST `/api/cron/retire` → 403
+- `test_operator_can_toggle_status`：Operator Token POST `/api/cron/status` → 正常
+- `test_admin_full_access`：Admin Token POST 任意端点 → 正常
+- `test_seed_admin_no_write`：Seed Admin Token POST `/api/cron/status` → 403
+
+### 6. 同类排查
+
+- **GET 端点**：所有 GET 端点要求 `cron:read` 或 `log:read`，所有角色均具备，无需加固
+- **`/api/auth/token`**：豁免鉴权（用户通过用户名密码获取 Token），无需权限校验
+- **`/api/test`**：只读健康检查，无安全风险
+- **Web 侧**：`@require_permission` 覆盖完整，无遗漏
+
+### 7. 预防方案
+
+1. **AGENTS.md 新增规范**：「API 端点角色权限校验（强制）」——凡 API POST 端点必须同时调用 `check_api_permission(required_perm)` 和 `check_api_scope(cron_info)`，且 permission 检查在 scope 之前。
+     
+   落地位置：`AGENTS.md` + `.cursor/rules/cronpilot-backend.mdc`
+     
+   验证命令：`grep -n "api.post\|check_api_permission" app/api/views.py | grep -c "check_api_permission"`（应 ≥ 5）
+2. **测试门禁**：`tests/test_api_scope_s6.py` 新增 `TestApiRolePermission` 类，覆盖 Viewer/Operator/Admin/Seed Admin 四种角色对所有 POST 端点的权限矩阵。
+     
+   验证命令：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v`
+3. **权限对比矩阵文档化**：在设计文档中记录 Web/API 权限对照表，后续新增端点时参照。
+
+---
+
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

@@ -424,6 +424,11 @@ def cron_log_detail():
 )
 @api.input(AddLogIn, location='form', arg_name='form_data')
 def cron_add_log(form_data):
+    from . import check_api_permission
+    denied = check_api_permission('cron:write')
+    if denied is not None:
+        return denied
+
     cronpilot_trace_id = form_data.get('cronpilot_trace_id')
     content = form_data.get('content')
 
@@ -465,7 +470,10 @@ def cron_add_log(form_data):
 def cron_retire_api(form_data):
     from app.services.cron_service import retire_cron_by_task_name
 
-    from . import check_api_scope
+    from . import check_api_permission, check_api_scope
+    denied = check_api_permission('cron:retire')
+    if denied is not None:
+        return denied
 
     task_name = form_data.get('task_name')
     reason = form_data.get('reason')
@@ -501,7 +509,10 @@ def cron_retire_api(form_data):
 )
 @api.input(CronStatusIn, location='form', arg_name='form_data')
 def cron_status(form_data):
-    from . import check_api_scope
+    from . import check_api_permission, check_api_scope
+    denied = check_api_permission('cron:write')
+    if denied is not None:
+        return denied
 
     task_name = form_data.get('task_name')
     status = form_data.get('status')
@@ -537,7 +548,10 @@ def cron_status(form_data):
 )
 @api.input(CronUpsertIn, location='form', arg_name='form_data')
 def crons(form_data):
-    from . import check_api_scope
+    from . import check_api_permission, check_api_scope
+    denied = check_api_permission('cron:write')
+    if denied is not None:
+        return denied
 
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
@@ -570,7 +584,10 @@ def crons_legacy():
     新调用方请使用 POST /api/cron。
     access_token 鉴权由 Blueprint before_request 统一处理。
     """
-    from . import check_api_scope
+    from . import check_api_permission, check_api_scope
+    denied = check_api_permission('cron:write')
+    if denied is not None:
+        return denied
 
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))

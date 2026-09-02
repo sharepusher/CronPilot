@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<title>S-5 API 角色权限校验 — 设计文档</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:900px;margin:2em auto;line-height:1.7;color:#1a1a1a;padding:0 1em}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}
+h2{color:#2563eb;margin-top:2em}
+h3{color:#1e40af}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f0f4ff}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:0.9em}
+pre{background:#1e293b;color:#e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.8em;font-weight:600}
+.b-p0{background:#fecaca;color:#991b1b}
+.meta{color:#6b7280;font-size:0.9em}
+.warn{background:#fffbeb;border-left:3px solid #f59e0b;padding:0.5em 1em;margin:1em 0}
+</style>
+</head>
+<body>
+
+<h1>S-5 API 角色权限校验</h1>
+<p class="meta">
+  <span class="badge b-p0">P0 安全</span>
+  状态：<strong>已交付</strong> ·
+  编号：R5-S-5 ·
+  日期：2026-08-28 ·
+  关联：OPT-P2-10（RBAC v4）
+</p>
+
+<h2>1. 问题</h2>
+<p>Web UI 的 RBAC 权限体系通过 <code>@require_permission('cron:write')</code> 等装饰器，在视图层强制校验用户角色是否拥有对应能力（如 <code>cron:write</code>、<code>cron:retire</code>）。</p>
+<p>API 层（<code>app/api/views.py</code>）的所有端点仅调用 <code>check_api_scope(cron_info)</code> 做<strong>组可见性</strong>（scope）校验，<strong>完全缺失角色能力校验</strong>。这意味着持有任何角色的 API Token 的用户，只要任务在其组内可见，就能执行任意操作。</p>
+
+<h2>2. 根因</h2>
+<p>API Token 鉴权系统（<code>app/api/__init__.py</code>）的设计历史：</p>
+<ul>
+  <li>初版 API 只有一个全局 <code>api_access_token</code>（conf.ini），等同于 admin，无角色概念</li>
+  <li>OPT-P2-10 引入 RBAC 用户 Token 后，<code>_resolve_user_token()</code> 正确解析了 <code>user_role</code>、<code>group_ids</code> 等信息存入 <code>request._api_scope</code></li>
+  <li>但 <code>check_api_scope()</code> 只实现了 scope（组可见性）层面的校验，<strong>从未调用 <code>effective_permissions()</code> 做能力校验</strong></li>
+  <li>Web 侧 <code>@require_permission</code> 是视图装饰器，API Blueprint 没有对等的装饰器或拦截器</li>
+</ul>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 新增 <code>check_api_permission(required_perm)</code></h3>
+<p>在 <code>app/api/__init__.py</code> 新增函数，复用 Web 侧 <code>effective_permissions()</code>：</p>
+
+<pre>
+def check_api_permission(required_perm):
+    """检查当前 API scope 的角色是否拥有指定权限。
+
+    全局 token（role='admin'）直接放行。
+    用户 token 依据 user_role + username 计算 effective_permissions。
+    返回 None 表示允许，否则返回 403 JSON 响应。
+    """
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    if scope.get('role') == 'admin':
+        return None
+    from app.rbac.policy import effective_permissions
+    user_role = scope.get('user_role', '')
+    username = scope.get('username', '')
+    perms = effective_permissions(user_role, username=username)
+    if required_perm not in perms:
+        from datas.utils.json import api_return
+        return api_return(errcode=1, errmsg='权限不足'), 403
+    return None
+</pre>
+
+<h3>3.2 逐端点加固</h3>
+<table>
+  <tr><th>端点</th><th>方法</th><th>所需权限</th><th>当前校验</th><th>变更</th></tr>
+  <tr><td><code>/api/cron/status</code></td><td>POST</td><td><code>cron:write</code></td><td>仅 scope</td><td>+<code>check_api_permission('cron:write')</code></td></tr>
+  <tr><td><code>/api/cron</code></td><td>POST</td><td><code>cron:write</code></td><td>仅 scope</td><td>+<code>check_api_permission('cron:write')</code></td></tr>
+  <tr><td><code>/api/cron/add</code>（旧路径）</td><td>POST</td><td><code>cron:write</code></td><td>仅 scope</td><td>+<code>check_api_permission('cron:write')</code></td></tr>
+  <tr><td><code>/api/cron/retire</code></td><td>POST</td><td><code>cron:retire</code></td><td>仅 scope</td><td>+<code>check_api_permission('cron:retire')</code></td></tr>
+  <tr><td><code>/api/cron/add_log</code></td><td>POST</td><td><code>cron:write</code></td><td>仅 scope</td><td>+<code>check_api_permission('cron:write')</code></td></tr>
+  <tr><td><code>/api/cron/query</code></td><td>GET</td><td><code>cron:read</code></td><td>scope</td><td>无变更（所有角色都有 <code>cron:read</code>）</td></tr>
+  <tr><td><code>/api/cron/logs</code></td><td>GET</td><td><code>log:read</code></td><td>scope</td><td>无变更（所有角色都有 <code>log:read</code>）</td></tr>
+  <tr><td><code>/api/cron/detail</code></td><td>GET</td><td><code>cron:read</code></td><td>scope</td><td>无变更</td></tr>
+  <tr><td><code>/api/cron/log/detail</code></td><td>GET</td><td><code>log:read</code></td><td>scope</td><td>无变更</td></tr>
+  <tr><td><code>/api/auth/token</code></td><td>POST</td><td>—</td><td>豁免</td><td>无变更</td></tr>
+  <tr><td><code>/api/test</code></td><td>GET</td><td>—</td><td>无校验</td><td>无变更</td></tr>
+</table>
+
+<p>GET 端点不需变更，因为所有角色（viewer/operator/admin）都具备 <code>cron:read</code> 和 <code>log:read</code>。仅 5 个 POST 写端点需要加固。</p>
+
+<h3>3.3 调用位置</h3>
+<p>权限检查应在 scope 检查<strong>之前</strong>，因为权限是全局性的（不依赖特定资源），scope 是资源级的。</p>
+
+<pre>
+@api.post('/cron/status')
+@api_deal_return
+@api_data_form(CronStatusIn)
+def cron_status(form_data):
+    from . import check_api_permission, check_api_scope   # 新增 check_api_permission
+    denied = check_api_permission('cron:write')             # ← 新增：角色能力校验
+    if denied:
+        return denied
+    # ... 后续 scope 校验和业务逻辑不变
+</pre>
+
+<h2>4. 范围</h2>
+<table>
+  <tr><th>变更文件</th><th>变更内容</th></tr>
+  <tr><td><code>app/api/__init__.py</code></td><td>新增 <code>check_api_permission()</code>（~15 行）</td></tr>
+  <tr><td><code>app/api/views.py</code></td><td>5 个 POST 端点各加 3 行</td></tr>
+  <tr><td><code>tests/test_api_scope_s6.py</code></td><td>新增角色权限拒绝测试</td></tr>
+  <tr><td><code>RELEASE_NOTES.md</code></td><td>安全修复条目</td></tr>
+  <tr><td><code>AGENTS.md</code></td><td>预防规范</td></tr>
+</table>
+
+<p><strong>明确不做</strong>：</p>
+<ul>
+  <li>不修改 GET 端点（所有角色已有读权限）</li>
+  <li>不修改全局 token（<code>role='admin'</code>）的行为</li>
+  <li>不修改 <code>check_api_scope()</code> 现有逻辑</li>
+  <li>不引入 API 端点级的细粒度权限（如 <code>api:cron:write</code>），复用 Web 侧权限字符串</li>
+</ul>
+
+<h2>5. 分批</h2>
+<p>单批交付（变更范围小，无需拆分）：</p>
+<ol>
+  <li>新增 <code>check_api_permission()</code></li>
+  <li>5 个端点加固</li>
+  <li>测试用例</li>
+  <li>验证 + 文档</li>
+</ol>
+
+<h2>6. 验收</h2>
+<table>
+  <tr><th>验收项</th><th>命令/步骤</th><th>期望结果</th></tr>
+  <tr><td>单元测试</td><td><code>bash scripts/cronpilot.sh test</code></td><td>全通过，无新增失败</td></tr>
+  <tr><td>Viewer 写被拒</td><td>Viewer Token POST <code>/api/cron/status</code></td><td>403 + <code>"权限不足"</code></td></tr>
+  <tr><td>Viewer 读允许</td><td>Viewer Token GET <code>/api/cron/query</code></td><td>200 + 正常数据</td></tr>
+  <tr><td>Operator retire 被拒</td><td>Operator Token POST <code>/api/cron/retire</code></td><td>403 + <code>"权限不足"</code></td></tr>
+  <tr><td>Operator 写允许</td><td>Operator Token POST <code>/api/cron/status</code></td><td>正常执行</td></tr>
+  <tr><td>Admin 不受影响</td><td>Admin Token POST 任意端点</td><td>正常执行</td></tr>
+  <tr><td>全局 Token 不受影响</td><td>全局 <code>api_access_token</code> POST 任意端点</td><td>正常执行</td></tr>
+  <tr><td>Seed Admin 裁剪</td><td>Seed Admin Token POST <code>/api/cron/status</code></td><td>403（无 <code>cron:write</code>）</td></tr>
+  <tr><td>冒烟路由</td><td><code>python scripts/smoke_routes.py --check</code></td><td>86 条全通过</td></tr>
+</table>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>向后兼容</strong>：如果现有自动化脚本使用 Viewer/Operator Token 调用写端点，升级后会收到 403。这是<strong>预期行为</strong>，属于安全修复而非破坏性变更。RELEASE_NOTES 需标注 <code>⚠️ API Breaking Change</code></li>
+  <li><strong>全局 Token 不受影响</strong>：使用 <code>conf.ini</code> 中 <code>api_access_token</code> 的调用方不受任何影响</li>
+  <li><strong>回滚方案</strong>：删除 <code>check_api_permission()</code> 调用即可恢复原行为</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="API角色权限校验-S5-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

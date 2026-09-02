@@ -7,6 +7,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 安全修复 — R5 API 角色权限校验（S-5）
+
+- **P0 权限提升**：API 端点仅校验 scope（组可见性），未校验角色能力。Viewer Token 可调用 `cron:write` 写端点（status/create/add_log），Operator Token 可调用 `cron:retire` 下线端点
+- **修复**：新增 `check_api_permission(required_perm)` 函数，复用 `effective_permissions()`，在 5 个 POST 端点 scope 检查前调用
+- **覆盖端点**：`/api/cron/status` · `/api/cron` · `/api/cron/add` · `/api/cron/retire` · `/api/cron/add_log`
+- **回归测试**：新增 `TestApiRolePermission`（13 条用例），覆盖 Viewer/Operator/Admin/Seed Admin/Global Token 权限矩阵
+- ⚠️ **API Breaking Change**：使用 Viewer/Operator Token 调用上述写端点的自动化脚本升级后将收到 403。全局 `api_access_token` 不受影响
+
 ### 修复 — R4 即修批次（B-9 + CI 配置）
 
 - **B-9**：`cron_add_log` 当父任务行缺失时拒绝操作（原来跳过 scope 检查）

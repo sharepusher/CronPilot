@@ -1160,5 +1160,56 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
 <h4>共性根因</h4>
 <p>CI workflow 在初始创建后缺乏系统性一致性审计。路由变更、文件重命名、分支策略变更后未同步更新 CI 配置。<b>预防方案</b>：未来可通过 CI 门禁脚本（如 <code>check_ci_consistency.py</code>）自动检测 workflow 间的分支策略和 path filter 不一致。</p>
 
+<hr>
+<h2>Code Review R5 — S-5 API 角色权限缺失根因分析（2026-08-28）</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/api/__init__.py</code> 的 <code>check_api_scope()</code> 函数（第 154-173 行）仅做组可见性（scope）校验，未调用 <code>effective_permissions()</code> 做角色能力校验。<code>app/api/views.py</code> 中 5 个 POST 端点（<code>cron_status</code>、<code>crons</code>、<code>crons_legacy</code>、<code>cron_retire_api</code>、<code>cron_add_log</code>）仅调用 <code>check_api_scope()</code>，缺失 <code>check_api_permission()</code>。</p>
+
+<h3>2. 根因（5-Why）</h3>
+<ol>
+  <li><b>Why</b>：API 写端点不校验角色权限 → <b>因为 <code>check_api_scope()</code> 只做 scope 不做 permission</b></li>
+  <li><b>Why</b>：<code>check_api_scope()</code> 没有 permission 校验 → <b>因为初版 API 只有全局 token（等同 admin），不存在角色概念</b></li>
+  <li><b>Why</b>：引入用户 Token 后未补齐 permission → <b>因为 OPT-P2-10 RBAC 重构聚焦 Web 侧，API 侧仅补了 scope 隔离（S-1 系列）</b></li>
+  <li><b>Why</b>：API 侧被遗漏 → <b>因为"API 权限模型"没有作为 RBAC 设计文档的独立章节，也没有 Web/API 权限对比矩阵</b></li>
+  <li><b>Why</b>：缺少对比矩阵 → <b>因为 API 和 Web 由不同阶段分别开发，权限语义未统一设计</b></li>
+</ol>
+
+<h3>3. 测试漏洞</h3>
+<p><code>tests/test_api_scope_s6.py</code> 充分覆盖了 scope 隔离（组可见性），但<b>没有任何测试用例</b>验证"低权限角色 Token 调用写端点被拒"。测试矩阵存在盲区：只测了"哪些任务可见"，未测"哪些操作可执行"。</p>
+<p>Web 侧 <code>tests/test_rbac_phase.py</code> 有完整的角色-权限矩阵测试（Viewer 不可写、Operator 不可 retire），但 API 侧无对等测试。</p>
+
+<h3>4. 修复</h3>
+<p>在 <code>app/api/__init__.py</code> 新增 <code>check_api_permission(required_perm)</code>，复用 <code>effective_permissions()</code>，在 5 个 POST 端点 scope 检查前调用。详见设计文档 <code>doc/design/API角色权限校验-S5-2026-08.html</code>。</p>
+
+<h3>5. 防护测试</h3>
+<ul>
+  <li><code>test_viewer_cannot_toggle_status</code>：Viewer Token POST <code>/api/cron/status</code> → 403</li>
+  <li><code>test_viewer_cannot_create_cron</code>：Viewer Token POST <code>/api/cron</code> → 403</li>
+  <li><code>test_viewer_cannot_retire</code>：Viewer Token POST <code>/api/cron/retire</code> → 403</li>
+  <li><code>test_operator_cannot_retire</code>：Operator Token POST <code>/api/cron/retire</code> → 403</li>
+  <li><code>test_operator_can_toggle_status</code>：Operator Token POST <code>/api/cron/status</code> → 正常</li>
+  <li><code>test_admin_full_access</code>：Admin Token POST 任意端点 → 正常</li>
+  <li><code>test_seed_admin_no_write</code>：Seed Admin Token POST <code>/api/cron/status</code> → 403</li>
+</ul>
+
+<h3>6. 同类排查</h3>
+<ul>
+  <li><b>GET 端点</b>：所有 GET 端点要求 <code>cron:read</code> 或 <code>log:read</code>，所有角色均具备，无需加固</li>
+  <li><b><code>/api/auth/token</code></b>：豁免鉴权（用户通过用户名密码获取 Token），无需权限校验</li>
+  <li><b><code>/api/test</code></b>：只读健康检查，无安全风险</li>
+  <li><b>Web 侧</b>：<code>@require_permission</code> 覆盖完整，无遗漏</li>
+</ul>
+
+<h3>7. 预防方案</h3>
+<ol>
+  <li><b>AGENTS.md 新增规范</b>：「API 端点角色权限校验（强制）」——凡 API POST 端点必须同时调用 <code>check_api_permission(required_perm)</code> 和 <code>check_api_scope(cron_info)</code>，且 permission 检查在 scope 之前。
+    <br>落地位置：<code>AGENTS.md</code> + <code>.cursor/rules/cronpilot-backend.mdc</code>
+    <br>验证命令：<code>grep -n "api.post\|check_api_permission" app/api/views.py | grep -c "check_api_permission"</code>（应 ≥ 5）</li>
+  <li><b>测试门禁</b>：<code>tests/test_api_scope_s6.py</code> 新增 <code>TestApiRolePermission</code> 类，覆盖 Viewer/Operator/Admin/Seed Admin 四种角色对所有 POST 端点的权限矩阵。
+    <br>验证命令：<code>.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v</code></li>
+  <li><b>权限对比矩阵文档化</b>：在设计文档中记录 Web/API 权限对照表，后续新增端点时参照。</li>
+</ol>
+
 </body>
 </html>

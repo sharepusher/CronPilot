@@ -151,6 +151,26 @@ def _resolve_user_token(token):
         return None
 
 
+def check_api_permission(required_perm):
+    """检查当前 API scope 的角色是否拥有指定权限。
+
+    全局 token（role='admin'）直接放行。
+    用户 token 依据 user_role + username 计算 effective_permissions。
+    返回 None 表示允许，否则返回 403 JSON 响应。
+    """
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    if scope.get('role') == 'admin':
+        return None
+    from app.rbac.policy import effective_permissions
+    user_role = scope.get('user_role', '')
+    username = scope.get('username', '')
+    perms = effective_permissions(user_role, username=username)
+    if required_perm not in perms:
+        from datas.utils.json import api_return
+        return api_return(errcode=1, errmsg='权限不足'), 403
+    return None
+
+
 def check_api_scope(cron_info):
     """检查当前请求的 API Scope 是否允许操作目标任务。
 

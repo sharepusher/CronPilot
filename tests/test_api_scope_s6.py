@@ -481,5 +481,102 @@ class TestCacheMechanics(unittest.TestCase):
         self.assertIn('group_ids', cached)
 
 
+class TestApiRolePermission(unittest.TestCase):
+    """S-5: check_api_permission() — 角色能力校验。
+
+    直接测试函数逻辑，不经过 HTTP 端点链，避免 apiflask schema 依赖。
+    """
+
+    def setUp(self):
+        self.app, self.db = _make_app()
+
+    def _call(self, required_perm, scope):
+        """在 request context 中调用 check_api_permission。"""
+        from app.api import check_api_permission
+        with self.app.test_request_context('/api/test'):
+            from flask import request
+            request._api_scope = scope
+            return check_api_permission(required_perm)
+
+    def _viewer_scope(self):
+        return {'role': 'user', 'user_role': 'viewer', 'username': 'v1',
+                'group_ids': [1], 'is_active': True, 'expired': False}
+
+    def _operator_scope(self):
+        return {'role': 'user', 'user_role': 'operator', 'username': 'op1',
+                'group_ids': [1], 'is_active': True, 'expired': False}
+
+    def _admin_scope(self):
+        return {'role': 'user', 'user_role': 'admin', 'username': 'a1',
+                'group_ids': [1], 'is_active': True, 'expired': False}
+
+    def _global_admin_scope(self):
+        return {'role': 'admin'}
+
+    def _seed_admin_scope(self):
+        return {'role': 'user', 'user_role': 'admin', 'username': 'admin',
+                'group_ids': [1], 'is_active': True, 'expired': False}
+
+    def test_viewer_denied_cron_write(self):
+        result = self._call('cron:write', self._viewer_scope())
+        self.assertIsNotNone(result, 'viewer should be denied cron:write')
+        resp, code = result
+        self.assertEqual(code, 403)
+
+    def test_viewer_denied_cron_retire(self):
+        result = self._call('cron:retire', self._viewer_scope())
+        self.assertIsNotNone(result)
+        self.assertEqual(result[1], 403)
+
+    def test_viewer_allowed_cron_read(self):
+        result = self._call('cron:read', self._viewer_scope())
+        self.assertIsNone(result, 'viewer should be allowed cron:read')
+
+    def test_viewer_allowed_log_read(self):
+        result = self._call('log:read', self._viewer_scope())
+        self.assertIsNone(result, 'viewer should be allowed log:read')
+
+    def test_operator_allowed_cron_write(self):
+        result = self._call('cron:write', self._operator_scope())
+        self.assertIsNone(result, 'operator should be allowed cron:write')
+
+    def test_operator_denied_cron_retire(self):
+        result = self._call('cron:retire', self._operator_scope())
+        self.assertIsNotNone(result, 'operator should be denied cron:retire')
+        self.assertEqual(result[1], 403)
+
+    def test_operator_denied_user_manage(self):
+        result = self._call('user:manage', self._operator_scope())
+        self.assertIsNotNone(result)
+        self.assertEqual(result[1], 403)
+
+    def test_admin_allowed_cron_retire(self):
+        result = self._call('cron:retire', self._admin_scope())
+        self.assertIsNone(result, 'admin should be allowed cron:retire')
+
+    def test_admin_allowed_user_manage(self):
+        result = self._call('user:manage', self._admin_scope())
+        self.assertIsNone(result, 'admin should be allowed user:manage')
+
+    def test_global_token_bypasses_all(self):
+        result = self._call('cron:retire', self._global_admin_scope())
+        self.assertIsNone(result, 'global admin token should bypass all checks')
+
+    def test_seed_admin_denied_cron_write(self):
+        """Seed admin (username='admin') has SEED_ADMIN_PERMISSIONS, not cron:write."""
+        result = self._call('cron:write', self._seed_admin_scope())
+        self.assertIsNotNone(result, 'seed admin should be denied cron:write')
+        self.assertEqual(result[1], 403)
+
+    def test_seed_admin_allowed_user_manage(self):
+        result = self._call('user:manage', self._seed_admin_scope())
+        self.assertIsNone(result, 'seed admin should be allowed user:manage')
+
+    def test_error_message_contains_hint(self):
+        result = self._call('cron:write', self._viewer_scope())
+        resp_data = result[0].get_json()
+        self.assertIn('权限不足', resp_data.get('errmsg', ''))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>前端修复 F-1 / F-6 设计方案（R4 Review）</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2em auto; line-height: 1.7; color: #333; padding: 0 1em; }
+h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+h2 { color: #1e40af; margin-top: 2em; }
+h3 { color: #374151; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+th { background: #f3f4f6; }
+code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+.demo-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 12px 0; }
+.demo-before { background: #fef2f2; border-color: #fecaca; }
+.demo-after { background: #f0fdf4; border-color: #bbf7d0; }
+.demo-label { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.demo-label.before { color: #dc2626; }
+.demo-label.after { color: #16a34a; }
+.status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.status-pending { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+
+<h1>前端修复 F-1 / F-6 设计方案</h1>
+<p><b>来源</b>：R4 Code Review &nbsp;|&nbsp; <b>状态</b>：<span class="status status-pending">设计待确认</span></p>
+
+<hr>
+
+<h2>F-1：Vue 组件 Font Awesome 图标缺失</h2>
+
+<h3>问题</h3>
+<p><code>CronFormValidator.vue</code> 使用 4 处 Font Awesome 图标（<code>fa-exclamation-triangle</code>、<code>fa-clock-o</code>、<code>fa-exclamation-circle</code> ×2），但 Redesign shell 不加载 Font Awesome CSS。图标在任务表单中不显示。</p>
+
+<h3>根因</h3>
+<p>该 Vue 组件最初在 v1 simpleboot 环境下开发（v1 通过 <code>admin_base.html</code> 加载 FA CSS）。迁移到 Redesign v2 后，FA 依赖未同步替换为 inline SVG。</p>
+
+<h3>方案</h3>
+<p>将 4 处 <code>&lt;i class="fa ..."&gt;</code> 替换为 inline SVG，复用 Redesign 已有的 SVG 图案（Heroicons 风格）。</p>
+
+<h3>对比 Demo</h3>
+
+<div class="demo-box demo-before">
+<div class="demo-label before">BEFORE（当前效果 — 图标不可见）</div>
+<div style="display:inline-flex;align-items:center;gap:6px;background:#1a2332;border:1px solid #2d3f54;border-radius:4px;padding:4px 10px;font-size:12px;color:#f87171;margin:4px 0;">
+  <i class="fa fa-exclamation-triangle"></i> 分 超出范围 0-59：65
+</div>
+<p style="font-size:12px;color:#999;margin-top:4px;">⬆ <code>&lt;i class="fa fa-exclamation-triangle"&gt;</code> 无样式，图标不渲染</p>
+<div style="display:inline-flex;align-items:center;gap:6px;background:#0f2418;border:1px solid #1a3d2a;border-radius:4px;padding:4px 10px;font-size:12px;color:#4ade80;margin:4px 0;">
+  <i class="fa fa-clock-o"></i> 每天 09:30
+</div>
+<p style="font-size:12px;color:#999;margin-top:4px;">⬆ <code>&lt;i class="fa fa-clock-o"&gt;</code> 时钟图标不渲染</p>
+</div>
+
+<div class="demo-box demo-after">
+<div class="demo-label after">AFTER（修复后 — inline SVG 可见）</div>
+<div style="display:inline-flex;align-items:center;gap:6px;background:#1a2332;border:1px solid #2d3f54;border-radius:4px;padding:4px 10px;font-size:12px;color:#f87171;margin:4px 0;">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+  分 超出范围 0-59：65
+</div>
+<p style="font-size:12px;color:#999;margin-top:4px;">⬆ 警告三角形 inline SVG，与 Redesign <code>error.html</code> 一致</p>
+<div style="display:inline-flex;align-items:center;gap:6px;background:#0f2418;border:1px solid #1a3d2a;border-radius:4px;padding:4px 10px;font-size:12px;color:#4ade80;margin:4px 0;">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  每天 09:30
+</div>
+<p style="font-size:12px;color:#999;margin-top:4px;">⬆ 时钟 inline SVG（Heroicons clock 风格）</p>
+</div>
+
+<h3>范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>frontend/src/components/CronFormValidator.vue</code></td><td>替换 4 处 <code>&lt;i class="fa ..."&gt;</code> 为 inline SVG</td></tr>
+<tr><td><code>app/static/dist/cron-form-validator.js</code></td><td><code>npm run build</code> 重新生成</td></tr>
+<tr><td><code>app/static/dist/cron-form-validator.css</code></td><td>同上</td></tr>
+</table>
+
+<h3>不做</h3>
+<ul>
+<li>不引入 Font Awesome CSS（Redesign 统一使用 inline SVG）</li>
+<li>不修改 Vue 组件逻辑或其他视觉样式</li>
+</ul>
+
+<h3>分批</h3>
+<p>单批次：替换 → build → 验收。</p>
+
+<h3>验收</h3>
+<ol>
+<li><code>cd frontend && npm run build</code> 无报错</li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+<li>浏览器打开 <code>/cron_add</code>，填写 cron 表达式 → 预览区显示时钟 SVG + 人话描述</li>
+<li>填写无效值 → 错误提示显示警告三角形 SVG</li>
+<li>填写无效 URL → 错误提示显示感叹号 SVG</li>
+</ol>
+
+<h3>风险</h3>
+<p>低。仅替换不可见的图标标签，不改变组件逻辑或数据流。</p>
+
+<hr>
+
+<h2>F-6：AJAX 错误响应触发重定向（丢失表单数据）</h2>
+
+<h3>问题</h3>
+<p><code>common-redesign.js</code> 第 112-113 行：当 <code>errcode !== 0</code>（验证失败）且响应包含 <code>url</code> 字段时，800ms 后自动重定向到 <code>data.url</code>，导致用户丢失已填写的表单数据。</p>
+
+<h3>根因</h3>
+<p>该分支最初设计为"错误时跳转回列表页"的兜底行为，但与项目规范冲突：错误响应中不应包含 <code>url</code> 字段（已在 <code>.cursor/rules/cronpilot-project.mdc</code> 中明确禁止）。双重保护缺失。</p>
+
+<h3>方案</h3>
+<p>删除 <code>errcode !== 0</code> 时的重定向分支，仅保留 <code>errcode === 0</code> 的正常重定向。</p>
+
+<h3>对比 Demo</h3>
+
+<div class="demo-box demo-before">
+<div class="demo-label before">BEFORE — 验证失败 + 后端返回 url 时的行为</div>
+<pre>
+// 用户在"新建任务"表单中填写了大量内容
+// 提交后后端返回 {errcode: 1, errmsg: "任务名已存在", url: "/"}
+
+// common-redesign.js 行为：
+1. CpToast.error("任务名已存在")  ← 用户看到错误提示
+2. 800ms 后 → window.location.href = "/"  ← 跳转回首页！
+3. 用户填写的所有内容全部丢失 ✗
+</pre>
+</div>
+
+<div class="demo-box demo-after">
+<div class="demo-label after">AFTER — 仅在成功时重定向</div>
+<pre>
+// 相同场景：后端返回 {errcode: 1, errmsg: "任务名已存在", url: "/"}
+
+// common-redesign.js 行为：
+1. CpToast.error("任务名已存在")  ← 用户看到错误提示
+2. 表单保持原位，用户可修改后重新提交 ✓
+</pre>
+</div>
+
+<h3>代码变更</h3>
+<pre>
+// BEFORE (common-redesign.js:110-113)
+if (data.url && data.errcode === 0) {
+  window.location.href = data.url;
+} else if (data.url && data.errcode !== 0) {
+  setTimeout(function() { window.location.href = data.url; }, 800);
+}
+
+// AFTER
+if (data.url && data.errcode === 0) {
+  window.location.href = data.url;
+}
+</pre>
+
+<h3>范围</h3>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/static/js/common-redesign.js</code></td><td>删除 <code>else if (data.url && data.errcode !== 0)</code> 分支（2 行）</td></tr>
+</table>
+
+<h3>不做</h3>
+<ul>
+<li>不修改后端返回逻辑（后端 <code>url</code> 字段的清理是独立的 P2 任务）</li>
+<li>不修改 v1 <code>common.js</code>（已无使用场景）</li>
+</ul>
+
+<h3>分批</h3>
+<p>单批次：删除分支 → restart → 验收。</p>
+
+<h3>验收</h3>
+<ol>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+<li>浏览器打开"新建任务"（<code>/cron_add</code>），填写内容后提交触发验证错误</li>
+<li>确认：① Toast 显示错误消息 ② 页面不跳转 ③ 表单数据保留</li>
+<li>提交正确内容 → 确认成功后正常跳转到列表页</li>
+</ol>
+
+<h3>风险</h3>
+<p>极低。删除的分支本身就是违反项目规范的行为；如有后端 endpoint 依赖"错误时重定向"逻辑（不应存在），会退化为"停留在表单页"，不会丢失数据。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="前端修复F1-F6设计-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -18,25 +18,25 @@
     <div class="auth-msg-err">{{ form_msg }}</div>
     {% endif %}
 
-    <form action="{{ url_for('rbac.register') }}" method="post" id="register-form">
+    <form action="{{ url_for('rbac.register') }}" method="post" id="register-form" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-      <div class="auth-field">
+      <div class="auth-field" data-field="email">
         <label class="auth-label" for="reg-email">公司邮箱 <span class="auth-req">*</span></label>
-        <input type="email" id="reg-email" name="email" class="auth-input" required placeholder="your.name@company.com"
+        <input type="email" id="reg-email" name="email" class="auth-input" placeholder="your.name@company.com"
                value="{{ form_data.get('email', '') if form_data else '' }}" autocomplete="email">
         <div class="auth-hint">邮箱前缀将作为登录用户名</div>
       </div>
 
       <div class="auth-grid-2">
-        <div class="auth-field">
+        <div class="auth-field" data-field="nickname">
           <label class="auth-label" for="reg-nickname">花名 <span class="auth-req">*</span></label>
-          <input type="text" id="reg-nickname" name="nickname" class="auth-input" required placeholder="内部昵称" maxlength="64"
+          <input type="text" id="reg-nickname" name="nickname" class="auth-input" placeholder="内部昵称"
                  value="{{ form_data.get('nickname', '') if form_data else '' }}">
         </div>
-        <div class="auth-field">
+        <div class="auth-field" data-field="job_title">
           <label class="auth-label" for="job-title-select">岗位类型 <span class="auth-req">*</span></label>
-          <select name="job_title" id="job-title-select" class="auth-select" required>
+          <select name="job_title" id="job-title-select" class="auth-select">
             <option value="">-- 请选择 --</option>
             {% for code, label in job_title_choices %}
             <option value="{{ code }}"
@@ -46,27 +46,27 @@
             {% endfor %}
           </select>
           <div class="auth-other-wrap" id="job-title-other-wrapper">
-            <input type="text" name="job_title_other" class="auth-input" placeholder="请输入具体岗位名称（限 20 字符）" maxlength="20"
+            <input type="text" name="job_title_other" class="auth-input" placeholder="请输入具体岗位名称（限 20 字符）"
                    value="{{ form_data.get('job_title_other', '') if form_data else '' }}">
           </div>
         </div>
       </div>
 
       <div class="auth-grid-2">
-        <div class="auth-field">
+        <div class="auth-field" data-field="password">
           <label class="auth-label" for="reg-pwd-input">密码 <span class="auth-req">*</span></label>
           <div class="input-with-toggle">
-            <input type="password" id="reg-pwd-input" name="password" class="auth-input" required placeholder="至少 6 位" autocomplete="new-password">
+            <input type="password" id="reg-pwd-input" name="password" class="auth-input" placeholder="至少 6 位" autocomplete="new-password">
             <button type="button" class="toggle-vis" data-target="reg-pwd-input" title="显示/隐藏密码" aria-label="显示/隐藏密码">
               <svg class="icon-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
               <svg class="icon-visible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
             </button>
           </div>
         </div>
-        <div class="auth-field">
+        <div class="auth-field" data-field="confirm_password">
           <label class="auth-label" for="reg-pwd-confirm">确认密码 <span class="auth-req">*</span></label>
           <div class="input-with-toggle">
-            <input type="password" id="reg-pwd-confirm" name="confirm_password" class="auth-input" required placeholder="再次输入密码" autocomplete="new-password">
+            <input type="password" id="reg-pwd-confirm" name="confirm_password" class="auth-input" placeholder="再次输入密码" autocomplete="new-password">
             <button type="button" class="toggle-vis" data-target="reg-pwd-confirm" title="显示/隐藏密码" aria-label="显示/隐藏密码">
               <svg class="icon-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
               <svg class="icon-visible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
@@ -76,9 +76,9 @@
       </div>
 
       <div class="auth-grid-2">
-        <div class="auth-field">
+        <div class="auth-field" data-field="role">
           <label class="auth-label" for="role-select">申请角色 <span class="auth-req">*</span></label>
-          <select name="role" id="role-select" class="auth-select" required>
+          <select name="role" id="role-select" class="auth-select">
             {% for r in roles %}
             <option value="{{ r }}"
               {% if form_data and form_data.get('role') == r %}selected{% endif %}>
@@ -91,7 +91,7 @@
             管理员角色审批更严格，请确保个人信息和申请缘由准确完整。
           </div>
         </div>
-        <div class="auth-field">
+        <div class="auth-field" data-field="group_ids">
           <label class="auth-label">目标业务组 <span class="auth-req">*</span></label>
           <div class="auth-checkbox-group" id="group-checkboxes">
             {% for g in groups %}
@@ -114,9 +114,9 @@
         </div>
       </div>
 
-      <div class="auth-field auth-field-reason">
+      <div class="auth-field auth-field-reason" data-field="reason">
         <label class="auth-label" for="reg-reason">申请原因 <span class="auth-req">*</span></label>
-        <textarea id="reg-reason" name="reason" class="auth-textarea" required placeholder="请简述申请原因和工作职责（最多 500 字）…" maxlength="500">{{ form_data.get('reason', '') if form_data else '' }}</textarea>
+        <textarea id="reg-reason" name="reason" class="auth-textarea" placeholder="请简述申请原因和工作职责（最多 500 字）…">{{ form_data.get('reason', '') if form_data else '' }}</textarea>
       </div>
 
       <button type="button" class="auth-btn" id="submit-btn">提交申请</button>
@@ -156,6 +156,44 @@
     var confirmBtn = document.getElementById('confirm-submit-btn');
     var modalCancelBtn = document.getElementById('modal-cancel-btn');
 
+    function showAuthError(fieldName, msg) {
+      clearAuthError(fieldName);
+      var wrap = document.querySelector('[data-field="' + fieldName + '"]');
+      if (!wrap) return;
+      wrap.classList.add('auth-field-error');
+      var hint = wrap.querySelector('.auth-hint');
+      if (hint) hint.style.display = 'none';
+      var errEl = document.createElement('div');
+      errEl.className = 'auth-error-msg';
+      errEl.setAttribute('role', 'alert');
+      errEl.textContent = msg;
+      var target = wrap.querySelector('.input-with-toggle') || wrap.querySelector('.auth-checkbox-group') || wrap.querySelector('.auth-textarea') || wrap.querySelector('.auth-select') || wrap.querySelector('.auth-input');
+      if (target) target.parentNode.insertBefore(errEl, target.nextSibling);
+      else wrap.appendChild(errEl);
+    }
+    function clearAuthError(fieldName) {
+      var wrap = document.querySelector('[data-field="' + fieldName + '"]');
+      if (!wrap) return;
+      wrap.classList.remove('auth-field-error');
+      var err = wrap.querySelector('.auth-error-msg');
+      if (err) err.remove();
+      var hint = wrap.querySelector('.auth-hint');
+      if (hint) hint.style.display = '';
+    }
+    function clearAllAuthErrors() {
+      document.querySelectorAll('.auth-field-error').forEach(function(el) { el.classList.remove('auth-field-error'); });
+      document.querySelectorAll('.auth-error-msg').forEach(function(el) { el.remove(); });
+      document.querySelectorAll('.auth-hint[style]').forEach(function(el) { el.style.display = ''; });
+    }
+
+    ['email', 'nickname', 'password', 'confirm_password', 'reason'].forEach(function(f) {
+      var inp = form.querySelector('[name="' + f + '"]');
+      if (inp) inp.addEventListener('input', function() { clearAuthError(f); });
+    });
+    if (jobTitleSelect) jobTitleSelect.addEventListener('change', function() { clearAuthError('job_title'); });
+    groupItemCbs.forEach(function(cb) { cb.addEventListener('change', function() { clearAuthError('group_ids'); }); });
+    if (groupAllCb) groupAllCb.addEventListener('change', function() { clearAuthError('group_ids'); });
+
     function toggleAdminGroupUI() {
       var isAdmin = roleSelect.value === 'admin';
       adminWarning.style.display = isAdmin ? 'block' : 'none';
@@ -183,13 +221,9 @@
     jobTitleSelect.addEventListener('change', function() {
       var show = this.value === 'other';
       otherWrapper.style.display = show ? 'block' : 'none';
-      var otherInput = otherWrapper.querySelector('input[name="job_title_other"]');
-      if (otherInput) otherInput.required = show;
     });
     if (jobTitleSelect.value === 'other') {
       otherWrapper.style.display = 'block';
-      var otherInput = otherWrapper.querySelector('input[name="job_title_other"]');
-      if (otherInput) otherInput.required = true;
     }
 
     document.querySelectorAll('.toggle-vis').forEach(function(btn) {
@@ -210,9 +244,41 @@
       return d.innerHTML;
     }
 
+    function validateForm() {
+      clearAllAuthErrors();
+      var emailVal = (form.querySelector('[name="email"]').value || '').trim();
+      if (!emailVal || emailVal.indexOf('@') === -1) {
+        showAuthError('email', !emailVal ? '请输入邮箱地址' : '请输入有效的邮箱地址');
+        return false;
+      }
+      var nicknameVal = (form.querySelector('[name="nickname"]').value || '').trim();
+      if (!nicknameVal) { showAuthError('nickname', '请填写花名'); return false; }
+      if (!jobTitleSelect.value) { showAuthError('job_title', '请选择岗位类型'); return false; }
+      if (jobTitleSelect.value === 'other') {
+        var otherVal = (form.querySelector('[name="job_title_other"]') || {}).value;
+        if (!(otherVal || '').trim()) { showAuthError('job_title', '选择"其他"时请填写具体岗位名称'); return false; }
+      }
+      var pwdVal = form.querySelector('[name="password"]').value || '';
+      if (pwdVal.length < 6) {
+        showAuthError('password', pwdVal ? '密码至少 6 位' : '请填写密码');
+        return false;
+      }
+      var confirmVal = form.querySelector('[name="confirm_password"]').value || '';
+      if (confirmVal !== pwdVal) {
+        showAuthError('confirm_password', !confirmVal ? '请确认密码' : '两次密码不一致');
+        return false;
+      }
+      var anyGroupChecked = form.querySelectorAll('[name="group_ids"]:checked').length > 0;
+      if (!anyGroupChecked) { showAuthError('group_ids', '请至少选择一个业务组'); return false; }
+      var reasonVal = (form.querySelector('[name="reason"]').value || '').trim();
+      if (!reasonVal) { showAuthError('reason', '请填写申请缘由'); return false; }
+      return true;
+    }
+
     submitBtn.addEventListener('click', function() {
-      if (!form.checkValidity()) {
-        form.reportValidity();
+      if (!validateForm()) {
+        var first = form.querySelector('.auth-field-error');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       var email = form.querySelector('[name="email"]').value;

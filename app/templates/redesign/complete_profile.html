@@ -22,7 +22,7 @@
     <div class="auth-msg-err">{{ form_msg }}</div>
     {% endif %}
 
-    <form method="post" action="{{ url_for('rbac.complete_profile') }}" id="profile-form">
+    <form method="post" action="{{ url_for('rbac.complete_profile') }}" id="profile-form" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
       <div class="auth-field">
@@ -31,9 +31,9 @@
       </div>
 
       {% if not user.email %}
-      <div class="auth-field">
+      <div class="auth-field" data-field="email">
         <label class="auth-label" for="cp-email">邮箱 <span class="auth-req">*</span></label>
-        <input type="email" id="cp-email" name="email" class="auth-input" maxlength="128" required placeholder="user@company.com" />
+        <input type="email" id="cp-email" name="email" class="auth-input" placeholder="user@company.com" />
       </div>
       {% else %}
       <div class="auth-field">
@@ -44,9 +44,9 @@
       {% endif %}
 
       {% if not user.nickname %}
-      <div class="auth-field">
+      <div class="auth-field" data-field="nickname">
         <label class="auth-label" for="cp-nickname">花名 <span class="auth-req">*</span></label>
-        <input type="text" id="cp-nickname" name="nickname" class="auth-input" maxlength="64" required />
+        <input type="text" id="cp-nickname" name="nickname" class="auth-input" />
       </div>
       {% else %}
       <div class="auth-field">
@@ -57,9 +57,9 @@
       {% endif %}
 
       {% if not user.job_title %}
-      <div class="auth-field">
+      <div class="auth-field" data-field="job_title">
         <label class="auth-label" for="cp-job-title-select">岗位类型 <span class="auth-req">*</span></label>
-        <select name="job_title" id="cp-job-title-select" class="auth-select" required>
+        <select name="job_title" id="cp-job-title-select" class="auth-select">
           <option value="">-- 请选择 --</option>
           {% for code, label in job_title_choices %}
           <option value="{{ code }}">{{ label }}</option>
@@ -93,20 +93,79 @@
     var sel = document.getElementById('cp-job-title-select');
     var wrap = document.getElementById('cp-job-title-other-wrap');
     if (sel && wrap) {
-      var otherInp = wrap.querySelector('input[name="job_title_other"]');
       sel.addEventListener('change', function() {
-        var show = this.value === 'other';
-        wrap.style.display = show ? 'block' : 'none';
-        if (otherInp) otherInp.required = show;
+        wrap.style.display = this.value === 'other' ? 'block' : 'none';
       });
-      if (sel.value === 'other' && otherInp) otherInp.required = true;
+      if (sel.value === 'other') wrap.style.display = 'block';
     }
+
+    function showAuthError(fieldName, msg) {
+      clearAuthError(fieldName);
+      var el = document.querySelector('[data-field="' + fieldName + '"]');
+      if (!el) return;
+      el.classList.add('auth-field-error');
+      var hint = el.querySelector('.auth-hint');
+      if (hint) hint.style.display = 'none';
+      var errEl = document.createElement('div');
+      errEl.className = 'auth-error-msg';
+      errEl.setAttribute('role', 'alert');
+      errEl.textContent = msg;
+      var target = el.querySelector('.auth-select') || el.querySelector('.auth-input');
+      if (target) target.parentNode.insertBefore(errEl, target.nextSibling);
+      else el.appendChild(errEl);
+    }
+    function clearAuthError(fieldName) {
+      var el = document.querySelector('[data-field="' + fieldName + '"]');
+      if (!el) return;
+      el.classList.remove('auth-field-error');
+      var err = el.querySelector('.auth-error-msg');
+      if (err) err.remove();
+      var hint = el.querySelector('.auth-hint');
+      if (hint) hint.style.display = '';
+    }
+
+    ['email', 'nickname'].forEach(function(f) {
+      var inp = document.querySelector('[data-field="' + f + '"] .auth-input');
+      if (inp && !inp.disabled) inp.addEventListener('input', function() { clearAuthError(f); });
+    });
+    if (sel) sel.addEventListener('change', function() { clearAuthError('job_title'); });
 
     var form = document.getElementById('profile-form');
     var submitBtn = document.getElementById('profile-submit');
     if (form && submitBtn) {
-      form.addEventListener('submit', function() {
-        if (submitBtn.disabled) return false;
+      form.addEventListener('submit', function(e) {
+        if (submitBtn.disabled) { e.preventDefault(); return; }
+        var hasError = false;
+        var emailInp = form.querySelector('[name="email"]');
+        if (emailInp && !emailInp.disabled) {
+          var ev = (emailInp.value || '').trim();
+          if (!ev || ev.indexOf('@') === -1) {
+            showAuthError('email', !ev ? '请输入邮箱' : '请输入有效的邮箱地址');
+            hasError = true;
+          }
+        }
+        var nickInp = form.querySelector('[name="nickname"]');
+        if (nickInp && !nickInp.disabled && !(nickInp.value || '').trim()) {
+          showAuthError('nickname', '请填写花名');
+          hasError = true;
+        }
+        if (sel && !sel.disabled && !sel.value) {
+          showAuthError('job_title', '请选择岗位类型');
+          hasError = true;
+        }
+        if (sel && sel.value === 'other') {
+          var otherInp = wrap ? wrap.querySelector('input[name="job_title_other"]') : null;
+          if (otherInp && !(otherInp.value || '').trim()) {
+            showAuthError('job_title', '选择"其他"时请填写具体岗位名称');
+            hasError = true;
+          }
+        }
+        if (hasError) {
+          e.preventDefault();
+          var first = form.querySelector('.auth-field-error');
+          if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
         submitBtn.disabled = true;
         submitBtn.textContent = '保存中…';
       });

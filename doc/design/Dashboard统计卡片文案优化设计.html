@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard 统计卡片文案优化设计 — CronPilot</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; line-height: 1.7; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #2563eb; padding-bottom: .4em; }
+  h2 { margin-top: 2em; color: #1e40af; border-bottom: 1px solid #dbeafe; padding-bottom: .3em; }
+  h3 { color: #1e3a5f; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+  th { background: #f0f4ff; }
+  code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; }
+  .tag-rec { background: #dcfce7; color: #166534; }
+  .highlight { background: #fef9c3; padding: 12px; border-left: 3px solid #eab308; margin: 1em 0; }
+  .demo-box { border: 2px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 1.5em 0; background: #fafbfc; }
+  .demo-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .demo-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center; }
+  .demo-card-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .demo-card-value { font-size: 24px; font-weight: 700; }
+  .demo-card-value.danger { color: #dc2626; }
+  .demo-card-value.warning { color: #d97706; }
+  .demo-card-value.overdue { color: #7c3aed; }
+  .demo-card-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .vs-divider { text-align: center; font-size: 1.2em; color: #6b7280; margin: 1.5em 0; }
+  .version { color: #6b7280; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<h1>Dashboard 统计卡片文案优化设计</h1>
+<p class="version">版本 rev.3 · 2026-09-02 · 编号 OPT-P1-17</p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 用户反馈</h3>
+<p>Dashboard 显示「9 个任务持续异常」「9 个任务异常」但「今日失败次数 0」，用户困惑：异常任务从哪里来？既然今天失败为 0，为什么还有 9 个异常？</p>
+
+<h3>1.2 根因分析</h3>
+<table>
+  <tr><th>问题</th><th>描述</th></tr>
+  <tr>
+    <td><strong>时间维度不可见</strong></td>
+    <td>「异常任务」和「持续异常」基于 <code>job_health</code> 表的累积状态（自上次成功执行以来的连续失败），不受日期约束；「今日失败次数」基于 <code>job_log</code> 当日记录。两者时间维度完全不同，但 UI 文案未做任何区分，用户默认以为都是「今天」的数据。</td>
+  </tr>
+  <tr>
+    <td><strong>卡片 1 和卡片 2 语义重叠</strong></td>
+    <td>「异常任务」= <code>health_status == 'failing'</code>；「持续异常」= <code>consecutive_failures >= 3</code>。当阈值为默认 3 时，两者数值必然相同（health_status 在 consecutive_failures >= threshold 时设为 'failing'），展示两次造成信息冗余。</td>
+  </tr>
+  <tr>
+    <td><strong>术语冗余</strong></td>
+    <td>顶栏 stat-line 用「持续异常」「今日告警」；卡片用「异常任务」「持续异常」「今日失败次数」— 三种近义词混用。</td>
+  </tr>
+</table>
+
+<h2>2. 方案 <span class="tag tag-rec">推荐</span></h2>
+
+<h3>2.1 合并卡片 1 和卡片 2</h3>
+<p>将「异常任务」和「持续异常」合并为一张卡片，消除冗余。使用 <code>consecutive_failing</code>（count_consecutive_failing 查询）作为唯一数据源，因为它直接反映连续失败计数且查询语义更清晰。</p>
+
+<h3>2.2 增强 sub-text 说明时间维度</h3>
+<p>每张卡片的 sub-text 明确标注数据的时间范围，消除用户对「今天」vs「累积」的混淆。</p>
+
+<h3>2.3 新增一张有意义的卡片替代被合并的卡片</h3>
+<p>用「今日成功率」替代被合并的位置，提供正向指标，平衡 Dashboard 的"告警焦虑"。</p>
+
+<h3>2.4 已下线任务是否包含在统计中</h3>
+<table>
+  <tr><th>指标</th><th>是否包含已下线/已暂停</th><th>说明</th></tr>
+  <tr>
+    <td>任务总数 <code>total</code></td>
+    <td><strong>包含</strong>（全部状态）</td>
+    <td><code>SELECT COUNT(*) FROM cron_infos</code>，不过滤 status</td>
+  </tr>
+  <tr>
+    <td>持续异常 <code>consecutive_failing</code></td>
+    <td><strong>包含</strong></td>
+    <td><code>job_health JOIN cron_infos WHERE consecutive_failures >= 3</code>，不过滤 status；已下线任务如果历史上积累了连续失败记录且未被清除，仍会被计入</td>
+  </tr>
+  <tr>
+    <td>逾期未执行 <code>overdue_count</code></td>
+    <td><strong>不包含</strong></td>
+    <td><code>WHERE status == 1</code> 仅统计运行中任务</td>
+  </tr>
+  <tr>
+    <td>今日失败 <code>today_fail_runs</code></td>
+    <td><strong>可能包含</strong></td>
+    <td>统计今日 job_log 记录；如果任务今日先失败后被下线，该失败记录仍被计入</td>
+  </tr>
+</table>
+<div class="highlight">
+  <strong>设计决策</strong>：本次优化范围为「文案清晰度」，不调整统计口径。「持续异常」包含已下线任务是合理的——已下线任务的健康问题可能需要关注（如：任务因持续失败而被人为下线，但根因未解决）。若后续需排除已下线任务，应作为独立 OPT 评估。
+</div>
+
+<h3>2.5 「逾期未执行」判定逻辑说明</h3>
+<p><strong>用户疑问</strong>：如果今日没有执行，岂不是所有任务都逾期了？</p>
+<p><strong>答案</strong>：不是。逾期判定基于 <code>cron 调度间隔 × 2</code>，不是简单的"今天有没有执行"。示例：</p>
+<table>
+  <tr><th>任务</th><th>调度间隔</th><th>逾期阈值</th><th>上次执行</th><th>是否逾期</th></tr>
+  <tr><td>日报汇总</td><td>每日 8:00</td><td>48 小时</td><td>昨天 8:00</td><td>否（距今 &lt; 48h）</td></tr>
+  <tr><td>实时监控</td><td>每 5 分钟</td><td>10 分钟</td><td>30 分钟前</td><td><strong>是</strong>（距今 &gt; 10min）</td></tr>
+  <tr><td>周报</td><td>每周一 9:00</td><td>14 天</td><td>上周一 9:00</td><td>否（距今 &lt; 14d）</td></tr>
+</table>
+<p>sub-text 调整为「距上次执行超 <code>max(间隔×2, 10min)</code>」，更准确传达实际逻辑。</p>
+
+<h3>2.5 今日无执行时的显示策略</h3>
+<p><strong>用户疑问</strong>：今日没有执行数据时，「今日失败 0」和「今日成功率 100%」是否误导？</p>
+<p><strong>答案</strong>：是的。「0 失败」暗示「检查过了，没有失败」；「100% 成功率」暗示「所有执行都成功」。但实际可能是今天还没有任何执行。</p>
+<p><strong>解决方案</strong>：后端返回 <code>today_total_runs</code>（今日总执行次数），前端根据此值区分显示：</p>
+<table>
+  <tr><th>场景</th><th>today_total_runs</th><th>今日失败 显示</th><th>今日成功率 显示</th></tr>
+  <tr><td>有执行且无失败</td><td>&gt; 0</td><td><code>0</code></td><td><code>100%</code></td></tr>
+  <tr><td>有执行且有失败</td><td>&gt; 0</td><td><code>N</code></td><td><code>X%</code></td></tr>
+  <tr><td>今日无执行</td><td>0</td><td><code>—</code></td><td><code>—</code></td></tr>
+</table>
+<p>sub-text 在无执行时显示「今日尚无执行记录」，避免「0」的歧义。</p>
+<p><strong>后端改动</strong>：<code>metrics()</code> 新增 <code>today_total_runs</code> 字段（已有的 <code>today_fail_stmt</code> 改为统计全量，再分别过滤 fail/success）；<code>today_success_rate()</code> 在 total=0 时返回 <code>None</code> 而非 <code>100.0</code>。</p>
+
+<h3>2.6 卡片排序策略</h3>
+<p><strong>原则</strong>：相关指标相邻，形成两组「信息对」，用户一眼扫完一组即可理解该维度的完整状况。</p>
+<table>
+  <tr><th>位置</th><th>组</th><th>指标</th><th>逻辑</th></tr>
+  <tr><td>卡片 1</td><td rowspan="2">健康组（累积/实时）</td><td>持续异常</td><td>累积健康状态</td></tr>
+  <tr><td>卡片 2</td><td>逾期未执行</td><td>实时快照</td></tr>
+  <tr><td>卡片 3</td><td rowspan="2">今日组（当日）</td><td>今日成功率</td><td>正向指标</td></tr>
+  <tr><td>卡片 4</td><td>今日失败</td><td>反向指标</td></tr>
+</table>
+
+<h3>2.7 变更明细</h3>
+
+<table>
+  <tr><th>位置</th><th>当前</th><th>优化后</th><th>理由</th></tr>
+  <tr>
+    <td>卡片 1</td>
+    <td>异常任务 · <code>metrics.failing</code> · "需要立即关注"</td>
+    <td><strong>持续异常</strong> · <code>consecutive_failing</code> · "≥N 次连续失败，直到恢复"</td>
+    <td>保留核心健康指标，sub-text 说明「持续」语义</td>
+  </tr>
+  <tr>
+    <td>卡片 2</td>
+    <td>持续异常 · <code>consecutive_failing</code> · "≥3 次连续失败即标记"</td>
+    <td><strong>逾期未执行</strong> · <code>overdue_count</code> · "距上次执行超 max(间隔×2, 10min)"</td>
+    <td>与持续异常同属健康组，相邻展示</td>
+  </tr>
+  <tr>
+    <td>卡片 3</td>
+    <td>逾期未执行 · <code>overdue_count</code> · "超过 2 倍调度间隔"</td>
+    <td><strong>今日成功率</strong> · <code>today_success_rate</code>% 或 <code>—</code> · "今日已执行 N 次" 或 "今日尚无执行记录"</td>
+    <td>正向指标 + 无执行时显示 <code>—</code> 避免误导</td>
+  </tr>
+  <tr>
+    <td>卡片 4</td>
+    <td>今日失败次数 · <code>today_fail_runs</code> · "N 个任务 · 成功率 X%"</td>
+    <td><strong>今日失败</strong> · <code>today_fail_runs</code> 或 <code>—</code> · "0:00 以来" 或 "今日尚无执行记录"</td>
+    <td>明确时间范围；无执行时显示 <code>—</code></td>
+  </tr>
+  <tr>
+    <td>顶栏 stat-line</td>
+    <td><code>N</code> 个任务 · <code>M</code> 持续异常 · <code>K</code> 逾期 · <code>J</code> 今日告警</td>
+    <td><code>N</code> 个任务 · <code>M</code> 持续异常 · <code>K</code> 逾期 · <code>J</code> 今日失败 或 <code>—</code></td>
+    <td>统一术语 + 无执行时显示 <code>—</code></td>
+  </tr>
+</table>
+
+<h3>2.8 四卡片时间维度一览</h3>
+<table>
+  <tr><th>组</th><th>卡片</th><th>时间维度</th><th>计算方式</th><th>清除条件</th></tr>
+  <tr>
+    <td rowspan="2">健康组</td>
+    <td>持续异常</td>
+    <td><strong>累积（无时间边界）</strong></td>
+    <td><code>job_health.consecutive_failures >= 3</code></td>
+    <td>任务成功执行一次 → consecutive_failures 归零 → 自动消失</td>
+  </tr>
+  <tr>
+    <td>逾期未执行</td>
+    <td><strong>实时快照</strong></td>
+    <td><code>now - last_exec > max(interval × 2, 600s)</code></td>
+    <td>任务执行一次（无论成败）→ last_exec 更新 → 自动消失</td>
+  </tr>
+  <tr>
+    <td rowspan="2">今日组</td>
+    <td>今日成功率</td>
+    <td><strong>当日（0:00 至今）</strong></td>
+    <td>今日成功次数 / 今日总执行次数 × 100%</td>
+    <td>每日 0:00 自动重置</td>
+  </tr>
+  <tr>
+    <td>今日失败</td>
+    <td><strong>当日（0:00 至今）</strong></td>
+    <td><code>job_log</code> 中今日 fail/error/timeout 记录数</td>
+    <td>每日 0:00 自动重置</td>
+  </tr>
+</table>
+<div class="highlight">
+  <strong>关键用户认知</strong>：「持续异常 9 + 今日失败 0」含义是：有 9 个任务在此前累积了 ≥3 次连续失败（可能是昨天或更早），今天它们尚未执行（或未失败），所以今日失败为 0，但它们的累积异常状态尚未被清除。
+</div>
+
+<h3>2.6 对比 Demo</h3>
+
+<h4>A · 当前方案</h4>
+<div class="demo-box">
+  <div class="demo-stats">
+    <div class="demo-card">
+      <div class="demo-card-label">异常任务</div>
+      <div class="demo-card-value danger">9</div>
+      <div class="demo-card-sub">需要立即关注</div>
+    </div>
+    <div class="demo-card">
+      <div class="demo-card-label">持续异常</div>
+      <div class="demo-card-value warning">9</div>
+      <div class="demo-card-sub">≥3 次连续失败即标记</div>
+    </div>
+    <div class="demo-card">
+      <div class="demo-card-label">逾期未执行</div>
+      <div class="demo-card-value overdue">2</div>
+      <div class="demo-card-sub">超过 2 倍调度间隔</div>
+    </div>
+    <div class="demo-card">
+      <div class="demo-card-label">今日失败次数</div>
+      <div class="demo-card-value danger">0</div>
+      <div class="demo-card-sub">42 个任务 · 成功率 100%</div>
+    </div>
+  </div>
+  <p style="color: #dc2626; font-size: 12px; margin-top: 8px;">⚠ 用户困惑：9 个异常但 0 次失败？「异常任务」和「持续异常」数值相同是什么意思？</p>
+</div>
+
+<div class="vs-divider">↓ 优化后 ↓</div>
+
+<h4>B · 推荐方案（有执行数据时）</h4>
+<div class="demo-box">
+  <div class="demo-stats">
+    <div class="demo-card" style="border-left: 3px solid #dc2626;">
+      <div class="demo-card-label">持续异常</div>
+      <div class="demo-card-value danger">9</div>
+      <div class="demo-card-sub">≥3 次连续失败，直到恢复</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #7c3aed;">
+      <div class="demo-card-label">逾期未执行</div>
+      <div class="demo-card-value overdue">2</div>
+      <div class="demo-card-sub">距上次执行超 max(间隔×2, 10min)</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #16a34a;">
+      <div class="demo-card-label">今日成功率</div>
+      <div class="demo-card-value" style="color:#16a34a">100%</div>
+      <div class="demo-card-sub">今日已执行 128 次</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #d97706;">
+      <div class="demo-card-label">今日失败</div>
+      <div class="demo-card-value danger">0</div>
+      <div class="demo-card-sub">0:00 以来</div>
+    </div>
+  </div>
+  <p style="font-size: 12px; margin-top: 8px; color: #6b7280;">健康组（左 2）+ 今日组（右 2）分区展示</p>
+</div>
+
+<h4>C · 推荐方案（今日无执行时）</h4>
+<div class="demo-box">
+  <div class="demo-stats">
+    <div class="demo-card" style="border-left: 3px solid #dc2626;">
+      <div class="demo-card-label">持续异常</div>
+      <div class="demo-card-value danger">9</div>
+      <div class="demo-card-sub">≥3 次连续失败，直到恢复</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #7c3aed;">
+      <div class="demo-card-label">逾期未执行</div>
+      <div class="demo-card-value overdue">2</div>
+      <div class="demo-card-sub">距上次执行超 max(间隔×2, 10min)</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #9ca3af;">
+      <div class="demo-card-label">今日成功率</div>
+      <div class="demo-card-value" style="color:#9ca3af">—</div>
+      <div class="demo-card-sub">今日尚无执行记录</div>
+    </div>
+    <div class="demo-card" style="border-left: 3px solid #9ca3af;">
+      <div class="demo-card-label">今日失败</div>
+      <div class="demo-card-value" style="color:#9ca3af">—</div>
+      <div class="demo-card-sub">今日尚无执行记录</div>
+    </div>
+  </div>
+  <p style="font-size: 12px; margin-top: 8px; color: #6b7280;">无执行时今日组卡片用「—」+ 灰色左边框，与健康组形成视觉对比</p>
+</div>
+
+<h2>3. 范围</h2>
+
+<h3>3.1 改动文件</h3>
+<table>
+  <tr><th>文件</th><th>改动内容</th></tr>
+  <tr><td><code>app/repositories/cron_repository.py</code></td><td><code>metrics()</code> 新增 <code>today_total_runs</code> 字段；<code>today_success_rate()</code> total=0 时返回 <code>None</code></td></tr>
+  <tr><td><code>app/main/views.py</code></td><td>AJAX 响应中传递 <code>today_total_runs</code></td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>4 张卡片文案 + stat-line 文案 + AJAX 刷新 JS + 无执行时 <code>—</code> 显示逻辑</td></tr>
+</table>
+
+<h3>3.2 不做什么</h3>
+<ul>
+  <li><strong>不改健康判定规则</strong>：<code>health_failing_threshold</code> 默认 3 保持不变</li>
+  <li><strong>不改逾期判定规则</strong>：<code>max(interval×2, 600s)</code> 保持不变</li>
+  <li><strong>不新增 tooltip 组件</strong>：仅通过 sub-text 自然语言解释，不引入额外 JS</li>
+</ul>
+
+<h2>4. 分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收</th></tr>
+  <tr><td>S1</td><td>后端：<code>metrics()</code> 新增 <code>today_total_runs</code>；<code>today_success_rate()</code> total=0 返回 None</td><td>单元测试 + 服务启动无报错</td></tr>
+  <tr><td>S2</td><td>模板：卡片文案 + stat-line 文案 + 无执行时 <code>—</code> 显示</td><td>restart → 有/无执行两场景卡片内容</td></tr>
+  <tr><td>S3</td><td>AJAX 刷新 JS：响应中 <code>today_total_runs</code> 驱动前端 <code>—</code> 逻辑</td><td>切换筛选 → 卡片正确刷新</td></tr>
+</table>
+
+<h2>5. 验收</h2>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>Dashboard 加载（有执行数据）</td><td>4 张卡片：持续异常 / 今日成功率 X% / 逾期未执行 / 今日失败 N</td></tr>
+  <tr><td>2</td><td>Dashboard 加载（无执行数据）</td><td>今日成功率 → <code>—</code> + "今日尚无执行记录"；今日失败 → <code>—</code> + "今日尚无执行记录"</td></tr>
+  <tr><td>3</td><td>stat-line 文案</td><td>「N 个任务 · M 持续异常 · K 逾期 · J 今日失败」（无执行时 J → <code>—</code>）</td></tr>
+  <tr><td>4</td><td>AJAX 筛选切换</td><td>stat-line 和卡片数值正确刷新，不出现旧文案</td></tr>
+  <tr><td>5</td><td>有失败场景</td><td>「今日成功率 X%」 + 「今日失败 N」 + sub-text 显示执行总次数</td></tr>
+  <tr><td>6</td><td>0 失败场景</td><td>「今日成功率 100%」 + 「今日失败 0」 + 「持续异常 N」含义无矛盾</td></tr>
+</table>
+
+<h2>6. 风险</h2>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>合并卡片后丢失 <code>metrics.failing</code> 展示</td>
+    <td>低：<code>failing</code> 和 <code>consecutive_failing</code> 在默认阈值下数值相同；Exception Panel 已展示具体失败任务列表</td>
+    <td>Exception Panel 补偿了卡片信息丢失</td>
+  </tr>
+  <tr>
+    <td><code>today_success_rate</code> 返回 <code>None</code> 需要前端兼容</td>
+    <td>中：AJAX 刷新和模板渲染都需处理 None 值</td>
+    <td>模板中用 <code>{% if today_success_rate is not none %}</code> 条件渲染；JS 中检查 <code>stats.today_success_rate === null</code></td>
+  </tr>
+</table>
+
+<h2>版本历史</h2>
+<table>
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.3</td><td>2026-09-02</td><td>补充：已下线任务统计口径说明（§2.4）；卡片排序策略 — 健康组+今日组（§2.6）；Demo 左边框分组色带</td></tr>
+  <tr><td>rev.2</td><td>2026-09-02</td><td>补充：逾期判定逻辑说明（§2.5）；今日无执行时 <code>—</code> 显示策略（§2.5b）；后端 <code>today_total_runs</code> 字段；Demo C 无执行场景；时间维度一览表</td></tr>
+  <tr><td>rev.1</td><td>2026-09-02</td><td>初版：问题分析 + 合并卡片 + 文案优化方案 + Demo</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Dashboard统计卡片文案优化设计.md">Markdown</a></footer>
+</body>
+</html>

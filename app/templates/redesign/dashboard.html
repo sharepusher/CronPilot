@@ -15,30 +15,40 @@
 {# ═══ Page Header (Mockup: title left + stat-line right) ═══ #}
 <div class="page-head">
   <div><h1>任务中心</h1><div class="sub">管理与监控所有定时任务</div></div>
-  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ overdue_count }}</span> 逾期 · {{ metrics.today_fail_runs }} 今日告警</div>
+  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ overdue_count }}</span> 逾期 · {% if metrics.today_total_runs > 0 %}{{ metrics.today_fail_runs }} 今日失败{% else %}<span style="color:var(--cp-muted)">— 今日失败</span>{% endif %}</div>
 </div>
 
-{# ═══ Stats Cards (Mockup B: 4-column Health-First metrics) ═══ #}
+{# ═══ Stats Cards (OPT-P1-17: Health group + Today group) ═══ #}
 <div class="hf-stats">
   <div class="hf-stat">
-    <div class="hf-stat-label">异常任务</div>
-    <div class="hf-stat-value danger">{{ metrics.failing }}</div>
-    <div class="hf-stat-sub">需要立即关注</div>
-  </div>
-  <div class="hf-stat">
     <div class="hf-stat-label">持续异常</div>
-    <div class="hf-stat-value warning">{{ consecutive_failing }}</div>
-    <div class="hf-stat-sub">≥{{ metrics.failing_threshold }} 次连续失败即标记</div>
+    <div class="hf-stat-value danger">{{ consecutive_failing }}</div>
+    <div class="hf-stat-sub">≥{{ metrics.failing_threshold }} 次连续失败，直到恢复</div>
   </div>
   <div class="hf-stat">
     <div class="hf-stat-label">逾期未执行</div>
     <div class="hf-stat-value overdue">{{ overdue_count }}</div>
-    <div class="hf-stat-sub">超过 2 倍调度间隔</div>
+    <div class="hf-stat-sub">距上次执行超 2 倍调度间隔</div>
   </div>
   <div class="hf-stat">
-    <div class="hf-stat-label">今日失败次数</div>
+    <div class="hf-stat-label">今日成功率</div>
+    {% if today_success_rate is not none %}
+    <div class="hf-stat-value success">{{ today_success_rate }}%</div>
+    <div class="hf-stat-sub">今日已执行 {{ metrics.today_total_runs }} 次</div>
+    {% else %}
+    <div class="hf-stat-value muted">—</div>
+    <div class="hf-stat-sub">今日尚无执行记录</div>
+    {% endif %}
+  </div>
+  <div class="hf-stat">
+    <div class="hf-stat-label">今日失败</div>
+    {% if metrics.today_total_runs > 0 %}
     <div class="hf-stat-value danger">{{ metrics.today_fail_runs }}</div>
-    <div class="hf-stat-sub">{{ metrics.total }} 个任务 · 成功率 {{ today_success_rate }}%</div>
+    <div class="hf-stat-sub">0:00 以来</div>
+    {% else %}
+    <div class="hf-stat-value muted">—</div>
+    <div class="hf-stat-sub">今日尚无执行记录</div>
+    {% endif %}
   </div>
 </div>
 
@@ -291,16 +301,46 @@ function cpRetire(cronId, btn) {
 
   function updateStats(stats) {
     if (!stats) return;
-    var els = document.querySelectorAll('.hf-stat-value');
-    if (els[0]) els[0].textContent = stats.failing;
-    if (els[1]) els[1].textContent = stats.consecutive_failing;
-    if (els[2]) els[2].textContent = stats.overdue_count;
-    if (els[3]) els[3].textContent = stats.today_fail_runs;
+    var hasRuns = stats.today_total_runs > 0;
+    var cards = document.querySelectorAll('.hf-stat');
+    if (cards[0]) {
+      cards[0].querySelector('.hf-stat-value').textContent = stats.consecutive_failing;
+    }
+    if (cards[1]) {
+      cards[1].querySelector('.hf-stat-value').textContent = stats.overdue_count;
+    }
+    if (cards[2]) {
+      var v2 = cards[2].querySelector('.hf-stat-value');
+      var s2 = cards[2].querySelector('.hf-stat-sub');
+      if (stats.today_success_rate !== null && stats.today_success_rate !== undefined) {
+        v2.textContent = stats.today_success_rate + '%';
+        v2.className = 'hf-stat-value success';
+        s2.textContent = '今日已执行 ' + stats.today_total_runs + ' 次';
+      } else {
+        v2.textContent = '—';
+        v2.className = 'hf-stat-value muted';
+        s2.textContent = '今日尚无执行记录';
+      }
+    }
+    if (cards[3]) {
+      var v3 = cards[3].querySelector('.hf-stat-value');
+      var s3 = cards[3].querySelector('.hf-stat-sub');
+      if (hasRuns) {
+        v3.textContent = stats.today_fail_runs;
+        v3.className = 'hf-stat-value danger';
+        s3.textContent = '0:00 以来';
+      } else {
+        v3.textContent = '—';
+        v3.className = 'hf-stat-value muted';
+        s3.textContent = '今日尚无执行记录';
+      }
+    }
     var statLine = document.querySelector('.stat-line');
     if (statLine) {
+      var failText = hasRuns ? stats.today_fail_runs + ' 今日失败' : '<span style="color:var(--cp-muted)">— 今日失败</span>';
       statLine.innerHTML = '<b>' + stats.total + '</b> 个任务 · <span style="color:var(--cp-danger)">' +
         stats.consecutive_failing + '</span> 持续异常 · <span style="color:var(--cp-warn)">' +
-        stats.overdue_count + '</span> 逾期 · ' + stats.today_fail_runs + ' 今日告警';
+        stats.overdue_count + '</span> 逾期 · ' + failText;
     }
   }
 

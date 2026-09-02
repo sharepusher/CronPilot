@@ -1271,6 +1271,8 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-stat-value.danger { color: var(--cp-danger); }
 .hf-stat-value.warning { color: var(--cp-warn); }
 .hf-stat-value.overdue { color: var(--cp-warn); }
+.hf-stat-value.success { color: var(--cp-success); }
+.hf-stat-value.muted { color: var(--cp-muted); }
 .hf-stat-sub { font-size: 11px; color: var(--cp-text-faint); margin-top: 4px; }
 
 /* Exception Panel */

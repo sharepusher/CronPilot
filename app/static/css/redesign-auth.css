@@ -80,6 +80,16 @@ body {
 .auth-input:disabled { background: var(--cp-surface-2); color: var(--cp-text-muted); cursor: not-allowed; }
 .auth-hint { font-size: 11px; color: var(--cp-text-faint); margin-top: 5px; }
 
+/* ─── Field-level Inline Errors (Phase 3) ────────────────────── */
+.auth-field-error .auth-input,
+.auth-field-error .auth-select,
+.auth-field-error .auth-textarea { border-color: var(--cp-danger); box-shadow: 0 0 0 2px rgba(239,68,68,0.1); }
+.auth-field-error .auth-label { color: var(--cp-danger); }
+.auth-field-error .auth-checkbox-group { border-color: var(--cp-danger); }
+.auth-error-msg { font-size: 12px; color: var(--cp-danger); margin-top: 4px; display: flex; align-items: center; gap: 4px; animation: auth-error-in 0.15s ease; }
+.auth-error-msg::before { content: "\26A0"; font-size: 11px; }
+@keyframes auth-error-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
 /* Grid layout for register form */
 .auth-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .auth-grid-2 .auth-field { margin-bottom: 0; }

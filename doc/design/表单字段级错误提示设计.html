@@ -40,7 +40,7 @@
 <body>
 
 <h1>表单字段级错误提示设计</h1>
-<p class="version">版本 rev.4 · 2026-09-01 · 编号 OPT-P1-14</p>
+<p class="version">版本 rev.6 · 2026-09-01 · 编号 OPT-P1-14</p>
 
 <h2>1. 问题</h2>
 
@@ -664,6 +664,365 @@ python scripts/audit_hardcoded_colors.py --check  → 未发现硬编码颜色
 sqlite3 datas/job_log.sqlite ".tables"  → 14 张表完整
 </pre>
 
+<h2>11. Phase 3 — 认证页内联错误覆盖设计</h2>
+
+<h3>11.1 问题</h3>
+<p>Phase 1 / Phase 2 已将管理端全部 RBAC 表单升级为「字段旁内联文案」错误反馈。但三个认证页面（<code>login.html</code>、<code>register.html</code>、<code>complete_profile.html</code>）仍使用 HTML5 原生校验气泡（<code>required</code> 属性 → 浏览器「请填写此字段」气泡），与系统整体体验风格不一致。</p>
+
+<p><strong>用户感知</strong>：在管理端内修改密码、编辑用户等操作已获得友好的红色内联提示，但回到登录页/注册页却看到浏览器默认的蓝白气泡，体验断裂。</p>
+
+<h3>11.2 现状分析</h3>
+<table>
+  <tr><th>页面</th><th>提交方式</th><th>字段数</th><th>当前空字段处理</th><th>当前服务端错误处理</th></tr>
+  <tr>
+    <td><code>login.html</code></td>
+    <td>原生 POST（非 AJAX）</td>
+    <td>2（username, password）</td>
+    <td>HTML5 <code>required</code> → 浏览器原生气泡</td>
+    <td>服务端 redirect → <code>auth-msg-err</code> banner（表单下方）</td>
+  </tr>
+  <tr>
+    <td><code>register.html</code></td>
+    <td>原生 POST（模态确认后 <code>form.submit()</code>）</td>
+    <td>7（email, nickname, job_title, password, confirm_password, role, group_ids, reason）</td>
+    <td>JS <code>checkValidity() + reportValidity()</code> → 浏览器原生气泡</td>
+    <td>服务端 redirect → SSR 渲染 <code>auth-msg-err</code> banner（表单上方）</td>
+  </tr>
+  <tr>
+    <td><code>complete_profile.html</code></td>
+    <td>原生 POST</td>
+    <td>1~3（动态，仅缺失字段可编辑）</td>
+    <td>HTML5 <code>required</code> → 浏览器原生气泡</td>
+    <td>服务端 redirect → <code>auth-msg-err</code> banner（表单上方）</td>
+  </tr>
+</table>
+
+<h3>11.3 根因</h3>
+<ol>
+  <li><strong>Phase 2 审计时降级为 B+</strong>：认证页的 <code>auth-msg-err</code> banner 距表单近（≤50px），审计时认为改造收益低。但忽略了<strong>前端空字段校验</strong>仍使用原生气泡的问题（B+ 评估仅关注了服务端错误 banner，未关注前端即时校验）</li>
+  <li><strong>认证页独立于 <code>common-redesign.js</code></strong>：认证页不继承 <code>_base.html</code>，没有加载 Phase 1/2 的 AJAX form handler，需要在页面内 inline script 中实现验证逻辑</li>
+  <li><strong>前后端校验架构差异</strong>：管理端表单使用 AJAX 提交 → 后端返回 <code>field</code> key → 前端就近显示。认证页使用原生 POST → 后端 redirect → SSR 渲染错误。两种架构的内联错误实现方式不同</li>
+</ol>
+
+<h3>11.4 方案</h3>
+
+<h4>核心策略：前端即时校验 + SSR 服务端错误保持</h4>
+<p>认证页无需改为 AJAX 提交。方案分两层：</p>
+<ol>
+  <li><strong>前端即时校验（本 Phase 实现）</strong>：在 submit 事件中用 JS 检查空字段，使用与管理端一致的红色内联文案（<code>auth-error-msg</code>），替代浏览器原生气泡</li>
+  <li><strong>服务端错误 banner 保持</strong>：<code>auth-msg-err</code> banner 仅处理服务端校验（凭证错误、用户名冲突等），距表单近且语义为"表单整体错误"（如"用户名或密码有误"），保持不变</li>
+</ol>
+
+<h4>设计原则</h4>
+<table>
+  <tr><th>#</th><th>原则</th><th>说明</th></tr>
+  <tr><td>P1</td><td>样式一致</td><td>使用 <code>auth-error-msg</code> class（与管理端 <code>.tf-error-msg</code> 视觉等价，颜色/字号/图标一致），添加到 <code>redesign-auth.css</code></td></tr>
+  <tr><td>P2</td><td>禁用原生校验</td><td>所有 auth 表单添加 <code>novalidate</code>，移除 <code>required</code> / <code>maxlength</code> 约束属性</td></tr>
+  <tr><td>P3</td><td>hint 互斥</td><td>显示错误时隐藏 <code>auth-hint</code>，清除时恢复</td></tr>
+  <tr><td>P4</td><td>自动清除</td><td>input/change 事件自动清除该字段的错误状态</td></tr>
+  <tr><td>P5</td><td>无障碍</td><td><code>role="alert"</code> + <code>aria-live="polite"</code></td></tr>
+  <tr><td>P6</td><td>不改提交方式</td><td>认证页继续使用原生 POST，不引入 AJAX</td></tr>
+</table>
+
+<h3>11.5 对比 Demo</h3>
+
+<h4>A · 当前方案（浏览器原生气泡）</h4>
+<div class="demo-box">
+  <div class="demo-title">登录 — CronPilot</div>
+  <div class="demo-field">
+    <span class="demo-label">用户名</span>
+    <input class="demo-input" placeholder="请输入用户名" disabled>
+    <p style="background: #333; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px;">↑ 浏览器气泡：「请填写此字段」（样式因浏览器而异，不可定制）</p>
+  </div>
+  <div class="demo-field">
+    <span class="demo-label">密码</span>
+    <input class="demo-input" type="password" placeholder="••••••••" disabled>
+  </div>
+</div>
+
+<div class="vs-divider">↓ 优化后 ↓</div>
+
+<h4>B · 推荐方案（字段旁内联文案）</h4>
+<div class="demo-box">
+  <div class="demo-title">登录 — CronPilot</div>
+  <div class="demo-field">
+    <span class="demo-label has-error">用户名</span>
+    <input class="demo-input has-error" placeholder="请输入用户名" disabled>
+    <div class="demo-error-msg">请填写用户名</div>
+  </div>
+  <div class="demo-field">
+    <span class="demo-label">密码</span>
+    <input class="demo-input" type="password" placeholder="••••••••" disabled>
+    <span class="demo-hint">✓ 未出错的字段保持正常状态</span>
+  </div>
+</div>
+
+<h4>C · 注册页多字段错误对比</h4>
+<div class="demo-box">
+  <div class="demo-title">注册申请 — 推荐方案效果</div>
+  <div class="demo-field">
+    <span class="demo-label has-error">公司邮箱 *</span>
+    <input class="demo-input has-error" placeholder="your.name@company.com" disabled>
+    <div class="demo-error-msg">请输入有效的邮箱地址</div>
+  </div>
+  <div class="demo-field">
+    <span class="demo-label has-error">花名 *</span>
+    <input class="demo-input has-error" value="" disabled>
+    <div class="demo-error-msg">请填写花名</div>
+  </div>
+  <div class="demo-field">
+    <span class="demo-label">密码 *</span>
+    <input class="demo-input" type="password" value="••••••" disabled>
+    <span class="demo-hint">✓ 已填写字段不标红</span>
+  </div>
+  <p style="color: #6b7280; font-size: 12px;">注：服务端逐项校验（邮箱 → 花名 → 岗位 → 密码 → …），返回第一个错误的 <code>msg</code>。前端根据 <code>msg</code> 关键词匹配目标字段。</p>
+</div>
+
+<h3>11.6 逐页面变更明细</h3>
+
+<h4>11.6.1 login.html — 登录页</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>字段数</td><td>2（username, password）</td></tr>
+  <tr><td>提交方式</td><td>原生 POST → 保持不变</td></tr>
+  <tr>
+    <td>前端校验逻辑</td>
+    <td>submit 事件 <code>preventDefault</code> → 检查 username/password 空值 → 空则显示内联错误 → 非空则 <code>form.submit()</code></td>
+  </tr>
+  <tr>
+    <td>服务端错误</td>
+    <td>保持 <code>auth-msg-err</code> banner（「用户名或密码有误」「登录过于频繁」属表单整体错误，不适合定位到单字段）</td>
+  </tr>
+  <tr>
+    <td>模板变更</td>
+    <td>
+      <ol>
+        <li><code>&lt;form&gt;</code> 添加 <code>novalidate</code></li>
+        <li>username input 移除 <code>required</code></li>
+        <li>password input 移除 <code>required</code></li>
+        <li>两个 <code>.auth-field</code> 添加 <code>data-field="username"</code> / <code>data-field="password"</code></li>
+        <li>JS submit handler 改为先做前端空字段检查</li>
+      </ol>
+    </td>
+  </tr>
+  <tr><td>复杂度</td><td><strong>低</strong>：仅 2 个字段，校验规则简单（非空）</td></tr>
+</table>
+
+<h4>11.6.2 register.html — 注册页</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>字段数</td><td>7+（email, nickname, job_title, password, confirm_password, role, group_ids, reason）</td></tr>
+  <tr><td>提交方式</td><td>原生 POST（经模态确认后 <code>form.submit()</code>）→ 保持不变</td></tr>
+  <tr>
+    <td>前端校验逻辑</td>
+    <td>
+      <strong>替换 <code>checkValidity() + reportValidity()</code></strong> 为自定义校验函数：
+      <ol>
+        <li>逐字段检查（email 格式、nickname 非空、job_title 非空、password ≥ 6 位、confirm 一致、group 至少选一、reason 非空）</li>
+        <li>第一个错误字段 → 显示内联文案 + 滚动 + focus</li>
+        <li>全部通过 → 弹出模态确认 → 确认后 <code>form.submit()</code></li>
+      </ol>
+    </td>
+  </tr>
+  <tr>
+    <td>服务端错误</td>
+    <td>
+      当前：SSR <code>form_msg</code> banner（表单上方）。<strong>增强</strong>：后端 <code>submit_registration</code> 返回的错误 <code>msg</code> 含有字段关键词，可在 SSR 渲染时通过模板逻辑将错误定位到具体字段。但考虑到：
+      <ul>
+        <li>注册是低频操作（每用户仅一次）</li>
+        <li>前端即时校验覆盖了大部分空值/格式错误</li>
+        <li>SSR banner 距表单近</li>
+      </ul>
+      <strong>决定</strong>：SSR banner 保持不变，不做字段级定位。改造收益与复杂度不成比例。
+    </td>
+  </tr>
+  <tr>
+    <td>模板变更</td>
+    <td>
+      <ol>
+        <li>移除所有 <code>required</code>、<code>maxlength</code> 属性</li>
+        <li>各 <code>.auth-field</code> 添加 <code>data-field</code></li>
+        <li>替换 <code>checkValidity() + reportValidity()</code> 为自定义校验</li>
+        <li>在自定义校验中使用 <code>showAuthError(field, msg)</code> / <code>clearAuthErrors()</code></li>
+      </ol>
+    </td>
+  </tr>
+  <tr><td>复杂度</td><td><strong>中</strong>：字段多、有 checkbox group、有条件字段（job_title_other）、有模态确认</td></tr>
+</table>
+
+<h4>11.6.3 complete_profile.html — 补全个人信息</h4>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>字段数</td><td>1~3（动态：仅缺失字段可编辑；email/nickname/job_title）</td></tr>
+  <tr><td>提交方式</td><td>原生 POST → 保持不变</td></tr>
+  <tr>
+    <td>前端校验逻辑</td>
+    <td>submit 事件 → 检查可编辑字段非空（仅 enabled 的 input/select） → 空则内联错误 → 全通过则 submit</td>
+  </tr>
+  <tr>
+    <td>服务端错误</td>
+    <td>SSR <code>form_msg</code> banner 保持</td>
+  </tr>
+  <tr>
+    <td>模板变更</td>
+    <td>
+      <ol>
+        <li>移除 <code>required</code></li>
+        <li>各 <code>.auth-field</code> 添加 <code>data-field</code></li>
+        <li>JS submit handler 改为自定义校验</li>
+      </ol>
+    </td>
+  </tr>
+  <tr><td>复杂度</td><td><strong>低</strong>：字段少且动态隐藏</td></tr>
+</table>
+
+<h3>11.7 CSS 新增</h3>
+<p>在 <code>redesign-auth.css</code> 中新增：</p>
+<table>
+  <tr><th>选择器</th><th>属性</th><th>说明</th></tr>
+  <tr><td><code>.auth-error-msg</code></td><td>font-size: 12px; color: var(--cp-danger); margin-top: 4px; display: flex; align-items: center; gap: 4px;</td><td>与 <code>.tf-error-msg</code> 视觉一致</td></tr>
+  <tr><td><code>.auth-error-msg::before</code></td><td>content: "⚠"; font-size: 11px;</td><td>警告图标前缀</td></tr>
+  <tr><td><code>.auth-field-error .auth-input</code></td><td>border-color: var(--cp-danger); box-shadow: 0 0 0 2px rgba(239,68,68,0.1);</td><td>错误输入框红边 + 微光</td></tr>
+  <tr><td><code>.auth-field-error .auth-select</code></td><td>同上</td><td>错误选择器</td></tr>
+  <tr><td><code>.auth-field-error .auth-label</code></td><td>color: var(--cp-danger);</td><td>错误标签变红</td></tr>
+  <tr><td><code>@keyframes auth-error-in</code></td><td>from { opacity: 0; transform: translateY(-4px); }</td><td>柔和出现动画</td></tr>
+  <tr><td><code>.auth-error-msg</code></td><td>animation: auth-error-in 0.15s ease;</td><td>应用动画</td></tr>
+</table>
+
+<h3>11.8 JS 工具函数（三页面共用，inline 定义）</h3>
+<p>由于认证页不加载 <code>common-redesign.js</code>，每个页面 inline script 中定义以下两个函数：</p>
+<pre>
+function showAuthError(fieldName, msg) {
+  clearAuthError(fieldName);
+  var wrap = document.querySelector('[data-field="' + fieldName + '"]');
+  if (!wrap) return;
+  wrap.classList.add('auth-field-error');
+  var hint = wrap.querySelector('.auth-hint');
+  if (hint) hint.style.display = 'none';
+  var errEl = document.createElement('div');
+  errEl.className = 'auth-error-msg';
+  errEl.setAttribute('role', 'alert');
+  errEl.textContent = msg;
+  var insertAfter = wrap.querySelector('.auth-input, .auth-select, .auth-textarea, .input-with-toggle');
+  if (insertAfter) insertAfter.parentNode.insertBefore(errEl, insertAfter.nextSibling);
+  else wrap.appendChild(errEl);
+}
+
+function clearAuthError(fieldName) {
+  var wrap = document.querySelector('[data-field="' + fieldName + '"]');
+  if (!wrap) return;
+  wrap.classList.remove('auth-field-error');
+  var err = wrap.querySelector('.auth-error-msg');
+  if (err) err.remove();
+  var hint = wrap.querySelector('.auth-hint');
+  if (hint) hint.style.display = '';
+}
+
+function clearAllAuthErrors() {
+  document.querySelectorAll('.auth-field-error').forEach(function(el) {
+    el.classList.remove('auth-field-error');
+  });
+  document.querySelectorAll('.auth-error-msg').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.auth-hint[style]').forEach(function(el) { el.style.display = ''; });
+}
+</pre>
+<p><strong>备选</strong>：可提取为 <code>auth-validation.js</code>（约 40 行），通过 <code>&lt;script src&gt;</code> 引入，避免三页面重复。但认证页加载频率低且脚本量极小，inline 更简单。</p>
+
+<h3>11.9 分批</h3>
+<table>
+  <tr><th>批次</th><th>内容</th><th>可独立验收</th></tr>
+  <tr>
+    <td>S1</td>
+    <td>CSS：<code>redesign-auth.css</code> 新增 <code>.auth-error-msg</code> + <code>.auth-field-error</code> 样式</td>
+    <td>✓ 手动添加 class 可见效果</td>
+  </tr>
+  <tr>
+    <td>S2</td>
+    <td><code>login.html</code>：novalidate + 移除 required + data-field + JS 前端校验 + 自动清除</td>
+    <td>✓ 空提交 → 内联错误；填写后自动清除；正确凭证 → 正常登录</td>
+  </tr>
+  <tr>
+    <td>S3</td>
+    <td><code>register.html</code>：novalidate + 移除 required/maxlength + data-field + 替换 checkValidity 为自定义校验</td>
+    <td>✓ 空提交 → 逐字段内联错误 + 滚动；填写后自动清除；模态确认后正常提交</td>
+  </tr>
+  <tr>
+    <td>S4</td>
+    <td><code>complete_profile.html</code>：同上适配</td>
+    <td>✓ 空提交 → 内联错误；填写后正常提交</td>
+  </tr>
+  <tr>
+    <td>S5</td>
+    <td>验证 + 文档同步</td>
+    <td>✓ restart → 三页面全流程验收</td>
+  </tr>
+</table>
+
+<h3>11.10 验收</h3>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>登录页 → 不填用户名 → 提交</td><td>用户名字段下方红色内联文案「请填写用户名」；无浏览器气泡</td></tr>
+  <tr><td>2</td><td>登录页 → 填用户名、不填密码 → 提交</td><td>密码字段下方红色内联文案「请填写密码」</td></tr>
+  <tr><td>3</td><td>登录页 → 填错密码 → 提交</td><td><code>auth-msg-err</code> banner 显示「用户名或密码有误」（服务端错误保持现有样式）</td></tr>
+  <tr><td>4</td><td>登录页 → 修改出错字段</td><td>内联文案自动消失</td></tr>
+  <tr><td>5</td><td>注册页 → 不填任何字段 → 点击「提交申请」</td><td>第一个空字段（email）显示内联错误 + 滚动到该字段</td></tr>
+  <tr><td>6</td><td>注册页 → 填完所有字段 → 点击「提交申请」</td><td>模态确认弹出（行为不变）</td></tr>
+  <tr><td>7</td><td>注册页 → 模态确认后服务端返回错误（如邮箱已存在）</td><td>SSR banner 显示错误（保持现有行为）</td></tr>
+  <tr><td>8</td><td>补全信息页 → 不填花名 → 提交</td><td>花名字段下方内联错误</td></tr>
+  <tr><td>9</td><td>所有页面 → 无浏览器原生校验气泡出现</td><td>✓ 全部被 <code>novalidate</code> 抑制</td></tr>
+</table>
+
+<h3>11.11 门禁命令</h3>
+<pre>
+# 单元测试
+bash scripts/cronpilot.sh test
+
+# 路由冒烟
+python scripts/smoke_routes.py --check
+
+# UI 契约
+python scripts/check_ui_contract.py --check
+
+# 颜色审计
+python scripts/audit_hardcoded_colors.py --check
+
+# restart + 浏览器验证
+bash scripts/cronpilot.sh restart --daemon
+curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
+</pre>
+
+<h3>11.12 风险</h3>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>前端校验被绕过（DevTools 禁用 JS）</td>
+    <td>低：服务端仍有完整校验，无安全风险</td>
+    <td>前端校验仅为 UX 优化，不替代后端</td>
+  </tr>
+  <tr>
+    <td>注册页校验逻辑与服务端不一致</td>
+    <td>中：前端认为合法但服务端拒绝，此时降级为 SSR banner 显示</td>
+    <td>前端校验尽量对齐服务端规则（非空/格式），但 uniqueness 检查仅服务端可做</td>
+  </tr>
+  <tr>
+    <td>移除 required 后，表单可能提交空值到服务端</td>
+    <td>低：服务端 <code>authenticate_user</code> / <code>submit_registration</code> 已有完整空值校验</td>
+    <td>JS 前端校验作为第一道防线，服务端校验为最终保障</td>
+  </tr>
+  <tr>
+    <td>三页面 inline 重复工具函数</td>
+    <td>低：约 30 行重复代码</td>
+    <td>可选：后续提取为 <code>auth-validation.js</code>，但当前影响可控</td>
+  </tr>
+</table>
+
+<h3>11.13 Phase 2 审计分类修正</h3>
+<p>Phase 2 审计（§9.2 ③）将认证页 SSR Banner 降级为 B+（基本合理）。本 Phase 3 修正评估：</p>
+<ul>
+  <li><strong>SSR Banner（服务端错误）</strong>：维持 B+ 评价，不改。理由：banner 距表单近，语义为整体错误</li>
+  <li><strong>HTML5 原生气泡（前端空值校验）</strong>：从 B+ 升级为 <strong>A（需修复）</strong>。理由：浏览器原生气泡样式不可控，与系统整体内联错误风格严重不一致，是用户直接可感知的体验断裂</li>
+</ul>
+
 <h2>版本历史</h2>
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
@@ -672,6 +1031,7 @@ sqlite3 datas/job_log.sqlite ".tables"  → 14 张表完整
   <tr><td>rev.3</td><td>2026-09-01</td><td>Review 修正：认证页 3 项 A→B+ 降级；补充 hint 恢复策略、Section 插入位置、ARIA role="alert"、Vue 冲突风险、动画时序风险</td></tr>
   <tr><td>rev.4</td><td>2026-09-01</td><td>Phase 2 全 RBAC 表单覆盖设计：6 张表单逐表变更明细、合理性评估、风险分析、准确性验证</td></tr>
   <tr><td>rev.5</td><td>2026-09-01</td><td>修复 <code>_password_field_data</code> 关键词匹配顺序 bug：「新密码不能与当前密码相同」误匹配到 pwd-old → 调整为 不一致→新密码→当前密码 优先序</td></tr>
+  <tr><td>rev.6</td><td>2026-09-01</td><td>Phase 3 认证页内联错误覆盖设计：login + register + complete_profile 三页面前端即时校验替代浏览器原生气泡；SSR banner 保持</td></tr>
 </table>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="表单字段级错误提示设计.md">Markdown</a> · <a href="index.html">索引</a></footer>

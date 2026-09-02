@@ -63,6 +63,12 @@ class CronRepository(BaseRepository):
             .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
             .where(JobHealth.health_status == HEALTH_FAILING)
         )
+        today_total_stmt = (
+            select(func.count())
+            .select_from(JobLog)
+            .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
+            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
+        )
         today_fail_stmt = (
             select(func.count())
             .select_from(JobLog)
@@ -74,16 +80,19 @@ class CronRepository(BaseRepository):
             total_stmt = total_stmt.where(*base_filters)
             running_stmt = running_stmt.where(*base_filters)
             failing_stmt = failing_stmt.where(*base_filters)
+            today_total_stmt = today_total_stmt.where(*base_filters)
             today_fail_stmt = today_fail_stmt.where(*base_filters)
 
         total = self.scalar(total_stmt) or 0
         running = self.scalar(running_stmt) or 0
         failing = self.scalar(failing_stmt) or 0
+        today_total = self.scalar(today_total_stmt) or 0
         today_fail = self.scalar(today_fail_stmt) or 0
         return {
             'total': int(total),
             'running': int(running),
             'failing': int(failing),
+            'today_total_runs': int(today_total),
             'today_fail_runs': int(today_fail),
             'failing_threshold': get_failing_threshold(cron_config),
         }
@@ -184,7 +193,7 @@ class CronRepository(BaseRepository):
         total = int(self.scalar(total_stmt) or 0)
         success = int(self.scalar(success_stmt) or 0)
         if total == 0:
-            return 100.0
+            return None
         return round(success / total * 100, 1)
 
     def last_exec_time_by_ids(self, cron_ids):

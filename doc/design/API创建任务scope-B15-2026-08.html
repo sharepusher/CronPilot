@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>B-15 API 创建任务 Scope 赋值 — 设计文档</title></head>
+<body>
+<h1>B-15 API 创建任务 Scope 赋值</h1>
+<p><strong>状态</strong>：设计待确认<br>
+<strong>关联</strong>：<a href="API安全与质量全面评估-2026-08.html">API 安全与质量全面评估</a> §3.3 B-15<br>
+<strong>日期</strong>：2026-08-28</p>
+
+<h2>1. 问题</h2>
+<p>Web UI 创建/编辑任务时，<code>_apply_scope_from_form()</code> 强制执行 scope 规则：</p>
+<ul>
+  <li>非 bypass 用户（operator）：必须选择自己所属业务组，scope 固定为 <code>GROUP</code></li>
+  <li>bypass 用户（admin/seed）：可选 <code>GLOBAL</code> 或指定 <code>GROUP</code></li>
+</ul>
+<p>API 路径（<code>POST /api/cron</code> 和 <code>/api/cron/add</code>）<strong>无等效 scope 逻辑</strong>：</p>
+<ul>
+  <li><code>CronUpsertIn</code> schema 无 <code>scope_type</code> / <code>group_id</code> 字段</li>
+  <li><code>upsert_cron_by_task_name()</code> → <code>create_cron()</code> 默认 <code>scope_type='GLOBAL'</code></li>
+  <li><strong>后果</strong>：拥有 operator token 的用户可通过 API 创建 GLOBAL 任务（Web 端不允许）</li>
+</ul>
+
+<h2>2. 根因</h2>
+<p>API 创建任务功能最初设计为「管理脚本使用全局 token」场景，未考虑用户 token（S-5/S-6 后新增）的 scope 语义。
+当用户 token 开始支持 API 调用后，scope 赋值逻辑未从 Web 端移植到 API 端。</p>
+
+<h2>3. 方案</h2>
+
+<h3>方案 A：API 强制 scope 赋值（推荐）</h3>
+<p>在 <code>upsert_cron_by_task_name()</code> 或调用方（<code>crons()</code> / <code>crons_legacy()</code>）中，根据 <code>request._api_scope</code> 自动赋值 scope：</p>
+<table border="1" cellpadding="4">
+  <tr><th>Token 类型</th><th>scope 行为</th></tr>
+  <tr><td>全局 token（<code>role='admin'</code>）</td><td>接受可选 <code>scope_type</code> / <code>group_id</code> 参数；默认 GLOBAL</td></tr>
+  <tr>
+    <td>用户 token（<code>role='user'</code>，bypass）</td>
+    <td>同全局 token：接受可选参数，默认 GLOBAL</td>
+  </tr>
+  <tr>
+    <td>用户 token（<code>role='user'</code>，非 bypass）</td>
+    <td>
+      <ul>
+        <li><strong>必须</strong>提供 <code>group_id</code>（或单组用户自动推断）</li>
+        <li><code>group_id</code> 必须在 <code>scope.group_ids</code> 中</li>
+        <li><code>scope_type</code> 强制为 <code>GROUP</code>（忽略用户传入的 GLOBAL）</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<h3>方案 B：API 禁止非 bypass 创建（简单但限制大）</h3>
+<p>非 bypass 用户 token 不允许创建任务（仅允许更新已有的、scope 内的任务）。过于限制，不推荐。</p>
+
+<h3>推荐方案 A</h3>
+<p>与 Web 端行为对等，API 用户体验完整。</p>
+
+<h2>4. 范围</h2>
+<table border="1" cellpadding="4">
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/api/views.py</code></td><td><code>crons()</code> / <code>crons_legacy()</code> 新增 scope 赋值逻辑</td></tr>
+  <tr><td><code>app/api/schemas.py</code></td><td><code>CronUpsertIn</code> 新增可选 <code>scope_type</code>、<code>group_id</code> 字段</td></tr>
+  <tr><td><code>tests/test_api_scope_s6.py</code></td><td>新增 scope 赋值相关测试</td></tr>
+</table>
+<p><strong>不做</strong>：不修改 <code>create_cron()</code> / <code>update_cron()</code> 的 scope 处理逻辑（它们已正确接受 normalized dict）；不修改 Web 端。</p>
+
+<h2>5. 分批</h2>
+<ol>
+  <li><strong>Batch 1</strong>：在 <code>crons()</code> / <code>crons_legacy()</code> 中新增 <code>_apply_api_scope()</code> 函数，根据 <code>request._api_scope</code> 向 <code>form_data</code> / <code>datas</code> 注入 scope 字段</li>
+  <li><strong>Batch 2</strong>：<code>CronUpsertIn</code> schema 新增 <code>scope_type</code>、<code>group_id</code> 可选字段</li>
+</ol>
+<p>两批可合并为单次交付。</p>
+
+<h2>6. 验收</h2>
+<ol>
+  <li>全局 token 创建任务：默认 GLOBAL ✓</li>
+  <li>全局 token 指定 <code>group_id</code>：创建 GROUP 任务 ✓</li>
+  <li>operator token（单组）创建任务：自动推断 group_id，scope_type=GROUP ✓</li>
+  <li>operator token（单组）传入不属于自己的 group_id：返回 403 ✓</li>
+  <li>operator token 传入 scope_type=GLOBAL：强制为 GROUP ✓</li>
+  <li><code>bash scripts/cronpilot.sh test</code> 全量通过</li>
+  <li><code>python scripts/smoke_routes.py --check</code> 通过</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>向后兼容</strong>：全局 token 行为不变（默认 GLOBAL）。用户 token（非 bypass）创建任务现在需要 group_id（或自动推断），这是期望的安全收紧</li>
+  <li><strong>API Breaking Change</strong>：使用用户 token 创建任务的自动化脚本可能需要添加 <code>group_id</code> 参数</li>
+</ul>
+
+<h2>8. 实现细节</h2>
+
+<h3>8.1 <code>_apply_api_scope()</code> 函数</h3>
+<pre><code>def _apply_api_scope(datas):
+    """根据 API scope 向 datas 注入 scope_type / group_id。
+    
+    全局/bypass token：接受可选 scope_type/group_id，默认 GLOBAL。
+    非 bypass 用户 token：强制 GROUP + 校验 group_id。
+    返回 error_msg 或 None。
+    """
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    if scope.get('role') == 'admin':
+        # 全局 token：接受用户传入或默认 GLOBAL
+        if 'scope_type' not in datas:
+            datas['scope_type'] = 'GLOBAL'
+        return None
+    
+    from app.rbac.policy import user_bypasses_scope
+    user_role = scope.get('user_role', '')
+    username = scope.get('username', '')
+    group_ids = scope.get('group_ids', [])
+    
+    if user_bypasses_scope(user_role, username=username, group_ids=group_ids):
+        if 'scope_type' not in datas:
+            datas['scope_type'] = 'GLOBAL'
+        return None
+    
+    # 非 bypass：强制 GROUP
+    raw_gid = datas.get('group_id', '')
+    if not raw_gid:
+        if len(group_ids) == 1:
+            raw_gid = str(group_ids[0])
+        else:
+            return '请指定 group_id（当前用户属于多个业务组）'
+    
+    try:
+        gid = int(raw_gid)
+    except (TypeError, ValueError):
+        return 'group_id 无效'
+    
+    if gid not in set(int(x) for x in group_ids):
+        return '只能在本人所属业务组内创建任务'
+    
+    datas['scope_type'] = 'GROUP'
+    datas['group_id'] = gid
+    return None
+</code></pre>
+
+</body>
+</html>

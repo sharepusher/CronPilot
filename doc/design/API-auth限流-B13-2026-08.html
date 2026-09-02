@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>B-13 API Auth 暴力破解限流 — 设计文档</title></head>
+<body>
+<h1>B-13 API Auth 暴力破解限流</h1>
+<p><strong>状态</strong>：已交付<br>
+<strong>关联</strong>：<a href="API安全与质量全面评估-2026-08.html">API 安全与质量全面评估</a> §3.1 B-13<br>
+<strong>日期</strong>：2026-08-28</p>
+
+<h2>1. 问题</h2>
+<p><code>/api/auth/token</code> 端点接受用户名+密码换取 API Token，但<strong>无任何频率限制</strong>。
+攻击者可无限速发送暴力破解请求，尝试猜解合法用户密码。</p>
+<p>Web 登录（<code>/rbac/login</code>）已在 OPT-P0-13 中接入 <code>LoginLimiter</code>（IP 50次/15分 + 用户名 50次/30分），
+但 API 端点完全未接入同一限流器。</p>
+
+<h2>2. 根因</h2>
+<p>OPT-P0-13 实施 Web 登录限流时，API auth 端点尚未创建（或未纳入同批次），
+后续新增 <code>api_auth_token</code> 时未检查是否需要对等接入限流。</p>
+
+<h2>3. 方案</h2>
+<p>在 <code>api_auth_token()</code> 函数体内复用现有 <code>LoginLimiter</code> 三步模式（与 Web 登录完全对称）：</p>
+<ol>
+  <li><strong>入口检查</strong>：在校验凭据之前调用 <code>check_login_limit(client_ip, username)</code>，
+      被锁时返回 <code>429 Too Many Requests</code>（含 <code>Retry-After</code> header）</li>
+  <li><strong>失败记录</strong>：凭据校验失败时调用 <code>record_login_failure(client_ip, username)</code></li>
+  <li><strong>成功清除</strong>：凭据校验成功时调用 <code>record_login_success(client_ip, username)</code></li>
+</ol>
+<p><strong>设计决策</strong>：API 和 Web 共享同一个进程内 <code>LoginLimiter</code> 实例。
+攻击者在 API 端点的失败计数会同步影响 Web 登录（反之亦然），
+这是期望行为——同一凭据无论从哪个入口尝试都应累计。</p>
+
+<h2>4. 范围</h2>
+<table border="1" cellpadding="4">
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/api/views.py</code></td><td><code>api_auth_token()</code> 新增 3 处 limiter 调用</td></tr>
+  <tr><td><code>tests/test_api_scope_s6.py</code></td><td>新增 <code>TestApiAuthLimiter</code> 测试类</td></tr>
+</table>
+<p><strong>不做</strong>：不修改 <code>LoginLimiter</code> 本身；不引入 Redis 后端；不新增 API 专用阈值。</p>
+
+<h2>5. 分批</h2>
+<p>单批交付（修改 1 文件 + 测试 1 文件），可独立验收。</p>
+
+<h2>6. 验收</h2>
+<ol>
+  <li><code>python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v</code> 通过</li>
+  <li><code>bash scripts/cronpilot.sh test</code> 全量通过</li>
+  <li><code>python scripts/smoke_routes.py --check</code> 通过</li>
+  <li>手动 <code>curl</code> 验证：连续发送错误密码请求 → 达到阈值后返回 429</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>误锁合法用户</strong>：阈值 50 次/15分钟，正常使用不会触发；且成功登录后自动清除计数</li>
+  <li><strong>多 worker 不共享</strong>：与 Web 登录限流的已知限制相同，进程内有效</li>
+  <li><strong>API/Web 互锁</strong>：共享计数器意味着 API 暴破也会锁 Web 登录；这是期望的安全行为</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="API-auth限流-B13-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

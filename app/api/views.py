@@ -86,16 +86,26 @@ def api_auth_token():
     if not username or not password:
         return api_return(errcode=1, errmsg='缺少 username 或 password'), 401
 
+    from app.rbac.login_limiter import check_login_limit, record_login_failure, record_login_success
+
+    client_ip = request.remote_addr or '0.0.0.0'
+    locked, lock_msg, retry_after = check_login_limit(client_ip, username)
+    if locked:
+        resp = api_return(errcode=1, errmsg=lock_msg), 429
+        return resp
+
     user = db.session.scalars(
         select(RbacUser).where(RbacUser.username == username)
     ).first()
     if not user or not user.check_password(password):
+        record_login_failure(client_ip, username)
         from . import _write_api_deny_audit
         _write_api_deny_audit()
         return api_return(errcode=1, errmsg='用户名或密码错误'), 401
     if not user.is_active:
         return api_return(errcode=1, errmsg='用户已停用'), 401
 
+    record_login_success(client_ip, username)
     result = issue_user_api_token(user.id)
     if not result['ok']:
         return api_return(errcode=1, errmsg=result['msg']), 500

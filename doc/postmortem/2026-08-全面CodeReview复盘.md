@@ -1326,6 +1326,65 @@ Web 侧 `tests/test_rbac_phase.py` 有完整的角色-权限矩阵测试（Viewe
    验证命令：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v`
 3. **权限对比矩阵文档化**：在设计文档中记录 Web/API 权限对照表，后续新增端点时参照。
 
+## Code Review R5/R6 — B-13 API Auth 暴力破解限流缺失根因分析（2026-08-28）
+
+### 1. Bug 定位
+
+`app/api/views.py` 的 `api_auth_token()` 函数接受用户名+密码换取 API Token，
+但未接入任何频率限制。攻击者可无限速发送暴力破解请求。
+
+### 2. 根因（5-Why）
+
+1. **为何缺少限流？** — OPT-P0-13 实施 Web 登录限流时，`/api/auth/token` 端点尚未创建
+2. **为何后续新增端点时未对齐？** — `api_auth_token` 是在 API Token 功能开发时新增的，
+   开发者关注的是「Token 签发逻辑正确性」，未检查 Web 登录侧已有哪些安全措施需要对等
+3. **为何没有安全清单要求对齐？** — 项目当时无「凡含密码校验的端点必须接入限流」的显式规范
+4. **为何 Review 未发现？** — 代码审查聚焦于功能逻辑（Token 签发、过期、scope），
+   未从攻击面角度系统评估新端点
+5. **根因**：缺少「**认证端点安全对等清单**」——
+   新增含密码/凭据校验的端点时，无强制检查项要求对齐已有端点的安全措施（限流、审计、锁定）
+
+### 3. 测试漏洞
+
+`tests/test_login_limiter.py` 覆盖了 `LoginLimiter` 自身逻辑（锁定/滑窗/解锁），
+但未验证「`api_auth_token` 端点是否接入了 limiter」。
+`tests/test_api_scope_s6.py` 中 `TestAuthTokenEndpoint` 测试了凭据校验和 Token 签发，
+但未包含任何限流相关断言。
+
+### 4. 修复
+
+`app/api/views.py` 的 `api_auth_token()` 中新增 3 处调用：
+
+- 入口处 `check_login_limit(client_ip, username)` → 被锁时返回 429
+- 凭据校验失败时 `record_login_failure(client_ip, username)`
+- 凭据校验成功时 `record_login_success(client_ip, username)`
+
+复用现有 `LoginLimiter` 全局单例，API 与 Web 共享计数器。
+
+### 5. 防护测试
+
+新增 `tests/test_api_scope_s6.TestApiAuthLimiter`（4 条用例）：
+
+- `test_lockout_returns_429` — 达到阈值后返回 429
+- `test_failure_increments_counter` — 凭据错误时计数器递增
+- `test_success_clears_counter` — 成功获取 token 后清除计数
+- `test_web_and_api_share_limiter` — Web 失败计数影响 API 端点
+
+### 6. 同类排查
+
+搜索项目中所有含密码/凭据校验的端点：
+
+- `/rbac/login`（POST）— 已接入限流（OPT-P0-13）✓
+- `/api/auth/token`（POST）— 本次修复 ✓
+- 无其他含密码校验的端点
+
+### 7. 预防方案
+
+1. **认证端点安全对等规范**：在 `.cursor/rules/cronpilot-backend.mdc` 新增规则——
+   凡新增含密码/凭据校验的端点，必须对齐已有认证端点的安全措施（限流、审计日志、锁定策略）。
+   验证命令：`grep -c "check_login_limit\|record_login_failure" app/api/views.py`（应 ≥ 2）
+2. **回归测试**：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v`（4 条用例）
+
 ---
 
 [← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

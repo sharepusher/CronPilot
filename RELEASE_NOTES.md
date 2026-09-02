@@ -7,6 +7,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 安全修复 — B-13 API Auth 暴力破解限流
+
+- **问题**：`/api/auth/token` 端点接受用户名+密码换取 API Token，但无频率限制，可被暴力破解
+- **修复**：复用现有 `LoginLimiter`（OPT-P0-13），在 `api_auth_token()` 中接入 check → record_failure → record_success 三步模式，被锁时返回 429
+- **设计决策**：API 与 Web 登录共享同一限流器实例，跨入口累计失败计数
+- **回归测试**：新增 `TestApiAuthLimiter`（4 条用例），覆盖锁定/计数/清除/共享维度
+
 ### 安全修复 — R5 API 角色权限校验（S-5）
 
 - **P0 权限提升**：API 端点仅校验 scope（组可见性），未校验角色能力。Viewer Token 可调用 `cron:write` 写端点（status/create/add_log），Operator Token 可调用 `cron:retire` 下线端点

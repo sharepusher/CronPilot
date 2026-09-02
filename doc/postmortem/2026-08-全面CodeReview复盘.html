@@ -1211,5 +1211,63 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
   <li><b>权限对比矩阵文档化</b>：在设计文档中记录 Web/API 权限对照表，后续新增端点时参照。</li>
 </ol>
 
+<h2>Code Review R5/R6 — B-13 API Auth 暴力破解限流缺失根因分析（2026-08-28）</h2>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/api/views.py</code> 的 <code>api_auth_token()</code> 函数接受用户名+密码换取 API Token，
+但未接入任何频率限制。攻击者可无限速发送暴力破解请求。</p>
+
+<h3>2. 根因（5-Why）</h3>
+<ol>
+  <li><strong>为何缺少限流？</strong> — OPT-P0-13 实施 Web 登录限流时，<code>/api/auth/token</code> 端点尚未创建</li>
+  <li><strong>为何后续新增端点时未对齐？</strong> — <code>api_auth_token</code> 是在 API Token 功能开发时新增的，
+    开发者关注的是「Token 签发逻辑正确性」，未检查 Web 登录侧已有哪些安全措施需要对等</li>
+  <li><strong>为何没有安全清单要求对齐？</strong> — 项目当时无「凡含密码校验的端点必须接入限流」的显式规范</li>
+  <li><strong>为何 Review 未发现？</strong> — 代码审查聚焦于功能逻辑（Token 签发、过期、scope），
+    未从攻击面角度系统评估新端点</li>
+  <li><strong>根因</strong>：缺少「<strong>认证端点安全对等清单</strong>」——
+    新增含密码/凭据校验的端点时，无强制检查项要求对齐已有端点的安全措施（限流、审计、锁定）</li>
+</ol>
+
+<h3>3. 测试漏洞</h3>
+<p><code>tests/test_login_limiter.py</code> 覆盖了 <code>LoginLimiter</code> 自身逻辑（锁定/滑窗/解锁），
+但未验证「<code>api_auth_token</code> 端点是否接入了 limiter」。
+<code>tests/test_api_scope_s6.py</code> 中 <code>TestAuthTokenEndpoint</code> 测试了凭据校验和 Token 签发，
+但未包含任何限流相关断言。</p>
+
+<h3>4. 修复</h3>
+<p><code>app/api/views.py</code> 的 <code>api_auth_token()</code> 中新增 3 处调用：</p>
+<ul>
+  <li>入口处 <code>check_login_limit(client_ip, username)</code> → 被锁时返回 429</li>
+  <li>凭据校验失败时 <code>record_login_failure(client_ip, username)</code></li>
+  <li>凭据校验成功时 <code>record_login_success(client_ip, username)</code></li>
+</ul>
+<p>复用现有 <code>LoginLimiter</code> 全局单例，API 与 Web 共享计数器。</p>
+
+<h3>5. 防护测试</h3>
+<p>新增 <code>tests/test_api_scope_s6.TestApiAuthLimiter</code>（4 条用例）：</p>
+<ul>
+  <li><code>test_lockout_returns_429</code> — 达到阈值后返回 429</li>
+  <li><code>test_failure_increments_counter</code> — 凭据错误时计数器递增</li>
+  <li><code>test_success_clears_counter</code> — 成功获取 token 后清除计数</li>
+  <li><code>test_web_and_api_share_limiter</code> — Web 失败计数影响 API 端点</li>
+</ul>
+
+<h3>6. 同类排查</h3>
+<p>搜索项目中所有含密码/凭据校验的端点：</p>
+<ul>
+  <li><code>/rbac/login</code>（POST）— 已接入限流（OPT-P0-13）✓</li>
+  <li><code>/api/auth/token</code>（POST）— 本次修复 ✓</li>
+  <li>无其他含密码校验的端点</li>
+</ul>
+
+<h3>7. 预防方案</h3>
+<ol>
+  <li><strong>认证端点安全对等规范</strong>：在 <code>.cursor/rules/cronpilot-backend.mdc</code> 新增规则——
+    凡新增含密码/凭据校验的端点，必须对齐已有认证端点的安全措施（限流、审计日志、锁定策略）。
+    验证命令：<code>grep -c "check_login_limit\|record_login_failure" app/api/views.py</code>（应 ≥ 2）</li>
+  <li><strong>回归测试</strong>：<code>.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v</code>（4 条用例）</li>
+</ol>
+
 </body>
 </html>

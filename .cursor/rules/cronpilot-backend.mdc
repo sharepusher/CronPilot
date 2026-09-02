@@ -284,6 +284,17 @@ alwaysApply: false
 - **回归测试**：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v`（13 条用例）
 - **违反教训**：2026-08 S-5 API 端点仅做 scope 检查（组可见性），Viewer Token 可调用 `cron:write` 端点，Operator 可调用 `cron:retire` 端点
 
+## 认证端点安全对等（强制 · 2026-08 B-13 教训）
+
+凡新增含密码/凭据校验的端点，必须对齐已有认证端点的安全措施：
+
+- **限流**：`check_login_limit(client_ip, username)` — 入口检查 + `record_login_failure` / `record_login_success`
+- **审计**：`_write_api_deny_audit()` — 鉴权失败记录
+- **锁定策略**：复用 `LoginLimiter` 全局单例（API 与 Web 共享计数器）
+- **自检**：`grep -c "check_login_limit\|record_login_failure" app/api/views.py`（应 ≥ 2）
+- **回归测试**：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v`（4 条用例）
+- **违反教训**：2026-08 B-13 `api_auth_token` 端点新增时未对齐 Web 登录已有限流（OPT-P0-13），可被无限速暴力破解
+
 ## 文件路径必须使用绝对路径（强制 · 2026-08）
 
 凡 `open()` / `os.path.exists()` 等文件操作，路径必须基于 `os.path.abspath(__file__)` 或项目根目录常量构建，禁止使用 CWD 相对路径（如 `"scheduler.lock"`、`"conf.ini"`）。

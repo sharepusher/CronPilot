@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot API 安全与质量全面评估（2026-08）</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:960px;margin:2em auto;line-height:1.7;color:#1a1a1a;padding:0 1em}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}
+h2{color:#2563eb;margin-top:2em}
+h3{color:#1e40af}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f0f4ff}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:0.9em}
+pre{background:#1e293b;color:#e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:0.85em}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.8em;font-weight:600}
+.b-done{background:#dcfce7;color:#166534}
+.b-p0{background:#fecaca;color:#991b1b}
+.b-p1{background:#fed7aa;color:#9a3412}
+.b-p2{background:#e0e7ff;color:#3730a3}
+.b-skip{background:#f3f4f6;color:#6b7280}
+.meta{color:#6b7280;font-size:0.9em}
+.verdict{padding:0.5em 1em;border-radius:6px;margin:1em 0}
+.v-fix{background:#fef2f2;border-left:3px solid #ef4444}
+.v-ok{background:#f0fdf4;border-left:3px solid #22c55e}
+.v-defer{background:#fffbeb;border-left:3px solid #f59e0b}
+</style>
+</head>
+<body>
+
+<h1>CronPilot API 安全与质量全面评估</h1>
+<p class="meta">
+  日期：2026-08-28 ·
+  范围：<code>app/api/</code> 全部端点 ·
+  关联：R1–R5 Code Review 系列
+</p>
+
+<h2>1. API 端点总览</h2>
+<table>
+  <tr><th>端点</th><th>方法</th><th>功能</th><th>鉴权</th><th>权限</th><th>Scope</th></tr>
+  <tr><td><code>/api/auth/token</code></td><td>POST</td><td>签发 Token</td><td>Basic/Form</td><td>—</td><td>—</td></tr>
+  <tr><td><code>/api/test</code></td><td>GET</td><td>健康检查</td><td>无</td><td>—</td><td>—</td></tr>
+  <tr><td><code>/api/cron/query</code></td><td>GET</td><td>查询任务列表</td><td>Token</td><td>cron:read ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/logs</code></td><td>GET</td><td>查询执行日志</td><td>Token</td><td>log:read ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/detail</code></td><td>GET</td><td>任务详情</td><td>Token</td><td>cron:read ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/log/detail</code></td><td>GET</td><td>日志详情</td><td>Token</td><td>log:read ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/status</code></td><td>POST</td><td>启停任务</td><td>Token</td><td>cron:write ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron</code></td><td>POST</td><td>新建/更新任务</td><td>Token</td><td>cron:write ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/add</code></td><td>GET/POST</td><td>旧路径兼容</td><td>Token</td><td>cron:write ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/retire</code></td><td>POST</td><td>下线任务</td><td>Token</td><td>cron:retire ✓</td><td>✓</td></tr>
+  <tr><td><code>/api/cron/add_log</code></td><td>POST</td><td>回传执行进度</td><td>Token</td><td>cron:write ✓</td><td>✓</td></tr>
+</table>
+<p>注：「权限」列标 ✓ 表示已通过 S-5 修复加固 <code>check_api_permission()</code>。</p>
+
+<h2>2. 已修复问题汇总</h2>
+<table>
+  <tr><th>编号</th><th>描述</th><th>修复轮次</th><th>状态</th></tr>
+  <tr><td>S-1</td><td><code>cron_add_log</code> 缺失 scope 检查</td><td>R2</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>S-4</td><td>API Scope 缓存 role 键碰撞（Biz Admin 提权）</td><td>R4</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>S-5</td><td>API POST 端点缺失角色能力校验（Viewer/Operator 提权）</td><td>R5</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>B-9</td><td>孤儿日志跳过 scope 检查</td><td>R4</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>R3-P0-1</td><td>API Token 过期判断 BIGINT 类型错误（Token 永不过期）</td><td>R3</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>P1-3</td><td>change_password 后 scope 缓存未失效</td><td>R4</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>C-7</td><td>API config 读取失败时授予 admin（安全降级方向错误）</td><td>R1</td><td><span class="badge b-done">已修复</span></td></tr>
+  <tr><td>C-9</td><td><code>api/auth.py</code> 死代码含鉴权绕过路径</td><td>R1</td><td><span class="badge b-done">已修复（已删除）</span></td></tr>
+  <tr><td>P1-9</td><td><code>requirements-core.txt</code> 缺少 <code>croniter</code>/<code>python-json-logger</code></td><td>R4</td><td><span class="badge b-done">已修复</span></td></tr>
+</table>
+
+<h2>3. 待评估问题（7 项）</h2>
+
+<h3>3.1 B-13：<code>/api/auth/token</code> 无暴力破解限制</h3>
+<p><b>位置</b>：<code>app/api/views.py:67-106</code></p>
+<p><b>现状</b>：Web 登录通过 <code>app/rbac/login_limiter.py</code> 的 <code>check_login_limit()</code> + <code>record_login_failure()</code> 实现 IP+用户名级锁定（5 次失败后锁 15 分钟）。<code>/api/auth/token</code> 端点无此限制。</p>
+<p><b>准确性评估</b>：<span class="badge b-p1">准确</span>。代码中确认无任何调用 <code>check_login_limit</code> 或等效逻辑。</p>
+<div class="verdict v-fix">
+<b>必要性：建议修复（P1）</b>。CronPilot 作为内部工具，API 端点通常在内网。但如果暴露到公网（如通过 Nginx 代理），此端点可被用于凭据爆破。修复成本极低（复用现有 limiter，约 5 行代码），风险收益比高。
+</div>
+
+<h3>3.2 B-14：<code>updated_from/to</code> 字符串与 BIGINT 比较</h3>
+<p><b>位置</b>：<code>app/api/views.py:186-188</code></p>
+<pre>
+    if updated_from:
+        filters.append(CronInfos.updated_at >= updated_from)    # updated_from 是字符串
+    if updated_to:
+        filters.append(CronInfos.updated_at <= updated_to)      # updated_at 是 BigInteger
+</pre>
+<p><b>准确性评估</b>：<span class="badge b-p2">准确但影响有限</span>。<code>CronInfos.updated_at</code> 确实是 <code>BigInteger</code>（百毫秒纪元值）。SQLite 的弱类型系统会隐式转换，通常能工作。但语义不正确——用户传入 <code>"2026-08-28 10:00:00"</code> 会被当作字符串与整数比较。</p>
+<div class="verdict v-defer">
+<b>必要性：降为 P2，非紧急</b>。该参数在实际调用中使用频率低，且 SQLite 的隐式转换使大多数场景能工作。正确修复是用 <code>str_to_hms()</code> 解析后比较，加上输入格式校验。可在下一次 API 接口优化时顺手处理。
+</div>
+
+<h3>3.3 B-15：API 创建任务无 scope/group 参数，所有新任务为 GLOBAL</h3>
+<p><b>位置</b>：<code>app/api/views.py:539-559</code>；<code>app/services/cron_service.py:146-167</code></p>
+<p><b>现状</b>：<code>CronUpsertIn</code> schema 无 <code>scope_type</code> 和 <code>group_id</code> 字段。<code>upsert_cron_by_task_name()</code> 创建新任务时不设置 scope，默认为 GLOBAL。Web UI 的 <code>cron_add</code> 视图通过 <code>_apply_scope_from_form()</code> 强制分配组。</p>
+<p><b>准确性评估</b>：<span class="badge b-p1">准确</span>。确认 API 创建路径不经过 scope 分配逻辑。</p>
+<div class="verdict v-fix">
+<b>必要性：建议修复（P1），但需设计讨论</b>。这是一个功能缺失而非 bug——API 设计初期未考虑 scope 概念（RBAC v4 后才引入）。修复涉及 schema 扩展、默认值策略（用户所在组 vs 必填参数）、向后兼容。建议作为独立 OPT 条目规划，而非紧急修复。
+</div>
+
+<h3>3.4 B-16：<code>tag_suggest</code> 接受任意 <code>group_id</code> 无 scope 校验</h3>
+<p><b>位置</b>：<code>app/main/views.py:1086-1093</code></p>
+<pre>
+@main.route('/api/tags/suggest')
+@require_permission('cron:read')
+def tag_suggest():
+    prefix = (request.args.get('q') or '').strip()
+    raw_gid = request.args.get('group_id', '').strip()
+    group_id = int(raw_gid) if raw_gid and raw_gid.isdigit() else None
+    tags = suggest_tags(prefix=prefix, limit=20, group_id=group_id)
+    return jsonify(tags)
+</pre>
+<p><b>准确性评估</b>：<span class="badge b-p2">准确但低风险</span>。用户可通过传入非自身组的 <code>group_id</code> 获取该组的标签名称列表。标签名称是低敏感数据（通常是技术分类标签）。</p>
+<div class="verdict v-defer">
+<b>必要性：降为 P2</b>。标签名称不是敏感信息，泄露不会造成业务损失。但从权限完整性角度，加一行 scope 校验是好习惯。可顺手修复。
+</div>
+
+<h3>3.5 Q-1：API Token 支持 query string 传递（日志/Referer 泄露）</h3>
+<p><b>位置</b>：<code>app/api/__init__.py:49</code></p>
+<pre>
+    return request.values.get('access_token', '')
+</pre>
+<p><b>准确性评估</b>：<span class="badge b-p2">准确</span>。<code>_extract_bearer_token()</code> 先检查 <code>Authorization: Bearer</code> header，若无则回退到 query string <code>access_token</code> 参数。</p>
+<div class="verdict v-defer">
+<b>必要性：降为 P2，长期废弃</b>。Query string token 会出现在：① 服务端 access log ② 浏览器历史记录 ③ HTTP Referer header。CronPilot 的 API 通常由自动化脚本调用（非浏览器），且为内部工具，实际泄露风险有限。建议在 RELEASE_NOTES 中标注 deprecated，未来大版本移除。
+</div>
+
+<h3>3.6 Q-2：LIKE 查询未转义 <code>%</code> / <code>_</code> 通配符</h3>
+<p><b>位置</b>：<code>app/api/views.py:154</code>；<code>app/main/views.py:214,747</code> 等</p>
+<pre>
+    filters.append(CronInfos.task_name.like('%%%s%%' % keyword))
+</pre>
+<p><b>准确性评估</b>：<span class="badge b-p2">准确但非安全问题</span>。这<b>不是 SQL 注入</b>（SQLAlchemy 参数化处理）。但用户输入 <code>%</code> 或 <code>_</code> 会匹配超出预期的结果。</p>
+<div class="verdict v-ok">
+<b>必要性：P2，低优先级</b>。功能行为上用户搜索 <code>%</code> 会返回所有任务，这是一个 UX 问题而非安全问题。在内部工具中用户不太可能故意利用这点。可在 API 接口优化时统一添加 <code>escape_like()</code> 工具函数。
+</div>
+
+<h3>3.7 鉴权降级：<code>api_access_token</code> 未配置时全放行</h3>
+<p><b>位置</b>：<code>app/api/__init__.py:76-78, 97-99</code></p>
+<pre>
+    if not api_access_token and not token:
+        request._api_scope = {'role': 'admin'}    # 无 token 配置且无请求 token → admin
+        return None
+    ...
+    if not api_access_token:
+        request._api_scope = {'role': 'admin'}    # 无 token 配置但有不匹配的 token → admin
+        return None
+</pre>
+<p><b>准确性评估</b>：<span class="badge b-skip">准确，已知设计决策</span>。这是向后兼容行为，在 R1 附录 D 中已深入分析。</p>
+<div class="verdict v-ok">
+<b>必要性：无需修复</b>。这是有意的向后兼容设计（代码注释第 60 行明确说明）。管理员可通过设置 <code>api_access_token_required=1</code> 或配置 <code>api_access_token</code> 启用严格鉴权。默认行为适合内部开发/测试场景。如果将来 CronPilot 支持公网部署，可改为默认拒绝。
+</div>
+
+<h2>4. 综合评估矩阵</h2>
+<table>
+  <tr><th>编号</th><th>描述</th><th>R5 评级</th><th>评估后评级</th><th>修复必要性</th><th>建议动作</th></tr>
+  <tr><td>B-13</td><td>API auth 暴力破解</td><td>P1</td><td><b>P1</b></td><td>高（成本低，风险收益比好）</td><td>修复</td></tr>
+  <tr><td>B-15</td><td>API 创建任务无 scope</td><td>P1</td><td><b>P1</b></td><td>中（功能缺失，需设计讨论）</td><td>独立规划</td></tr>
+  <tr><td>B-14</td><td>BIGINT 过滤器类型</td><td>P1</td><td><b>P2</b></td><td>低（可工作，语义不完美）</td><td>顺手修</td></tr>
+  <tr><td>B-16</td><td>tag_suggest scope</td><td>P1</td><td><b>P2</b></td><td>低（低敏感数据）</td><td>顺手修</td></tr>
+  <tr><td>Q-1</td><td>Token query string</td><td>P2</td><td><b>P2</b></td><td>低（内部工具）</td><td>标注废弃</td></tr>
+  <tr><td>Q-2</td><td>LIKE 通配符</td><td>P2</td><td><b>P2</b></td><td>低（UX 问题）</td><td>API 优化时统一</td></tr>
+  <tr><td>—</td><td>鉴权降级全放行</td><td>—</td><td><b>无需修复</b></td><td>无（设计决策）</td><td>保持现状</td></tr>
+</table>
+
+<h2>5. 建议实施顺序</h2>
+<ol>
+  <li><b>B-13 暴力破解限制</b>（5 行代码，复用现有 limiter）— 立即</li>
+  <li><b>B-16 tag_suggest scope</b>（3 行代码）— 顺手</li>
+  <li><b>B-14 BIGINT 过滤器</b>（5 行代码）— 顺手</li>
+  <li><b>B-15 API 创建任务 scope</b>（需独立设计文档）— 中期规划</li>
+  <li><b>Q-1 废弃 query string token</b>（文档标注 + RELEASE_NOTES）— 下个大版本</li>
+  <li><b>Q-2 LIKE 转义</b>（全局工具函数）— API 优化批次</li>
+</ol>
+
+<h2>6. API 安全防护总结</h2>
+<p>经过 R1–R5 五轮 Review 和 9 项修复，CronPilot API 层的安全防护已覆盖：</p>
+<table>
+  <tr><th>防护维度</th><th>状态</th><th>验证命令</th></tr>
+  <tr><td>Token 鉴权</td><td>✅ 全局 + 用户 Token，fail-closed</td><td><code>python -m unittest tests.test_api_scope_s6 -v</code></td></tr>
+  <tr><td>角色权限</td><td>✅ POST 端点 check_api_permission</td><td><code>grep -c "check_api_permission" app/api/views.py</code> ≥ 5</td></tr>
+  <tr><td>组 Scope 隔离</td><td>✅ 全端点 check_api_scope</td><td>TestScopeIsolation 7 条用例</td></tr>
+  <tr><td>缓存一致性</td><td>✅ 缓存形状与 fresh scope 对齐</td><td>test_cache_shape_matches_fresh_scope</td></tr>
+  <tr><td>Token 过期</td><td>✅ BIGINT 比较 + fail-closed</td><td>test_expired_token_denied</td></tr>
+  <tr><td>审计日志</td><td>✅ 拒绝事件写入 rbac_audit_logs</td><td>_write_api_deny_audit()</td></tr>
+  <tr><td>暴力破解</td><td>❌ 待修复（B-13）</td><td>—</td></tr>
+  <tr><td>输入校验</td><td>⚠ 部分（BIGINT 类型、LIKE 转义）</td><td>—</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="API安全与质量全面评估-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

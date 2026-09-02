@@ -578,5 +578,100 @@ class TestApiRolePermission(unittest.TestCase):
         self.assertIn('权限不足', resp_data.get('errmsg', ''))
 
 
+class TestApiAuthLimiter(unittest.TestCase):
+    """B-13: api_auth_token 暴力破解限流。
+
+    复用文件级 _make_app()（轻量 Flask，无 scheduler），
+    验证 limiter 三步调用（check → record_failure → record_success）。
+    """
+
+    def setUp(self):
+        import app.api as api_pkg
+        api_pkg._SCOPE_CACHE.clear()
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
+            self.db.create_all()
+            u = RbacUser(username='limiter_user', role='operator', is_active=1,
+                         create_time=str_to_hms('2026-01-01 00:00:00'))
+            u.set_password('correct_pw')
+            self.db.session.add(u)
+            self.db.session.commit()
+        self.client = self.app.test_client()
+        from app.rbac.login_limiter import get_limiter
+        get_limiter().reset()
+
+    def tearDown(self):
+        from app.rbac.login_limiter import get_limiter
+        get_limiter().reset()
+
+    def test_lockout_returns_429(self):
+        """达到失败阈值后 API 返回 429。"""
+        from app.rbac.login_limiter import MAX_FAILURES_PER_IP, get_limiter
+        limiter = get_limiter()
+        ip = '10.99.0.1'
+        for _ in range(MAX_FAILURES_PER_IP):
+            limiter.record_failure(ip, 'limiter_user')
+
+        with self.app.app_context():
+            with patch('configs.configs', return_value=''):
+                resp = self.client.post('/api/auth/token',
+                                       data={'username': 'limiter_user', 'password': 'wrong'},
+                                       environ_base={'REMOTE_ADDR': ip})
+        self.assertEqual(resp.status_code, 429)
+        data = resp.get_json()
+        self.assertEqual(data['errcode'], 1)
+        self.assertIn('频繁', data['errmsg'])
+
+    def test_failure_increments_counter(self):
+        """凭据错误时计数器递增。"""
+        from app.rbac.login_limiter import get_limiter
+        limiter = get_limiter()
+        ip = '10.99.0.2'
+
+        with self.app.app_context():
+            with patch('configs.configs', return_value=''):
+                self.client.post('/api/auth/token',
+                                 data={'username': 'nouser', 'password': 'bad'},
+                                 environ_base={'REMOTE_ADDR': ip})
+
+        self.assertTrue(len(limiter._ip_failures.get(ip, [])) > 0,
+                        'failure should be recorded')
+
+    def test_success_clears_counter(self):
+        """成功获取 token 后清除失败计数。"""
+        from app.rbac.login_limiter import get_limiter
+        limiter = get_limiter()
+        ip = '10.99.0.3'
+        limiter.record_failure(ip, 'limiter_user')
+        limiter.record_failure(ip, 'limiter_user')
+        self.assertEqual(len(limiter._ip_failures.get(ip, [])), 2)
+
+        with self.app.app_context():
+            with patch('configs.configs', return_value=''):
+                resp = self.client.post('/api/auth/token',
+                                       data={'username': 'limiter_user', 'password': 'correct_pw'},
+                                       environ_base={'REMOTE_ADDR': ip})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(limiter._ip_failures.get(ip, [])), 0,
+                         'success should clear failure records')
+
+    def test_web_and_api_share_limiter(self):
+        """Web 登录失败计数影响 API 端点（共享 limiter 实例）。"""
+        from app.rbac.login_limiter import MAX_FAILURES_PER_IP, get_limiter
+        limiter = get_limiter()
+        ip = '10.99.0.4'
+        for _ in range(MAX_FAILURES_PER_IP):
+            limiter.record_failure(ip, 'shared_user')
+
+        with self.app.app_context():
+            with patch('configs.configs', return_value=''):
+                resp = self.client.post('/api/auth/token',
+                                       data={'username': 'shared_user', 'password': 'any'},
+                                       environ_base={'REMOTE_ADDR': ip})
+        self.assertEqual(resp.status_code, 429)
+
+
 if __name__ == '__main__':
     unittest.main()

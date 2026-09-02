@@ -9,11 +9,14 @@
 设计文档：doc/design/DashboardService提取重构设计.html
 """
 import time as _time
+from collections import namedtuple
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.orm import load_only
 
 from datas.model.cron_infos import CronInfos
+from datas.model.job_health import JobHealth
 
 _overdue_cache = {}
 _OVERDUE_CACHE_TTL = 30
@@ -96,19 +99,41 @@ class DashboardService:
     # ─── 迁移自 views.py 的域逻辑 ─────────────────────────────
 
     def _cached_overdue_stats(self, cache_key, filter_arr):
-        """进程内 TTL 缓存 overdue_count 和 overdue_ids（30s）。"""
+        """进程内 TTL 缓存 overdue_count 和 overdue_ids（30s）。
+
+        P2 优化 (B+C)：
+        - B: LEFT JOIN job_health 取 last_run_at，消除 last_exec_time_by_ids() 查询
+        - C: 仅加载逾期计算所需列（id/run_date/minute/hour/day/day_of_week），
+              不实例化完整 ORM 对象
+        合并后：2 条 SQL → 1 条 SQL + Python 循环
+        """
         now = _time.time()
         if cache_key in _overdue_cache:
             cached_time, cached_result = _overdue_cache[cache_key]
             if now - cached_time < _OVERDUE_CACHE_TTL:
                 return cached_result
-        all_active = self.repo.scalars_all(
-            select(CronInfos).where(CronInfos.status == 1).where(*filter_arr) if filter_arr
-            else select(CronInfos).where(CronInfos.status == 1)
+
+        _OverdueRow = namedtuple(
+            '_OverdueRow', 'id status run_date minute hour day day_of_week last_run_at',
         )
-        all_active_ids = [c.id for c in all_active]
-        last_exec_map = self.repo.last_exec_time_by_ids(all_active_ids) if all_active_ids else {}
-        overdue_map_all = self.compute_overdue_map(all_active, last_exec_map)
+        stmt = (
+            select(
+                CronInfos.id, CronInfos.status, CronInfos.run_date,
+                CronInfos.minute, CronInfos.hour, CronInfos.day,
+                CronInfos.day_of_week, JobHealth.last_run_at,
+            )
+            .outerjoin(JobHealth, JobHealth.cron_info_id == CronInfos.id)
+            .where(CronInfos.status == 1)
+        )
+        if filter_arr:
+            stmt = stmt.where(*filter_arr)
+        rows = [_OverdueRow(*r) for r in self.repo.execute_all(stmt)]
+        last_exec_map = {}
+        for r in rows:
+            val = r.last_run_at
+            if val and val != '0' and val != 0:
+                last_exec_map[r.id] = val
+        overdue_map_all = self.compute_overdue_map(rows, last_exec_map)
         result = (len(overdue_map_all), set(overdue_map_all.keys()))
         _overdue_cache[cache_key] = (now, result)
         stale = [k for k, (t, _) in _overdue_cache.items() if now - t > _OVERDUE_CACHE_TTL * 3]

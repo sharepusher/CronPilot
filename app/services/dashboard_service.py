@@ -58,8 +58,10 @@ class DashboardService:
         return {
             'metrics': metrics,
             'consecutive_failing': self.repo.count_consecutive_failing(scope_filters),
-            'status_counts': self.repo.status_counts(scope_filters),
-            'today_success_rate': self.repo.today_success_rate(scope_filters),
+            'status_counts': self.repo.status_counts(
+                scope_filters, running_count=metrics['running'],
+            ),
+            'today_success_rate': metrics['today_success_rate'],
             'overdue_count': self.cached_overdue_count(scope_filters),
         }
 

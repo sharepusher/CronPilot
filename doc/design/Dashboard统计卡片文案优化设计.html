@@ -66,32 +66,48 @@
 <h3>2.3 新增一张有意义的卡片替代被合并的卡片</h3>
 <p>用「今日成功率」替代被合并的位置，提供正向指标，平衡 Dashboard 的"告警焦虑"。</p>
 
-<h3>2.4 已下线任务是否包含在统计中</h3>
+<h3>2.4 已下线任务统计口径（rev.4 更新）</h3>
+<div class="highlight"><strong>决策变更（rev.4）</strong>：所有健康/性能指标统一排除已下线任务（<code>CronInfos.status != -1</code>）。原因：已下线任务不再参与调度，其历史健康数据不应影响当前仪表盘的运营判断。</div>
 <table>
-  <tr><th>指标</th><th>是否包含已下线/已暂停</th><th>说明</th></tr>
+  <tr><th>指标</th><th>是否包含已下线</th><th>实现</th></tr>
   <tr>
     <td>任务总数 <code>total</code></td>
     <td><strong>包含</strong>（全部状态）</td>
-    <td><code>SELECT COUNT(*) FROM cron_infos</code>，不过滤 status</td>
+    <td><code>SELECT COUNT(*) FROM cron_infos</code>，不过滤 status（展示系统中所有任务的总数，含下线与暂停）</td>
   </tr>
   <tr>
     <td>持续异常 <code>consecutive_failing</code></td>
-    <td><strong>包含</strong></td>
-    <td><code>job_health JOIN cron_infos WHERE consecutive_failures >= 3</code>，不过滤 status；已下线任务如果历史上积累了连续失败记录且未被清除，仍会被计入</td>
+    <td><strong>不包含</strong>（rev.4 变更）</td>
+    <td><code>job_health JOIN cron_infos WHERE consecutive_failures >= 3 AND cron_infos.status != -1</code></td>
   </tr>
   <tr>
     <td>逾期未执行 <code>overdue_count</code></td>
     <td><strong>不包含</strong></td>
-    <td><code>WHERE status == 1</code> 仅统计运行中任务</td>
+    <td><code>WHERE status == 1</code> 仅统计运行中任务（原有逻辑，无需变更）</td>
   </tr>
   <tr>
     <td>今日失败 <code>today_fail_runs</code></td>
-    <td><strong>可能包含</strong></td>
-    <td>统计今日 job_log 记录；如果任务今日先失败后被下线，该失败记录仍被计入</td>
+    <td><strong>不包含</strong>（rev.4 变更）</td>
+    <td><code>job_log JOIN cron_infos WHERE ... AND cron_infos.status != -1</code></td>
+  </tr>
+  <tr>
+    <td>今日总执行 <code>today_total_runs</code></td>
+    <td><strong>不包含</strong>（rev.4 变更）</td>
+    <td><code>job_log JOIN cron_infos WHERE ... AND cron_infos.status != -1</code></td>
+  </tr>
+  <tr>
+    <td>今日成功率 <code>today_success_rate</code></td>
+    <td><strong>不包含</strong>（rev.4 变更）</td>
+    <td>分子分母 SQL 均添加 <code>cron_infos.status != -1</code></td>
+  </tr>
+  <tr>
+    <td>异常任务数 <code>failing</code></td>
+    <td><strong>不包含</strong>（rev.4 变更）</td>
+    <td><code>job_health JOIN cron_infos WHERE health_status = 'failing' AND cron_infos.status != -1</code></td>
   </tr>
 </table>
 <div class="highlight">
-  <strong>设计决策</strong>：本次优化范围为「文案清晰度」，不调整统计口径。「持续异常」包含已下线任务是合理的——已下线任务的健康问题可能需要关注（如：任务因持续失败而被人为下线，但根因未解决）。若后续需排除已下线任务，应作为独立 OPT 评估。
+  <strong>设计决策（rev.4 更新）</strong>：所有健康与性能指标统一排除已下线任务。已下线任务不再参与调度，其历史执行/失败记录不应影响当前仪表盘的运营判断。仅「任务总数 <code>total</code>」保留全部状态，作为系统资产的总览计数。变更范围：<code>app/repositories/cron_repository.py</code> 中 7 条查询语句添加 <code>.where(CronInfos.status != -1)</code>。
 </div>
 
 <h3>2.5 「逾期未执行」判定逻辑说明</h3>
@@ -337,6 +353,7 @@
 <h2>版本历史</h2>
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.4</td><td>2026-09-02</td><td>统计口径变更：所有健康/性能指标排除已下线任务（<code>CronInfos.status != -1</code>），更新§2.4 口径表</td></tr>
   <tr><td>rev.3</td><td>2026-09-02</td><td>补充：已下线任务统计口径说明（§2.4）；卡片排序策略 — 健康组+今日组（§2.6）；Demo 左边框分组色带</td></tr>
   <tr><td>rev.2</td><td>2026-09-02</td><td>补充：逾期判定逻辑说明（§2.5）；今日无执行时 <code>—</code> 显示策略（§2.5b）；后端 <code>today_total_runs</code> 字段；Demo C 无执行场景；时间维度一览表</td></tr>
   <tr><td>rev.1</td><td>2026-09-02</td><td>初版：问题分析 + 合并卡片 + 文案优化方案 + Demo</td></tr>

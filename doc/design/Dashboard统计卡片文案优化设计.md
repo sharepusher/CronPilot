@@ -34,16 +34,21 @@ Dashboard 显示「9 个任务持续异常」「9 个任务异常」但「今日
 
 用「今日成功率」替代被合并的位置，提供正向指标，平衡 Dashboard 的"告警焦虑"。
 
-### 2.4 已下线任务是否包含在统计中
+### 2.4 已下线任务统计口径（rev.4 更新）
 
-| 指标 | 是否包含已下线/已暂停 | 说明 |
+**决策变更（rev.4）**：所有健康/性能指标统一排除已下线任务（`CronInfos.status != -1`）。原因：已下线任务不再参与调度，其历史健康数据不应影响当前仪表盘的运营判断。
+
+| 指标 | 是否包含已下线 | 实现 |
 | --- | --- | --- |
-| 任务总数 `total` | **包含**（全部状态） | `SELECT COUNT(*) FROM cron_infos`，不过滤 status |
-| 持续异常 `consecutive_failing` | **包含** | `job_health JOIN cron_infos WHERE consecutive_failures >= 3`，不过滤 status；已下线任务如果历史上积累了连续失败记录且未被清除，仍会被计入 |
-| 逾期未执行 `overdue_count` | **不包含** | `WHERE status == 1` 仅统计运行中任务 |
-| 今日失败 `today_fail_runs` | **可能包含** | 统计今日 job\_log 记录；如果任务今日先失败后被下线，该失败记录仍被计入 |
+| 任务总数 `total` | **包含**（全部状态） | `SELECT COUNT(*) FROM cron_infos`，不过滤 status（展示系统中所有任务的总数，含下线与暂停） |
+| 持续异常 `consecutive_failing` | **不包含**（rev.4 变更） | `job_health JOIN cron_infos WHERE consecutive_failures >= 3 AND cron_infos.status != -1` |
+| 逾期未执行 `overdue_count` | **不包含** | `WHERE status == 1` 仅统计运行中任务（原有逻辑，无需变更） |
+| 今日失败 `today_fail_runs` | **不包含**（rev.4 变更） | `job_log JOIN cron_infos WHERE ... AND cron_infos.status != -1` |
+| 今日总执行 `today_total_runs` | **不包含**（rev.4 变更） | `job_log JOIN cron_infos WHERE ... AND cron_infos.status != -1` |
+| 今日成功率 `today_success_rate` | **不包含**（rev.4 变更） | 分子分母 SQL 均添加 `cron_infos.status != -1` |
+| 异常任务数 `failing` | **不包含**（rev.4 变更） | `job_health JOIN cron_infos WHERE health_status = 'failing' AND cron_infos.status != -1` |
 
-**设计决策**：本次优化范围为「文案清晰度」，不调整统计口径。「持续异常」包含已下线任务是合理的——已下线任务的健康问题可能需要关注（如：任务因持续失败而被人为下线，但根因未解决）。若后续需排除已下线任务，应作为独立 OPT 评估。
+**设计决策（rev.4 更新）**：所有健康与性能指标统一排除已下线任务。已下线任务不再参与调度，其历史执行/失败记录不应影响当前仪表盘的运营判断。仅「任务总数 `total`」保留全部状态，作为系统资产的总览计数。变更范围：`app/repositories/cron_repository.py` 中 7 条查询语句添加 `.where(CronInfos.status != -1)`。
 
 ### 2.5 「逾期未执行」判定逻辑说明
 
@@ -243,6 +248,7 @@ sub-text 在无执行时显示「今日尚无执行记录」，避免「0」的�
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
+| rev.4 | 2026-09-02 | 统计口径变更：所有健康/性能指标排除已下线任务（`CronInfos.status != -1`），更新§2.4 口径表 |
 | rev.3 | 2026-09-02 | 补充：已下线任务统计口径说明（§2.4）；卡片排序策略 — 健康组+今日组（§2.6）；Demo 左边框分组色带 |
 | rev.2 | 2026-09-02 | 补充：逾期判定逻辑说明（§2.5）；今日无执行时 `—` 显示策略（§2.5b）；后端 `today_total_runs` 字段；Demo C 无执行场景；时间维度一览表 |
 | rev.1 | 2026-09-02 | 初版：问题分析 + 合并卡片 + 文案优化方案 + Demo |

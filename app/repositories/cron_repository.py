@@ -49,7 +49,7 @@ class CronRepository(BaseRepository):
         return self.paginate(stmt, page_query)
 
     def metrics(self, base_filters=None, cron_config=None):
-        """在已有权限+UI 过滤上统计 Metric。"""
+        """一次性统计 Dashboard 全部指标（含今日成功率），减少冗余查询。"""
         base_filters = list(base_filters or [])
         total_stmt = select(func.count()).select_from(CronInfos)
         running_stmt = (
@@ -62,59 +62,75 @@ class CronRepository(BaseRepository):
             .select_from(JobHealth)
             .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
             .where(JobHealth.health_status == HEALTH_FAILING)
+            .where(CronInfos.status != -1)
         )
-        today_total_stmt = (
+        today_range = [
+            JobLog.create_time >= local_today_start_hms(),
+            JobLog.create_time < local_tomorrow_start_hms(),
+        ]
+        today_base = (
             select(func.count())
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
+            .where(*today_range)
+            .where(CronInfos.status != -1)
         )
-        today_fail_stmt = (
-            select(func.count())
-            .select_from(JobLog)
-            .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
-            .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
-            .where(JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT]))
+        today_total_stmt = today_base
+        today_fail_stmt = today_base.where(
+            JobLog.status.in_([STATUS_FAIL, STATUS_ERROR, STATUS_TIMEOUT])
         )
+        today_success_stmt = today_base.where(JobLog.status == STATUS_SUCCESS)
         if base_filters:
             total_stmt = total_stmt.where(*base_filters)
             running_stmt = running_stmt.where(*base_filters)
             failing_stmt = failing_stmt.where(*base_filters)
             today_total_stmt = today_total_stmt.where(*base_filters)
             today_fail_stmt = today_fail_stmt.where(*base_filters)
+            today_success_stmt = today_success_stmt.where(*base_filters)
 
         total = self.scalar(total_stmt) or 0
         running = self.scalar(running_stmt) or 0
         failing = self.scalar(failing_stmt) or 0
-        today_total = self.scalar(today_total_stmt) or 0
-        today_fail = self.scalar(today_fail_stmt) or 0
+        today_total = int(self.scalar(today_total_stmt) or 0)
+        today_fail = int(self.scalar(today_fail_stmt) or 0)
+        today_success = int(self.scalar(today_success_stmt) or 0)
+        today_success_rate = round(today_success / today_total * 100, 1) if today_total > 0 else None
         return {
             'total': int(total),
             'running': int(running),
             'failing': int(failing),
-            'today_total_runs': int(today_total),
-            'today_fail_runs': int(today_fail),
+            'today_total_runs': today_total,
+            'today_fail_runs': today_fail,
+            'today_success_rate': today_success_rate,
             'failing_threshold': get_failing_threshold(cron_config),
         }
 
     def count_consecutive_failing(self, base_filters=None):
-        """连续失败 ≥3 次的任务数（用于 Health-First stats）。"""
+        """连续失败 ≥3 次的任务数（用于 Health-First stats），排除已下线任务。"""
         base_filters = list(base_filters or [])
         stmt = (
             select(func.count())
             .select_from(JobHealth)
             .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
             .where(JobHealth.consecutive_failures >= 3)
+            .where(CronInfos.status != -1)
         )
         if base_filters:
             stmt = stmt.where(*base_filters)
         return int(self.scalar(stmt) or 0)
 
-    def status_counts(self, base_filters=None):
-        """每种 status 的任务数（用于 filter chip counts）。"""
+    def status_counts(self, base_filters=None, running_count=None):
+        """每种 status 的任务数（用于 filter chip counts）。
+
+        Args:
+            running_count: 如果已从 metrics() 获取，传入以减少 1 条冗余查询。
+        """
         base_filters = list(base_filters or [])
         result = {'running': 0, 'paused': 0, 'retired': 0}
         for status_val, key in [(1, 'running'), (0, 'paused'), (-1, 'retired')]:
+            if key == 'running' and running_count is not None:
+                result[key] = running_count
+                continue
             stmt = (
                 select(func.count()).select_from(CronInfos)
                 .where(CronInfos.status == status_val)
@@ -172,13 +188,14 @@ class CronRepository(BaseRepository):
         return by_id
 
     def today_success_rate(self, base_filters=None):
-        """今日成功率 = 今日成功次数 / 今日总执行次数。"""
+        """今日成功率 = 今日成功次数 / 今日总执行次数（排除已下线任务）。"""
         base_filters = list(base_filters or [])
         total_stmt = (
             select(func.count())
             .select_from(JobLog)
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
             .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
+            .where(CronInfos.status != -1)
         )
         success_stmt = (
             select(func.count())
@@ -186,6 +203,7 @@ class CronRepository(BaseRepository):
             .join(CronInfos, CronInfos.id == JobLog.cron_info_id)
             .where(JobLog.create_time >= local_today_start_hms(), JobLog.create_time < local_tomorrow_start_hms())
             .where(JobLog.status == STATUS_SUCCESS)
+            .where(CronInfos.status != -1)
         )
         if base_filters:
             total_stmt = total_stmt.where(*base_filters)

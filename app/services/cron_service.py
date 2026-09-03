@@ -130,7 +130,7 @@ def reschedule_orphan_task(cron_id):
 
     Returns (success: bool, message: str).
     """
-    from app.crons import cron_do, _orphan_cache
+    from app.crons import _orphan_cache, cron_do
     from app.services.cron_schedule_display import schedule_configured_from_normalized
 
     cif = db.session.get(CronInfos, cron_id)
@@ -368,6 +368,12 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
     )
     if err:
         return err, None
+
+    # B-15: validate_cron_form strips scope fields; merge them back
+    # from the raw datas dict (populated by _apply_api_scope).
+    if 'scope_type' in datas:
+        normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
+        normalized['group_id'] = datas.get('group_id') or None
 
     task_name = normalized['task_name']
     cif = db.session.scalars(

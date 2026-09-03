@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Redesign 代码质量全面评估报告 R8（2026-09）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1060px; margin: 2em auto; line-height: 1.7; color: #333; padding: 0 1em; }
+    h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+    h2 { border-bottom: 1px solid #e5e7eb; padding-bottom: .2em; margin-top: 1.8em; }
+    h3 { color: #1d4ed8; }
+    table { border-collapse: collapse; width: 100%; margin: .8em 0; font-size: 0.88em; }
+    th, td { border: 1px solid #d1d5db; padding: 5px 8px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; white-space: nowrap; }
+    .p0 { background: #fef2f2; }
+    .p1 { background: #fffbeb; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.88em; }
+    .status { font-weight: bold; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: .8em; font-weight: 600; }
+    .b-p0 { background: #dc2626; color: #fff; }
+    .b-p1 { background: #d97706; color: #fff; }
+    .b-p2 { background: #6b7280; color: #fff; }
+    .b-pass { background: #16a34a; color: #fff; }
+  </style>
+</head>
+<body>
+
+<h1>Redesign 代码质量全面评估报告 R8（2026-09-03）</h1>
+<p>状态：<span class="status" style="color:#d97706">待讨论</span> · 基于 R7 修复后的代码基线</p>
+
+<h2>0. 自动化门禁结果</h2>
+
+<table>
+  <tr><th>门禁</th><th>结果</th><th>说明</th></tr>
+  <tr><td><code>ruff check app/</code></td><td><span class="badge b-pass">PASS</span></td><td>0 违规</td></tr>
+  <tr><td><code>audit_hardcoded_colors.py --check</code></td><td><span class="badge b-pass">PASS</span></td><td>模板/Vue 无硬编码颜色</td></tr>
+  <tr><td><code>check_ui_contract.py --check</code></td><td><span class="badge b-pass">PASS</span></td><td>inline CSS ≤ 3 行</td></tr>
+  <tr><td><code>check_dead_css.py --check</code></td><td><span class="badge b-pass">PASS</span></td><td>0 死 CSS 类</td></tr>
+  <tr><td><code>check_css_token_reachability.py --check</code></td><td><span class="badge b-pass">PASS</span></td><td>所有 token/动画可达</td></tr>
+  <tr><td><code>html_docs_to_markdown.py --check</code></td><td><span class="badge b-pass">PASS</span></td><td>文档同步</td></tr>
+  <tr><td>单元测试</td><td><span class="badge b-pass">PASS</span></td><td>664 tests, 0 failures</td></tr>
+  <tr><td>Bootstrap modal 禁令</td><td><span class="badge b-pass">PASS</span></td><td>Redesign 无 Bootstrap 引用</td></tr>
+  <tr><td>jQuery 同步加载</td><td><span class="badge b-pass">PASS</span></td><td><code>_base.html:47</code> 无 defer/async</td></tr>
+</table>
+
+<h2>1. 后端发现（Backend）</h2>
+
+<h3>1.1 P0 — 安全 / 数据完整性</h3>
+
+<table>
+  <tr><th>ID</th><th>文件:行</th><th>描述</th><th>建议修复</th></tr>
+  <tr class="p0">
+    <td><span class="badge b-p0">BE-P0-1</span></td>
+    <td><code>cron_service.py:361-382</code></td>
+    <td><strong>B-15 scope 持久化仍未修复。</strong><code>upsert_cron_by_task_name()</code> 调用 <code>validate_cron_form()</code> 后得到的 <code>normalized</code> 不含 <code>scope_type</code>/<code>group_id</code>。对比 <code>add_cron_web()</code>（行 389-391）有手动拷贝。API 创建的 GROUP 任务全部退化为 GLOBAL。</td>
+    <td>验证后合并 scope：<code>if 'scope_type' in datas: normalized['scope_type'] = datas['scope_type']; normalized['group_id'] = datas.get('group_id')</code></td>
+  </tr>
+  <tr class="p0">
+    <td><span class="badge b-p0">BE-P0-2</span></td>
+    <td><code>api/views.py:670-706</code></td>
+    <td><strong>旧路由 <code>/api/cron/add</code> 接受 GET 执行状态修改。</strong>GET 可通过 <code>&lt;img src=...&gt;</code> 触发 CSRF 和缓存投毒。</td>
+    <td>限制为 <code>methods=['POST']</code>，或 GET 时返回 405。</td>
+  </tr>
+  <tr class="p0">
+    <td><span class="badge b-p0">BE-P0-3</span></td>
+    <td><code>api/__init__.py:76-78,97-99</code></td>
+    <td><strong>配置 <code>api_access_token</code> 为空时，API 默认赋予 admin 权限。</strong>部署遗漏配置即开放全部 API。</td>
+    <td>空 token 配置时拒绝请求（401/500），或要求显式 <code>api_dev_mode=true</code> 才放行。</td>
+  </tr>
+</table>
+
+<h3>1.2 P1 — 功能缺陷 / 重要质量问题</h3>
+
+<table>
+  <tr><th>ID</th><th>文件:行</th><th>描述</th><th>建议修复</th></tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-1</span></td>
+    <td><code>cron_service.py:231,275</code></td>
+    <td><code>create_cron()</code>/<code>update_cron()</code> commit 后 <code>register_cron_job()</code> 无 try/except 回滚。scheduler 失败 → DB 有 active 任务但无调度。</td>
+    <td>对齐 <code>toggle_status()</code> 的 commit→scheduler→rollback 模式。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-2</span></td>
+    <td><code>cron_service.py:328-332</code></td>
+    <td><code>retire_cron_by_id()</code> 先 <code>remove_job()</code> 再 commit。commit 失败时 scheduler 已删除。</td>
+    <td>调换顺序：先 commit retire 状态，再 remove_job。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-3</span></td>
+    <td><code>cron_service.py:257-264</code></td>
+    <td><code>update_cron()</code> 切换到 GLOBAL 时不清理 <code>task_groups</code> 残留。</td>
+    <td>当 <code>scope_type == 'GLOBAL'</code> 时执行 DELETE。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-4</span></td>
+    <td><code>operation_log_service.py:41-56</code></td>
+    <td>操作日志快照仍引用已移除的 <code>cif.group_id</code>，快照不含组变更。</td>
+    <td>改为查 <code>get_task_group_id(cif.id)</code>。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-5</span></td>
+    <td><code>api/views.py:133-426</code></td>
+    <td>所有 GET 查询端点无 <code>check_api_permission('cron:read')</code>，仅做 scope 过滤。</td>
+    <td>每个 GET 端点顶部加 permission 检查（防御纵深）。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-6</span></td>
+    <td><code>registration_request_repository.py:56-58</code></td>
+    <td>组 ID 过滤用 <code>like('%%%s%%' % gid)</code> 无边界，ID=1 匹配 11/21 等。</td>
+    <td>改为逗号边界匹配 <code>like('%,1,%')</code> 或关系化存储。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-7</span></td>
+    <td><code>rbac/services.py:912-918</code></td>
+    <td><code>submit_registration()</code> 用 <code>str(exc)</code> 字符串匹配判断冲突，易误判。</td>
+    <td>改为 catch <code>IntegrityError</code>。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-8</span></td>
+    <td><code>cron_infos.py:14</code></td>
+    <td><code>task_name</code> 无数据库 UNIQUE 约束，仅应用层校验。并发创建可重名。</td>
+    <td>加 <code>unique=True</code> + 迁移脚本。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-9</span></td>
+    <td><code>task_group.py:20-22</code></td>
+    <td><code>UniqueConstraint('task_id','group_id')</code> 允许一任务多组，但业务假设单组。</td>
+    <td>改为 <code>UniqueConstraint('task_id')</code> 或业务校验+约束。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-10</span></td>
+    <td><code>api/__init__.py:149-151</code></td>
+    <td><code>_resolve_user_token()</code> catch-all 返回 None，基础设施异常与无效 token 不可区分。</td>
+    <td>区分基础设施错误（500+log）和无效 token（401）。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-11</span></td>
+    <td><code>cron_service.py:212-221</code></td>
+    <td><code>create_cron()</code> 可写入 <code>scope_type='GROUP'</code> 无 <code>group_id</code>，导致任务不可见。</td>
+    <td>服务入口校验：GROUP 必须有 group_id。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">BE-P1-12</span></td>
+    <td><code>cron_validator.py:137-138</code></td>
+    <td>run_date 过期检查使用字符串比较，格式/时区变化时脆弱。</td>
+    <td>改为解析后的 datetime/BIGINT 比较。</td>
+  </tr>
+</table>
+
+<h3>1.3 P2 — 代码质量改进</h3>
+
+<table>
+  <tr><th>ID</th><th>文件</th><th>描述</th></tr>
+  <tr><td><span class="badge b-p2">BE-P2-1</span></td><td><code>cron_service.py:7,15</code></td><td>双 logger 定义 <code>logger</code> + <code>_log</code>（同模块）</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-2</span></td><td><code>cron_service.py:146</code></td><td><code>reschedule_orphan_task()</code> bare <code>except Exception: pass</code></td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-3</span></td><td><code>tag_service.py:107</code></td><td><code>suggest_tags()</code> LIKE 通配符未转义</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-4</span></td><td><code>pagination.py:32-40</code></td><td><code>per_page</code> 无上限（可 OOM）</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-5</span></td><td><code>api/views.py:164</code></td><td>cron_query LIKE 通配符未转义</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-6</span></td><td><code>api/views.py:56-116</code></td><td>token 成功签发无审计日志</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-7</span></td><td><code>rbac/decorators.py:17-18</code></td><td>未认证重定向 <code>next=</code> 未经 <code>safe_next_url()</code></td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-8</span></td><td><code>rbac/services.py:543</code></td><td>重置密码返回默认密码 <code>changeme</code></td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-9</span></td><td><code>errors.py:1-40</code></td><td>仅注册 404/500，缺 403/400/405 处理器</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-10</span></td><td><code>cron_infos.py:35-37</code></td><td><code>status</code> 默认 <code>True</code>（布尔），应为 <code>1</code></td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-11</span></td><td><code>cron_infos.py:14</code></td><td><code>task_name</code> 无索引</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-12</span></td><td><code>job_log.py:50-59</code></td><td><code>to_json()</code> 引用不存在字段（死代码）</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-13</span></td><td><code>job_log.py:21-36</code></td><td>缺 <code>(cron_info_id, create_time)</code> 复合索引</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-14</span></td><td><code>operation_log_service.py:173-178</code></td><td>API 审计 metadata 固定写 <code>cron:write</code></td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-15</span></td><td><code>api/__init__.py:193</code></td><td>scope 拒绝用 HTTP 200 + errmsg</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-16</span></td><td><code>rbac/policy.py:41-43</code></td><td>废弃函数 <code>role_bypasses_scope</code> 仍导出</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-17</span></td><td><code>rbac_audit_log.py:15-18</code></td><td><code>username</code>/<code>action</code> 列缺索引</td></tr>
+  <tr><td><span class="badge b-p2">BE-P2-18</span></td><td><code>operation_log.py:37</code></td><td><code>target_id</code> 列缺索引</td></tr>
+</table>
+
+<h2>2. 前端发现（Frontend）</h2>
+
+<h3>2.1 P0 — 无</h3>
+<p>所有自动化门禁通过。无 Bootstrap modal 违规、无硬编码颜色、无 XSS 直接利用路径。</p>
+
+<h3>2.2 P1 — 安全加固 / 可访问性 / 可维护性</h3>
+
+<table>
+  <tr><th>ID</th><th>文件:行</th><th>描述</th><th>建议修复</th></tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-1</span></td>
+    <td><code>registration_review.html:155</code><br><code>redesign-shell.js:111</code></td>
+    <td><code>escHtml</code> fallback 直接返回原始字符串（<code>return s</code>）。如 <code>common-redesign.js</code> 未加载，<code>bodyHtml</code> 拼接存在 XSS 风险。</td>
+    <td>移除 fallback；或 inline 最小转义函数。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-2</span></td>
+    <td><code>_users_rows.html:46,53,56-70,82</code></td>
+    <td>5 个 icon-only <code>um-icon-btn</code> 有 <code>data-tooltip</code> 但无 <code>aria-label</code>。</td>
+    <td>添加 <code>aria-label</code> 与 tooltip 文案一致。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-3</span></td>
+    <td><code>_topbar.html:35-41</code></td>
+    <td>用户菜单触发器是 <code>&lt;div&gt;</code>，不可键盘聚焦，无 ARIA。</td>
+    <td>改为 <code>&lt;button type="button"&gt;</code> + <code>aria-haspopup</code> + <code>aria-expanded</code>。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-4</span></td>
+    <td><code>dashboard.html:189,209,260,287</code></td>
+    <td>AJAX URL 硬编码（<code>/update_status</code> 等），不用 <code>url_for()</code>。</td>
+    <td>用 Jinja <code>url_for()</code> 注入。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-5</span></td>
+    <td><code>task_form.html:274</code></td>
+    <td>标签建议 <code>fetch('/api/tags/suggest')</code> 硬编码 + 无 <code>r.ok</code> 检查。</td>
+    <td>用 <code>url_for</code> + 加 status 检查。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-6</span></td>
+    <td><code>registration_review.html:211-213</code></td>
+    <td>批量审批 <code>$.post()</code> 无 <code>.fail()</code> 和 <code>errcode</code> 检查。</td>
+    <td>补充错误处理。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-7</span></td>
+    <td><code>dashboard.html:331-342</code> 等多处</td>
+    <td><code>fetch().then(r =&gt; r.json())</code> 未检查 <code>r.ok</code>，500 HTML 响应导致 JSON 解析失败。</td>
+    <td>加 <code>if (!r.ok) throw</code>。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-8</span></td>
+    <td><code>task_form.html:12-13</code></td>
+    <td>POST 表单无显式 <code>csrf_token</code> hidden field（依赖 meta + JS 注入）。</td>
+    <td>添加隐藏字段增强鲁棒性。</td>
+  </tr>
+  <tr class="p1">
+    <td><span class="badge b-p1">FE-P1-9</span></td>
+    <td><code>complete_profile.html:85-88</code></td>
+    <td>注销表单无防重复提交保护（auth 页不加载 <code>common-redesign.js</code>）。</td>
+    <td>添加 inline submit 守卫。</td>
+  </tr>
+</table>
+
+<h3>2.3 P2 — 代码质量改进（25 项）</h3>
+
+<table>
+  <tr><th>ID</th><th>主题</th><th>涉及文件</th></tr>
+  <tr><td><span class="badge b-p2">FE-P2-1</span></td><td>dashboard stat-line inline style → CSS class</td><td><code>dashboard.html:18,401</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-2</span></td><td>run_inspector inline 布局/颜色 → redesign-pages.css</td><td><code>run_inspector.html:45-47</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-3</span></td><td>user_form inline display/color → utility class</td><td><code>user_form.html:43,45</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-4</span></td><td>task_form conditional display:none → CSS class</td><td><code>task_form.html:67,91</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-5</span></td><td>tags CpConfirm title 不需要 escHtml（textContent 已安全）</td><td><code>tags.html:299</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-6</span></td><td>全局函数 highlightTag 应命名空间化</td><td><code>tags.html:325</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-7</span></td><td>dashboard_rows 下拉用 <code>&lt;a onclick&gt;</code> 无键盘可达</td><td><code>_dashboard_rows.html:98-104</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-8</span></td><td>register 自定义 modal 可共享 auth 组件</td><td><code>register.html:130-142</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-9</span></td><td>auth 页面验证逻辑重复</td><td><code>login/register/complete_profile</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-10</span></td><td>common-redesign.js 全局变量（getCookie/setCookie/escHtml）</td><td><code>common-redesign.js:160-178</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-11</span></td><td>redesign-shell.js 命令面板 href 拼接未编码</td><td><code>redesign-shell.js:102</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-12</span></td><td>主题切换无 <code>aria-pressed</code></td><td><code>redesign-theme.js:15-22</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-13</span></td><td>cpCopy 重复实现（task_detail + run_inspector）</td><td><code>task_detail.html:238</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-14</span></td><td>api_token 剪贴板无 <code>.catch()</code></td><td><code>api_token.html:65-69</code></td></tr>
+  <tr><td><span class="badge b-p2">FE-P2-15</span></td><td>dashboard 全局函数与 partial 耦合</td><td><code>dashboard.html:180-300</code></td></tr>
+</table>
+
+<h2>3. 汇总</h2>
+
+<table>
+  <tr><th>维度</th><th><span class="badge b-p0">P0</span></th><th><span class="badge b-p1">P1</span></th><th><span class="badge b-p2">P2</span></th><th>主要主题</th></tr>
+  <tr><td>后端</td><td>3</td><td>12</td><td>18</td><td>B-15 scope 丢失、API GET 修改、空 token admin 放行、scheduler/DB 事务序</td></tr>
+  <tr><td>前端</td><td>0</td><td>9</td><td>15+</td><td>escHtml fallback、a11y 缺失、AJAX URL 硬编码、fetch 错误处理</td></tr>
+  <tr><td><strong>合计</strong></td><td><strong>3</strong></td><td><strong>21</strong></td><td><strong>33+</strong></td><td></td></tr>
+</table>
+
+<h3>3.1 与 R7 对比</h3>
+
+<table>
+  <tr><th>指标</th><th>R7（2026-08）</th><th>R8（2026-09）</th><th>变化</th></tr>
+  <tr><td>P0</td><td>1</td><td>3</td><td>+2（更深入审计发现 API-01/API-02）</td></tr>
+  <tr><td>P1</td><td>6 BE + 9 FE = 15</td><td>12 BE + 9 FE = 21</td><td>+6（更细粒度 service 层审计）</td></tr>
+  <tr><td>P2</td><td>6 BE + 11 FE = 17</td><td>18 BE + 15 FE = 33</td><td>+16（model 索引 + 死代码）</td></tr>
+  <tr><td>自动化门禁</td><td>全通过</td><td>全通过</td><td>—</td></tr>
+</table>
+
+<p>R8 比 R7 发现更多问题是因为审计粒度提升（深入到 service 事务序列、model 约束、repository LIKE 通配符、API 空 token 降级等），并非代码质量退化。R7 修复的 S-1/S-2/S-3/S-4/S-5 等安全项均未回归。</p>
+
+<h2>4. 建议处理优先级</h2>
+
+<ol>
+  <li><strong>BE-P0-1（B-15 scope 丢失）</strong> — 恢复 API scope 隔离；解除 e2e 测试 expectedFailure（~15min）</li>
+  <li><strong>BE-P0-2 + BE-P0-3</strong> — 关闭 API 层 CSRF + auth 降级风险（~30min）</li>
+  <li><strong>BE-P1-1 + BE-P1-2</strong> — scheduler/DB 事务对齐（~20min）</li>
+  <li><strong>FE-P1 批次</strong> — a11y + AJAX 加固（需设计文档 + 前后对比 demo）</li>
+  <li><strong>BE-P1-6 ~ P1-9</strong> — 数据完整性约束加固</li>
+  <li>P2 按需处理</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Redesign代码质量全面评估报告-R8-2026-09.md">Markdown</a></footer>
+</body>
+</html>

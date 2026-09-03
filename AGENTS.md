@@ -146,6 +146,8 @@ bash scripts/check_pending_sync.sh
 
 **API 端点角色权限校验（强制 · 2026-08 S-5 教训）**：凡 API POST 端点（写操作），必须在 scope 检查**之前**调用 `check_api_permission(required_perm)`，确保用户角色拥有对应能力（`cron:write`/`cron:retire` 等）。全局 token（`role='admin'`）自动放行，用户 token 依据 `effective_permissions(user_role, username)` 校验。新增 POST 端点时必须在第一行调用 `check_api_permission`。自检：`grep -c "check_api_permission" app/api/views.py`（应 ≥ 5）。回归测试：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v`（13 条用例）。**违反教训**：2026-08 S-5 API 端点仅做 scope 检查，Viewer Token 可调用 `cron:write` 端点，Operator Token 可调用 `cron:retire` 端点。
 
+**API 创建/修改资源端点 scope 对齐（强制 · 2026-08 B-15 教训）**：凡 API 端点创建或修改关联 scope 的资源（如任务），必须对齐 Web 端的 scope 赋值逻辑。API 调用方传 `group_name`（组名称），服务端内部做 name→id 转换。自检：`grep -n "_apply_api_scope" app/api/views.py`（应 ≥ 2 次调用）。回归测试：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiCreateScope -v`（7 条用例）。**违反教训**：2026-08 B-15 API 创建任务时未注入 scope，operator 可创建 GLOBAL 任务。
+
 **认证端点安全对等（强制 · 2026-08 B-13 教训）**：凡新增含密码/凭据校验的端点，必须对齐已有认证端点的安全措施（限流 `check_login_limit`、审计 `_write_api_deny_audit`、锁定策略）。自检：`grep -c "check_login_limit\|record_login_failure" app/api/views.py`（应 ≥ 2）。回归测试：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiAuthLimiter -v`（4 条用例）。**违反教训**：2026-08 B-13 `api_auth_token` 端点新增时未检查 Web 登录已有限流措施，导致 API 端点可被无限速暴力破解。
 
 **文件路径必须使用绝对路径（强制 · 2026-08）**：`open()` / `os.path.exists()` 等文件操作路径必须基于 `os.path.abspath(__file__)` 构建，禁止 CWD 相对路径。自检：`grep -n 'open("' app/ -r | grep -v "os.path" && echo WARN || echo OK`。**违反教训**：`scheduler.lock` CWD 相对路径导致多实例防护失效。

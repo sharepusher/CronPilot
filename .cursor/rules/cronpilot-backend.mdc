@@ -284,6 +284,16 @@ alwaysApply: false
 - **回归测试**：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiRolePermission -v`（13 条用例）
 - **违反教训**：2026-08 S-5 API 端点仅做 scope 检查（组可见性），Viewer Token 可调用 `cron:write` 端点，Operator 可调用 `cron:retire` 端点
 
+## API 创建/修改资源端点 scope 对齐（强制 · 2026-08 B-15 教训）
+
+凡 API 端点创建或修改关联 scope 的资源（如任务），必须对齐 Web 端的 scope 赋值逻辑：
+
+- 调用 `_apply_api_scope(datas)` 在 `upsert_cron_by_task_name()` 前自动推断 `scope_type` / `group_id`
+- API 调用方传 `group_name`（组名称），服务端内部做 name→id 转换（`ResourceGroup.name` 有唯一约束）
+- 自检：`grep -n "_apply_api_scope" app/api/views.py`（应 ≥ 2 次调用）
+- 回归测试：`.venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestApiCreateScope -v`（7 条用例）
+- **违反教训**：2026-08 B-15 API 创建任务时未注入 scope，operator 可通过 API 创建 GLOBAL 任务
+
 ## 认证端点安全对等（强制 · 2026-08 B-13 教训）
 
 凡新增含密码/凭据校验的端点，必须对齐已有认证端点的安全措施：

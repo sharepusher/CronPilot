@@ -7,6 +7,23 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 改进 — cron_add 异常处理错误信息改善
+
+- **错误信息改善**：`cron_add` 异常处理按类型（IntegrityError / OperationalError / 其他）返回具体的用户可理解错误信息，不再笼统显示"服务器内部错误"；补充 `db.session.rollback()` 防止会话污染
+
+### API 质量修复 — B-15 API 创建任务 Scope 自动推断
+
+- **B-15**：API 创建/更新任务时，服务端根据 token 类型自动推断 `scope_type` 和 `group_id`。全局 token / bypass 用户默认 GLOBAL，operator 单组自动推断 GROUP，operator 多组需传 `group_name` 指定目标组。新增可选参数 `group_name`（组名称），内部 name→id 转换
+- **B-15 修复**：`upsert_cron_by_task_name()` 在 `validate_cron_form()` 后合并 scope 字段（对齐 `add_cron_web()`），修复 GROUP 任务退化为 GLOBAL 的问题
+- **回归测试**：`tests/test_api_scope_e2e.py` 5 个持久化端到端测试（admin GLOBAL / admin GROUP / single-group auto / multi-group reject / out-of-scope reject）
+
+### 集成测试分层 — L2 持久化数据库测试
+
+- **设计文档**：`doc/design/集成测试分层策略-2026-09.html`
+- **基础设施**：`tests/integration_base.py` — `PersistentDBTestCase` 基类（临时 SQLite 文件隔离，不碰开发库）
+- **Batch 1**：`tests/test_cron_persistence.py` — 5 个持久化场景（GROUP 创建、GLOBAL 创建、组切换、ID 复用 IntegrityError 复现、下线持久化）
+- **Batch 2**：`tests/test_api_scope_e2e.py` — 5 个 API scope 端到端测试
+
 ### API 质量修复 — B-14 BIGINT 过滤器 + B-16 tag_suggest scope
 
 - **B-14**：`/api/cron/query` 的 `updated_from`/`updated_to` 参数原为字符串直接比较 BIGINT 列，结果不可靠；改为使用 `str_to_hms()` 转换后比较，格式无效时返回 400

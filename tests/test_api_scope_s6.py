@@ -673,5 +673,96 @@ class TestApiAuthLimiter(unittest.TestCase):
         self.assertEqual(resp.status_code, 429)
 
 
+class TestApiCreateScope(unittest.TestCase):
+    """B-15: API 创建任务时自动推断 scope（_apply_api_scope）。"""
+
+    def setUp(self):
+        import app.api as api_pkg
+        api_pkg._SCOPE_CACHE.clear()
+        self.app, self.db = _make_app()
+        with self.app.app_context():
+            from datas.model.resource_group import ResourceGroup
+            self.db.create_all()
+            rg1 = ResourceGroup(name='运维组', description='', create_time=100)
+            rg2 = ResourceGroup(name='开发组', description='', create_time=101)
+            self.db.session.add_all([rg1, rg2])
+            self.db.session.commit()
+            self.gid1 = rg1.id
+            self.gid2 = rg2.id
+
+    def tearDown(self):
+        with self.app.app_context():
+            self.db.drop_all()
+
+    def _call(self, datas, scope=None):
+        from app.api.views import _apply_api_scope
+        with self.app.test_request_context('/api/cron', method='POST'):
+            from flask import request as req
+            if scope is not None:
+                req._api_scope = scope
+            return _apply_api_scope(datas)
+
+    def test_global_token_no_group(self):
+        """全局 token 不传 group_name → GLOBAL。"""
+        d = {}
+        err = self._call(d, scope={'role': 'admin'})
+        self.assertIsNone(err)
+        self.assertEqual(d['scope_type'], 'GLOBAL')
+
+    def test_global_token_with_group(self):
+        """全局 token 传 group_name → GROUP。"""
+        d = {'group_name': '运维组'}
+        err = self._call(d, scope={'role': 'admin'})
+        self.assertIsNone(err)
+        self.assertEqual(d['scope_type'], 'GROUP')
+        self.assertEqual(d['group_id'], self.gid1)
+
+    def test_operator_single_group_auto(self):
+        """operator 单组不传 → 自动推断 GROUP。"""
+        d = {}
+        err = self._call(d, scope={
+            'role': 'user', 'user_role': 'operator', 'username': 'op1',
+            'group_ids': [self.gid1],
+        })
+        self.assertIsNone(err)
+        self.assertEqual(d['scope_type'], 'GROUP')
+        self.assertEqual(d['group_id'], self.gid1)
+
+    def test_operator_multi_group_no_name(self):
+        """operator 多组不传 group_name → 400 错误。"""
+        d = {}
+        err = self._call(d, scope={
+            'role': 'user', 'user_role': 'operator', 'username': 'op2',
+            'group_ids': [self.gid1, self.gid2],
+        })
+        self.assertIn('group_name', err)
+
+    def test_operator_foreign_group(self):
+        """operator 传非本组 group_name → 拒绝。"""
+        d = {'group_name': '开发组'}
+        err = self._call(d, scope={
+            'role': 'user', 'user_role': 'operator', 'username': 'op3',
+            'group_ids': [self.gid1],
+        })
+        self.assertIn('只能在本人所属业务组', err)
+
+    def test_operator_own_group(self):
+        """operator 传本组 group_name → GROUP。"""
+        d = {'group_name': '运维组'}
+        err = self._call(d, scope={
+            'role': 'user', 'user_role': 'operator', 'username': 'op4',
+            'group_ids': [self.gid1, self.gid2],
+        })
+        self.assertIsNone(err)
+        self.assertEqual(d['scope_type'], 'GROUP')
+        self.assertEqual(d['group_id'], self.gid1)
+
+    def test_nonexistent_group(self):
+        """传不存在的 group_name → 错误。"""
+        d = {'group_name': '不存在的组'}
+        err = self._call(d, scope={'role': 'admin'})
+        self.assertIn('业务组不存在', err)
+
+
 if __name__ == '__main__':
     unittest.main()

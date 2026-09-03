@@ -58,6 +58,11 @@ class CronUpsertIn(Schema):
         validate=Range(min=1, max=120),
         metadata={'description': '单任务 HTTP 超时（秒），1-120；不传则使用系统默认 5s'},
     )
+    group_name = String(
+        required=False,
+        load_default=None,
+        metadata={'description': '业务组名称（可选）；单组用户自动推断，多组用户必传'},
+    )
 
 
 class CronStatusIn(Schema):

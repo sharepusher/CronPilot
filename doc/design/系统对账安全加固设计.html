@@ -20,7 +20,7 @@
 </head>
 <body>
 <h1>系统对账安全加固设计</h1>
-<p><strong>编号</strong>：OPT-P0-18 &nbsp; <strong>版本</strong>：rev.3 &nbsp; <strong>日期</strong>：2026-09-02</p>
+<p><strong>编号</strong>：OPT-P0-18 &nbsp; <strong>版本</strong>：rev.4 &nbsp; <strong>日期</strong>：2026-09-03</p>
 <p><strong>关联</strong>：<code>app/crons.py::cron_check()</code>、<code>app/services/cron_service.py::apply_retire()</code></p>
 
 <h2>1. 问题</h2>
@@ -639,9 +639,541 @@ def cron_check():
   </tr>
 </table>
 
+<hr>
+
+<h2>Phase 3 — Webhook 告警 + 智能恢复</h2>
+
+<h3>P3.1 问题</h3>
+<p>Phase 1 实现了日志告警 + Prometheus gauge，Phase 2 增加了 Dashboard 可视化和手动操作。但仍有两个缺口：</p>
+<table>
+  <tr><th>#</th><th>缺口</th><th>影响</th></tr>
+  <tr>
+    <td>G1</td>
+    <td><strong>被动发现</strong>：管理员必须打开 Dashboard 才能看到孤儿任务告警</td>
+    <td>非工作时间段（凌晨/节假日）的孤儿无法及时被感知，恢复时效 = 下次人工打开 Dashboard 的间隔</td>
+  </tr>
+  <tr>
+    <td>G2</td>
+    <td><strong>纯手动恢复</strong>：每个孤儿任务都需要管理员逐个点击「重新调度」</td>
+    <td>配置迁移、数据库恢复等场景可能产生几十个孤儿，逐个操作效率极低</td>
+  </tr>
+</table>
+
+<h3>P3.2 根因分析</h3>
+<table>
+  <tr><th>根因</th><th>说明</th></tr>
+  <tr>
+    <td>通知通道未接入对账</td>
+    <td>现有 <code>send_text()</code>（企业微信 + 通用 Webhook + 钉钉）仅被任务执行异常（<code>cron_do</code>）调用，对账模块未接入</td>
+  </tr>
+  <tr>
+    <td>无自动恢复安全框架</td>
+    <td>Phase 1 正确地移除了自动下线（不可逆），但未建立自动恢复（可逆、安全）的框架</td>
+  </tr>
+</table>
+
+<h3>P3.3 行业对照：告警 + 自动恢复</h3>
+<table>
+  <tr><th>维度</th><th>Kubernetes</th><th>Airflow</th><th>CronPilot Phase 2</th><th>Phase 3 目标</th></tr>
+  <tr>
+    <td>主动告警</td>
+    <td>AlertManager（Webhook/PagerDuty/Slack）</td>
+    <td>SLA miss callback + Email</td>
+    <td>仅 Dashboard + Prometheus</td>
+    <td>复用 <code>send_text()</code> 三通道推送</td>
+  </tr>
+  <tr>
+    <td>去重/抑制</td>
+    <td>AlertManager group_wait / group_interval / inhibit_rules</td>
+    <td>每 SLA miss 仅触发一次</td>
+    <td>无（每次 cron_check 重复日志）</td>
+    <td>孤儿集合不变 → 不重复推送</td>
+  </tr>
+  <tr>
+    <td>自动恢复</td>
+    <td>ReplicaSet controller（自动拉起 Pod）</td>
+    <td>backfill（需手动触发或 catchup=True）</td>
+    <td>仅手动「重新调度」</td>
+    <td>可选自动恢复 + 熔断</td>
+  </tr>
+  <tr>
+    <td>熔断保护</td>
+    <td>PDB（Pod Disruption Budget）</td>
+    <td>无</td>
+    <td>无</td>
+    <td>孤儿占比 > 阈值 → 仅告警不恢复</td>
+  </tr>
+</table>
+
+<h3>P3.4 方案总览</h3>
+<div class="success">
+<strong>核心原则</strong>：自动恢复是<strong>可逆的</strong>（add_job，不是 retire），因此可以在安全框架下自动执行。但必须有<strong>熔断阀</strong>：当孤儿数量异常大（可能是全局故障而非个别脱节），自动恢复应暂停，仅发告警等人工介入。
+</div>
+
+<table>
+  <tr><th>能力</th><th>描述</th><th>配置项</th></tr>
+  <tr>
+    <td><strong>P3-A：Webhook 告警</strong></td>
+    <td>对账发现孤儿时，通过现有三通道推送告警消息（含任务清单、数量、建议操作）</td>
+    <td><code>reconcile_alert_enabled</code>（默认 1，复用现有 <code>error_web_hook</code> / <code>dingding_*</code> / <code>qywechat_*</code> 配置）</td>
+  </tr>
+  <tr>
+    <td><strong>P3-B：告警去重</strong></td>
+    <td>孤儿 ID 集合与上次一致时不重复推送；新增或减少孤儿时才触发告警</td>
+    <td><code>reconcile_alert_dedup</code>（默认 1）</td>
+  </tr>
+  <tr>
+    <td><strong>P3-C：智能自动恢复</strong></td>
+    <td>对账发现孤儿且满足安全条件时，自动调用 <code>reschedule_orphan_task()</code></td>
+    <td><code>reconcile_auto_recover</code>（默认 0 = 关闭，需管理员显式开启）</td>
+  </tr>
+  <tr>
+    <td><strong>P3-D：熔断保护</strong></td>
+    <td>孤儿数量占活跃任务比例超阈值时，暂停自动恢复，仅告警</td>
+    <td><code>reconcile_fuse_threshold</code>（默认 0.5 = 50%）</td>
+  </tr>
+</table>
+
+<h3>P3.5 P3-A Webhook 告警详细设计</h3>
+
+<h4>P3.5.1 告警消息格式</h4>
+<pre>
+【CronPilot 对账告警】
+时间：2026-09-03 14:30:00
+类型：调度脱节检测
+结果：发现 3 个孤儿任务（共扫描 15 个活跃任务）
+
+脱节任务列表：
+  1. [ID:42] 每日数据同步 — 状态:运行中
+  2. [ID:78] 订单校验 — 状态:运行中
+  3. [ID:103] 缓存刷新 — 状态:已暂停
+
+建议操作：登录 Dashboard → 筛选「调度脱节」→ 逐任务处理（重新调度 / 确认下线）
+地址：http://your-host:5001/
+</pre>
+
+<h4>P3.5.2 告警触发条件</h4>
+<table>
+  <tr><th>场景</th><th>行为</th></tr>
+  <tr><td>孤儿数 = 0</td><td>不告警</td></tr>
+  <tr><td>孤儿数 > 0 且 ID 集合与上次不同（新增或减少）</td><td>告警 + 附任务清单</td></tr>
+  <tr><td>孤儿数 > 0 但 ID 集合与上次完全一致</td><td>不重复告警（去重生效）</td></tr>
+  <tr><td>从 > 0 恢复到 0（全部处置完毕）</td><td>发送<strong>恢复通知</strong>：「对账正常，所有脱节已处置」</td></tr>
+</table>
+
+<h4>P3.5.3 告警消息格式（恢复通知）</h4>
+<pre>
+【CronPilot 对账恢复】
+时间：2026-09-03 15:00:00
+类型：调度脱节已全部处置
+结果：0 个孤儿任务（共扫描 15 个活跃任务）
+状态：✓ 正常
+</pre>
+
+<h4>P3.5.4 代码设计</h4>
+<pre>
+# app/crons.py — cron_check() 告警增强
+
+_last_alerted_orphan_ids = set()  # 去重：上次告警时的孤儿 ID 集合
+
+def _should_alert_orphan(current_ids):
+    """判断是否需要发送告警（去重逻辑）"""
+    global _last_alerted_orphan_ids
+    if not current_ids and not _last_alerted_orphan_ids:
+        return False          # 无变化：都是 0
+    if current_ids == _last_alerted_orphan_ids:
+        return False          # 无变化：ID 集合一致
+    return True               # 新增/减少/恢复
+
+def _build_orphan_alert_message(orphan_tasks, total_scanned):
+    """构建告警消息正文"""
+    if not orphan_tasks:
+        return '调度脱节已全部处置\n结果：0 个孤儿任务（共扫描 %d 个活跃任务）\n状态：✓ 正常' % total_scanned
+    lines = ['发现 %d 个孤儿任务（共扫描 %d 个活跃任务）' % (len(orphan_tasks), total_scanned), '']
+    lines.append('脱节任务列表：')
+    for i, t in enumerate(orphan_tasks[:10], 1):  # 最多展示 10 个
+        lines.append('  %d. [ID:%s] %s — 状态:%s' % (i, t['id'], t['name'], t['status_text']))
+    if len(orphan_tasks) > 10:
+        lines.append('  ... 还有 %d 个（详见 Dashboard）' % (len(orphan_tasks) - 10))
+    lines.append('')
+    lines.append('建议：登录 Dashboard → 筛选「调度脱节」→ 逐任务处理')
+    return '\n'.join(lines)
+
+# 在 cron_check() 中调用：
+if _should_alert_orphan(orphan_id_set):
+    alert_msg = _build_orphan_alert_message(orphan_tasks_info, len(cifs))
+    wechat_info_err('对账告警' if orphan_id_set else '对账恢复', alert_msg)
+    _last_alerted_orphan_ids = set(orphan_id_set)
+</pre>
+
+<h3>P3.6 P3-B 告警去重机制</h3>
+<table>
+  <tr><th>维度</th><th>策略</th><th>理由</th></tr>
+  <tr>
+    <td>去重粒度</td>
+    <td>基于孤儿 ID <strong>集合</strong>（非计数）</td>
+    <td>ID 集合变化才代表真正的状态变更（新发现/已处置）；仅靠计数相同可能掩盖「旧孤儿恢复 + 新孤儿出现」</td>
+  </tr>
+  <tr>
+    <td>恢复通知</td>
+    <td>从非空 → 空时发送一次恢复通知</td>
+    <td>让管理员确认「告警已自动收敛」；对标 Prometheus AlertManager 的 resolved 通知</td>
+  </tr>
+  <tr>
+    <td>长期未处理</td>
+    <td>连续 N 次 cron_check 孤儿不变 → 每 24h 发一次提醒</td>
+    <td>防止告警被遗忘；阈值可配置（<code>reconcile_remind_interval_hours</code>，默认 24）</td>
+  </tr>
+  <tr>
+    <td>进程重启</td>
+    <td><code>_last_alerted_orphan_ids</code> 重置为空 → 首次扫描若有孤儿会重新告警</td>
+    <td>可接受：重启不频繁；重启后重新告警是安全的（避免遗漏）</td>
+  </tr>
+</table>
+
+<h3>P3.7 P3-C 智能自动恢复设计</h3>
+
+<h4>P3.7.1 核心决策：为什么自动恢复是安全的</h4>
+<div class="highlight">
+<strong>关键区别</strong>：Phase 1 移除的「自动下线」是<strong>不可逆</strong>操作（<code>status = -1</code>，数据库永久状态变更）。而「自动恢复」是<strong>可逆</strong>操作（<code>scheduler.add_job</code>，仅在内存中注册调度条目，下次 cron_check 若仍异常会再次检测到）。因此自动恢复可以在受控条件下安全执行。
+</div>
+
+<h4>P3.7.2 安全框架</h4>
+<table>
+  <tr><th>安全措施</th><th>说明</th><th>配置</th></tr>
+  <tr>
+    <td><strong>默认关闭</strong></td>
+    <td>自动恢复默认不启用，需管理员在 <code>conf.ini</code> 中显式开启</td>
+    <td><code>reconcile_auto_recover=1</code></td>
+  </tr>
+  <tr>
+    <td><strong>熔断阈值</strong></td>
+    <td>孤儿数量 / 活跃任务总数 > 阈值时，自动恢复暂停，仅告警</td>
+    <td><code>reconcile_fuse_threshold=0.5</code>（默认 50%）</td>
+  </tr>
+  <tr>
+    <td><strong>单次上限</strong></td>
+    <td>每次 cron_check 最多自动恢复 N 个任务</td>
+    <td><code>reconcile_max_auto_recover=10</code></td>
+  </tr>
+  <tr>
+    <td><strong>状态过滤</strong></td>
+    <td>仅恢复 <code>status != -1</code>（非已下线）且调度表达式有效的任务</td>
+    <td>内置逻辑，不可配置</td>
+  </tr>
+  <tr>
+    <td><strong>审计日志</strong></td>
+    <td>每次自动恢复记录操作日志（<code>record_operation</code>，操作人=「系统对账」）</td>
+    <td>内置逻辑</td>
+  </tr>
+  <tr>
+    <td><strong>恢复失败不重试</strong></td>
+    <td>如果 <code>reschedule_orphan_task</code> 返回失败（如表达式无效），标记为需人工处理，不循环重试</td>
+    <td>内置逻辑</td>
+  </tr>
+</table>
+
+<h4>P3.7.3 自动恢复流程图</h4>
+<pre>
+cron_check() 发现孤儿
+    │
+    ├─ reconcile_auto_recover = 0 ?
+    │   → 仅告警（现有 Phase 2 行为）
+    │
+    ├─ 孤儿占比 > fuse_threshold ?
+    │   → 熔断：仅告警 + 日志 "auto-recover fused: orphan ratio %.1f%% exceeds threshold"
+    │
+    ├─ 孤儿数 > max_auto_recover ?
+    │   → 截断：只恢复前 N 个，其余告警等人工
+    │
+    └─ 逐个执行 reschedule_orphan_task(cron_id)
+        ├─ 成功 → record_operation(action='auto_recover', operator='系统对账')
+        └─ 失败 → logger.warning + 计入告警消息
+</pre>
+
+<h4>P3.7.4 告警消息格式（含自动恢复结果）</h4>
+<pre>
+【CronPilot 对账告警】
+时间：2026-09-03 14:30:00
+类型：调度脱节检测 + 自动恢复
+结果：发现 5 个孤儿任务（共扫描 20 个活跃任务）
+
+自动恢复结果：
+  ✓ [ID:42] 每日数据同步 — 已重新调度
+  ✓ [ID:78] 订单校验 — 已重新调度
+  ✗ [ID:103] 缓存刷新 — 恢复失败：无有效调度配置
+  ⏳ [ID:201] 报表生成 — 等待人工处理（超出单次上限）
+  ⏳ [ID:305] 日志清理 — 等待人工处理（超出单次上限）
+
+恢复统计：2 成功 / 1 失败 / 2 等待人工
+登录 Dashboard 处理剩余任务
+</pre>
+
+<h4>P3.7.5 熔断场景 Demo</h4>
+<pre>
+【CronPilot 对账告警 · 熔断】
+时间：2026-09-03 14:30:00
+类型：调度脱节检测（自动恢复已熔断）
+结果：发现 18 个孤儿任务（共扫描 20 个活跃任务）
+
+⚠ 孤儿比例 90.0% 超过熔断阈值 50%
+可能原因：调度器全局异常 / 数据库迁移 / 配置错误
+已暂停自动恢复，请人工排查后决定处置方案
+
+脱节任务列表（前 10 个）：
+  1. [ID:42] 每日数据同步
+  2. [ID:78] 订单校验
+  ...（共 18 个）
+</pre>
+
+<h3>P3.8 配置项汇总</h3>
+<table>
+  <tr><th>配置项</th><th>类型</th><th>默认</th><th>说明</th></tr>
+  <tr>
+    <td><code>reconcile_alert_enabled</code></td>
+    <td>int</td>
+    <td>1</td>
+    <td>是否启用对账 Webhook 告警（复用现有三通道配置）。0=仅日志+Prometheus</td>
+  </tr>
+  <tr>
+    <td><code>reconcile_alert_dedup</code></td>
+    <td>int</td>
+    <td>1</td>
+    <td>告警去重：孤儿 ID 集合不变时不重复推送。0=每次 cron_check 都推送（不推荐）</td>
+  </tr>
+  <tr>
+    <td><code>reconcile_remind_interval_hours</code></td>
+    <td>int</td>
+    <td>24</td>
+    <td>长期未处理孤儿的定期提醒间隔（小时）。0=关闭定期提醒</td>
+  </tr>
+  <tr>
+    <td><code>reconcile_auto_recover</code></td>
+    <td>int</td>
+    <td>0</td>
+    <td>是否启用智能自动恢复。<strong>0=关闭（默认安全）</strong>，1=开启</td>
+  </tr>
+  <tr>
+    <td><code>reconcile_fuse_threshold</code></td>
+    <td>float</td>
+    <td>0.5</td>
+    <td>熔断阈值：孤儿占活跃任务比例超此值时暂停自动恢复。范围 0.1~1.0</td>
+  </tr>
+  <tr>
+    <td><code>reconcile_max_auto_recover</code></td>
+    <td>int</td>
+    <td>10</td>
+    <td>每次 cron_check 最多自动恢复的任务数。超出部分告警等人工</td>
+  </tr>
+</table>
+
+<h3>P3.9 代码变更设计</h3>
+
+<h4>P3.9.1 <code>app/crons.py</code></h4>
+<pre>
+# 新增模块级变量
+_last_alerted_orphan_ids = set()
+_last_alert_time = 0.0
+
+def _reconcile_alert(orphan_tasks_info, orphan_id_set, total_scanned, recover_results=None):
+    """对账 Webhook 告警（含去重）"""
+    global _last_alerted_orphan_ids, _last_alert_time
+    config = current_app.config.get('CRON_CONFIG', {})
+    if not int(config.get('reconcile_alert_enabled', '1')):
+        return
+    dedup = int(config.get('reconcile_alert_dedup', '1'))
+    remind_hours = int(config.get('reconcile_remind_interval_hours', '24'))
+
+    # 去重判断
+    if dedup and orphan_id_set == _last_alerted_orphan_ids:
+        if orphan_id_set and remind_hours > 0:
+            elapsed = time.time() - _last_alert_time
+            if elapsed < remind_hours * 3600:
+                return  # 未到定期提醒时间
+        else:
+            return  # 无变化且无孤儿
+
+    msg = _build_orphan_alert_message(orphan_tasks_info, total_scanned, recover_results)
+    title = '对账恢复' if not orphan_id_set else '对账告警'
+    wechat_info_err(title, msg)
+    _last_alerted_orphan_ids = set(orphan_id_set)
+    _last_alert_time = time.time()
+
+
+def _try_auto_recover(orphan_items, total_active):
+    """智能自动恢复（带熔断）"""
+    config = current_app.config.get('CRON_CONFIG', {})
+    if not int(config.get('reconcile_auto_recover', '0')):
+        return None  # 功能未启用
+
+    fuse_threshold = float(config.get('reconcile_fuse_threshold', '0.5'))
+    max_recover = int(config.get('reconcile_max_auto_recover', '10'))
+
+    orphan_ratio = len(orphan_items) / max(total_active, 1)
+    if orphan_ratio > fuse_threshold:
+        current_app.logger.warning(
+            "auto-recover fused: orphan ratio %.1f%% exceeds threshold %.1f%%",
+            orphan_ratio * 100, fuse_threshold * 100,
+        )
+        return {'fused': True, 'ratio': orphan_ratio, 'results': []}
+
+    results = []
+    for i, item in enumerate(orphan_items):
+        if i >= max_recover:
+            results.append({'id': item.id, 'name': item.task_name, 'status': 'pending'})
+            continue
+        ok, msg = reschedule_orphan_task(item.id)
+        results.append({
+            'id': item.id, 'name': item.task_name,
+            'status': 'success' if ok else 'failed', 'msg': msg,
+        })
+        if ok:
+            record_operation(...)  # 审计日志
+    return {'fused': False, 'ratio': orphan_ratio, 'results': results}
+</pre>
+
+<h4>P3.9.2 <code>conf.ini.example</code></h4>
+<pre>
+# ====== 对账安全策略（OPT-P0-18 Phase 3）======
+# 对账 Webhook 告警（复用 error_web_hook / dingding / qywechat 通道）
+# reconcile_alert_enabled=1
+# reconcile_alert_dedup=1
+# reconcile_remind_interval_hours=24
+
+# 智能自动恢复（默认关闭，需显式开启）
+# reconcile_auto_recover=0
+# reconcile_fuse_threshold=0.5
+# reconcile_max_auto_recover=10
+</pre>
+
+<h3>P3.10 方案对比：是否引入自动恢复</h3>
+
+<table>
+  <tr><th>维度</th><th>方案 α：仅告警（不含自动恢复）</th><th>方案 β：告警 + 自动恢复（推荐）</th></tr>
+  <tr>
+    <td>实现复杂度</td>
+    <td>低（~60 行）</td>
+    <td>中（~150 行）</td>
+  </tr>
+  <tr>
+    <td>运维效率</td>
+    <td>每次孤儿都需人工处理</td>
+    <td>常规场景自动恢复，异常场景（熔断）才需人工</td>
+  </tr>
+  <tr>
+    <td>安全性</td>
+    <td>最安全（完全人工）</td>
+    <td>安全（默认关闭 + 熔断 + 审计）</td>
+  </tr>
+  <tr>
+    <td>适用场景</td>
+    <td>任务少（< 20）或对自动化信任度低的团队</td>
+    <td>任务多（50+）或需 7×24 无人值守的团队</td>
+  </tr>
+  <tr>
+    <td>行业对照</td>
+    <td>保守策略（类似 Airflow）</td>
+    <td>主流策略（类似 Kubernetes ReplicaSet）</td>
+  </tr>
+</table>
+
+<div class="highlight">
+<strong>推荐方案 β</strong>：自动恢复默认关闭，安全性等同于方案 α。显式开启后，熔断 + 单次上限 + 审计三重保护确保不会因全局故障而错误地批量恢复。对于经验证的稳定环境（如偶发进程重启导致的个别孤儿），自动恢复可显著减少运维负担。
+</div>
+
+<h3>P3.11 范围</h3>
+<table>
+  <tr><th>改动文件</th><th>内容</th></tr>
+  <tr><td><code>app/crons.py</code></td><td>告警去重模块级变量 + <code>_reconcile_alert()</code> + <code>_try_auto_recover()</code> + cron_check 集成</td></tr>
+  <tr><td><code>app/common/functions.py</code></td><td>无改动（复用 <code>wechat_info_err</code> / <code>send_text</code>）</td></tr>
+  <tr><td><code>conf.ini.example</code></td><td>新增 6 个 <code>reconcile_*</code> 配置项及注释</td></tr>
+  <tr><td><code>app/metrics.py</code></td><td>可选：新增 <code>ORPHAN_AUTO_RECOVER</code> Counter（自动恢复次数统计）</td></tr>
+  <tr><td><code>tests/test_reconcile_*.py</code></td><td>告警去重 + 自动恢复 + 熔断单元测试</td></tr>
+</table>
+
+<h3>P3.12 不做</h3>
+<ul>
+  <li>不新增独立告警通道（复用现有 <code>send_text</code> 三通道）</li>
+  <li>不引入消息队列（MQ）或异步告警（<code>cron_check</code> 本身在后台线程，同步发送即可）</li>
+  <li>不新增数据库字段（告警去重使用进程级变量，与 Phase 2 缓存一致）</li>
+  <li>不修改 <code>conf.ini</code> 格式（新配置项向后兼容，缺省时取默认值）</li>
+  <li>不修改 Dashboard UI（Phase 2 已完成可视化）</li>
+</ul>
+
+<h3>P3.13 分批</h3>
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收</th></tr>
+  <tr>
+    <td>S1</td>
+    <td>Webhook 告警 + 去重（P3-A + P3-B）</td>
+    <td>模拟孤儿 → 首次发告警 → 第二次 cron_check 不重复 → 处置后发恢复通知</td>
+  </tr>
+  <tr>
+    <td>S2</td>
+    <td>智能自动恢复 + 熔断（P3-C + P3-D）</td>
+    <td>conf.ini 开启 → 模拟 3 个孤儿 → 自动恢复 → 审计日志</td>
+  </tr>
+  <tr>
+    <td>S3</td>
+    <td>熔断验证：模拟 > 50% 孤儿 → 仅告警不恢复</td>
+    <td>日志中有 "auto-recover fused" + 告警消息中有熔断说明</td>
+  </tr>
+  <tr>
+    <td>S4</td>
+    <td>定期提醒 + 恢复通知 + conf.ini.example + 单元测试</td>
+    <td>单测通过 + conf.ini.example 完整</td>
+  </tr>
+</table>
+
+<h3>P3.14 验收</h3>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>无孤儿 + alert_enabled=1</td><td>不发告警</td></tr>
+  <tr><td>2</td><td>有 3 个孤儿 + alert_enabled=1 + dedup=1</td><td>首次 cron_check 发告警（含 3 个任务清单）</td></tr>
+  <tr><td>3</td><td>连续两次 cron_check 孤儿不变</td><td>第二次不发告警（去重）</td></tr>
+  <tr><td>4</td><td>孤儿减少 1 个（手动处置了一个）</td><td>发告警（ID 集合变化，含最新 2 个任务清单）</td></tr>
+  <tr><td>5</td><td>全部处置完毕（0 孤儿）</td><td>发恢复通知</td></tr>
+  <tr><td>6</td><td>24h 未处理 + remind_hours=24</td><td>再次发提醒告警</td></tr>
+  <tr><td>7</td><td>auto_recover=1 + 3 个孤儿 + 总任务 20</td><td>3 个全部自动恢复 + 审计日志 + 告警含恢复结果</td></tr>
+  <tr><td>8</td><td>auto_recover=1 + 18 个孤儿 + 总任务 20</td><td>熔断：不恢复，告警含"孤儿比例 90% 超过阈值"</td></tr>
+  <tr><td>9</td><td>auto_recover=1 + 15 个孤儿 + max_recover=10</td><td>前 10 个自动恢复，后 5 个标记"等待人工"</td></tr>
+  <tr><td>10</td><td>auto_recover=0（默认）</td><td>行为与 Phase 2 完全一致，无自动恢复</td></tr>
+</table>
+
+<h3>P3.15 风险</h3>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>告警通道未配置</td>
+    <td>低：<code>send_text</code> 内部各通道独立 try/except，未配置的通道静默跳过</td>
+    <td>日志提示"告警通道未配置"</td>
+  </tr>
+  <tr>
+    <td>告警风暴（高频孤儿变化）</td>
+    <td>低：去重机制确保同一 ID 集合只告警一次；通道自身有限频（钉钉 20 条/分钟）</td>
+    <td>去重 + 通道限频</td>
+  </tr>
+  <tr>
+    <td>自动恢复的调度表达式已变更</td>
+    <td>中：<code>reschedule_orphan_task</code> 读取 <code>cron_infos</code> 当前表达式，可能是旧值</td>
+    <td><code>reschedule_orphan_task</code> 已内置表达式校验；失败不重试，等人工</td>
+  </tr>
+  <tr>
+    <td>自动恢复+人工操作并发</td>
+    <td>低：<code>scheduler.add_job(replace_existing=True)</code> 幂等</td>
+    <td>APScheduler 内置幂等保证</td>
+  </tr>
+  <tr>
+    <td>进程重启丢失去重状态</td>
+    <td>低：重启后首次扫描重新告警，可接受</td>
+    <td>不持久化去重状态（与 Phase 2 缓存策略一致）</td>
+  </tr>
+</table>
+
 <h2>版本历史</h2>
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.4</td><td>2026-09-03</td><td>Phase 3 详细设计：Webhook 告警（去重/恢复通知/定期提醒）+ 智能自动恢复（熔断/单次上限/审计/配置项）+ 方案对比 + Demo</td></tr>
   <tr><td>rev.3</td><td>2026-09-02</td><td>P2.13 对账可观测性：频率/执行记录/超时检测 + 对账状态摘要条 Demo（3 种状态）</td></tr>
   <tr><td>rev.2</td><td>2026-09-02</td><td>Phase 2 详细设计：Dashboard 展示方案对比（X/Y）+ Exception Panel 警告条 + 筛选按钮 + 操作列 + 重新调度 API + 数据流设计 + Demo</td></tr>
   <tr><td>rev.1</td><td>2026-09-02</td><td>初版：问题分析 + 行业对照 + 五步模型 + Phase 1 详细设计</td></tr>

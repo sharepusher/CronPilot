@@ -551,6 +551,74 @@ def cron_status(form_data):
 
 
 # ---------------------------------------------------------------------------
+# B-15 — API 创建/更新任务时自动推断 scope
+# ---------------------------------------------------------------------------
+
+def _resolve_group_name(group_name):
+    """group_name → group_id。返回 (group_id, err_msg)。"""
+    from datas.model.resource_group import ResourceGroup
+    rg = db.session.scalars(
+        select(ResourceGroup).where(ResourceGroup.name == group_name)
+    ).first()
+    if not rg:
+        return None, '业务组不存在'
+    return rg.id, None
+
+
+def _apply_api_scope(datas):
+    """根据当前 API scope 自动向 datas 注入 scope_type / group_id。
+
+    返回 None 表示成功；返回字符串表示错误信息。
+    """
+    scope = getattr(request, '_api_scope', None) or {'role': 'admin'}
+    raw_gname = (datas.pop('group_name', None) or '').strip() or None
+
+    if scope.get('role') == 'admin':
+        if raw_gname:
+            gid, err = _resolve_group_name(raw_gname)
+            if err:
+                return err
+            datas['scope_type'] = 'GROUP'
+            datas['group_id'] = gid
+        else:
+            datas.setdefault('scope_type', 'GLOBAL')
+        return None
+
+    from app.rbac.policy import user_bypasses_scope
+    user_role = scope.get('user_role', '')
+    username = scope.get('username', '')
+    group_ids = scope.get('group_ids', [])
+
+    if user_bypasses_scope(user_role, username=username, group_ids=group_ids):
+        if raw_gname:
+            gid, err = _resolve_group_name(raw_gname)
+            if err:
+                return err
+            datas['scope_type'] = 'GROUP'
+            datas['group_id'] = gid
+        else:
+            datas.setdefault('scope_type', 'GLOBAL')
+        return None
+
+    if not raw_gname:
+        if len(group_ids) == 1:
+            datas['scope_type'] = 'GROUP'
+            datas['group_id'] = group_ids[0]
+            return None
+        return '属于多个业务组，请指定 group_name'
+
+    gid, err = _resolve_group_name(raw_gname)
+    if err:
+        return err
+    if gid not in set(int(x) for x in group_ids):
+        return '只能在本人所属业务组内创建任务'
+
+    datas['scope_type'] = 'GROUP'
+    datas['group_id'] = gid
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Batch 4.5 — /api/cron（新增/更新任务，最复杂）
 # ---------------------------------------------------------------------------
 
@@ -570,6 +638,10 @@ def crons(form_data):
     denied = check_api_permission('cron:write')
     if denied is not None:
         return denied
+
+    scope_err = _apply_api_scope(form_data)
+    if scope_err:
+        return api_return(errcode=1, errmsg=scope_err), 400
 
     CRON_CONFIG = current_app.config.get('CRON_CONFIG')
     is_dev = int(CRON_CONFIG.get('is_dev'))
@@ -614,6 +686,10 @@ def crons_legacy():
 
     if not task_name:
         return api_err_return(msg='任务名称不能为空')
+
+    scope_err = _apply_api_scope(datas)
+    if scope_err:
+        return api_err_return(msg=scope_err)
 
     existing = db.session.scalars(
         select(CronInfos).where(CronInfos.task_name == task_name)

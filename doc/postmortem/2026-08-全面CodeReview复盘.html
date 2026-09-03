@@ -1293,5 +1293,94 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}" → 200 ✓
   <li><strong>预防方案</strong>：<code>AGENTS.md</code> 已有「新功能路由 scope 对齐」规则</li>
 </ol>
 
+<h2>API 质量修复 — B-15 API 创建任务 Scope 自动推断（2026-08-28）</h2>
+
+<h3>问题</h3>
+<p>API 创建/更新任务时，所有新任务默认 <code>scope_type='GLOBAL'</code>。
+operator token 的用户已有明确的组归属（<code>request._api_scope['group_ids']</code>），
+但服务端不使用这些信息，导致 operator 可通过 API 创建 GLOBAL 任务（Web 端不允许此行为）。</p>
+
+<h3>7 要素复盘</h3>
+<ol>
+  <li><strong>Bug 定位</strong>：<code>app/api/views.py</code> 的 <code>crons()</code> 和 <code>crons_legacy()</code>
+  未在调用 <code>upsert_cron_by_task_name()</code> 前注入 scope 信息</li>
+  <li><strong>根因</strong>：API 最初仅面向全局 <code>api_access_token</code>（无用户概念）；
+  S-5 引入用户 token 认证和 <code>check_api_permission</code> 后，仅加了角色权限校验，
+  未对齐创建任务时的 scope 赋值逻辑。Web 端在 <code>views.py cron_add()</code> 中通过
+  <code>session['group_id']</code> 注入 scope，但 API 端缺乏等价机制</li>
+  <li><strong>测试漏洞</strong>：现有 <code>TestApiRolePermission</code> 测试仅覆盖
+  <code>check_api_permission</code> 的拦截行为，未验证创建的任务实际归属哪个 scope</li>
+  <li><strong>修复</strong>：新增 <code>_resolve_group_name()</code>（name→id 转换）和
+  <code>_apply_api_scope()</code>（按 token 类型自动推断 scope），在两个创建端点的
+  <code>upsert_cron_by_task_name()</code> 调用前执行。schema 新增可选字段 <code>group_name</code>
+  （组名称，不是 ID），API 调用方传人类可读的名称</li>
+  <li><strong>防护测试</strong>：<code>TestApiCreateScope</code>（7 条用例）覆盖：
+  全局 token 不传/传 group_name、operator 单组自动推断、operator 多组必传、
+  非本组拒绝、本组通过、不存在组名拒绝</li>
+  <li><strong>同类排查</strong>：<code>cron_retire_api</code> 和 <code>cron_status</code>
+  修改已有任务，不涉及 scope 赋值；<code>cron_add_log</code> 写日志条目，scope 由
+  <code>check_api_scope</code> 在任务级别控制。均不受影响</li>
+  <li><strong>预防方案</strong>：<code>AGENTS.md</code> 和
+  <code>.cursor/rules/cronpilot-backend.mdc</code> 新增规则「API 创建/修改资源端点必须对齐
+  Web 端的 scope 赋值逻辑」。验证命令：
+  <code>grep -n "_apply_api_scope\|scope_type.*GROUP" app/api/views.py</code></li>
+</ol>
+
+<h2>Web 端修复 — cron_add 异常处理错误信息改善（2026-08-28）</h2>
+
+<h3>问题</h3>
+<p>Web 端添加任务时，任何未预期异常（如 <code>IntegrityError</code>、
+<code>OperationalError</code>）均显示笼统的「服务器内部错误，请稍后重试」，
+用户无法判断失败原因。</p>
+
+<h3>7 要素复盘</h3>
+<ol>
+  <li><strong>Bug 定位</strong>：<code>app/main/views.py:839-843</code>，
+  <code>cron_add()</code> 的 <code>except Exception</code> 块统一返回同一条错误信息</li>
+  <li><strong>根因</strong>：异常处理设计时采用"安全优先"策略，所有异常统一脱敏为
+  通用消息。但过度脱敏导致用户无法区分"数据库磁盘满"和"数据冲突"等完全不同的故障</li>
+  <li><strong>测试漏洞</strong>：无异常场景的集成测试——只测试了正常创建路径</li>
+  <li><strong>修复</strong>：按异常类型（<code>IntegrityError</code> → 数据冲突提示；
+  <code>OperationalError</code> → 数据库/磁盘提示；其他 → 含异常类型名的通用提示）
+  返回差异化错误信息；补充 <code>db.session.rollback()</code> 防止会话污染</li>
+  <li><strong>防护测试</strong>：全量测试通过；Web 端验证创建任务成功</li>
+  <li><strong>同类排查</strong>：<code>cron_edit</code> 的异常处理也使用通用消息，
+  建议后续统一改进</li>
+  <li><strong>预防方案</strong>：错误信息分类模式已在 <code>cron_add</code> 中建立，
+  后续新增 POST 处理须参照此模式</li>
+</ol>
+
+<h2>B-15 修复 — API 创建任务 Scope 丢失（2026-09-03）</h2>
+
+<h3>问题</h3>
+<p>API 端 <code>upsert_cron_by_task_name()</code> 创建的 GROUP 任务全部退化为 GLOBAL，
+<code>task_groups</code> 表无记录。operator 通过 API 创建的任务脱离组控制。</p>
+
+<h3>7 要素复盘</h3>
+<ol>
+  <li><strong>Bug 定位</strong>：<code>app/services/cron_service.py:361-382</code>，
+  <code>upsert_cron_by_task_name()</code> 调用 <code>validate_cron_form()</code> 后
+  得到的 <code>normalized</code> 字典不含 <code>scope_type</code>/<code>group_id</code></li>
+  <li><strong>根因</strong>：<code>validate_cron_form()</code> 只验证 cron 表达式相关字段，
+  不传递 scope 信息。Web 端的 <code>add_cron_web()</code>（行 389-391）在验证后手动合并
+  scope 字段，但 API 端的 <code>upsert_cron_by_task_name()</code> 在实现时遗漏了这个步骤。
+  两个入口函数独立开发，共用的 validate→create 链路中 scope 传递方式不一致</li>
+  <li><strong>测试漏洞</strong>：原有单元测试（<code>test_api_scope_s6.py</code>）只测试
+  <code>_apply_api_scope()</code> 函数本身，未测试 scope 在完整
+  _apply_api_scope → validate → upsert → create → DB 链路上的持久化。
+  in-memory 单元测试中 create_cron 的 scope 参数由测试直接构造，跳过了 validate 环节</li>
+  <li><strong>修复</strong>：在 <code>upsert_cron_by_task_name()</code> 的 <code>validate_cron_form()</code>
+  之后加 3 行合并 scope 字段（与 <code>add_cron_web()</code> 行 389-391 对齐）</li>
+  <li><strong>防护测试</strong>：<code>tests/test_api_scope_e2e.py</code> 5 个端到端测试，
+  从 <code>_apply_api_scope</code> 到 DB 行验证完整链路。验证命令：
+  <code>.venv-py311/bin/python -m unittest tests.test_api_scope_e2e -v</code></li>
+  <li><strong>同类排查</strong>：<code>edit_cron_web()</code> 已有 scope 合并逻辑。
+  <code>update_cron()</code> 的 GLOBAL→清空 task_groups 场景独立为 BE-P1-3</li>
+  <li><strong>预防方案</strong>：
+  <br>① <code>tests/test_api_scope_e2e.py</code> CI 自动运行
+  <br>② <code>AGENTS.md</code> "API 创建/修改资源端点 scope 对齐" 规范条目
+  <br>③ 验证：<code>grep -n "_apply_api_scope" app/api/views.py</code>（应 ≥ 2 次调用）</li>
+</ol>
+
 </body>
 </html>

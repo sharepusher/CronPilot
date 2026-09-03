@@ -3,9 +3,9 @@
 Verifies that scope_type and group_id survive the full pipeline:
   _apply_api_scope → validate_cron_form → upsert_cron_by_task_name → DB
 
-These tests expose B-15: upsert_cron_by_task_name drops scope fields
-because validate_cron_form's normalized dict excludes them.  Tests
-for GROUP-scoped creation are marked expectedFailure until B-15 is fixed.
+B-15 (upsert_cron_by_task_name dropping scope fields) has been fixed
+by merging scope_type/group_id back from datas after validate_cron_form.
+All 5 tests should now pass.
 """
 import unittest
 from unittest.mock import patch
@@ -110,14 +110,8 @@ class TestApiGlobalScope(_ScopeTestBase):
 
 
 class TestApiGroupScopeAdmin(_ScopeTestBase):
-    """Admin scope with group_name → GROUP task.
+    """Admin scope with group_name → GROUP task."""
 
-    B-15: upsert_cron_by_task_name passes validated dict (without scope
-    fields) to create_cron.  The scope_type/group_id injected by
-    _apply_api_scope are lost.
-    """
-
-    @unittest.expectedFailure
     def test_admin_group_task(self):
         from datas.model.cron_infos import CronInfos
         from datas.model.task_group import TaskGroup
@@ -144,12 +138,8 @@ class TestApiGroupScopeAdmin(_ScopeTestBase):
 
 
 class TestApiSingleGroupOperator(_ScopeTestBase):
-    """Single-group operator, no group_name → auto-assign.
+    """Single-group operator, no group_name → auto-assign."""
 
-    Also fails due to B-15.
-    """
-
-    @unittest.expectedFailure
     def test_single_group_auto_assign(self):
         from datas.model.cron_infos import CronInfos
         from datas.model.task_group import TaskGroup

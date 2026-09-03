@@ -154,7 +154,7 @@ def tag_suggest():
 <table>
   <tr><th>编号</th><th>描述</th><th>R5 评级</th><th>评估后评级</th><th>修复必要性</th><th>建议动作</th></tr>
   <tr><td>B-13</td><td>API auth 暴力破解</td><td>P1</td><td><b>P1</b></td><td>高（成本低，风险收益比好）</td><td>修复</td></tr>
-  <tr><td>B-15</td><td>API 创建任务无 scope</td><td>P1</td><td><b>P1</b></td><td>中（功能缺失，需设计讨论）</td><td>独立规划</td></tr>
+  <tr><td>B-15</td><td>API 创建任务无 scope</td><td>P1</td><td><b>P1</b></td><td>中（功能缺失，需设计讨论）</td><td>✅ 已修复</td></tr>
   <tr><td>B-14</td><td>BIGINT 过滤器类型</td><td>P1</td><td><b>P2</b></td><td>低（可工作，语义不完美）</td><td>✅ 已修复</td></tr>
   <tr><td>B-16</td><td>tag_suggest scope</td><td>P1</td><td><b>P2</b></td><td>低（低敏感数据）</td><td>✅ 已修复</td></tr>
   <tr><td>Q-1</td><td>Token query string</td><td>P2</td><td><b>P2</b></td><td>低（内部工具）</td><td>标注废弃</td></tr>
@@ -167,7 +167,7 @@ def tag_suggest():
   <li><b>B-13 暴力破解限制</b>（5 行代码，复用现有 limiter）— 立即</li>
   <li><b>B-16 tag_suggest scope</b>（3 行代码）— 顺手</li>
   <li><b>B-14 BIGINT 过滤器</b>（5 行代码）— 顺手</li>
-  <li><b>B-15 API 创建任务 scope</b>（需独立设计文档）— 中期规划</li>
+  <li><b>B-15 API 创建任务 scope</b> — ✅ 已修复（<a href="API创建任务scope-B15-2026-08.html">设计文档</a>）</li>
   <li><b>Q-1 废弃 query string token</b>（文档标注 + RELEASE_NOTES）— 下个大版本</li>
   <li><b>Q-2 LIKE 转义</b>（全局工具函数）— API 优化批次</li>
 </ol>

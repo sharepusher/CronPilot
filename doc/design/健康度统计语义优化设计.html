@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>健康度统计语义优化设计 — CronPilot</title>
+<style>
+  body { font: 16px/1.7 -apple-system, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1e293b; }
+  h1 { font-size: 1.6rem; border-bottom: 2px solid #3b82f6; padding-bottom: .5rem; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; color: #1e40af; }
+  h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+  h4 { font-size: 1rem; margin-top: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 600; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: .85em; }
+  .highlight { background: #fef3c7; border-left: 4px solid #f59e0b; padding: .75rem 1rem; margin: 1rem 0; }
+  .danger { background: #fee2e2; border-left: 4px solid #ef4444; padding: .75rem 1rem; margin: 1rem 0; }
+  .success { background: #dcfce7; border-left: 4px solid #22c55e; padding: .75rem 1rem; margin: 1rem 0; }
+  pre { background: #f8fafc; padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: .85rem; }
+  .demo { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  .demo-title { margin: 0 0 .5rem; font-weight: 600; font-size: .85rem; color: #64748b; }
+</style>
+</head>
+<body>
+<h1>健康度统计语义优化设计</h1>
+<p><strong>编号</strong>：OPT-P1-18 &nbsp; <strong>版本</strong>：rev.1 &nbsp; <strong>日期</strong>：2026-09-03</p>
+<p><strong>关联</strong>：<code>app/services/job_health_service.py</code>、<code>app/repositories/cron_repository.py</code>、<code>datas/model/job_health.py</code></p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 现状</h3>
+<p>Dashboard 统计卡片「持续异常」和任务列表「健康度」列显示「异常」，但实际包含了<strong>从未成功执行过的新建任务</strong>。用户直觉上认为"还没跑就异常"是不合理的。</p>
+
+<h3>1.2 真实数据佐证</h3>
+<table>
+  <tr><th>ID</th><th>任务名</th><th>连续失败</th><th>成功次数</th><th>健康状态</th><th>用户预期</th></tr>
+  <tr>
+    <td>10</td><td>test1</td><td>526</td><td>0</td><td>failing</td>
+    <td>「配置错误」或「从未成功」，不应等同于"曾经正常后变为异常"</td>
+  </tr>
+  <tr>
+    <td>11</td><td>test</td><td>3</td><td>0</td><td>failing</td>
+    <td>刚刚越过阈值，且从未成功过 → 更像是"待验证"而非"持续异常"</td>
+  </tr>
+  <tr>
+    <td>12</td><td>test2</td><td>4,687</td><td>0</td><td>failing</td>
+    <td>高频调度 + 持续失败 → 配置错误，不应与真正的"健康退化"混为一谈</td>
+  </tr>
+</table>
+
+<h3>1.3 预期</h3>
+<p>健康度统计应区分两种根本不同的异常模式：</p>
+<ol>
+  <li><strong>健康退化</strong>（Degraded）：任务曾经正常运行，后来开始持续失败 — 需要关注，可能是目标服务故障</li>
+  <li><strong>从未成功</strong>（Never Succeeded）：任务创建后从未成功过 — 更可能是配置错误（URL、参数、权限），需要用户检查配置</li>
+</ol>
+
+<h2>2. 根因</h2>
+<table>
+  <tr><th>根因</th><th>描述</th></tr>
+  <tr>
+    <td><strong>健康模型单维度</strong></td>
+    <td><code>health_status</code> 仅有 <code>ok/failing/unknown</code> 三态，不区分"从未成功"和"曾成功后失败"</td>
+  </tr>
+  <tr>
+    <td><strong>统计查询无差异</strong></td>
+    <td><code>failing_stmt</code> 对所有 <code>health_status='failing'</code> 一视同仁，不检查 <code>last_success_at</code></td>
+  </tr>
+  <tr>
+    <td><strong>UI 展示无分层</strong></td>
+    <td>健康度列只有「健康」「异常」「N/A」三种 badge，没有"配置待验证"或"从未成功"的状态</td>
+  </tr>
+</table>
+
+<h2>3. 行业对照</h2>
+<table>
+  <tr><th>系统</th><th>对"从未成功"的处理</th><th>对"健康退化"的处理</th></tr>
+  <tr>
+    <td><strong>Kubernetes</strong></td>
+    <td>Pod CrashLoopBackOff（明确状态）+ 独立的 <code>Pending</code> 状态</td>
+    <td>Ready → NotReady + Event 告警</td>
+  </tr>
+  <tr>
+    <td><strong>Airflow</strong></td>
+    <td>首次执行失败 = DAG Run 状态 <code>failed</code>，不影响 DAG 的 SLA 判定（需有成功基线）</td>
+    <td>SLA miss（基于历史成功执行的基线偏离）</td>
+  </tr>
+  <tr>
+    <td><strong>Prometheus AlertManager</strong></td>
+    <td><code>absent()</code> 函数检测指标是否存在 → 触发「目标不可达」告警，与「指标值异常」分离</td>
+    <td><code>for: 5m</code> 持续异常时间窗口触发</td>
+  </tr>
+  <tr>
+    <td><strong>GitHub Actions</strong></td>
+    <td>首次运行失败 → 标记为 failed，但不影响 repo status badge（需有成功 run 基线）</td>
+    <td>连续失败 → 显示在 Actions tab，可配置通知</td>
+  </tr>
+  <tr>
+    <td><strong>CronPilot 当前</strong></td>
+    <td colspan="2">❌ 不区分 — 连续失败 ≥ N 即标记 <code>failing</code>，无论是否曾成功</td>
+  </tr>
+</table>
+
+<div class="highlight">
+<strong>行业共识</strong>：所有成熟系统都区分「首次/配置问题」和「运行退化」两类异常。前者需要用户<strong>修正配置</strong>，后者需要<strong>排查故障</strong>。混为一谈会导致：①统计膨胀（"异常"数量不反映真实风险）②用户信任下降（"都是异常，那异常=正常"）。
+</div>
+
+<h2>4. 方案</h2>
+
+<h3>4.1 核心设计：引入 <code>never_succeeded</code> 标志</h3>
+
+<table>
+  <tr><th>维度</th><th>当前</th><th>优化后</th></tr>
+  <tr>
+    <td>健康状态</td>
+    <td><code>ok</code> / <code>failing</code> / <code>unknown</code></td>
+    <td><code>ok</code> / <code>failing</code> / <code>unknown</code>（不变）</td>
+  </tr>
+  <tr>
+    <td>是否曾成功</td>
+    <td>间接推断（<code>last_success_at > 0</code>）</td>
+    <td>显式判断（<code>last_success_at > 0</code>）— 无需新增字段</td>
+  </tr>
+  <tr>
+    <td>「持续异常」统计</td>
+    <td><code>health_status = 'failing'</code></td>
+    <td><code>health_status = 'failing' AND last_success_at > 0</code></td>
+  </tr>
+  <tr>
+    <td>UI 健康 badge</td>
+    <td>异常 / 健康 / N/A</td>
+    <td>异常 / <strong>待验证</strong> / 健康 / N/A</td>
+  </tr>
+  <tr>
+    <td>Exception Panel</td>
+    <td>所有 failing 任务</td>
+    <td>分两组：「健康退化」+「配置待验证」</td>
+  </tr>
+</table>
+
+<h3>4.2 方案对比</h3>
+
+<h4>方案 A：查询过滤（最小改动）</h4>
+<p>仅修改统计 SQL，不改 UI badge。</p>
+<ul>
+  <li><code>failing_stmt</code> 增加 <code>WHERE last_success_at > 0</code></li>
+  <li>Dashboard 卡片「持续异常」只统计曾成功过的任务</li>
+  <li>从未成功的任务仍显示「异常」badge，但不计入卡片数字</li>
+</ul>
+<p><strong>优点</strong>：最小 diff（~5 行 SQL 修改）<br>
+<strong>缺点</strong>：UI 上仍显示"异常"，与统计数字不一致；用户看到 badge 说异常但卡片说 0，会困惑</p>
+
+<h4>方案 B：查询 + UI 分层（推荐）</h4>
+<p>修改统计 SQL + 引入「待验证」badge + Exception Panel 分组。</p>
+<ul>
+  <li>统计层同方案 A</li>
+  <li>健康 badge 增加「待验证」（<code>failing</code> 且 <code>last_success_at = 0</code>）</li>
+  <li>Dashboard 新增「待验证」统计（独立或 sub-text）</li>
+  <li>Exception Panel 分两组展示</li>
+</ul>
+<p><strong>优点</strong>：语义清晰；用户一眼区分"配置问题"和"运行故障"；统计与 UI 一致<br>
+<strong>缺点</strong>：改动范围稍大（~8 个文件）；需要新的 badge 样式</p>
+
+<h4>方案 C：新增 health_status 值</h4>
+<p>在 <code>health_status</code> 列中增加 <code>'never_ok'</code> 枚举值。</p>
+<ul>
+  <li><code>update_job_health</code>：当 <code>last_success_at = 0</code> 且失败 ≥ N 时，设为 <code>'never_ok'</code> 而非 <code>'failing'</code></li>
+  <li>所有查询按新枚举值分类</li>
+</ul>
+<p><strong>优点</strong>：数据层语义最精确<br>
+<strong>缺点</strong>：schema 变更 + 影响面大（所有引用 <code>health_status</code> 的代码都需适配）；与现有 <code>last_success_at</code> 字段语义重复</p>
+
+<div class="success">
+<strong>推荐方案 B</strong>：利用已有的 <code>last_success_at</code> 字段（无需 schema 变更），在查询层和 UI 层同时做分层。「待验证」badge 用独立颜色（蓝色/灰蓝色）区别于「异常」（红色）。
+</div>
+
+<h3>4.3 方案 B 详细设计</h3>
+
+<h4>4.3.1 统计查询变更</h4>
+<pre>
+# app/repositories/cron_repository.py
+
+# 「持续异常」— 仅统计曾成功后退化的任务
+failing_stmt = (
+    select(func.count())
+    .select_from(JobHealth)
+    .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
+    .where(JobHealth.health_status == HEALTH_FAILING)
+    .where(JobHealth.last_success_at > 0)          # ← 新增
+    .where(CronInfos.status != -1)
+)
+
+# 「待验证」— 从未成功过且持续失败的任务（新增统计）
+never_ok_stmt = (
+    select(func.count())
+    .select_from(JobHealth)
+    .join(CronInfos, CronInfos.id == JobHealth.cron_info_id)
+    .where(JobHealth.health_status == HEALTH_FAILING)
+    .where(JobHealth.last_success_at == 0)          # ← 从未成功
+    .where(CronInfos.status != -1)
+)
+</pre>
+
+<h4>4.3.2 健康 badge 渲染逻辑</h4>
+<pre>
+{# app/templates/redesign/_dashboard_rows.html #}
+{% set h = health_by_id.get(item.id) %}
+
+{% if item.status == -1 %}
+  &lt;span class="health-badge off"&gt;已下线&lt;/span&gt;
+{% elif h and h.health_status == 'failing' and h.last_success_at and h.last_success_at > 0 %}
+  {# 曾经成功过 → 真正的健康退化 #}
+  &lt;span class="health-badge danger"&gt;异常&lt;/span&gt;
+{% elif h and h.health_status == 'failing' %}
+  {# 从未成功 → 配置待验证 #}
+  &lt;span class="health-badge unverified"&gt;待验证&lt;/span&gt;
+{% elif h and h.health_status == 'ok' %}
+  &lt;span class="health-badge ok"&gt;健康&lt;/span&gt;
+{% else %}
+  &lt;span class="health-badge unknown"&gt;N/A&lt;/span&gt;
+{% endif %}
+</pre>
+
+<h4>4.3.3 Dashboard 统计卡片变更</h4>
+
+<div class="demo">
+  <p class="demo-title">Demo A — 当前（方案 B 实施前）</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #ef4444;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">持续异常</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#ef4444">3</div>
+      <div style="font-size:.7rem;color:#94a3b8">≥3 次连续失败</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #f59e0b;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">逾期未执行</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#f59e0b">0</div>
+      <div style="font-size:.7rem;color:#94a3b8">距上次执行超 2 倍调度间隔</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #22c55e;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">今日成功率</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#22c55e">—</div>
+      <div style="font-size:.7rem;color:#94a3b8">今日尚无执行记录</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #ef4444;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">今日失败</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#ef4444">4</div>
+      <div style="font-size:.7rem;color:#94a3b8">0:00 以来</div>
+    </div>
+  </div>
+  <p style="margin-top:.5rem;font-size:.8rem;color:#ef4444">⚠ 3 个"持续异常"均为从未成功过的测试任务 — 统计膨胀</p>
+</div>
+
+<div class="demo">
+  <p class="demo-title">Demo B — 方案 B 实施后</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #ef4444;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">持续异常</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#64748b">0</div>
+      <div style="font-size:.7rem;color:#94a3b8">≥3 次连续失败（曾成功后退化）</div>
+      <div style="font-size:.7rem;color:#6366f1;margin-top:4px;border-top:1px dashed #e2e8f0;padding-top:4px">📋 另有 3 个任务待验证</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #f59e0b;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">逾期未执行</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#64748b">0</div>
+      <div style="font-size:.7rem;color:#94a3b8">距上次执行超 2 倍调度间隔</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #22c55e;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">今日成功率</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#22c55e">—</div>
+      <div style="font-size:.7rem;color:#94a3b8">今日尚无执行记录</div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #ef4444;border-radius:6px;padding:12px">
+      <div style="font-size:.75rem;color:#64748b">今日失败</div>
+      <div style="font-size:1.5rem;font-weight:700;color:#ef4444">4</div>
+      <div style="font-size:.7rem;color:#94a3b8">0:00 以来</div>
+    </div>
+  </div>
+  <p style="margin-top:.5rem;font-size:.8rem;color:#22c55e">✓ 持续异常 = 0（无曾成功后退化的任务）；3 个待验证任务在 sub-text 提示</p>
+</div>
+
+<h4>4.3.4 任务列表健康 badge 对比</h4>
+
+<div class="demo">
+  <p class="demo-title">Demo — 健康 badge 对比（当前 vs 优化后）</p>
+  <table style="font-size:.85rem">
+    <tr><th>任务名</th><th>连续失败</th><th>曾成功</th><th>当前 badge</th><th>优化后 badge</th></tr>
+    <tr>
+      <td>每日数据同步</td>
+      <td>5</td>
+      <td>✓ 是</td>
+      <td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem">异常</span></td>
+      <td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem">异常</span>（不变）</td>
+    </tr>
+    <tr>
+      <td>test2（新建）</td>
+      <td>4,687</td>
+      <td>✗ 否</td>
+      <td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem">异常</span></td>
+      <td><span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:.75rem">待验证</span></td>
+    </tr>
+    <tr>
+      <td>缓存刷新</td>
+      <td>0</td>
+      <td>✓ 是</td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:.75rem">健康</span></td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:.75rem">健康</span>（不变）</td>
+    </tr>
+    <tr>
+      <td>新建任务（未执行）</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-size:.75rem">N/A</span></td>
+      <td><span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-size:.75rem">N/A</span>（不变）</td>
+    </tr>
+  </table>
+</div>
+
+<h4>4.3.5 Exception Panel 分组展示</h4>
+
+<div class="demo">
+  <p class="demo-title">Demo — Exception Panel 分两组（有"曾成功"任务异常时）</p>
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 14px;margin-bottom:6px">
+    <div style="font-size:.85rem;font-weight:600;color:#991b1b">⚠ 需要关注的任务（2）</div>
+    <div style="font-size:.8rem;color:#64748b;margin-top:6px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #fee2e2">
+        <span>每日数据同步</span>
+        <span style="color:#ef4444">连续失败 5 次</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span>订单状态检查</span>
+        <span style="color:#ef4444">连续失败 3 次</span>
+      </div>
+    </div>
+  </div>
+  <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:10px 14px">
+    <div style="font-size:.85rem;font-weight:600;color:#3730a3">📋 配置待验证（3）— 从未成功执行</div>
+    <div style="font-size:.8rem;color:#64748b;margin-top:6px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e0e7ff">
+        <span>test1</span>
+        <span style="color:#6366f1">连续失败 526 次</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e0e7ff">
+        <span>test</span>
+        <span style="color:#6366f1">连续失败 3 次</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0">
+        <span>test2</span>
+        <span style="color:#6366f1">连续失败 4,687 次</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4>4.3.6 筛选栏变更</h4>
+<p>健康维度筛选增加「待验证」按钮（仅 <code>never_ok_count > 0</code> 时显示）：</p>
+
+<div class="demo">
+  <p class="demo-title">Demo — 筛选栏（有待验证任务时）</p>
+  <div style="display:flex;align-items:center;gap:6px;font-size:.8rem;flex-wrap:wrap">
+    <span style="color:#64748b;font-weight:600">异常</span>
+    <span style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer">持续异常</span>
+    <span style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer">今日失败</span>
+    <span style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer">逾期未执行</span>
+    <span style="padding:3px 10px;border:1px solid #c7d2fe;border-radius:4px;cursor:pointer;background:#eef2ff;color:#4f46e5;font-weight:500">待验证 <span style="background:#4f46e5;color:#fff;border-radius:8px;padding:0 5px;font-size:.7rem;margin-left:2px">3</span></span>
+  </div>
+</div>
+
+<h3>4.4 数据层设计</h3>
+
+<h4>4.4.1 无需 schema 变更</h4>
+<p><code>job_health</code> 表已有 <code>last_success_at</code>（BigInteger, default=0）。当 <code>last_success_at = 0</code> 时表示从未成功。这是一个<strong>已有但未充分利用</strong>的字段。</p>
+
+<h4>4.4.2 health_status 写入逻辑不变</h4>
+<p><code>update_job_health()</code> 的写入逻辑无需修改。<code>health_status</code> 仍然在 <code>consecutive_failures >= N</code> 时设为 <code>'failing'</code>，读取端根据 <code>last_success_at</code> 做分层。这是<strong>写简读分层</strong>的设计模式，避免了对写路径的侵入。</p>
+
+<h4>4.4.3 查询层分类逻辑</h4>
+<pre>
+# 真正的健康退化：曾成功后变为 failing
+is_degraded = (JobHealth.health_status == 'failing') &amp; (JobHealth.last_success_at > 0)
+
+# 配置待验证：从未成功且 failing
+is_never_ok = (JobHealth.health_status == 'failing') &amp; (JobHealth.last_success_at == 0)
+</pre>
+
+<h2>5. 范围</h2>
+<table>
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/repositories/cron_repository.py</code></td><td><code>metrics()</code> 和 <code>count_consecutive_failing()</code> 增加 <code>last_success_at > 0</code> 条件；新增 <code>never_ok_count</code> 统计</td></tr>
+  <tr><td><code>app/services/dashboard_service.py</code></td><td><code>compute_stats()</code> 返回 <code>never_ok_count</code></td></tr>
+  <tr><td><code>app/main/views.py</code></td><td>传递 <code>never_ok_count</code> 到模板和 AJAX</td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>持续异常卡片 sub-text（待验证提示）；筛选栏按钮</td></tr>
+  <tr><td><code>app/templates/redesign/_dashboard_rows.html</code></td><td>健康 badge 增加「待验证」分支</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>新增 <code>.health-badge.unverified</code> 样式</td></tr>
+  <tr><td><code>app/static/css/console-theme.css</code></td><td>新增 <code>--cp-unverified</code> / <code>--cp-unverified-bg</code> Design Token</td></tr>
+  <tr><td><code>app/templates/redesign/task_detail_v2.html</code></td><td>如果存在健康卡，增加"从未成功"提示</td></tr>
+</table>
+
+<h2>6. 不做</h2>
+<ul>
+  <li>不修改 <code>job_health</code> schema（复用已有 <code>last_success_at</code>）</li>
+  <li>不修改 <code>update_job_health()</code> 写逻辑（读端分层，不侵入写路径）</li>
+  <li>不新增 <code>health_status</code> 枚举值（避免大面积代码适配）</li>
+  <li>不改变 <code>health_failing_threshold</code> 的语义（仍是连续失败次数阈值）</li>
+</ul>
+
+<h2>7. 分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收</th></tr>
+  <tr>
+    <td>S1</td>
+    <td>后端：<code>metrics()</code> + <code>count_consecutive_failing()</code> 增加 <code>last_success_at</code> 过滤 + 新增 <code>never_ok_count</code></td>
+    <td>单测：从未成功的任务不计入 failing 统计</td>
+  </tr>
+  <tr>
+    <td>S2</td>
+    <td>模板：健康 badge 增加「待验证」+ CSS</td>
+    <td>restart → 浏览器查看 badge 颜色</td>
+  </tr>
+  <tr>
+    <td>S3</td>
+    <td>Dashboard：卡片 sub-text「待验证」+ 筛选按钮 + AJAX 更新</td>
+    <td>统计数字正确；筛选可用</td>
+  </tr>
+  <tr>
+    <td>S4</td>
+    <td>Exception Panel：分两组展示（可选，如当前数据无曾成功任务则延后）</td>
+    <td>面板分组正确</td>
+  </tr>
+</table>
+
+<h2>8. 验收</h2>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>所有任务从未成功</td><td>「持续异常」= 0；sub-text「N 个待验证」；badge 显示蓝色「待验证」</td></tr>
+  <tr><td>2</td><td>有任务曾成功后变为 failing</td><td>「持续异常」= M（M = 曾成功后 failing 的数量）；「待验证」正确</td></tr>
+  <tr><td>3</td><td>点击筛选「待验证」</td><td>列表仅显示 <code>health_status='failing' AND last_success_at=0</code> 的任务</td></tr>
+  <tr><td>4</td><td>待验证任务首次成功</td><td>badge 从「待验证」变为「健康」；统计更新</td></tr>
+  <tr><td>5</td><td>曾成功任务恢复后再次失败</td><td>badge 从「健康」→「异常」（非「待验证」，因为 <code>last_success_at > 0</code>）</td></tr>
+</table>
+
+<h2>9. 风险</h2>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td><code>last_success_at</code> 历史数据为 0</td>
+    <td>中：老任务如果 <code>last_success_at</code> 从未被写入（创建于 OPT-P2-13 之前），会被误分类为"从未成功"</td>
+    <td>检查数据：如果任务有成功的 <code>job_log</code> 记录但 <code>last_success_at=0</code>，可执行一次修复脚本</td>
+  </tr>
+  <tr>
+    <td>「待验证」长期不处理</td>
+    <td>低：这些任务本来就是配置问题，不处理不影响其他任务</td>
+    <td>Exception Panel 中给出"检查任务 URL 和参数"的操作建议</td>
+  </tr>
+</table>
+
+<h2>版本历史</h2>
+<table>
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.1</td><td>2026-09-03</td><td>初版：问题分析 + 行业对照 + 三方案对比 + 方案 B 详细设计 + Demo</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="健康度统计语义优化设计.md">Markdown</a></footer>
+</body>
+</html>

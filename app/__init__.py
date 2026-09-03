@@ -68,6 +68,11 @@ def create_app(config_name):
     if app.config.get('CRONPILOT_SCHEDULER_ENABLED', True):
         scheduler.init_app(app)
         scheduler.start()
+        from .crons import cron_check
+        try:
+            cron_check()
+        except Exception:
+            pass
     else:
         # Web-only mode: scheduler not started; DB + routes still available
         scheduler.init_app(app)

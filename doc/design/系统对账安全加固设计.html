@@ -20,7 +20,7 @@
 </head>
 <body>
 <h1>系统对账安全加固设计</h1>
-<p><strong>编号</strong>：OPT-P0-18 &nbsp; <strong>版本</strong>：rev.4 &nbsp; <strong>日期</strong>：2026-09-03</p>
+<p><strong>编号</strong>：OPT-P0-18 &nbsp; <strong>版本</strong>：rev.5 &nbsp; <strong>日期</strong>：2026-09-03</p>
 <p><strong>关联</strong>：<code>app/crons.py::cron_check()</code>、<code>app/services/cron_service.py::apply_retire()</code></p>
 
 <h2>1. 问题</h2>
@@ -1170,9 +1170,258 @@ def _try_auto_recover(orphan_items, total_active):
   </tr>
 </table>
 
+<h2>Phase 2.5 — Orphan UI 全面重设计（OPT-P0-18-UI）</h2>
+
+<h3>P2.5.1 问题</h3>
+<p>Phase 2 实现的 orphan（对账脱节）UI 存在以下专业性问题：</p>
+
+<table>
+  <tr><th>#</th><th>问题</th><th>表现</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>操作图标风格脱节</strong></td>
+    <td>orphan 操作使用 emoji（🔄 ✕）+ 文字药片型按钮（<code>act-btn-orphan</code>），而其他操作列统一使用 SVG + 28×28 图标按钮（<code>act-btn</code>）。两者在大小、形状、视觉语言上完全不一致</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>术语「调度脱节」晦涩</strong></td>
+    <td>用户不理解"脱节"的含义。该词是技术概念（scheduler orphan），对管理端用户而言过于抽象。行内标签、筛选按钮、Warning Bar 中均使用此词</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>orphan 行替换全部操作</strong></td>
+    <td>orphan 任务的操作列只显示「重新调度」「确认下线」两个按钮，连「执行记录」链接也消失了。用户无法查看该任务的历史执行日志</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>健康列未标记 orphan 状态</strong></td>
+    <td>设计文档规划了 <code>orphan-status</code> CSS（<code>⚠ 调度器无记录</code>），但未实际实现。orphan 行健康列仍显示普通 badge（ok/failing/N/A）</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>Warning Bar 信息密度低</strong></td>
+    <td>大面积紫色背景 + 仅一行文字 + 「查看详情」链接，视觉重量过大但信息量不足</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><strong>行背景色过于突出</strong></td>
+    <td>紫色背景 (<code>var(--cp-orphan-bg)</code>) 在全白列表中过于跳跃，视觉噪音大</td>
+  </tr>
+</table>
+
+<h3>P2.5.2 术语方案对比</h3>
+<table>
+  <tr><th>方案</th><th>显示文案</th><th>标签</th><th>说明</th><th>评价</th></tr>
+  <tr>
+    <td>T1</td>
+    <td>调度脱节</td>
+    <td>脱节</td>
+    <td>当前使用</td>
+    <td>❌ 技术术语，用户不理解"脱节"的含义</td>
+  </tr>
+  <tr>
+    <td>T2</td>
+    <td>待恢复调度</td>
+    <td>待恢复</td>
+    <td>任务在系统中存在但调度器中缺失 → 需要恢复调度</td>
+    <td>✓ 面向动作（恢复），用户能理解该做什么</td>
+  </tr>
+  <tr>
+    <td><strong>T3</strong></td>
+    <td><strong>调度异常</strong></td>
+    <td><strong>调度异常</strong></td>
+    <td>统一使用"异常"语系（与「持续异常」「健康异常」呼应），但前缀区分</td>
+    <td><strong>✓ 推荐</strong>：与现有「持续异常」语义体系一致，用户无歧义</td>
+  </tr>
+  <tr>
+    <td>T4</td>
+    <td>调度器未注册</td>
+    <td>未注册</td>
+    <td>精确描述技术状态</td>
+    <td>△ 对非技术用户仍然抽象</td>
+  </tr>
+</table>
+
+<div class="success">
+<strong>推荐 T3「调度异常」</strong>：① 与「持续异常」（执行失败）形成对比，前者是调度层，后者是执行层；② 用户直觉理解"异常"需要处理；③ 行内标签 2 字「调度异常」简洁；④ 不需要理解"脱节"的技术含义。
+</div>
+
+<h3>P2.5.3 操作列重设计</h3>
+
+<h4>原则</h4>
+<ul>
+  <li><strong>复用 <code>act-btn</code> 系统</strong>：所有操作图标统一为 28×28 SVG icon box，用 <code>data-tooltip</code> 展示文字</li>
+  <li><strong>orphan 行保留"执行记录"入口</strong>：不因 orphan 状态而隐藏历史日志链接</li>
+  <li><strong>orphan 特有操作后置</strong>：「重新调度」「下线」使用独立的语义颜色（紫色/红色）但仍是 <code>act-btn</code> 尺寸</li>
+  <li><strong>删除 <code>act-btn-orphan</code> 类</strong>：用 <code>act-btn.orphan-act</code> 修饰器替代，复用尺寸/悬停/tooltip 体系</li>
+</ul>
+
+<h4>Demo 对比</h4>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0">
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:0 0 .5rem">当前（Act-btn-orphan + Emoji）</p>
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-block;font-size:11px;background:#7c3aed;color:#fff;border-radius:4px;padding:2px 8px">🔄</span>
+    <span style="display:inline-block;font-size:11px;background:#ef4444;color:#fff;border-radius:4px;padding:2px 8px;margin-left:4px">✕</span>
+    <span style="font-size:.75rem;color:#94a3b8;margin-left:8px">← 药片型 + emoji，与其他行的 SVG icon box 完全不同</span>
+  </div>
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:1rem 0 .5rem 0">优化后（统一 Act-btn + SVG）</p>
+  <div style="display:flex;align-items:center;gap:4px">
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #c4b5fd;border-radius:6px;font-size:14px;color:#7c3aed;background:#faf5ff;cursor:pointer" title="重新调度">↻</span>
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;color:#64748b;cursor:pointer" title="执行记录">📋</span>
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #fecaca;border-radius:6px;font-size:14px;color:#ef4444;cursor:pointer" title="确认下线">✕</span>
+    <span style="font-size:.75rem;color:#94a3b8;margin-left:8px">← 统一 28×28 icon box，保留执行记录，SVG 图标（此处用文字占位示意，实际用 SVG）</span>
+  </div>
+</div>
+
+<h4>SVG 图标选择</h4>
+<table>
+  <tr><th>操作</th><th>图标</th><th>SVG 说明</th></tr>
+  <tr>
+    <td>重新调度</td>
+    <td style="font-size:1.1rem">↻</td>
+    <td>Heroicons <code>arrow-path</code>（循环箭头），stroke 风格，14px</td>
+  </tr>
+  <tr>
+    <td>确认下线</td>
+    <td style="font-size:1.1rem">⏻</td>
+    <td>Heroicons <code>power</code>（电源图标），stroke 风格；或 <code>x-circle</code>；与 dropdown 中"下线"一致</td>
+  </tr>
+  <tr>
+    <td>执行记录</td>
+    <td>📋</td>
+    <td>复用现有文档 SVG（Heroicons <code>document-text</code>），与普通行完全一致</td>
+  </tr>
+</table>
+
+<h3>P2.5.4 健康列 orphan 标记</h3>
+<p>orphan 任务的健康列增加独立 badge：</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0">
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:0 0 .5rem">健康列 badge 对比</p>
+  <table style="font-size:.85rem">
+    <tr><th>状态</th><th>当前</th><th>优化后</th></tr>
+    <tr>
+      <td>正常任务（健康）</td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:.75rem">健康</span></td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:.75rem">健康</span>（不变）</td>
+    </tr>
+    <tr>
+      <td>Orphan 任务</td>
+      <td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:.75rem">健康</span> 或 <span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-size:.75rem">N/A</span>（不反映 orphan）</td>
+      <td><span style="background:#faf5ff;color:#7c3aed;padding:2px 8px;border-radius:4px;font-size:.75rem">调度异常</span></td>
+    </tr>
+    <tr>
+      <td>执行持续失败</td>
+      <td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem">异常</span></td>
+      <td><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem">异常</span>（不变）</td>
+    </tr>
+  </table>
+</div>
+
+<h3>P2.5.5 Warning Bar 精简</h3>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0">
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:0 0 .5rem">当前 Warning Bar</p>
+  <div style="display:flex;align-items:center;gap:8px;background:#faf5ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 16px;font-size:12.5px;color:#7c3aed">
+    <span style="font-size:16px">⚠️</span>
+    <div style="flex:1"><strong style="color:#5b21b6;font-size:13px;display:block">3 个任务与调度器脱节</strong><span style="font-size:12px">这些任务在系统中有记录，但未在调度器中注册。请检查并手动处理。</span></div>
+    <a style="font-size:12px;color:#7c3aed;text-decoration:underline">查看详情 →</a>
+  </div>
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:1rem 0 .5rem 0">优化后 Warning Bar</p>
+  <div style="display:flex;align-items:center;gap:8px;background:#faf5ff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 14px;font-size:12px;color:#7c3aed">
+    <span style="font-size:14px">⚠</span>
+    <span><strong>3</strong> 个任务调度异常 — 系统已记录但调度器未注册，建议重新调度或下线</span>
+    <a style="font-size:12px;color:#7c3aed;text-decoration:underline;white-space:nowrap;margin-left:auto">筛选查看 →</a>
+  </div>
+  <p style="font-size:.75rem;color:#94a3b8;margin-top:.5rem">优化：① 单行紧凑；② "调度异常"替代"脱节"；③ 给出建议操作；④ "筛选查看"比"查看详情"更明确</p>
+</div>
+
+<h3>P2.5.6 筛选按钮</h3>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0">
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:0 0 .5rem">对比</p>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:.8rem;color:#64748b">当前：</span>
+    <span style="padding:3px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.8rem;background:#faf5ff;color:#7c3aed">调度脱节 <span style="background:#7c3aed;color:#fff;border-radius:8px;padding:0 5px;font-size:.7rem">3</span></span>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:.5rem">
+    <span style="font-size:.8rem;color:#64748b">优化后：</span>
+    <span style="padding:3px 10px;border:1px solid #c4b5fd;border-radius:4px;font-size:.8rem;background:#faf5ff;color:#7c3aed">调度异常 <span style="background:#7c3aed;color:#fff;border-radius:8px;padding:0 5px;font-size:.7rem">3</span></span>
+  </div>
+  <p style="font-size:.75rem;color:#94a3b8;margin-top:.5rem">仅文案变更：「调度脱节」→「调度异常」；样式不变</p>
+</div>
+
+<h3>P2.5.7 行样式</h3>
+<p>orphan 行保持浅紫色背景（<code>var(--cp-orphan-bg)</code>），但降低对比度：改为仅左边框紫色，背景回归白色，减少视觉噪音。</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;margin:1rem 0">
+  <p style="font-weight:600;font-size:.85rem;color:#64748b;margin:0 0 .5rem">行样式对比</p>
+  <div style="margin-bottom:8px">
+    <span style="font-size:.8rem;color:#64748b">当前：</span>
+    <div style="background:#faf5ff;padding:6px 10px;border-radius:4px;font-size:.85rem">
+      <span style="color:#7c3aed;font-weight:500">test1</span> <span style="background:#7c3aed;color:#fff;font-size:10px;border-radius:3px;padding:1px 5px">脱节</span>
+    </div>
+  </div>
+  <div>
+    <span style="font-size:.8rem;color:#64748b">优化后：</span>
+    <div style="background:#fff;border-left:3px solid #7c3aed;padding:6px 10px;border-radius:4px;font-size:.85rem">
+      <span style="color:#1e293b;font-weight:500">test1</span> <span style="background:#faf5ff;color:#7c3aed;font-size:10px;border-radius:3px;padding:1px 5px;border:1px solid #c4b5fd">调度异常</span>
+    </div>
+  </div>
+  <p style="font-size:.75rem;color:#94a3b8;margin-top:.5rem">左边框 + 空心标签，减少大面积色块的视觉干扰</p>
+</div>
+
+<h3>P2.5.8 统计卡片 sub-text</h3>
+<p>持续异常卡片下方的 orphan 提示文案同步更新：</p>
+<pre>
+当前：⚠ 另有 N 个任务与调度器脱节
+优化：⚠ 另有 N 个调度异常任务
+</pre>
+
+<h3>P2.5.9 完整变更范围</h3>
+<table>
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/templates/redesign/_dashboard_rows.html</code></td><td>① 操作列 orphan 分支改用 <code>act-btn</code> + SVG；② 保留执行记录链接；③ 标签「脱节」→「调度异常」；④ 健康列增加 orphan badge</td></tr>
+  <tr><td><code>app/templates/redesign/dashboard.html</code></td><td>① Warning Bar 文案精简；② 筛选按钮文案；③ 统计卡片 sub-text；④ JS 中相关 textContent 更新</td></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>① 删除 <code>.act-btn-orphan</code>；② 新增 <code>.act-btn.orphan-act</code>；③ 修改 <code>.orphan-tag</code>（空心化）；④ 修改 <code>.orphan-row</code>（左边框替代背景色）；⑤ 启用 <code>.orphan-status</code>（健康列 badge）；⑥ 精简 Warning Bar 样式</td></tr>
+  <tr><td><code>app/static/css/console-theme.css</code></td><td>无变更（现有 <code>--cp-orphan*</code> token 足够）</td></tr>
+</table>
+
+<h3>P2.5.10 不做</h3>
+<ul>
+  <li>不改后端逻辑（缓存、API、对账频率等不变）</li>
+  <li>不改 v1 模板（无 orphan UI）</li>
+  <li>不修改「重新调度」「下线」的业务逻辑和确认对话框</li>
+  <li>不修改 CSS 变量命名（<code>--cp-orphan</code> 保持，仅 UI 层使用"调度异常"）</li>
+</ul>
+
+<h3>P2.5.11 验收</h3>
+<table>
+  <tr><th>#</th><th>场景</th><th>期望</th></tr>
+  <tr><td>1</td><td>存在 orphan 任务</td><td>Warning Bar 显示「N 个任务调度异常」（单行紧凑）</td></tr>
+  <tr><td>2</td><td>orphan 行操作列</td><td>3 个 SVG icon button（重新调度 / 执行记录 / 确认下线），28×28 尺寸，tooltip 即时显示</td></tr>
+  <tr><td>3</td><td>orphan 行健康列</td><td>显示紫色 badge「调度异常」</td></tr>
+  <tr><td>4</td><td>orphan 行样式</td><td>左边框紫色 + 白色背景 + 空心标签「调度异常」</td></tr>
+  <tr><td>5</td><td>筛选按钮</td><td>文案为「调度异常」+ 数字 badge</td></tr>
+  <tr><td>6</td><td>无 orphan 任务</td><td>Warning Bar 隐藏；筛选按钮不显示；统计正常</td></tr>
+  <tr><td>7</td><td>Viewer 角色（无 cron:write）</td><td>orphan 行有「调度异常」badge 和执行记录，无重新调度/下线按钮</td></tr>
+</table>
+
+<h3>P2.5.12 风险</h3>
+<table>
+  <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td>「调度异常」与「持续异常」混淆</td>
+    <td>低：前者紫色 badge + 前缀"调度"；后者红色 badge + 无前缀</td>
+    <td>颜色体系 + 文案前缀区分</td>
+  </tr>
+  <tr>
+    <td>CSS 变量名仍为 <code>--cp-orphan</code></td>
+    <td>无用户影响：CSS 变量是内部命名，用户不可见</td>
+    <td>保持不变，避免不必要的重命名风险</td>
+  </tr>
+</table>
+
 <h2>版本历史</h2>
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>rev.5</td><td>2026-09-03</td><td>Phase 2.5 — Orphan UI 全面重设计：术语「调度脱节」→「调度异常」+ 操作图标统一 act-btn SVG + 健康列 badge + Warning Bar 精简 + 行样式优化 + Demo 对比</td></tr>
   <tr><td>rev.4</td><td>2026-09-03</td><td>Phase 3 详细设计：Webhook 告警（去重/恢复通知/定期提醒）+ 智能自动恢复（熔断/单次上限/审计/配置项）+ 方案对比 + Demo</td></tr>
   <tr><td>rev.3</td><td>2026-09-02</td><td>P2.13 对账可观测性：频率/执行记录/超时检测 + 对账状态摘要条 Demo（3 种状态）</td></tr>
   <tr><td>rev.2</td><td>2026-09-02</td><td>Phase 2 详细设计：Dashboard 展示方案对比（X/Y）+ Exception Panel 警告条 + 筛选按钮 + 操作列 + 重新调度 API + 数据流设计 + Demo</td></tr>

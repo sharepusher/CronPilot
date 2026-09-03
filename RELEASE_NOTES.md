@@ -7,6 +7,28 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 改进 — OPT-P0-18 Phase 2.5 Orphan UI 全面重设计
+
+- **术语统一**：「调度脱节」→「调度异常」，与「持续异常」保持一致
+- **操作图标**：Emoji 按钮（🔄✕）→ 标准 `act-btn` + SVG icon，与现有操作列风格统一
+- **执行记录保留**：orphan 行不再隐藏「执行记录」链接，始终可查
+- **健康列 badge**：新增紫色「调度异常」badge（`health-badge orphan` + `dot-orphan`）
+- **Warning Bar 精简**：双行标题+描述 → 单行紧凑文案
+- **行样式优化**：全行紫色背景 → 左边框紫色 + 白色背景
+- **名称标签**：实心 tag → 空心描边 tag
+- **确认下线按钮**：新增 `c-act-danger` 语义 class（红色 hover）
+- 设计文档：`doc/design/系统对账安全加固设计.html` rev.5
+
+### 修复 — Dashboard 表格操作列溢出与下拉菜单裁剪
+
+- **P1 下拉菜单被后续行覆盖**（双层问题）：
+  - 第一层：`.c-table-wrap { overflow: hidden }` 裁剪绝对定位的 `.c-dd-menu`；改为 `overflow: visible`，底部圆角迁移到 `tr:last-child td`
+  - 第二层（真正根因）：`animation: rowSlideIn ... forwards` 在每个 `<tr>` 上创建独立层叠上下文，后续行必然覆盖前面行的下拉菜单；修复：给每行 `z-index: 0` 基准，打开下拉时提升该行 `z-index: 10`（CSS `:has()` + JS `c-dd-elevated` fallback）
+- **P2 列宽不稳定**：缺少 `table-layout: fixed`；添加 `table-layout: fixed; min-width: 960px`，与 Users 表格对齐
+- **视觉增强**：下拉菜单 `z-index: 50` + 增强阴影
+- **窄屏降级**：`@media (max-width: 1024px)` 时降级为 `overflow-x: auto`（横向滚动）
+- 设计文档：`doc/design/Dashboard表格操作列溢出修复设计.html`
+
 ### 改进 — cron_add 异常处理错误信息改善
 
 - **错误信息改善**：`cron_add` 异常处理按类型（IntegrityError / OperationalError / 其他）返回具体的用户可理解错误信息，不再笼统显示"服务器内部错误"；补充 `db.session.rollback()` 防止会话污染

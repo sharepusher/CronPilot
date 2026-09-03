@@ -25,7 +25,7 @@
     <div class="hf-stat-value danger">{{ consecutive_failing }}</div>
     <div class="hf-stat-sub">≥{{ metrics.failing_threshold }} 次连续失败，直到恢复</div>
     {% if orphan_count > 0 %}
-    <div class="hf-stat-orphan">⚠ 另有 {{ orphan_count }} 个任务与调度器脱节</div>
+    <div class="hf-stat-orphan">⚠ 另有 {{ orphan_count }} 个任务调度异常</div>
     {% endif %}
   </div>
   <div class="hf-stat">
@@ -58,12 +58,9 @@
 {# ═══ Orphan Warning Bar (Phase 2: visible only when orphan_count > 0) ═══ #}
 {% if orphan_count > 0 %}
 <div class="hf-orphan-bar" id="cp-orphan-bar">
-  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd"/></svg>
-  <div class="hf-orphan-bar-body">
-    <strong>{{ orphan_count }} 个任务与调度器脱节</strong>
-    <span>这些任务在系统中有记录，但未在调度器中注册。请检查并手动处理。</span>
-  </div>
-  <a class="hf-orphan-bar-link" href="{{ url_for('main.cron_list', health='orphan', scope_view=scope_view, group_id=scope_group_id or '') }}">查看详情 →</a>
+  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd"/></svg>
+  <span class="hf-orphan-bar-text">{{ orphan_count }} 个任务调度异常，未在调度器中注册，请检查处理</span>
+  <a class="hf-orphan-bar-link" href="javascript:void(0)" onclick="cpFilterOrphan()">筛选查看 →</a>
 </div>
 {% endif %}
 
@@ -98,7 +95,7 @@
     <a class="f-btn{{ ' active' if keyword.get('health') == 'today_fail' }}" href="{{ url_for('main.cron_list', health='today_fail', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="today_fail" aria-pressed="{{ 'true' if keyword.get('health') == 'today_fail' else 'false' }}">今日失败</a>
     <a class="f-btn{{ ' active' if keyword.get('health') == 'overdue' }}" href="{{ url_for('main.cron_list', health='overdue', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="overdue" aria-pressed="{{ 'true' if keyword.get('health') == 'overdue' else 'false' }}">逾期未执行</a>
     {% if orphan_count > 0 %}
-    <a class="f-btn orphan{{ ' active' if keyword.get('health') == 'orphan' }}" href="{{ url_for('main.cron_list', health='orphan', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="orphan" aria-pressed="{{ 'true' if keyword.get('health') == 'orphan' else 'false' }}">调度脱节 <span class="f-btn-badge">{{ orphan_count }}</span></a>
+    <a class="f-btn orphan{{ ' active' if keyword.get('health') == 'orphan' }}" href="{{ url_for('main.cron_list', health='orphan', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="health" data-filter-val="orphan" aria-pressed="{{ 'true' if keyword.get('health') == 'orphan' else 'false' }}">调度异常</a>
     {% endif %}
   </div>
   <div class="f-sep"></div>
@@ -226,7 +223,11 @@ document.addEventListener('click', function(e) {
     if (!dd.contains(e.target)) dd.classList.remove('open');
   });
   document.querySelectorAll('.c-dd.open').forEach(function(dd) {
-    if (!dd.contains(e.target)) dd.classList.remove('open');
+    if (!dd.contains(e.target)) {
+      dd.classList.remove('open');
+      var tr = dd.closest('tr');
+      if (tr) tr.classList.remove('c-dd-elevated');
+    }
   });
 });
 
@@ -385,15 +386,15 @@ function cpReschedule(cronId, btn) {
         orphanSub.className = 'hf-stat-orphan';
         cards[0].appendChild(orphanSub);
       }
-      if (orphanSub) orphanSub.textContent = '⚠ 另有 ' + stats.orphan_count + ' 个任务与调度器脱节';
+      if (orphanSub) orphanSub.textContent = '⚠ 另有 ' + stats.orphan_count + ' 个任务调度异常';
     } else if (orphanSub) {
       orphanSub.remove();
     }
     var orphanBar = document.getElementById('cp-orphan-bar');
     if (orphanBar) {
       orphanBar.style.display = stats.orphan_count > 0 ? '' : 'none';
-      var strong = orphanBar.querySelector('strong');
-      if (strong) strong.textContent = stats.orphan_count + ' 个任务与调度器脱节';
+      var barText = orphanBar.querySelector('.hf-orphan-bar-text');
+      if (barText) barText.textContent = stats.orphan_count + ' 个任务调度异常，未在调度器中注册，请检查处理';
     }
     var statLine = document.querySelector('.stat-line');
     if (statLine) {
@@ -489,6 +490,15 @@ function cpReschedule(cronId, btn) {
       doFetch();
     }
   });
+
+  window.cpFilterOrphan = function() {
+    _state.health = 'orphan';
+    _state.status = '';
+    _state.page = '1';
+    doFetch();
+    updateFilterActive();
+    document.getElementById('cp-filters').scrollIntoView({behavior: 'smooth', block: 'start'});
+  };
 })();
 </script>
 {% endblock %}

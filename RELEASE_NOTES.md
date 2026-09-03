@@ -7,6 +7,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+*(No unreleased changes)*
+
+---
+
+## [4.0.0] — 2026-09-03 · V1 UI Decommission + Security Hardening + Performance
+
 ### 改进 — 任务中心筛选按钮与下拉文案优化
 
 - **新增「已下线」状态筛选**：任务中心状态栏新增 `已下线`（status=-1）筛选按钮，与 AJAX 局部刷新联动
@@ -796,6 +802,8 @@ APScheduler 中存在的孤儿 job（对应 cron_infos 记录已不存在）现�
 
 **Files changed:** `console-theme.css`, `redesign-pages.css`, `redesign-mockup-shared.css`, `console-mode.css`, `login.html`, `change_password.html`, `_topbar.html`, `_sidebar.html`, `execution_logs.html`, `run_inspector.html`, `rbac/views.py`, `cron_service.py`, `common.js`
 
+复盘文档：[doc/postmortem/2026-08-tier345-code-quality.html](doc/postmortem/2026-08-tier345-code-quality.html)
+
 ### Fix — D5+D6: 标签页 alert() 替换 + CSRF null check
 
 - `tags.html` 中 4 处 `alert()` 替换为 `CpToast.error()`，与 redesign 其余页面体验一致。
@@ -817,6 +825,7 @@ APScheduler 中存在的孤儿 job（对应 cron_infos 记录已不存在）现�
 - 下架按钮错误地 POST 到 `/update_status`（toggle 行为），实际应走 `/cron_retire`（下架行为）。
 - 修复：三处 `$.post()` URL 改为正确路径，`id` 通过 POST data 传递；下架改用 `/cron_retire` 端点。
 - 同类排查：`task_detail.html` 已正确使用 `/update_status?id=` 格式，v1 `_cron_list_rows.html` 使用 `url_for()`。
+- 复盘文档：[doc/postmortem/2026-08-dashboard-ajax-path.html](doc/postmortem/2026-08-dashboard-ajax-path.html)
 
 **Files changed:** `app/templates/redesign/dashboard.html`
 
@@ -923,6 +932,7 @@ APScheduler 中存在的孤儿 job（对应 cron_infos 记录已不存在）现�
 - Removed duplicate `.cp-breadcrumb` definition from `redesign-layout.css` (consolidated into `redesign-pages.css`).
 - Fixed print `@media` selectors: `.redesign-sidebar`/`.redesign-topbar`/`.redesign-main` → `.cp-sidebar`/`.cp-topbar`/`.cp-main`.
 - No visual changes — all modifications are code quality improvements.
+- 复盘文档：[doc/postmortem/2026-08-redesign-css-hardcoded-colors.html](doc/postmortem/2026-08-redesign-css-hardcoded-colors.html)
 
 **Files changed:** `console-theme.css`, `redesign-components.css`, `redesign-pages.css`, `redesign-mockup-shared.css`, `redesign-layout.css`
 
@@ -1842,6 +1852,7 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
+| **4.0.0** | V1 UI decommission, 7 P0 security fixes, timestamp BIGINT UTC, AJAX partial refresh (5 pages), overdue detection, orphan reconciliation, inline form errors, Heroicons, Ruff lint |
 | **3.0.0** | Console Mode UI, dual-mode switch (Classic/Console), dark theme, responsive layout, keyboard shortcuts |
 | **2.9.0** | Task group affiliation (single-group), tag system (group-isolated), unified error pages, `code` field removal, API breaking change |
 | **2.8.0** | User registration & approval, forgot password hint, concurrent prevention, anti-double-click |

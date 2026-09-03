@@ -35,7 +35,7 @@
   <a href="index.html" style="color:#c7d2fe;font-size:.9rem">← 文档索引</a>
   <span class="tag">权威</span><span class="tag">路线图</span>
   <h1>交付状态与路线图</h1>
-  <p>当前发行版文档已收录：<strong>v3.0.0</strong>（2026-08-10，Console Mode UI + 双模切换 + 暗色主题 + 响应式 + 键盘快捷键）· <strong>v2.9.0</strong>（2026-08-07，单组归属 + 标签系统 + 统一错误页）· <strong>v2.8.0</strong>（用户注册审批）· <strong>v2.7.1</strong>（2026-08-03，文档重组 + CI 自动化 + 复盘规范强化）· <strong>v2.7.0</strong>（2026-08-03，admin Scope 差异化 + 审计 Scope 过滤 + 版本一致性 CI）· <strong>v2.6.0</strong>（2026-07-31，颜色收编 + API 加固 + S6 Token + 查询式 API 文档）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.4.0</strong>（2026-07-27，前端现代化 Vite+Vue3）· <strong>v2.3.0</strong>（2026-07-24，API 契约 OpenAPI 3.0）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
+  <p>当前发行版文档已收录：<strong>v4.0.0</strong>（2026-09-03，V1 UI 下线 + 安全加固 + 时间戳 BIGINT + AJAX 化 + 逾期检测）· <strong>v3.0.0</strong>（2026-08-10，Console Mode UI + 双模切换 + 暗色主题 + 响应式 + 键盘快捷键）· <strong>v2.9.0</strong>（2026-08-07，单组归属 + 标签系统 + 统一错误页）· <strong>v2.8.0</strong>（用户注册审批）· <strong>v2.7.1</strong>（2026-08-03，文档重组 + CI 自动化 + 复盘规范强化）· <strong>v2.7.0</strong>（2026-08-03，admin Scope 差异化 + 审计 Scope 过滤 + 版本一致性 CI）· <strong>v2.6.0</strong>（2026-07-31，颜色收编 + API 加固 + S6 Token + 查询式 API 文档）· <strong>v2.5.0</strong>（2026-07-29，Phase B1/B2 执行状态机 + 超时）· <strong>v2.4.0</strong>（2026-07-27，前端现代化 Vite+Vue3）· <strong>v2.3.0</strong>（2026-07-24，API 契约 OpenAPI 3.0）· <strong>v2.2.0</strong>（2026-07-24，可观测性）· 区分<strong>已发布</strong> / <strong>设计待确认</strong> / <strong>未开始</strong></p>
   <div class="note">
     <strong>2026-07-24 v2.2.0（可观测性 + Bug 修复）：</strong>结构化 JSON 日志（python-json-logger）、Gunicorn JSON 访问日志、调度器 event 枚举、Prometheus 五指标（<code>/metrics</code> Bearer Token + session 双模认证）、Grafana Dashboard；补丁：AJAX 表单 CSRF token 注入修复、JSON 日志 timestamp <code>%f</code> 字面量修复、logout CSRF 保护。详见 <a href="design/P1可观测性-Prometheus指标RFC.html">Prometheus RFC</a> · <a href="RELEASE_NOTES.html#220">Release Notes [2.2.0]</a>。
     <br>
@@ -70,6 +70,11 @@
   <h2>一、按版本汇总（已发布）</h2>
   <table>
     <tr><th>版本</th><th>日期</th><th>范围摘要</th><th>详述</th></tr>
+    <tr>
+      <td><strong>v4.0.0</strong></td><td>2026-09-03</td>
+      <td>V1 UI 下线 + 安全加固（7 项 P0）+ 时间戳 BIGINT UTC + AJAX 局部刷新（5 页）+ 逾期检测 + 孤儿 Job 对账 + 表单字段错误 + Heroicons + Ruff lint</td>
+      <td><a href="RELEASE_NOTES.html#v4-0-0">Release Notes [4.0.0]</a></td>
+    </tr>
     <tr>
       <td><strong>v3.0.0</strong></td><td>2026-08-10</td>
       <td>Console Mode UI + 双模切换（Classic/Console）+ 暗色主题 + 响应式布局 + 键盘快捷键（OPT-P2-14 Phase 2）</td>

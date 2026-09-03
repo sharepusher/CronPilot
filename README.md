@@ -2,12 +2,13 @@
 
 中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v3.0.0**（Console Mode UI · 双模切换 · 暗色主题 · 响应式布局；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v4.0.0**（V1 UI 下线 · 安全加固 · 时间戳 BIGINT · AJAX 化 · 逾期检测；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 主要能力
 
 | 版本 | 能力 |
 |------|------|
+| **v4.0.0** | V1 UI 下线 · 安全加固（7 项 P0）· 时间戳 BIGINT UTC · AJAX 局部刷新（5 页）· 逾期检测 · 孤儿 Job 对账 · 表单字段错误 · Heroicons · Ruff lint |
 | **v3.0.0** | Console Mode UI · 双模切换（Classic/Console）· 暗色主题 · 响应式布局 · 键盘快捷键（OPT-P2-14）|
 | **v2.9.0** | 单组归属 · 标签系统（组隔离）· 统一错误页 · code 字段移除（OPT-P1-11）|
 | **v2.8.0** | 用户注册审批 · 忘记密码提示 · 防并发竞态 · 反重复点击（OPT-P1-10）|
@@ -286,7 +287,7 @@ bash scripts/cronpilot.sh test        # 全量单测（333+ 用例）
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v2.7.1**；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v4.0.0**；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

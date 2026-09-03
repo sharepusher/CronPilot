@@ -103,12 +103,13 @@
     <span class="f-label">状态</span>
     <a class="f-btn{{ ' active' if keyword.get('status') == '1' }}" href="{{ url_for('main.cron_list', status='1', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="1" aria-pressed="{{ 'true' if keyword.get('status') == '1' else 'false' }}">运行中</a>
     <a class="f-btn{{ ' active' if keyword.get('status') == '0' }}" href="{{ url_for('main.cron_list', status='0', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="0" aria-pressed="{{ 'true' if keyword.get('status') == '0' else 'false' }}">已暂停</a>
+    <a class="f-btn{{ ' active' if keyword.get('status') == '-1' }}" href="{{ url_for('main.cron_list', status='-1', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="-1" aria-pressed="{{ 'true' if keyword.get('status') == '-1' else 'false' }}">已下线</a>
     <a class="f-btn{{ ' active' if not keyword.get('status') and not keyword.get('health') }}" href="{{ url_for('main.cron_list', scope_view=scope_view, group_id=scope_group_id or '') }}" data-filter-key="status" data-filter-val="" aria-pressed="{{ 'true' if not keyword.get('status') and not keyword.get('health') else 'false' }}">全部</a>
   </div>
   <div class="f-sep"></div>
   {% if show_group_column and scope_groups %}
   <select class="f-select" id="cp-filter-group" data-filter-key="scope">
-    <option value="all|"{% if not scope_group_id %} selected{% endif %}>全部（可见）</option>
+    <option value="all|"{% if not scope_group_id %} selected{% endif %}>全部业务组（可见）</option>
     {% for grp in scope_groups %}
     <option value="group|{{ grp.id }}"{% if scope_group_id == grp.id %} selected{% endif %}>{{ grp.name }}</option>
     {% endfor %}

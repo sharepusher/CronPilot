@@ -1294,7 +1294,6 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-orphan-bar-link:hover { color: var(--cp-orphan-dark); }
 
 /* Orphan filter button */
-.f-btn.orphan { border-color: var(--cp-orphan-border); background: var(--cp-orphan-bg); color: var(--cp-orphan); }
 .f-btn.orphan.active { background: var(--cp-orphan); color: var(--cp-on-filled); border-color: var(--cp-orphan); }
 
 /* Orphan task row highlight — left border accent, white bg */

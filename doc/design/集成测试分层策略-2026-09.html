@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>集成测试分层策略（2026-09）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 960px; margin: 2em auto; line-height: 1.7; color: #333; padding: 0 1em; }
+    h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+    h2 { border-bottom: 1px solid #e5e7eb; padding-bottom: .2em; margin-top: 1.8em; }
+    h3 { color: #1d4ed8; }
+    table { border-collapse: collapse; width: 100%; margin: .8em 0; }
+    th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+    th { background: #f3f4f6; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+    pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+    .status { font-weight: bold; color: #d97706; }
+  </style>
+</head>
+<body>
+
+<h1>集成测试分层策略（2026-09）</h1>
+<p>状态：<span class="status">待确认</span></p>
+
+<h2>1. 问题</h2>
+
+<h3>1.1 现状</h3>
+<p>CronPilot 当前有 659 个单元测试，全部使用 <code>sqlite:///:memory:</code> 内存数据库。
+这一约束源自 2026-08 一次真实事故——测试代码通过 <code>from manage import db</code>
+绑定到开发数据库 <code>datas/job_log.sqlite</code>，<code>tearDown</code> 中的
+<code>db.drop_all()</code> 删除了全部 11 张业务表，导致服务全站 500。</p>
+
+<p>事故后项目规范强制要求所有测试使用内存数据库。这解决了隔离问题，但引入了新的盲区。</p>
+
+<h3>1.2 in-memory SQLite 的盲区</h3>
+
+<table>
+  <tr><th>#</th><th>盲区</th><th>根因</th><th>实际案例</th></tr>
+  <tr>
+    <td>1</td>
+    <td>ID 复用场景</td>
+    <td>内存库每次 <code>create_all</code> 后 ID 从 1 开始，永远不会复用；
+    真实 SQLite 不用 AUTOINCREMENT 时删除行后 ID 会被复用</td>
+    <td>2026-09 IntegrityError 事件：调试产生的 test 任务被清理后
+    SQLite 复用了旧 ID，撞上 <code>task_groups</code> 残留记录</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>跨表约束残留</td>
+    <td>内存库无历史数据，UNIQUE 约束永远不会因残留记录而冲突</td>
+    <td>同上——<code>task_groups (task_id, group_id)</code> UNIQUE 冲突</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>ensure_business_tables 补列逻辑</td>
+    <td>内存库每次 <code>create_all</code> 建全表，ALTER TABLE ADD COLUMN
+    逻辑从未被实际测试</td>
+    <td>生产升级时若补列 SQL 有语法错误，单元测试无法发现</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>scope 持久化全链路</td>
+    <td>单元测试只验证 helper 函数（如 <code>_apply_api_scope</code>），
+    不验证 HTTP POST → validate → normalize → create → DB 行的完整链路</td>
+    <td>R7 评估发现 B-15 API scope 注入后经 <code>validate_cron_form</code>
+    丢失——单元测试通过但功能实际不可用</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>并发/WAL 行为</td>
+    <td>内存库是单连接，无 WAL 模式、锁等待、busy timeout 等行为</td>
+    <td>scheduler 与 web 请求并发写入时的锁竞争在内存中不可复现</td>
+  </tr>
+</table>
+
+<h3>1.3 与预期差距</h3>
+<p>正常服务的测试应该能在真实数据库引擎上运行。CronPilot 的约束是 SQLite（文件型，无独立服务进程），
+测试隔离的核心诉求是<strong>不能连开发库</strong>，而不是<strong>不能用真实 SQLite</strong>。</p>
+
+<h2>2. 根因</h2>
+
+<p>2026-08 事故后的规范将"使用真实数据库"和"连接开发库"混为一谈，一刀切为 in-memory only。
+这是合理的应急措施，但未后续补充"隔离的真实数据库测试"这一层。</p>
+
+<p>根本原因：<strong>测试分层策略缺失</strong>——只有"快速单元"和"依赖运行服务的集成"两个极端，
+缺少"进程内 + 真实数据库"的中间层。</p>
+
+<h2>3. 方案：三层测试架构</h2>
+
+<h3>3.1 保留现有层级</h3>
+
+<table>
+  <tr><th>层级</th><th>数据库</th><th>数量</th><th>变更</th></tr>
+  <tr>
+    <td>L1 单元测试</td>
+    <td><code>sqlite:///:memory:</code></td>
+    <td>659</td>
+    <td><strong>保持不变</strong>——快速、隔离，覆盖函数逻辑和权限矩阵</td>
+  </tr>
+  <tr>
+    <td>L3 HTTP 集成测试</td>
+    <td>对运行中服务</td>
+    <td>11</td>
+    <td><strong>保持不变</strong>——auto-detect :5001/:5860</td>
+  </tr>
+  <tr>
+    <td>L4 冒烟/E2E</td>
+    <td>smoke_routes / verify_*.sh</td>
+    <td>86+</td>
+    <td><strong>保持不变</strong></td>
+  </tr>
+</table>
+
+<h3>3.2 新增 L2：持久化集成测试</h3>
+
+<p><strong>核心思路</strong>：使用 <code>tempfile.mkstemp(suffix='.sqlite')</code> 创建临时 SQLite 文件，
+测试在该文件上运行，结束后删除。既测到真实 SQLite 行为，又完全隔离不碰开发库。</p>
+
+<h4>基础设施：<code>tests/integration_base.py</code></h4>
+
+<pre><code>import os
+import tempfile
+import unittest
+
+from app import create_app, db
+
+
+class PersistentDBTestCase(unittest.TestCase):
+    """使用临时 SQLite 文件的集成测试基类。
+
+    每个测试类创建一个独立的 .sqlite 文件，测试结束后自动删除。
+    相比 in-memory：
+      - 测试到真实的 ID 分配/复用行为
+      - 测试到跨表约束的持久化效果
+      - 测试到 ensure_business_tables 的补列逻辑
+    相比连开发库：
+      - 完全隔离，不会误伤 datas/job_log.sqlite
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls._db_fd, cls._db_path = tempfile.mkstemp(suffix='.sqlite')
+        app = create_app('testing')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{cls._db_path}'
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False
+        cls.app = app
+        with app.app_context():
+            db.create_all()
+            cls._seed_data()
+
+    @classmethod
+    def tearDownClass(cls):
+        with cls.app.app_context():
+            db.session.remove()
+        os.close(cls._db_fd)
+        os.unlink(cls._db_path)
+
+    @classmethod
+    def _seed_data(cls):
+        """子类覆写以添加种子数据。"""
+        pass
+</code></pre>
+
+<h4>测试文件 1：<code>tests/test_cron_persistence.py</code></h4>
+
+<p>覆盖以下场景：</p>
+<table>
+  <tr><th>#</th><th>场景</th><th>验证内容</th></tr>
+  <tr>
+    <td>1</td>
+    <td>创建 GROUP 任务</td>
+    <td><code>cron_infos.scope_type='GROUP'</code> + <code>task_groups</code> 行存在</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>创建 GLOBAL 任务</td>
+    <td><code>scope_type='GLOBAL'</code> + 无 <code>task_groups</code> 行</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>更新任务组归属</td>
+    <td>旧 <code>task_groups</code> 被 DELETE，新行正确写入</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>删除任务后 ID 复用</td>
+    <td>新建任务的 <code>task_groups</code> 不与残留冲突<br>
+    （<strong>复现 2026-09 IntegrityError 场景</strong>）</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>下线（retire）任务</td>
+    <td><code>status=-1</code> + <code>retire_reason</code> 持久化</td>
+  </tr>
+</table>
+
+<h4>测试文件 2：<code>tests/test_api_scope_e2e.py</code></h4>
+
+<p>覆盖以下场景（正好补 B-15 scope 持久化盲区）：</p>
+<table>
+  <tr><th>#</th><th>场景</th><th>验证内容</th></tr>
+  <tr>
+    <td>1</td>
+    <td>全局 token POST <code>/api/cron</code></td>
+    <td>DB 中 <code>scope_type='GLOBAL'</code>，无 <code>task_groups</code></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>单组 operator token POST <code>/api/cron</code></td>
+    <td>DB 中 <code>scope_type='GROUP'</code> + <code>task_groups.group_id</code> 正确</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>多组 operator 指定 <code>group_name</code></td>
+    <td>正确关联到指定组</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>多组 operator 不指定 <code>group_name</code></td>
+    <td>返回错误（需指定组）</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>operator 指定外部组</td>
+    <td>返回 403</td>
+  </tr>
+</table>
+
+<h3>3.3 CI 集成</h3>
+
+<p>L2 测试使用临时文件，<strong>无需运行中的服务</strong>，可以直接加入 CI 的 <code>unittest discover</code>：</p>
+
+<pre><code># 文件名以 test_ 开头，unittest discover 自动发现
+# 无需修改 .github/workflows/unit-tests.yml
+# L2 测试自带 setUpClass/tearDownClass，与 L1 测试共存
+</code></pre>
+
+<p>如需区分层级（比如 CI 只跑 L1，本地跑 L1+L2）：</p>
+<pre><code># 环境变量控制
+SKIP_PERSISTENT_DB_TESTS=1 python -m unittest discover -s tests -p "test_*.py" -v
+</code></pre>
+
+<h2>4. 范围</h2>
+
+<h3>改动文件</h3>
+<table>
+  <tr><th>路径</th><th>说明</th></tr>
+  <tr>
+    <td><code>tests/integration_base.py</code></td>
+    <td><strong>新建</strong> — PersistentDBTestCase 基类</td>
+  </tr>
+  <tr>
+    <td><code>tests/test_cron_persistence.py</code></td>
+    <td><strong>新建</strong> — 5 个持久化场景测试</td>
+  </tr>
+  <tr>
+    <td><code>tests/test_api_scope_e2e.py</code></td>
+    <td><strong>新建</strong> — 5 个 API scope 端到端测试</td>
+  </tr>
+</table>
+
+<h3>不改动</h3>
+<ul>
+  <li>现有 659 个 in-memory 单元测试 — 保持不变</li>
+  <li>现有 11 个 HTTP 集成测试 — 保持不变</li>
+  <li>测试数据库隔离规范 — <strong>仍然禁止</strong> <code>from manage import</code></li>
+  <li>开发数据库 <code>datas/job_log.sqlite</code> — 永远不被测试代码触碰</li>
+</ul>
+
+<h2>5. 分批</h2>
+
+<table>
+  <tr><th>批次</th><th>内容</th><th>可独立验收</th></tr>
+  <tr>
+    <td>Batch 1</td>
+    <td><code>integration_base.py</code> + <code>test_cron_persistence.py</code>（5 个场景）</td>
+    <td>✓ <code>python -m unittest tests.test_cron_persistence -v</code></td>
+  </tr>
+  <tr>
+    <td>Batch 2</td>
+    <td><code>test_api_scope_e2e.py</code>（5 个场景）<br>
+    注：此批次会暴露 B-15 scope 持久化 bug，需先修复 B-15 才能通过</td>
+    <td>✓ <code>python -m unittest tests.test_api_scope_e2e -v</code></td>
+  </tr>
+</table>
+
+<h2>6. 验收</h2>
+
+<pre><code># Batch 1
+python -m unittest tests.test_cron_persistence -v
+# 预期：5 tests, 0 failures
+
+# Batch 2（需先修复 B-15）
+python -m unittest tests.test_api_scope_e2e -v
+# 预期：5 tests, 0 failures
+
+# 全量回归
+python -m unittest discover -s tests -p "test_*.py" -v
+# 预期：664+ tests (659 + 5 新增), 0 failures
+
+# 确认开发库未被触碰
+sqlite3 datas/job_log.sqlite ".tables" | wc -w
+# 预期：≥ 15（表数不变）
+</code></pre>
+
+<h2>7. 风险</h2>
+
+<table>
+  <tr><th>风险</th><th>缓解</th></tr>
+  <tr>
+    <td>临时文件残留（测试异常退出时 <code>tearDownClass</code> 未执行）</td>
+    <td><code>tempfile.mkstemp</code> 创建在系统临时目录，OS 定期清理；
+    另可在 CI 中加 <code>find /tmp -name '*.sqlite' -mmin +60 -delete</code></td>
+  </tr>
+  <tr>
+    <td>SQLite 文件 I/O 使测试变慢</td>
+    <td>SQLite 临时文件性能接近 in-memory（OS page cache），
+    5 个新测试增量 &lt; 2 秒</td>
+  </tr>
+  <tr>
+    <td>Batch 2 测试先于 B-15 修复，会产生测试失败</td>
+    <td>先实施 Batch 1，Batch 2 与 B-15 修复同步实施</td>
+  </tr>
+</table>
+
+<h2>8. L2.5 MySQL 容器测试层（后续专题）</h2>
+
+<p><strong>背景</strong>：CronPilot 生产环境通常使用 MySQL，而 L2 测试使用临时 SQLite 文件。
+SQLite L2 覆盖了 ~80% 的 service 层逻辑（后端无关的 ORM 行为），
+但以下 MySQL 特有场景需要额外的 L2.5 层来覆盖。</p>
+
+<h3>8.1 SQLite 与 MySQL 的关键差异</h3>
+
+<table>
+  <tr><th>差异</th><th>SQLite</th><th>MySQL</th><th>影响</th></tr>
+  <tr>
+    <td>ID 分配</td>
+    <td><code>INTEGER PRIMARY KEY</code> 无 AUTOINCREMENT 时复用已删除 ID</td>
+    <td><code>AUTO_INCREMENT</code> 不复用（除非 TRUNCATE）</td>
+    <td>ID 复用引发的 IntegrityError 仅在 SQLite 出现</td>
+  </tr>
+  <tr>
+    <td>事务隔离</td>
+    <td>默认 SERIALIZABLE（文件锁）</td>
+    <td>默认 REPEATABLE READ（行锁）</td>
+    <td>并发写入行为不同</td>
+  </tr>
+  <tr>
+    <td>字符串比较</td>
+    <td>大小写敏感</td>
+    <td>取决于 collation（utf8_general_ci 不敏感）</td>
+    <td>用户名/任务名查重结果可能不同</td>
+  </tr>
+  <tr>
+    <td>ALTER TABLE</td>
+    <td>不支持 DROP COLUMN / MODIFY</td>
+    <td>完整支持</td>
+    <td>ensure_business_tables 补列逻辑差异</td>
+  </tr>
+  <tr>
+    <td>FK 约束</td>
+    <td>默认关闭</td>
+    <td>默认启用</td>
+    <td>orphan 记录清理行为不同</td>
+  </tr>
+</table>
+
+<h3>8.2 方案：Docker Compose 测试服务</h3>
+
+<pre><code># docker-compose.test.yml
+services:
+  mysql-test:
+    image: mysql:8
+    environment:
+      MYSQL_DATABASE: cronpilot_test
+      MYSQL_ROOT_PASSWORD: test
+    ports:
+      - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql  # 内存文件系统加速
+</code></pre>
+
+<h4>测试基类扩展</h4>
+<pre><code>@unittest.skipUnless(
+    os.environ.get('CRONPILOT_MYSQL_TEST_URI'),
+    'CRONPILOT_MYSQL_TEST_URI not set — skip MySQL tests'
+)
+class MySQLTestCase(unittest.TestCase):
+    """MySQL-specific integration tests.
+
+    启动方式：
+      docker compose -f docker-compose.test.yml up -d
+      CRONPILOT_MYSQL_TEST_URI='mysql+pymysql://root:test@127.0.0.1:3307/cronpilot_test' \
+        python -m unittest tests.test_mysql_persistence -v
+    """
+    @classmethod
+    def setUpClass(cls):
+        app = create_app('testing')
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['CRONPILOT_MYSQL_TEST_URI']
+        cls.app = app
+        with app.app_context():
+            db.create_all()
+</code></pre>
+
+<h3>8.3 CI 集成</h3>
+
+<pre><code># .github/workflows/mysql-tests.yml
+jobs:
+  mysql-test:
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: cronpilot_test
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3307:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s
+    steps:
+      - run: |
+          CRONPILOT_MYSQL_TEST_URI="mysql+pymysql://root:test@127.0.0.1:3307/cronpilot_test" \
+            python -m unittest discover -s tests -p "test_mysql_*.py" -v
+</code></pre>
+
+<h3>8.4 优先级与依赖</h3>
+<ul>
+  <li><strong>前置</strong>：L2 SQLite 测试（Batch 1/2）已完成</li>
+  <li><strong>优先级</strong>：P2 — 当前 SQLite L2 已覆盖主要逻辑，MySQL 层可在需要时启动</li>
+  <li><strong>触发条件</strong>：发现 MySQL 特有的生产 bug 时提升为 P0 实施</li>
+</ul>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="集成测试分层策略-2026-09.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

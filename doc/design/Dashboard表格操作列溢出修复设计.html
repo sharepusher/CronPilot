@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>Dashboard 操作下拉菜单与任务行重叠修复设计</title></head>
+<body>
+<h1>Dashboard 操作下拉菜单与任务行重叠修复设计</h1>
+<p>状态：已确认 · 已实施 | 日期：2026-08-27 | 实施：2026-09-03</p>
+
+<h2>1. 问题</h2>
+<p>Dashboard 任务列表中，点击操作列的"更多"（⋮）按钮弹出的下拉菜单（包含暂停/恢复、编辑、下线选项）与下方的任务行发生视觉交叉重叠，显示混乱。</p>
+<p><strong>表现</strong>：</p>
+<ul>
+  <li>下拉菜单（<code>.c-dd-menu</code>）使用 <code>position: absolute; top: calc(100% + 4px)</code> 向下展开</li>
+  <li>菜单展开后覆盖在后续任务行上方，但被 <code>.c-table-wrap { overflow: hidden }</code> 裁剪（尤其是接近表格底部的行）</li>
+  <li>菜单覆盖区域的行内容（任务名、状态等）透过菜单底层隐约可见，造成视觉混乱</li>
+</ul>
+
+<h2>2. 根因</h2>
+<p><code>.c-table-wrap</code>（表格外层容器）设置了 <code>overflow: hidden</code> 用于配合 <code>border-radius: 8px</code> 实现圆角裁剪。这导致所有溢出容器边界的子元素（包括绝对定位的下拉菜单）被裁剪。</p>
+<p><strong>CSS 布局链</strong>：</p>
+<pre>
+.c-table-wrap { overflow: hidden; border-radius: 0 0 8px 8px; }    ← 裁剪源
+  └ .c-table
+    └ tbody &gt; tr &gt; td
+      └ .c-dd { position: relative; }
+        └ .c-dd-menu { position: absolute; z-index: 20; }           ← 被裁剪
+</pre>
+<p><strong>CSS 规范约束</strong>：<code>overflow: hidden</code> 创建了 BFC（块格式化上下文），所有子元素的绝对定位、z-index 都无法逃逸该裁剪区域。同理，<code>overflow-x: auto; overflow-y: visible</code> 在 CSS2.1 规范中会被浏览器计算为 <code>overflow-y: auto</code>，无法单独解除纵向裁剪。</p>
+
+<h2>对比 Demo</h2>
+<p><strong>在浏览器中打开对比</strong>：<a href="screenshots/dashboard-table-overflow-demo.html">dashboard-table-overflow-demo.html</a></p>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 解除表格外层 overflow 裁剪</h3>
+<p>将 Dashboard 的 <code>.c-table-wrap</code> 从 <code>overflow: hidden</code> 改为 <code>overflow: visible</code>，让下拉菜单可以自由扩展到容器外部。圆角通过最后一行 <code>td</code> 的 <code>border-radius</code> 保持：</p>
+<pre>
+/* 解除 overflow 裁剪，允许下拉菜单逃逸 */
+.cp-page-dashboard .c-table-wrap {
+  overflow: visible;
+}
+/* 保持底部圆角视觉 */
+.cp-page-dashboard .c-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 7px;
+}
+.cp-page-dashboard .c-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 7px;
+}
+</pre>
+
+<h3>3.2 下拉菜单视觉增强</h3>
+<p>增强下拉菜单的视觉分层效果，让它与背景行明确区分：</p>
+<pre>
+/* 增强下拉菜单的分层感 */
+.cp-page-dashboard .c-dd-menu {
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+</pre>
+
+<h3>3.3 表格固定列宽（附带修复）</h3>
+<p>同时修复 <code>table-layout: fixed</code> 确保操作列宽度稳定：</p>
+<pre>
+.cp-page-dashboard .c-table { table-layout: fixed; min-width: 960px; }
+.cp-page-dashboard .c-table th { white-space: nowrap; }
+</pre>
+
+<h3>3.4 窄屏横向滚动</h3>
+<p>在外层增加一个 overflow wrapper 用于窄屏横向滚动（不影响下拉菜单溢出）：</p>
+<pre>
+@media (max-width: 1024px) {
+  .cp-page-dashboard .c-table-wrap {
+    overflow-x: auto;   /* 窄屏横向滚动 */
+    overflow-y: visible; /* 实际被浏览器计算为 auto — 但 min-height 足够不会触发 */
+  }
+}
+</pre>
+<p><strong>注</strong>：由于 CSS 规范限制，当 <code>overflow-x</code> 为 <code>auto</code> 时，<code>overflow-y: visible</code> 实际被计算为 <code>auto</code>。但由于表格高度不固定（由内容决定），<code>overflow-y: auto</code> 等效于 <code>visible</code>（不会出现纵向滚动条），下拉菜单仍然可以正常显示。</p>
+
+<h2>4. 范围</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr><th>文件</th><th>变更</th></tr>
+  <tr><td><code>app/static/css/redesign-pages.css</code></td><td>Dashboard .c-table-wrap overflow: visible + 底部圆角；.c-dd-menu 增强 z-index 和阴影；table-layout: fixed + min-width</td></tr>
+</table>
+<p><strong>不做</strong>：不修改模板 HTML 结构；不修改 JS 逻辑；不影响其他页面的表格。</p>
+
+<h2>5. 分批</h2>
+<p>单批 CSS-only 修复，共 ~10 行 CSS。</p>
+
+<h2>6. 验收</h2>
+<ol>
+  <li><code>bash scripts/cronpilot.sh restart --daemon</code></li>
+  <li>以有 <code>cron:write</code> 权限的用户登录 V2 Dashboard（非种子 admin）</li>
+  <li>点击运行中任务的"更多"（⋮）按钮，下拉菜单（暂停/编辑/下线）完整显示，不被裁剪</li>
+  <li>下拉菜单明确浮于下方行之上，阴影清晰可见，无视觉交叉</li>
+  <li>对最后一行任务点击"更多"，菜单同样完整可见</li>
+  <li>表格底部圆角保持正常</li>
+  <li>CSS 门禁：<code>python scripts/check_ui_contract.py --check</code></li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li><strong>低</strong>：<code>overflow: visible</code> 在宽屏（≥1024px）下，表格不会横向溢出（min-width: 960px &lt; 内容区宽度）</li>
+  <li><strong>低</strong>：窄屏 @media 降级为 <code>overflow-x: auto</code> 后，下拉菜单在纵向上可能被轻微裁剪（但表格高度通常足够不触发）</li>
+  <li><strong>无</strong>：仅影响 Dashboard 表格（选择器 <code>.cp-page-dashboard</code> 限定），不影响其他页面</li>
+</ul>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="Dashboard表格操作列溢出修复设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

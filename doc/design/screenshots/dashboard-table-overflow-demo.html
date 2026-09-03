@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard 操作下拉菜单重叠修复 — 对比 Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; padding: 24px; color: #0f172a; }
+  h1 { font-size: 18px; margin-bottom: 8px; text-align: center; }
+  .subtitle { text-align: center; font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+  .demo-section { margin-bottom: 40px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+  .demo-header { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
+  .demo-header h2 { font-size: 14px; font-weight: 600; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+  .badge-bug { background: #fecaca; color: #dc2626; }
+  .badge-fix { background: #bbf7d0; color: #16a34a; }
+  .demo-body { padding: 16px; }
+  .demo-note { font-size: 12px; color: #64748b; margin-bottom: 12px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #0891b2; }
+
+  /* Table */
+  .c-table-wrap { border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; overflow: hidden; }
+  .c-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 800px; }
+  .c-table thead th { text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; padding: 9px 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+  .c-table tbody td { padding: 11px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: top; font-size: 12.5px; }
+  .c-table tbody tr:last-child td { border-bottom: none; }
+  .c-table tbody tr { transition: background 0.12s; }
+  .c-table tbody tr:hover { background: #f8fafc; }
+
+  .hfc-name { width: 30%; }
+  .hfc-cron { width: 16%; }
+  .hfc-health { width: 10%; }
+  .hfc-lastrun { width: 14%; }
+  .hfc-nextrun { width: 12%; }
+  .hfc-act { width: 18%; }
+
+  .tc-name { font-weight: 600; font-size: 13px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .tc-name.failing { color: #dc2626; }
+  .tc-id { color: #94a3b8; font-size: 11px; font-family: monospace; }
+  .tc-tags { display: flex; gap: 4px; margin-top: 3px; }
+  .tc-lifecycle { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; }
+  .tc-lifecycle.active { background: #dcfce7; color: #16a34a; }
+  .sched-human { font-size: 12.5px; margin-bottom: 3px; }
+  .sched-expr { font-size: 11px; color: #64748b; font-family: monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
+  .health-badge { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+  .health-badge.ok { background: #dcfce7; color: #16a34a; }
+  .health-badge.danger { background: rgba(220,38,38,0.08); color: #dc2626; }
+  .lr-pin { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .lr-pin-ok { background: #16a34a; }
+  .lr-pin-fail { background: #dc2626; }
+  .lr-duration { font-family: monospace; font-size: 11px; color: #64748b; }
+  .lr-time { color: #94a3b8; font-size: 11px; }
+  .nr { font-size: 12px; color: #64748b; }
+  .nr.imminent { color: #0891b2; font-weight: 500; }
+
+  /* Action buttons */
+  .row-acts { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+  .act-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; padding: 0; font-size: 12px; flex-shrink: 0; }
+  .act-btn:hover { color: #0f172a; border-color: #cbd5e1; background: #f1f5f9; }
+  .act-btn.run { color: #0891b2; }
+
+  /* Dropdown */
+  .c-dd { position: relative; display: inline-block; }
+  .c-dd-menu { position: absolute; right: 0; top: calc(100% + 4px); min-width: 110px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px; display: none; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .c-dd.open .c-dd-menu { display: block; }
+  .c-dd-menu a { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 4px; font-size: 12px; color: #0f172a; cursor: pointer; text-decoration: none; }
+  .c-dd-menu a:hover { background: #f1f5f9; }
+  .c-dd-menu a.c-danger { color: #dc2626; }
+  .c-dd-menu .c-div { height: 1px; background: #e2e8f0; margin: 4px 3px; }
+
+  /* FIXED variant */
+  .fixed .c-table-wrap {
+    overflow: visible;
+  }
+  .fixed .c-table tbody tr:last-child td:first-child { border-bottom-left-radius: 7px; }
+  .fixed .c-table tbody tr:last-child td:last-child { border-bottom-right-radius: 7px; }
+  .fixed .c-dd-menu {
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  /* Annotation */
+  .clip-indicator { position: relative; }
+  .clip-indicator::after { content: "⚠ 被 overflow:hidden 裁剪"; position: absolute; top: -16px; right: 0; font-size: 9px; color: #dc2626; background: #fecaca; padding: 1px 6px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+</style>
+</head>
+<body>
+<h1>Dashboard 操作下拉菜单重叠修复 — 对比 Demo</h1>
+<p class="subtitle">点击每行的 ⋮ 按钮打开下拉菜单，观察菜单与下方行的交互效果</p>
+
+<!-- BUG: overflow: hidden clips dropdown -->
+<div class="demo-section">
+  <div class="demo-header">
+    <h2>当前（overflow: hidden — 下拉菜单被裁剪）</h2>
+    <span class="badge badge-bug">BUG</span>
+  </div>
+  <div class="demo-body">
+    <div class="demo-note">点击第 2 行或第 3 行的 ⋮ 按钮，菜单底部被 <code>overflow: hidden</code> 裁剪，无法完整显示。</div>
+    <div class="c-table-wrap">
+      <table class="c-table">
+        <thead><tr>
+          <th class="hfc-name">任务</th>
+          <th class="hfc-cron">调度策略</th>
+          <th class="hfc-health">健康度</th>
+          <th class="hfc-lastrun">最近执行</th>
+          <th class="hfc-nextrun">下次执行</th>
+          <th class="hfc-act">操作</th>
+        </tr></thead>
+        <tbody id="tbody-bug">
+          <tr>
+            <td><span class="tc-name failing">payment-callback-scheduler</span><div class="tc-id">支付回调</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每 2 小时</div><div class="sched-expr">0 0 */2 * * *</div></td>
+            <td><span class="health-badge danger">异常</span></td>
+            <td><span class="lr-pin lr-pin-fail"></span> 503<div class="lr-duration">2.3s</div></td>
+            <td><span class="nr imminent">in &lt;1 min</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="tc-name">notification-service-check</span><div class="tc-id">通知监控</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每小时</div><div class="sched-expr">0 30 * * * *</div></td>
+            <td><span class="health-badge ok">健康</span></td>
+            <td><span class="lr-pin lr-pin-ok"></span> 200<div class="lr-duration">0.5s</div></td>
+            <td><span class="nr">in 45 min</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd clip-indicator"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="tc-name">data-etl-sync</span><div class="tc-id">数据同步</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每 6 小时</div><div class="sched-expr">0 0 */6 * * *</div></td>
+            <td><span class="health-badge ok">健康</span></td>
+            <td><span class="lr-pin lr-pin-ok"></span> 200<div class="lr-duration">12.7s</div></td>
+            <td><span class="nr">in 3 hr</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd clip-indicator"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- FIX: overflow: visible -->
+<div class="demo-section fixed">
+  <div class="demo-header">
+    <h2>修复后（overflow: visible + 增强阴影）</h2>
+    <span class="badge badge-fix">FIXED</span>
+  </div>
+  <div class="demo-body">
+    <div class="demo-note">点击任意行的 ⋮ 按钮，菜单完整显示在行上方，阴影清晰分层，不被裁剪。</div>
+    <div class="c-table-wrap">
+      <table class="c-table">
+        <thead><tr>
+          <th class="hfc-name">任务</th>
+          <th class="hfc-cron">调度策略</th>
+          <th class="hfc-health">健康度</th>
+          <th class="hfc-lastrun">最近执行</th>
+          <th class="hfc-nextrun">下次执行</th>
+          <th class="hfc-act">操作</th>
+        </tr></thead>
+        <tbody id="tbody-fix">
+          <tr>
+            <td><span class="tc-name failing">payment-callback-scheduler</span><div class="tc-id">支付回调</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每 2 小时</div><div class="sched-expr">0 0 */2 * * *</div></td>
+            <td><span class="health-badge danger">异常</span></td>
+            <td><span class="lr-pin lr-pin-fail"></span> 503<div class="lr-duration">2.3s</div></td>
+            <td><span class="nr imminent">in &lt;1 min</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="tc-name">notification-service-check</span><div class="tc-id">通知监控</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每小时</div><div class="sched-expr">0 30 * * * *</div></td>
+            <td><span class="health-badge ok">健康</span></td>
+            <td><span class="lr-pin lr-pin-ok"></span> 200<div class="lr-duration">0.5s</div></td>
+            <td><span class="nr">in 45 min</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="tc-name">data-etl-sync</span><div class="tc-id">数据同步</div><div class="tc-tags"><span class="tc-lifecycle active">运行中</span></div></td>
+            <td><div class="sched-human">每 6 小时</div><div class="sched-expr">0 0 */6 * * *</div></td>
+            <td><span class="health-badge ok">健康</span></td>
+            <td><span class="lr-pin lr-pin-ok"></span> 200<div class="lr-duration">12.7s</div></td>
+            <td><span class="nr">in 3 hr</span></td>
+            <td>
+              <div class="row-acts">
+                <button class="act-btn run" title="立即执行">▶</button>
+                <button class="act-btn" title="执行记录">📄</button>
+                <div class="c-dd"><button class="act-btn" onclick="toggleDD(this)" title="更多">⋮</button><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:20px;font-size:12px;color:#94a3b8;">
+  <p><strong>对比要点</strong>：分别在上方 BUG 版和下方 FIXED 版中点击第 2、3 行的 ⋮ 按钮。</p>
+  <p>BUG 版：菜单底部被裁剪 | FIXED 版：菜单完整显示，阴影明确分层</p>
+</div>
+
+<script>
+function toggleDD(btn) {
+  var dd = btn.parentElement;
+  var wasOpen = dd.classList.contains('open');
+  document.querySelectorAll('.c-dd.open').forEach(function(d) { d.classList.remove('open'); });
+  if (!wasOpen) dd.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.c-dd')) {
+    document.querySelectorAll('.c-dd.open').forEach(function(d) { d.classList.remove('open'); });
+  }
+});
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="dashboard-table-overflow-demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

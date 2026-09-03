@@ -42,6 +42,19 @@ from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.utils.times import utc_now_hms
 
+# ── Orphan task cache (populated by cron_check, read by Dashboard) ──
+_orphan_cache = {
+    'orphan_ids': set(),
+    'orphan_count': 0,
+    'total_scanned': 0,
+    'updated_at': 0.0,
+}
+
+
+def get_orphan_cache():
+    """Return a snapshot of the latest cron_check reconciliation result."""
+    return dict(_orphan_cache)
+
 
 def _notify_job_outcome(task_name, content, status):
     if not should_alert(status):
@@ -392,12 +405,14 @@ def cron_check():
             cifs = db.session.scalars(select(CronInfos)).all()
 
             orphan_count = 0
+            orphan_id_set = set()
             if cifs:
                 for item in cifs:
                     if "cron_%s" % item.id not in job_ids:
                         if item.status == -1:
                             continue
                         orphan_count += 1
+                        orphan_id_set.add(item.id)
                         current_app.logger.warning(
                             "orphan task detected: cron_%s (%s) — not in JobStore, manual action required",
                             item.id, item.task_name or '',
@@ -408,6 +423,10 @@ def cron_check():
                                 "status": item.status,
                             },
                         )
+            _orphan_cache['orphan_ids'] = orphan_id_set
+            _orphan_cache['orphan_count'] = orphan_count
+            _orphan_cache['total_scanned'] = len(cifs)
+            _orphan_cache['updated_at'] = time.time()
             ORPHAN_TASKS.set(orphan_count)
             if orphan_count > 0:
                 current_app.logger.warning(

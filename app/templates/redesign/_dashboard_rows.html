@@ -2,10 +2,10 @@
 {% for item in page_data.items %}
 {% set h = health_by_id.get(item.id) %}
 {% set lr = last_run_map.get(item.id, {}) %}
-<tr{% if item.status == -1 %} class="row-retired"{% endif %}>
+<tr{% if item.status == -1 %} class="row-retired"{% elif orphan_ids is defined and item.id in orphan_ids %} class="orphan-row"{% endif %}>
   {# COL 1: Task (name + task_id + lifecycle + tags) #}
   <td>
-    <a href="{{ url_for('main.task_detail_v2', id=item.id) }}" class="tc-name{% if h and h.health_status == 'failing' %} failing{% endif %}" data-tooltip="{{ item.task_name }}">{{ item.task_name }}</a>
+    <a href="{{ url_for('main.task_detail_v2', id=item.id) }}" class="tc-name{% if h and h.health_status == 'failing' %} failing{% endif %}" data-tooltip="{{ item.task_name }}">{{ item.task_name }}</a>{% if orphan_ids is defined and item.id in orphan_ids %}<span class="orphan-tag">脱节</span>{% endif %}
     <div class="tc-id">{{ item.task_keyword or '—' }}</div>
     <div class="tc-tags">
       {% if item.status == 1 %}<span class="tc-lifecycle active">运行中</span>
@@ -76,6 +76,10 @@
   {# COL 7: Actions (icon buttons) #}
   <td>
     <div class="row-acts">
+      {% if orphan_ids is defined and item.id in orphan_ids and has_perm('cron:write') %}
+      <button class="act-btn-orphan reschedule" onclick="cpReschedule({{ item.id }}, this)" data-tooltip="重新调度" aria-label="重新调度">🔄</button>
+      <button class="act-btn-orphan retire" onclick="cpRetire({{ item.id }}, this)" data-tooltip="确认下线" aria-label="确认下线">✕</button>
+      {% else %}
       {% if has_perm('cron:write') and item.status == 1 and item.req_url %}
       <button class="act-btn run" onclick="cpRunNow({{ item.id }}, this)" data-tooltip="立即执行" aria-label="立即执行">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -101,6 +105,7 @@
         </div>
       </div>
       {% endif %}
+      {% endif %}{# end orphan if/else #}
     </div>
   </td>
 </tr>

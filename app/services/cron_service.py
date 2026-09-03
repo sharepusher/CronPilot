@@ -125,6 +125,52 @@ def register_cron_job(cron_id, normalized):
     )
 
 
+def reschedule_orphan_task(cron_id):
+    """Re-register an orphan task into APScheduler from its existing CronInfos record.
+
+    Returns (success: bool, message: str).
+    """
+    from app.crons import cron_do, _orphan_cache
+    from app.services.cron_schedule_display import schedule_configured_from_normalized
+
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return False, '任务不存在'
+    if cif.status == -1:
+        return False, '任务已下线，无法重新调度'
+    job_id = 'cron_%s' % cif.id
+    try:
+        existing = scheduler.get_job(job_id)
+        if existing:
+            return False, '任务已在调度器中，无需重新调度'
+    except Exception:
+        pass
+    normalized = {
+        'run_date': cif.run_date or '',
+        'day_of_week': cif.day_of_week or '',
+        'day': cif.day or '',
+        'hour': cif.hour or '',
+        'minute': cif.minute or '',
+        'second': getattr(cif, 'second', '') or '',
+    }
+    run_date = normalized['run_date']
+    ds_ms = '1' if run_date else '2'
+    if not schedule_configured_from_normalized(normalized, ds_ms):
+        return False, '任务无有效调度配置，无法注册'
+    cron_datas = build_scheduler_kwargs(normalized)
+    scheduler.add_job(
+        job_id,
+        func=cron_do,
+        args=[cif.id],
+        replace_existing=True,
+        **cron_datas,
+    )
+    _orphan_cache['orphan_ids'].discard(cif.id)
+    _orphan_cache['orphan_count'] = len(_orphan_cache['orphan_ids'])
+    logger.info("orphan task rescheduled: cron_%s (%s)", cif.id, cif.task_name or '')
+    return True, '已重新注册到调度器'
+
+
 def apply_normalized_to_model(cif, normalized):
     cif.task_name = normalized['task_name']
     cif.task_keyword = normalized['task_keyword']

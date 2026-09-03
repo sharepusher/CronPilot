@@ -18,9 +18,11 @@ class CronRepository(BaseRepository):
         filters=None,
         health=None,
         overdue_ids=None,
+        orphan_ids=None,
     ):
         """任务中心主列表。filters 为已组装的 where 子句列表（含 Scope）。
         overdue_ids: 预计算的逾期任务 ID 集合，当 health='overdue' 时使用。
+        orphan_ids: 对账缓存的孤儿任务 ID 集合，当 health='orphan' 时使用。
         """
         filters = list(filters or [])
         stmt = select(CronInfos)
@@ -41,6 +43,11 @@ class CronRepository(BaseRepository):
         elif health == 'overdue' and overdue_ids is not None:
             if overdue_ids:
                 stmt = stmt.where(CronInfos.id.in_(list(overdue_ids)))
+            else:
+                stmt = stmt.where(CronInfos.id == -1)
+        elif health == 'orphan' and orphan_ids is not None:
+            if orphan_ids:
+                stmt = stmt.where(CronInfos.id.in_(list(orphan_ids)))
             else:
                 stmt = stmt.where(CronInfos.id == -1)
         if filters:

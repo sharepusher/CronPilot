@@ -85,6 +85,12 @@
   --cp-state-pending-text: #1e293b;  /* 待执行文字 (slate-800) */
   --cp-state-timeout:      #9333ea;  /* 超时 (purple-600) */
 
+  /* ====== 调度脱节 (orphan task) ====== */
+  --cp-orphan:        #7c3aed;  /* 主色 (violet-600) */
+  --cp-orphan-bg:     #faf5ff;  /* 背景 (violet-50) */
+  --cp-orphan-border: #c4b5fd;  /* 边框 (violet-300) */
+  --cp-orphan-dark:   #5b21b6;  /* 深色文字 (violet-800) */
+
   /* ====== 角色徽标 (rbac/_topbar.html) ====== */
   --cp-role-admin:    #2980b9;  /* 管理员 (Peter River) */
   --cp-role-operator: #16a085;  /* 运维 (Green Sea) */

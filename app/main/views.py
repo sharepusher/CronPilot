@@ -252,14 +252,19 @@ def cron_list():
         tag_filter,
     )
     _overdue_ids = None
+    _orphan_filter_ids = None
     if health == 'overdue':
         from app.services.dashboard_service import DashboardService
         _svc_tmp = DashboardService(repo)
         _overdue_ids = _svc_tmp.overdue_ids_for_list(_list_cache_key, filter_arr)
+    elif health == 'orphan':
+        from app.crons import get_orphan_cache
+        _orphan_filter_ids = get_orphan_cache()['orphan_ids']
 
     page_data = repo.paginate_list(
         page_query, filters=filter_arr, health=health,
         overdue_ids=_overdue_ids,
+        orphan_ids=_orphan_filter_ids,
     )
 
     health_by_id = repo.health_by_cron_ids([item.id for item in page_data.items])
@@ -320,6 +325,8 @@ def cron_list():
     status_counts = stats['status_counts']
     today_success_rate = stats['today_success_rate']
     overdue_count = stats['overdue_count']
+    orphan_count = stats.get('orphan_count', 0)
+    orphan_ids = stats.get('orphan_ids', set())
 
     page_ctx_data = dashboard_svc.compute_page_context(page_data.items)
     last_run_map = page_ctx_data['last_run_map']
@@ -338,6 +345,7 @@ def cron_list():
             last_run_map=last_run_map,
             next_run_map=next_run_map,
             overdue_map=overdue_map,
+            orphan_ids=orphan_ids,
             show_group_column=show_group_column,
         )
         rows_html = render_template('redesign/_dashboard_rows.html', **partial_ctx)
@@ -353,6 +361,7 @@ def cron_list():
                 'today_fail_runs': metrics['today_fail_runs'],
                 'total': metrics['total'],
                 'today_success_rate': today_success_rate,
+                'orphan_count': orphan_count,
             },
             'total': page_data.total,
         })
@@ -380,6 +389,8 @@ def cron_list():
         next_run_map=next_run_map,
         overdue_map=overdue_map,
         overdue_count=overdue_count,
+        orphan_count=orphan_count,
+        orphan_ids=orphan_ids,
         show_group_column=show_group_column,
     )
 
@@ -840,7 +851,15 @@ def cron_add():
             trace_info = traceback.format_exc()
             wechat_info_err(str(e), trace_info)
             current_app.logger.error('cron_add exception: %s\n%s', e, trace_info)
-            return web_api_return(code=1, msg='服务器内部错误，请稍后重试')
+            db.session.rollback()
+            err_type = type(e).__name__
+            if 'IntegrityError' in err_type:
+                user_msg = '数据冲突，任务名可能已存在或组关联异常，请检查后重试'
+            elif 'OperationalError' in err_type:
+                user_msg = '数据库操作失败（可能磁盘空间不足），请联系管理员'
+            else:
+                user_msg = '服务器内部错误（%s），请稍后重试' % err_type
+            return web_api_return(code=1, msg=user_msg)
 
     return render_template(
         "redesign/task_form.html",
@@ -972,6 +991,30 @@ def cron_retire():
     if err:
         return web_api_return(code=1, msg=err, data={'field': 'reason'})
     return web_api_return(code=0, msg='任务已下线', url='/cron_list')
+
+
+@main.route('/cron_reschedule', methods=['POST'])
+@require_permission('cron:write')
+@csrf_protect
+def cron_reschedule():
+    """Re-register an orphan task into APScheduler (Phase 2: reconciliation safety)."""
+    from app.services.cron_service import reschedule_orphan_task
+
+    cron_id = request.values.get('id')
+    if not cron_id:
+        return web_api_return(code=1, msg='缺少任务 ID')
+    try:
+        cron_id = int(cron_id)
+    except (TypeError, ValueError):
+        return web_api_return(code=1, msg='无效的任务 ID')
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return web_api_return(code=1, msg='任务不存在')
+    denied = authorize_resource('cron:write', cif)
+    if denied:
+        return denied
+    ok, msg = reschedule_orphan_task(cron_id)
+    return web_api_return(code=0 if ok else 1, msg=msg)
 
 
 @main.route('/operation_log_list', methods=['GET', 'POST'])

@@ -58,6 +58,8 @@ class DashboardService:
                    today_success_rate, overdue_count}
         """
         metrics = self.repo.metrics(list(scope_filters), cron_config=cron_config)
+        from app.crons import get_orphan_cache
+        orphan = get_orphan_cache()
         return {
             'metrics': metrics,
             'consecutive_failing': self.repo.count_consecutive_failing(scope_filters),
@@ -66,6 +68,9 @@ class DashboardService:
             ),
             'today_success_rate': metrics['today_success_rate'],
             'overdue_count': self.cached_overdue_count(scope_filters),
+            'orphan_count': orphan['orphan_count'],
+            'orphan_ids': orphan['orphan_ids'],
+            'orphan_updated_at': orphan['updated_at'],
         }
 
     def compute_page_context(self, page_items):

@@ -1239,6 +1239,13 @@ a.tc-name:hover { color: var(--cp-signal); }
 .act-btn:active { transform: scale(0.88); }
 .act-btn:focus-visible, .f-btn:focus-visible, .hf-pg-btn:focus-visible { outline: 2px solid var(--cp-signal); outline-offset: 1px; }
 
+/* Orphan action buttons */
+.act-btn-orphan { display: inline-block; font-size: 11px; border-radius: 4px; padding: 2px 8px; cursor: pointer; border: none; line-height: 1.4; vertical-align: middle; }
+.act-btn-orphan.reschedule { background: var(--cp-orphan); color: var(--cp-on-filled); }
+.act-btn-orphan.reschedule:hover { opacity: 0.85; }
+.act-btn-orphan.retire { background: var(--cp-danger); color: var(--cp-on-filled); margin-left: 4px; }
+.act-btn-orphan.retire:hover { opacity: 0.85; }
+
 /* Dropdown menu */
 .c-dd { position: relative; display: inline-block; }
 .c-dd-menu { position: absolute; right: 0; top: calc(100% + 4px); min-width: 110px; background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 6px; padding: 4px; display: none; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -1274,6 +1281,28 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hf-stat-value.success { color: var(--cp-success); }
 .hf-stat-value.muted { color: var(--cp-muted); }
 .hf-stat-sub { font-size: 11px; color: var(--cp-text-faint); margin-top: 4px; }
+
+/* Orphan sub-text in stat card (Scheme Y) */
+.hf-stat-orphan { font-size: 11px; color: var(--cp-orphan); margin-top: 4px; border-top: 1px dashed var(--cp-border); padding-top: 4px; }
+
+/* Orphan Warning Bar */
+.hf-orphan-bar { display: flex; align-items: center; gap: 8px; background: var(--cp-orphan-bg); border: 1px solid var(--cp-orphan-border); border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; font-size: 12.5px; color: var(--cp-orphan); }
+.hf-orphan-bar svg { flex-shrink: 0; }
+.hf-orphan-bar-body { flex: 1; }
+.hf-orphan-bar-body strong { color: var(--cp-orphan-dark); font-size: 13px; display: block; }
+.hf-orphan-bar-body span { color: var(--cp-orphan); font-size: 12px; }
+.hf-orphan-bar-link { margin-left: auto; font-size: 12px; color: var(--cp-orphan); text-decoration: underline; white-space: nowrap; }
+.hf-orphan-bar-link:hover { color: var(--cp-orphan-dark); }
+
+/* Orphan filter button */
+.f-btn.orphan { border-color: var(--cp-orphan-border); background: var(--cp-orphan-bg); color: var(--cp-orphan); }
+.f-btn.orphan.active { background: var(--cp-orphan); color: var(--cp-on-filled); border-color: var(--cp-orphan); }
+.f-btn-badge { display: inline-block; background: var(--cp-orphan); color: var(--cp-on-filled); border-radius: 8px; padding: 0 5px; font-size: 10px; margin-left: 2px; vertical-align: middle; }
+
+/* Orphan task row highlight */
+.c-table tr.orphan-row { background: var(--cp-orphan-bg); }
+.orphan-tag { display: inline-block; background: var(--cp-orphan); color: var(--cp-on-filled); font-size: 10px; border-radius: 3px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+.orphan-status { color: var(--cp-orphan); font-size: 12px; }
 
 /* Exception Panel */
 .hf-exception { border: 1px solid var(--cp-danger); border-radius: 8px; margin-bottom: 20px; overflow: hidden; background: var(--cp-danger-bg); }

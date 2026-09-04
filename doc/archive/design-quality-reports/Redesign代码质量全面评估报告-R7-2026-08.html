@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>CronPilot 代码质量全面评估报告 R7（2026-08）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 960px; margin: 2em auto; line-height: 1.6; color: #333; padding: 0 1em; }
+    h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+    h2 { border-bottom: 1px solid #e5e7eb; padding-bottom: .2em; margin-top: 1.5em; }
+    h3 { color: #1d4ed8; }
+    table { border-collapse: collapse; width: 100%; margin: .8em 0; }
+    th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+    th { background: #f3f4f6; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+    .tag-p0 { background: #dc2626; color: #fff; padding: 2px 8px; border-radius: 3px; font-weight: bold; }
+    .tag-p1 { background: #d97706; color: #fff; padding: 2px 8px; border-radius: 3px; font-weight: bold; }
+    .tag-p2 { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 3px; font-weight: bold; }
+    .status { font-weight: bold; }
+    .status-open { color: #dc2626; }
+    .status-done { color: #059669; }
+    pre { background: #f3f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+
+<h1>CronPilot 代码质量全面评估报告 R7（2026-08-28）</h1>
+<p>状态：<span class="status status-open">评估完成，待讨论</span></p>
+<p>本轮为 R1–R6 安全/质量修复后的第七次全面评估，覆盖后端（Python/Flask）与前端（Jinja2/CSS/JS）。</p>
+
+<h2>评估总览</h2>
+<table>
+  <tr><th>层面</th><th>P0</th><th>P1</th><th>P2</th><th>合计</th></tr>
+  <tr><td>后端</td><td>1</td><td>6</td><td>6</td><td>13</td></tr>
+  <tr><td>前端</td><td>0</td><td>9</td><td>11</td><td>20</td></tr>
+  <tr><td><strong>总计</strong></td><td><strong>1</strong></td><td><strong>15</strong></td><td><strong>17</strong></td><td><strong>33</strong></td></tr>
+</table>
+
+<h2>一、后端 P0 — 关键</h2>
+
+<h3>BE-P0-1：B-15 API 创建任务 scope 未持久化</h3>
+<table>
+  <tr><th>位置</th><td><code>app/services/cron_service.py:315-336</code>（<code>upsert_cron_by_task_name</code>）</td></tr>
+  <tr><th>问题</th><td><code>_apply_api_scope()</code> 正确地向 <code>datas</code> 字典注入了 <code>scope_type</code> 和 <code>group_id</code>，
+    但 <code>upsert_cron_by_task_name()</code> 将 <code>datas</code> 传入 <code>validate_cron_form()</code> 后拿到的 <code>normalized</code> 字典中
+    <strong>不包含这两个字段</strong>（<code>validate_cron_form</code> 不传递 scope 字段）。
+    <code>create_cron(normalized)</code> 因此使用 <code>scope_type</code> 默认值 <code>'GLOBAL'</code>，不写 <code>task_groups</code> 行。</td></tr>
+  <tr><th>影响</th><td>Scoped operator 通过 API 创建的任务全部变成 GLOBAL，<strong>突破租户隔离</strong>。</td></tr>
+  <tr><th>对照</th><td>Web 路径 <code>add_cron_web()</code> 在 validate 后有 <code>normalized['scope_type'] = datas.get('scope_type')</code>（行 343-345），API 路径缺少等效合并。</td></tr>
+  <tr><th>修复方向</th><td>在 <code>upsert_cron_by_task_name()</code> 的 <code>validate_cron_form()</code> 之后，增加与 <code>add_cron_web()</code> 相同的 scope 字段合并逻辑。</td></tr>
+</table>
+
+<h2>二、后端 P1 — 重要</h2>
+
+<h3>BE-P1-1：job_log.content 写入原始异常文本（信息泄露）</h3>
+<table>
+  <tr><th>位置</th><td><code>app/crons.py:312, 341, 362</code> 及相关路径</td></tr>
+  <tr><th>问题</th><td>HTTP/DB 失败时 <code>"发生严重错误:%s" % str(e)</code> 直接写入 <code>job_log.content</code>，
+    包含连接字符串、主机名、库内部堆栈等。Viewer 角色通过 Run Inspector 或 API 即可查看。</td></tr>
+  <tr><th>修复方向</th><td>引入 <code>_safe_error_content(exc)</code>，返回通用错误描述；详细信息仅写 <code>logger.exception()</code>。</td></tr>
+</table>
+
+<h3>BE-P1-2：DNS 解析失败时 SSRF 固定绕过（DNS rebinding 窗口）</h3>
+<table>
+  <tr><th>位置</th><td><code>app/services/url_security.py:96-99, 143-145</code>；<code>app/crons.py:236-239</code></td></tr>
+  <tr><th>问题</th><td>DNS 解析失败时 <code>validate_callback_url()</code> 返回 <code>(True, '')</code>。
+    执行时 <code>resolved_ip=None</code>，走无固定 IP 的 <code>requests.get/post</code>。
+    攻击者可利用 DNS rebinding：验证时解析公网 IP，执行时解析 <code>127.0.0.1</code>。</td></tr>
+  <tr><th>修复方向</th><td>当 <code>block_private_ip=1</code> 时，DNS 解析失败应拒绝而非放行。</td></tr>
+</table>
+
+<h3>BE-P1-3：create_cron/update_cron scheduler 注册失败无补偿</h3>
+<table>
+  <tr><th>位置</th><td><code>app/services/cron_service.py:185-186, 229-230</code></td></tr>
+  <tr><th>问题</th><td><code>db.session.commit()</code> 在 <code>register_cron_job()</code> 之前。
+    若 <code>scheduler.add_job()</code> 抛异常，DB 行已存在但调度器无对应 job → 静默孤儿任务。</td></tr>
+  <tr><th>修复方向</th><td>post-commit scheduler 失败时标记 <code>status=0</code> + 返回警告，或采用补偿事务模式。</td></tr>
+</table>
+
+<h3>BE-P1-4：retire_cron 事务顺序与 toggle_status 不一致</h3>
+<table>
+  <tr><th>位置</th><td><code>app/services/cron_service.py:281-286, 306-310</code></td></tr>
+  <tr><th>问题</th><td><code>retire_cron_*</code> 先 <code>remove_job()</code> 后 <code>commit()</code>，
+    而 <code>toggle_status()</code> 先 <code>commit()</code> 后 scheduler 操作。
+    若 commit 失败，scheduler 已删但 DB 仍显示活跃。</td></tr>
+  <tr><th>修复方向</th><td>对齐 <code>toggle_status()</code> 的 commit-first 模式。</td></tr>
+</table>
+
+<h3>BE-P1-5：旧版 GET /api/cron/add 允许状态修改操作</h3>
+<table>
+  <tr><th>位置</th><td><code>app/api/views.py:670-706</code></td></tr>
+  <tr><th>问题</th><td><code>@api.route('/cron/add', methods=['GET', 'POST'])</code> 允许通过 GET 创建/更新任务。
+    违反 HTTP 安全语义，易受 CSRF（<code>&lt;img src=...&gt;</code>）攻击。</td></tr>
+  <tr><th>修复方向</th><td>限制为 POST only；GET 返回 405。</td></tr>
+</table>
+
+<h3>BE-P1-6：API GET 端点缺少 check_api_permission（防御缺口）</h3>
+<table>
+  <tr><th>位置</th><td><code>app/api/views.py:142-426</code>（多个 GET 处理函数）</td></tr>
+  <tr><th>问题</th><td>读端点仅做 scope 过滤，未调用 <code>check_api_permission('cron:read')</code>。
+    POST 端点在 S-5 中已补齐，读端点未对齐。</td></tr>
+  <tr><th>修复方向</th><td>在各 GET handler 顶部添加 <code>check_api_permission</code> 调用。</td></tr>
+</table>
+
+<h2>三、后端 P2 — 改善</h2>
+
+<h3>BE-P2-1：TestApiCreateScope 仅测 helper 函数，缺端到端持久化验证</h3>
+<p>位置：<code>tests/test_api_scope_s6.py:676-764</code>。现有测试只调用 <code>_apply_api_scope()</code>，
+不验证 POST <code>/api/cron</code> 后 DB 中 <code>scope_type</code> 和 <code>task_groups</code> 是否正确。
+<strong>正是此盲区导致 BE-P0-1 未被发现。</strong></p>
+
+<h3>BE-P2-2：job_log_detail BIGINT 时间戳作为 datetime 处理</h3>
+<p>位置：<code>app/main/views.py:701-707</code>。<code>started_raw</code> 是 BIGINT（hms epoch），
+但代码按 <code>isinstance(started_raw, str)</code> 或 datetime 对象处理，
+整数值走 else 分支后 <code>datetime.now() - integer</code> 抛 TypeError，
+被 <code>except</code> 静默捕获 → <code>time_ago</code> 永远为空。</p>
+
+<h3>BE-P2-3：LIKE 搜索未转义 % 和 _ 通配符</h3>
+<p>位置：<code>app/api/views.py:164</code>；<code>app/main/views.py:214</code> 等。
+用户输入 <code>%</code> 或 <code>_</code> 会意外扩大匹配范围（非注入，SQLAlchemy 参数化）。</p>
+
+<h3>BE-P2-4：登录限流器为进程本地（多 worker 绕过）</h3>
+<p>位置：<code>app/rbac/login_limiter.py</code>。内存限流器在 gunicorn 多 worker 部署下
+每个 worker 独立计数，有效预算 ×worker 数。</p>
+
+<h3>BE-P2-5：回调签名使用 MD5</h3>
+<p>位置：<code>app/common/functions.py:53-56</code>（<code>get_cronpilot_sign</code>）。
+HMAC-MD5 低于现代密码基线。建议 v2 协议升级为 HMAC-SHA256。</p>
+
+<h3>BE-P2-6：access_token 通过 query string 传递</h3>
+<p>位置：<code>app/api/__init__.py:49</code>。Token 出现在 URL 中，有日志/Referer 泄露风险。
+已在 API 安全评估文档中记录（Q-1），建议未来 major 版本仅接受 Bearer header。</p>
+
+<h2>四、前端 P0</h2>
+<p><strong>无新 P0。</strong> Redesign 模板使用 Jinja2 自动转义 + CSRF meta + <code>samesite=lax</code> cookie，
+无 <code>eval</code>、无 Bootstrap modal、无模板硬编码色值。</p>
+
+<h2>五、前端 P1 — 重要</h2>
+
+<h3>FE-P1-1：Escape 快捷键与 Command Palette 冲突</h3>
+<p>位置：<code>task_detail.html:265-268</code>, <code>task_form.html:356-359</code>, <code>run_inspector.html:142-149</code>。
+页面级 Escape 处理未检查 <code>#cp-cmd-overlay.open</code>，导致 Command Palette 打开时按 Esc 触发页面导航。</p>
+
+<h3>FE-P1-2：Dashboard 下拉菜单操作项键盘不可达</h3>
+<p>位置：<code>_dashboard_rows.html:92-100</code>。
+<code>&lt;a onclick="..."&gt;</code> 无 <code>href</code>、无 <code>role="button"</code>、无 <code>tabindex</code>。</p>
+
+<h3>FE-P1-3：用户菜单触发器不可聚焦</h3>
+<p>位置：<code>_topbar.html:35-41</code>。
+<code>#cp-user-menu-trigger</code> 是 <code>&lt;div&gt;</code>，缺少 <code>role="button" tabindex="0" aria-haspopup</code>。</p>
+
+<h3>FE-P1-4：任务详情头部按钮缺 accessible names</h3>
+<p>位置：<code>task_detail.html:50-58</code>。
+"立即执行/暂停/恢复" 按钮无 <code>aria-label</code>。</p>
+
+<h3>FE-P1-5：Modal 缺焦点陷阱和 aria-labelledby</h3>
+<p>位置：<code>redesign-confirm.js:47-57, 113-118</code>。
+<code>CpConfirm</code>/<code>CpModal</code> 无 Tab 循环、无焦点恢复、无 <code>aria-labelledby</code>。</p>
+
+<h3>FE-P1-6：escHtml 回退返回原始字符串</h3>
+<p>位置：<code>tags.html:91</code>, <code>registration_review.html:155</code>。
+当 <code>common-redesign.js</code> 加载失败时，<code>escHtml</code> 回退直接返回 <code>s</code>，用户输入未转义流入 <code>innerHTML</code>。</p>
+
+<h3>FE-P1-7：AJAX fetch 未检查 HTTP 状态码</h3>
+<p>位置：<code>dashboard.html:288</code>, <code>execution_logs.html:143</code> 等 5 处。
+<code>.then(r =&gt; r.json())</code> 未 <code>if (!r.ok)</code>，403/500 HTML 响应触发 JSON 解析异常。</p>
+
+<h3>FE-P1-8：Toast 关闭按钮键盘不可操作</h3>
+<p>位置：<code>redesign-toast.js:52-57</code>。
+有 <code>role="button" tabindex="0"</code> 但仅绑定 <code>click</code>，无 Enter/Space 处理。</p>
+
+<h3>FE-P1-9：Clipboard API 失败静默无反馈</h3>
+<p>位置：<code>task_detail.html:239-244</code>, <code>api_token.html:65-69</code> 等。
+<code>navigator.clipboard.writeText(...).then(...)</code> 无 <code>.catch()</code>。非 HTTPS 或权限被拒时无提示。</p>
+
+<h2>六、前端 P2 — 改善</h2>
+
+<h3>FE-P2-1：5 个页面 AJAX 筛选 IIFE 近 400 行重复</h3>
+<p>位置：<code>dashboard.html</code>, <code>execution_logs.html</code>, <code>users.html</code>,
+<code>audit_logs.html</code>, <code>operation_log.html</code>。相同 fetch→innerHTML→分页重绑模式。</p>
+
+<h3>FE-P2-2：大 inline &lt;script&gt; 块（dashboard ~270 行, tags ~250 行）</h3>
+<p>阻碍缓存，增大 HTML 负载。建议移至独立 JS 文件。</p>
+
+<h3>FE-P2-3：Tags 页使用 <code>javascript:;</code> + 缺 pill aria-label</h3>
+<p>位置：<code>tags.html:22-25, 50, 61-67</code>。</p>
+
+<h3>FE-P2-4：表单 label 未关联 for/id</h3>
+<p>位置：<code>task_form.html:17-21</code>。<code>&lt;label class="tf-label"&gt;</code> 无 <code>for=</code>。</p>
+
+<h3>FE-P2-5：Command Palette 缺 dialog 语义</h3>
+<p>位置：<code>_base.html:34-44</code>, <code>redesign-shell.js:93-107</code>。
+无 <code>role="dialog"</code>、<code>aria-modal</code>、<code>aria-live</code>。</p>
+
+<h3>FE-P2-6：updateStats 用 innerHTML + inline style 重建统计行</h3>
+<p>位置：<code>dashboard.html:340-343</code>。应使用 class + textContent。</p>
+
+<h3>FE-P2-7：Vue cron validator 引用 Font Awesome（Redesign 未加载）</h3>
+<p>位置：<code>frontend/src/components/CronFormValidator.vue:5,8,14,17</code>。图标不可见。</p>
+
+<h3>FE-P2-8：redesign-pages.css 硬编码 rgba()</h3>
+<p>位置：<code>redesign-pages.css:1244</code>。<code>rgba(0,0,0,0.1)</code> 应使用 shadow token。</p>
+
+<h3>FE-P2-9：CpConfirm.show title 经 escHtml + textContent 双重转义</h3>
+<p>位置：<code>tags.html:298-299</code>。标签名含 <code>&lt;</code> 时显示转义实体。</p>
+
+<h3>FE-P2-10：重复的 document-level dropdown-close 监听</h3>
+<p>位置：<code>dashboard.html:206-213</code>, <code>execution_logs.html:104-108</code>。</p>
+
+<h3>FE-P2-11：执行记录 "复制ID"/"展开内容" 仅 click 无键盘支持</h3>
+<p>位置：<code>execution_logs.html:185-199</code>。</p>
+
+<h2>七、测试覆盖盲区（关键路径）</h2>
+<table>
+  <tr><th>领域</th><th>缺口</th></tr>
+  <tr><td>API scope 持久化</td><td>无 HTTP 级测试验证 operator 创建的任务落入正确组（<strong>直接导致 BE-P0-1 未被发现</strong>）</td></tr>
+  <tr><td>Scheduler/DB 一致性</td><td>无测试覆盖 <code>register_cron_job()</code> 失败后的补偿</td></tr>
+  <tr><td>Retire 事务顺序</td><td>无测试模拟 <code>commit</code> 失败后 <code>remove_job</code> 已执行的场景</td></tr>
+  <tr><td>Job log 内容脱敏</td><td>无断言验证 <code>job_log.content</code> 中不含异常类名</td></tr>
+  <tr><td>DNS 失败 SSRF</td><td>无测试验证 DNS 解析失败时阻止执行</td></tr>
+  <tr><td>API 读权限</td><td><code>TestApiRolePermission</code> 仅覆盖 POST</td></tr>
+</table>
+
+<h2>八、R7 整体评价</h2>
+<p>经过 R1–R6 六轮安全/质量修复，项目核心 RBAC/API 防护已达到较好水平：
+scope 写入校验、POST 角色权限、登录限流、CSRF on admin POST、scope 缓存形状一致性等关卡已就位。</p>
+<p>本轮发现的唯一 P0 是 <strong>B-15 scope 注入→持久化断裂</strong>——功能隔离 bug 而非安全漏洞，
+但对多租户场景影响严重。P1 层面后端集中在 scheduler/DB 事务一致性和历史遗留的 GET 语义问题；
+前端集中在无障碍（a11y）短板和交互健壮性。</p>
+<p>前端 <strong>无新 P0</strong>，Redesign 模板安全基线良好（自动转义 + CSRF + samesite）。</p>
+
+<h2>九、建议行动优先级</h2>
+<table>
+  <tr><th>优先级</th><th>批次</th><th>工作量</th><th>内容</th></tr>
+  <tr><td><span class="tag-p0">P0</span></td><td>BE-P0-1 修复</td><td>~30min</td><td>API scope 持久化修复 + 端到端测试</td></tr>
+  <tr><td><span class="tag-p1">P1</span></td><td>后端安全批次</td><td>~2h</td><td>BE-P1-1 job_log 脱敏 + BE-P1-2 DNS 拒绝 + BE-P1-5 GET→POST</td></tr>
+  <tr><td><span class="tag-p1">P1</span></td><td>后端一致性批次</td><td>~1h</td><td>BE-P1-3 scheduler 补偿 + BE-P1-4 retire 事务顺序</td></tr>
+  <tr><td><span class="tag-p1">P1</span></td><td>前端 a11y 批次</td><td>~2h</td><td>FE-P1-2～5 键盘/ARIA 改进</td></tr>
+  <tr><td><span class="tag-p1">P1</span></td><td>前端交互批次</td><td>~1h</td><td>FE-P1-1 Esc 冲突 + FE-P1-7 fetch r.ok + FE-P1-6 escHtml + FE-P1-9 clipboard</td></tr>
+  <tr><td><span class="tag-p2">P2</span></td><td>技术债务</td><td>~3h</td><td>AJAX 模块提取、inline JS 外移、label for/id 等</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="Redesign代码质量全面评估报告-R7-2026-08.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

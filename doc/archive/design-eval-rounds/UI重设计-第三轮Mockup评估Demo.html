@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot 第三轮 Mockup 符合度评估 · 2026-08-18</title>
+<style>
+:root{
+  --bg:#F7F8F9;--surface:#fff;--border:#E4E6E9;--ink:#14171A;--muted:#5B6169;--faint:#9CA3AF;
+  --signal:#3D6FE0;--signal-bg:rgba(61,111,224,0.09);
+  --success:#0F9D66;--success-bg:rgba(15,157,102,0.10);
+  --warn:#B7791F;--warn-bg:rgba(183,121,31,0.10);
+  --danger:#D64545;--danger-bg:rgba(214,69,69,0.09);
+  --done:#22C55E;--done-bg:rgba(34,197,94,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6;background:var(--bg);color:var(--ink);}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 24px 80px;}
+h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+.lead{color:var(--muted);font-size:13px;margin-bottom:32px;}
+.score-bar{display:flex;gap:16px;margin-bottom:40px;flex-wrap:wrap;}
+.score-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;flex:1;min-width:140px;}
+.score-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.score-card .value{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.score-card.green .value{color:var(--done);}
+.score-card.yellow .value{color:var(--warn);}
+.score-card.red .value{color:var(--danger);}
+
+.section{margin-bottom:48px;}
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.section-head h2{font-size:16px;font-weight:600;}
+.badge-pill{font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;}
+.bp-done{background:var(--done-bg);color:var(--done);}
+.bp-ok{background:var(--signal-bg);color:var(--signal);}
+.bp-warn{background:var(--warn-bg);color:var(--warn);}
+.bp-danger{background:var(--danger-bg);color:var(--danger);}
+
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.compare-panel{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.compare-panel-head{padding:8px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+.panel-mockup .compare-panel-head{background:#0D0F12;color:#8B9198;}
+.panel-current .compare-panel-head{background:#F1F2F4;color:#5B6169;}
+.compare-panel-body{padding:16px;background:var(--surface);min-height:200px;}
+
+/* mini UI elements for mockup simulation */
+.mk-shell{display:grid;grid-template-columns:140px 1fr;height:220px;border:1px solid #262B31;border-radius:8px;overflow:hidden;background:#0D0F12;font-size:11px;}
+.mk-sidebar{background:#0D0F12;border-right:1px solid #262B31;padding:10px 8px;}
+.mk-brand{color:#ECEEF0;font-weight:600;font-size:11px;padding:4px 6px 10px;display:flex;align-items:center;gap:5px;}
+.mk-brand-dot{width:6px;height:6px;border-radius:2px;background:#4C8DFF;}
+.mk-nav-item{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;color:#8B9198;font-size:10.5px;}
+.mk-nav-item.active{background:rgba(76,141,255,0.12);color:#ECEEF0;border-left:2px solid #4C8DFF;margin-left:-2px;}
+.mk-main{background:#16191D;padding:10px 14px;overflow:hidden;}
+.mk-topbar{display:flex;align-items:center;gap:6px;height:28px;margin-bottom:10px;border-bottom:1px solid #262B31;padding-bottom:8px;}
+.mk-search-box{height:20px;padding:0 8px;background:#16191D;border:1px solid #262B31;border-radius:4px;color:#8B9198;font-size:9.5px;display:flex;align-items:center;gap:5px;width:140px;}
+.mk-topbar-right{margin-left:auto;display:flex;gap:4px;align-items:center;}
+.mk-theme-toggle{display:flex;border:1px solid #262B31;border-radius:4px;padding:1px;gap:1px;}
+.mk-theme-btn{width:18px;height:16px;border-radius:3px;border:none;background:none;color:#8B9198;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:8px;}
+.mk-theme-btn.on{background:#1C2025;color:#ECEEF0;}
+.mk-icon-btn{width:22px;height:22px;border-radius:4px;background:none;border:1px solid transparent;color:#8B9198;display:flex;align-items:center;justify-content:center;}
+.mk-chip{display:flex;align-items:center;gap:5px;height:22px;padding:0 8px;border:1px solid #262B31;border-radius:4px;background:rgba(76,141,255,0.12);color:#ECEEF0;font-size:9.5px;}
+.mk-chip-sm{width:22px;height:22px;border-radius:50%;background:rgba(76,141,255,0.12);color:#4C8DFF;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:9px;flex-shrink:0;}
+.mk-page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.mk-h1{font-size:12px;font-weight:600;color:#ECEEF0;}
+.mk-sub{font-size:9.5px;color:#8B9198;margin-top:1px;}
+.mk-btn-primary{height:20px;padding:0 10px;border-radius:4px;background:#4C8DFF;border:none;color:#fff;font-size:9.5px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+.mk-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#262B31;border:1px solid #262B31;border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.mk-stat{background:#16191D;padding:8px 10px;}
+.mk-stat-label{font-size:8.5px;color:#8B9198;margin-bottom:3px;}
+.mk-stat-value{font-size:16px;font-weight:600;font-family:monospace;color:#ECEEF0;}
+.mk-stat-value.s{color:#4C8DFF;}
+.mk-stat-value.d{color:#F16565;}
+.mk-stat-value.g{color:#34D399;}
+.mk-table-wrap{border:1px solid #262B31;border-radius:6px;overflow:hidden;}
+.mk-table{width:100%;border-collapse:collapse;}
+.mk-table th{text-align:left;font-size:8.5px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:#565C64;padding:6px 10px;background:#16191D;border-bottom:1px solid #262B31;}
+.mk-table td{padding:7px 10px;border-bottom:1px solid #262B31;font-size:9.5px;color:#ECEEF0;}
+.mk-table tr:last-child td{border-bottom:none;}
+.mk-status{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;}
+.mk-pin{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.mk-pin.r{background:#4C8DFF;}
+.mk-pin.g{background:#34D399;}
+.mk-pin.d{background:#F16565;}
+.mk-pin.p{background:#565C64;}
+.mk-badge{display:inline-flex;align-items:center;font-size:9px;font-weight:500;padding:1px 6px;border-radius:4px;}
+.mk-badge.s{background:rgba(52,211,153,0.12);color:#34D399;}
+.mk-badge.b{background:rgba(76,141,255,0.12);color:#4C8DFF;}
+.mk-badge.w{background:rgba(245,166,35,0.12);color:#F5A623;}
+.mk-badge.d{background:rgba(241,101,101,0.12);color:#F16565;}
+.mk-badge.m{background:#1C2025;color:#8B9198;}
+.mk-cron{font-family:monospace;font-size:9px;color:#ECEEF0;background:#1C2025;padding:1px 5px;border-radius:3px;border:1px solid #262B31;}
+.mk-row-actions{display:flex;gap:3px;}
+.mk-icon-btn-sm{width:20px;height:20px;border-radius:4px;background:none;border:1px solid transparent;color:#8B9198;display:flex;align-items:center;justify-content:center;font-size:8px;}
+.mk-icon-btn-sm:hover{background:#1C2025;border-color:#262B31;color:#ECEEF0;}
+.mk-avatar{width:18px;height:18px;border-radius:50%;background:rgba(76,141,255,0.12);color:#4C8DFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:8px;flex-shrink:0;}
+.mk-user-cell{display:flex;align-items:center;gap:6px;}
+.mk-card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mk-group-card{background:#16191D;border:1px solid #262B31;border-radius:6px;padding:10px;}
+.mk-gname{font-size:10px;font-weight:600;color:#ECEEF0;margin-bottom:2px;}
+.mk-gdesc{font-size:8.5px;color:#8B9198;margin-bottom:8px;}
+.mk-gfoot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid #262B31;}
+.mk-avatars{display:flex;}
+.mk-avatars .mk-avatar{width:16px;height:16px;font-size:7px;border:1px solid #16191D;margin-left:-4px;}
+.mk-avatars .mk-avatar:first-child{margin-left:0;}
+.mk-tag-cloud{display:flex;flex-wrap:wrap;gap:5px;}
+.mk-tag-lg{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;background:#16191D;border:1px solid #262B31;border-radius:12px;font-size:9.5px;color:#ECEEF0;}
+.mk-tag-cnt{background:#1C2025;color:#8B9198;font-size:8.5px;padding:0 4px;border-radius:6px;}
+.mk-tag-del{color:#565C64;font-size:9px;}
+.mk-filters{display:flex;gap:5px;margin-bottom:8px;}
+.mk-chip-filter{height:22px;padding:0 10px;border:1px solid #262B31;border-radius:4px;color:#8B9198;font-size:9.5px;display:flex;align-items:center;cursor:pointer;}
+.mk-chip-filter.active{border-color:#4C8DFF;color:#ECEEF0;background:rgba(76,141,255,0.12);}
+.mk-doc-card{background:#16191D;border:1px solid #262B31;border-radius:6px;margin-bottom:6px;overflow:hidden;}
+.mk-doc-head{display:flex;align-items:center;gap:6px;padding:8px 10px;}
+.mk-doc-path{font-family:monospace;font-size:9px;color:#ECEEF0;}
+.mk-method{font-family:monospace;font-size:8.5px;font-weight:600;padding:1px 5px;border-radius:3px;}
+.mk-method.get{background:rgba(52,211,153,0.12);color:#34D399;}
+.mk-method.post{background:rgba(76,141,255,0.12);color:#4C8DFF;}
+.mk-method.del{background:rgba(241,101,101,0.12);color:#F16565;}
+
+/* gap table */
+.gap-table{width:100%;border-collapse:collapse;font-size:12px;}
+.gap-table th{text-align:left;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 12px;border-bottom:2px solid var(--border);}
+.gap-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+.gap-table tr:last-child td{border-bottom:none;}
+.gap-table tr:hover{background:var(--bg);}
+.tag-id{font-family:monospace;font-size:10.5px;font-weight:600;color:var(--signal);}
+.tag-pri{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;}
+.pri-high{background:var(--danger-bg);color:var(--danger);}
+.pri-mid{background:var(--warn-bg);color:var(--warn);}
+.pri-low{background:var(--done-bg);color:var(--done);}
+.pri-skip{background:#F1F2F4;color:#9CA3AF;}
+
+.note-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:24px;}
+.note-box h3{font-size:13px;font-weight:600;margin-bottom:6px;}
+.note-box p{color:var(--muted);font-size:12.5px;line-height:1.6;}
+
+/* current page snippets for comparison */
+.cur-mock{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:11px;}
+.cur-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;}
+.cur-badge.g{background:var(--success-bg);color:var(--success);}
+.cur-badge.s{background:var(--signal-bg);color:var(--signal);}
+.cur-badge.d{background:var(--danger-bg);color:var(--danger);}
+.cur-badge.w{background:var(--warn-bg);color:var(--warn);}
+.cur-badge.m{background:#F1F2F4;color:var(--muted);}
+.cur-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.cur-table th{text-align:left;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);padding:6px 10px;border-bottom:1px solid var(--border);}
+.cur-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;}
+.cur-table tr:last-child td{border-bottom:none;}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.stat-card .l{font-size:9.5px;color:var(--muted);margin-bottom:4px;}
+.stat-card .v{font-size:18px;font-weight:700;font-family:monospace;}
+.v.r{color:var(--danger);}
+.v.b{color:var(--signal);}
+.v.g{color:var(--success);}
+.cur-filter-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.cur-chip{height:24px;padding:0 10px;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:10.5px;display:flex;align-items:center;}
+.cur-chip.active{border-color:var(--signal);color:var(--ink);background:var(--signal-bg);}
+.cur-avatar{width:20px;height:20px;border-radius:50%;background:var(--signal-bg);color:var(--signal);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:8px;}
+.cur-user-cell{display:flex;align-items:center;gap:6px;}
+.cur-group-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:6px;}
+.cur-group-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);margin-top:8px;}
+.cur-tag-lg{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:10.5px;color:var(--ink);}
+.cur-tag-cnt{background:#F1F2F4;color:var(--muted);font-size:9px;padding:0 5px;border-radius:6px;}
+.ovr-score{display:flex;align-items:center;gap:16px;padding:20px 24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:40px;}
+.ovr-score .big{font-size:48px;font-weight:700;font-family:monospace;color:var(--signal);}
+.ovr-score .desc{color:var(--muted);font-size:13px;max-width:500px;}
+.page-link{font-size:11px;font-family:monospace;color:var(--signal);background:var(--signal-bg);padding:2px 8px;border-radius:4px;}
+.exc-panel-demo{border:1px solid var(--danger);border-radius:6px;padding:8px 10px;background:rgba(214,69,69,0.04);margin-bottom:8px;}
+.exc-panel-head{font-size:10px;font-weight:600;color:var(--danger);margin-bottom:5px;}
+.exc-row{display:flex;align-items:center;gap:8px;font-size:9.5px;padding:3px 0;color:var(--ink);}
+.exc-count{font-family:monospace;color:var(--danger);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>CronPilot 第三轮 Mockup 符合度评估</h1>
+<p class="lead">基于 <code>CronPilot-2026-full-mockup.html</code> 逐页对比 · 评估日期：2026-08-18</p>
+
+<!-- OVERALL SCORE -->
+<div class="ovr-score">
+  <div class="big">8.6</div>
+  <div class="desc">
+    <strong>当前总体符合度：8.6 / 10</strong><br>
+    Shell / 顶栏 / 用户管理 / 业务组 / 标签 / API文档 均已高度对齐。<br>
+    主要剩余偏差集中在：<b>审计日志（缺过滤芯片）</b>、<b>执行记录（有冗余 LOG ID 列）</b>、<b>操作记录（列结构差异）</b>。<br>
+    Dashboard 指标比 Mockup 更丰富（含 Exception Panel）属于功能超前而非偏离。
+  </div>
+</div>
+
+<div class="score-bar">
+  <div class="score-card green"><div class="label">Shell / 侧边栏</div><div class="value">10</div></div>
+  <div class="score-card green"><div class="label">顶栏</div><div class="value">9.5</div></div>
+  <div class="score-card yellow"><div class="label">任务中心</div><div class="value">7.5</div></div>
+  <div class="score-card yellow"><div class="label">执行记录</div><div class="value">7.0</div></div>
+  <div class="score-card yellow"><div class="label">操作记录</div><div class="value">6.5</div></div>
+  <div class="score-card green"><div class="label">用户管理</div><div class="value">9.0</div></div>
+  <div class="score-card green"><div class="label">业务组</div><div class="value">9.0</div></div>
+  <div class="score-card green"><div class="label">标签管理</div><div class="value">9.0</div></div>
+  <div class="score-card yellow"><div class="label">审计日志</div><div class="value">7.0</div></div>
+  <div class="score-card green"><div class="label">API 文档</div><div class="value">9.5</div></div>
+</div>
+
+<!-- GAP TABLE -->
+<div class="section">
+  <div class="section-head">
+    <h2>差距清单（偏差按优先级排序）</h2>
+  </div>
+  <table class="gap-table">
+    <thead>
+      <tr><th>ID</th><th>页面</th><th>偏差描述</th><th>优先级</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tag-id">Y1</td>
+        <td>审计日志</td>
+        <td>无过滤芯片 (全部 / 登录失败 / 权限变更)，使用文本框+下拉替代</td>
+        <td><span class="tag-pri pri-high">高</span></td>
+        <td>Mockup 中有明显的 3 个芯片过滤器，当前实现使用输入框组，交互差异大</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y2</td>
+        <td>执行记录</td>
+        <td>有 LOG ID 列，Mockup 无；缺少独立"响应码"列（当前合并在"返回内容"）</td>
+        <td><span class="tag-pri pri-high">高</span></td>
+        <td>Mockup 表格：任务 / 触发时间 / 耗时 / 响应码 / 状态 — 5 列干净；当前 6 列含冗余 ID</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y3</td>
+        <td>操作记录</td>
+        <td>有 ID 列；内容列过度展开（包含完整 req_url 等字段）；无独立"对象"列</td>
+        <td><span class="tag-pri pri-mid">中</span></td>
+        <td>Mockup：操作人 / 操作(badge) / 对象 / 时间 / 来源IP — 当前列结构不同</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y4</td>
+        <td>任务中心</td>
+        <td>统计卡指标与 Mockup 不同（异常任务/连续失败 vs 任务总数/24h成功率）</td>
+        <td><span class="tag-pri pri-mid">中</span></td>
+        <td>当前更聚焦告警维度（运维视角），Mockup 更综合（管理视角）；属于设计取舍，非错误</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y5</td>
+        <td>任务中心</td>
+        <td>Exception Panel（需要关注的任务红色告警块）不在 Mockup 设计中</td>
+        <td><span class="tag-pri pri-low">低/增值</span></td>
+        <td>这是超出 Mockup 的增值功能，属于设计演进，不需要移除</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y6</td>
+        <td>任务中心</td>
+        <td>任务列表列数更多（7 列 vs Mockup 3+ops）；有健康度/下次执行等 Mockup 无的列</td>
+        <td><span class="tag-pri pri-low">低/增值</span></td>
+        <td>功能更丰富，无需调整</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y7</td>
+        <td>用户管理</td>
+        <td>用户已由用户自定义为 9 列（含花名/岗位/密码状态等），与 Mockup 5 列不同</td>
+        <td><span class="tag-pri pri-skip">已确认</span></td>
+        <td>用户上一轮明确要求此布局，不视为偏差</td>
+      </tr>
+      <tr>
+        <td class="tag-id">Y8</td>
+        <td>业务组</td>
+        <td>Member count 数字形式（"人 2 名成员"），Mockup 用 Avatar 堆叠</td>
+        <td><span class="tag-pri pri-skip">已确认</span></td>
+        <td>用户上一轮明确要求数字成员数，不视为偏差</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- PAGE 1: DASHBOARD -->
+<div class="section">
+  <div class="section-head">
+    <h2>任务中心</h2>
+    <span class="badge-pill bp-warn">7.5/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup 设计</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head">
+          <div><div class="mk-h1">任务中心</div><div class="mk-sub">管理与监控所有定时任务</div></div>
+          <button class="mk-btn-primary" style="font-size:9px;height:20px;">+ 新建任务</button>
+        </div>
+        <div class="mk-stats">
+          <div class="mk-stat"><div class="mk-stat-label">任务总数</div><div class="mk-stat-value">128</div></div>
+          <div class="mk-stat"><div class="mk-stat-label">运行中</div><div class="mk-stat-value s">6</div></div>
+          <div class="mk-stat"><div class="mk-stat-label">今日失败</div><div class="mk-stat-value d">2</div></div>
+          <div class="mk-stat"><div class="mk-stat-label">24h 成功率</div><div class="mk-stat-value g">99.4%</div></div>
+        </div>
+        <div class="mk-filters" style="margin-bottom:8px;">
+          <div class="mk-chip-filter active">全部</div>
+          <div class="mk-chip-filter">运行中</div>
+          <div class="mk-chip-filter">异常</div>
+          <div class="mk-chip-filter">已下线</div>
+        </div>
+        <div class="mk-table-wrap">
+          <table class="mk-table">
+            <thead><tr><th>任务</th><th>调度策略</th><th>运行状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td><div style="font-weight:500;color:#ECEEF0;font-size:9.5px;">同步订单履约</div><div style="font-size:8.5px;color:#8B9198;font-family:monospace;">order-fulfillment</div></td><td><span class="mk-cron">*/5 * * * *</span></td><td><span class="mk-status"><span class="mk-pin r"></span><span style="color:#4C8DFF;font-size:9px;">运行中</span></span></td><td><div class="mk-row-actions"><span class="mk-icon-btn-sm">✏</span><span class="mk-icon-btn-sm">⏸</span></div></td></tr>
+              <tr><td><div style="font-weight:500;color:#ECEEF0;font-size:9.5px;">生成日活报表</div></td><td><span class="mk-cron">0 2 * * *</span></td><td><span class="mk-status"><span class="mk-pin g"></span><span style="color:#34D399;font-size:9px;">上次成功</span></span></td><td><div class="mk-row-actions"><span class="mk-icon-btn-sm">✏</span><span class="mk-icon-btn-sm">⏸</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+          <div><div style="font-size:13px;font-weight:600;">任务中心</div><div style="font-size:10px;color:var(--muted);">管理与监控所有定时任务 ✓</div></div>
+        </div>
+        <div class="stat-cards" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+          <div class="stat-card"><div class="l">异常任务</div><div class="v r">8</div></div>
+          <div class="stat-card"><div class="l">连续失败</div><div class="v r">8</div></div>
+          <div class="stat-card"><div class="l">运行中</div><div class="v b">6</div></div>
+          <div class="stat-card"><div class="l">今日失败</div><div class="v r">11</div></div>
+        </div>
+        <div style="border:1px solid #F5C6CB;border-radius:5px;padding:6px 8px;background:#FEF8F8;margin-bottom:8px;font-size:9.5px;">
+          <div class="exc-panel-head">⚠ 需要关注的任务 (5)</div>
+          <div class="exc-row"><span class="exc-count">×411</span> testbap <span style="color:var(--muted);font-size:8.5px;">最近失败：2026-08-10</span></div>
+          <div class="exc-row"><span class="exc-count">×103</span> admin-multi-group-task</div>
+        </div>
+        <div class="cur-filter-chips">
+          <span class="cur-chip">异常</span><span class="cur-chip">连续失败</span><span class="cur-chip">今日失败</span><span class="cur-chip active">全部</span>
+        </div>
+        <table class="cur-table" style="font-size:9.5px;">
+          <thead><tr><th>任务</th><th>调度策略</th><th>健康度</th><th>最近执行</th><th>下次执行</th><th>业务组</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--signal);font-weight:500;">tag-isolation-verify</td><td style="font-family:monospace;font-size:8.5px;">每小时第30分钟</td><td><span class="cur-badge d">● 异常</span></td><td style="font-family:monospace;font-size:8.5px;">458ms</td><td style="color:var(--signal);font-size:8.5px;">in 9 min</td><td style="font-size:8.5px;">支付业务</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:6px;font-size:9.5px;color:var(--muted);">△ 统计指标维度不同（告警 vs 综合）· △ Exception Panel 为增值功能 · △ 更多表格列</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: EXECUTION LOGS -->
+<div class="section">
+  <div class="section-head">
+    <h2>执行记录</h2>
+    <span class="badge-pill bp-warn">7.0/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 5 列干净结构</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:8px;">
+          <div><div class="mk-h1">执行记录</div><div class="mk-sub">全部任务的调度执行历史</div></div>
+        </div>
+        <div class="mk-filters" style="margin-bottom:8px;">
+          <div class="mk-chip-filter active">全部</div>
+          <div class="mk-chip-filter">失败</div>
+          <div class="mk-chip-filter">超时</div>
+        </div>
+        <div class="mk-table-wrap">
+          <table class="mk-table">
+            <thead><tr><th>任务</th><th>触发时间</th><th>耗时</th><th>响应码</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td><div style="font-weight:500;font-size:9px;color:#ECEEF0;">同步订单履约</div></td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 15:00:00</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">184ms</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">200</td><td><span class="mk-status"><span class="mk-pin g"></span><span style="color:#34D399;font-size:9px;">成功</span></span></td></tr>
+              <tr><td><div style="font-weight:500;font-size:9px;color:#ECEEF0;">清理过期缓存</div></td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 15:00:00</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">超时 30s</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">—</td><td><span class="mk-status"><span class="mk-pin d"></span><span style="color:#F16565;font-size:9px;">超时</span></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:8.5px;color:#8B9198;margin-top:8px;">无 ID 列 · 响应码独立一列 · 3 个芯片过滤器</div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — 6 列含 LOG ID</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:13px;font-weight:600;">执行记录</div><div style="font-size:10px;color:var(--muted);">全部任务的调度执行历史 ✓</div></div>
+        </div>
+        <div class="cur-filter-chips" style="margin-bottom:8px;">
+          <span class="cur-chip">● 非成功</span>
+          <span class="cur-chip active">全部</span>
+          <span class="cur-chip">仅失败</span>
+          <span class="cur-chip">仅异常</span>
+          <span class="cur-chip">仅成功</span>
+        </div>
+        <table class="cur-table" style="font-size:9px;">
+          <thead><tr><th style="color:var(--danger);">LOG ID △</th><th>任务名称</th><th>返回内容 △</th><th>执行时间</th><th>耗时</th><th>结果</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--danger);">12072</td><td style="font-weight:500;color:var(--signal);">admin-multi-group-task</td><td style="font-family:monospace;font-size:8px;color:var(--danger);">HTTP 404 · HTML Response</td><td style="font-family:monospace;font-size:8px;">2026-08-19 11:10</td><td style="font-family:monospace;font-size:8px;">522ms</td><td><span class="cur-badge d">× 失败</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          <span style="color:var(--danger);">△ LOG ID 列冗余</span> ·
+          <span style="color:var(--danger);">△ 响应码未独立（合并在返回内容）</span> ·
+          <span style="color:var(--warn);">△ 芯片更多但文案不同</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: OPERATION LOG -->
+<div class="section">
+  <div class="section-head">
+    <h2>操作记录</h2>
+    <span class="badge-pill bp-warn">6.5/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 5 列语义清晰</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:8px;">
+          <div><div class="mk-h1">操作记录</div><div class="mk-sub">用户在控制台中的变更历史</div></div>
+        </div>
+        <div class="mk-table-wrap">
+          <table class="mk-table">
+            <thead><tr><th>操作人</th><th>操作</th><th>对象</th><th>时间</th><th>来源 IP</th></tr></thead>
+            <tbody>
+              <tr><td style="color:#ECEEF0;font-size:9.5px;">张伟</td><td><span class="mk-badge b">修改</span></td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">order-fulfillment-sync</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 14:20</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">10.2.31.4</td></tr>
+              <tr><td style="color:#ECEEF0;font-size:9.5px;">李娜</td><td><span class="mk-badge d">下线</span></td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">legacy-promo-settle</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 11:03</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">10.2.31.9</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:8.5px;color:#8B9198;margin-top:8px;">无 ID 列 · "对象"列清晰 · 无冗长内容</div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — 有 ID 列 + 冗长内容列</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:13px;font-weight:600;">操作记录</div><div style="font-size:10px;color:var(--muted);">用户在控制台中的变更历史 ✓</div></div>
+        </div>
+        <table class="cur-table" style="font-size:9px;">
+          <thead><tr><th style="color:var(--danger);">ID △</th><th>用户</th><th>类型</th><th>内容 △</th><th>IP</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--danger);">17</td><td style="font-weight:500;">davytest</td><td><span class="cur-badge s" style="font-size:8px;">创建任务</span></td><td style="font-family:monospace;font-size:8px;color:var(--danger);">b4-browser-test · minute=*/10, req_url=https://...</td><td style="font-family:monospace;font-size:8px;">127.0.0.1</td><td style="font-family:monospace;font-size:8px;">2026-08-13</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          <span style="color:var(--danger);">△ ID 列冗余</span> ·
+          <span style="color:var(--danger);">△ 内容列过于冗长（含完整 req_url）</span> ·
+          <span style="color:var(--warn);">△ 无独立"对象"列（任务名）</span> ·
+          ✓ 操作 badge 已实现
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: USERS -->
+<div class="section">
+  <div class="section-head">
+    <h2>用户管理</h2>
+    <span class="badge-pill bp-ok">9.0/10 · 用户自定义布局</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 5 列 + Email 副标题</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:8px;">
+          <div><div class="mk-h1">用户管理</div><div class="mk-sub">4 名成员</div></div>
+          <button class="mk-btn-primary" style="font-size:8.5px;">邀请成员</button>
+        </div>
+        <div class="mk-table-wrap">
+          <table class="mk-table">
+            <thead><tr><th>用户</th><th>角色</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="padding:6px 10px;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <div class="mk-avatar">张</div>
+                    <div><div style="font-size:9.5px;font-weight:500;color:#ECEEF0;">张伟</div><div style="font-family:monospace;font-size:8px;color:#8B9198;">zhangwei@cronpilot.dev</div></div>
+                  </div>
+                </td>
+                <td><span class="mk-badge b">管理员</span></td>
+                <td><span class="mk-status"><span class="mk-pin g"></span><span style="font-size:9px;color:#34D399;">启用</span></span></td>
+                <td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2 分钟前</td>
+                <td><span class="mk-icon-btn-sm">✏</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — 9 列（用户要求）</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:13px;font-weight:600;">用户管理</div><div style="font-size:10px;color:var(--muted);">4 名成员 ✓</div></div>
+          <span style="font-size:9px;color:var(--signal);">+ 添加用户</span>
+        </div>
+        <table class="cur-table" style="font-size:8.5px;">
+          <thead><tr><th>用户名</th><th>花名</th><th>岗位</th><th>角色</th><th>状态</th><th>密码</th><th>业务组</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="cur-user-cell"><div class="cur-avatar">小</div><span style="font-weight:600;">testviewer</span></div></td>
+              <td>小查</td><td>测试</td>
+              <td><span class="cur-badge s" style="font-size:8px;">viewer</span></td>
+              <td><span class="cur-badge g" style="font-size:8px;">启用</span></td>
+              <td><span style="color:var(--muted);font-size:8px;">正常</span></td>
+              <td style="font-size:8px;">支付业务</td>
+              <td style="font-family:monospace;font-size:8px;">2026-08-12</td>
+              <td><span style="font-size:8px;color:var(--muted);">✏ 🔑 🔄 ⊘</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--success);">
+          ✓ Avatar ✓ 副标题 ✓ 图标操作按钮 ✓ 角色 badge<br>
+          △ 与 Mockup 的 5 列不同 — 用户上一轮明确要求此 9 列布局
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 5: GROUPS -->
+<div class="section">
+  <div class="section-head">
+    <h2>业务组</h2>
+    <span class="badge-pill bp-ok">9.0/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 卡片 + Avatar 堆叠</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:10px;">
+          <div><div class="mk-h1">业务组</div><div class="mk-sub">按团队划分任务归属与权限范围</div></div>
+          <button class="mk-btn-primary" style="font-size:8.5px;">+ 新建业务组</button>
+        </div>
+        <div class="mk-card-grid">
+          <div class="mk-group-card">
+            <div class="mk-gname">交易平台组</div>
+            <div class="mk-gdesc">负责订单、支付、履约相关的定时任务</div>
+            <div class="mk-gfoot">
+              <div class="mk-avatars"><div class="mk-avatar">张</div><div class="mk-avatar">李</div><div class="mk-avatar">+3</div></div>
+              <span class="mk-badge m">18 个任务</span>
+            </div>
+          </div>
+          <div class="mk-group-card">
+            <div class="mk-gname">数据平台组</div>
+            <div class="mk-gdesc">报表生成、数仓同步</div>
+            <div class="mk-gfoot">
+              <div class="mk-avatars"><div class="mk-avatar">王</div><div class="mk-avatar">+2</div></div>
+              <span class="mk-badge m">9 个任务</span>
+            </div>
+          </div>
+          <div class="mk-group-card">
+            <div class="mk-gname">基础设施组</div>
+            <div class="mk-gdesc">缓存清理、健康检查</div>
+            <div class="mk-gfoot">
+              <div class="mk-avatars"><div class="mk-avatar">张</div></div>
+              <span class="mk-badge m">6 个任务</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — 卡片 + 数字成员数（用户要求）</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:13px;font-weight:600;">业务组</div><div style="font-size:10px;color:var(--muted);">按团队划分任务归属与权限范围 ✓</div></div>
+          <span style="font-size:9px;color:var(--signal);">+ 新建业务组</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+          <div class="cur-group-card">
+            <div style="font-size:11px;font-weight:600;">风控业务</div>
+            <div style="font-size:9.5px;color:var(--muted);margin-top:2px;margin-bottom:8px;">风控业务和三方相关定时任务</div>
+            <div class="cur-group-foot"><span>人 2 名成员</span><span class="cur-badge m" style="font-size:8px;">6 个任务</span></div>
+          </div>
+          <div class="cur-group-card">
+            <div style="font-size:11px;font-weight:600;">支付业务</div>
+            <div style="font-size:9.5px;color:var(--muted);margin-top:2px;margin-bottom:8px;">支付相关定时任务</div>
+            <div class="cur-group-foot"><span>人 2 名成员</span><span class="cur-badge m" style="font-size:8px;">3 个任务</span></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:9px;color:var(--success);">
+          ✓ 卡片布局 ✓ 副标题 ✓ 任务数 badge<br>
+          △ 用数字"人 N 名成员"替代 Avatar 堆叠（用户要求）
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 6: TAGS -->
+<div class="section">
+  <div class="section-head">
+    <h2>标签管理</h2>
+    <span class="badge-pill bp-ok">9.0/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 纯 Tag Cloud</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:10px;">
+          <div><div class="mk-h1">标签管理</div><div class="mk-sub">用于任务分类与筛选</div></div>
+        </div>
+        <div class="mk-tag-cloud">
+          <div class="mk-tag-lg">交易 <span class="mk-tag-cnt">18</span> <span class="mk-tag-del">×</span></div>
+          <div class="mk-tag-lg">数据 <span class="mk-tag-cnt">9</span> <span class="mk-tag-del">×</span></div>
+          <div class="mk-tag-lg">基础设施 <span class="mk-tag-cnt">6</span> <span class="mk-tag-del">×</span></div>
+          <div class="mk-tag-lg">P0 <span class="mk-tag-cnt">4</span> <span class="mk-tag-del">×</span></div>
+          <div class="mk-tag-lg">已弃用 <span class="mk-tag-cnt">2</span> <span class="mk-tag-del">×</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — Tag Cloud + 详情表格</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:600;">标签管理</div><div style="font-size:10px;color:var(--muted);">用于任务分类与筛选 ✓</div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          <div class="cur-tag-lg">JP <span class="cur-tag-cnt">1</span></div>
+          <div class="cur-tag-lg">isolation-test <span class="cur-tag-cnt">1</span></div>
+          <div class="cur-tag-lg">菲律宾三方 <span class="cur-tag-cnt">1</span></div>
+        </div>
+        <table class="cur-table" style="font-size:9px;">
+          <thead><tr><th>标签名</th><th>使用数</th><th>业务组</th><th>关联任务</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600;">JP</td><td style="color:var(--signal);">1</td><td>支付业务</td><td style="font-family:monospace;font-size:8px;">cross-group-tag-test</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--success);">✓ Tag Cloud ✓ 副标题 ✓ 删除按钮<br>+ 额外详情表格（超出 Mockup，为增值功能）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 7: AUDIT LOGS -->
+<div class="section">
+  <div class="section-head">
+    <h2>审计日志</h2>
+    <span class="badge-pill bp-warn">7.0/10</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-panel panel-mockup">
+      <div class="compare-panel-head">Mockup — 芯片过滤 + 5 列简洁表</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div class="mk-page-head" style="margin-bottom:8px;">
+          <div><div class="mk-h1">审计日志</div><div class="mk-sub">安全相关事件的完整留痕</div></div>
+        </div>
+        <div class="mk-filters" style="margin-bottom:8px;">
+          <div class="mk-chip-filter active">全部</div>
+          <div class="mk-chip-filter">登录失败</div>
+          <div class="mk-chip-filter">权限变更</div>
+        </div>
+        <div class="mk-table-wrap">
+          <table class="mk-table">
+            <thead><tr><th>事件</th><th>用户</th><th>时间</th><th>IP</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr><td style="color:#ECEEF0;font-size:9.5px;">登录</td><td style="font-size:9.5px;color:#ECEEF0;">张伟</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 09:02</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">10.2.31.4</td><td><span class="mk-badge s">成功</span></td></tr>
+              <tr><td style="color:#ECEEF0;font-size:9.5px;">登录</td><td style="font-size:9.5px;color:#ECEEF0;">unknown</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-11 03:11</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">203.0.113.9</td><td><span class="mk-badge d">失败 ×5</span></td></tr>
+              <tr><td style="color:#ECEEF0;font-size:9.5px;">角色变更</td><td style="font-size:9.5px;color:#ECEEF0;">张伟→李娜</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">2026-08-10 16:40</td><td style="font-family:monospace;font-size:8.5px;color:#8B9198;">10.2.31.4</td><td><span class="mk-badge s">成功</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="compare-panel panel-current">
+      <div class="compare-panel-head">当前实现 — 输入框过滤 + 8 列详细表</div>
+      <div class="compare-panel-body" style="padding:12px;">
+        <div style="margin-bottom:8px;"><div style="font-size:13px;font-weight:600;">审计日志</div><div style="font-size:10px;color:var(--muted);">安全相关事件的完整留痕 ✓</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+          <input type="text" placeholder="用户名" style="height:22px;padding:0 8px;border:1px solid var(--border);border-radius:4px;font-size:9px;width:80px;" disabled>
+          <select style="height:22px;border:1px solid var(--border);border-radius:4px;font-size:9px;" disabled><option>全部动作</option></select>
+          <select style="height:22px;border:1px solid var(--border);border-radius:4px;font-size:9px;" disabled><option>全部结果</option></select>
+        </div>
+        <table class="cur-table" style="font-size:8.5px;">
+          <thead><tr><th style="color:var(--danger);">ID △</th><th>操作人</th><th>操作</th><th>目标类型</th><th>目标名</th><th>详情</th><th>IP</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--danger);">259</td><td>admin</td><td>登录</td><td style="font-size:8px;">user</td><td style="font-size:8px;">admin</td><td style="font-size:8px;">张号 admin</td><td style="font-family:monospace;font-size:8px;">127.0.0.1</td><td style="font-family:monospace;font-size:8px;">2026-08</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted);">
+          <span style="color:var(--danger);">△ 无快捷芯片过滤（Mockup: 全部/登录失败/权限变更）</span><br>
+          <span style="color:var(--danger);">△ ID 列冗余</span> ·
+          <span style="color:var(--warn);">△ 8 列 vs Mockup 5 列（细节更多）</span> ·
+          ✓ 副标题
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 8: API DOC -->
+<div class="section">
+  <div class="section-head">
+    <h2>API 文档</h2>
+    <span class="badge-pill bp-done">9.5/10</span>
+  </div>
+  <div class="note-box">
+    <h3>✓ 高度符合</h3>
+    <p>页面副标题 "使用 API Token 通过接口管理任务" ✓ · HTTP 方法 badge（GET/POST/DELETE 带颜色）✓ · 接口路径 + 说明 ✓ · 代码块 ✓ · 折叠/展开 card 结构 ✓。当前实现比 Mockup 覆盖更多接口（6+ vs 3），是增值而非偏差。</p>
+  </div>
+</div>
+
+<!-- RECOMMENDATIONS -->
+<div class="section">
+  <div class="section-head">
+    <h2>可执行优化建议（优先级排序）</h2>
+  </div>
+  <table class="gap-table">
+    <thead>
+      <tr><th>优先级</th><th>偏差 ID</th><th>建议操作</th><th>工作量</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag-pri pri-high">高</span></td>
+        <td class="tag-id">Y1</td>
+        <td>审计日志：在搜索栏上方添加 3 个快捷芯片（全部 / 登录失败 / 权限变更），点击设置 action 过滤条件</td>
+        <td>小 (~1h)</td>
+      </tr>
+      <tr>
+        <td><span class="tag-pri pri-high">高</span></td>
+        <td class="tag-id">Y2</td>
+        <td>执行记录：隐藏 LOG ID 列；将"返回内容"拆分为"响应码"（HTTP 状态码）和可选的内容摘要</td>
+        <td>小 (~1h)</td>
+      </tr>
+      <tr>
+        <td><span class="tag-pri pri-mid">中</span></td>
+        <td class="tag-id">Y3</td>
+        <td>操作记录：隐藏 ID 列；"内容"列截断并 tooltip 展示；添加独立"任务名"列（当前在 content 里）</td>
+        <td>中 (~2h)</td>
+      </tr>
+      <tr>
+        <td><span class="tag-pri pri-mid">中</span></td>
+        <td class="tag-id">Y4</td>
+        <td>任务中心统计卡：可考虑在现有 4 卡基础上新增一行（任务总数 + 24h 成功率）共 6 卡</td>
+        <td>中 (~2h)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="text-align:center;color:var(--faint);font-size:11px;padding-top:32px;border-top:1px solid var(--border);">
+  CronPilot 第三轮 Mockup 符合度评估 · 生成于 2026-08-18
+</div>
+</div>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="UI重设计-第三轮Mockup评估Demo.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

@@ -68,7 +68,7 @@ bash scripts/cronpilot.sh test       # 自动 venv 下跑单测
 
 ### 2.1 前端开发环境（可选 — 仅修改 Vue 组件时需要）
 
-**生产环境不需要 Node.js**。Vue 构建产物（`app/static/js/*.js`）已提交到仓库，Flask 直接托管。
+**生产环境不需要 Node.js**。Vue 构建产物（`app/static/dist/*.js`）已提交到仓库，Flask 直接托管。
 
 仅在修改 `frontend/src/` 下 Vue 组件源码后，需要 Node.js 重新构建：
 
@@ -79,7 +79,7 @@ nvm install --lts
 
 cd frontend
 npm install        # 依赖装到 frontend/node_modules/（项目级隔离，不污染系统）
-npm run build      # 产物输出到 app/static/js/
+npm run build      # 产物输出到 app/static/dist/
 ```
 
 | 环境 | Python | Node.js |
@@ -103,7 +103,7 @@ bash scripts/cronpilot.sh start
 | 空库首次 | 自动种子用户名 `admin`；初始密码 = `conf.ini` → `login_pwd`（示例多为 `changeme`） |
 | 日常改密 | 登录后导航 **修改密码**（任意角色，自助）；或 admin **用户管理** → 编辑 →「新密码」（`user:manage`） |
 | `login_pwd` | **仅种子用**；表已有用户后改此项并重启**不会**改库内密码 |
-| 不提供 | 登录页「忘记密码」 |
+| 忘记密码 | 登录页「忘记密码？」链接 → 提示联系管理员重置（OPT-P1-10） |
 
 ### 4. 测试
 
@@ -282,7 +282,7 @@ server {
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/docs/
 # 期望 200
 
-bash scripts/cronpilot.sh test        # 全量单测（333+ 用例）
+bash scripts/cronpilot.sh test        # 全量单测（669 用例）
 ```
 
 ## Release Notes
@@ -322,6 +322,11 @@ GitHub Actions：
 | **Frontend dist freshness** | 校验 `app/static/dist/` 构建产物与 `frontend/src/` 源码一致 |
 | **Version consistency** | 校验 git tag 与 README/路线图/RELEASE_NOTES 版本列表一致 |
 | **Docker install verify** | Docker 环境安装脚本验证 |
+| **Ruff lint** | Python 代码风格检查（`ruff check`） |
+| **Smoke routes** | 全路由可达性冒烟（86 条路由，HTTP 200/302 断言） |
+| **UI contract** | Redesign 模板结构契约检查 |
+| **Doc completeness** | 全部 HTML 文档在 `doc/index.html` 中注册 |
+| **Visual regression** | UI 视觉回归检查 |
 
 文档含：**[INSTALL.md](INSTALL.md)**、**[交付状态与路线图](doc/交付状态与路线图.html)**、**[RBAC 详设](doc/design/RBAC架构设计方案.html)**、**[依赖升级 RFC](doc/deps/依赖升级RFC.html)**、架构设计、详细技术方案、**[非 Docker 部署指南](doc/ops/非Docker部署指南.html)**、Plombery 对比、详版 PRD、P0 测试手册、Release Notes 等。
 
@@ -346,7 +351,7 @@ app/
   static/dist/       # Vue 构建产物（JS + CSS）
 frontend/            # Vue 3 组件源码（Vite 构建；生产无需 Node.js）
 doc/                 # 技术文档源文件（HTML + 同步 MD）
-tests/               # 单测（P0 / RBAC / S6 / form guard 等，333+ 用例）
+tests/               # 单测（P0 / RBAC / S6 / form guard 等，669 用例）
 scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 ```
 

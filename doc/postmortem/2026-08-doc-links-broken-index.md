@@ -44,6 +44,7 @@ python scripts/check_doc_links.py --check
 | 措施 | 落地位置 | 验证命令 |
 | --- | --- | --- |
 | 将 `check_doc_links.py --check` 作为 CI 阻断性门禁 | CI workflow / 本地 `cronpilot.sh test` | `python scripts/check_doc_links.py --check` |
+| 嵌套子目录中的 footer 链接使用 `../../index.html` 而非裸 `index.html`（2026-09 追加：`dashboard-table-overflow-demo.html` 同根因修复） |
 | 未来新增 `doc/` 子目录时，同步创建 `index.html` | `.cursor/rules/cronpilot-documentation.mdc`（已有相关规范） | `ls doc/*/index.html` |
 
 [文档索引](index.html) · [Markdown](2026-08-doc-links-broken-index.md) · [索引](index.html)

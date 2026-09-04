@@ -90,6 +90,13 @@
     .b-draft { background: #fef3c7; color: #92400e; }
     .b-auth { background: #e0e7ff; color: #3730a3; }
     .b-sub { background: #f1f5f9; color: #475569; }
+    .b-archive { background: #f1f5f9; color: #64748b; }
+    section.dim[data-tone="archive"] > h2 { border-color: #94a3b8; }
+    .archive-sub {
+      font-size: .9rem; font-weight: 600; color: #475569;
+      margin: 1.25rem 0 .5rem; padding-left: .85rem;
+    }
+    .archive-sub:first-of-type { margin-top: 0; }
     .nest {
       margin: .35rem 0 0; padding: 0 0 0 0.9rem; list-style: none;
       border-left: 2px solid #e2e8f0;
@@ -124,6 +131,7 @@
     <a href="#deps">⑥ 依赖演进</a>
     <a href="#ops">⑦ 部署运维</a>
     <a href="#qa">⑧ 验收与合规</a>
+    <a href="#archive">⑨ 归档文档</a>
   </nav>
 
   <!-- ① 项目管理与进度 -->
@@ -255,7 +263,7 @@
             <li><span class="badge b-sub">规格</span> <a href="design/UI重设计-视觉设计规格书.html">视觉设计规格书</a>（全局 Token + CSS 提取）</li>
             <li><span class="badge b-sub">规格</span> <a href="design/UI重设计-逐页设计规格书.html">逐页设计规格书</a>（16 页 + Overlay + 动画 + ARIA）</li>
             <li><span class="badge b-sub">计划</span> <a href="design/UI重设计-详细实施与验收计划v2.html">详细实施与验收计划 v2</a></li>
-            <li><span class="badge b-sub">归档</span> <a href="design/UI重设计-实施架构与过渡方案.html">实施架构与过渡方案</a>（已合入统一手册）</li>
+            <li><span class="badge b-sub">归档</span> 实施架构与过渡方案 → <a href="#archive-deprecated">见归档</a>（已合入统一手册）</li>
           </ul>
         </div>
         <div class="links"><a href="design/UI重设计-统一执行手册.html">HTML</a><a href="design/UI重设计-统一执行手册.md">MD</a></div>
@@ -276,7 +284,11 @@
             <li><span class="badge b-sub">专题</span> <a href="design/API角色权限校验-S5-2026-08.html">API 角色权限校验 S-5</a>（API POST 端点缺失角色能力校验 → check_api_permission）</li>
             <li><span class="badge b-sub">评估</span> <a href="design/API安全与质量全面评估-2026-08.html">API 安全与质量全面评估</a>（11 端点 · 9 已修复 · 7 待评估 · 防护总结）</li>
             <li><span class="badge b-sub">专题</span> <a href="design/API-auth限流-B13-2026-08.html">API Auth 暴力破解限流 B-13</a>（复用 LoginLimiter，API/Web 共享计数器）</li>
-            <li><span class="badge b-sub">评估</span> <a href="design/Redesign代码质量全面评估报告-R7-2026-08.html">R7 全面评估报告</a>（BE: 1P0 + 6P1 + 6P2 · FE: 9P1 + 11P2）</li>
+            <li><span class="badge b-sub">归档</span> Redesign 代码质量评估报告 R1–R7 → <a href="#archive-quality">见归档</a>（当前权威：<a href="design/Redesign代码质量全面评估报告-R8-2026-09.html">R8</a>）</li>
+            <li><span class="badge b-sub">计划</span> <a href="design/Redesign前端代码质量评估与优化计划.html">CronPilot Redesign 前端代码质量评估与深度复盘</a>（CSS 层 7 问题结构性分析 · 优化计划）</li>
+            <li><span class="badge b-sub">P0/P1</span> <a href="design/Redesign-P0P1问题根因分析与修复设计.html">Redesign P0/P1 问题根因分析与修复设计</a>（Redesign P0/P1 问题根因 · OPT-P1-16 关联）</li>
+            <li><span class="badge b-sub">技术债</span> <a href="design/Redesign剩余技术债根因分析与修复设计.html">Redesign 剩余技术债根因分析与修复设计</a>（Redesign 剩余技术债全面 Review 与修复）</li>
+            <li><span class="badge b-sub">全量审查</span> <a href="design/Redesign功能页全量审查与修复计划.html">Redesign 功能页全量审查 — 问题复盘与修复计划</a>（功能页全量审查 · 三阶段决策根因 · 修复计划）</li>
             <li><span class="badge b-sub">专题</span> <a href="design/集成测试分层策略-2026-09.html">集成测试分层策略</a>（L2 临时文件 SQLite · 持久化场景 + API scope e2e）</li>
             <li><span class="badge b-sub">评估</span> <a href="design/Redesign代码质量全面评估报告-R8-2026-09.html">R8 全面评估报告</a>（BE: 3P0 + 12P1 + 18P2 · FE: 9P1 + 15P2）</li>
           </ul>
@@ -340,6 +352,233 @@
           <span class="blurb">调度器/cron_check 去除裸 SQL，为 SA 2.0 铺路</span>
         </div>
         <div class="links"><a href="deps/Tier3前置收束设计.html">HTML</a><a href="deps/Tier3前置收束设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-sub">归档</span>
+          <a href="design/CronPilot-2026-redesign-mockup.html">UI 重设计 · Mockup 与对比评估系列</a>
+          <span class="blurb">OPT-P1-16 权威 Mockup · 15 轮对比评估 · Demo 与错误记录</span>
+          <ul class="nest">
+            <li><span class="badge b-sub">Mockup</span> <a href="design/CronPilot-2026-redesign-mockup.html">CronPilot 2026 — 重设计完整 Mockup（目标态）</a>（2026 重设计完整 Mockup · 16 页目标态 · 权威视觉基准）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/UI交互重设计综合方案.html">CronPilot 2026 — UI/交互重设计综合评估与方案</a>（OPT-P1-16 · UI/交互重设计综合评估与方案）</li>
+            <li><span class="badge b-sub">Mockup</span> <a href="design/UI重设计-Mockup审查与实施方案.html">CronPilot 2026 — UI 重设计 Mockup 审查结论与分批实施方案</a>（Mockup 审查结论与分批实施方案）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/UI重设计-逐页对比核实计划.html">UI 重设计 — 逐页对比核实计划</a>（逐页逐项对比核实系统方法论）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/UI重设计-顶栏精化方案.html">CronPilot 顶栏精化方案 — Demo 对比</a>（顶栏精化 Demo 对比）</li>
+            <li><span class="badge b-sub">归档</span> Mockup 评估历史（第 2–14 轮）→ <a href="#archive-eval-rounds">见归档</a>（当前权威：<a href="design/UI重设计-第十五轮Mockup对比评估.html">第 15 轮</a>）</li>
+            <li><span class="badge b-sub">Mockup</span> <a href="design/UI重设计-第十五轮Mockup对比评估.html">第十五轮 Mockup 对比评估</a>（第十五轮 Mockup 对比评估 · 终版结论）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/UI重设计-X2X3对比Demo.html">CronPilot UI X2+X3 对比 Demo</a>（任务中心 X2/X3 偏差当前 vs 建议修复）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/UI重设计-groups-tags-方案对比Demo.html">Groups &amp; Tags 视觉方案对比 Demo</a>（Groups & Tags 卡片网格 vs 表格方案对比）</li>
+            <li><span class="badge b-sub">Demo</span> <a href="design/redesign-全程错误记录.html">Agent 对话全程错误记录与复盘</a>（Agent 对话全程错误记录与复盘汇总）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="design/CronPilot-2026-redesign-mockup.html">HTML</a><a href="design/CronPilot-2026-redesign-mockup.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/DashboardService提取重构设计.html">Dashboard / 任务中心设计系列</a>
+          <span class="blurb">统计服务提取 · Scope 隔离 · 筛选文案 · 健康度语义 · 溢出 Demo</span>
+          <ul class="nest">
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/DashboardService提取重构设计.html">DashboardService 提取重构设计</a>（Dashboard 统计逻辑提取至 dashboard_service · 视图层瘦身）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/Dashboard统计卡片文案优化设计.html">Dashboard 统计卡片文案优化设计</a>（OPT-P1-17 · 统计卡片文案与语义对齐）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/Dashboard统计指标Scope隔离修复设计.html">Dashboard 统计指标 Scope 隔离修复设计</a>（筛选切换时全局统计卡片不应随列表过滤变化）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心筛选按钮视觉统一与文案优化设计.html">任务中心筛选按钮视觉统一与文案优化设计</a>（Dashboard 筛选按钮视觉与文案统一）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心逾期未执行提示设计.html">任务中心「逾期未执行」提示设计</a>（「持续异常」与「今日失败」数据差异说明设计）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度统计语义优化设计.html">健康度统计语义优化设计</a>（Dashboard「持续异常」与健康度列语义对齐）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/screenshots/dashboard-table-overflow-demo.html">Dashboard 操作下拉菜单重叠修复 — 对比 Demo</a>（Dashboard 操作下拉菜单重叠修复对比 Demo）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="design/DashboardService提取重构设计.html">HTML</a><a href="design/DashboardService提取重构设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/Phase-R1-CSS架构统一实施方案.html">Redesign CSS 架构系列（Phase R1–R5）</a>
+          <span class="blurb">CSS 分层 · 内联清零 · 死代码 · 硬编码颜色 · F5 JS 精简</span>
+          <ul class="nest">
+            <li><span class="badge b-sub">CSS</span> <a href="design/Phase-R1-CSS架构统一实施方案.html">Phase R1 — CSS 架构统一 详细实施方案</a>（CSS 分层架构 · 内联清零 · console-theme + redesign-* 系列）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/Phase-R2-R3必要性分析与根因复盘.html">Phase R2/R3 必要性深度分析与根因复盘</a>（task_detail/form/run_inspector 三页 CSS 架构补全根因）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/Phase-R5-微优化设计.html">Phase R5 微优化 — prefers-reduced-motion 补全 + Script defer</a>（prefers-reduced-motion 补全 + Script defer 策略）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/F5-common-js精简设计.html">F5: common.js 精简 — 设计文档</a>（Redesign 移除 wind.js 依赖 · common-redesign.js 精简）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/CSS内联膨胀防护机制设计.html">CSS 内联膨胀防护机制设计 — 从 R1 治标到治本</a>（Phase R1 治标到治本 · check_ui_contract 门禁防内联 CSS 回潮）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/CSS死代码清理与命名统一设计.html">CSS 死代码清理与命名统一设计</a>（components.css 死代码检测 · 命名统一 · check_dead_css 门禁）</li>
+            <li><span class="badge b-sub">CSS</span> <a href="design/CSS硬编码颜色修复设计.html">Redesign CSS 硬编码颜色、重复定义与 Print 选择器修复</a>（Redesign CSS 硬编码颜色、重复定义与 Print 选择器修复）</li>
+          </ul>
+        </div>
+        <div class="links"><a href="design/Phase-R1-CSS架构统一实施方案.html">HTML</a><a href="design/Phase-R1-CSS架构统一实施方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/P0问题修复设计.html">P0 问题修复设计方案</a>
+          <span class="blurb">P0 级前端/后端/安全关键问题批量修复方案</span>
+        </div>
+        <div class="links"><a href="design/P0问题修复设计.html">HTML</a><a href="design/P0问题修复设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行记录筛选AJAX化设计.html">执行记录筛选AJAX化设计 — OPT-P1-18</a>
+          <span class="blurb">OPT-P1-18 · 执行记录筛选 AJAX 局部刷新</span>
+        </div>
+        <div class="links"><a href="design/执行记录筛选AJAX化设计.html">HTML</a><a href="design/执行记录筛选AJAX化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/操作记录与审计日志AJAX化设计.html">操作记录与审计日志筛选AJAX化设计 — OPT-P1-19</a>
+          <span class="blurb">OPT-P1-19 · 操作记录与审计日志 AJAX 化</span>
+        </div>
+        <div class="links"><a href="design/操作记录与审计日志AJAX化设计.html">HTML</a><a href="design/操作记录与审计日志AJAX化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行记录筛选条件Bug修复与视觉优化设计.html">执行记录筛选条件 Bug 修复与视觉优化设计</a>
+          <span class="blurb">「仅异常」筛选 Bug · 视觉优化</span>
+        </div>
+        <div class="links"><a href="design/执行记录筛选条件Bug修复与视觉优化设计.html">HTML</a><a href="design/执行记录筛选条件Bug修复与视觉优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行记录结果列细分展示设计.html">执行记录结果列细分展示设计</a>
+          <span class="blurb">失败/异常/成功结果列细分展示</span>
+        </div>
+        <div class="links"><a href="design/执行记录结果列细分展示设计.html">HTML</a><a href="design/执行记录结果列细分展示设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行记录状态显示精简设计.html">执行记录状态显示精简设计</a>
+          <span class="blurb">结果列细分后状态显示精简</span>
+        </div>
+        <div class="links"><a href="design/执行记录状态显示精简设计.html">HTML</a><a href="design/执行记录状态显示精简设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行记录标识符与术语统一设计.html">执行记录标识符与术语统一设计</a>
+          <span class="blurb">log_id/trace_id 术语与标识符统一</span>
+        </div>
+        <div class="links"><a href="design/执行记录标识符与术语统一设计.html">HTML</a><a href="design/执行记录标识符与术语统一设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/执行结果判定逻辑优化设计.html">执行结果判定逻辑优化设计</a>
+          <span class="blurb">HTTP 200 误判失败 · 结果判定逻辑优化</span>
+        </div>
+        <div class="links"><a href="design/执行结果判定逻辑优化设计.html">HTML</a><a href="design/执行结果判定逻辑优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/侧边栏折叠功能设计.html">侧边栏折叠功能</a>
+          <span class="blurb">Redesign 侧边栏折叠/展开 · 小屏适配</span>
+        </div>
+        <div class="links"><a href="design/侧边栏折叠功能设计.html">HTML</a><a href="design/侧边栏折叠功能设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/用户管理查看编辑分离设计.html">用户管理查看-编辑分离设计</a>
+          <span class="blurb">查看/编辑分离 · 降低误操作风险</span>
+        </div>
+        <div class="links"><a href="design/用户管理查看编辑分离设计.html">HTML</a><a href="design/用户管理查看编辑分离设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/用户管理业务组列显示优化设计.html">用户管理业务组列显示优化设计</a>
+          <span class="blurb">业务组列 tag 溢出显示优化</span>
+        </div>
+        <div class="links"><a href="design/用户管理业务组列显示优化设计.html">HTML</a><a href="design/用户管理业务组列显示优化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/个人资料页补充个人信息设计.html">个人资料页补充个人信息设计</a>
+          <span class="blurb">个人资料页补充花名/邮箱/岗位等字段</span>
+        </div>
+        <div class="links"><a href="design/个人资料页补充个人信息设计.html">HTML</a><a href="design/个人资料页补充个人信息设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/注册审批结果状态显示设计.html">注册审批结果状态显示设计</a>
+          <span class="blurb">注册审批通过/拒绝结果状态展示</span>
+        </div>
+        <div class="links"><a href="design/注册审批结果状态显示设计.html">HTML</a><a href="design/注册审批结果状态显示设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/表单字段级错误提示设计.html">表单字段级错误提示设计</a>
+          <span class="blurb">OPT-P1-14 · 字段级 inline 错误提示</span>
+        </div>
+        <div class="links"><a href="design/表单字段级错误提示设计.html">HTML</a><a href="design/表单字段级错误提示设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/表单体验优化专业评估.html">表单体验优化专业评估</a>
+          <span class="blurb">OPT-P1-14 + 登录限流 + 表单 UX 评估</span>
+        </div>
+        <div class="links"><a href="design/表单体验优化专业评估.html">HTML</a><a href="design/表单体验优化专业评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/认证页品牌标识与产品描述设计.html">认证页品牌标识与产品描述设计</a>
+          <span class="blurb">登录/注册页品牌标识与 tagline 设计</span>
+        </div>
+        <div class="links"><a href="design/认证页品牌标识与产品描述设计.html">HTML</a><a href="design/认证页品牌标识与产品描述设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/全站图标迁移至Heroicons设计.html">全站图标迁移至 Heroicons 设计</a>
+          <span class="blurb">Feather→Heroicons 全站图标迁移方案</span>
+        </div>
+        <div class="links"><a href="design/全站图标迁移至Heroicons设计.html">HTML</a><a href="design/全站图标迁移至Heroicons设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/图标规范化与替换设计.html">图标规范化与替换设计</a>
+          <span class="blurb">inline SVG 图标规范 · 深色/浅色主题</span>
+        </div>
+        <div class="links"><a href="design/图标规范化与替换设计.html">HTML</a><a href="design/图标规范化与替换设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/色系统一设计方案.html">CronPilot 色系统一设计方案（RFC）</a>
+          <span class="blurb">OPT-P1-15 · 色系统一 RFC</span>
+        </div>
+        <div class="links"><a href="design/色系统一设计方案.html">HTML</a><a href="design/色系统一设计方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/色系统一-变更Demo.html">CronPilot 色系统一 — 视觉 Demo</a>
+          <span class="blurb">当前三套混用 vs 统一色系方案 B Demo</span>
+        </div>
+        <div class="links"><a href="design/色系统一-变更Demo.html">HTML</a><a href="design/色系统一-变更Demo.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/brand-icon-candidates.html">CronPilot 品牌图标设计方案（第三轮）</a>
+          <span class="blurb">15 个品牌图标候选方案 · 第三轮设计</span>
+        </div>
+        <div class="links"><a href="design/brand-icon-candidates.html">HTML</a><a href="design/brand-icon-candidates.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/brand-icon-variant-5c.html">CronPilot 图标 — #5 频率脉冲 C 形变体</a>
+          <span class="blurb">#5 频率脉冲 C 形弧环变体对比</span>
+        </div>
+        <div class="links"><a href="design/brand-icon-variant-5c.html">HTML</a><a href="design/brand-icon-variant-5c.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/孤儿Job监控告警设计.html">孤儿 Job 监控告警设计</a>
+          <span class="blurb">APScheduler 孤儿 Job 监控与告警</span>
+        </div>
+        <div class="links"><a href="design/孤儿Job监控告警设计.html">HTML</a><a href="design/孤儿Job监控告警设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/系统对账安全加固设计.html">系统对账安全加固设计</a>
+          <span class="blurb">系统对账端点安全加固</span>
+        </div>
+        <div class="links"><a href="design/系统对账安全加固设计.html">HTML</a><a href="design/系统对账安全加固设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/时间戳存储格式优化评估.html">时间戳存储格式优化评估 — VARCHAR vs DATETIME vs BIGINT</a>
+          <span class="blurb">VARCHAR vs DATETIME vs BIGINT 格式评估</span>
+        </div>
+        <div class="links"><a href="design/时间戳存储格式优化评估.html">HTML</a><a href="design/时间戳存储格式优化评估.md">MD</a></div>
       </li>
       <li>
         <div class="title">
@@ -463,6 +702,55 @@
       </li>
       <li>
         <div class="title">
+          <span class="badge b-done">已交付</span> <a href="design/V1下线完成报告-Batch1-3-2026-08.html">V1 UI 下线完成报告 — Batch 1-3</a>
+          <span class="blurb">V1 UI 完全移除 · Batch 1-3 完成报告</span>
+        </div>
+        <div class="links"><a href="design/V1下线完成报告-Batch1-3-2026-08.html">HTML</a><a href="design/V1下线完成报告-Batch1-3-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/V1下线方案设计.html">CronPilot V1 下线方案 — 设计文档</a>
+          <span class="blurb">V1 Bootstrap/Simpleboot 界面下线总体方案</span>
+        </div>
+        <div class="links"><a href="design/V1下线方案设计.html">HTML</a><a href="design/V1下线方案设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/V1下线Pre-check报告-2026-08.html">V1 下线 Pre-check 报告 — 2026-08</a>
+          <span class="blurb">V1 下线 Pre-check · 删除前安全审计</span>
+        </div>
+        <div class="links"><a href="design/V1下线Pre-check报告-2026-08.html">HTML</a><a href="design/V1下线Pre-check报告-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="design/V1下线Batch4-5方案设计.html">V1 下线 Batch 4-5 方案设计</a>
+          <span class="blurb">V1 下线 Batch 4-5 · 残余清理方案</span>
+        </div>
+        <div class="links"><a href="design/V1下线Batch4-5方案设计.html">HTML</a><a href="design/V1下线Batch4-5方案设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span> <a href="design/安全问题修复设计-S1至S5.html">安全问题修复设计：S1–S5（登出CSRF / 标签越权 / XSS / 异常泄露）</a>
+          <span class="blurb">登出 CSRF · 标签越权 · XSS · 异常泄露修复</span>
+        </div>
+        <div class="links"><a href="design/安全问题修复设计-S1至S5.html">HTML</a><a href="design/安全问题修复设计-S1至S5.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span> <a href="design/API创建任务scope-B15-2026-08.html">B-15 API 创建任务 Scope 赋值 — 设计文档</a>
+          <span class="blurb">API 创建任务时注入 scope · group_name→id 转换 · 对齐 Web 端</span>
+        </div>
+        <div class="links"><a href="design/API创建任务scope-B15-2026-08.html">HTML</a><a href="design/API创建任务scope-B15-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span> <a href="design/时间戳迁移至BIGINT-UTC设计.html">时间戳全量迁移至 BIGINT (UTC) 设计方案</a>
+          <span class="blurb">全量时间戳迁移至 BIGINT UTC 方案</span>
+        </div>
+        <div class="links"><a href="design/时间戳迁移至BIGINT-UTC设计.html">HTML</a><a href="design/时间戳迁移至BIGINT-UTC设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <a href="design/技术方案与前端设计.html">技术方案与前端设计</a>
           <span class="blurb">早期 Web 线框与界面演进建议（参考，非当前验收基线）</span>
         </div>
@@ -577,6 +865,146 @@
       </li>
       <li>
         <div class="title">
+          <a href="postmortem/2026-08-元复盘-复盘失效机制.html">元复盘：Agent 反复未主动复盘的系统性失败</a>
+          <span class="blurb">Agent 反复未主动复盘的系统性失败 · 元复盘</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-元复盘-复盘失效机制.html">HTML</a><a href="postmortem/2026-08-元复盘-复盘失效机制.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-错误Mockup文件评估复盘.html">复盘：使用错误 Mockup 文件进行多轮评估 — CronPilot 2026-08</a>
+          <span class="blurb">使用外部简化 Mockup 多轮评估错误</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-错误Mockup文件评估复盘.html">HTML</a><a href="postmortem/2026-08-错误Mockup文件评估复盘.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-统一手册数值重复偏离.html">复盘：统一执行手册 v1 数值重复导致 15 处不一致</a>
+          <span class="blurb">统一执行手册 v1 数值重复 15 处不一致</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-统一手册数值重复偏离.html">HTML</a><a href="postmortem/2026-08-统一手册数值重复偏离.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-Redesign功能页质量缺陷结构性复盘.html">复盘：Redesign 实施产生 77 个质量缺陷的结构性分析</a>
+          <span class="blurb">Redesign 77 个质量缺陷结构性分析</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-Redesign功能页质量缺陷结构性复盘.html">HTML</a><a href="postmortem/2026-08-Redesign功能页质量缺陷结构性复盘.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-Phase2-Mockup偏离复盘.html">复盘：Phase 2 Dashboard/执行记录实现偏离 Mockup</a>
+          <span class="blurb">Phase 2 Dashboard/执行记录偏离 Mockup</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-Phase2-Mockup偏离复盘.html">HTML</a><a href="postmortem/2026-08-Phase2-Mockup偏离复盘.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-security-S1-S5.html">复盘：安全问题 S1–S5 修复</a>
+          <span class="blurb">安全问题 S1–S5 修复复盘</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-security-S1-S5.html">HTML</a><a href="postmortem/2026-08-security-S1-S5.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-P0-frontend-bugs.html">复盘：P0 前端+后端关键问题修复（P0-1/P0-2/P0-3/P0-4）</a>
+          <span class="blurb">P0-1~P0-4 前端+后端关键问题修复复盘</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-P0-frontend-bugs.html">HTML</a><a href="postmortem/2026-08-P0-frontend-bugs.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-F5-jQuery-defer-inline-script.html">复盘：F5 jQuery defer 导致 inline script 失效</a>
+          <span class="blurb">jQuery defer 导致 inline script 中 $ 未定义</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-F5-jQuery-defer-inline-script.html">HTML</a><a href="postmortem/2026-08-F5-jQuery-defer-inline-script.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-dashboard-ajax-path.html">复盘：Dashboard AJAX 路径错误（F1+F2+F3）</a>
+          <span class="blurb">Dashboard AJAX 路径格式错误 F1+F2+F3</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-dashboard-ajax-path.html">HTML</a><a href="postmortem/2026-08-dashboard-ajax-path.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-redesign-css-hardcoded-colors.html">复盘：Redesign CSS 硬编码颜色与重复定义</a>
+          <span class="blurb">Redesign CSS 15 处硬编码颜色</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-redesign-css-hardcoded-colors.html">HTML</a><a href="postmortem/2026-08-redesign-css-hardcoded-colors.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-Z3-标签页Bootstrap模态框迁移.html">复盘：Z3 标签管理页 Bootstrap Modal 迁移</a>
+          <span class="blurb">标签页 Bootstrap Modal→CpConfirm 迁移</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-Z3-标签页Bootstrap模态框迁移.html">HTML</a><a href="postmortem/2026-08-Z3-标签页Bootstrap模态框迁移.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-change-password-nested-form.html">复盘：change_password.html 嵌套 form 导致退出登录失效</a>
+          <span class="blurb">嵌套 form 导致退出登录/改密失效</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-change-password-nested-form.html">HTML</a><a href="postmortem/2026-08-change-password-nested-form.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-cron-add-error-redirect-and-modal-globalization.html">复盘：cron_add 错误重定向 + CpModal 全局化 — 2026-08</a>
+          <span class="blurb">cron_add 错误重定向 + CpModal 全局化</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-cron-add-error-redirect-and-modal-globalization.html">HTML</a><a href="postmortem/2026-08-cron-add-error-redirect-and-modal-globalization.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-确认对话框修复与个人资料页.html">复盘：确认对话框显示异常 &amp; 个人资料页新增 — 2026-08</a>
+          <span class="blurb">确认对话框显示异常 + 个人资料页新增</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-确认对话框修复与个人资料页.html">HTML</a><a href="postmortem/2026-08-确认对话框修复与个人资料页.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-users-ux-bugs.html">复盘：用户管理页 UX 三 Bug（2026-08）</a>
+          <span class="blurb">用户管理页 UX 三 Bug 复盘</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-users-ux-bugs.html">HTML</a><a href="postmortem/2026-08-users-ux-bugs.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-missing-route-decorator.html">复盘：users_reset_password 路由装饰器丢失导致全站 500</a>
+          <span class="blurb">@rbac.route 丢失导致全站 500</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-missing-route-decorator.html">HTML</a><a href="postmortem/2026-08-missing-route-decorator.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-doc-links-broken-index.html">复盘 — 文档链接 140 处 broken（index.html 缺失）</a>
+          <span class="blurb">index.html 缺失导致 140 处文档链接 broken</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-doc-links-broken-index.html">HTML</a><a href="postmortem/2026-08-doc-links-broken-index.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-check_ui_contract-false-positive.html">复盘：check_ui_contract.py 子字符串误报（legacy-class 检测）</a>
+          <span class="blurb">legacy-class 子字符串误报</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-check_ui_contract-false-positive.html">HTML</a><a href="postmortem/2026-08-check_ui_contract-false-positive.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-test-rbac-phase-maintenance-debt.html">test_rbac_phase 测试维护债务复盘 — 2026-08</a>
+          <span class="blurb">test_rbac_phase 测试维护债务</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-test-rbac-phase-maintenance-debt.html">HTML</a><a href="postmortem/2026-08-test-rbac-phase-maintenance-debt.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-tier345-code-quality.html">复盘：Tier 3-5 代码质量修复（CSS 规范 + 可访问性 + 后端日志 + JS 兼容性）</a>
+          <span class="blurb">Tier 3-5 CSS/可访问性/后端日志/JS 兼容性</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-tier345-code-quality.html">HTML</a><a href="postmortem/2026-08-tier345-code-quality.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <a href="postmortem/2026-08-标签管理增强.html">标签管理增强复盘（OPT-P1-11）</a>
           <span class="blurb">9 项 bug · 14 条规范 · 元复盘</span>
         </div>
@@ -609,6 +1037,284 @@
           <span class="blurb">overflow: hidden 裁剪 c-dd-menu · table-layout: fixed 列宽对齐</span>
         </div>
         <div class="links"><a href="postmortem/2026-09-Dashboard表格溢出修复.html">HTML</a><a href="postmortem/2026-09-Dashboard表格溢出修复.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ⑨ 归档文档 -->
+  <section class="dim" id="archive" data-tone="archive">
+    <h2>⑨ 归档文档（Archive）</h2>
+    <p class="dim-desc">已被取代的中间态文档，保留迭代历史；当前权威参考见各章节主文档。目录说明：<a href="archive/README.md">archive/README.md</a></p>
+
+    <p class="archive-sub" id="archive-eval-rounds">Mockup 评估轮次（design-eval-rounds/）</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第二轮Mockup偏差对比Demo.html">第二轮 Mockup 偏差对比 Demo</a>
+          <span class="blurb">第二轮全页偏差对比 · 含 Dashboard/执行记录等</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第二轮Mockup偏差对比Demo.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第二轮Mockup偏差对比Demo.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第三轮Mockup评估Demo.html">第三轮 Mockup 符合度评估 Demo · 2026-08-18</a>
+          <span class="blurb">第三轮 Mockup 符合度评估 Demo</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第三轮Mockup评估Demo.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第三轮Mockup评估Demo.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html">第三轮 Mockup 对比评估 · 2026-08</a>
+          <span class="blurb">第三轮全页逐项 Mockup 评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html">第四轮 Mockup 对比评估</a>
+          <span class="blurb">第四轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第五轮Mockup对比评估.html">第五轮 Mockup 对比评估</a>
+          <span class="blurb">第五轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第五轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第五轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第六轮Mockup对比评估.html">第六轮 Mockup 对比评估</a>
+          <span class="blurb">第六轮 Mockup 对比 · 含搜索表单审查</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第六轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第六轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.html">第七轮 Mockup 对比评估</a>
+          <span class="blurb">第七轮全页 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第八轮Mockup对比评估.html">第八轮 Mockup 对比评估</a>
+          <span class="blurb">第八轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第八轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第八轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html">第九轮 Mockup 对比评估 · 2026-08-18</a>
+          <span class="blurb">第九轮 Mockup 对比 · 对照权威内部 Mockup</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html">第十轮 Mockup 对比评估（Downloads 全页面提案）</a>
+          <span class="blurb">第十轮 Mockup 对比 · Downloads 全页面提案</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html">第十一轮 Mockup 对比评估 · 2026-08-18</a>
+          <span class="blurb">第十一轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第十二轮Mockup对比评估.html">第十二轮 Mockup 对比评估</a>
+          <span class="blurb">第十二轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第十二轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第十二轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第十三轮Mockup对比评估.html">第十三轮 Mockup 对比评估</a>
+          <span class="blurb">第十三轮 Mockup 对比评估</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第十三轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第十三轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html">第十四轮 Mockup 对比评估</a>
+          <span class="blurb">第十四轮 Mockup 对比评估 · 被第 15 轮终版取代</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-Mockup偏差对比Demo.html">Mockup 偏差对比 Demo（D1–D9）</a>
+          <span class="blurb">D1–D9 Mockup 偏差对比 Demo</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-Mockup偏差对比Demo.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-Mockup偏差对比Demo.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-新Mockup偏差对比Demo.html">新 Mockup 偏差对比 Demo · 2026-08-18</a>
+          <span class="blurb">2026-08-18 新 Mockup 偏差对比</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-新Mockup偏差对比Demo.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-新Mockup偏差对比Demo.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-完整对比Demo-2026-08-19.html">完整对比 Demo · 2026-08-19 (v2)</a>
+          <span class="blurb">待处理变更完整对比 Demo v2</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-完整对比Demo-2026-08-19.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-完整对比Demo-2026-08-19.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-eval-rounds/UI重设计-综合评估Demo-2026-08-19.html">综合评估 Demo · 2026-08-19</a>
+          <span class="blurb">当前实现 vs Mockup 综合评估 Demo</span>
+        </div>
+        <div class="links"><a href="archive/design-eval-rounds/UI重设计-综合评估Demo-2026-08-19.html">HTML</a><a href="archive/design-eval-rounds/UI重设计-综合评估Demo-2026-08-19.md">MD</a></div>
+      </li>
+    </ul>
+
+    <p class="archive-sub" id="archive-quality">代码质量报告（design-quality-reports/）</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-2026-08.html">Redesign 代码质量全面评估报告（R1 · 2026-08）</a>
+          <span class="blurb">Redesign 首版全面评估 · CSS/JS/模板分层审计</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R2-2026-08.html">Redesign 代码质量全面评估报告 R2 · 2026-08</a>
+          <span class="blurb">R2 评估 · 19 页模板 inline CSS 残留</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R2-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R2-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R3-2026-08.html">Redesign 代码质量全面评估报告 R3 · 2026-08</a>
+          <span class="blurb">R3 评估 · DashboardService 提取 · A11y · Button API</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R3-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R3-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R4-2026-08.html">Redesign 代码质量全面评估报告 R4 · 2026-08</a>
+          <span class="blurb">R4 评估 · 前后端质量跟踪</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R4-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R4-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R5-2026-08.html">Redesign 代码质量全面评估报告 R5 · 2026-08</a>
+          <span class="blurb">R5 评估 · CSS/JS/Templates + Views/Services</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R5-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R5-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R6-2026-08.html">Redesign 代码质量全面评估报告 R6 · 2026-08</a>
+          <span class="blurb">R6 评估 · 7/7 核心门禁全绿</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R6-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R6-2026-08.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R7-2026-08.html">Redesign 代码质量全面评估报告 R7 · 2026-08</a>
+          <span class="blurb">BE: 1P0 + 6P1 + 6P2 · FE: 9P1 + 11P2 · 被 R8 取代</span>
+        </div>
+        <div class="links"><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R7-2026-08.html">HTML</a><a href="archive/design-quality-reports/Redesign代码质量全面评估报告-R7-2026-08.md">MD</a></div>
+      </li>
+    </ul>
+
+    <p class="archive-sub" id="archive-deprecated">废弃设计（design-deprecated/）</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-deprecated/UI重设计-实施架构与过渡方案.html">UI 重设计 · 实施架构与过渡方案</a>
+          <span class="blurb">已合入统一执行手册 · 不再作为执行入口</span>
+        </div>
+        <div class="links"><a href="archive/design-deprecated/UI重设计-实施架构与过渡方案.html">HTML</a><a href="archive/design-deprecated/UI重设计-实施架构与过渡方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-deprecated/console-style-dual-mode-design.html">前端双模式（Classic/Console）视觉设计稿</a>
+          <span class="blurb">Classic/Console 双模式设计稿与可行性评估</span>
+        </div>
+        <div class="links"><a href="archive/design-deprecated/console-style-dual-mode-design.html">HTML</a><a href="archive/design-deprecated/console-style-dual-mode-design.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/design-deprecated/console-style-demo.html">Classic/Console 双模式 Demo</a>
+          <span class="blurb">Classic/Console 双模式视觉 Demo</span>
+        </div>
+        <div class="links"><a href="archive/design-deprecated/console-style-demo.html">HTML</a><a href="archive/design-deprecated/console-style-demo.md">MD</a></div>
+      </li>
+    </ul>
+
+    <p class="archive-sub" id="archive-screenshots">截图归档（screenshots/）</p>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <a href="archive/screenshots/eval6/oplog_debug.html">eval6 · 操作记录调试快照</a>
+          <span class="blurb">操作记录页 eval6 调试 HTML 快照</span>
+        </div>
+        <div class="links"><a href="archive/screenshots/eval6/oplog_debug.html">HTML</a><a href="archive/screenshots/eval6/oplog_debug.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <span>eval14 截图集（8 张）</span>
+          <span class="blurb">audit · dashboard · exec-logs · groups · op-log · r3-modal · tags · users</span>
+          <ul class="nest">
+            <li><a href="archive/screenshots/eval14-audit.png">eval14-audit.png</a> · <a href="archive/screenshots/eval14-dashboard.png">dashboard</a> · <a href="archive/screenshots/eval14-exec-logs.png">exec-logs</a> · <a href="archive/screenshots/eval14-groups.png">groups</a></li>
+            <li><a href="archive/screenshots/eval14-op-log.png">op-log</a> · <a href="archive/screenshots/eval14-r3-modal.png">r3-modal</a> · <a href="archive/screenshots/eval14-tags.png">tags</a> · <a href="archive/screenshots/eval14-users.png">users</a></li>
+          </ul>
+        </div>
+        <div class="links"></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-archive">归档</span>
+          <span>评估轮次截图目录</span>
+          <span class="blurb">round4 · eval6 · eval7 · eval8 · eval10 · eval5-task-center.png</span>
+          <ul class="nest">
+            <li><a href="archive/screenshots/round4/">round4/</a> · <a href="archive/screenshots/eval6/">eval6/</a> · <a href="archive/screenshots/eval7/">eval7/</a> · <a href="archive/screenshots/eval8/">eval8/</a> · <a href="archive/screenshots/eval10/">eval10/</a></li>
+            <li><a href="archive/screenshots/eval5-task-center.png">eval5-task-center.png</a></li>
+          </ul>
+        </div>
+        <div class="links"></div>
       </li>
     </ul>
   </section>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CronPilot UI重设计 — 第五轮 Mockup 对比评估</title>
+<style>
+:root{--bg:#f7f8f9;--surface:#fff;--border:#e4e6e9;--ink:#14171a;--muted:#5b6169;--signal:#3d6fe0;--success:#0f9d66;--warn:#b7791f;--danger:#d64545;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',Arial,sans-serif;font-size:13px;line-height:1.6;}
+.wrap{max-width:1100px;margin:0 auto;padding:32px 24px;}
+h1{font-size:22px;border-bottom:2px solid var(--signal);padding-bottom:8px;margin-bottom:8px;}
+h2{font-size:17px;color:var(--signal);margin:32px 0 12px;}
+h3{font-size:14px;color:var(--muted);margin:20px 0 8px;}
+.subtitle{color:var(--muted);margin-bottom:32px;font-size:13px;}
+.score-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0;}
+.score-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center;}
+.score-card .num{font-size:28px;font-weight:700;margin:4px 0;}
+.score-card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.score-card.ok .num{color:var(--success);}
+.score-card.warn .num{color:var(--warn);}
+.score-card.danger .num{color:var(--danger);}
+.score-card.info .num{color:var(--signal);}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px;}
+th{background:#f1f2f4;text-align:left;padding:7px 10px;border:1px solid var(--border);font-weight:600;}
+td{padding:7px 10px;border:1px solid var(--border);vertical-align:top;}
+code{background:#f1f2f4;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px;}
+.tag{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;}
+.tag-ok{background:#e8f5e9;color:var(--success);}
+.tag-warn{background:#fff3e0;color:var(--warn);}
+.tag-hi{background:#fde8e8;color:var(--danger);}
+.tag-med{background:#fff3e0;color:var(--warn);}
+.tag-lo{background:#e8f0fe;color:var(--signal);}
+.tag-done{background:#e8f5e9;color:var(--success);}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;}
+.compare-box{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.compare-box .box-head{background:#f1f2f4;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+.compare-box.current .box-head{background:#e8f0fe;color:var(--signal);}
+.compare-box.mockup .box-head{background:#f1f2f4;}
+.compare-box .box-body{padding:14px 12px;font-size:12px;line-height:1.7;}
+.compare-box ul{margin:0;padding-left:18px;}
+.compare-box li{margin:3px 0;}
+.fix-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:6px;}
+.fix-badge.hi{background:#fde8e8;color:var(--danger);}
+.fix-badge.med{background:#fff3e0;color:var(--warn);}
+.fix-badge.lo{background:#e8f0fe;color:var(--signal);}
+.fix-badge.done{background:#e8f5e9;color:var(--success);}
+.fixed-item{background:#f0faf5;border:1px solid #c3e6cb;border-radius:6px;padding:10px 14px;margin:8px 0;font-size:12px;}
+.pending-item{background:#fff9f0;border:1px solid #fce8c3;border-radius:6px;padding:10px 14px;margin:8px 0;font-size:12px;}
+.action-table td:first-child{font-weight:600;white-space:nowrap;}
+.diff-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;}
+.diff-col{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.diff-col.a{border-left:3px solid #fca5a5;}
+.diff-col.b{border-left:3px solid #86efac;}
+.diff-col .label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>CronPilot UI重设计 — 第五轮 Mockup 对比评估</h1>
+<p class="subtitle">评估日期：2026-08-20 · 对标：<code>CronPilot-2026-full-mockup.html</code></p>
+
+<!-- ══════ 综合评分 ══════ -->
+<h2>综合评分</h2>
+<div class="score-row">
+  <div class="score-card ok">
+    <div class="lbl">已对齐页面</div>
+    <div class="num">6</div>
+    <div class="lbl">Task Center / Users / Groups / Tags / API Doc / Profile</div>
+  </div>
+  <div class="score-card warn">
+    <div class="lbl">待优化页面</div>
+    <div class="num">2</div>
+    <div class="lbl">Operation Log (Z1) · Audit Log (Z2)</div>
+  </div>
+  <div class="score-card done">
+    <div class="lbl">本轮已修复</div>
+    <div class="num">2</div>
+    <div class="lbl">cron_add 错误重定向 · registration_review Bootstrap 弹窗</div>
+  </div>
+  <div class="score-card info">
+    <div class="lbl">全局模态系统</div>
+    <div class="num">✓</div>
+    <div class="lbl">CpModal 全局化，Bootstrap 0 残留</div>
+  </div>
+</div>
+
+<!-- ══════ 本轮已修复 ══════ -->
+<h2>✅ 本轮已修复 Bug</h2>
+
+<div class="fixed-item">
+  <strong><span class="fix-badge done">BUG-1 修复</span>cron_add 任务新建错误时立即跳转</strong>
+  <div class="diff-row" style="margin-top:10px;">
+    <div class="diff-col a">
+      <div class="label">修复前</div>
+      后端异常时返回 <code>web_api_return(code=1, ..., url='/cron_list')</code><br>
+      js-ajax-form 无条件读取 url → 立即跳转 /cron_list<br>
+      用户表单数据全部丢失，无法得知错误原因
+    </div>
+    <div class="diff-col b">
+      <div class="label">修复后</div>
+      异常返回 <code>web_api_return(code=1, msg=str(e))</code>（无 url）<br>
+      js-ajax-form 的 tips_success span 显示错误消息<br>
+      用户留在表单页，可查看错误并修改后重试
+    </div>
+  </div>
+</div>
+
+<div class="fixed-item">
+  <strong><span class="fix-badge done">BUG-2 修复</span>registration_review Bootstrap modal 透明显示</strong>
+  <div class="diff-row" style="margin-top:10px;">
+    <div class="diff-col a">
+      <div class="label">修复前</div>
+      点击"通过"/"拒绝"触发 Bootstrap <code>modal('show')</code><br>
+      redesign CSS 改变了 stacking context → 弹窗透明或不可见<br>
+      同时导入了 <code>bootstrap.min.css/js</code>（样式污染）
+    </div>
+    <div class="diff-col b">
+      <div class="label">修复后</div>
+      迁移至 <code>CpModal()</code>（现已全局可用）<br>
+      "通过"：CpModal HTML body 显示 username + 停用警告<br>
+      "拒绝"：CpModal 含 textarea 输入<br>
+      Bootstrap 完全移除，redesign templates 0 残留
+    </div>
+  </div>
+</div>
+
+<div class="fixed-item">
+  <strong><span class="fix-badge done">架构改进</span>CpModal 全局化</strong><br>
+  <code>CpModal()</code> 从 tags.html 内联定义 → <code>redesign-confirm.js</code> 全局注册（<code>window.CpModal</code>），所有 redesign 页面无需重复定义。tags.html 同步更新（移除本地复制，更新按钮选择器）。
+</div>
+
+<!-- ══════ 页面对比 ══════ -->
+<h2>页面对比分析</h2>
+
+<!-- 任务中心 -->
+<h3>任务中心 (view-dashboard)</h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格</div>
+    <div class="box-body">
+      <ul>
+        <li>4 stat cards：任务总数 · 运行中 · 今日失败 · 24h成功率</li>
+        <li>简单 chip 筛选：全部 · 运行中 · 异常 · 已下线</li>
+        <li>表格 4 列：任务(名称+meta+tags) · 调度策略 · 运行状态 · 操作(2个icon按钮)</li>
+        <li>页头右侧"新建任务"按钮</li>
+      </ul>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-warn">差异</span> 4 stat cards：异常任务 · 连续失败 · 运行中 · 今日失败次数（名称与mockup不同）</li>
+        <li><span class="tag tag-ok">一致</span> chip 筛选：异常 · 连续失败 · 今日失败 · 状态筛选 · 全部</li>
+        <li><span class="tag tag-warn">扩展</span> 表格 7 列（含健康度/下次执行/业务组），比 mockup 更详细</li>
+        <li><span class="tag tag-warn">差异</span> 有 Exception Panel（mockup 无，但为功能增强）</li>
+        <li><span class="tag tag-warn">缺失</span> 页头无"新建任务"快捷按钮（有权限者通过侧边栏导航）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--muted)">📝 评估：当前实现为有意义的功能增强（Exception Panel、健康度、下次执行均是业务价值），统计指标名称差异可接受。新建任务按钮已通过侧边栏导航覆盖。整体对齐度：<strong>基本符合 + 合理扩展</strong></p>
+
+<!-- 执行记录 -->
+<h3>执行记录 (view-logs)</h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格</div>
+    <div class="box-body">
+      <ul>
+        <li>筛选：搜索框 + chip（全部 · 失败 · 超时）</li>
+        <li>表格 5 列：任务 · 触发时间 · 耗时 · 响应码 · 状态</li>
+      </ul>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-ok">一致</span> chip 筛选：非成功 · 全部 · 仅失败 · 仅异常 · 仅成功 + 任务名/时间范围</li>
+        <li><span class="tag tag-ok">一致</span> 表格结构与 mockup 基本对齐（任务/触发时间/耗时/响应码/状态）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--muted)">📝 评估：<strong>高度一致</strong>，无需修改</p>
+
+<!-- 操作记录 -->
+<h3>操作记录 (view-optlog) <span class="fix-badge hi">Z1 待修复</span></h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格（5 列）</div>
+    <div class="box-body">
+      <ul>
+        <li>操作人</li>
+        <li>操作（彩色 badge：修改/下线/新建）</li>
+        <li>对象（仅显示任务名）</li>
+        <li>时间</li>
+        <li>来源 IP</li>
+      </ul>
+      <strong>无 ID 列，无内容详情</strong>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现（7 列）</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-hi">多余</span> ID 列</li>
+        <li>用户（操作人）</li>
+        <li>类型（= 操作 badge）</li>
+        <li><span class="tag tag-hi">过多</span> 内容（显示完整 diff/参数，信息量过大）</li>
+        <li>IP</li>
+        <li>时间</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="pending-item">
+  <strong>Z1 计划修复</strong>：移除 ID 列；"内容"列改为只显示任务名（缩短为"对象"列）；表格从 7 列简化为 5 列。<em>文件：</em><code>app/templates/redesign/operation_log.html</code>
+</div>
+
+<!-- 用户管理 -->
+<h3>用户管理 (view-users)</h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格（5 列）</div>
+    <div class="box-body">
+      <ul>
+        <li>用户（avatar + 姓名 + email 副标题）</li>
+        <li>角色（badge）</li>
+        <li>状态（pin dot）</li>
+        <li>最近登录</li>
+        <li>操作（单个 edit icon button）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现（8 列）</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-ok">一致</span> 用户名（avatar 首字母 + 用户名）</li>
+        <li>花名 · 岗位（mockup 无）</li>
+        <li><span class="tag tag-ok">一致</span> 角色（badge）</li>
+        <li><span class="tag tag-ok">一致</span> 状态</li>
+        <li>密码状态（mockup 无）</li>
+        <li>业务组（mockup 无）</li>
+        <li>创建时间（vs mockup 的"最近登录"）</li>
+        <li><span class="tag tag-warn">差异</span> 操作：文字链接（编辑/重置密码/重置Token/停用）vs mockup 单 icon 按钮</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--muted)">📝 评估：当前实现信息量更丰富（花名/岗位/业务组是业务需要），多列可接受。操作按钮多于 mockup 但功能上正确。关键差异：mockup 只有"最近登录"而当前显示"创建时间"（可考虑替换）。整体对齐度：<strong>信息层面合理扩展</strong></p>
+
+<!-- 业务组 -->
+<h3>业务组 (view-groups)</h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格</div>
+    <div class="box-body">
+      <ul>
+        <li>卡片网格，每卡片：组名 · 描述 · avatar stack（张/李/+3）· 任务数 badge</li>
+      </ul>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-ok">基本一致</span> 卡片网格：组名 · 描述 · "N 名成员" · N 个任务</li>
+        <li><span class="tag tag-lo">说明</span> avatar stack → "N 名成员"文字（用户明确指定，非偏离）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--muted)">📝 评估：用户在此前明确要求用数字代替 avatar stack，属于经确认的设计决策，不视为偏离。整体对齐度：<strong>用户确认变体</strong></p>
+
+<!-- 审计日志 -->
+<h3>审计日志 (view-audit) <span class="fix-badge hi">Z2 待修复</span></h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格（5 列 + chip 筛选）</div>
+    <div class="box-body">
+      <ul>
+        <li>chip 筛选：全部 · 登录失败 · 权限变更</li>
+        <li>事件（操作类型）</li>
+        <li>用户</li>
+        <li>时间</li>
+        <li>IP</li>
+        <li>结果（badge：成功/失败×5）</li>
+      </ul>
+      <strong>无 ID，无目标类型，无详情</strong>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现（8 列 + 复杂搜索）</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-hi">差异</span> 搜索栏（用户名/动作选择/结果/日期范围）vs mockup 3 个 chip</li>
+        <li><span class="tag tag-hi">多余</span> ID 列</li>
+        <li>操作人</li>
+        <li>操作（事件）</li>
+        <li><span class="tag tag-hi">多余</span> 目标类型</li>
+        <li><span class="tag tag-hi">多余</span> 目标名</li>
+        <li><span class="tag tag-hi">多余</span> 详情</li>
+        <li>IP</li>
+        <li>时间</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="pending-item">
+  <strong>Z2 计划修复</strong>：移除 ID/目标类型/详情 3 列；简化为 5 列；搜索栏改为 mockup 的 3 chip 风格（全部 · 登录失败 · 权限变更）。<em>文件：</em><code>app/templates/redesign/audit_logs.html</code>
+</div>
+
+<!-- 标签管理 -->
+<h3>标签管理 (view-tags)</h3>
+<div class="compare-grid">
+  <div class="compare-box mockup">
+    <div class="box-head">Mockup 规格</div>
+    <div class="box-body">
+      <ul>
+        <li>新建标签搜索框（trigger）</li>
+        <li>标签云（大号 pill，显示 count + × 删除）</li>
+        <li>无管理表格</li>
+      </ul>
+    </div>
+  </div>
+  <div class="compare-box current">
+    <div class="box-head">当前实现</div>
+    <div class="box-body">
+      <ul>
+        <li><span class="tag tag-ok">一致</span> 标签云 pill（count + × 删除）</li>
+        <li><span class="tag tag-lo">扩展</span> 额外管理表格（标签名/使用数/业务组/关联任务/操作）</li>
+        <li><span class="tag tag-lo">扩展</span> 新建标签 CpModal 系统（功能完整）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p style="font-size:12px;color:var(--muted)">📝 评估：管理表格是功能增强，提供了 mockup 没有的标签详细管理能力，属合理扩展。整体对齐度：<strong>满足 + 合理扩展</strong></p>
+
+<!-- ══════ 行动计划 ══════ -->
+<h2>行动计划（按优先级）</h2>
+<table class="action-table">
+  <thead>
+    <tr><th>编号</th><th>优先级</th><th>描述</th><th>涉及文件</th><th>状态</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BUG-1</td>
+      <td><span class="tag tag-hi">高</span></td>
+      <td>cron_add 异常时 url 字段导致表单重定向</td>
+      <td><code>app/main/views.py</code></td>
+      <td><span class="tag tag-done">✓ 已修复</span></td>
+    </tr>
+    <tr>
+      <td>BUG-2</td>
+      <td><span class="tag tag-hi">高</span></td>
+      <td>registration_review Bootstrap modal 透明</td>
+      <td><code>registration_review.html</code></td>
+      <td><span class="tag tag-done">✓ 已修复</span></td>
+    </tr>
+    <tr>
+      <td>Z1</td>
+      <td><span class="tag tag-hi">高</span></td>
+      <td>操作记录：移除 ID 列，简化"内容"为任务名（"对象"）</td>
+      <td><code>redesign/operation_log.html</code></td>
+      <td><span class="tag tag-warn">待实现</span></td>
+    </tr>
+    <tr>
+      <td>Z2</td>
+      <td><span class="tag tag-hi">高</span></td>
+      <td>审计日志：移除 ID/目标类型/详情 3 列，改 chip 筛选</td>
+      <td><code>redesign/audit_logs.html</code></td>
+      <td><span class="tag tag-warn">待实现</span></td>
+    </tr>
+    <tr>
+      <td>CpModal 全局化</td>
+      <td><span class="tag tag-lo">架构</span></td>
+      <td>CpModal 提取为 window.CpModal，tags.html 使用全局版本</td>
+      <td><code>redesign-confirm.js</code>, <code>tags.html</code></td>
+      <td><span class="tag tag-done">✓ 已完成</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ══════ 模态系统统一验证 ══════ -->
+<h2>确认弹窗系统统一验证（本轮新增）</h2>
+<table>
+  <thead><tr><th>页面</th><th>弹窗</th><th>方案</th><th>状态</th></tr></thead>
+  <tbody>
+    <tr><td>API Token</td><td>重置 Token 确认</td><td><code>CpConfirm.show()</code></td><td><span class="tag tag-ok">✓</span></td></tr>
+    <tr><td>用户管理</td><td>重置密码 / 重置 Token / 停用确认</td><td><code>CpConfirm.show()</code></td><td><span class="tag tag-ok">✓</span></td></tr>
+    <tr><td>标签管理</td><td>新建/重命名/关联任务/删除</td><td><code>CpModal()</code> + <code>CpConfirm.show()</code></td><td><span class="tag tag-ok">✓</span></td></tr>
+    <tr><td>注册审批</td><td>批准/拒绝</td><td><code>CpModal()</code> 全局版</td><td><span class="tag tag-ok">✓ 本轮修复</span></td></tr>
+    <tr><td>Bootstrap 残留检测</td><td colspan="2"><code>grep -r ".modal('show')\|bootstrap.min" app/templates/redesign/</code></td><td><span class="tag tag-ok">0 结果 ✓</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ══════ 验收信息 ══════ -->
+<h2>本轮验收信息</h2>
+<table>
+  <thead><tr><th>步骤</th><th>命令/路径</th><th>期望结果</th></tr></thead>
+  <tbody>
+    <tr><td>服务状态</td><td><code>lsof -nP -iTCP:5001 -sTCP:LISTEN</code></td><td>PID 62683 在监听</td></tr>
+    <tr><td>侧边栏回归</td><td><code>.venv-py311/bin/python -m unittest tests.test_redesign_sidebar -v</code></td><td>12 tests OK</td></tr>
+    <tr><td>表单守卫</td><td><code>.venv-py311/bin/python -m unittest tests.test_ajax_form_guard -v</code></td><td>4 tests OK</td></tr>
+    <tr><td>Bootstrap 清零</td><td><code>grep -r ".modal('show')\|bootstrap.min" app/templates/redesign/</code></td><td>exit 1（无匹配 = OK）</td></tr>
+    <tr><td>HTML/MD 同步</td><td><code>.venv-py311/bin/python scripts/html_docs_to_markdown.py --check</code></td><td>OK: all matched</td></tr>
+    <tr><td>任务中心</td><td><code>http://127.0.0.1:5001/</code></td><td>页面正常加载，Exception Panel 显示</td></tr>
+    <tr><td>标签管理</td><td>点击"+ 新建标签"</td><td>CpModal 正确弹出（已验证截图）</td></tr>
+    <tr><td>注册审批</td><td>有待审批记录时点击"通过"</td><td>CpModal 弹出（Bootstrap 已移除）</td></tr>
+  </tbody>
+</table>
+
+</div>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="UI重设计-第五轮Mockup对比评估.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

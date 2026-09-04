@@ -1,0 +1,742 @@
+<!-- ⚠️ SUPERSEDED: 本文件已被 CronPilot-2026-redesign-mockup.html 取代。
+     仅作为历史参考保留，不再作为实施依据。
+     权威 Mockup 源: doc/design/CronPilot-2026-redesign-mockup.html -->
+<!doctype html>
+<html lang="zh-CN" data-ui-mode="console" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>CronPilot · Classic/Console 双模式 Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ============================================================
+   OPT-P2-14 · 双模式 × 双主题 · 多页面 Demo
+   ============================================================
+   四种组合：Console Light / Console Dark / Classic Light / Classic Dark
+   四个页面：任务中心 / 任务添加 / 执行记录 / 用户管理
+   切换方式：右上角面板 + 侧栏底部 + 导航点击切页
+   ============================================================ */
+
+/* ========== 0. RESET ========== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --radius: 6px;
+  --accent: #0891b2;
+  --accent-dim: rgba(8,145,178,.14);
+}
+
+/* ========== 1. TOKENS — Light ========== */
+[data-theme="light"] {
+  --bg: #f6f7f9;       --surface: #ffffff;    --surface-2: #fafbfc;  --surface-3: #f1f5f9;
+  --ink: #0f172a;       --ink-2: #475569;      --ink-3: #334155;
+  --muted: #64748b;     --faint: #94a3b8;      --neutral: #9ca3af;
+  --border: #e2e8f0;    --border-strong: #cbd5e1;
+  --success: #059669;   --success-bg: #f0fdf4; --success-text: #166534;
+  --danger: #dc2626;    --danger-bg: #fef2f2;  --danger-fill: #dc2626; --danger-dark: #991b1b;
+  --warn: #d97706;      --warn-bg: #fffbeb;    --warn-dark: #92400e;
+  --accent-blue: #1d4ed8; --accent-bg: #eff6ff;
+  --tag-bg: #e0e7ff;    --tag-text: #3730a3;
+  --topbar-bg: #2c3e50; --topbar-text: #ecf0f1;
+  --role-admin: #2980b9; --role-operator: #16a085; --role-viewer: #27ae60;
+}
+/* ========== 1b. TOKENS — Dark ========== */
+[data-theme="dark"] {
+  --bg: #0a0c10;        --surface: #101319;    --surface-2: #161b22;  --surface-3: #1c2128;
+  --ink: #e7e9ec;        --ink-2: #a0aab6;      --ink-3: #8b93a1;
+  --muted: #8b93a1;      --faint: #565d68;      --neutral: #565d68;
+  --border: #1d2129;     --border-strong: #30363d;
+  --success: #34d399;    --success-bg: #0b2a1c; --success-text: #6ee7b7;
+  --danger: #f87171;     --danger-bg: #2a0f0f;  --danger-fill: #f87171; --danger-dark: #fca5a5;
+  --warn: #fbbf24;       --warn-bg: #2a1f0a;    --warn-dark: #fde68a;
+  --accent-blue: #60a5fa; --accent-bg: #0d1b2a;
+  --tag-bg: #1e1b4b;     --tag-text: #a5b4fc;
+  --topbar-bg: #161b22;  --topbar-text: #c9d1d9;
+  --role-admin: #58a6ff; --role-operator: #3fb950; --role-viewer: #56d364;
+}
+
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background .2s, color .2s;
+}
+a { text-decoration: none; color: inherit; cursor: pointer; }
+code, .mono { font-family: var(--font-mono); }
+
+/* ========== 2. SWITCH PANEL ========== */
+.switch-panel {
+  position: fixed; top: 12px; right: 12px; z-index: 999;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; display: flex; gap: 8px; align-items: center;
+  font-size: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+.switch-panel label { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing:.04em; }
+.switch-panel select {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 8px; color: var(--ink); font-size: 12px; font-family: inherit;
+}
+
+/* ========== PAGE VISIBILITY ========== */
+.page-view { display: none; }
+.page-view.active { display: block; }
+
+/* ================================================================
+   3. CLASSIC MODE
+   ================================================================ */
+[data-ui-mode="classic"] .classic-topbar {
+  display: flex; align-items: center; justify-content: flex-end;
+  background: var(--topbar-bg); color: var(--topbar-text);
+  padding: 6px 15px; min-height: 36px; font-size: 13px;
+}
+[data-ui-mode="classic"] .classic-topbar .topbar-sep { color: var(--faint); margin: 0 6px; }
+[data-ui-mode="classic"] .classic-topbar .role-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 12px; font-weight: 600; color: #fff; background: var(--role-admin);
+}
+[data-ui-mode="classic"] .classic-topbar .group-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 12px; background: #3498db; color: #fff;
+}
+[data-ui-mode="console"] .classic-topbar { display: none; }
+[data-ui-mode="classic"] .jumbotron-header {
+  text-align: center; padding: 20px 0 10px; background: var(--surface);
+}
+[data-ui-mode="classic"] .jumbotron-header h1 { font-size: 1.5em; margin: 0 0 4px; color: var(--ink); }
+[data-ui-mode="classic"] .jumbotron-header p { color: var(--muted); margin: 0; }
+[data-ui-mode="console"] .jumbotron-header { display: none; }
+[data-ui-mode="classic"] .nav-classic {
+  display: flex; flex-wrap: wrap; list-style: none; margin: 0; padding: 0;
+  border-bottom: 2px solid var(--border);
+}
+[data-ui-mode="classic"] .nav-classic li a {
+  display: block; padding: 8px 14px; color: var(--muted); font-size: 13px; font-weight: 500;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+[data-ui-mode="classic"] .nav-classic li a:hover { color: var(--ink); }
+[data-ui-mode="classic"] .nav-classic li.active a {
+  color: var(--accent-blue); border-bottom-color: var(--accent-blue); font-weight: 600;
+}
+[data-ui-mode="classic"] .nav-classic .badge {
+  display: inline-block; padding: 1px 5px; border-radius: 8px; font-size: 10px;
+  background: var(--danger-fill); color: #fff; margin-left: 4px;
+}
+[data-ui-mode="console"] .nav-classic { display: none; }
+[data-ui-mode="classic"] .main-area { max-width: 1200px; margin: 0 auto; padding: 12px 16px 60px; }
+[data-ui-mode="console"] .classic-wrap { display: none; }
+
+/* ================================================================
+   4. CONSOLE MODE
+   ================================================================ */
+[data-ui-mode="classic"] .console-sidebar { display: none; }
+[data-ui-mode="console"] .console-sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: 192px;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 16px 0; z-index: 100;
+}
+.side-brand { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; font-weight: 600; font-size: 13px; border-bottom: 1px solid var(--border); margin-bottom: 10px; color: var(--ink); }
+.side-brand .mark { width: 6px; height: 14px; border-radius: 2px; background: var(--accent); }
+.side-nav { list-style: none; margin: 0; padding: 0 8px; flex: 1; overflow-y: auto; }
+.side-nav li { margin-bottom: 1px; }
+.side-nav li a { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: var(--radius); color: var(--muted); font-size: 12.5px; font-weight: 500; border-left: 2px solid transparent; }
+.side-nav li a:hover { color: var(--ink); background: var(--surface-2); }
+.side-nav li.active a { color: var(--ink); border-left-color: var(--accent); background: var(--surface-2); font-weight: 600; }
+.side-nav .nav-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: .7; }
+.side-nav li.active .nav-icon { opacity: 1; }
+.side-nav .nav-sep { height: 1px; background: var(--border); margin: 8px 10px; }
+.side-nav .nav-group-label { padding: 12px 10px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 600; }
+.side-nav .badge { display: inline-block; padding: 0 5px; border-radius: 8px; font-size: 10px; background: var(--danger-fill); color: #fff; margin-left: auto; line-height: 16px; }
+.side-foot { padding: 10px 16px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+.side-foot .user-info { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); }
+.side-foot .avatar { width: 20px; height: 20px; border-radius: 4px; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; flex-shrink: 0; }
+.side-foot .role-tag { font-size: 10px; padding: 0 4px; border-radius: 3px; background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+.side-foot .group-tag { font-size: 10px; padding: 0 4px; border-radius: 3px; background: var(--accent-bg); color: var(--accent-blue); font-weight: 500; }
+.mode-toggle-btn, .theme-toggle-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px; color: var(--muted); font-size: 11px; cursor: pointer; font-family: inherit; margin-top: 6px; }
+.mode-toggle-btn:hover, .theme-toggle-btn:hover { border-color: var(--border-strong); color: var(--ink); }
+[data-ui-mode="console"] .console-main { margin-left: 192px; padding: 22px 28px 60px; max-width: 1360px; }
+[data-ui-mode="classic"] .console-main { display: none; }
+
+/* ========== Console Shared Components ========== */
+.cmdbar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; margin-bottom: 18px; color: var(--faint); font-size: 12.5px; }
+.cmdbar .kbd { margin-left: auto; display: flex; gap: 3px; }
+.cmdbar .kbd span { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.page-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.page-head h1 { font-size: 16px; font-weight: 600; margin: 0; }
+.page-head .stat-line { font-size: 11.5px; color: var(--faint); font-family: var(--font-mono); }
+.page-head .stat-line b { color: var(--ink); font-weight: 600; }
+.demo-banner { padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: var(--radius); }
+.demo-banner b { color: var(--ink); }
+
+/* ========== Filters ========== */
+.console-filters { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.f-group { display: flex; align-items: center; gap: 4px; }
+.f-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); margin-right: 4px; }
+.f-btn { padding: 4px 9px; border-radius: 5px; font-size: 12px; color: var(--muted); border: 1px solid transparent; background: none; cursor: pointer; font-family: inherit; }
+.f-btn:hover { color: var(--ink); }
+.f-btn.active { background: var(--surface); border-color: var(--border); color: var(--ink); font-weight: 600; }
+.f-sep { width: 1px; height: 14px; background: var(--border); }
+.f-select, .f-input { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; font-size: 12px; color: var(--ink); font-family: inherit; }
+.f-input { width: 150px; }
+.f-spacer { flex: 1; }
+
+/* ========== Buttons ========== */
+.btn-c { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 5px; border: 1px solid transparent; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-c svg { width: 12px; height: 12px; }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover { opacity: .9; }
+.btn-line { background: var(--surface); border-color: var(--border); color: var(--muted); }
+.btn-line:hover { color: var(--ink); border-color: var(--border-strong); }
+.btn-xs { padding: 3px 8px; font-size: 11.5px; }
+.btn-primary-c { background: var(--accent-blue); color: #fff; border: none; }
+.btn-danger-c { background: var(--danger-fill); color: #fff; border: none; }
+.btn-warn-c { background: var(--warn); color: #fff; border: none; }
+
+/* ========== Console Table ========== */
+.c-table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.c-table-wrap.no-top { border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.c-table { width: 100%; border-collapse: collapse; }
+.c-table th { text-align: left; font-size: 10.5px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; padding: 9px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.c-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.c-table tr:last-child td { border-bottom: none; }
+.c-table tr:hover td { background: var(--surface-2); }
+.c-foot { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-top: 1px solid var(--border); }
+.c-foot .count { font-size: 11px; color: var(--faint); font-family: var(--font-mono); }
+.c-pg { display: flex; gap: 2px; }
+.c-pg a { padding: 4px 9px; border-radius: 5px; font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); }
+.c-pg a:hover { background: var(--surface-2); }
+.c-pg a.active { background: var(--accent-dim); color: var(--accent); font-weight: 700; }
+
+/* ========== Status Dots ========== */
+.c-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.c-dot-run { background: var(--accent); animation: c-pulse 1.8s ease-in-out infinite; }
+.c-dot-ok { background: var(--success); }
+.c-dot-warn { background: var(--warn); }
+.c-dot-fail { background: var(--danger-fill); }
+.c-dot-off { background: var(--neutral); }
+.c-dot-none { background: var(--border-strong); }
+@keyframes c-pulse { 0%,100%{box-shadow:0 0 0 0 var(--accent-dim)} 50%{box-shadow:0 0 0 4px var(--accent-dim)} }
+@media (prefers-reduced-motion: reduce) { .c-dot-run { animation: none; } }
+.c-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
+.c-status-run { color: var(--accent); }
+.c-status-pause { color: var(--warn); }
+.c-status-off { color: var(--faint); }
+.c-health { display: flex; align-items: flex-start; gap: 8px; }
+.c-health-dot { margin-top: 5px; }
+.c-scope { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--faint); font-weight: 600; }
+.c-scope.is-group { color: var(--accent); }
+.c-task-name { font-size: 13px; font-weight: 600; color: var(--ink); display: block; margin: 1px 0 3px; }
+.c-task-url { font-size: 11.5px; color: var(--faint); font-family: var(--font-mono); }
+.c-sched-human { font-size: 12.5px; margin-bottom: 2px; }
+.c-sched-expr { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.c-audit { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+.c-audit .k { color: var(--faint); margin-right: 4px; }
+.c-tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; background: var(--tag-bg); color: var(--tag-text); margin-left: 3px; vertical-align: middle; }
+.c-ops { display: flex; align-items: center; gap: 5px; }
+.c-dd { position: relative; }
+.c-dd-menu { position: absolute; right: 0; top: calc(100% + 4px); min-width: 130px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; display: none; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.c-dd.open .c-dd-menu { display: block; }
+.c-dd-menu a { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 4px; font-size: 12px; color: var(--ink); }
+.c-dd-menu a:hover { background: var(--surface-2); }
+.c-dd-menu a.c-danger { color: var(--danger-fill); }
+.c-dd-menu .c-div { height: 1px; background: var(--border); margin: 4px 3px; }
+
+/* ========== Console Form ========== */
+.c-form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; max-width: 800px; }
+.c-field { margin-bottom: 18px; }
+.c-field-row { display: flex; align-items: flex-start; gap: 12px; }
+.c-field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
+.c-field label .req { color: var(--danger-fill); }
+.c-field input[type="text"], .c-field input[type="url"], .c-field input[type="number"],
+.c-field select, .c-field textarea {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px;
+  font-size: 13px; color: var(--ink); background: var(--surface); font-family: inherit;
+  transition: border-color .15s;
+}
+.c-field input:focus, .c-field select:focus, .c-field textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.c-field textarea { resize: vertical; min-height: 80px; }
+.c-field .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.c-field-inline { display: flex; gap: 8px; align-items: center; }
+.c-field-inline select { width: auto; }
+.c-field-inline input { flex: 1; }
+.c-cron-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.c-cron-grid .c-field { margin-bottom: 0; }
+.c-cron-preview { margin-top: 10px; padding: 10px 14px; background: var(--success-bg); border: 1px solid var(--success); border-radius: 5px; font-size: 12.5px; color: var(--success-text); }
+.c-cron-preview .fa { margin-right: 6px; }
+.c-form-alert { padding: 10px 14px; background: var(--warn-bg); border: 1px solid var(--warn); border-left: 4px solid var(--warn); border-radius: 5px; font-size: 13px; color: var(--warn-dark); margin-bottom: 16px; display: none; }
+.c-form-actions { display: flex; gap: 8px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+/* ========== User Status Badge ========== */
+.u-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.u-active { color: var(--success-text); background: var(--success-bg); }
+.u-inactive { color: var(--muted); background: var(--surface-3); }
+.u-reset { color: var(--warn-dark); background: var(--warn-bg); }
+.u-role { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.u-role-admin { color: #fff; background: var(--role-admin); }
+.u-role-operator { color: #fff; background: var(--role-operator); }
+.u-role-viewer { color: #fff; background: var(--role-viewer); }
+
+/* ========== Log Result ========== */
+.log-result { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; }
+.log-success { color: var(--success); }
+.log-fail { color: var(--danger-fill); }
+.log-timeout { color: #9333ea; }
+.log-unknown { color: var(--muted); }
+
+/* ================================================================
+   CLASSIC MODE EXTRAS (simplified simulation)
+   ================================================================ */
+.classic-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 12px; }
+.classic-table th { background: var(--surface-3); padding: 8px; border: 1px solid var(--border); text-align: left; font-weight: 600; color: var(--ink-2); }
+.classic-table td { padding: 6px 8px; border: 1px solid var(--border); vertical-align: middle; }
+.classic-table tr:hover td { background: var(--surface-3); }
+.classic-table .health-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.classic-table .hd-fail { background: var(--danger-fill); box-shadow: 0 0 0 2px rgba(220,38,38,.2); }
+.classic-table .hd-warn { background: var(--warn); box-shadow: 0 0 0 2px rgba(217,119,6,.15); }
+.classic-table .hd-ok { background: var(--success); box-shadow: 0 0 0 2px rgba(5,150,105,.15); }
+.classic-table .hd-none { background: var(--border-strong); }
+.classic-table .lbl { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+.classic-table .lbl-run { background: #3498db; }
+.classic-table .lbl-pause { background: var(--warn-bg); color: var(--warn-dark); }
+.classic-table .lbl-retired { background: var(--surface-3); color: var(--muted); }
+.classic-table .btn-cl { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.classic-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; padding: 8px; background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px; }
+.classic-filter-bar .chip { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+.classic-filter-bar .chip.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.classic-filter-bar .chip-danger.active { background: var(--danger-fill); border-color: var(--danger-fill); }
+.classic-filter-bar select, .classic-filter-bar input[type="text"] { height: 28px; padding: 2px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--ink); }
+.classic-filter-bar input[type="text"] { width: 150px; }
+.classic-filter-bar .btn-add { margin-left: auto; padding: 4px 10px; background: #3498db; color: #fff; border: none; border-radius: 3px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.classic-pagination { display: flex; gap: 4px; margin-top: 8px; }
+.classic-pagination a { display: inline-block; padding: 4px 10px; border: 1px solid var(--border); border-radius: 3px; font-size: 12px; color: var(--muted); }
+.classic-pagination a.active { background: #3498db; color: #fff; border-color: #2980b9; }
+
+/* Classic form */
+.classic-form { max-width: 750px; }
+.classic-form .ctl-group { margin-bottom: 14px; display: flex; gap: 12px; }
+.classic-form .ctl-label { width: 120px; text-align: right; font-weight: 600; font-size: 13px; color: var(--ink-2); padding-top: 7px; flex-shrink: 0; }
+.classic-form .ctl-body { flex: 1; }
+.classic-form .ctl-body input, .classic-form .ctl-body select, .classic-form .ctl-body textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 3px; font-size: 13px; color: var(--ink); background: var(--surface); }
+.classic-form .ctl-body textarea { resize: vertical; min-height: 70px; }
+.classic-form .ctl-hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.classic-form .ctl-actions { padding-left: 132px; margin-top: 20px; display: flex; gap: 8px; }
+.classic-form .btn-primary-cl { background: #3498db; color: #fff; border: none; padding: 6px 16px; border-radius: 3px; font-size: 13px; cursor: pointer; }
+.classic-form .btn-default-cl { background: var(--surface); border: 1px solid var(--border); padding: 6px 16px; border-radius: 3px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+
+/* Classic user toolbar */
+.classic-user-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.classic-user-toolbar input { height: 28px; padding: 2px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--ink); width: 150px; }
+.classic-user-toolbar .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ========== SWITCH PANEL ========== -->
+<div class="switch-panel">
+  <label>布局</label>
+  <select id="mode-select" onchange="switchMode(this.value)">
+    <option value="console">Console</option>
+    <option value="classic">Classic</option>
+  </select>
+  <label>主题</label>
+  <select id="theme-select" onchange="switchTheme(this.value)">
+    <option value="light">Light</option>
+    <option value="dark">Dark</option>
+  </select>
+  <label>页面</label>
+  <select id="page-select" onchange="switchPage(this.value)">
+    <option value="cron_list">任务中心</option>
+    <option value="cron_add">任务添加</option>
+    <option value="job_log">执行记录</option>
+    <option value="users">用户管理</option>
+  </select>
+</div>
+
+<!-- ================================================================
+     CONSOLE SIDEBAR
+     ================================================================ -->
+<nav class="console-sidebar">
+  <div class="side-brand"><span class="mark"></span> CronPilot</div>
+  <ul class="side-nav" id="console-nav">
+    <li class="active" data-page="cron_list"><a onclick="switchPage('cron_list')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      任务中心</a></li>
+    <li data-page="cron_add"><a onclick="switchPage('cron_add')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      任务添加</a></li>
+    <li data-page="job_log"><a onclick="switchPage('job_log')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      执行记录</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      操作记录</a></li>
+    <div class="nav-sep"></div>
+    <div class="nav-group-label">管理</div>
+    <li data-page="users"><a onclick="switchPage('users')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+      用户管理</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      业务组</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+      注册审批 <span class="badge">2</span></a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      审计</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1"/></svg>
+      标签管理</a></li>
+    <div class="nav-sep"></div>
+    <div class="nav-group-label">账号</div>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      修改密码</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      API Token</a></li>
+    <li><a>
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3l-6 9 6 9M16 3l6 9-6 9"/></svg>
+      API 文档</a></li>
+  </ul>
+  <div class="side-foot">
+    <div class="user-info"><span class="avatar">张</span><span>张三</span><span class="role-tag">admin</span></div>
+    <div class="user-info" style="margin-top:4px"><span class="group-tag">订单业务组</span></div>
+    <button class="mode-toggle-btn" onclick="switchMode('classic')"><span>切到经典模式</span><span>⇄</span></button>
+    <button class="theme-toggle-btn" onclick="toggleTheme()"><span id="theme-label-side">浅色模式</span><span>◐</span></button>
+  </div>
+</nav>
+
+<!-- ================================================================
+     CONSOLE MAIN — PAGE: 任务中心
+     ================================================================ -->
+<main class="console-main">
+
+<div class="page-view active" id="console-cron_list">
+  <div class="cmdbar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    搜索任务、执行记录或跳转到设置…
+    <span class="kbd"><span>⌘</span><span>K</span></span>
+  </div>
+  <div class="page-head">
+    <h1>任务中心</h1>
+    <div class="stat-line"><b>42</b> 个任务 · <span style="color:var(--danger-fill)">2</span> 连续失败 · <span style="color:var(--warn)">1</span> 今日告警</div>
+  </div>
+  <div class="console-filters">
+    <div class="f-group"><span class="f-label">异常</span><button class="f-btn active">连续失败</button><button class="f-btn">今日失败</button></div>
+    <div class="f-sep"></div>
+    <div class="f-group"><span class="f-label">状态</span><button class="f-btn">运行中</button><button class="f-btn">已暂停</button><button class="f-btn active">全部</button></div>
+    <div class="f-sep"></div>
+    <select class="f-select"><option>全部（可见）</option><option>订单业务组</option></select>
+    <select class="f-select"><option>全部标签</option><option>order</option><option>finance</option></select>
+    <input class="f-input" type="text" placeholder="任务名模糊匹配">
+    <div class="f-spacer"></div>
+    <button class="btn-c btn-accent" onclick="switchPage('cron_add')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新建任务</button>
+  </div>
+  <div class="c-table-wrap no-top">
+    <table class="c-table">
+      <thead><tr><th style="width:36%">任务</th><th style="width:14%">调度策略</th><th style="width:18%">运行与发布</th><th style="width:7%">健康</th><th style="width:9%">状态</th><th style="width:16%">操作</th></tr></thead>
+      <tbody>
+        <tr><td><div class="c-health"><span class="c-dot c-dot-ok c-health-dot"></span><div><span class="c-scope">GLOBAL</span><span class="c-task-name">订单状态同步</span><span class="c-tag">order</span><div class="c-task-url">order.example.com/api/cron/sync-status</div></div></div></td><td><div class="c-sched-human">每 5 分钟</div><div class="c-sched-expr">*/5 * * * *</div></td><td><div class="c-audit mono"><span class="k">RUN</span> 10:02:11</div><div class="c-audit"><span class="k">BY</span> 李雷 · 07-20</div></td><td><span class="c-dot c-dot-ok"></span></td><td><div class="c-status c-status-run"><span class="c-dot c-dot-run"></span>运行中</div></td><td><div class="c-ops"><a class="btn-c btn-line btn-xs">记录</a><a class="btn-c btn-line btn-xs">执行</a><div class="c-dd"><a class="btn-c btn-line btn-xs" onclick="toggleDd(event,this)">···</a><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div></div></td></tr>
+        <tr><td><div class="c-health"><span class="c-dot c-dot-fail c-health-dot"></span><div><span class="c-scope is-group">订单业务组</span><span class="c-task-name">对账单每日汇总</span><span class="c-tag">finance</span><div class="c-task-url">finance.example.com/api/cron/daily-reconcile</div></div></div></td><td><div class="c-sched-human">每天 02:00</div><div class="c-sched-expr">0 2 * * *</div></td><td><div class="c-audit mono"><span class="k">RUN</span> 02:00:04</div><div class="c-audit"><span class="k">BY</span> 王芳 · 06-30</div></td><td><span class="c-dot c-dot-fail"></span></td><td><div class="c-status c-status-run"><span class="c-dot c-dot-run"></span>运行中</div></td><td><div class="c-ops"><a class="btn-c btn-line btn-xs">记录</a><a class="btn-c btn-line btn-xs">执行</a><div class="c-dd"><a class="btn-c btn-line btn-xs" onclick="toggleDd(event,this)">···</a><div class="c-dd-menu"><a>暂停</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div></div></td></tr>
+        <tr><td><div class="c-health"><span class="c-dot c-dot-warn c-health-dot"></span><div><span class="c-scope">GLOBAL</span><span class="c-task-name">优惠券过期清理</span><div class="c-task-url">promo.example.com/api/cron/expire-coupons</div></div></div></td><td><div class="c-sched-human">每小时整点</div><div class="c-sched-expr">0 * * * *</div></td><td><div class="c-audit mono"><span class="k">RUN</span> 10:00:09</div><div class="c-audit"><span class="k">BY</span> 李雷 · 05-14</div></td><td><span class="c-dot c-dot-warn"></span></td><td><div class="c-status c-status-pause"><span class="c-dot c-dot-off"></span>已暂停</div></td><td><div class="c-ops"><a class="btn-c btn-line btn-xs">记录</a><div class="c-dd"><a class="btn-c btn-line btn-xs" onclick="toggleDd(event,this)">···</a><div class="c-dd-menu"><a>启动</a><a>编辑</a><div class="c-div"></div><a class="c-danger">下线</a></div></div></div></td></tr>
+        <tr><td><div class="c-health"><span class="c-dot c-dot-none c-health-dot"></span><div><span class="c-scope is-group">风控组</span><span class="c-task-name">异常登录扫描</span><div class="c-task-url">risk.example.com/api/cron/login-scan</div></div></div></td><td><div class="c-sched-human">每 10 分钟</div><div class="c-sched-expr">*/10 * * * *</div></td><td><div class="c-audit mono"><span class="k">RUN</span> —</div><div class="c-audit"><span class="k">BY</span> 王芳 · 07-25</div></td><td><span class="c-dot c-dot-none"></span></td><td><div class="c-status c-status-off"><span class="c-dot c-dot-off"></span>已下线</div></td><td><div class="c-ops"><a class="btn-c btn-line btn-xs">记录</a></div></td></tr>
+      </tbody>
+    </table>
+    <div class="c-foot"><span class="count">42 total</span><div class="c-pg"><a>‹</a><a class="active">1</a><a>2</a><a>3</a><a>…</a><a>5</a><a>›</a></div></div>
+  </div>
+</div>
+
+<!-- ========== PAGE: 任务添加 ========== -->
+<div class="page-view" id="console-cron_add">
+  <div class="page-head"><h1>新建定时任务</h1></div>
+  <div class="c-form-card">
+    <div class="c-field">
+      <label>任务名称 <span class="req">*</span></label>
+      <input type="text" placeholder="例如：订单状态同步">
+      <div class="hint">必填，不可重复</div>
+    </div>
+    <div class="c-field">
+      <label>任务说明 <span class="req">*</span></label>
+      <input type="text" placeholder="简要描述任务的用途和目的">
+      <div class="hint">必填，1～500 字；可写需求链接、用途等</div>
+    </div>
+    <div class="c-field">
+      <label>可见范围 <span class="req">*</span></label>
+      <div class="c-field-inline">
+        <select style="width:160px"><option>指定业务组</option><option>全局共享</option></select>
+        <select style="flex:1"><option>订单业务组</option><option>风控组</option></select>
+      </div>
+      <div class="hint">默认归属业务组；仅必要时选全局共享</div>
+    </div>
+    <div class="c-field">
+      <label>任务标签</label>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:5px;min-height:36px;background:var(--surface)">
+        <span class="c-tag" style="margin:0">order</span>
+        <span class="c-tag" style="margin:0">daily</span>
+        <input type="text" placeholder="输入标签后按空格添加" style="border:none;outline:none;background:transparent;flex:1;font-size:12px;padding:0;color:var(--ink)">
+      </div>
+      <div class="hint">可选；建议输入国家/业务线/服务名等</div>
+    </div>
+    <div class="c-field">
+      <label>定时方式 <span class="req">*</span></label>
+      <select style="width:160px"><option selected>定时模式</option><option>具体时间</option></select>
+      <div class="hint">定时模式按周期触发，具体时间仅执行一次</div>
+    </div>
+    <div class="c-field">
+      <label>Cron 表达式</label>
+      <div class="c-cron-grid">
+        <div class="c-field"><label style="font-size:11px;color:var(--muted)">日(号)</label><input type="text" placeholder="*"></div>
+        <div class="c-field"><label style="font-size:11px;color:var(--muted)">星期几</label><input type="text" placeholder="*"></div>
+        <div class="c-field"><label style="font-size:11px;color:var(--muted)">小时</label><input type="text" placeholder="*/2"></div>
+        <div class="c-field"><label style="font-size:11px;color:var(--muted)">分钟</label><input type="text" placeholder="0"></div>
+        <div class="c-field"><label style="font-size:11px;color:var(--muted)">秒</label><input type="text" placeholder="0"></div>
+      </div>
+      <div class="c-cron-preview">✓ 每 2 小时整点执行（下次：2026-08-07 18:00:00）</div>
+    </div>
+    <div class="c-field">
+      <label>触发 URL <span class="req">*</span></label>
+      <div class="c-field-inline">
+        <select style="width:80px"><option>GET</option><option>POST</option></select>
+        <input type="url" placeholder="https://example.com/api/cron/job">
+      </div>
+      <div class="hint">到点由调度器对目标发起 GET/POST；GET 附加 query 参数 cronpilot_log_id / cronpilot_sign</div>
+    </div>
+    <div class="c-field">
+      <label>超时（秒）</label>
+      <input type="number" placeholder="5" style="width:100px">
+      <div class="hint">留空使用默认 5s；有效范围 1–120</div>
+    </div>
+    <div class="c-form-actions">
+      <button class="btn-c btn-accent" style="padding:7px 20px">添加</button>
+      <button class="btn-c btn-line" style="padding:7px 20px">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: 执行记录 ========== -->
+<div class="page-view" id="console-job_log">
+  <div class="page-head"><h1>执行记录</h1><div class="stat-line">默认展示「非成功」，避免秒级成功日志淹没异常</div></div>
+  <div class="console-filters" style="margin-bottom:0">
+    <div class="f-group"><span class="f-label">结果</span><button class="f-btn active">非成功</button><button class="f-btn">全部</button><button class="f-btn">仅失败</button><button class="f-btn">仅异常</button><button class="f-btn">仅成功</button></div>
+    <div class="f-sep"></div>
+    <input class="f-input" type="text" placeholder="任务名称">
+    <input class="f-input" type="text" placeholder="开始时间" style="width:130px">
+    <span style="color:var(--faint)">—</span>
+    <input class="f-input" type="text" placeholder="结束时间" style="width:130px">
+    <div class="f-spacer"></div>
+    <button class="btn-c btn-accent btn-xs">搜索</button>
+    <button class="btn-c btn-line btn-xs">重置</button>
+  </div>
+  <div class="c-table-wrap no-top">
+    <table class="c-table">
+      <thead><tr><th style="width:8%">LOG ID</th><th style="width:20%">任务名称</th><th style="width:30%">返回内容</th><th style="width:16%">执行时间</th><th style="width:10%">耗时</th><th style="width:8%">结果</th><th style="width:8%">操作</th></tr></thead>
+      <tbody>
+        <tr><td class="mono" style="font-size:11px">10247</td><td style="font-weight:600">对账单每日汇总</td><td><code style="font-size:11px;color:var(--danger-fill)">Connection refused: finance.example.com:443</code></td><td class="mono" style="font-size:11px">2026-08-07 02:00:04</td><td class="mono" style="font-size:11px">5.01s</td><td><span class="log-result log-fail"><span class="c-dot c-dot-fail"></span> 失败</span></td><td><a class="btn-c btn-line btn-xs">详情</a></td></tr>
+        <tr><td class="mono" style="font-size:11px">10246</td><td style="font-weight:600">优惠券过期清理</td><td><code style="font-size:11px;color:var(--danger-fill)">HTTP 500 Internal Server Error</code></td><td class="mono" style="font-size:11px">2026-08-07 01:00:09</td><td class="mono" style="font-size:11px">0.82s</td><td><span class="log-result log-fail"><span class="c-dot c-dot-fail"></span> 失败</span></td><td><a class="btn-c btn-line btn-xs">详情</a></td></tr>
+        <tr><td class="mono" style="font-size:11px">10245</td><td style="font-weight:600">对账单每日汇总</td><td><code style="font-size:11px;color:var(--danger-fill)">Connection refused: finance.example.com:443</code></td><td class="mono" style="font-size:11px">2026-08-06 02:00:03</td><td class="mono" style="font-size:11px">5.00s</td><td><span class="log-result log-timeout"><span class="c-dot" style="background:#9333ea"></span> 超时</span></td><td><a class="btn-c btn-line btn-xs">详情</a></td></tr>
+        <tr><td class="mono" style="font-size:11px">10244</td><td style="font-weight:600">异常登录扫描</td><td><code style="font-size:11px;color:var(--muted)">No response (task retired before execution)</code></td><td class="mono" style="font-size:11px">2026-08-05 10:30:00</td><td class="mono" style="font-size:11px">—</td><td><span class="log-result log-unknown"><span class="c-dot c-dot-none"></span> 未知</span></td><td><a class="btn-c btn-line btn-xs">详情</a></td></tr>
+      </tbody>
+    </table>
+    <div class="c-foot"><span class="count">4 total (non-success)</span><div class="c-pg"><a class="active">1</a></div></div>
+  </div>
+</div>
+
+<!-- ========== PAGE: 用户管理 ========== -->
+<div class="page-view" id="console-users">
+  <div class="page-head"><h1>用户管理</h1></div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+    <button class="btn-c btn-accent btn-xs">+ 添加用户</button>
+    <div style="display:flex;align-items:center;gap:4px">
+      <input class="f-input" type="text" placeholder="按用户名搜索…" style="width:160px">
+      <button class="btn-c btn-line btn-xs">搜索</button>
+    </div>
+    <span style="color:var(--muted);font-size:12px">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</span>
+  </div>
+  <div class="c-table-wrap">
+    <table class="c-table">
+      <thead><tr><th>ID</th><th>用户名</th><th>花名</th><th>岗位</th><th>角色</th><th>状态</th><th>密码</th><th>业务组</th><th>创建时间</th><th style="width:220px">操作</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td style="font-weight:600">admin <span style="font-size:10px;padding:0 4px;border-radius:3px;background:var(--accent-dim);color:var(--accent)">当前</span></td><td>张三</td><td>运维</td><td><span class="u-role u-role-admin">admin</span></td><td><span class="u-badge u-active">启用</span></td><td><span class="u-badge" style="background:var(--surface-3);color:var(--ink-2)">正常</span></td><td>—</td><td class="mono" style="font-size:11px">2026-01-01</td><td><a class="btn-c btn-line btn-xs">修改密码</a> <span style="font-size:10px;color:var(--faint)">账号/角色不可自改</span></td></tr>
+        <tr><td class="mono">2</td><td style="font-weight:600">leilei</td><td>李雷</td><td>后端开发</td><td><span class="u-role u-role-operator">operator</span></td><td><span class="u-badge u-active">启用</span></td><td><span class="u-badge" style="background:var(--surface-3);color:var(--ink-2)">正常</span></td><td>订单业务组</td><td class="mono" style="font-size:11px">2026-03-15</td><td><a class="btn-c btn-line btn-xs">重置密码</a> <a class="btn-c btn-line btn-xs">重置Token</a> <a class="btn-c btn-danger-c btn-xs" style="color:#fff">停用</a> <a class="btn-c btn-line btn-xs">编辑</a></td></tr>
+        <tr><td class="mono">3</td><td style="font-weight:600">wangfang</td><td>王芳</td><td>前端开发</td><td><span class="u-role u-role-operator">operator</span></td><td><span class="u-badge u-active">启用</span></td><td><span class="u-badge u-reset">待重置</span></td><td>订单业务组、风控组</td><td class="mono" style="font-size:11px">2026-04-20</td><td><a class="btn-c btn-line btn-xs">重置密码</a> <a class="btn-c btn-line btn-xs">重置Token</a> <a class="btn-c btn-danger-c btn-xs" style="color:#fff">停用</a> <a class="btn-c btn-line btn-xs">编辑</a></td></tr>
+        <tr style="opacity:.6"><td class="mono">4</td><td style="font-weight:600">zhaoyi</td><td>赵一</td><td>测试</td><td><span class="u-role u-role-viewer">viewer</span></td><td><span class="u-badge u-inactive">停用</span><div style="font-size:10px;color:var(--muted);margin-top:2px">离职</div></td><td><span class="u-badge" style="background:var(--surface-3);color:var(--ink-2)">正常</span></td><td>风控组</td><td class="mono" style="font-size:11px">2026-05-10</td><td><a class="btn-c btn-line btn-xs">查看</a></td></tr>
+      </tbody>
+    </table>
+    <div class="c-foot"><span class="count">4 total</span><div class="c-pg"><a class="active">1</a></div></div>
+  </div>
+</div>
+
+</main>
+
+<!-- ================================================================
+     CLASSIC MODE CONTENT
+     ================================================================ -->
+<div class="classic-wrap">
+  <div class="classic-topbar">
+    <span>👤 张三</span>
+    <span class="role-badge" style="margin-left:8px">管理员</span>
+    <span class="group-badge" style="margin-left:6px">订单业务组</span>
+    <span class="topbar-sep">|</span>
+    <a onclick="switchMode('console')" style="font-size:12px;opacity:.8">切到控制台</a>
+    <span class="topbar-sep">|</span>
+    <a onclick="toggleTheme()" style="font-size:12px;opacity:.8" id="classic-theme-btn">深色模式</a>
+    <span class="topbar-sep">|</span>
+    <a>退出</a>
+  </div>
+  <div class="jumbotron-header"><h1>CronPilot 定时调度平台</h1><p>方便、统一、自由</p></div>
+  <div class="main-area">
+    <ul class="nav-classic" id="classic-nav">
+      <li class="active" data-page="cron_list"><a onclick="switchPage('cron_list')">任务中心</a></li>
+      <li data-page="cron_add"><a onclick="switchPage('cron_add')">任务添加</a></li>
+      <li data-page="job_log"><a onclick="switchPage('job_log')">执行记录</a></li>
+      <li><a>操作记录</a></li>
+      <li data-page="users"><a onclick="switchPage('users')">用户管理</a></li>
+      <li><a>业务组</a></li>
+      <li><a>注册审批 <span class="badge">2</span></a></li>
+      <li><a>审计</a></li>
+      <li><a>标签管理</a></li>
+      <li><a>修改密码</a></li>
+      <li><a>API Token</a></li>
+      <li><a>API 文档</a></li>
+    </ul>
+
+    <!-- Classic: 任务中心 -->
+    <div class="page-view active" id="classic-cron_list" style="margin-top:12px">
+      <div class="classic-filter-bar">
+        <span style="color:var(--muted);font-size:11px;font-weight:600">异常</span>
+        <span class="chip chip-danger active">连续失败</span><span class="chip">今日失败</span>
+        <span style="color:var(--border-strong);margin:0 4px">|</span>
+        <span style="color:var(--muted);font-size:11px;font-weight:600">状态</span>
+        <span class="chip">运行中</span><span class="chip">已暂停</span><span class="chip active">全部</span>
+        <select><option>全部（可见）</option></select>
+        <input type="text" placeholder="任务名搜索">
+        <button class="btn-add">+ 新建任务</button>
+      </div>
+      <table class="classic-table">
+        <thead><tr><th style="width:42%">任务</th><th style="width:15%">调度策略</th><th style="width:15%">运行与发布</th><th style="width:8%">运行状态</th><th style="width:20%">操作</th></tr></thead>
+        <tbody>
+          <tr><td><span class="health-dot hd-ok"></span> <strong style="color:var(--ink);font-size:14px">订单状态同步</strong><div style="margin-left:14px;font-size:11px;color:var(--muted);font-family:var(--font-mono)">order.example.com/api/cron/sync-status</div></td><td><div style="font-weight:600">每 5 分钟</div><code style="font-size:11px;color:var(--muted);background:var(--surface-3);padding:1px 5px;border-radius:3px">*/5 * * * *</code></td><td><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近执行</span> <span style="color:var(--muted)">10:02:11</span></div><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近发布</span> <span style="color:var(--muted)">李雷 · 07-20</span></div></td><td><span class="lbl lbl-run">运行中</span></td><td><a class="btn-cl">记录</a> <a class="btn-cl">执行</a> <a class="btn-cl">更多 ▾</a></td></tr>
+          <tr><td><span class="health-dot hd-fail"></span> <strong style="color:var(--ink);font-size:14px">对账单每日汇总</strong><div style="margin-left:14px;font-size:11px;color:var(--muted);font-family:var(--font-mono)">finance.example.com/api/cron/daily-reconcile</div></td><td><div style="font-weight:600">每天 02:00</div><code style="font-size:11px;color:var(--muted);background:var(--surface-3);padding:1px 5px;border-radius:3px">0 2 * * *</code></td><td><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近执行</span> <span style="color:var(--muted)">02:00:04</span></div><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近发布</span> <span style="color:var(--muted)">王芳 · 06-30</span></div></td><td><span class="lbl lbl-run">运行中</span></td><td><a class="btn-cl">记录</a> <a class="btn-cl">执行</a> <a class="btn-cl">更多 ▾</a></td></tr>
+          <tr><td><span class="health-dot hd-warn"></span> <strong style="color:var(--ink);font-size:14px">优惠券过期清理</strong><div style="margin-left:14px;font-size:11px;color:var(--muted);font-family:var(--font-mono)">promo.example.com/api/cron/expire-coupons</div></td><td><div style="font-weight:600">每小时整点</div><code style="font-size:11px;color:var(--muted);background:var(--surface-3);padding:1px 5px;border-radius:3px">0 * * * *</code></td><td><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近执行</span> <span style="color:var(--muted)">10:00:09</span></div><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近发布</span> <span style="color:var(--muted)">李雷 · 05-14</span></div></td><td><span class="lbl lbl-pause">已暂停</span></td><td><a class="btn-cl">记录</a> <a class="btn-cl">更多 ▾</a></td></tr>
+          <tr><td><span class="health-dot hd-none"></span> <strong style="color:var(--ink);font-size:14px">异常登录扫描</strong><div style="margin-left:14px;font-size:11px;color:var(--muted);font-family:var(--font-mono)">risk.example.com/api/cron/login-scan</div></td><td><div style="font-weight:600">每 10 分钟</div><code style="font-size:11px;color:var(--muted);background:var(--surface-3);padding:1px 5px;border-radius:3px">*/10 * * * *</code></td><td><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近执行</span> <span style="color:var(--muted)">—</span></div><div style="font-size:11px"><span style="font-weight:600;color:var(--ink-2)">最近发布</span> <span style="color:var(--muted)">王芳 · 07-25</span></div></td><td><span class="lbl lbl-retired">已下线</span></td><td><a class="btn-cl">记录</a></td></tr>
+        </tbody>
+      </table>
+      <div class="classic-pagination"><a>‹</a><a class="active">1</a><a>2</a><a>3</a><a>›</a></div>
+    </div>
+
+    <!-- Classic: 任务添加 -->
+    <div class="page-view" id="classic-cron_add" style="margin-top:16px">
+      <div class="classic-form">
+        <div class="ctl-group"><div class="ctl-label">任务名称</div><div class="ctl-body"><input type="text" placeholder="例如：订单状态同步"><div class="ctl-hint">* 必填，不可重复</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">任务说明</div><div class="ctl-body"><input type="text" placeholder="用途/需求链接"><div class="ctl-hint">* 必填，1～500 字</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">可见范围</div><div class="ctl-body"><select><option>指定业务组</option><option>全局共享</option></select></div></div>
+        <div class="ctl-group"><div class="ctl-label">业务组</div><div class="ctl-body"><select><option>订单业务组</option><option>风控组</option></select></div></div>
+        <div class="ctl-group"><div class="ctl-label">定时方式</div><div class="ctl-body"><select><option>定时模式</option><option>具体时间</option></select></div></div>
+        <div class="ctl-group"><div class="ctl-label">日(号)</div><div class="ctl-body"><input type="text" placeholder="*"><div class="ctl-hint">1-31</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">星期几</div><div class="ctl-body"><input type="text" placeholder="*"><div class="ctl-hint">(0-6 or mon,tue,...)</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">小时</div><div class="ctl-body"><input type="text" placeholder="*/2"><div class="ctl-hint">0-23</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">分钟</div><div class="ctl-body"><input type="text" placeholder="0"><div class="ctl-hint">0-59</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">秒</div><div class="ctl-body"><input type="text" placeholder="0"></div></div>
+        <div class="ctl-group"><div class="ctl-label">触发 URL</div><div class="ctl-body"><div style="display:flex;gap:4px"><select style="width:70px"><option>GET</option><option>POST</option></select><input type="text" placeholder="https://example.com/job"></div><div class="ctl-hint">* 必填</div></div></div>
+        <div class="ctl-group"><div class="ctl-label">超时（秒）</div><div class="ctl-body"><input type="number" placeholder="5" style="width:80px"><div class="ctl-hint">留空默认 5s</div></div></div>
+        <div class="ctl-actions"><button class="btn-primary-cl">添加</button><button class="btn-default-cl">返回</button></div>
+      </div>
+    </div>
+
+    <!-- Classic: 执行记录 -->
+    <div class="page-view" id="classic-job_log" style="margin-top:12px">
+      <div class="classic-filter-bar">
+        <span style="color:var(--muted);font-size:11px;font-weight:600">高级查询：</span>
+        <input type="text" placeholder="任务名称">
+        <input type="text" placeholder="开始时间" style="width:130px"> <span style="color:var(--faint)">—</span>
+        <input type="text" placeholder="结束时间" style="width:130px">
+        <span style="color:var(--muted);font-size:11px">结果</span>
+        <select><option>非成功</option><option>全部</option><option>仅失败</option></select>
+        <button class="btn-add" style="margin-left:0">搜索</button>
+        <a style="color:var(--danger-fill);font-size:12px;cursor:pointer">重置</a>
+      </div>
+      <table class="classic-table">
+        <thead><tr><th>log_id</th><th>任务名称</th><th>返回内容</th><th>执行时间</th><th>耗时</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>10247</td><td>对账单每日汇总</td><td><code style="font-size:11px;color:var(--danger-fill)">Connection refused</code></td><td>2026-08-07 02:00:04</td><td>5.01s</td><td><a class="btn-cl">查看详情</a></td></tr>
+          <tr><td>10246</td><td>优惠券过期清理</td><td><code style="font-size:11px;color:var(--danger-fill)">HTTP 500</code></td><td>2026-08-07 01:00:09</td><td>0.82s</td><td><a class="btn-cl">查看详情</a></td></tr>
+          <tr><td>10245</td><td>对账单每日汇总</td><td><code style="font-size:11px;color:var(--danger-fill)">Connection refused</code></td><td>2026-08-06 02:00:03</td><td>5.00s</td><td><a class="btn-cl">查看详情</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Classic: 用户管理 -->
+    <div class="page-view" id="classic-users" style="margin-top:12px">
+      <div class="classic-user-toolbar">
+        <button class="btn-add" style="margin-left:0;padding:4px 10px">添加用户</button>
+        <input type="text" placeholder="按用户名搜索…">
+        <a class="btn-cl">搜索</a>
+        <span class="hint">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</span>
+      </div>
+      <table class="classic-table">
+        <thead><tr><th>ID</th><th>用户名</th><th>花名</th><th>岗位</th><th>角色</th><th>状态</th><th>密码</th><th>业务组</th><th>创建时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>admin</b> <span style="font-size:10px;color:var(--accent-blue)">当前</span></td><td>张三</td><td>运维</td><td><span class="lbl lbl-run" style="font-size:10px">admin</span></td><td><span style="color:var(--success)">启用</span></td><td>正常</td><td>—</td><td>2026-01-01</td><td><a class="btn-cl">修改密码</a></td></tr>
+          <tr><td>2</td><td><b>leilei</b></td><td>李雷</td><td>后端</td><td><span class="lbl" style="font-size:10px;background:var(--role-operator)">operator</span></td><td><span style="color:var(--success)">启用</span></td><td>正常</td><td>订单业务组</td><td>2026-03-15</td><td><a class="btn-cl">重置密码</a> <a class="btn-cl">停用</a> <a class="btn-cl">编辑</a></td></tr>
+          <tr><td>3</td><td><b>wangfang</b></td><td>王芳</td><td>前端</td><td><span class="lbl" style="font-size:10px;background:var(--role-operator)">operator</span></td><td><span style="color:var(--success)">启用</span></td><td style="color:var(--warn)">待重置</td><td>订单业务组、风控组</td><td>2026-04-20</td><td><a class="btn-cl">重置密码</a> <a class="btn-cl">停用</a> <a class="btn-cl">编辑</a></td></tr>
+          <tr style="opacity:.5"><td>4</td><td><b>zhaoyi</b></td><td>赵一</td><td>测试</td><td><span class="lbl" style="font-size:10px;background:var(--role-viewer)">viewer</span></td><td><span style="color:var(--muted)">停用</span><div style="font-size:10px;color:var(--muted)">离职</div></td><td>正常</td><td>风控组</td><td>2026-05-10</td><td><a class="btn-cl">查看</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== JAVASCRIPT ========== -->
+<script>
+var currentPage = 'cron_list';
+function switchMode(mode) {
+  document.documentElement.setAttribute('data-ui-mode', mode);
+  document.getElementById('mode-select').value = mode;
+  switchPage(currentPage);
+}
+function switchTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-select').value = theme;
+  var sideLabel = document.getElementById('theme-label-side');
+  if (sideLabel) sideLabel.textContent = theme === 'dark' ? '深色模式' : '浅色模式';
+  var classicBtn = document.getElementById('classic-theme-btn');
+  if (classicBtn) classicBtn.textContent = theme === 'dark' ? '浅色模式' : '深色模式';
+}
+function toggleTheme() {
+  switchTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+function switchPage(page) {
+  currentPage = page;
+  document.getElementById('page-select').value = page;
+  document.querySelectorAll('.page-view').forEach(function(v) { v.classList.remove('active'); });
+  var consoleView = document.getElementById('console-' + page);
+  var classicView = document.getElementById('classic-' + page);
+  if (consoleView) consoleView.classList.add('active');
+  if (classicView) classicView.classList.add('active');
+  document.querySelectorAll('#console-nav li, #classic-nav li').forEach(function(li) {
+    li.classList.toggle('active', li.getAttribute('data-page') === page);
+  });
+}
+function toggleDd(e, el) {
+  e.preventDefault(); e.stopPropagation();
+  var dd = el.closest('.c-dd');
+  document.querySelectorAll('.c-dd.open').forEach(function(o) { if (o !== dd) o.classList.remove('open'); });
+  dd.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.c-dd')) document.querySelectorAll('.c-dd.open').forEach(function(o) { o.classList.remove('open'); });
+});
+document.querySelectorAll('.f-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var group = this.closest('.f-group');
+    if (group) group.querySelectorAll('.f-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="console-style-demo.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

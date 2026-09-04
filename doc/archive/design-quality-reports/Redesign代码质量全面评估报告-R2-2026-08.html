@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot Redesign 代码质量全面评估报告 (R2) — 2026-08</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2.5rem;color:#1a1a2e;border-left:4px solid #3D6FE0;padding-left:.8rem}
+h3{margin-top:1.5rem;color:#2d3748}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.82rem}
+blockquote{border-left:3px solid #3D6FE0;margin:1rem 0;padding:.5rem 1rem;background:#f8f9ff}
+.grade{font-size:2rem;font-weight:700;display:inline-block;padding:.2rem .8rem;border-radius:6px;margin-right:.5rem}
+.grade-a{background:#dcfce7;color:#166534}
+.grade-b{background:#dbeafe;color:#1e40af}
+.grade-c{background:#fef9c3;color:#854d0e}
+.grade-d{background:#fee2e2;color:#991b1b}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0}
+.summary-card{border:1px solid #e2e8f0;border-radius:8px;padding:1rem;text-align:center}
+.summary-card h4{margin:0 0 .5rem;color:#475569}
+</style>
+</head>
+<body>
+
+<h1>CronPilot Redesign 代码质量全面评估报告 (R2)</h1>
+<p><strong>日期</strong>：2026-08-26<br>
+<strong>评估范围</strong>：Redesign v2 全栈（CSS 架构 / JS 模块 / Python 后端 / Jinja2 模板）<br>
+<strong>评估方法</strong>：静态分析 + CI 门禁验证 + 文件级 Review<br>
+<strong>上一次评估</strong>：<a href="Redesign代码质量全面评估报告-2026-08.html">R1 — 2026-08-24</a></p>
+
+<div class="summary-grid">
+<div class="summary-card"><h4>CSS 架构</h4><span class="grade grade-b">B</span></div>
+<div class="summary-card"><h4>JS 模块</h4><span class="grade grade-b">B+</span></div>
+<div class="summary-card"><h4>后端视图</h4><span class="grade grade-b">B-</span></div>
+<div class="summary-card"><h4>模板结构</h4><span class="grade grade-b">B</span></div>
+<div class="summary-card"><h4>CI 门禁</h4><span class="grade grade-a">A-</span></div>
+<div class="summary-card"><h4>综合</h4><span class="grade grade-b">B</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>一、CSS 架构评估（B）</h2>
+
+<h3>1.1 文件结构与组织</h3>
+<table>
+<tr><th>文件</th><th>行数</th><th>职责</th><th>单项评分</th></tr>
+<tr><td><code>console-theme.css</code></td><td>387</td><td>Design Tokens（:root + dark mode）</td><td>A</td></tr>
+<tr><td><code>redesign-layout.css</code></td><td>569</td><td>Shell Grid / Sidebar / Topbar / Main</td><td>A</td></tr>
+<tr><td><code>redesign-components.css</code></td><td>428</td><td>可复用 UI 组件（btn, toast, modal, card）</td><td>B+</td></tr>
+<tr><td><code>redesign-mockup-shared.css</code></td><td>212</td><td>跨页面表格/按钮/表单原语</td><td>A</td></tr>
+<tr><td><code>redesign-pages.css</code></td><td>1,861</td><td>页面专属样式（应 scope 在 .cp-page-*）</td><td>C</td></tr>
+</table>
+
+<h3>1.2 Token 系统</h3>
+<ul>
+<li><strong>覆盖度</strong>：90+ semantic tokens，dark mode 全覆盖</li>
+<li><strong>CI 验证</strong>：<code>check_css_token_reachability.py --check</code> 通过（零未定义引用）</li>
+<li><strong>问题</strong>：双语义层并存（<code>--cp-muted</code> vs <code>--cp-text-muted</code>，功能重叠）；<code>--cp-hover</code>/<code>--cp-radius</code> 仅在 .cp-shell 作用域内定义</li>
+</ul>
+
+<h3>1.3 组件模块化</h3>
+<ul>
+<li><strong>三套按钮系统</strong>：<code>.cp-btn</code>（components）/ <code>.btn-c</code>（mockup-shared）/ <code>.btn</code>（residual）</li>
+<li><strong>重复模式</strong>：Filter bar 3 种实现（<code>.console-filters</code> / <code>.el-filters</code> / <code>.pg-audit-filter-bar</code>）</li>
+<li><strong>Empty state</strong> 3 种变体（<code>.hf-empty</code> / <code>.cp-empty-state</code> / <code>.pg-empty</code>）</li>
+</ul>
+
+<h3>1.4 Page Scoping</h3>
+<p>19 个页面模板声明了 <code>{% block main_class %}</code>，但 <code>redesign-pages.css</code> 仅 16 个有对应 <code>.cp-page-*</code> CSS block：</p>
+<ul>
+<li><strong>缺失</strong>：<code>.cp-page-tags</code>、<code>.cp-page-audit</code>、<code>.cp-page-oplog</code></li>
+<li><strong>~220 个全局命名选择器</strong>使用前缀混搭（<code>hf-</code>/<code>um-</code>/<code>el-</code>/<code>pg-</code>/<code>tg-</code>）</li>
+</ul>
+
+<h3>1.5 Dark Mode</h3>
+<ul>
+<li>主色/信号色/角色色全覆盖</li>
+<li><strong>Gap</strong>：~25 个 <code>rgba()</code> shadow/overlay 未 token 化；SVG data-URI 内颜色无法动态切换</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>二、JavaScript 模块评估（B+）</h2>
+
+<h3>2.1 模块架构</h3>
+<table>
+<tr><th>模块</th><th>职责</th><th>暴露 API</th><th>评分</th></tr>
+<tr><td><code>common-redesign.js</code></td><td>CSRF / Ajax form / Anti-double / Cookie / escHtml</td><td><code>setCookie</code>, <code>escHtml</code></td><td>B+</td></tr>
+<tr><td><code>redesign-shell.js</code></td><td>Sidebar / Mobile menu / Dropdown / Command Palette</td><td><code>CpShell</code></td><td>B</td></tr>
+<tr><td><code>redesign-confirm.js</code></td><td>Confirm dialog + Modal factory</td><td><code>CpConfirm</code>, <code>CpModal</code></td><td>B</td></tr>
+<tr><td><code>redesign-toast.js</code></td><td>Toast notifications</td><td><code>CpToast</code></td><td>A-</td></tr>
+<tr><td><code>redesign-theme.js</code></td><td>Dark/Light toggle</td><td><code>CpTheme</code></td><td>A-</td></tr>
+</table>
+
+<h3>2.2 加载策略</h3>
+<pre>
+jQuery (sync, no defer)         ← inline scripts 依赖 $
+  ├─ common-redesign.js (defer) ← CSRF/Ajax 基础设施
+  ├─ redesign-shell.js (defer)  ← Shell 交互
+  ├─ redesign-theme.js (defer)  ← 主题切换
+  ├─ redesign-toast.js (defer)  ← Toast 通知
+  ├─ redesign-confirm.js (defer)← 对话框
+  └─ {% block js %} (inline)    ← 页面逻辑
+</pre>
+<p><strong>教训强化</strong>：jQuery 绝不加 defer（2026-08 F5 事故）；已写入 AGENTS.md + CI grep 自检。</p>
+
+<h3>2.3 安全态势</h3>
+<ul>
+<li>CSRF：<code>$.ajaxSetup</code> 全局注入 X-CSRFToken ✓</li>
+<li>XSS：<code>CpToast</code>/<code>CpConfirm</code> 使用 textContent ✓；<code>CpModal</code> bodyHtml 需调用方负责</li>
+<li>Cookie：全部写入含 <code>samesite=lax</code> ✓</li>
+<li><strong>Gap</strong>：Command Palette 中 href 未 escape（低风险——数据来自服务端渲染 sidebar）</li>
+</ul>
+
+<h3>2.4 重复代码</h3>
+<ul>
+<li>AJAX filter IIFE 在 dashboard/exec_logs/users 三处复制（~80 行×3）</li>
+<li><code>escHtml</code> fallback shim 仍在 shell.js / tags.html / registration_review.html 存在</li>
+<li>Cookie 写入绕过 <code>setCookie()</code> 2 处（shell/theme）</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>三、后端视图评估（B-）</h2>
+
+<h3>3.1 分层架构</h3>
+<table>
+<tr><th>层级</th><th>代表文件</th><th>评分</th><th>说明</th></tr>
+<tr><td>Policy/Auth</td><td><code>rbac/policy.py</code> + <code>decorators.py</code></td><td>A</td><td>声明式、最小化、可测试</td></tr>
+<tr><td>Service</td><td><code>services/cron_service.py</code></td><td>A-</td><td>单一职责：CRUD + 调度注册 + 操作日志</td></tr>
+<tr><td>Repository</td><td><code>repositories/cron_repository.py</code></td><td>B+</td><td>SA 2.0 select()；有展示逻辑越界</td></tr>
+<tr><td>View (RBAC)</td><td><code>rbac/views.py</code></td><td>B</td><td>委托 Service；2 个函数 >100 行</td></tr>
+<tr><td>View (Main)</td><td><code>main/views.py</code></td><td>B</td><td>1,258 行；DashboardService 已提取；v1/v2 双渲染仍在</td></tr>
+</table>
+
+<h3>3.2 复杂度热点</h3>
+<table>
+<tr><th>函数</th><th>行数</th><th>问题</th></tr>
+<tr><td><code>cron_list()</code></td><td>242</td><td>Filter 组装 + 统计 + 缓存 + v1/v2/partial 三路径</td></tr>
+<tr><td><code>task_detail_v2()</code></td><td>156</td><td>6+ 直接 DB 查询 + croniter 计算 + 格式化</td></tr>
+<tr><td><code>operation_log_list()</code></td><td>120</td><td>Scope + partial + 双渲染</td></tr>
+<tr><td><code>users_edit()</code></td><td>116</td><td>验证 + scope + profile 字段 + 回滚</td></tr>
+<tr><td><code>users_add()</code></td><td>107</td><td>同上模式</td></tr>
+</table>
+
+<h3>3.3 安全基线</h3>
+<ul>
+<li>所有 mutation 路由有 <code>@csrf_protect</code> ✓</li>
+<li><code>require_permission</code> + scope filter 链 ✓</li>
+<li>Login rate limiting + audit logging ✓</li>
+<li><code>safe_next_url()</code> 防 open redirect ✓</li>
+<li>无 SQL injection 风险（ORM parameterized）✓</li>
+<li><strong>Gap</strong>：<code>update_status()</code> 无事务边界；<code>task_detail_v2</code> 有 bare <code>except: pass</code></li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>四、模板结构评估（B）</h2>
+
+<h3>4.1 继承架构（A-）</h3>
+<pre>
+_base.html (shell + assets + blocks)
+├── include _sidebar.html (RBAC-aware nav)
+├── include _topbar.html (user menu + theme + version switch)
+└── &lt;main class="cp-main {% block main_class %}"&gt;
+      {% block breadcrumb %}
+      {% block content %}
+      {% block js %}
+</pre>
+
+<h3>4.2 Style Block 合规（A）</h3>
+<p>所有 8 个审查的模板 <code>&lt;style&gt;</code> block 均为 0 行实际 CSS 或仅含注释占位符。</p>
+
+<h3>4.3 Inline Style 违规（B-）</h3>
+<p><code>check_ui_contract.py --check</code> 报告 10 个违规：</p>
+<table>
+<tr><th>文件</th><th>违规数</th><th>性质</th></tr>
+<tr><td><code>dashboard.html</code></td><td>3</td><td>JS modal HTML 构建中的 margin/width</td></tr>
+<tr><td><code>_dashboard_rows.html</code></td><td>1</td><td>conditional background（token-based）</td></tr>
+<tr><td><code>tags.html</code></td><td>3</td><td>font-size/color/margin</td></tr>
+<tr><td><code>registration_review.html</code></td><td>2</td><td>JS modal HTML 中的 margin/font-size</td></tr>
+<tr><td><code>register.html</code></td><td>1</td><td>display:none toggle</td></tr>
+</table>
+
+<h3>4.4 Accessibility（B）</h3>
+<p><strong>已做</strong>：nav aria-label、cmd palette aria-label、theme aria-pressed、user modal role=dialog、<strong>select aria-label ×5</strong>、<strong>sidebar aria-expanded + aria-label</strong>、<strong>dashboard filter aria-pressed ×6</strong></p>
+<p><strong>缺失</strong>：user menu 用 div 不可键盘访问（需重构为 role=menu）</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>五、CI 门禁覆盖（A-）</h2>
+
+<table>
+<tr><th>门禁</th><th>状态</th><th>覆盖内容</th></tr>
+<tr><td><code>check_css_token_reachability.py</code></td><td>✅ PASS</td><td>var(--cp-*) 定义 + @keyframes 名称</td></tr>
+<tr><td><code>audit_hardcoded_colors.py</code></td><td>✅ PASS</td><td>模板/Vue 中零硬编码 hex</td></tr>
+<tr><td><code>check_dead_css.py</code></td><td>✅ PASS</td><td>components.css 所有 class 有消费者</td></tr>
+<tr><td><code>check_ui_contract.py</code></td><td>⚠️ 10 violations</td><td>inline-style（非 blocking）</td></tr>
+<tr><td><code>html_docs_to_markdown.py --check</code></td><td>✅ PASS</td><td>HTML↔MD 文档同步</td></tr>
+<tr><td><code>test_redesign_sidebar</code></td><td>✅ 12/12</td><td>4 角色侧边栏权限回归</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>六、与 R1 评估对比（变化追踪）</h2>
+
+<table>
+<tr><th>维度</th><th>R1 (08-24)</th><th>R2 (08-26)</th><th>变化</th></tr>
+<tr><td>Inline CSS volume</td><td>P0（多文件 >3 行）</td><td>全部合规</td><td>✅ 已修复</td></tr>
+<tr><td>common.js 冗余</td><td>P0</td><td>F5 完成：common-redesign.js 替代</td><td>✅ 已修复</td></tr>
+<tr><td>Page header 双系统</td><td>P1</td><td>统一为 .page-head + scope override</td><td>✅ 已修复</td></tr>
+<tr><td>escHtml 重复</td><td>P2</td><td>统一到 window.escHtml，残留 2 fallback shim</td><td>↗ 部分修复</td></tr>
+<tr><td>Dashboard stats 随筛选变化</td><td>未识别</td><td>scope_filters 隔离修复</td><td>✅ 本轮修复</td></tr>
+<tr><td>Inline style violations</td><td>未计数</td><td>10 个（主要在 JS modal HTML）</td><td>已量化</td></tr>
+<tr><td>Views God function</td><td>未评估</td><td>DashboardService 已提取；views.py 1,258 行</td><td>✅ 本轮修复</td></tr>
+<tr><td>按钮双系统 (.cp-btn/.btn-c)</td><td>未识别</td><td>统一为 btn-c；.cp-btn 定义已删除（−54 行）</td><td>✅ 本轮修复</td></tr>
+<tr><td>A11y 基线（select/sidebar/filter）</td><td>C+</td><td>aria-label ×5、aria-expanded ×1、aria-pressed ×6</td><td>✅ 本轮补全（→B）</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>七、优先改进路线图</h2>
+
+<table>
+<tr><th>#</th><th>改进项</th><th>预期收益</th><th>工作量</th><th>状态</th></tr>
+<tr><td>1</td><td>提取 <code>DashboardService</code></td><td>消除 God function；提升可测试性</td><td>中</td><td>✅ 已完成</td></tr>
+<tr><td>2</td><td>提取共享 <code>CpListFilter</code> JS 模块</td><td>消除 3× AJAX filter 重复</td><td>低</td><td>⏸️ 暂缓（待下一列表页）</td></tr>
+<tr><td>3</td><td>统一按钮 API</td><td>CSS 一致性</td><td>低</td><td>✅ 已完成（.cp-btn→btn-c）</td></tr>
+<tr><td>4</td><td>Shadow/overlay token 化</td><td>dark mode 完整性</td><td>低</td><td>⏸️ 暂缓（无功能影响）</td></tr>
+<tr><td>5</td><td>Filter select + sidebar a11y 补全</td><td>a11y 合规</td><td>低</td><td>✅ 已完成</td></tr>
+<tr><td>6</td><td><code>redesign-pages.css</code> 全局选择器 → .cp-page-* scope</td><td>CSS 隔离安全</td><td>中</td><td>⏸️ 暂缓（无冲突发生）</td></tr>
+<tr><td>7</td><td>Inline style 消除（10 violations → 0）</td><td>CI 全绿</td><td>低</td><td>❌ 不执行（合理使用场景）</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>八、结论</h2>
+
+<blockquote>
+<p>CronPilot Redesign 代码处于<strong>「生产可用、架构意图清晰、维护成本可控」</strong>的 B+ 级水平。</p>
+<p>安全基线和 CI 门禁达到 A 级标准；DashboardService 提取解决了 God function；按钮系统已统一；A11y 基线从 C+ 提升至 B。剩余技术债（AJAX filter 重复、shadow token、pages.css scope）为非紧急项，不影响功能正确性和安全性。</p>
+</blockquote>
+
+<p><strong>核心优势</strong>：</p>
+<ol>
+<li>RBAC v4 鉴权链完整、Scope 隔离有效</li>
+<li>Token 化色彩系统 + 6 个 CI 门禁持续拦截回归</li>
+<li>Service/Repository 分层在 CRUD 路径上执行良好</li>
+<li>JS 安全默认值（CSRF 注入、textContent 防 XSS、SameSite cookie）</li>
+<li><strong>统一按钮 API（btn-c）+ A11y 属性覆盖（aria-label/pressed/expanded）</strong></li>
+<li><strong>DashboardService 独立可测试，统计指标 scope 隔离</strong></li>
+</ol>
+
+<p><strong>剩余技术债（已评估，暂缓执行）</strong>：</p>
+<ol>
+<li><code>CpListFilter</code> JS 模块提取（3 页面 ~424 行 AJAX IIFE 重复）— 待下一列表页开发</li>
+<li>Shadow/overlay token 化（19 处 rgba 硬编码）— 待 dark mode 用户反馈</li>
+<li><code>redesign-pages.css</code> 中 ~365 行全局选择器未加 <code>.cp-page-*</code> scope — 待冲突发生</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+<a href="../../index.html">文档索引</a> · <a href="Redesign代码质量全面评估报告-R2-2026-08.md">Markdown</a>
+</footer>
+</body>
+</html>

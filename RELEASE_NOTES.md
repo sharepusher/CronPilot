@@ -7,6 +7,23 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 文档治理 — 全面审计与归档重组
+
+- **准确性修复**（P0）：
+  - README：移除"不提供忘记密码"（实际已有 `/rbac/forgot_password`）；测试数 333+ → 669；Vue 构建路径 `app/static/js/` → `app/static/dist/`
+  - AGENTS.md / `.cursor/rules/`：`admin_base.html` → `_base.html`（V1 下线后该模板已删除）
+  - 路线图：OPT-P1-11 "多组可见" → "单组归属"（与实际实现一致）
+  - RELEASE_NOTES v4.0.0：测试数 634 → 669
+  - README CI 表：补充 5 个新增 workflow（Ruff lint / Smoke routes / UI contract / Doc completeness / Visual regression）
+- **归档迁移**（~80 文件，~25 MB）：
+  - Mockup 评估第 2~14 轮（28 HTML+MD）→ `doc/archive/design-eval-rounds/`
+  - 代码质量报告 R2~R7（12 HTML+MD）→ `doc/archive/design-quality-reports/`
+  - 废弃设计文档（6 HTML+MD）→ `doc/archive/design-deprecated/`
+  - 评估截图集（round4/eval6/7/8/10 + eval14-*.png）→ `doc/archive/screenshots/`
+  - 所有被归档文件的交叉引用已更新至新路径
+- **结构优化**：填充 `doc/postmortem/index.html`（24 篇复盘分 4 类展示）；HTML↔MD 同步；文档链接 0 broken
+- **权威文档保留**：Mockup 目标态、第 15 轮终评、R8 代码质量报告、统一执行手册等当前权威文档不动
+
 ### 修复 — 执行记录 AJAX 筛选单任务模式 URL 畸形
 
 - **问题**：从任务详情页进入执行记录（`/job_log_list?id=8`）后，点击筛选按钮弹出"加载失败"
@@ -50,6 +67,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - **视觉增强**：下拉菜单 `z-index: 50` + 增强阴影
 - **窄屏降级**：`@media (max-width: 1024px)` 时降级为 `overflow-x: auto`（横向滚动）
 - 设计文档：`doc/design/Dashboard表格操作列溢出修复设计.html`
+- 复盘文档：[doc/postmortem/2026-09-Dashboard表格溢出修复.html](doc/postmortem/2026-09-Dashboard表格溢出修复.html)
 
 ### 改进 — cron_add 异常处理错误信息改善
 
@@ -393,6 +411,7 @@ Dashboard 任务列表「业务组」列和组筛选下拉改为按用户可见�
 - 创建 `doc/design/index.html`、`doc/postmortem/index.html` 目录索引页（`eval6/index.html` 已随归档迁移至 `doc/archive/screenshots/eval6/`）
 - 修正 `UI重设计-groups-tags-方案对比Demo.html` 中 Mockup 文件名引用错误
 - `check_doc_links.py --check`：991 个引用扫描 → 0 broken
+- 复盘文档：[doc/postmortem/2026-08-doc-links-broken-index.html](doc/postmortem/2026-08-doc-links-broken-index.html)
 
 ### 文档 — 代码质量评估报告 R3
 
@@ -1058,6 +1077,7 @@ Added email address as a mono-font subtitle below the username in the users tabl
 - **Global `CpModal` extracted:** `CpModal` function moved from `tags.html` inline definition into `redesign-confirm.js` as `window.CpModal`, making it available to all redesign pages without duplication. `tags.html` updated to use the global version (removed local copy, updated button class refs from `tg-m-*` to `cp-modal-*-btn`).
 - **Bootstrap fully removed from redesign templates:** `grep "\.modal('show')\|bootstrap.min" app/templates/redesign/` returns 0 results.
 - **Modified:** `app/static/js/redesign-confirm.js` (+`window.CpModal`), `app/templates/redesign/registration_review.html` (Bootstrap → CpModal), `app/templates/redesign/tags.html` (use global CpModal)
+- 复盘文档：[doc/postmortem/2026-08-cron-add-error-redirect-and-modal-globalization.html](doc/postmortem/2026-08-cron-add-error-redirect-and-modal-globalization.html)
 
 ### Redesign UI — Tag Management Modal System Migration (Z3 完整修复)
 
@@ -1069,6 +1089,7 @@ Added email address as a mono-font subtitle below the username in the users tabl
 - **删除确认（强制）**：标签有关联任务时，展示任务列表的 `CpModal` danger variant，用户确认后发起 force 删除请求。
 - **移除 Bootstrap 依赖**：从 `tags.html` 删除所有 Bootstrap modal HTML + `bootstrap.min.css/js` 引用，消除样式污染。
 - **Modified:** `app/templates/redesign/tags.html` (全量重构 JS/HTML modal 系统)
+- 复盘文档：[doc/postmortem/2026-08-Z3-标签页Bootstrap模态框迁移.html](doc/postmortem/2026-08-Z3-标签页Bootstrap模态框迁移.html)
 
 ### Security hardening (OPT-P0-12, OPT-P0-13)
 
@@ -1159,6 +1180,7 @@ Added email address as a mono-font subtitle below the username in the users tabl
 - **Document role (v2):** Batch structure + architecture decisions + quality gates + source document locator. **Zero duplicated numerical values.**
 - **Authoritative value chain:** Mockup HTML (CSS lines 8–334) → 视觉規格書 (extracted analysis) → 逐页規格書 (per-page details). Implementation reads from these directly.
 - **Modified:** `doc/design/UI重设计-统一执行手册.html` (v1→v2: ~400 lines removed, replaced with index tables + reference links)
+- 复盘文档：[doc/postmortem/2026-08-统一手册数值重复偏离.html](doc/postmortem/2026-08-统一手册数值重复偏离.html)
 
 ### UI Redesign Phase 1 — Token Alignment & Static Guard (Phase 1A/1B/1C)
 
@@ -1170,6 +1192,7 @@ Added email address as a mono-font subtitle below the username in the users tabl
 - **Modified:** `app/static/css/console-theme.css` (+`.cp-shell` scoped token overrides), `app/static/css/redesign-layout.css` (216px sidebar, exact padding/max-width)
 
 **Tests:** 25 new `test_check_ui_contract` tests pass · **Phase 2 plan:** 68 violations → 0 across 6 batches (2A CSS utils → 2B simple files → 2C table colwidths → 2D typography → 2E modal forms → 2F task_detail)
+复盘文档：[doc/postmortem/2026-08-check_ui_contract-false-positive.html](doc/postmortem/2026-08-check_ui_contract-false-positive.html)
 
 ### UI Redesign Phase 2 — Inline Style & Legacy Class Elimination (Batch 2A–2F)
 
@@ -1270,6 +1293,7 @@ Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly 
 - **New models:** `TaskGroup`, `Tag` (with `group_id` for isolation), `TaskTag` (with unique constraints and indexes).
 - **Deleted:** `app/rbac/group_code.py`, `app/templates/rbac/forbidden.html`, `app/templates/errors/404.html`, `app/templates/errors/404_guest.html`.
 - **New norms:** "数据库字段删除/迁移前置分析"、"验证自主性原则"、"新模板/新路由自检清单"、"双渲染路径上下文一致性"、"Import 可达性验证"、"复盘质量门禁"。
+- 复盘文档：[doc/postmortem/2026-08-标签管理增强.html](doc/postmortem/2026-08-标签管理增强.html)
 
 **Tests:** 428 pass · **Design:** `doc/design/任务创建页改进设计.html`
 

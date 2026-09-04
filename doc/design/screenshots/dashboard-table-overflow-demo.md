@@ -34,7 +34,7 @@ FIXED
 
 BUG 版：菜单底部被裁剪 | FIXED 版：菜单完整显示，阴影明确分层
 
-[文档索引](index.html) · [Markdown](dashboard-table-overflow-demo.md) · [索引](index.html)
+[文档索引](../../index.html) · [Markdown](dashboard-table-overflow-demo.md) · [索引](../../index.html)
 
 ---
 

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot Redesign 代码质量全面评估报告 R6</title>
+</head>
+<body>
+<h1>CronPilot Redesign 代码质量全面评估报告 (R6)</h1>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>评估日期</th><td>2026-08-31</td></tr>
+<tr><th>评估基线</th><td>V1 下线 Batch 2 完成后（35 处 ui_version 分支全部移除）</td></tr>
+<tr><th>对照版本</th><td>R5 (2026-08-26, B+ 82/100)</td></tr>
+<tr><th>综合评分</th><td><strong>A- 87/100</strong>（+5 vs R5）</td></tr>
+<tr><th>测试状态</th><td>441 pass / 0 fail，652 test functions</td></tr>
+<tr><th>CI 门禁</th><td>7/7 核心门禁全绿</td></tr>
+</table>
+
+<h2>1. CSS 架构 — A (93/100)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>R5</th><th>R6</th><th>变化</th></tr>
+<tr><td>总行数 (6 redesign CSS files)</td><td>3,588</td><td>3,588</td><td>—</td></tr>
+<tr><td>Design Token 引用 var(--cp-*)</td><td>714</td><td>714</td><td>—</td></tr>
+<tr><td>模板硬编码十六进制颜色</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>Dead CSS classes</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>未定义 Token / Keyframes</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>内联 &lt;style&gt; 块 (&gt;3 行 CSS)</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>页面作用域 .cp-page-*</td><td>15</td><td>15</td><td>—</td></tr>
+</table>
+
+<h3>文件分布</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>文件</th><th>行数</th><th>职责</th></tr>
+<tr><td>console-theme.css</td><td>387</td><td>Design Token 定义 (:root)</td></tr>
+<tr><td>redesign-layout.css</td><td>569</td><td>Application Shell (sidebar, topbar, grid)</td></tr>
+<tr><td>redesign-components.css</td><td>371</td><td>通用 UI 组件 (btn, input, modal, toast)</td></tr>
+<tr><td>redesign-pages.css</td><td>1,883</td><td>页面专属样式 (.cp-page-*)</td></tr>
+<tr><td>redesign-mockup-shared.css</td><td>212</td><td>跨页面表格/卡片标准 (.c-table)</td></tr>
+<tr><td>redesign-auth.css</td><td>166</td><td>认证页 (login, register)</td></tr>
+</table>
+
+<p><strong>亮点</strong>：CSS 架构稳定且成熟，6 文件分层边界清晰。714 次 Token 引用 + 零硬编码颜色体现设计系统的严格执行。</p>
+<p><strong>残留项</strong>：28 处 <code>style=""</code> inline attribute，其中 ~20 处为 <code>display:none</code>（JS 动态切换必需），~5 处为 <code>color:var(--cp-*)</code>（语义正确），3 处为功能性 display 控制。整体可接受。</p>
+
+<h2>2. JavaScript 模块 — A- (88/100)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>R5</th><th>R6</th><th>变化</th></tr>
+<tr><td>Redesign JS 总行数</td><td>662</td><td>662</td><td>—</td></tr>
+<tr><td>模块数量</td><td>5</td><td>5</td><td>—</td></tr>
+<tr><td>jQuery 同步 + 其他 defer</td><td>Yes</td><td>Yes</td><td>—</td></tr>
+<tr><td>escHtml XSS 保护</td><td>12</td><td>12</td><td>—</td></tr>
+<tr><td>未保护 innerHTML</td><td>12</td><td>12</td><td>—</td></tr>
+<tr><td>CpToast/CpConfirm 使用</td><td>35</td><td>35</td><td>—</td></tr>
+<tr><td>Bootstrap modal 违规</td><td>0</td><td>0</td><td>—</td></tr>
+</table>
+
+<h3>模块清单</h3>
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>模块</th><th>行数</th><th>加载</th><th>职责</th></tr>
+<tr><td>jquery.min.js</td><td>—</td><td>同步</td><td>DOM 操作基础（inline script 依赖 $）</td></tr>
+<tr><td>common-redesign.js</td><td>151</td><td>defer</td><td>AJAX form、CSRF、Cookie 工具</td></tr>
+<tr><td>redesign-shell.js</td><td>224</td><td>defer</td><td>Sidebar 交互、Command Palette</td></tr>
+<tr><td>redesign-theme.js</td><td>35</td><td>defer</td><td>暗/亮主题切换</td></tr>
+<tr><td>redesign-toast.js</td><td>81</td><td>defer</td><td>Toast 通知组件</td></tr>
+<tr><td>redesign-confirm.js</td><td>171</td><td>defer</td><td>确认对话框组件</td></tr>
+</table>
+
+<p><strong>亮点</strong>：5 个 IIFE 模块职责清晰，全部使用 defer 加载。组件 API 统一（CpToast.show()、CpConfirm.show()）。</p>
+<p><strong>残留项</strong>：12 处 innerHTML 赋值未经 escHtml() 保护（多在 AJAX 响应拼接中），为已知 S4 项。common.js（V1 用）仍在磁盘但不被 V2 模板加载。</p>
+
+<h2>3. Template / HTML — A- (87/100)（R5: B+ 83）</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>R5</th><th>R6</th><th>变化</th></tr>
+<tr><td>Redesign 模板数量</td><td>37</td><td>37</td><td>—</td></tr>
+<tr><td>总行数</td><td>4,769</td><td>4,769</td><td>—</td></tr>
+<tr><td>render_template V2 调用</td><td>49</td><td>49</td><td>—</td></tr>
+<tr><td>render_template V1 调用</td><td>35</td><td><strong>0</strong></td><td><strong>-35 (Batch 2)</strong></td></tr>
+<tr><td>A11y 属性 (aria-*)</td><td>39</td><td>39</td><td>—</td></tr>
+<tr><td>{% block main_class %} 覆盖</td><td>37/37</td><td>37/37</td><td>—</td></tr>
+</table>
+
+<p><strong>重大改进 (Batch 2)</strong>：所有 35 处 ui_version 条件渲染分支已移除。Views 无条件渲染 V2 模板，代码路径完全确定性化，消除了"V1/V2 岔路"的认知负担。</p>
+<p><strong>残留项</strong>：_topbar.html 仍包含"切换到经典界面"链接（设置 cp_ui_version=v1 cookie），但后端已不响应此 cookie。此链接应在 Batch 3 移除。</p>
+
+<h2>4. Backend — B+ (84/100)（R5: B+ 82）</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>R5</th><th>R6</th><th>变化</th></tr>
+<tr><td>main/views.py 行数</td><td>~1,340</td><td><strong>1,135</strong></td><td><strong>-205 (-15%)</strong></td></tr>
+<tr><td>rbac/views.py 行数</td><td>~1,490</td><td><strong>1,283</strong></td><td><strong>-207 (-14%)</strong></td></tr>
+<tr><td>服务层模块数</td><td>16</td><td>16</td><td>—</td></tr>
+<tr><td>Repository 模块数</td><td>6</td><td>6</td><td>—</td></tr>
+<tr><td>CSRF 装饰器</td><td>25</td><td>25</td><td>—</td></tr>
+<tr><td>权限装饰器</td><td>45</td><td>45</td><td>—</td></tr>
+<tr><td>safe_next_url 使用</td><td>5</td><td>5</td><td>—</td></tr>
+<tr><td>异常信息泄漏</td><td>0</td><td>0</td><td>—</td></tr>
+<tr><td>ORM 模型</td><td>13</td><td>13</td><td>—</td></tr>
+</table>
+
+<p><strong>重大改进 (Batch 2)</strong>：两个 views 文件瘦身 ~15%，移除 35 处 if/else 分支。每个路由函数仅保留一条渲染路径，可读性和可维护性显著提升。_set_ui_version() before_request 钩子已从 __init__.py 移除。ui_mode.py 已清除全部 ui_version 相关代码。</p>
+<p><strong>残留项</strong>：rbac/services.py 1,094 行（用户 CRUD、密码、注册审批等），体量较大但职责内聚。check_pass() 遗留 shim 传递 next 参数未经 safe_next_url() 包裹（但目标路由内部已保护，风险极低）。_users_form_response() 仍保留 V1→V2 template_map（安全网），可在 Batch 3 移除。</p>
+
+<h2>5. CI / 质量门禁 — A (95/100)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>门禁脚本</th><th>状态</th><th>说明</th></tr>
+<tr><td>check_ui_contract.py</td><td>✅ PASS</td><td>0 violations</td></tr>
+<tr><td>audit_hardcoded_colors.py</td><td>✅ PASS</td><td>0 hardcoded colors</td></tr>
+<tr><td>check_dead_css.py</td><td>✅ PASS</td><td>0 dead classes</td></tr>
+<tr><td>check_css_token_reachability.py</td><td>✅ PASS</td><td>All tokens reachable</td></tr>
+<tr><td>html_docs_to_markdown.py</td><td>✅ PASS</td><td>All synced</td></tr>
+<tr><td>check_doc_links.py</td><td>✅ PASS</td><td>1043 refs, 0 broken</td></tr>
+<tr><td>check_opt_consistency.py</td><td>✅ PASS</td><td>No conflicts</td></tr>
+<tr><td>check_doc_completeness.py</td><td>⚠️ WARN</td><td>3 postmortem 未注册到 index.html</td></tr>
+<tr><td>check_postmortem_completeness.py</td><td>⚠️ WARN</td><td>3 postmortem 未引用到 RELEASE_NOTES</td></tr>
+<tr><td>check_version_consistency.py</td><td>⚠️ WARN</td><td>[Unreleased] 含 80 小节</td></tr>
+</table>
+
+<p>7/7 核心门禁全绿。3 个 WARN 为文档完善性提醒，不影响代码质量和功能正确性。</p>
+
+<h2>6. 测试覆盖 — B+ (80/100)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>指标</th><th>R5</th><th>R6</th><th>变化</th></tr>
+<tr><td>测试函数数</td><td>652</td><td>652</td><td>—</td></tr>
+<tr><td>运行测试数</td><td>441</td><td>441</td><td>—</td></tr>
+<tr><td>测试代码行数</td><td>11,378</td><td>11,378</td><td>—</td></tr>
+<tr><td>通过率</td><td>100%</td><td>100%</td><td>—</td></tr>
+<tr><td>from manage import 违规</td><td>0</td><td>0</td><td>—</td></tr>
+</table>
+
+<p><strong>重大改进</strong>：19 个原 V1 断言测试全部更新为 V2 断言（覆盖 dashboard rows、retire 按钮、run-now、topbar、audit logs、registration review、API token）。测试套件现在 100% 验证 V2 行为。</p>
+<p><strong>残留项</strong>：E2E/浏览器测试层仍缺失（已记录为 deferred debt），对当前服务端渲染架构影响有限。</p>
+
+<h2>7. 安全 — A- (88/100)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>检查项</th><th>状态</th><th>说明</th></tr>
+<tr><td>CSRF 保护 (@csrf_protect)</td><td>✅</td><td>25 个 POST 路由全覆盖</td></tr>
+<tr><td>异常信息脱敏</td><td>✅</td><td>0 处 str(e) 泄漏</td></tr>
+<tr><td>Open Redirect 防护</td><td>✅</td><td>5/6 保护，1 处 legacy shim 间接安全</td></tr>
+<tr><td>XSS innerHTML 保护</td><td>⚠️</td><td>12/24 (50%)，已知 S4 项</td></tr>
+<tr><td>Cookie SameSite</td><td>✅</td><td>V2 JS 全覆盖；common.js 缺失（V1-only）</td></tr>
+<tr><td>Bootstrap modal 禁用</td><td>✅</td><td>0 违规</td></tr>
+</table>
+
+<h2>8. 综合评分</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>维度</th><th>R5 评分</th><th>R6 评分</th><th>变化</th><th>权重</th></tr>
+<tr><td>CSS 架构</td><td>A (93)</td><td>A (93)</td><td>—</td><td>20%</td></tr>
+<tr><td>JavaScript</td><td>A- (88)</td><td>A- (88)</td><td>—</td><td>15%</td></tr>
+<tr><td>Template / HTML</td><td>B+ (83)</td><td><strong>A- (87)</strong></td><td><strong>+4</strong></td><td>15%</td></tr>
+<tr><td>Backend</td><td>B+ (82)</td><td><strong>B+ (84)</strong></td><td><strong>+2</strong></td><td>20%</td></tr>
+<tr><td>CI 门禁</td><td>A (95)</td><td>A (95)</td><td>—</td><td>15%</td></tr>
+<tr><td>测试覆盖</td><td>B (80)</td><td>B+ (80)</td><td>—</td><td>15%</td></tr>
+<tr><td colspan="4"><strong>综合评分</strong></td><td><strong>A- 87/100 (+5)</strong></td></tr>
+</table>
+
+<h2>9. Batch 2 变更影响摘要</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>变更</th><th>量化</th></tr>
+<tr><td>移除 V1 条件分支</td><td>35 处 (if ui_version)</td></tr>
+<tr><td>Views 净减行数</td><td>~412 行 (-15%)</td></tr>
+<tr><td>移除 _set_ui_version() 钩子</td><td>1 处 (app/__init__.py)</td></tr>
+<tr><td>ui_mode.py 清理</td><td>移除 _VALID_UI_VERSIONS + ui_version</td></tr>
+<tr><td>start_local_full.sh 清理</td><td>移除 CRONPILOT_FORCE_NEW_UI</td></tr>
+<tr><td>测试更新</td><td>19 个测试重写为 V2 断言</td></tr>
+<tr><td>代码路径确定性</td><td>100%（每个路由仅一条渲染路径）</td></tr>
+</table>
+
+<h2>10. 评分趋势</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>报告</th><th>日期</th><th>评分</th><th>关键事件</th></tr>
+<tr><td>R1</td><td>2026-08-10</td><td>C+ 62</td><td>初始评估</td></tr>
+<tr><td>R2</td><td>2026-08-14</td><td>B 72</td><td>Phase R1 CSS 架构统一 + Dashboard 修复</td></tr>
+<tr><td>R3</td><td>2026-08-18</td><td>B 75</td><td>DashboardService + A11y + Dead CSS 清理</td></tr>
+<tr><td>R4</td><td>2026-08-22</td><td>B+ 80</td><td>F1-F5 修复 + Inline Style 清理</td></tr>
+<tr><td>R5</td><td>2026-08-26</td><td>B+ 82</td><td>Doc links 修复 + V1 下线 Pre-check</td></tr>
+<tr><td><strong>R6</strong></td><td><strong>2026-08-31</strong></td><td><strong>A- 87</strong></td><td><strong>V1 Batch 1+2 完成（默认 V2 + 分支移除）</strong></td></tr>
+</table>
+
+<h2>11. 下一步建议 (Batch 3: 物理删除)</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr><th>清理项</th><th>优先级</th><th>预估影响</th></tr>
+<tr><td>删除 V1 模板 (app/templates/*.html 非 redesign)</td><td>P1</td><td>减少 ~4000 行</td></tr>
+<tr><td>删除 common.js + wind.js + V1 CSS</td><td>P1</td><td>减少 ~2000 行</td></tr>
+<tr><td>移除 _topbar.html "切换到经典界面" 链接</td><td>P0</td><td>避免用户误操作</td></tr>
+<tr><td>移除 _users_form_response template_map</td><td>P2</td><td>简化映射逻辑</td></tr>
+<tr><td>清理 doc_completeness WARN (3 postmortem 注册)</td><td>P2</td><td>文档完善</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="Redesign代码质量全面评估报告-R6-2026-08.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

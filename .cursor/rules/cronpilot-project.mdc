@@ -263,7 +263,7 @@ Agent 在 invoke `AskQuestion`（或任何形式的"下一步？"提问）**之�
 | 问题 | 用户看到什么、与预期差在哪 |
 | 根因 | 数据模型 / 协议 / 交互误导 / 样式不一致等 |
 | 方案 | 推荐方案 + 备选；须对齐现有 simpleboot 表单风格（`control-group` + 行内灰字说明） |
-| 交互契约 | **Ajax 表单**（`js-ajax-form` + `js-ajax-submit` + JSON `url` 跳转）/ **普通跳转** / 两者兼有 — 须写明；新建表单以 `cron_add.html` / `cron_retire.html` 为对照样板 |
+| 交互契约 | **Ajax 表单**（`js-ajax-form` + `js-ajax-submit` + JSON `url` 跳转）/ **普通跳转** / 两者兼有 — 须写明；新建表单以 `task_form.html` / `cron_retire.html` 为对照样板 |
 | **选项排序** | 下拉/多选中的高权限/全局操作项（如「全部」「admin」）**必须**放在末尾，降低误选概率 |
 | 范围 | 涉及模板、API、文档 |
 | 分批 | 页面/接口/权限分步；每步可浏览器验收 |
@@ -499,7 +499,7 @@ grep -r "from manage import" tests/ && echo "FAIL: 测试禁止 from manage impo
 - **普通 POST 表单**（非 `js-ajax-form`）：由 `common.js` 底部的全局守卫自动保护——提交时禁用 submit 按钮 + 文案追加「中…」，3 秒后自动恢复。
 - **GET 搜索表单**：幂等操作，无需防重复提交。
 - **新增表单时**：确认使用了 `js-ajax-form` + `js-ajax-submit`（推荐）或确认全局守卫可覆盖；**禁止**新增无保护的 POST 表单。
-- **独立页面**（如 `register.html`、`login.html` 不继承 `admin_base.html`）：须确认引入了 `common.js`（含全局守卫），或自行实现等效保护。
+- **独立页面**（如 `register.html`、`login.html` 不继承 `_base.html`）：须确认引入了 `common.js`（含全局守卫），或自行实现等效保护。
 
 ## 版本一致性（强制）
 

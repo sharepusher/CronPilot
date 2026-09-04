@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>CronPilot Redesign — 第七轮 Mockup 对比评估</title>
+<style>
+:root {
+  --canvas:#F7F8F9; --surface:#FFFFFF; --surface-2:#F1F2F4;
+  --border:#E4E6E9; --ink:#14171A; --muted:#5B6169; --faint:#9CA3AF;
+  --signal:#3D6FE0; --success:#0F9D66; --warning:#B7791F; --danger:#D64545;
+  --signal-bg:rgba(61,111,224,0.09); --success-bg:rgba(15,157,102,0.09);
+  --warning-bg:rgba(183,121,31,0.10); --danger-bg:rgba(214,69,69,0.09);
+}
+html[data-theme="dark"] {
+  --canvas:#0D0F12; --surface:#16191D; --surface-2:#1C2025;
+  --border:#262B31; --ink:#ECEEF0; --muted:#8B9198; --faint:#565C64;
+  --signal:#4C8DFF; --success:#34D399; --warning:#F5A623; --danger:#F16565;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--canvas); color: var(--ink); font-family: 'Inter','Helvetica Neue',Arial,sans-serif; font-size: 13px; line-height: 1.6; padding: 32px; }
+h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+h2 { font-size: 16px; font-weight: 600; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { font-size: 13.5px; font-weight: 600; margin: 16px 0 8px; }
+.meta { color: var(--muted); font-size: 12px; margin-bottom: 24px; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: var(--success-bg); color: var(--success); }
+.badge-warn { background: var(--warning-bg); color: var(--warning); }
+.badge-danger { background: var(--danger-bg); color: var(--danger); }
+.badge-muted { background: var(--surface-2); color: var(--muted); }
+.badge-signal { background: var(--signal-bg); color: var(--signal); }
+table.eval { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 24px; }
+table.eval th { text-align: left; background: var(--surface-2); color: var(--faint); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+table.eval td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.eval tr:last-child td { border-bottom: none; }
+.score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+.score-card .num { font-size: 28px; font-weight: 700; }
+.score-card .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.score-card.green .num { color: var(--success); }
+.score-card.yellow .num { color: var(--warning); }
+.score-card.red .num { color: var(--danger); }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.compare-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.compare-box .cb-header { padding: 8px 12px; font-size: 11.5px; font-weight: 600; background: var(--surface-2); display: flex; align-items: center; justify-content: space-between; }
+.compare-box img { width: 100%; display: block; }
+.compare-box .cb-body { padding: 10px 12px; font-size: 11.5px; color: var(--muted); }
+.note-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 12px; margin-bottom: 16px; }
+.note-box.warn { border-left: 3px solid var(--warning); background: var(--warning-bg); }
+.note-box.danger { border-left: 3px solid var(--danger); background: var(--danger-bg); }
+.note-box.ok { border-left: 3px solid var(--success); background: var(--success-bg); }
+.note-box.info { border-left: 3px solid var(--signal); background: var(--signal-bg); }
+.section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+.cols-compare { display: flex; gap: 16px; margin-top: 10px; }
+.cols-box { flex: 1; background: var(--surface-2); border-radius: 6px; padding: 10px 12px; }
+.cols-box .label { font-size: 10.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.col-tag { display: inline-block; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 2px 2px; font-family: 'SF Mono','Fira Mono',monospace; }
+.col-tag.extra { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+.col-tag.missing { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+.col-tag.ok { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+.screenshot-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.screenshot-wrap img { width: 100%; display: block; }
+.screenshot-label { font-size: 11px; color: var(--muted); padding: 6px 10px; background: var(--surface-2); border-top: 1px solid var(--border); }
+.theme-toggle { position: fixed; top: 16px; right: 16px; display: flex; gap: 4px; }
+.theme-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.theme-btn.on { background: var(--signal-bg); color: var(--signal); border-color: var(--signal); }
+.diff-inline { font-size: 11.5px; }
+.diff-inline .removed { color: var(--danger); text-decoration: line-through; margin-right: 4px; }
+.diff-inline .added { color: var(--success); }
+</style>
+</head>
+<body>
+
+<div class="theme-toggle">
+  <button class="theme-btn on" id="btn-light">浅色</button>
+  <button class="theme-btn" id="btn-dark">深色</button>
+</div>
+
+<h1>CronPilot Redesign — 第七轮 Mockup 对比评估</h1>
+<div class="meta">评估时间：2026-08-20 · 对照文件：CronPilot-2026-full-mockup.html · 服务：http://127.0.0.1:5001</div>
+
+<!-- 列数勘误声明 -->
+<div class="note-box warn">
+  <b>⚠️ 勘误：第五轮评估文档列数错误</b><br>
+  第五轮评估文档错误写入"操作记录从 <b>7 列</b>简化为 5 列"。经三重核查（①模板源码 <code>&lt;th&gt;</code> 计数=6，②活跃服务端 HTTP 响应 <code>&lt;td&gt;</code> 计数=6，③浏览器截图视觉确认=6列），确认当前 <code>redesign/operation_log.html</code> 为 <b>6 列</b>（ID | 用户 | 类型 | 内容 | IP | 时间），不是 7 列。第七轮评估已更正，Z1 改动目标：6→5 列。
+</div>
+
+<!-- 总览评分 -->
+<div class="score-grid">
+  <div class="score-card green">
+    <div class="num">6</div>
+    <div class="lbl">已完全对齐页面</div>
+  </div>
+  <div class="score-card yellow">
+    <div class="num">2</div>
+    <div class="lbl">待修复（Z1 Z2）</div>
+  </div>
+  <div class="score-card yellow">
+    <div class="num">2</div>
+    <div class="lbl">已批准差异</div>
+  </div>
+  <div class="score-card red">
+    <div class="num">1</div>
+    <div class="lbl">结构偏差（执行记录）</div>
+  </div>
+</div>
+
+<h2>一、列数对比总览（已多源核查）</h2>
+
+<table class="eval">
+  <thead>
+    <tr>
+      <th>页面</th>
+      <th>Mockup 列数</th>
+      <th>当前实现列数</th>
+      <th>差异</th>
+      <th>状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>任务中心</b></td>
+      <td>4 列（任务/调度策略/运行状态/操作）</td>
+      <td>7 列（任务/调度策略/健康度/最近执行/下次执行/业务组/操作）</td>
+      <td>+3 列 + 额外 Stats 面板</td>
+      <td><span class="badge badge-muted">已批准差异（功能增强）</span></td>
+    </tr>
+    <tr>
+      <td><b>执行记录</b></td>
+      <td>5 列（任务/触发时间/耗时/响应码/状态）</td>
+      <td>7 列（LOG ID/任务名称/返回内容/执行时间/耗时/结果/操作）</td>
+      <td>+2 列，列名差异</td>
+      <td><span class="badge badge-warn">结构偏差（待讨论）</span></td>
+    </tr>
+    <tr style="background:rgba(214,69,69,0.04)">
+      <td><b>操作记录 [Z1]</b></td>
+      <td>5 列（操作人/操作badge/对象/时间/来源IP）</td>
+      <td><b>6 列</b>（ID/用户/类型/内容/IP/时间）✅ 多源确认非 7 列</td>
+      <td>+1 列（ID），列名不对齐</td>
+      <td><span class="badge badge-danger">待修复 Z1</span></td>
+    </tr>
+    <tr style="background:rgba(214,69,69,0.04)">
+      <td><b>审计日志 [Z2]</b></td>
+      <td>5 列（事件/用户/时间/IP/结果）+ chip 筛选</td>
+      <td>8 列（ID/操作人/操作/目标类型/目标名/详情/IP/时间）+ 搜索表单</td>
+      <td>+3 列，无 chip 筛选</td>
+      <td><span class="badge badge-danger">待修复 Z2</span></td>
+    </tr>
+    <tr>
+      <td><b>用户管理</b></td>
+      <td>5 列（用户+Avatar/角色badge/状态/最近登录/操作）</td>
+      <td>9 列（用户名/花名/岗位/角色/状态/密码/业务组/创建时间/操作）</td>
+      <td>+4 列，含岗位/密码/业务组</td>
+      <td><span class="badge badge-muted">已批准差异（运维需求）</span></td>
+    </tr>
+    <tr>
+      <td><b>业务组</b></td>
+      <td>卡片网格（Avatar 堆叠）</td>
+      <td>卡片网格（成员数文字）</td>
+      <td>头像堆叠 → 数字文字</td>
+      <td><span class="badge badge-ok">已批准差异</span></td>
+    </tr>
+    <tr>
+      <td><b>标签管理</b></td>
+      <td>标签云（pill + 计数 + ×）</td>
+      <td>标签云 + 辅助表格</td>
+      <td>Z3 已修复，表格为补充展示</td>
+      <td><span class="badge badge-ok">已对齐（Z3 已修复）</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 操作记录截图确认 -->
+<h2>二、操作记录列数视觉确认（截图证据）</h2>
+
+<div class="note-box ok">
+  下图为 2026-08-20 从 http://127.0.0.1:5001/operation_log_list 实时截取。可见表格列头为：<b>ID | 用户 | 类型 | 内容 | IP | 时间</b>，共 <b>6 列</b>，与代码分析一致。
+</div>
+
+<div class="compare-grid">
+  <div>
+    <h3>当前实现（截图）— 6 列</h3>
+    <div class="screenshot-wrap">
+      <img src="screenshots/eval7/operation_log.png" alt="操作记录当前截图">
+      <div class="screenshot-label">http://127.0.0.1:5001/operation_log_list · 2026-08-20</div>
+    </div>
+  </div>
+  <div>
+    <h3>Mockup 目标 — 5 列（含 Z1 变更说明）</h3>
+    <div class="section-card" style="height:calc(100% - 36px)">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Mockup view-optlog 结构（摘自 CronPilot-2026-full-mockup.html line 460）：</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--surface-2)">
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">操作人</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">操作</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">对象</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">时间</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">来源 IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border)">张伟</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="background:var(--signal-bg);color:var(--signal);padding:1px 7px;border-radius:10px;font-size:10px">修改</span></td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">order-fulfillment-sync</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">2026-08-11 14:20:11</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">10.2.31.4</td>
+          </tr>
+          <tr style="background:var(--surface-2)">
+            <td style="padding:6px 10px;border:1px solid var(--border)">李娜</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="background:var(--danger-bg);color:var(--danger);padding:1px 7px;border-radius:10px;font-size:10px">下线</span></td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">legacy-promo-settle</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">2026-08-11 11:03:47</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">10.2.31.4</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;font-size:11.5px">
+        <b>Z1 改动（6→5 列）：</b><br>
+        <span style="color:var(--danger)">移除</span>：<code>ID</code> 列<br>
+        <span style="color:var(--warning)">重命名</span>：用户→操作人，类型→操作（变 badge），内容→对象（只显示任务名），IP→来源IP<br>
+        <span style="color:var(--success)">移除</span>：搜索表单（Mockup 无搜索区域）
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cols-compare">
+  <div class="cols-box">
+    <div class="label">当前（6 列）</div>
+    <span class="col-tag extra">ID</span>
+    <span class="col-tag">用户</span>
+    <span class="col-tag">类型</span>
+    <span class="col-tag">内容</span>
+    <span class="col-tag">IP</span>
+    <span class="col-tag">时间</span>
+  </div>
+  <div style="display:flex;align-items:center;font-size:18px;color:var(--muted)">→</div>
+  <div class="cols-box">
+    <div class="label">目标（5 列，对齐 Mockup）</div>
+    <span class="col-tag ok">操作人</span>
+    <span class="col-tag ok">操作（badge）</span>
+    <span class="col-tag ok">对象（任务名）</span>
+    <span class="col-tag ok">时间</span>
+    <span class="col-tag ok">来源IP</span>
+  </div>
+</div>
+
+<!-- 审计日志 -->
+<h2>三、审计日志对比（Z2 — 8 列 → 5 列）</h2>
+
+<div class="compare-grid">
+  <div>
+    <h3>当前实现（截图）— 8 列</h3>
+    <div class="screenshot-wrap">
+      <img src="screenshots/eval7/audit_log.png" alt="审计日志当前截图">
+      <div class="screenshot-label">http://127.0.0.1:5001/rbac/audit-logs · 2026-08-20</div>
+    </div>
+  </div>
+  <div>
+    <h3>Mockup 目标 — 5 列 + chip 筛选</h3>
+    <div class="section-card" style="height:calc(100% - 36px)">
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="background:var(--signal-bg);color:var(--signal);padding:3px 10px;border-radius:10px;font-size:11.5px;font-weight:600">全部</span>
+        <span style="background:var(--surface-2);color:var(--muted);padding:3px 10px;border-radius:10px;font-size:11.5px">登录失败</span>
+        <span style="background:var(--surface-2);color:var(--muted);padding:3px 10px;border-radius:10px;font-size:11.5px">权限变更</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--surface-2)">
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">事件</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">用户</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">时间</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">IP</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border)">登录</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)">张伟</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">2026-08-11 09:02:14</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">10.2.31.4</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="background:var(--success-bg);color:var(--success);padding:1px 7px;border-radius:10px;font-size:10px">成功</span></td>
+          </tr>
+          <tr style="background:var(--surface-2)">
+            <td style="padding:6px 10px;border:1px solid var(--border)">登录</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)">unknown</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">2026-08-11 03:11:02</td>
+            <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">203.0.113.9</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="background:var(--danger-bg);color:var(--danger);padding:1px 7px;border-radius:10px;font-size:10px">失败×5</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;font-size:11.5px">
+        <b>Z2 改动（8→5 列）：</b><br>
+        <span style="color:var(--danger)">移除</span>：ID、目标类型、详情 三列<br>
+        <span style="color:var(--warning)">重命名</span>：操作人→用户，操作→事件<br>
+        <span style="color:var(--success)">新增</span>：结果列（badge：成功/拒绝）<br>
+        <span style="color:var(--success)">新增</span>：chip 快速筛选（全部/登录失败/权限变更）<br>
+        <span style="color:var(--danger)">移除</span>：目标名、详情列（仍可在行展开后查看）
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cols-compare">
+  <div class="cols-box">
+    <div class="label">当前（8 列）</div>
+    <span class="col-tag extra">ID</span>
+    <span class="col-tag">操作人</span>
+    <span class="col-tag">操作</span>
+    <span class="col-tag extra">目标类型</span>
+    <span class="col-tag">目标名</span>
+    <span class="col-tag extra">详情</span>
+    <span class="col-tag">IP</span>
+    <span class="col-tag">时间</span>
+  </div>
+  <div style="display:flex;align-items:center;font-size:18px;color:var(--muted)">→</div>
+  <div class="cols-box">
+    <div class="label">目标（5 列，对齐 Mockup）</div>
+    <span class="col-tag ok">事件</span>
+    <span class="col-tag ok">用户</span>
+    <span class="col-tag ok">时间</span>
+    <span class="col-tag ok">IP</span>
+    <span class="col-tag ok">结果（badge）</span>
+  </div>
+</div>
+
+<!-- 任务中心 -->
+<h2>四、任务中心（已批准差异）</h2>
+
+<div class="compare-grid">
+  <div>
+    <h3>当前实现（截图）— 7 列 + 异常面板</h3>
+    <div class="screenshot-wrap">
+      <img src="screenshots/eval7/task_center.png" alt="任务中心当前截图">
+      <div class="screenshot-label">http://127.0.0.1:5001/cron_list · 2026-08-20</div>
+    </div>
+  </div>
+  <div>
+    <h3>Mockup — 4 列 + 4 Stats 卡片</h3>
+    <div class="section-card" style="height:calc(100% - 36px)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--surface-2);border-radius:6px;padding:8px 12px"><div style="font-size:10px;color:var(--muted)">任务总数</div><div style="font-size:20px;font-weight:700">128</div></div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:8px 12px"><div style="font-size:10px;color:var(--muted)">运行中</div><div style="font-size:20px;font-weight:700;color:var(--signal)">6</div></div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:8px 12px"><div style="font-size:10px;color:var(--muted)">今日失败</div><div style="font-size:20px;font-weight:700;color:var(--danger)">2</div></div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:8px 12px"><div style="font-size:10px;color:var(--muted)">24h 成功率</div><div style="font-size:20px;font-weight:700;color:var(--success)">99.4%</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--surface-2)">
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">任务</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">调度策略</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left">运行状态</th>
+            <th style="padding:6px 10px;border:1px solid var(--border);text-align:left;width:90px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><div style="font-weight:600">同步订单履约状态</div><div style="font-size:10px;color:var(--muted)">order-fulfillment-sync</div><span style="background:var(--surface-2);border-radius:4px;padding:1px 6px;font-size:10px">交易</span></td>
+            <td style="padding:6px 10px;border:1px solid var(--border);font-family:monospace">*/5 * * * *</td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="color:var(--success)">● 运行中</span></td>
+            <td style="padding:6px 10px;border:1px solid var(--border)"><span style="color:var(--signal)">✏️ ⏸️</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;font-size:11.5px;color:var(--muted)">Mockup: 4 列，Stats 含任务总数/运行中/今日失败/24h成功率<br>当前: 7 列，Stats 含异常任务/连续失败/运行中/今日失败次数<br>→ <b>经讨论批准保留差异</b>（健康优先视角，异常面板为增强功能）</div>
+    </div>
+  </div>
+</div>
+
+<!-- 执行记录 -->
+<h2>五、执行记录（结构偏差，待讨论）</h2>
+
+<div class="note-box warn">
+  执行记录模板注释中写了"7-column table matching Mockup Console mode"，但 Mockup 实际为 5 列（任务/触发时间/耗时/响应码/状态）。当前实现 7 列（LOG ID/任务名称/返回内容/执行时间/耗时/结果/操作）多出了 LOG ID 和返回内容列，并且有更复杂的过滤器。目前页面无数据时渲染空状态，表格隐藏。
+</div>
+
+<div class="cols-compare">
+  <div class="cols-box">
+    <div class="label">当前模板（7 列，无数据时隐藏）</div>
+    <span class="col-tag extra">LOG ID</span>
+    <span class="col-tag">任务名称</span>
+    <span class="col-tag extra">返回内容</span>
+    <span class="col-tag">执行时间</span>
+    <span class="col-tag">耗时</span>
+    <span class="col-tag">结果</span>
+    <span class="col-tag">操作</span>
+  </div>
+  <div style="display:flex;align-items:center;font-size:18px;color:var(--muted)">vs</div>
+  <div class="cols-box">
+    <div class="label">Mockup（5 列）</div>
+    <span class="col-tag ok">任务</span>
+    <span class="col-tag ok">触发时间</span>
+    <span class="col-tag ok">耗时</span>
+    <span class="col-tag ok">响应码</span>
+    <span class="col-tag ok">状态</span>
+  </div>
+</div>
+
+<!-- 已修复项确认 -->
+<h2>六、已完成修复项验证</h2>
+
+<table class="eval">
+  <thead>
+    <tr>
+      <th>修复项</th>
+      <th>描述</th>
+      <th>状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Z3</b></td>
+      <td>标签管理模态框系统迁移（Bootstrap → CpModal + CpConfirm）</td>
+      <td><span class="badge badge-ok">✅ 已验证</span></td>
+    </tr>
+    <tr>
+      <td><b>BUG-1</b></td>
+      <td>cron_add 错误时立即跳转（移除 except 块中的 url 参数）</td>
+      <td><span class="badge badge-ok">✅ 已修复</span></td>
+    </tr>
+    <tr>
+      <td><b>BUG-2</b></td>
+      <td>registration_review Bootstrap 模态框迁移</td>
+      <td><span class="badge badge-ok">✅ 已修复</span></td>
+    </tr>
+    <tr>
+      <td><b>Y1</b></td>
+      <td>个人资料编辑页（花名/邮箱/岗位，只读字段置灰）</td>
+      <td><span class="badge badge-ok">✅ 已实现</span></td>
+    </tr>
+    <tr>
+      <td><b>CpModal 全局化</b></td>
+      <td>CpModal 从 tags.html 提取到 redesign-confirm.js，全局可用</td>
+      <td><span class="badge badge-ok">✅ 已完成</span></td>
+    </tr>
+    <tr>
+      <td><b>X1</b></td>
+      <td>用户管理：Avatar + 花名副标题 + 操作图标化</td>
+      <td><span class="badge badge-ok">✅ 已实现</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 行动计划 -->
+<h2>七、行动计划（按优先级）</h2>
+
+<table class="eval">
+  <thead>
+    <tr>
+      <th>编号</th>
+      <th>页面</th>
+      <th>改动描述</th>
+      <th>优先级</th>
+      <th>实现风险</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background:rgba(214,69,69,0.04)">
+      <td><b>Z1</b></td>
+      <td>操作记录</td>
+      <td>6列→5列：移除 ID 列；重命名 用户→操作人、类型→操作（保留 badge 样式）、内容→对象（只显示任务名 task_name）；移除搜索表单；保留分页</td>
+      <td><span class="badge badge-danger">高</span></td>
+      <td>低（仅模板改动）</td>
+    </tr>
+    <tr style="background:rgba(214,69,69,0.04)">
+      <td><b>Z2</b></td>
+      <td>审计日志</td>
+      <td>8列→5列：移除 ID/目标类型/详情 三列；操作人→用户，操作→事件；结果列改为 badge；顶部加 chip 快速筛选（全部/登录失败/权限变更）；保留分页</td>
+      <td><span class="badge badge-danger">高</span></td>
+      <td>中（需增加 chip 筛选逻辑）</td>
+    </tr>
+    <tr>
+      <td><b>执行记录</b></td>
+      <td>执行记录</td>
+      <td>讨论是否需对齐 Mockup 5 列（目前 7 列），去掉 LOG ID 和返回内容列；或保留当前增强版</td>
+      <td><span class="badge badge-warn">中（待决策）</span></td>
+      <td>中</td>
+    </tr>
+    <tr>
+      <td><b>任务中心</b></td>
+      <td>任务中心</td>
+      <td>Stats 指标对齐 Mockup（任务总数/运行中/今日失败/24h成功率）vs 保留当前（异常任务/连续失败）；4列 vs 7列讨论</td>
+      <td><span class="badge badge-muted">低（已批准差异）</span></td>
+      <td>高（影响主视图）</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note-box info" style="margin-top:24px">
+  <b>本轮评估要点：</b>
+  操作记录已多源确认为 <b>6 列</b>（非 7）。第五轮评估文档中的"7列"为文字错误。<br>
+  当前最高优先级修复项为 Z1（操作记录 6→5 列）和 Z2（审计日志 8→5 列 + chip 筛选），均为纯模板改动，不影响后端逻辑。
+</div>
+
+<script>
+var light = document.getElementById('btn-light');
+var dark = document.getElementById('btn-dark');
+light.addEventListener('click', function() {
+  document.documentElement.setAttribute('data-theme', 'light');
+  light.classList.add('on'); dark.classList.remove('on');
+});
+dark.addEventListener('click', function() {
+  document.documentElement.setAttribute('data-theme', 'dark');
+  dark.classList.add('on'); light.classList.remove('on');
+});
+</script>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../../index.html">文档索引</a> · <a href="UI重设计-第七轮Mockup对比评估.md">Markdown</a> · <a href="../../index.html">索引</a></footer>
+</body>
+</html>

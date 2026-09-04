@@ -18,13 +18,13 @@
 
 **编号读法**：OPT（功能）/ Tier（依赖大阶段）/ Phase（ORM·框架子阶段）/ DEC（RFC 决策）不是同一套号。权威页：`doc/需求编号与缩写规范.html`。对外须写全称，如 `OPT-P1-03`、`Phase D3（OPT-P2-11）`。
 
-依赖升级路线（OPT-P2-11）：`doc/deps/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → Phase D0/D1/D2 ✓ → **下一依赖动作 Phase D3** → Tier 3b/3c。
+依赖升级路线（OPT-P2-11）：`doc/deps/依赖升级RFC.html` — Tier 0–2 ✓ → Phase A/B/C ✓ → Phase D0/D1/D2/D3 ✓ → **下一依赖动作 Tier 3b/3c**。
 
 **交付总览**：`doc/交付状态与路线图.html` — 已发布版本、已完成 OPT/RFC 与未完成项对照。
 
-**优化 / 功能 / UI**：一律设计确认后再改代码（含无 UI 的依赖/模型/Repo 等工作）；管理端 Ajax 表单须 `js-ajax-form` + `js-ajax-submit`（对照 `cron_add.html`）；静态门禁 `tests.test_ajax_form_guard`；仅测 JSON **不算** UI 交付。
+**优化 / 功能 / UI**：一律设计确认后再改代码（含无 UI 的依赖/模型/Repo 等工作）；管理端 Ajax 表单须 `js-ajax-form` + `js-ajax-submit`（对照 `task_form.html`）；静态门禁 `tests.test_ajax_form_guard`；仅测 JSON **不算** UI 交付。
 
-**表单防重复提交（强制）**：所有 POST 表单须有防重复提交保护。`js-ajax-form` 已有 `common.js` loading 守卫；非 Ajax POST 表单由 `common.js` 全局守卫自动保护（`cp-submitting` 标记）。独立页面（不继承 `admin_base.html`）须显式引入 `common.js`。静态门禁 `tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard`。
+**表单防重复提交（强制）**：所有 POST 表单须有防重复提交保护。`js-ajax-form` 已有 `common.js` loading 守卫；非 Ajax POST 表单由 `common.js` 全局守卫自动保护（`cp-submitting` 标记）。独立页面（不继承 `_base.html`）须显式引入 `common.js`。静态门禁 `tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard`。
 
 **Redesign JS 依赖规则（强制 · F5）**：Redesign `_base.html` 使用 `common-redesign.js` 替代 `common.js` + `wind.js`。**jQuery 必须同步加载（无 `defer`）**——inline `<script>` 中的 `$(function(){})` 依赖 `$` 在解析时可用。其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）使用 `defer`，因为它们仅通过 DOM ready 回调或用户事件访问。**禁止**在 `_base.html` 的 `jquery.js` 标签上添加 `defer`/`async`。自检：`grep 'defer.*jquery\|async.*jquery' app/templates/redesign/_base.html && echo "FAIL" || echo "OK"`。**违反教训**：2026-08 F5 保留了 Phase R5 添加的 `defer`，导致 API Token 页面 Copy/Reset 按钮完全失效，详见 `doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`。
 
@@ -154,7 +154,7 @@ bash scripts/check_pending_sync.sh
 
 **innerHTML XSS 防护（强制 · S4）**：模板 JS 中凡从 `data-*` / `dataset` 取值后拼入 `innerHTML` / `bodyHtml`，**必须**经 `escHtml()` 转义或改用 `textContent` + DOM API。Jinja2 自动转义仅保护 HTML 解析阶段，浏览器解码后 jQuery `.data()` 返回原始字符串 → 拼入 innerHTML 即为二次注入。**Jinja2 变量在 JS 字符串上下文**：凡 `{{ variable }}` 出现在 `<script>` 标签内的 JS 字符串拼接中（非 HTML 属性上下文），**必须**使用 `{{ variable|tojson }}` 输出（等效 JSON.stringify，转义引号/反斜杠/换行），禁止直接 `{{ variable }}` 拼入 JS 字符串。自检：`rg -n "innerHTML\s*=" app/templates/redesign/ | grep -v "= ''" | grep -v escHtml && echo WARN || echo OK`。**违反教训**：2026-08 `registration_review.html` 的 `username` 和 `tags.html` 的 `tagName` 未转义直接拼 HTML；`tags.html:99` 的 `{{ g.name }}` 直接拼入 JS 字符串构建 `<option>` 元素。
 
-**状态修改操作必须 POST + CSRF（强制 · S1）**：凡状态修改操作（登出、删除、停用、修改等），路由 **必须** 限定 `methods=['POST']`，配合 `@csrf_protect` 装饰器。**禁止**使用 GET 执行状态修改。前端对应的触发元素必须通过隐藏 `<form method="POST">` + CSRF token 提交，或使用 `postNavigate()` 动态构建 POST 表单。自检：`grep -n "methods=\['GET'\]" app/rbac/views.py | grep -v "login\|password\|register\|complete_profile" && echo WARN || echo OK`。防护测试：`.venv-py311/bin/python -m unittest tests.test_logout_csrf -v`（4 条用例）。**违反教训**：2026-08 `/rbac/logout` 接受 GET，攻击者可通过 `<img src="/rbac/logout">` 强制登出已登录用户。
+**状态修改操作必须 POST + CSRF（强制 · S1）**：凡状态修改操作（登出、删除、停用、修改等），路由 **必须** 限定 `methods=['POST']`，配合 `@csrf_protect` 装饰器。**禁止**使用 GET 执行状态修改。前端对应的触发元素必须通过隐藏 `<form method="POST">` + CSRF token 提交，或使用 `postNavigate()` 动态构建 POST 表单。自检：`grep -n "methods=\['GET'\]" app/rbac/views.py | grep -v "login\|password\|register\|complete_profile" && echo WARN || echo OK`。防护测试：`.venv-py311/bin/python -m unittest tests.test_logout_csrf -v`（2 条用例）。**违反教训**：2026-08 `/rbac/logout` 接受 GET，攻击者可通过 `<img src="/rbac/logout">` 强制登出已登录用户。
 
 **重定向参数校验（强制 · P0-2 Open Redirect）**：所有 `request.args.get('next')` / `request.values.get('next')` 必须经 `safe_next_url()` 包裹（`from app.rbac.safe_redirect import safe_next_url`）。禁止将用户提供的 `next` 参数直接用于 `redirect()` 或模板渲染。自检：`grep -rn "request\.\(args\|values\)\.get('next" app/ | grep -v safe_next_url && echo FAIL || echo OK`。防护测试：`python3 -m unittest tests.test_safe_redirect -v`（11 条用例）。**违反教训**：2026-08 登录页 `next` 参数未校验，攻击者可构造钓鱼跳转 URL。
 

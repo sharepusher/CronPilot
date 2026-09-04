@@ -7,6 +7,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+当前无草稿条目。
+
+---
+
+## [4.0.0] — 2026-09-04 · V1 UI Decommission + Security Hardening + Performance + Ghost Job Cleanup
+
 ### 修复 — OPT-P0-20 调度器幽灵任务清理
 
 - **Bug 1 — 退休流程加固**：`retire_cron_by_id()` / `retire_cron_by_task_name()` 中 `remove_job` 失败时不再静默吞掉异常。改为先 `remove_job` 后 `apply_retire` + `commit`；`JobLookupError` 幂等放行，其他异常中止退休操作并返回错误
@@ -41,10 +47,6 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 ### 新增设计文档
 
 - `doc/design/Redesign代码全面Review修复方案-2026-08.html` — 47 项 Review 发现，8 Batch 修复计划（待确认）
-
----
-
-## [4.0.0] — 2026-09-03 · V1 UI Decommission + Security Hardening + Performance
 
 ### 改进 — 任务中心筛选按钮与下拉文案优化
 
@@ -1893,7 +1895,7 @@ HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
-| **4.0.0** | V1 UI decommission, 7 P0 security fixes, timestamp BIGINT UTC, AJAX partial refresh (5 pages), overdue detection, orphan reconciliation, inline form errors, Heroicons, Ruff lint |
+| **4.0.0** | V1 UI decommission, 7 P0 security fixes, timestamp BIGINT UTC, AJAX partial refresh (5 pages), overdue detection, orphan reconciliation, ghost job cleanup, inline form errors, Heroicons, Ruff lint |
 | **3.0.0** | Console Mode UI, dual-mode switch (Classic/Console), dark theme, responsive layout, keyboard shortcuts |
 | **2.9.0** | Task group affiliation (single-group), tag system (group-isolated), unified error pages, `code` field removal, API breaking change |
 | **2.8.0** | User registration & approval, forgot password hint, concurrent prevention, anti-double-click |

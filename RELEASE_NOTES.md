@@ -7,7 +7,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-*(No unreleased changes)*
+### 修复 — 执行记录 AJAX 筛选单任务模式 URL 畸形
+
+- **问题**：从任务详情页进入执行记录（`/job_log_list?id=8`）后，点击筛选按钮弹出"加载失败"
+- **根因**：`_baseUrl` 已包含 `?id=8`（`url_for` 带参数），`buildUrl()` 又追加 `?outcome=...`，产生双 `?` 畸形 URL
+- **修复**：`_baseUrl` 改为不带 id 参数的纯路径，id 通过 params 统一管理
 
 ---
 
@@ -233,7 +237,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ### 工程质量 — 测试门禁统一（P0-1）
 
-- CI workflow 从显式列举 5 个测试模块改为 `unittest discover`，覆盖全部 51 个模块（634 用例）
+- CI workflow 从显式列举 5 个测试模块改为 `unittest discover`，覆盖全部 51 个模块（669 用例）
 - `cronpilot.sh test` 同步改为 `discover`，消除 CI 和本地测试的覆盖差异
 - 原 CI 仅门禁 5/51 模块（~28 用例），安全修复防护测试（`test_safe_redirect` · `test_logout_csrf` · `test_tag_scope`）完全不在 CI 中执行
 - 改为 discover 后，新增测试文件自动纳入 CI，无需手动维护模块列表
@@ -302,7 +306,7 @@ V2 Redesign UI 现在是唯一界面。V1 全部模板、JS、CSS 及第三方�
 
 **⚠️ 不可回退**：Batch 3 后不再支持 V1 回退。如需回退需从 git 历史恢复 V1 资产。
 
-**设计文档**: `doc/design/V1下线方案设计.html`、`doc/design/V1下线Pre-check报告-2026-08.html`、`doc/design/Redesign代码质量全面评估报告-R6-2026-08.html`
+**设计文档**: `doc/design/V1下线方案设计.html`、`doc/design/V1下线Pre-check报告-2026-08.html`、`doc/archive/design-quality-reports/Redesign代码质量全面评估报告-R6-2026-08.html`
 
 **Batch 4（注释 + Dead CSS 清理）**:
 - `console-theme.css`: 移除 6 处过时的 V1 引用注释（admin_base、simpleboot）；删除 18 行 Dead CSS（`.rbac-topbar` 选择器 + `--cp-topbar-*` token，V2 无消费者）
@@ -382,17 +386,17 @@ Dashboard 任务列表「业务组」列和组筛选下拉改为按用户可见�
 
 ### 文档 — 代码质量评估报告 R4
 
-新增 `doc/design/Redesign代码质量全面评估报告-R4-2026-08.html`：综合评分 B+ (80/100)，覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
+新增 `doc/archive/design-quality-reports/Redesign代码质量全面评估报告-R4-2026-08.html`：综合评分 B+ (80/100)，覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
 
 ### 修复 — 文档链接 140 处 broken 归零
 
-- 创建 `doc/design/index.html`、`doc/postmortem/index.html`、`doc/design/screenshots/eval6/index.html` 目录索引页
+- 创建 `doc/design/index.html`、`doc/postmortem/index.html` 目录索引页（`eval6/index.html` 已随归档迁移至 `doc/archive/screenshots/eval6/`）
 - 修正 `UI重设计-groups-tags-方案对比Demo.html` 中 Mockup 文件名引用错误
 - `check_doc_links.py --check`：991 个引用扫描 → 0 broken
 
 ### 文档 — 代码质量评估报告 R3
 
-新增 `doc/design/Redesign代码质量全面评估报告-R3-2026-08.html`：综合评分 B+（78/100），覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
+新增 `doc/archive/design-quality-reports/Redesign代码质量全面评估报告-R3-2026-08.html`：综合评分 B+（78/100），覆盖 CSS/JS/Template/Backend/CI/Test 六维度评估。
 
 ### ⚠️ API Breaking Change — 执行记录标识符与术语统一
 
@@ -942,6 +946,7 @@ APScheduler 中存在的孤儿 job（对应 cron_infos 记录已不存在）现�
 - Browsers ignore nested `<form>` tags, so clicking "退出登录" would incorrectly trigger the password change submission instead.
 - Fix: replaced the nested form with a `<button type="button">` + JS-driven dynamic form submission.
 - Also removed an inline `style="display:inline"` that violated the project's no-inline-style rule.
+- 复盘文档：[doc/postmortem/2026-08-change-password-nested-form.html](doc/postmortem/2026-08-change-password-nested-form.html)
 
 **Files changed:** `app/templates/redesign/change_password.html`
 
@@ -1142,10 +1147,10 @@ Added email address as a mono-font subtitle below the username in the users tabl
 - **Problem:** Agent repeatedly failed to provide proactive postmortems after fixes (3+ occurrences), proving text-only rules insufficient.
 - **L1 Hook (postToolUse):** `.cursor/hooks/postmortem-reminder.sh` — injects mandatory classification + postmortem checklist after every `Write`/`StrReplace`/`EditNotebook`. Verified 100% trigger rate.
 - **L2 Hook (stop prompt):** `.cursor/hooks.json` stop event — AI evaluates at turn-end whether fixes exist without postmortem; if so, generates `followup_message` (loop_limit=2).
-- **Design QA Gate:** Added to implementation plan (`doc/design/UI重设计-实施架构与过渡方案.html` §6.1 #8 + §6.3) — each Phase delivery requires Mockup source comparison before declaring complete.
+- **Design QA Gate:** Added to implementation plan (`doc/archive/design-deprecated/UI重设计-实施架构与过渡方案.html` §6.1 #8 + §6.3，已归档） — each Phase delivery requires Mockup source comparison before declaring complete.
 - **Postmortems:** `doc/postmortem/2026-08-Phase2-Mockup偏离复盘.html`, `doc/postmortem/2026-08-元复盘-复盘失效机制.html`
 - **New files:** `.cursor/hooks.json`, `.cursor/hooks/postmortem-reminder.sh`, `.cursor/hooks/stop-postmortem-gate.sh`
-- **Modified:** `AGENTS.md`, `.cursor/rules/cronpilot-project.mdc`, `doc/design/UI重设计-实施架构与过渡方案.html`
+- **Modified:** `AGENTS.md`, `.cursor/rules/cronpilot-project.mdc`, `doc/archive/design-deprecated/UI重设计-实施架构与过渡方案.html`（已归档）
 
 ### UI Redesign: Unified Manual v2 — Index-Only Architecture (OPT-P1-16-MANUAL)
 
@@ -1196,7 +1201,7 @@ Executed all 6 batches of Phase 2 component extraction. Final result: **68 → 0
 
 ### UI Redesign Phase 4 — Full Page Implementation (Batches B1–B7)
 
-Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly aligned with `doc/design/console-style-demo.html` Mockup.
+Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly aligned with `doc/archive/design-deprecated/console-style-demo.html` Mockup（已归档，后被 Redesign v2 取代）.
 
 - **Batch 1 (Dashboard + Execution Logs):** 7-column task table, 4 stats cards, exception panel (top 5 consecutive-failing), status filter chips, scope/tag dropdowns, text search. Execution logs with status dots, duration color-coding, click-to-copy LOG ID, content expand/collapse.
 - **Batch 2 (Global Components):** Toast notifications (`redesign-toast.js`), Confirm Modal (`redesign-confirm.js`), Empty State with SVG icon, Skeleton loading states. All integrated into Dashboard and Execution Logs.
@@ -1244,7 +1249,7 @@ Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly 
 - **New files:** `app/ui_mode.py`, `app/static/css/console-mode.css` (~960 lines), `app/templates/rbac/_sidebar_console.html`, `tests/test_ui_mode.py`.
 - **Modified:** `admin_base.html` (attributes + sidebar include), `_topbar.html` (hamburger), `common.js` (+80 lines), `console-theme.css` (+Dark block).
 
-**Tests:** 428 pass (11 new UI mode tests) · **Design:** `doc/design/console-style-dual-mode-design.html`
+**Tests:** 428 pass (11 new UI mode tests) · **Design:** `doc/archive/design-deprecated/console-style-dual-mode-design.html`（已归档）
 
 ---
 

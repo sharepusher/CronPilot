@@ -109,7 +109,7 @@ document.addEventListener('click', function(e) {
 
 /* ══ OPT-P1-18: AJAX Filter (no full page reload) ══ */
 (function() {
-  var _baseUrl = '{{ url_for("main.job_log_list", id=cron_info.id) if cron_info else url_for("main.job_log_all_list") }}';
+  var _baseUrl = '{{ url_for("main.job_log_list") if cron_info else url_for("main.job_log_all_list") }}';
   var _state = {
     outcome: {{ (outcome or "not_success")|tojson }},
     task_name: {{ keywords.get("task_name", "")|tojson }},

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head><meta charset="UTF-8"><title>复盘：Release Notes Unreleased 残留清理</title></head>
+<body>
+<h1>复盘：Release Notes Unreleased 残留清理</h1>
+<p>日期：2026-09-04</p>
+
+<h2>1. Bug 定位</h2>
+<ul>
+  <li><code>RELEASE_NOTES.md</code> 的 <code>[Unreleased]</code> 节包含 2 个小节和 7 条实质条目，触发 <code>python3 scripts/check_version_consistency.py --check</code> 失败。</li>
+  <li><code>doc/index.html</code> 首页快捷入口与 Release Notes 卡片仍显示旧版本标识（v2.7.0 等），与当前 README/路线图中的 v4.0.0 不一致。</li>
+</ul>
+
+<h2>2. 根因</h2>
+<ul>
+  <li>发布后未执行「Unreleased 清空」收尾动作，导致已完成内容滞留在草稿区。</li>
+  <li>文档入口页的版本文案依赖手工维护，缺少与根 <code>RELEASE_NOTES.md</code> 的自动对齐机制。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+  <li>虽然有 <code>check_version_consistency.py</code>，但此前未在本地交付前完整执行到该脚本，导致残留未及时暴露。</li>
+  <li><code>doc/index.html</code> 的版本展示文案不在现有一致性脚本覆盖范围内。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>将 <code>RELEASE_NOTES.md</code> 的 <code>[Unreleased]</code> 收敛为非列表占位说明，移除实质条目与子节。</li>
+  <li>修正 <code>doc/index.html</code> 的「进度总览」版本标识为 v4.0.0。</li>
+  <li>修正 <code>doc/index.html</code> 的 Release Notes 卡片文案，明确以仓库根 <code>RELEASE_NOTES.md</code> 为准。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+  <li><code>python3 scripts/check_version_consistency.py --check</code> 应通过（验证 Unreleased 残留已清理）。</li>
+  <li><code>python3 scripts/check_doc_completeness.py --check</code> 应通过（新复盘文档在索引中可达）。</li>
+  <li><code>python3 scripts/check_doc_links.py --check</code> 应通过（新增链接无断链）。</li>
+  <li><code>python3 scripts/html_docs_to_markdown.py --check</code> 应通过（HTML/Markdown 同步）。</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<ul>
+  <li>已复核 <code>doc/_pending_sync/</code> 守卫，结果为 OK。</li>
+  <li>已复核 OPT 编号一致性，<code>check_opt_consistency.py --check</code> 通过。</li>
+  <li>当前未发现新的 broken doc 链接或未注册 HTML 文档。</li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<ol>
+  <li><strong>交付前文档体检固定化：</strong>每次文档变更后固定执行
+    <code>python3 scripts/check_doc_completeness.py --check && python3 scripts/check_doc_links.py --check && python3 scripts/check_version_consistency.py --check && python3 scripts/check_opt_consistency.py --check && python3 scripts/html_docs_to_markdown.py --check</code>。
+    <br>落地位置：交付流程执行清单（本次复盘文档 + 日常交付步骤）。
+  </li>
+  <li><strong>版本入口去硬编码：</strong><code>doc/index.html</code> 的 Release Notes 描述改为「以仓库根 RELEASE_NOTES 为准」，避免重复维护一长串版本 badge。
+    <br>验证命令：<code>rg "以仓库根 `RELEASE_NOTES.md` 为准|发行版 v4.0.0" doc/index.html</code>。
+  </li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="2026-09-release-notes-unreleased-cleanup.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

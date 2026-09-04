@@ -116,7 +116,7 @@
     <a href="index.md">Markdown 索引</a> · 在线 <code>/docs/</code></p>
 
   <div class="quick" aria-label="快捷入口">
-    <a href="交付状态与路线图.html"><strong>进度总览</strong><span>发行版 v2.7.0</span></a>
+    <a href="交付状态与路线图.html"><strong>进度总览</strong><span>发行版 v4.0.0</span></a>
     <a href="arch/项目总览与技术文档.html"><strong>项目入门</strong><span>定位 · 架构图 · 模块</span></a>
     <a href="design/规模化信息架构设计.html"><strong>当前焦点</strong><span>OPT-P2-13 规模化 IA</span></a>
     <a href="ops/Docker部署指南.html"><strong>部署运维</strong><span>Docker / 裸机 / Linux</span></a>
@@ -158,7 +158,7 @@
       <li>
         <div class="title">
           <a href="RELEASE_NOTES.html">Release Notes</a>
-          <span class="blurb"><span class="badge b-done">v2.7.0</span><span class="badge b-done">v2.6.0</span><span class="badge b-done">v2.5.0</span><span class="badge b-done">v2.4.0</span><span class="badge b-done">v2.3.0</span><span class="badge b-done">v2.2.0</span><span class="badge b-done">v2.1.1</span><span class="badge b-done">v2.1.0</span><span class="badge b-done">v2.0.0</span> 完整版本变更日志</span>
+          <span class="blurb"><span class="badge b-done">v4.0.0</span><span class="badge b-done">v3.0.0</span><span class="badge b-done">v2.7.1</span> 完整版本变更日志（以仓库根 `RELEASE_NOTES.md` 为准）</span>
         </div>
         <div class="links"><a href="RELEASE_NOTES.html">HTML</a><a href="RELEASE_NOTES.md">MD</a><a href="../RELEASE_NOTES.md">仓库根</a></div>
       </li>
@@ -285,6 +285,7 @@
             <li><span class="badge b-sub">评估</span> <a href="design/API安全与质量全面评估-2026-08.html">API 安全与质量全面评估</a>（11 端点 · 9 已修复 · 7 待评估 · 防护总结）</li>
             <li><span class="badge b-sub">专题</span> <a href="design/API-auth限流-B13-2026-08.html">API Auth 暴力破解限流 B-13</a>（复用 LoginLimiter，API/Web 共享计数器）</li>
             <li><span class="badge b-sub">归档</span> Redesign 代码质量评估报告 R1–R7 → <a href="#archive-quality">见归档</a>（当前权威：<a href="design/Redesign代码质量全面评估报告-R8-2026-09.html">R8</a>）</li>
+            <li><span class="badge b-sub">专题</span> <a href="design/质量门禁与测试稳定性最小修复方案-2026-09.html">质量门禁与测试稳定性最小修复方案</a>（4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness）</li>
             <li><span class="badge b-sub">计划</span> <a href="design/Redesign前端代码质量评估与优化计划.html">CronPilot Redesign 前端代码质量评估与深度复盘</a>（CSS 层 7 问题结构性分析 · 优化计划）</li>
             <li><span class="badge b-sub">P0/P1</span> <a href="design/Redesign-P0P1问题根因分析与修复设计.html">Redesign P0/P1 问题根因分析与修复设计</a>（Redesign P0/P1 问题根因 · OPT-P1-16 关联）</li>
             <li><span class="badge b-sub">技术债</span> <a href="design/Redesign剩余技术债根因分析与修复设计.html">Redesign 剩余技术债根因分析与修复设计</a>（Redesign 剩余技术债全面 Review 与修复）</li>
@@ -587,6 +588,14 @@
           <span class="blurb">筛选/翻页改为 AJAX 局部刷新 · 页面滚动位置稳定 · 降级为整页刷新</span>
         </div>
         <div class="links"><a href="design/任务中心筛选AJAX化设计.html">HTML</a><a href="design/任务中心筛选AJAX化设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-wip">待确认</span>
+          <a href="design/Redesign代码全面Review修复方案-2026-08.html">Redesign 代码全面 Review 修复方案</a>
+          <span class="blurb">OPT-P0-19-REVIEW · 47 项发现 · 8 Batch 修复计划</span>
+        </div>
+        <div class="links"><a href="design/Redesign代码全面Review修复方案-2026-08.html">HTML</a><a href="design/Redesign代码全面Review修复方案-2026-08.md">MD</a></div>
       </li>
     </ul>
   </section>
@@ -1037,6 +1046,20 @@
           <span class="blurb">overflow: hidden 裁剪 c-dd-menu · table-layout: fixed 列宽对齐</span>
         </div>
         <div class="links"><a href="postmortem/2026-09-Dashboard表格溢出修复.html">HTML</a><a href="postmortem/2026-09-Dashboard表格溢出修复.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-release-notes-unreleased-cleanup.html">复盘：Release Notes Unreleased 残留导致版本校验失败</a>
+          <span class="blurb">清空 Unreleased 实质内容 · 修正文档入口陈旧版本标识</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-release-notes-unreleased-cleanup.html">HTML</a><a href="postmortem/2026-09-release-notes-unreleased-cleanup.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-质量门禁四项修复复盘.html">复盘：质量门禁四项修复</a>
+          <span class="blurb">单测隔离修复 · golden path 路径对齐 · CSS 注释误报修复 · postmortem 索引 MD 补齐</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-质量门禁四项修复复盘.html">HTML</a><a href="postmortem/2026-09-质量门禁四项修复复盘.md">MD</a></div>
       </li>
     </ul>
   </section>

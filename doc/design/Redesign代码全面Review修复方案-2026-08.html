@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Redesign 代码全面 Review 修复方案 — 2026-08</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:960px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #0891b2;padding-bottom:.4em}
+h2{color:#0891b2;margin-top:2em;border-bottom:1px solid #e5e7eb;padding-bottom:.3em}
+h3{color:#334155;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14px}
+th,td{border:1px solid #d1d5db;padding:6px 10px;text-align:left}
+th{background:#f1f5f9;font-weight:600}
+tr:nth-child(even){background:#f9fafb}
+code{background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:13px}
+pre{background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px}
+.sev-p0{background:#fef2f2;color:#991b1b;font-weight:700;padding:2px 6px;border-radius:3px}
+.sev-p1{background:#fef9c3;color:#854d0e;font-weight:600;padding:2px 6px;border-radius:3px}
+.sev-p2{background:#e0f2fe;color:#075985;padding:2px 6px;border-radius:3px}
+.sev-low{background:#f0fdf4;color:#166534;padding:2px 6px;border-radius:3px}
+.batch-header{background:#0891b2;color:#fff;padding:8px 16px;border-radius:6px;margin-top:2em}
+.risk-box{background:#fffbeb;border-left:4px solid #f59e0b;padding:12px 16px;margin:1em 0;border-radius:0 6px 6px 0}
+.scope-box{background:#f0f9ff;border-left:4px solid #0891b2;padding:12px 16px;margin:1em 0;border-radius:0 6px 6px 0}
+.accept-box{background:#f0fdf4;border-left:4px solid #22c55e;padding:12px 16px;margin:1em 0;border-radius:0 6px 6px 0}
+footer{margin-top:3em;padding-top:1em;border-top:1px solid #e5e7eb;color:#6b7280;font-size:13px}
+</style>
+</head>
+<body>
+
+<h1>Redesign 代码全面 Review 修复方案</h1>
+<p><strong>文档编号：</strong>OPT-P0-19-REVIEW<br>
+<strong>创建日期：</strong>2026-08-24<br>
+<strong>状态：</strong>待确认<br>
+<strong>触发来源：</strong>Redesign 前端重构后全面代码 Review<br>
+<strong>覆盖范围：</strong>47 项发现，分 5 个 Tier、8 个 Batch</p>
+
+<!-- ================================================================ -->
+<h2>§1 问题总述</h2>
+
+<p>对 CronPilot Redesign（V2 UI）前后端代码进行全面 Review 后，共发现 47 项问题，横跨安全、可访问性、架构、Mockup 对齐和代码质量 5 个维度。无 P0 安全漏洞（前轮已修复），但存在 6 项 P1 安全风险和 8 项 P1 可访问性缺陷需优先处理。</p>
+
+<table>
+<tr><th>Tier</th><th>维度</th><th>P0</th><th>P1</th><th>P2</th><th>Low</th><th>合计</th></tr>
+<tr><td>1</td><td>安全</td><td>0</td><td>2</td><td>3</td><td>1</td><td>6</td></tr>
+<tr><td>2</td><td>可访问性</td><td>0</td><td>5</td><td>3</td><td>0</td><td>8</td></tr>
+<tr><td>3</td><td>架构 / CSS</td><td>0</td><td>3</td><td>7</td><td>0</td><td>10</td></tr>
+<tr><td>4</td><td>Mockup 偏离</td><td>2</td><td>4</td><td>5</td><td>0</td><td>11</td></tr>
+<tr><td>5</td><td>代码质量</td><td>0</td><td>0</td><td>0</td><td>12</td><td>12</td></tr>
+<tr><td colspan="2"><strong>合计</strong></td><td><strong>2</strong></td><td><strong>14</strong></td><td><strong>18</strong></td><td><strong>13</strong></td><td><strong>47</strong></td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2>§2 根因分析</h2>
+
+<h3>2.1 安全类根因</h3>
+<ul>
+<li><strong>SEC-1/SEC-2</strong>：<code>innerHTML</code> 使用场景未全部配套 <code>escHtml()</code>；command palette 的 <code>href</code> 属性和 <code>CpModal</code> 的 <code>bodyHtml</code> 选项虽当前来源受控，但缺乏防御性编码。</li>
+<li><strong>SEC-3/SEC-4</strong>：异常处理中 <code>str(e)</code> 直接进入响应或外部通道，是 Phase A 安全加固遗漏的长尾。</li>
+<li><strong>SEC-5</strong>：<code>trigger_password_reset</code> 将默认密码写入前端消息，信息泄露。</li>
+<li><strong>SEC-6</strong>：DNS 解析失败时 SSRF 校验 fail-open（放行），留下 TOCTOU 攻击窗口。</li>
+</ul>
+
+<h3>2.2 可访问性根因</h3>
+<ul>
+<li>Redesign 迁移时优先保证视觉还原和功能正确，<code>&lt;label for&gt;</code> 关联、ARIA 属性、键盘可达性被系统性遗漏。</li>
+<li>Auth 页面（<code>login</code>/<code>register</code>/<code>complete_profile</code>）独立于 <code>_base.html</code>，未引入 <code>common-redesign.js</code> 的防重复提交全局守卫。</li>
+</ul>
+
+<h3>2.3 架构根因</h3>
+<ul>
+<li><code>redesign-pages.css</code> 在多轮迭代中持续追加，未按页面拆分；Dashboard 规则未使用 <code>.cp-page-dashboard</code> 前缀。</li>
+<li>V1 遗留的 <code>.btn</code> 系统与 Mockup 的 <code>.btn-c</code> 系统并存，模板混用两者。</li>
+<li>后端 <code>views.py</code> 文件超 1,100 行，合并了路由、表单处理、查询构建、模板上下文组装。</li>
+</ul>
+
+<h3>2.4 Mockup 偏离根因</h3>
+<ul>
+<li>业务组详情面板和标签命名空间属于 Mockup 中的高级交互模式，在首轮 Redesign 中按 MVP 优先级被简化实现。</li>
+<li>执行记录、注册审批的列差异来自实际数据模型与 Mockup 设想的不一致，需设计层面决策。</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2>§3 修复方案</h2>
+
+<p>共分 8 个 Batch，按依赖关系和风险排序。每个 Batch 可独立验收。</p>
+
+<!-- Batch 1 -->
+<div class="batch-header"><strong>Batch 1：安全加固（SEC-1 ~ SEC-6）</strong></div>
+
+<h3>3.1.1 SEC-1：Command Palette href 未转义</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/static/js/redesign-shell.js</code> L95-110</td></tr>
+<tr><td>现状</td><td><code>renderResults()</code> 中 <code>href</code> 直接拼入 <code>innerHTML</code> 字符串，虽当前 href 来自服务端导航、不含用户输入，但违背防御性原则</td></tr>
+<tr><td>方案</td><td>改用 <code>document.createElement('a')</code> + <code>.setAttribute('href', item.href)</code> 构建 DOM；<code>textContent</code> 设置标签文本</td></tr>
+<tr><td>不做</td><td>不改变 Command Palette 的功能和视觉</td></tr>
+</table>
+
+<h3>3.1.2 SEC-2：CpModal bodyHtml XSS 面</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/static/js/redesign-confirm.js</code> L121</td></tr>
+<tr><td>现状</td><td><code>opts.bodyHtml</code> 直接赋值给 <code>innerHTML</code>，调用方若传入未转义的用户数据即可 XSS</td></tr>
+<tr><td>方案</td><td>新增 <code>bodyText</code> 选项（用 <code>textContent</code> 安全插入），当 <code>bodyHtml</code> 存在时在 JS 注释中标注「调用方须自行 escHtml」；在所有现有调用点 Review 确认均已转义</td></tr>
+<tr><td>不做</td><td>不移除 <code>bodyHtml</code>（已有 <code>tags.html</code> 等合法用例）</td></tr>
+</table>
+
+<h3>3.1.3 SEC-3：cron_add 异常类名泄露</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/main/views.py</code> L861</td></tr>
+<tr><td>现状</td><td><code>'服务器内部错误（%s）' % err_type</code> 将异常类名（如 <code>ConnectionError</code>）返回前端</td></tr>
+<tr><td>方案</td><td>统一返回 <code>'服务器内部错误，请稍后重试'</code>，异常类型仅记录到 <code>logger.error</code></td></tr>
+</table>
+
+<h3>3.1.4 SEC-4：WeChat 原始异常发送</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/main/views.py</code> L852</td></tr>
+<tr><td>现状</td><td><code>wechat_info_err(str(e), ...)</code> 将原始异常文本发至外部通道</td></tr>
+<tr><td>方案</td><td>改为 <code>wechat_info_err('任务新增异常', ...)</code>，不传 <code>str(e)</code></td></tr>
+</table>
+
+<h3>3.1.5 SEC-5：密码重置消息泄露默认密码</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/rbac/services.py</code></td></tr>
+<tr><td>现状</td><td><code>trigger_password_reset</code> 返回 <code>'默认密码为 changeme'</code> 写入前端提示</td></tr>
+<tr><td>方案</td><td>改为 <code>'密码已重置，请通知该用户使用默认密码登录后立即修改'</code>，不在前端展示具体密码</td></tr>
+</table>
+
+<h3>3.1.6 SEC-6：DNS 不可达时 SSRF fail-open</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/services/url_security.py</code> L97-99</td></tr>
+<tr><td>现状</td><td>DNS 解析返回空列表时，<code>validate_and_resolve_url</code> 放行请求（fail-open），在执行阶段无 IP 仍可发起不受限连接</td></tr>
+<tr><td>方案</td><td>DNS 解析失败时返回 <code>(False, 'DNS 解析失败，拒绝执行')</code>（fail-closed）；配置项 <code>url_ssrf_dns_fail_open=false</code> 可选恢复旧行为</td></tr>
+<tr><td>风险</td><td>部分内网 DNS 短暂不可用时会误拒合法任务；可通过 allowlist 白名单豁免</td></tr>
+</table>
+
+<div class="accept-box">
+<strong>Batch 1 验收：</strong><br>
+<code>bash scripts/cronpilot.sh test</code> 全量通过 +<br>
+<code>grep -n "str(e)" app/main/views.py</code> — 仅出现在 logger 行<br>
+<code>grep -n "changeme" app/rbac/services.py</code> — 不出现在 return 值中<br>
+<code>grep -rn "innerHTML.*href" app/static/js/redesign-shell.js</code> — 0 hits<br>
+SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
+</div>
+
+<!-- Batch 2 -->
+<div class="batch-header"><strong>Batch 2：可访问性修复（A11Y-1 ~ A11Y-8）</strong></div>
+
+<h3>3.2.1 A11Y-1：task_form.html 标签关联</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/templates/redesign/task_form.html</code></td></tr>
+<tr><td>现状</td><td>15+ 个 <code>&lt;label&gt;</code> 无 <code>for=</code> 属性，对应 <code>&lt;input&gt;</code>/<code>&lt;select&gt;</code> 无 <code>id</code></td></tr>
+<tr><td>方案</td><td>逐字段添加 <code>id="tf-xxx"</code> + <code>for="tf-xxx"</code> 配对。字段前缀统一为 <code>tf-</code></td></tr>
+<tr><td>不做</td><td>不改变表单布局或视觉样式</td></tr>
+</table>
+
+<h3>3.2.2 A11Y-2：Dashboard 操作按钮语义</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/templates/redesign/_dashboard_rows.html</code></td></tr>
+<tr><td>现状</td><td>操作下拉菜单中 <code>&lt;a onclick="cpToggleStatus(...)"&gt;</code> 无 <code>href</code>，键盘不可达</td></tr>
+<tr><td>方案</td><td>改为 <code>&lt;button type="button" onclick="cpToggleStatus(...)"&gt;</code></td></tr>
+</table>
+
+<h3>3.2.3 A11Y-3：Auth 页面防重复提交</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>login.html</code>、<code>register.html</code>、<code>complete_profile.html</code></td></tr>
+<tr><td>现状</td><td>独立页面未引入 <code>common-redesign.js</code>，依赖各自 inline 守卫，覆盖度参差</td></tr>
+<tr><td>方案 A（推荐）</td><td>在 3 个 Auth 页面底部引入 <code>common-redesign.js</code>（jQuery 已在页面加载），统一使用全局守卫</td></tr>
+<tr><td>方案 B</td><td>保持 inline 守卫，补齐缺失的「恢复」逻辑（3 秒超时恢复按钮可用）</td></tr>
+</table>
+
+<h3>3.2.4 A11Y-4：users.html 停用模态框标签</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/templates/redesign/users.html</code></td></tr>
+<tr><td>现状</td><td><code>&lt;label class="dm-label"&gt;停用缘由&lt;/label&gt;</code> 未关联 <code>#dm-reason</code> textarea</td></tr>
+<tr><td>方案</td><td>添加 <code>for="dm-reason"</code></td></tr>
+</table>
+
+<h3>3.2.5 A11Y-5：注册审批全选复选框</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/templates/redesign/registration_review.html</code></td></tr>
+<tr><td>现状</td><td><code>#rr-select-all</code> 无可见标签或 <code>aria-label</code></td></tr>
+<tr><td>方案</td><td>添加 <code>aria-label="全选/取消全选"</code></td></tr>
+</table>
+
+<h3>3.2.6 A11Y-6：模态框焦点陷阱</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>redesign-shell.js</code>（Command Palette）、<code>redesign-confirm.js</code>（CpConfirm/CpModal）</td></tr>
+<tr><td>现状</td><td>打开模态框后 Tab 键可逃离遮罩层</td></tr>
+<tr><td>方案</td><td>添加简易焦点陷阱：open 时记录 <code>lastFocusedElement</code>，在 overlay 内 Tab 循环首末可聚焦元素，close 时恢复焦点</td></tr>
+</table>
+
+<h3>3.2.7 A11Y-7：Toast 关闭按钮键盘支持</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/static/js/redesign-toast.js</code></td></tr>
+<tr><td>现状</td><td>关闭按钮为 <code>&lt;span role="button"&gt;</code>，无 <code>tabindex</code> 和 Enter/Space 处理</td></tr>
+<tr><td>方案</td><td>改为 <code>&lt;button type="button" class="toast-close" aria-label="关闭"&gt;</code></td></tr>
+</table>
+
+<h3>3.2.8 A11Y-8：error.html javascript: href</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/templates/redesign/error.html</code></td></tr>
+<tr><td>现状</td><td><code>href="javascript:history.back()"</code></td></tr>
+<tr><td>方案</td><td>改为 <code>&lt;button type="button" onclick="history.back()"&gt;返回&lt;/button&gt;</code></td></tr>
+</table>
+
+<div class="accept-box">
+<strong>Batch 2 验收：</strong><br>
+<code>bash scripts/cronpilot.sh test</code> 全量通过<br>
+<code>grep -rn 'javascript:' app/templates/redesign/</code> — 仅 <code>tags.html</code>（Batch 5 处理）<br>
+手动键盘 Tab 测试：task_form → 所有字段可通过 label 点击聚焦<br>
+Command Palette 打开后 Tab 不逃逸模态框
+</div>
+
+<!-- Batch 3 -->
+<div class="batch-header"><strong>Batch 3：CSS 架构优化（ARCH-1 ~ ARCH-8）</strong></div>
+
+<h3>3.3.1 ARCH-1/ARCH-2：pages.css 拆分 + Dashboard 规则命名空间化</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/static/css/redesign-pages.css</code></td></tr>
+<tr><td>现状</td><td>2,067 行单文件；Dashboard 区域 ~105 条规则使用 <code>.tc-*</code>、<code>.hf-*</code>、<code>.act-btn</code> 等全局类名</td></tr>
+<tr><td>方案</td><td>
+<ol>
+<li>提取 Dashboard 规则到 <code>redesign-page-dashboard.css</code>（~400 行），所有规则添加 <code>.cp-page-dashboard</code> 前缀</li>
+<li>剩余规则保留在 <code>redesign-pages.css</code>（~1,600 行），后续按需继续拆分</li>
+<li>在 <code>_base.html</code> 中新增 <code>&lt;link&gt;</code> 引入 dashboard CSS</li>
+</ol>
+</td></tr>
+<tr><td>不做</td><td>不一次性拆分所有页面（控制变更范围）；不改变视觉效果</td></tr>
+</table>
+
+<h3>3.3.2 ARCH-3：按钮系统统一</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>redesign-components.css</code>（<code>.btn</code>）、<code>redesign-mockup-shared.css</code>（<code>.btn-c</code>）、多个模板</td></tr>
+<tr><td>现状</td><td>两套按钮系统并存，高度/边框/hover 行为不一致；<code>task_detail.html</code> 同时使用两者</td></tr>
+<tr><td>方案</td><td>
+<ol>
+<li>以 <code>.btn-c</code>（Mockup 系统）为主系统，保留 <code>.btn-c-accent</code>/<code>.btn-c-danger</code> 变体</li>
+<li>将 <code>.btn</code> 标记为 deprecated，逐步替换模板中的 <code>.btn</code> → <code>.btn-c</code></li>
+<li>本批次仅处理 <code>task_detail.html</code>、<code>cron_retire.html</code>、<code>error.html</code> 中的混用</li>
+</ol>
+</td></tr>
+</table>
+
+<h3>3.3.3 ARCH-4：页面标题系统统一</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>现状</td><td><code>.cp-page-head</code>（layout.css）仅被 <code>_welcome.html</code> 使用；其余所有页面使用 <code>.page-head</code>（mockup-shared）</td></tr>
+<tr><td>方案</td><td>移除 <code>.cp-page-head</code>，统一使用 <code>.page-head</code>；<code>_welcome.html</code> 改用 <code>.page-head</code> 或标记为 dead code</td></tr>
+</table>
+
+<h3>3.3.4 ARCH-5：文本令牌命名空间合并</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>现状</td><td>Legacy <code>--cp-muted</code> 与 Redesign <code>--cp-text-muted</code> 共存，模板混用</td></tr>
+<tr><td>方案</td><td>在 <code>console-theme.css</code> 的 <code>.cp-shell</code> 作用域下，将 <code>--cp-muted</code> alias 为 <code>--cp-text-muted</code>：<code>--cp-muted: var(--cp-text-muted)</code>。长期迁移至统一命名</td></tr>
+<tr><td>不做</td><td>不立即搜索替换所有引用（风险过大），只做别名桥接</td></tr>
+</table>
+
+<h3>3.3.5 ARCH-6：Tag-input 样式迁移</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>现状</td><td><code>.tag-input-wrapper</code>、<code>#tag-suggest</code> 等 ~70 行组件样式定义在 <code>console-theme.css</code>（令牌文件）</td></tr>
+<tr><td>方案</td><td>移至 <code>redesign-components.css</code> 末尾，<code>console-theme.css</code> 仅保留令牌定义</td></tr>
+</table>
+
+<h3>3.3.6 ARCH-7：硬编码 rgba() 令牌化</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>现状</td><td>20+ 处 <code>rgba()</code> 用于阴影和 focus ring（如 <code>rgba(239,68,68,0.5)</code>、<code>rgba(8,145,178,.12)</code>）</td></tr>
+<tr><td>方案</td><td>在 <code>console-theme.css</code> 新增 <code>--cp-shadow-md</code>、<code>--cp-ring-accent</code>、<code>--cp-ring-danger</code>、<code>--cp-overlay</code> 等语义令牌，逐步替换硬编码值</td></tr>
+<tr><td>不做</td><td>不改变暗色主题下的颜色值（仅令牌化，不调色）</td></tr>
+</table>
+
+<h3>3.3.7 ARCH-8：color-mix() 兜底</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>现状</td><td>Zebra striping 使用 <code>color-mix(in srgb, ...)</code>，Safari &lt;16.2 无 fallback</td></tr>
+<tr><td>方案</td><td>在 <code>color-mix</code> 行前添加 fallback 声明：<code>background: var(--cp-canvas-alt, #f9fafb)</code>，不影响支持浏览器</td></tr>
+</table>
+
+<div class="accept-box">
+<strong>Batch 3 验收：</strong><br>
+<code>python scripts/audit_hardcoded_colors.py --check</code> — 通过<br>
+<code>wc -l app/static/css/redesign-pages.css</code> — ≤ 1,700 行<br>
+<code>grep -c "\.cp-page-head" app/static/css/redesign-layout.css</code> — 0<br>
+视觉回归：Dashboard / 任务详情 / 标签页 截图对比无差异
+</div>
+
+<!-- Batch 4 -->
+<div class="batch-header"><strong>Batch 4：后端架构改善（ARCH-9 ~ ARCH-10）</strong></div>
+
+<p><strong>注：</strong>后端大文件拆分为结构性重构，风险较高。本批次仅做<strong>最小抽取</strong>以降低文件复杂度，不做全面重构。</p>
+
+<h3>3.4.1 ARCH-9：views.py 最小拆分</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/main/views.py</code>（1,157 行）、<code>app/rbac/views.py</code>（1,434 行）</td></tr>
+<tr><td>方案（Phase 1 — 本批次）</td><td>
+<ol>
+<li>从 <code>rbac/views.py</code> 提取 tag 管理路由到 <code>app/rbac/views_tags.py</code>（~200 行）</li>
+<li>从 <code>rbac/views.py</code> 提取注册审批路由到 <code>app/rbac/views_registration.py</code>（~200 行）</li>
+<li>在 <code>rbac/views.py</code> 中 import + register routes</li>
+</ol>
+</td></tr>
+<tr><td>方案（Phase 2 — 后续）</td><td>从 <code>main/views.py</code> 提取 API 路由到 <code>app/api/views.py</code></td></tr>
+<tr><td>不做</td><td>不改变 URL 路由或 Blueprint 注册方式；不拆 <code>main/views.py</code>（风险较大，分阶段处理）</td></tr>
+</table>
+
+<h3>3.4.2 ARCH-10：RBAC services 仓库化</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>文件</td><td><code>app/rbac/services.py</code>（1,112 行）</td></tr>
+<tr><td>现状</td><td>直接使用 <code>db.session.query()</code> 和 <code>flask.session</code>/<code>flask.request</code></td></tr>
+<tr><td>方案（Phase 1 — 本批次）</td><td>
+将 <code>flask.session</code>/<code>flask.request</code> 依赖从 4 个核心函数中提取为参数：
+<pre>
+# Before
+def write_audit_log(action, detail):
+    username = session.get('username', 'system')
+
+# After
+def write_audit_log(action, detail, username=None, client_ip=None):
+    username = username or 'system'
+</pre>
+视图层调用时传入上下文值。
+</td></tr>
+<tr><td>不做</td><td>不迁移所有 <code>db.session</code> 到 Repository（范围过大）</td></tr>
+</table>
+
+<div class="accept-box">
+<strong>Batch 4 验收：</strong><br>
+<code>bash scripts/cronpilot.sh test</code> 全量通过（含现有 RBAC 测试）<br>
+<code>wc -l app/rbac/views.py</code> — ≤ 1,100 行<br>
+<code>grep -c "from flask import session" app/rbac/services.py</code> — 减少至 ≤ 2 处<br>
+<code>bash scripts/verify_golden_path.sh</code> — 冒烟通过<br>
+<code>bash scripts/cronpilot.sh restart --daemon</code> + 浏览器登录验证
+</div>
+
+<!-- Batch 5 -->
+<div class="batch-header"><strong>Batch 5：代码质量清理（CQ-1 ~ CQ-12）</strong></div>
+
+<table>
+<tr><th>ID</th><th>修复内容</th><th>文件</th></tr>
+<tr><td>CQ-1</td><td>确认 <code>_welcome.html</code> 路由状态；若无路由引用则标记 deprecated 注释</td><td><code>_welcome.html</code></td></tr>
+<tr><td>CQ-2</td><td>提取 <code>cpCopy()</code> 到 <code>common-redesign.js</code> 为全局工具函数</td><td>JS</td></tr>
+<tr><td>CQ-3</td><td>将模态框 <code>style="display:none"</code> 替换为 CSS class <code>.hidden</code></td><td>6+ 模板</td></tr>
+<tr><td>CQ-4</td><td>将 <code>javascript:void(0)</code> 替换为 <code>&lt;button type="button"&gt;</code></td><td><code>tags.html</code> 等</td></tr>
+<tr><td>CQ-5</td><td><code>CpModal</code> 添加单实例守卫（打开前关闭已有实例）</td><td><code>redesign-confirm.js</code></td></tr>
+<tr><td>CQ-6</td><td>Toast dismiss 添加 <code>setTimeout</code> 兜底（<code>animationend</code> 未触发时 500ms 后移除）</td><td><code>redesign-toast.js</code></td></tr>
+<tr><td>CQ-7</td><td><code>sidebar</code> 变量添加 null 守卫</td><td><code>redesign-shell.js</code></td></tr>
+<tr><td>CQ-8</td><td>在 <code>login_limiter.py</code> 添加内存清理：过期条目每 60 秒裁剪一次</td><td>Python</td></tr>
+<tr><td>CQ-9</td><td><code>cron_check()</code> 异常改为 <code>logger.error</code> 而非静默 <code>pass</code></td><td><code>app/__init__.py</code></td></tr>
+<tr><td>CQ-10</td><td><code>cron_del_job_log</code> 改为单次 <code>GROUP BY cif_id HAVING COUNT(*) &gt; max</code> 批量查询</td><td><code>app/crons.py</code></td></tr>
+<tr><td>CQ-11</td><td><code>print()</code> → <code>logger.info()</code></td><td><code>rbac/services.py</code></td></tr>
+<tr><td>CQ-12</td><td>移除 <code>groups.html</code> 中未使用的 <code>avatars</code> 变量</td><td>模板</td></tr>
+</table>
+
+<div class="accept-box">
+<strong>Batch 5 验收：</strong><br>
+<code>bash scripts/cronpilot.sh test</code> 全量通过<br>
+<code>grep -rn "javascript:void" app/templates/redesign/</code> — 0 hits<br>
+<code>grep -rn "print(" app/rbac/services.py</code> — 0 hits<br>
+<code>grep -rn "except Exception" app/__init__.py</code> — 有 <code>logger.error</code> 而非 <code>pass</code>
+</div>
+
+<!-- Batch 6 -->
+<div class="batch-header"><strong>Batch 6：Mockup 对齐 — 仅结构性补齐（MOCK-3 ~ MOCK-11）</strong></div>
+
+<p><strong>注：</strong>MOCK-1（业务组详情面板）和 MOCK-2（标签命名空间）为大型功能开发，需独立设计文档。本批次仅处理现有页面可快速对齐的结构差异。</p>
+
+<table>
+<tr><th>ID</th><th>修复内容</th><th>涉及文件</th></tr>
+<tr><td>MOCK-3</td><td>执行记录表：确认当前 7 列是否符合实际数据模型，或补充「响应码」「失败原因」列</td><td><code>execution_logs.html</code>、<code>_exec_logs_rows.html</code></td></tr>
+<tr><td>MOCK-4</td><td>失败执行详情页：在现有 <code>run_inspector.html</code> 中添加红色边框失败原因面板（条件渲染）</td><td><code>run_inspector.html</code></td></tr>
+<tr><td>MOCK-5</td><td>注册审批表补充「邮箱」「花名」「申请原因」列（需后端传入这些字段）</td><td><code>registration_review.html</code></td></tr>
+<tr><td>MOCK-6</td><td>Dashboard Exception Panel 增加 P95 延迟/逾期未执行项（需后端 metrics 支持）</td><td><code>dashboard.html</code>、<code>cron_repository.py</code></td></tr>
+<tr><td>MOCK-7</td><td>任务表单添加分区卡片布局（基础信息/请求配置/调度配置）+ 面包屑</td><td><code>task_form.html</code></td></tr>
+<tr><td>MOCK-8</td><td>用户列表页补充角色/业务组筛选 chip</td><td><code>users.html</code></td></tr>
+<tr><td>MOCK-9</td><td>修改密码页添加密码强度指示条</td><td><code>change_password.html</code></td></tr>
+<tr><td>MOCK-10</td><td>操作记录页添加时间范围快捷选择（24h/7d/30d）</td><td><code>operation_log.html</code></td></tr>
+<tr><td>MOCK-11</td><td>任务表单/用户表单/业务组表单添加面包屑导航</td><td>3 个模板</td></tr>
+</table>
+
+<div class="risk-box">
+<strong>风险：</strong>MOCK-3/5/6 需后端配合（新增字段/查询），可能涉及 API 契约变更。建议先实现纯前端可完成的项（MOCK-4/7/8/9/10/11），后端依赖项单独排期。
+</div>
+
+<div class="accept-box">
+<strong>Batch 6 验收：</strong>逐项对照 <code>doc/design/CronPilot-2026-redesign-mockup.html</code> 对应 <code>view-*</code> 区块，截图比对。
+</div>
+
+<!-- Batch 7 -->
+<div class="batch-header"><strong>Batch 7：Mockup 对齐 — 大型功能（MOCK-1、MOCK-2）</strong></div>
+
+<p>以下两项为独立功能开发，本文档仅记录方向性方案，详细设计需独立文档。</p>
+
+<h3>3.7.1 MOCK-1：业务组详情面板</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>Mockup 规格</td><td>点击业务组卡片展开：成员列表 + 权限 Scope 可视化 + 组内任务列表（含健康度）</td></tr>
+<tr><td>方向</td><td>在 <code>groups.html</code> 中卡片点击展开 inline detail panel，复用 Dashboard 表格样式；后端需新增 <code>/rbac/group/&lt;id&gt;/detail</code> API 返回成员/任务/权限数据</td></tr>
+<tr><td>规模估算</td><td>~300 行前端 + ~150 行后端 + 测试</td></tr>
+</table>
+
+<h3>3.7.2 MOCK-2：标签命名空间</h3>
+<table>
+<tr><th>项</th><th>内容</th></tr>
+<tr><td>Mockup 规格</td><td>标签按命名空间（业务域/优先级/生命周期/区域）分组显示 pill 卡片</td></tr>
+<tr><td>方向</td><td>数据库 <code>CronTag</code> 表新增 <code>namespace</code> 字段；标签展示按 namespace 分组渲染；向后兼容：无 namespace 的标签归入「默认」分组</td></tr>
+<tr><td>规模估算</td><td>~200 行前端 + ~100 行后端 + 迁移脚本 + 测试</td></tr>
+</table>
+
+<div class="scope-box">
+<strong>范围声明：</strong>MOCK-1 和 MOCK-2 需独立设计文档（含数据库迁移方案、API 契约、回归测试计划），不在本方案批次中执行。
+</div>
+
+<!-- Batch 8 -->
+<div class="batch-header"><strong>Batch 8：文档同步</strong></div>
+
+<table>
+<tr><th>文件</th><th>动作</th></tr>
+<tr><td><code>RELEASE_NOTES.md</code></td><td>新增 <code>[Unreleased]</code> 条目，记录各 Batch 修复内容</td></tr>
+<tr><td><code>doc/design/Redesign代码全面Review修复方案-2026-08.html</code></td><td>本文档；随进度更新各 Batch 状态</td></tr>
+<tr><td><code>doc/index.html</code></td><td>注册本文档</td></tr>
+<tr><td><code>AGENTS.md</code> / <code>.cursor/rules/</code></td><td>若修复涉及新增规范，同步更新</td></tr>
+<tr><td><code>python scripts/html_docs_to_markdown.py --check</code></td><td>HTML ↔ MD 同步</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2>§4 批次执行顺序与依赖关系</h2>
+
+<pre>
+Batch 1 (安全)     ──┐
+                     ├──→ Batch 5 (代码质量) ──→ Batch 6 (Mockup 快速对齐)
+Batch 2 (可访问性) ──┘                              │
+                                                     ├──→ Batch 8 (文档)
+Batch 3 (CSS 架构) ──────────────────────────────────┘
+                                                     
+Batch 4 (后端架构) ──────→ 独立验收
+                                                     
+Batch 7 (大型功能) ──────→ 需独立设计文档
+</pre>
+
+<p><strong>推荐执行序</strong>：Batch 1 → Batch 2 → Batch 3 → Batch 5 → Batch 4 → Batch 6 → Batch 8 → （Batch 7 另议）</p>
+
+<!-- ================================================================ -->
+<h2>§5 风险评估</h2>
+
+<div class="risk-box">
+<strong>风险 1：CSS 拆分后加载顺序变化</strong><br>
+影响：Batch 3 提取 Dashboard CSS 后，<code>_base.html</code> 的 <code>&lt;link&gt;</code> 顺序可能影响级联覆盖。<br>
+缓解：新文件在 <code>redesign-pages.css</code> 之后、<code>redesign-mockup-shared.css</code> 之前加载；视觉回归截图验证。
+</div>
+
+<div class="risk-box">
+<strong>风险 2：后端路由拆分可能丢失装饰器</strong><br>
+影响：Batch 4 将路由函数移至子文件时，<code>@rbac.route</code> 和 <code>@require_permission</code> 装饰器可能遗漏。<br>
+缓解：拆分后运行 <code>python scripts/check_route_completeness.py --check app/rbac/views.py</code> + 全量冒烟。
+</div>
+
+<div class="risk-box">
+<strong>风险 3：SSRF fail-closed 误拒合法任务</strong><br>
+影响：SEC-6 改为 fail-closed 后，DNS 短暂不可用将拒绝所有任务执行。<br>
+缓解：提供 <code>url_ssrf_dns_fail_open</code> 配置项恢复旧行为；allowlist 白名单不受影响。
+</div>
+
+<div class="risk-box">
+<strong>风险 4：Auth 页面引入 common-redesign.js 的兼容性</strong><br>
+影响：A11Y-3 方案 A 在 Auth 页面引入 jQuery 依赖的 <code>common-redesign.js</code>，Auth 页面已加载 jQuery，理论兼容。<br>
+缓解：引入后在登录/注册页面完成端到端提交测试。
+</div>
+
+<!-- ================================================================ -->
+<h2>§6 不做清单</h2>
+
+<ul>
+<li>不做全面 Repository 迁移（只做最小参数化解耦）</li>
+<li>不做 <code>main/views.py</code> 拆分（Batch 4 Phase 2）</li>
+<li>不修改业务逻辑或 API 契约（安全加固除外）</li>
+<li>不改变暗色主题视觉效果</li>
+<li>不新增 Redis 依赖（CQ-8 仅做内存清理优化）</li>
+<li>不实现 MOCK-1 业务组详情面板（需独立设计文档）</li>
+<li>不实现 MOCK-2 标签命名空间（需独立设计文档和数据库迁移）</li>
+</ul>
+
+<footer>
+<p>文档：<code>doc/design/Redesign代码全面Review修复方案-2026-08.html</code><br>
+关联：OPT-P0-19-REVIEW · CronPilot v4.x<br>
+<a href="../index.html">← 文档索引</a></p>
+ · <a href="Redesign代码全面Review修复方案-2026-08.md">Markdown</a> · <a href="index.html">索引</a></footer>
+
+</body>
+</html>

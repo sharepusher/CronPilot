@@ -7,28 +7,40 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-### 文档治理 — 全面审计与归档重组
+### 修复 — OPT-P0-20 调度器幽灵任务清理
 
-- **准确性修复**（P0）：
-  - README：移除"不提供忘记密码"（实际已有 `/rbac/forgot_password`）；测试数 333+ → 669；Vue 构建路径 `app/static/js/` → `app/static/dist/`
-  - AGENTS.md / `.cursor/rules/`：`admin_base.html` → `_base.html`（V1 下线后该模板已删除）
-  - 路线图：OPT-P1-11 "多组可见" → "单组归属"（与实际实现一致）
-  - RELEASE_NOTES v4.0.0：测试数 634 → 669
-  - README CI 表：补充 5 个新增 workflow（Ruff lint / Smoke routes / UI contract / Doc completeness / Visual regression）
-- **归档迁移**（~80 文件，~25 MB）：
-  - Mockup 评估第 2~14 轮（28 HTML+MD）→ `doc/archive/design-eval-rounds/`
-  - 代码质量报告 R2~R7（12 HTML+MD）→ `doc/archive/design-quality-reports/`
-  - 废弃设计文档（6 HTML+MD）→ `doc/archive/design-deprecated/`
-  - 评估截图集（round4/eval6/7/8/10 + eval14-*.png）→ `doc/archive/screenshots/`
-  - 所有被归档文件的交叉引用已更新至新路径
-- **结构优化**：填充 `doc/postmortem/index.html`（24 篇复盘分 4 类展示）；HTML↔MD 同步；文档链接 0 broken
-- **权威文档保留**：Mockup 目标态、第 15 轮终评、R8 代码质量报告、统一执行手册等当前权威文档不动
+- **Bug 1 — 退休流程加固**：`retire_cron_by_id()` / `retire_cron_by_task_name()` 中 `remove_job` 失败时不再静默吞掉异常。改为先 `remove_job` 后 `apply_retire` + `commit`；`JobLookupError` 幂等放行，其他异常中止退休操作并返回错误
+- **Bug 2 — `cron_check()` 反向扫描**：新增反向孤儿检测——已退休（`status=-1`）但仍在 `apscheduler_jobs` 中的幽灵任务自动清理；`cron_infos` 中无对应记录的调度器残留仅记录告警日志，不自动清理
+- **Prometheus 指标**：新增 `cronpilot_ghost_tasks` gauge，记录反向扫描发现的幽灵/残留数
+- **设计文档**：`doc/design/调度器幽灵任务清理设计.html`
+- **复盘文档**：[doc/postmortem/2026-08-调度器幽灵任务清理复盘.html](doc/postmortem/2026-08-调度器幽灵任务清理复盘.html)
+- **测试**：`tests/test_ghost_job_cleanup.py`（10 个用例覆盖退休流程 + 反向扫描）
 
 ### 修复 — 执行记录 AJAX 筛选单任务模式 URL 畸形
 
 - **问题**：从任务详情页进入执行记录（`/job_log_list?id=8`）后，点击筛选按钮弹出"加载失败"
 - **根因**：`_baseUrl` 已包含 `?id=8`（`url_for` 带参数），`buildUrl()` 又追加 `?outcome=...`，产生双 `?` 畸形 URL
 - **修复**：`_baseUrl` 改为不带 id 参数的纯路径，id 通过 params 统一管理
+
+### 质量门禁与测试稳定性修复
+
+- 修复 `test_rbac_scope` 单独运行时建表缺失（补充 `RbacRegistrationRequest` model import）
+- 修正 `verify_golden_path.sh` 文档路径 `依赖升级RFC.html` → `deps/依赖升级RFC.html`
+- 修复 `check_css_token_reachability.py` CSS 注释内容误报（新增 `_strip_css_comments_keep_lines()`）
+- 补齐 `doc/postmortem/index.md`（HTML↔MD 同步）
+- 复盘文档：[doc/postmortem/2026-09-质量门禁四项修复复盘.html](doc/postmortem/2026-09-质量门禁四项修复复盘.html)
+- 设计文档：`doc/design/质量门禁与测试稳定性最小修复方案-2026-09.html`
+
+### 文档治理 — 全面审计与归档重组
+
+- **准确性修复**（P0）：README 忘记密码/测试数/Vue 路径；AGENTS.md `admin_base.html` → `_base.html`；路线图 OPT-P1-11 "多组可见" → "单组归属"；CI 表补 5 个 workflow
+- **归档迁移**（~80 文件，~25 MB）：Mockup 评估 2~14 轮、质量报告 R2~R7、废弃设计、截图 → `doc/archive/`
+- **结构优化**：`doc/postmortem/index.html` 填充 26 篇复盘；HTML↔MD 同步；文档链接 0 broken
+- 复盘文档：[doc/postmortem/2026-09-release-notes-unreleased-cleanup.html](doc/postmortem/2026-09-release-notes-unreleased-cleanup.html)
+
+### 新增设计文档
+
+- `doc/design/Redesign代码全面Review修复方案-2026-08.html` — 47 项 Review 发现，8 Batch 修复计划（待确认）
 
 ---
 

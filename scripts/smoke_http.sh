@@ -152,7 +152,7 @@ smoke_http_suite() {
   smoke_http_check home '200|302' "$base/" || fail=$((fail + 1))
   smoke_http_check docs '200' "$base/docs/" || fail=$((fail + 1))
   smoke_http_check docs_index '200' "$base/docs/index.html" || fail=$((fail + 1))
-  smoke_http_check docs_rfc '200' "$base/docs/依赖升级RFC.html" || fail=$((fail + 1))
+  smoke_http_check docs_rfc '200' "$base/docs/deps/依赖升级RFC.html" || fail=$((fail + 1))
   smoke_http_check login_page '200' "$base/rbac/login" || fail=$((fail + 1))
   jar=$(mktemp)
   code=$(smoke_http_login_post "$base" "$password" "$jar")

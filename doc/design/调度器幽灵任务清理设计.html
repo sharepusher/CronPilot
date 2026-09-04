@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>调度器幽灵任务清理设计 — CronPilot</title>
+<style>
+  body { font: 16px/1.7 -apple-system, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1e293b; }
+  h1 { font-size: 1.6rem; border-bottom: 2px solid #3b82f6; padding-bottom: .5rem; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; color: #1e40af; }
+  h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 600; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: .85em; }
+  .highlight { background: #fef3c7; border-left: 4px solid #f59e0b; padding: .75rem 1rem; margin: 1rem 0; }
+  .danger { background: #fee2e2; border-left: 4px solid #ef4444; padding: .75rem 1rem; margin: 1rem 0; }
+  .success { background: #dcfce7; border-left: 4px solid #22c55e; padding: .75rem 1rem; margin: 1rem 0; }
+  pre { background: #f8fafc; padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: .85em; }
+  .mermaid-like { background: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; margin: 1rem 0; font-family: monospace; font-size: .85em; white-space: pre; }
+</style>
+</head>
+<body>
+<h1>调度器幽灵任务清理设计</h1>
+<p><strong>编号</strong>：OPT-P0-20 &nbsp; <strong>版本</strong>：rev.2 &nbsp; <strong>日期</strong>：2026-08-26</p>
+<p><strong>关联</strong>：OPT-P0-18（系统对账安全加固）、<code>app/crons.py::cron_check()</code>、<code>app/services/cron_service.py::retire_cron_by_id()</code></p>
+
+<!-- ═══════════════════════════════════ 1. 问题 ═══════════════════════════════════ -->
+<h2>1. 问题</h2>
+
+<h3>1.1 现象</h3>
+<p>本地数据库中发现多个"幽灵任务"：<code>cron_infos.status = -1</code>（已退休）但对应的 <code>apscheduler_jobs</code> 记录仍存在。
+  具体案例：<code>cron_9</code>（testtest）和 <code>cron_13</code>（health-live-test）在数据库中 <code>status=-1</code>，
+  但 <code>apscheduler_jobs</code> 仍持有这两条 job，服务每次启动都会将它们加载进调度器。</p>
+
+<h3>1.2 预期</h3>
+<p>已退休任务（<code>status = -1</code>）<strong>不应存在</strong>于 <code>apscheduler_jobs</code> 中。
+  系统应在退休流程和周期对账中保证两库的一致性。</p>
+
+<h3>1.3 影响</h3>
+<table>
+  <tr><th>影响面</th><th>描述</th></tr>
+  <tr><td>资源浪费</td><td>调度器每次 tick 仍会为幽灵任务计算下次触发时间</td></tr>
+  <tr><td>执行噪音</td><td>若 <code>cron_do()</code> 仍能查到 <code>CronInfos</code> 记录（status=-1），则可能尝试回调并产生错误日志</td></tr>
+  <tr><td>监控干扰</td><td>孤儿任务计数器不统计 <code>status=-1</code> 的任务（<code>cron_check</code> 跳过），幽灵任务成为监控盲区</td></tr>
+  <tr><td>数据一致性</td><td>两库状态不一致，管理员查看 <code>apscheduler_jobs</code> 时会看到不该存在的条目</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════ 2. 根因 ═══════════════════════════════════ -->
+<h2>2. 根因</h2>
+
+<h3>2.1 Bug 1：<code>retire_cron_by_id/by_task_name</code> 中 <code>remove_job</code> 失败被静默吞掉</h3>
+<p>退休函数的调用顺序为：</p>
+<div class="mermaid-like">apply_retire(cif, reason)     # ① 写 status=-1 到 cron_infos（内存）
+try:
+    scheduler.remove_job(...)  # ② 从 apscheduler_jobs 删除
+except Exception:
+    _log.warning(...)          # ③ 异常被吞，仅日志
+db.session.commit()            # ④ status=-1 持久化</div>
+
+<p><strong>问题</strong>：步骤 ② 失败时，步骤 ④ 仍然执行。结果：<code>cron_infos</code> 中 <code>status=-1</code>，
+  但 <code>apscheduler_jobs</code> 中 job 仍在。此后没有任何机制修复这种不一致。</p>
+
+<p><strong>产生条件</strong>：</p>
+<ul>
+  <li>数据库锁竞争（SQLite 写锁、MySQL 行锁超时）</li>
+  <li>APScheduler 内部状态异常（如 JobStore 未初始化完成时就收到 remove_job 请求）</li>
+  <li>历史 <code>db.drop_all()</code> 事件后手工恢复了 <code>cron_infos</code> 但未同步清理 <code>apscheduler_jobs</code></li>
+</ul>
+
+<h3>2.2 Bug 2：<code>cron_check()</code> 只检查"正向孤儿"，忽略"反向孤儿"</h3>
+<p>当前 <code>cron_check()</code> 的检查逻辑：</p>
+<div class="mermaid-like">for item in cron_infos:
+    if "cron_{id}" not in apscheduler_job_ids:
+        if item.status == -1:
+            continue           # ← 已退休的跳过（不关心）
+        orphan_count += 1      # ← 只统计"活着但不在调度器"的</div>
+
+<p><strong>遗漏方向</strong>：从未检查"<code>apscheduler_jobs</code> 中存在，但 <code>cron_infos</code> 中 <code>status=-1</code>"的情况——即<strong>反向孤儿/幽灵任务</strong>。</p>
+
+<p>OPT-P0-18 安全加固时，将自动下线改为仅告警，但只加固了"正向"方向，未考虑"反向"方向。</p>
+
+<h3>2.3 启动时无一致性修复</h3>
+<div class="mermaid-like">scheduler.start()       # 从 apscheduler_jobs 加载所有 job（含幽灵）
+cron_check()            # 只检查正向孤儿 → 幽灵任务安全通过</div>
+<p>应用每次重启都重新加载幽灵任务，形成永久性的不一致。</p>
+
+<!-- ═══════════════════════════════════ 3. 方案 ═══════════════════════════════════ -->
+<h2>3. 方案</h2>
+
+<h3>3.1 推荐方案 A：双向一致性保障</h3>
+<p>分两层修复，同时堵住产生入口和发现已有问题。</p>
+
+<h4>A1. 退休流程加固（堵产生入口）</h4>
+<p>在 <code>retire_cron_by_id()</code> 和 <code>retire_cron_by_task_name()</code> 中：</p>
+<ul>
+  <li><strong>先 <code>remove_job</code>，后 <code>apply_retire</code> + <code>commit</code></strong>——如果 <code>remove_job</code> 失败则整个退休操作失败，不会产生不一致</li>
+  <li>如果 <code>remove_job</code> 抛出 <code>JobLookupError</code>（job 本来就不在调度器中），视为正常（幂等），继续退休流程</li>
+  <li>其他异常向上抛，调用方收到错误信息，管理员可重试</li>
+</ul>
+<pre>def retire_cron_by_id(cron_id, reason):
+    err, reason = validate_retire_reason(reason)
+    if err:
+        return err, None
+    cif = db.session.get(CronInfos, cron_id)
+    if not cif:
+        return '项目不存在', None
+    if cif.status == -1:
+        return None, cif
+
+    # ── 先从调度器移除（幂等：JobLookupError 视为已移除） ──
+    job_key = 'cron_%s' % cif.id
+    try:
+        scheduler.remove_job(job_key)
+    except JobLookupError:
+        _log.info('job %s already absent from scheduler', job_key)
+    except Exception:
+        _log.error('remove_job failed for %s, aborting retire', job_key, exc_info=True)
+        return '调度器移除失败，请稍后重试', None
+
+    apply_retire(cif, reason)
+    db.session.commit()
+    _record_retire(cif)
+    return None, cif</pre>
+
+<h4>A2. <code>cron_check()</code> 增加反向孤儿检测与自动清理</h4>
+<p>在现有"正向孤儿检测"之后，增加"反向扫描"：</p>
+<pre># ── 反向扫描：检测幽灵任务（调度器中有，但业务库已退休） ──
+cif_map = {item.id: item for item in cifs}
+ghost_count = 0
+for job_id in job_ids:
+    if not job_id.startswith('cron_'):
+        continue
+    try:
+        cron_pk = int(job_id.split('_', 1)[1])
+    except (ValueError, IndexError):
+        continue
+    cif = cif_map.get(cron_pk)
+    if cif and cif.status == -1:
+        ghost_count += 1
+        current_app.logger.warning(
+            "ghost job detected: %s (task=%s, status=-1) — removing from scheduler",
+            job_id, cif.task_name or '',
+        )
+        try:
+            scheduler.remove_job(job_id)
+        except Exception:
+            current_app.logger.error("failed to remove ghost job %s", job_id, exc_info=True)
+    elif cif is None:
+        # job 在 apscheduler 中但 cron_infos 无对应记录 — 仅告警，不自动清理
+        # 原因不确定（可能是数据丢失、迁移中断等），需人工排查
+        ghost_count += 1
+        current_app.logger.warning(
+            "stale scheduler entry: %s — no matching cron_infos record, manual action required",
+            job_id,
+        )</pre>
+
+<div class="highlight">
+<strong>安全性说明</strong>：此清理策略遵循<strong>最小权限原则</strong>：
+<ol>
+  <li><strong>确定性清理</strong>：只自动清理 <code>status=-1</code>（已退休）的幽灵任务——状态明确，无歧义</li>
+  <li><strong>不确定性仅告警</strong>：<code>cron_infos</code> 中无对应记录的调度器残留，原因可能是数据丢失、迁移中断等，<strong>仅记录告警日志</strong>，由管理员人工排查决策</li>
+  <li>清理方向是"从调度器中删除"——是可逆操作（重新上线任务会重新注册到调度器），不像正向孤儿的 <code>apply_retire</code> 那样不可逆</li>
+  <li>与 OPT-P0-18 的安全原则一致：不确定性场景一律"仅告警 + 人工决策"</li>
+</ol>
+</div>
+
+<h3>3.2 备选方案 B：仅日志告警，不自动清理</h3>
+<p>在 <code>cron_check()</code> 中增加反向扫描，但只记录告警日志 + 更新 Prometheus 指标，不执行 <code>remove_job</code>。管理员需通过数据库手动清理。</p>
+<table>
+  <tr><th>维度</th><th>方案 A（推荐）</th><th>方案 B</th></tr>
+  <tr><td>一致性恢复</td><td>自动修复，启动后即一致</td><td>人工处理，窗口期内不一致</td></tr>
+  <tr><td>安全性</td><td>仅清理确定性已退休记录（status=-1）；不确定性残留仅告警</td><td>完全无风险</td></tr>
+  <tr><td>运维成本</td><td>低（确定性自动清理 + 不确定性人工处理）</td><td>高（所有情况均须人工排查 + SQL 操作）</td></tr>
+  <tr><td>复杂度</td><td>中等（需处理 <code>remove_job</code> 异常）</td><td>低</td></tr>
+  <tr><td>与 P0-18 一致性</td><td>确定性反向清理 + 不确定性仅告警：严格对齐"不确定场景不自动操作"</td><td>严格"对账不修复"</td></tr>
+</table>
+
+<div class="success">
+<strong>推荐方案 A</strong>：对于 <code>status=-1</code> 的幽灵任务，清理是确定性安全的——任务已退休，调度器残留无意义。对于 <code>cron_infos</code> 无记录的残留，原因不确定，遵循 P0-18 原则仅告警。两种情况区分处理，兼顾自动化与安全性。
+</div>
+
+<!-- ═══════════════════════════════════ 4. 范围 ═══════════════════════════════════ -->
+<h2>4. 范围</h2>
+<table>
+  <tr><th>改动路径</th><th>内容</th></tr>
+  <tr><td><code>app/services/cron_service.py</code></td><td>A1：调整 <code>retire_cron_by_id</code>、<code>retire_cron_by_task_name</code> 中 <code>remove_job</code> 的时序和错误处理</td></tr>
+  <tr><td><code>app/crons.py</code></td><td>A2：<code>cron_check()</code> 增加反向孤儿检测与自动清理逻辑</td></tr>
+  <tr><td><code>tests/test_ghost_job_cleanup.py</code></td><td>新增测试：覆盖退休流程和 <code>cron_check</code> 反向扫描</td></tr>
+  <tr><td><code>doc/design/调度器幽灵任务清理设计.html</code></td><td>本文档</td></tr>
+</table>
+
+<h3>4.1 明确不做</h3>
+<ul>
+  <li>不修改 <code>cron_check()</code> 的正向孤儿处理逻辑（OPT-P0-18 已固化"仅告警"策略）</li>
+  <li>不引入分布式锁或事务协调器（当前 SQLite 单进程场景不需要）</li>
+  <li>不修改 <code>CuGeventScheduler.py</code> / <code>CuBackgroundScheduler.py</code> 中的 <code>update_cron_info</code> 逻辑（自身已有 <code>remove_job</code> 调用）</li>
+  <li>不做 <code>ensure_business_tables.py</code> 的改动（不是一致性校验的职责范围）</li>
+</ul>
+
+<!-- ═══════════════════════════════════ 5. 分批 ═══════════════════════════════════ -->
+<h2>5. 分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>可独立验收</th></tr>
+  <tr>
+    <td>Batch 1</td>
+    <td>A1：退休流程加固 — 修改 <code>cron_service.py</code> 中两个退休函数的时序和错误处理 + 对应测试</td>
+    <td>✓ 单测：mock <code>remove_job</code> 抛异常时退休操作应失败，<code>status</code> 不变；<code>JobLookupError</code> 时退休操作应成功</td>
+  </tr>
+  <tr>
+    <td>Batch 2</td>
+    <td>A2：<code>cron_check()</code> 反向扫描 — 增加幽灵任务检测与自动清理 + 对应测试 + Prometheus 指标</td>
+    <td>✓ 单测：mock 幽灵 job 应被移除；活跃 job 不受影响</td>
+  </tr>
+  <tr>
+    <td>Batch 3</td>
+    <td>文档同步：本设计文档 + Markdown 同步 + RELEASE_NOTES + 路线图更新</td>
+    <td>✓ <code>html_docs_to_markdown.py --check</code></td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════ 6. 验收 ═══════════════════════════════════ -->
+<h2>6. 验收</h2>
+
+<h3>6.1 Batch 1 验收：退休流程加固</h3>
+<table>
+  <tr><th>#</th><th>测试场景</th><th>验证命令</th><th>期望结果</th></tr>
+  <tr>
+    <td>T1</td>
+    <td><code>remove_job</code> 成功</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestRetireFlowHardened.test_retire_normal_success -v</code></td>
+    <td><code>status=-1</code>，<code>remove_job</code> 被调用，无错误返回</td>
+  </tr>
+  <tr>
+    <td>T2</td>
+    <td><code>remove_job</code> 抛 <code>JobLookupError</code>（幂等）</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestRetireFlowHardened.test_retire_job_already_absent -v</code></td>
+    <td><code>status=-1</code>，退休成功（幂等处理）</td>
+  </tr>
+  <tr>
+    <td>T3</td>
+    <td><code>remove_job</code> 抛其他异常</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestRetireFlowHardened.test_retire_remove_job_fails -v</code></td>
+    <td>退休操作失败，返回错误信息，<code>status</code> 不变（≠ -1）</td>
+  </tr>
+  <tr>
+    <td>T4</td>
+    <td><code>retire_cron_by_task_name</code> 同上三组</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestRetireByTaskNameHardened -v</code></td>
+    <td>行为与 <code>by_id</code> 对称</td>
+  </tr>
+</table>
+
+<h3>6.2 Batch 2 验收：反向扫描</h3>
+<table>
+  <tr><th>#</th><th>测试场景</th><th>验证命令</th><th>期望结果</th></tr>
+  <tr>
+    <td>T5</td>
+    <td>幽灵任务（status=-1 但在 apscheduler_jobs 中）</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestCronCheckReverseScan.test_ghost_retired_cleaned -v</code></td>
+    <td>幽灵 job 被 <code>remove_job</code> 移除；正向孤儿计数不受影响</td>
+  </tr>
+  <tr>
+    <td>T6</td>
+    <td>完全孤立的调度器残留（cron_infos 中无对应记录）— 仅告警</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestCronCheckReverseScan.test_stale_job_only_warns -v</code></td>
+    <td>记录 WARNING 日志，<strong>不</strong>调用 <code>remove_job</code></td>
+  </tr>
+  <tr>
+    <td>T7</td>
+    <td>活跃任务不受影响</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestCronCheckReverseScan.test_active_job_untouched -v</code></td>
+    <td>活跃任务的 <code>remove_job</code> 不被调用</td>
+  </tr>
+  <tr>
+    <td>T8</td>
+    <td>暂停任务（status=0）不受影响</td>
+    <td><code>python -m unittest tests.test_ghost_job_cleanup.TestCronCheckReverseScan.test_paused_job_untouched -v</code></td>
+    <td>暂停任务的 <code>remove_job</code> 不被调用</td>
+  </tr>
+</table>
+
+<h3>6.3 全量回归</h3>
+<pre>bash scripts/cronpilot.sh test
+python -m unittest tests.test_ghost_job_cleanup -v</pre>
+
+<!-- ═══════════════════════════════════ 7. 风险 ═══════════════════════════════════ -->
+<h2>7. 风险</h2>
+<table>
+  <tr><th>风险</th><th>概率</th><th>影响</th><th>缓解</th></tr>
+  <tr>
+    <td><code>remove_job</code> 在 <code>cron_check</code> 中失败</td>
+    <td>低</td>
+    <td>幽灵任务残留到下一轮对账</td>
+    <td>已 try/except 并记录 ERROR 日志；下一轮 cron_check 会重试</td>
+  </tr>
+  <tr>
+    <td>退休流程变更影响现有 Web/API 退休入口</td>
+    <td>中</td>
+    <td><code>remove_job</code> 超时时用户看到"调度器移除失败"错误</td>
+    <td>用户可重试；且幂等（<code>JobLookupError</code> 被豁免）</td>
+  </tr>
+  <tr>
+    <td>并发：<code>cron_check</code> 与手工退休同时操作同一 job</td>
+    <td>极低</td>
+    <td><code>remove_job</code> 中一方得到 <code>JobLookupError</code></td>
+    <td>两侧均已将 <code>JobLookupError</code> 视为正常</td>
+  </tr>
+</table>
+
+<h2>附录 A：完整因果链时间线</h2>
+<ol>
+  <li><strong>旧版 <code>cron_check()</code></strong>：发现孤儿任务时直接调用 <code>apply_retire()</code>，设置 <code>status=-1</code> + 调用 <code>scheduler.remove_job()</code></li>
+  <li><strong>2026-09 配置错误事件</strong>：<code>conf.ini</code> 中 <code>cron_db_url</code> 指向 <code>sqlite:///:memory:</code>，重启后 JobStore 为空，<code>cron_check()</code> 将全部 9 个任务自动下线</li>
+  <li><strong>OPT-P0-18 安全加固</strong>：移除 <code>cron_check()</code> 中的自动下线逻辑，改为仅告警。但只处理了"正向"方向</li>
+  <li><strong>历史 <code>db.drop_all()</code> 事件</strong>：测试脚本意外删除业务表，但 <code>apscheduler_jobs</code>（独立 engine）不受影响。后续恢复/重建 <code>cron_infos</code> 时未同步清理 <code>apscheduler_jobs</code></li>
+  <li><strong>持续至今</strong>：每次服务重启，<code>scheduler.start()</code> 加载 <code>apscheduler_jobs</code> 中的幽灵任务；<code>cron_check()</code> 只检查正向孤儿，幽灵任务安全通过</li>
+</ol>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="调度器幽灵任务清理设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

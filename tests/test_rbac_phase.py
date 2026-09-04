@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from apscheduler.jobstores.base import JobLookupError
 from flask import Flask, render_template, session
 
 from app import register_hms_filters
@@ -279,7 +280,7 @@ class TestLifecycleNoDelete(unittest.TestCase):
             cron_id = cif.id
 
         with patch('app.services.cron_service.scheduler') as sch:
-            sch.remove_job.side_effect = Exception('no job')
+            sch.remove_job.side_effect = JobLookupError('no job')
             with self.client.session_transaction() as sess:
                 sess['is_login'] = True
                 sess['role'] = 'admin'

@@ -14,6 +14,7 @@ from app import db, scheduler
 from app.common.functions import get_cronpilot_sign, single_task, wechat_info_err
 from app.logging_config import _ctx_cron_id, _ctx_duration_ms, _ctx_status, _ctx_task_name, _ctx_trace_id
 from app.metrics import (
+    GHOST_TASKS,
     JOB_DURATION,
     JOB_LOG_WRITE_BYTES,
     JOB_TOTAL,
@@ -434,6 +435,38 @@ def cron_check():
                     orphan_count,
                     extra={"event": "cron_check.orphan_summary", "count": orphan_count},
                 )
+
+            # ── Reverse scan: detect ghost jobs (in scheduler but retired/absent in cron_infos) ──
+            cif_map = {item.id: item for item in cifs} if cifs else {}
+            ghost_count = 0
+            for job_id in job_ids:
+                if not job_id.startswith('cron_'):
+                    continue
+                try:
+                    cron_pk = int(job_id.split('_', 1)[1])
+                except (ValueError, IndexError):
+                    continue
+                cif = cif_map.get(cron_pk)
+                if cif and cif.status == -1:
+                    ghost_count += 1
+                    current_app.logger.warning(
+                        "ghost job detected: %s (task=%s, status=-1) — removing from scheduler",
+                        job_id, cif.task_name or '',
+                        extra={"event": "cron_check.ghost", "job_id": job_id, "task_name": cif.task_name or ''},
+                    )
+                    try:
+                        scheduler.remove_job(job_id)
+                    except Exception:
+                        current_app.logger.error("failed to remove ghost job %s", job_id, exc_info=True)
+                elif cif is None:
+                    ghost_count += 1
+                    current_app.logger.warning(
+                        "stale scheduler entry: %s — no matching cron_infos record, manual action required",
+                        job_id,
+                        extra={"event": "cron_check.stale", "job_id": job_id},
+                    )
+            GHOST_TASKS.set(ghost_count)
+
             # Update active/retired gauge for Prometheus after reconciliation
             all_cifs = db.session.scalars(select(CronInfos)).all()
             active_count = sum(1 for c in all_cifs if c.status != -1)

@@ -34,9 +34,13 @@ v0.1.0 2026-05-29 · 首发
 
 ## [Unreleased]
 
+说明：本页为 `/docs/` 历史快照，最新版本日志以仓库根 [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) 为准。
+
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
-当前无草稿条目。
+- **质量门禁与测试稳定性最小修复（2026-09-04）**：修复 `test_rbac_scope` 单跑建表缺失、修正 `verify_golden_path` 文档路径、修复 CSS 注释误报、补齐 `doc/postmortem/index.md`。
+- 设计文档：[`doc/design/质量门禁与测试稳定性最小修复方案-2026-09.html`](design/质量门禁与测试稳定性最小修复方案-2026-09.html)
+- 复盘文档：[`doc/postmortem/2026-09-质量门禁四项修复复盘.html`](postmortem/2026-09-质量门禁四项修复复盘.html)
 
 ## [2.7.1] — 2026-08-03
 

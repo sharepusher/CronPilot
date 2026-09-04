@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>质量门禁与测试稳定性最小修复方案（2026-09）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 980px; margin: 2rem auto; line-height: 1.7; color: #1f2937; padding: 0 1rem 3rem; }
+    h1, h2 { color: #111827; }
+    h1 { border-bottom: 2px solid #2563eb; padding-bottom: .35rem; }
+    h2 { margin-top: 1.8rem; border-left: 4px solid #2563eb; padding-left: .55rem; }
+    table { width: 100%; border-collapse: collapse; margin: .8rem 0 1rem; font-size: .95rem; }
+    th, td { border: 1px solid #d1d5db; padding: .5rem .6rem; vertical-align: top; text-align: left; }
+    th { background: #f3f4f6; white-space: nowrap; }
+    code { background: #f3f4f6; border-radius: 4px; padding: 1px 4px; }
+    .meta { color: #4b5563; margin: .35rem 0 1rem; }
+  </style>
+</head>
+<body>
+  <h1>质量门禁与测试稳定性最小修复方案（2026-09-04）</h1>
+  <p class="meta">状态：已确认（本轮） · 范围：仅修复验证链路阻断项，不做业务能力变更</p>
+
+  <h2>1. 问题</h2>
+  <ul>
+    <li><code>tests.test_rbac_scope.TestScopeIntegration</code> 单独运行报 <code>rbac_registration_requests</code> 表缺失。</li>
+    <li><code>scripts/verify_golden_path.sh</code> 的 <code>docs_rfc</code> 检查固定 URL 返回 404。</li>
+    <li><code>scripts/check_css_token_reachability.py --check</code> 对注释里的 <code>animation:</code> 文本误报为缺失 keyframe。</li>
+    <li><code>scripts/check_postmortem_completeness.py --check</code> 报告 <code>doc/postmortem/index.html</code> 缺少对应 MD。</li>
+  </ul>
+
+  <h2>2. 根因</h2>
+  <table>
+    <tr><th>问题</th><th>根因</th></tr>
+    <tr><td>Scope 集成测试单跑失败</td><td>测试初始化对登录链路依赖的模型表导入不完整，存在隐式顺序依赖。</td></tr>
+    <tr><td>golden path 文档检查 404</td><td>脚本内 URL 契约未跟随文档目录结构演进（<code>deps/</code> 子目录）。</td></tr>
+    <tr><td>CSS reachability 误报</td><td>静态解析未先剥离注释，注释中的示例文本被当成真实 CSS 声明。</td></tr>
+    <tr><td>postmortem completeness 失败</td><td>postmortem 索引页存在 HTML/MD 对照遗漏，未执行一次完整文档同步闭环。</td></tr>
+  </table>
+
+  <h2>3. 方案</h2>
+  <p>采用最小改动策略，逐项修复验证阻断点：</p>
+  <ol>
+    <li>补齐测试模型导入，消除单测顺序依赖。</li>
+    <li>更新 <code>smoke_http.sh</code> 的 RFC 检查 URL 为真实路径。</li>
+    <li>在 reachability 脚本中先去除 CSS 注释，再解析动画引用。</li>
+    <li>执行并提交文档同步产物，补齐 <code>doc/postmortem/index.md</code>。</li>
+  </ol>
+
+  <h2>4. 范围</h2>
+  <table>
+    <tr><th>类型</th><th>路径</th><th>说明</th></tr>
+    <tr><td>测试</td><td><code>tests/test_rbac_scope.py</code></td><td>仅补导入，确保建表完整。</td></tr>
+    <tr><td>脚本</td><td><code>scripts/smoke_http.sh</code></td><td>仅修正 docs_rfc URL。</td></tr>
+    <tr><td>脚本</td><td><code>scripts/check_css_token_reachability.py</code></td><td>仅修复注释误判。</td></tr>
+    <tr><td>文档同步</td><td><code>doc/postmortem/index.md</code></td><td>由同步脚本生成。</td></tr>
+  </table>
+  <p><strong>不做：</strong>不改 RBAC 权限策略、不改 API 行为、不改任何页面交互与样式设计。</p>
+
+  <h2>5. 分批实施</h2>
+  <table>
+    <tr><th>批次</th><th>动作</th><th>独立验收</th></tr>
+    <tr>
+      <td>Batch 1</td>
+      <td>修复 <code>test_rbac_scope</code> 单跑失败（补齐模型导入）。</td>
+      <td><code>.venv-py311/bin/python -m unittest tests.test_rbac_scope.TestScopeIntegration -v</code></td>
+    </tr>
+    <tr>
+      <td>Batch 2</td>
+      <td>修复 <code>docs_rfc</code> 检查路径。</td>
+      <td><code>bash scripts/verify_golden_path.sh</code></td>
+    </tr>
+    <tr>
+      <td>Batch 3</td>
+      <td>修复 CSS reachability 注释误报。</td>
+      <td><code>.venv-py311/bin/python scripts/check_css_token_reachability.py --check</code></td>
+    </tr>
+    <tr>
+      <td>Batch 4</td>
+      <td>补齐 postmortem 索引 Markdown。</td>
+      <td><code>.venv-py311/bin/python scripts/check_postmortem_completeness.py --check</code></td>
+    </tr>
+  </table>
+
+  <h2>6. 验收命令（最终全量）</h2>
+  <pre><code>.venv-py311/bin/ruff check app/
+.venv-py311/bin/python scripts/check_ui_contract.py --check
+.venv-py311/bin/python scripts/audit_hardcoded_colors.py --check
+.venv-py311/bin/python scripts/check_css_token_reachability.py --check
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+.venv-py311/bin/python scripts/check_doc_links.py --check
+.venv-py311/bin/python scripts/check_version_consistency.py --check
+.venv-py311/bin/python scripts/check_opt_consistency.py --check
+.venv-py311/bin/python scripts/check_postmortem_completeness.py --check
+.venv-py311/bin/python scripts/smoke_routes.py --check
+bash scripts/cronpilot.sh test
+bash scripts/verify_golden_path.sh</code></pre>
+
+  <h2>7. 风险与回滚</h2>
+  <ul>
+    <li>风险低：仅测试/脚本/文档同步层改动，不触达业务逻辑。</li>
+    <li>若出现副作用，按文件级回滚（单批回滚不影响其他批次）。</li>
+    <li>对运行时行为的唯一潜在影响点是 <code>verify_golden_path.sh</code> 的验收输出，不影响线上服务逻辑。</li>
+  </ul>
+
+  <footer style="margin-top:2rem;color:#6b7280;font-size:.9rem;">
+    <a href="../index.html">文档索引</a> · <a href="质量门禁与测试稳定性最小修复方案-2026-09.md">Markdown 版</a>
+  </footer>
+</body>
+</html>

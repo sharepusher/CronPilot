@@ -26,6 +26,7 @@ _PROP_DEF = re.compile(r'(--cp-[a-z0-9-]+)\s*:')
 _KEYFRAME_DEF = re.compile(r'@keyframes\s+([\w-]+)')
 _ANIMATION_REF = re.compile(r'animation(?:-name)?\s*:\s*([^;{]+)')
 _ANIMATION_NAME = re.compile(r'[a-zA-Z][\w-]*')
+_COMMENT_RE = re.compile(r'/\*.*?\*/', re.S)
 
 BUILTIN_ANIMATIONS = {'none', 'initial', 'inherit', 'unset', 'revert'}
 TIMING_KEYWORDS = {
@@ -40,6 +41,14 @@ CSS_UNITS_AND_NOISE = {
 _IMPORTANT_RE = re.compile(r'!important')
 
 
+def _strip_css_comments_keep_lines(text):
+    """Remove CSS comments while preserving original line numbers."""
+    def _repl(match):
+        raw = match.group(0)
+        return ''.join('\n' if ch == '\n' else ' ' for ch in raw)
+    return _COMMENT_RE.sub(_repl, text)
+
+
 def collect_definitions():
     """Collect all --cp-* definitions and @keyframes from theme + redesign files."""
     defined_tokens = set()
@@ -49,7 +58,7 @@ def collect_definitions():
     for f in all_files:
         if not f.exists():
             continue
-        text = f.read_text(encoding='utf-8')
+        text = _strip_css_comments_keep_lines(f.read_text(encoding='utf-8'))
         for m in _PROP_DEF.finditer(text):
             defined_tokens.add(m.group(1))
         for m in _KEYFRAME_DEF.finditer(text):
@@ -66,7 +75,7 @@ def collect_references():
     for f in REDESIGN_FILES:
         if not f.exists():
             continue
-        lines = f.read_text(encoding='utf-8').splitlines()
+        lines = _strip_css_comments_keep_lines(f.read_text(encoding='utf-8')).splitlines()
         relpath = f.relative_to(ROOT)
 
         for lineno, line in enumerate(lines, 1):

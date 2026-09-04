@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>复盘：质量门禁四项修复（2026-09）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 920px; margin: 2rem auto; line-height: 1.7; color: #1f2937; padding: 0 1rem 3rem; }
+    h1 { border-bottom: 2px solid #0891b2; padding-bottom: .35rem; }
+    h2 { margin-top: 1.6rem; border-left: 4px solid #0891b2; padding-left: .55rem; }
+    code { background: #f3f4f6; border-radius: 4px; padding: 1px 4px; }
+    .meta { color: #4b5563; }
+  </style>
+</head>
+<body>
+  <h1>复盘：质量门禁四项修复（2026-09-04）</h1>
+  <p class="meta">范围：测试稳定性 + 验收脚本 + 文档完整性 + CSS 静态门禁准确性</p>
+
+  <h2>1) Bug 定位</h2>
+  <ul>
+    <li><code>tests/test_rbac_scope.py</code>：<code>TestScopeIntegration</code> 单跑时登录链路触发 <code>rbac_registration_requests</code> 查询，报表不存在。</li>
+    <li><code>scripts/smoke_http.sh</code>：<code>docs_rfc</code> 校验固定访问 <code>/docs/依赖升级RFC.html</code> 返回 404。</li>
+    <li><code>scripts/check_css_token_reachability.py</code>：注释中的 <code>animation:</code> 文本被误识别为真实样式，报 undefined keyframe。</li>
+    <li><code>doc/postmortem/index.html</code>：缺同名 <code>doc/postmortem/index.md</code>，触发 completeness 失败。</li>
+  </ul>
+
+  <h2>2) 根因</h2>
+  <ul>
+    <li>测试初始化只覆盖了部分模型导入，导致对登录路径的依赖表未建全，出现顺序依赖。</li>
+    <li>文档目录迁移到 <code>doc/deps/</code> 后，脚本中的硬编码 URL 没有同步更新。</li>
+    <li>reachability 检测直接按行正则扫描，未先剥离 CSS 注释。</li>
+    <li>postmortem 索引页被当成“特例”遗漏了 MD 配对，流程未做索引页专项检查。</li>
+  </ul>
+
+  <h2>3) 测试漏洞</h2>
+  <ul>
+    <li>此前主要看全量 <code>cronpilot.sh test</code> 结果，未强制执行“关键套件单独运行”。</li>
+    <li>golden path 失败曾被误判为环境问题，缺少对失败断言本身的真伪复核。</li>
+    <li>CSS reachability 缺少“注释干扰”的反例样本。</li>
+    <li>postmortem completeness 之前未纳入每轮回归必跑清单。</li>
+  </ul>
+
+  <h2>4) 修复</h2>
+  <ul>
+    <li><code>tests/test_rbac_scope.py</code>：补导入 <code>RbacRegistrationRequest</code>，确保 <code>create_all()</code> 建表完整。</li>
+    <li><code>scripts/smoke_http.sh</code>：<code>docs_rfc</code> URL 改为 <code>/docs/deps/依赖升级RFC.html</code>。</li>
+    <li><code>scripts/check_css_token_reachability.py</code>：新增注释剥离函数，保留行号后再做 token/keyframe 解析。</li>
+    <li>新增 <code>doc/postmortem/index.md</code>，补齐 HTML/MD 对照。</li>
+  </ul>
+
+  <h2>5) 防护测试</h2>
+  <ul>
+    <li><code>.venv-py311/bin/python -m unittest tests.test_rbac_scope.TestScopeIntegration -v</code> 通过。</li>
+    <li><code>bash scripts/verify_golden_path.sh</code> 通过（含 <code>PASS docs_rfc (200)</code>）。</li>
+    <li><code>.venv-py311/bin/python scripts/check_css_token_reachability.py --check</code> 通过。</li>
+    <li><code>.venv-py311/bin/python scripts/check_postmortem_completeness.py --check</code> 通过。</li>
+  </ul>
+
+  <h2>6) 同类排查</h2>
+  <ul>
+    <li>复跑全量门禁清单（lint/UI/文档/版本/OPT/smoke/unit/golden），本轮均通过。</li>
+    <li>验证 `doc/design` 新文档已在 `doc/index.html` 与 `doc/index.md` 注册，避免新增文档漏登记。</li>
+    <li>确认 `smoke_routes.py` 的文档路由冒烟通过，无额外 404 回归。</li>
+  </ul>
+
+  <h2>7) 预防方案</h2>
+  <ul>
+    <li>在评估类任务中固化“先单跑关键套件，再跑全量”流程：<code>tests.test_rbac_scope.TestScopeIntegration</code> 必须单跑（落地位置：本复盘 + 设计文档验收清单）。</li>
+    <li>将 <code>check_postmortem_completeness.py --check</code> 纳入本地标准回归序列，与 <code>check_doc_completeness.py --check</code> 同级执行（落地位置：本复盘 + 本轮设计文档第 6 节验收命令）。</li>
+    <li>对静态解析脚本新增注释剥离基线规则（落地位置：<code>scripts/check_css_token_reachability.py</code>），防止同类误报反复出现。</li>
+  </ul>
+
+  <footer style="margin-top:2rem;color:#6b7280;font-size:.9rem;">
+    <a href="../index.html">文档索引</a> · <a href="2026-09-质量门禁四项修复复盘.md">Markdown 版</a>
+  </footer>
+</body>
+</html>

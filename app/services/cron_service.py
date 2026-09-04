@@ -6,6 +6,8 @@ from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
+from apscheduler.jobstores.base import JobLookupError
+
 from app import db, scheduler
 from app.services.cron_validator import validate_cron_form, validate_retire_reason
 from datas.model.cron_infos import CronInfos
@@ -324,11 +326,15 @@ def retire_cron_by_id(cron_id, reason):
         return '项目不存在', None
     if cif.status == -1:
         return None, cif
-    apply_retire(cif, reason)
+    job_key = 'cron_%s' % cif.id
     try:
-        scheduler.remove_job('cron_%s' % cif.id)
+        scheduler.remove_job(job_key)
+    except JobLookupError:
+        _log.info('job %s already absent from scheduler', job_key)
     except Exception:
-        _log.warning('remove_job failed for cron_%s during retire', cif.id, exc_info=True)
+        _log.error('remove_job failed for %s, aborting retire', job_key, exc_info=True)
+        return '调度器移除失败，请稍后重试', None
+    apply_retire(cif, reason)
     db.session.commit()
     _record_retire(cif)
     return None, cif
@@ -348,11 +354,15 @@ def retire_cron_by_task_name(task_name, reason):
         return '任务不存在', None
     if cif.status == -1:
         return None, cif
-    apply_retire(cif, reason)
+    job_key = 'cron_%s' % cif.id
     try:
-        scheduler.remove_job('cron_%s' % cif.id)
+        scheduler.remove_job(job_key)
+    except JobLookupError:
+        _log.info('job %s already absent from scheduler', job_key)
     except Exception:
-        _log.warning('remove_job failed for cron_%s during retire', cif.id, exc_info=True)
+        _log.error('remove_job failed for %s, aborting retire', job_key, exc_info=True)
+        return '调度器移除失败，请稍后重试', None
+    apply_retire(cif, reason)
     db.session.commit()
     _record_retire(cif)
     return None, cif

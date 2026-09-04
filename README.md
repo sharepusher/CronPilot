@@ -282,7 +282,7 @@ server {
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/docs/
 # 期望 200
 
-bash scripts/cronpilot.sh test        # 全量单测（669 用例）
+bash scripts/cronpilot.sh test        # 全量单测（679 用例）
 ```
 
 ## Release Notes
@@ -351,7 +351,7 @@ app/
   static/dist/       # Vue 构建产物（JS + CSS）
 frontend/            # Vue 3 组件源码（Vite 构建；生产无需 Node.js）
 doc/                 # 技术文档源文件（HTML + 同步 MD）
-tests/               # 单测（P0 / RBAC / S6 / form guard 等，669 用例）
+tests/               # 单测（P0 / RBAC / S6 / form guard 等，679 用例）
 scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 ```
 

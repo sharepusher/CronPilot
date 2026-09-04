@@ -76,6 +76,11 @@ try:
         'Active cron_infos records with no matching apscheduler_jobs entry',
     )
 
+    GHOST_TASKS = Gauge(
+        'cronpilot_ghost_tasks',
+        'Retired (status=-1) or stale scheduler entries detected by reverse scan',
+    )
+
     _PROMETHEUS_AVAILABLE = True
 
 except ImportError:
@@ -90,4 +95,4 @@ except ImportError:
 
     _noop = _NoOp()
     JOB_TOTAL = JOB_DURATION = TRIGGER_DELAY = JOB_LOG_WRITE_BYTES = JOBS_ACTIVE = _noop
-    ORPHAN_JOB_DETECTED = ORPHAN_TASKS = _noop
+    ORPHAN_JOB_DETECTED = ORPHAN_TASKS = GHOST_TASKS = _noop

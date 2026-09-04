@@ -39,6 +39,7 @@ footer{margin-top:3em;padding-top:1em;border-top:1px solid #e5e7eb;color:#6b7280
 
 <p>对 CronPilot Redesign（V2 UI）前后端代码进行全面 Review 后，共发现 47 项问题，横跨安全、可访问性、架构、Mockup 对齐和代码质量 5 个维度。无 P0 安全漏洞（前轮已修复），但存在 6 项 P1 安全风险和 8 项 P1 可访问性缺陷需优先处理。</p>
 
+<p><strong>初始评估矩阵（Review 时）：</strong></p>
 <table>
 <tr><th>Tier</th><th>维度</th><th>P0</th><th>P1</th><th>P2</th><th>Low</th><th>合计</th></tr>
 <tr><td>1</td><td>安全</td><td>0</td><td>2</td><td>3</td><td>1</td><td>6</td></tr>
@@ -48,6 +49,41 @@ footer{margin-top:3em;padding-top:1em;border-top:1px solid #e5e7eb;color:#6b7280
 <tr><td>5</td><td>代码质量</td><td>0</td><td>0</td><td>0</td><td>12</td><td>12</td></tr>
 <tr><td colspan="2"><strong>合计</strong></td><td><strong>2</strong></td><td><strong>14</strong></td><td><strong>18</strong></td><td><strong>13</strong></td><td><strong>47</strong></td></tr>
 </table>
+
+<h3>§1.1 深度验证后修订矩阵（2026-08-24 代码级逐项验证）</h3>
+
+<p>对全部 47 项发现进行源码级逐项验证后，部分评级被修订。修订原因：初始评估基于模式匹配和架构审查；深度分析追踪了数据来源、实际可利用性、浏览器兼容性现状和用户群特征。</p>
+
+<table>
+<tr><th>Tier</th><th>维度</th><th>P0</th><th>P1</th><th>P2</th><th>Low</th><th>合计</th><th>变化说明</th></tr>
+<tr><td>1</td><td>安全</td><td>0</td><td>1</td><td>4</td><td>1</td><td>6</td><td>SEC-6 保持 P1；SEC-1/2/3/4/5 降为 P2（数据来源受控/信息泄露非远程利用）</td></tr>
+<tr><td>2</td><td>可访问性</td><td>0</td><td>2</td><td>5</td><td>1</td><td>8</td><td>A11Y-1/6 保持 P1；A11Y-2/3/4/5 降为 P2；A11Y-7 降为 Low</td></tr>
+<tr><td>3</td><td>架构 / CSS</td><td>0</td><td>0</td><td>5</td><td>2</td><td>7+3<sup>†</sup></td><td>ARCH-1~3 降为 P2；ARCH-4/6 降为 Low；ARCH-5/7/8 保持 P2</td></tr>
+<tr><td>4</td><td>Mockup 偏离</td><td>2</td><td>4</td><td>5</td><td>0</td><td>11</td><td>未变更（需设计层面决策）</td></tr>
+<tr><td>5</td><td>代码质量</td><td>0</td><td>1</td><td>5</td><td>6</td><td>12</td><td>CQ-9 升为 P1（调度器异常静默吞掉）；CQ-2/4/5/6/7 升为 P2；CQ-8/11 降为 Low</td></tr>
+<tr><td colspan="2"><strong>修订合计</strong></td><td><strong>2</strong></td><td><strong>8</strong></td><td><strong>24</strong></td><td><strong>10</strong></td><td><strong>47<sup>†</sup></strong></td></tr>
+</table>
+<p><small><sup>†</sup> ARCH-9/ARCH-10 归入 Batch 4 单独统计，本表保持 Batch 3 为 7 项 + Batch 4 为 3 项（含 ARCH-9/10 + CQ-9）。总数不变。</small></p>
+
+<p><strong>关键修订明细：</strong></p>
+<table>
+<tr><th>ID</th><th>初始</th><th>修订</th><th>修订理由</th></tr>
+<tr><td>SEC-1</td><td>P1</td><td><span class="sev-p2">P2</span></td><td>Command Palette href 数据来源为服务端导航 registry，不含用户可控输入</td></tr>
+<tr><td>SEC-2</td><td>P2</td><td><span class="sev-p2">P2</span></td><td>保持 — 所有现有调用点已 escHtml，但 API 面应补 bodyText 安全选项</td></tr>
+<tr><td>SEC-5</td><td>P2</td><td><span class="sev-p2">P2</span></td><td>保持 — 密码明文在前端消息中，但仅管理员可触发且为已知默认值</td></tr>
+<tr><td>SEC-6</td><td>P1</td><td><span class="sev-p1">P1</span></td><td>保持 — DNS fail-open 为真实攻击面，需控制 DNS 但可利用</td></tr>
+<tr><td>A11Y-2</td><td>P1</td><td><span class="sev-p2">P2</span></td><td>下拉菜单内操作项，非主交互路径</td></tr>
+<tr><td>A11Y-3</td><td>P1</td><td><span class="sev-p2">P2</span></td><td>原生 POST 场景下现有 inline 守卫已足够（提交即页面跳转）</td></tr>
+<tr><td>A11Y-6</td><td>P2</td><td><span class="sev-p1">P1</span></td><td>升级 — WCAG 2.1 硬性要求（模态框 Tab 焦点陷阱）</td></tr>
+<tr><td>A11Y-7</td><td>P2</td><td><span class="sev-low">Low</span></td><td>Toast 4 秒自动消失，键盘关闭非刚需</td></tr>
+<tr><td>CQ-9</td><td>Low</td><td><span class="sev-p1">P1</span></td><td>升级 — <code>cron_check()</code> 异常被 <code>except: pass</code> 静默吞掉，调度器故障无感知</td></tr>
+<tr><td>CQ-8</td><td>Low</td><td><span class="sev-low">Low</span></td><td>保持 — 滑动窗口过滤已在每次调用时清理过期条目，增长有限</td></tr>
+<tr><td>ARCH-1/2</td><td>P1</td><td><span class="sev-p2">P2</span></td><td>命名冲突为潜在风险非现存 bug，各页面模板不会同时使用这些类</td></tr>
+<tr><td>ARCH-3</td><td>P1</td><td><span class="sev-p2">P2</span></td><td>仅 3 处 legacy .btn 混用（task_form/task_detail），影响面极小</td></tr>
+<tr><td>ARCH-4</td><td>P1</td><td><span class="sev-low">Low</span></td><td>dead code — <code>_welcome.html</code> 无路由引用</td></tr>
+</table>
+
+<p><strong>修订后推荐执行序</strong>：CQ-9（3min P1）→ A11Y-1（15min P1）→ A11Y-6（30min P1）→ SEC-6（30min P1）→ Batch 5 余项 → Batch 3 快速项 → Batch 6 纯前端项 → Batch 4（独立排期）→ Batch 7（需独立设计）。</p>
 
 <!-- ================================================================ -->
 <h2>§2 根因分析</h2>
@@ -147,10 +183,15 @@ footer{margin-top:3em;padding-top:1em;border-top:1px solid #e5e7eb;color:#6b7280
 SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 </div>
 
+<div class="scope-box">
+<strong>Batch 1 深度分析摘要（2026-08-24）：</strong><br>
+SEC-6（DNS fail-open）是唯一确认的 P1，需 DNS 控制权才能利用但攻击面真实。SEC-1/SEC-2 数据来源均为服务端受控，降为 P2 防御性加固。SEC-3/SEC-4 为信息泄露（非远程代码执行），SEC-5 仅管理员可触发。总估算 ~1.5h。
+</div>
+
 <!-- Batch 2 -->
 <div class="batch-header"><strong>Batch 2：可访问性修复（A11Y-1 ~ A11Y-8）</strong></div>
 
-<h3>3.2.1 A11Y-1：task_form.html 标签关联</h3>
+<h3>3.2.1 A11Y-1：task_form.html 标签关联 <span class="sev-p1">P1</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>app/templates/redesign/task_form.html</code></td></tr>
@@ -159,7 +200,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>不做</td><td>不改变表单布局或视觉样式</td></tr>
 </table>
 
-<h3>3.2.2 A11Y-2：Dashboard 操作按钮语义</h3>
+<h3>3.2.2 A11Y-2：Dashboard 操作按钮语义 <span class="sev-p2">P2 ↓</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>app/templates/redesign/_dashboard_rows.html</code></td></tr>
@@ -167,7 +208,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>方案</td><td>改为 <code>&lt;button type="button" onclick="cpToggleStatus(...)"&gt;</code></td></tr>
 </table>
 
-<h3>3.2.3 A11Y-3：Auth 页面防重复提交</h3>
+<h3>3.2.3 A11Y-3：Auth 页面防重复提交 <span class="sev-p2">P2 ↓</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>login.html</code>、<code>register.html</code>、<code>complete_profile.html</code></td></tr>
@@ -176,7 +217,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>方案 B</td><td>保持 inline 守卫，补齐缺失的「恢复」逻辑（3 秒超时恢复按钮可用）</td></tr>
 </table>
 
-<h3>3.2.4 A11Y-4：users.html 停用模态框标签</h3>
+<h3>3.2.4 A11Y-4：users.html 停用模态框标签 <span class="sev-p2">P2 ↓</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>app/templates/redesign/users.html</code></td></tr>
@@ -184,7 +225,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>方案</td><td>添加 <code>for="dm-reason"</code></td></tr>
 </table>
 
-<h3>3.2.5 A11Y-5：注册审批全选复选框</h3>
+<h3>3.2.5 A11Y-5：注册审批全选复选框 <span class="sev-p2">P2 ↓</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>app/templates/redesign/registration_review.html</code></td></tr>
@@ -192,7 +233,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>方案</td><td>添加 <code>aria-label="全选/取消全选"</code></td></tr>
 </table>
 
-<h3>3.2.6 A11Y-6：模态框焦点陷阱</h3>
+<h3>3.2.6 A11Y-6：模态框焦点陷阱 <span class="sev-p1">P1 ↑</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>redesign-shell.js</code>（Command Palette）、<code>redesign-confirm.js</code>（CpConfirm/CpModal）</td></tr>
@@ -200,7 +241,7 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <tr><td>方案</td><td>添加简易焦点陷阱：open 时记录 <code>lastFocusedElement</code>，在 overlay 内 Tab 循环首末可聚焦元素，close 时恢复焦点</td></tr>
 </table>
 
-<h3>3.2.7 A11Y-7：Toast 关闭按钮键盘支持</h3>
+<h3>3.2.7 A11Y-7：Toast 关闭按钮键盘支持 <span class="sev-low">Low ↓</span></h3>
 <table>
 <tr><th>项</th><th>内容</th></tr>
 <tr><td>文件</td><td><code>app/static/js/redesign-toast.js</code></td></tr>
@@ -222,6 +263,11 @@ SSRF 测试：<code>python -m unittest tests.test_p0_phase_a -v</code>
 <code>grep -rn 'javascript:' app/templates/redesign/</code> — 仅 <code>tags.html</code>（Batch 5 处理）<br>
 手动键盘 Tab 测试：task_form → 所有字段可通过 label 点击聚焦<br>
 Command Palette 打开后 Tab 不逃逸模态框
+</div>
+
+<div class="scope-box">
+<strong>Batch 2 深度分析摘要（2026-08-24）：</strong><br>
+代码验证确认 task_form.html 有 17 个 label 且 <strong>0 个 for= 关联</strong>（A11Y-1 P1 确认）。A11Y-6 从 P2 升级为 P1（WCAG 2.1 硬性要求）。A11Y-3 三个 Auth 页面均为原生 POST，提交即跳转，现有 inline 守卫已足够覆盖，降为 P2。A11Y-7 Toast 有 4 秒自动消失定时器，键盘关闭非刚需，降为 Low。真正 P1 为 A11Y-1 + A11Y-6 两项，总估算 ~1h。
 </div>
 
 <!-- Batch 3 -->
@@ -301,6 +347,11 @@ Command Palette 打开后 Tab 不逃逸模态框
 视觉回归：Dashboard / 任务详情 / 标签页 截图对比无差异
 </div>
 
+<div class="scope-box">
+<strong>Batch 3 深度分析摘要（2026-08-24）：</strong><br>
+<code>redesign-pages.css</code> 确认 2,067 行。<code>.btn</code> legacy 混用仅 3 处（<code>task_form.html:185</code>、<code>task_detail.html:53/61</code>）。<code>.cp-page-head</code> 确认为 dead code（仅 <code>_welcome.html</code> 使用，该页无路由引用）。<code>rgba()</code> 硬编码共 31 处（pages:22, components:5, layout:4）。<code>color-mix()</code> 共 5 处（Chrome 111+/FF 113+/Safari 16.2+）。<strong>全部降为 P2 或 Low</strong>，无 P1。总估算 ~2.5h，建议 ARCH-3（3处混用）+ ARCH-5（令牌桥接）优先。
+</div>
+
 <!-- Batch 4 -->
 <div class="batch-header"><strong>Batch 4：后端架构改善（ARCH-9 ~ ARCH-10）</strong></div>
 
@@ -351,6 +402,11 @@ def write_audit_log(action, detail, username=None, client_ip=None):
 <code>bash scripts/cronpilot.sh restart --daemon</code> + 浏览器登录验证
 </div>
 
+<div class="scope-box">
+<strong>Batch 4 深度分析摘要（2026-08-24）：</strong><br>
+<code>rbac/views.py</code> 确认 1,434 行、<code>main/views.py</code> 1,157 行、<code>services.py</code> 1,112 行。<code>services.py</code> 仅 1 处 top-level <code>from flask import request, session</code>。路由拆分风险较高（装饰器丢失、循环 import），建议独立排期。<strong>全部 P2</strong>，总估算 ~3.5h。
+</div>
+
 <!-- Batch 5 -->
 <div class="batch-header"><strong>Batch 5：代码质量清理（CQ-1 ~ CQ-12）</strong></div>
 
@@ -364,7 +420,7 @@ def write_audit_log(action, detail, username=None, client_ip=None):
 <tr><td>CQ-6</td><td>Toast dismiss 添加 <code>setTimeout</code> 兜底（<code>animationend</code> 未触发时 500ms 后移除）</td><td><code>redesign-toast.js</code></td></tr>
 <tr><td>CQ-7</td><td><code>sidebar</code> 变量添加 null 守卫</td><td><code>redesign-shell.js</code></td></tr>
 <tr><td>CQ-8</td><td>在 <code>login_limiter.py</code> 添加内存清理：过期条目每 60 秒裁剪一次</td><td>Python</td></tr>
-<tr><td>CQ-9</td><td><code>cron_check()</code> 异常改为 <code>logger.error</code> 而非静默 <code>pass</code></td><td><code>app/__init__.py</code></td></tr>
+<tr><td>CQ-9 <span class="sev-p1">P1↑</span></td><td><code>cron_check()</code> 异常改为 <code>logger.error</code> 而非静默 <code>pass</code>（调度器启动故障完全无感知）</td><td><code>app/__init__.py</code></td></tr>
 <tr><td>CQ-10</td><td><code>cron_del_job_log</code> 改为单次 <code>GROUP BY cif_id HAVING COUNT(*) &gt; max</code> 批量查询</td><td><code>app/crons.py</code></td></tr>
 <tr><td>CQ-11</td><td><code>print()</code> → <code>logger.info()</code></td><td><code>rbac/services.py</code></td></tr>
 <tr><td>CQ-12</td><td>移除 <code>groups.html</code> 中未使用的 <code>avatars</code> 变量</td><td>模板</td></tr>
@@ -376,6 +432,16 @@ def write_audit_log(action, detail, username=None, client_ip=None):
 <code>grep -rn "javascript:void" app/templates/redesign/</code> — 0 hits<br>
 <code>grep -rn "print(" app/rbac/services.py</code> — 0 hits<br>
 <code>grep -rn "except Exception" app/__init__.py</code> — 有 <code>logger.error</code> 而非 <code>pass</code>
+</div>
+
+<div class="scope-box">
+<strong>Batch 5 深度分析摘要（2026-08-24）：</strong><br>
+<strong>CQ-9 升级为 P1</strong>：<code>app/__init__.py</code> L74 <code>except Exception: pass</code> 将调度器启动异常完全吞掉。若 <code>cron_check()</code> 因 DB 连接失败而异常，管理员无任何告警。修复 1 行（<code>logger.error(exc_info=True)</code>），3 分钟。<br>
+CQ-2 确认：<code>cpCopy()</code> 在 <code>run_inspector.html</code> L115 和 <code>task_detail.html</code> L238 重复定义（完全相同 25 行），应提取为全局函数。<br>
+CQ-8 降级为 Low：<code>record_failure()</code> L70-72 的滑动窗口过滤已在每次调用时清理过期条目，<code>defaultdict(list)</code> 不会无限增长。<br>
+CQ-11 降级为 Low：仅 1 处 <code>print()</code>（<code>services.py</code> L146），属一次性迁移脚本输出。<br>
+CQ-12 待验证：<code>groups.html</code> L30 <code>avatars</code> 变量需确认后续行是否引用。<br>
+总估算 ~2h，CQ-9 为唯一 P1。
 </div>
 
 <!-- Batch 6 -->
@@ -456,7 +522,9 @@ Batch 4 (后端架构) ──────→ 独立验收
 Batch 7 (大型功能) ──────→ 需独立设计文档
 </pre>
 
-<p><strong>推荐执行序</strong>：Batch 1 → Batch 2 → Batch 3 → Batch 5 → Batch 4 → Batch 6 → Batch 8 → （Batch 7 另议）</p>
+<p><strong>初始推荐执行序</strong>：Batch 1 → Batch 2 → Batch 3 → Batch 5 → Batch 4 → Batch 6 → Batch 8 → （Batch 7 另议）</p>
+
+<p><strong>修订后推荐执行序（按 P1 优先）</strong>：CQ-9（3min P1）→ A11Y-1 + A11Y-6（45min P1）→ SEC-6（30min P1）→ Batch 1 余项 → Batch 5 余项 → Batch 2 余项 → ARCH-3/5（20min 快速修复）→ Batch 6 纯前端项 → Batch 3 大项 → Batch 4（独立排期）→ Batch 7（需独立设计文档）→ Batch 8（文档同步伴随各 Batch）</p>
 
 <!-- ================================================================ -->
 <h2>§5 风险评估</h2>

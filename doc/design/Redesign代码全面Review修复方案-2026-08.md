@@ -14,6 +14,8 @@
 
 对 CronPilot Redesign（V2 UI）前后端代码进行全面 Review 后，共发现 47 项问题，横跨安全、可访问性、架构、Mockup 对齐和代码质量 5 个维度。无 P0 安全漏洞（前轮已修复），但存在 6 项 P1 安全风险和 8 项 P1 可访问性缺陷需优先处理。
 
+**初始评估矩阵（Review 时）：**
+
 | Tier | 维度 | P0 | P1 | P2 | Low | 合计 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 安全 | 0 | 2 | 3 | 1 | 6 |
@@ -22,6 +24,41 @@
 | 4 | Mockup 偏离 | 2 | 4 | 5 | 0 | 11 |
 | 5 | 代码质量 | 0 | 0 | 0 | 12 | 12 |
 | **合计** | | **2** | **14** | **18** | **13** | **47** |
+
+### §1.1 深度验证后修订矩阵（2026-08-24 代码级逐项验证）
+
+对全部 47 项发现进行源码级逐项验证后，部分评级被修订。修订原因：初始评估基于模式匹配和架构审查；深度分析追踪了数据来源、实际可利用性、浏览器兼容性现状和用户群特征。
+
+| Tier | 维度 | P0 | P1 | P2 | Low | 合计 | 变化说明 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 安全 | 0 | 1 | 4 | 1 | 6 | SEC-6 保持 P1；SEC-1/2/3/4/5 降为 P2（数据来源受控/信息泄露非远程利用） |
+| 2 | 可访问性 | 0 | 2 | 5 | 1 | 8 | A11Y-1/6 保持 P1；A11Y-2/3/4/5 降为 P2；A11Y-7 降为 Low |
+| 3 | 架构 / CSS | 0 | 0 | 5 | 2 | 7+3† | ARCH-1~3 降为 P2；ARCH-4/6 降为 Low；ARCH-5/7/8 保持 P2 |
+| 4 | Mockup 偏离 | 2 | 4 | 5 | 0 | 11 | 未变更（需设计层面决策） |
+| 5 | 代码质量 | 0 | 1 | 5 | 6 | 12 | CQ-9 升为 P1（调度器异常静默吞掉）；CQ-2/4/5/6/7 升为 P2；CQ-8/11 降为 Low |
+| **修订合计** | | **2** | **8** | **24** | **10** | **47†** |
+
+† ARCH-9/ARCH-10 归入 Batch 4 单独统计，本表保持 Batch 3 为 7 项 + Batch 4 为 3 项（含 ARCH-9/10 + CQ-9）。总数不变。
+
+**关键修订明细：**
+
+| ID | 初始 | 修订 | 修订理由 |
+| --- | --- | --- | --- |
+| SEC-1 | P1 | P2 | Command Palette href 数据来源为服务端导航 registry，不含用户可控输入 |
+| SEC-2 | P2 | P2 | 保持 — 所有现有调用点已 escHtml，但 API 面应补 bodyText 安全选项 |
+| SEC-5 | P2 | P2 | 保持 — 密码明文在前端消息中，但仅管理员可触发且为已知默认值 |
+| SEC-6 | P1 | P1 | 保持 — DNS fail-open 为真实攻击面，需控制 DNS 但可利用 |
+| A11Y-2 | P1 | P2 | 下拉菜单内操作项，非主交互路径 |
+| A11Y-3 | P1 | P2 | 原生 POST 场景下现有 inline 守卫已足够（提交即页面跳转） |
+| A11Y-6 | P2 | P1 | 升级 — WCAG 2.1 硬性要求（模态框 Tab 焦点陷阱） |
+| A11Y-7 | P2 | Low | Toast 4 秒自动消失，键盘关闭非刚需 |
+| CQ-9 | Low | P1 | 升级 — `cron_check()` 异常被 `except: pass` 静默吞掉，调度器故障无感知 |
+| CQ-8 | Low | Low | 保持 — 滑动窗口过滤已在每次调用时清理过期条目，增长有限 |
+| ARCH-1/2 | P1 | P2 | 命名冲突为潜在风险非现存 bug，各页面模板不会同时使用这些类 |
+| ARCH-3 | P1 | P2 | 仅 3 处 legacy .btn 混用（task\_form/task\_detail），影响面极小 |
+| ARCH-4 | P1 | Low | dead code — `_welcome.html` 无路由引用 |
+
+**修订后推荐执行序**：CQ-9（3min P1）→ A11Y-1（15min P1）→ A11Y-6（30min P1）→ SEC-6（30min P1）→ Batch 5 余项 → Batch 3 快速项 → Batch 6 纯前端项 → Batch 4（独立排期）→ Batch 7（需独立设计）。
 
 ## §2 根因分析
 
@@ -112,9 +149,12 @@
 `grep -rn "innerHTML.*href" app/static/js/redesign-shell.js` — 0 hits  
 SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 
+**Batch 1 深度分析摘要（2026-08-24）：**  
+SEC-6（DNS fail-open）是唯一确认的 P1，需 DNS 控制权才能利用但攻击面真实。SEC-1/SEC-2 数据来源均为服务端受控，降为 P2 防御性加固。SEC-3/SEC-4 为信息泄露（非远程代码执行），SEC-5 仅管理员可触发。总估算 ~1.5h。
+
 **Batch 2：可访问性修复（A11Y-1 ~ A11Y-8）**
 
-### 3.2.1 A11Y-1：task\_form.html 标签关联
+### 3.2.1 A11Y-1：task\_form.html 标签关联 P1
 
 | 项 | 内容 |
 | --- | --- |
@@ -123,7 +163,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 方案 | 逐字段添加 `id="tf-xxx"` + `for="tf-xxx"` 配对。字段前缀统一为 `tf-` |
 | 不做 | 不改变表单布局或视觉样式 |
 
-### 3.2.2 A11Y-2：Dashboard 操作按钮语义
+### 3.2.2 A11Y-2：Dashboard 操作按钮语义 P2 ↓
 
 | 项 | 内容 |
 | --- | --- |
@@ -131,7 +171,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 现状 | 操作下拉菜单中 `<a onclick="cpToggleStatus(...)">` 无 `href`，键盘不可达 |
 | 方案 | 改为 `<button type="button" onclick="cpToggleStatus(...)">` |
 
-### 3.2.3 A11Y-3：Auth 页面防重复提交
+### 3.2.3 A11Y-3：Auth 页面防重复提交 P2 ↓
 
 | 项 | 内容 |
 | --- | --- |
@@ -140,7 +180,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 方案 A（推荐） | 在 3 个 Auth 页面底部引入 `common-redesign.js`（jQuery 已在页面加载），统一使用全局守卫 |
 | 方案 B | 保持 inline 守卫，补齐缺失的「恢复」逻辑（3 秒超时恢复按钮可用） |
 
-### 3.2.4 A11Y-4：users.html 停用模态框标签
+### 3.2.4 A11Y-4：users.html 停用模态框标签 P2 ↓
 
 | 项 | 内容 |
 | --- | --- |
@@ -148,7 +188,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 现状 | `<label class="dm-label">停用缘由</label>` 未关联 `#dm-reason` textarea |
 | 方案 | 添加 `for="dm-reason"` |
 
-### 3.2.5 A11Y-5：注册审批全选复选框
+### 3.2.5 A11Y-5：注册审批全选复选框 P2 ↓
 
 | 项 | 内容 |
 | --- | --- |
@@ -156,7 +196,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 现状 | `#rr-select-all` 无可见标签或 `aria-label` |
 | 方案 | 添加 `aria-label="全选/取消全选"` |
 
-### 3.2.6 A11Y-6：模态框焦点陷阱
+### 3.2.6 A11Y-6：模态框焦点陷阱 P1 ↑
 
 | 项 | 内容 |
 | --- | --- |
@@ -164,7 +204,7 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 | 现状 | 打开模态框后 Tab 键可逃离遮罩层 |
 | 方案 | 添加简易焦点陷阱：open 时记录 `lastFocusedElement`，在 overlay 内 Tab 循环首末可聚焦元素，close 时恢复焦点 |
 
-### 3.2.7 A11Y-7：Toast 关闭按钮键盘支持
+### 3.2.7 A11Y-7：Toast 关闭按钮键盘支持 Low ↓
 
 | 项 | 内容 |
 | --- | --- |
@@ -185,6 +225,9 @@ SSRF 测试：`python -m unittest tests.test_p0_phase_a -v`
 `grep -rn 'javascript:' app/templates/redesign/` — 仅 `tags.html`（Batch 5 处理）  
 手动键盘 Tab 测试：task\_form → 所有字段可通过 label 点击聚焦  
 Command Palette 打开后 Tab 不逃逸模态框
+
+**Batch 2 深度分析摘要（2026-08-24）：**  
+代码验证确认 task\_form.html 有 17 个 label 且 **0 个 for= 关联**（A11Y-1 P1 确认）。A11Y-6 从 P2 升级为 P1（WCAG 2.1 硬性要求）。A11Y-3 三个 Auth 页面均为原生 POST，提交即跳转，现有 inline 守卫已足够覆盖，降为 P2。A11Y-7 Toast 有 4 秒自动消失定时器，键盘关闭非刚需，降为 Low。真正 P1 为 A11Y-1 + A11Y-6 两项，总估算 ~1h。
 
 **Batch 3：CSS 架构优化（ARCH-1 ~ ARCH-8）**
 
@@ -248,6 +291,9 @@ Command Palette 打开后 Tab 不逃逸模态框
 `grep -c "\.cp-page-head" app/static/css/redesign-layout.css` — 0  
 视觉回归：Dashboard / 任务详情 / 标签页 截图对比无差异
 
+**Batch 3 深度分析摘要（2026-08-24）：**  
+`redesign-pages.css` 确认 2,067 行。`.btn` legacy 混用仅 3 处（`task_form.html:185`、`task_detail.html:53/61`）。`.cp-page-head` 确认为 dead code（仅 `_welcome.html` 使用，该页无路由引用）。`rgba()` 硬编码共 31 处（pages:22, components:5, layout:4）。`color-mix()` 共 5 处（Chrome 111+/FF 113+/Safari 16.2+）。**全部降为 P2 或 Low**，无 P1。总估算 ~2.5h，建议 ARCH-3（3处混用）+ ARCH-5（令牌桥接）优先。
+
 **Batch 4：后端架构改善（ARCH-9 ~ ARCH-10）**
 
 **注：**后端大文件拆分为结构性重构，风险较高。本批次仅做**最小抽取**以降低文件复杂度，不做全面重构。
@@ -277,6 +323,9 @@ Command Palette 打开后 Tab 不逃逸模态框
 `bash scripts/verify_golden_path.sh` — 冒烟通过  
 `bash scripts/cronpilot.sh restart --daemon` + 浏览器登录验证
 
+**Batch 4 深度分析摘要（2026-08-24）：**  
+`rbac/views.py` 确认 1,434 行、`main/views.py` 1,157 行、`services.py` 1,112 行。`services.py` 仅 1 处 top-level `from flask import request, session`。路由拆分风险较高（装饰器丢失、循环 import），建议独立排期。**全部 P2**，总估算 ~3.5h。
+
 **Batch 5：代码质量清理（CQ-1 ~ CQ-12）**
 
 | ID | 修复内容 | 文件 |
@@ -289,7 +338,7 @@ Command Palette 打开后 Tab 不逃逸模态框
 | CQ-6 | Toast dismiss 添加 `setTimeout` 兜底（`animationend` 未触发时 500ms 后移除） | `redesign-toast.js` |
 | CQ-7 | `sidebar` 变量添加 null 守卫 | `redesign-shell.js` |
 | CQ-8 | 在 `login_limiter.py` 添加内存清理：过期条目每 60 秒裁剪一次 | Python |
-| CQ-9 | `cron_check()` 异常改为 `logger.error` 而非静默 `pass` | `app/__init__.py` |
+| CQ-9 P1↑ | `cron_check()` 异常改为 `logger.error` 而非静默 `pass`（调度器启动故障完全无感知） | `app/__init__.py` |
 | CQ-10 | `cron_del_job_log` 改为单次 `GROUP BY cif_id HAVING COUNT(*) > max` 批量查询 | `app/crons.py` |
 | CQ-11 | `print()` → `logger.info()` | `rbac/services.py` |
 | CQ-12 | 移除 `groups.html` 中未使用的 `avatars` 变量 | 模板 |
@@ -299,6 +348,14 @@ Command Palette 打开后 Tab 不逃逸模态框
 `grep -rn "javascript:void" app/templates/redesign/` — 0 hits  
 `grep -rn "print(" app/rbac/services.py` — 0 hits  
 `grep -rn "except Exception" app/__init__.py` — 有 `logger.error` 而非 `pass`
+
+**Batch 5 深度分析摘要（2026-08-24）：**  
+**CQ-9 升级为 P1**：`app/__init__.py` L74 `except Exception: pass` 将调度器启动异常完全吞掉。若 `cron_check()` 因 DB 连接失败而异常，管理员无任何告警。修复 1 行（`logger.error(exc_info=True)`），3 分钟。  
+CQ-2 确认：`cpCopy()` 在 `run_inspector.html` L115 和 `task_detail.html` L238 重复定义（完全相同 25 行），应提取为全局函数。  
+CQ-8 降级为 Low：`record_failure()` L70-72 的滑动窗口过滤已在每次调用时清理过期条目，`defaultdict(list)` 不会无限增长。  
+CQ-11 降级为 Low：仅 1 处 `print()`（`services.py` L146），属一次性迁移脚本输出。  
+CQ-12 待验证：`groups.html` L30 `avatars` 变量需确认后续行是否引用。  
+总估算 ~2h，CQ-9 为唯一 P1。
 
 **Batch 6：Mockup 对齐 — 仅结构性补齐（MOCK-3 ~ MOCK-11）**
 
@@ -366,7 +423,9 @@ Batch 4 (后端架构) ──────→ 独立验收
 Batch 7 (大型功能) ──────→ 需独立设计文档
 ```
 
-**推荐执行序**：Batch 1 → Batch 2 → Batch 3 → Batch 5 → Batch 4 → Batch 6 → Batch 8 → （Batch 7 另议）
+**初始推荐执行序**：Batch 1 → Batch 2 → Batch 3 → Batch 5 → Batch 4 → Batch 6 → Batch 8 → （Batch 7 另议）
+
+**修订后推荐执行序（按 P1 优先）**：CQ-9（3min P1）→ A11Y-1 + A11Y-6（45min P1）→ SEC-6（30min P1）→ Batch 1 余项 → Batch 5 余项 → Batch 2 余项 → ARCH-3/5（20min 快速修复）→ Batch 6 纯前端项 → Batch 3 大项 → Batch 4（独立排期）→ Batch 7（需独立设计文档）→ Batch 8（文档同步伴随各 Batch）
 
 ## §5 风险评估
 

@@ -7,7 +7,17 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-当前无草稿条目。
+### 修复 — CQ-9 调度器启动异常静默吞掉（P1）
+
+- **问题**：`app/__init__.py` 中 `cron_check()` 被 `except Exception: pass` 包裹，调度器对账失败（DB 连接、表结构等）完全无日志
+- **修复**：`pass` → `logging.getLogger('cronpilot.init').error(..., exc_info=True)`，保持进程不中断但确保异常完整记录
+- **设计文档**：`doc/design/Redesign代码全面Review修复方案-2026-08.html` §3.5 CQ-9
+
+### 改进 — Redesign 全面 Review 修复方案深度分析
+
+- 对 47 项 Review 发现进行源码级逐项验证，更新 `doc/design/Redesign代码全面Review修复方案-2026-08.html`
+- P1 项从 14 项修订为 4 项（SEC-6 SSRF fail-open、A11Y-1 label 关联、A11Y-6 焦点陷阱、CQ-9 异常吞掉）
+- 新增 §1.1 修订矩阵 + 各 Batch 深度分析摘要
 
 ---
 

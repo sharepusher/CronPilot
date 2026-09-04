@@ -72,7 +72,11 @@ def create_app(config_name):
         try:
             cron_check()
         except Exception:
-            pass
+            import logging
+            logging.getLogger('cronpilot.init').error(
+                'cron_check() failed during startup — scheduler reconciliation incomplete',
+                exc_info=True
+            )
     else:
         # Web-only mode: scheduler not started; DB + routes still available
         scheduler.init_app(app)

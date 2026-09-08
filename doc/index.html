@@ -111,7 +111,7 @@
 </head>
 <body>
   <h1>CronPilot</h1>
-  <p class="sub">HTTP 定时回调调度台 · 技术文档中心（按管理 / 进度 / 架构等维度整理）</p>
+  <p class="sub">HTTP 定时触发调度台 · 技术文档中心（按管理 / 进度 / 架构等维度整理）</p>
   <p class="fmt-banner">每份文档提供 <strong>HTML</strong> 与 <strong>Markdown</strong>。
     <a href="index.md">Markdown 索引</a> · 在线 <code>/docs/</code></p>
 
@@ -604,6 +604,37 @@
         </div>
         <div class="links"><a href="design/Redesign代码全面Review修复方案-2026-08.html">HTML</a><a href="design/Redesign代码全面Review修复方案-2026-08.md">MD</a></div>
       </li>
+      <li>
+        <div class="doc-meta">
+          <span class="badge b-wip">待审阅</span>
+          <a href="design/任务链路日志完整性增强设计.html">任务链路日志完整性增强设计</a>
+          <span class="blurb">9 个 GAP 补全 · 4 个 job_log 新列 · 5 处应用日志 · 详情页增强</span>
+        </div>
+        <div class="links"><a href="design/任务链路日志完整性增强设计.html">HTML</a><a href="design/任务链路日志完整性增强设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="doc-meta">
+          <a href="design/任务执行链路可观测性增强方案.html">任务执行链路可观测性增强方案</a>
+          <span class="blurb">job_log_events 事件流 · ExecutionTracer · Run Inspector 时间线 · 真实调度延迟采集</span>
+        </div>
+        <div class="links"><a href="design/任务执行链路可观测性增强方案.html">HTML</a><a href="design/任务执行链路可观测性增强方案.md">MD</a></div>
+      </li>
+      <li>
+        <div class="doc-meta">
+          <span class="badge b-done">已交付</span>
+          <a href="design/新任务继承旧健康记录Bug设计.html">新任务继承旧健康记录 Bug 设计</a>
+          <span class="blurb">新任务创建/ID 变更时继承历史健康记录的处理方案</span>
+        </div>
+        <div class="links"><a href="design/新任务继承旧健康记录Bug设计.html">HTML</a><a href="design/新任务继承旧健康记录Bug设计.md">MD</a></div>
+      </li>
+      <li>
+        <div class="doc-meta">
+          <span class="badge b-done">已交付</span>
+          <a href="design/CronPilot-50bit-ID生成器技术文档.html">50-bit 时间戳 ID 生成器技术文档</a>
+          <span class="blurb">ID 结构、API、集成方式、JS 精度安全、迁移策略、测试覆盖与 FAQ</span>
+        </div>
+        <div class="links"><a href="design/CronPilot-50bit-ID生成器技术文档.html">HTML</a><a href="design/CronPilot-50bit-ID生成器技术文档.md">MD</a></div>
+      </li>
     </ul>
   </section>
 
@@ -860,6 +891,14 @@
     <ul class="doc-list">
       <li>
         <div class="title">
+          <span class="badge b-draft">待确认</span>
+          <a href="qa/当前项目架构与代码质量全面评估报告-2026-09.html">当前项目架构与代码质量全面评估报告（2026-09）</a>
+          <span class="blurb">架构 · 代码质量 · Bugbot 缺陷；逐项说明根因、影响、方案选型、实施路径与验收标准；统一采用“定时 HTTP 触发请求”术语</span>
+        </div>
+        <div class="links"><a href="qa/当前项目架构与代码质量全面评估报告-2026-09.html">HTML</a><a href="qa/当前项目架构与代码质量全面评估报告-2026-09.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <a href="qa/P0测试用例与验收手册.html">P0 测试用例与验收手册</a>
           <span class="blurb">Phase A 用例 · curl/冒烟 · 发布签字</span>
         </div>
@@ -1074,6 +1113,13 @@
           <span class="blurb">OPT-P0-20 退休流程加固 + 反向扫描</span>
         </div>
         <div class="links"><a href="postmortem/2026-08-调度器幽灵任务清理复盘.html">HTML</a><a href="postmortem/2026-08-调度器幽灵任务清理复盘.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-08-SEC6-SSRF-dns-fail-open.html">复盘：SEC-6 SSRF DNS Fail-Open</a>
+          <span class="blurb">DNS 解析失败 fail-closed + 重试 + 配置项</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-08-SEC6-SSRF-dns-fail-open.html">HTML</a><a href="postmortem/2026-08-SEC6-SSRF-dns-fail-open.md">MD</a></div>
       </li>
     </ul>
   </section>

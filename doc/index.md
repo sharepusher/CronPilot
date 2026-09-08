@@ -1,6 +1,6 @@
 # CronPilot · 技术文档索引
 
-> HTTP 定时回调调度台 · 每份文档提供 **HTML**（浏览器）与 **Markdown**（GitHub / IDE）两种格式。  
+> HTTP 定时触发调度台 · 每份文档提供 **HTML**（浏览器）与 **Markdown**（GitHub / IDE）两种格式。  
 > 本索引按 **项目管理 / 进度 / 架构 / 设计中 / 已交付 / 产品 / 依赖 / 运维 / 验收** 分维整理，避免扁平铺开。
 
 **快捷入口：** [进度总览](交付状态与路线图.html) · [项目入门](arch/项目总览与技术文档.html) · [当前焦点 OPT-P2-13](design/规模化信息架构设计.html) · [Docker 部署](ops/Docker部署指南.html)
@@ -37,6 +37,7 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **规模化信息架构 OPT-P2-13**（权威总稿） | L1/L2/L3 · job_health · 角色调制 · **当前焦点** | [HTML](design/规模化信息架构设计.html) | [MD](design/规模化信息架构设计.md) |
+| **全仓术语治理设计（2026-09）**（待确认） | callback/回调 → 触发语义 · 四批执行（代码命名/用户文案/历史文档/规则门禁） | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](design/规模化双层IA与任务健康模型评审.html) | [MD](design/规模化双层IA与任务健康模型评审.md) |
@@ -93,6 +94,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **当前项目架构与代码质量全面评估报告（2026-09）**（待确认） | 架构 · 代码质量 · Bugbot 缺陷；逐项说明根因、影响、方案选型、实施路径与验收标准；统一采用“定时 HTTP 触发请求”术语 | [HTML](qa/当前项目架构与代码质量全面评估报告-2026-09.html) | [MD](qa/当前项目架构与代码质量全面评估报告-2026-09.md) |
 | P0 测试与验收手册 | 用例 · 冒烟 · 签字 | [HTML](qa/P0测试用例与验收手册.html) | [MD](qa/P0测试用例与验收手册.md) |
 | License Audit | Apache-2.0 合规 | [HTML](qa/LICENSE-AUDIT.html) | [MD](qa/LICENSE-AUDIT.md) |
 | 文档同步说明 | HTML↔MD · CI | — | [MD](qa/文档同步说明.md) |

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>CronPilot 50-bit 时间戳 ID 生成器技术文档</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:960px;margin:2em auto;line-height:1.7;color:#333}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}
+h2{border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:2em}
+h3{margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}
+th{background:#f8f8f8}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px;font-size:0.95em}
+pre{background:#f4f4f4;padding:1em;overflow-x:auto;border-radius:4px;font-size:0.9em}
+.info{background:#d1ecf1;padding:1em;border-left:4px solid #0dcaf0;margin:1em 0;border-radius:4px}
+.warn{background:#fff3cd;padding:1em;border-left:4px solid #ffc107;margin:1em 0;border-radius:4px}
+.success{background:#d4edda;padding:1em;border-left:4px solid #28a745;margin:1em 0;border-radius:4px}
+.bit-diagram{font-family:monospace;background:#1e293b;color:#e2e8f0;padding:1.2em;border-radius:6px;font-size:1em;line-height:1.8}
+.bit-diagram .ts{color:#60a5fa}.bit-diagram .seq{color:#34d399}
+</style>
+</head>
+<body>
+
+<h1>CronPilot 50-bit 时间戳 ID 生成器技术文档</h1>
+<p><strong>版本</strong>：v1.0 &nbsp; <strong>引入版本</strong>：v4.0.0（OPT-P0-21） &nbsp; <strong>最后更新</strong>：2026-09-07</p>
+<p><strong>源码位置</strong>：<code>datas/utils/id_generator.py</code></p>
+<p><strong>关联设计</strong>：<a href="新任务继承旧健康记录Bug设计.html">OPT-P0-21 设计文档</a></p>
+
+<nav>
+<strong>目录</strong>
+<ol>
+<li><a href="#background">背景与动机</a></li>
+<li><a href="#structure">ID 结构</a></li>
+<li><a href="#parameters">参数规格</a></li>
+<li><a href="#api">API 参考</a></li>
+<li><a href="#integration">集成方式</a></li>
+<li><a href="#thread-safety">线程安全与并发</a></li>
+<li><a href="#db-compat">数据库兼容性</a></li>
+<li><a href="#js-safety">JavaScript 精度安全</a></li>
+<li><a href="#migration">迁移与共存</a></li>
+<li><a href="#testing">测试覆盖</a></li>
+<li><a href="#faq">FAQ</a></li>
+<li><a href="#comparison">方案对比（选型依据）</a></li>
+</ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="background">1. 背景与动机</h2>
+
+<p>CronPilot 原始模型使用 SQLite 的 <code>INTEGER PRIMARY KEY</code> 作为 <code>cron_infos</code> 和 <code>job_log</code> 的主键。SQLite 在不使用 <code>AUTOINCREMENT</code> 的情况下允许 ID 复用——当记录被删除并且有新插入时，已释放的小数字 ID 可能被重新分配。</p>
+
+<p>由于 <code>job_health</code> 和 <code>job_log</code> 表通过 <code>cron_info_id</code> 关联 <code>cron_infos</code>，但<strong>没有外键约束</strong>，当 ID 被新任务复用时，新任务会继承旧任务的健康记录和执行日志，导致：</p>
+<ul>
+<li>新任务创建后立即显示"健康异常"（实际是旧任务的失败记录）</li>
+<li>执行记录混杂，无法区分新旧任务的日志</li>
+</ul>
+
+<p>为了从根源消除 ID 复用，我们引入 50-bit 时间戳 ID 生成器，确保每个 ID 全局唯一且单调递增。</p>
+
+<!-- ============================================================ -->
+<h2 id="structure">2. ID 结构</h2>
+
+<div class="bit-diagram">
+&nbsp; 50-bit ID 结构（共 50 位）<br>
+&nbsp; ┌──────────────────────────────────────┬──────────────┐<br>
+&nbsp; │ <span class="ts">38-bit 秒时间戳（相对 Epoch）</span> │ <span class="seq">12-bit 序列号</span> │<br>
+&nbsp; │ <span class="ts">bit 49 ─────────────── bit 12</span> │ <span class="seq">bit 11 ── bit 0</span> │<br>
+&nbsp; └──────────────────────────────────────┴──────────────┘<br>
+&nbsp;<br>
+&nbsp; 计算公式: <strong>id = (seconds_since_epoch &lt;&lt; 12) | sequence</strong>
+</div>
+
+<h3>2.1 时间戳部分（高 38 位）</h3>
+<ul>
+<li><strong>Epoch</strong>：<code>2024-09-01 00:00:00 UTC</code>（Unix 时间戳 <code>1725148800</code>）</li>
+<li><strong>精度</strong>：秒级</li>
+<li><strong>容量</strong>：2<sup>38</sup> 秒 ≈ 8,694 年（至公元 10718 年）</li>
+</ul>
+
+<h3>2.2 序列号部分（低 12 位）</h3>
+<ul>
+<li><strong>范围</strong>：0 ~ 4095</li>
+<li><strong>含义</strong>：同一秒内的递增计数器</li>
+<li><strong>溢出策略</strong>：等待下一秒（spin-wait，10ms 轮询间隔）</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="parameters">3. 参数规格</h2>
+
+<table>
+<tr><th>参数</th><th>值</th><th>说明</th></tr>
+<tr><td>总位数</td><td>50 bit</td><td>最大值 1,125,899,906,842,623</td></tr>
+<tr><td>十进制位数</td><td>12 ~ 15 位</td><td>当前生成约 12 位数字</td></tr>
+<tr><td>时间戳位数</td><td>38 bit</td><td>覆盖 ~8,700 年</td></tr>
+<tr><td>序列号位数</td><td>12 bit</td><td>每秒最多 4,096 个 ID</td></tr>
+<tr><td>Epoch</td><td>2024-09-01 00:00:00 UTC</td><td>Unix 1725148800</td></tr>
+<tr><td>JS 安全性</td><td>✅ 安全</td><td>&lt; 2<sup>53</sup> - 1 = 9,007,199,254,740,991</td></tr>
+<tr><td>时间排序</td><td>✅ 支持</td><td>ID 按生成时间自然排序</td></tr>
+<tr><td>单调递增</td><td>✅ 保证</td><td>同进程内严格单调</td></tr>
+</table>
+
+<div class="info">
+<strong>设计要点</strong>：50-bit 上限 1.13×10<sup>15</sup> 远小于 JavaScript 的 <code>Number.MAX_SAFE_INTEGER</code>（9.0×10<sup>15</sup>），
+确保前端 JSON 解析不会丢失精度，无需字符串化传输。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="api">4. API 参考</h2>
+
+<h3>4.1 <code>next_id()</code></h3>
+
+<pre>
+from datas.utils.id_generator import next_id
+
+new_id = next_id()
+# 返回: 260504313856 (示例，12 位十进制)
+</pre>
+
+<table>
+<tr><th>参数</th><th>说明</th></tr>
+<tr><td>（无参数）</td><td>—</td></tr>
+<tr><th>返回值</th><th>说明</th></tr>
+<tr><td><code>int</code></td><td>全局唯一、单调递增的 50-bit 正整数</td></tr>
+<tr><th>异常</th><th>说明</th></tr>
+<tr><td><code>RuntimeError</code></td><td>系统时钟早于 Epoch（2024-09-01）</td></tr>
+<tr><td><code>OverflowError</code></td><td>生成的 ID 超过 JS MAX_SAFE_INTEGER（理论上不会发生）</td></tr>
+</table>
+
+<h3>4.2 ID 结构解析（调试用）</h3>
+
+<pre>
+def decompose_id(id_val):
+    """将 50-bit ID 拆解为时间戳和序列号。"""
+    seq = id_val &amp; 0xFFF          # 低 12 位
+    ts = id_val &gt;&gt; 12             # 高 38 位（秒偏移）
+    epoch = 1725148800             # 2024-09-01 UTC
+    unix_ts = ts + epoch
+    return {
+        'id': id_val,
+        'timestamp_offset': ts,
+        'sequence': seq,
+        'unix_timestamp': unix_ts,
+        'utc_time': datetime.utcfromtimestamp(unix_ts).isoformat() + 'Z',
+    }
+
+# 示例：
+# decompose_id(260504313856)
+# → {'timestamp_offset': 63600076, 'sequence': 0, 'unix_timestamp': 1788748876,
+#    'utc_time': '2026-09-07T02:34:36Z'}
+</pre>
+
+<!-- ============================================================ -->
+<h2 id="integration">5. 集成方式</h2>
+
+<h3>5.1 SQLAlchemy 模型集成</h3>
+
+<p>在模型定义中，将主键类型改为 <code>BigInteger</code> 并设置 <code>default=next_id</code>：</p>
+
+<pre>
+from datas.utils.id_generator import next_id
+from app import db
+
+class CronInfos(db.Model):
+    __tablename__ = 'cron_infos'
+    id: Mapped[int] = mapped_column(
+        db.BigInteger, primary_key=True, default=next_id
+    )
+    # ...
+</pre>
+
+<h3>5.2 当前已集成的模型</h3>
+
+<table>
+<tr><th>模型</th><th>表名</th><th>字段</th><th>说明</th></tr>
+<tr><td><code>CronInfos</code></td><td>cron_infos</td><td>id</td><td>任务主表，每条任务的唯一标识</td></tr>
+<tr><td><code>JobLog</code></td><td>job_log</td><td>id</td><td>执行日志，每条日志的唯一标识</td></tr>
+</table>
+
+<div class="warn">
+<strong>注意</strong>：<code>job_health</code> 表的 <code>cron_info_id</code> 是外键引用 <code>cron_infos.id</code>，
+无需修改，因为它存储的是 <code>cron_infos</code> 生成的 ID 值。
+</div>
+
+<h3>5.3 APScheduler 兼容</h3>
+<p>APScheduler 的 <code>job_id</code> 格式为 <code>cron_{cron_info_id}</code>（字符串），
+50-bit ID 只是让数字部分变长（如 <code>cron_260504313856</code>），
+APScheduler 对 job_id 长度无限制，完全兼容。</p>
+
+<!-- ============================================================ -->
+<h2 id="thread-safety">6. 线程安全与并发</h2>
+
+<h3>6.1 锁机制</h3>
+<p>使用 <code>threading.Lock()</code> 保护全局状态（<code>_last_ts</code> 和 <code>_seq</code>），
+确保同进程内所有线程生成的 ID 严格单调递增且不重复。</p>
+
+<h3>6.2 同秒处理</h3>
+<pre>
+同一秒内的多次调用：
+  call 1 → (ts=63600076, seq=0) → id = 63600076 &lt;&lt; 12 | 0
+  call 2 → (ts=63600076, seq=1) → id = 63600076 &lt;&lt; 12 | 1
+  call 3 → (ts=63600076, seq=2) → id = 63600076 &lt;&lt; 12 | 2
+  ...
+  call 4097 → seq 溢出 → spin-wait 至下一秒
+</pre>
+
+<h3>6.3 多进程 / 分布式</h3>
+<div class="warn">
+<strong>当前限制</strong>：生成器为单进程内的全局单例，不含 worker_id 字段。
+对于 CronPilot 的典型部署（单进程 + gevent），这完全足够。
+<br><br>
+若未来需要多进程写入同一数据库，可扩展低位加入 worker_id，或切换为数据库原生序列。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="db-compat">7. 数据库兼容性</h2>
+
+<table>
+<tr><th>数据库</th><th>列类型</th><th>DDL 操作</th><th>说明</th></tr>
+<tr>
+<td>SQLite</td>
+<td><code>INTEGER PRIMARY KEY</code></td>
+<td>无需改动</td>
+<td>SQLite 的 INTEGER 底层已支持 8 字节存储，BigInteger 映射透明</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td><code>BIGINT NOT NULL AUTO_INCREMENT</code></td>
+<td>ALTER TABLE 升级</td>
+<td><code>ensure_business_tables.py</code> 中 <code>_ensure_id_columns_bigint()</code> 自动迁移</td>
+</tr>
+</table>
+
+<div class="info">
+<strong>MySQL 迁移逻辑</strong>（<code>scripts/ensure_business_tables.py</code>）：
+启动时自动检测 <code>cron_infos.id</code> 和 <code>job_log.id</code> 列类型，
+若不是 BIGINT 则执行 <code>ALTER TABLE ... MODIFY COLUMN ... BIGINT NOT NULL AUTO_INCREMENT</code>。
+幂等操作，多次执行安全。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="js-safety">8. JavaScript 精度安全</h2>
+
+<p>JavaScript 的 <code>Number</code> 类型为 IEEE 754 双精度浮点数，安全整数范围为：</p>
+
+<table>
+<tr><th>边界</th><th>值</th><th>十进制位数</th></tr>
+<tr><td><code>Number.MAX_SAFE_INTEGER</code></td><td>9,007,199,254,740,991</td><td>16 位</td></tr>
+<tr><td>50-bit ID 最大值</td><td>1,125,899,906,842,623</td><td>16 位</td></tr>
+<tr><td>当前生成的 ID</td><td>~260,000,000,000</td><td>12 位</td></tr>
+</table>
+
+<div class="success">
+<strong>结论</strong>：50-bit ID 最大值仅为 JS 安全上限的 12.5%，
+前端无需任何特殊处理（无需 BigInt、无需字符串化传输）。
+<code>JSON.parse()</code> 直接解析的 ID 数值完全精确。
+</div>
+
+<h3>8.1 对比标准 Snowflake（64-bit）</h3>
+<table>
+<tr><th>方案</th><th>最大值</th><th>JS 安全</th><th>前端处理</th></tr>
+<tr><td>标准 Snowflake（64-bit）</td><td>~1.8×10<sup>19</sup></td><td>❌ 超限</td><td>须字符串化或 BigInt</td></tr>
+<tr><td>CronPilot 50-bit</td><td>~1.1×10<sup>15</sup></td><td>✅ 安全</td><td>无需处理</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="migration">9. 迁移与共存</h2>
+
+<h3>9.1 新旧 ID 共存</h3>
+<p>升级后的行为：</p>
+<ul>
+<li><strong>新创建的任务/日志</strong>：使用 50-bit ID（12+ 位数字，如 <code>260504313856</code>）</li>
+<li><strong>已存在的任务/日志</strong>：保留原始小数字 ID（如 <code>1</code>、<code>14</code>）</li>
+<li>两种 ID <strong>互不冲突</strong>——50-bit ID 的最小值远大于任何原始自增 ID</li>
+</ul>
+
+<h3>9.2 启动时清理</h3>
+<p><code>ensure_business_tables.py</code> 在应用启动时自动执行：</p>
+<ol>
+<li><strong>孤儿 job_health 清理</strong>：删除 <code>cron_info_id</code> 在 <code>cron_infos</code> 中不存在的记录</li>
+<li><strong>MySQL BIGINT 迁移</strong>：将 <code>cron_infos.id</code> 和 <code>job_log.id</code> 升级为 BIGINT（SQLite 无需操作）</li>
+</ol>
+
+<h3>9.3 回滚策略</h3>
+<p>若需要回滚到旧版本：</p>
+<ol>
+<li>SQLite：无 DDL 变更，直接回退代码即可（新 ID 记录仍可读取）</li>
+<li>MySQL：BIGINT 向下兼容 INT 范围的值，回退代码后旧版可读取所有记录（但不能创建新的大 ID 记录）</li>
+<li>如需完全回退：手动 <code>ALTER TABLE ... MODIFY COLUMN ... INT</code>（仅当无大 ID 记录时安全）</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="testing">10. 测试覆盖</h2>
+
+<h3>10.1 ID 生成器单元测试（<code>tests/test_id_generator.py</code>）</h3>
+
+<table>
+<tr><th>#</th><th>测试用例</th><th>验证内容</th></tr>
+<tr><td>T1</td><td>test_returns_positive_integer</td><td>返回正整数</td></tr>
+<tr><td>T2</td><td>test_ids_are_unique</td><td>连续 1000 个 ID 无重复</td></tr>
+<tr><td>T3</td><td>test_ids_are_monotonically_increasing</td><td>严格单调递增</td></tr>
+<tr><td>T4</td><td>test_id_below_js_max_safe_integer</td><td>&lt; 9007199254740991</td></tr>
+<tr><td>T5</td><td>test_id_is_12_or_more_digits</td><td>≥ 12 位十进制</td></tr>
+<tr><td>T6</td><td>test_thread_safety</td><td>10 线程各生成 100 个 ID，无重复</td></tr>
+<tr><td>T7</td><td>test_sequence_overflow_waits</td><td>同秒内超过 4096 个时等待下一秒</td></tr>
+<tr><td>T8</td><td>test_clock_before_epoch_raises</td><td>时钟回拨至 Epoch 前抛 RuntimeError</td></tr>
+<tr><td>T9</td><td>test_overflow_raises</td><td>极端时间戳溢出抛 OverflowError</td></tr>
+<tr><td>T10</td><td>test_decompose_structure</td><td>ID 可正确拆解为时间戳 + 序列号</td></tr>
+</table>
+
+<h3>10.2 模型集成测试（<code>tests/test_job_health.py::TestNewIdStrategy</code>）</h3>
+
+<table>
+<tr><th>#</th><th>测试用例</th><th>验证内容</th></tr>
+<tr><td>I1</td><td>test_cron_infos_gets_50bit_id</td><td>CronInfos 获得大数字 ID 且 JS 安全</td></tr>
+<tr><td>I2</td><td>test_job_log_gets_50bit_id</td><td>JobLog 获得大数字 ID</td></tr>
+<tr><td>I3</td><td>test_new_task_no_inherited_health</td><td>新任务无继承的 health 记录</td></tr>
+<tr><td>I4</td><td>test_two_tasks_get_different_ids</td><td>两个任务获得不同且递增的 ID</td></tr>
+</table>
+
+<h3>10.3 运行命令</h3>
+<pre>
+# 仅运行 ID 生成器测试
+python -m unittest tests.test_id_generator -v
+
+# 仅运行 ID 策略集成测试
+python -m unittest tests.test_job_health.TestNewIdStrategy -v
+
+# 全量回归
+bash scripts/cronpilot.sh test
+</pre>
+
+<!-- ============================================================ -->
+<h2 id="faq">11. FAQ</h2>
+
+<h3>Q1：为什么不用 UUID？</h3>
+<p>UUID（128-bit / 36 字符字符串）作为主键会显著增加索引体积和 JOIN 开销。
+CronPilot 的数据规模不需要分布式唯一性，50-bit 整数在保证唯一的同时保持了整数主键的性能优势。</p>
+
+<h3>Q2：为什么不用标准 64-bit Snowflake？</h3>
+<p>标准 Snowflake 最大值 ~1.8×10<sup>19</sup> 超过 JavaScript <code>MAX_SAFE_INTEGER</code>（9.0×10<sup>15</sup>），
+前端 JSON 解析会丢失末尾精度，需要字符串化传输或引入 BigInt polyfill。
+50-bit 方案完全避免了这个问题。</p>
+
+<h3>Q3：4096 IDs/秒够用吗？</h3>
+<p>CronPilot 是定时任务调度系统，典型场景：</p>
+<ul>
+<li>任务创建：手动操作，频率极低（&lt;1/秒）</li>
+<li>日志写入：与活跃任务数成正比，百级并发已是极端场景</li>
+</ul>
+<p>4096/秒对于 CronPilot 绰绰有余。溢出时生成器自动等待下一秒，不会报错。</p>
+
+<h3>Q4：系统时钟回拨怎么办？</h3>
+<p>生成器通过 <code>_last_ts</code> 追踪上次生成时的时间戳。如果当前时间 ≤ <code>_last_ts</code>（即时钟回拨），
+序列号继续递增直到溢出，溢出后 spin-wait 直到时钟追上。
+这保证了 ID 的单调性，但时钟长时间回拨（超过 1 秒）会导致短暂阻塞。</p>
+
+<h3>Q5：Epoch 为什么选 2024-09-01？</h3>
+<p>选择一个接近项目启用时间的日期作为 Epoch，可以让时间戳部分的初始值较小（约 6 千万），
+ID 以较短的数字（12 位）开始，随时间自然增长。比使用 Unix Epoch（1970-01-01）产生的
+17 亿级初始值更紧凑。</p>
+
+<h3>Q6：如何从 ID 中提取创建时间？</h3>
+<pre>
+import datetime
+
+def id_to_utc(id_val):
+    ts_offset = id_val &gt;&gt; 12
+    unix_ts = ts_offset + 1725148800  # Epoch
+    return datetime.datetime.utcfromtimestamp(unix_ts)
+
+# id_to_utc(260504313856)
+# → datetime(2026, 9, 7, 2, 34, 36)
+</pre>
+
+<h3>Q7：新旧 ID 如何区分？</h3>
+<p>通过数值大小即可区分：旧自增 ID 通常 &lt; 1000，而 50-bit ID 的最小值约为 260,000,000,000（12 位）。
+业务逻辑无需区分——两种 ID 在数据库中以相同的整数类型存储，完全透明共存。</p>
+
+<!-- ============================================================ -->
+<h2 id="comparison">12. 方案对比（选型依据）</h2>
+
+<table>
+<tr><th>方案</th><th>位数</th><th>十进制长度</th><th>JS 安全</th><th>每秒容量</th><th>时间跨度</th><th>适合场景</th></tr>
+<tr><td>SQLite AUTOINCREMENT</td><td>63 bit</td><td>1~19</td><td>⚠️ 后期超限</td><td>无限制</td><td>—</td><td>单节点、ID 不会被复用</td></tr>
+<tr><td>标准 Snowflake (64-bit)</td><td>64 bit</td><td>18~19</td><td>❌</td><td>4096/worker</td><td>~69 年</td><td>分布式系统</td></tr>
+<tr><td><strong>CronPilot 50-bit（选定）</strong></td><td>50 bit</td><td>12~15</td><td>✅</td><td>4096</td><td>~8700 年</td><td>单进程、JS 友好</td></tr>
+<tr><td>缩短版 53-bit</td><td>53 bit</td><td>13~16</td><td>✅（临界）</td><td>4096</td><td>~8700 年</td><td>需更多位扩展</td></tr>
+<tr><td>UUID v4</td><td>128 bit</td><td>36 char</td><td>✅（字符串）</td><td>无限制</td><td>—</td><td>分布式、索引代价可接受</td></tr>
+</table>
+
+<div class="success">
+<strong>选型结论</strong>：50-bit 方案在 JS 精度安全、ID 紧凑性、实现简洁性之间取得最佳平衡，
+完全满足 CronPilot 单进程部署的需求，且无需前端任何适配。
+</div>
+
+<!-- ============================================================ -->
+<h2>附录：常量定义</h2>
+<pre>
+# datas/utils/id_generator.py
+
+_EPOCH      = 1725148800    # 2024-09-01 00:00:00 UTC
+_SEQ_BITS   = 12            # 序列号位数
+_SEQ_MASK   = 0xFFF         # (1 &lt;&lt; 12) - 1 = 4095
+_JS_MAX_SAFE = 9007199254740991  # 2^53 - 1
+</pre>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="CronPilot-50bit-ID生成器技术文档.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

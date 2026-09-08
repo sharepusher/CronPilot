@@ -67,6 +67,8 @@ def main():
         _drop_resource_groups_code_column(backend=backend)
         _migrate_time_columns_to_bigint()
         _rename_log_id_to_trace_id(backend=backend)
+        _cleanup_orphan_health_records()
+        _ensure_id_columns_bigint(backend=backend)
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
         ensure_existing_users_have_token()
@@ -108,6 +110,14 @@ def _ensure_job_log_columns():
         alters.append("ALTER TABLE job_log ADD COLUMN finished_at BIGINT")
     if 'timeout_sec' not in cols:
         alters.append("ALTER TABLE job_log ADD COLUMN timeout_sec INTEGER")
+    if 'trigger_source' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN trigger_source VARCHAR(16)")
+    if 'actual_url' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN actual_url TEXT")
+    if 'resolved_ip' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN resolved_ip VARCHAR(45)")
+    if 'trigger_delay_ms' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN trigger_delay_ms INTEGER")
     if not alters:
         return
     with db.engine.begin() as conn:
@@ -781,6 +791,59 @@ def _rename_log_id_to_trace_id(backend='sqlite'):
         print('OK: log_id -> trace_id 列重命名完成 ->', ', '.join(renamed))
     else:
         print('OK: trace_id 列已存在，无需重命名')
+
+
+def _cleanup_orphan_health_records():
+    """OPT-P0-21: 删除 job_health 中 cron_info_id 在 cron_infos 中不存在的孤儿记录。
+
+    幂等：无孤儿时不做任何操作。
+    """
+    from sqlalchemy import text
+
+    result = db.session.execute(text(
+        'DELETE FROM job_health '
+        'WHERE cron_info_id NOT IN (SELECT id FROM cron_infos)'
+    ))
+    if result.rowcount:
+        db.session.commit()
+        print('OK: OPT-P0-21 孤儿 job_health 清理 -> %d 行' % result.rowcount)
+
+
+def _ensure_id_columns_bigint(backend='sqlite'):
+    """OPT-P0-21: MySQL 环境下将 cron_infos.id 和 job_log.id 从 INT 升级为 BIGINT。
+
+    SQLite 无需操作（INTEGER 底层已支持 8 字节）。
+    """
+    if backend != 'mysql':
+        return
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    targets = [
+        ('cron_infos', 'id'),
+        ('job_log', 'id'),
+    ]
+    altered = []
+    for table, col in targets:
+        if not insp.has_table(table):
+            continue
+        col_info = [c for c in insp.get_columns(table) if c['name'] == col]
+        if not col_info:
+            continue
+        col_type = str(col_info[0]['type']).upper()
+        if 'BIGINT' in col_type:
+            continue
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text(
+                    'ALTER TABLE %s MODIFY COLUMN %s BIGINT NOT NULL AUTO_INCREMENT'
+                    % (table, col)
+                ))
+            altered.append('%s.%s' % (table, col))
+        except Exception as e:
+            print('WARN: ALTER %s.%s -> BIGINT 失败: %s' % (table, col, e))
+    if altered:
+        print('OK: OPT-P0-21 ID 列升级为 BIGINT ->', ', '.join(altered))
 
 
 if __name__ == '__main__':

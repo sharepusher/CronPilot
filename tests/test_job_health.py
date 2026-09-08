@@ -78,6 +78,73 @@ class TestUpdateJobHealth(unittest.TestCase):
         self.assertEqual(row.health_status, HEALTH_FAILING)
 
 
+class TestNewIdStrategy(unittest.TestCase):
+    """OPT-P0-21: 新 ID 策略下创建的任务使用 50-bit 时间戳 ID。"""
+
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        self.app.config['TESTING'] = True
+        db.init_app(self.app)
+        self.ctx = self.app.app_context()
+        self.ctx.push()
+        from datas.model.cron_infos import CronInfos  # noqa: F401
+        from datas.model.job_log import JobLog  # noqa: F401
+        from datas.model.job_health import JobHealth  # noqa: F401
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.ctx.pop()
+
+    def test_cron_infos_gets_50bit_id(self):
+        from datas.model.cron_infos import CronInfos
+        cif = CronInfos(
+            task_name='test50bit', task_keyword='', req_url='https://example.com',
+            status=1, scope_type='GLOBAL',
+        )
+        db.session.add(cif)
+        db.session.flush()
+        self.assertGreater(cif.id, 1_000_000_000,
+                           "Expected 50-bit ID, got %d" % cif.id)
+        self.assertLess(cif.id, 9007199254740991,
+                        "ID exceeds JS MAX_SAFE_INTEGER")
+
+    def test_job_log_gets_50bit_id(self):
+        from datas.model.job_log import JobLog
+        jl = JobLog(cron_info_id=999, content='test', status='success', create_time=0)
+        db.session.add(jl)
+        db.session.flush()
+        self.assertGreater(jl.id, 1_000_000_000,
+                           "Expected 50-bit ID, got %d" % jl.id)
+
+    def test_new_task_no_inherited_health(self):
+        """新任务的 ID 是全新的，不会命中任何已有的 job_health 记录。"""
+        from datas.model.cron_infos import CronInfos
+        cif = CronInfos(
+            task_name='fresh', task_keyword='', req_url='https://example.com',
+            status=1, scope_type='GLOBAL',
+        )
+        db.session.add(cif)
+        db.session.flush()
+
+        row = db.session.get(JobHealth, cif.id)
+        self.assertIsNone(row, "Fresh task should have no health record")
+
+    def test_two_tasks_get_different_ids(self):
+        from datas.model.cron_infos import CronInfos
+        c1 = CronInfos(task_name='a', task_keyword='', req_url='https://example.com',
+                        status=1, scope_type='GLOBAL')
+        c2 = CronInfos(task_name='b', task_keyword='', req_url='https://example.com',
+                        status=1, scope_type='GLOBAL')
+        db.session.add_all([c1, c2])
+        db.session.flush()
+        self.assertNotEqual(c1.id, c2.id)
+        self.assertGreater(c2.id, c1.id, "IDs should be monotonically increasing")
+
+
 class TestCronListHealthFilters(unittest.TestCase):
     """health=failing vs health=today_fail 口径分离。"""
 
@@ -118,6 +185,7 @@ class TestCronListHealthFilters(unittest.TestCase):
             from datas.model.job_log import JobLog  # noqa: F401
             from datas.model.job_health import JobHealth  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
             db.create_all()
             self._seed()
 

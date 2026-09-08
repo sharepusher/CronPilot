@@ -5,11 +5,12 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app import db
+from datas.utils.id_generator import next_id
 
 
 class JobLog(db.Model):
     __tablename__ = 'job_log'
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(db.BigInteger, primary_key=True, default=next_id)
     trace_id: Mapped[str] = mapped_column(
         'trace_id',
         db.String(65),
@@ -46,14 +47,23 @@ class JobLog(db.Model):
     timeout_sec: Mapped[Optional[int]] = mapped_column(
         db.Integer, nullable=True, doc='本次执行的超时阈值（秒）；NULL 表示使用系统默认'
     )
+    trigger_source: Mapped[Optional[str]] = mapped_column(
+        db.String(16), nullable=True, doc='触发来源: schedule | manual | one_shot'
+    )
+    actual_url: Mapped[Optional[str]] = mapped_column(
+        db.TEXT, nullable=True, doc='实际发出的完整 URL（含注入的 trace_id/sign 参数）'
+    )
+    resolved_ip: Mapped[Optional[str]] = mapped_column(
+        db.String(45), nullable=True, doc='DNS pinning 解析到的 IP 地址'
+    )
+    trigger_delay_ms: Mapped[Optional[int]] = mapped_column(
+        db.Integer, nullable=True, doc='调度启动开销（毫秒）：@single_task 装饰器入口到 cron_do 函数体 t0 的时间差，通常 0-2ms；非 APScheduler 调度抖动'
+    )
 
     def to_json(self):
         return {
             'id': self.id,
-            'job_id': self.job_id,
-            'remark': self.remark,
             'content': self.content,
-            'traces': self.traces,
             'status': self.status,
             'create_time': self.create_time,
         }

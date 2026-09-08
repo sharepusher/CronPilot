@@ -7,6 +7,56 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 修复 — OPT-P0-21 新任务继承旧健康记录 + 50-bit ID 策略升级
+
+- **问题**：新建任务 `test123`（cron_info_id=14）创建后立即显示"健康异常"（consecutive_failures=1969），原因是 SQLite ID 复用导致新任务继承了已删除旧任务的 job_health 和 job_log 数据
+- **根因**：SQLite `INTEGER PRIMARY KEY` 无 AUTOINCREMENT 允许 ID 复用；`job_health` / `job_log` 无外键约束；`create_cron()` 获取新 ID 后无清理逻辑
+- **修复**：
+  - 核心业务表（`cron_infos`、`job_log`）主键升级为 50-bit 时间戳 ID（38-bit 秒时间戳 + 12-bit 序列号），从根源消除 ID 复用
+  - 新增 `datas/utils/id_generator.py`：线程安全的 ID 生成器，12 位十进制，8700 年可用，4096 ID/秒，完全在 JS `MAX_SAFE_INTEGER` 范围内
+  - `ensure_business_tables.py` 新增孤儿 job_health 清理 + MySQL BIGINT 列迁移
+  - 存量数据修复：清理 3 条孤儿 health 记录、重置 test123 health、删除 59 条旧任务遗留日志
+- **前端影响**：无（50-bit < 2^53，JS 精度安全）
+- **⚠️ API 兼容**：新创建的任务/日志 ID 从 12 位数字开始（如 `260504313856`），旧记录保留原始小 ID，二者共存无冲突
+- **测试**：10 个 ID 生成器测试 + 4 个新 ID 策略测试 + 全量回归 713 测试通过
+- **设计文档**：`doc/design/新任务继承旧健康记录Bug设计.html`
+
+### 修复 — 触发术语全仓治理
+
+- 代码与测试：URL 安全校验函数重命名为 `validate_trigger_url`，并同步调用链与单测
+- 用户可见文案：`触发URL安全校验未通过` 语义统一到“触发请求”模型
+- 指标与日志：历史英文术语统一为 `trigger request` / `触发请求`
+- 文档与规则：清理 `doc/`、`README.md`、`AGENTS.md`、`.cursor/rules/` 中不准确术语
+- 复盘文档：`doc/postmortem/2026-09-trigger-terminology-cleanup.html`
+
+### 增强 — 任务链路日志完整性补全
+
+- **背景**：CronPilot 的结果层日志（job_log + Prometheus + 健康聚合）设计完善，但过程层日志存在盲区——从 APScheduler 触发到 HTTP 发出之间的中间状态不可观测
+- **变更**：
+  - **应用日志** 4 处新增：`cron_do` 入站日志（`cron.start`）、HTTP 触发请求发出前日志（`cron.http_sending`）、任务创建成功日志（`cron.created`）、Scheduler 注册成功日志（`cron.scheduler_registered`）
+  - **调度器操作日志**：`toggle_status` resume/pause 成功后写 INFO 日志
+  - **`job_log` 表 4 个新列**：`trigger_source`（触发来源：schedule/manual/one_shot）、`actual_url`（含注入 trace_id 的完整 URL，`cronpilot_sign` 已脱敏为 `***`）、`resolved_ip`（DNS pinning IP）、`trigger_delay_ms`（调度启动开销，通常 0-2ms，非 APScheduler 调度抖动）
+  - **详情页增强**：触发方式从硬编码"定时调度"改为动态读取（定时调度/手动执行/一次性任务），新增展示调度规则（cron 表达式）、调度延迟、实际请求 URL、DNS Pinning IP
+  - **`cron_run_now`** 传递 `trigger_source='manual'` 区分手动执行
+- **DB 迁移**：`ensure_business_tables.py` 自动补列（SQLite/MySQL 通用）
+- **测试**：新增 `tests/test_lifecycle_logging.py`（17 个用例），总测试数 702
+- **设计文档**：[doc/design/任务链路日志完整性增强设计.html](doc/design/任务链路日志完整性增强设计.html)
+- **同期 Bug 修复**（2026-09-07）：
+  - `crons.py` 内层 `except` 路径 `_actual_url` NameError（在 `cronpilot_sign` 计算异常时导致异常处理器本身崩溃）
+  - `actual_url` 字段对 GET 请求 URL 中 `cronpilot_sign` 值进行脱敏（`***`），防止 `log:read` 角色读取签名
+  - `JobLog.to_json()` 引用了不存在的 `job_id`/`remark`/`traces` 字段（AttributeError 炸弹）
+
+### 安全修复 — SEC-6 SSRF DNS 解析失败 Fail-Open → Fail-Closed（P1）
+
+- **问题**：`url_security.py` 两层 SSRF 校验中，DNS 解析失败时均返回 `True`（放行），攻击者可利用 DNS 瞬断绕过 IP 黑名单
+- **修复**：
+  - Layer 1（`validate_trigger_url`）+ Layer 2（`validate_and_resolve_url`）DNS 失败时默认 **fail-closed**（拒绝请求）
+  - `_resolve_host_ips()` 新增 1 次 DNS 重试（间隔 0.5s），减少瞬时 DNS 抖动误拦
+  - 新增 `conf.ini` 配置项 `url_ssrf_dns_fail_open=0`，内网 DNS 不稳定环境可设 `1` 恢复旧行为
+- **测试**：7 个新增用例（`TestUrlSecurity` 2 个 + `TestValidateAndResolve` 2 个 + `TestDnsRetry` 3 个），总测试数 685
+- **复盘文档**：[doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html](doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html)
+- **设计文档**：`doc/design/Redesign代码全面Review修复方案-2026-08.html` §3.1 SEC-6
+
 ### 修复 — CQ-9 调度器启动异常静默吞掉（P1）
 
 - **问题**：`app/__init__.py` 中 `cron_check()` 被 `except Exception: pass` 包裹，调度器对账失败（DB 连接、表结构等）完全无日志
@@ -449,7 +499,7 @@ Dashboard 任务列表「业务组」列和组筛选下拉改为按用户可见�
 - **模型层**：`JobLog.log_id` → `JobLog.trace_id`（`mapped_column('log_id', ...)`，数据库列名通过迁移脚本 `ALTER TABLE RENAME COLUMN` 同步更改）；`JobLogItems.log_id` → `JobLogItems.trace_id`；`JobHealth.last_run_log_id` → `JobHealth.last_run_trace_id`
 - **外部 API 参数**：定时触发请求参数 `cronpilot_log_id` → `cronpilot_trace_id`（影响签名计算）；`POST /api/cron/add_log` 入参 `cronpilot_log_id` → `cronpilot_trace_id`；`GET /api/cron/log_detail` 查询参数 `log_id` → `trace_id`，响应字段 `log_id` → `trace_id`
 - **UI 显示**：列表页列头 `log_id` → `追踪码`；详情页 `Log ID` → `追踪码`；标题 `执行 #<hash>` 保留（使用 `trace_id` 前 8 位）
-- **术语**：用户可见文本中 `回调` → `定时触发`（内部安全校验字符串保留以兼容历史日志数据）
+- **术语**：用户可见文本中 `触发` → `定时触发`（内部安全校验字符串保留以兼容历史日志数据）
 
 **迁移**：`scripts/ensure_business_tables.py` 自动执行 `ALTER TABLE RENAME COLUMN`（SQLite 3.25+ / MySQL 8.0+）
 
@@ -1550,7 +1600,7 @@ Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly 
 - **Defense-in-depth:** `data-update-url`, `data-run-url`, `data-edit-url` only emitted when user has `cron:write`; `data-retire-url` only when user has `cron:retire`.
 - **Bug fix — URL double-append:** `onRunNow` / `onToggle` previously appended `?id=N` to a URL already containing `?id=N` from Jinja `url_for`, producing `endpoint?id=1?id=1` and a "任务不存在" error. Fixed by using `props.runUrl` / `props.updateUrl` directly. Guard test `test_run_url_already_contains_id_param` added.
 - **UX fix — run-now no longer forces page navigation:** After a successful "立即执行", the result log detail now opens in an `open_iframe_dialog` (same as the "运行记录" button), keeping the user on the task list. Fallback: inline link if `open_iframe_dialog` is unavailable.
-- **Terminology fix:** `job_log_detail.html` label changed from "回调: <url>" to "触发 URL: <url>", and "由回调方…写入" to "由业务方上报", eliminating confusing "callback" framing.
+- **Terminology fix:** `job_log_detail.html` label changed from "触发: <url>" to "触发 URL: <url>", and "由业务方…写入" to "由业务方上报", eliminating confusing "trigger request" framing.
 - **Test coverage:** Added `test_vue_mount_point_data_attrs_present` asserting all 10 `data-*` props and the Vue bundle script tag are server-rendered in the cron list HTML. Existing permission tests updated to check `data-can-write` / `data-can-retire` attributes instead of jQuery-rendered button text. New integration test `test_cron_ops_integration.py` covers URL format, CSRF header validation, and RBAC permission enforcement via real HTTP session.
 - **CI gate (F1-c):** New `.github/workflows/frontend-build.yml` runs `npm ci && npm run build` on changes to `frontend/**` or `app/static/dist/**`, then fails if the committed dist file diverges from the freshly-built output.
 - **Process guard:** `.cursor/rules/cronpilot-format-guard.mdc` extended with explicit HTML visible-structure constraints (table headers, colspan, button text, CSS class additions) to prevent out-of-scope AI edits.
@@ -1591,7 +1641,7 @@ Complete Mockup-to-code implementation of all 26 v2 routes. Each batch strictly 
 
 ### Bug fixes (post-release patch, included in 2.2.0)
 
-- **CSRF token missing from AJAX form submissions (B-1):** `common.js` `js-ajax-form` handler called `$.ajaxSubmit()` without injecting the `csrf_token` in the `beforeSubmit` callback — every AJAX form submission (create group, add user, etc.) was rejected with "csrf校验失败". Fixed by adding CSRF token injection from `<meta name="csrf-token">` inside `beforeSubmit`. Added full-chain integration tests (`tests/test_csrf_integration.py`) using `requests.Session` to prevent regression.
+- **CSRF token missing from AJAX form submissions (B-1):** `common.js` `js-ajax-form` handler called `$.ajaxSubmit()` without injecting the `csrf_token` in the `beforeSubmit` trigger request — every AJAX form submission (create group, add user, etc.) was rejected with "csrf校验失败". Fixed by adding CSRF token injection from `<meta name="csrf-token">` inside `beforeSubmit`. Added full-chain integration tests (`tests/test_csrf_integration.py`) using `requests.Session` to prevent regression.
   - *Root cause:* The `js-ajax-dialog-btn` code path already had CSRF injection; the `js-ajax-form` path did not. Python unit tests operate via `test_client.post(data={csrf_param: token})` and bypass the JavaScript layer entirely, so the bug was invisible to the test suite.
 - **Timestamp `%f` literal in JSON logs (B-2):** `_CronPilotJsonFormatter` was initialised with `datefmt='%Y-%m-%dT%H:%M:%S.%f%z'`, but `logging.Formatter.formatTime()` calls `time.strftime()` internally — `%f` (microseconds) is a `datetime.strftime()` extension not supported by `time.strftime()`, causing the literal string `%f` to appear in every log timestamp. Fixed by overriding `formatTime()` in `_CronPilotJsonFormatter` to use `datetime.datetime.fromtimestamp()`. Added `tests/test_logging_format.py` asserting that the timestamp is free of `%f` literals and parseable via `datetime.fromisoformat()`.
 - **Logout CSRF (forced-logout attack):** `/rbac/logout` accepted unauthenticated `GET` and `POST` with no CSRF check, allowing an attacker to embed a cross-origin request that logs out the victim silently. Fixed by adding `@csrf_protect` to `/rbac/logout` and changing the topbar and force-reset logout UI from `<a href>` GET links to inline `<form method="post">` with `csrf_token`.
@@ -1657,7 +1707,7 @@ The original v2.2.0 tag (`20dd148`) was released before the above bugs were disc
 
 ## [2.1.1] — 2026-07-21 · Security hardening (cluster lock, SECRET_KEY, CSRF)
 
-Hardens cluster mutex, production session signing, and admin write CSRF. **Scheduling callbacks and `/api/*` contracts are unchanged.** Supported Python remains **3.8–3.11**.
+Hardens cluster mutex, production session signing, and admin write CSRF. **Scheduling trigger requests and `/api/*` contracts are unchanged.** Supported Python remains **3.8–3.11**.
 
 ### Security & reliability
 
@@ -1676,7 +1726,7 @@ Hardens cluster mutex, production session signing, and admin write CSRF. **Sched
 
 ## [2.1.0] — 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
 
-This release upgrades CronPilot’s application and ORM runtime. **Task scheduling behavior, management UI, and the HTTP callback / progress-log API stay compatible** for deployments that already follow the documented install path. Supported Python remains **3.8–3.11**.
+This release upgrades CronPilot’s application and ORM runtime. **Task scheduling behavior, management UI, and the HTTP trigger request / progress-log API stay compatible** for deployments that already follow the documented install path. Supported Python remains **3.8–3.11**.
 
 ### What’s new
 
@@ -1826,7 +1876,7 @@ This release does **not** introduce breaking table drops or mandatory data migra
 
 ## [0.2.0] — 2026-06-10 · 执行可观测、依赖与部署加固、管理端体验
 
-执行结果状态与失败原因、管理端列表与导航体验，以及运行时依赖与 Docker / CI 加固。**回调协议不变**（`cronpilot_log_id` / `cronpilot_sign` / `add_log`）。
+执行结果状态与失败原因、管理端列表与导航体验，以及运行时依赖与 Docker / CI 加固。**触发协议不变**（`cronpilot_log_id` / `cronpilot_sign` / `add_log`）。
 
 ### 执行可观测
 
@@ -1874,25 +1924,25 @@ This release does **not** introduce breaking table drops or mandatory data migra
 
 ## [0.1.0] — 2026-05-29 · 首发
 
-HTTP 定时回调调度、Web / API 管理、基础安全与质量能力、技术文档与 **Apache-2.0** 许可。
+HTTP 定时触发调度、Web / API 管理、基础安全与质量能力、技术文档与 **Apache-2.0** 许可。
 
-### 回调与 API
+### 触发与 API
 
 | 参数 / 接口 | 说明 |
 |-------------|------|
 | `cronpilot_log_id` | 每次触发的执行 UUID |
-| `cronpilot_sign` | 回调签名（MD5） |
+| `cronpilot_sign` | 触发签名（MD5） |
 | `POST /api/cron/add_log` | 进度回传（必传 `cronpilot_log_id`、`content`） |
 
 ### 安全与质量
 
 - 任务与日志访问走 ORM / 参数化路径；管理端密码支持哈希。
-- 回调 URL SSRF 防护（`block_private_ip` 等）。
+- 触发 URL SSRF 防护（`block_private_ip` 等）。
 - 统一 JSON 响应（`errcode` 为数字）；Cron 校验与任务写入统一服务层。
 
 ### 对接检查清单
 
-- [ ] 业务回调读取并验签 `cronpilot_log_id` / `cronpilot_sign`
+- [ ] 业务触发读取并验签 `cronpilot_log_id` / `cronpilot_sign`
 - [ ] 长任务进度使用 `POST /api/cron/add_log`
 - [ ] 生产建议开启 SSRF 防护
 - [ ] 管理端密码建议使用哈希

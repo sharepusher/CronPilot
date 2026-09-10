@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-09 全局管理员可停用种子账号复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:960px;margin:2em auto;line-height:1.7;color:#333;padding:0 16px}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}h2{border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:1.6em}
+table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;vertical-align:top}th{background:#f8f8f8}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px}
+</style>
+</head>
+<body>
+<p><a href="index.html">← 返回复盘索引</a></p>
+<h1>2026-09 全局管理员可停用种子账号复盘</h1>
+<p>日期：2026-09-09 · 关联：OPT-P2-15 补丁 · 产品确认：维持旧设计（全局 admin 可编辑种子），但<strong>不可停用</strong>种子</p>
+
+<h2>1) Bug 定位</h2>
+<p><code>app/rbac/views.py</code> 的 <code>_check_management_scope()</code> 在 <code>_actor_bypasses_scope()</code> 为真时直接放行；全局业务管理员（空 <code>group_ids</code>）因此可调用 <code>/rbac/users/set_active</code> 成功停用种子 <code>username=admin</code>。证据：探测 POST 返回 <code>errcode=0 / 已停用用户「admin」</code>。</p>
+
+<h2>2) 根因</h2>
+<p>种子保护写在「非 bypass」分支里，把「Scope 绕过」错误等同于「可对种子做全部管理动作」。OPT-P2-15 原文允许全局 admin 编辑种子，但未把「停用种子」单独列为永久禁止；服务层 <code>set_user_active</code> / <code>update_user</code> 也没有按用户名硬拦截。</p>
+
+<h2>3) 测试漏洞</h2>
+<p>已有用例覆盖「按组管理员不可操作种子」「不可停用自己」「不可停用最后一名 admin」，但<strong>没有</strong>「全局 bypass admin 停用种子」反向用例，导致缺口长期绿测。</p>
+
+<h2>4) 修复</h2>
+<ul>
+  <li>服务层：<code>set_user_active</code> / <code>update_user(is_active=0)</code> 对 <code>is_seed_admin_username</code> 一律拒绝，文案「系统管理员账号不可停用」。</li>
+  <li>视图层：<code>users_set_active</code> 在 scope 检查前拦截种子停用。</li>
+  <li>UI：用户列表对种子隐藏停用按钮；编辑页状态改为只读「启用（系统管理员不可停用）」。</li>
+  <li>设计：更新 <code>doc/design/管理员admin-Scope差异化设计.html</code> 停用矩阵行。</li>
+</ul>
+
+<h2>5) 防护测试</h2>
+<p><code>tests/test_rbac_phase.py::TestRbacUsersManage.test_cannot_disable_seed_admin_via_set_active_or_edit</code>：全局 admin 对种子的 set_active / edit(is_active=0) 均失败；列表无停用按钮；编辑页只读文案存在；库中种子仍 <code>is_active=1</code>。</p>
+
+<h2>6) 同类排查</h2>
+<ul>
+  <li>API 无用户启停端点（无同源洞）。</li>
+  <li>按组管理员路径本已由 <code>_check_management_scope</code> 拦截，仍受益于服务层硬拦。</li>
+  <li>重置密码 / 重置 Token / 编辑资料：按产品确认仍允许全局 admin（本轮不改）。</li>
+</ul>
+
+<h2>7) 预防方案</h2>
+<p><strong>措施</strong>：在 <code>.cursor/rules/rbac.mdc</code> 增加硬规则——种子 <code>admin</code> 不可被任何主体停用；服务层必须在 <code>set_user_active</code> / <code>update_user</code> 双路径拦截；新增回归测试名固定。</p>
+<p><strong>验证</strong>：</p>
+<pre>python -m unittest tests.test_rbac_phase.TestRbacUsersManage.test_cannot_disable_seed_admin_via_set_active_or_edit -v
+grep -n "系统管理员账号不可停用" app/rbac/services.py app/rbac/views.py</pre>
+
+<footer style="margin-top:2em;color:#64748b;font-size:.85rem"><a href="index.md">Markdown 索引</a> · <a href="2026-09-全局管理员可停用种子账号.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

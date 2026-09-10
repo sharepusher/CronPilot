@@ -810,19 +810,20 @@ $(document).on('click', '.rr-expand-btn', function() {
 <p><strong>结论</strong>：展开行与个人资料页<strong>字段有重叠但不适合直接复用模板</strong>。原因：① 数据模型不同（<code>RbacUser</code> vs <code>RbacRegistrationRequest</code>）；② 展开行需要嵌入 <code>&lt;tr&gt;</code> 中，与卡片布局不兼容；③ 展开行只展示主表格<strong>未包含的补充字段</strong>，避免信息重复。但<strong>视觉语言对齐</strong>：标签颜色、字号、间距参照个人资料页的 <code>pf-info-item</code> 风格。</p>
 
 <h3>6b. 审批通过后的数据流转</h3>
-<p>审批通过后，<code>approve_registration()</code>（<code>app/rbac/services.py</code> L961–1033）执行以下流程：</p>
+<p>审批通过后，<code>approve_registration()</code>（<code>app/rbac/services.py</code>）执行以下流程。
+<strong>OPT-P0-22</strong> 起：同名停用不再删除旧行，改为原行覆盖启用（权威见
+<a href="停用用户同名恢复设计.html">停用用户同名恢复设计</a>）。</p>
 
 <table>
 <thead><tr><th>步骤</th><th>操作</th><th>数据映射</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>校验申请状态为 <code>pending</code></td><td>—</td></tr>
-<tr><td>2</td><td>检查用户名冲突（启用用户）</td><td>若冲突 → 自动拒绝并写 <code>review_comment='用户名已被占用'</code></td></tr>
-<tr><td>3</td><td>删除同名已停用旧用户（释放 UNIQUE）</td><td>—</td></tr>
-<tr><td>4</td><td><strong>创建 <code>RbacUser</code></strong></td><td>见下方字段映射表</td></tr>
-<tr><td>5</td><td>绑定业务组</td><td><code>req.group_ids</code> → 逐个写入 <code>UserGroup(user_id, group_id)</code>；<code>__ALL__</code> 不写行</td></tr>
+<tr><td>2</td><td>检查用户名冲突（启用用户）或同名停用目标二次校验</td><td>启用冲突 / 目标已启用 → 自动拒绝并写清原因</td></tr>
+<tr><td>3</td><td><strong>同名停用</strong>：在原 <code>RbacUser</code> 行上覆盖启用（保留 <code>user_id</code>）</td><td>共享 <code>_overwrite_disabled_user_inplace</code>；组全量替换；Token 重签；<code>auth_version +1</code></td></tr>
+<tr><td>4</td><td><strong>无同名</strong>：创建新 <code>RbacUser</code></td><td>见下方字段映射表</td></tr>
+<tr><td>5</td><td>绑定业务组</td><td><code>req.group_ids</code> → 全量替换 <code>UserGroup</code>；<code>__ALL__</code> 不写行</td></tr>
 <tr><td>6</td><td>更新申请状态</td><td><code>req.status='approved'</code>、<code>req.reviewer_id</code>、<code>req.update_time</code></td></tr>
-<tr><td>7</td><td>自动签发 API Token</td><td><code>_auto_issue_token(user)</code></td></tr>
-<tr><td>8</td><td>审计日志</td><td><code>action='user:register_approve'</code></td></tr>
+<tr><td>7</td><td>审计日志</td><td>同名覆盖：<code>user:reactivate</code> + <code>detail</code>；新建：<code>user:register_approve</code></td></tr>
 </tbody>
 </table>
 

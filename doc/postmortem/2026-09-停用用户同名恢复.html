@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>2026-09 停用用户同名覆盖启用（OPT-P0-22）复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:980px;margin:2em auto;line-height:1.75;color:#333;padding:0 16px}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}
+h2{border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:1.8em}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px;font-size:.92em}
+pre{background:#f8fafc;padding:12px 14px;border-radius:6px;overflow:auto;font-size:.88em;border:1px solid #e2e8f0}
+table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;vertical-align:top}th{background:#f8f8f8}
+.danger{background:#fee2e2;padding:1em;border-left:4px solid #dc2626;margin:1em 0}
+.ok{background:#d4edda;padding:1em;border-left:4px solid #28a745;margin:1em 0}
+.warn{background:#fff7e6;padding:1em;border-left:4px solid #d97706;margin:1em 0}
+</style>
+</head>
+<body>
+<p><a href="index.html">← 返回复盘索引</a></p>
+<h1>2026-09 停用用户同名覆盖启用（OPT-P0-22）复盘</h1>
+<p><strong>日期</strong>：2026-09-09　<strong>关联设计</strong>：
+<a href="../design/停用用户同名恢复设计.html">停用用户同名恢复设计.html</a>（rev.3）　
+<strong>相关</strong>：
+<a href="2026-09-auth-version-session-failopen.html">auth_version Session 缺键 Fail-Open</a></p>
+
+<div class="danger">
+<strong>一句话</strong>：同名再申请被错误实现为「删除停用用户 + 新建」，破坏 <code>user_id</code> 连续性与历史日志；同时停用未可靠撤销 Web Session。OPT-P0-22 改为原行覆盖启用 + <code>auth_version</code> fail-closed，且申请人零同名提示。
+</div>
+
+<h2>1) Bug 定位</h2>
+<ul>
+  <li><code>approve_registration()</code> / <code>create_user()</code> 历史路径：发现同名 <code>is_active=0</code> 时删除旧行再插入，导致 <code>user_id</code> 变化、组/审计引用孤儿风险。</li>
+  <li>审批 UI 文案「曾被停用 / 将被替换」暗示删建，且未说明日志继承。</li>
+  <li>停用仅清 Token，Session 内角色快照可继续使用（Session 撤销见独立复盘 B2）。</li>
+</ul>
+
+<h2>2) 根因</h2>
+<ol>
+  <li><code>rbac_users.username</code> UNIQUE 与「停用名可再申请」冲突时，工程上选了删行释放约束，而未保留身份主键。</li>
+  <li>产品误把「同名再申请」等同「原使用人回来」，文案与删建实现互相强化。</li>
+  <li>Web 鉴权信任 Session 快照，停用未递增认证版本。</li>
+</ol>
+
+<h2>3) 测试漏洞</h2>
+<ul>
+  <li>旧测试断言「旧用户被删除」为成功条件，锁死了错误策略。</li>
+  <li>缺少：ID 不变、组全量替换、失败回滚、申请人响应零提示、审计 <code>detail</code> 无凭据、Session 缺键失效。</li>
+</ul>
+
+<h2>4) 修复（B1–B5）</h2>
+<table>
+<tr><th>批次</th><th>内容</th></tr>
+<tr><td>B1</td><td><code>tests/test_user_reactivation.py</code> 锁定删行重建不可接受</td></tr>
+<tr><td>B2</td><td><code>auth_version</code> 缺键 fail-closed + 一次性 bump</td></tr>
+<tr><td>B3</td><td><code>_overwrite_disabled_user_inplace</code>；标记列；审计 <code>detail</code>；§4.5 凭据分支</td></tr>
+<tr><td>B4</td><td>§4.2 文案；「同名停用」标签；审批/管理员确认弹窗；<code>cp:form-confirm-reactivation</code></td></tr>
+<tr><td>B5</td><td>§3.1.7 / 路线图 / RELEASE / 本复盘 / 门禁</td></tr>
+</table>
+
+<h2>5) 防护测试</h2>
+<pre>python -m unittest tests.test_user_reactivation -v
+# 覆盖：ID 稳定、组不继承、回滚、stale target、audit detail、文案门禁、Session 缺键
+python -m unittest tests.test_redesign_sidebar -v
+python scripts/smoke_routes.py --check</pre>
+
+<h2>6) 同类排查</h2>
+<ul>
+  <li><code>rg "db.session.delete" app/rbac/</code>：无删除 <code>RbacUser</code> 实体的生产路径（组关系 delete 除外）。</li>
+  <li><code>rg "曾被停用|将被替换|停用后不可恢复启用" app/templates/redesign/</code>：应为空。</li>
+  <li>直接启用路径仍拒绝：<code>set_user_active</code> / <code>update_user</code>。</li>
+</ul>
+
+<h2>7) 预防方案（可验证）</h2>
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证</th></tr>
+<tr>
+  <td>P1</td>
+  <td>单元门禁禁止生产路径 <code>db.session.delete(…user…)</code></td>
+  <td><code>tests/test_user_reactivation.py::test_service_never_deletes_disabled_user_row</code></td>
+  <td><code>python -m unittest tests.test_user_reactivation.TestDisabledUserOverwriteIdentity.test_service_never_deletes_disabled_user_row -v</code></td>
+</tr>
+<tr>
+  <td>P2</td>
+  <td>审批/管理文案契约静态断言（申请人禁词 + 审批人必含覆盖/继承）</td>
+  <td><code>TestApplicantSurfaceNoReactivationHints</code> · <code>TestApproverAdminCopyB4</code></td>
+  <td><code>python -m unittest tests.test_user_reactivation.TestApproverAdminCopyB4 -v</code></td>
+</tr>
+<tr>
+  <td>P3</td>
+  <td>设计安全契约：Session/鉴权伪代码实施验收须对照；抢跑半成品以设计全文重审</td>
+  <td><code>AGENTS.md</code> · <code>.cursor/rules/cronpilot-project.mdc</code></td>
+  <td>见 B2 复盘；回归 <code>TestDisabledSessionRevocation</code></td>
+</tr>
+</table>
+
+<div class="ok">
+<strong>结论</strong>：同名停用以「覆盖启用 + 日志继承」为产品语义；工程上永不删行；Session 以 <code>auth_version</code> fail-closed。B1–B5 已闭合。
+</div>
+
+<h2>附录：B5 回归 — 侧边栏 HTTP 用例缺 auth_version</h2>
+<table>
+<tr><th>要素</th><th>内容</th></tr>
+<tr><td>Bug 定位</td><td><code>tests/test_redesign_sidebar.py::_login_client</code> 注入 Session 未写 <code>auth_version</code>；B2 fail-closed 后 Viewer/Operator 反向路径变成 302 登录而非 403</td></tr>
+<tr><td>根因</td><td>HTTP 集成 Fixture 在引入缺键失效后未同步；仍假设「有 is_login 即可鉴权」</td></tr>
+<tr><td>测试漏洞</td><td>侧边栏用例未覆盖「缺键 → 踢登录」与「有键 → 走权限 403」的区分</td></tr>
+<tr><td>修复</td><td><code>_login_client</code> 写入 <code>sess['auth_version'] = int(user.auth_version or 0)</code></td></tr>
+<tr><td>防护</td><td><code>python -m unittest tests.test_redesign_sidebar -v</code> 须全绿</td></tr>
+<tr><td>同类排查</td><td>凡 <code>session_transaction</code> + <code>is_login</code> 的 HTTP 用例均应带 <code>auth_version</code>（与 DB 对齐）</td></tr>
+<tr><td>预防</td><td>会话测试矩阵（缺键 / 不匹配 / bump）已在 AGENTS.md；新增登录态 HTTP Fixture 必须写入 auth_version</td></tr>
+</table>
+
+<footer style="margin-top:2rem;color:#64748b;font-size:.85rem">
+<a href="../design/停用用户同名恢复设计.html">设计</a> ·
+<a href="../design/停用用户同名恢复-页面对比Demo.html">Demo</a> ·
+<a href="../index.html">文档索引</a>
+ · <a href="2026-09-停用用户同名恢复.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

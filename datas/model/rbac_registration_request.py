@@ -42,6 +42,13 @@ class RbacRegistrationRequest(db.Model):
     pending_username: Mapped[Optional[str]] = mapped_column(
         db.String(64), nullable=True, unique=True, default=None
     )
+    # OPT-P0-22：同名停用内部标记（不向申请人暴露）
+    is_reactivation: Mapped[int] = mapped_column(
+        db.SmallInteger, nullable=False, default=0
+    )
+    target_user_id: Mapped[Optional[int]] = mapped_column(
+        db.Integer, nullable=True, default=None
+    )
 
     def set_password(self, plain):
         self.password_hash = hash_password(plain)

@@ -63,6 +63,12 @@
       success: function(data) {
         $btn.removeClass('disabled').prop('disabled', false).text(origText);
 
+        /* OPT-P0-22：同名停用二次确认 — 跳过错误 toast / 跳转，交由页面弹窗 */
+        if (data.data && data.data.confirm_reactivation) {
+          $(document).trigger('cp:form-confirm-reactivation', [data, $form, $btn]);
+          return;
+        }
+
         if (data.errmsg && window.CpToast) {
           if (data.errcode === 0) {
             CpToast.success(data.errmsg);

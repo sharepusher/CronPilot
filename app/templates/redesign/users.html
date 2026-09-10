@@ -25,7 +25,7 @@
   <a class="um-chip{% if chip == 'inactive' %} um-chip-active{% endif %}" data-chip="inactive" href="{{ url_for('rbac.users_list', chip='inactive', username=search_username or None) }}">停用 <span class="um-cnt" id="um-cnt-inactive">{{ cnt_inactive }}</span></a>
 </div>
 <div class="um-hint-row">
-  <span class="um-hint">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</span>
+  <span class="um-hint">无物理删除；停用后不可直接启用。同名再占用须经审批人或管理员确认覆盖启用。新建用户默认密码 changeme。</span>
 </div>
 
 <div class="c-table-wrap">
@@ -66,7 +66,7 @@
         <span class="dm-role-badge" id="dm-role"></span>
       </div>
       <div class="dm-warn-box">
-        ⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。
+        ⚠ 停用后不可直接启用。此后若有同名注册获批，或管理员添加同名用户并确认，将在原用户记录上覆盖资料与权限并重新启用（历史日志因同一用户 ID 保留）。
       </div>
       <div class="dm-field">
         <label class="dm-label">停用原因 <span class="dm-req">*</span></label>

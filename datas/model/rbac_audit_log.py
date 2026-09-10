@@ -19,3 +19,5 @@ class RbacAuditLog(db.Model):
     status: Mapped[str] = mapped_column(db.String(16), nullable=False, default='allow')
     create_time: Mapped[int] = mapped_column(db.BigInteger, nullable=False, default=0, index=True)
     actor_group_ids: Mapped[str] = mapped_column(db.String(255), nullable=False, default='')
+    # OPT-P0-22：可选 JSON 快照（禁止写入凭据）
+    detail: Mapped[Optional[str]] = mapped_column(db.TEXT, nullable=True, default=None)

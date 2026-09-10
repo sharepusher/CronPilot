@@ -19,6 +19,7 @@ def inject_rbac_context():
         role_badge_class,
         role_display_name,
     )
+    from .policy import is_seed_admin_username
     has_perm = make_has_perm()
     ctx = {
         'current_user': get_current_user(),
@@ -27,6 +28,7 @@ def inject_rbac_context():
         'current_user_groups': get_current_user_groups(),
         'role_display_name': role_display_name,
         'role_badge_class': role_badge_class,
+        'is_seed_admin_username': is_seed_admin_username,
         'pending_reg_count': _get_pending_reg_count() if has_perm('user:manage') else 0,
     }
     ctx.update(inject_csrf_context())

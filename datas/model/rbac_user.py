@@ -18,6 +18,9 @@ class RbacUser(db.Model):
     password_hash: Mapped[str] = mapped_column(db.String(255), nullable=False)
     role: Mapped[str] = mapped_column(db.String(20), nullable=False, default='viewer')
     is_active: Mapped[int] = mapped_column(db.SMALLINT, nullable=False, default=1)
+    auth_version: Mapped[int] = mapped_column(
+        db.Integer, nullable=False, default=0, server_default='0'
+    )
     must_reset_password: Mapped[int] = mapped_column(
         db.SMALLINT, nullable=False, default=0
     )

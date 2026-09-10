@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OPT-P0-22：停用用户同名申请恢复设计</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1180px;margin:2em auto;line-height:1.7;color:#333}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}h2{border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:2em}
+h3{margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;vertical-align:top}th{background:#f8f8f8}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px}.decision{background:#e8f4fd;padding:1em;border-left:4px solid #2563eb}.warn{background:#fff7e6;padding:1em;border-left:4px solid #d97706}.danger{background:#fee2e2;padding:1em;border-left:4px solid #dc2626}.ok{background:#d4edda;padding:1em;border-left:4px solid #28a745}
+.demo-embed{margin:1em 0 1.5em;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#f8fafc}
+.demo-embed-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;background:#0f172a;color:#e2e8f0;font-size:12.5px}
+.demo-embed-bar a{color:#67e8f9}
+.demo-embed iframe{display:block;width:100%;height:3200px;border:0;background:#fff}
+</style>
+</head>
+<body>
+<h1>OPT-P0-22：停用用户同名申请恢复设计</h1>
+<p><strong>状态</strong>：已交付（B1–B5 · 2026-09-09）　<strong>创建</strong>：2026-09-09　<strong>更新</strong>：2026-09-09　<strong>优先级</strong>：P0（权限与身份连续性）</p>
+<p><strong>编号说明</strong>：本方案为独立纠偏项 <strong>OPT-P0-22</strong>。原 <code>OPT-P1-10</code> 仍专指「用户注册审批与忘记密码」已交付能力；本设计<strong>覆盖并替代</strong>《<a href="用户注册审批与忘记密码设计.html">用户注册审批与忘记密码设计</a>》§3.1.7「删除同名停用用户后新建」策略，并同步修订《<a href="注册审批结果状态显示设计.html">注册审批结果状态显示设计</a>》相关数据流与警示文案。</p>
+<div class="decision">
+<strong>产品语义（rev.3 · 强制）</strong>：
+<ul style="margin:.4em 0 0">
+  <li>同名再申请<strong>不一定是原使用人</strong>，更常见是另一同名人占用该用户名。</li>
+  <li><strong>对申请人（注册表单 / 登录注册提示）不做任何「同名停用 / 恢复」提示</strong>；申请人流程与普通新注册一致。</li>
+  <li>仅<strong>审批人</strong>（注册审批）与<strong>管理员</strong>（添加用户）在命中同名停用账号时需要知情：将<strong>覆盖</strong>该停用账号的全部资料与权限，但因复用同一 <code>user_id</code>，<strong>历史审计/操作等日志会被继承</strong>。</li>
+</ul>
+</div>
+<p class="decision"><strong>前端对比 Demo（必须用浏览器打开审阅）</strong>：左侧 Before / 右侧 After。<br>
+直达：<a href="停用用户同名恢复-页面对比Demo.html">停用用户同名恢复-页面对比Demo.html</a><br>
+本地服务：<code>http://127.0.0.1:5001/docs/design/停用用户同名恢复-页面对比Demo.html</code><br>
+下方 §4.2.1 已内嵌完整对比。</p>
+
+<nav>
+<strong>目录</strong>
+<ol>
+<li><a href="#problem">问题</a></li>
+<li><a href="#root-cause">根因</a></li>
+<li><a href="#solution">方案</a></li>
+<li><a href="#blocking">阻塞项闭合（rev.2）</a></li>
+<li><a href="#ui-compare">前端页面对比（内嵌 Demo）</a></li>
+<li><a href="#scope">范围</a></li>
+<li><a href="#batches">分批</a></li>
+<li><a href="#acceptance">验收</a></li>
+<li><a href="#risk">风险与回滚</a></li>
+<li><a href="#postmortem-outline">预期复盘提纲</a></li>
+<li><a href="#confirm">用户确认点</a></li>
+</ol>
+</nav>
+
+<h2 id="problem">1. 问题</h2>
+<p>用户停用时仅写 <code>is_active=0</code>，但同名注册获批或管理员同名添加时，现有实现会物理删除停用用户并新建一行。该行为破坏用户身份连续性，并可能使没有外键的业务组、审批人和审计引用成为孤儿；SQLite 复用被删除的最高行号时，新用户还可能继承旧用户关系。</p>
+<p class="danger"><strong>独立安全问题</strong>：Web 鉴权当前主要信任 Session 内的角色与业务组，停用操作没有可靠撤销所有已登录 Session。新策略保留原 <code>user_id</code> 并恢复启用，因此必须同时引入会话版本校验，不能只更新用户资料。</p>
+
+<h2 id="root-cause">2. 根因</h2>
+<ol>
+  <li><code>rbac_users.username</code> 为全表唯一，但产品又允许停用用户名重新申请，现有实现通过删除旧行释放唯一约束。</li>
+  <li>把“同一用户名再次申请”错误建模成「删除旧身份、插入新身份」，而工程上必须保留同一 <code>user_id</code> 以免历史日志与引用断裂；产品上则<strong>不假定</strong>申请人为原使用人。</li>
+  <li><code>user_groups.user_id</code>、<code>reviewer_id</code>、审计 <code>user_id</code> 缺少完整外键/生命周期约束。</li>
+  <li>用户创建、业务组绑定和部分资料保存存在分次提交，不能保证整体原子性。</li>
+  <li>停用只清理 API Token，没有使已签发 Web Session 立即失效。</li>
+</ol>
+
+<h2 id="solution">3. 方案</h2>
+<div class="decision"><strong>决策</strong>：停用用户永不删除。同名注册申请或管理员同名添加命中停用用户时：<strong>仅审批人/管理员</strong>看到警示；确认后在原用户行上<strong>全量覆盖</strong>资料与权限并重新启用，保留原 <code>user_id</code>（因此历史日志继承）。禁止“删除旧用户 + 插入新用户”。<strong>申请人对同名停用无任何提示。</strong></div>
+
+<h3>3.1 两条入口</h3>
+<table>
+<tr><th>入口</th><th>发现同名启用用户</th><th>发现同名停用用户</th></tr>
+<tr><td>自主注册申请</td><td>提交阶段拒绝</td><td>允许提交；<strong>申请人侧无提示、无特殊文案</strong>；后台标记 <code>is_reactivation=1</code>（仅供审批侧识别）；审批列表标签 + 批准弹窗对<strong>审批人</strong>警示</td></tr>
+<tr><td>管理员添加用户</td><td>拒绝</td><td>不立即写入；对<strong>管理员</strong>展示同名停用警示与覆盖后果，确认后覆盖原行并启用（见 §4.5）</td></tr>
+</table>
+<p>用户名匹配：统一执行 <code>_normalize_username()</code> = <code>strip()</code>（本轮<strong>不</strong>强制 lower；SQLite/MySQL 均按当前列 collation 做等值匹配）。双后端回归测试覆盖同名启用冲突与同名停用处理。若未来改为大小写不敏感，须单独设计迁移，本轮不做。</p>
+
+<h3>3.2 审批/确认后的原子覆盖启用</h3>
+<p>注册审批与管理员确认<strong>复用同一内部函数</strong>（如 <code>_reactivate_user_from_payload(...)</code>），在单个数据库事务内完成：</p>
+<ol>
+  <li>重新读取并锁定同名用户（<code>SELECT … FOR UPDATE</code>）；若已被其他请求恢复为启用，当前操作失败，不覆盖现有资料。</li>
+  <li>保留 <code>id</code>、<code>username</code>、<code>create_time</code>；历史 <code>last_login_at</code> 可保留（审计连续性），不向新使用人展示为“欢迎回来”。</li>
+  <li>按入口语义<strong>全量覆盖</strong>资料与凭据（见 <a href="#creds">§4.5</a>）——角色、业务组、邮箱、花名、岗位、密码策略均以本次申请/表单为准。</li>
+  <li>业务组<strong>全量替换</strong>，禁止与旧业务组合并；全局管理员（<code>__ALL__</code>）应删除全部旧 <code>user_groups</code> 行。</li>
+  <li>撤销旧 API Token，签发全新 Token 和有效期。</li>
+  <li>递增 <code>auth_version</code>，使停用前签发的全部 Web Session 永久失效。</li>
+  <li>最后设置 <code>is_active=1</code>，写入 <code>status_reason</code>（含申请编号或「管理员确认同名覆盖启用」）；更新注册申请为 approved（若来自注册）。</li>
+  <li>事务成功后清除 API scope 缓存，并记录 <code>user:reactivate</code> 审计 + <code>detail</code> 前后快照（见 <a href="#model">§4.3</a>）。</li>
+</ol>
+<p class="warn"><strong>审批人必须知情的后果</strong>：① 新资料/权限<strong>覆盖</strong>旧停用账号全部配置；② <strong>不</strong>删除用户行，<code>user_id</code> 不变，因此历史审计/操作日志等仍挂在同一 ID 下被继承；③ 旧 Session 与 Token 全部失效。弹窗文案禁止写成「本人回来恢复」或暗示申请人即原使用人。</p>
+
+<h3>3.3 停用与会话撤销</h3>
+<ul>
+  <li><code>set_user_active()</code> / <code>update_user()</code> 停用时除清空 Token 外，同时递增 <code>auth_version</code>。</li>
+  <li>登录成功时把 <code>auth_version</code> 写入 Session。</li>
+  <li>所有已登录 Web 请求（<code>before_app_request</code>）校验：用户存在、<code>is_active=1</code>、Session <code>auth_version</code> 等于数据库版本；失败立即 <code>session.clear()</code> 并要求重新登录。</li>
+  <li>恢复账号后只能使用该入口规定的新密码重新登录（见 §4.5）。</li>
+  <li>普通「设置启用」接口仍禁止直接启用；同名覆盖启用只能来自审批通过或管理员添加时的显式确认。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="blocking">4. 阻塞项闭合（rev.3）</h2>
+<p class="ok">以下为确认前闭合决策；实施必须严格按此执行。rev.3 相对 rev.2：纠正「申请人即原使用人」叙事，申请人侧零提示。</p>
+
+<h3 id="opt-num">4.1 编号：OPT-P0-22（不再占用 OPT-P1-10）</h3>
+<table>
+<tr><th>项</th><th>决策</th></tr>
+<tr><td>本方案编号</td><td><strong>OPT-P0-22</strong>（P0 · 身份连续性与会话安全纠偏）</td></tr>
+<tr><td>OPT-P1-10</td><td>保持既有含义：用户注册审批与忘记密码（已交付 v2.8.0）</td></tr>
+<tr><td>文档/路线图</td><td>确认后在 <code>doc/交付状态与路线图.html</code> 新增 OPT-P0-22 行；§3.1.7 改为指向本设计；RELEASE_NOTES 用 OPT-P0-22</td></tr>
+<tr><td>禁止</td><td>禁止在标题、索引、测试模块名中再把本纠偏标成 OPT-P1-10</td></tr>
+</table>
+
+<h3 id="copy">4.2 可见文案契约（旧 → 新）</h3>
+<p>原则：<strong>申请人可见面零同名提示</strong>；仅审批人/管理员可见同名停用警示。停用确认文案不再写「本人回来」。</p>
+<table>
+<tr><th>位置</th><th>旧文案</th><th>新文案</th></tr>
+<tr>
+  <td><code>users.html</code> 停用确认弹窗警示</td>
+  <td>⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。</td>
+  <td>⚠ 停用后不可直接启用。此后若有同名注册获批，或管理员添加同名用户并确认，将在原用户记录上覆盖资料与权限并重新启用（历史日志因同一用户 ID 保留）。</td>
+</tr>
+<tr>
+  <td><code>users_set_active.html</code> 警示</td>
+  <td>⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。</td>
+  <td>同上一行新文案。</td>
+</tr>
+<tr>
+  <td><code>users.html</code> footer hint（可选对齐）</td>
+  <td>无物理删除；停用/启用须填写缘由…</td>
+  <td>无物理删除；停用后不可直接启用。同名再占用须经审批人或管理员确认覆盖启用。</td>
+</tr>
+<tr>
+  <td><code>user_form.html</code> 编辑态停用选项</td>
+  <td>停用（不可恢复）</td>
+  <td>停用（不可直接启用）</td>
+</tr>
+<tr>
+  <td><code>user_form.html</code> 已停用只读</td>
+  <td>已停用（不可恢复）</td>
+  <td>已停用（不可直接启用）</td>
+</tr>
+<tr>
+  <td><strong>注册页 / 申请人任何界面</strong></td>
+  <td>（无，或误加恢复提示）</td>
+  <td><strong>不做任何同名停用提示</strong>（与普通新注册一致）</td>
+</tr>
+<tr>
+  <td><code>registration_review.html</code> 列表标签（仅审批人）</td>
+  <td>曾被停用</td>
+  <td>同名停用（高可见警示样式）</td>
+</tr>
+<tr>
+  <td><code>registration_review.html</code> 批准弹窗（仅审批人）</td>
+  <td>注意：该用户名曾被停用，审批通过后旧账号记录将被替换。</td>
+  <td>注意：用户名与已停用账号相同（user_id=…）。批准后<strong>不会删除</strong>旧行，将在该 user_id 上<strong>覆盖</strong>角色、业务组、邮箱、花名、岗位与密码，并撤销旧 Session / Token；该 ID 下的<strong>历史日志将被继承</strong>。申请人未必是原使用人。</td>
+</tr>
+<tr>
+  <td>管理员添加用户 · 二次确认弹窗（仅管理员）</td>
+  <td>（无）或静默删建</td>
+  <td>用户名与已停用账号相同（user_id=…）。确认后将<strong>覆盖</strong>该账号全部资料与权限并重新启用；历史日志因同一 user_id 保留；密码重置为默认并强制改密；旧 Session / Token 失效。新使用人未必是原使用人。</td>
+</tr>
+</table>
+<p><strong>交互契约</strong>：</p>
+<ul>
+  <li>注册提交：命中同名停用时静默允许；响应/页面<strong>不得</strong>出现「恢复」「曾被停用」等字样。</li>
+  <li>管理员添加命中停用用户：第一次提交返回 JSON <code>{confirm_reactivation: true, user_id, username, diff?}</code>，前端 <code>CpModal</code> 展示上表警示 + 差异后再次 POST <code>confirm_reactivation=1</code>；取消不写库。</li>
+  <li>注册审批：仅审批列表/弹窗对审批人展示「同名停用」；批准弹窗必须含覆盖 + 日志继承说明。</li>
+  <li>查看用户（view_mode）：不新增「如何恢复」提示（避免暗示原使用人路径）。</li>
+</ul>
+
+<h3 id="ui-compare">4.2.1 前端页面对比（内嵌 · Before / After）</h3>
+<p class="warn"><strong>请勿仅在 IDE 源码视图审阅本段</strong>。对比依赖 CSS 双栏布局，须用浏览器打开本 HTML（或下方独立 Demo）。黄框为变更焦点。</p>
+<div class="demo-embed">
+  <div class="demo-embed-bar">
+    <span>OPT-P0-22 rev.3 · 申请人零提示 · 审批人/管理员：同名停用 → 覆盖资料权限 + 同一 user_id 继承日志</span>
+    <a href="停用用户同名恢复-页面对比Demo.html" target="_blank" rel="noopener">新窗口打开独立 Demo ↗</a>
+  </div>
+  <iframe src="停用用户同名恢复-页面对比Demo.html" title="OPT-P0-22 前端页面对比 Demo" loading="lazy"></iframe>
+</div>
+
+<h3 id="model">4.3 数据模型：同名停用标记 + 审计快照</h3>
+
+<h4>4.3.1 注册申请表新增列</h4>
+<table>
+<tr><th>列</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>is_reactivation</code></td><td><code>SMALLINT NOT NULL DEFAULT 0</code></td><td>内部标记：提交时若存在同名且 <code>is_active=0</code> 则置 1。UI 展示为「同名停用」，不向申请人暴露</td></tr>
+<tr><td><code>target_user_id</code></td><td><code>INTEGER NULL</code></td><td>提交时锁定到的停用用户 <code>id</code>；非同名停用场景为 NULL</td></tr>
+</table>
+<p>迁移：<code>ensure_business_tables.py</code> 幂等 <code>ADD COLUMN</code>（SQLite / MySQL 双后端）。审批列表与弹窗以 <code>is_reactivation=1</code> 为准。</p>
+<p>审批时二次校验：若 <code>target_user_id</code> 对应用户已不存在或已启用，则拒绝并写清原因（不覆盖启用账号）。</p>
+
+<h4>4.3.2 审计表新增 <code>detail</code></h4>
+<table>
+<tr><th>列</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>rbac_audit_logs.detail</code></td><td><code>TEXT NULL</code></td><td>可选 JSON 文本；凭据类字段禁止写入</td></tr>
+</table>
+<p><code>user:reactivate</code> 审计约定：</p>
+<ul>
+  <li><code>action</code> = <code>user:reactivate</code></li>
+  <li><code>resource</code> = 用户名（保持 ≤128）</li>
+  <li><code>detail</code> = JSON，示例：</li>
+</ul>
+<pre>{
+  "request_id": 12,
+  "user_id": 14,
+  "source": "registration_approve" | "admin_create",
+  "before": {"role":"viewer","group_ids":[1],"email":"a@x","nickname":"旧","job_title":"qa","is_active":0},
+  "after":  {"role":"operator","group_ids":[2],"email":"b@x","nickname":"新","job_title":"tech","is_active":1}
+}</pre>
+<p><strong>禁止</strong>写入 <code>password_hash</code>、<code>api_token</code>、明文密码。管理员路径无 <code>request_id</code> 时该字段省略或为 null。</p>
+
+<h3 id="session">4.4 Session fail-closed 迁移策略（选定方案 A）</h3>
+<div class="decision"><strong>选定 A</strong>：功能首次启用时强制全员 Web Session 失效，禁止「缺省 0 == 0」放行旧 Session。</div>
+<ol>
+  <li>模型增加 <code>rbac_users.auth_version INTEGER NOT NULL DEFAULT 0</code>（已规划）。</li>
+  <li><strong>一次性迁移</strong>（<code>ensure_business_tables.py</code>，幂等标记）：列创建成功后立即执行<br>
+    <code>UPDATE rbac_users SET auth_version = COALESCE(auth_version, 0) + 1</code><br>
+    使得所有既有 Session（无 <code>auth_version</code> 或值为 0）与库中版本不一致。</li>
+  <li>登录成功：<code>session['auth_version'] = int(user.auth_version)</code>。</li>
+  <li>请求校验：<code>int(session.get('auth_version'))</code> 与 DB 比较时，若 Session <strong>缺少</strong>该键 → 视为失效（不得用 <code>or 0</code> 把缺失当成 0 去匹配）。推荐实现：
+    <pre>if 'auth_version' not in session: return False
+return int(session['auth_version']) == int(user.auth_version or 0)</pre>
+  </li>
+  <li>停用 / 恢复：各自再 <code>auth_version += 1</code>。</li>
+  <li>API Token：停用与恢复均清空并重签；API 路径继续以 Token + <code>is_active</code> 为准（与 Web Session 独立）。</li>
+</ol>
+<p class="warn">明确<strong>不做</strong>方案 B（「仅停用后才踢 Session」）。风险表中的「全员重登」承诺与本方案一致。</p>
+
+<h3 id="creds">4.5 凭据语义：注册审批覆盖 vs 管理员确认覆盖</h3>
+<table>
+<tr><th>项</th><th>注册审批（同名停用）</th><th>管理员添加确认（同名停用）</th></tr>
+<tr><td>密码</td><td>使用申请中的 <code>password_hash</code>（申请人自设）</td><td>重置为系统默认密码 <code>DEFAULT_USER_PASSWORD</code>（changeme）</td></tr>
+<tr><td><code>must_reset_password</code></td><td><strong>0</strong>（可用新密码直接登录）</td><td><strong>1</strong>（首次登录强制改密）</td></tr>
+<tr><td>API Token</td><td>撤销旧 Token → 签发新 Token</td><td>同左</td></tr>
+<tr><td><code>auth_version</code></td><td>+1</td><td>+1</td></tr>
+<tr><td>角色 / 邮箱 / 花名 / 岗位 / 业务组</td><td>以<strong>申请单</strong>为唯一数据源全量覆盖</td><td>以<strong>添加表单</strong>为唯一数据源全量覆盖</td></tr>
+<tr><td><code>status_reason</code></td><td><code>注册申请 #&lt;id&gt; 同名覆盖启用：&lt;reason&gt;</code></td><td><code>管理员确认同名覆盖启用</code></td></tr>
+<tr><td>审计 <code>source</code></td><td><code>registration_approve</code></td><td><code>admin_create</code></td></tr>
+</table>
+<p>两条入口必须调用同一核心函数，仅 payload / 凭据策略参数不同。</p>
+
+<!-- ============================================================ -->
+<h2 id="scope">5. 范围</h2>
+<h3>5.1 包含</h3>
+<ul>
+  <li>注册提交、审批通过、管理员添加用户三个入口的同名分支；申请人侧无同名提示。</li>
+  <li>同名覆盖启用服务、业务组全量替换、Token 重签、认证版本与 Web Session 校验。</li>
+  <li>§4.2 全部可见文案（停用提示 + 审批人/管理员警示；申请人零提示）。</li>
+  <li>§4.3 列迁移：<code>is_reactivation</code> / <code>target_user_id</code> / <code>auth_version</code> / <code>detail</code>。</li>
+  <li>§4.4 一次性 bump <code>auth_version</code> + Session 缺键失效。</li>
+  <li>SQLite/MySQL 迁移、RBAC/Scope/会话/竞态测试。</li>
+  <li>同步 OPT-P1-10 §3.1.7、注册审批结果状态设计、路线图、Release Notes。</li>
+</ul>
+<h3>5.2 不包含</h3>
+<ul>
+  <li>不删除任何停用用户，不创建同名第二条用户记录。</li>
+  <li>不修改任务 ID 策略（OPT-P0-21）。</li>
+  <li>不允许普通编辑页或状态接口绕过审批直接启用。</li>
+  <li>不对申请人展示任何同名停用/覆盖/恢复提示。</li>
+  <li>不沿用停用前密码、Token 或 Session。</li>
+  <li>本轮不改用户名大小写策略；不加全库外键（可后续单独 OPT）。</li>
+  <li>不强制改写 <code>doc/archive/</code> 历史 Mockup 原文。</li>
+</ul>
+
+<h2 id="batches">6. 分批</h2>
+<table>
+<tr><th>批次</th><th>内容</th><th>独立验收</th></tr>
+<tr><td>B1 · 回归测试 ✅</td><td>锁定「删行重建 / Session 不失效」的失败用例（内存库）；含抢跑代码对齐检查。<code>tests/test_user_reactivation.py</code>（7 用例，2026-09-09 已绿）</td><td>测试库严格隔离；断言旧策略不可接受</td></tr>
+<tr><td>B2 · 会话撤销 ✅</td><td><code>auth_version</code> 迁移 + 一次性 bump（<code>cp_schema_flags</code>）+ 缺键失效 + 停用/登录/请求闭环（2026-09-09）</td><td>部署后旧 Web Session 下一请求立即失效；停用后再失效一次</td></tr>
+<tr><td>B3 · 原子覆盖服务 ✅</td><td>保留旧行；§4.5 凭据分支；组全量替换；审计 detail；同名停用标记列（2026-09-09）</td><td>原 <code>user_id</code> 不变；旧组不继承；失败完整回滚</td></tr>
+<tr><td>B4 · 审批/管理 UI ✅</td><td>§4.2 文案；审批人「同名停用」标签与弹窗；管理员确认弹窗；申请人侧断言无提示（2026-09-09）</td><td>目标角色浏览器验证正向、取消和越权路径</td></tr>
+<tr><td>B5 · 文档与全量验证 ✅</td><td>覆盖 §3.1.7、路线图 OPT-P0-22、复盘、Release Notes、门禁（2026-09-09）</td><td>路由冒烟、RBAC 回归、文档同步全部通过</td></tr>
+</table>
+<p class="warn"><strong>抢跑代码</strong>：确认后以本 <strong>rev.3</strong> 为唯一准绳对齐（尤其申请人零提示、审批人「同名停用 + 覆盖 + 日志继承」文案、§4.4 缺键失效）；禁止「恢复申请 / 本人回来 / 旧账号将被替换」类文案。</p>
+
+<h2 id="acceptance">7. 验收</h2>
+<ol>
+  <li>停用用户行在停用、提交同名申请、审批前后均未发生 DELETE，启用后 <code>user_id</code> 保持不变。</li>
+  <li>同名启用用户不能注册或添加；同名停用可提交注册，且<strong>申请人页面/响应无任何同名提示</strong>。</li>
+  <li>审批人列表显示「同名停用」；批准弹窗明确：覆盖资料/权限 + 同一 user_id 继承历史日志 + 非假定原使用人。</li>
+  <li>审批通过后角色、资料和业务组与申请完全一致；停用前多余业务组为零。</li>
+  <li>管理员添加同名停用用户与注册审批共用核心；凭据行为符合 §4.5；确认弹窗语义同审批人。</li>
+  <li>功能首次启用后：既有 Web Session 下一请求失效；停用/覆盖启用后旧 Session、Token 均不可继续访问。</li>
+  <li>两个管理员并发审批同一用户名时只有一个成功，另一个安全失败。</li>
+  <li>覆盖事务任一步骤故障时，用户保持停用、原资料和原业务组完整。</li>
+  <li>历史审计仍可按原 <code>user_id</code> 正确展示；新审计含 <code>detail</code> 前后摘要且无凭据。</li>
+  <li><code>is_reactivation</code> / <code>target_user_id</code> 在提交同名停用冲突申请时正确写入；四种 RBAC 角色回归与文档门禁通过。</li>
+</ol>
+
+<h2 id="risk">8. 风险与回滚</h2>
+<table>
+<tr><th>风险</th><th>缓解</th><th>回滚</th></tr>
+<tr><td>恢复覆盖旧资料</td><td>审批前展示差异；申请/表单为唯一数据源；审计保存前后摘要</td><td>依据审计人工恢复资料，账号重新停用</td></tr>
+<tr><td>旧 Session 在恢复后重新生效</td><td>§4.4 bump + 缺键失效 + 每请求校验</td><td>再次递增版本并清空 Token</td></tr>
+<tr><td>并发审批覆盖</td><td>事务锁定用户与申请状态，提交前二次检查</td><td>竞争方回滚，不自动重试覆盖</td></tr>
+<tr><td>编号/文案漂移</td><td>§4.1 / §4.2 契约 + 文档门禁</td><td>以本设计为准回改文案与索引</td></tr>
+<tr><td>迁移导致全员需重登</td><td>预期行为；发布说明写明</td><td>不提供兼容放行</td></tr>
+</table>
+
+<h2 id="postmortem-outline">9. 预期复盘提纲（实现后落库）</h2>
+<p>正式复盘在实现完成后写入 <code>doc/postmortem/2026-09-停用用户同名恢复.html</code>。提纲：</p>
+<ol>
+  <li><strong>Bug 定位</strong>：同名注册审批和管理员添加路径会删除停用用户；Web Session 停用后未被可靠撤销。</li>
+  <li><strong>根因</strong>：为满足用户名唯一约束，把账号恢复错误实现为「删除旧身份、创建新身份」，同时把 Session 中的权限快照当成持续可信状态。</li>
+  <li><strong>测试漏洞</strong>：现有测试只断言旧用户被删除，没有验证旧组、旧 Session、审批引用、审计连续性和事务失败。</li>
+  <li><strong>修复</strong>：保留原行、审批警示、原子更新资料后恢复，并引入认证版本 + §4.4 fail-closed。</li>
+  <li><strong>防护测试</strong>：ID 不变、组全量替换、旧 Session 失效、缺键失效、双审批竞态和事务回滚。</li>
+  <li><strong>同类排查</strong>：检查所有 <code>RbacUser</code> DELETE 与 <code>is_active</code> 赋值点。</li>
+  <li><strong>预防方案</strong>：静态门禁禁止生产路径 <code>db.session.delete(RbacUser…)</code>；落地 <code>tests/test_user_reactivation.py</code> + CI。</li>
+</ol>
+
+<h2 id="confirm">10. 用户确认点</h2>
+<p class="decision">确认本设计（OPT-P0-22 <strong>rev.3</strong>）即表示同意：</p>
+<ul>
+  <li>停用用户永久保留；同名再占用经审批/管理员确认后，在原 <code>user_id</code> 上覆盖资料与权限并启用，历史日志继承。</li>
+  <li><strong>申请人零同名提示</strong>；仅审批人与管理员看到「同名停用 → 覆盖 + 日志继承」警示。</li>
+  <li>按 §4.2～§4.5 实施文案、模型、Session 与凭据语义。</li>
+  <li>确认后才允许继续对齐/完成业务代码。</li>
+</ul>
+<p>确认前不新增或扩大业务代码、模型、迁移脚本或页面变更范围（已有抢跑 diff 在确认后按本文件对齐）。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="停用用户同名恢复设计.md">Markdown</a> · <a href="../index.html">文档索引</a></footer>
+</body>
+</html>

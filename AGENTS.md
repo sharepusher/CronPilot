@@ -9,10 +9,17 @@
 | `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由；**新增枚举值扩展检查清单**（强制）|
 | `cronpilot-documentation.mdc`  | HTML+Markdown 双格式文档与 CI 同步                   |
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI                    |
-| `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；见详设） |
+| `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；**种子 `admin` 不可被任何主体停用**；见详设） |
 
 
 **协作闭环（强制）**：**设计文档（`doc/design/*.html`） → 用户 Review 并明确确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。**所有功能和页面变更（含 CSS/JS 代码质量修复）必须先创建正式设计文档（`doc/design/*.html`），禁止仅在聊天中给出设计而不落库**。设计文档须包含 7 项必备要素（问题/根因/方案/范围/分批/验收/风险）。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
+
+**设计安全契约验证（强制 · 2026-09 OPT-P0-22 追加）**：凡设计文档给出鉴权/Session/迁移相关推荐实现片段（伪代码），实施批次验收必须 `Read` 该片段并与实现逐行对照；**禁止**用对称默认值（如 Session/DB 两侧都 `or 0`）覆盖设计中的非对称语义（缺键 fail-closed）。B1 若声称锁定该安全能力，否定路径用例必须直接覆盖伪代码分支（含「键不存在」），不得只用「业务动作后版本变化」代替。**违反教训**：`doc/postmortem/2026-09-auth-version-session-failopen.html`。
+
+**会话/认证版本迁移测试矩阵（强制）**：新增 Web Session 版本类能力时，测试至少覆盖：(a) 缺键旧 Cookie；(b) 版本不匹配；(c) 一次性 bump 幂等。禁止 Fixture 总是写入版本键从而消灭 (a)。回归：`python -m unittest tests.test_user_reactivation.TestDisabledSessionRevocation tests.test_user_reactivation.TestAuthVersionOneTimeBump -v`。
+
+**抢跑安全半成品**：设计未确认前写入的鉴权代码，确认后必须以设计全文为唯一准绳重审；**不得**用「已有测试已绿」跳过缺键/迁移类否定用例。
+**所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 
 **所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 

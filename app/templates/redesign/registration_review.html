@@ -43,12 +43,13 @@
     </thead>
     <tbody>
       {% for req in page_data.items %}
-      <tr>
+      {% set is_same_name_disabled = req.is_reactivation or (req.username in disabled_usernames) %}
+      <tr data-reactivation="{{ 1 if is_same_name_disabled else 0 }}">
         <td class="rr-col-chk">{% if req.status == 'pending' %}<input type="checkbox" class="rr-select" value="{{ req.id }}">{% endif %}</td>
         <td class="cp-fw-600">
           {{ req.username }}
-          {% if req.username in disabled_usernames %}
-          <span class="pg-warn-tag">曾被停用</span>
+          {% if is_same_name_disabled %}
+          <span class="pg-warn-tag">同名停用</span>
           {% endif %}
         </td>
         <td><span class="rr-role-tag rr-role-{{ req.role }}">{{ req.role }}</span></td>
@@ -69,7 +70,11 @@
         <td class="mono cp-text-xs">{{ req.create_time|hms_display or '—' }}</td>
         <td>
           {% if req.status == 'pending' %}
-          <button type="button" class="btn-c btn-accent btn-xs js-approve-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">通过</button>
+          <button type="button" class="btn-c btn-accent btn-xs js-approve-btn"
+                  data-id="{{ req.id }}"
+                  data-username="{{ req.username }}"
+                  data-reactivation="{{ 1 if is_same_name_disabled else 0 }}"
+                  data-target-user-id="{{ req.target_user_id or '' }}">通过</button>
           <button type="button" class="btn-c btn-danger-c btn-xs js-reject-btn" data-id="{{ req.id }}" data-username="{{ req.username }}">拒绝</button>
           {% elif req.status == 'approved' %}
           <span class="pg-audit-badge pg-audit-badge-ok">已通过</span>
@@ -147,12 +152,17 @@
 
 {% block js %}
 <script>
-var disabledNames = {{ disabled_usernames|list|tojson }};
 var approveUrl = '{{ url_for("rbac.registration_approve") }}';
 var rejectUrl = '{{ url_for("rbac.registration_reject") }}';
 var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';
 
 function escHtml(s) { return window.escHtml ? window.escHtml(s) : s; }
+
+function reactivationWarnHtml(username, targetUserId) {
+    var idPart = targetUserId ? ('（user_id=' + escHtml(String(targetUserId)) + '）') : '';
+    return '<div class="pg-warn-block">注意：用户名与已停用账号相同' + idPart +
+        '。批准后<strong>不会删除</strong>旧行，将在该 user_id 上<strong>覆盖</strong>角色、业务组、邮箱、花名、岗位与密码，并撤销旧 Session / Token；该 ID 下的<strong>历史日志将被继承</strong>。申请人未必是原使用人。</div>';
+}
 
 function submitForm(action, fields) {
     var form = document.createElement('form');
@@ -203,9 +213,17 @@ $(document).on('change', '.rr-select', function() {
 $('#rr-batch-approve-btn').on('click', function() {
     var ids = getSelectedIds();
     if (!ids.length) return;
+    var reactCount = 0;
+    $('.rr-select:checked').each(function() {
+        if (String($(this).closest('tr').data('reactivation')) === '1') reactCount += 1;
+    });
+    var body = '确认批量通过 ' + ids.length + ' 条注册申请？';
+    if (reactCount > 0) {
+        body += '\n\n其中 ' + reactCount + ' 条为同名停用覆盖启用：将覆盖原账号资料与权限，并继承同一 user_id 的历史日志；申请人未必是原使用人。';
+    }
     CpConfirm.show({
         title: '批量通过',
-        body: '确认批量通过 ' + ids.length + ' 条注册申请？',
+        body: body,
         confirmText: '确认通过',
         onConfirm: function() {
             $.post(batchApproveUrl, { csrf_token: csrfToken, ids: ids.join(',') }, function(r) {
@@ -248,10 +266,9 @@ $(document).on('click', '.js-rr-expand', function() {
 $(document).on('click', '.js-approve-btn', function() {
     var id = $(this).data('id');
     var username = $(this).data('username');
-    var isDisabled = disabledNames.indexOf(username) >= 0;
-    var warnHtml = isDisabled
-        ? '<div class="pg-warn-block">注意：该用户名曾被停用，审批通过后旧账号记录将被替换。</div>'
-        : '';
+    var isReactivation = String($(this).data('reactivation')) === '1';
+    var targetUserId = $(this).data('target-user-id') || '';
+    var warnHtml = isReactivation ? reactivationWarnHtml(username, targetUserId) : '';
     CpModal({
         title: '批准注册申请',
         bodyHtml: '<p class="cp-modal-p">确认批准用户 <strong>' + escHtml(username) + '</strong> 的注册申请？</p>' + warnHtml,

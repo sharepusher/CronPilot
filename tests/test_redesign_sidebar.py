@@ -280,6 +280,8 @@ class TestRedesignSidebarHTTPAccess(unittest.TestCase):
             sess['role'] = user.role
             sess['is_login'] = True
             sess['group_ids'] = []
+            # OPT-P0-22：缺键会 fail-closed 踢登录，须与 DB auth_version 对齐
+            sess['auth_version'] = int(getattr(user, 'auth_version', 0) or 0)
         return client
 
     def test_viewer_denied_cron_add(self):

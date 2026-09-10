@@ -672,6 +672,61 @@ class TestRbacUsersManage(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('当前登录', resp.get_json().get('errmsg', ''))
 
+    def test_cannot_disable_seed_admin_via_set_active_or_edit(self):
+        """全局业务管理员可编辑种子，但任何路径不可停用种子 admin。"""
+        from datas.model.rbac_user import RbacUser
+
+        with self.app.app_context():
+            seed = RbacUser(username='admin', role='admin', is_active=1, create_time=utc_now_hms())
+            seed.set_password('x')
+            global_admin = RbacUser(
+                username='globalbiz', role='admin', is_active=1, create_time=utc_now_hms()
+            )
+            global_admin.set_password('x')
+            self.db.session.add_all([seed, global_admin])
+            self.db.session.commit()
+            seed_id = seed.id
+            actor_id = global_admin.id
+
+        self._login('admin', user_id=actor_id)
+        with self.client.session_transaction() as sess:
+            sess['username'] = 'globalbiz'
+            sess['group_ids'] = []
+        resp = self.client.post(
+            '/rbac/users/set_active',
+            data={'id': str(seed_id), 'is_active': '0', 'reason': '试图停用种子'},
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        self.assertIn('系统管理员账号不可停用', resp.get_json().get('errmsg', ''))
+
+        edit = self.client.post(
+            '/rbac/users/edit',
+            data={
+                'id': str(seed_id),
+                'role': 'admin',
+                'is_active': '0',
+                'group_ids': str(self.group_id),
+                'job_title': 'tech',
+            },
+            headers={'X-Requested-With': 'XMLHttpRequest'},
+        )
+        self.assertEqual(edit.status_code, 200)
+        self.assertEqual(edit.get_json().get('errcode'), 1)
+        self.assertIn('系统管理员账号不可停用', edit.get_json().get('errmsg', ''))
+
+        with self.app.app_context():
+            seed = self.db.session.get(RbacUser, seed_id)
+            self.assertEqual(seed.is_active, 1)
+
+        # 列表不展示种子停用按钮；编辑页状态只读
+        listing = self.client.get('/rbac/users')
+        body = listing.get_data(as_text=True)
+        self.assertNotIn('aria-label="停用用户 admin"', body)
+        edit_page = self.client.get('/rbac/users/edit?id=%s' % seed_id)
+        self.assertIn('系统管理员不可停用', edit_page.get_data(as_text=True))
+
 
 class TestForcedPasswordReset(unittest.TestCase):
     """新建用户强制改密 + 管理员触发重置。"""

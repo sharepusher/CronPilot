@@ -50,6 +50,8 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **管理员 admin Scope 差异化** OPT-P2-15 | 种子只读 · 管理员按组 · `__ALL__` · **v2.7.0** | [HTML](design/管理员admin-Scope差异化设计.html) | [MD](design/管理员admin-Scope差异化设计.md) |
+| **OPT-P0-22 停用用户同名申请恢复设计**（已交付） | 覆盖 OPT-P1-10 §3.1.7 · 保留原 user_id · 审批警示 · auth_version · 文案契约 | [HTML](design/停用用户同名恢复设计.html) · [页面对比 Demo](design/停用用户同名恢复-页面对比Demo.html) | [MD](design/停用用户同名恢复设计.md) |
+| **测试 Session 补齐 auth_version 修复设计**（已交付） | HTTP Fixture 对齐 OPT-P0-22 fail-closed · 侧边栏回归 | [HTML](design/测试Session补齐auth-version修复设计.html) | [MD](design/测试Session补齐auth-version修复设计.md) |
 | **审计日志 Scope 过滤 RFC** OPT-P2-16 | `actor_group_ids` LIKE 过滤 · **v2.7.0** | [HTML](design/审计日志Scope过滤RFC.html) | [MD](design/审计日志Scope过滤RFC.md) |
 | **Prometheus 指标 RFC** OPT-P1-06 | Prometheus 接入 · Grafana Dashboard · **v2.2.0** | [HTML](design/P1可观测性-Prometheus指标RFC.html) | [MD](design/P1可观测性-Prometheus指标RFC.md) |
 | Phase D3 · Docker pin 矩阵 | requirements-docker.txt · **v2.1.0** | [HTML](deps/PhaseD3-Docker-pin矩阵设计.html) | [MD](deps/PhaseD3-Docker-pin矩阵设计.md) |
@@ -100,6 +102,14 @@
 | 文档同步说明 | HTML↔MD · CI | — | [MD](qa/文档同步说明.md) |
 
 ---
+
+## 复盘文档（本轮新增）
+
+| 文档 | 说明 | HTML | Markdown |
+|------|------|------|----------|
+| **停用用户同名覆盖启用（OPT-P0-22）** | 删行重建 → 原行覆盖 · 申请人零提示 · auth_version fail-closed | [HTML](postmortem/2026-09-停用用户同名恢复.html) | [MD](postmortem/2026-09-停用用户同名恢复.md) |
+| **auth_version Session 缺键 Fail-Open** | OPT-P0-22 B2 | [HTML](postmortem/2026-09-auth-version-session-failopen.html) | [MD](postmortem/2026-09-auth-version-session-failopen.md) |
+| **全局管理员可停用种子账号** | Scope bypass 短路 · 双路径拦截 | [HTML](postmortem/2026-09-全局管理员可停用种子账号.html) | [MD](postmortem/2026-09-全局管理员可停用种子账号.md) |
 
 ## 在线访问（服务启动后）
 

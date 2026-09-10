@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OPT-P0-22 同名停用覆盖启用 — 前端页面对比 Demo（rev.3）</title>
+<style>
+:root{
+  --bg:#f4f6f8;--surface:#fff;--border:#e2e8f0;--ink:#0f172a;--muted:#64748b;--faint:#94a3b8;
+  --accent:#0891b2;--accent-bg:#ecfeff;--danger:#dc2626;--danger-bg:#fef2f2;--warn:#d97706;--warn-bg:#fffbeb;
+  --ok:#166534;--ok-bg:#dcfce7;--tag-bg:#ffedd5;--tag-fg:#9a3412;--line:#cbd5e1;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:13px}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:22px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 8px;font-size:13.5px}
+.meta{font-size:12px;color:var(--faint);margin-bottom:16px}
+.meta a{color:var(--accent)}
+.principle{background:#e8f4fd;border-left:4px solid #2563eb;padding:12px 14px;border-radius:0 8px 8px 0;margin-bottom:24px;font-size:13px}
+.principle strong{display:block;margin-bottom:6px}
+.toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:32px}
+.toc strong{display:block;margin-bottom:8px}
+.toc ol{margin:0;padding-left:1.3em}
+.section{margin-bottom:42px}
+.section-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--border)}
+.section-head h2{margin:0;font-size:16px}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.badge-page{background:#e0f2fe;color:#075985}
+.badge-change{background:var(--warn-bg);color:var(--warn)}
+.badge-none{background:#f1f5f9;color:#64748b}
+.note{font-size:12px;color:var(--muted);margin:0 0 12px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.compare{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+.panel-head{padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.panel-head.before{background:var(--danger-bg);color:#991b1b}
+.panel-head.after{background:var(--ok-bg);color:var(--ok)}
+.dot{width:7px;height:7px;border-radius:50%}
+.dot-red{background:var(--danger)}.dot-green{background:#16a34a}
+.panel-body{padding:16px;min-height:100px;background:#fafbfc}
+.hl{outline:2px solid #f59e0b;outline-offset:2px;border-radius:6px}
+.hl-label{display:inline-block;font-size:10px;font-weight:700;color:#92400e;background:#fde68a;padding:1px 6px;border-radius:4px;margin-bottom:6px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.page-head h3{margin:0;font-size:15px}
+.btn{display:inline-flex;align-items:center;border-radius:6px;padding:5px 10px;font-size:12px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:default}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn-xs{padding:4px 8px;font-size:11.5px}
+.hint{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.table th,.table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.table th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:11px}
+.warn-tag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;font-size:10.5px;font-weight:700;background:#fef3c7;color:#92400e}
+.warn-tag-new{background:var(--tag-bg);color:var(--tag-fg)}
+.role-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10.5px;background:#e0f2fe;color:#0369a1}
+.modal{border:1px solid var(--border);border-radius:10px;background:#fff;max-width:440px;box-shadow:0 10px 30px rgba(15,23,42,.12);overflow:hidden}
+.modal-h{padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px}
+.modal-b{padding:14px}
+.modal-f{padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:#f8fafc}
+.warn-box{background:var(--danger-bg);border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px 12px;font-size:12px;margin:10px 0}
+.warn-box-new{background:var(--warn-bg);border:1px solid #fcd34d;color:#92400e}
+.diff{font-size:11.5px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px;margin:10px 0}
+.diff dt{font-weight:600;color:var(--muted);float:left;width:88px;clear:left}
+.diff dd{margin:0 0 4px 92px}
+.form-row{display:grid;grid-template-columns:88px 1fr;gap:8px;align-items:center;margin-bottom:10px}
+.form-row label{font-size:12px;color:var(--muted)}
+.input,.select,textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;background:#fff}
+textarea{min-height:56px;resize:vertical}
+.readonly{display:inline-block;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:#f1f5f9;color:var(--muted);font-size:12px}
+.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+.ok-note{background:var(--ok-bg);border:1px solid #86efac;color:var(--ok);border-radius:8px;padding:10px 12px;font-size:12px}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--faint);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>OPT-P0-22 同名停用覆盖启用 — 前端页面对比 Demo</h1>
+  <p class="lead">rev.3 · 左侧 Before / 右侧 After · 黄框为变更焦点</p>
+  <p class="meta">关联：<a href="停用用户同名恢复设计.html">停用用户同名恢复设计.html</a> · 须用浏览器打开</p>
+
+  <div class="principle">
+    <strong>产品原则（rev.3）</strong>
+    同名再申请未必是原使用人。<b>申请人侧零提示</b>。仅<strong>审批人</strong>与<strong>管理员</strong>需知情：将覆盖旧停用账号的资料与权限；因同一 user_id，历史日志会被继承。
+  </div>
+
+  <nav class="toc">
+    <strong>对比清单</strong>
+    <ol>
+      <li><a href="#p0">注册页（申请人）— 无同名提示</a></li>
+      <li><a href="#p1">用户管理 · 停用确认弹窗</a></li>
+      <li><a href="#p2">停用用户独立页</a></li>
+      <li><a href="#p3">编辑用户 · 状态文案</a></li>
+      <li><a href="#p5">注册审批 · 列表 + 批准弹窗（审批人）</a></li>
+      <li><a href="#p6">添加用户 · 同名确认弹窗（管理员）</a></li>
+    </ol>
+  </nav>
+
+  <!-- P0 Applicant -->
+  <section class="section" id="p0">
+    <div class="section-head">
+      <h2>0. 注册页（申请人）</h2>
+      <span class="badge badge-page">register.html</span>
+      <span class="badge badge-none">申请人 · 零提示</span>
+    </div>
+    <p class="note">即使邮箱前缀对应用户名与已停用账号相同，注册页也与普通新注册完全一致，不出现「曾被停用 / 恢复 / 覆盖」等任何提示。</p>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before · 若误加提示（禁止）</div>
+        <div class="panel-body">
+          <h3 style="margin:0 0 12px;font-size:15px">申请注册</h3>
+          <div class="card">
+            <div class="form-row"><label>邮箱 *</label><input class="input" value="returning@corp.com"></div>
+            <div class="form-row"><label>密码 *</label><input class="input" type="password" value="******"></div>
+            <div class="hl"><span class="hl-label">禁止</span>
+              <div class="warn-box" style="margin:0">⚠ 该用户名曾被停用，提交后将恢复原账号…</div>
+            </div>
+            <div style="margin-top:12px"><span class="btn btn-accent btn-xs">提交申请</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After · 正确（与普通注册相同）</div>
+        <div class="panel-body">
+          <h3 style="margin:0 0 12px;font-size:15px">申请注册</h3>
+          <div class="card">
+            <div class="form-row"><label>邮箱 *</label><input class="input" value="returning@corp.com"></div>
+            <div class="form-row"><label>密码 *</label><input class="input" type="password" value="******"></div>
+            <div class="hl"><span class="hl-label">正确</span>
+              <div class="ok-note">无同名停用提示。申请人看不到任何与已停用账号相关的信息。</div>
+            </div>
+            <div style="margin-top:12px"><span class="btn btn-accent btn-xs">提交申请</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P1 -->
+  <section class="section" id="p1">
+    <div class="section-head">
+      <h2>1. 用户管理 · 停用确认弹窗</h2>
+      <span class="badge badge-page">users.html</span>
+      <span class="badge badge-change">文案</span>
+    </div>
+    <p class="note">面向管理员停用操作。说明后续可能被同名占用覆盖，不写「本人回来」。</p>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before</div>
+        <div class="panel-body">
+          <div class="modal" style="margin:0 auto">
+            <div class="modal-h">停用用户</div>
+            <div class="modal-b">
+              <div><strong>returning</strong> <span class="role-tag">viewer</span></div>
+              <div class="hl" style="margin-top:10px"><span class="hl-label">变更点</span>
+                <div class="warn-box" style="margin:0">⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。</div>
+              </div>
+              <div style="margin-top:10px"><textarea placeholder="停用原因…"></textarea></div>
+            </div>
+            <div class="modal-f"><span class="btn btn-xs">取消</span><span class="btn btn-danger btn-xs">确认停用</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After</div>
+        <div class="panel-body">
+          <div class="modal" style="margin:0 auto">
+            <div class="modal-h">停用用户</div>
+            <div class="modal-b">
+              <div><strong>returning</strong> <span class="role-tag">viewer</span></div>
+              <div class="hl" style="margin-top:10px"><span class="hl-label">变更点</span>
+                <div class="warn-box-new warn-box" style="margin:0">⚠ 停用后不可直接启用。此后若有同名注册获批，或管理员添加同名用户并确认，将在原用户记录上覆盖资料与权限并重新启用（历史日志因同一用户 ID 保留）。</div>
+              </div>
+              <div style="margin-top:10px"><textarea placeholder="停用原因…"></textarea></div>
+            </div>
+            <div class="modal-f"><span class="btn btn-xs">取消</span><span class="btn btn-danger btn-xs">确认停用</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P2 -->
+  <section class="section" id="p2">
+    <div class="section-head">
+      <h2>2. 停用用户独立页</h2>
+      <span class="badge badge-page">users_set_active.html</span>
+      <span class="badge badge-change">文案</span>
+    </div>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before</div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="form-row"><label>用户名</label><strong>returning</strong></div>
+            <div class="hl"><span class="hl-label">变更点</span>
+              <div class="warn-box" style="margin:0">⚠ 停用后不可恢复启用。如需使用请重新注册或由管理员创建新账号。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After</div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="form-row"><label>用户名</label><strong>returning</strong></div>
+            <div class="hl"><span class="hl-label">变更点</span>
+              <div class="warn-box-new warn-box" style="margin:0">⚠ 停用后不可直接启用。此后若有同名注册获批，或管理员添加同名用户并确认，将在原用户记录上覆盖资料与权限并重新启用（历史日志因同一用户 ID 保留）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P3 -->
+  <section class="section" id="p3">
+    <div class="section-head">
+      <h2>3. 编辑用户 · 状态文案</h2>
+      <span class="badge badge-page">user_form.html</span>
+      <span class="badge badge-change">文案</span>
+    </div>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before</div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="hl"><span class="hl-label">下拉</span>
+              <div class="form-row" style="margin:0"><label>状态</label>
+                <select class="select"><option>启用</option><option selected>停用（不可恢复）</option></select>
+              </div>
+            </div>
+            <div style="height:10px"></div>
+            <div class="hl"><span class="hl-label">只读</span>
+              <div class="form-row" style="margin:0"><label>状态</label><span class="readonly">已停用（不可恢复）</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After</div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="hl"><span class="hl-label">下拉</span>
+              <div class="form-row" style="margin:0"><label>状态</label>
+                <select class="select"><option>启用</option><option selected>停用（不可直接启用）</option></select>
+              </div>
+            </div>
+            <div style="height:10px"></div>
+            <div class="hl"><span class="hl-label">只读</span>
+              <div class="form-row" style="margin:0"><label>状态</label><span class="readonly">已停用（不可直接启用）</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P5 Approver -->
+  <section class="section" id="p5">
+    <div class="section-head">
+      <h2>5. 注册审批 · 列表 + 批准弹窗（审批人）</h2>
+      <span class="badge badge-page">registration_review.html</span>
+      <span class="badge badge-change">审批人警示</span>
+    </div>
+    <p class="note">仅审批人可见。标签「同名停用」；弹窗必须说明：覆盖资料/权限 + 同一 user_id 继承历史日志 + 未必是原使用人。</p>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before</div>
+        <div class="panel-body">
+          <table class="table">
+            <thead><tr><th>用户名</th><th>角色</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>returning</strong> <span class="warn-tag">曾被停用</span></td>
+                <td><span class="role-tag">operator</span></td>
+                <td><span class="btn btn-accent btn-xs">通过</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="modal" style="margin:14px auto 0;max-width:100%">
+            <div class="modal-h">批准注册申请</div>
+            <div class="modal-b">
+              <p style="margin:0 0 8px">确认批准用户 <strong>returning</strong>？</p>
+              <div class="hl"><span class="hl-label">错误叙事</span>
+                <div class="warn-box" style="margin:0">注意：该用户名曾被停用，审批通过后旧账号记录将被替换。</div>
+              </div>
+            </div>
+            <div class="modal-f"><span class="btn btn-xs">取消</span><span class="btn btn-accent btn-xs">确认批准</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After</div>
+        <div class="panel-body">
+          <table class="table">
+            <thead><tr><th>用户名</th><th>角色</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>returning</strong> <span class="warn-tag warn-tag-new">同名停用</span></td>
+                <td><span class="role-tag">operator</span></td>
+                <td><span class="btn btn-accent btn-xs">通过</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="modal" style="margin:14px auto 0;max-width:100%">
+            <div class="modal-h">批准注册申请</div>
+            <div class="modal-b">
+              <p style="margin:0 0 8px">确认批准用户 <strong>returning</strong>？</p>
+              <div class="hl"><span class="hl-label">正确叙事</span>
+                <div class="warn-box-new warn-box" style="margin:0">注意：用户名与已停用账号相同（user_id=14）。批准后<strong>不会删除</strong>旧行，将在该 user_id 上<strong>覆盖</strong>角色、业务组、邮箱、花名、岗位与密码，并撤销旧 Session / Token；该 ID 下的<strong>历史日志将被继承</strong>。申请人未必是原使用人。</div>
+              </div>
+              <div class="diff">
+                <div style="font-weight:700;margin-bottom:6px;font-size:11px">将覆盖（示意）</div>
+                <dl>
+                  <dt>user_id</dt><dd>14（保留 · 日志继承）</dd>
+                  <dt>角色</dt><dd>viewer → operator</dd>
+                  <dt>业务组</dt><dd>旧业务组 → 新业务组（全量替换）</dd>
+                  <dt>密码</dt><dd>使用申请密码</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="modal-f"><span class="btn btn-xs">取消</span><span class="btn btn-accent btn-xs">确认批准</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- P6 Admin -->
+  <section class="section" id="p6">
+    <div class="section-head">
+      <h2>6. 添加用户 · 同名确认（管理员）</h2>
+      <span class="badge badge-page">user_form.html + CpModal</span>
+      <span class="badge badge-change">新增 · 仅管理员</span>
+    </div>
+    <p class="note">第一次保存命中同名停用 → 弹窗确认。语义与审批人一致：覆盖资料/权限，同一 user_id 继承历史日志。</p>
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-head before"><span class="dot dot-red"></span>Before · 静默删建</div>
+        <div class="panel-body">
+          <div class="card">
+            <div class="form-row"><label>用户名 *</label><input class="input" value="returning"></div>
+            <div class="hl"><span class="hl-label">问题</span>
+              <div class="warn-box" style="margin:0">直接保存时可能物理删除停用用户并新建，无「覆盖 + 日志继承」知情确认。</div>
+            </div>
+            <div style="margin-top:12px"><span class="btn btn-accent btn-xs">保存</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head after"><span class="dot dot-green"></span>After · 显式确认</div>
+        <div class="panel-body">
+          <div class="hl"><span class="hl-label">新增弹窗</span>
+            <div class="modal" style="max-width:100%">
+              <div class="modal-h">确认同名覆盖启用</div>
+              <div class="modal-b">
+                <div class="warn-box-new warn-box" style="margin-top:0">用户名与已停用账号相同（user_id=14）。确认后将<strong>覆盖</strong>该账号全部资料与权限并重新启用；历史日志因同一 user_id 保留；密码重置为默认并强制改密；旧 Session / Token 失效。新使用人未必是原使用人。</div>
+                <div class="diff">
+                  <dl>
+                    <dt>user_id</dt><dd>14（保留 · 日志继承）</dd>
+                    <dt>角色</dt><dd>viewer → operator</dd>
+                    <dt>业务组</dt><dd>全量替换为表单所选</dd>
+                    <dt>密码</dt><dd>changeme + 强制改密</dd>
+                  </dl>
+                </div>
+              </div>
+              <div class="modal-f"><span class="btn btn-xs">取消</span><span class="btn btn-accent btn-xs">确认覆盖并启用</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    OPT-P0-22 rev.3 UI Demo · <a href="停用用户同名恢复设计.html">返回设计</a> ·
+    <a href="../index.html">文档索引</a>
+   · <a href="停用用户同名恢复-页面对比Demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</div>
+</body>
+</html>

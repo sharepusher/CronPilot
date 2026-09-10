@@ -1,3 +1,4 @@
+import json
 import logging
 
 from flask import request, session
@@ -29,6 +30,7 @@ AUDIT_ACTION_LABELS = {
     'user:password_reset': '触发密码重置',
     'user:disable': '停用用户',
     'user:enable': '启用用户',  # 保留：用于展示历史审计记录（"停用不可恢复"策略后不再产生新记录）
+    'user:reactivate': '同名覆盖启用',
     'permission:deny': '权限拒绝',
     'scope:deny': '作用域拒绝',
     'group:create': '创建业务组',
@@ -168,6 +170,7 @@ def authenticate_user(username, password):
             'role': user.role,
             'username': user.username,
             'user_id': user.id,
+            'auth_version': int(user.auth_version or 0),
             'must_reset_password': bool(getattr(user, 'must_reset_password', 0)),
             'msg': '',
         }
@@ -176,6 +179,7 @@ def authenticate_user(username, password):
         'role': '',
         'username': '',
         'user_id': None,
+        'auth_version': 0,
         'must_reset_password': False,
         'msg': '用户名或密码有误',
     }
@@ -189,7 +193,27 @@ def _actor_group_ids_csv():
     return ',' + ','.join(str(g) for g in ids) + ','
 
 
-def write_audit_log(action='', resource='', status='allow', user_id=None, username=None, ip=None):
+def web_session_user_is_valid():
+    """实时校验 Web Session 对应账号仍存在、启用且认证版本一致。
+
+    OPT-P0-22 §4.4：Session 缺少 auth_version 键时 fail-closed（不得用 or 0 放行旧会话）。
+    """
+    user_id = session.get('user_id')
+    if user_id is None:
+        return False
+    user = db.session.get(RbacUser, user_id)
+    if not user or not user.is_active:
+        return False
+    if user.username != (session.get('username') or ''):
+        return False
+    if 'auth_version' not in session:
+        return False
+    return int(session['auth_version']) == int(user.auth_version or 0)
+
+
+def write_audit_log(
+    action='', resource='', status='allow', user_id=None, username=None, ip=None, detail=None
+):
     try:
         entry = RbacAuditLog(
             user_id=user_id if user_id is not None else session.get('user_id'),
@@ -200,6 +224,7 @@ def write_audit_log(action='', resource='', status='allow', user_id=None, userna
             status=status,
             create_time=utc_now_hms(),
             actor_group_ids=_actor_group_ids_csv(),
+            detail=detail,
         )
         db.session.add(entry)
         db.session.commit()
@@ -374,8 +399,120 @@ def _auto_issue_token(user):
     user.api_token_expires_at = datetime_to_hms(datetime.now() + timedelta(days=API_TOKEN_TTL_DAYS))
 
 
-def create_user(username, role='viewer', email='', nickname='', job_title=''):
-    """创建用户：默认密码 changeme，并标记首次登录须改密。自动签发 API Token。"""
+def _replace_user_groups_in_session(user_id, group_ids):
+    """在调用方事务中全量替换用户业务组；__ALL__ 表示无绑定行。"""
+    from datas.model.user_group import UserGroup
+
+    existing = db.session.scalars(
+        select(UserGroup).where(UserGroup.user_id == user_id)
+    ).all()
+    for row in existing:
+        db.session.delete(row)
+    values = [str(g) for g in (group_ids or [])]
+    if GROUP_ALL_MARKER in values:
+        return
+    for group_id in dict.fromkeys(int(g) for g in values):
+        db.session.add(UserGroup(user_id=user_id, group_id=group_id))
+
+
+def _normalize_group_ids_for_snapshot(group_ids):
+    values = [str(g) for g in (group_ids or [])]
+    if GROUP_ALL_MARKER in values:
+        return []
+    out = []
+    for g in values:
+        try:
+            out.append(int(g))
+        except (TypeError, ValueError):
+            continue
+    return sorted(dict.fromkeys(out))
+
+
+def _user_profile_snapshot(user, group_ids):
+    return {
+        'role': user.role or '',
+        'group_ids': sorted(int(g) for g in (group_ids or [])),
+        'email': user.email or '',
+        'nickname': user.nickname or '',
+        'job_title': user.job_title or '',
+        'is_active': int(user.is_active or 0),
+    }
+
+
+def _overwrite_disabled_user_inplace(
+    user,
+    *,
+    role,
+    email,
+    nickname,
+    job_title,
+    group_ids,
+    must_reset_password,
+    status_reason,
+    password_hash=None,
+    password_plain=None,
+):
+    """覆盖启用已停用用户（调用方须已 FOR UPDATE；本函数不 commit）。
+
+    返回审计快照 ``{'before': ..., 'after': ...}``。
+    已启用用户抛出 ValueError。
+    """
+    if int(user.is_active or 0) == 1:
+        raise ValueError('cannot overwrite active user')
+    from .scope import get_user_group_ids
+
+    before = _user_profile_snapshot(user, get_user_group_ids(user.id))
+    user.role = role
+    user.email = (email or '').strip() or None
+    user.nickname = (nickname or '').strip() or None
+    user.job_title = (job_title or '').strip() or None
+    user.is_active = 1
+    user.must_reset_password = int(must_reset_password)
+    user.status_reason = status_reason
+    user.auth_version = int(user.auth_version or 0) + 1
+    if password_hash is not None:
+        user.password_hash = password_hash
+    elif password_plain is not None:
+        user.set_password(password_plain)
+    else:
+        raise ValueError('password required for overwrite')
+    _auto_issue_token(user)
+    # 覆盖路径必须全量替换组，禁止 group_ids=None 时继承旧绑定
+    _replace_user_groups_in_session(user.id, group_ids or [])
+    after = _user_profile_snapshot(
+        user, _normalize_group_ids_for_snapshot(group_ids or [])
+    )
+    return {'before': before, 'after': after}
+
+
+def _write_reactivate_audit(
+    username, user_id, source, before, after, request_id=None
+):
+    detail = {
+        'user_id': user_id,
+        'source': source,
+        'before': before,
+        'after': after,
+    }
+    if request_id is not None:
+        detail['request_id'] = request_id
+    write_audit_log(
+        action='user:reactivate',
+        resource=username,
+        detail=json.dumps(detail, ensure_ascii=False, separators=(',', ':')),
+    )
+
+
+def create_user(
+    username,
+    role='viewer',
+    email='',
+    nickname='',
+    job_title='',
+    group_ids=None,
+    confirm_reactivation=False,
+):
+    """创建用户；同名停用用户须确认后在原行上覆盖启用。"""
     username = _normalize_username(username)
     if not username:
         return {'ok': False, 'msg': '用户名不能为空'}
@@ -384,24 +521,50 @@ def create_user(username, role='viewer', email='', nickname='', job_title=''):
     err = _validate_role(role)
     if err:
         return {'ok': False, 'msg': err}
-    exists = db.session.scalars(
-        select(RbacUser).where(
-            RbacUser.username == username,
-            RbacUser.is_active == 1,
-        )
+    existing = db.session.scalars(
+        select(RbacUser).where(RbacUser.username == username).with_for_update()
     ).first()
-    if exists:
+    if existing and existing.is_active:
         return {'ok': False, 'msg': '用户名已存在'}
-    # 删除同名已停用旧记录（释放 UNIQUE 约束，与注册审批逻辑对齐）
-    old_disabled = db.session.scalars(
-        select(RbacUser).where(
-            RbacUser.username == username,
-            RbacUser.is_active == 0,
+    if existing and not confirm_reactivation:
+        return {
+            'ok': False,
+            'msg': '该用户名属于已停用账号，确认后将覆盖更新原账号资料并重新启用',
+            'confirm_reactivation': True,
+            'user_id': existing.id,
+        }
+    if existing:
+        try:
+            snap = _overwrite_disabled_user_inplace(
+                existing,
+                role=role,
+                email=email,
+                nickname=nickname,
+                job_title=job_title,
+                group_ids=group_ids or [],
+                must_reset_password=1,
+                status_reason='管理员确认同名覆盖启用',
+                password_plain=DEFAULT_USER_PASSWORD,
+            )
+            db.session.commit()
+        except Exception:
+            logger.exception('overwrite disabled user commit failed username=%s', username)
+            db.session.rollback()
+            return {'ok': False, 'msg': '覆盖启用失败'}
+        _invalidate_api_scope_cache(existing.id)
+        _write_reactivate_audit(
+            username,
+            existing.id,
+            'admin_create',
+            snap['before'],
+            snap['after'],
         )
-    ).first()
-    if old_disabled:
-        db.session.delete(old_disabled)
-        db.session.flush()
+        return {
+            'ok': True,
+            'msg': '原账号资料已覆盖并重新启用',
+            'user_id': existing.id,
+            'reactivated': True,
+        }
     user = RbacUser(
         username=username,
         role=role,
@@ -416,13 +579,16 @@ def create_user(username, role='viewer', email='', nickname='', job_title=''):
     _auto_issue_token(user)
     try:
         db.session.add(user)
+        db.session.flush()
+        if group_ids is not None:
+            _replace_user_groups_in_session(user.id, group_ids)
         db.session.commit()
     except Exception:
         logger.exception('create_user commit failed username=%s', username)
         db.session.rollback()
         return {'ok': False, 'msg': '创建失败'}
     write_audit_log(action='user:create', resource=username)
-    return {'ok': True, 'msg': '创建成功', 'user_id': user.id}
+    return {'ok': True, 'msg': '创建成功', 'user_id': user.id, 'reactivated': False}
 
 
 def update_user(user_id, role=None, is_active=None):
@@ -436,6 +602,8 @@ def update_user(user_id, role=None, is_active=None):
     session_uid = session.get('user_id')
     if is_active is not None and int(is_active) == 0 and session_uid == user.id:
         return {'ok': False, 'msg': '不能停用当前登录账号'}
+    if is_active is not None and int(is_active) == 0 and is_seed_admin_username(user.username):
+        return {'ok': False, 'msg': '系统管理员账号不可停用'}
     new_role = role if role is not None else user.role
     err = _validate_role(new_role)
     if err:
@@ -448,8 +616,13 @@ def update_user(user_id, role=None, is_active=None):
     )
     if losing_admin and _count_active_admins(exclude_id=user.id) < 1:
         return {'ok': False, 'msg': '不能停用或降权最后一名启用中的管理员'}
+    was_active = bool(user.is_active)
     user.role = new_role
     user.is_active = new_active
+    if was_active and not new_active:
+        user.auth_version = int(user.auth_version or 0) + 1
+        user.api_token = None
+        user.api_token_expires_at = None
     try:
         db.session.commit()
     except Exception:
@@ -485,6 +658,8 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
         return {'ok': False, 'msg': '停用后不可恢复启用，如需使用请重新注册或由管理员创建'}
     if actor_id is not None and int(actor_id) == int(user.id):
         return {'ok': False, 'msg': '不能停用当前登录账号'}
+    if want_active == 0 and is_seed_admin_username(user.username):
+        return {'ok': False, 'msg': '系统管理员账号不可停用'}
     if (
         want_active == 0
         and user.role == 'admin'
@@ -501,6 +676,7 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
     user.status_reason = reason
     # 停用时立即清空 API Token（纵深防御 + 数据清洁）
     if want_active == 0:
+        user.auth_version = int(user.auth_version or 0) + 1
         user.api_token = None
         user.api_token_expires_at = None
     try:
@@ -882,6 +1058,13 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
     if exists:
         return {'ok': False, 'msg': '用户名"%s"已存在' % username}
 
+    disabled = db.session.scalars(
+        select(RbacUser).where(
+            RbacUser.username == username,
+            RbacUser.is_active == 0,
+        )
+    ).first()
+
     # 检查是否有同 username 的 pending 申请
     from datas.model.rbac_registration_request import RbacRegistrationRequest
     pending = db.session.scalars(
@@ -904,6 +1087,8 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
         status='pending',
         pending_username=username,
         create_time=utc_now_hms(),
+        is_reactivation=1 if disabled else 0,
+        target_user_id=disabled.id if disabled else None,
     )
     req.set_password(password)
     try:
@@ -974,11 +1159,17 @@ def _check_admin_approval_scope(req):
 
 
 def approve_registration(request_id, reviewer_id=None):
-    """审批通过注册申请。自动创建用户 + 绑定业务组 + 签发 Token。"""
-    from datas.model.rbac_registration_request import RbacRegistrationRequest
-    from datas.model.user_group import UserGroup
+    """审批通过注册申请。自动创建用户 + 绑定业务组 + 签发 Token。
 
-    req = db.session.get(RbacRegistrationRequest, request_id)
+    同名停用（OPT-P0-22）：在原 user 行上覆盖启用，保留 user_id。
+    """
+    from datas.model.rbac_registration_request import RbacRegistrationRequest
+
+    req = db.session.scalars(
+        select(RbacRegistrationRequest)
+        .where(RbacRegistrationRequest.id == request_id)
+        .with_for_update()
+    ).first()
     if not req:
         return {'ok': False, 'msg': '申请不存在'}
     if req.status != 'pending':
@@ -988,53 +1179,83 @@ def approve_registration(request_id, reviewer_id=None):
         scope_err = _check_admin_approval_scope(req)
         if scope_err:
             return {'ok': False, 'msg': scope_err}
-    # 再次检查用户名冲突（仅启用用户）
-    exists = db.session.scalars(
-        select(RbacUser).where(
-            RbacUser.username == req.username,
-            RbacUser.is_active == 1,
-        )
-    ).first()
-    if exists:
+
+    def _reject_pending(msg, comment):
         req.status = 'rejected'
         req.pending_username = None
-        req.review_comment = '用户名已被占用'
+        req.review_comment = comment
         req.update_time = utc_now_hms()
         db.session.commit()
-        return {'ok': False, 'msg': '用户名"%s"已被占用，申请已自动拒绝' % req.username}
-    # 删除同名的已停用旧记录（释放 UNIQUE 约束）
-    old_disabled = db.session.scalars(
-        select(RbacUser).where(
-            RbacUser.username == req.username,
-            RbacUser.is_active == 0,
-        )
-    ).first()
-    if old_disabled:
-        db.session.delete(old_disabled)
-        db.session.flush()
+        return {'ok': False, 'msg': msg}
 
-    # 创建用户
-    user = RbacUser(
-        username=req.username,
-        password_hash=req.password_hash,
-        email=req.email,
-        role=req.role,
-        job_title=req.job_title or None,
-        nickname=req.nickname or None,
-        is_active=1,
-        must_reset_password=0,
-        create_time=utc_now_hms(),
+    target = None
+    if int(getattr(req, 'is_reactivation', 0) or 0) == 1 and req.target_user_id:
+        target = db.session.scalars(
+            select(RbacUser)
+            .where(RbacUser.id == req.target_user_id)
+            .with_for_update()
+        ).first()
+        if not target or target.username != req.username:
+            return _reject_pending(
+                '同名停用目标用户已不存在或用户名不匹配，申请已自动拒绝',
+                '同名停用目标无效',
+            )
+        if int(target.is_active or 0) == 1:
+            return _reject_pending(
+                '同名账号已启用，无法覆盖，申请已自动拒绝',
+                '同名账号已启用，无法覆盖',
+            )
+    else:
+        existing = db.session.scalars(
+            select(RbacUser)
+            .where(RbacUser.username == req.username)
+            .with_for_update()
+        ).first()
+        if existing and existing.is_active:
+            return _reject_pending(
+                '用户名"%s"已被占用，申请已自动拒绝' % req.username,
+                '用户名已被占用',
+            )
+        if existing and not existing.is_active:
+            target = existing
+
+    group_ids = (
+        [GROUP_ALL_MARKER]
+        if req.group_ids.strip() == GROUP_ALL_MARKER
+        else [int(g) for g in req.group_ids.split(',') if g.strip()]
     )
-    _auto_issue_token(user)
+    reactivated = target is not None
     try:
-        db.session.add(user)
-        db.session.flush()
-        # 绑定业务组（__ALL__ 不写 user_group 行，与 set_user_groups 一致）
-        if req.group_ids.strip() != GROUP_ALL_MARKER:
-            gids = [int(g) for g in req.group_ids.split(',') if g.strip()]
-            for gid in gids:
-                db.session.add(UserGroup(user_id=user.id, group_id=gid))
-        # 更新申请状态
+        if target:
+            snap = _overwrite_disabled_user_inplace(
+                target,
+                role=req.role,
+                email=req.email,
+                nickname=req.nickname or '',
+                job_title=req.job_title or '',
+                group_ids=group_ids,
+                must_reset_password=0,
+                status_reason='注册申请 #%s 同名覆盖启用：%s' % (req.id, req.reason),
+                password_hash=req.password_hash,
+            )
+            user = target
+        else:
+            snap = None
+            user = RbacUser(
+                username=req.username,
+                password_hash=req.password_hash,
+                email=req.email,
+                role=req.role,
+                job_title=req.job_title or None,
+                nickname=req.nickname or None,
+                is_active=1,
+                must_reset_password=0,
+                create_time=utc_now_hms(),
+            )
+            _auto_issue_token(user)
+            db.session.add(user)
+            db.session.flush()
+            _replace_user_groups_in_session(user.id, group_ids)
         req.status = 'approved'
         req.pending_username = None
         req.reviewer_id = reviewer_id or session.get('user_id')
@@ -1044,8 +1265,27 @@ def approve_registration(request_id, reviewer_id=None):
         logger.exception('approve_registration failed for request_id=%s', request_id)
         db.session.rollback()
         return {'ok': False, 'msg': '审批失败'}
-    write_audit_log(action='user:register_approve', resource=req.username)
-    return {'ok': True, 'msg': '已批准，用户 %s 可正常登录' % req.username}
+    _invalidate_api_scope_cache(user.id)
+    if reactivated and snap:
+        _write_reactivate_audit(
+            req.username,
+            user.id,
+            'registration_approve',
+            snap['before'],
+            snap['after'],
+            request_id=req.id,
+        )
+    else:
+        write_audit_log(action='user:register_approve', resource=req.username)
+    return {
+        'ok': True,
+        'msg': (
+            '已批准，原账号资料已覆盖并重新启用'
+            if reactivated else '已批准，用户 %s 可正常登录' % req.username
+        ),
+        'user_id': user.id,
+        'reactivated': reactivated,
+    }
 
 
 def reject_registration(request_id, comment=''):

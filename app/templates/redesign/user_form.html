@@ -149,13 +149,16 @@
     {% if user %}
     <div class="uf-row">
       <label class="uf-label">状态</label>
-      {% if user.is_active %}
+      {% if is_seed_admin_username(user.username) %}
+      <span class="f-input uf-select uf-disabled">启用（系统管理员不可停用）</span>
+      <input type="hidden" name="is_active" value="1">
+      {% elif user.is_active %}
       <select name="is_active" class="f-input uf-select" aria-label="用户状态">
         <option value="1" selected>启用</option>
-        <option value="0">停用（不可恢复）</option>
+        <option value="0">停用（不可直接启用）</option>
       </select>
       {% else %}
-      <span class="f-input uf-select uf-disabled">已停用（不可恢复）</span>
+      <span class="f-input uf-select uf-disabled">已停用（不可直接启用）</span>
       {% endif %}
     </div>
     {% endif %}
@@ -218,5 +221,46 @@
     });
     if (jtSel.value === 'other') { jtWrap.style.display = 'inline-flex'; }
 })();
+{% if not user and not view_mode %}
+(function($){
+    function escHtml(s) { return window.escHtml ? window.escHtml(String(s || '')) : String(s || ''); }
+    $(document).on('cp:form-confirm-reactivation', function(_e, data, $form) {
+        if (!$form || !$form.length || !$form.hasClass('js-ajax-form')) return;
+        var payload = (data && data.data) || {};
+        if (!payload.confirm_reactivation) return;
+        var userId = payload.user_id || '';
+        var idPart = userId ? ('（user_id=' + escHtml(userId) + '）') : '';
+        var warn =
+            '<div class="uf-reactivate-warn">用户名与已停用账号相同' + idPart +
+            '。确认后将<strong>覆盖</strong>该账号全部资料与权限并重新启用；历史日志因同一 user_id 保留；密码重置为默认并强制改密；旧 Session / Token 失效。新使用人未必是原使用人。</div>' +
+            '<div class="uf-reactivate-diff">' +
+            '<div class="uf-reactivate-diff-title">将覆盖</div>' +
+            '<dl><dt>user_id</dt><dd>' + escHtml(userId || '—') + '（保留 · 日志继承）</dd>' +
+            '<dt>角色 / 资料 / 业务组</dt><dd>以当前表单为准（全量替换）</dd>' +
+            '<dt>密码</dt><dd>默认密码 + 强制改密</dd></dl></div>';
+        if (typeof CpModal !== 'function') {
+            if (window.CpToast) CpToast.error('需要确认覆盖启用，但确认对话框不可用');
+            return;
+        }
+        CpModal({
+            title: '确认同名覆盖启用',
+            bodyHtml: warn,
+            confirmText: '确认覆盖并启用',
+            cancelText: '取消',
+            onConfirm: function(overlay, close) {
+                var btn = overlay.querySelector('.cp-modal-confirm-btn');
+                if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
+                $form.find('input[name="confirm_reactivation"]').remove();
+                $('<input>', { type: 'hidden', name: 'confirm_reactivation', value: '1' }).appendTo($form);
+                var $submit = $form.find('button.js-ajax-submit').first();
+                if ($submit.length) {
+                    $submit.trigger('click');
+                }
+                close();
+            }
+        });
+    });
+})(jQuery);
+{% endif %}
 </script>
 {% endblock %}

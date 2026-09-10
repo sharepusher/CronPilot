@@ -66,7 +66,9 @@
     <p class="muted">说明：本页为 `/docs/` 历史快照，最新版本日志以仓库根 <a href="../RELEASE_NOTES.md"><code>RELEASE_NOTES.md</code></a> 为准。</p>
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
     <ul>
-      <li><strong>质量门禁与测试稳定性最小修复（2026-09-04）</strong>：修复 <code>test_rbac_scope</code> 单跑建表缺失、修正 <code>verify_golden_path</code> 文档路径、修复 CSS 注释误报、补齐 <code>doc/postmortem/index.md</code>。</li>
+            <li><strong>OPT-P0-22 — 停用用户同名覆盖启用</strong>：原行覆盖 + 日志继承；申请人零提示；审批/管理员警示；auth_version fail-closed。设计 <a href="design/停用用户同名恢复设计.html"><code>doc/design/停用用户同名恢复设计.html</code></a> · 复盘 <a href="postmortem/2026-09-停用用户同名恢复.html"><code>doc/postmortem/2026-09-停用用户同名恢复.html</code></a> · Session 深入复盘 <a href="postmortem/2026-09-auth-version-session-failopen.html"><code>doc/postmortem/2026-09-auth-version-session-failopen.html</code></a></li>
+      <li><strong>安全修复 — 禁止停用种子系统管理员（OPT-P2-15 补丁）</strong>：全局业务管理员不可停用种子 <code>admin</code>（仍可编辑资料）。服务层双路径 + 视图 + UI 对齐。复盘：<a href="postmortem/2026-09-全局管理员可停用种子账号.html"><code>doc/postmortem/2026-09-全局管理员可停用种子账号.html</code></a></li>
+<li><strong>质量门禁与测试稳定性最小修复（2026-09-04）</strong>：修复 <code>test_rbac_scope</code> 单跑建表缺失、修正 <code>verify_golden_path</code> 文档路径、修复 CSS 注释误报、补齐 <code>doc/postmortem/index.md</code>。</li>
       <li>设计文档：<a href="design/质量门禁与测试稳定性最小修复方案-2026-09.html"><code>doc/design/质量门禁与测试稳定性最小修复方案-2026-09.html</code></a></li>
       <li>复盘文档：<a href="postmortem/2026-09-质量门禁四项修复复盘.html"><code>doc/postmortem/2026-09-质量门禁四项修复复盘.html</code></a></li>
     </ul>

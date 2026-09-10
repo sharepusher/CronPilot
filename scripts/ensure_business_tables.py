@@ -73,6 +73,7 @@ def main():
         ensure_seed_admin()
         ensure_existing_users_have_token()
         expire_stale_registrations()
+        _bump_auth_version_once()
         # 关键表存在断言（防止启动时表缺失导致全站 500）
         from sqlalchemy import inspect as sa_inspect
         critical_tables = [
@@ -175,7 +176,7 @@ def _ensure_cron_infos_columns(backend=''):
 
 
 def _ensure_rbac_users_columns():
-    """强制改密 / 启停缘由：已有库补列。现有用户默认 must_reset_password=0。"""
+    """强制改密 / 启停缘由 / 会话版本：为已有用户表补列。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -192,6 +193,11 @@ def _ensure_rbac_users_columns():
         alters.append(
             "ALTER TABLE rbac_users ADD COLUMN status_reason "
             "VARCHAR(500) NOT NULL DEFAULT ''"
+        )
+    if 'auth_version' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_users ADD COLUMN auth_version '
+            'INTEGER NOT NULL DEFAULT 0'
         )
     if 'api_token' not in cols:
         alters.append(
@@ -225,8 +231,58 @@ def _ensure_rbac_users_columns():
     print('OK: rbac_users 列已补全 ->', ', '.join(a.split()[5] for a in alters))
 
 
+AUTH_VERSION_BUMP_FLAG = 'opt_p0_22_auth_version_bump'
+
+
+def _bump_auth_version_once():
+    """OPT-P0-22 §4.4：一次性将全部用户 auth_version +1，使既有 Web Session 失效。
+
+    幂等：cp_schema_flags 表记录 flag；已执行则跳过。
+    """
+    from sqlalchemy import inspect, text
+
+    from datas.utils.times import utc_now_hms
+
+    insp = inspect(db.engine)
+    if not insp.has_table('rbac_users'):
+        return
+    cols = {c['name'] for c in insp.get_columns('rbac_users')}
+    if 'auth_version' not in cols:
+        return
+    with db.engine.begin() as conn:
+        # SQLite 偶发 journal 锁：拉长等待，避免启动失败留下「有 flag 无 bump」
+        try:
+            conn.execute(text('PRAGMA busy_timeout=30000'))
+        except Exception:
+            pass
+        conn.execute(text(
+            'CREATE TABLE IF NOT EXISTS cp_schema_flags ('
+            'flag_name VARCHAR(64) PRIMARY KEY, '
+            'applied_at BIGINT NOT NULL DEFAULT 0)'
+        ))
+        row = conn.execute(
+            text(
+                'SELECT 1 FROM cp_schema_flags WHERE flag_name = :flag'
+            ),
+            {'flag': AUTH_VERSION_BUMP_FLAG},
+        ).first()
+        if row:
+            return
+        conn.execute(text(
+            'UPDATE rbac_users SET auth_version = COALESCE(auth_version, 0) + 1'
+        ))
+        conn.execute(
+            text(
+                'INSERT INTO cp_schema_flags (flag_name, applied_at) '
+                'VALUES (:flag, :ts)'
+            ),
+            {'flag': AUTH_VERSION_BUMP_FLAG, 'ts': utc_now_hms()},
+        )
+    print('OK: OPT-P0-22 auth_version 一次性 bump 已执行')
+
+
 def _ensure_rbac_registration_requests_columns():
-    """注册申请表补列（OPT-P1-10：job_title / nickname）。"""
+    """注册申请表补列（OPT-P1-10 + OPT-P0-22）。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -249,6 +305,16 @@ def _ensure_rbac_registration_requests_columns():
         alters.append(
             'ALTER TABLE rbac_registration_requests ADD COLUMN pending_username '
             'VARCHAR(64)'
+        )
+    if 'is_reactivation' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_registration_requests ADD COLUMN is_reactivation '
+            'SMALLINT NOT NULL DEFAULT 0'
+        )
+    if 'target_user_id' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_registration_requests ADD COLUMN target_user_id '
+            'INTEGER'
         )
     if not alters:
         return
@@ -275,7 +341,7 @@ def _ensure_rbac_registration_requests_columns():
 
 
 def _ensure_rbac_audit_logs_columns():
-    """审计日志 Scope 过滤（OPT-P2-13）：已有库补列。"""
+    """审计日志 Scope 过滤（OPT-P2-13）+ OPT-P0-22 detail。"""
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -287,6 +353,10 @@ def _ensure_rbac_audit_logs_columns():
         alters.append(
             "ALTER TABLE rbac_audit_logs ADD COLUMN actor_group_ids "
             "VARCHAR(255) NOT NULL DEFAULT ''"
+        )
+    if 'detail' not in cols:
+        alters.append(
+            'ALTER TABLE rbac_audit_logs ADD COLUMN detail TEXT'
         )
     if not alters:
         return

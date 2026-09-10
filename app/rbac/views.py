@@ -48,6 +48,7 @@ from .services import (
     user_must_reset_password,
     user_needs_profile_completion,
     validate_groups_for_role,
+    web_session_user_is_valid,
     write_audit_log,
 )
 
@@ -200,6 +201,12 @@ def enforce_password_reset():
     if 'is_login' not in session:
         return None
     path = request.path or ''
+    if not web_session_user_is_valid():
+        session.clear()
+        login_url = '/rbac/login?msg=%s' % quote('登录状态已失效，请重新登录')
+        if _wants_ajax_json():
+            return web_api_return(code=1, msg='登录状态已失效，请重新登录', url=login_url)
+        return redirect(login_url)
     # 第一优先级：强制改密
     if _force_reset_allowed_path(path):
         return None
@@ -265,6 +272,7 @@ def login():
     record_login_success(client_ip, username)
     session['username'] = result['username']
     session['role'] = result['role']
+    session['auth_version'] = int(result.get('auth_version') or 0)
     if result.get('user_id') is not None:
         session['user_id'] = result['user_id']
         from .scope import get_user_group_ids
@@ -656,28 +664,21 @@ def users_add():
         email=request.values.get('email', '').strip(),
         nickname=request.values.get('nickname', '').strip(),
         job_title=add_job_title,
+        group_ids=group_ids,
+        confirm_reactivation=request.values.get('confirm_reactivation') == '1',
     )
-    if result.get('ok') and result.get('user_id'):
-        bound = set_user_groups(result['user_id'], group_ids, role=role, username=target_username)
-        if not bound['ok']:
-            orphan = get_user_by_id(result['user_id'])
-            if orphan:
-                try:
-                    db.session.delete(orphan)
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-            return _users_form_response(
-                False,
-                bound['msg'],
-                template='redesign/user_form.html',
-                groups=groups,
-                default_password=DEFAULT_USER_PASSWORD,
-            )
+    response_data = None
+    if result.get('confirm_reactivation'):
+        response_data = {
+            'confirm_reactivation': True,
+            'username': target_username,
+            'user_id': result.get('user_id'),
+        }
     return _users_form_response(
         result['ok'],
         result['msg'],
         template='redesign/user_form.html',
+        data=response_data,
         groups=groups,
         default_password=DEFAULT_USER_PASSWORD,
     )
@@ -893,6 +894,8 @@ def users_set_active():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    if is_active == 0 and is_seed_admin_username(user.username):
+        return _users_form_response(False, '系统管理员账号不可停用', url='/rbac/users')
     denied = _check_management_scope(user_id)
     if denied:
         return denied

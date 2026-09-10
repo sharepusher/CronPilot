@@ -166,8 +166,8 @@ def user_bypasses_scope(role, username=None, group_ids=None):
   </tr>
   <tr>
     <td>停用 / 启用用户</td>
-    <td>全部（不可停用自己）</td>
-    <td>全部（不可停用自己）</td>
+    <td>全部（不可停用自己；<strong>种子账号本身不可被停用</strong>）</td>
+    <td>全部（不可停用自己；<strong>不可停用种子 admin</strong>；仍可编辑种子其它资料）</td>
     <td><strong>仅能操作与自己有组交集的用户</strong>（不可操作种子 admin、不可停用自己）</td>
   </tr>
   <tr>
@@ -184,6 +184,7 @@ def user_bypasses_scope(role, username=None, group_ids=None):
   <li>管理员 admin A 所属组为 <code>[1, 2]</code>，用户 C 所属组为 <code>[3, 4]</code> → 无交集 → A <strong>不可见/不可管理</strong> C</li>
   <li>管理员 admin A 所属组为 <code>[1, 2]</code>，用户 D（admin、全部）所属组为 <code>[]</code> → 无交集 → A <strong>不可见/不可管理</strong> D</li>
   <li>种子 admin <strong>不展示</strong>在按组管理员的用户列表中（既不可操作也不可见）</li>
+  <li><strong>补丁 2026-09-09</strong>：全局管理员 admin（空组 / bypass）维持可编辑种子账号，但<strong>任何主体均不可停用</strong>种子 <code>admin</code>（含 <code>set_user_active</code>、<code>update_user(is_active=0)</code>、用户列表停用按钮、编辑页状态下拉）。文案：「系统管理员账号不可停用」。</li>
 </ul>
 
 <h4>实现要点</h4>
@@ -417,7 +418,7 @@ def validate_groups_for_role(role, group_ids, username=None):
   </tr>
   <tr>
     <td>用户管理 — 可操作范围</td>
-    <td>全部（不可编辑自己）</td><td>全部（不可编辑自己）</td><td>仅组交集用户（不可操作种子 admin、不可操作无交集用户）</td><td>❌</td><td>❌</td>
+    <td>全部（不可编辑自己；种子不可被停用）</td><td>全部（不可编辑自己；不可停用种子 admin）</td><td>仅组交集用户（不可操作种子 admin、不可操作无交集用户）</td><td>❌</td><td>❌</td>
   </tr>
   <tr>
     <td>业务组管理</td>

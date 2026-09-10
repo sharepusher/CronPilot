@@ -7,6 +7,24 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### OPT-P0-22 — 停用用户同名覆盖启用（身份连续性）
+
+- **产品语义（rev.3）**：同名再申请未必是原使用人。申请人零同名提示；仅审批人/管理员确认后在原 `user_id` 上**覆盖**资料与权限并启用，历史日志因同一 ID 继承。禁止删行重建。
+- **服务**：共享 `_overwrite_disabled_user_inplace`；组全量替换；Token 重签；§4.5 凭据分支（审批用申请密码 / 管理员默认密码+强制改密）；`is_reactivation` / `target_user_id` / 审计 `detail`
+- **Session**：`auth_version` 缺键 fail-closed + 一次性 bump（部署后旧 Web Session 需重登）
+- **UI**：停用文案「不可直接启用」；审批「同名停用」标签与覆盖警示；添加用户二次确认 `CpModal`
+- **测试**：`tests.test_user_reactivation`（含回滚 / stale target / 文案门禁）；`tests.test_redesign_sidebar` Fixture 对齐 `auth_version`（缺键不再误 302）
+- **文档**：覆盖 OPT-P1-10 §3.1.7；路线图新增 OPT-P0-22；设计 [`doc/design/停用用户同名恢复设计.html`](doc/design/停用用户同名恢复设计.html) · Demo · 复盘 [`doc/postmortem/2026-09-停用用户同名恢复.html`](doc/postmortem/2026-09-停用用户同名恢复.html)
+- **B2 深入复盘（Session）**：[`doc/postmortem/2026-09-auth-version-session-failopen.html`](doc/postmortem/2026-09-auth-version-session-failopen.html)
+
+### 安全修复 — 禁止停用种子系统管理员（OPT-P2-15 补丁）
+
+- **问题**：全局业务管理员（空业务组 / Scope bypass）可停用种子账号 `admin`
+- **策略**：维持旧设计（全局 admin 仍可编辑种子资料）；**任何人不可停用**种子
+- **修复**：服务层双路径拦截 + 视图前置拦截 + 列表隐藏停用按钮 + 编辑页状态只读
+- **测试**：`test_cannot_disable_seed_admin_via_set_active_or_edit`
+- **复盘**：[`doc/postmortem/2026-09-全局管理员可停用种子账号.html`](doc/postmortem/2026-09-全局管理员可停用种子账号.html)
+
 ### 修复 — OPT-P0-21 新任务继承旧健康记录 + 50-bit ID 策略升级
 
 - **问题**：新建任务 `test123`（cron_info_id=14）创建后立即显示"健康异常"（consecutive_failures=1969），原因是 SQLite ID 复用导致新任务继承了已删除旧任务的 job_health 和 job_log 数据

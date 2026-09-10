@@ -57,9 +57,12 @@ SEED_ADMIN_USERNAME = 'admin'  # 种子账号仅 user:manage + 只读；无 cron
 
 种子账号 `admin`：角色仍为 `admin`（保留 Scope 绕过以便查看全库），但 `has_permission(..., username=)` 裁剪为 `SEED_ADMIN_PERMISSIONS`。任务写/下线由种子创建的其它 `admin` 角色用户执行。
 
+**种子停用硬规则（2026-09-09）**：任何主体（含全局 bypass 业务管理员）均不可停用种子 `admin`。必须在服务层 `set_user_active` 与 `update_user(is_active=0)` **双路径**拦截；视图 `users_set_active` 与列表/编辑 UI 须对齐。回归：`tests.test_rbac_phase.TestRbacUsersManage.test_cannot_disable_seed_admin_via_set_active_or_edit`。详 `doc/design/管理员admin-Scope差异化设计.html` 与 `doc/postmortem/2026-09-全局管理员可停用种子账号.html`。
+
 ## Session
 
-- 登录写 `role`、`user_id`、`group_ids`（Flask signed cookie；**未**设 `session.permanent` / `PERMANENT_SESSION_LIFETIME`）
+- 登录写 `role`、`user_id`、`group_ids`、`auth_version`（Flask signed cookie；**未**设 `session.permanent` / `PERMANENT_SESSION_LIFETIME`）
+- **OPT-P0-22**：`web_session_user_is_valid()` 校验账号启用 + `auth_version`；Session **缺少** `auth_version` 键必须失效（禁止 `session.get('auth_version') or 0` 与 DB 比较放行）。一次性 bump：`scripts/ensure_business_tables._bump_auth_version_once`（`cp_schema_flags.opt_p0_22_auth_version_bump`）
 - **无**闲置/绝对超时自动登出；关闭浏览器后会话 Cookie 通常失效；退出与改密成功会 `session.clear()`
 - 用户组变更后须**重新登录**生效
 - 会话超时等增强见 `doc/design/RBAC架构设计方案.html#account-session`（设计待确认，勿未确认实现）

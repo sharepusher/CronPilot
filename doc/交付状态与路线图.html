@@ -186,6 +186,7 @@
     <tr><td>OPT-P0-12</td><td>SSRF DNS Rebinding 修复（DNS pinning 消除 TOCTOU）</td><td class="s-done">已交付</td><td>v4.0.0</td><td><code>validate_and_resolve_url</code> + <code>_PinnedIPAdapter</code> · <code>app/services/url_security.py</code></td></tr>
     <tr><td>OPT-P0-13</td><td>登录防暴破（IP+用户名双维度滑动窗口限流）</td><td class="s-done">已交付</td><td>v4.0.0</td><td><code>app/rbac/login_limiter.py</code> · 50 次/15min IP 锁 5min · 50 次/30min 用户锁 10min</td></tr>
     <tr><td>OPT-P0-18</td><td>Orphan UI 全面重设计（Phase 2.5 调度异常）</td><td class="s-done">已交付</td><td>v4.0.0</td><td>术语统一「调度异常」· SVG icon 替代 Emoji · 紫色 badge + 左边框样式 · Warning Bar 精简；<a href="design/系统对账安全加固设计.html">设计文档</a> rev.5</td></tr>
+    <tr><td>OPT-P0-22</td><td>停用用户同名覆盖启用（身份连续性 + Session fail-closed）</td><td class="s-done">已交付（代码/文档，待发版）</td><td>Unreleased</td><td><a href="design/停用用户同名恢复设计.html">设计稿 rev.3</a> · 覆盖 OPT-P1-10 §3.1.7 · 保留 user_id · 审批人/管理员警示 · auth_version · <a href="design/停用用户同名恢复-页面对比Demo.html">页面对比 Demo</a> · <a href="postmortem/2026-09-停用用户同名恢复.html">复盘</a></td></tr>
     <tr><td>UI-A′</td><td>执行记录单列两行 + 查看详情 + <code>http_status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>UI-B1</td><td>Cron 分钟 <code>*/1</code> 灰字提示</td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="design/管理端UI优化设计.html">管理端 UI 设计</a></td></tr>
     <tr><td>OPT-P1-01</td><td>执行 <code>status</code></td><td class="s-done">已交付</td><td>v0.2.0</td><td><a href="plan/P1可观测优化设计.html">P1 可观测设计</a></td></tr>

@@ -57,13 +57,13 @@
     <tr><td class="tc-id">TC-P0-02-01</td><td>明文密码登录（兼容）</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_plaintext_legacy</td></tr>
     <tr><td class="tc-id">TC-P0-02-02</td><td>pbkdf2 哈希密码登录</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_hashed_password</td></tr>
     <tr><td class="tc-id">TC-P0-02-03</td><td>管理端登录跳转</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>curl 已验证</td></tr>
-    <tr><td class="tc-id">TC-P0-03-01</td><td>拒绝 127.0.0.1 回调</td><td class="auto">自动+手工</td><td><span class="prio">P0</span></td><td>test_reject_localhost_ip</td></tr>
+    <tr><td class="tc-id">TC-P0-03-01</td><td>拒绝 127.0.0.1 触发</td><td class="auto">自动+手工</td><td><span class="prio">P0</span></td><td>test_reject_localhost_ip</td></tr>
     <tr><td class="tc-id">TC-P0-03-02</td><td>拒绝 169.254 元数据段</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_reject_metadata_range</td></tr>
     <tr><td class="tc-id">TC-P0-03-03</td><td>url_allow_hosts 白名单</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_whitelist_host</td></tr>
     <tr><td class="tc-id">TC-P0-03-04</td><td>Web/API 保存时 SSRF 拦截</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>curl 已验证</td></tr>
     <tr><td class="tc-id">TC-P0-03-05</td><td>cron_do 执行前二次校验</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>见执行记录</td></tr>
     <tr><td class="tc-id">TC-P0-04-01</td><td>errcode 为数字 0</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_json_response_errcode_int</td></tr>
-    <tr><td class="tc-id">TC-P0-04-02</td><td>requests.js 成功回调</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>浏览器 Ajax</td></tr>
+    <tr><td class="tc-id">TC-P0-04-02</td><td>requests.js 成功触发</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>浏览器 Ajax</td></tr>
     <tr><td class="tc-id">TC-P0-05-01</td><td>Cron 字段校验（时/分/日）</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_valid_cron_fields</td></tr>
     <tr><td class="tc-id">TC-P0-05-02</td><td>API 星期 mon,wed</td><td class="auto">自动</td><td><span class="prio">P0</span></td><td>test_api_weekday_names</td></tr>
     <tr><td class="tc-id">TC-P0-05-03</td><td>Web 与 API 同一校验源</td><td class="manual">手工</td><td><span class="prio">P0</span></td><td>curl 已验证</td></tr>

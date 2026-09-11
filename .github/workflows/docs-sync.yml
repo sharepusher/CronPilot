@@ -8,6 +8,15 @@ on:
       - 'scripts/html_docs_to_markdown.py'
       - 'scripts/check_pending_sync.py'
       - 'scripts/check_pending_sync.sh'
+      - 'scripts/check_terminology.py'
+      - 'app/**'
+      - 'tests/**'
+      - 'README.md'
+      - 'RELEASE_NOTES.md'
+      - 'AGENTS.md'
+      - '.cursor/rules/**'
+      - 'conf.ini.example'
+      - 'conf.example.ini'
       - '.github/workflows/docs-sync.yml'
   pull_request:
     paths:
@@ -15,6 +24,15 @@ on:
       - 'scripts/html_docs_to_markdown.py'
       - 'scripts/check_pending_sync.py'
       - 'scripts/check_pending_sync.sh'
+      - 'scripts/check_terminology.py'
+      - 'app/**'
+      - 'tests/**'
+      - 'README.md'
+      - 'RELEASE_NOTES.md'
+      - 'AGENTS.md'
+      - '.cursor/rules/**'
+      - 'conf.ini.example'
+      - 'conf.example.ini'
       - '.github/workflows/docs-sync.yml'
 
 jobs:
@@ -35,3 +53,6 @@ jobs:
 
       - name: Verify doc/*.md matches doc/*.html
         run: python scripts/html_docs_to_markdown.py --check
+
+      - name: Verify business terminology
+        run: python scripts/check_terminology.py --check

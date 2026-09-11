@@ -98,7 +98,7 @@ pre{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:14px;font-size:12
 <h4>M3: UX 问题（可选修复）</h4>
 <table>
 <tr><th>#</th><th>页面</th><th>问题</th><th>修复方案</th><th>必要性</th></tr>
-<tr><td>M4</td><td>dashboard/task_detail/registration_review</td><td>AJAX 操作无 loading 状态，用户可重复点击</td><td>confirm 回调中禁用按钮 + 文案追加"中…"</td><td><span class="metric">建议</span></td></tr>
+<tr><td>M4</td><td>dashboard/task_detail/registration_review</td><td>AJAX 操作无 loading 状态，用户可重复点击</td><td>confirm 触发中禁用按钮 + 文案追加"中…"</td><td><span class="metric">建议</span></td></tr>
 <tr><td>M5</td><td>register/user_form/user_profile/complete_profile</td><td><code>job_title_other</code> 选中时 JS 不设 <code>required</code></td><td>change 事件中 toggle <code>required</code></td><td><span class="metric">建议</span></td></tr>
 <tr><td>M6</td><td>register</td><td>无客户端密码匹配/组选择验证</td><td>submit 前 JS 检查</td><td><span class="skip">可选</span> — 后端兜底</td></tr>
 <tr><td>M7</td><td>change_password</td><td>无客户端新密码 === 确认密码检查</td><td>同上</td><td><span class="skip">可选</span></td></tr>

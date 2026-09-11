@@ -81,7 +81,7 @@ OPT-P0-11R3已交付v2.1.1
 
 | 做 | 不做 |
 | --- | --- |
-| 管理端 Session 写操作 CSRF；对话框改 POST；meta 注入；单测 + 浏览器验收 | Flask-WTF / WTForms 全量；改 `/api/*` 契约；SameSite 全面策略大改（可另立小项）；回调重试（R4） |
+| 管理端 Session 写操作 CSRF；对话框改 POST；meta 注入；单测 + 浏览器验收 | Flask-WTF / WTForms 全量；改 `/api/*` 契约；SameSite 全面策略大改（可另立小项）；触发重试（R4） |
 
 ## 五、分批
 

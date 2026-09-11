@@ -65,7 +65,7 @@
 <table border="1" cellpadding="4" cellspacing="0">
 <tr><th>问题域</th><th>根因</th></tr>
 <tr><td>测试门禁遗漏</td><td><code>cronpilot.sh test</code> 和 CI workflow 均使用显式模块列表而非自动发现（<code>python -m unittest discover</code>）；新增测试模块时未同步更新门禁列表。</td></tr>
-<tr><td>str(e) 泄露</td><td>早期开发阶段为调试便利直接将异常文本写入 job_log，后续未系统清理。<code>crons.py</code> 执行回调时有多个异常路径，每条路径独立编写 <code>"发生严重错误:%s" % str(e)</code>，无集中错误格式化函数。</td></tr>
+<tr><td>str(e) 泄露</td><td>早期开发阶段为调试便利直接将异常文本写入 job_log，后续未系统清理。<code>crons.py</code> 执行触发时有多个异常路径，每条路径独立编写 <code>"发生严重错误:%s" % str(e)</code>，无集中错误格式化函数。</td></tr>
 <tr><td>静默异常吞没</td><td>防御性编程过度：为避免辅助功能（如 scope group 获取、可选字段解析）的异常影响主流程，使用 <code>except: pass</code> 而未添加日志。缺乏"不允许无日志的 except"规范。</td></tr>
 <tr><td>分层绕过</td><td>Repository 模式引入较晚（Phase B 之后），旧写入路径未回溯迁移。<code>task_detail_v2</code> 作为大变更一次性实现，未拆分聚合逻辑到 Service。</td></tr>
 <tr><td>AJAX IIFE 重复</td><td>5 个页面在不同 OPT 中独立实现 AJAX 筛选（OPT-P1-17），每个页面自包含，未提取共享模块。</td></tr>
@@ -116,7 +116,7 @@
 <table border="1" cellpadding="4" cellspacing="0">
 <tr><th>编号</th><th>问题</th><th>方案</th><th>预估工时</th></tr>
 <tr><td>P1-1</td><td>AJAX 筛选 IIFE 重复 (~400 行)</td><td>
-提取 <code>app/static/js/redesign-filter.js</code>，封装通用 <code>CpFilter.init({baseUrl, tbodySelector, paginationSelector, statsCallback})</code> API；<br>
+提取 <code>app/static/js/redesign-filter.js</code>，封装通用 <code>CpFilter.init({baseUrl, tbodySelector, paginationSelector, statsHandler})</code> API；<br>
 5 个页面模板改为声明式调用，内联 JS 从 ~80 行/页降至 ~10 行/页
 </td><td>4 小时</td></tr>
 <tr><td>P1-2</td><td>状态切换重复（Web + API）</td><td>

@@ -99,7 +99,7 @@
                          └─ http_status ← <strong>已写入</strong>（<code>cron_do</code> 成功时落库，b105e47）
 
     job_log_items ← 另一套机制：业务在执行过程中 POST /api/cron/add_log 上报<strong>中间进度</strong>
-                    与「看本次回调 HTTP 结果」<strong>不是一回事</strong>，不应作为「更详细执行记录」的主入口。</pre>
+                    与「看本次触发 HTTP 结果」<strong>不是一回事</strong>，不应作为「更详细执行记录」的主入口。</pre>
   </div>
   <div class="warn">
     <strong>用户诉求（2026-06-22 反馈）：</strong>
@@ -190,7 +190,7 @@
     <div class="proto-modal-h">执行详情 · teststp · 2026-06-22 09:02:00</div>
     <div class="proto-modal-b">
       <p><strong>HTTP 200</strong> · 耗时 0.85s · log_id <code>ab8148aa-…</code></p>
-      <p style="margin:.5rem 0;color:#64748b;font-size:.85em">回调 URL：<code>http://example.com/callback</code></p>
+      <p style="margin:.5rem 0;color:#64748b;font-size:.85em">触发 URL：<code>http://example.com/trigger request</code></p>
       <pre>（第二行起：完整响应正文，等宽、可滚动；JSON 可原样展示）</pre>
       <hr style="border:none;border-top:1px dashed #ddd;margin:1rem 0">
       <p class="hint" style="margin:0"><strong>可选折叠区</strong>「业务上报进度」：仅当存在 <code>job_log_items</code> 时展开（<code>POST /api/cron/add_log</code>），默认收起，避免与 HTTP 结果混淆。</p>
@@ -204,7 +204,7 @@
     <tr><td>返回的内容列</td><td>整页 HTML 塞进一格</td><td>先看状态，再看摘要</td><td>同列两行（§5.1）</td></tr>
   </table>
   <div class="note">
-    <strong>「进度 / add_log」是什么？</strong> 给<strong>长时间运行</strong>的回调用的：被调方在处理过程中多次 POST 进度文本（如「步骤 1/3」）。普通「CronPilot 调一下 URL 拿响应」的任务<strong>不会</strong>产生这类记录，所以原弹窗常为空——不是没执行，而是入口绑错了数据表。
+    <strong>「进度 / add_log」是什么？</strong> 给<strong>长时间运行</strong>的触发用的：被调方在处理过程中多次 POST 进度文本（如「步骤 1/3」）。普通「CronPilot 调一下 URL 拿响应」的任务<strong>不会</strong>产生这类记录，所以原弹窗常为空——不是没执行，而是入口绑错了数据表。
   </div>
 
   <h2>六、方案对比</h2>
@@ -268,7 +268,7 @@
   <div class="ok-box">
     <strong>验收步骤：</strong>
     <ol style="margin:.35rem 0 0 1.2rem">
-      <li>触发一次成功回调 → 列表同一格见「HTTP 200」+ 正文摘要</li>
+      <li>触发一次成功触发 → 列表同一格见「HTTP 200」+ 正文摘要</li>
       <li>触发一次失败（超时/4xx）→ 第一行见异常或状态码，第二行见错误信息</li>
       <li>点「查看详情」→ 弹窗见完整两行结构（状态 + 全文），<strong>不应再是空白页</strong></li>
       <li>未调用 add_log 的任务 → 详情页无「业务上报」或显示 0 条</li>

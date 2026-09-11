@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""执行记录 trace_id 必填（与回调 / add_log 可追溯）。"""
+"""执行记录 trace_id 必填（与触发请求 / add_log 可追溯）。"""
 import os
 import unittest
 from unittest.mock import patch

@@ -40,7 +40,7 @@
 <table>
   <tr><th>影响面</th><th>描述</th></tr>
   <tr><td>资源浪费</td><td>调度器每次 tick 仍会为幽灵任务计算下次触发时间</td></tr>
-  <tr><td>执行噪音</td><td>若 <code>cron_do()</code> 仍能查到 <code>CronInfos</code> 记录（status=-1），则可能尝试回调并产生错误日志</td></tr>
+  <tr><td>执行噪音</td><td>若 <code>cron_do()</code> 仍能查到 <code>CronInfos</code> 记录（status=-1），则可能尝试触发并产生错误日志</td></tr>
   <tr><td>监控干扰</td><td>孤儿任务计数器不统计 <code>status=-1</code> 的任务（<code>cron_check</code> 跳过），幽灵任务成为监控盲区</td></tr>
   <tr><td>数据一致性</td><td>两库状态不一致，管理员查看 <code>apscheduler_jobs</code> 时会看到不该存在的条目</td></tr>
 </table>

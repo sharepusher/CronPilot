@@ -218,7 +218,7 @@
     <div class="demo-error-msg">任务名称不能为空</div>
   </div>
   <div class="demo-field">
-    <span class="demo-label">回调 URL</span>
+    <span class="demo-label">触发 URL</span>
     <input class="demo-input" value="https://example.com/api" disabled>
     <span class="demo-hint">完整的 HTTP/HTTPS URL</span>
   </div>
@@ -435,7 +435,7 @@ curl -s http://127.0.0.1:5001/rbac/login -w "%{http_code}"
 <table>
   <tr><th>页面</th><th>场景</th><th>建议</th></tr>
   <tr><td><code>task_form.html</code></td><td>标签建议 fetch 失败</td><td>静默隐藏可接受（非阻断操作），建议 console.warn</td></tr>
-  <tr><td><code>registration_review.html</code></td><td>批量审批 POST 失败</td><td>应补 error 回调 + Toast</td></tr>
+  <tr><td><code>registration_review.html</code></td><td>批量审批 POST 失败</td><td>应补 error 触发 + Toast</td></tr>
 </table>
 
 <h2>10. Phase 2 — 全 RBAC 表单覆盖设计</h2>

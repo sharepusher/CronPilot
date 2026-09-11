@@ -18,7 +18,7 @@ P1已交付 v2.2.0
 | 指标名 | 类型 | 标签 | 含义 | 评级 |
 | --- | --- | --- | --- | --- |
 | `cronpilot_job_trigger_delay_seconds` | Histogram | `task_name` | 计划触发时间 vs 实际开始执行的差值；排查"调度器堵塞/锁竞争导致延迟执行"的核心指标 | 需补实现路径 |
-| `cronpilot_job_duration_seconds` | Histogram | `task_name`, `status` | HTTP 回调耗时分布；直接复用 `t0 = time.time()` | 正确 |
+| `cronpilot_job_duration_seconds` | Histogram | `task_name`, `status` | HTTP 触发请求耗时分布；直接复用 `t0 = time.time()` | 正确 |
 | `cronpilot_job_total` | Counter | `task_name`, `status` | 执行总数；成功率 = `status="success" / all` | 正确 |
 | `cronpilot_lock_contention_total` | Counter | `lock_type`, `result` | Redis/文件双层锁竞争频次；`result`: `acquired`/`skipped` | 低优先级 |
 | `cronpilot_jobs_active` | Gauge | `state` | 当前各状态任务数（`running`/`paused`/`retired`）；由 `cron_check` 每 30 分钟更新 | 命名已修正 |
@@ -31,7 +31,7 @@ P1已交付 v2.2.0
 
 ```
 JOB_DURATION = Histogram(
-    'cronpilot_job_duration_seconds', 'HTTP callback duration',
+    'cronpilot_job_duration_seconds', 'HTTP trigger request duration',
     ['task_name', 'status'],
     buckets=[0.1, 0.5, 1, 5, 10, 30, 60, 120, float('inf')]
 )
@@ -172,7 +172,7 @@ try:
     JOB_TOTAL = Counter('cronpilot_job_total', 'Total job executions', ['task_name', 'status'])
 
     JOB_DURATION = Histogram(
-        'cronpilot_job_duration_seconds', 'HTTP callback duration per execution',
+        'cronpilot_job_duration_seconds', 'HTTP trigger request duration per execution',
         ['task_name', 'status'],
         buckets=[0.1, 0.5, 1, 5, 10, 30, 60, 120, float('inf')]
     )

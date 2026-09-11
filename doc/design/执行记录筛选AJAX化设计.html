@@ -87,7 +87,7 @@
 
 <h2>7. 风险</h2>
 <ul>
-<li><strong>日期选择器兼容</strong>：现有 <code>.js-datetime</code> 可能依赖第三方库（如 WindUI），AJAX 刷新后需重新绑定 → 在 <code>doFetch</code> 回调中处理</li>
+<li><strong>日期选择器兼容</strong>：现有 <code>.js-datetime</code> 可能依赖第三方库（如 WindUI），AJAX 刷新后需重新绑定 → 在 <code>doFetch</code> 触发中处理</li>
 <li><strong>content-code 展开状态丢失</strong>：AJAX 更新 innerHTML 后，展开的 <code>.expanded</code> 状态会丢失 → 可接受（用户正在切换筛选，旧展开状态无意义）</li>
 <li><strong>两个入口共用模板</strong>：<code>job_log_list</code>（单任务）和 <code>job_log_all_list</code>（全局）使用同一模板，partial JS 需根据 <code>cron_info</code> 存在与否确定 base URL</li>
 </ul>

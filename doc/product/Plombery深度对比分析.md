@@ -40,7 +40,7 @@ Plombery：**嵌入式 Python 流水线调度框架** —— 代码里 `@task` �
 | --- | --- | --- |
 | 交付形态 | 独立产品（Docker 一键、conf.ini 配置） | Python 库嵌入用户应用（`register_pipeline` + `get_app()`） |
 | 任务定义存储 | 数据库表 `cron_infos`，Web/API 动态 CRUD | 内存注册表（代码即配置），重启后定义来自代码 |
-| 执行发生位置 | 业务方服务器（HTTP 回调） | Plombery 所在 Python 进程 |
+| 执行发生位置 | 业务方服务器（HTTP 触发请求） | Plombery 所在 Python 进程 |
 | 任务拓扑 | 单步：1 触发器 → 1 URL | 线性 Pipeline：Task₁ → Task₂ → …（返回值串联） |
 | 手动触发 | 无一等公民「立即运行」按钮（仅改 cron/date） | Web「Run」+ `POST /api/pipelines/{id}/run` |
 | 非 Python 业务 | 天然支持 | 需 HTTP 触发 pipeline 或放弃 Plombery 执行模型 |
@@ -131,7 +131,7 @@ Plombery 以 **Pipeline → Trigger → Run** 三级组织；CronPilot 以 **Tas
 | --- | --- | --- |
 | 主列表 | `job_log_all_list`：log\_id、任务名、响应体、时间、耗时 | `RunsList`：status、pipeline、trigger、started、duration |
 | 详情页 | 无独立 Run 详情路由；iframe 看 item 明细 | 专属 Run 页：LogViewer + Tasks 输出 + Traceback 对话框 |
-| 日志查看 | 展示回调 HTTP 响应文本（可能很长、非结构化） | JSONL 结构化级别/时间/task 过滤；WS 追加行 |
+| 日志查看 | 展示触发 HTTP 响应文本（可能很长、非结构化） | JSONL 结构化级别/时间/task 过滤；WS 追加行 |
 | 任务输出 | 无 | `GET /runs/{id}/data/{task}` + DataViewerDialog（含表格） |
 | 失败诊断 | 看 content 是否含 fail 关键词 | FAILED 状态 + reason 字段 + traceback 弹窗 |
 
@@ -221,7 +221,7 @@ APScheduler → run(pipeline, trigger) → for task in pipeline.tasks: await _ex
 | --- | --- | --- |
 | Web | Flask Session Cookie（`is_login`） | Session Cookie（OAuth 后） |
 | API | `access_token` 在 query/form | `NeedsAuth` Depends；Cookie credentials: include |
-| 执行回调 | 业务 URL 上 `cronpilot_sign` | N/A（进程内执行） |
+| 执行触发 | 业务 URL 上 `cronpilot_sign` | N/A（进程内执行） |
 | CORS | 未显式配置 | `settings.allowed_origins` |
 
 ## 5. 后端分层与领域模型
@@ -247,7 +247,7 @@ CronInfos (持久化任务定义)              Pipeline (代码注册, 含 tasks
                                        PipelineRun (一次执行)
 JobLog (每次触发一条)                     ├─ status 状态机
   ├─ content = HTTP body                  ├─ tasks_run[] (每 Task 状态/耗时)
-  └─ log_id = 回调关联 ID                 ├─ input_params JSON
+  └─ log_id = 触发关联 ID                 ├─ input_params JSON
 JobLogItems (业务回传明细)                └─ reason
                                        文件: run_{id}/logs.jsonl, {task}.json
 ```
@@ -341,7 +341,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 | --- | --- | --- |
 | 管理面认证 | 三角色 RBAC：用户名+密码（`rbac_users`）；空表种子 `admin`/`login_pwd`；改密走用户管理 | OAuth2 + Session（可关闭） |
 | API 鉴权 | 可选 access\_token 明文 | NeedsAuth；内网可 auth=null 全开放 |
-| 执行面 | SSRF 风险（任意 req\_url）；回调 MD5 签名为可选 | 执行本地代码；需信任 pipeline 作者 |
+| 执行面 | SSRF 风险（任意 req\_url）；触发 MD5 签名为可选 | 执行本地代码；需信任 pipeline 作者 |
 | 路径安全 | 无用户文件读取 API | `_check_is_valid_path` 防穿越 |
 | RBAC | 无 | 无（登录即全权限） |
 | 依赖安全 | Flask 1.1 / Py3.6 等较旧 | Py3.9–3.13 CI；较新栈 |
@@ -389,7 +389,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 
 | 维度 (权重) | CronPilot | Plombery | 说明 |
 | --- | --- | --- | --- |
-| 跨语言集成 (20%) | ★★★★★ | ★★☆☆☆ | HTTP 回调 vs Python 内执行 |
+| 跨语言集成 (20%) | ★★★★★ | ★★☆☆☆ | HTTP 触发请求 vs Python 内执行 |
 | 运维 UI 体验 (15%) | ★★☆☆☆ | ★★★★★ | SSR 老栈 vs 现代 SPA+实时 |
 | 运行可观测 (15%) | ★★☆☆☆ | ★★★★★ | 响应文本 vs 结构化日志+状态机 |
 | 任务编排 (10%) | ★☆☆☆☆ | ★★★☆☆ | 单 URL vs 线性 Pipeline |
@@ -404,7 +404,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 | --- | --- |
 | 10+ 微服务，只要统一 Cron 触发既有 REST 接口 | **CronPilot** |
 | 数据团队 Python ETL，要多步串联、看实时日志、手动带参运行 | **Plombery** |
-| 既要统一调度台，又要复杂 Python 管道 | **组合**：CronPilot 回调 Plombery `POST .../run` |
+| 既要统一调度台，又要复杂 Python 管道 | **组合**：CronPilot 触发 Plombery `POST .../run` |
 | DAG、重试矩阵、千级任务分布式 | 两者都不合适 → Airflow/Prefect/Dagster |
 
 ## 16. 共存与迁移路径
@@ -438,13 +438,13 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 
 #### 必须保留的核心优势（优化时不得削弱）
 
-- **HTTP 回调执行模型**：继续以 `req_url` 触发业务系统，不改为进程内执行 Python。
+- **HTTP 触发请求执行模型**：继续以 `req_url` 触发业务系统，不改为进程内执行 Python。
 - **跨语言集成**：任何能接 GET 的服务均可接入，无需迁入 CronPilot 运行时。
 - **Web/API 动态配置**：任务存 `cron_infos`，运维无需发版即可增删改定时规则。
 - **Crontab 兼容 + 秒级**：字段级 cron 与一次性 `run_date` 保持现有语义。
 - **集群能力**：保留 portalocker + Redis `@single_task`，优于 Plombery 默认单实例限制。
 - **轻量部署**：Docker 一键、conf.ini、双 SQLite 开箱即用。
-- **回调签名与 add\_log**：`cronpilot_sign`、长任务进度回传仍是差异化能力。
+- **触发签名与 add\_log**：`cronpilot_sign`、长任务进度回传仍是差异化能力。
 
 ### 17.0 差距总览：为何需要优化
 
@@ -476,7 +476,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list
 | CronPilot 现状 | `crons.cron_do` 在 `requests.get` 成功后仅把 `req.text` 写入 `job_log.content`；另用 `error_keyword in ret` 决定是否 `wechat_info_err`。**不读取 `req.status_code`。** |
 | 具体不足 | ① HTTP 502/500 常显示为「成功记录」；② 200 但业务失败且无关键词则静默；③ 列表无法筛失败；④ 与用户问「是否关心结果」的答案不一致。 |
 | 优化（P1） | OPT-P1-01/02：`job_log.status` + `fail_on_http_4xx_5xx` + `fail_reason`。 |
-| 价值 | 产品承诺可验证；告警准确率提升；对标 Plombery 的「执行结果语义」，而不改变 HTTP 回调模型。 |
+| 价值 | 产品承诺可验证；告警准确率提升；对标 Plombery 的「执行结果语义」，而不改变 HTTP 触发请求模型。 |
 
 详见 [OPT-P1-01](产品优化需求-借鉴Plombery.html#opt-p1-01)、[OPT-P1-02](产品优化需求-借鉴Plombery.html#opt-p1-02)。
 
@@ -517,7 +517,7 @@ Plombery 文档明确**禁止**多 worker 无锁扩展；CronPilot 的 portalock
 
 ### 17.5 明确不借鉴
 
-进程内 Pipeline、纯代码注册、强制单 worker、整站 React、平台 DAG —— 均会牺牲 HTTP 跨语言或动态配置优势。组合方案：cron 回调 Plombery `POST /run`。
+进程内 Pipeline、纯代码注册、强制单 worker、整站 React、平台 DAG —— 均会牺牲 HTTP 跨语言或动态配置优势。组合方案：cron 触发 Plombery `POST /run`。
 
 ### 17.6 实施路线图
 

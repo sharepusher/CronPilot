@@ -28,7 +28,7 @@ try:
 
     JOB_DURATION = Histogram(
         'cronpilot_job_duration_seconds',
-        'HTTP callback duration per execution',
+        'HTTP trigger request duration per execution',
         ['task_name', 'status'],
         buckets=[0.1, 0.5, 1, 5, 10, 30, 60, 120, float('inf')],
     )

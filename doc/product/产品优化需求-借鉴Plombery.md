@@ -84,7 +84,7 @@ Plombery 运行元数据均经 SQLAlchemy Repository 写入，删除/查询走 O
 
 **验收：**磁盘上无明文密码；旧 conf 迁移文档齐全。
 
-**OPT-P0-03** P0 回调 URL SSRF / 内网探测防护
+**OPT-P0-03** P0 触发 URL SSRF / 内网探测防护
 
 #### Plombery 对照
 
@@ -117,7 +117,7 @@ REST 使用 HTTP 状态码 + Pydantic 校验；422 返回字段级 `detail`；�
 |  |  |
 | --- | --- |
 | 现状 | Web 用 `web_api_return`；API 用 `api_return`（字段相同但入口分散）；`requests.js` 判断 `data.errcode == '0'`（字符串），而服务端返回数字 `0`。 |
-| 不足 | 部分 Ajax 成功回调可能永不触发；对接方难以依赖统一规范；与 Plombery「一种错误模型」相比显得业余。 |
+| 不足 | 部分 Ajax 成功触发可能永不触发；对接方难以依赖统一规范；与 Plombery「一种错误模型」相比显得业余。 |
 
 #### 优化方案
 
@@ -153,7 +153,7 @@ REST 使用 HTTP 状态码 + Pydantic 校验；422 返回字段级 `detail`；�
 
 ## P1 需求（可观测与运维效率）
 
-以下问题在对比 Plombery 时最为刺眼：对方有 **PipelineRun 状态机 + 实时 UI**，我方仅有「任务是否在跑」和「回调返回的一大段文本」。
+以下问题在对比 Plombery 时最为刺眼：对方有 **PipelineRun 状态机 + 实时 UI**，我方仅有「任务是否在跑」和「触发响应的一大段文本」。
 
 **OPT-P1-01** P1 单次执行结构化状态（success / fail / timeout）
 
@@ -194,7 +194,7 @@ Task 抛异常 → 流水线 FAILED，语义清晰；不依赖响应体猜词。
 |  |  |
 | --- | --- |
 | 现状 | 仅 `error_keyword` 子串匹配响应体；`requests.get` 不因 4xx/5xx 抛错（除非连接失败）。 |
-| 不足 | 业务返回 200 + `{"success":false}` 无关键词 → 平台认为成功。  返回 502 空 body → 平台认为成功。  与「回调型调度」行业标准（看 HTTP + 业务码）不一致。 |
+| 不足 | 业务返回 200 + `{"success":false}` 无关键词 → 平台认为成功。  返回 502 空 body → 平台认为成功。  与「触发型调度」行业标准（看 HTTP + 业务码）不一致。 |
 
 #### 优化方案
 
@@ -259,7 +259,7 @@ conf.ini：`fail_on_http_4xx_5xx=1`（默认开）、保留 keyword；可选 JSO
 |  |  |
 | --- | --- |
 | 现状 | 已有 `/api/cron/add_log` + `job_log_items`，但 UI 仅 iframe 列表；无 level/time 字段；平台侧无实时推送。 |
-| 不足 | 长任务场景下 Plombery「边跑边看日志」；我方「回调完才看到一大坨响应」，中间黑盒。 |
+| 不足 | 长任务场景下 Plombery「边跑边看日志」；我方「触发完才看到一大坨响应」，中间黑盒。 |
 
 #### 优化方案
 
@@ -400,7 +400,7 @@ Plombery 有 RunsStatusChart、RunsDurationChart（Tremor）。
 
 #### 对比
 
-Plombery `coalesce=True`，停机恢复后不风暴执行。我方 `coalesce=False`，积压会连续触发多次回调。
+Plombery `coalesce=True`，停机恢复后不风暴执行。我方 `coalesce=False`，积压会连续触发多次触发。
 
 #### 现状不足
 
@@ -524,7 +524,7 @@ OAuth 为后续扩展；本地多用户 + 装饰器 RBAC 已落地。
 
 | Plombery 能力 | 不做原因 | 替代策略 |
 | --- | --- | --- |
-| 进程内 @task Pipeline | 摧毁跨语言 HTTP 定位 | 组合架构：cron 回调 Plombery run API |
+| 进程内 @task Pipeline | 摧毁跨语言 HTTP 定位 | 组合架构：cron 触发 Plombery run API |
 | 仅代码注册任务 | 丧失 Web/API 动态运维优势 | 保持 cron\_infos DB |
 | 强制单 worker | 放弃已有集群双锁能力 | 文档写清集群拓扑；可选调度独立进程 |
 | 全量 React 重写 | 部署复杂、与轻量 Docker 形象冲突 | SSR + SSE + 详情页 |

@@ -38,6 +38,7 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+- **修复 — 触发术语全仓治理**：活跃代码/文档统一到“触发请求”模型；已发布 changelog 保持当时原文；`scripts/check_terminology.py` 放行技术回调与历史引用，并由 `docs-sync.yml` 与 `unit-tests.yml` 执行。设计 [`doc/design/全仓术语治理设计-2026-09.html`](design/全仓术语治理设计-2026-09.html) · 复盘 [`doc/postmortem/2026-09-trigger-terminology-cleanup.html`](postmortem/2026-09-trigger-terminology-cleanup.html)
 - **增强 — 任务链路日志完整性补全**：补齐 `cron.start` / `cron.http_sending` / `cron.created` / `cron.scheduler_registered` 过程日志；`job_log` 增加 `trigger_source`（当前仅 `schedule`/`manual`，`one_shot` 为预留）、`actual_url`（签名已脱敏）、`resolved_ip`、`trigger_delay_ms`；详情页按来源展示触发方式。设计 [`doc/design/任务链路日志完整性增强设计.html`](design/任务链路日志完整性增强设计.html) · 复盘 [`doc/postmortem/2026-09-任务链路日志Bug修复复盘.html`](postmortem/2026-09-任务链路日志Bug修复复盘.html)
 - **UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）**：将「+ 添加用户」移至用户列表工具区左首位，搜索框紧随其后；不改变路由、权限或后端行为。设计：[`doc/design/用户管理添加用户入口布局优化设计.html`](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html)
 - **工程 — 文档索引结构与复盘登记门禁**：`scripts/check_doc_completeness.py` 新增手工索引页块级标签配对校验与复盘 HTML/MD 双索引登记、篇数一致性校验，修复索引剪贴断裂与误删登记。复盘：[`doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html`](postmortem/2026-09-文档索引结构损坏与登记丢失.html)

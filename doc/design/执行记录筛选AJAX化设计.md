@@ -89,7 +89,7 @@ v2 redesign 时只重构了视觉样式，未引入 AJAX 局部刷新机制。
 
 ## 7. 风险
 
-- **日期选择器兼容**：现有 `.js-datetime` 可能依赖第三方库（如 WindUI），AJAX 刷新后需重新绑定 → 在 `doFetch` 回调中处理
+- **日期选择器兼容**：现有 `.js-datetime` 可能依赖第三方库（如 WindUI），AJAX 刷新后需重新绑定 → 在 `doFetch` 触发中处理
 - **content-code 展开状态丢失**：AJAX 更新 innerHTML 后，展开的 `.expanded` 状态会丢失 → 可接受（用户正在切换筛选，旧展开状态无意义）
 - **两个入口共用模板**：`job_log_list`（单任务）和 `job_log_all_list`（全局）使用同一模板，partial JS 需根据 `cron_info` 存在与否确定 base URL
 

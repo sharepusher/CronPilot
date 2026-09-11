@@ -242,7 +242,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "id": 8,
       "options": { "tooltip": { "mode": "multi", "sort": "none" }, "legend": { "displayMode": "list", "placement": "bottom" } },
-      "title": "回调响应体大小分位数",
+      "title": "触发响应体大小分位数",
       "type": "timeseries",
       "targets": [
         {

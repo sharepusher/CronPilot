@@ -112,7 +112,7 @@
   <table>
     <tr><th>原则</th><th>说明</th></tr>
     <tr><td>最小 diff</td><td>依赖升级 PR 不得夹带 RBAC、operation_log 等业务功能；反之亦然。</td></tr>
-    <tr><td>行为不变优先</td><td>调度触发、集群互斥（portalocker + Redis）、回调验签契约不得因升级而改变默认行为。</td></tr>
+    <tr><td>行为不变优先</td><td>调度触发、集群互斥（portalocker + Redis）、触发验签契约不得因升级而改变默认行为。</td></tr>
     <tr><td>Python 3.8–3.11</td><td>在 <strong>Tier 2</strong> 完成前，项目规则仍禁止默认 3.12+。</td></tr>
     <tr><td>双格式文档</td><td>本 RFC 行为变更落地后同步 <code>RELEASE_NOTES</code>、<code>非Docker部署指南</code>、<code>INSTALL.md</code> 相关节。</td></tr>
     <tr><td>可回滚</td><td>每一 Tier 须能在同一版本线回退 <code>requirements*.txt</code> 并恢复 Docker 构建。</td></tr>
@@ -349,7 +349,7 @@ RBAC 插入点（推荐）:
     <tr><th>Tier</th><th>对 RBAC 开发</th><th>对 RBAC 发布</th><th>建议</th></tr>
     <tr><td>Tier 0</td><td>解锁 <code>flask db migrate</code></td><td>标准 Alembic 建表</td><td class="ok">RBAC 前置（强烈建议）</td></tr>
     <tr><td>Tier 1 (SA 1.4)</td><td>无冲突；新代码避免旧查询债</td><td>与 1.3 行为一致即可发布</td><td>可与 RBAC 并行</td></tr>
-    <tr><td>侧车 安全补丁</td><td>无</td><td>回调冒烟</td><td>任意时刻</td></tr>
+    <tr><td>侧车 安全补丁</td><td>无</td><td>触发冒烟</td><td>任意时刻</td></tr>
     <tr><td>Tier 2 gevent</td><td>无直接冲突</td><td>调度回归</td><td>RBAC 稳定后</td></tr>
     <tr><td>Tier 3/4</td><td>可能改 RBAC 查询</td><td>全站迁移</td><td>RBAC 发布后</td></tr>
   </table>

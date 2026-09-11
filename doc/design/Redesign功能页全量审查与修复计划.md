@@ -76,7 +76,7 @@
 
 | # | 页面 | 问题 | 修复方案 | 必要性 |
 | --- | --- | --- | --- | --- |
-| M4 | dashboard/task\_detail/registration\_review | AJAX 操作无 loading 状态，用户可重复点击 | confirm 回调中禁用按钮 + 文案追加"中…" | 建议 |
+| M4 | dashboard/task\_detail/registration\_review | AJAX 操作无 loading 状态，用户可重复点击 | confirm 触发中禁用按钮 + 文案追加"中…" | 建议 |
 | M5 | register/user\_form/user\_profile/complete\_profile | `job_title_other` 选中时 JS 不设 `required` | change 事件中 toggle `required` | 建议 |
 | M6 | register | 无客户端密码匹配/组选择验证 | submit 前 JS 检查 | 可选 — 后端兜底 |
 | M7 | change\_password | 无客户端新密码 === 确认密码检查 | 同上 | 可选 |

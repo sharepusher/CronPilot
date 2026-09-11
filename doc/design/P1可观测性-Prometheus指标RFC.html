@@ -69,7 +69,7 @@
         <td><code>cronpilot_job_duration_seconds</code></td>
         <td>Histogram</td>
         <td><code>task_name</code>, <code>status</code></td>
-        <td>HTTP 回调耗时分布；直接复用 <code>t0 = time.time()</code></td>
+        <td>HTTP 触发请求耗时分布；直接复用 <code>t0 = time.time()</code></td>
         <td><span class="badge badge-ok">正确</span></td>
       </tr>
       <tr>
@@ -115,7 +115,7 @@
     <strong>⚠ 必改项：</strong>默认 Bucket 上限 10s，而 <code>cron_do</code> HTTP timeout 是 120s。不自定义 Bucket 则超时任务全部落进 <code>+Inf</code>，P95/P99 曲线完全失真。
   </div>
   <pre>JOB_DURATION = Histogram(
-    'cronpilot_job_duration_seconds', 'HTTP callback duration',
+    'cronpilot_job_duration_seconds', 'HTTP trigger request duration',
     ['task_name', 'status'],
     buckets=[0.1, 0.5, 1, 5, 10, 30, 60, 120, float('inf')]
 )
@@ -265,7 +265,7 @@ try:
     JOB_TOTAL = Counter('cronpilot_job_total', 'Total job executions', ['task_name', 'status'])
 
     JOB_DURATION = Histogram(
-        'cronpilot_job_duration_seconds', 'HTTP callback duration per execution',
+        'cronpilot_job_duration_seconds', 'HTTP trigger request duration per execution',
         ['task_name', 'status'],
         buckets=[0.1, 0.5, 1, 5, 10, 30, 60, 120, float('inf')]
     )

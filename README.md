@@ -1,6 +1,6 @@
 # CronPilot
 
-中心化 **HTTP 定时回调调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
+中心化 **HTTP 定时触发调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
 当前版本 **v4.0.0**（V1 UI 下线 · 安全加固 · 时间戳 BIGINT · AJAX 化 · 逾期检测；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
@@ -24,7 +24,7 @@
 | **v2.0.0** | 任务中心五列 + `job_health`；列表立即执行；强制首次改密/触发重置；用户启停缘由；**触发请求 GET/POST + JSON Body** |
 | **v1.2.0** | 管理端顶栏身份（系统/业务管理员）；种子 `admin` 仅建用户+只读；启停用语统一；下线入口提示 |
 | **v1.1.0** | 业务组资源隔离；自助改密（成功后强制重新登录）；任务编辑页精简 |
-| **v1.0.0** | 三角色权限、用户管理 / 审计；操作记录；无人工删除 + 下线；回调 `log_id`；404 友好页 |
+| **v1.0.0** | 三角色权限、用户管理 / 审计；操作记录；无人工删除 + 下线；触发 `log_id`；404 友好页 |
 | **v0.2.0** | 执行状态与失败判定；执行记录与导航体验；依赖与 Docker（Python 3.10）加固 |
 | **v0.1.1** | 文档 `/docs/`、Python 3.8–3.11 自动匹配、CI |
 | **v0.1.0** | ORM 化访问、密码哈希、SSRF 防护、统一 JSON 契约、校验与服务层抽取 |
@@ -355,7 +355,7 @@ tests/               # 单测（P0 / RBAC / S6 / form guard 等，679 用例）
 scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 ```
 
-## 回调与 API 约定
+## 触发与 API 约定
 
 触发业务 URL 时，平台会追加 query 参数：
 
@@ -374,7 +374,7 @@ scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 | `SECRET_KEY`（环境变量） | 开发有默认；生产必强 | 会话签名；勿写入 conf.ini。生产可用 `run_production.sh` 生成 `datas/.flask_secret_key` |
 | `api_access_token` | 空 | 全局 API Token（Bearer）；空且 `api_access_token_required=0` 时 API 免鉴权 |
 | `api_access_token_required` | `0` | `1` 时生产启动 fail-fast：`api_access_token` 为空则拒绝启动 |
-| `block_private_ip` | `1` | 禁止回调内网/本机/元数据地址 |
+| `block_private_ip` | `1` | 禁止触发内网/本机/元数据地址 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
 | `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |
 | `operation_log_counts` | `5000` | 业务操作记录保留条数上限 |

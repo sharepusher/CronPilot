@@ -210,7 +210,7 @@ else:
   <tr><th>风险</th><th>影响</th><th>缓解</th></tr>
   <tr>
     <td>真正的孤儿任务不再自动下线</td>
-    <td>低：孤儿任务不占资源（APScheduler 中已不存在，不会触发回调）；但 Dashboard 统计可能包含</td>
+    <td>低：孤儿任务不占资源（APScheduler 中已不存在，不会触发触发）；但 Dashboard 统计可能包含</td>
     <td>Phase 2 增加 UI 展示和操作入口</td>
   </tr>
   <tr>
@@ -678,7 +678,7 @@ def cron_check():
   <tr>
     <td>主动告警</td>
     <td>AlertManager（Webhook/PagerDuty/Slack）</td>
-    <td>SLA miss callback + Email</td>
+    <td>SLA miss trigger request + Email</td>
     <td>仅 Dashboard + Prometheus</td>
     <td>复用 <code>send_text()</code> 三通道推送</td>
   </tr>

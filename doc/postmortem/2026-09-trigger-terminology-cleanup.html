@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>2026-09 术语治理复盘：触发模型旧术语清理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; line-height: 1.7; color: #0f172a; }
+    h1, h2 { color: #0b7285; }
+    code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <p><a href="index.html">← 返回复盘索引</a></p>
+  <h1>2026-09 术语治理复盘：触发模型旧术语清理</h1>
+  <p>日期：2026-09-07</p>
+  <h2>1) Bug 定位</h2>
+  <p>仓库内多处文档、日志文案、注释和指标描述对 CronPilot 的“主动 HTTP 触发请求”使用了历史旧术语，与真实执行模型不一致。</p>
+  <h2>2) 根因</h2>
+  <p>早期术语沿用后缺少跨层词汇门禁，代码、文档、规则没有统一审计流程。</p>
+  <h2>3) 测试漏洞</h2>
+  <p>现有 CI 无术语准确性检查，导致问题长期潜伏。首版门禁若只做全仓字面扫描、且只挂在 <code>docs-sync.yml</code> 的 <code>doc/**</code> 路径上，则：① 引用旧 <code>job_log</code> 文案的兼容分支与复盘会被误杀；② 已发布 Release Notes 会被改写成当前术语，丢失当时实际交付事实；③ 只改 <code>app/</code> 的 PR 不会跑术语扫描。</p>
+  <h2>4) 修复</h2>
+  <ul>
+    <li>URL 安全校验函数统一为 <code>validate_trigger_url</code>，同步调用链与测试。</li>
+    <li>用户文案统一到“触发请求”语义。</li>
+    <li>活跃文档、规则、指标与日志清理业务旧术语；<code>doc/archive/</code> 与已发布 changelog 保持当时原文。</li>
+    <li>门禁增加技术回调（含 <code>beforeSubmit</code>）与历史引用白名单；排除已发布 <code>doc/RELEASE_NOTES.*</code> 与引用旧文案的复盘。</li>
+  </ul>
+  <h2>5) 防护测试</h2>
+  <table>
+    <tr><th>类型</th><th>命令</th><th>结论</th></tr>
+    <tr><td>术语扫描</td><td><code>python scripts/check_terminology.py --check</code></td><td>通过</td></tr>
+    <tr><td>门禁单测</td><td><code>python -m unittest tests.test_check_terminology -v</code></td><td>含历史引用与 <code>beforeSubmit</code> 放行</td></tr>
+    <tr><td>代码质量</td><td><code>.venv-py311/bin/ruff check app/</code></td><td>通过</td></tr>
+    <tr><td>回归测试</td><td><code>.venv-py311/bin/python -m unittest tests.test_p0_phase_a tests.test_job_log_display tests.test_job_log_outcome tests.test_lifecycle_logging tests.test_job_log_id -v</code></td><td>64/64 通过</td></tr>
+    <tr><td>文档同步</td><td><code>.venv-md/bin/python scripts/html_docs_to_markdown.py --check</code></td><td>通过</td></tr>
+  </table>
+  <h2>6) 同类排查</h2>
+  <p>已覆盖 <code>app/</code>、<code>tests/</code>、<code>scripts/</code>、活跃 <code>doc/</code>、规则与根发布说明。残留仅第三方 vendor、前端构建产物、<code>doc/archive/</code>，以及 changelog/复盘中的历史引用。</p>
+  <h2>7) 预防方案</h2>
+  <ul>
+    <li>新增 <code>scripts/check_terminology.py</code>：业务旧术语拦截；技术回调与历史引用放行。</li>
+    <li><code>.github/workflows/docs-sync.yml</code> 路径扩展到 <code>app/**</code>、<code>tests/**</code>、规则与发布说明；<code>unit-tests.yml</code> 在 discover 之后执行 <code>python scripts/check_terminology.py --check</code>，并监听 <code>scripts/check_terminology.py</code>。</li>
+    <li>协作规范与 <code>AGENTS.md</code> 命令清单增加术语门禁。验证：<code>python scripts/check_terminology.py --check</code>；<code>python -m unittest tests.test_check_terminology -v</code>。</li>
+  </ul>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-09-trigger-terminology-cleanup.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

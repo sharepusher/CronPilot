@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>全仓术语治理设计（callback/回调→触发语义）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 980px; margin: 0 auto; padding: 24px; color: #0f172a; line-height: 1.7; }
+    h1, h2, h3 { color: #0b7285; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+    code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+    .note { color: #475569; }
+  </style>
+</head>
+<body>
+  <p><a href="../index.html">← 返回文档索引</a></p>
+  <h1>全仓术语治理设计（callback/回调→触发语义）</h1>
+  <p class="note">状态：已完成；Batch A/B 为问答过程同步，Batch C/D 已执行并验证 · 日期：2026-09-07</p>
+
+  <h2>1. 问题</h2>
+  <p>当前仓库中存在“callback / 回调”与“触发请求”混用。CronPilot 的执行模型是平台主动向业务 URL 发起 HTTP 请求，属于“触发请求”语义。混用会带来三类问题：</p>
+  <ul>
+    <li>对外文档与用户文案误导：让读者误以为平台存在被动回调协议。</li>
+    <li>代码命名与日志不一致：同一行为被不同词汇描述，增加维护成本。</li>
+    <li>规则门禁缺失：后续提交容易再次引入旧术语。</li>
+  </ul>
+
+  <h2>2. 根因</h2>
+  <ul>
+    <li>历史术语惯性：早期文档和实现沿用“回调”说法。</li>
+    <li>跨层无统一词表：代码、文档、规则各自演进，缺少统一治理机制。</li>
+    <li>CI 缺少术语门禁：只能靠人工 review 发现，稳定性差。</li>
+  </ul>
+
+  <h2>3. 方案</h2>
+  <p>采用“分批治理 + 规则固化”方案。治理对象是 CronPilot 的业务执行语义，不是禁止所有技术语境中的 callback。统一目标词汇如下：</p>
+  <table>
+    <tr><th>旧术语</th><th>统一术语</th><th>说明</th></tr>
+    <tr><td>业务语境中的 <code>callback</code></td><td><code>trigger request</code></td><td>指调度器主动向业务 URL 发起请求</td></tr>
+    <tr><td>业务语境中的回调</td><td>触发请求 / 触发</td><td>统一用户可见、日志和业务代码表述</td></tr>
+    <tr><td>回调 URL</td><td>触发 URL</td><td>仅针对任务目标地址的用户可见字段</td></tr>
+  </table>
+  <p>关键原则：不修改业务行为，仅调整命名与文案；第三方 vendor/dist 代码不改。异步库 API 中的 <code>callback</code>、历史文档中的技术引用和原始事实不做机械替换。</p>
+
+  <h2>4. 范围</h2>
+  <h3>4.1 范围内</h3>
+  <ul>
+    <li><strong>代码命名</strong>：函数名、变量名、注释、日志文案、指标 help。</li>
+    <li><strong>用户文案</strong>：模板文案、错误提示、接口描述文本。</li>
+    <li><strong>活跃文档</strong>：当前版本的架构、设计、手册、README 和发布说明；历史复盘与归档文档仅在业务语义明显误导时修订。</li>
+    <li><strong>规则/门禁</strong>：`AGENTS.md`、`.cursor/rules/*.mdc`、新增术语检查脚本与 CI 命令。</li>
+  </ul>
+  <h3>4.2 明确不做</h3>
+  <ul>
+    <li>不改第三方文件：`app/static/js/jquery.js`、`app/static/dist/*`、虚拟环境目录。</li>
+    <li>不做与术语无关的重构、格式化和逻辑优化。</li>
+    <li>不新增功能，不改变 HTTP/API 行为契约；<code>validate_callback_url</code> 是内部函数命名，当前仓库无业务 callback 依赖，允许直接改为 <code>validate_trigger_url</code>。</li>
+    <li>不改异步库或第三方技术 API 中合法的 callback 语义。</li>
+  </ul>
+
+  <h2>5. 分批计划（按你要求拆批）</h2>
+  <p>每一类变更均采用“文件清单 + 变更详情 + 验收命令”三联表，避免泛化描述。</p>
+
+  <h3>Batch A：代码命名（Python 代码与测试）</h3>
+  <table>
+    <tr><th>文件</th><th>具体变更</th><th>变更详情</th></tr>
+    <tr><td><code>app/services/url_security.py</code></td><td>函数命名统一</td><td><code>validate_callback_url</code> → <code>validate_trigger_url</code>；同步调用点注释语义</td></tr>
+    <tr><td><code>app/services/cron_validator.py</code></td><td>调用方改名</td><td>导入与调用统一为 <code>validate_trigger_url</code></td></tr>
+    <tr><td><code>app/crons.py</code></td><td>日志与异常文案统一</td><td><code>sending callback</code> 等日志改为 trigger request 语义；错误文案统一为“触发URL安全校验未通过”</td></tr>
+    <tr><td><code>app/metrics.py</code></td><td>指标 help 文案统一</td><td><code>HTTP callback duration ...</code> → <code>HTTP trigger request duration ...</code></td></tr>
+    <tr><td><code>app/services/job_log_outcome.py</code></td><td>状态判定文本统一</td><td><code>pre_request_outcome()</code> 中拦截前置失败文案切换到“触发”语义</td></tr>
+    <tr><td><code>app/services/job_log_display.py</code></td><td>展示判定文本统一</td><td>列表状态行中旧术语匹配条件改为新术语</td></tr>
+    <tr><td><code>tests/test_p0_phase_a.py</code></td><td>测试函数调用同步</td><td>全部 URL 校验测试改用 <code>validate_trigger_url</code></td></tr>
+    <tr><td><code>tests/test_job_log_display.py</code></td><td>断言文案同步</td><td>断言输入文本改为“触发URL安全校验未通过”</td></tr>
+    <tr><td><code>tests/test_job_log_outcome.py</code></td><td>断言文案同步</td><td><code>pre_request_outcome</code> 用例改为新文案</td></tr>
+    <tr><td><code>tests/test_job_log_id.py</code></td><td>测试说明注释统一</td><td>模块文档注释改为“触发请求”语义</td></tr>
+    <tr><td><code>tests/test_lifecycle_logging.py</code></td><td>示例 URL 语义统一</td><td>示例路径从旧词后缀改为中性/触发语义后缀</td></tr>
+  </table>
+  <p><strong>Batch A 状态：</strong>已在问答过程中同步完成，属于设计讨论期间的代码同步，不代表另立实施批次。</p>
+  <p><strong>Batch A 验收：</strong><code>ruff check app/</code>；<code>python -m unittest tests.test_p0_phase_a tests.test_job_log_display tests.test_job_log_outcome tests.test_lifecycle_logging tests.test_job_log_id -v</code></p>
+
+  <h3>Batch B：用户文案（页面/API 可见文本）</h3>
+  <table>
+    <tr><th>文件</th><th>具体变更</th><th>变更详情</th></tr>
+    <tr><td><code>app/crons.py</code></td><td>后端错误提示</td><td>“回调URL安全校验未通过”类文案统一为“触发URL安全校验未通过”</td></tr>
+    <tr><td><code>app/services/cron_validator.py</code></td><td>表单提示文本</td><td><code>req_url</code> 描述明确为“触发 URL（调度器主动请求）”</td></tr>
+    <tr><td><code>app/templates/redesign/run_inspector.html</code></td><td>页面术语</td><td>执行链路相关显示字段统一使用“触发 URL/触发请求”</td></tr>
+    <tr><td><code>conf.ini.example</code></td><td>配置注释</td><td><code>error_keyword</code>、<code>api_key</code> 等说明文字改为触发语义</td></tr>
+    <tr><td><code>conf.example.ini</code></td><td>配置注释</td><td>与 <code>conf.ini.example</code> 同步，避免双样例漂移</td></tr>
+  </table>
+  <p><strong>Batch B 状态：</strong>已在问答过程中同步完成，属于设计讨论期间的代码同步。</p>
+  <p><strong>Batch B 验收：</strong>登录后人工检查任务创建/执行记录关键页面文案；业务语境不应再出现旧术语，技术 callback 语境允许保留并需人工确认。</p>
+
+  <h3>Batch C：活跃文档与历史事实（按需）</h3>
+  <table>
+    <tr><th>文档域</th><th>具体文件</th><th>变更详情</th></tr>
+    <tr><td>Release</td><td><code>RELEASE_NOTES.md</code>、<code>doc/RELEASE_NOTES.html</code>、<code>doc/RELEASE_NOTES.md</code></td><td>版本说明中的执行模型术语统一；不改变事实描述</td></tr>
+    <tr><td>架构</td><td><code>doc/arch/架构设计文档.*</code>、<code>doc/arch/详细技术方案.*</code>、<code>doc/arch/项目总览与技术文档.*</code></td><td>架构叙述统一为“触发请求模型”</td></tr>
+    <tr><td>设计</td><td><code>doc/design/技术方案与前端设计.*</code>、<code>doc/design/管理端UI优化设计.*</code>、<code>doc/design/P1可观测性-Prometheus指标RFC.*</code> 等</td><td>页面、指标、流程术语统一；保留历史版本事实</td></tr>
+    <tr><td>产品/计划</td><td><code>doc/product/*.html|md</code>、<code>doc/plan/*.html|md</code></td><td>产品对照与迭代计划中的执行模型表述统一</td></tr>
+    <tr><td>复盘与 QA</td><td><code>doc/postmortem/*.html|md</code>、<code>doc/qa/*.html|md</code></td><td>仅修订会误导当前业务语义的表述；保留原始事实、技术 API 名称和历史引用</td></tr>
+    <tr><td>索引</td><td><code>doc/index.html</code>、<code>doc/index.md</code></td><td>新增/修订文档条目文案保持术语一致</td></tr>
+  </table>
+  <p><strong>Batch C 验收：</strong><code>python scripts/html_docs_to_markdown.py --check</code>；逐项复核业务语境残留，不要求历史技术引用和异步 API 示例清零。</p>
+
+  <h3>Batch D：规则/门禁（防回归）</h3>
+  <table>
+    <tr><th>文件</th><th>具体变更</th><th>变更详情</th></tr>
+    <tr><td><code>.cursor/rules/cronpilot-project.mdc</code></td><td>规则条款新增</td><td>在“命名与协议”段落追加触发模型术语统一约束</td></tr>
+    <tr><td><code>AGENTS.md</code></td><td>执行命令补充</td><td>“快速命令”增加术语门禁执行项</td></tr>
+    <tr><td><code>scripts/check_terminology.py</code></td><td>门禁脚本新增</td><td>按文件路径和业务语境检查旧术语；允许异步库 API、技术代码示例、历史引用和本设计文档中的术语说明</td></tr>
+    <tr><td><code>.github/workflows/docs-sync.yml</code></td><td>CI 接入</td><td>在现有文档一致性 workflow 中增加 <code>python scripts/check_terminology.py --check</code></td></tr>
+  </table>
+  <p><strong>Batch D 验收：</strong><code>python scripts/check_terminology.py --check</code> 通过；规则文件可检索到术语约束；<code>.github/workflows/docs-sync.yml</code> 的文档检查 job 通过。门禁不得因 <code>future.add_done_callback</code> 等合法技术语境失败。</p>
+
+  <h2>6. 验收标准</h2>
+  <ol>
+    <li>业务语境中的旧术语无新增残留：<code>python scripts/check_terminology.py --check</code> 通过；合法技术 callback、历史事实和本设计文档不作为违规项。</li>
+    <li>代码质量与回归：<code>ruff check app/</code> 通过，术语相关测试通过。</li>
+    <li>文档一致性：<code>python scripts/html_docs_to_markdown.py --check</code> 通过。</li>
+    <li>变更可追溯：`RELEASE_NOTES` 记录本次术语治理，复盘文档入索引。</li>
+  </ol>
+
+  <h2>7. 风险与回滚</h2>
+  <ul>
+    <li>风险 1：误替换技术语义（例如 JS/Python 回调函数语境）导致表达变差。<br>缓解：门禁按业务语境匹配，并维护明确的技术语境 allowlist。</li>
+    <li>风险 2：大范围替换引入非目标 diff。<br>缓解：仅改目标目录，逐批 `git diff` 审核。</li>
+    <li>风险 3：文档与代码术语短时不一致。<br>缓解：按批次顺序执行并在同轮完成同步检查。</li>
+  </ul>
+
+  <p class="note">完成状态：A/B 已完成；C 已完成活跃文档复核；D 已完成语境化规则与 docs-sync CI 接入。</p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="全仓术语治理设计-2026-09.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -206,7 +206,7 @@ Mockup views: view-form, view-task-add
 │ ├── 任务关键词 (input)  
 │ └── 业务组 (select — 受 Scope 限制)  
 ├── .form-section "请求配置":  
-│ ├── 回调 URL (input, required)  
+│ ├── 触发 URL (input, required)  
 │ ├── 请求方式 (select: GET/POST)  
 │ └── 超时时长 (input, default=30s)  
 ├── .form-section "调度配置":  

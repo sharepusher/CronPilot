@@ -176,6 +176,20 @@ alwaysApply: false
 - **典型差异**：`INSERT OR IGNORE`（SQLite） vs `INSERT IGNORE`（MySQL）；`ALTER TABLE ... DROP COLUMN`（SQLite 3.35+ / MySQL 均支持但错误处理不同）。
 - **禁止**：仅在开发环境（SQLite）测试通过就提交，未验证 MySQL 语法兼容性。
 
+## 入库文案参与判定时禁止单向替换（强制 · 2026-09）
+
+凡修改会被 `startswith` / `==` / `in` 判定的**中文文案**，必须先确认该文案是否被写入数据库列（`job_log.content`、`operation_log` 等）：
+
+- 若是持久化值 → 判定端只能**新增**旧文案分支（如 `BLOCKED_URL_PREFIXES` 元组），**禁止**单向替换；写入端可只写新文案。
+- 防护测试的输入必须使用**旧文案**。若测试输入与实现被同一次替换改成互相自洽，测试会全绿但历史数据已失配。
+- 自检（判定端出现中文字面量时反查写入端是否入库）：
+
+```bash
+grep -rn "startswith('[^']*[一-龥]" app/services/ app/main/ | cat
+```
+
+回归：`python -m unittest tests.test_job_log_display tests.test_job_log_outcome -v`（15 条，含 2 条旧文案用例）。**违反教训**：术语统一把 `回调URL安全校验未通过` 单向改成 `触发URL安全校验未通过`，历史 job_log 的「未执行触发」分类与 `blocked_url` 失败原因全部掉档，详见 `doc/postmortem/2026-09-任务链路日志Bug修复复盘.html` Bug 4。
+
 ## API 返回结构变更标注（强制 · 2026-08）
 
 任何 API 返回结构变更（字段增删改、类型变化）：
@@ -233,9 +247,9 @@ alwaysApply: false
 
 本项目 `web_api_return()` / `json_response()` 统一返回 `errcode` / `errmsg` / `result` / `url` / `data`。
 
-- **前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`**，禁止使用 `r.code` / `r.msg`。
+- **前端 AJAX `success` 触发中必须使用 `r.errcode` / `r.errmsg`**，禁止使用 `r.code` / `r.msg`。
 - 典型失误（2026-08 标签删除）：新编写的 JS 使用了 `r.code` / `r.msg` 导致条件判断全部失效，Modal 不弹出。
-- **自检**：新写 AJAX 回调前先 `grep 'errcode' datas/utils/json.py` 确认项目响应结构。
+- **自检**：新写 AJAX 触发前先 `grep 'errcode' datas/utils/json.py` 确认项目响应结构。
 
 ## 配置读取异常必须拒绝而非放行（强制 · 2026-08 安全审计教训）
 

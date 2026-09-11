@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## 定位与仓库
 
-- **CronPilot**：独立演进仓库（HTTP 定时回调调度台），承接 Phase A/B/C 改造与发布。
+- **CronPilot**：独立演进仓库（HTTP 定时触发调度台），承接 Phase A/B/C 改造与发布。
 - **aniu-lee/xiaoniu_cron**：上游参考仓库，**默认不修改、不同步回写**；新功能与文档在 CronPilot 完成。
 - 品牌与对外表述统一为 **CronPilot**；Release/README 中避免「小牛定时任务管理系统」等旧品牌主导表述，也避免突出「破坏性变更」标题化叙事（变更写清楚即可）。
 
@@ -21,6 +21,7 @@ alwaysApply: true
 
 - 定时触发 query：`cronpilot_trace_id`、`cronpilot_sign`；验签：`get_cronpilot_sign()`。
 - 进度回传：`POST /api/cron/add_log`（必传 `cronpilot_trace_id`、`content`）。
+- 术语统一：调度器主动发起的 HTTP 请求统一称为“触发请求/触发 URL”，禁止使用旧术语描述该模型。
 - **不保留** `xiaoniu_cron_*` 等旧协议别名（除非用户明确要求兼容层）。
 
 ## 需求编号与缩写（强制）

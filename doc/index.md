@@ -39,7 +39,7 @@
 | **规模化信息架构 OPT-P2-13**（权威总稿） | L1/L2/L3 · job_health · 角色调制 · **当前焦点** | [HTML](design/规模化信息架构设计.html) | [MD](design/规模化信息架构设计.md) |
 | **任务中心需要关注项目排除下线任务设计**（已交付） | 下线任务不再进入异常提醒面板 | [HTML](design/任务中心需要关注项目排除下线任务设计.html) | [MD](design/任务中心需要关注项目排除下线任务设计.md) |
 | **用户管理「添加用户」入口布局优化设计**（已交付） | 标题区减负 · 主操作移入列表工具区左首位 · 桌面/窄屏前后对比 | [HTML](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html) | [MD](design/用户管理添加用户入口布局优化设计.md) |
-| **全仓术语治理设计（2026-09）**（待确认） | callback/回调 → 触发语义 · 四批执行（代码命名/用户文案/历史文档/规则门禁） | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
+| **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | **OPT-P0-21 50-bit 任务 ID 生成器最终优化设计**（待确认） | 仅任务 ID 使用 · 32/12/6 位布局 · IP+PORT+PID worker · 引用列 BIGINT | [HTML](design/OPT-P0-21-ID生成策略优化设计.html) | [MD](design/OPT-P0-21-ID生成策略优化设计.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |

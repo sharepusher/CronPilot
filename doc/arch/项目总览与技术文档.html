@@ -34,16 +34,16 @@
   <span class="tag">v1.0.0</span>
   <span class="tag">Phase A · P0 已交付</span>
   <h1>项目总览与技术文档</h1>
-  <p>HTTP 定时回调调度台 · 独立演进自 xiaoniu_cron · 文档与代码一体维护</p>
+  <p>HTTP 定时触发调度台 · 独立演进自 xiaoniu_cron · 文档与代码一体维护</p>
 </header>
 
 <main class="layout">
   <section>
     <h2>1. 项目定位</h2>
     <div class="card">
-      <p><strong>CronPilot</strong> 是企业内常用的「调度中心」形态：平台负责<strong>准时触发</strong>，业务系统暴露 HTTP 接口接收回调，无需把业务代码迁入调度进程。</p>
+      <p><strong>CronPilot</strong> 是企业内常用的「调度中心」形态：平台负责<strong>准时触发</strong>，业务系统暴露 HTTP 接口接收触发，无需把业务代码迁入调度进程。</p>
       <ul>
-        <li><strong>守正：</strong>保留 HTTP GET 回调、秒级 Cron、Web/API 动态配置、集群锁。</li>
+        <li><strong>守正：</strong>保留 HTTP GET 触发、秒级 Cron、Web/API 动态配置、集群锁。</li>
         <li><strong>出奇：</strong>借鉴 <a href="../product/Plombery深度对比分析.html">Plombery</a> 的可观测与工程化，但不改为进程内 Python Pipeline。</li>
         <li><strong>与原仓库：</strong><a href="https://github.com/aniu-lee/xiaoniu_cron">aniu-lee/xiaoniu_cron</a> 冻结为上游参考；本仓库承接全部改造。</li>
       </ul>
@@ -55,7 +55,7 @@
     <div class="arch">
 ┌─────────────┐     Web/API      ┌──────────────────┐
 │  运维人员    │ ───────────────► │ CronPilot        │
-│  业务系统    │ ◄── GET 回调 ─── │ (Flask)          │
+│  业务系统    │ ◄── GET 触发 ─── │ (Flask)          │
 └─────────────┘                  │  APScheduler     │
                                  │  MySQL/SQLite    │
                                  └────────┬─────────┘

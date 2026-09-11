@@ -9,6 +9,7 @@ on:
       - 'configs.py'
       - 'config.py'
       - 'tests/**'
+      - 'scripts/check_terminology.py'
       - 'requirements.txt'
       - 'requirements-core.txt'
       - 'conf.ini.example'
@@ -23,6 +24,7 @@ on:
       - 'configs.py'
       - 'config.py'
       - 'tests/**'
+      - 'scripts/check_terminology.py'
       - 'requirements.txt'
       - 'requirements-core.txt'
       - 'conf.ini.example'
@@ -57,3 +59,6 @@ jobs:
       - name: Run all unit tests (discover)
         run: |
           python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Verify business terminology
+        run: python scripts/check_terminology.py --check

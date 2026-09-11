@@ -14,7 +14,7 @@ BUG
 
 | 任务 | 调度策略 | 健康度 | 最近执行 | 下次执行 | 操作 |
 | --- | --- | --- | --- | --- | --- |
-| payment-callback-scheduler 支付回调  运行中 | 每 2 小时  0 0 \*/2 \* \* \* | 异常 | 503 2.3s | in <1 min | ▶ 📄 ⋮ 暂停编辑  下线 |
+| payment-trigger request-scheduler 支付触发  运行中 | 每 2 小时  0 0 \*/2 \* \* \* | 异常 | 503 2.3s | in <1 min | ▶ 📄 ⋮ 暂停编辑  下线 |
 | notification-service-check 通知监控  运行中 | 每小时  0 30 \* \* \* \* | 健康 | 200 0.5s | in 45 min | ▶ 📄 ⋮ 暂停编辑  下线 |
 | data-etl-sync 数据同步  运行中 | 每 6 小时  0 0 \*/6 \* \* \* | 健康 | 200 12.7s | in 3 hr | ▶ 📄 ⋮ 暂停编辑  下线 |
 
@@ -26,7 +26,7 @@ FIXED
 
 | 任务 | 调度策略 | 健康度 | 最近执行 | 下次执行 | 操作 |
 | --- | --- | --- | --- | --- | --- |
-| payment-callback-scheduler 支付回调  运行中 | 每 2 小时  0 0 \*/2 \* \* \* | 异常 | 503 2.3s | in <1 min | ▶ 📄 ⋮ 暂停编辑  下线 |
+| payment-trigger request-scheduler 支付触发  运行中 | 每 2 小时  0 0 \*/2 \* \* \* | 异常 | 503 2.3s | in <1 min | ▶ 📄 ⋮ 暂停编辑  下线 |
 | notification-service-check 通知监控  运行中 | 每小时  0 30 \* \* \* \* | 健康 | 200 0.5s | in 45 min | ▶ 📄 ⋮ 暂停编辑  下线 |
 | data-etl-sync 数据同步  运行中 | 每 6 小时  0 0 \*/6 \* \* \* | 健康 | 200 12.7s | in 3 hr | ▶ 📄 ⋮ 暂停编辑  下线 |
 

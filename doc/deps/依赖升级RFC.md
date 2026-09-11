@@ -72,7 +72,7 @@ CronPilot 当前锁定 **Flask 1.1 + SQLAlchemy 1.4 + gevent 23 + Python 3.8–3
 | 原则 | 说明 |
 | --- | --- |
 | 最小 diff | 依赖升级 PR 不得夹带 RBAC、operation\_log 等业务功能；反之亦然。 |
-| 行为不变优先 | 调度触发、集群互斥（portalocker + Redis）、回调验签契约不得因升级而改变默认行为。 |
+| 行为不变优先 | 调度触发、集群互斥（portalocker + Redis）、触发验签契约不得因升级而改变默认行为。 |
 | Python 3.8–3.11 | 在 **Tier 2** 完成前，项目规则仍禁止默认 3.12+。 |
 | 双格式文档 | 本 RFC 行为变更落地后同步 `RELEASE_NOTES`、`非Docker部署指南`、`INSTALL.md` 相关节。 |
 | 可回滚 | 每一 Tier 须能在同一版本线回退 `requirements*.txt` 并恢复 Docker 构建。 |
@@ -278,7 +278,7 @@ RBAC 插入点（推荐）:
 | --- | --- | --- | --- |
 | Tier 0 | 解锁 `flask db migrate` | 标准 Alembic 建表 | RBAC 前置（强烈建议） |
 | Tier 1 (SA 1.4) | 无冲突；新代码避免旧查询债 | 与 1.3 行为一致即可发布 | 可与 RBAC 并行 |
-| 侧车 安全补丁 | 无 | 回调冒烟 | 任意时刻 |
+| 侧车 安全补丁 | 无 | 触发冒烟 | 任意时刻 |
 | Tier 2 gevent | 无直接冲突 | 调度回归 | RBAC 稳定后 |
 | Tier 3/4 | 可能改 RBAC 查询 | 全站迁移 | RBAC 发布后 |
 

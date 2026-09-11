@@ -29,7 +29,7 @@ pre { background: #2d3748; color: #e2e8f0; padding: 1rem; border-radius: 6px; ov
 <li>17,770 条无意义的"定时任务不存在" job_log 记录（其中 <code>cron_16</code> 每分钟 1 条）</li>
 <li>运维无法从外部监控系统感知此异常</li>
 <li>"今日失败次数"指标被无意义 error 拉高（虽然 JOIN cron_infos 后不计入，但历史记录累积）</li>
-<li>scheduler 线程资源被无意义回调消耗</li>
+<li>scheduler 线程资源被无意义触发消耗</li>
 </ul>
 
 <h2>2. 根因</h2>

@@ -275,7 +275,7 @@
 
   <div class="card highlight">
     <h3>1.1 定位与价值</h3>
-    <p><strong>CronPilot（CronPilot管理）</strong> 是一套基于 Python Flask + APScheduler 的<strong>轻量级分布式定时任务调度平台</strong>。它将传统 Linux Crontab 的能力产品化：通过 Web 可视化界面或 REST API 统一管理定时任务，在触发时刻向业务系统发起 HTTP GET 回调，并记录执行日志、异常告警。</p>
+    <p><strong>CronPilot（CronPilot管理）</strong> 是一套基于 Python Flask + APScheduler 的<strong>轻量级分布式定时任务调度平台</strong>。它将传统 Linux Crontab 的能力产品化：通过 Web 可视化界面或 REST API 统一管理定时任务，在触发时刻向业务系统发起 HTTP GET 触发，并记录执行日志、异常告警。</p>
     <p style="margin-top:0.75rem">典型场景：每月还款提醒、每日凌晨数据清理、周期性健康检查、异步长任务的执行进度回传等。</p>
   </div>
 
@@ -290,7 +290,7 @@
       <tr><td>API 动态管理</td><td><code>/api/cron</code> 增改、<code>/api/cron/status</code> 启动/暂停</td><td><code>app/api/views.py</code></td></tr>
       <tr><td>执行日志</td><td>主日志 <code>job_log</code> + 明细 <code>job_log_items</code></td><td><code>datas/model/</code></td></tr>
       <tr><td>多渠道告警</td><td>企业微信 / WebHook / 钉钉</td><td><code>app/common/functions.py</code></td></tr>
-      <tr><td>回调签名</td><td><code>cronpilot_sign</code> MD5 签名校验</td><td><code>get_cronpilot_sign()</code></td></tr>
+      <tr><td>触发签名</td><td><code>cronpilot_sign</code> MD5 签名校验</td><td><code>get_cronpilot_sign()</code></td></tr>
     </tbody>
   </table>
 
@@ -301,7 +301,7 @@
       <tr><td>Web 框架</td><td>Flask + Flask-APScheduler + Flask-SQLAlchemy + Flask-Migrate</td><td>1.1.2 / 1.11.0 / 2.4.4</td></tr>
       <tr><td>调度器</td><td>APScheduler（自定义 CuBackgroundScheduler）</td><td>3.10.4</td></tr>
       <tr><td>ORM / DB</td><td>SQLAlchemy + SQLite（默认）/ MySQL（集群）</td><td>1.3.19</td></tr>
-      <tr><td>HTTP 客户端</td><td>requests（回调，超时 120s）</td><td>2.24.0</td></tr>
+      <tr><td>HTTP 客户端</td><td>requests（触发，超时 120s）</td><td>2.24.0</td></tr>
       <tr><td>集群锁</td><td>redis + portalocker</td><td>3.5.3 / 2.6.0</td></tr>
       <tr><td>WSGI</td><td>gunicorn + gevent</td><td>22.0.0 / 23.9.1</td></tr>
       <tr><td>前端</td><td>Jinja2 模板 + SimpleBoot Admin + jQuery + Bootstrap</td><td>服务端渲染 SSR</td></tr>
@@ -317,7 +317,7 @@
   <h3>2.1 逻辑架构图</h3>
   <div class="diagram">┌─────────────────────────────────────────────────────────────────────────────┐
 │                           用户 / 业务系统                                      │
-│         Web 浏览器 (管理界面)          业务服务 (HTTP 回调接收方)                  │
+│         Web 浏览器 (管理界面)          业务服务 (HTTP 触发请求接收方)                  │
 └───────────────┬─────────────────────────────────────┬─────────────────────────┘
                 │ Session 密码登录                     │ GET + cronpilot_log_id
                 ▼                                     │     + cronpilot_sign
@@ -359,7 +359,7 @@
         <tr><td>路由层</td><td>URL 映射、登录拦截、分页查询</td><td><code>app/main/views.py</code></td></tr>
         <tr><td>API 层</td><td>外部系统集成、access_token 校验</td><td><code>app/api/views.py</code></td></tr>
         <tr><td>调度层</td><td>任务注册、暂停/恢复、到期触发</td><td><code>app/__init__.py</code>、<code>config.py</code></td></tr>
-        <tr><td>执行层</td><td>HTTP 回调、日志落库、错误关键词检测</td><td><code>app/crons.py</code></td></tr>
+        <tr><td>执行层</td><td>HTTP 触发请求、日志落库、错误关键词检测</td><td><code>app/crons.py</code></td></tr>
         <tr><td>基础设施层</td><td>配置、缓存、通知、数据库</td><td><code>configs.py</code>、<code>app/common/</code></td></tr>
       </tbody>
     </table>
@@ -444,7 +444,7 @@
       <tr><td>day_of_week</td><td>VARCHAR(10)</td><td>星期：0-6 或 mon-sun，支持 */n、区间、枚举</td></tr>
       <tr><td>day</td><td>VARCHAR(20)</td><td>日：1-31，同上表达式</td></tr>
       <tr><td>hour / minute / second</td><td>VARCHAR(10)</td><td>时/分/秒 Cron 表达式片段</td></tr>
-      <tr><td>req_url</td><td>VARCHAR(200)</td><td>回调 URL</td></tr>
+      <tr><td>req_url</td><td>VARCHAR(200)</td><td>触发 URL</td></tr>
       <tr><td>req_method</td><td>VARCHAR(10)</td><td>GET（默认）/ POST（v2.0.0）</td></tr>
       <tr><td>req_body</td><td>TEXT</td><td>POST 时 JSON Body（对象）</td></tr>
       <tr><td>status</td><td>SMALLINT</td><td>0=暂停，1=运行中，-1=已下线（不可逆）</td></tr>
@@ -461,7 +461,7 @@
     <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
     <tbody>
       <tr><td>id</td><td>INTEGER PK</td><td>自增主键</td></tr>
-      <tr><td>log_id</td><td>VARCHAR(65) INDEX</td><td>UUID，回调时传给业务方，用于回传明细</td></tr>
+      <tr><td>log_id</td><td>VARCHAR(65) INDEX</td><td>UUID，触发时传给业务方，用于回传明细</td></tr>
       <tr><td>cron_info_id</td><td>INTEGER INDEX</td><td>关联任务</td></tr>
       <tr><td>content</td><td>TEXT</td><td>HTTP 响应体或错误信息</td></tr>
       <tr><td>create_time</td><td>VARCHAR(25)</td><td>执行时间</td></tr>
@@ -558,7 +558,7 @@
     <tbody>
       <tr><td>access_token</td><td>配置后必填</td><td>与 conf.ini api_access_token 一致</td></tr>
       <tr><td>task_name</td><td>是</td><td>唯一键；存在则更新，不存在则创建</td></tr>
-      <tr><td>req_url</td><td>是</td><td>http(s) 回调地址</td></tr>
+      <tr><td>req_url</td><td>是</td><td>http(s) 触发地址</td></tr>
       <tr><td>run_date</td><td>二选一</td><td>有值则 date 模式</td></tr>
       <tr><td>day, day_of_week, hour, minute, second</td><td>二选一</td><td>Cron 模式字段</td></tr>
       <tr><td>task_keyword</td><td>是</td><td>备注/说明（LIFECYCLE-2；1～500 字）</td></tr>
@@ -595,10 +595,10 @@
   <p>业务系统在收到 <code>cronpilot_log_id</code> 后，长任务执行过程中可多次调用，将进度写入 job_log_items。</p>
   <pre>curl -X POST "http://host/api/cron/add_log" \
   -d "access_token=abcdabcd" \
-  -d "cronpilot_log_id=uuid-from-callback" \
+  -d "cronpilot_log_id=uuid-from-trigger request" \
   -d "content=步骤3/5 数据处理完成"</pre>
 
-  <h3>6.4 回调签名算法</h3>
+  <h3>6.4 触发签名算法</h3>
   <div class="card">
     <ol>
       <li>收集触发 URL 已有 query 参数 + <code>cronpilot_log_id</code>（GET）；或解析 <code>req_body</code> JSON 对象后注入签参（POST，不覆盖同名字段）</li>
@@ -618,7 +618,7 @@
     <tbody>
       <tr><td>Web 登录</td><td>Session + <code>rbac_users</code> 用户名密码（v1.0+）；编辑页可改「新密码」</td><td><code>login_pwd</code> 仅空表种子；HTTPS；无忘记密码自助</td></tr>
       <tr><td>API Token</td><td>access_token 可选校验</td><td>明文配置；建议环境变量注入</td></tr>
-      <tr><td>回调签名</td><td>api_key + MD5</td><td>业务方验签防伪造；api_key 为空则不签名</td></tr>
+      <tr><td>触发签名</td><td>api_key + MD5</td><td>业务方验签防伪造；api_key 为空则不签名</td></tr>
       <tr><td>SQL</td><td>部分 raw SQL 字符串拼接（delete）</td><td>存在注入风险，建议改为 ORM 参数化</td></tr>
       <tr><td>体验模式</td><td>is_dev=1 时登录页显示明文密码</td><td>仅用于演示环境</td></tr>
     </tbody>
@@ -676,7 +676,7 @@ flask db upgrade</pre>
       <tr><td>login_pwd</td><td>（必填）</td><td>空表种子 <code>admin</code> 初始密码；有用户后改密走用户管理，勿依赖本项</td></tr>
       <tr><td>job_log_counts</td><td>1000</td><td>每任务保留日志条数</td></tr>
       <tr><td>api_access_token</td><td>—</td><td>API 鉴权，空则不校验</td></tr>
-      <tr><td>api_key</td><td>—</td><td>回调签名密钥</td></tr>
+      <tr><td>api_key</td><td>—</td><td>触发签名密钥</td></tr>
       <tr><td>error_keyword</td><td>fail</td><td>响应体错误关键词</td></tr>
     </tbody>
   </table>
@@ -871,7 +871,7 @@ flask db upgrade</pre>
 
   <h3>12.1 优势</h3>
   <ul>
-    <li>功能闭环完整：配置 → 调度 → 回调 → 日志 → 告警 → API 集成</li>
+    <li>功能闭环完整：配置 → 调度 → 触发 → 日志 → 告警 → API 集成</li>
     <li>Cron 表达式校验详尽，与 APScheduler 语义对齐</li>
     <li>集群场景考虑周全（双锁机制 + JobStore 持久化）</li>
     <li>部署门槛低，Docker 开箱即用</li>

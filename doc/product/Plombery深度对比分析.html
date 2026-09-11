@@ -100,7 +100,7 @@
       </tr>
       <tr>
         <td>执行发生位置</td>
-        <td>业务方服务器（HTTP 回调）</td>
+        <td>业务方服务器（HTTP 触发请求）</td>
         <td>Plombery 所在 Python 进程</td>
       </tr>
       <tr>
@@ -285,7 +285,7 @@
       </tr>
       <tr>
         <td>日志查看</td>
-        <td>展示回调 HTTP 响应文本（可能很长、非结构化）</td>
+        <td>展示触发 HTTP 响应文本（可能很长、非结构化）</td>
         <td>JSONL 结构化级别/时间/task 过滤；WS 追加行</td>
       </tr>
       <tr>
@@ -383,7 +383,7 @@ APScheduler → run(pipeline, trigger) → for task in pipeline.tasks: await _ex
       <tr><th>通道</th><th>CronPilot</th><th>Plombery</th></tr>
       <tr><td>Web</td><td>Flask Session Cookie（<code>is_login</code>）</td><td>Session Cookie（OAuth 后）</td></tr>
       <tr><td>API</td><td><code>access_token</code> 在 query/form</td><td><code>NeedsAuth</code> Depends；Cookie credentials: include</td></tr>
-      <tr><td>执行回调</td><td>业务 URL 上 <code>cronpilot_sign</code></td><td>N/A（进程内执行）</td></tr>
+      <tr><td>执行触发</td><td>业务 URL 上 <code>cronpilot_sign</code></td><td>N/A（进程内执行）</td></tr>
       <tr><td>CORS</td><td>未显式配置</td><td><code>settings.allowed_origins</code></td></tr>
     </table>
   </section>
@@ -435,7 +435,7 @@ CronInfos (持久化任务定义)              Pipeline (代码注册, 含 tasks
                                        PipelineRun (一次执行)
 JobLog (每次触发一条)                     ├─ status 状态机
   ├─ content = HTTP body                  ├─ tasks_run[] (每 Task 状态/耗时)
-  └─ log_id = 回调关联 ID                 ├─ input_params JSON
+  └─ log_id = 触发关联 ID                 ├─ input_params JSON
 JobLogItems (业务回传明细)                └─ reason
                                        文件: run_{id}/logs.jsonl, {task}.json</pre>
   </section>
@@ -591,7 +591,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
       </tr>
       <tr>
         <td>执行面</td>
-        <td>SSRF 风险（任意 req_url）；回调 MD5 签名为可选</td>
+        <td>SSRF 风险（任意 req_url）；触发 MD5 签名为可选</td>
         <td>执行本地代码；需信任 pipeline 作者</td>
       </tr>
       <tr>
@@ -663,7 +663,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <h2>15. 综合评分与选型（主观权重：中小团队运维场景）</h2>
     <table>
       <tr><th>维度 (权重)</th><th>CronPilot</th><th>Plombery</th><th>说明</th></tr>
-      <tr><td>跨语言集成 (20%)</td><td>★★★★★</td><td>★★☆☆☆</td><td>HTTP 回调 vs Python 内执行</td></tr>
+      <tr><td>跨语言集成 (20%)</td><td>★★★★★</td><td>★★☆☆☆</td><td>HTTP 触发请求 vs Python 内执行</td></tr>
       <tr><td>运维 UI 体验 (15%)</td><td>★★☆☆☆</td><td>★★★★★</td><td>SSR 老栈 vs 现代 SPA+实时</td></tr>
       <tr><td>运行可观测 (15%)</td><td>★★☆☆☆</td><td>★★★★★</td><td>响应文本 vs 结构化日志+状态机</td></tr>
       <tr><td>任务编排 (10%)</td><td>★☆☆☆☆</td><td>★★★☆☆</td><td>单 URL vs 线性 Pipeline</td></tr>
@@ -678,7 +678,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
       <tr><th>你的场景</th><th>推荐</th></tr>
       <tr><td>10+ 微服务，只要统一 Cron 触发既有 REST 接口</td><td><strong>CronPilot</strong></td></tr>
       <tr><td>数据团队 Python ETL，要多步串联、看实时日志、手动带参运行</td><td><strong>Plombery</strong></td></tr>
-      <tr><td>既要统一调度台，又要复杂 Python 管道</td><td><strong>组合</strong>：CronPilot 回调 Plombery <code>POST .../run</code></td></tr>
+      <tr><td>既要统一调度台，又要复杂 Python 管道</td><td><strong>组合</strong>：CronPilot 触发 Plombery <code>POST .../run</code></td></tr>
       <tr><td>DAG、重试矩阵、千级任务分布式</td><td>两者都不合适 → Airflow/Prefect/Dagster</td></tr>
     </table>
   </section>
@@ -729,13 +729,13 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <div class="keep">
       <h4 style="margin-bottom:.5rem">必须保留的核心优势（优化时不得削弱）</h4>
       <ul style="margin-left:1.1rem;font-size:.9rem">
-        <li><strong>HTTP 回调执行模型</strong>：继续以 <code>req_url</code> 触发业务系统，不改为进程内执行 Python。</li>
+        <li><strong>HTTP 触发请求执行模型</strong>：继续以 <code>req_url</code> 触发业务系统，不改为进程内执行 Python。</li>
         <li><strong>跨语言集成</strong>：任何能接 GET 的服务均可接入，无需迁入 CronPilot 运行时。</li>
         <li><strong>Web/API 动态配置</strong>：任务存 <code>cron_infos</code>，运维无需发版即可增删改定时规则。</li>
         <li><strong>Crontab 兼容 + 秒级</strong>：字段级 cron 与一次性 <code>run_date</code> 保持现有语义。</li>
         <li><strong>集群能力</strong>：保留 portalocker + Redis <code>@single_task</code>，优于 Plombery 默认单实例限制。</li>
         <li><strong>轻量部署</strong>：Docker 一键、conf.ini、双 SQLite 开箱即用。</li>
-        <li><strong>回调签名与 add_log</strong>：<code>cronpilot_sign</code>、长任务进度回传仍是差异化能力。</li>
+        <li><strong>触发签名与 add_log</strong>：<code>cronpilot_sign</code>、长任务进度回传仍是差异化能力。</li>
       </ul>
     </div>
 
@@ -767,7 +767,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
         <tr><th>CronPilot 现状</th><td><code>crons.cron_do</code> 在 <code>requests.get</code> 成功后仅把 <code>req.text</code> 写入 <code>job_log.content</code>；另用 <code>error_keyword in ret</code> 决定是否 <code>wechat_info_err</code>。<strong>不读取 <code>req.status_code</code>。</strong></td></tr>
         <tr><th>具体不足</th><td>① HTTP 502/500 常显示为「成功记录」；② 200 但业务失败且无关键词则静默；③ 列表无法筛失败；④ 与用户问「是否关心结果」的答案不一致。</td></tr>
         <tr><th>优化（P1）</th><td>OPT-P1-01/02：<code>job_log.status</code> + <code>fail_on_http_4xx_5xx</code> + <code>fail_reason</code>。</td></tr>
-        <tr><th>价值</th><td>产品承诺可验证；告警准确率提升；对标 Plombery 的「执行结果语义」，而不改变 HTTP 回调模型。</td></tr>
+        <tr><th>价值</th><td>产品承诺可验证；告警准确率提升；对标 Plombery 的「执行结果语义」，而不改变 HTTP 触发请求模型。</td></tr>
       </table>
       <p>详见 <a href="产品优化需求-借鉴Plombery.html#opt-p1-01">OPT-P1-01</a>、<a href="产品优化需求-借鉴Plombery.html#opt-p1-02">OPT-P1-02</a>。</p>
     </div>
@@ -805,7 +805,7 @@ job_log_all_list.html → 点击 iframe → job_log_item_list</pre>
     <p>Plombery 文档明确<strong>禁止</strong>多 worker 无锁扩展；CronPilot 的 portalocker + Redis 是差异化能力，<strong>不应为对齐 Plombery 而削弱</strong>。可借鉴的是：启动清理悬空状态（P1-08）、coalesce 可配置（P2-03）、文档化「推荐拓扑」。</p>
 
     <h3>17.5 明确不借鉴</h3>
-    <p>进程内 Pipeline、纯代码注册、强制单 worker、整站 React、平台 DAG —— 均会牺牲 HTTP 跨语言或动态配置优势。组合方案：cron 回调 Plombery <code>POST /run</code>。</p>
+    <p>进程内 Pipeline、纯代码注册、强制单 worker、整站 React、平台 DAG —— 均会牺牲 HTTP 跨语言或动态配置优势。组合方案：cron 触发 Plombery <code>POST /run</code>。</p>
 
     <h3>17.6 实施路线图</h3>
     <table>

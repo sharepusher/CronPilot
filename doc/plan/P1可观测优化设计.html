@@ -103,7 +103,7 @@
   <h3>3.1 status 枚举（已确认草案）</h3>
   <table>
     <tr><th>值</th><th>含义</th><th>典型场景</th></tr>
-    <tr><td><code>success</code></td><td>本次回调判定为成功</td><td>HTTP 2xx 且未命中失败规则</td></tr>
+    <tr><td><code>success</code></td><td>本次触发判定为成功</td><td>HTTP 2xx 且未命中失败规则</td></tr>
     <tr><td><code>fail</code></td><td>已发出 HTTP 请求，但业务/规则判定失败</td><td>4xx/5xx（配置开启时）、error_keyword 命中</td></tr>
     <tr><td><code>error</code></td><td>未得到正常 HTTP 响应</td><td>超时、连接失败、SSRF 拦截、任务不存在等（<code>content</code> 以「发生严重错误」开头）</td></tr>
   </table>
@@ -178,7 +178,7 @@ requests.get(timeout=120s) 异常 → status=error, fail_reason=timeout|connecti
     <tr><th>status</th><th>徽章</th><th>第一行其余部分</th></tr>
     <tr><td>success</td><td>绿色「成功」</td><td>HTTP {code} · {take_time}s（与 A′ 一致）</td></tr>
     <tr><td>fail</td><td>红色「失败」</td><td>HTTP {code} 或「—」· 耗时 · 灰色 <code>fail_reason</code></td></tr>
-    <tr><td>error</td><td>橙色「异常」</td><td>「请求异常」/「未执行回调」· 耗时 · <code>fail_reason</code></td></tr>
+    <tr><td>error</td><td>橙色「异常」</td><td>「请求异常」/「未执行触发」· 耗时 · <code>fail_reason</code></td></tr>
     <tr><td>NULL（旧数据）</td><td>不显示徽章</td><td>沿用 A′ <code>job_log_status_line</code> 仅按 http_status/content 推断</td></tr>
   </table>
 
@@ -223,7 +223,7 @@ requests.get(timeout=120s) 异常 → status=error, fail_reason=timeout|connecti
 
   <h2>九、验收清单</h2>
   <ol>
-    <li>Mock 回调返回 <strong>502 空 body</strong> → <code>status=fail</code>、<code>fail_reason=http_5xx</code>、企业微信/ webhook 告警（若已配置）</li>
+    <li>Mock 触发响应 <strong>502 空 body</strong> → <code>status=fail</code>、<code>fail_reason=http_5xx</code>、企业微信/ webhook 告警（若已配置）</li>
     <li>Mock 返回 <strong>200 + body 含 fail</strong> → <code>status=fail</code>、<code>fail_reason=keyword</code></li>
     <li>Mock <strong>超时</strong> → <code>status=error</code>、<code>fail_reason=timeout</code>、列表橙色「异常」</li>
     <li><code>fail_on_http_4xx_5xx=0</code> 时 502 → <code>status=success</code>（仅 keyword 可改为 fail）</li>

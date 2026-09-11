@@ -128,7 +128,7 @@
     </article>
 
     <article class="opt" id="opt-p0-03">
-      <div class="opt-h"><strong>OPT-P0-03</strong> <span class="p0">P0</span> 回调 URL SSRF / 内网探测防护</div>
+      <div class="opt-h"><strong>OPT-P0-03</strong> <span class="p0">P0</span> 触发 URL SSRF / 内网探测防护</div>
       <div class="opt-b">
         <h4>Plombery 对照</h4>
         <p class="ref">任务在进程内执行，<strong>不存在</strong>「平台替用户请求任意 URL」模型；SSRF 风险主要在用户代码自身。</p>
@@ -153,7 +153,7 @@
         <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>Web 用 <code>web_api_return</code>；API 用 <code>api_return</code>（字段相同但入口分散）；<code>requests.js</code> 判断 <code>data.errcode == '0'</code>（字符串），而服务端返回数字 <code>0</code>。</td></tr>
-          <tr class="gap"><th>不足</th><td>部分 Ajax 成功回调可能永不触发；对接方难以依赖统一规范；与 Plombery「一种错误模型」相比显得业余。</td></tr>
+          <tr class="gap"><th>不足</th><td>部分 Ajax 成功触发可能永不触发；对接方难以依赖统一规范；与 Plombery「一种错误模型」相比显得业余。</td></tr>
         </table>
         <h4>优化方案</h4>
         <p>单一 <code>json_response(errcode, errmsg, data, url)</code>；文档约定类型；修复 JS 为 <code>=== 0</code>；API 错误逐步对齐 HTTP 状态码。</p>
@@ -189,7 +189,7 @@
   <!-- ===================== P1 ===================== -->
   <section id="p1">
     <h2>P1 需求（可观测与运维效率）</h2>
-    <p style="color:var(--muted);font-size:.9rem">以下问题在对比 Plombery 时最为刺眼：对方有 <strong>PipelineRun 状态机 + 实时 UI</strong>，我方仅有「任务是否在跑」和「回调返回的一大段文本」。</p>
+    <p style="color:var(--muted);font-size:.9rem">以下问题在对比 Plombery 时最为刺眼：对方有 <strong>PipelineRun 状态机 + 实时 UI</strong>，我方仅有「任务是否在跑」和「触发响应的一大段文本」。</p>
 
     <article class="opt" id="opt-p1-01">
       <div class="opt-h"><strong>OPT-P1-01</strong> <span class="p1">P1</span> 单次执行结构化状态（success / fail / timeout）</div>
@@ -231,7 +231,7 @@
           <tr class="gap"><th>不足</th><td>
             业务返回 200 + <code>{"success":false}</code> 无关键词 → 平台认为成功。<br>
             返回 502 空 body → 平台认为成功。<br>
-            与「回调型调度」行业标准（看 HTTP + 业务码）不一致。
+            与「触发型调度」行业标准（看 HTTP + 业务码）不一致。
           </td></tr>
         </table>
         <h4>优化方案</h4>
@@ -290,7 +290,7 @@
         <h4>CronPilot 现状与不足</h4>
         <table>
           <tr class="gap"><th>现状</th><td>已有 <code>/api/cron/add_log</code> + <code>job_log_items</code>，但 UI 仅 iframe 列表；无 level/time 字段；平台侧无实时推送。</td></tr>
-          <tr class="gap"><th>不足</th><td>长任务场景下 Plombery「边跑边看日志」；我方「回调完才看到一大坨响应」，中间黑盒。</td></tr>
+          <tr class="gap"><th>不足</th><td>长任务场景下 Plombery「边跑边看日志」；我方「触发完才看到一大坨响应」，中间黑盒。</td></tr>
         </table>
         <h4>优化方案</h4>
         <p>items 增加可选 <code>level</code>、规范 timestamp；详情页时间线展示；与 OPT-P2-01 SSE 衔接。</p>
@@ -410,7 +410,7 @@
       <div class="opt-h"><strong>OPT-P2-03</strong> <span class="p2">P2</span> APScheduler coalesce 可配置</div>
       <div class="opt-b">
         <h4>对比</h4>
-        <p>Plombery <code>coalesce=True</code>，停机恢复后不风暴执行。我方 <code>coalesce=False</code>，积压会连续触发多次回调。</p>
+        <p>Plombery <code>coalesce=True</code>，停机恢复后不风暴执行。我方 <code>coalesce=False</code>，积压会连续触发多次触发。</p>
         <h4>现状不足</h4>
         <p>长时间宕机恢复可能对业务造成突发 N 次 GET；对非幂等接口危险。</p>
         <h4>价值</h4>
@@ -526,7 +526,7 @@
     <h2>明确不做（避免偏离定位）</h2>
     <table>
       <tr><th>Plombery 能力</th><th>不做原因</th><th>替代策略</th></tr>
-      <tr><td>进程内 @task Pipeline</td><td>摧毁跨语言 HTTP 定位</td><td>组合架构：cron 回调 Plombery run API</td></tr>
+      <tr><td>进程内 @task Pipeline</td><td>摧毁跨语言 HTTP 定位</td><td>组合架构：cron 触发 Plombery run API</td></tr>
       <tr><td>仅代码注册任务</td><td>丧失 Web/API 动态运维优势</td><td>保持 cron_infos DB</td></tr>
       <tr><td>强制单 worker</td><td>放弃已有集群双锁能力</td><td>文档写清集群拓扑；可选调度独立进程</td></tr>
       <tr><td>全量 React 重写</td><td>部署复杂、与轻量 Docker 形象冲突</td><td>SSR + SSE + 详情页</td></tr>

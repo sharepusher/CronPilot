@@ -83,10 +83,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 ### 修复 — 触发术语全仓治理
 
 - 代码与测试：URL 安全校验函数重命名为 `validate_trigger_url`，并同步调用链与单测
-- 用户可见文案：`触发URL安全校验未通过` 语义统一到“触发请求”模型
-- 指标与日志：历史英文术语统一为 `trigger request` / `触发请求`
-- 文档与规则：清理 `doc/`、`README.md`、`AGENTS.md`、`.cursor/rules/` 中不准确术语
-- 复盘文档：`doc/postmortem/2026-09-trigger-terminology-cleanup.html`
+- 用户可见文案与指标：统一到“触发请求” / `trigger request` 模型
+- 活跃文档与规则：清理 `doc/`（不含 archive）、`README.md`、`AGENTS.md`、`.cursor/rules/` 中的业务旧术语
+- 已发布 Release Notes 保持当时原文；门禁放行技术回调（含 `beforeSubmit`）与历史 `job_log` 引用
+- 门禁：`scripts/check_terminology.py`；CI 在 `docs-sync.yml`（路径含 `app/**`）与 `unit-tests.yml` 执行
+- 设计/复盘：[`doc/design/全仓术语治理设计-2026-09.html`](doc/design/全仓术语治理设计-2026-09.html) · [`doc/postmortem/2026-09-trigger-terminology-cleanup.html`](doc/postmortem/2026-09-trigger-terminology-cleanup.html)
 
 ### 增强 — 任务链路日志完整性补全
 

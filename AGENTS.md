@@ -14,13 +14,13 @@
 
 **协作闭环（强制）**：**设计文档（`doc/design/*.html`） → 用户 Review 并明确确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。**所有功能和页面变更（含 CSS/JS 代码质量修复）必须先创建正式设计文档（`doc/design/*.html`），禁止仅在聊天中给出设计而不落库**。设计文档须包含 7 项必备要素（问题/根因/方案/范围/分批/验收/风险）。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
 
+**设计文档 API 假设验证（强制 · 2026-09 追加）**：凡设计文档的"方案"或"设计决策"节中包含具体 Python API 调用（如 `scheduler.get_job()`、`db.session.xxx()`、第三方库方法），**必须在该设计决策写入前 `Read` 相关实现文件**确认 API 实际行为与设计假设一致。禁止凭印象写 API 调用细节。自检：`grep -n 'scheduler\.\|db\.session\.' doc/design/新文档.html` 对每一条结果都要能说出对应的代码验证依据。**违反教训**：2026-09 D-2 建议 `scheduler.get_job().next_run_time`，未查 `CuGeventScheduler.py`，导致设计方案不可靠（`next_run_time` 在 `submit_job()` 后同步更新为下次时间，函数执行期间已是下一周期值）。
+
 **设计安全契约验证（强制 · 2026-09 OPT-P0-22 追加）**：凡设计文档给出鉴权/Session/迁移相关推荐实现片段（伪代码），实施批次验收必须 `Read` 该片段并与实现逐行对照；**禁止**用对称默认值（如 Session/DB 两侧都 `or 0`）覆盖设计中的非对称语义（缺键 fail-closed）。B1 若声称锁定该安全能力，否定路径用例必须直接覆盖伪代码分支（含「键不存在」），不得只用「业务动作后版本变化」代替。**违反教训**：`doc/postmortem/2026-09-auth-version-session-failopen.html`。
 
 **会话/认证版本迁移测试矩阵（强制）**：新增 Web Session 版本类能力时，测试至少覆盖：(a) 缺键旧 Cookie；(b) 版本不匹配；(c) 一次性 bump 幂等。禁止 Fixture 总是写入版本键从而消灭 (a)。回归：`python -m unittest tests.test_user_reactivation.TestDisabledSessionRevocation tests.test_user_reactivation.TestAuthVersionOneTimeBump -v`。
 
 **抢跑安全半成品**：设计未确认前写入的鉴权代码，确认后必须以设计全文为唯一准绳重审；**不得**用「已有测试已绿」跳过缺键/迁移类否定用例。
-**所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
-
 **所有修复必须复盘（强制）**：**修复了问题 ≡ 必须复盘**，无论来源（用户报告 / 自查审计 / Review 发现 / CI 失败）。交付回复必须包含 **7 项要素**：Bug 定位 → 根因 → 测试漏洞 → 修复 → 防护测试 → 同类排查 → **预防方案**（≥1 项可落地措施 + 明确落地位置）。**预防方案是复盘的核心目的**——缺少预防方案的复盘等于没有复盘。**在给出 AskQuestion 下一步选项之前，必须自检**：本轮是否执行了修复动作？有 → 先输出复盘再给选项；无 → 可直接给选项。详 `.cursor/rules/cronpilot-project.mdc`「Bug 修复复盘」。
 
 **编号读法**：OPT（功能）/ Tier（依赖大阶段）/ Phase（ORM·框架子阶段）/ DEC（RFC 决策）不是同一套号。权威页：`doc/需求编号与缩写规范.html`。对外须写全称，如 `OPT-P1-03`、`Phase D3（OPT-P2-11）`。
@@ -33,7 +33,7 @@
 
 **表单防重复提交（强制）**：所有 POST 表单须有防重复提交保护。`js-ajax-form` 已有 `common.js` loading 守卫；非 Ajax POST 表单由 `common.js` 全局守卫自动保护（`cp-submitting` 标记）。独立页面（不继承 `_base.html`）须显式引入 `common.js`。静态门禁 `tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard`。
 
-**Redesign JS 依赖规则（强制 · F5）**：Redesign `_base.html` 使用 `common-redesign.js` 替代 `common.js` + `wind.js`。**jQuery 必须同步加载（无 `defer`）**——inline `<script>` 中的 `$(function(){})` 依赖 `$` 在解析时可用。其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）使用 `defer`，因为它们仅通过 DOM ready 回调或用户事件访问。**禁止**在 `_base.html` 的 `jquery.js` 标签上添加 `defer`/`async`。自检：`grep 'defer.*jquery\|async.*jquery' app/templates/redesign/_base.html && echo "FAIL" || echo "OK"`。**违反教训**：2026-08 F5 保留了 Phase R5 添加的 `defer`，导致 API Token 页面 Copy/Reset 按钮完全失效，详见 `doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`。
+**Redesign JS 依赖规则（强制 · F5）**：Redesign `_base.html` 使用 `common-redesign.js` 替代 `common.js` + `wind.js`。**jQuery 必须同步加载（无 `defer`）**——inline `<script>` 中的 `$(function(){})` 依赖 `$` 在解析时可用。其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）使用 `defer`，因为它们仅通过 DOM ready 触发或用户事件访问。**禁止**在 `_base.html` 的 `jquery.js` 标签上添加 `defer`/`async`。自检：`grep 'defer.*jquery\|async.*jquery' app/templates/redesign/_base.html && echo "FAIL" || echo "OK"`。**违反教训**：2026-08 F5 保留了 Phase R5 添加的 `defer`，导致 API Token 页面 Copy/Reset 按钮完全失效，详见 `doc/postmortem/2026-08-F5-jQuery-defer-inline-script.html`。
 
 **表单必填字段标注规范（强制）**：必填字段必须在 `<label>` 内用 `<span class="uf-req">*</span>` 标注，禁止在 label 外单独添加「必填」文字 span 或使用 inline style 标明必填；下拉 placeholder option 不写「（必填）」。验证命令：`grep -n '必填' app/templates/redesign/user_form.html` 应只出现在 hint 描述文本内，而非独立 span 标签中。
 
@@ -110,6 +110,7 @@ python scripts/check_doc_completeness.py --check    # 文档完整性：注册 +
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
 python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
 python scripts/check_postmortem_completeness.py --check  # 复盘文档化完整性：HTML↔MD + RELEASE_NOTES 引用 + 代码变更同步
+python scripts/check_terminology.py --check       # 术语门禁：禁止旧术语描述触发模型
 python scripts/check_brand_svg_consistency.py --check  # 品牌 SVG include 链完整性：_brand_paths → _brand_block/sidebar → 4 auth 模板
 python scripts/smoke_routes.py --check             # 关键路由冒烟：86 条路由 v1+v2 含 GET/POST/API/错误路径（跨层重命名/模板变更后必跑）
 python scripts/smoke_routes.py --live --check      # 对运行中的服务做 HTTP 冒烟（16 条非 seed 路由）
@@ -143,6 +144,14 @@ bash scripts/check_pending_sync.sh
 
 **querySelector CSS class 可达性（强制）**：模板中 `document.querySelector('.xxx')` 引用的 CSS class 必须先 `grep` 确认在 CSS 文件或 JS 创建的 DOM 中有实际定义。禁止凭记忆或假设的 class 名编写选择器。自检命令：`grep -rn "cp-confirm-overlay" app/templates/ && echo "FAIL: non-existent class" || echo "OK"`。**违反教训**：2026-08 Escape 键守卫使用了不存在的 `.cp-confirm-overlay`（实际为 `.cp-modal-overlay`），导致对话框打开时按 Escape 仍触发页面导航。
 
+**try/except 变量作用域安全（强制 · 2026-09）**：凡在 `except` 处理器中引用的变量，若其赋值点在 `try` 块**内部**（而非块外），必须在 `try:` 之前提供 `var = None` 默认值初始化。否则当 `try` 内赋值前抛出异常时，`except` 处理器会触发 `NameError`，掩盖原始错误并导致日志丢失。自检：审查每个 `except` 处理器中引用的局部变量，逆向追溯其赋值点是否在 `try` 块外有初始化。**违反教训**：2026-09 `cron_do()` 内层 `except` 引用 `_actual_url`，该变量在 `try` 内 `get_cronpilot_sign()` 之后赋值，若签名计算先于赋值抛异常则 NameError 掩盖真实错误。
+
+**含凭据字段的 RBAC 访问面审查（强制 · 2026-09）**：凡新增含认证凭据（sign/token/key）的数据库字段，设计文档"安全审查"节必须逐一列出可访问该字段的所有 RBAC 角色（不可仅写"受权限保护"），并明确是否需要脱敏存储。脱敏应在写入 DB 前完成（而非仅在展示层屏蔽）。自检：`grep -rn "cronpilot_sign" app/ | grep -v "re.sub\|test_\|#" | grep -v "get_cronpilot_sign\|parmas\[\|sign'\]\|sign\"\]" && echo WARN || echo OK`。**违反教训**：2026-09 `actual_url` GET 场景含明文 `cronpilot_sign`，文档误称"仅管理员可访问"，实际 `log:read`（含 Operator）均可读取。
+
+**入库文案参与判定时禁止单向替换（强制 · 2026-09）**：凡修改会被 `startswith` / `==` / `in` 判定的中文文案，必须先确认它是否被写入数据库列（`job_log.content` 等）。若是持久化值，判定端只能**新增**旧文案分支（如 `BLOCKED_URL_PREFIXES` 元组），禁止单向替换；防护测试的输入必须用**旧文案**（否则测试与实现被同一次替换改成自洽，全绿但历史数据已失配）。自检：`grep -rn "startswith('[^']*[一-龥]" app/services/ app/main/ | cat`。回归：`python -m unittest tests.test_job_log_display tests.test_job_log_outcome -v`。**违反教训**：`回调URL安全校验未通过` 单向改名导致历史 job_log 的「未执行触发」分类与 `blocked_url` 失败原因掉档，详见 `doc/postmortem/2026-09-任务链路日志Bug修复复盘.html` Bug 4。
+
+**模型序列化方法字段同步（强制 · 2026-09）**：凡从模型中删除字段，必须全仓库搜索 `to_json()`/`to_dict()` 等序列化方法并同步移除对应字段；新增字段时按需更新。每次模型字段变更后须运行序列化方法对应的单元测试（`test_to_json_does_not_raise`）确认无 AttributeError。自检：`grep -rn "to_json\|to_dict" datas/model/ --include="*.py"`，人工确认引用的属性名在模型中存在。**违反教训**：2026-09 `JobLog.to_json()` 在 Phase A ORM 迁移后仍引用已删除的 `job_id`/`remark`/`traces` 字段，无测试覆盖，长期潜伏。
+
 **异常信息脱敏（强制）**：`except Exception` 的 catch-all 分支中，**禁止** `web_api_return(msg=str(e))` 或 `api_return(errmsg=str(e))` 将异常原始文本返回前端/API 调用方。必须返回通用错误信息（如 `'服务器内部错误，请稍后重试'`），异常详情仅写入 `current_app.logger.error` 或 `logging.getLogger().error()`。自检：`grep -rn "errmsg=.*str(e)\|msg=str(e)" app/ | grep -v "logger\|logging" && echo FAIL || echo OK`（注意搜索范围是整个 `app/` 目录，不限于特定文件）。**违反教训**：2026-08 P0-3 修复 `cron_add` 的 `str(e)` 时搜索范围仅限 `main/views.py` + `rbac/views.py`，遗漏了 `decorated.py` 中 API 装饰器的同源问题（S5）。
 
 **配置读取异常必须拒绝而非放行（强制 · 2026-08 安全审计）**：凡在 `except Exception` 中处理配置文件读取（`configs()`、`conf.ini` 解析等）失败，**禁止**降级为"放行"或"赋予高权限"。**必须**返回拒绝响应（HTTP 500/401）+ `logger.error(exc_info=True)`。原则：基础设施故障时倾向"拒绝/限制"而非"放行/提权"。自检：`grep -n "request._api_scope.*admin" app/api/__init__.py | grep -c "except" && echo WARN || echo OK`。**违反教训**：2026-08 `_api_token_guard()` 配置读取失败时赋予 admin 权限并放行所有 API 请求。详 `.cursor/rules/cronpilot-backend.mdc`。
@@ -171,7 +180,7 @@ bash scripts/check_pending_sync.sh
 
 **AJAX 请求 URL 规范（强制 · F1 Dashboard 404 教训）**：模板中 AJAX 请求的 URL **必须**使用 `url_for()` 或与已有调用点（v1 模板 / 同页面其他调用）对齐，禁止凭记忆或惯例构造 URL。CronPilot 后端统一使用 query param / form data 传递 `id`（`request.values.get('id')`），不使用 path param（`/resource/{id}`）。自检：`rg "\.post\('/[a-z_]+/'" app/templates/ && echo "WARN: path-param URL found" || echo "OK"`。**违反教训**：2026-08 Dashboard 三个 AJAX 按钮使用 `/update_status/{id}` 格式导致 404 全部失效，而同项目 `task_detail.html` 已正确使用 `/update_status?id=`。
 
-**AJAX 响应字段名规范（强制）**：本项目前端 AJAX `success` 回调中必须使用 `r.errcode` / `r.errmsg`（对应 `web_api_return()` 的 `errcode/errmsg`），禁止使用 `r.code` / `r.msg`。**后端 except 分支禁止在 code=1 错误响应中携带 `url` 字段**（js-ajax-form 无论 errcode 是否为 1 都会重定向到 data.url，导致用户表单数据丢失）。自检：`grep -n "url.*code=1\|web_api_return.*code=1.*url=" app/main/views.py app/rbac/views.py`，仅允许资源守卫场景（函数顶部非提交路径）。
+**AJAX 响应字段名规范（强制）**：本项目前端 AJAX `success` 触发中必须使用 `r.errcode` / `r.errmsg`（对应 `web_api_return()` 的 `errcode/errmsg`），禁止使用 `r.code` / `r.msg`。**后端 except 分支禁止在 code=1 错误响应中携带 `url` 字段**（js-ajax-form 无论 errcode 是否为 1 都会重定向到 data.url，导致用户表单数据丢失）。自检：`grep -n "url.*code=1\|web_api_return.*code=1.*url=" app/main/views.py app/rbac/views.py`，仅允许资源守卫场景（函数顶部非提交路径）。
 
 **Redesign 确认对话框规范（强制）**：所有新增弹窗必须使用全局 `CpConfirm.show()`（简单确认，无 HTML body）或 `CpModal()`（表单/HTML body），**禁止使用 Bootstrap modal（`$().modal('show')` / `bootstrap.min.js/css`）**。两者均已在 `redesign-confirm.js` 中全局注册，无需在页面内重复定义。自检命令：`grep -r "\.modal('show')\|bootstrap.min" app/templates/redesign/ && exit 1 || echo OK`。
 

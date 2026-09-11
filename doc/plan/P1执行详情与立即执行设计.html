@@ -107,7 +107,7 @@
       <span class="badge badge-fail">失败</span>
       <strong style="color:#b91c1c">HTTP 502</strong> · 2026-06-23 10:00:00 · 耗时 1.2s · <code>fail_reason: http_5xx</code>
     </p>
-    <p style="margin:0 0 .5rem;font-size:.8rem;color:#64748b">log_id: <code>uuid…</code> · 回调: <code>https://…</code></p>
+    <p style="margin:0 0 .5rem;font-size:.8rem;color:#64748b">log_id: <code>uuid…</code> · 触发: <code>https://…</code></p>
     <p style="margin:0 0 .5rem;font-size:.8rem;color:#64748b">Cron: <code>*/1 * * * *</code>（只读展示，来自 <code>cron_infos</code>）</p>
     <pre style="margin:0;font-size:.75rem;background:#f8fafc;border:1px solid #e2e8f0;padding:.5rem;max-height:80px">Bad Gateway</pre>
     <p style="margin:.75rem 0 0;font-size:.8rem;color:#94a3b8">（若有 add_log）▼ 业务上报进度 折叠区 — 与现 <code>job_log_detail</code> 一致</p>
@@ -139,7 +139,7 @@
     </table>
   </div>
   <ul>
-    <li>点击「立即执行」→ 确认框（可选，默认<strong>要</strong>）→ POST → 等待（回调最长 120s）→ 跳转 <code>/job_log/&lt;new_id&gt;</code></li>
+    <li>点击「立即执行」→ 确认框（可选，默认<strong>要</strong>）→ POST → 等待（触发最长 120s）→ 跳转 <code>/job_log/&lt;new_id&gt;</code></li>
     <li><strong>不校验</strong>任务 <code>status==1</code>：已暂停任务也可手动跑一次（仅读 <code>cron_infos</code> + URL）；已下线（<code>status=-1</code>）不可</li>
     <li>若 <code>req_url</code> 为空 → 返回 JSON 错误，不调用 <code>cron_do</code></li>
   </ul>

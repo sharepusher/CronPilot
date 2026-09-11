@@ -15,7 +15,7 @@ APScheduler 的持久化 jobstore（`datas/cron.sqlite`）中存在 7 个"孤儿
 - 17,770 条无意义的"定时任务不存在" job\_log 记录（其中 `cron_16` 每分钟 1 条）
 - 运维无法从外部监控系统感知此异常
 - "今日失败次数"指标被无意义 error 拉高（虽然 JOIN cron\_infos 后不计入，但历史记录累积）
-- scheduler 线程资源被无意义回调消耗
+- scheduler 线程资源被无意义触发消耗
 
 ## 2. 根因
 

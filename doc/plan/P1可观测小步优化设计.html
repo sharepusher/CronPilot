@@ -94,7 +94,7 @@
     <tr><td><code>success</code></td><td>成功</td><td><code>HTTP 200</code> · 0.85s</td><td>绿</td></tr>
     <tr><td><code>fail</code> + http</td><td>失败</td><td><code>HTTP 502</code> · 1.2s · <code>http_5xx</code></td><td>红（HTTP 行不再单独标绿）</td></tr>
     <tr><td><code>fail</code> + keyword + HTTP 200</td><td>失败</td><td><code>HTTP 200</code> · 0.3s · <code>keyword</code></td><td>红（明确「HTTP 成功但规则判失败」）</td></tr>
-    <tr><td><code>error</code></td><td>异常</td><td>请求异常 · 120s · <code>timeout</code>（或无 HTTP 时「未执行回调」）</td><td>橙</td></tr>
+    <tr><td><code>error</code></td><td>异常</td><td>请求异常 · 120s · <code>timeout</code>（或无 HTTP 时「未执行触发」）</td><td>橙</td></tr>
     <tr><td>NULL</td><td>（无）</td><td>沿用现 <code>job_log_status_line</code></td><td>A′ 规则</td></tr>
   </table>
 

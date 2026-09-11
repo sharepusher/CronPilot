@@ -8,10 +8,10 @@
     <h1>用户管理</h1>
     <div class="sub">{{ page_data.total }} 名成员</div>
   </div>
-  <a href="{{ url_for('rbac.users_add') }}" class="btn-c btn-accent btn-xs">+ 添加用户</a>
 </div>
 
 <div class="um-toolbar">
+  <a href="{{ url_for('rbac.users_add') }}" class="btn-c btn-accent btn-xs um-add-user">+ 添加用户</a>
   <form method="GET" action="{{ url_for('rbac.users_list') }}" class="um-search">
     <input class="f-input um-search-input" type="text" name="username" value="{{ search_username }}" placeholder="按用户名搜索…" aria-label="按用户名搜索">
     {% if chip %}<input type="hidden" name="chip" value="{{ chip }}">{% endif %}

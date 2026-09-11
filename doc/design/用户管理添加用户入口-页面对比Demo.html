@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用户管理添加用户入口 · Before / After Demo</title>
+<style>
+:root{--bg:#edf1f6;--surface:#fff;--surface2:#f7f9fc;--ink:#202938;--muted:#6b7280;--faint:#98a2b3;--border:#d9e0ea;--accent:#2563eb;--accent-bg:#eaf2ff;--nav:#182233;--ok:#157347;--warn:#b45309}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.top{background:var(--nav);color:#fff;padding:20px 26px}.top h1{font-size:20px;margin:0 0 5px}.top p{margin:0;color:#cbd5e1;font-size:13px}.legend{display:flex;gap:18px;flex-wrap:wrap;padding:12px 26px;background:#fff;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)}.legend b{color:var(--ink)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px}.panel{min-width:0}.label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px;font-size:13px;font-weight:700}.before .label strong{color:#b91c1c}.after .label strong{color:#15803d}.frame{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:11px;background:var(--surface);box-shadow:0 8px 24px rgba(30,41,59,.07)}
+.appbar{height:42px;background:#202b3d;color:#e5e7eb;display:flex;align-items:center;padding:0 16px;gap:10px;font-size:12px}.brand{font-weight:750}.crumb{color:#94a3b8}.shell{display:grid;grid-template-columns:116px 1fr;min-height:670px}.side{background:#f9fafb;border-right:1px solid var(--border);padding:15px 9px}.navitem{font-size:11px;color:var(--muted);padding:8px;border-radius:5px;margin-bottom:3px}.navitem.active{background:var(--accent-bg);color:var(--accent);font-weight:700}.main{padding:22px 20px;min-width:0}.pagehead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}.title h2{font-size:18px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:3px}.btn{display:inline-flex;align-items:center;border-radius:5px;padding:5px 9px;border:1px solid transparent;font-size:11px;font-weight:700;white-space:nowrap}.primary{background:var(--accent);color:#fff}.line{background:#fff;border-color:var(--border);color:var(--ink)}
+.toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:8px}.search{display:flex;gap:4px;align-items:center}.input{height:27px;width:145px;border:1px solid var(--border);border-radius:5px;padding:0 8px;color:var(--faint);font-size:10.5px;background:#fff}.divider{width:1px;height:22px;background:var(--border);margin:0 2px}.chips{display:flex;gap:5px;margin:0 0 6px;flex-wrap:wrap}.chip{border:1px solid var(--border);background:var(--surface2);color:var(--muted);padding:3px 8px;border-radius:20px;font-size:10.5px}.chip.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:700}.hint{font-size:10px;color:var(--muted);margin-bottom:12px}.table{border:1px solid var(--border);border-radius:7px;overflow:hidden}.tr{display:grid;grid-template-columns:1.25fr .8fr .7fr .72fr .6fr;border-bottom:1px solid var(--border);align-items:center;min-height:38px}.tr:last-child{border-bottom:0}.th{background:var(--surface2);min-height:31px;color:var(--faint);text-transform:uppercase;font-size:8.5px;font-weight:750}.cell{padding:8px 9px;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.avatar{display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:8px;font-weight:700;margin-right:5px}.status{display:inline-block;border-radius:3px;padding:2px 5px;background:#eaf7ef;color:var(--ok);font-size:9px}.role{display:inline-block;border-radius:3px;padding:2px 5px;background:#53657f;color:#fff;font-size:9px}
+.problem{position:absolute;top:75px;right:18px;border:2px dashed #e11d48;border-radius:8px;padding:4px}.problemnote{position:absolute;top:121px;right:16px;width:150px;color:#be123c;font-size:9.5px;line-height:1.35;text-align:right}.solution{border:2px solid #16a34a;border-radius:8px;padding:5px}.solutionnote{color:#15803d;font-size:9.5px;line-height:1.35;margin:-2px 0 9px 1px}.flow{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:9px}.arrow{color:var(--accent)}
+.mobile-note{display:none}.summary{margin:0 20px 22px;background:#fff;border:1px solid var(--border);border-radius:9px;padding:14px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;font-size:12px}.summary div{padding-right:12px;border-right:1px solid var(--border)}.summary div:last-child{border-right:0}.summary b{display:block;margin-bottom:3px}.no{color:#b91c1c}.yes{color:#15803d}
+@media(max-width:900px){.compare{grid-template-columns:1fr}.summary{grid-template-columns:1fr}.summary div{border-right:0;border-bottom:1px solid var(--border);padding-bottom:10px}.summary div:last-child{border-bottom:0}.problemnote{width:125px}.mobile-note{display:block;font-size:11px;color:var(--warn);padding:0 20px 8px}}
+@media(max-width:520px){.top{padding:16px}.legend{padding:10px 16px}.compare{padding:14px;gap:20px}.shell{grid-template-columns:1fr}.side{display:none}.main{padding:18px 13px}.before .pagehead{align-items:flex-start}.before .problemnote{top:125px;right:12px}.after .toolbar{align-items:stretch}.after .solution{display:block;width:100%}.after .solution .btn{justify-content:center;width:100%}.after .divider{display:none}.after .search{width:100%}.after .search .input{flex:1;width:auto}.tr{grid-template-columns:1.2fr .8fr .7fr}.cell:nth-child(4),.cell:nth-child(5){display:none}.summary{margin:0 14px 18px}.frame{border-radius:8px}}
+</style>
+</head>
+<body>
+<header class="top"><h1>用户管理 · 添加用户入口位置对比</h1><p>相同信息、相同功能，仅调整主操作与列表上下文的空间关系</p></header>
+<div class="legend"><span><b>评估原则</b>：空间邻近性</span><span>任务分组</span><span>管理页一致性</span><span>响应式稳定性</span></div>
+<p class="mobile-note">当前为窄屏布局：重点观察 After 中新增按钮优先占位、搜索自然换行。</p>
+<main class="compare">
+  <section class="panel before">
+    <div class="label"><strong>BEFORE · 当前方案</strong><span>主操作远离列表上下文</span></div>
+    <div class="frame">
+      <div class="appbar"><span class="brand">CronPilot</span><span class="crumb">/ 管理端</span></div>
+      <div class="shell">
+        <aside class="side"><div class="navitem">任务中心</div><div class="navitem">执行记录</div><div class="navitem active">用户管理</div><div class="navitem">业务组</div><div class="navitem">访问审计</div></aside>
+        <div class="main">
+          <div class="pagehead">
+            <div class="title"><h2>用户管理</h2><div class="sub">12 名成员</div></div>
+            <span class="btn primary problem">+ 添加用户</span>
+          </div>
+          <div class="problemnote">按钮被标题栏的两端对齐推至右上角，与搜索和表格脱离</div>
+          <div class="toolbar"><div class="search"><div class="input">按用户名搜索…</div><span class="btn line">搜索</span></div></div>
+          <div class="chips"><span class="chip active">全部 12</span><span class="chip">启用 10</span><span class="chip">停用 2</span></div>
+          <div class="hint">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</div>
+          <div class="table">
+            <div class="tr th"><div class="cell">用户名</div><div class="cell">角色</div><div class="cell">业务组</div><div class="cell">状态</div><div class="cell">操作</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">AD</span>admin</div><div class="cell"><span class="role">admin</span></div><div class="cell">全局</div><div class="cell"><span class="status">启用</span></div><div class="cell">···</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">DV</span>davy</div><div class="cell"><span class="role">operator</span></div><div class="cell">平台组</div><div class="cell"><span class="status">启用</span></div><div class="cell">···</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">CX</span>cx</div><div class="cell"><span class="role">viewer</span></div><div class="cell">业务组</div><div class="cell"><span class="status">停用</span></div><div class="cell">···</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel after">
+    <div class="label"><strong>AFTER · 推荐方案 C</strong><span>主操作回归列表工具区</span></div>
+    <div class="frame">
+      <div class="appbar"><span class="brand">CronPilot</span><span class="crumb">/ 管理端</span></div>
+      <div class="shell">
+        <aside class="side"><div class="navitem">任务中心</div><div class="navitem">执行记录</div><div class="navitem active">用户管理</div><div class="navitem">业务组</div><div class="navitem">访问审计</div></aside>
+        <div class="main">
+          <div class="pagehead"><div class="title"><h2>用户管理</h2><div class="sub">12 名成员</div></div></div>
+          <div class="toolbar">
+            <div class="solution"><span class="btn primary">+ 添加用户</span></div><span class="divider"></span>
+            <div class="search"><div class="input">按用户名搜索…</div><span class="btn line">搜索</span></div>
+          </div>
+          <div class="solutionnote"><span class="flow"><b>创建</b><span class="arrow">→</span>搜索<span class="arrow">→</span>状态筛选<span class="arrow">→</span>表格</span>：操作顺序与视觉顺序一致</div>
+          <div class="chips"><span class="chip active">全部 12</span><span class="chip">启用 10</span><span class="chip">停用 2</span></div>
+          <div class="hint">无物理删除；停用/启用须填写缘由。新建用户默认密码 changeme。</div>
+          <div class="table">
+            <div class="tr th"><div class="cell">用户名</div><div class="cell">角色</div><div class="cell">业务组</div><div class="cell">状态</div><div class="cell">操作</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">AD</span>admin</div><div class="cell"><span class="role">admin</span></div><div class="cell">全局</div><div class="cell"><span class="status">启用</span></div><div class="cell">···</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">DV</span>davy</div><div class="cell"><span class="role">operator</span></div><div class="cell">平台组</div><div class="cell"><span class="status">启用</span></div><div class="cell">···</div></div>
+            <div class="tr"><div class="cell"><span class="avatar">CX</span>cx</div><div class="cell"><span class="role">viewer</span></div><div class="cell">业务组</div><div class="cell"><span class="status">停用</span></div><div class="cell">···</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<section class="summary">
+  <div><b class="no">Before：跨区寻找</b>标题右侧找到创建入口，再回到左侧搜索与表格。</div>
+  <div><b class="yes">After：连续操作</b>主操作位于列表工具区首位，与创建对象和后续操作相邻。</div>
+  <div><b>不变项</b>按钮样式、链接、权限、搜索、筛选和表格行为全部保持不变。</div>
+</section>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="用户管理添加用户入口-页面对比Demo.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

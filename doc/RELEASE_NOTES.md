@@ -39,6 +39,7 @@ v0.1.0 2026-05-29 · 首发
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
 - **UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）**：将「+ 添加用户」移至用户列表工具区左首位，搜索框紧随其后；不改变路由、权限或后端行为。设计：[`doc/design/用户管理添加用户入口布局优化设计.html`](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html)
+- **工程 — 文档索引结构与复盘登记门禁**：`scripts/check_doc_completeness.py` 新增手工索引页块级标签配对校验与复盘 HTML/MD 双索引登记、篇数一致性校验，修复索引剪贴断裂与误删登记。复盘：[`doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html`](postmortem/2026-09-文档索引结构损坏与登记丢失.html)
 - **OPT-P0-22 — 停用用户同名覆盖启用**：原行覆盖 + 日志继承；申请人零提示；审批/管理员警示；auth\_version fail-closed。设计 [`doc/design/停用用户同名恢复设计.html`](design/停用用户同名恢复设计.html) · 复盘 [`doc/postmortem/2026-09-停用用户同名恢复.html`](postmortem/2026-09-停用用户同名恢复.html) · Session 深入复盘 [`doc/postmortem/2026-09-auth-version-session-failopen.html`](postmortem/2026-09-auth-version-session-failopen.html)
 - **安全修复 — 禁止停用种子系统管理员（OPT-P2-15 补丁）**：全局业务管理员不可停用种子 `admin`（仍可编辑资料）。服务层双路径 + 视图 + UI 对齐。复盘：[`doc/postmortem/2026-09-全局管理员可停用种子账号.html`](postmortem/2026-09-全局管理员可停用种子账号.html)
 - **质量门禁与测试稳定性最小修复（2026-09-04）**：修复 `test_rbac_scope` 单跑建表缺失、修正 `verify_golden_path` 文档路径、修复 CSS 注释误报、补齐 `doc/postmortem/index.md`。

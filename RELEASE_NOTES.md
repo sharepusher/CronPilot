@@ -7,6 +7,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程 — 文档索引结构与复盘登记门禁
+
+- **问题**：索引页条目搬运时剪贴断裂，`doc/index.html` 出现半截开标签与裸露属性文本；同时误删一条设计文档登记，`doc/postmortem/index.md` 丢失一条复盘登记，全部逃过现有门禁。
+- **门禁**：`scripts/check_doc_completeness.py` 新增手工索引页块级标签配对校验（含 `<pre>`/`<code>` 代码示例排除），以及复盘 HTML/MD 双索引登记与「共 N 篇」一致性校验；该脚本已由 `doc-completeness.yml` 在 `doc/**` 变更时执行。
+- **验证**：`python scripts/check_doc_completeness.py --check` 通过；`python -m unittest tests.test_check_doc_completeness -v`（4 条）通过；全仓 `doc/**/*.html` 结构扫描 0 违规。
+- **复盘**：[文档索引结构损坏与登记丢失](doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html)
+
 ### UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）
 
 - **变更**：将「+ 添加用户」从页面标题栏最右端移至用户列表工具区左首位，搜索框紧随其后。

@@ -112,6 +112,7 @@
 | **停用用户同名覆盖启用（OPT-P0-22）** | 删行重建 → 原行覆盖 · 申请人零提示 · auth_version fail-closed | [HTML](postmortem/2026-09-停用用户同名恢复.html) | [MD](postmortem/2026-09-停用用户同名恢复.md) |
 | **auth_version Session 缺键 Fail-Open** | OPT-P0-22 B2 | [HTML](postmortem/2026-09-auth-version-session-failopen.html) | [MD](postmortem/2026-09-auth-version-session-failopen.md) |
 | **全局管理员可停用种子账号** | Scope bypass 短路 · 双路径拦截 | [HTML](postmortem/2026-09-全局管理员可停用种子账号.html) | [MD](postmortem/2026-09-全局管理员可停用种子账号.md) |
+| **文档索引结构损坏与登记丢失** | 剪贴断裂 · 登记删除 · 索引结构与复盘登记门禁 | [HTML](postmortem/2026-09-文档索引结构损坏与登记丢失.html) | [MD](postmortem/2026-09-文档索引结构损坏与登记丢失.md) |
 
 ## 在线访问（服务启动后）
 

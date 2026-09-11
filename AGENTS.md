@@ -106,7 +106,7 @@ python scripts/check_ui_contract.py --check        # UI 契约门禁：inline-st
 python scripts/check_dead_css.py --check            # CSS 死代码检测：components.css 中每个类须有模板/JS 消费者
 python scripts/check_css_token_reachability.py --check  # CSS token 可达性：var(--cp-*) 定义存在 + animation-name 有 @keyframes
 python scripts/check_version_consistency.py --check  # 版本一致性：git tag vs README/路线图/RELEASE_NOTES + Unreleased 残留 + 版本总览表
-python scripts/check_doc_completeness.py --check    # 文档完整性：doc/*.html 是否在 index.html 中注册
+python scripts/check_doc_completeness.py --check    # 文档完整性：注册 + 索引页标签配对 + 复盘双索引登记与篇数一致
 python scripts/check_doc_links.py --check           # 全仓库文档链接可达性（README/INSTALL/.cursor/rules/ → doc/）
 python scripts/check_opt_consistency.py --check     # OPT 编号一致性 + 设计文档状态 vs 路线图对照
 python scripts/check_postmortem_completeness.py --check  # 复盘文档化完整性：HTML↔MD + RELEASE_NOTES 引用 + 代码变更同步

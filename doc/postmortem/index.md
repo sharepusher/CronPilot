@@ -43,6 +43,8 @@
 - [test_rbac_phase 测试维护债务](2026-08-test-rbac-phase-maintenance-debt.html)
 - [Release Notes Unreleased 残留清理](2026-09-release-notes-unreleased-cleanup.html)
 - [质量门禁四项修复复盘](2026-09-质量门禁四项修复复盘.html)
+- [调度器幽灵任务清理复盘](2026-08-调度器幽灵任务清理复盘.html)
+- [文档索引结构损坏与登记丢失](2026-09-文档索引结构损坏与登记丢失.html)（剪贴断裂 · 登记删除 · 索引结构门禁，2026-09-11）
 
 ## 流程与元复盘
 

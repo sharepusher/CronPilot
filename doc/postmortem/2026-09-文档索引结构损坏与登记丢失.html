@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>2026-09 文档索引结构损坏与登记丢失复盘</title>
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}h1{border-bottom:2px solid #2563eb;padding-bottom:.4rem}h2{margin-top:1.8rem;border-left:4px solid #2563eb;padding-left:.7rem}code{background:#f1f5f9;padding:2px 5px;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}th{background:#f8fafc}</style>
+</head><body>
+<h1>2026-09 文档索引结构损坏与登记丢失复盘</h1>
+<p><strong>日期</strong>：2026-09-11　<strong>发现方式</strong>：提交前逐主题审查未提交改动时自查发现</p>
+
+<h2>1. Bug 定位</h2>
+<table>
+<tr><th>#</th><th>位置</th><th>现象</th></tr>
+<tr><td>1</td><td><code>doc/index.html</code> 复盘列表（原第 1125–1127 行）</td><td><code>&lt;li&gt;</code> 之后出现 <code>&lt;div       &lt;li&gt;</code>：一段 <code>&lt;li&gt;</code> + <code>&lt;div </code> 文本被剪贴到此处，HTML 解析器把 <code>&lt;li</code> 当成 <code>&lt;div&gt;</code> 的属性名</td></tr>
+<tr><td>2</td><td><code>doc/index.html</code>（原第 1167 行）</td><td>「全面 Code Review 复盘」条目丢失 <code>&lt;li&gt;&lt;div </code> 开标签，只剩裸露的 <code>class="title"&gt;</code> 文本</td></tr>
+<tr><td>3</td><td><code>doc/index.html</code> / <code>doc/index.md</code></td><td><code>design/测试Session补齐auth-version修复设计.html</code> 的整条登记被删除，文件仍存在 → <code>check_doc_completeness.py</code> 报 UNREGISTERED</td></tr>
+<tr><td>4</td><td><code>doc/postmortem/index.md</code></td><td>丢失「停用用户同名覆盖启用（OPT-P0-22）」一行，而 <code>index.html</code> 仍有该条目，两边不一致</td></tr>
+<tr><td>5</td><td><code>doc/postmortem/index.html</code> / <code>index.md</code></td><td>附带发现：篇数声明「共 33 篇」与实际 35 个文件不符；<code>2026-08-调度器幽灵任务清理复盘.html</code> 在 MD 侧从未登记（HEAD 即缺失）</td></tr>
+</table>
+
+<h2>2. 根因</h2>
+<p>重排 1200 行索引页时采用「剪切一段 <code>&lt;li&gt;</code> 块 → 粘到新位置」的手工搬运方式，剪切边界落在 <code>&lt;li&gt;</code> 与 <code>&lt;div class="title"&gt;</code> 之间，于是同一段文本既在原位少了开标签、又在目标位置多了半截开标签。</p>
+<p>行为层原因是这类破坏在编辑环节没有任何反馈信号：浏览器与 <code>markdownify</code> 对不配对标签都容错，页面渲染看起来正常；唯一的文档门禁 <code>check_doc_completeness.py</code> 只用正则提取 <code>href</code> 集合，对标签结构完全不敏感。登记丢失（#3）本可被该门禁捕获，但门禁只在 <code>doc-completeness.yml</code> 的 push / PR 事件运行，编辑当时不会报警，而编辑后也没有在本地跑过它。</p>
+<p>归纳：<strong>结构类破坏无门禁；登记类破坏有门禁但不在编辑环节执行。</strong></p>
+
+<h2>3. 测试漏洞</h2>
+<table>
+<tr><th>门禁</th><th>为何没发现</th></tr>
+<tr><td><code>scripts/check_doc_completeness.py</code></td><td>只做 href 集合比对，无任何标签配对校验 → 结构损坏 100% 漏过</td></tr>
+<tr><td><code>scripts/check_postmortem_completeness.py</code></td><td>只校验「HTML 有无同名 MD」和「是否被 RELEASE_NOTES 引用」，不校验两个索引页登记是否齐全、篇数声明是否准确；且该脚本未接入任何 workflow，即使有规则也不会在 CI 运行</td></tr>
+<tr><td><code>scripts/html_docs_to_markdown.py --check</code></td><td>MD 由损坏的 HTML 生成，两边天然一致 → 同步门禁无法发现源文件结构问题</td></tr>
+</table>
+
+<h2>4. 修复</h2>
+<p>四处最小 diff，不改动其他条目：还原第 1 处被剪贴进来的半截开标签；补回第 2 处的 <code>&lt;li&gt;&lt;div class="title"&gt;</code>；在 OPT-P0-22 条目后重新登记「测试 Session 补齐 auth_version 修复设计」（HTML + MD 各一条）；补回 <code>doc/postmortem/index.md</code> 丢失的 OPT-P0-22 复盘行、补登「调度器幽灵任务清理复盘」并把篇数声明改为实际值。</p>
+
+<h2>5. 防护测试</h2>
+<p><code>scripts/check_doc_completeness.py</code> 新增两项检查，并由 <code>tests/test_check_doc_completeness.py</code> 锁定行为：</p>
+<table>
+<tr><th>用例</th><th>断言</th></tr>
+<tr><td><code>test_detects_cut_paste_corruption</code></td><td>把本次事故原文作为夹具，必须同时报出「剪贴断裂」「裸露的属性文本」「不配对」</td></tr>
+<tr><td><code>test_accepts_well_formed_list</code></td><td>结构完好的列表零告警</td></tr>
+<tr><td><code>test_detects_unclosed_block_tag</code></td><td><code>&lt;li&gt;</code> 未闭合被检出</td></tr>
+<tr><td><code>test_ignores_attribute_text_inside_code_samples</code></td><td><code>&lt;pre&gt;</code> / <code>&lt;code&gt;</code> 内的代码示例不误报</td></tr>
+</table>
+<p>另有 <code>check_postmortem_index_pair()</code> 校验每篇复盘同时登记在 <code>index.html</code> 与 <code>index.md</code>，且「共 N 篇」与文件数一致——该检查在修复过程中直接命中了第 5 组遗留问题。</p>
+
+<h2>6. 同类排查</h2>
+<p>用新校验器扫描全部 <code>doc/**/*.html</code>（排除 <code>_pending_sync</code>）：首轮报出 11 个文件，逐一核查后确认全部是 <code>&lt;pre&gt;</code> / <code>&lt;code&gt;</code> 内展示用代码片段的误报（例如 <code>2026-08-missing-route-decorator.html</code> 中作为示例展示的 <code>href="{{ url_for(...) }}"</code>）。据此为校验器加入原始文本容器排除，再次全量扫描结果为 <strong>0 个文件存在结构问题</strong>，说明本次两处剪贴断裂是全仓唯一实例，其余索引与设计稿标签配对完好。</p>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr><td><code>check_index_structure()</code>：对手工维护索引页做块级标签配对 + 裸属性残留校验</td><td><code>scripts/check_doc_completeness.py</code>（已被 <code>.github/workflows/doc-completeness.yml</code> 在 <code>doc/**</code> 变更时执行，PR 阶段即拦截）</td><td><code>python scripts/check_doc_completeness.py --check</code></td></tr>
+<tr><td><code>check_postmortem_index_pair()</code>：复盘 HTML/MD 双索引登记 + 篇数声明一致性</td><td>同上</td><td>同上</td></tr>
+<tr><td>校验器行为单测（含事故原文夹具）</td><td><code>tests/test_check_doc_completeness.py</code>，随 <code>unittest discover</code> 进入 <code>unit-tests.yml</code></td><td><code>python -m unittest tests.test_check_doc_completeness -v</code></td></tr>
+<tr><td>规范条目：索引条目搬运禁止「剪切 + 粘贴」，须先在目标位置写完整 <code>&lt;li&gt;</code> 块、再删除源块；编辑后必须在本地跑上述两条命令</td><td><code>.cursor/rules/cronpilot-documentation.mdc</code> + <code>AGENTS.md</code></td><td>见上两条命令</td></tr>
+</table>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-09-文档索引结构损坏与登记丢失.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body></html>

@@ -234,7 +234,16 @@ class TestCronListHealthFilters(unittest.TestCase):
             updated_at=now,
             scope_type='GLOBAL',
         )
-        db.session.add_all([t_ok, t_today, t_streak])
+        t_retired = CronInfos(
+            task_name='retired_streak_failing',
+            task_keyword='',
+            req_url='https://example.com/retired',
+            status=-1,
+            created_at=now,
+            updated_at=now,
+            scope_type='GLOBAL',
+        )
+        db.session.add_all([t_ok, t_today, t_streak, t_retired])
         db.session.flush()
 
         db.session.add(
@@ -261,6 +270,15 @@ class TestCronListHealthFilters(unittest.TestCase):
                 last_run_at=str_to_hms(today + ' 11:00:00'),
                 last_run_status=STATUS_FAIL,
                 consecutive_failures=3,
+                health_status=HEALTH_FAILING,
+            )
+        )
+        db.session.add(
+            JobHealth(
+                cron_info_id=t_retired.id,
+                last_run_at=str_to_hms(today + ' 12:00:00'),
+                last_run_status=STATUS_FAIL,
+                consecutive_failures=8,
                 health_status=HEALTH_FAILING,
             )
         )
@@ -291,6 +309,16 @@ class TestCronListHealthFilters(unittest.TestCase):
         html = self.client.get('/?health=failing').get_data(as_text=True)
         self.assertIn('streak_failing', html)
         self.assertNotIn('today_fail_only', html)
+
+    def test_attention_panel_excludes_retired_failing_task(self):
+        """下线任务的历史 failing 健康记录不应进入需要关注面板。"""
+        self._login_admin()
+        html = self.client.get('/').get_data(as_text=True)
+        panel = html.split('<div class="hf-exception">', 1)[1].split(
+            '<div class="console-filters"', 1
+        )[0]
+        self.assertIn('streak_failing', panel)
+        self.assertNotIn('retired_streak_failing', panel)
 
 
 if __name__ == '__main__':

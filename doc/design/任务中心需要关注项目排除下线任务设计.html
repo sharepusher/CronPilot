@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>任务中心需要关注项目排除下线任务设计</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem} h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px} table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left} th{background:#f5f5f5}
+</style>
+</head>
+<body>
+<h1>任务中心需要关注项目排除下线任务设计</h1>
+<p><strong>日期</strong>：2026-09-09　<strong>类型</strong>：问题修复设计　<strong>状态</strong>：已确认并实施</p>
+
+<h2>1. 问题</h2>
+<p>任务中心 Dashboard 的“需要关注的任务”面板会展示大量已经下线的异常任务。下线任务不再调度，也不应继续作为当前需要处理的异常提醒。</p>
+<p>期望结果：下线任务（<code>CronInfos.status = -1</code>）即使历史健康记录仍为持续失败，也不出现在该面板；仍可在任务列表的“已下线”状态筛选中查看。</p>
+
+<h2>2. 根因与 API 假设验证</h2>
+<p><code>app/main/views.py</code> 的 <code>cron_list()</code> 以 <code>repo.top_failing(filter_arr, limit=5)</code> 获取面板数据；<code>filter_arr</code> 仅包含 Scope、名称、状态、标签等列表过滤条件。</p>
+<p>已读取并核对 <code>app/repositories/cron_repository.py</code>：<code>top_failing()</code> 当前只 Join <code>JobHealth</code> 并筛选 <code>health_status == HEALTH_FAILING</code>，没有状态条件。作为对照，同文件的 <code>metrics()</code>、<code>count_consecutive_failing()</code> 和 <code>today_success_rate()</code> 已明确使用 <code>CronInfos.status != -1</code>。因此本设计中的查询修改基于已验证的实际 API 与字段行为，不是凭印象假设。</p>
+
+<h2>3. 方案</h2>
+<p><strong>推荐方案：</strong>在 <code>CronRepository.top_failing()</code> 的基础查询中增加 <code>CronInfos.status != -1</code>，使所有调用该 Repository 方法的“持续异常 Top N”结果统一排除下线任务。</p>
+<p>不修改健康记录、不删除历史数据、不改变任务列表的状态筛选，也不改变 Scope 逻辑。面板标题数量由过滤后的结果自然计算，最多仍展示 5 条。</p>
+<p><strong>交互契约：</strong>无新增表单或前端交互；保留现有普通链接跳转到任务执行日志详情页。</p>
+
+<h3>3.1 SQL 与性能评估</h3>
+<p>修改后的核心 SQL 形状如下（实际 SQL 由 SQLAlchemy 按数据库方言生成）：</p>
+<pre>SELECT cron_infos.*, job_health.*
+FROM cron_infos
+JOIN job_health ON job_health.cron_info_id = cron_infos.id
+WHERE job_health.health_status = 'failing'
+  AND cron_infos.status != -1
+  /* 既有 Scope / 名称 / 标签条件 */
+ORDER BY job_health.consecutive_failures DESC,
+         job_health.last_fail_at DESC
+LIMIT 5;</pre>
+<ul>
+<li><strong>连接成本：</strong><code>job_health.cron_info_id</code> 是主键，<code>cron_infos.id</code> 是主键；Join 使用索引/主键查找，不引入新的 Join 路径。</li>
+<li><strong>过滤成本：</strong>新增的 <code>cron_infos.status != -1</code> 是低选择性状态过滤，通常在 Join 后完成；它不会单独触发全表排序或额外查询，但会减少进入 Top-N 排序的候选行。</li>
+<li><strong>排序成本：</strong>现有查询已经按连续失败次数、最近失败时间排序并 <code>LIMIT 5</code>；本次不改变排序字段，因此不新增排序成本。当前模型未为 <code>job_health.health_status</code> 或排序组合声明索引，数据量较大时主要成本仍是健康表筛选/排序，而不是新增状态条件。</li>
+<li><strong>索引决策：</strong>本次不新增索引，避免为单个低选择性状态谓词引入迁移和双后端维护成本。若生产执行计划显示 <code>job_health</code> 扫描或排序成为瓶颈，再单独提交索引设计，评估 <code>(health_status, consecutive_failures, last_fail_at)</code> 的 SQLite/MySQL 兼容性。</li>
+</ul>
+<p><strong>性能验收：</strong>在代表性数据量（包括下线异常任务占比较高和较低两组）上分别执行修改前后的 SQL/等价查询，记录 SQLite 与生产 MySQL 的 <code>EXPLAIN</code>（必要时 <code>EXPLAIN ANALYZE</code>）中的扫描行数、是否使用主键/索引、排序方式和总耗时。验收阈值为：结果语义符合第 6 节，查询次数不增加，P95 耗时不劣化超过 10%；若超过阈值，暂停实现并补充索引/查询方案评审。</p>
+
+<h2>4. 范围</h2>
+<table><tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>app/repositories/cron_repository.py</code></td><td>“需要关注”查询排除 <code>status=-1</code></td></tr>
+<tr><td><code>tests/</code></td><td>新增回归断言：运行中持续失败任务出现，下线持续失败任务不出现；必要时验证暂停任务既有语义不被改变</td></tr>
+<tr><td><code>RELEASE_NOTES.md</code>、对应 HTML/Markdown 文档</td><td>记录用户可感知修复并保持双格式同步</td></tr></table>
+<p>明确不在范围：清理既有 <code>JobHealth</code> 数据、改变任务下线流程、修改统计卡片口径、修改任务列表“持续异常”筛选的既有业务规则。</p>
+
+<h2>5. 分批实施</h2>
+<ol>
+<li>Batch 1：按本设计修改 Repository，并补充最小回归测试。</li>
+<li>Batch 2：运行定向测试、全量测试与必要的 Dashboard 路由冒烟；修复发现的问题并形成复盘。</li>
+<li>Batch 3：重启本地服务，用登录会话访问 <code>http://127.0.0.1:5001/</code> 验证面板；同步 Release Notes 与 HTML/Markdown 文档。</li>
+</ol>
+
+<h2>6. 验收</h2>
+<ul>
+<li>构造一个 <code>status=1</code> 且健康状态为 <code>failing</code> 的任务：面板展示该任务。</li>
+<li>构造一个 <code>status=-1</code> 且健康状态为 <code>failing</code> 的任务：面板不展示该任务，面板数量不计入该任务。</li>
+<li>访问任务列表的“已下线”状态筛选：该任务仍可查询，证明只是提醒口径过滤。</li>
+<li>现有 Scope 过滤和最多 5 条排序行为保持不变。</li>
+<li>验证命令至少包括定向回归、<code>ruff check app/</code>、<code>python scripts/smoke_routes.py --check</code>；交付前按仓库要求重启服务并提供 Agent 自证输出。</li>
+</ul>
+
+<h2>7. 风险与回滚</h2>
+<p>风险低：仅增加 SQL WHERE 条件，可能导致面板数量减少，这是预期行为。若发现业务需要继续追踪下线任务，可回滚该单一条件；历史健康数据和任务数据不会受影响。</p>
+
+<p><strong>实施结果：</strong>已按本设计完成实现与回归验证；下线任务仍保留在任务列表的状态筛选中，但不再进入“需要关注的任务”面板。</p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="任务中心需要关注项目排除下线任务设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

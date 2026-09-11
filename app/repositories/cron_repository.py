@@ -163,6 +163,7 @@ class CronRepository(BaseRepository):
             select(CronInfos, JobHealth)
             .join(JobHealth, JobHealth.cron_info_id == CronInfos.id)
             .where(JobHealth.health_status == HEALTH_FAILING)
+            .where(CronInfos.status != -1)
         )
         if filters:
             stmt = stmt.where(*filters)

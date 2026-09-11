@@ -37,6 +37,7 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **规模化信息架构 OPT-P2-13**（权威总稿） | L1/L2/L3 · job_health · 角色调制 · **当前焦点** | [HTML](design/规模化信息架构设计.html) | [MD](design/规模化信息架构设计.md) |
+| **任务中心需要关注项目排除下线任务设计**（已交付） | 下线任务不再进入异常提醒面板 | [HTML](design/任务中心需要关注项目排除下线任务设计.html) | [MD](design/任务中心需要关注项目排除下线任务设计.md) |
 | **全仓术语治理设计（2026-09）**（待确认） | callback/回调 → 触发语义 · 四批执行（代码命名/用户文案/历史文档/规则门禁） | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |

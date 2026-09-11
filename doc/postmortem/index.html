@@ -23,13 +23,14 @@ li { margin: 4px 0; font-size: 0.9rem; }
 <body>
 <div class="back"><a href="../index.html">← 返回文档总索引</a></div>
 <h1>复盘文档索引</h1>
-<p>本目录包含 CronPilot 的所有事后复盘文档（Bug 分析、事故回顾、预防方案等），共 33 篇。</p>
+<p>本目录包含 CronPilot 的所有事后复盘文档（Bug 分析、事故回顾、预防方案等），共 34 篇。</p>
 
 <h2>安全与前端关键问题</h2>
 <ul>
 <li><span class="badge b-sec">安全</span> <a href="2026-08-security-S1-S5.html">安全问题 S1–S5 修复复盘</a>（Logout CSRF · Tag Scope · XSS · 异常泄露）</li>
 <li><span class="badge b-sec">P0</span> <a href="2026-08-P0-frontend-bugs.html">P0 前端关键 Bug 复盘</a>（CpConfirm 参数 · Open Redirect · 异常脱敏 · Escape 选择器）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-08-全面CodeReview复盘.html">全面 Code Review 综合复盘</a>（2026-08-28 全量 Review）</li>
+<li><span class="badge b-sec">安全</span> <a href="2026-08-SEC6-SSRF-dns-fail-open.html">SEC-6 SSRF DNS Fail-Open 修复</a>（DNS 失败 fail-closed + 重试 + 配置项）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-09-停用用户同名恢复.html">停用用户同名覆盖启用（OPT-P0-22）</a>（删行重建 → 原行覆盖 · 申请人零提示 · auth_version，2026-09-09）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-09-auth-version-session-failopen.html">auth_version Session 缺键 Fail-Open</a>（OPT-P0-22 B2，2026-09-09）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-09-全局管理员可停用种子账号.html">全局管理员可停用种子账号</a>（bypass 短路导致种子可被停用，2026-09-09）</li>

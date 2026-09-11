@@ -37,7 +37,7 @@ from app.services.job_log_outcome import (
 )
 from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.scheduler_db import fetch_apscheduler_job_ids
-from app.services.url_security import make_pinned_session, validate_and_resolve_url, validate_callback_url
+from app.services.url_security import make_pinned_session, validate_and_resolve_url
 from configs import configs
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog

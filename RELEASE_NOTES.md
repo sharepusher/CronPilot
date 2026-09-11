@@ -93,7 +93,8 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
   - Layer 1（`validate_trigger_url`）+ Layer 2（`validate_and_resolve_url`）DNS 失败时默认 **fail-closed**（拒绝请求）
   - `_resolve_host_ips()` 新增 1 次 DNS 重试（间隔 0.5s），减少瞬时 DNS 抖动误拦
   - 新增 `conf.ini` 配置项 `url_ssrf_dns_fail_open=0`，内网 DNS 不稳定环境可设 `1` 恢复旧行为
-- **测试**：7 个新增用例（`TestUrlSecurity` 2 个 + `TestValidateAndResolve` 2 个 + `TestDnsRetry` 3 个），总测试数 685
+  - `configs()` 读取该配置项并注入 `CRON_CONFIG`（此前该键未进入运行配置，设为 `1` 也不生效——逃生开关实际为死键）
+- **测试**：7 个新增用例（`TestUrlSecurity` 2 个 + `TestValidateAndResolve` 2 个 + `TestDnsRetry` 3 个）；另新增 `tests/test_config_keys.py` 3 条，以 `conf.ini.example` 为准断言配置键可达性
 - **复盘文档**：[doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html](doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html)
 - **设计文档**：`doc/design/Redesign代码全面Review修复方案-2026-08.html` §3.1 SEC-6
 

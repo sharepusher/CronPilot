@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>复盘：SEC-6 SSRF DNS Fail-Open 安全漏洞修复</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2em auto;padding:0 1em;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:2px solid #c0392b;padding-bottom:.3em}
+h2{color:#2c3e50;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:0.9em}
+pre{background:#f8f8f8;padding:1em;border-radius:4px;overflow-x:auto;font-size:0.85em}
+.severity{color:#c0392b;font-weight:bold}
+.safe{color:#27ae60}
+</style>
+</head>
+<body>
+
+<h1>复盘：SEC-6 SSRF DNS Fail-Open 安全漏洞修复</h1>
+
+<p><strong>日期</strong>：2026-08-24<br>
+<strong>严重度</strong>：<span class="severity">P1 安全</span><br>
+<strong>关联编号</strong>：SEC-6（Redesign 全面 Review 修复方案 §3.1）<br>
+<strong>设计文档</strong>：<a href="../design/Redesign代码全面Review修复方案-2026-08.html">Redesign代码全面Review修复方案-2026-08.html</a></p>
+
+<h2>1. Bug 定位</h2>
+
+<p><strong>文件</strong>：<code>app/services/url_security.py</code></p>
+
+<p><strong>Layer 1</strong>（<code>validate_trigger_url</code>，第 104–109 行）：</p>
+<pre>
+except ValueError:
+    ips = _resolve_host_ips(hostname)
+    if ips is None:
+        return True, ''   # ← fail-open: DNS 失败直接放行
+</pre>
+
+<p><strong>Layer 2</strong>（<code>validate_and_resolve_url</code>，第 125–128 行）：</p>
+<pre>
+ips = _resolve_host_ips(hostname)
+if ips is None:
+    return True, '', None  # ← fail-open: DNS 失败放行且无 IP pinning
+</pre>
+
+<p>两层 SSRF 防护在 DNS 解析失败（<code>socket.gaierror</code>）时均返回 <code>True</code>，允许请求继续。
+这意味着攻击者可以在 DNS 瞬断期间提交指向内网 IP 的恶意域名，绕过 IP 黑名单检查。</p>
+
+<h2>2. 根因</h2>
+
+<table>
+<tr><th>层面</th><th>分析</th></tr>
+<tr><td>设计决策</td><td>原始实现优先考虑「可用性」——DNS 暂时不可用时不影响正常任务调度。这是 SSRF 防护初期（OPT-P0-12）的权衡决策，当时假设内网环境 DNS 稳定</td></tr>
+<tr><td>安全建模不足</td><td>未考虑攻击者主动制造 DNS 故障的场景（如 DNS Rebinding、短 TTL 切换、恶意 DNS 服务器返回 SERVFAIL）</td></tr>
+<tr><td>双层都有同一漏洞</td><td>Layer 2 复制了 Layer 1 的 fail-open 逻辑，未独立审视安全语义</td></tr>
+<tr><td>行为层根因</td><td>OPT-P0-12 实现时无「fail-open vs fail-closed 决策清单」，安全函数的异常路径未被要求单独 review</td></tr>
+</table>
+
+<h2>3. 测试漏洞</h2>
+
+<p>原有测试 <code>test_dns_unavailable_returns_none_ip</code> 验证了 DNS 失败时返回 <code>ip=None</code>，
+但<strong>断言方向是 <code>assertTrue(ok)</code></strong>——即测试本身把 fail-open 作为「正确行为」来验证。
+这意味着测试覆盖了该场景但<strong>预期值是错误的</strong>，反而固化了漏洞。</p>
+
+<p>Layer 1（<code>validate_trigger_url</code>）完全没有 DNS 失败场景的测试用例。</p>
+
+<h2>4. 修复</h2>
+
+<table>
+<tr><th>变更</th><th>描述</th></tr>
+<tr><td><code>_dns_fail_open(cron_config)</code></td><td>新增配置读取函数，检查 <code>url_ssrf_dns_fail_open</code> 配置项</td></tr>
+<tr><td><code>_resolve_host_ips(hostname, retries=1)</code></td><td>新增 1 次 DNS 重试（间隔 0.5s），减少瞬时 DNS 抖动误拦</td></tr>
+<tr><td><code>validate_trigger_url</code> Layer 1</td><td>DNS 失败 + <code>dns_fail_open=0</code> → <code>return False, 'DNS 解析失败...'</code></td></tr>
+<tr><td><code>validate_and_resolve_url</code> Layer 2</td><td>DNS 失败 + <code>dns_fail_open=0</code> → <code>return False, 'DNS 解析失败...', None</code></td></tr>
+<tr><td><code>conf.ini.example</code></td><td>新增 <code>url_ssrf_dns_fail_open=0</code> 配置项（默认 fail-closed）</td></tr>
+<tr><td><code>configs.py</code>（2026-09 补线）</td><td>把 <code>url_ssrf_dns_fail_open</code> 读入 <code>configs()</code> 返回字典（缺省 <code>'0'</code>），与 <code>block_private_ip</code> / <code>url_ssrf_observe_only</code> 同款写法</td></tr>
+</table>
+
+<h3>4.1 后续修复：逃生开关曾是死键（2026-09-11）</h3>
+<p>本次交付把配置项写进了 <code>conf.ini.example</code>、设计文档与 Release Notes，但<strong>漏了 <code>configs.py</code></strong>：
+<code>configs()</code> 返回的字典里从来没有 <code>url_ssrf_dns_fail_open</code> 键，而
+<code>_dns_fail_open()</code> 只做 <code>(cron_config or {}).get('url_ssrf_dns_fail_open', '0')</code>、
+没有 <code>configs('&lt;key&gt;')</code> 兜底，于是运维即使按示例设成 1，运行时读到的仍是默认 0——
+逃生开关完全无效，DNS 抖动环境无法降级。</p>
+<p>对照组说明了这个不对称：<code>health_failing_threshold</code> 同样不在 <code>configs()</code> 字典里，
+但 <code>get_failing_threshold()</code> 在字典取空时会回落到 <code>configs('health_failing_threshold')</code>，
+因此照样生效；<code>api_access_token_required</code> 则是全程走单键读取。
+三个键写法各不相同，唯独没有兜底的那个成了死键。</p>
+<p>行为层根因：交付验收把「示例文件里有这一项」当成了「配置项可用」，
+验证命令写的是 <code>grep 'url_ssrf_dns_fail_open' conf.ini.example</code>——
+这条命令在键完全不生效的情况下依然通过。SEC-6 的 7 个单测则全部直接构造
+<code>dict(self.cfg, url_ssrf_dns_fail_open='1')</code> 传入，绕过了 <code>configs()</code> 这一层，
+因此测试与 grep 双双为绿。</p>
+<p>修复后自证（<code>conf.ini</code> 分别设 0 / 1，对不可解析域名调用 <code>validate_trigger_url</code>）：</p>
+<table>
+<tr><th><code>url_ssrf_dns_fail_open</code></th><th><code>configs()</code> 读到</th><th><code>_dns_fail_open</code></th><th>校验结果</th></tr>
+<tr><td>0</td><td><code>'0'</code></td><td>False</td><td><code>(False, 'DNS 解析失败（…），请确认域名正确后重试')</code></td></tr>
+<tr><td>1</td><td><code>'1'</code></td><td>True</td><td><code>(True, '')</code></td></tr>
+</table>
+
+<h2>5. 防护测试</h2>
+
+<p>新增 7 个测试用例（总测试数 679 → 685）：</p>
+
+<table>
+<tr><th>测试类</th><th>用例</th><th>验证内容</th></tr>
+<tr><td>TestUrlSecurity</td><td><code>test_dns_fail_closed_layer1</code></td><td>Layer 1 DNS 失败 → 默认拒绝</td></tr>
+<tr><td>TestUrlSecurity</td><td><code>test_dns_fail_open_layer1_config</code></td><td>Layer 1 DNS 失败 + config=1 → 放行</td></tr>
+<tr><td>TestValidateAndResolve</td><td><code>test_dns_unavailable_fail_closed</code></td><td>Layer 2 DNS 失败 → 默认拒绝</td></tr>
+<tr><td>TestValidateAndResolve</td><td><code>test_dns_unavailable_fail_open_config</code></td><td>Layer 2 DNS 失败 + config=1 → 放行</td></tr>
+<tr><td>TestDnsRetry</td><td><code>test_retry_succeeds_on_second_attempt</code></td><td>首次失败 + 第二次成功 → 返回 IP</td></tr>
+<tr><td>TestDnsRetry</td><td><code>test_all_retries_exhausted_returns_none</code></td><td>全部重试耗尽 → 返回 None</td></tr>
+<tr><td>TestDnsRetry</td><td><code>test_no_retry_when_retries_zero</code></td><td>retries=0 → 仅尝试 1 次</td></tr>
+</table>
+
+<p>验证命令：</p>
+<pre>
+.venv-py311/bin/python -m unittest tests.test_p0_phase_a.TestUrlSecurity.test_dns_fail_closed_layer1 \
+  tests.test_p0_phase_a.TestUrlSecurity.test_dns_fail_open_layer1_config \
+  tests.test_p0_phase_a.TestValidateAndResolve.test_dns_unavailable_fail_closed \
+  tests.test_p0_phase_a.TestValidateAndResolve.test_dns_unavailable_fail_open_config \
+  tests.test_p0_phase_a.TestDnsRetry -v
+</pre>
+
+<h2>6. 同类排查</h2>
+
+<table>
+<tr><th>检查项</th><th>结果</th></tr>
+<tr><td><code>_resolve_host_ips</code> 所有调用点</td><td>仅 2 处：<code>validate_trigger_url</code> 和 <code>validate_and_resolve_url</code>，均已修复</td></tr>
+<tr><td>其他 <code>socket.gaierror</code> 处理</td><td>项目中无其他 DNS 解析代码</td></tr>
+<tr><td><code>observe_only</code> 模式</td><td>已有独立配置 <code>url_ssrf_observe_only</code>，不受本次修改影响</td></tr>
+<tr><td>白名单模式</td><td>白名单检查在 DNS 解析前执行，白名单域名仍需通过 DNS 解析，行为一致</td></tr>
+<tr><td>其余 <code>conf.ini.example</code> 键是否也是死键（2026-09 追加）</td><td>逐键比对示例文件 <code>[default]</code> 与 <code>configs()</code> 返回值：差集为 <code>api_access_token_required</code>（<code>config.py</code> 单键读取，正常）、<code>health_failing_threshold</code>（<code>get_failing_threshold()</code> 有 <code>configs()</code> 兜底，正常）、<code>url_ssrf_dns_fail_open</code>（<strong>无兜底，唯一真死键，已修</strong>）。反向差集 <code>metrics_token</code> 在 <code>configs()</code> 中但示例未列出，属文档缺口，不影响运行</td></tr>
+<tr><td><code>conf.example.ini</code>（遗留副本）</td><td>该文件缺整段 SSRF 配置，且仅被文档引用；所有安装/启动脚本用的是 <code>conf.ini.example</code>（项目规则亦只要求提交后者）。本次不动，另行处理</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+
+<table>
+<tr><th>#</th><th>措施</th><th>落地位置</th><th>验证命令</th></tr>
+<tr><td>1</td><td><strong>Fail-closed 测试覆盖</strong>：7 个新测试用例确保 DNS 失败默认拒绝，防止未来回退</td><td><code>tests/test_p0_phase_a.py</code>（TestUrlSecurity + TestValidateAndResolve + TestDnsRetry）</td><td><code>.venv-py311/bin/python -m unittest tests.test_p0_phase_a.TestDnsRetry -v</code></td></tr>
+<tr><td>2</td><td><strong>安全函数异常路径 Review 清单</strong>：url_security.py 中每个 except 分支必须在注释中标明「fail-open」或「fail-closed」及其理由</td><td><code>app/services/url_security.py</code> 源码注释</td><td><code>grep -n 'fail-open\|fail-closed' app/services/url_security.py</code>（应有 ≥ 2 处标注）</td></tr>
+<tr><td>3</td><td><strong>配置项可恢复</strong>：提供 <code>url_ssrf_dns_fail_open</code> 配置项，允许内网 DNS 不稳定环境降级</td><td><code>conf.ini.example</code> + <code>configs.py</code></td><td><code>.venv-py311/bin/python -m unittest tests.test_config_keys -v</code>（原验证命令 <code>grep … conf.ini.example</code> 在键完全不生效时仍通过，已废弃）</td></tr>
+<tr><td>4</td><td><strong>示例配置键可达性门禁（2026-09 追加）</strong>：以 <code>conf.ini.example</code> 为准，逐键断言必须出现在 <code>configs()</code> 返回字典中；确实走单键读取的键须登记在 <code>SINGLE_KEY_READERS</code> 豁免表并写明消费位置，禁止无声豁免</td><td><code>tests/test_config_keys.py</code>，随 <code>unittest discover</code> 进入 <code>unit-tests.yml</code></td><td><code>.venv-py311/bin/python -m unittest tests.test_config_keys -v</code>（3 条）</td></tr>
+<tr><td>5</td><td><strong>规范条目</strong>：新增 <code>conf.ini</code> 配置项时，验收必须证明该键抵达运行时配置（<code>configs()</code> 字典或显式单键读取），不得以「示例文件已写」或「单测直接构造 dict 传参」代替</td><td><code>.cursor/rules/cronpilot-backend.mdc</code> + <code>AGENTS.md</code></td><td>同上</td></tr>
+</table>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-SEC6-SSRF-dns-fail-open.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

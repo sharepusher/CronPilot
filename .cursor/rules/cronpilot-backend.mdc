@@ -27,7 +27,7 @@ alwaysApply: false
 # ✅ 使用：verify_login_password(plain, stored)
 
 # ❌ 禁止：未校验即 requests.get(req_url)
-# ✅ 使用：validate_callback_url(url, cfg)（注意 url_ssrf_observe_only 灰度）
+# ✅ 使用：validate_trigger_url(url, cfg)（注意 url_ssrf_observe_only 灰度）
 
 # ❌ 禁止：errcode 返回字符串 "0"
 # ✅ 使用：datas/utils/json.py → json_response(errcode=0)  # int
@@ -35,8 +35,9 @@ alwaysApply: false
 
 ## 配置项（conf.ini）
 
-- `block_private_ip`（默认 1）、`url_allow_hosts`、`url_ssrf_observe_only`
+- `block_private_ip`（默认 1）、`url_allow_hosts`、`url_ssrf_observe_only`、`url_ssrf_dns_fail_open`（默认 0，fail-closed）
 - 修改 `conf.ini` 后需**重启进程**方生效。
+- **新增配置项必须证明可达（强制 · 2026-09）**：写进 `conf.ini.example` **不等于**配置项生效。新增键时必须二选一并在验收中证明：① 加入 `configs()` 返回字典（照 `block_private_ip` / `url_ssrf_observe_only` 写法）；② 消费处显式 `configs('<key>')` 单键读取（或字典取空时回落到单键读取，如 `get_failing_threshold()`）。**禁止**用 `grep '<key>' conf.ini.example` 当验证命令——键完全不生效时该命令依然通过；**禁止**只用直接构造 `dict(cfg, key='1')` 的单测代替，那会绕过 `configs()` 这一层。门禁：`tests/test_config_keys.py` 以示例文件为准逐键断言可达性，走单键读取的键须登记进 `SINGLE_KEY_READERS` 豁免表并写明消费位置。验证：`python -m unittest tests.test_config_keys -v`。**违反教训**：`url_ssrf_dns_fail_open` 曾是死键，SEC-6 逃生开关设成 1 也无效，详见 `doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html` §4.1。
 
 ## 循环依赖
 

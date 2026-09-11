@@ -121,6 +121,8 @@ bash scripts/check_pending_sync.sh
 
 **Ruff lint 门禁（强制 · 2026-08）**：`ruff check app/` 必须通过（0 违规）。凡 commit 涉及函数废弃、变量移除、模板参数删减、import 变更，须在提交前运行 `ruff check app/` 确认无新增 F841（未使用变量）/ F811（未使用导入）/ F821（不可达代码）违规。配置：`pyproject.toml`（select E/W/F/I；target py38）。CI：`.github/workflows/ruff-lint.yml`。**违反教训**：2026-08 重命名事件中多次引入未使用 import 和废弃变量残留，手动 review 均未发现，ruff 一次扫描即全捕获。
 
+**新增 conf.ini 配置项必须证明可达（强制 · 2026-09）**：写进 `conf.ini.example` 不等于生效。新增键必须①进入 `configs()` 返回字典，或②消费处显式 `configs('<key>')` 单键读取（含字典取空回落）。**禁止**用 `grep '<key>' conf.ini.example` 作验证命令（键失效时仍通过），**禁止**只靠直接构造 `dict(cfg, key='1')` 的单测（绕过 `configs()`）。门禁 `tests/test_config_keys.py` 以示例文件逐键断言可达，单键读取的键须登记 `SINGLE_KEY_READERS` 豁免并写明消费位置。验证：`python -m unittest tests.test_config_keys -v`。**违反教训**：`url_ssrf_dns_fail_open` 曾是死键，SEC-6 逃生开关设 1 无效，详见 `doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html` §4.1。
+
 **Import 可达性验证（强制）**：编写 `from xxx import yyy` 前**必须** `grep` 确认 `yyy` 在目标模块中存在，禁止凭记忆写 import。`tests/test_import_smoke.py` 覆盖所有 Blueprint 路由模块的顶层 import。
 
 **复盘质量门禁（强制）**：预防方案必须①新增可验证措施（非「已有规范应执行」）、②可被第三方重现验证（给出路径+命令）、③根因追到行为层（非「粗心」）、④与根因因果对应。不合格须重写。

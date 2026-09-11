@@ -47,6 +47,9 @@ dingding_secret=
 block_private_ip=1
 url_allow_hosts=
 url_ssrf_observe_only=0
+# DNS 解析失败时的策略（默认 0=fail-closed 拒绝）
+# 设为 1 可恢复旧行为（fail-open 放行）；仅建议内网 DNS 不稳定环境使用
+url_ssrf_dns_fail_open=0
 
 # 结构化日志（可选；默认 JSON 输出，适合 ELK / Loki 接入）
 # log_level=INFO

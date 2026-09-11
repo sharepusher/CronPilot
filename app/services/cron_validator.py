@@ -3,7 +3,7 @@
 from datas.utils.times import get_now_time
 
 from .cron_schedule_display import schedule_configured_from_normalized
-from .url_security import validate_callback_url
+from .url_security import validate_trigger_url
 
 _WEEK_NAMES = frozenset(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
 
@@ -194,7 +194,7 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
     req_url = (datas.get('req_url') or '').strip()
     if not req_url:
         return _fail('请填写触发 URL（到点由调度器发起 GET/POST 请求）', 'req_url')
-    url_ok, url_msg = validate_callback_url(req_url, cron_config)
+    url_ok, url_msg = validate_trigger_url(req_url, cron_config)
     if not url_ok:
         return _fail(url_msg, 'req_url')
 

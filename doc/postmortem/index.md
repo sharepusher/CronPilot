@@ -9,6 +9,7 @@
 - [安全问题 S1–S5 修复复盘](2026-08-security-S1-S5.html)
 - [P0 前端关键 Bug 复盘](2026-08-P0-frontend-bugs.html)
 - [全面 Code Review 综合复盘](2026-08-全面CodeReview复盘.html)
+- [SEC-6 SSRF DNS Fail-Open 修复](2026-08-SEC6-SSRF-dns-fail-open.html)
 - [停用用户同名覆盖启用（OPT-P0-22）](2026-09-停用用户同名恢复.html)
 - [auth_version Session 缺键 Fail-Open](2026-09-auth-version-session-failopen.html)
 - [全局管理员可停用种子账号](2026-09-全局管理员可停用种子账号.html)

@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-"""回调 URL 安全校验：SSRF / 内网探测防护。"""
+"""触发 URL 安全校验：SSRF / 内网探测防护。"""
 import ipaddress
 import socket
 from urllib.parse import urlparse, urlunparse
@@ -31,6 +31,11 @@ def _observe_only(cron_config):
     return str(val).strip() in ('1', 'true', 'True', 'yes', 'YES')
 
 
+def _dns_fail_open(cron_config):
+    val = (cron_config or {}).get('url_ssrf_dns_fail_open', '0')
+    return str(val).strip() in ('1', 'true', 'True', 'yes', 'YES')
+
+
 def _is_private_or_reserved_ip(addr):
     try:
         ip = ipaddress.ip_address(addr)
@@ -45,18 +50,22 @@ def _is_private_or_reserved_ip(addr):
     )
 
 
-def _resolve_host_ips(hostname):
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        return None
-    ips = set()
-    for info in infos:
-        ips.add(info[4][0])
-    return ips
+def _resolve_host_ips(hostname, retries=1):
+    import time as _time
+    for attempt in range(1 + retries):
+        try:
+            infos = socket.getaddrinfo(hostname, None)
+            ips = set()
+            for info in infos:
+                ips.add(info[4][0])
+            return ips
+        except socket.gaierror:
+            if attempt < retries:
+                _time.sleep(0.5)
+    return None
 
 
-def validate_callback_url(req_url, cron_config=None):
+def validate_trigger_url(req_url, cron_config=None):
     """
     校验触发 URL（调度器到点发起的 GET 目标地址）。
     返回 (ok: bool, message: str)
@@ -95,8 +104,10 @@ def validate_callback_url(req_url, cron_config=None):
         except ValueError:
             ips = _resolve_host_ips(hostname)
             if ips is None:
-                # DNS 暂不可用时放行主机名校验，由执行阶段再次校验
-                return True, ''
+                # SEC-6: fail-closed — DNS 失败默认拒绝（防 DNS rebinding 绕过）
+                if _dns_fail_open(cron_config):
+                    return True, ''  # fail-open — 仅 conf.ini dns_fail_open=1 时启用
+                return False, 'DNS 解析失败（%s），请确认域名正确后重试' % hostname
             for addr in ips:
                 if _is_private_or_reserved_ip(addr):
                     return _fail_or_observe(
@@ -125,7 +136,7 @@ def validate_and_resolve_url(req_url, cron_config=None):
     - resolved_ip 为通过校验的 IP（可用于 DNS pinning）
     - 若 hostname 本身是 IP 字面量或 DNS 不可用，resolved_ip 为 None
     """
-    ok, msg = validate_callback_url(req_url, cron_config)
+    ok, msg = validate_trigger_url(req_url, cron_config)
     if not ok:
         return False, msg, None
 
@@ -142,12 +153,15 @@ def validate_and_resolve_url(req_url, cron_config=None):
     # 域名：解析并返回第一个安全 IP 供 pinning
     ips = _resolve_host_ips(hostname)
     if ips is None:
-        return True, '', None
+        # SEC-6: fail-closed — DNS 失败默认拒绝（无 IP pinning 则拒绝执行）
+        if _dns_fail_open(cron_config):
+            return True, '', None  # fail-open — 仅 conf.ini dns_fail_open=1 时启用
+        return False, 'DNS 解析失败（%s），拒绝执行' % hostname, None
     # 选取第一个通过校验的 IP
     for addr in ips:
         if not _is_private_or_reserved_ip(addr):
             return True, '', addr
-    # 全部 IP 为内网（理论上上面 validate_callback_url 已拦截）
+    # 全部 IP 为内网（理论上上面 validate_trigger_url 已拦截）
     return True, '', None
 
 

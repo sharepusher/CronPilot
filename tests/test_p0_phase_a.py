@@ -30,29 +30,43 @@ class TestUrlSecurity(unittest.TestCase):
         self.cfg = {'block_private_ip': '1', 'url_allow_hosts': '', 'url_ssrf_observe_only': '0'}
 
     def test_reject_localhost_ip(self):
-        ok, msg = url_security.validate_callback_url('http://127.0.0.1/callback', self.cfg)
+        ok, msg = url_security.validate_trigger_url('http://127.0.0.1/trigger', self.cfg)
         self.assertFalse(ok)
         self.assertIn('本机', msg)
 
     def test_reject_metadata_range(self):
-        ok, msg = url_security.validate_callback_url('http://169.254.169.254/latest', self.cfg)
+        ok, msg = url_security.validate_trigger_url('http://169.254.169.254/latest', self.cfg)
         self.assertFalse(ok)
 
     def test_allow_public_ip_literal(self):
-        ok, msg = url_security.validate_callback_url('http://8.8.8.8/hook', self.cfg)
+        ok, msg = url_security.validate_trigger_url('http://8.8.8.8/hook', self.cfg)
         self.assertTrue(ok, msg)
 
     def test_whitelist_host(self):
         cfg = dict(self.cfg, url_allow_hosts='8.8.8.8')
-        ok, _ = url_security.validate_callback_url('http://8.8.8.8/x', cfg)
+        ok, _ = url_security.validate_trigger_url('http://8.8.8.8/x', cfg)
         self.assertTrue(ok)
-        ok, msg = url_security.validate_callback_url('http://1.1.1.1/x', cfg)
+        ok, msg = url_security.validate_trigger_url('http://1.1.1.1/x', cfg)
         self.assertFalse(ok)
         self.assertIn('白名单', msg)
 
     def test_observe_only_allows_private(self):
         cfg = dict(self.cfg, url_ssrf_observe_only='1')
-        ok, msg = url_security.validate_callback_url('http://127.0.0.1/x', cfg)
+        ok, msg = url_security.validate_trigger_url('http://127.0.0.1/x', cfg)
+        self.assertTrue(ok, msg)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value=None)
+    def test_dns_fail_closed_layer1(self, mock_dns):
+        """SEC-6: Layer 1 DNS failure → reject by default."""
+        ok, msg = url_security.validate_trigger_url('http://example.com/x', self.cfg)
+        self.assertFalse(ok)
+        self.assertIn('DNS', msg)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value=None)
+    def test_dns_fail_open_layer1_config(self, mock_dns):
+        """SEC-6: Layer 1 DNS failure → allow when config enabled."""
+        cfg = dict(self.cfg, url_ssrf_dns_fail_open='1')
+        ok, msg = url_security.validate_trigger_url('http://example.com/x', cfg)
         self.assertTrue(ok, msg)
 
 
@@ -85,10 +99,52 @@ class TestValidateAndResolve(unittest.TestCase):
         self.assertIsNone(ip)
 
     @patch.object(url_security, '_resolve_host_ips', return_value=None)
-    def test_dns_unavailable_returns_none_ip(self, mock_dns):
+    def test_dns_unavailable_fail_closed(self, mock_dns):
+        """SEC-6: DNS failure → fail-closed by default (reject request)."""
         ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/x', self.cfg)
+        self.assertFalse(ok)
+        self.assertIn('DNS', msg)
+        self.assertIsNone(ip)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value=None)
+    def test_dns_unavailable_fail_open_config(self, mock_dns):
+        """SEC-6: DNS failure → fail-open when url_ssrf_dns_fail_open=1."""
+        cfg = dict(self.cfg, url_ssrf_dns_fail_open='1')
+        ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/x', cfg)
         self.assertTrue(ok, msg)
         self.assertIsNone(ip)
+
+
+class TestDnsRetry(unittest.TestCase):
+    """SEC-6: _resolve_host_ips retry mechanism."""
+
+    @patch('socket.getaddrinfo')
+    def test_retry_succeeds_on_second_attempt(self, mock_gai):
+        import socket as _sock
+        mock_gai.side_effect = [
+            _sock.gaierror('temporary failure'),
+            [(2, 1, 6, '', ('93.184.216.34', 0))],
+        ]
+        ips = url_security._resolve_host_ips('example.com', retries=1)
+        self.assertIsNotNone(ips)
+        self.assertIn('93.184.216.34', ips)
+        self.assertEqual(mock_gai.call_count, 2)
+
+    @patch('socket.getaddrinfo')
+    def test_all_retries_exhausted_returns_none(self, mock_gai):
+        import socket as _sock
+        mock_gai.side_effect = _sock.gaierror('persistent failure')
+        ips = url_security._resolve_host_ips('bad.example', retries=1)
+        self.assertIsNone(ips)
+        self.assertEqual(mock_gai.call_count, 2)
+
+    @patch('socket.getaddrinfo')
+    def test_no_retry_when_retries_zero(self, mock_gai):
+        import socket as _sock
+        mock_gai.side_effect = _sock.gaierror('fail')
+        ips = url_security._resolve_host_ips('bad.example', retries=0)
+        self.assertIsNone(ips)
+        self.assertEqual(mock_gai.call_count, 1)
 
 
 class TestPinnedSession(unittest.TestCase):

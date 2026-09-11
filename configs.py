@@ -55,12 +55,15 @@ def configs(key = None):
     block_private_ip = '1'
     url_allow_hosts = ''
     url_ssrf_observe_only = '0'
+    url_ssrf_dns_fail_open = '0'
     if cp.has_option('default', 'block_private_ip'):
         block_private_ip = cp.get('default', 'block_private_ip')
     if cp.has_option('default', 'url_allow_hosts'):
         url_allow_hosts = cp.get('default', 'url_allow_hosts')
     if cp.has_option('default', 'url_ssrf_observe_only'):
         url_ssrf_observe_only = cp.get('default', 'url_ssrf_observe_only')
+    if cp.has_option('default', 'url_ssrf_dns_fail_open'):
+        url_ssrf_dns_fail_open = cp.get('default', 'url_ssrf_dns_fail_open')
 
     metrics_token = ''
     if cp.has_option('default', 'metrics_token'):
@@ -91,6 +94,7 @@ def configs(key = None):
         'block_private_ip': block_private_ip,
         'url_allow_hosts': url_allow_hosts,
         'url_ssrf_observe_only': url_ssrf_observe_only,
+        'url_ssrf_dns_fail_open': url_ssrf_dns_fail_open,
         'metrics_token': metrics_token,
     }
 

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CronPilot 当前项目架构与代码质量全面评估报告（2026-09）</title>
+  <style>
+    :root{--p:#1d4ed8;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--bg:#f7f9fc;--card:#fff;--good:#047857;--warn:#b45309;--risk:#b91c1c;--info:#0e7490}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+    main{max-width:1080px;margin:0 auto;padding:36px 24px 64px}h1{font-size:30px;line-height:1.25;margin:0 0 8px}h2{font-size:21px;margin:34px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--line)}h3{font-size:17px;margin:24px 0 8px}h4{font-size:15px;margin:18px 0 6px}
+    p{margin:8px 0}.meta,.muted{color:var(--muted)}code{background:#edf2f7;border-radius:4px;padding:1px 5px;font-size:.9em}a{color:var(--p)}
+    .lead,.note,.danger,.good{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--p);border-radius:8px;padding:14px 16px;margin:16px 0}.danger{border-left-color:var(--risk)}.good{border-left-color:var(--good)}.note{border-left-color:var(--info)}
+    .score{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.score>div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px}.score strong{display:block;font-size:23px}.score span{color:var(--muted);font-size:13px}
+    table{width:100%;border-collapse:collapse;background:var(--card);margin:12px 0 20px}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#edf2f7;font-size:13px}.p1{color:var(--risk);font-weight:700}.p2{color:var(--warn);font-weight:700}.pass{color:var(--good);font-weight:600}.fail{color:var(--risk);font-weight:600}
+    ul,ol{padding-left:24px}.toc{columns:2;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 18px 14px 36px}.finding{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}.finding h3{margin:0 0 8px}.finding dl{display:grid;grid-template-columns:90px 1fr;gap:4px 12px;margin:0}.finding dt{font-weight:650}.finding dd{margin:0}.small{font-size:13px}.nowrap{white-space:nowrap}
+    footer{margin-top:42px;padding-top:18px;border-top:1px solid var(--line);text-align:center;color:var(--muted)}
+    @media(max-width:760px){main{padding:24px 14px}.score{grid-template-columns:1fr 1fr}.toc{columns:1}.finding dl{grid-template-columns:1fr}.finding dt{margin-top:5px}table{display:block;overflow-x:auto}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>CronPilot 当前项目架构与代码质量全面评估报告</h1>
+  <p class="meta">日期：2026-09-07 · 状态：待用户 Review 确认 · 范围：当前 <code>main</code> 工作区（含未提交改动）· 方法：Bugbot + 人工架构追踪 + 仓库门禁与测试</p>
+
+  <div class="lead">
+    <strong>结论：</strong>项目已经具备较成熟的工程治理和较好的回归基础，但当前工作区不满足发布条件。主要阻断项集中在定时 HTTP 触发请求的 SSRF 防护、敏感 URL 日志、调度状态与数据库状态一致性，以及 3 条全量测试失败。综合工程健康度评估为 <strong>6.4/10</strong>（专家判断，不是自动化质量分）。
+  </div>
+
+  <h2 id="toc">目录</h2>
+  <ol class="toc">
+    <li><a href="#term">产品语义与术语复核</a></li>
+    <li><a href="#method">评估范围与方法</a></li>
+    <li><a href="#overview">总体结论与评分</a></li>
+    <li><a href="#architecture">架构分析</a></li>
+    <li><a href="#quality">代码质量与可维护性</a></li>
+    <li><a href="#bugs">确认缺陷</a></li>
+    <li><a href="#analysis">问题闭环分析：根因、影响与方案选型</a></li>
+    <li><a href="#risks">结构性风险</a></li>
+    <li><a href="#tests">测试、CI 与文档治理</a></li>
+    <li><a href="#plan">建议治理方案</a></li>
+    <li><a href="#acceptance">验收标准与限制</a></li>
+  </ol>
+
+  <h2 id="term">1. 产品语义与术语复核</h2>
+  <div class="danger">
+    <strong>术语纠正：</strong>本项目没有设计 trigger request 协议。此前评估中把定时 HTTP 触发请求称为“触发”不准确，本报告已全部改正。
+  </div>
+  <table>
+    <tr><th>链路</th><th>实际语义</th><th>本报告统一用语</th><th>不是</th></tr>
+    <tr><td><code>cron_do()</code> → <code>req_url</code></td><td>CronPilot 到点主动发起 HTTP GET/POST</td><td>定时 HTTP 触发请求、目标 URL、目标服务</td><td>trigger request</td></tr>
+    <tr><td><code>POST /api/cron/add_log</code></td><td>业务方主动向 CronPilot 回传执行进度</td><td>进度回传</td><td>目标请求的 trigger request</td></tr>
+    <tr><td>企业微信、钉钉、自定义 webhook</td><td>CronPilot 主动发送告警通知</td><td>通知请求、webhook 通知</td><td>任务 trigger request</td></tr>
+  </table>
+  <p>代码证据：<code>app/crons.py:326-341</code> 直接调用 <code>requests.Session.post/get</code>；<code>app/api/views.py:433-472</code> 单独实现进度回传入口。仓库既有 README、架构文档和代码注释多处使用“触发”，属于历史术语漂移，不能据此推导系统存在 trigger request 生命周期、注册协议或异步触发状态机。</p>
+  <p><strong>对评估结论的影响：</strong>SSRF、重定向、DNS pinning、目标 URL 日志和响应体容量问题均发生在 CronPilot 主动发出的 HTTP 请求上，技术判断仍成立；仅问题描述和边界名称需要纠正。</p>
+
+  <h2 id="method">2. 评估范围与方法</h2>
+  <ul>
+    <li>应用层：<code>app/</code> 的应用工厂、主路由、API、RBAC、调度执行、service 与 repository。</li>
+    <li>数据层：<code>datas/model/</code>、SQLAlchemy 映射、关联表、日志与健康聚合。</li>
+    <li>交付层：<code>scripts/</code>、Gunicorn、Docker、迁移脚本与 GitHub Actions。</li>
+    <li>前端层：Redesign 模板、公共 JS、CSS 契约和 Vue 构建链。</li>
+    <li>验证：应用 Ruff、702 项 unittest、86 条路由冒烟、UI/CSS 门禁、文档与版本门禁。</li>
+  </ul>
+  <p class="muted">本轮为只读评估和文档整理。除本报告及索引外，没有修改业务代码、测试、配置或运行行为。</p>
+
+  <h2 id="overview">3. 总体结论与评分</h2>
+  <div class="score">
+    <div><strong>6.4/10</strong><span>综合工程健康度</span></div>
+    <div><strong>6</strong><span>Bugbot 变更级发现</span></div>
+    <div><strong>699/702</strong><span>全量测试通过</span></div>
+    <div><strong>86/86</strong><span>关键路由冒烟通过</span></div>
+  </div>
+  <table>
+    <tr><th>维度</th><th>评分</th><th>专业判断</th></tr>
+    <tr><td>架构边界</td><td>6.5/10</td><td>模块化单体边界基本清晰，但 scheduler 嵌入 Web worker，启动与运行职责耦合。</td></tr>
+    <tr><td>正确性</td><td>5.5/10</td><td>常规路由稳定；当前分支存在 SSRF、观测语义及测试回归。</td></tr>
+    <tr><td>安全性</td><td>5.0/10</td><td>RBAC、CSRF 和 SSRF 基础较好，但重定向绕过、默认开放 API 与敏感 URL 日志拉低评分。</td></tr>
+    <tr><td>可维护性</td><td>6.0/10</td><td>service/repository 已建立；路由和 RBAC 服务仍有多个千行热点。</td></tr>
+    <tr><td>测试与 CI</td><td>7.5/10</td><td>测试规模、Python 矩阵和静态门禁优秀；缺覆盖率、网络隔离和故障注入。</td></tr>
+    <tr><td>数据治理</td><td>5.5/10</td><td>SQLAlchemy 2.0 迁移完成，但数据库约束偏弱，且 Alembic/手写迁移双轨。</td></tr>
+    <tr><td>运维可观测性</td><td>6.5/10</td><td>结构化日志、Prometheus、健康聚合齐全；日志脱敏和外部通知超时仍不足。</td></tr>
+    <tr><td>文档治理</td><td>8.0/10</td><td>设计先行、双格式和多类门禁成熟；当前索引与版本门禁尚有在制失败。</td></tr>
+  </table>
+
+  <h2 id="architecture">4. 架构分析</h2>
+  <h3>4.1 架构形态</h3>
+  <p>系统属于 Flask/APIFlask 模块化单体：Web 管理、REST API、RBAC、文档、Prometheus 和 APScheduler 位于同一应用进程空间；业务数据与 APScheduler JobStore 逻辑分库。当前分层大体为 View → Service → Repository → Model，但并非所有路径都遵循该方向，部分 View 仍直接访问 ORM，部分 Service 同时处理事务、Session、scheduler 和审计。</p>
+  <h3>4.2 主要优点</h3>
+  <ul>
+    <li>应用工厂、Blueprint、service、repository 和 model 已形成清晰的演进方向。</li>
+    <li>RBAC Permission 与 Resource Scope 解耦，并覆盖种子管理员、业务管理员、Operator、Viewer。</li>
+    <li>SQLAlchemy 2.0 查询、分页、健康聚合和批量映射体现了性能治理意识。</li>
+    <li>结构化日志、Prometheus 多进程聚合、执行状态与失败原因具有较好可观测性基础。</li>
+  </ul>
+  <h3>4.3 核心耦合</h3>
+  <ul>
+    <li><code>create_app()</code> 同时初始化配置、日志、数据库、scheduler、路由和监控，测试隔离与多实例创建成本较高。</li>
+    <li>生产 Gunicorn 使用 2 个 worker，每个 worker 默认启动 scheduler；通过文件锁协调 JobStore 扫描，再通过 Redis 锁协调任务执行，正确性依赖两层锁长期保持一致。</li>
+    <li><code>CuBackgroundScheduler</code> 复制并重写 APScheduler 私有 <code>_process_jobs()</code>，依赖内部方法和字段，升级脆弱。</li>
+    <li>数据库状态与 scheduler 状态没有 outbox、显式操作状态或统一补偿器，跨资源一致性分散在多个函数中。</li>
+  </ul>
+
+  <h2 id="quality">5. 代码质量与可维护性</h2>
+  <table>
+    <tr><th>热点文件</th><th>行数</th><th>职责</th><th>判断</th></tr>
+    <tr><td><code>app/rbac/views.py</code></td><td>1,434</td><td>认证、用户、组、审批、标签</td><td>建议按领域拆分 Blueprint。</td></tr>
+    <tr><td><code>app/main/views.py</code></td><td>1,165</td><td>任务、日志、Dashboard、操作记录</td><td>View 层编排和查询仍偏重。</td></tr>
+    <tr><td><code>app/rbac/services.py</code></td><td>1,112</td><td>用户、组、Token、审批、审计</td><td>事务和 request context 耦合。</td></tr>
+    <tr><td><code>scripts/ensure_business_tables.py</code></td><td>795</td><td>建表、补列、数据迁移</td><td>迁移演进和失败回滚成本高。</td></tr>
+    <tr><td><code>app/crons.py</code></td><td>614</td><td>调度执行、HTTP、日志、健康、通知</td><td><code>cron_do()</code> 责任过多，异常路径复杂。</td></tr>
+  </table>
+  <p>应用代码 <code>ruff check app/</code> 当前通过，说明基础语法、未定义引用、导入顺序等治理有效。但 Ruff 只覆盖 <code>app/</code>，直接扩大到 <code>scripts/</code> 和 <code>tests/</code> 会出现既有未清理问题，仓库尚未形成全 Python 范围一致门禁。</p>
+
+  <h2 id="bugs">6. 已确认缺陷</h2>
+  <div class="finding"><h3><span class="p1">P1</span> F-01 · 跨协议重定向绕过 DNS pinning</h3><dl><dt>位置</dt><dd><code>app/services/url_security.py:198-209</code></dd><dt>事实</dt><dd>Adapter 只挂载到初始 URL 的 scheme，Requests 默认跟随重定向。HTTPS 目标若返回 HTTP Location，后续请求会选择默认 HTTP Adapter。</dd><dt>影响</dt><dd>重定向目标不会重新做私网地址校验和 pinning，可形成 SSRF 绕过。</dd><dt>术语边界</dt><dd>这是“定时 HTTP 触发请求的重定向问题”，与 trigger request 无关。</dd></dl></div>
+  <div class="finding"><h3><span class="p1">P1</span> F-02 · 双次 DNS 查询产生 rebinding 窗口</h3><dl><dt>位置</dt><dd><code>app/services/url_security.py:139-165</code></dd><dt>事实</dt><dd><code>validate_trigger_url()</code> 已解析一次，<code>validate_and_resolve_url()</code> 随后再次解析。第一次为公网、第二次全部为私网时，函数仍可返回成功且 <code>resolved_ip=None</code>。</dd><dt>影响</dt><dd><code>cron_do()</code> 会回退普通 Requests，再次由 DNS 决定连接地址。</dd><dt>复现</dt><dd>模拟两次结果依次为 <code>{93.184.216.34}</code>、<code>{127.0.0.1}</code>。</dd></dl></div>
+  <div class="finding"><h3><span class="p1">P1</span> F-03 · 目标 URL 原始 query 进入 INFO 日志</h3><dl><dt>位置</dt><dd><code>app/crons.py:303-313</code></dd><dt>事实</dt><dd><code>extra["url"] = req_url</code> 记录原始目标 URL，只对新注入且写入数据库的 <code>cronpilot_sign</code> 做了掩码。</dd><dt>影响</dt><dd>目标 URL 自带的 token、API key 或签名参数可进入轮转日志、ELK/Loki 和日志备份。</dd></dl></div>
+  <div class="finding"><h3><span class="p1">P1</span> F-04 · 全量测试依赖真实 DNS，当前为红灯</h3><dl><dt>位置</dt><dd><code>tests/test_api_scope_e2e.py:98,125,158</code></dd><dt>事实</dt><dd>测试使用 <code>example.com</code>，安全校验改为 DNS fail-closed 后仍执行真实解析。</dd><dt>结果</dt><dd>本次运行 702 项，3 失败、12 跳过；失败均为 DNS 解析失败。</dd><dt>判断</dt><dd>应用安全策略可以 fail-closed，但单元/集成测试必须 hermetic，不能以外网 DNS 可用为前提。</dd></dl></div>
+  <div class="finding"><h3><span class="p2">P2</span> F-05 · 一次性任务执行来源记录错误</h3><dl><dt>位置</dt><dd><code>app/services/cron_service.py:118-139</code></dd><dt>事实</dt><dd>DateTrigger 任务仍只传 <code>args=[cron_id]</code>，因此 <code>cron_do()</code> 使用默认 <code>schedule</code>。</dd><dt>影响</dt><dd>新增的 <code>one_shot</code> 枚举从未产生，执行详情会把一次性任务标为“定时调度”。</dd></dl></div>
+  <div class="finding"><h3><span class="p2">P2</span> F-06 · 带 fragment 时 actual_url 不等于实际发送 URL</h3><dl><dt>位置</dt><dd><code>app/crons.py:285-292</code></dd><dt>事实</dt><dd>通过字符串拼接添加 query；对于 <code>https://host/path#fragment</code> 会拼成 <code>#fragment?...</code>，Requests 实际准备的 URL 则是 <code>?...#fragment</code>。</dd><dt>影响</dt><dd>取证字段与真实网络请求不一致。</dd></dl></div>
+  <div class="finding"><h3><span class="p2">P2</span> F-07 · DNS 兼容开关未进入运行配置</h3><dl><dt>位置</dt><dd><code>conf.ini.example:50-52</code>、<code>configs.py:55-95</code></dd><dt>事实</dt><dd>示例新增 <code>url_ssrf_dns_fail_open</code>，但 <code>configs()</code> 返回字典没有该键。</dd><dt>自证</dt><dd>运行输出：<code>dns_key_present=False</code>。</dd><dt>影响</dt><dd>运维即使按示例配置为 1，<code>current_app.config['CRON_CONFIG']</code> 中仍使用默认 0。</dd></dl></div>
+
+  <h2 id="analysis">7. 问题闭环分析：根因、影响与方案选型</h2>
+  <p>下面把“发现了什么”进一步展开为可执行的工程判断：先说明问题为什么会产生，再区分直接影响、间接影响和未受影响的边界，最后解释推荐方案为什么优于看似更快但风险更高的替代方案。这样可以避免把局部修补误认为系统性解决。</p>
+
+  <h3>7.1 F-01/F-02：SSRF 防护为什么会失效</h3>
+  <div class="finding"><h4>根因</h4><p>当前安全控制分散在“首次 URL 校验”“DNS 解析”“Requests Adapter”三个阶段。首次校验产生的安全结论没有成为后续连接的唯一事实来源：跨 scheme 重定向会切换 Adapter；重复 DNS 查询又允许第二次解析结果覆盖第一次判断。也就是说，校验对象与实际连接对象不是同一个不可变对象。</p><h4>影响</h4><p>攻击者若能控制目标服务或其重定向响应，可能把原本通过公网校验的 URL 导向内网、环回地址或云元数据地址。影响不仅是一次任务失败，而是 CronPilot 所在网络边界被用作出站探针，可能读取内部 HTTP 服务、泄露响应摘要，并扩大横向探测面。正常公网请求、无重定向请求不受该缺陷直接影响。</p><h4>方案选择与思路</h4><p>推荐建立单一的“安全请求客户端”：解析 URL 后生成不可变的 scheme/host/IP 结果，默认关闭重定向；若业务必须跟随重定向，则每一跳都重新执行 scheme、主机、IP 和私网策略检查，并为该跳创建新的连接约束。选择该方案是因为它把安全决策和实际发包收敛到一个边界，能同时消除跨协议绕过和 DNS rebinding 窗口。仅增加一次 DNS 查询、仅禁用 HTTPS→HTTP，或只在日志层拦截，均不能覆盖多跳重定向与连接时序问题。</p><h4>实施与验证</h4><p>先补充跨 scheme、多跳、私网 Location、DNS 两次返回不同地址的测试，再改客户端；测试必须使用可控 DNS/Adapter stub，不依赖公网。最终验收以“每一跳均有安全决策，且实际 PreparedRequest 使用该决策”为准。</p></div>
+
+  <h3>7.2 F-03：敏感 URL 为什么进入日志</h3>
+  <div class="finding"><h4>根因</h4><p>当前脱敏逻辑只针对新增的 <code>cronpilot_sign</code> 字段，日志记录却直接使用完整 <code>req_url</code>。这是“按字段修补”而不是“按数据流分类”：系统没有把 query 参数视为凭据载体，也没有在日志边界统一执行 URL 规范化。</p><h4>影响</h4><p>目标 URL 中的 token、API key、签名和业务标识可能进入应用日志、集中式日志系统、备份和告警平台。即使应用权限正确，日志读取角色、运维导出和第三方日志集成也会扩大凭据暴露面；泄露后的 URL 还可能被重放。</p><h4>方案选择与思路</h4><p>推荐在日志边界统一使用结构化的“安全 URL 表示”：保留 scheme、host、path 和允许审计的非敏感参数，对密码、token、sign、key、secret 等参数只保留键名或固定掩码。选择日志边界而非展示层脱敏，是因为日志、异常和指标标签可能绕过页面展示；选择参数白名单/敏感键策略而非简单截断，是为了保留定位任务所需的上下文，同时避免可逆的部分泄露。</p><h4>实施与验证</h4><p>新增 URL 脱敏纯函数、日志快照测试和“日志中不得出现原始 secret”断言；同时审查异常文本、指标标签和审计 payload，避免只修 INFO 日志而遗漏其他输出面。</p></div>
+
+  <h3>7.3 F-04：测试为什么在安全策略收紧后失败</h3>
+  <div class="finding"><h4>根因</h4><p>测试把 <code>example.com</code> 当作稳定的 DNS fixture，但安全校验本身要求解析真实地址并在失败时拒绝。测试因此把外部 DNS、网络策略和应用断言耦合在一起，导致环境故障被误报为业务回归。</p><h4>影响</h4><p>CI 或开发机 DNS 不可用时，测试红灯会掩盖真正的失败；团队可能被迫重新打开 fail-open 兼容逻辑，形成“为了测试稳定性削弱安全”的错误激励。当前 3 条失败主要是测试环境问题，但它已经阻断发布判断。</p><h4>方案选择与思路</h4><p>推荐在单元/集成测试中注入 DNS resolver 或 URL security adapter，显式提供公网、私网、解析失败和 rebinding 样本；另设少量标记明确的网络验收测试。选择依赖注入而不是修改生产代码绕过 DNS，是因为测试需要控制输入，不应改变安全默认值。选择分层测试而非全部 mock，是为了保留少量真实网络探测，同时让主 CI hermetic。</p><h4>实施与验证</h4><p>修复后主套件不得访问外网 DNS；用例必须覆盖安全决策矩阵，并在无网络环境下稳定通过。网络验收单独运行并报告环境前置条件。</p></div>
+
+  <h3>7.4 F-05/F-06：执行记录为什么与真实行为不一致</h3>
+  <div class="finding"><h4>根因</h4><p>执行来源依赖 <code>cron_do()</code> 的默认参数，而 DateTrigger 没有显式传入来源；URL 则通过字符串拼接追加 query，没有把 fragment 视为 URI 的独立组成部分。两者共同反映出“调度事件”和“最终请求”缺少显式、结构化的数据模型。</p><h4>影响</h4><p>一次性任务会被统计为定时任务，影响运营报表、失败重试判断和审计解释；带 fragment 的任务会出现数据库 <code>actual_url</code> 与网络层实际 URL 不一致，排障人员可能据错误地址复现问题。不会改变所有无 fragment 的普通请求，但会污染边界场景的证据链。</p><h4>方案选择与思路</h4><p>推荐让调度入口显式传递 execution source，并用标准 URI 解析/构造器修改 query，再由同一对象生成 PreparedRequest、日志和持久化字段。选择显式参数和结构化 URI，而不是在下游猜测或继续字符串拼接，是为了让“实际行为”只有一个权威来源，避免修复一个展示字段却遗漏网络请求。</p><h4>实施与验证</h4><p>增加 one-shot、schedule、fragment、已有 query、空 query 的参数化测试，并断言三者一致：请求 URL、日志 URL、持久化 actual_url。</p></div>
+
+  <h3>7.5 F-07：配置示例与运行配置为什么分叉</h3>
+  <div class="finding"><h4>根因</h4><p>配置新增只修改了示例文件，没有同步完成“读取—类型转换—注入 <code>CRON_CONFIG</code>—执行路径”的闭环。配置系统缺少键集合一致性检查，因此示例看起来可用，但运行时静默回退默认值。</p><h4>影响</h4><p>运维人员以为已切换 DNS 策略，实际行为却未变化；这会造成故障排查误判，也可能在安全策略迁移期间产生环境间不一致。影响集中在配置该开关的部署，默认配置不因此自动改变。</p><h4>方案选择与思路</h4><p>推荐把配置键定义、类型解析和默认值集中到一个 schema，并在启动时对未知键、缺失键和类型错误给出可见告警或拒绝启动。选择 schema 校验而非继续人工同步示例，是因为该问题本质是配置契约缺失；仅补一个字典键可以修复当前缺陷，却不能防止下一次新增键再次漂移。</p><h4>实施与验证</h4><p>为每个安全配置增加读取单测和启动配置快照测试，断言示例键最终出现在运行配置且类型正确；生产启动日志只输出键名和策略状态，不输出敏感值。</p></div>
+
+  <h3>7.6 结构性风险的共同原因与优先级</h3>
+  <table>
+    <tr><th>风险簇</th><th>共同根因</th><th>主要影响</th><th>优先治理思路</th></tr>
+    <tr><td>API 默认开放、GET 写接口</td><td>兼容策略与生产安全默认未分层</td><td>未授权写入、误触发、审计困难</td><td>生产 fail-closed；保留显式开发开关；先加观测再退役接口</td></tr>
+    <tr><td>DB 与 scheduler 不一致</td><td>跨资源操作没有统一状态机和补偿记录</td><td>任务“看起来启用”但实际未调度，或反之</td><td>引入 operation service、幂等操作和对账/补偿任务</td></tr>
+    <tr><td>锁 TTL、通知阻塞、响应体无上限</td><td>超时预算未按完整执行链路建模</td><td>重复执行、线程占用、内存和日志容量风险</td><td>统一预算：连接/DNS/读取/落库/通知；锁续租与硬上限并行落地</td></tr>
+    <tr><td>约束弱、迁移双轨、request context 耦合</td><td>基础设施契约依赖应用约定，缺少单一真相</td><td>并发脏数据、回滚困难、后台任务行为不一致</td><td>先盘点数据再补约束；确定唯一迁移来源；服务显式接收 actor/context</td></tr>
+  </table>
+  <p><strong>为什么按这个顺序：</strong>先处理 SSRF、日志泄露和测试隔离，是因为它们分别涉及外部网络边界、凭据暴露和发布信号可信度；再处理调度一致性和超时预算，是因为它们决定任务是否按用户配置执行；最后推进 API 兼容治理、数据库约束和模块拆分，是为了降低变更面并避免在基础语义尚未稳定时进行大规模重构。</p>
+
+  <h2 id="risks">8. 结构性风险</h2>
+  <table>
+    <tr><th>级别</th><th>风险</th><th>代码证据</th><th>触发条件与后果</th></tr>
+    <tr><td class="p1">P1</td><td>API 默认开放与 GET 写接口叠加</td><td><code>app/api/__init__.py:76-99</code>；<code>app/api/views.py:670-708</code></td><td>全局 token 为空且强制开关关闭时，API 按 admin 放行；旧接口允许 GET 新增/更新任务。公开部署、误抓取或带参数链接泄露时风险显著。</td></tr>
+    <tr><td class="p1">P1</td><td>数据库与 scheduler 操作缺乏统一补偿</td><td><code>cron_service.py:250-251,300-301,353-361</code></td><td>创建/编辑在 DB commit 后注册 scheduler；下线先删 job 后 commit。任一步故障均可能产生状态漂移。</td></tr>
+    <tr><td class="p1">P1</td><td>分布式锁可能在任务完成前过期</td><td><code>functions.py:27</code>；<code>cron_validator.py:222</code></td><td>锁 TTL 与最大 HTTP timeout 都是 120 秒，DNS、读响应、落库和通知尚未计入；多节点可重复执行。</td></tr>
+    <tr><td class="p1">P1</td><td>通知 HTTP 请求无超时</td><td><code>functions.py:119,149,166,168,203</code></td><td>企业微信、钉钉或自定义 webhook 网络异常时，调度线程可能长期阻塞。</td></tr>
+    <tr><td class="p1">P1</td><td>目标响应体无大小上限</td><td><code>app/crons.py:343-350</code></td><td>响应被完整读取、解析并写入 TEXT；异常大响应可扩大内存和日志库压力。</td></tr>
+    <tr><td class="p2">P2</td><td>核心数据约束偏弱</td><td><code>cron_infos.task_name</code> 无 unique；多个关联模型无 ForeignKey</td><td>并发创建可产生重复名称，迁移/异常路径可遗留孤儿关系，完整性依赖应用代码。</td></tr>
+    <tr><td class="p2">P2</td><td>审计服务依赖 request context</td><td><code>app/rbac/services.py:192-208</code></td><td>后台或测试直接调用用户服务时访问 <code>session/request</code> 会失败并吞掉审计写入；本次测试日志已出现该异常。</td></tr>
+    <tr><td class="p2">P2</td><td>Schema 迁移双轨</td><td><code>migrations/</code> 与 <code>scripts/ensure_business_tables.py</code></td><td>生产主要使用手写 DDL/数据迁移，而仓库同时保留 Alembic；长期可能出现历史分叉、重复执行与回滚困难。</td></tr>
+  </table>
+
+  <h2 id="tests">9. 测试、CI 与文档治理</h2>
+  <table>
+    <tr><th>验证项</th><th>结果</th><th>说明</th></tr>
+    <tr><td><code>ruff check app/</code></td><td class="pass">通过</td><td>应用代码 0 违规。</td></tr>
+    <tr><td>全量 unittest</td><td class="fail">失败</td><td>702 项：699 通过、3 失败、12 跳过；失败来自真实 DNS 依赖。</td></tr>
+    <tr><td><code>scripts/smoke_routes.py --check</code></td><td class="pass">通过</td><td>86/86，覆盖双版本 GET/POST/API/错误路径。</td></tr>
+    <tr><td>UI 契约、颜色、死 CSS、CSS token</td><td class="pass">通过</td><td>前端静态治理基线稳定。</td></tr>
+    <tr><td>文档链接</td><td class="pass">通过</td><td>扫描 1,582 个引用，0 broken。</td></tr>
+    <tr><td>OPT 一致性、HTML↔MD、pending_sync</td><td class="pass">通过</td><td>编号、双格式和临时同步目录正常。</td></tr>
+    <tr><td>文档完整性</td><td class="fail">失败（在制）</td><td><code>2026-09-任务链路日志Bug修复复盘.html</code> 尚未注册。</td></tr>
+    <tr><td>版本一致性</td><td class="fail">失败（在制）</td><td><code>RELEASE_NOTES.md</code> 的 Unreleased 仍含未归档内容。</td></tr>
+  </table>
+  <h3>8.1 测试体系优势</h3>
+  <ul>
+    <li>54 个测试文件、约 687 个测试方法，覆盖 RBAC、Scope、CSRF、调度状态、迁移和 UI 契约。</li>
+    <li>GitHub Actions 覆盖 Python 3.8–3.11、Docker 安装、路由冒烟、文档、前端构建和视觉回归。</li>
+    <li>测试数据库隔离与关键路由冒烟规则已经针对历史事故建立了防护。</li>
+  </ul>
+  <h3>8.2 主要缺口</h3>
+  <ul>
+    <li>没有可见的覆盖率或 diff coverage 门禁，测试数量不能替代关键分支覆盖证明。</li>
+    <li>缺少 HTTP 重定向逐跳安全、DNS rebinding、scheduler 故障补偿、锁续租等故障注入测试。</li>
+    <li>主 CI 以 SQLite 为核心，MySQL 主要出现在安装/部署流程，业务语义层的双后端集成矩阵不足。</li>
+    <li>没有统一的依赖漏洞扫描、secret scanning 和静态安全分析工作流。</li>
+  </ul>
+
+  <h2 id="plan">10. 建议治理方案（待确认，未实施）</h2>
+  <h3>9.1 问题与根因</h3>
+  <p>高风险问题不是单个语句错误，而是“定时 HTTP 触发请求、安全校验、调度状态、数据库事务和观测记录”横跨多个模块，却没有一个统一的执行边界。安全校验存在重复解析和隐式重定向；状态变更存在不同顺序；测试多以正常路径和静态断言为主，跨组件故障条件覆盖不足。</p>
+  <h3>9.2 推荐方案</h3>
+  <ol>
+    <li>把目标 URL 解析、安全 DNS 结果、重定向策略、敏感参数脱敏和 PreparedRequest 收敛到单一 HTTP 触发客户端。</li>
+    <li>重定向默认关闭；若业务必须支持，则逐跳重新校验 scheme、hostname、IP，并对每一跳重新 pin。</li>
+    <li>引入统一 scheduler operation service：数据库先持久化期望状态，scheduler 操作失败时执行明确补偿并记录可对账状态。</li>
+    <li>任务锁支持续租，或以“HTTP 最大超时 + DNS + 响应读取 + 落库 + 通知”的完整上界设置 TTL。</li>
+    <li>所有通知请求设置连接/读取超时；目标响应采用流式读取并设置硬上限。</li>
+    <li>生产默认要求 token，移除或明确废弃 GET 写接口；开发环境通过显式配置放宽。</li>
+    <li>逐步补齐数据库唯一键/外键，并明确 Alembic 为 schema 历史唯一来源。</li>
+  </ol>
+  <h3>9.3 范围</h3>
+  <p><strong>建议纳入：</strong><code>url_security.py</code>、<code>crons.py</code>、<code>cron_service.py</code>、<code>common/functions.py</code>、API guard、模型/迁移及对应测试。</p>
+  <p><strong>本轮不做：</strong>不修改业务代码；不批量修订历史文档中的“触发”术语；不改变现有 API 契约、角色权限、页面或数据库结构。术语全仓治理应另立正式设计并经确认。</p>
+  <h3>9.4 分批</h3>
+  <ol>
+    <li><strong>Batch A：</strong>修复 SSRF、重定向、DNS 配置装载、URL 脱敏和相关安全测试。</li>
+    <li><strong>Batch B：</strong>修复 one-shot/actual_url 观测语义与 hermetic DNS 测试。</li>
+    <li><strong>Batch C：</strong>统一 scheduler/DB 状态变更与故障补偿，增加故障注入测试。</li>
+    <li><strong>Batch D：</strong>锁续租、通知超时、响应体上限和容量测试。</li>
+    <li><strong>Batch E：</strong>API 默认安全策略、GET 写接口退役和兼容说明。</li>
+    <li><strong>Batch F：</strong>外键/唯一约束、迁移单轨和热点模块拆分。</li>
+  </ol>
+  <h3>9.5 风险与回滚</h3>
+  <ul>
+    <li>关闭重定向、强制 token 或限制响应大小会改变存量调用行为，必须发布说明并提供兼容期。</li>
+    <li>数据库约束增加前必须先扫描重复和孤儿数据，不能直接加约束。</li>
+    <li>scheduler 一致性改造涉及生产运行语义，应先在 SQLite/MySQL 与多 worker 故障场景验证。</li>
+    <li>术语批量修订可能改变大量历史文档，需保留历史语境并避免把 Ajax success handler 等技术 trigger request 误改。</li>
+  </ul>
+
+  <h2 id="acceptance">11. 建议验收标准与评估限制</h2>
+  <h3>10.1 后续修复验收</h3>
+  <ul>
+    <li>跨协议、同协议跨域、多跳、私网 Location 和 DNS rebinding 测试全部拒绝或逐跳安全通过。</li>
+    <li>日志与数据库中不出现目标 URL 的敏感 query 值；配置开关从 <code>conf.ini</code> 到执行路径有集成测试。</li>
+    <li>全量测试达到 702/702（跳过项另行解释），不访问外网 DNS。</li>
+    <li>scheduler 注册、暂停、恢复、下线在 DB commit/jobstore 故障注入后达到可证明的最终一致。</li>
+    <li>最大 120 秒任务不会因锁提前过期而重入；通知网络永久不响应时能在限定时间返回。</li>
+    <li>Ruff、86 路由冒烟、UI/CSS、文档、版本、双格式门禁全部通过。</li>
+  </ul>
+  <h3>10.2 限制</h3>
+  <ul>
+    <li>本报告没有进行生产流量、真实 MySQL/Redis 集群、代理层或云网络策略验证。</li>
+    <li>未执行依赖 CVE 数据库联网扫描，因此不对第三方依赖“无漏洞”作保证。</li>
+    <li>评分用于排序治理优先级，不应作为合规认证或 SLA 结论。</li>
+  </ul>
+
+  <div class="note">
+    <strong>确认点：</strong>请重点确认两项：① 是否正式采用“定时 HTTP 触发请求/目标 URL/进度回传”作为统一术语；② 是否认可 Batch A → F 的治理顺序。确认前不进入任何业务代码修复。
+  </div>
+
+  <footer>
+    <a href="当前项目架构与代码质量全面评估报告-2026-09.md">Markdown 版</a> ·
+    <a href="../index.html">文档索引</a>
+  </footer>
+</main>
+</body>
+</html>

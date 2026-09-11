@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OPT-P0-21：50-bit 任务 ID 生成器最终优化设计</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1000px;margin:2em auto;line-height:1.7;color:#333}
+h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}h2{border-bottom:1px solid #ccc;padding-bottom:.2em;margin-top:2em}
+table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:8px 12px;text-align:left;vertical-align:top}th{background:#f8f8f8}
+code{background:#f4f4f4;padding:2px 6px;border-radius:3px}.decision{background:#e8f4fd;padding:1em;border-left:4px solid #2563eb}.warn{background:#fff7e6;padding:1em;border-left:4px solid #d97706}.ok{background:#ecfdf5;padding:1em;border-left:4px solid #059669}
+</style>
+</head>
+<body>
+<h1>OPT-P0-21：50-bit 任务 ID 生成器最终优化设计</h1>
+<p><strong>状态</strong>：待用户确认　<strong>修订</strong>：2026-09-09　<strong>性质</strong>：方案收敛与纠偏；确认前不修改实现</p>
+<p><strong>关联文档</strong>：<a href="CronPilot-50bit-ID生成器技术文档.html">CronPilot 50-bit ID 生成器技术文档</a> · <a href="新任务继承旧健康记录Bug设计.html">新任务继承旧健康记录 Bug 设计</a></p>
+
+<h2>0. 决策摘要与边界</h2>
+<div class="decision"><strong>最终推荐</strong>：保留并升级 CronPilot 自己的 50-bit 生成器；增加 12-bit worker，worker 指纹采用稳定哈希后的 <code>IP + PORT + PID</code>；生成器只负责 <code>cron_infos.id</code>。<code>job_log.id</code> 及其他业务表主键继续由数据库自增，所有保存任务 ID 的引用列统一为 BIGINT。</div>
+<ol>
+  <li><strong>不撤销生成器</strong>：任务 ID 需要避免业务表重建后从小值重新分配并绑定历史残留记录。</li>
+  <li><strong>必须引入 worker</strong>：当前生产配置已经是 Gunicorn 两个 worker 进程，单部署实例不等于单进程。</li>
+  <li><strong>不全表推广</strong>：只有任务身份具有跨任务生命周期、调度器和残留引用的业务意义；普通日志行和关联行只需数据库内唯一。</li>
+  <li><strong>附件隔离</strong>：本设计不采用、改造或评价附件中的独立 Snowflake 脚本；两者没有实现或迁移关系。</li>
+</ol>
+
+<h2>1. 问题</h2>
+<p>现有生成器采用 <code>[38-bit 秒时间戳][12-bit 序列]</code>，状态只在当前进程内有效。两个 Gunicorn worker 在同一秒首次生成时会得到相同时间戳和序列；同秒重启、PID 复用或时钟回拨也存在重复风险。现有逻辑还把小于上一时间戳的时钟值当成“新秒”处理，会把内部时间倒退。</p>
+<p>同时，生成器被扩展到了 <code>job_log.id</code>，而 MySQL 中部分任务引用列仍为 <code>INT</code>。这把任务身份需求错误扩散到了普通内部行主键，并留下父子字段宽度不一致。</p>
+
+<h2>2. 根因</h2>
+<ol>
+  <li><strong>部署模型判断错误</strong>：设计按“单实例”推导“单进程”，没有核对实际 Gunicorn <code>workers=2</code>。</li>
+  <li><strong>ID 职责未分层</strong>：任务业务身份和日志行定位被当成同一种 ID 需求。</li>
+  <li><strong>生成器缺少进程维度</strong>：仅有时间与进程内序列，无法区分同一服务的多个进程。</li>
+  <li><strong>fork 生命周期未建模</strong>：若 worker 身份在 master 进程预先计算，子进程会继承同一身份与状态。</li>
+  <li><strong>异常分支不完整</strong>：缺少明确的时钟回拨策略、worker 碰撞边界和数据库最终防线。</li>
+  <li><strong>验证范围不足</strong>：原测试没有覆盖多进程、fork 后 PID 变化、时钟回拨、序列耗尽和 MySQL 引用列。</li>
+</ol>
+
+<h2>3. 最终方案</h2>
+<h3>3.1 ID 使用范围</h3>
+<table>
+<tr><th>字段类别</th><th>最终策略</th><th>理由</th></tr>
+<tr><td><code>cron_infos.id</code></td><td>使用升级后的 50-bit 生成器</td><td>它是任务在调度、日志、健康、分组、标签和审计链路中的稳定身份；必须降低表重建后复用旧身份的概率</td></tr>
+<tr><td>任务引用列</td><td>不生成，只保存 <code>cron_infos.id</code>；统一 BIGINT</td><td>引用必须与父任务 ID 同宽、同语义</td></tr>
+<tr><td><code>job_log.id</code></td><td>数据库自增；存量值不重编号</td><td>只承担单表行定位与排序，执行链路身份由 <code>trace_id</code> 承担</td></tr>
+<tr><td>其他业务表主键</td><td>保持数据库自增</td><td>没有跨表残留重新绑定或跨系统任务身份需求</td></tr>
+</table>
+
+<h3>3.2 50-bit 位布局</h3>
+<table>
+<tr><th>字段</th><th>位数</th><th>能力</th></tr>
+<tr><td>自 2024-09-01 UTC 起的秒数</td><td>32</td><td>约 136 年，覆盖到约 2160 年</td></tr>
+<tr><td>worker ID</td><td>12</td><td>4096 个 worker 槽位</td></tr>
+<tr><td>同秒序列</td><td>6</td><td>每进程每秒 64 个任务 ID</td></tr>
+</table>
+<p><code>id = (seconds &lt;&lt; 18) | (worker_id &lt;&lt; 6) | sequence</code>。最大值仍小于 <code>2^50</code>，可以作为 JavaScript 安全整数传输。该容量针对“创建任务”而非“写执行日志”；当前业务不需要每进程每秒创建 64 个以上任务。</p>
+
+<h3>3.3 worker：稳定哈希 IP + PORT + PID</h3>
+<ul>
+  <li>输入指纹为规范化后的 <code>IP:PORT:PID</code>。IP 区分主机，PORT 区分同机不同服务实例，PID 区分同一 Gunicorn 实例中的多个进程。</li>
+  <li>使用确定性的稳定摘要算法，再截取低 12 bit。禁止直接使用 Python 内置 <code>hash()</code>，因为其结果默认随解释器启动随机化，不利于复现、排障和测试。</li>
+  <li>IP 与 PORT 优先读取明确的运行配置；缺省时才从实际监听配置/本机地址推导。配置值必须参与启动日志，便于定位 worker 身份来源。</li>
+  <li>PID 和 worker ID 必须在子进程内惰性初始化。每次生成前比较当前 PID 与缓存 PID；发现 PID 变化时重新计算 worker，并清空上一进程继承的时间戳与序列状态。</li>
+  <li>不引入数据库、Redis、文件锁或 worker 租约。该选择接受 12-bit 哈希槽位存在理论碰撞，是基于当前两进程和低频任务创建场景的工程折中，而非数学上的绝对唯一。</li>
+</ul>
+<p class="warn"><strong>运维边界</strong>：当前默认两进程风险很低；建议单个环境的写任务进程数不超过 16。若未来需要长期运行几十个以上独立写实例，或需要“严格零碰撞”承诺，应另行改为显式分配 worker/租约，而不是继续扩大哈希假设。</p>
+
+<h3>3.4 为什么仍需要线程锁</h3>
+<p>模块全局对象已经具备“每进程单例”效果，无需额外实现 Singleton 类；但单例只表示共享一份状态，不表示对状态的复合读写是原子的。生成一个 ID 包含读取时间、判断上一秒、递增序列和写回状态，多线程或并发执行单元可能在这些步骤间交错。因此保留每进程锁，锁只保护本进程的 <code>last_timestamp</code> 和 <code>sequence</code>，跨进程隔离由 worker ID 负责。</p>
+
+<h3>3.5 时间回拨与序列耗尽</h3>
+<ul>
+  <li>当前秒大于上一秒：切换到新秒，序列归零。</li>
+  <li>当前秒等于上一秒：序列递增。</li>
+  <li>序列达到 63：等待实际时间进入下一秒，不回绕到 0。</li>
+  <li>当前秒小于上一秒：小幅回拨时使用逻辑上的上一秒继续分配序列；若序列耗尽则等待物理时钟追平。超过可配置阈值的回拨直接拒绝生成并记录错误，禁止把内部时间倒退。</li>
+</ul>
+
+<h3>3.6 防止新任务继承历史残留数据</h3>
+<p>worker 哈希降低碰撞概率，但不能替代业务完整性检查。任务创建服务在为 <code>CronInfos</code> 显式设置候选 ID 后、执行已经核实存在的 <code>db.session.flush()</code> 前，检查候选值是否已出现在以下任务身份域：</p>
+<ul>
+  <li><code>cron_infos.id</code></li>
+  <li><code>job_log.cron_info_id</code></li>
+  <li><code>job_health.cron_info_id</code></li>
+  <li><code>task_groups.task_id</code></li>
+  <li><code>task_tags.task_id</code></li>
+  <li>任务类型的 <code>operation_log.target_id</code></li>
+</ul>
+<p>发现历史占用时丢弃候选值并重新生成，设置有限重试次数；父表主键唯一约束继续承担并发竞争的最终防线。若最终仍冲突，则回滚事务、记录结构化碰撞日志并安全返回失败，绝不继续创建或绑定残留数据。</p>
+
+<h3>3.7 模型与类型迁移</h3>
+<ul>
+  <li><code>cron_infos.id</code> 保留生成器策略；创建服务显式生成候选 ID，以便在写入前完成身份域占用检查。</li>
+  <li><code>job_log.id</code> 移除生成器 default，恢复数据库自增；已有 50-bit 日志主键原值保留，不重编号。</li>
+  <li><code>job_log.cron_info_id</code>、<code>job_health.cron_info_id</code>、<code>task_groups.task_id</code>、<code>task_tags.task_id</code>、<code>operation_log.target_id</code> 在模型和 MySQL 迁移中统一为 BIGINT。</li>
+  <li>迁移过程不得删除或重建业务表；先升级引用列宽度，再启用新位布局。部署窗口暂停所有任务创建写入，避免新旧布局并行。</li>
+  <li>已有 50-bit 任务 ID 全部保留。新布局使用同一纪元但位移更大，不依赖重新编号完成切换。</li>
+</ul>
+
+<h2>4. 范围</h2>
+<h3>4.1 实现范围</h3>
+<ul>
+  <li><code>datas/utils/id_generator.py</code>：位布局、worker 派生、fork/PID 检测、并发锁、回拨处理。</li>
+  <li><code>datas/model/cron_infos.py</code> 与 <code>app/services/cron_service.py</code>：任务 ID 的唯一生成入口和身份域占用检查。</li>
+  <li><code>datas/model/job_log.py</code>：日志行主键恢复数据库自增。</li>
+  <li>五个任务引用字段的模型与 SQLite/MySQL 双后端迁移。</li>
+  <li>生成器、服务、迁移、多进程和回归测试；同步原技术文档与 Bug 设计。</li>
+</ul>
+<h3>4.2 明确不做</h3>
+<ul>
+  <li>不把生成器推广到所有业务表。</li>
+  <li>不引入 worker 注册中心、数据库租约、Redis 或分布式锁。</li>
+  <li>不采用附件 Snowflake 脚本的位布局或代码。</li>
+  <li>不重编号任何已有任务、日志或关联记录。</li>
+  <li>不修改 API 的 ID 字段名称和 JSON 数字类型。</li>
+</ul>
+
+<h2>5. 分批实施</h2>
+<table>
+<tr><th>批次</th><th>内容</th><th>独立验收</th></tr>
+<tr><td>B1 · 测试先行</td><td>增加多进程、fork/PID 变化、时钟回拨、序列耗尽、哈希槽碰撞和范围边界测试</td><td>旧实现稳定暴露多进程重复与回拨问题</td></tr>
+<tr><td>B2 · 生成器升级</td><td>实现 32/12/6 位布局、稳定 worker 指纹、PID 变化重置和进程内锁</td><td>固定输入可复现；不同 PID 的并发进程生成不同 ID；全部小于 <code>2^50</code></td></tr>
+<tr><td>B3 · 使用范围收敛</td><td>仅任务模型/服务使用生成器；日志行恢复数据库自增；加入任务身份域占用检查</td><td>静态扫描仅允许任务路径引用生成器；强制碰撞不产生错误绑定</td></tr>
+<tr><td>B4 · 类型迁移</td><td>双后端迁移五个任务引用字段，迁移前检查越界和孤儿数据</td><td>SQLite/MySQL schema 与完整创建链路通过，存量 ID 不变</td></tr>
+<tr><td>B5 · 全量验证与文档</td><td>全量回归、关键路由冒烟、黄金路径、原技术文档和 Bug 设计同步</td><td>代码、迁移、文档门禁全部通过</td></tr>
+</table>
+
+<h2>6. 验收标准</h2>
+<ol>
+  <li>位布局断言为 32-bit 时间、12-bit worker、6-bit 序列；所有生成值为非负数且小于 <code>2^50</code>。</li>
+  <li>相同 IP/PORT、不同 PID 的两个真实进程在同一秒首个 ID 不同；fork 后子进程不会继承父进程 worker 与序列状态。</li>
+  <li>相同 <code>IP:PORT:PID</code> 的 worker 派生结果跨解释器启动可复现，不依赖 Python 内置随机化哈希。</li>
+  <li>单进程并发生成无重复；同秒第 65 个请求等待下一秒，不发生序列回绕。</li>
+  <li>模拟时钟回拨时 ID 不倒退、不重复；超过阈值时明确失败并有结构化日志。</li>
+  <li>强制制造 worker 槽碰撞和历史残留占用，任务创建要么换号成功，要么事务完整回滚；旧健康、日志、分组和标签不得绑定到新任务。</li>
+  <li>静态扫描确认生成器只被 <code>cron_infos</code>/任务创建服务消费，<code>job_log.id</code> 和其他表主键均为数据库生成。</li>
+  <li>MySQL 父任务主键与五个引用列均为 BIGINT；SQLite 和 MySQL 都走通任务创建、日志、健康、分组、标签与操作日志链路。</li>
+  <li><code>bash scripts/cronpilot.sh test</code>、<code>bash scripts/verify_golden_path.sh</code>、<code>python scripts/smoke_routes.py --check</code> 全部通过。</li>
+  <li>HTML↔Markdown、文档完整性和链接检查通过。</li>
+</ol>
+
+<h2>7. 风险与回滚</h2>
+<table>
+<tr><th>风险</th><th>缓解措施</th><th>回滚策略</th></tr>
+<tr><td>12-bit worker 哈希存在理论碰撞</td><td>控制写进程规模；任务身份域预检；数据库主键唯一约束；结构化碰撞日志与指标</td><td>回滚到旧生成器代码但不回滚已生成 ID；若规模增长则另行设计显式 worker 分配</td></tr>
+<tr><td>6-bit 序列限制每进程 64 个任务/秒</td><td>只用于低频任务创建；溢出等待下一秒</td><td>不得静默回绕；容量确有变化时重新评审位布局</td></tr>
+<tr><td>IP/PORT 推导不一致</td><td>显式配置优先并输出启动诊断；标准化 IPv4/IPv6 表示</td><td>恢复上一版本配置并停止新增任务，已有 ID 不受影响</td></tr>
+<tr><td>时钟大幅回拨导致创建失败</td><td>NTP 监控；小幅回拨使用逻辑时间；大幅回拨 fail-closed</td><td>修复系统时钟后恢复写入，不修改既有记录</td></tr>
+<tr><td>MySQL ALTER 锁表或引用列遗漏</td><td>维护窗口执行；按父表/引用链清单逐项断言；双后端迁移分支</td><td>BIGINT 向后兼容旧值，通常无需降回 INT；应用版本可回滚</td></tr>
+</table>
+
+<h2>8. 本次方案纠偏复盘</h2>
+<ol>
+  <li><strong>Bug 定位</strong>：上一版本文档错误建议撤销 <code>cron_infos.id</code> 生成器并改为数据库自增，且将独立附件 Snowflake 脚本的问题混入 CronPilot 生成器结论。</li>
+  <li><strong>根因</strong>：在用户澄清两个方案无关后，没有锁定“任务 ID 防复用”和“当前实现需多进程 worker”两项前提，仍沿用前一轮候选方案继续推演，造成结论与已确认约束冲突。</li>
+  <li><strong>测试漏洞</strong>：缺少设计决策一致性检查；未用实际 <code>gun.py</code> 的 <code>workers=2</code> 反证“单实例即单进程”的假设。</li>
+  <li><strong>修复</strong>：全文重写为“保留任务生成器 + 引入 worker + 其他主键自增”，并明确附件脚本不属于本设计。</li>
+  <li><strong>防护测试</strong>：验收项新增真实多进程、fork/PID 变化、哈希槽碰撞和“生成器只用于任务 ID”的静态检查。</li>
+  <li><strong>同类排查</strong>：实施前全仓搜索 <code>next_id</code> 的所有生产调用点和任务 ID 引用列，逐一归类为“生成”“引用”或“无关内部主键”，禁止按表名猜测。</li>
+  <li><strong>预防方案</strong>：本文件第 0 节新增四条不可互换的决策边界；每次实现批次评审必须执行 <code>rg -n "不撤销生成器|必须引入 worker|不全表推广|附件隔离" doc/design/OPT-P0-21-ID生成策略优化设计.html</code>，并将命中四条作为继续实施的前置条件。</li>
+</ol>
+
+<h2>9. 用户确认点</h2>
+<div class="ok">确认本设计即表示同意：<strong>仅 <code>cron_infos.id</code> 使用 32/12/6 的 50-bit 生成器；worker 采用稳定哈希的 IP+PORT+PID；保留进程内锁；其他业务表主键使用数据库自增；五个任务引用列统一 BIGINT；不引入 worker 租约。</strong></div>
+<p>用户明确确认前，不修改业务代码、模型、迁移脚本或测试。</p>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="OPT-P0-21-ID生成策略优化设计.md">Markdown</a> · <a href="../index.html">文档索引</a></footer>
+</body>
+</html>

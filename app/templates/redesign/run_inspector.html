@@ -70,6 +70,11 @@
   <div class="ri-section">
     <div class="ri-section-head">请求</div>
     <div class="ri-section-body"><span class="key">{{ cif.req_method or 'GET' }}</span> {{ cif.req_url or '—' }}
+{% if jl.actual_url %}
+<span class="key">实际 URL:</span>
+{{ jl.actual_url }}{% endif %}
+{% if jl.resolved_ip %}
+<span class="key">DNS Pinning IP:</span> {{ jl.resolved_ip }}{% endif %}
 {% if cif.req_body %}
 <span class="key">Body:</span>
 {{ cif.req_body }}{% endif %}</div>
@@ -100,8 +105,14 @@
         <span class="cfg-label">任务</span><span class="cfg-value">{{ cif.task_name if cif else '—' }}</span>
         <span class="cfg-label">业务组</span><span class="cfg-value">{{ group_name or '全局' }}</span>
         <span class="cfg-label">触发方式</span><span class="cfg-value">{{ trigger_type }}</span>
+        {% if schedule_display %}
+        <span class="cfg-label">调度规则</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ schedule_display }}</span>
+        {% endif %}
         <span class="cfg-label">Trace ID</span><span class="cfg-value" style="font-family:var(--cp-font-mono)">{{ jl.trace_id or '—' }}</span>
         <span class="cfg-label">超时阈值</span><span class="cfg-value">{{ jl.timeout_sec or 5 }}s</span>
+        {% if jl.trigger_delay_ms is not none and jl.trigger_delay_ms >= 0 %}
+        <span class="cfg-label">调度延迟</span><span class="cfg-value">{{ jl.trigger_delay_ms }}ms</span>
+        {% endif %}
       </div>
     </div>
   </div>

@@ -7,6 +7,25 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 增强 — 任务链路日志完整性补全
+
+- **背景**：CronPilot 的结果层日志（job_log + Prometheus + 健康聚合）设计完善，但过程层日志存在盲区——从 APScheduler 触发到 HTTP 发出之间的中间状态不可观测
+- **变更**：
+  - **应用日志** 4 处新增：`cron_do` 入站日志（`cron.start`）、HTTP 触发请求发出前日志（`cron.http_sending`）、任务创建成功日志（`cron.created`）、Scheduler 注册成功日志（`cron.scheduler_registered`）
+  - **调度器操作日志**：`toggle_status` resume/pause 成功后写 INFO 日志
+  - **`job_log` 表 4 个新列**：`trigger_source`（触发来源，当前只会写入 `schedule` / `manual`；`one_shot` 为预留值，一次性任务尚未在 `register_cron_job` 中区分，仍记为 `schedule`）、`actual_url`（含注入 trace_id 的完整 URL，`cronpilot_sign` 已脱敏为 `***`）、`resolved_ip`（DNS pinning IP）、`trigger_delay_ms`（调度启动开销，通常 0-2ms，非 APScheduler 调度抖动）
+  - **详情页增强**：触发方式从硬编码"定时调度"改为动态读取（定时调度/手动执行；"一次性任务"文案已就绪但暂无数据写入），新增展示调度规则（cron 表达式）、调度延迟、实际请求 URL、DNS Pinning IP
+  - **`cron_run_now`** 传递 `trigger_source='manual'` 区分手动执行
+- **DB 迁移**：`ensure_business_tables.py` 自动补列（SQLite/MySQL 通用）
+- **测试**：新增 `tests/test_lifecycle_logging.py`（17 个用例）
+- **设计文档**：[doc/design/任务链路日志完整性增强设计.html](doc/design/任务链路日志完整性增强设计.html)
+- **同期 Bug 修复**（2026-09-07）：
+  - `crons.py` 内层 `except` 路径 `_actual_url` NameError（在 `cronpilot_sign` 计算异常时导致异常处理器本身崩溃）
+  - `actual_url` 字段对 GET 请求 URL 中 `cronpilot_sign` 值进行脱敏（`***`），防止 `log:read` 角色读取签名
+  - `JobLog.to_json()` 引用了不存在的 `job_id`/`remark`/`traces` 字段（AttributeError 炸弹）
+  - 历史 `job_log` 的「未执行触发」识别：`job_log_display` / `job_log_outcome` 的前缀判定改用 `BLOCKED_URL_PREFIXES` 元组同时兼容旧文案 `回调URL安全校验未通过`，否则改名前入库的 SSRF 拦截记录会掉档为 `—` 且失败原因不再归入 `blocked_url`
+  - 复盘：[`doc/postmortem/2026-09-任务链路日志Bug修复复盘.html`](doc/postmortem/2026-09-任务链路日志Bug修复复盘.html)
+
 ### 工程 — 文档索引结构与复盘登记门禁
 
 - **问题**：索引页条目搬运时剪贴断裂，`doc/index.html` 出现半截开标签与裸露属性文本；同时误删一条设计文档登记，`doc/postmortem/index.md` 丢失一条复盘登记，全部逃过现有门禁。

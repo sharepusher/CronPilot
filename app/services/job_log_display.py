@@ -2,6 +2,7 @@
 """job_log 列表/详情展示辅助（方案 A′ + P1 徽章）。"""
 
 from app.services.job_log_outcome import (
+    BLOCKED_URL_PREFIXES,
     STATUS_ERROR,
     STATUS_FAIL,
     STATUS_PENDING,
@@ -23,7 +24,7 @@ def job_log_status_line(http_status, content):
     text = (content or '').strip()
     if text.startswith('发生严重错误'):
         return '请求异常', 'fail'
-    if text.startswith('回调URL安全校验未通过') or text in (
+    if text.startswith(BLOCKED_URL_PREFIXES) or text in (
         '定时任务不存在',
         '请求链接不存在',
         '请求链接有误，请检查一下',

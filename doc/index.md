@@ -52,6 +52,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **任务链路日志完整性增强设计**（已交付） | 过程日志 · job_log 四列 · 详情页触发来源 | [HTML](design/任务链路日志完整性增强设计.html) | [MD](design/任务链路日志完整性增强设计.md) |
 | **管理员 admin Scope 差异化** OPT-P2-15 | 种子只读 · 管理员按组 · `__ALL__` · **v2.7.0** | [HTML](design/管理员admin-Scope差异化设计.html) | [MD](design/管理员admin-Scope差异化设计.md) |
 | **OPT-P0-22 停用用户同名申请恢复设计**（已交付） | 覆盖 OPT-P1-10 §3.1.7 · 保留原 user_id · 审批警示 · auth_version · 文案契约 | [HTML](design/停用用户同名恢复设计.html) · [页面对比 Demo](design/停用用户同名恢复-页面对比Demo.html) | [MD](design/停用用户同名恢复设计.md) |
 | **测试 Session 补齐 auth_version 修复设计**（已交付） | HTTP Fixture 对齐 OPT-P0-22 fail-closed · 侧边栏回归 | [HTML](design/测试Session补齐auth-version修复设计.html) | [MD](design/测试Session补齐auth-version修复设计.md) |
@@ -114,6 +115,7 @@
 | **auth_version Session 缺键 Fail-Open** | OPT-P0-22 B2 | [HTML](postmortem/2026-09-auth-version-session-failopen.html) | [MD](postmortem/2026-09-auth-version-session-failopen.md) |
 | **全局管理员可停用种子账号** | Scope bypass 短路 · 双路径拦截 | [HTML](postmortem/2026-09-全局管理员可停用种子账号.html) | [MD](postmortem/2026-09-全局管理员可停用种子账号.md) |
 | **文档索引结构损坏与登记丢失** | 剪贴断裂 · 登记删除 · 索引结构与复盘登记门禁 | [HTML](postmortem/2026-09-文档索引结构损坏与登记丢失.html) | [MD](postmortem/2026-09-文档索引结构损坏与登记丢失.md) |
+| **任务链路日志 Bug 修复** | NameError · 签名脱敏 · to_json 死字段 | [HTML](postmortem/2026-09-任务链路日志Bug修复复盘.html) | [MD](postmortem/2026-09-任务链路日志Bug修复复盘.md) |
 
 ## 在线访问（服务启动后）
 

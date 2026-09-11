@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import datetime
 import json
+import re
 import time
 import traceback
 import uuid
@@ -84,6 +85,10 @@ def _save_job_log(
     fail_reason=None,
     started_at=None,
     timeout_sec=None,
+    trigger_source=None,
+    actual_url=None,
+    resolved_ip=None,
+    trigger_delay_ms=None,
 ):
     if status is None:
         status, fail_reason = pre_request_outcome(content)
@@ -101,6 +106,10 @@ def _save_job_log(
         started_at=started_at,
         finished_at=utc_now_hms(),
         timeout_sec=timeout_sec,
+        trigger_source=trigger_source,
+        actual_url=actual_url,
+        resolved_ip=resolved_ip,
+        trigger_delay_ms=trigger_delay_ms,
     )
     db.session.add(jl)
     db.session.commit()
@@ -141,7 +150,13 @@ def cron_check_db_sleep():
 定时操作
 '''
 @single_task()
-def cron_do(cron_id):
+def cron_do(cron_id, trigger_source='schedule'):
+    """执行定时任务触发请求。
+
+    Args:
+        cron_id: 任务主键
+        trigger_source: 触发来源 — 'schedule'(定时) / 'manual'(手动) / 'one_shot'(一次性)
+    """
     saved_jl = None
     with scheduler.app.app_context():
         trace_id = str(uuid.uuid1())
@@ -150,6 +165,21 @@ def cron_do(cron_id):
         task_name = None
         _ctx_trace_id.set(trace_id)
         _ctx_cron_id.set(str(cron_id))
+
+        # GAP-2: 链路起点日志 — 标记 cron_do 开始执行
+        current_app.logger.info(
+            "cron_do start",
+            extra={
+                "event": "cron.start",
+                "cron_id": cron_id,
+                "trace_id": trace_id,
+                "trigger_source": trigger_source,
+            },
+        )
+
+        # 计算调度延迟
+        _enqueue_t = _ctx_enqueue_time.get()
+        _trigger_delay_ms = int((t0 - _enqueue_t) * 1000) if _enqueue_t > 0 else None
 
         # 默认超时（秒）；per-task 值在 cif 加载后覆盖
         _DEFAULT_TIMEOUT_SEC = 5
@@ -168,6 +198,8 @@ def cron_do(cron_id):
                     nows,
                     0,
                     trace_id=trace_id,
+                    trigger_source=trigger_source,
+                    trigger_delay_ms=_trigger_delay_ms,
                 )
                 current_app.logger.error(
                     "ORPHAN_JOB: scheduler has cron_%s but cron_infos record "
@@ -188,6 +220,8 @@ def cron_do(cron_id):
                         0,
                         task_name=task_name,
                         trace_id=trace_id,
+                        trigger_source=trigger_source,
+                        trigger_delay_ms=_trigger_delay_ms,
                     )
                     current_app.logger.warning(
                         "cron url missing",
@@ -202,6 +236,8 @@ def cron_do(cron_id):
                             0,
                             task_name=task_name,
                             trace_id=trace_id,
+                            trigger_source=trigger_source,
+                            trigger_delay_ms=_trigger_delay_ms,
                         )
                         current_app.logger.warning(
                             "cron url invalid scheme",
@@ -212,11 +248,13 @@ def cron_do(cron_id):
                         if not url_ok:
                             saved_jl = _save_job_log(
                                 cron_id,
-                                '回调URL安全校验未通过: %s' % url_msg,
+                                '触发URL安全校验未通过: %s' % url_msg,
                                 nows,
                                 0,
                                 task_name=task_name,
                                 trace_id=trace_id,
+                                trigger_source=trigger_source,
+                                trigger_delay_ms=_trigger_delay_ms,
                             )
                             current_app.logger.warning(
                                 "cron ssrf validation failed",
@@ -226,6 +264,7 @@ def cron_do(cron_id):
                             # 预检通过：记录 started_at，HTTP 结束后一次终态写入（方案 B：1-write）
                             timeout_sec = int(cif.timeout_sec) if cif.timeout_sec else _DEFAULT_TIMEOUT_SEC
                             started_at = utc_now_hms()
+                            _actual_url = None  # 提前初始化：防止 try 内赋值前抛异常时 except 引用未定义变量
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
                                 parmas = {}
@@ -243,6 +282,15 @@ def cron_do(cron_id):
 
                                 req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
 
+                                # 构建实际请求 URL（含注入的 trace_id/sign）用于链路追踪
+                                from urllib.parse import urlencode as _urlencode
+                                _inject_params = {'cronpilot_trace_id': trace_id, 'cronpilot_sign': cronpilot_sign}
+                                if req_method == 'GET':
+                                    _sep = '&' if '?' in req_url else '?'
+                                    _actual_url = req_url + _sep + _urlencode(_inject_params)
+                                else:
+                                    _actual_url = req_url  # POST: params in body
+
                                 # OPT-P0-12: DNS pinning — 使用校验阶段解析的 IP 发起请求
                                 # 防止 DNS Rebinding 攻击（TOCTOU 窗口消除）
                                 from urllib.parse import urlparse as _urlparse
@@ -251,6 +299,18 @@ def cron_do(cron_id):
                                     _http = make_pinned_session(resolved_ip, _urlparse(req_url).hostname, _parsed_scheme)
                                 else:
                                     _http = requests
+
+                                # GAP-3: HTTP 发出前日志 — 记录实际请求参数
+                                current_app.logger.info(
+                                    "sending trigger request",
+                                    extra={
+                                        "event": "cron.http_sending",
+                                        "url": req_url,
+                                        "method": req_method,
+                                        "resolved_ip": resolved_ip,
+                                        "timeout_sec": timeout_sec,
+                                    },
+                                )
 
                                 if req_method == 'POST':
                                     if cif.req_body:
@@ -307,10 +367,14 @@ def cron_do(cron_id):
                                     fail_reason=fail_reason,
                                     started_at=started_at,
                                     timeout_sec=timeout_sec,
+                                    trigger_source=trigger_source,
+                                    actual_url=re.sub(r'(cronpilot_sign=)[^&]+', r'\1***', _actual_url) if _actual_url else None,
+                                    resolved_ip=resolved_ip,
+                                    trigger_delay_ms=_trigger_delay_ms,
                                 )
                                 if run_status == STATUS_ERROR:
                                     current_app.logger.error(
-                                        "cron http callback failed",
+                                        "cron http trigger failed",
                                         extra={
                                             "event": "cron.http_error",
                                             "http_status": req.status_code,
@@ -319,7 +383,7 @@ def cron_do(cron_id):
                                     )
                                 else:
                                     current_app.logger.info(
-                                        "cron http callback ok",
+                                        "cron http trigger ok",
                                         extra={"event": "cron.http_ok", "http_status": req.status_code},
                                     )
                             except Exception as e:
@@ -336,6 +400,10 @@ def cron_do(cron_id):
                                     fail_reason=exception_fail_reason(e),
                                     started_at=started_at,
                                     timeout_sec=timeout_sec,
+                                    trigger_source=trigger_source,
+                                    actual_url=re.sub(r'(cronpilot_sign=)[^&]+', r'\1***', _actual_url) if _actual_url else None,
+                                    resolved_ip=resolved_ip,
+                                    trigger_delay_ms=_trigger_delay_ms,
                                 )
                                 current_app.logger.error(
                                     "cron http request exception",
@@ -359,6 +427,8 @@ def cron_do(cron_id):
                         trace_id=trace_id,
                         status=STATUS_ERROR,
                         fail_reason=exception_fail_reason(e),
+                        trigger_source=trigger_source,
+                        trigger_delay_ms=_trigger_delay_ms,
                     )
             except Exception:
                 pass

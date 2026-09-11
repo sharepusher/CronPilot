@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>复盘：任务链路日志三个 Bug 修复 — 2026-09-07</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:960px;margin:2em auto;line-height:1.7;color:#1a1a1a}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.3em}
+h2{color:#dc2626;border-bottom:1px solid #e5e7eb;padding-bottom:.2em;margin-top:2em}
+h3{color:#374151;margin-top:1.5em}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+code{background:#f3f4f6;padding:2px 6px;border-radius:3px;font-size:.9em}
+pre{background:#1e293b;color:#e2e8f0;padding:1em;border-radius:6px;overflow-x:auto;font-size:.85em}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8em;font-weight:600;color:#fff}
+.fixed{background:#16a34a}.risk{background:#dc2626}
+.warn{background:#fef3c7;border-left:4px solid #f59e0b;padding:.8em 1em;margin:1em 0}
+.info{background:#eff6ff;border-left:4px solid #2563eb;padding:.8em 1em;margin:1em 0}
+.bug{background:#fef2f2;border-left:4px solid #dc2626;padding:.8em 1em;margin:1em 0}
+.fix{background:#f0fdf4;border-left:4px solid #16a34a;padding:.8em 1em;margin:1em 0}
+</style>
+</head>
+<body>
+
+<h1>复盘：任务链路日志三个 Bug 修复</h1>
+<p><strong>日期</strong>：2026-09-07 &nbsp;|&nbsp; <strong>触发来源</strong>：设计文档专业评审（自查）&nbsp;|&nbsp;
+<strong>修复文件</strong>：<code>app/crons.py</code>、<code>datas/model/job_log.py</code>、<code>tests/test_lifecycle_logging.py</code></p>
+<p>关联设计文档：<a href="../design/任务链路日志完整性增强设计.html">任务链路日志完整性增强设计.html</a></p>
+
+<hr>
+
+<h2>Bug 1 — 内层 except 路径 <code>_actual_url</code> NameError</h2>
+
+<div class="bug">
+<strong>严重程度</strong>：<span class="badge risk">HIGH</span> — 异常处理器本身崩溃，掩盖真实错误，日志丢失
+</div>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/crons.py</code>，内层 <code>except Exception as e:</code> 路径（约 line 387）引用了 <code>_actual_url</code>，该变量在 <code>try</code> 块内部的 <code>if req_method == 'GET': ... else: ...</code> 分支中赋值（约 line 288）。若以下任一代码在赋值前抛出异常，<code>_actual_url</code> 为未定义状态：</p>
+<ul>
+  <li><code>get_cronpilot_sign(parmas, api_key=api_key)</code> 抛出异常</li>
+  <li>URL 参数字典推导式（<code>{d.split('=')[0]: d.split('=')[1] for d in ps}</code>）在 URL 含无 <code>=</code> 参数时抛 <code>IndexError</code></li>
+</ul>
+<p>此时 <code>except</code> 处理器引用 <code>_actual_url</code> 触发 <code>NameError</code>，进而导致外层 <code>except Exception as e:</code> 接管，记录的错误信息是 <code>name '_actual_url' is not defined</code>，而非原始异常内容。</p>
+
+<h3>2. 根因</h3>
+<p>新增 <code>actual_url</code> 追踪字段时，代码在"成功路径"和"异常路径"两个 <code>_save_job_log</code> 调用点均引用了 <code>_actual_url</code>，但仅在 <code>try</code> 块内某分支赋值，未在块外提供初始值。这是一个典型的"变量作用域与控制流不匹配"问题：变量赋值被嵌套在条件语句内，而引用点在异常退出路径上。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>原有测试（<code>test_lifecycle_logging.py</code>）只测试了"任务不存在"路径（<code>cron_do(99999)</code>），此时流程在 DB 查询后提前 <code>return</code>，不会进入内层 <code>try</code> 块，所以 <code>_actual_url</code> 从未被触及。没有任何测试模拟"进入内层 try 后提前异常退出"的场景。</p>
+
+<h3>4. 修复</h3>
+<pre>
+# app/crons.py — 在内层 try: 块前添加 1 行初始化
+started_at = utc_now_hms()
+_actual_url = None  # 提前初始化：防止 try 内赋值前抛异常时 except 引用未定义变量
+try:
+    api_key = CRON_CONFIG.get('api_key') or ''
+</pre>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_lifecycle_logging.py::TestActualUrlNameErrorGuard::test_actual_url_initialized_before_try</code>：静态解析 <code>crons.py</code>，断言 <code>_actual_url = None</code> 行号 &lt; 紧随其后的 <code>try:</code> 行号。</p>
+
+<h3>6. 同类排查</h3>
+<p>在 <code>crons.py</code> 的所有其他 except 路径中检查变量引用：<code>started_at</code>（在 url_ok 分支外初始化为 <code>None</code>）、<code>task_name</code>（在 try 外初始化为 <code>None</code>）、<code>resolved_ip</code>（在 SSRF 校验返回，try 外可见）、<code>timeout_sec</code>（在 url_ok 分支内赋值，内层 try 外可见）。仅 <code>_actual_url</code> 有此问题。</p>
+
+<h3>7. 预防方案</h3>
+<p><strong>规范新增（落地位置：<code>AGENTS.md</code> + <code>.cursor/rules/cronpilot-backend.mdc</code>）</strong>：</p>
+<blockquote>凡在 <code>except</code> 处理器中引用的变量，若其赋值点在 <code>try</code> 块内部（而非块外），必须在 <code>try</code> 之前提供默认值初始化（<code>var = None</code>）。自检命令：
+<pre>python3 -c "
+import ast, sys
+with open('app/crons.py') as f: src = f.read()
+tree = ast.parse(src)
+# 检查 Try 节点的 handlers 中是否引用了仅在 body 中定义的名称
+print('AST parse OK — manual review required for variable scope in try/except')
+"</pre>
+</blockquote>
+
+<hr>
+
+<h2>Bug 2 — <code>actual_url</code> 存储明文 <code>cronpilot_sign</code>（E-1 安全缺陷）</h2>
+
+<div class="bug">
+<strong>严重程度</strong>：<span class="badge risk">MEDIUM</span> — <code>log:read</code> 角色（含 Operator）可读取签名值，可伪造认证请求
+</div>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/crons.py</code> line ~288 构建 <code>_actual_url</code>（GET 场景）：</p>
+<pre>_actual_url = req_url + _sep + _urlencode({'cronpilot_trace_id': trace_id, 'cronpilot_sign': cronpilot_sign})</pre>
+<p>随后在 <code>_save_job_log(..., actual_url=_actual_url, ...)</code> 中将完整 URL（含明文签名）写入 <code>job_log.actual_url</code> 列。详情页路由 <code>job_log_detail</code> 使用 <code>@require_permission('log:read')</code>，而 Operator 角色拥有 <code>log:read</code>，因此所有 Operator 均可在执行详情页读取 <code>cronpilot_sign</code>。</p>
+
+<h3>2. 根因</h3>
+<p>设计文档安全审查节声明"<code>job_log</code> 表仅管理员可访问"，此描述与实际权限模型（<code>log:read</code> 包含 Operator 角色）不一致。文档作者将"受权限保护"等价于"仅管理员可访问"，未交叉核验 RBAC 矩阵。设计审查时没有测试"以 Operator 角色访问详情页"。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>原有测试不包含"以 Operator 角色访问执行详情页，验证 <code>actual_url</code> 不含签名"的集成测试。签名泄露是只有在有意测试"最小权限用户可见范围"时才能发现的缺陷。</p>
+
+<h3>4. 修复</h3>
+<pre>
+# app/crons.py — 两个 _save_job_log 调用点（HTTP 成功路径 + HTTP 异常路径）
+import re
+# ...
+actual_url=re.sub(r'(cronpilot_sign=)[^&amp;]+', r'\1***', _actual_url) if _actual_url else None,
+</pre>
+<p>脱敏结果示例：<code>https://example.com/cb?trace_id=abc&amp;cronpilot_sign=***</code></p>
+<p>日志文件中的 <code>cron.http_sending</code> 事件记录 <code>req_url</code>（原始 URL，无签名），不受影响。</p>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_lifecycle_logging.py::TestActualUrlSignMasking</code>（5 个用例）：</p>
+<ul>
+  <li><code>test_sign_is_masked_in_get_url</code>：确认签名值不出现在 masked URL 中</li>
+  <li><code>test_sign_masked_when_not_last_param</code>：签名在中间参数时也被正确脱敏</li>
+  <li><code>test_none_url_passes_through</code>：None 输入安全处理</li>
+  <li><code>test_post_url_unchanged</code>：POST URL 无签名，脱敏无副作用</li>
+  <li><code>test_actual_url_field_masking_logic_matches_crons_py</code>：静态断言 crons.py 中存在相同的 <code>re.sub</code> 模式</li>
+</ul>
+
+<h3>6. 同类排查</h3>
+<p>全仓库搜索其他可能暴露 <code>cronpilot_sign</code> 的位置：</p>
+<ul>
+  <li><code>cron.http_sending</code> 日志（GAP-3）：记录 <code>req_url</code>（无签名）✅</li>
+  <li>API 响应：<code>job_log_detail</code> 视图直接返回 <code>jl.actual_url</code>（现已脱敏）✅</li>
+  <li>Prometheus metrics：不记录 URL ✅</li>
+  <li><code>cron.http_ok/http_error</code> 日志：只记录 <code>http_status</code> ✅</li>
+</ul>
+
+<h3>7. 预防方案</h3>
+<p><strong>规范新增（落地位置：<code>.cursor/rules/cronpilot-backend.mdc</code>）</strong>：</p>
+<blockquote>凡新增含认证凭据（sign/token/key）的字段到数据库模型，必须在设计文档"安全审查"节逐一列出可访问该字段的所有 RBAC 角色（非仅写"受保护"），并明确是否需要脱敏存储。自检命令：
+<pre>grep -rn "cronpilot_sign" app/ | grep -v "re.sub\|test_\|#" | grep -v "get_cronpilot_sign\|parmas\|cronpilot_sign'\]\|cronpilot_sign\"\]"</pre>
+输出不应包含将 <code>cronpilot_sign</code> 值写入持久存储的代码路径。
+</blockquote>
+
+<hr>
+
+<h2>Bug 3 — <code>JobLog.to_json()</code> 引用不存在的字段</h2>
+
+<div class="bug">
+<strong>严重程度</strong>：<span class="badge risk">LOW</span>（当前无调用方，但任何未来调用者立即触发 <code>AttributeError</code>）
+</div>
+
+<h3>1. Bug 定位</h3>
+<p><code>datas/model/job_log.py</code>，<code>to_json()</code> 方法，引用了三个不存在于 <code>JobLog</code> 模型的属性：<code>self.job_id</code>、<code>self.remark</code>、<code>self.traces</code>。</p>
+
+<h3>2. 根因</h3>
+<p>历史遗留：<code>to_json()</code> 方法在模型演进（Phase A ORM 迁移）过程中这些字段被移除，但方法本身未同步更新。新增字段（<code>trigger_source</code>、<code>actual_url</code> 等）同样未加入 <code>to_json()</code>，进一步体现该方法已与模型脱离同步。</p>
+
+<h3>3. 测试漏洞</h3>
+<p>无任何测试调用 <code>JobLog.to_json()</code>，因此 <code>AttributeError</code> 从未被触发。模型字段变更时没有"调用 <code>to_json()</code> 验证无异常"的保护测试。</p>
+
+<h3>4. 修复</h3>
+<pre>
+# datas/model/job_log.py — 删除三个无效字段引用
+def to_json(self):
+    return {
+        'id': self.id,
+        'content': self.content,
+        'status': self.status,
+        'create_time': self.create_time,
+    }
+</pre>
+
+<h3>5. 防护测试</h3>
+<p><code>tests/test_lifecycle_logging.py::TestToJsonNoAttributeError::test_to_json_does_not_raise</code>：实际创建并查询一条 <code>JobLog</code> 记录，调用 <code>to_json()</code> 断言不抛异常，并验证结果不含已删除的字段名。</p>
+
+<h3>6. 同类排查</h3>
+<p>检查同仓库其他模型的 <code>to_json()</code> / <code>to_dict()</code> 方法：</p>
+<ul>
+  <li><code>datas/model/cron_infos.py</code>：无 <code>to_json()</code> 方法，通过视图层字段访问 ✅</li>
+  <li><code>datas/model/job_health.py</code>：无 <code>to_json()</code> 方法 ✅</li>
+</ul>
+<p>仅 <code>JobLog.to_json()</code> 存在此问题。</p>
+
+<h3>7. 预防方案</h3>
+<p><strong>测试门禁（落地位置：<code>tests/test_lifecycle_logging.py</code>，已加入）</strong>：每次模型字段变更后，<code>TestToJsonNoAttributeError</code> 会在内存数据库上实际调用 <code>to_json()</code>，确保字段引用有效。</p>
+<p><strong>规范新增（落地位置：<code>.cursor/rules/cronpilot-backend.mdc</code>）</strong>：</p>
+<blockquote>凡从模型中删除字段，必须搜索 <code>to_json()</code>/<code>to_dict()</code> 等序列化方法并同步移除对应字段。自检命令：
+<pre>grep -rn "to_json\|to_dict" datas/model/ app/ --include="*.py"</pre>
+</blockquote>
+
+<hr>
+
+<h2>Bug 4 — 术语改名切断历史日志的「未执行触发」识别（2026-09-11 追加）</h2>
+
+<div class="bug">
+<strong>严重程度</strong>：<span class="badge risk">MEDIUM</span>（不影响新数据，但已入库的历史 <code>job_log</code> 全部丢失分类）
+</div>
+
+<h3>1. Bug 定位</h3>
+<p><code>app/services/job_log_display.py::job_log_status_line()</code> 与 <code>app/services/job_log_outcome.py::pre_request_outcome()</code>，两处的前缀判断随术语统一从 <code>'回调URL安全校验未通过'</code> 单向改成 <code>'触发URL安全校验未通过'</code>，未保留旧前缀。</p>
+<p>而该文案是 <strong>持久化数据</strong>：<code>app/crons.py</code> 把它写进 <code>job_log.content</code> 列。改名前入库的所有记录仍是旧文案，改名后：</p>
+<ul>
+  <li>列表/详情页第一行从「未执行触发」掉成 <code>—</code>（落到兜底分支）</li>
+  <li><code>pre_request_outcome()</code> 不再返回 <code>('error', 'blocked_url')</code>，SSRF 拦截记录在失败原因统计里归类错误</li>
+</ul>
+
+<h3>2. 根因</h3>
+<p>术语统一是按「搜索旧词 → 替换成新词」的方式做的，替换动作对「这个字符串是代码内部常量」还是「这个字符串是数据库里的历史值」不做区分。判定函数读的是 DB 里的 <code>content</code>，属于后者，本应是「新增识别分支」而不是「替换识别分支」。行为层原因：改名时没有一步问「这个字符串有没有已入库的副本」，而全仓 grep 的结果里代码常量与数据值长得一模一样，不会自己提示这个差别。</p>
+
+<h3>3. 测试漏洞</h3>
+<p><code>tests/test_job_log_display.py::test_status_from_error_content</code> 与 <code>tests/test_job_log_outcome.py::test_pre_request_blocked</code> 本应发现它，但两条断言的输入字符串在同一轮里被一起改成了新文案——测试和实现被同一次替换改成互相自洽，因此仍然全绿。测试用的是「当前会产生的文案」，没有任何一条用「历史已入库的文案」作输入。</p>
+
+<h3>4. 修复</h3>
+<pre>
+# app/services/job_log_outcome.py — 新增共享常量，两处判定共用
+# 术语统一前写入的历史 job_log 仍存着旧文案，识别须同时兼容两种前缀
+BLOCKED_URL_PREFIXES = ('触发URL安全校验未通过', '回调URL安全校验未通过')
+
+def pre_request_outcome(content):
+    ...
+    if text.startswith(BLOCKED_URL_PREFIXES):
+        return STATUS_ERROR, 'blocked_url'
+
+# app/services/job_log_display.py — 从 job_log_outcome 导入同一常量
+if text.startswith(BLOCKED_URL_PREFIXES) or text in (...):
+    return '未执行触发', 'muted'
+</pre>
+<p>写入端（<code>app/crons.py</code>）不动，新数据仍只写新文案；旧前缀只用于识别。</p>
+
+<h3>5. 防护测试</h3>
+<ul>
+  <li><code>tests/test_job_log_display.py::test_status_from_legacy_blocked_url_wording</code>：以 <code>'回调URL安全校验未通过: http://127.0.0.1/x'</code> 为输入，断言 <code>('未执行触发', 'muted')</code></li>
+  <li><code>tests/test_job_log_outcome.py::test_pre_request_blocked_legacy_wording</code>：以 <code>'回调URL安全校验未通过: x'</code> 为输入，断言 <code>(STATUS_ERROR, 'blocked_url')</code></li>
+</ul>
+<p>两条用例的输入固定为旧文案，后续任何单向替换都会让它们变红。</p>
+
+<h3>6. 同类排查</h3>
+<p>把术语改名涉及的所有「被判定的字符串」逐个查了写入端与判定端是否隔着数据库：</p>
+<ul>
+  <li><code>'定时任务不存在'</code> / <code>'请求链接不存在'</code> / <code>'请求链接有误，请检查一下'</code> / <code>'发生严重错误'</code>：本轮术语替换未触及，判定端与写入端文案仍一致 ✅</li>
+  <li><code>fail_reason</code> 取值（<code>blocked_url</code> / <code>timeout</code> / <code>keyword</code> / <code>internal</code>）：英文常量，术语替换不涉及 ✅</li>
+  <li><code>trigger_source</code> 取值（<code>schedule</code> / <code>manual</code>）：英文常量 ✅</li>
+</ul>
+<p>结论：只有「URL安全校验未通过」这一条中文文案同时是入库值与判定依据，其余判定依据都不是中文持久化文案。</p>
+
+<h3>7. 预防方案</h3>
+<p><strong>规范新增（落地位置：<code>.cursor/rules/cronpilot-backend.mdc</code>「术语/文案变更」节 + <code>AGENTS.md</code>）</strong>：</p>
+<blockquote>凡修改会被 <code>startswith</code> / <code>==</code> / <code>in</code> 判定的中文文案，必须先确认该文案是否被写入数据库列（<code>job_log.content</code>、<code>operation_log</code> 等）。若是，判定端只能<strong>新增</strong>旧文案分支，禁止单向替换；且防护测试的输入必须使用<strong>旧文案</strong>。
+<pre># 自检：判定端出现中文字面量时，反查写入端是否入库
+grep -rn "startswith('[^']*[一-龥]" app/services/ app/main/ | cat</pre>
+</blockquote>
+<p>验证命令：<code>python -m unittest tests.test_job_log_display tests.test_job_log_outcome -v</code>（15 条，含 2 条旧文案用例）</p>
+
+<hr>
+
+<h2>总结</h2>
+
+<table>
+<tr><th>Bug</th><th>严重程度</th><th>发现方式</th><th>防护测试</th><th>规范落点</th></tr>
+<tr>
+  <td><code>_actual_url</code> NameError</td>
+  <td>HIGH（异常处理器崩溃）</td>
+  <td>设计文档代码走读</td>
+  <td><code>TestActualUrlNameErrorGuard</code></td>
+  <td>AGENTS.md + cronpilot-backend.mdc</td>
+</tr>
+<tr>
+  <td><code>actual_url</code> 含明文签名</td>
+  <td>MEDIUM（权限边界误判）</td>
+  <td>RBAC 矩阵交叉核验</td>
+  <td><code>TestActualUrlSignMasking</code>（5 用例）</td>
+  <td>cronpilot-backend.mdc</td>
+</tr>
+<tr>
+  <td><code>to_json()</code> 死字段引用</td>
+  <td>LOW（潜在 AttributeError）</td>
+  <td>代码审查</td>
+  <td><code>TestToJsonNoAttributeError</code></td>
+  <td>cronpilot-backend.mdc</td>
+</tr>
+</table>
+
+<div class="info">
+<strong>共同根因（元层面）</strong>：三个 Bug 均在同一个功能（任务链路日志完整性增强）的实现中被遗漏，说明该功能的代码审查仅关注"新功能是否正确实现"，而未审查：① 异常路径的变量作用域；② 新字段对权限边界的影响；③ 模型序列化方法与字段的同步性。设计先行规范在此次实现中已得到遵守，但"实现完成后代码走读"环节的覆盖深度不足。
+</div>
+
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem">
+  <a href="../index.html">文档索引</a> ·
+  <a href="2026-09-任务链路日志Bug修复复盘.md">Markdown</a> ·
+  <a href="../design/任务链路日志完整性增强设计.html">关联设计文档</a>
+</footer>
+
+<hr>
+<h2>附：设计决策错误 D-2 — <code>next_run_time</code> 方案不可靠（2026-09-07 追加）</h2>
+<p><strong>定位</strong>：<code>doc/design/任务执行链路可观测性增强方案.html</code> D-2 建议 <code>scheduler.get_job('cron_{id}').next_run_time</code>，但 <code>CuGeventScheduler.py:125-127</code> 显示 <code>next_run_time</code> 在 <code>submit_job()</code> 后立即同步更新为下次时间，函数执行期间已是下一周期值。</p>
+<p><strong>根因</strong>：设计时未 Read 调度器实现文件，对 APScheduler 的 next_run_time 更新时机做了错误假设。</p>
+<p><strong>修复（R1）</strong>：D-2 改为 <code>EVENT_JOB_SUBMITTED</code> 监听器方案，捕获 <code>evt.scheduled_run_times[-1]</code>；三字段语义分离。</p>
+<p><strong>修复（R2，2026-09-08）</strong>：<code>EVENT_JOB_SUBMITTED</code> 方案被发现存在 <strong>gevent 竞态</strong>：<code>_process_jobs()</code> 中 <code>executor.submit_job()</code> spawn greenlet 后，后续 DB I/O 会触发 gevent yield，任务 greenlet 在 <code>_dispatch_event()</code> 执行前已进入 <code>@single_task</code>，导致 <code>_sched_times</code> 读取为空。改为在 <code>submit_job()</code> 前通过 per-job FIFO 队列（<code>deque</code>）写入计划时间，消除竞态。同时修复：<code>coalesce=False</code> 时多 <code>run_times</code> 仅存最后一个的问题。</p>
+<p><strong>预防</strong>：设计文档引用具体 Python API 时，必须先 Read 相关实现文件验证假设；在 AGENTS.md 设计先行节追加"API 实现验证"要求。涉及并发/事件监听方案时，必须画出完整时序图并标注 yield 点。</p>
+
+<hr>
+<h2>附：设计审阅 R2 修订记录（2026-09-08 追加）</h2>
+<table>
+<tr><th>编号</th><th>问题</th><th>严重度</th><th>修订</th></tr>
+<tr><td>R2-1</td><td>EVENT_JOB_SUBMITTED 竞态：submit_job → spawn greenlet → DB I/O yield → greenlet 读 _sched_times 空</td><td><strong>P0</strong></td><td>改为 submit_job 前预写入 per-job FIFO 队列</td></tr>
+<tr><td>R2-2</td><td>门槛模式「事后总耗时判断」与 D-1「立即写入」矛盾</td><td>P1</td><td>改为事前事件级别策略（TRACE_LEVEL=FULL|CORE|FAIL_ONLY）</td></tr>
+<tr><td>R2-3</td><td>§3.6 数据保留策略超出功能范围（停用全局裁剪属独立 RFC）</td><td>P1</td><td>§3.6 收敛为级联声明，全局策略变更拆为独立 RFC</td></tr>
+<tr><td>R2-4</td><td>§9.2 仍有"TTL 7 天"列与§3.6 矛盾</td><td>P1</td><td>删除 TTL 列和 TTL 推荐文字</td></tr>
+<tr><td>R2-5</td><td>伪代码 3 处不一致：构造函数参数、utc_now_hms import、real_delay_ms 旧名</td><td>P1</td><td>统一为 ExecutionTracer(trace_id, cron_id, db.engine)；补 import；全文统一 scheduled_delay_ms</td></tr>
+<tr><td>R2-6</td><td>lock_wait_ms 标"可选后续"但 Batch 2 验收要求"区分"</td><td>P1</td><td>Batch 2 验收改为仅验证 scheduled_delay_ms</td></tr>
+<tr><td>R2-7</td><td>脱敏说明缺角色—字段矩阵</td><td>P2</td><td>补充 5 字段×4 角色可见性矩阵</td></tr>
+</table>
+
+
+<hr>
+<h2>附：设计审阅 R3 修订记录（2026-09-08 追加）</h2>
+<table>
+<tr><th>编号</th><th>问题</th><th>严重度</th><th>修订</th></tr>
+<tr><td>R3-1</td><td>FIFO 队列方案不覆盖生产调度器（CuBackgroundScheduler/threadpool）和手动执行路径——手动调用 popleft 消费定时时间</td><td><strong>P0</strong></td><td>改为自定义 Executor + ContextVar 一对一参数传递；手动执行路径不读不写；覆盖 Background + Gevent 双调度器</td></tr>
+<tr><td>R3-2</td><td>Tracer import <code>utc_now_hms</code> 路径错误：<code>job_log_display</code> 中无此函数，实际在 <code>datas/utils/times.py:63</code></td><td>P1</td><td>修正为 <code>from datas.utils.times import utc_now_hms</code></td></tr>
+<tr><td>R3-3</td><td>级联删除遗漏 <code>job_log_items</code>——§3.6.2 仅写 events 级联，现有裁剪已产生 items 孤儿</td><td>P1</td><td>级联顺序：items → events → job_log；全部相关章节补齐 items</td></tr>
+<tr><td>R3-4</td><td>§9.5 仍推荐 Option D「finally 批量写入」作为实施策略，与 D-1 立即写入核心价值冲突</td><td>P1</td><td>Option D 标记为已废弃（与 D-1 不兼容）；MySQL 策略改为逐条写入 + pool_size 调优 + 事件级别策略</td></tr>
+<tr><td>R3-5</td><td>blocked_reason 含域名+IP 绕过 resolved_ip 掩码；exc_msg 可含完整 URL</td><td>P1</td><td>写库前结构化拆分（block_type/block_detail、exc_type/exc_detail）；Viewer 仅见枚举类型</td></tr>
+</table>
+
+
+<hr>
+<h2>附：设计审阅 R5 修订记录（2026-09-08 追加）</h2>
+<table>
+<tr><th>编号</th><th>问题</th><th>严重度</th><th>修订</th></tr>
+<tr><td>R5-1</td><td>中途崩溃后 events 存在但无 job_log 父记录，Run Inspector 不可达——D-1 仅在 DB 层成立</td><td><strong>P0</strong></td><td>新增 D-5：复用 <code>JobLog.status='pending'</code> 作为执行父记录；<code>trace_id</code> + Tracer 前移至 <code>@single_task</code>；启动扫描标记 <code>interrupted</code>；不新增 <code>job_runs</code> 表</td></tr>
+<tr><td>R5-2</td><td><code>scheduler.fire</code>/<code>lock.acquired</code> 时刻与 Tracer 创建点矛盾；默认单机 <code>lock.acquired</code> 为虚构事件</td><td><strong>P0</strong></td><td>与 R5-1 合并为身份前移；<code>task.enqueued</code> + <code>task.start</code> 替代；单机不写 <code>lock.acquired</code>；<code>lock.skipped</code> 第一阶段实现</td></tr>
+<tr><td>R5-3</td><td>D-3「不阻断/不阻塞」表述错误——<code>try/except</code> 不消除 busy_timeout/pool_timeout 等待</td><td>P1</td><td>改为「事务故障隔离」+ 写入预算（≤300ms/≤1s/熔断）；专用 Engine 升为两后端前置条件</td></tr>
+<tr><td>R5-4</td><td>脱敏矩阵仅覆盖 events.detail，现有 6 字段（<code>jl.resolved_ip</code> 等）无门控；IP 可绕过分级</td><td><strong>P0</strong></td><td>新增 §3.2b Presenter 统一 DTO；现有 6 字段纳入矩阵；IP 单一来源；<code>actual_url</code> 掩码扩展；API 契约明确</td></tr>
+<tr><td>R5-5</td><td>「按任务覆盖 TRACE_LEVEL」无字段/表单/API/迁移设计，半实现风险</td><td>P1</td><td>第一阶段仅全局 <code>conf.ini trace_level</code>；按任务覆盖拆为独立 OPT</td></tr>
+<tr><td>R5-6</td><td><code>utc_now_hms()</code> 100ms 精度与 Demo 毫秒偏移矛盾；跨来源无法保证因果序</td><td>P1</td><td>D-4 新增 <code>occurred_at_ms</code> + <code>offset_ms</code>；明确跨来源仅稳定序</td></tr>
+<tr><td>R5-7</td><td>事件规格 detail 列含 <code>duration_ms</code>/<code>elapsed_ms</code> 与顶层列重复</td><td>P2</td><td>三段式规格；<code>http.timeout</code> detail 仅 <code>timeout_sec</code></td></tr>
+<tr><td>R5-8</td><td>覆盖索引表述错误；基准 N=20 未覆盖 max_workers=30；测试数量三套口径；seq 空洞未声明；Tracer 故障不可诊断；UTF-8 截断</td><td>P2</td><td>索引改为「免排序非覆盖」；基准 N=30+M=20+故障注入；§6.1 按 7 类别定义；seq 允许空洞；结构化告警+counter；<code>safe_truncate_bytes</code></td></tr>
+</table>
+</body>
+</html>

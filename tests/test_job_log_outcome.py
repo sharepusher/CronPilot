@@ -38,6 +38,11 @@ class TestJobLogOutcome(unittest.TestCase):
         self.assertIsNone(reason)
 
     def test_pre_request_blocked(self):
+        status, reason = pre_request_outcome('触发URL安全校验未通过: x')
+        self.assertEqual(status, STATUS_ERROR)
+        self.assertEqual(reason, 'blocked_url')
+
+    def test_pre_request_blocked_legacy_wording(self):
         status, reason = pre_request_outcome('回调URL安全校验未通过: x')
         self.assertEqual(status, STATUS_ERROR)
         self.assertEqual(reason, 'blocked_url')

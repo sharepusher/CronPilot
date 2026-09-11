@@ -61,6 +61,12 @@ def toggle_status(cron_id, target_status=None):
             scheduler.resume_job('cron_%s' % cif.id)
         else:
             scheduler.pause_job('cron_%s' % cif.id)
+        # GAP-4f: 调度器操作成功日志
+        _log.info(
+            "scheduler %s: cron_%s (%s)",
+            'resumed' if new == 1 else 'paused', cif.id, cif.task_name or '',
+            extra={"event": "cron.scheduler_toggled", "cron_id": cif.id, "new_status": new},
+        )
     except Exception:
         logger.error('scheduler op failed after DB commit, rolling back status', exc_info=True)
         cif.status = old
@@ -124,6 +130,17 @@ def register_cron_job(cron_id, normalized):
         args=[cron_id],
         replace_existing=True,
         **cron_datas,
+    )
+    # GAP-1b: Scheduler 注册成功日志（含 trigger 类型和参数）
+    _log.info(
+        "scheduler registered: cron_%s trigger=%s %s",
+        cron_id, cron_datas.get('trigger', '?'),
+        {k: v for k, v in cron_datas.items() if k != 'trigger'},
+        extra={
+            "event": "cron.scheduler_registered",
+            "cron_id": cron_id,
+            "trigger": cron_datas.get('trigger'),
+        },
     )
 
 
@@ -232,6 +249,12 @@ def create_cron(normalized):
                        group_id=group_id)
     db.session.commit()
     register_cron_job(cif.id, normalized)
+    # GAP-1a: 任务创建成功应用日志（operation_log 仅写 DB，此处写日志文件/ELK）
+    _log.info(
+        "task created: cron_%s (%s)",
+        cif.id, cif.task_name,
+        extra={"event": "cron.created", "cron_id": cif.id, "task_name": cif.task_name},
+    )
     record_operation(
         action='create_cron',
         target_id=cif.id,

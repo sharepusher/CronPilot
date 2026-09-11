@@ -690,8 +690,15 @@ def job_log_detail():
         take_time_display = '{}ms'.format(int(raw_time * 1000))
     else:
         take_time_display = '—'
-    # Determine trigger type
-    trigger_type = '定时调度'
+    # Determine trigger type from job_log.trigger_source
+    _ts = getattr(jl, 'trigger_source', None) or 'schedule'
+    _trigger_labels = {'schedule': '定时调度', 'manual': '手动执行', 'one_shot': '一次性任务'}
+    trigger_type = _trigger_labels.get(_ts, _ts)
+    # Build schedule display (cron expression) for context
+    schedule_display = ''
+    if cif:
+        from app.services.cron_schedule_display import format_cron_expression, humanize_schedule
+        schedule_display = format_cron_expression(cif) or humanize_schedule(cif)
     # Get group name and health for context
     group_name = ''
     health = None
@@ -740,6 +747,7 @@ def job_log_detail():
         group_name=group_name,
         health=health,
         time_ago=time_ago,
+        schedule_display=schedule_display,
     )
 
 
@@ -957,7 +965,7 @@ def cron_run_now():
         return web_api_return(code=1, msg='任务未在运行中，不能立即执行')
     if not cif.req_url:
         return web_api_return(code=1, msg='未配置触发 URL，不能执行')
-    job_log_id = cron_do(int(id))
+    job_log_id = cron_do(int(id), trigger_source='manual')
     if not job_log_id:
         return web_api_return(code=1, msg='任务正在执行中，请稍后再试')
     return web_api_return(

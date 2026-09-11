@@ -16,7 +16,13 @@ class TestJobLogDisplay(unittest.TestCase):
             ('请求异常', 'fail'),
         )
         self.assertEqual(
-            job_log_status_line(None, '回调URL安全校验未通过'),
+            job_log_status_line(None, '触发URL安全校验未通过'),
+            ('未执行触发', 'muted'),
+        )
+
+    def test_status_from_legacy_blocked_url_wording(self):
+        self.assertEqual(
+            job_log_status_line(None, '回调URL安全校验未通过: http://127.0.0.1/x'),
             ('未执行触发', 'muted'),
         )
 

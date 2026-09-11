@@ -79,7 +79,7 @@ class TestCronRunNow(unittest.TestCase):
         payload = resp.get_json()
         self.assertEqual(payload.get('errcode'), 0)
         self.assertIn('/job_log_detail?id=42', payload.get('url') or '')
-        mock_do.assert_called_once_with(self.active_id)
+        mock_do.assert_called_once_with(self.active_id, trigger_source='manual')
 
     def test_retired_task_rejected(self):
         self._login_admin()

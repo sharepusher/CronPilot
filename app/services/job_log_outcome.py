@@ -10,6 +10,9 @@ STATUS_TIMEOUT = 'timeout'
 STATUS_PENDING = 'pending'
 STATUS_RUNNING = 'running'
 
+# 术语统一前写入的历史 job_log 仍存着旧文案，识别须同时兼容两种前缀
+BLOCKED_URL_PREFIXES = ('触发URL安全校验未通过', '回调URL安全校验未通过')
+
 
 def fail_on_http_4xx_5xx_enabled(flag):
     if flag is None:
@@ -66,7 +69,7 @@ def is_timeout_exception(exc):
 def pre_request_outcome(content):
     """未发起 HTTP 请求时的 status / fail_reason。"""
     text = (content or '').strip()
-    if text.startswith('回调URL安全校验未通过'):
+    if text.startswith(BLOCKED_URL_PREFIXES):
         return STATUS_ERROR, 'blocked_url'
     if text in ('定时任务不存在', '请求链接不存在', '请求链接有误，请检查一下'):
         return STATUS_ERROR, 'internal'

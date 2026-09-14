@@ -65,6 +65,7 @@ class TestResolveOperator(unittest.TestCase):
         with self.app.test_request_context('/cron_add', method='POST'):
             from flask import session
             session['user_id'] = 4
+            session['auth_version'] = 0
             session['username'] = 'alice'
             session['role'] = 'admin'
             op = resolve_operator_from_request()
@@ -111,27 +112,39 @@ class TestOperationLogListAndWrite(unittest.TestCase):
         with app.app_context():
             from datas.model.cron_infos import CronInfos  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
-            from datas.model.user_group import UserGroup  # noqa: F401
-            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
+            users = [
+                RbacUser(id=1, username='ops_admin', role='admin', is_active=1),
+                RbacUser(id=2, username='op', role='operator', is_active=1),
+                RbacUser(id=3, username='view', role='viewer', is_active=1),
+                RbacUser(id=4, username='alice', role='admin', is_active=1),
+            ]
+            for user in users:
+                user.set_password('test-password')
+            db.session.add_all(users)
+            db.session.commit()
 
     def test_operator_forbidden_on_list(self):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'viewer'
             sess['username'] = 'view'
+            sess['user_id'] = 3
+            sess['auth_version'] = 0
         self.assertEqual(self.client.get('/operation_log_list').status_code, 403)
 
     def test_operator_can_list_rows(self):
         from app import db
         from datas.model.cron_infos import CronInfos
         from datas.model.operation_log import OperationLog
-        from datas.utils.times import get_now_time, utc_now_hms, str_to_hms
+        from datas.utils.times import get_now_time, str_to_hms, utc_now_hms
 
         with self.app.app_context():
             now = utc_now_hms()
@@ -170,6 +183,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             sess['role'] = 'operator'
             sess['username'] = 'op'
             sess['user_id'] = 2
+            sess['auth_version'] = 0
             sess['group_ids'] = []
         resp = self.client.get('/operation_log_list')
         self.assertEqual(resp.status_code, 200)
@@ -205,6 +219,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
             sess['role'] = 'admin'
             sess['username'] = 'ops_admin'
             sess['user_id'] = 1
+            sess['auth_version'] = 0
         resp = self.client.get('/operation_log_list')
         self.assertEqual(resp.status_code, 200)
         html = resp.get_data(as_text=True)
@@ -223,6 +238,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
                 sess['role'] = 'admin'
                 sess['username'] = 'ops_admin'
                 sess['user_id'] = 1
+                sess['auth_version'] = 0
             resp = self.client.post(
                 '/cron_add',
                 data={
@@ -255,6 +271,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
                 sess['role'] = 'admin'
                 sess['username'] = 'ops_admin'
                 sess['user_id'] = 1
+                sess['auth_version'] = 0
             data = {
                 'task_name': 'dup-name-job',
                 'task_keyword': '备注说明足够长',
@@ -296,6 +313,7 @@ class TestOperationLogListAndWrite(unittest.TestCase):
                 sess['role'] = 'admin'
                 sess['username'] = 'ops_admin'
                 sess['user_id'] = 1
+                sess['auth_version'] = 0
             resp = self.client.post(
                 '/cron_retire',
                 data={'id': str(cron_id), 'reason': '业务下线审计'},

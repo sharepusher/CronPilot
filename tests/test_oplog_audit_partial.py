@@ -56,10 +56,16 @@ class TestOpLogPartial(unittest.TestCase):
         with cls.app.app_context():
             import datas.model.cron_infos  # noqa: F401
             import datas.model.operation_log  # noqa: F401
-            import datas.model.resource_group  # noqa: F401
+            import datas.model.rbac_registration_request  # noqa: F401
             import datas.model.rbac_user  # noqa: F401
+            import datas.model.resource_group  # noqa: F401
             import datas.model.tag  # noqa: F401
             cls.db.create_all()
+            from datas.model.rbac_user import RbacUser
+            user = RbacUser(id=1, username='admin', role='admin', is_active=1)
+            user.set_password('test-password')
+            cls.db.session.add(user)
+            cls.db.session.commit()
 
     @classmethod
     def tearDownClass(cls):
@@ -70,6 +76,7 @@ class TestOpLogPartial(unittest.TestCase):
         with c.session_transaction() as s:
             s['is_login'] = True
             s['user_id'] = 1
+            s['auth_version'] = 0
             s['role'] = 'admin'
             s['username'] = 'admin'
             s['group_ids'] = []
@@ -110,9 +117,15 @@ class TestAuditLogPartial(unittest.TestCase):
         cls.app, cls.db = _make_app()
         with cls.app.app_context():
             import datas.model.rbac_audit_log  # noqa: F401
+            import datas.model.rbac_registration_request  # noqa: F401
             import datas.model.rbac_user  # noqa: F401
             import datas.model.resource_group  # noqa: F401
             cls.db.create_all()
+            from datas.model.rbac_user import RbacUser
+            user = RbacUser(id=1, username='admin', role='admin', is_active=1)
+            user.set_password('test-password')
+            cls.db.session.add(user)
+            cls.db.session.commit()
 
     @classmethod
     def tearDownClass(cls):
@@ -123,6 +136,7 @@ class TestAuditLogPartial(unittest.TestCase):
         with c.session_transaction() as s:
             s['is_login'] = True
             s['user_id'] = 1
+            s['auth_version'] = 0
             s['role'] = 'admin'
             s['username'] = 'admin'
             s['group_ids'] = []
@@ -170,9 +184,15 @@ class TestUsersPartial(unittest.TestCase):
     def setUpClass(cls):
         cls.app, cls.db = _make_app()
         with cls.app.app_context():
+            import datas.model.rbac_registration_request  # noqa: F401
             import datas.model.rbac_user  # noqa: F401
             import datas.model.resource_group  # noqa: F401
             cls.db.create_all()
+            from datas.model.rbac_user import RbacUser
+            user = RbacUser(id=1, username='admin', role='admin', is_active=1)
+            user.set_password('test-password')
+            cls.db.session.add(user)
+            cls.db.session.commit()
 
     @classmethod
     def tearDownClass(cls):
@@ -183,6 +203,7 @@ class TestUsersPartial(unittest.TestCase):
         with c.session_transaction() as s:
             s['is_login'] = True
             s['user_id'] = 1
+            s['auth_version'] = 0
             s['role'] = 'admin'
             s['username'] = 'admin'
             s['group_ids'] = []

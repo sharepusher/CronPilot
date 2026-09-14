@@ -10,6 +10,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from flask import Flask
+
 from app import db as _db
 from datas.utils.times import str_to_hms, utc_now_hms
 
@@ -56,8 +57,9 @@ class TestTaskGroupModel(unittest.TestCase):
     def test_unique_constraint(self):
         """同一 (task_id, group_id) 不可重复。"""
         with self.app.app_context():
-            from datas.model.task_group import TaskGroup
             from sqlalchemy.exc import IntegrityError
+
+            from datas.model.task_group import TaskGroup
             self.db.session.add(TaskGroup(task_id=1, group_id=2))
             self.db.session.commit()
             self.db.session.add(TaskGroup(task_id=1, group_id=2))
@@ -102,8 +104,9 @@ class TestTagModel(unittest.TestCase):
     def test_unique_name_same_group(self):
         """同组内标签名不可重复。"""
         with self.app.app_context():
-            from datas.model.tag import Tag
             from sqlalchemy.exc import IntegrityError
+
+            from datas.model.tag import Tag
             self.db.session.add(Tag(name='JP', group_id=1, created_by='a', create_time=utc_now_hms(), update_time=utc_now_hms()))
             self.db.session.commit()
             self.db.session.add(Tag(name='JP', group_id=1, created_by='b', create_time=utc_now_hms(), update_time=utc_now_hms()))
@@ -146,8 +149,9 @@ class TestTaskTagModel(unittest.TestCase):
     def test_unique_constraint(self):
         """同一 (task_id, tag_id) 不可重复。"""
         with self.app.app_context():
-            from datas.model.task_tag import TaskTag
             from sqlalchemy.exc import IntegrityError
+
+            from datas.model.task_tag import TaskTag
             self.db.session.add(TaskTag(task_id=1, tag_id=2))
             self.db.session.commit()
             self.db.session.add(TaskTag(task_id=1, tag_id=2))
@@ -186,8 +190,9 @@ class TestMigrateGroupIdToTaskGroups(unittest.TestCase):
     def test_migration_with_legacy_group_id(self):
         """模拟旧表有 group_id 列时的迁移。"""
         with self.app.app_context():
+            from sqlalchemy import inspect, text
+
             from datas.model.task_group import TaskGroup
-            from sqlalchemy import text, inspect
             # 手动添加 group_id 列（模拟旧表）
             insp = inspect(self.db.engine)
             cols = {c['name'] for c in insp.get_columns('cron_infos')}
@@ -197,17 +202,17 @@ class TestMigrateGroupIdToTaskGroups(unittest.TestCase):
             # 插入旧格式数据（需包含所有 NOT NULL 字段）
             _ins = (
                 "INSERT INTO cron_infos "
-                "(task_name, task_keyword, scope_type, group_id, "
+                "(id, task_name, task_keyword, scope_type, group_id, "
                 "last_operator_name, last_operated_at) VALUES "
             )
             with self.db.engine.begin() as conn:
-                conn.execute(text(_ins + "('task1', 'kw', 'GROUP', 1, '', '')"))
-                conn.execute(text(_ins + "('task2', 'kw', 'GROUP', 2, '', '')"))
+                conn.execute(text(_ins + "(101, 'task1', 'kw', 'GROUP', 1, '', '')"))
+                conn.execute(text(_ins + "(102, 'task2', 'kw', 'GROUP', 2, '', '')"))
                 conn.execute(text(
                     "INSERT INTO cron_infos "
-                    "(task_name, task_keyword, scope_type, "
+                    "(id, task_name, task_keyword, scope_type, "
                     "last_operator_name, last_operated_at) VALUES "
-                    "('task3', 'kw', 'GLOBAL', '', '')"
+                    "(103, 'task3', 'kw', 'GLOBAL', '', '')"
                 ))
             # 执行迁移
             with self.db.engine.begin() as conn:

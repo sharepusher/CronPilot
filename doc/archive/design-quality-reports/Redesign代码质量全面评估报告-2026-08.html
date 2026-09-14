@@ -211,7 +211,7 @@ SQLAlchemy ORM                         ← datas/model/ (SA 2.0 style)
 <tr><td>认证</td><td>Flask Session + PBKDF2 密码哈希 + 登录限流</td></tr>
 <tr><td>授权</td><td>3 角色 RBAC + 7 权限字符串 + 资源 Scope 隔离</td></tr>
 <tr><td>CSRF</td><td>Meta tag + <code>@csrf_protect</code> 装饰器 + AJAX header 注入</td></tr>
-<tr><td>SSRF</td><td>回调 URL 安全校验（私有 IP / 非 HTTP 协议拦截）</td></tr>
+<tr><td>SSRF</td><td>触发 URL 安全校验（私有 IP / 非 HTTP 协议拦截）</td></tr>
 <tr><td>Open Redirect</td><td><code>safe_next_url()</code> 校验 next 参数</td></tr>
 <tr><td>审计</td><td>操作日志 + RBAC 审计日志自动记录</td></tr>
 <tr><td>API 认证</td><td>全局 token + 用户 token (TTL + scope cache)</td></tr>

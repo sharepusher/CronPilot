@@ -30,8 +30,8 @@ class TestCronRunNow(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos
-            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
             self.active = CronInfos(
@@ -149,13 +149,30 @@ class TestCronListRunNowButton(unittest.TestCase):
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
+        self.app = app
+        self.db = db
         self.client = app.test_client()
         with app.app_context():
             from datas.model.cron_infos import CronInfos
-            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
+            self.admin = RbacUser(
+                username='ops_admin',
+                password_hash='fixture-password-hash',
+                role='admin',
+                is_active=1,
+                create_time=1,
+            )
+            self.viewer = RbacUser(
+                username='viewer',
+                password_hash='fixture-password-hash',
+                role='viewer',
+                is_active=1,
+                create_time=1,
+            )
             cif = CronInfos(
                 task_name='btn-task',
                 task_keyword='说明',
@@ -164,15 +181,29 @@ class TestCronListRunNowButton(unittest.TestCase):
                 created_at='t',
                 updated_at='t',
             )
-            db.session.add(cif)
+            db.session.add_all([self.admin, self.viewer, cif])
             db.session.commit()
+            self.admin_session = {
+                'user_id': self.admin.id,
+                'auth_version': self.admin.auth_version,
+                'role': self.admin.role,
+                'username': self.admin.username,
+            }
+            self.viewer_session = {
+                'user_id': self.viewer.id,
+                'auth_version': self.viewer.auth_version,
+                'role': self.viewer.role,
+                'username': self.viewer.username,
+            }
 
-    def test_list_shows_run_now_for_admin(self):
+    def _login(self, user_session):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
-            sess['role'] = 'admin'
-            sess['username'] = 'ops_admin'
+            sess.update(user_session)
             sess['group_ids'] = []
+
+    def test_list_shows_run_now_for_admin(self):
+        self._login(self.admin_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn('cp-page-dashboard', html)
         self.assertIn('cpRunNow(', html)
@@ -182,11 +213,7 @@ class TestCronListRunNowButton(unittest.TestCase):
 
     def test_vue_mount_point_data_attrs_present(self):
         """Redesign dashboard: inline JS posts id in request body (not Vue data-* props)."""
-        with self.client.session_transaction() as sess:
-            sess['is_login'] = True
-            sess['role'] = 'admin'
-            sess['username'] = 'ops_admin'
-            sess['group_ids'] = []
+        self._login(self.admin_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn('cp-dashboard-tbody', html)
         self.assertIn('function cpRunNow(cronId', html)
@@ -199,11 +226,7 @@ class TestCronListRunNowButton(unittest.TestCase):
 
     def test_vue_mount_point_viewer_no_write_or_retire_url(self):
         """viewer 无 cron:write：无立即执行/编辑/下线操作按钮。"""
-        with self.client.session_transaction() as sess:
-            sess['is_login'] = True
-            sess['role'] = 'viewer'
-            sess['username'] = 'viewer'
-            sess['group_ids'] = []
+        self._login(self.viewer_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
         self.assertNotIn('onclick="cpRunNow(', tbody)
@@ -213,11 +236,7 @@ class TestCronListRunNowButton(unittest.TestCase):
 
     def test_run_url_already_contains_id_param(self):
         """Redesign AJAX 通过 POST body 传 id，脚本中不得拼接 ?id= 查询参数。"""
-        with self.client.session_transaction() as sess:
-            sess['is_login'] = True
-            sess['role'] = 'admin'
-            sess['username'] = 'ops_admin'
-            sess['group_ids'] = []
+        self._login(self.admin_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn("$.post('/cron_run_now', {id: cronId", html)
         self.assertIn("$.post('/update_status', {id: cronId", html)
@@ -225,11 +244,7 @@ class TestCronListRunNowButton(unittest.TestCase):
         self.assertNotIn('/update_status?', html)
 
     def test_viewer_no_run_now_button(self):
-        with self.client.session_transaction() as sess:
-            sess['is_login'] = True
-            sess['role'] = 'viewer'
-            sess['username'] = 'viewer'
-            sess['group_ids'] = []
+        self._login(self.viewer_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertNotIn('act-btn run', html)
         self.assertNotIn('onclick="cpRunNow(', html)

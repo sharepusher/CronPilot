@@ -180,7 +180,7 @@ SQLAlchemy ORM                         ← datas/model/ (SA 2.0 style)
 | 认证 | Flask Session + PBKDF2 密码哈希 + 登录限流 |
 | 授权 | 3 角色 RBAC + 7 权限字符串 + 资源 Scope 隔离 |
 | CSRF | Meta tag + `@csrf_protect` 装饰器 + AJAX header 注入 |
-| SSRF | 回调 URL 安全校验（私有 IP / 非 HTTP 协议拦截） |
+| SSRF | 触发 URL 安全校验（私有 IP / 非 HTTP 协议拦截） |
 | Open Redirect | `safe_next_url()` 校验 next 参数 |
 | 审计 | 操作日志 + RBAC 审计日志自动记录 |
 | API 认证 | 全局 token + 用户 token (TTL + scope cache) |

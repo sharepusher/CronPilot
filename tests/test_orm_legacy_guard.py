@@ -104,6 +104,15 @@ def find_violations(source, filename='<string>'):
 
         def visit_Attribute(self, node):
             if node.attr == 'query':
+                # ``urlsplit(...).query`` is a URL component, not the
+                # SQLAlchemy legacy ORM query API.
+                if (
+                    isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name)
+                    and node.value.func.id == 'urlsplit'
+                ):
+                    self.generic_visit(node)
+                    return
                 names = _attr_chain_names(node)
                 # session.query 由 visit_Call(L2) 覆盖；此处只拦 Model.query 等
                 if not _chain_has_session(names):

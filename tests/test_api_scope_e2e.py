@@ -73,7 +73,9 @@ class _ScopeTestBase(PersistentDBTestCase):
 
             with patch('app.services.cron_service.scheduler'), \
                  patch('app.services.operation_log_service.resolve_operator_from_request',
-                       return_value=_MOCK_OPERATOR):
+                       return_value=_MOCK_OPERATOR), \
+                 patch('app.services.url_security._resolve_host_ips',
+                       return_value=['93.184.216.34']):
                 upsert_err, cif = upsert_cron_by_task_name(
                     form_data, is_dev, cron_config
                 )

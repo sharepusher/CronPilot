@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>近期提交 P1/P2 问题深度评估与修复设计（2026-09）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}code{background:#f0f0f0;padding:2px 5px;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}th{background:#f5f5f5}.critical{font-weight:700}.note{background:#fff7ed;padding:.8rem 1rem;border-left:4px solid #f59e0b}
+</style>
+</head>
+<body>
+<h1>近期提交 P1/P2 问题深度评估与修复设计</h1>
+<p><strong>日期</strong>：2026-09-11　<strong>类型</strong>：Bugbot 审查结论深化与修复设计　<strong>状态</strong>：已交付（P1/P2，2026-09-11）</p>
+<p>评估范围为近期分支提交，重点复核认证版本 fail-closed 与任务触发请求 URL 记录。本文仅记录已验证证据和拟议修复；未确认前不修改业务或测试实现。</p>
+
+<h2>1. 问题</h2>
+<table><tr><th>编号</th><th>已复现现象</th><th>影响判定</th></tr>
+<tr><td class="critical">P1</td><td><code>tests.test_cron_run_now</code> 中 3 个失败、1 个错误；<code>tests.test_job_log_detail_integration</code> 中 1 个错误。前者被重定向到登录页，后者在真实登录预检查查询注册申请表时缺表。</td><td>CI 回归失真，原有 Dashboard/运行详情测试不再验证目标页面。</td></tr>
+<tr><td class="critical">P2</td><td>GET 配置 URL 含 fragment 时，<code>actual_url</code> 以字符串直接拼接注入参数；存储 URL 与 Requests 规范化 URL 不同。</td><td>运行详情错误呈现请求参数；同时 fragment 可能进入签名输入、却不会随 HTTP 请求发送，存在对端验签失败风险。</td></tr></table>
+
+<h2>2. 根因与证据</h2>
+<h3>2.1 P1：生产安全契约与测试 fixture 脱节</h3>
+<p><code>app/rbac/services.py::web_session_user_is_valid()</code> 已明确要求 <code>user_id</code>、匹配的用户记录、<code>username</code> 与存在的 <code>auth_version</code>；<code>app/rbac/views.py</code> 的 before-request gate 对不满足条件的会话清空并重定向。该 fail-closed 语义正确，专项矩阵已验证缺键、版本不匹配、一次性 bump 均通过。</p>
+<p><code>tests/test_cron_run_now.py</code> 的列表页 fixture 仅写入 <code>is_login</code>、角色、用户名、组；没有创建对应用户，也未写入 <code>user_id</code> 与 <code>auth_version</code>。它因此被安全 gate 拒绝，失败不是生产逻辑应回退的依据。<code>tests/test_job_log_detail_integration.py</code> 通过真实 <code>/rbac/login</code>，但建表前未导入 <code>RbacRegistrationRequest</code> 模型，登录预检查访问该表时发生 SQLite 缺表错误。</p>
+<h3>2.2 P2：URL 解析、签名与记录并非同一个数据模型</h3>
+<p><code>app/crons.py</code> 先用 <code>req_url.split('?')</code> / <code>split('&amp;')</code> 构造签名参数，再以 <code>req_url + '?' / '&amp;' + urlencode(...)</code> 记录 GET URL，实际发送则交给 <code>_http.get(req_url, params=...)</code>。已用 Requests PreparedRequest 验证：<code>https://host/path#section</code> 的记录值会成为 <code>.../path#section?cronpilot_trace_id=...</code>，而 Requests 生成的是 <code>.../path?cronpilot_trace_id=...#section</code>。</p>
+<p>更严重的是，带 query 与 fragment 的 URL（如 <code>?x=1#section</code>）会令字符串切分把 <code>#section</code> 混入 <code>x</code> 的签名值；HTTP 传输不含 fragment。故只替换记录 URL 的拼接方式，不能修正签名与真实请求之间的不一致。</p>
+
+<h2>3. 方案与取舍</h2>
+<h3>3.1 P1 推荐方案：修复 fixture，不放宽认证</h3>
+<ol><li>在需要通过 RBAC before-request gate 的测试中创建启用的 <code>RbacUser</code>，并把该用户 ID 与数据库中的 <code>auth_version</code> 写入 Session。</li><li>在真实登录的运行详情集成测试中显式导入 <code>RbacRegistrationRequest</code> 后再 <code>create_all()</code>，使最小应用的模型注册与登录路径一致。</li><li>只在 <code>TestDisabledSessionRevocation</code> 保留故意缺少 <code>auth_version</code> 的否定用例。</li></ol>
+<p><strong>不采用</strong>：测试模式跳过版本校验、缺键时以 <code>or 0</code> 放行、或数据库缺表时吞异常。这些做法分别制造 fail-open、破坏迁移安全覆盖、掩盖真实应用装配缺陷。</p>
+<h3>3.2 P2 推荐方案：以 URL 解析结果作为唯一事实来源</h3>
+<ol><li>提取纯函数：<code>urlsplit(req_url)</code> 分离 fragment，<code>parse_qsl(parsed.query, keep_blank_values=True)</code> 得到待签名 query 参数，再加入 <code>cronpilot_trace_id</code>。</li><li>使用该参数映射调用已验证的 <code>get_cronpilot_sign()</code>；GET 发送继续使用 <code>_http.get(req_url, params=inject_params, ...)</code>，不改变 DNS pinning Session。</li><li>用同一 <code>req_url</code> 和 <code>inject_params</code> 调用 <code>requests.Request('GET', req_url, params=inject_params).prepare().url</code> 生成记录候选 URL，再统一脱敏后持久化。</li></ol>
+<p><strong>重复键边界</strong>：现有签名 API 接受 dict，历史行为已是同名 query 后者覆盖前者。首批修复应显式保留并测试这一既有语义；若要支持多值 query 签名，必须另立协议兼容设计，不能在本修复中暗改。</p>
+
+<h2>4. 范围</h2>
+<table><tr><th>路径</th><th>拟议变化</th></tr>
+<tr><td><code>tests/test_cron_run_now.py</code>、<code>tests/test_job_log_detail_integration.py</code></td><td>P1 fixture、模型注册和定向回归测试。</td></tr>
+<tr><td><code>app/crons.py</code>、新增或扩展 URL 相关测试</td><td>P2 共享解析/构造逻辑与 fragment/签名覆盖。</td></tr>
+<tr><td>设计、复盘、索引与 Release Notes</td><td>仅在实现及验收完成后更新交付状态；本稿当前保持待确认。</td></tr>
+<tr><td>不在范围</td><td>不放宽 Web Session 安全契约；不改变 DNS pinning；不在本批引入多值 query 签名协议。</td></tr></table>
+
+<h2>5. 分批</h2>
+<ol><li><strong>Batch P1-A</strong>：修正两个测试模块的用户、Session 与模型注册；运行定向失败集。</li><li><strong>Batch P1-B</strong>：运行 Session 三类否定/迁移矩阵及全量测试，确认 fail-closed 仍生效。</li><li><strong>Batch P2-A</strong>：实现并单测纯 URL/签名输入 helper；覆盖无 query、有 query、fragment、query+fragment、空值和重复键。</li><li><strong>Batch P2-B</strong>：接入 <code>cron_do</code>，验证记录 URL 与 PreparedRequest 一致且签名脱敏；更新设计、复盘、Release Notes 与双格式文档。</li></ol>
+
+<h2>6. 验收</h2>
+<ul><li><code>.venv-py311/bin/python -m unittest tests.test_job_log_detail_integration tests.test_cron_run_now -v</code>：无失败或错误。</li><li><code>.venv-py311/bin/python -m unittest tests.test_user_reactivation.TestDisabledSessionRevocation tests.test_user_reactivation.TestAuthVersionOneTimeBump -v</code>：缺键、错配与幂等 bump 均通过。</li><li>针对 <code>https://host/path?x=1#section</code>：签名输入中的 <code>x</code> 为 <code>1</code>，记录值等于 Requests PreparedRequest 的脱敏版本，且不含明文 <code>cronpilot_sign</code>。</li><li>通过 <code>python scripts/html_docs_to_markdown.py --check</code>、<code>python scripts/check_doc_completeness.py --check</code>、相关测试与路由冒烟门禁。</li></ul>
+
+<h2>7. 风险</h2>
+<p>P1 若用固定 Session 值可能掩盖版本不匹配；以真实用户读取版本值并保留否定矩阵缓解。P2 若改变重复 query key 语义可能影响既有验签；首批保持后者覆盖并单测锁定。签名脱敏必须在成功和异常两条日志保存路径一致执行，防止重新暴露敏感值。</p>
+<p class="note"><strong>实施记录（2026-09-11）：</strong>P1 的 Session fixture 与模型注册已修复；P2 使用 <code>urlsplit</code>/<code>parse_qsl</code> 构造签名输入，并用 Requests PreparedRequest 生成实际 URL。23 项生命周期/签名测试与 21 项 P1 回归均通过；签名原文不会写入记录。本文先前指出的状态漂移已在实施后更新。</p>
+<footer><a href="近期提交P1-P2问题深度评估与修复设计-2026-09.md">Markdown</a> · <a href="../index.html">文档索引</a></footer>
+</body>
+</html>

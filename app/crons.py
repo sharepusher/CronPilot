@@ -6,6 +6,7 @@ import re
 import time
 import traceback
 import uuid
+from urllib.parse import parse_qsl, urlsplit
 
 import requests
 from flask import current_app
@@ -71,6 +72,28 @@ def _notify_job_outcome(task_name, content, status):
             '定时任务【%s】发生错误' % task_name,
             '返回信息:%s' % content,
         )
+
+
+def _build_trigger_signature_params(req_url, trace_id):
+    """Return the query parameters that participate in trigger signing.
+
+    ``urlsplit`` excludes a URL fragment, which browsers and requests never
+    send to the target server.  Duplicate query keys retain the historical
+    last-value-wins behaviour because the signing API accepts a dict.
+    """
+    params = dict(parse_qsl(urlsplit(req_url).query, keep_blank_values=True))
+    params['cronpilot_trace_id'] = trace_id
+    return params
+
+
+def _build_get_actual_url(req_url, inject_params):
+    """Build the same normalized GET URL that requests prepares for dispatch."""
+    return requests.Request('GET', req_url, params=inject_params).prepare().url
+
+
+def _mask_cronpilot_sign(url):
+    """Mask the sign value without consuming a following URL fragment."""
+    return re.sub(r'(cronpilot_sign=)[^&#]+', r'\1***', url) if url else None
 
 
 def _save_job_log(
@@ -267,27 +290,19 @@ def cron_do(cron_id, trigger_source='schedule'):
                             _actual_url = None  # 提前初始化：防止 try 内赋值前抛异常时 except 引用未定义变量
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
-                                parmas = {}
-
-                                if req_url.find('?') != -1:
-                                    pp = req_url.split('?')[-1]
-                                    if pp.find('&&') != -1:
-                                        ps = pp.split('&&')
-                                    else:
-                                        ps = pp.split('&')
-                                    parmas = {d.split('=')[0]: d.split('=')[1] for d in ps}
-
-                                parmas['cronpilot_trace_id'] = trace_id
-                                cronpilot_sign = get_cronpilot_sign(parmas, api_key=api_key)
+                                signing_params = _build_trigger_signature_params(
+                                    req_url, trace_id
+                                )
+                                cronpilot_sign = get_cronpilot_sign(
+                                    signing_params, api_key=api_key
+                                )
 
                                 req_method = (getattr(cif, 'req_method', None) or 'GET').upper()
 
                                 # 构建实际请求 URL（含注入的 trace_id/sign）用于链路追踪
-                                from urllib.parse import urlencode as _urlencode
                                 _inject_params = {'cronpilot_trace_id': trace_id, 'cronpilot_sign': cronpilot_sign}
                                 if req_method == 'GET':
-                                    _sep = '&' if '?' in req_url else '?'
-                                    _actual_url = req_url + _sep + _urlencode(_inject_params)
+                                    _actual_url = _build_get_actual_url(req_url, _inject_params)
                                 else:
                                     _actual_url = req_url  # POST: params in body
 
@@ -368,7 +383,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     started_at=started_at,
                                     timeout_sec=timeout_sec,
                                     trigger_source=trigger_source,
-                                    actual_url=re.sub(r'(cronpilot_sign=)[^&]+', r'\1***', _actual_url) if _actual_url else None,
+                                    actual_url=_mask_cronpilot_sign(_actual_url),
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                 )
@@ -401,7 +416,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     started_at=started_at,
                                     timeout_sec=timeout_sec,
                                     trigger_source=trigger_source,
-                                    actual_url=re.sub(r'(cronpilot_sign=)[^&]+', r'\1***', _actual_url) if _actual_url else None,
+                                    actual_url=_mask_cronpilot_sign(_actual_url),
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                 )

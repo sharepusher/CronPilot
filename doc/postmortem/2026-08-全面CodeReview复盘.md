@@ -85,7 +85,7 @@
 
 ### 4. 同类排查
 
-`app/decorated.py` L32-35 的 API 装饰器已正确脱敏（返回通用消息 + logger）。`app/rbac/services.py` 的 19 处 except 均返回中文通用消息。唯一遗漏的系统性区域是 `crons.py` 的回调执行路径和 WeChat 告警路径。
+`app/decorated.py` L32-35 的 API 装饰器已正确脱敏（返回通用消息 + logger）。`app/rbac/services.py` 的 19 处 except 均返回中文通用消息。唯一遗漏的系统性区域是 `crons.py` 的触发执行路径和 WeChat 告警路径。
 
 ### 5. 预防方案
 
@@ -199,13 +199,13 @@
 
 ### 1. Bug 定位
 
-最大函数：`cron_do`（256 行，核心调度回调）、`cron_list`（243 行，任务中心首页）。完整列表见设计方案附录。
+最大函数：`cron_do`（256 行，核心调度触发）、`cron_list`（243 行，任务中心首页）。完整列表见设计方案附录。
 
 ### 2. 根因
 
 **增量需求叠加**：`cron_list` 在 v1.0.0 时仅处理基础列表+分页。后续迭代逐步叠加：Scope 过滤（OPT-P2-12）、标签筛选（OPT-P1-11）、健康度+逾期检测（OPT-P1-17）、v2 AJAX 部分响应、Dashboard 统计聚合。每次需求添加 20-40 行，但未拆分函数或提取到 Service，因为"在已有函数中添加一个 if 比创建新抽象层更快"。
 
-**`cron_do` 的特殊性**：核心调度回调函数，包含 HTTP 请求、超时处理、多种错误路径、job\_log 写入、健康状态更新、WeChat 告警等全链路逻辑。每个关注点紧密耦合（例如超时判定影响状态判定影响告警内容），拆分需要仔细设计接口。重构风险被认为高于维护现状。
+**`cron_do` 的特殊性**：核心调度触发函数，包含 HTTP 请求、超时处理、多种错误路径、job\_log 写入、健康状态更新、WeChat 告警等全链路逻辑。每个关注点紧密耦合（例如超时判定影响状态判定影响告警内容），拆分需要仔细设计接口。重构风险被认为高于维护现状。
 
 ### 3. 测试漏洞
 
@@ -991,7 +991,7 @@ ruff F841 现在对 `app/__init__.py` 不再被豁免。剩余 per-file-ignores 
 
 1. **Why-1**：`add_log` 没有 `check_api_scope()` → 因为 S6 用户级 Token（commit `8979424`）实现时未对 `add_log` 添加。
 2. **Why-2**：S6 实现时为什么遗漏？→ S6 commit 的 diff 显示新增的 scope 检查集中在**新创建的查询端点**（`cron_logs`、`cron_detail`、`cron_log_detail`）和已有的写端点（`retire`、`status`、`crons`）。`add_log` 作为"业务方回传进度"端点，在设计中被归类为"被动写入"，未纳入 scope 检查清单。
-3. **Why-3**：为什么"被动写入"被视为不需要 scope？→ 设计假设"拥有 trace\_id 即代表拥有该任务上下文"（trace\_id 由系统在 `cron_do` 中生成并作为回调参数传递给业务方）。但引入 scope 后，scope 受限用户可能通过其他渠道获得 trace\_id。
+3. **Why-3**：为什么"被动写入"被视为不需要 scope？→ 设计假设"拥有 trace\_id 即代表拥有该任务上下文"（trace\_id 由系统在 `cron_do` 中生成并作为触发参数传递给业务方）。但引入 scope 后，scope 受限用户可能通过其他渠道获得 trace\_id。
 4. **Why-4**：为什么没有测试覆盖？→ `test_api_scope_s6.py` 采用白名单模式逐端点编写，`add_log` 不在列表中（`grep "add_log" tests/test_api_scope_s6.py` → 0 匹配）。
 5. **Why-5**：为什么没有全端点 scope 覆盖门禁？→ 项目无类似"每个 API 端点必须有 scope 检查或显式豁免标注"的自动化守卫。
 

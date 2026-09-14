@@ -40,23 +40,23 @@ class TestTagScope(unittest.TestCase):
         self.client = app.test_client()
         with app.app_context():
             from datas.model.cron_infos import CronInfos  # noqa: F401
-            from datas.model.rbac_user import RbacUser  # noqa: F401
-            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
-            from datas.model.resource_group import ResourceGroup  # noqa: F401
-            from datas.model.user_group import UserGroup  # noqa: F401
-            from datas.model.task_group import TaskGroup  # noqa: F401
-            from datas.model.tag import Tag  # noqa: F401
-            from datas.model.task_tag import TaskTag  # noqa: F401
             from datas.model.job_log import JobLog  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
             self._seed()
 
     def _seed(self):
         from datas.model.rbac_user import RbacUser
         from datas.model.resource_group import ResourceGroup
-        from datas.model.user_group import UserGroup
         from datas.model.tag import Tag
+        from datas.model.user_group import UserGroup
         from datas.utils.times import utc_now_hms
 
         g1 = ResourceGroup(name='GroupA', description='', create_time=utc_now_hms())
@@ -90,6 +90,7 @@ class TestTagScope(unittest.TestCase):
             sess['username'] = 'biz_a'
             sess['role'] = 'admin'
             sess['user_id'] = self.biz_admin_id
+            sess['auth_version'] = 0
             sess['group_ids'] = [self.g1_id]
 
     def tearDown(self):

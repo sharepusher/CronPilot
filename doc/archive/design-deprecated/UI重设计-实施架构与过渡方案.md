@@ -627,7 +627,7 @@ Auth 页面不继承 Shell（无侧边栏），使用独立的 `redesign_auth/` 
 
 #### 4.7.1 Toast 与现有 noty 的关系
 
-**决策**：新界面使用自研 `CpToast`（轻量、Token 着色、无依赖）；旧界面继续用 noty。`common.js` 中的 Ajax 成功回调在 v2 下调用 `CpToast`。
+**决策**：新界面使用自研 `CpToast`（轻量、Token 着色、无依赖）；旧界面继续用 noty。`common.js` 中的 Ajax 成功触发在 v2 下调用 `CpToast`。
 
 ```
 // common.js — Ajax form success hook 增强

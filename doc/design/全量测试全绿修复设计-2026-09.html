@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>全量测试全绿修复设计（2026-09）</title>
+<style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}code{background:#f0f0f0;padding:2px 5px;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}th{background:#f5f5f5}</style>
+</head><body>
+<h1>全量测试全绿修复设计（2026-09）</h1>
+<p><strong>日期</strong>：2026-09-11　<strong>类型</strong>：测试基线修复设计　<strong>状态</strong>：待用户确认</p>
+<h2>1. 问题</h2>
+<p>全量命令 <code>.venv-py311/bin/python -m unittest discover -s tests -p 'test_*.py'</code> 已复现：754 项中 84 个失败、6 个错误、11 个跳过，耗时 96.455 秒。当前不能宣称 P1/P2 已“所有测试全绿”，也不能提交。</p>
+<table><tr><th>类别</th><th>可复现证据</th><th>影响</th></tr><tr><td>认证夹具漂移（主体）</td><td>RBAC、Dashboard、审计、注册、标签与 CSRF 测试大量返回 302，重定向提示“登录状态已失效，请重新登录”。</td><td>这些测试没有实际覆盖预期的权限、页面或业务响应。</td></tr><tr><td>离线 DNS 假设</td><td><code>test_api_scope_e2e</code> 3 项以 <code>example.com</code> 运行真实 URL 校验，得到 DNS 解析失败。</td><td>网络环境决定测试结果，违背单测隔离。</td></tr><tr><td>ORM/迁移夹具漂移</td><td><code>test_orm_legacy_guard</code> 报 <code>app/crons.py:84 query</code>；<code>test_task_groups</code> 向新 SQLite 表插旧行时缺少 NOT NULL <code>id</code>。</td><td>一个是生产代码门禁问题，一个是旧结构模拟不再可运行。</td></tr></table>
+<h2>2. 根因</h2>
+<p>OPT-P0-22 的 Web Session 已正确采用 fail-closed：正常请求必须有存在且匹配数据库用户的 <code>user_id</code>、<code>username</code>、<code>auth_version</code>。此前仅修复了 P1 直接命中的两个测试模块；全仓仍有多份手写 Session 仅设置角色/用户名，或没有创建对应 <code>RbacUser</code>。因此 before-request gate 在业务路由之前重定向，继发产生绝大多数失败与 5 个 HTML 解析错误。</p>
+<p>另外三项 API scope E2E 测试的请求 URL 没有在测试配置中采用允许的离线测试目标；迁移测试则把“当前模型建出的表”当作“旧 schema”，遗漏新表的必填主键；ORM 门禁指出 <code>app/crons.py</code> 仍有 Legacy <code>.query</code> 调用。</p>
+<h2>3. 方案</h2>
+<ol><li><strong>集中认证测试登录辅助：</strong>在各测试模块中用真实启用用户的 ID 和读取到的 <code>auth_version</code> 构造 Session。测试没有对应用户时先建用户；保留缺键、错配、一次性 bump 的专用否定测试，绝不把生产 gate 改为兼容缺键或 <code>or 0</code>。</li><li><strong>离线 E2E 配置：</strong>仅在 <code>test_api_scope_e2e</code> 的测试配置/Mock 中让 URL 校验走明确的测试允许路径；不修改生产 SSRF/DNS 拒绝策略。</li><li><strong>迁移夹具按旧 schema 建表：</strong>用独立旧版 SQLite DDL（包含当时的主键行为）准备数据，再运行待测迁移；不向当前 ORM 表写“假旧数据”。</li><li><strong>消除真实 Legacy ORM：</strong>将 <code>app/crons.py</code> 被门禁定位的读取转换为 SQLAlchemy 2.x <code>select()</code> 路径，保留查询语义，并增加定向测试。</li><li><strong>按簇验证：</strong>每批先跑受影响模块，再跑全量 discover；最后运行 Ruff、文档同步/完整性、路由冒烟，重启保留本地服务。全绿后才创建提交。</li></ol>
+<h2>4. 范围</h2>
+<table><tr><th>包含</th><th>不包含</th></tr><tr><td><code>tests/</code> 的登录 fixture、离线 URL 依赖和迁移 fixture；<code>app/crons.py</code> 的门禁指明 ORM 调用；对应测试、复盘和双格式文档。</td><td>不放宽 Session fail-closed、不改变认证版本迁移语义、不关闭 DNS/SSRF 防护、不因测试失败删减权限断言、不改变业务 API 协议。</td></tr></table>
+<h2>5. 分批</h2>
+<ol><li><strong>B1：</strong>扫描全部手工 Session，补齐真实用户与 <code>auth_version</code>；先回归 RBAC、注册、Dashboard、审计、CSRF、标签与操作记录测试。</li><li><strong>B2：</strong>隔离 API scope E2E 的 DNS 前提；修复旧 schema 迁移 fixture。</li><li><strong>B3：</strong>处理 <code>app/crons.py</code> 的 Legacy ORM 门禁，运行相关调度与 AST 测试。</li><li><strong>B4：</strong>全量 discover 归零；补齐每个修复的复盘（HTML+MD）、索引与必要 Release Notes，重启并留存可验收本地环境，然后提交。</li></ol>
+<h2>6. 验收</h2>
+<ul><li><code>.venv-py311/bin/python -m unittest discover -s tests -p 'test_*.py'</code> 结果为 <code>OK</code>（允许已有显式 skip，但没有 failure/error）。</li><li>认证三类安全矩阵仍通过：缺少版本键、版本不匹配、一次性 bump 幂等。</li><li><code>test_api_scope_e2e</code> 在无外网 DNS 条件下稳定通过；迁移测试确实从旧 schema 升级。</li><li><code>ruff check app/</code>、<code>python scripts/smoke_routes.py --check</code>、<code>python scripts/html_docs_to_markdown.py --check</code>、<code>python scripts/check_doc_completeness.py --check</code> 全部通过。</li><li>提交前保留服务并验证 <code>http://127.0.0.1:5001/rbac/login</code> 返回 200。</li></ul>
+<h2>7. 风险</h2>
+<p>最大的风险是把大量 302 简化为统一固定 Session，掩盖认证版本迁移的真实安全语义；B1 以真实用户版本值和否定矩阵避免该风险。DNS 修复若误改生产配置会削弱 SSRF 防护，因此只改测试依赖。迁移测试若继续依赖当前表结构将再次随模型演进失真，故必须用独立旧 DDL。每批均以定向测试后再全量回归降低合并风险。</p>
+<p><strong>确认门槛：</strong>本设计获明确确认前，不修改上述实现或测试代码；确认后按 B1→B4 执行，全绿才提交。</p>
+<footer><a href="index.html">设计索引</a> · <a href="全量测试全绿修复设计-2026-09.md">Markdown</a> · <a href="../index.html">文档索引</a></footer>
+</body></html>

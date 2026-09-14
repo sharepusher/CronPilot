@@ -62,7 +62,7 @@
 <h3>BE-P1-2：DNS 解析失败时 SSRF 固定绕过（DNS rebinding 窗口）</h3>
 <table>
   <tr><th>位置</th><td><code>app/services/url_security.py:96-99, 143-145</code>；<code>app/crons.py:236-239</code></td></tr>
-  <tr><th>问题</th><td>DNS 解析失败时 <code>validate_callback_url()</code> 返回 <code>(True, '')</code>。
+  <tr><th>问题</th><td>DNS 解析失败时 <code>validate_trigger_url()</code> 返回 <code>(True, '')</code>。
     执行时 <code>resolved_ip=None</code>，走无固定 IP 的 <code>requests.get/post</code>。
     攻击者可利用 DNS rebinding：验证时解析公网 IP，执行时解析 <code>127.0.0.1</code>。</td></tr>
   <tr><th>修复方向</th><td>当 <code>block_private_ip=1</code> 时，DNS 解析失败应拒绝而非放行。</td></tr>
@@ -122,7 +122,7 @@
 <p>位置：<code>app/rbac/login_limiter.py</code>。内存限流器在 gunicorn 多 worker 部署下
 每个 worker 独立计数，有效预算 ×worker 数。</p>
 
-<h3>BE-P2-5：回调签名使用 MD5</h3>
+<h3>BE-P2-5：触发签名使用 MD5</h3>
 <p>位置：<code>app/common/functions.py:53-56</code>（<code>get_cronpilot_sign</code>）。
 HMAC-MD5 低于现代密码基线。建议 v2 协议升级为 HMAC-SHA256。</p>
 

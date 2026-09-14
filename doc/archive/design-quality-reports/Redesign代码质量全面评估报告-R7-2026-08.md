@@ -43,7 +43,7 @@
 |  |  |
 | --- | --- |
 | 位置 | `app/services/url_security.py:96-99, 143-145`；`app/crons.py:236-239` |
-| 问题 | DNS 解析失败时 `validate_callback_url()` 返回 `(True, '')`。 执行时 `resolved_ip=None`，走无固定 IP 的 `requests.get/post`。 攻击者可利用 DNS rebinding：验证时解析公网 IP，执行时解析 `127.0.0.1`。 |
+| 问题 | DNS 解析失败时 `validate_trigger_url()` 返回 `(True, '')`。 执行时 `resolved_ip=None`，走无固定 IP 的 `requests.get/post`。 攻击者可利用 DNS rebinding：验证时解析公网 IP，执行时解析 `127.0.0.1`。 |
 | 修复方向 | 当 `block_private_ip=1` 时，DNS 解析失败应拒绝而非放行。 |
 
 ### BE-P1-3：create\_cron/update\_cron scheduler 注册失败无补偿
@@ -103,7 +103,7 @@
 位置：`app/rbac/login_limiter.py`。内存限流器在 gunicorn 多 worker 部署下
 每个 worker 独立计数，有效预算 ×worker 数。
 
-### BE-P2-5：回调签名使用 MD5
+### BE-P2-5：触发签名使用 MD5
 
 位置：`app/common/functions.py:53-56`（`get_cronpilot_sign`）。
 HMAC-MD5 低于现代密码基线。建议 v2 协议升级为 HMAC-SHA256。

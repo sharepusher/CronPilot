@@ -54,19 +54,25 @@ class TestDashboardPartial(unittest.TestCase):
         with cls.app.app_context():
             # Import all models so create_all creates their tables
             import datas.model.cron_infos  # noqa: F401
+            import datas.model.job_health  # noqa: F401
             import datas.model.job_log  # noqa: F401
             import datas.model.job_log_items  # noqa: F401
-            import datas.model.job_health  # noqa: F401
-            import datas.model.tag  # noqa: F401
-            import datas.model.task_tag  # noqa: F401
-            import datas.model.task_group  # noqa: F401
-            import datas.model.resource_group  # noqa: F401
-            import datas.model.user_group  # noqa: F401
             import datas.model.operation_log  # noqa: F401
-            import datas.model.rbac_user  # noqa: F401
             import datas.model.rbac_audit_log  # noqa: F401
             import datas.model.rbac_registration_request  # noqa: F401
+            import datas.model.rbac_user  # noqa: F401
+            import datas.model.resource_group  # noqa: F401
+            import datas.model.tag  # noqa: F401
+            import datas.model.task_group  # noqa: F401
+            import datas.model.task_tag  # noqa: F401
+            import datas.model.user_group  # noqa: F401
             cls.db.create_all()
+            from datas.model.rbac_user import RbacUser
+            user = RbacUser(username='admin', role='admin', is_active=1)
+            user.set_password('test-password')
+            cls.db.session.add(user)
+            cls.db.session.commit()
+            cls.admin_id = user.id
 
     @classmethod
     def tearDownClass(cls):
@@ -76,7 +82,8 @@ class TestDashboardPartial(unittest.TestCase):
     def _login_session(self, client, role='admin', username='admin'):
         with client.session_transaction() as sess:
             sess['is_login'] = True
-            sess['user_id'] = 1
+            sess['user_id'] = self.admin_id
+            sess['auth_version'] = 0
             sess['username'] = username
             sess['role'] = role
             sess['group_ids'] = []

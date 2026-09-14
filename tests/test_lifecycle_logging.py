@@ -201,8 +201,8 @@ class TestActualUrlSignMasking(unittest.TestCase):
     """
 
     def _mask(self, url):
-        import re
-        return re.sub(r'(cronpilot_sign=)[^&]+', r'\1***', url) if url else None
+        from app.crons import _mask_cronpilot_sign
+        return _mask_cronpilot_sign(url)
 
     def test_sign_is_masked_in_get_url(self):
         url = 'https://example.com/cb?cronpilot_trace_id=abc123&cronpilot_sign=secretvalue'
@@ -218,6 +218,10 @@ class TestActualUrlSignMasking(unittest.TestCase):
         self.assertIn('cronpilot_sign=***', masked)
         self.assertIn('other=val', masked)
 
+    def test_sign_masking_preserves_fragment(self):
+        masked = self._mask('https://example.com/cb?cronpilot_sign=secret#section')
+        self.assertEqual(masked, 'https://example.com/cb?cronpilot_sign=***#section')
+
     def test_none_url_passes_through(self):
         self.assertIsNone(self._mask(None))
 
@@ -226,14 +230,41 @@ class TestActualUrlSignMasking(unittest.TestCase):
         url = 'https://example.com/trigger'
         self.assertEqual(self._mask(url), url)
 
-    def test_actual_url_field_masking_logic_matches_crons_py(self):
-        """Verify crons.py uses the same pattern we test here."""
-        import re as _re
+    def test_crons_uses_shared_masking_helper(self):
+        """Both persistence paths must use the fragment-safe shared helper."""
         src_path = os.path.join(ROOT, 'app', 'crons.py')
         with open(src_path, 'r') as f:
             source = f.read()
-        self.assertIn("re.sub(r'(cronpilot_sign=)[^&]+', r'\\1***', _actual_url)", source,
-                      'crons.py must apply sign masking before passing actual_url to _save_job_log')
+        self.assertEqual(source.count('actual_url=_mask_cronpilot_sign(_actual_url)'), 2)
+
+
+class TestTriggerRequestUrlConstruction(unittest.TestCase):
+    """P2: signing input and recorded GET URL follow requests semantics."""
+
+    def test_fragment_is_excluded_from_signature_and_kept_after_query(self):
+        from app.crons import _build_get_actual_url, _build_trigger_signature_params
+
+        url = 'https://host/path?x=1#section'
+        signing_params = _build_trigger_signature_params(url, 'trace-1')
+        self.assertEqual(signing_params, {'x': '1', 'cronpilot_trace_id': 'trace-1'})
+        actual_url = _build_get_actual_url(
+            url, {'cronpilot_trace_id': 'trace-1', 'cronpilot_sign': 'secret'}
+        )
+        self.assertEqual(
+            actual_url,
+            'https://host/path?x=1&cronpilot_trace_id=trace-1&cronpilot_sign=secret#section',
+        )
+
+    def test_empty_and_duplicate_query_values_keep_legacy_dict_semantics(self):
+        from app.crons import _build_trigger_signature_params
+
+        params = _build_trigger_signature_params('https://host/path?x=&tag=old&tag=new', 'trace-2')
+        self.assertEqual(params, {'x': '', 'tag': 'new', 'cronpilot_trace_id': 'trace-2'})
+
+    def test_post_url_remains_unmodified_by_get_url_builder(self):
+        from app.crons import _mask_cronpilot_sign
+
+        self.assertEqual(_mask_cronpilot_sign('https://host/path#section'), 'https://host/path#section')
 
 
 class TestActualUrlNameErrorGuard(unittest.TestCase):

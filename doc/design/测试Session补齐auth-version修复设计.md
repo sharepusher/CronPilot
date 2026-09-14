@@ -4,7 +4,7 @@
 
 # 测试 Session 补齐 auth\_version 修复设计
 
-**日期**：2026-09-09　**类型**：Bugbot P1 修复设计　**状态**：待确认
+**日期**：2026-09-09　**类型**：Bugbot P1 修复设计　**状态**：已交付（2026-09-11：定向回归 21 项通过）
 
 ## 1. 问题
 
@@ -46,7 +46,7 @@ Bugbot 发现，认证中间件对缺少 `auth_version` 的 Session 按设计 fa
 
 若粗暴给所有 Session 写固定值，可能掩盖用户版本不匹配或破坏缺键否定用例。缓解措施是按测试类别逐点补齐，并保留独立的缺键、错配、一次性 bump 三类安全矩阵。回滚仅涉及测试夹具，不影响生产数据。
 
-**确认门槛：**请确认本设计后，我再修改测试代码。
+**实施记录（2026-09-11）：**列表页测试现在创建真实 `RbacUser` 并在 Session 写入匹配的 `user_id`/`auth_version`；运行详情集成测试在 `create_all()` 前注册 `RbacRegistrationRequest`。P1 定向回归 21 项通过；P2 URL/签名问题仍待单独确认。
 
 [文档索引](index.html) · [Markdown](测试Session补齐auth-version修复设计.md) · [索引](index.html)
 

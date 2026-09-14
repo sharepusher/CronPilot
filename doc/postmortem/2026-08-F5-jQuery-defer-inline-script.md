@@ -49,7 +49,7 @@ $(function() {         // ← 此处 $ 为 undefined
 +  <script src="jquery.js"></script>
 ```
 
-其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）保持 `defer`，因为它们仅通过 DOM ready 回调或用户交互事件访问。
+其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）保持 `defer`，因为它们仅通过 DOM ready 触发或用户交互事件访问。
 
 ## 5. 防护测试
 
@@ -79,7 +79,7 @@ grep 'defer.*jquery\|jquery.*defer' app/templates/redesign/_base.html && echo "F
 | 规范：jQuery 同步加载约束写入 AGENTS.md | `AGENTS.md` "JS 依赖" 节 | grep "jQuery.\*同步\|jQuery.\*sync" AGENTS.md |
 | 设计文档增加 defer 使用规则 | `doc/design/F5-common-js精简设计.html` | 文档审阅 |
 
-**核心规则**：凡被 inline `<script>` 直接依赖的外部库（如 jQuery），**禁止使用 `defer`**。`defer` 仅适用于通过 DOM ready 回调或事件 handler 间接引用的模块。
+**核心规则**：凡被 inline `<script>` 直接依赖的外部库（如 jQuery），**禁止使用 `defer`**。`defer` 仅适用于通过 DOM ready 触发或事件 handler 间接引用的模块。
 
 [文档索引](index.html) · [Markdown](2026-08-F5-jQuery-defer-inline-script.md) · [索引](index.html)
 

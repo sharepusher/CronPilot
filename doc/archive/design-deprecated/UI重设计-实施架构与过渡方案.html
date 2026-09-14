@@ -724,7 +724,7 @@ def job_log_detail(log_id):
 <h4>4.7.1 Toast 与现有 noty 的关系</h4>
 
 <div class="decision">
-<strong>决策</strong>：新界面使用自研 <code>CpToast</code>（轻量、Token 着色、无依赖）；旧界面继续用 noty。<code>common.js</code> 中的 Ajax 成功回调在 v2 下调用 <code>CpToast</code>。
+<strong>决策</strong>：新界面使用自研 <code>CpToast</code>（轻量、Token 着色、无依赖）；旧界面继续用 noty。<code>common.js</code> 中的 Ajax 成功触发在 v2 下调用 <code>CpToast</code>。
 </div>
 
 <pre><code>// common.js — Ajax form success hook 增强

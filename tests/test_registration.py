@@ -11,7 +11,7 @@ if ROOT not in sys.path:
 from flask import Flask
 
 from app.main import main as main_blueprint
-from datas.utils.times import utc_now_hms, str_to_hms
+from datas.utils.times import str_to_hms, utc_now_hms
 
 
 def _make_app():
@@ -47,9 +47,9 @@ class TestRegistrationModel(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -85,8 +85,9 @@ class TestRegistrationModel(unittest.TestCase):
     def test_pending_username_unique_constraint(self):
         """同一 username 不允许两条 pending 记录（数据库唯一索引兜底）。"""
         with self.app.app_context():
-            from datas.model.rbac_registration_request import RbacRegistrationRequest
             from sqlalchemy.exc import IntegrityError
+
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
             req1 = RbacRegistrationRequest(
                 email='a@corp.com', username='dup',
                 password_hash='h', role='operator', group_ids='1',
@@ -223,14 +224,13 @@ class TestSubmitRegistration(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
             # 创建一个业务组
-            from datas.model.resource_group import ResourceGroup
             g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
@@ -256,8 +256,9 @@ class TestSubmitRegistration(unittest.TestCase):
             self.assertTrue(result['ok'])
 
         with self.app.app_context():
-            from datas.model.rbac_registration_request import RbacRegistrationRequest
             from sqlalchemy import select
+
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
             req = self.db.session.scalars(
                 select(RbacRegistrationRequest).where(
                     RbacRegistrationRequest.username == 'newuser'
@@ -534,13 +535,12 @@ class TestApproveRejectRegistration(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
-            from datas.model.resource_group import ResourceGroup
             g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
             self.db.session.add(g)
             self.db.session.commit()
@@ -564,8 +564,9 @@ class TestApproveRejectRegistration(unittest.TestCase):
                 nickname='申请人',
             )
         with self.app.app_context():
-            from datas.model.rbac_registration_request import RbacRegistrationRequest
             from sqlalchemy import select
+
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
             req = self.db.session.scalars(
                 select(RbacRegistrationRequest).where(
                     RbacRegistrationRequest.username == 'applicant'
@@ -584,8 +585,9 @@ class TestApproveRejectRegistration(unittest.TestCase):
             self.assertTrue(result['ok'])
 
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from sqlalchemy import select
+
+            from datas.model.rbac_user import RbacUser
             user = self.db.session.scalars(
                 select(RbacUser).where(RbacUser.username == 'applicant')
             ).first()
@@ -607,9 +609,10 @@ class TestApproveRejectRegistration(unittest.TestCase):
             approve_registration(req_id)
 
         with self.app.app_context():
-            from datas.model.user_group import UserGroup
-            from datas.model.rbac_user import RbacUser
             from sqlalchemy import select
+
+            from datas.model.rbac_user import RbacUser
+            from datas.model.user_group import UserGroup
             user = self.db.session.scalars(
                 select(RbacUser).where(RbacUser.username == 'applicant')
             ).first()
@@ -668,8 +671,9 @@ class TestApproveRejectRegistration(unittest.TestCase):
             approve_registration(req_id)
 
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from sqlalchemy import select
+
+            from datas.model.rbac_user import RbacUser
             user = self.db.session.scalars(
                 select(RbacUser).where(RbacUser.username == 'applicant')
             ).first()
@@ -756,8 +760,8 @@ class TestDisableNoReenable(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
             self.db.create_all()
             user = RbacUser(
                 username='disabled_user', role='operator',
@@ -932,12 +936,14 @@ class TestCreateUserReplacesDisabled(unittest.TestCase):
             session['user_id'] = self.admin_id
             session['username'] = 'admin'
             from app.rbac.services import create_user
-            result = create_user('recycled', 'operator')
+            result = create_user('recycled', 'operator', confirm_reactivation=True)
             self.assertTrue(result['ok'])
-            # 旧记录应被删除
+            # OPT-P0-22：原记录原地覆盖并重新启用，user_id 保持不变
             from datas.model.rbac_user import RbacUser
             old = self.db.session.get(RbacUser, self.old_id)
-            self.assertIsNone(old)
+            self.assertIsNotNone(old)
+            self.assertEqual(old.id, self.old_id)
+            self.assertEqual(old.is_active, 1)
 
 
 class TestNonAdminCannotSelectGlobal(unittest.TestCase):
@@ -972,6 +978,7 @@ class TestNonAdminCannotSelectGlobal(unittest.TestCase):
             sess['username'] = 'admin'
             sess['role'] = 'admin'
             sess['user_id'] = self.admin_id
+            sess['auth_version'] = 0
             sess['group_ids'] = [self.group_id]
 
     def test_viewer_with_all_rejected_on_add(self):
@@ -1020,9 +1027,9 @@ class TestAdminRegistrationWithAllGroups(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -1110,9 +1117,9 @@ class TestCheckRegistrationStatus(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -1163,8 +1170,9 @@ class TestCheckRegistrationStatus(unittest.TestCase):
                 nickname='产品',
             )
         with self.app.app_context():
-            from datas.model.rbac_registration_request import RbacRegistrationRequest
             from sqlalchemy import select
+
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
             req = self.db.session.scalars(
                 select(RbacRegistrationRequest).where(
                     RbacRegistrationRequest.username == 'rejected'
@@ -1191,9 +1199,9 @@ class TestExpireStaleRegistrations(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -1303,9 +1311,9 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -1333,6 +1341,7 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             sess['username'] = 'admin'
             sess['role'] = 'admin'
             sess['user_id'] = 1
+            sess['auth_version'] = 0
             sess['group_ids'] = []
 
     # ── 注册页面 ──────────────────────────────────────
@@ -1596,7 +1605,8 @@ class TestProfileCompletionGate(unittest.TestCase):
     def test_save_profile_completion_success(self):
         """全部字段填写后保存成功。"""
         from app.rbac.services import (
-            save_profile_completion, user_needs_profile_completion,
+            save_profile_completion,
+            user_needs_profile_completion,
         )
         with self.app.app_context():
             r = save_profile_completion(
@@ -1616,6 +1626,7 @@ class TestProfileCompletionGate(unittest.TestCase):
                     sess['username'] = 'newbie'
                     sess['role'] = 'operator'
                     sess['user_id'] = self.newbie_id
+                    sess['auth_version'] = 0
                     sess['group_ids'] = []
                 resp = c.get('/rbac/complete_profile')
                 self.assertEqual(resp.status_code, 200)
@@ -1635,6 +1646,7 @@ class TestProfileCompletionGate(unittest.TestCase):
                     sess['username'] = 'newbie'
                     sess['role'] = 'operator'
                     sess['user_id'] = self.newbie_id
+                    sess['auth_version'] = 0
                     sess['group_ids'] = []
                 resp = c.get('/')
                 self.assertEqual(resp.status_code, 302)
@@ -1652,6 +1664,7 @@ class TestProfileCompletionGate(unittest.TestCase):
                     sess['username'] = 'complete'
                     sess['role'] = 'operator'
                     sess['user_id'] = self.complete_id
+                    sess['auth_version'] = 0
                     sess['group_ids'] = []
                 resp = c.get('/')
                 self.assertNotEqual(resp.status_code, 302,

@@ -53,7 +53,7 @@ $(function() {         // ← 此处 $ 为 undefined
 -  &lt;script defer src="jquery.js"&gt;&lt;/script&gt;
 +  &lt;script src="jquery.js"&gt;&lt;/script&gt;
 </pre>
-<p>其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）保持 <code>defer</code>，因为它们仅通过 DOM ready 回调或用户交互事件访问。</p>
+<p>其他 Redesign 模块（common-redesign, shell, theme, toast, confirm）保持 <code>defer</code>，因为它们仅通过 DOM ready 触发或用户交互事件访问。</p>
 
 <h2>5. 防护测试</h2>
 <p>CI 门禁命令：</p>
@@ -79,7 +79,7 @@ $(function() {         // ← 此处 $ 为 undefined
 <tr><td>设计文档增加 defer 使用规则</td><td><code>doc/design/F5-common-js精简设计.html</code></td><td>文档审阅</td></tr>
 </table>
 
-<p><strong>核心规则</strong>：凡被 inline <code>&lt;script&gt;</code> 直接依赖的外部库（如 jQuery），<strong>禁止使用 <code>defer</code></strong>。<code>defer</code> 仅适用于通过 DOM ready 回调或事件 handler 间接引用的模块。</p>
+<p><strong>核心规则</strong>：凡被 inline <code>&lt;script&gt;</code> 直接依赖的外部库（如 jQuery），<strong>禁止使用 <code>defer</code></strong>。<code>defer</code> 仅适用于通过 DOM ready 触发或事件 handler 间接引用的模块。</p>
 
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-08-F5-jQuery-defer-inline-script.md">Markdown</a> · <a href="index.html">索引</a></footer>
 </body>

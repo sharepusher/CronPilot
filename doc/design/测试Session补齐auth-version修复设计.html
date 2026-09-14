@@ -3,7 +3,7 @@
 <style>body{font-family:system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}code{background:#f0f0f0;padding:2px 5px;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1rem 0}th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left}th{background:#f5f5f5}</style>
 </head><body>
 <h1>测试 Session 补齐 auth_version 修复设计</h1>
-<p><strong>日期</strong>：2026-09-09　<strong>类型</strong>：Bugbot P1 修复设计　<strong>状态</strong>：待确认</p>
+<p><strong>日期</strong>：2026-09-09　<strong>类型</strong>：Bugbot P1 修复设计　<strong>状态</strong>：已交付（2026-09-11：定向回归 21 项通过）</p>
 <h2>1. 问题</h2><p>Bugbot 发现，认证中间件对缺少 <code>auth_version</code> 的 Session 按设计 fail-closed，但多个测试登录夹具仍只写入 <code>is_login</code>、角色和用户名，导致本应登录成功的测试被重定向到登录页，阻塞 CI。</p>
 <h2>2. 根因</h2><p>认证 Session 契约新增了版本键后，测试夹具没有集中复用真实登录流程，也没有同步升级所有手工构造 Session 的测试路径；测试数据状态与生产 Session schema 不一致。</p>
 <h2>3. 方案</h2><p>推荐在测试夹具的登录辅助函数中，从当前测试数据库用户读取其 <code>auth_version</code> 并写入 Session；对没有数据库用户的纯权限单测，显式使用与测试用户一致的版本值。保留专门的缺键否定用例，不对生产认证逻辑降级，不使用 <code>or 0</code> 掩盖缺键。</p>
@@ -12,6 +12,6 @@
 <h2>5. 分批</h2><ol><li>扫描并分类所有测试 Session：正常登录夹具、无用户权限夹具、故意缺键安全用例。</li><li>补齐正常路径版本键，运行 Bugbot 指出的 RBAC/Dashboard/操作日志相关测试。</li><li>运行全量测试与 Ruff，确认失败数下降且缺键否定用例仍失败关闭。</li><li>同步复盘、HTML/Markdown 和必要的 Release Notes。</li></ol>
 <h2>6. 验收</h2><ul><li>受影响的测试不再因“登录状态已失效”失败。</li><li><code>tests.test_user_reactivation.TestDisabledSessionRevocation.test_missing_auth_version_key_fails_closed</code> 继续通过。</li><li>Session 版本不匹配仍会撤销；正常测试用户 Session 的版本值与 DB 用户一致。</li><li><code>ruff check app/</code> 与定向/全量测试结果可追溯。</li></ul>
 <h2>7. 风险</h2><p>若粗暴给所有 Session 写固定值，可能掩盖用户版本不匹配或破坏缺键否定用例。缓解措施是按测试类别逐点补齐，并保留独立的缺键、错配、一次性 bump 三类安全矩阵。回滚仅涉及测试夹具，不影响生产数据。</p>
-<p><strong>确认门槛：</strong>请确认本设计后，我再修改测试代码。</p>
+<p><strong>实施记录（2026-09-11）：</strong>列表页测试现在创建真实 <code>RbacUser</code> 并在 Session 写入匹配的 <code>user_id</code>/<code>auth_version</code>；运行详情集成测试在 <code>create_all()</code> 前注册 <code>RbacRegistrationRequest</code>。P1 定向回归 21 项通过；P2 URL/签名问题仍待单独确认。</p>
 <footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="测试Session补齐auth-version修复设计.md">Markdown</a> · <a href="index.html">索引</a></footer>
 </body></html>

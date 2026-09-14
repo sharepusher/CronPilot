@@ -29,7 +29,7 @@ except Exception as e:
     wechat_info_err(str(e), trace_info)
     return web_api_return(code=1, msg=str(e), url='/cron_list')  # ← 错误：含 url 字段
 
-# app/static/js/common.js js-ajax-form 的 success 回调（第 187-189 行）：
+# app/static/js/common.js js-ajax-form 的 success 触发（第 187-189 行）：
 if (data.url) {
     window.location.href = data.url;   # ← 无论 errcode 是否为 1，只要有 url 就跳转
 }
@@ -37,7 +37,7 @@ if (data.url) {
 
 **行为层根因**：
 
-- `common.js` 的 `js-ajax-form` success 回调在有 `data.url` 时**无条件重定向**，不检查 `errcode`
+- `common.js` 的 `js-ajax-form` success 触发在有 `data.url` 时**无条件重定向**，不检查 `errcode`
 - 正常验证错误（code=1，无 url）会在按钮旁显示短暂提示然后消失，行为符合预期
 - 但异常分支（except）写了 `url='/cron_list'` ——这是从正常成功路径（code=0）复制时带入的参数，未意识到 url 会触发无条件跳转
 

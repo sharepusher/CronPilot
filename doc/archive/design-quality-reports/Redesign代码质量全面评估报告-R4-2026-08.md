@@ -274,7 +274,7 @@ job\_log\_filter.py (24)
 │ Views (HTTP) → Services (Domain Logic) → Repositories (DB) │
 │ ├── main/views.py → cron\_list, cron\_add, operation\_log │
 │ ├── rbac/views.py → login, users, groups, audit │
-│ ├── api/views.py → API Token / External callbacks │
+│ ├── api/views.py → API Token / External trigger requests │
 │ ├── services/ → DashboardService, CronService, TagService │
 │ └── repositories/ → CronRepo, JobLogRepo, RbacUserRepo │
 │ │

@@ -12,7 +12,6 @@ from app.rbac.policy import has_permission
 from app.rbac.services import get_role_permission_set
 from datas.utils.times import str_to_hms, utc_now_hms
 
-
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -36,8 +35,9 @@ class TestRbacLogin(unittest.TestCase):
         self.app = app
         self.client = app.test_client()
         with app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             db.create_all()
 
     def test_login_get_renders(self):
@@ -98,8 +98,8 @@ class TestChangeOwnPassword(unittest.TestCase):
         self.client = app.test_client()
         self.db = db
         with app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             db.create_all()
             u = RbacUser(username='op1', role='operator', is_active=1, create_time=utc_now_hms())
             u.set_password('oldpass1')
@@ -113,6 +113,7 @@ class TestChangeOwnPassword(unittest.TestCase):
             sess['username'] = 'op1'
             sess['role'] = 'operator'
             sess['user_id'] = self.user_id
+            sess['auth_version'] = 0
             sess['group_ids'] = []
 
     def test_unauthenticated_redirects_to_login(self):
@@ -191,12 +192,21 @@ class TestR3Permissions(unittest.TestCase):
         self.client = app.test_client()
         with app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             db.create_all()
+            for name, role in (('viewer', 'viewer'), ('operator', 'operator'), ('admin', 'admin')):
+                user = RbacUser(id={'viewer': 1, 'operator': 2, 'admin': 3}[name], username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.commit()
 
     def _login_as(self, role):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = role
+            sess['user_id'] = 1
+            sess['username'] = role
+            sess['auth_version'] = 0
 
     def test_viewer_cron_write_routes_return_403(self):
         self._login_as('viewer')
@@ -244,11 +254,24 @@ class TestLifecycleNoDelete(unittest.TestCase):
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
         self.client = app.test_client()
+        self.db = db
+        with app.app_context():
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+            from datas.model.rbac_user import RbacUser
+            db.create_all()
+            for name, role in (('operator', 'operator'), ('admin', 'admin'), ('ops_admin', 'admin')):
+                user = RbacUser(username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.commit()
 
     def test_operator_cron_del_returns_410(self):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'operator'
+            sess['username'] = 'operator'
+            sess['user_id'] = 1
+            sess['auth_version'] = 0
         resp = self.client.post('/cron_batch_del', data={'id': '1'})
         self.assertEqual(resp.status_code, 410)
         resp = self.client.get('/cron_del?id=1')
@@ -258,6 +281,9 @@ class TestLifecycleNoDelete(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = 'operator'
+            sess['username'] = 'operator'
+            sess['user_id'] = 1
+            sess['auth_version'] = 0
         resp = self.client.get('/cron_retire?id=1')
         self.assertEqual(resp.status_code, 403)
 
@@ -284,6 +310,9 @@ class TestLifecycleNoDelete(unittest.TestCase):
             with self.client.session_transaction() as sess:
                 sess['is_login'] = True
                 sess['role'] = 'admin'
+                sess['username'] = 'ops_admin'
+                sess['user_id'] = 3
+                sess['auth_version'] = 0
             resp = self.client.post(
                 '/cron_retire',
                 data={'id': str(cron_id)},
@@ -329,11 +358,16 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos  # noqa: F401
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
             from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.tag import Tag  # noqa: F401
-            from datas.model.task_tag import TaskTag  # noqa: F401
             from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
+            for name, role in (('admin', 'admin'), ('ops_admin', 'admin'), ('operator', 'operator'), ('viewer', 'viewer')):
+                user = RbacUser(username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
             cif = CronInfos(
                 task_name='visible-retire',
                 task_keyword='说明',
@@ -346,17 +380,31 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             db.session.commit()
 
     def _login(self, role):
+        from sqlalchemy import select
+
+        from datas.model.rbac_user import RbacUser
+        with self.app.app_context():
+            user_id = self.db.session.scalar(
+                select(RbacUser.id).where(RbacUser.username == role)
+            )
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = role
+            sess['username'] = role
+            sess['user_id'] = user_id
+            sess['auth_version'] = 0
             # 全权限 admin 不得用种子用户名 admin（种子无 cron:write/retire）
             sess['username'] = 'ops_admin' if role == 'admin' else role
             sess['group_ids'] = []
+            with self.app.app_context():
+                sess['user_id'] = self.db.session.scalar(
+                    select(RbacUser.id).where(RbacUser.username == sess['username'])
+                )
 
     def test_operator_sees_retire_denied_tip_not_form_link(self):
         self._login('operator')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        tbody = html.split('</tbody>')[0].split('id="cp-dashboard-tbody"')[1]
         # Redesign: operator 有 cron:write，行内可见下线入口（AJAX modal，非 /cron_retire?id= 链接）
         self.assertIn('onclick="cpRetire(', tbody)
         self.assertNotIn('/cron_retire?id=', html)
@@ -364,14 +412,14 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
     def test_viewer_sees_retire_denied_tip(self):
         self._login('viewer')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        tbody = html.split('</tbody>')[0].split('id="cp-dashboard-tbody"')[1]
         self.assertNotIn('onclick="cpRetire(', tbody)
         self.assertNotIn('>下线</a>', tbody)
 
     def test_admin_sees_retire_form_link(self):
         self._login('admin')
         html = self.client.get('/cron_list').get_data(as_text=True)
-        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        tbody = html.split('</tbody>')[0].split('id="cp-dashboard-tbody"')[1]
         self.assertIn('onclick="cpRetire(', tbody)
         self.assertIn('>下线</a>', tbody)
         self.assertIn("$.post('/cron_retire'", html)
@@ -381,9 +429,11 @@ class TestCronListRetireButtonVisibility(unittest.TestCase):
             sess['is_login'] = True
             sess['role'] = 'admin'
             sess['username'] = 'admin'
+            sess['user_id'] = 1
+            sess['auth_version'] = 0
             sess['group_ids'] = []
         html = self.client.get('/cron_list').get_data(as_text=True)
-        tbody = html.split('</tbody>')[0].split('cp-dashboard-tbody')[1]
+        tbody = html.split('</tbody>')[0].split('id="cp-dashboard-tbody"')[1]
         self.assertNotIn('onclick="cpRetire(', tbody)
         self.assertNotIn('>下线</a>', tbody)
 
@@ -397,11 +447,22 @@ class TestNotFound(unittest.TestCase):
         )
         app.secret_key = 'test'
         app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        from app import db
+        db.init_app(app)
+        app.config['TESTING'] = True
         app.register_blueprint(main_blueprint)
         from app.rbac import rbac as rbac_blueprint
         app.register_blueprint(rbac_blueprint)
         register_hms_filters(app)
         self.client = app.test_client()
+        with app.app_context():
+            from datas.model.rbac_user import RbacUser
+            db.create_all()
+            user = RbacUser(id=1, username='notfound', role='viewer', is_active=1)
+            user.set_password('test-password')
+            db.session.add(user)
+            db.session.commit()
 
     def test_guest_404_renders_minimal_page(self):
         resp = self.client.get('/__no_such_route__')
@@ -414,6 +475,9 @@ class TestNotFound(unittest.TestCase):
     def test_logged_in_404_renders_nav_and_home_link(self):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
+            sess['username'] = 'notfound'
+            sess['user_id'] = 1
+            sess['auth_version'] = 0
         resp = self.client.get('/__no_such_route__')
         self.assertEqual(resp.status_code, 404)
         body = resp.get_data(as_text=True)
@@ -460,6 +524,7 @@ class TestApiDocReadonly(unittest.TestCase):
             sess['username'] = 'viewer'
             sess['role'] = 'viewer'
             sess['user_id'] = 1
+            sess['auth_version'] = 0
             sess['group_ids'] = []
         resp = self.client.get('/api_doc')
         self.assertEqual(resp.status_code, 200)
@@ -500,28 +565,51 @@ class TestRbacUsersManage(unittest.TestCase):
         self.client = app.test_client()
         self.db = db
         with app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
             g = ResourceGroup(
                 name='Default',
-                
+
                 description='',
                 create_time=utc_now_hms(),
             )
             db.session.add(g)
             db.session.commit()
             self.group_id = g.id
+            for name, role in (('operator', 'operator'), ('viewer', 'viewer'), ('ops_admin', 'admin')):
+                user = RbacUser(username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.commit()
 
     def _login(self, role='admin', user_id=None):
+        username = 'ops_admin' if role == 'admin' else role
+        if user_id not in (None, 999):
+            from sqlalchemy import select
+
+            from datas.model.rbac_user import RbacUser
+            with self.app.app_context():
+                username = self.db.session.scalar(
+                    select(RbacUser.username).where(RbacUser.id == user_id)
+                ) or username
+        if user_id is None or user_id == 999:
+            from sqlalchemy import select
+
+            from datas.model.rbac_user import RbacUser
+            with self.app.app_context():
+                user_id = self.db.session.scalar(
+                    select(RbacUser.id).where(RbacUser.username == username)
+                )
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = role
-            sess['username'] = role
+            sess['username'] = username
             if user_id is not None:
                 sess['user_id'] = user_id
+                sess['auth_version'] = 0
 
     def test_operator_users_list_403(self):
         self._login('operator')
@@ -551,8 +639,9 @@ class TestRbacUsersManage(unittest.TestCase):
         self.assertIn('待重置', body)
         with self.app.app_context():
             from sqlalchemy import select
-            from datas.model.rbac_user import RbacUser
+
             from app.rbac.services import DEFAULT_USER_PASSWORD
+            from datas.model.rbac_user import RbacUser
             alice = self.db.session.scalars(
                 select(RbacUser).where(RbacUser.username == 'alice')
             ).first()
@@ -586,6 +675,7 @@ class TestRbacUsersManage(unittest.TestCase):
 
     def test_edit_role_keeps_existing_group_without_unique_conflict(self):
         from sqlalchemy import select
+
         from datas.model.rbac_user import RbacUser
         from datas.model.user_group import UserGroup
 
@@ -604,7 +694,7 @@ class TestRbacUsersManage(unittest.TestCase):
             data={
                 'id': str(user_id),
                 'role': 'operator',
-                'is_active': '1',
+                'is_active': '0',
                 'group_ids': str(self.group_id),
                 'job_title': 'tech',
             },
@@ -621,9 +711,18 @@ class TestRbacUsersManage(unittest.TestCase):
             self.assertEqual([row.group_id for row in rows], [self.group_id])
 
     def test_cannot_disable_last_admin(self):
+        from sqlalchemy import select
+
         from datas.model.rbac_user import RbacUser
 
         with self.app.app_context():
+            # Keep this scenario to exactly one enabled administrator.  The
+            # class fixture seeds ``ops_admin`` for other tests, so demote it
+            # before creating the dedicated last-admin subject.
+            seeded_admin = self.db.session.scalar(
+                select(RbacUser).where(RbacUser.username == 'ops_admin')
+            )
+            seeded_admin.role = 'viewer'
             admin = RbacUser(username='solo', role='admin', is_active=1, create_time=utc_now_hms())
             admin.set_password('x')
             self.db.session.add(admin)
@@ -636,13 +735,18 @@ class TestRbacUsersManage(unittest.TestCase):
             data={
                 'id': str(admin_id),
                 'role': 'viewer',
-                'is_active': '1',
+                'is_active': '0',
                 'group_ids': str(self.group_id),
+                'job_title': 'tech',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertIn('最后一名', resp.get_json().get('errmsg', ''))
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        with self.app.app_context():
+            updated = self.db.session.get(RbacUser, admin_id)
+            self.assertEqual(updated.role, 'admin')
+            self.assertEqual(updated.is_active, 1)
 
     def test_cannot_disable_self(self):
         from datas.model.rbac_user import RbacUser
@@ -751,18 +855,18 @@ class TestForcedPasswordReset(unittest.TestCase):
         self.client = app.test_client()
         self.db = db
         with app.app_context():
-            from datas.model.rbac_user import RbacUser
-            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
-            from datas.model.resource_group import ResourceGroup
-            from datas.model.user_group import UserGroup  # noqa: F401
-            from datas.model.tag import Tag  # noqa: F401
-            from datas.model.task_tag import TaskTag  # noqa: F401
-            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.cron_infos import CronInfos  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
             g = ResourceGroup(
                 name='Default',
-                
+
                 description='',
                 create_time=utc_now_hms(),
             )
@@ -795,6 +899,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             sess['username'] = username
             sess['role'] = role
             sess['user_id'] = user_id
+            sess['auth_version'] = 0
             sess['group_ids'] = list(group_ids or [])
 
     def test_existing_user_not_migrated_to_force_reset(self):
@@ -927,6 +1032,7 @@ class TestForcedPasswordReset(unittest.TestCase):
             sess['username'] = 'mgr'
             sess['role'] = 'admin'
             sess['user_id'] = self.admin_id
+            sess['auth_version'] = 0
             sess['group_ids'] = []
         reset = admin_client.post(
             '/rbac/users/reset_password?id=%s' % target_id,
@@ -1094,9 +1200,10 @@ class TestForcedPasswordReset(unittest.TestCase):
         )
         self.assertEqual(disable.get_json().get('errcode'), 0)
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
-            from datas.model.rbac_audit_log import RbacAuditLog
             from sqlalchemy import select
+
+            from datas.model.rbac_audit_log import RbacAuditLog
+            from datas.model.rbac_user import RbacUser
             u = self.db.session.get(RbacUser, self.existing_id)
             self.assertEqual(u.is_active, 0)
             self.assertEqual(u.status_reason, '违规操作暂停')
@@ -1160,13 +1267,28 @@ class TestRbacAuditLogs(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             db.create_all()
+            for name, role in (('admin', 'admin'), ('operator', 'operator')):
+                user = RbacUser(username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.commit()
 
     def _login(self, role='admin'):
+        from sqlalchemy import select
+
+        from datas.model.rbac_user import RbacUser
+        with self.app.app_context():
+            user_id = self.db.session.scalar(
+                select(RbacUser.id).where(RbacUser.username == role)
+            )
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['role'] = role
             sess['username'] = role
+            sess['user_id'] = user_id
+            sess['auth_version'] = 0
 
     def test_operator_audit_logs_403(self):
         self._login('operator')
@@ -1240,15 +1362,15 @@ class TestRbacTriangularAcceptance(unittest.TestCase):
         self.db = db
         app.config['CRON_CONFIG'] = {'is_dev': '0'}
         with app.app_context():
-            from datas.model.rbac_user import RbacUser
-            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.cron_infos import CronInfos  # noqa: F401
-            from datas.model.resource_group import ResourceGroup  # noqa: F401
-            from datas.model.user_group import UserGroup  # noqa: F401
             from datas.model.operation_log import OperationLog  # noqa: F401
+            from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.tag import Tag  # noqa: F401
-            from datas.model.task_tag import TaskTag  # noqa: F401
             from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.task_tag import TaskTag  # noqa: F401
+            from datas.model.user_group import UserGroup  # noqa: F401
             db.create_all()
             for name, role, pwd in (
                 ('tri_admin', 'admin', 'admin-pass'),
@@ -1412,26 +1534,39 @@ class TestUserTopbar(unittest.TestCase):
         self.client = app.test_client()
         self.db = db
         with app.app_context():
-            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
+            from datas.model.rbac_user import RbacUser  # noqa: F401
             from datas.model.resource_group import ResourceGroup
             db.create_all()
             g = ResourceGroup(
                 name='支付业务',
-                
+
                 description='',
                 create_time=utc_now_hms(),
             )
             db.session.add(g)
             db.session.commit()
             self.group_id = g.id
+            for name, role in (('admin', 'admin'), ('summer', 'admin'), ('operator', 'operator'), ('op1', 'operator'), ('op2', 'operator'), ('u1', 'admin')):
+                user = RbacUser(username=name, role=role, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.commit()
 
     def _login(self, role='admin', username='u1', group_ids=None):
+        from sqlalchemy import select
+
+        from datas.model.rbac_user import RbacUser
+        with self.app.app_context():
+            user_id = self.db.session.scalar(
+                select(RbacUser.id).where(RbacUser.username == username)
+            )
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['username'] = username
             sess['role'] = role
-            sess['user_id'] = 1
+            sess['user_id'] = user_id
+            sess['auth_version'] = 0
             sess['group_ids'] = list(group_ids or [])
 
     def test_admin_shows_no_scope_labels(self):
@@ -1526,8 +1661,9 @@ class TestContextProcessorResilience(unittest.TestCase):
     def test_get_current_user_groups_survives_missing_table(self):
         """resource_groups 表不存在时返回空列表而非抛异常。"""
         with self.app.app_context():
+            from flask import g, session
+
             from app.rbac.context import get_current_user_groups
-            from flask import session, g
             with self.app.test_request_context():
                 session['is_login'] = True
                 session['group_ids'] = [99999]

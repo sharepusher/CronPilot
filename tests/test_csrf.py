@@ -69,10 +69,14 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos
-            from datas.model.task_group import TaskGroup  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             from datas.model.tag import Tag  # noqa: F401
+            from datas.model.task_group import TaskGroup  # noqa: F401
             from datas.model.task_tag import TaskTag  # noqa: F401
             db.create_all()
+            user = RbacUser(username='ops_admin', role='admin', is_active=1)
+            user.set_password('test-password')
+            db.session.add(user)
             row = CronInfos(
                 task_name='csrf-task',
                 task_keyword='k',
@@ -83,6 +87,7 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
             )
             db.session.add(row)
             db.session.commit()
+            self.user_id = user.id
             self.cron_id = row.id
 
     def _login(self):
@@ -90,6 +95,8 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
             sess['is_login'] = True
             sess['role'] = 'admin'
             sess['username'] = 'ops_admin'
+            sess['user_id'] = self.user_id
+            sess['auth_version'] = 0
             sess['group_ids'] = []
             sess[CSRF_SESSION_KEY] = 'good-csrf-token-32chars-min!!'
 

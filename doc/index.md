@@ -40,8 +40,12 @@
 | **任务中心需要关注项目排除下线任务设计**（已交付） | 下线任务不再进入异常提醒面板 | [HTML](design/任务中心需要关注项目排除下线任务设计.html) | [MD](design/任务中心需要关注项目排除下线任务设计.md) |
 | **用户管理「添加用户」入口布局优化设计**（已交付） | 标题区减负 · 主操作移入列表工具区左首位 · 桌面/窄屏前后对比 | [HTML](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html) | [MD](design/用户管理添加用户入口布局优化设计.md) |
 | **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
+| **全量测试全绿修复设计（2026-09）**（待确认） | 90 项失败/错误分簇：Session fixture、离线 DNS、旧 schema 与 ORM 门禁 | [HTML](design/全量测试全绿修复设计-2026-09.html) | [MD](design/全量测试全绿修复设计-2026-09.md) |
+| **B1 认证夹具复盘与修复计划（2026-09）**（Review 未通过） | 30 失败 + 5 错误；统一真实用户、auth_version 与模型注册 | [HTML](postmortem/2026-09-B1认证夹具复盘与修复计划.html) | [MD](postmortem/2026-09-B1认证夹具复盘与修复计划.md) |
+| **全量测试与 Bugbot 复核（2026-09）**（未通过） | 754 项：4 failures、1 error、11 skipped；last-admin 保护覆盖回归 | [HTML](design/全量测试与Bugbot复核-2026-09.html) | [MD](design/全量测试与Bugbot复核-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | **OPT-P0-21 50-bit 任务 ID 生成器最终优化设计**（待确认） | 仅任务 ID 使用 · 32/12/6 位布局 · IP+PORT+PID worker · 引用列 BIGINT | [HTML](design/OPT-P0-21-ID生成策略优化设计.html) | [MD](design/OPT-P0-21-ID生成策略优化设计.md) |
+| **任务执行链路可观测性设计方案（收敛版）**（待确认） | 同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 | [HTML](design/任务执行链路可观测性设计方案-收敛版.html) | [MD](design/任务执行链路可观测性设计方案-收敛版.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](design/规模化双层IA与任务健康模型评审.html) | [MD](design/规模化双层IA与任务健康模型评审.md) |
 | P1 可观测小步 OPT-P1-01b/c | 失败筛选 · 展示统一 | [HTML](plan/P1可观测小步优化设计.html) | [MD](plan/P1可观测小步优化设计.md) |
@@ -55,7 +59,8 @@
 | **任务链路日志完整性增强设计**（已交付） | 过程日志 · job_log 四列 · 详情页触发来源 | [HTML](design/任务链路日志完整性增强设计.html) | [MD](design/任务链路日志完整性增强设计.md) |
 | **管理员 admin Scope 差异化** OPT-P2-15 | 种子只读 · 管理员按组 · `__ALL__` · **v2.7.0** | [HTML](design/管理员admin-Scope差异化设计.html) | [MD](design/管理员admin-Scope差异化设计.md) |
 | **OPT-P0-22 停用用户同名申请恢复设计**（已交付） | 覆盖 OPT-P1-10 §3.1.7 · 保留原 user_id · 审批警示 · auth_version · 文案契约 | [HTML](design/停用用户同名恢复设计.html) · [页面对比 Demo](design/停用用户同名恢复-页面对比Demo.html) | [MD](design/停用用户同名恢复设计.md) |
-| **测试 Session 补齐 auth_version 修复设计**（已交付） | HTTP Fixture 对齐 OPT-P0-22 fail-closed · 侧边栏回归 | [HTML](design/测试Session补齐auth-version修复设计.html) | [MD](design/测试Session补齐auth-version修复设计.md) |
+| **测试 Session 补齐 auth_version 修复设计**（已交付） | HTTP Fixture 对齐 OPT-P0-22 fail-closed · 2026-09-11 定向回归 21 项通过 | [HTML](design/测试Session补齐auth-version修复设计.html) | [MD](design/测试Session补齐auth-version修复设计.md) |
+| **近期提交 P1/P2 问题深度评估与修复设计（2026-09）**（待确认） | 认证 fixture 与 URL/签名一致性 · 已复现证据 · 分批修复与验收 | [HTML](design/近期提交P1-P2问题深度评估与修复设计-2026-09.html) | [MD](design/近期提交P1-P2问题深度评估与修复设计-2026-09.md) |
 | **审计日志 Scope 过滤 RFC** OPT-P2-16 | `actor_group_ids` LIKE 过滤 · **v2.7.0** | [HTML](design/审计日志Scope过滤RFC.html) | [MD](design/审计日志Scope过滤RFC.md) |
 | **Prometheus 指标 RFC** OPT-P1-06 | Prometheus 接入 · Grafana Dashboard · **v2.2.0** | [HTML](design/P1可观测性-Prometheus指标RFC.html) | [MD](design/P1可观测性-Prometheus指标RFC.md) |
 | Phase D3 · Docker pin 矩阵 | requirements-docker.txt · **v2.1.0** | [HTML](deps/PhaseD3-Docker-pin矩阵设计.html) | [MD](deps/PhaseD3-Docker-pin矩阵设计.md) |
@@ -101,6 +106,7 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **当前项目架构与代码质量全面评估报告（2026-09）**（待确认） | 架构 · 代码质量 · Bugbot 缺陷；逐项说明根因、影响、方案选型、实施路径与验收标准；统一采用“定时 HTTP 触发请求”术语 | [HTML](qa/当前项目架构与代码质量全面评估报告-2026-09.html) | [MD](qa/当前项目架构与代码质量全面评估报告-2026-09.md) |
+| **v4.0.0 之后变更与功能健康评估（2026-09-11）**（已交付） | 11 提交梳理 · 定向 148 绿 · 全量夹具红 · 未提交 P1/P2 分离 | [HTML](qa/v4.0.0之后变更与功能健康评估-2026-09.html) | [MD](qa/v4.0.0之后变更与功能健康评估-2026-09.md) |
 | P0 测试与验收手册 | 用例 · 冒烟 · 签字 | [HTML](qa/P0测试用例与验收手册.html) | [MD](qa/P0测试用例与验收手册.md) |
 | License Audit | Apache-2.0 合规 | [HTML](qa/LICENSE-AUDIT.html) | [MD](qa/LICENSE-AUDIT.md) |
 | 文档同步说明 | HTML↔MD · CI | — | [MD](qa/文档同步说明.md) |
@@ -116,6 +122,9 @@
 | **全局管理员可停用种子账号** | Scope bypass 短路 · 双路径拦截 | [HTML](postmortem/2026-09-全局管理员可停用种子账号.html) | [MD](postmortem/2026-09-全局管理员可停用种子账号.md) |
 | **文档索引结构损坏与登记丢失** | 剪贴断裂 · 登记删除 · 索引结构与复盘登记门禁 | [HTML](postmortem/2026-09-文档索引结构损坏与登记丢失.html) | [MD](postmortem/2026-09-文档索引结构损坏与登记丢失.md) |
 | **任务链路日志 Bug 修复** | NameError · 签名脱敏 · to_json 死字段 | [HTML](postmortem/2026-09-任务链路日志Bug修复复盘.html) | [MD](postmortem/2026-09-任务链路日志Bug修复复盘.md) |
+| **评估交付格式与测试状态漂移** | Canvas 误作交付 · 测试状态错误标记 · 双格式与索引防护 | [HTML](postmortem/2026-09-评估交付格式与测试状态漂移.html) | [MD](postmortem/2026-09-评估交付格式与测试状态漂移.md) |
+| **P1 测试夹具认证契约漂移** | Session schema fixture · 模型注册顺序 · fail-closed 回归 | [HTML](postmortem/2026-09-P1测试夹具认证契约漂移.html) | [MD](postmortem/2026-09-P1测试夹具认证契约漂移.md) |
+| **P2 触发 URL 签名与记录不一致** | fragment 解析 · PreparedRequest · 签名脱敏边界 | [HTML](postmortem/2026-09-P2触发URL签名与记录不一致.html) | [MD](postmortem/2026-09-P2触发URL签名与记录不一致.md) |
 
 ## 在线访问（服务启动后）
 

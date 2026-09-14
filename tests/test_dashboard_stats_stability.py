@@ -47,13 +47,19 @@ class TestDashboardStatsStability(unittest.TestCase):
         self.ctx = self.app.app_context()
         self.ctx.push()
         from datas.model.cron_infos import CronInfos  # noqa: F401
-        from datas.model.tag import Tag  # noqa: F401
-        from datas.model.task_tag import TaskTag  # noqa: F401
+        from datas.model.job_health import JobHealth  # noqa: F401
         from datas.model.job_log import JobLog  # noqa: F401
         from datas.model.resource_group import ResourceGroup  # noqa: F401
+        from datas.model.tag import Tag  # noqa: F401
+        from datas.model.task_tag import TaskTag  # noqa: F401
         from datas.model.user_group import UserGroup  # noqa: F401
-        from datas.model.job_health import JobHealth  # noqa: F401
         self.db.create_all()
+        from datas.model.rbac_user import RbacUser
+        user = RbacUser(username='admin', role='admin', is_active=1)
+        user.set_password('test-password')
+        self.db.session.add(user)
+        self.db.session.commit()
+        self.admin_id = user.id
         self._seed_tasks()
         self.client = self.app.test_client()
 
@@ -85,7 +91,8 @@ class TestDashboardStatsStability(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['is_login'] = True
             sess['username'] = 'admin'
-            sess['user_id'] = 999
+            sess['user_id'] = self.admin_id
+            sess['auth_version'] = 0
             sess['role'] = 'admin'
             sess['group_ids'] = []
 

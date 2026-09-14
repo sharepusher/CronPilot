@@ -35,12 +35,16 @@ def _make_app():
     from app import db, register_hms_filters
     db.init_app(app)
     register_hms_filters(app)
-    from app.services.job_log_display import (
-        job_log_badge, job_log_content_preview,
-        job_log_status_line, job_log_status_badge_class,
-    )
     from app.services.cron_schedule_display import (
-        format_cron_expression, format_duration, humanize_schedule,
+        format_cron_expression,
+        format_duration,
+        humanize_schedule,
+    )
+    from app.services.job_log_display import (
+        job_log_badge,
+        job_log_content_preview,
+        job_log_status_badge_class,
+        job_log_status_line,
     )
     app.jinja_env.filters['job_log_status_line'] = job_log_status_line
     app.jinja_env.filters['job_log_content_preview'] = job_log_content_preview
@@ -58,16 +62,17 @@ def _make_app():
 
 def _seed_user_and_log(db):
     """Seed admin user + one task + one job_log row."""
-    from datas.model.rbac_user import RbacUser
+    import uuid
+
+    from app.auth.password import hash_password
     from datas.model.cron_infos import CronInfos
+    from datas.model.job_health import JobHealth
     from datas.model.job_log import JobLog
     from datas.model.job_log_items import JobLogItems
-    from datas.model.job_health import JobHealth
+    from datas.model.rbac_user import RbacUser
     from datas.model.resource_group import ResourceGroup
     from datas.model.tag import Tag
     from datas.utils.times import utc_now_hms
-    from app.auth.password import hash_password
-    import uuid
 
     u = RbacUser(
         username='admin', password_hash=hash_password('changeme'),
@@ -114,6 +119,7 @@ class TestJobLogDetailIntegration(unittest.TestCase):
         self.app, self.db = _make_app()
         self.ctx = self.app.app_context()
         self.ctx.push()
+        from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
         self.db.create_all()
         self.user, self.cif, self.jl, self.trace_uuid = _seed_user_and_log(self.db)
 

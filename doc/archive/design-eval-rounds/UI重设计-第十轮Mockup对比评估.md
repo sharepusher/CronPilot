@@ -119,7 +119,7 @@ FAIL
 #### Downloads Mockup（view-form）
 
 - 单卡 `.form-card` max-width 640px
-- 字段：任务名称 / 回调 req\_url（含 SSRF 错误态）/ 请求方式+超时两列 / Cron / 标签 chips / **启用开关**
+- 字段：任务名称 / 触发 req\_url（含 SSRF 错误态）/ 请求方式+超时两列 / Cron / 标签 chips / **启用开关**
 - 底部 `.form-actions`：保存修改 + 取消
 - Cron 单行输入 + hint「下次执行…」
 

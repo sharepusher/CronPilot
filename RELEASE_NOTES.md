@@ -7,6 +7,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程 — v4.0.0 之后变更与功能健康评估
+
+- 评估已落库：[`doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html`](doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html)
+- 结论：已提交 11 个主题定向测试与 86 条路由冒烟通过；全量 unittest 仍因 OPT-P0-22 Session 夹具未对齐而失败，不建议按全绿 CI 发下一版
+
 ### 增强 — 任务链路日志完整性补全
 
 - **背景**：CronPilot 的结果层日志（job_log + Prometheus + 健康聚合）设计完善，但过程层日志存在盲区——从 APScheduler 触发到 HTTP 发出之间的中间状态不可观测

@@ -19,7 +19,7 @@ cronpilot_load_runtime
 
 echo ""
 echo "=== B. bootstrap_venv.sh（幂等）==="
-bash scripts/bootstrap_venv.sh >/tmp/bootstrap.log 2>&1 && ok "bootstrap_venv" || { bad "bootstrap_venv"; tail -3 /tmp/bootstrap.log; }
+CRONPILOT_OFFLINE=1 bash scripts/bootstrap_venv.sh >/tmp/bootstrap.log 2>&1 && ok "bootstrap_venv (offline)" || { bad "bootstrap_venv"; tail -3 /tmp/bootstrap.log; }
 "$CRONPILOT_VENV/bin/python" -c "import flask, pymysql" 2>/dev/null && ok "core deps flask+pymysql" || bad "core deps"
 
 echo ""

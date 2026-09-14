@@ -35,6 +35,10 @@ cronpilot_bootstrap_venv_deps() {
     return 1
   fi
   pip=$(cronpilot_venv_pip "$venv")
+  if [ "${CRONPILOT_OFFLINE:-0}" = "1" ]; then
+    echo "offline mode: skip PyPI installs"
+    return 0
+  fi
   # shellcheck disable=SC2086
   $pip install -q --upgrade 'pip<25'
   # shellcheck disable=SC2086

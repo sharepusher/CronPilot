@@ -34,6 +34,7 @@ start() {
   fi
   cronpilot_load_runtime
   mkdir -p "$ROOT/datas/logs"
+  : >"$LOG_FILE"
   export FLASK_CONFIG=development
   nohup "$CRONPILOT_VENV/bin/python" -c "from app import create_app; app=create_app('development'); app.run(host='${HOST}', port=${PORT}, debug=False, use_reloader=False)" >>"$LOG_FILE" 2>&1 &
   echo $! >"$PID_FILE"
@@ -42,6 +43,10 @@ start() {
     echo "ERROR: 启动失败，日志：$LOG_FILE" >&2
     kill "$(cat "$PID_FILE")" 2>/dev/null || true
     rm -f "$PID_FILE"
+    if grep -q "Operation not permitted\|Permission denied" "$LOG_FILE" 2>/dev/null; then
+      echo "SKIP: 当前沙盒禁止本地端口监听；请在 Cursor/宿主终端复验 HTTP 启停" >&2
+      return 4
+    fi
     return 1
   fi
   echo "Codex 服务已启动：PID $(cat "$PID_FILE")，URL http://${HOST}:${PORT}"

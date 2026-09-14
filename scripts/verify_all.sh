@@ -15,6 +15,7 @@ source "$ROOT/scripts/smoke_http.sh"
 
 RUN_LOCAL=1
 RUN_DOCKER=1
+RUN_CODEX=0
 RUN_COMPOSE=0
 RUN_DOCKER_FRESH=0
 CONF_BACKUP=""
@@ -25,6 +26,7 @@ RESTORE_DATAS=0
 for arg in "$@"; do
   case "$arg" in
     --local-only) RUN_DOCKER=0 ;;
+    --codex) RUN_CODEX=1; RUN_LOCAL=0; RUN_DOCKER=0 ;;
     --docker-only) RUN_LOCAL=0 ;;
     --with-compose) RUN_COMPOSE=1 ;;
     --docker-fresh) RUN_COMPOSE=1; RUN_DOCKER_FRESH=1 ;;
@@ -69,6 +71,19 @@ section() {
   echo " $1"
   echo "=============================================="
 }
+
+if [[ "$RUN_CODEX" -eq 1 ]]; then
+  section "Codex 沙盒验收（offline）"
+  if bash "$ROOT/scripts/cronpilot_codex.sh" check \
+      && bash "$ROOT/scripts/cronpilot_codex.sh" start \
+      && bash "$ROOT/scripts/cronpilot_codex.sh" status \
+      && bash "$ROOT/scripts/cronpilot_codex.sh" stop; then
+    ok "cronpilot_codex.sh"
+  else
+    bad "cronpilot_codex.sh"
+  fi
+  exit "$FAIL"
+fi
 
 if [[ "$RUN_LOCAL" -eq 1 ]]; then
   section "1. 本地单元测试"

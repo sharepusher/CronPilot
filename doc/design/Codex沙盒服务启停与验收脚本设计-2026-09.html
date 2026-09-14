@@ -1,0 +1,11 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>Codex 沙盒服务启停与验收脚本设计（2026-09）</title></head><body>
+<h1>Codex 沙盒服务启停与验收脚本设计（2026-09）</h1><p><strong>状态：</strong>已实现（服务启动受当前沙箱端口策略阻断）　<strong>日期：</strong>2026-09-14</p>
+<h2>1. 问题</h2><p>现有 <code>scripts/stop_local.sh</code> 通过 <code>lsof + kill + kill -9</code> 管理端口；Codex 沙盒可能禁止查看/终止非当前进程，导致旧 PID 清不掉。<code>verify_install_flow.sh</code> 无条件执行 <code>pip install --upgrade 'pip&lt;25'</code>，无外网时失败。</p>
+<h2>2. 根因</h2><p>脚本把“可管理所有端口进程”和“可访问 PyPI”当成前置条件，未区分脚本自有进程、外部占用进程和离线验收。</p>
+<h2>3. 方案</h2><ol><li>新增 <code>scripts/cronpilot_codex.sh</code>，命令固定为 <code>start</code>、<code>stop</code>、<code>status</code>、<code>check</code>。</li><li>PID 文件固定为 <code>datas/cronpilot-codex.pid</code>；仅当 PID 文件存在且 <code>/proc/&lt;pid&gt;/cmdline</code> 可证明命令包含项目路径与虚拟环境 Python 时才发送 TERM。</li><li>端口探测使用 <code>curl --max-time 2</code>；端口有响应但 PID 不匹配时退出码 3，输出“外部进程占用”，绝不 kill。</li><li><code>check</code> 默认离线：断言 <code>.venv-py311/bin/python</code>、Flask/PyMySQL 可导入、<code>/rbac/login</code> 返回 200；<code>--online</code> 才执行 pip pin 检查。</li><li>扩展 <code>verify_all.sh --codex</code>，只执行单测、check 和自身进程的 start→HTTP→stop，不调用 <code>verify_golden_path.sh</code> 的强制清理。</li></ol>
+<h2>4. 范围</h2><p>新增脚本、<code>tests/test_codex_runtime.py</code>、<code>verify_all.sh</code> 参数分支及本设计文档；不修改生产启动、默认端口、业务鉴权和现有联网安装语义。</p>
+<h2>5. 分批</h2><p>第一批实现 PID 自证与退出码；第二批实现离线依赖检查和测试；第三批接入验收入口、更新文档与 Release Notes。</p>
+<h2>6. 验收</h2><ul><li><code>start</code> 成功：写入 PID，HTTP 健康检查 200，退出码 0。</li><li><code>stop</code> 自有 PID：进程退出并删除 PID 文件，退出码 0。</li><li>外部占用端口：退出码 3，日志包含 PID/端口和人工处理命令，外部进程仍存活。</li><li><code>check</code> 离线无 DNS 请求；联网 <code>--online</code> 保持 <code>pip&lt;25</code> 校验。</li></ul>
+<h2>7. 风险</h2><p>沙盒禁止读取 <code>/proc</code> 时，脚本只能把 PID 视为不可验证并拒绝终止；这会牺牲自动清理换取不误杀。离线检查不能证明 PyPI 可安装，输出必须标记 <code>offline</code>。</p>
+<h2>实现与验证记录</h2><p>已新增 <code>scripts/cronpilot_codex.sh</code>、<code>tests/test_codex_runtime.py</code>，并接入 <code>verify_all.sh --codex</code>。离线依赖检查和 Shell 语法测试通过；当前沙箱启动 Flask 时返回 <code>Operation not permitted</code>，故 HTTP 启停链路须在 Cursor/宿主终端复验。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="Codex沙盒服务启停与验收脚本设计-2026-09.md">Markdown</a></footer></body></html>

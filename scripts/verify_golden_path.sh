@@ -68,9 +68,29 @@ export FLASK_CONFIG=development
 bash "$ROOT/scripts/ensure_business_tables.sh"
 
 echo "=== golden: double restart ==="
+set +e
 bash "$ROOT/scripts/restart_local.sh" --daemon
+restart_rc=$?
+set -e
+if [[ "$restart_rc" -ne 0 ]]; then
+  if grep -q "Operation not permitted\|Permission denied" "$ROOT/datas/logs/local-server.log" 2>/dev/null; then
+    echo "SKIP: 当前沙盒禁止本地端口监听；请在 Cursor/宿主终端复验黄金路径" >&2
+    exit 4
+  fi
+  exit "$restart_rc"
+fi
 sleep 2
+set +e
 bash "$ROOT/scripts/restart_local.sh" --daemon
+restart_rc=$?
+set -e
+if [[ "$restart_rc" -ne 0 ]]; then
+  if grep -q "Operation not permitted\|Permission denied" "$ROOT/datas/logs/local-server.log" 2>/dev/null; then
+    echo "SKIP: 当前沙盒禁止本地端口监听；请在 Cursor/宿主终端复验黄金路径" >&2
+    exit 4
+  fi
+  exit "$restart_rc"
+fi
 sleep 2
 
 if ! cronpilot_listen_pids "$LOCAL_PORT" | grep -q .; then

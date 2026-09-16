@@ -1,10 +1,111 @@
 # -*- coding:utf-8 -*-
-"""将 cron_infos 调度字段译为人类可读文案（列表第 3 列上行）。"""
+"""将 cron_infos 调度字段译为人类可读文案（列表第 3 列上行）。
+
+下次触发时间 / 有效 crontab 与 APScheduler CronTrigger 默认值对齐
+（空 minute + 有 hour → minute=0，而非 Unix crontab 的 *）。
+"""
 import re
+from datetime import datetime
 
 
 def _part(value):
     return (value or '').strip()
+
+
+def _normalized_from_item(item):
+    return {
+        'run_date': _part(getattr(item, 'run_date', None)),
+        'day_of_week': _part(getattr(item, 'day_of_week', None)),
+        'day': _part(getattr(item, 'day', None)),
+        'hour': _part(getattr(item, 'hour', None)),
+        'minute': _part(getattr(item, 'minute', None)),
+        'second': _part(getattr(item, 'second', None)),
+    }
+
+
+def scheduler_cron_kwargs_from_item(item):
+    """与 register_cron_job / reschedule 使用同一 build_scheduler_kwargs。"""
+    from app.services.cron_service import build_scheduler_kwargs
+    return build_scheduler_kwargs(_normalized_from_item(item))
+
+
+def cron_trigger_from_item(item):
+    """构造与调度注册语义一致的 CronTrigger；一次性 / 非 cron / 未配置返回 None。"""
+    if _part(getattr(item, 'run_date', None)):
+        return None
+    if not _schedule_configured(item):
+        return None
+    kw = scheduler_cron_kwargs_from_item(item)
+    if kw.get('trigger') != 'cron':
+        return None
+    trigger_kwargs = {k: v for k, v in kw.items() if k != 'trigger'}
+    if not trigger_kwargs:
+        return None
+    from apscheduler.triggers.cron import CronTrigger
+    return CronTrigger(**trigger_kwargs)
+
+
+def _to_naive_local(dt):
+    """将 Trigger 返回的 aware datetime 转为本地 naive，供相对时间运算。"""
+    if dt is None:
+        return None
+    if getattr(dt, 'tzinfo', None) is not None:
+        return dt.astimezone().replace(tzinfo=None)
+    return dt
+
+
+def next_fire_datetime(item, now=None):
+    """返回与 APScheduler 一致的下一次触发时间（本地 naive）。
+
+    run_date 一次性任务返回 None（由调用方单独处理）。
+    """
+    trigger = cron_trigger_from_item(item)
+    if trigger is None:
+        return None
+    if now is None:
+        now = datetime.now()
+    try:
+        nxt = trigger.get_next_fire_time(None, now)
+    except (TypeError, ValueError):
+        return None
+    return _to_naive_local(nxt)
+
+
+def cron_fire_interval_seconds(item, now=None):
+    """用 Trigger 连续两次 next 估算调度间隔（秒）；失败返回 None。"""
+    trigger = cron_trigger_from_item(item)
+    if trigger is None:
+        return None
+    if now is None:
+        now = datetime.now()
+    try:
+        n1 = trigger.get_next_fire_time(None, now)
+        if n1 is None:
+            return None
+        n2 = trigger.get_next_fire_time(n1, n1)
+        if n2 is None:
+            return None
+        return (n2 - n1).total_seconds()
+    except (TypeError, ValueError):
+        return None
+
+
+def effective_crontab_5(item):
+    """展示用五段：分 时 日 月 星期（含 APScheduler 默认填充后的值）。
+
+    例：hour=*/2 且 minute 空 → '0 */2 * * *'
+    """
+    trigger = cron_trigger_from_item(item)
+    if trigger is None:
+        return ''
+    by_name = {f.name: str(f) for f in trigger.fields}
+    return '%s %s %s %s %s' % (
+        by_name.get('minute', '*'),
+        by_name.get('hour', '*'),
+        by_name.get('day', '*'),
+        by_name.get('month', '*'),
+        by_name.get('day_of_week', '*'),
+    )
 
 
 def _is_star(value):
@@ -51,19 +152,16 @@ def _schedule_configured(item):
 
 
 def format_cron_expression(item):
-    """标准五/六段 cron 格式：分 时 日 * 星期 [秒]（匹配 Mockup 展示风格）。"""
+    """标准五/六段 cron 格式：分 时 日 月 星期 [秒]（与 APScheduler 有效字段对齐）。"""
     if _part(getattr(item, 'run_date', None)):
         return ''
     if not _schedule_configured(item):
         return ''
-    dow = _part(getattr(item, 'day_of_week', None)) or '*'
-    day = _part(getattr(item, 'day', None)) or '*'
-    hour = _part(getattr(item, 'hour', None)) or '*'
-    minute = _part(getattr(item, 'minute', None)) or '*'
+    expr = effective_crontab_5(item)
+    if not expr:
+        return ''
     second = _part(getattr(item, 'second', None))
-    # Standard 5-field: minute hour day month dow
-    expr = '%s %s %s * %s' % (minute, hour, day, dow)
-    # If second is non-trivial, prepend as 6-field
+    # If second is non-trivial (explicitly set), prepend as 6-field
     if second and second != '0' and second != '*':
         expr = '%s %s' % (second, expr)
     return expr

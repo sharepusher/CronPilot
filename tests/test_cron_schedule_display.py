@@ -30,6 +30,11 @@ class TestCronScheduleDisplay(unittest.TestCase):
         self.assertEqual(humanize_schedule(item), '每 5 分钟')
         self.assertIn('*/5', format_cron_expression(item))
 
+    def test_hour_only_shows_minute_zero_not_star(self):
+        item = _Item(hour='*/2')
+        self.assertEqual(format_cron_expression(item), '0 */2 * * *')
+        self.assertEqual(humanize_schedule(item), '每 2 小时 的第 0 分')
+
     def test_weekly_tuesday(self):
         item = _Item(day_of_week='tue', hour='2', minute='0')
         self.assertEqual(humanize_schedule(item), '每周二 02:00')

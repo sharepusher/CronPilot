@@ -448,12 +448,9 @@ def task_detail_v2():
         if rg:
             group_name = rg.name
 
-    # Cron expression
-    parts = []
-    for field in ('second', 'minute', 'hour', 'day', 'day_of_week'):
-        val = getattr(cif, field, '') or '*'
-        parts.append(val)
-    cron_expr = ' '.join(parts) if any(p != '*' for p in parts) else (cif.run_date or '—')
+    # Cron expression (APScheduler-aligned effective fields)
+    from app.services.cron_schedule_display import effective_crontab_5, next_fire_datetime
+    cron_expr = effective_crontab_5(cif) or (cif.run_date or '—')
 
     # Human-readable cron description
     cron_human = ''
@@ -466,18 +463,13 @@ def task_detail_v2():
     elif minute_val != '*' and hour_val != '*':
         cron_human = '每天 {}:{} 执行'.format(hour_val, minute_val.zfill(2))
 
-    # Next run (using croniter if available)
+    # Next run (aligned with APScheduler CronTrigger defaults)
     next_run = ''
     try:
         from datetime import datetime as _dt
-
-        from croniter import croniter
-        cron_5 = '{} {} {} {} {}'.format(
-            cif.minute or '*', cif.hour or '*', cif.day or '*',
-            '*', cif.day_of_week or '*'
-        )
-        ci = croniter(cron_5, _dt.now())
-        next_run = ci.get_next(_dt).strftime('%H:%M:%S')
+        nxt = next_fire_datetime(cif, now=_dt.now())
+        if nxt is not None:
+            next_run = nxt.strftime('%H:%M:%S')
     except Exception:
         pass
 

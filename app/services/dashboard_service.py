@@ -147,15 +147,14 @@ class DashboardService:
         return result
 
     def compute_next_runs(self, cron_items):
-        """用 croniter 计算每个任务的下次执行时间。
+        """计算每个任务的下次执行相对时间。
 
         返回 {cron_id: '相对时间字符串'} 如 'in 3 min', 'in 2h'。
+        周期任务与 APScheduler CronTrigger 默认值对齐（空 minute → 0）。
         status != 1 的任务返回对应状态文案。
         """
-        try:
-            from croniter import croniter
-        except ImportError:
-            return {}
+        from app.services.cron_schedule_display import next_fire_datetime
+
         result = {}
         now = datetime.now()
         for item in cron_items:
@@ -177,39 +176,26 @@ class DashboardService:
                     except (ValueError, TypeError):
                         result[item.id] = '—'
                     continue
-                minute = getattr(item, 'minute', '') or '*'
-                hour = getattr(item, 'hour', '') or '*'
-                day = getattr(item, 'day', '') or '*'
-                day_of_week = getattr(item, 'day_of_week', '') or '*'
-                cron_expr = '{} {} {} * {}'.format(
-                    minute.strip() or '*',
-                    hour.strip() or '*',
-                    day.strip() or '*',
-                    day_of_week.strip() or '*',
-                )
-                if cron_expr == '* * * * *':
+                next_dt = next_fire_datetime(item, now=now)
+                if next_dt is None:
                     result[item.id] = '—'
                     continue
-                try:
-                    cron = croniter(cron_expr, now)
-                    next_dt = cron.get_next(datetime)
-                    delta = next_dt - now
-                    total_seconds = int(delta.total_seconds())
-                    result[item.id] = _format_relative_time(total_seconds)
-                except (ValueError, KeyError):
+                total_seconds = int((next_dt - now).total_seconds())
+                if total_seconds < 0:
                     result[item.id] = '—'
+                else:
+                    result[item.id] = _format_relative_time(total_seconds)
         return result
 
     def compute_overdue_map(self, cron_items, last_exec_map):
         """计算逾期任务。返回 {cron_id: '逾期 Xh'} 字典（仅含逾期任务）。
 
         逾期 = (now - last_exec) > max(interval * 2, 600s)
+        间隔与 APScheduler CronTrigger 对齐。
         排除：已暂停(0)、已下线(-1)、一次性任务(run_date非空)、无调度表达式
         """
-        try:
-            from croniter import croniter
-        except ImportError:
-            return {}
+        from app.services.cron_schedule_display import cron_fire_interval_seconds
+
         result = {}
         now = datetime.now()
         for item in cron_items:
@@ -218,19 +204,8 @@ class DashboardService:
             run_date = getattr(item, 'run_date', '') or ''
             if run_date.strip():
                 continue
-            minute = (getattr(item, 'minute', '') or '*').strip() or '*'
-            hour = (getattr(item, 'hour', '') or '*').strip() or '*'
-            day = (getattr(item, 'day', '') or '*').strip() or '*'
-            day_of_week = (getattr(item, 'day_of_week', '') or '*').strip() or '*'
-            cron_expr = '{} {} {} * {}'.format(minute, hour, day, day_of_week)
-            if cron_expr == '* * * * *':
-                continue
-            try:
-                ci = croniter(cron_expr, now)
-                next1 = ci.get_next(datetime)
-                next2 = ci.get_next(datetime)
-                interval_sec = (next2 - next1).total_seconds()
-            except (ValueError, KeyError):
+            interval_sec = cron_fire_interval_seconds(item, now=now)
+            if not interval_sec or interval_sec <= 0:
                 continue
             threshold = max(interval_sec * 2, 600)
             last_exec_val = last_exec_map.get(item.id)

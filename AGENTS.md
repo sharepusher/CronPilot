@@ -126,6 +126,8 @@ bash scripts/check_pending_sync.sh
 
 **Import 可达性验证（强制）**：编写 `from xxx import yyy` 前**必须** `grep` 确认 `yyy` 在目标模块中存在，禁止凭记忆写 import。`tests/test_import_smoke.py` 覆盖所有 Blueprint 路由模块的顶层 import。
 
+**下次执行 / 有效 crontab 与 APScheduler 同源（强制 · 2026-09）**：计算下次执行、逾期间隔或展示有效 cron 表达式时，必须使用 `cron_schedule_display.next_fire_datetime` / `cron_fire_interval_seconds` / `effective_crontab_5`；禁止对空字段手写 `or '*'` 再喂 croniter。回归：`python -m unittest tests.test_dashboard_next_run -v`。详 `.cursor/rules/cronpilot-backend.mdc`。
+
 **复盘质量门禁（强制）**：预防方案必须①新增可验证措施（非「已有规范应执行」）、②可被第三方重现验证（给出路径+命令）、③根因追到行为层（非「粗心」）、④与根因因果对应。不合格须重写。
 
 **复盘文档化（强制）**：所有复盘必须持久化到文档（`doc/design/*.html`、`doc/rfc/*.html` 或 `doc/postmortem/YYYY-MM-功能名.html`），并确保 HTML↔Markdown 同步。涉及用户可感知变更的复盘须记入 `RELEASE_NOTES.md`。禁止复盘只在对话中给出而不落库。

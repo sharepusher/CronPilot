@@ -217,6 +217,15 @@ grep -rn "startswith('[^']*[一-龥]" app/services/ app/main/ | cat
 
 **典型失误（2026-08）**：`tag_manage()` 中 `from app.rbac.scope import session_group_ids` — 该函数从未存在于 `scope.py`，系同模块 `_actor_bypasses_scope()` 的误记。
 
+## 下次执行 / 有效 crontab 必须与 APScheduler 同源（强制 · 2026-09）
+
+凡计算「下次执行」、逾期间隔或展示有效 cron 表达式：
+
+- **必须**使用 `app/services/cron_schedule_display.py` 的 `next_fire_datetime` / `cron_fire_interval_seconds` / `effective_crontab_5`（内部经 `build_scheduler_kwargs` + `CronTrigger`）。
+- **禁止**对空 `minute`/`hour` 字段手写 `or '*'` 再喂给 croniter（空 minute + 有 hour 在 APScheduler 中默认 **0**，不是 `*`）。
+- 回归：`.venv-py311/bin/python -m unittest tests.test_dashboard_next_run -v`
+- 复盘：`doc/postmortem/2026-09-下次执行相对时间误显示.html`
+
 ## JS 动态 hidden input 命名冲突防护（强制 · 2026-08）
 
 凡 JavaScript 中使用 `$('<input type="hidden" name="xxx">').val(...)` 动态追加隐藏表单字段：

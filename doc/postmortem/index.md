@@ -14,6 +14,7 @@
 - [auth_version Session 缺键 Fail-Open](2026-09-auth-version-session-failopen.html)
 - [全局管理员可停用种子账号](2026-09-全局管理员可停用种子账号.html)
 - [任务中心下线异常任务](2026-09-任务中心下线异常任务Bug修复复盘.html)（下线任务排除异常提醒面板，2026-09-09）
+- [下次执行相对时间误显示](2026-09-下次执行相对时间误显示.html)（空 minute vs APScheduler 默认 0 · 已修复，2026-09-16）
 
 ## Redesign UI
 

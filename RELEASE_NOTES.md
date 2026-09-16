@@ -7,6 +7,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 文档 — 下次执行相对时间误显示（复盘与修复设计）
+
+- **已修复**：只填小时、分钟留空时，「下次执行」与 APScheduler 默认第 0 分对齐；不再长期误显示 `in <1 min`。
+- 实现：`next_fire_datetime` / `effective_crontab_5` / `cron_fire_interval_seconds`（`cron_schedule_display.py`）经 `CronTrigger` 与注册路径同源。
+- 验证：`tests.test_dashboard_next_run` + schedule display + overdue 单测通过。
+- 设计/复盘：[设计](doc/design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](doc/postmortem/2026-09-下次执行相对时间误显示.html)
+
 ### 工程 — v4.0.0 之后变更与功能健康评估
 
 - 评估已落库：[`doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html`](doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html)

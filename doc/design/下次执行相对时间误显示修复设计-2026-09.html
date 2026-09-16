@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>下次执行相对时间误显示修复设计（2026-09）</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;max-width:960px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.45rem}
+h2{margin-top:2rem;color:#1a1a2e;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.15rem}
+h3{margin-top:1.4rem;color:#2d3748;font-size:1.02rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.82rem;line-height:1.45}
+blockquote{border-left:3px solid #3D6FE0;margin:1rem 0;padding:.5rem 1rem;background:#f8f9ff}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8rem;font-weight:600;margin-right:.25rem}
+.tag-bug{background:#fee2e2;color:#991b1b}
+.tag-draft{background:#fef3c7;color:#92400e}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #dc2626;background:#fef2f2}
+.box-ok{border-left-color:#059669;background:#ecfdf5}
+.box-info{border-left-color:#2563eb;background:#eff6ff}
+.muted{color:#64748b;font-size:.9rem}
+footer{margin:42px 0 24px;border-top:1px solid #e5e7eb;padding-top:14px;color:#6b7280;font-size:.88rem}
+</style>
+</head>
+<body>
+
+<h1>下次执行相对时间误显示修复设计</h1>
+<p>
+  <span class="tag tag-bug">Bug</span>
+  <span class="tag" style="background:#d1fae5;color:#065f46">已实施</span><br>
+  <strong>日期</strong>：2026-09-16<br>
+  <strong>状态</strong>：方案 A 已确认并实施（CronTrigger 同源）<br>
+  <strong>影响面</strong>：任务中心「下次执行」列、任务详情「下次执行」、逾期判定、format_cron_expression
+</p>
+
+<div class="box">
+  <strong>一句话问题：</strong>
+  当任务只填了「小时」字段（分钟留空）时，<strong>调度器按「该小时的第 0 分」触发</strong>，
+  但页面把空分钟当成 <code>*</code>（每分钟），于是「下次执行」长期显示 <code>in &lt;1 min</code>，
+  与真实调度、与同页「调度策略」人话文案互相矛盾。
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>0. 问题表述（澄清版）</h2>
+
+<h3>0.1 用户看到什么</h3>
+<ul>
+  <li>任务中心列表里，<strong>新建任务与旧任务</strong>的「下次执行」列经常都是 <code>in &lt;1 min</code>（或偶发 <code>in 1 min</code>）。</li>
+  <li>同页「调度策略」人话却写着类似 <strong>「每 2 小时 的第 0 分」</strong>——语义上应在约 1～2 小时后，而不是 1 分钟内。</li>
+  <li>易被误判为：调度器卡死、时钟错误、或「所有任务马上要跑」。</li>
+</ul>
+
+<h3>0.2 实际发生了什么（事实）</h3>
+<ul>
+  <li><strong>调度本身往往是对的</strong>：注册进 APScheduler 时，空的 <code>minute</code> 字段<strong>不会传入</strong> <code>CronTrigger</code>；库会把更细粒度字段默认成 <code>0</code>，因此 <code>hour=*/2</code> 实际是「每 2 小时的整点」。</li>
+  <li><strong>坏的是展示层与逾期层的「伪 crontab」拼装</strong>：多处把空字段写成 Unix cron 的 <code>*</code>，得到 <code>* */2 * * *</code>（偶小时内<strong>每分钟</strong>一发），相对时间自然永远 &lt; 60s。</li>
+</ul>
+
+<h3>0.3 什么情况会中招 / 不会中招</h3>
+<table>
+  <tr><th>配置形态</th><th>是否误显示</th><th>说明</th></tr>
+  <tr>
+    <td>只填 <code>hour</code>（如 <code>*/2</code>），<code>minute</code> 空</td>
+    <td><strong>会</strong>（高发）</td>
+    <td>真实：<code>0 */2 * * *</code>；展示：<code>* */2 * * *</code></td>
+  </tr>
+  <tr>
+    <td>只填 <code>minute</code>（如 <code>*/2</code>），<code>hour</code> 空</td>
+    <td>通常<strong>不会系统性误导</strong></td>
+    <td>真实与展示均为「每 2 分钟」；靠近触发点时出现 <code>in &lt;1 min</code> 是<strong>正确</strong>的相对时间</td>
+  </tr>
+  <tr>
+    <td><code>minute</code> 与 <code>hour</code> 都显式填写</td>
+    <td>一般不会</td>
+    <td>两边语义一致</td>
+  </tr>
+  <tr>
+    <td>一次性 <code>run_date</code></td>
+    <td>走另一分支</td>
+    <td>本 bug 主路径是周期 cron 字段</td>
+  </tr>
+</table>
+
+<p class="muted">本地 2026-09-16 抽样：活跃任务 <code>test123</code> / <code>testgoogle</code> 为「空 minute + hour=*/2」；<code>newtest123</code> 为「minute=*/2」。前两者稳定误报 &lt;1min；第三者在触发点附近也会显示 &lt;1min，属正常。</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>1. 现象与证据</h2>
+
+<h3>1.1 本地库字段（节选）</h3>
+<pre>id | task_name   | minute | hour
+14 | test123     | ''     | */2
+…  | newtest123  | */2    | ''
+…  | testgoogle  | ''     | */2</pre>
+
+<h3>1.2 同一任务三套口径对照（2026-09-16 实测）</h3>
+<table>
+  <tr><th>口径</th><th>空 minute + hour=*/2</th><th>minute=*/2</th></tr>
+  <tr>
+    <td><code>humanize_schedule</code>（列表上行）</td>
+    <td>「每 2 小时 的第 <strong>0</strong> 分」✓</td>
+    <td>「每 2 分钟」✓</td>
+  </tr>
+  <tr>
+    <td><code>format_cron_expression</code>（列表下行）</td>
+    <td><code>* */2 * * *</code> ✗（与人话矛盾）</td>
+    <td><code>*/2 * * * *</code> ✓</td>
+  </tr>
+  <tr>
+    <td><code>compute_next_runs</code></td>
+    <td><code>in &lt;1 min</code> ✗</td>
+    <td>按真实间隔 ≈0～2min ✓</td>
+  </tr>
+  <tr>
+    <td>APScheduler <code>CronTrigger(hour='*/2')</code></td>
+    <td>minute 默认 <strong>0</strong>，下次为下一偶小时 :00 ✓</td>
+    <td><code>CronTrigger(minute='*/2')</code> 正确 ✓</td>
+  </tr>
+</table>
+
+<h3>1.3 APScheduler 默认规则（库行为，非猜测）</h3>
+<p>APScheduler 3.x <code>CronTrigger.__init__</code>（字段顺序 <code>year→…→hour→minute→second</code>）：</p>
+<ul>
+  <li>未传入的<strong>粗粒度</strong>字段 → <code>*</code></li>
+  <li>一旦某个字段被显式传入，其后<strong>更细粒度</strong>且未传入的字段 → 使用 <code>DEFAULT_VALUES</code>（其中 <code>minute=0</code>、<code>second=0</code>）</li>
+</ul>
+<pre># 等价实验
+CronTrigger(hour='*/2')
+# → hour=*/2, minute=0, second=0   （下次整点）
+
+CronTrigger(minute='*', hour='*/2')
+# → 偶小时内每分钟触发   （与错误展示表达式同形）</pre>
+
+<p>CronPilot 注册路径 <code>build_scheduler_kwargs()</code>：仅把<strong>非空</strong>的 day/hour/minute/… 放进 kwargs → 正好踩中「省略 minute → 默认 0」这条规则。</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>2. 根因（深度）</h2>
+
+<h3>2.1 直接根因：两套「空字段」语义</h3>
+<table>
+  <tr><th>路径</th><th>空 minute 的含义</th><th>代码位置</th></tr>
+  <tr>
+    <td>调度注册</td>
+    <td><strong>省略字段</strong> → APScheduler 默认 <code>0</code></td>
+    <td><code>app/services/cron_service.py</code> · <code>build_scheduler_kwargs</code></td>
+  </tr>
+  <tr>
+    <td>下次执行 / 逾期</td>
+    <td><code>or '*'</code> → Unix cron「每分钟」</td>
+    <td><code>app/services/dashboard_service.py</code> · <code>compute_next_runs</code> / <code>compute_overdue_map</code></td>
+  </tr>
+  <tr>
+    <td>任务详情下次执行</td>
+    <td>同上 <code>cif.minute or '*'</code></td>
+    <td><code>app/main/views.py</code> 任务详情分支</td>
+  </tr>
+  <tr>
+    <td>表达式展示</td>
+    <td>同上 → 显示 <code>* */2 …</code></td>
+    <td><code>format_cron_expression</code></td>
+  </tr>
+  <tr>
+    <td>人话展示</td>
+    <td>空 minute 已按 <code>0</code> 处理</td>
+    <td><code>humanize_schedule</code>（小时级分支）</td>
+  </tr>
+</table>
+
+<p>因此不是「相对时间格式化函数写错了」：<code>_format_relative_time(sec&lt;60) → 'in &lt;1 min'</code> 本身正确；错在<strong>喂给它的 next_dt 来自错误 crontab</strong>。</p>
+
+<h3>2.2 结构性根因</h3>
+<ol>
+  <li><strong>缺少「有效调度字段」单一事实源</strong>：注册用 kwargs 省略语义，展示/预测用「空=星号」语义，无人强制对齐。</li>
+  <li><strong>Unix crontab 习惯被误套到 APScheduler 局部字段模型</strong>：表单五格各自可空；空格在 APScheduler 里 ≠ crontab 里的 <code>*</code>。</li>
+  <li><strong>表单 hint 强化误解</strong>：分钟 placeholder 为 <code>*</code>，用户以为「不填=每分钟通配」；而小时填 <code>*/2</code>、分钟不填时，产品人话与调度却按「第 0 分」执行——三方（用户心智 / 调度 / 下次执行）只有调度与人话碰巧一致，下次执行与表达式展示站在用户心智一侧却与调度相反。</li>
+  <li><strong>测试只覆盖「显式填全」或「仅 minute」场景</strong>：无「只填 hour、minute 空」的 next_run 断言，故长期潜伏。</li>
+</ol>
+
+<h3>2.3 次生影响：逾期判定也被拉歪</h3>
+<p><code>compute_overdue_map</code> 用同一错误表达式估算 interval：</p>
+<ul>
+  <li>错误：<code>* */2 * * *</code> → interval ≈ <strong>60s</strong>，阈值 <code>max(120, 600)=600s</code></li>
+  <li>正确：<code>0 */2 * * *</code> → interval ≈ <strong>7200s</strong>，阈值 <code>max(14400, 600)=14400s</code></li>
+</ul>
+<p>结果：只填小时的任务更容易被标成「逾期」，与「下次执行永远 &lt;1min」同一根因。</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>3. 复盘七要素（发现阶段 · 修复待确认）</h2>
+
+<table>
+  <tr><th>#</th><th>要素</th><th>内容</th></tr>
+  <tr>
+    <td>1</td>
+    <td>Bug 定位</td>
+    <td>
+      展示：<code>dashboard_service.compute_next_runs</code>（约 L180–198）将空字段 <code>or '*'</code> 后拼 croniter；
+      同源：<code>compute_overdue_map</code>、<code>views.py</code> 详情 <code>cron_5</code>、<code>format_cron_expression</code>。
+      对照：<code>cron_service.build_scheduler_kwargs</code> + APScheduler <code>DEFAULT_VALUES</code>。
+    </td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>根因</td>
+    <td>注册路径与预测/展示路径对「空 cron 字段」语义不一致（省略→0 vs 空→*）。</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>测试漏洞</td>
+    <td>
+      <code>tests/test_cron_schedule_display.py</code> 覆盖显式 minute/hour，无「hour 有值、minute 空」用例；
+      无 <code>compute_next_runs</code> 针对该配置的断言；无人对比 APScheduler <code>get_next_fire_time</code>。
+    </td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>修复</td>
+    <td><em>待本设计确认后实施</em>——见 §4 推荐方案（统一有效字段 / CronTrigger 同源）。</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>防护测试</td>
+    <td>见 §6 验收：必须含「只填 hour=*/2、minute 空 → next 落在下一整点级，且不得稳定为 &lt;1min」。</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>同类排查</td>
+    <td>
+      已枚举：Dashboard next/overdue、详情 next、format_cron_expression、详情页拼装的 cron_expr 文案。
+      <code>humanize_schedule</code> 小时分支已默认 minute=0，属正向参考。
+      API 返回原始空字符串字段不改（调用方自建 Trigger 时仍走 APScheduler 规则）。
+    </td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>预防方案</td>
+    <td>
+      <strong>落地措施（随实现提交）</strong>：
+      ① 新增共享函数（建议 <code>effective_cron_fields</code> / <code>next_fire_datetime</code>），所有预测/表达式展示强制经此函数；
+      ② 单测 <code>test_empty_minute_with_hour_matches_apscheduler</code>，并用 <code>CronTrigger(**build_scheduler_kwargs(...))</code> 做对照断言；
+      ③ 可选静态自检：禁止在 <code>dashboard_service</code> / 详情 next 路径再写裸 <code>or '*'</code> 拼装（可用单元测试锁定导入点）。
+      验证命令见 §6。
+    </td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>4. 方案</h2>
+
+<h3>4.1 目标语义（产品契约）</h3>
+<blockquote>
+  「下次执行 / 表达式展示 / 逾期间隔」必须与 <strong>该任务实际注册进 APScheduler 的 Trigger</strong> 一致。<br>
+  不以 Unix crontab「空格=星号」习惯覆盖 APScheduler 局部字段默认值。
+</blockquote>
+
+<h3>4.2 备选方案</h3>
+<table>
+  <tr><th>方案</th><th>做法</th><th>优点</th><th>缺点</th><th>取舍</th></tr>
+  <tr>
+    <td><strong>A · CronTrigger 同源（推荐）</strong></td>
+    <td>
+      复用 <code>build_scheduler_kwargs</code> 构造 kwargs，
+      用 <code>CronTrigger(**kwargs).get_next_fire_time(None, now)</code> 算下次；
+      表达式展示从 Trigger 字段（含默认值）格式化。
+    </td>
+    <td>与调度器行为零漂移；覆盖 hour/day/dow 等组合默认</td>
+    <td>展示层依赖 APScheduler；需注意 timezone 与 naive/aware</td>
+    <td><strong>推荐</strong></td>
+  </tr>
+  <tr>
+    <td>B · 手写「空→0」规则</td>
+    <td>若 hour/day/dow 非空且 minute 空 → minute='0'；再喂 croniter</td>
+    <td>改动面小、不引 Trigger</td>
+    <td>需复刻 APScheduler 级联默认，易再漂移（second/day 等）</td>
+    <td>不推荐作长期方案</td>
+  </tr>
+  <tr>
+    <td>C · 表单强制写库 minute=0</td>
+    <td>保存时把空 minute 落成 <code>'0'</code>；迁移历史数据</td>
+    <td>DB 自描述</td>
+    <td>不修展示算法则历史空值仍错；改变用户「空」与「0」的存储约定；需迁移</td>
+    <td>可作<strong>增强</strong>，不能单独替代 A</td>
+  </tr>
+  <tr>
+    <td>D · 改调度语义去迁就展示</td>
+    <td>注册时显式传 <code>minute='*'</code></td>
+    <td>—</td>
+    <td>改变真实触发频率（每分钟），破坏现网「每 N 小时整点」行为</td>
+    <td><strong>禁止</strong></td>
+  </tr>
+</table>
+
+<h3>4.3 推荐方案 A · 详细设计</h3>
+
+<h4>4.3.1 新增共享模块函数（建议落点）</h4>
+<p>建议放在 <code>app/services/cron_schedule_display.py</code>（已有 schedule 展示）或新建薄模块 <code>app/services/cron_trigger_compat.py</code>，避免 <code>dashboard_service</code> 与 <code>views</code> 再各写一套。</p>
+<pre># 伪代码（实施时须 Read 现库 API 后落码）
+
+def scheduler_cron_kwargs_from_item(item):
+    """与 register_cron_job / reschedule 使用同一 build_scheduler_kwargs。"""
+    normalized = {
+        'run_date': getattr(item, 'run_date', '') or '',
+        'day_of_week': getattr(item, 'day_of_week', '') or '',
+        'day': getattr(item, 'day', '') or '',
+        'hour': getattr(item, 'hour', '') or '',
+        'minute': getattr(item, 'minute', '') or '',
+        'second': getattr(item, 'second', '') or '',
+    }
+    return build_scheduler_kwargs(normalized)
+
+def next_fire_datetime(item, now=None):
+    """返回与 APScheduler 一致的下一次触发时间（本地 naive 或统一 tz 策略）。"""
+    kw = scheduler_cron_kwargs_from_item(item)
+    if kw.get('trigger') != 'cron':
+        return None  # run_date 另处理
+    from apscheduler.triggers.cron import CronTrigger
+    trigger = CronTrigger(**{k: v for k, v in kw.items() if k != 'trigger'})
+    now = now or datetime.now(trigger.timezone)
+    nxt = trigger.get_next_fire_time(None, now)
+    # 统一转 naive local，供相对时间格式化
+    ...
+    return nxt
+
+def effective_crontab_5(item):
+    """展示用五段：分 时 日 月 星期（含 APScheduler 默认填充后的值）。"""
+    ...
+    # 例：hour=*/2, minute 空 → '0 */2 * * *'
+</pre>
+
+<h4>4.3.2 替换调用点</h4>
+<table>
+  <tr><th>调用点</th><th>改动</th></tr>
+  <tr>
+    <td><code>DashboardService.compute_next_runs</code></td>
+    <td>周期任务改用 <code>next_fire_datetime</code> + 现有 <code>_format_relative_time</code>；保留暂停/下线/run_date 分支</td>
+  </tr>
+  <tr>
+    <td><code>DashboardService.compute_overdue_map</code></td>
+    <td>用同一 Trigger 连续取两次 next 算 interval（或 <code>effective_crontab_5</code> + croniter，但优先 Trigger）</td>
+  </tr>
+  <tr>
+    <td><code>main/views.py</code> 任务详情 next_run</td>
+    <td>改用同源函数；绝对时钟文案可继续 <code>%H:%M:%S</code></td>
+  </tr>
+  <tr>
+    <td><code>format_cron_expression</code></td>
+    <td>输出有效字段（空 minute+有 hour → 显示 <code>0</code> 而非 <code>*</code>），与 humanize 对齐</td>
+  </tr>
+</table>
+
+<h4>4.3.3 时区约定</h4>
+<ul>
+  <li>CronTrigger 默认 <code>get_localzone()</code>；当前 <code>datetime.now()</code> 亦为本地。</li>
+  <li>实施时：next 计算统一「Trigger.timezone 下的 now → next → 转本地 naive」；单测固定 freeze 或固定 now 入参，避免 flaky。</li>
+  <li><strong>不在本轮</strong>引入用户可选时区产品能力。</li>
+</ul>
+
+<h4>4.3.4 文案是否改中文</h4>
+<p>本轮<strong>不改</strong> <code>in &lt;1 min</code> 等英文相对文案（属独立文案 OPT）；只修正时间值本身。若确认后希望一并中文化，须在范围中显式追加。</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>5. 范围</h2>
+
+<h3>5.1 做</h3>
+<ul>
+  <li>共享 next-fire / effective crontab 与 APScheduler 对齐</li>
+  <li>Dashboard next_run、overdue、任务详情 next、format_cron_expression</li>
+  <li>单测 + 本地 restart 后页面断言</li>
+  <li>本设计确认后的复盘文档定稿（或同步更新本文件状态为已实施）</li>
+</ul>
+
+<h3>5.2 明确不做</h3>
+<ul>
+  <li>不改变 APScheduler 注册语义、不改触发频率</li>
+  <li>不强行迁移历史 DB 把空 minute 写成 <code>'0'</code>（可选后续批；本轮靠展示算法兼容空值）</li>
+  <li>不改相对时间英文文案、不改 Mockup 列结构</li>
+  <li>不改 API JSON 中原始空字符串字段含义</li>
+  <li>不引入「从 jobstore 读 live next_run_time」作为展示源（与执行链路设计 D-2 结论一致：job 上的 next 在触发后会滚到下一周期；列表展示应用配置推算即可）</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>6. 分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>独立验收</th></tr>
+  <tr>
+    <td><strong>B1</strong></td>
+    <td>共享 <code>next_fire_datetime</code> / <code>effective_crontab_5</code> + 单测（对照 CronTrigger）</td>
+    <td><code>unittest</code> 绿；用例含空 minute+hour=*/2</td>
+  </tr>
+  <tr>
+    <td><strong>B2</strong></td>
+    <td>接入 <code>compute_next_runs</code> + <code>compute_overdue_map</code></td>
+    <td>Dashboard 单测或 service 级测试：不再对 hour-only 任务返回稳定 &lt;1min</td>
+  </tr>
+  <tr>
+    <td><strong>B3</strong></td>
+    <td>任务详情 next + <code>format_cron_expression</code></td>
+    <td>表达式显示 <code>0 */2 * * *</code>；详情下次为整点级时钟</td>
+  </tr>
+  <tr>
+    <td><strong>B4</strong></td>
+    <td>文档状态、RELEASE 草稿句、restart 浏览器/curl 自证</td>
+    <td>见验收清单</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>7. 验收</h2>
+
+<table>
+  <tr><th>#</th><th>门禁</th><th>期望</th></tr>
+  <tr>
+    <td>1</td>
+    <td><code>.venv-py311/bin/python -m unittest tests.test_cron_schedule_display tests.test_dashboard_next_run -v</code>（新测文件名实施时可微调）</td>
+    <td>
+      空 minute + <code>hour=*/2</code>：effective 表达式以 <code>0 */2</code> 开头；
+      在固定 now（如 10:16）下次相对时间 ≥ 数十分钟或显示 <code>in Nh</code>，<strong>不得</strong>为 <code>in &lt;1 min</code>
+    </td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>对照断言</td>
+    <td><code>next_fire_datetime(item)</code> 与 <code>CronTrigger(**build_scheduler_kwargs(...)).get_next_fire_time</code> 同一分钟</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><code>bash scripts/cronpilot.sh restart --daemon</code> 后登录任务中心</td>
+    <td>对现有 <code>test123</code>/<code>testgoogle</code> 类任务，「下次执行」与「每 2 小时 的第 0 分」一致量级</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>回归</td>
+    <td><code>minute=*/2</code> 任务仍可在 0～2 分钟窗口显示 &lt;1min / 1min（正常）</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>文档</td>
+    <td><code>html_docs_to_markdown.py --check</code>；本文件状态改为已确认/已实施</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>8. 风险</h2>
+<ul>
+  <li><strong>相对时间文案突变</strong>：修复后 hour-only 任务从「&lt;1min」变为「in 1h」等，属预期纠正；需在 RELEASE 用用户语言说明「展示与真实调度对齐」，避免被当成调度变慢。</li>
+  <li><strong>逾期数量变化</strong>：阈值变大后，部分误标逾期会消失——属纠正，不是功能回退。</li>
+  <li><strong>timezone / DST</strong>：CronTrigger 带 tz；须在 helper 内统一，避免 aware/naive 相减异常（单测覆盖）。</li>
+  <li><strong>回滚</strong>：仅展示/逾期计算，回滚共享函数调用即可；无 DB 迁移则回滚成本低。</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════ -->
+<h2>9. 沟通备忘（为何初版表述不清）</h2>
+<ul>
+  <li>不宜说「所有任务 next 都坏了」——高频 minute 任务靠近触发点时 &lt;1min 是对的。</li>
+  <li>不宜说「调度坏了」——用户若只看执行记录间隔，hour-only 任务仍按约 2 小时跑。</li>
+  <li>准确说法：<strong>「空分钟字段在展示层被当成每分钟，与调度器默认第 0 分不一致，导致下次执行相对时间被压到 &lt;1min。」</strong></li>
+</ul>
+
+<footer>
+  <a href="下次执行相对时间误显示修复设计-2026-09.md">Markdown</a> ·
+  <a href="../index.html">文档索引</a> ·
+  确认前禁止实现代码
+</footer>
+</body>
+</html>

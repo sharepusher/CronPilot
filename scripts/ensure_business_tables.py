@@ -68,6 +68,7 @@ def main():
         _migrate_time_columns_to_bigint()
         _rename_log_id_to_trace_id(backend=backend)
         _cleanup_orphan_health_records()
+        _correct_subthreshold_health_ok()
         _ensure_id_columns_bigint(backend=backend)
         from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
         ensure_seed_admin()
@@ -877,6 +878,25 @@ def _cleanup_orphan_health_records():
     if result.rowcount:
         db.session.commit()
         print('OK: OPT-P0-21 孤儿 job_health 清理 -> %d 行' % result.rowcount)
+
+
+def _correct_subthreshold_health_ok():
+    """方案 A：未满持续异常阈值却标 ok 的历史行改为 unknown。
+
+    条件：health_status='ok' AND consecutive_failures > 0。
+    幂等；SQLite / MySQL 同语法。
+    """
+    from sqlalchemy import text
+
+    result = db.session.execute(text(
+        "UPDATE job_health SET health_status = 'unknown' "
+        "WHERE health_status = 'ok' AND consecutive_failures > 0"
+    ))
+    if result.rowcount:
+        db.session.commit()
+        print('OK: 未满阈值失败 health ok→unknown -> %d 行' % result.rowcount)
+    else:
+        print('OK: 未满阈值失败 health 无需校正')
 
 
 def _ensure_id_columns_bigint(backend='sqlite'):

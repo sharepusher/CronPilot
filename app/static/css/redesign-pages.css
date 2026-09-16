@@ -155,6 +155,14 @@
   background: var(--cp-danger);
 }
 
+.cp-page-task-detail .td-health-big .dot.watching {
+  background: var(--cp-warn);
+}
+
+.cp-page-task-detail .td-health-big .dot.unknown {
+  background: var(--cp-text-faint);
+}
+
 .cp-page-task-detail .td-health-big .label {
   font-size: 15px;
   font-weight: 600;
@@ -163,6 +171,14 @@
 
 .cp-page-task-detail .td-health-big .label.failing {
   color: var(--cp-danger);
+}
+
+.cp-page-task-detail .td-health-big .label.watching {
+  color: var(--cp-warn);
+}
+
+.cp-page-task-detail .td-health-big .label.unknown {
+  color: var(--cp-text-faint);
 }
 
 .cp-page-task-detail .td-health-metrics {
@@ -1213,6 +1229,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .health-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
 .health-badge.ok { background: var(--cp-success-bg); color: var(--cp-success); }
 .health-badge.danger { background: var(--cp-danger-bg, rgba(220,38,38,0.08)); color: var(--cp-danger); }
+.health-badge.watching { background: var(--cp-warn-bg); color: var(--cp-warn); }
 .health-badge.overdue { background: var(--cp-warn-bg); color: var(--cp-warn); }
 .health-badge.off { background: var(--cp-surface-2); color: var(--cp-text-faint); }
 .health-badge.unknown { background: var(--cp-surface-2); color: var(--cp-text-faint); }

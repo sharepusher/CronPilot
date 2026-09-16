@@ -360,6 +360,8 @@ def cron_list():
                 'today_total_runs': metrics['today_total_runs'],
                 'today_fail_runs': metrics['today_fail_runs'],
                 'total': metrics['total'],
+                'running': metrics['running'],
+                'paused': status_counts['paused'],
                 'today_success_rate': today_success_rate,
                 'orphan_count': orphan_count,
             },

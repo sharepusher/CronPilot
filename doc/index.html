@@ -415,6 +415,8 @@
             <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度统计语义优化设计.html">健康度统计语义优化设计</a>（Dashboard「持续异常」与健康度列语义对齐）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心需要关注项目排除下线任务设计.html">任务中心需要关注项目排除下线任务设计</a>（下线任务不再进入异常提醒面板）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/下次执行相对时间误显示修复设计-2026-09.html">下次执行相对时间误显示修复设计</a>（空 minute 与 APScheduler 默认 0 · 已实施）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度未满阈值误标健康修复设计-2026-09.html">健康度未满阈值误标「健康」修复</a>（失败 1～2 次 →「有失败」· 已实施）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心排除已下线任务统计与默认列表设计-2026-09.html">任务中心顶栏运行中/已暂停分列统计</a>（方案 E · 已实施 rev.5）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/screenshots/dashboard-table-overflow-demo.html">Dashboard 操作下拉菜单重叠修复 — 对比 Demo</a>（Dashboard 操作下拉菜单重叠修复对比 Demo）</li>
           </ul>
         </div>
@@ -1230,6 +1232,20 @@
           <span class="blurb">空 minute 与 APScheduler 默认 0 对齐 · CronTrigger 同源 · 已修复</span>
         </div>
         <div class="links"><a href="postmortem/2026-09-下次执行相对时间误显示.html">HTML</a><a href="postmortem/2026-09-下次执行相对时间误显示.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-健康度未满阈值误标健康.html">复盘：健康度未满阈值误标「健康」</a>
+          <span class="blurb">失败 1～2 次勿标健康 · 写 unknown + UI「有失败」</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-健康度未满阈值误标健康.html">HTML</a><a href="postmortem/2026-09-健康度未满阈值误标健康.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">复盘：UX 设计方案与页面对比拆分</a>
+          <span class="blurb">单页 UX 误拆独立 Demo · 默认内嵌进设计稿</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">HTML</a><a href="postmortem/2026-09-UX设计方案与页面对比拆分.md">MD</a></div>
       </li>
       <li>
         <div class="title">

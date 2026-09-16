@@ -7,6 +7,27 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 修复 — 健康度未满阈值误标「健康」（方案 A）
+- 连续失败 1～N−1：写 `unknown`、UI「有失败」；≥N 仍为「异常」；成功后回「健康」
+- 存量 `ok AND consecutive_failures>0` 由 `ensure_business_tables` 校正为 `unknown`
+- 设计 / 复盘：`doc/design/健康度未满阈值误标健康修复设计-2026-09.html` · `doc/postmortem/2026-09-健康度未满阈值误标健康.html`
+
+### 工程 — 前端页面改动强制页面对比 Demo
+- 规范升级：凡模板/Redesign/导航/筛选/badge 等可见改动，设计稿必须含 Before/After 页面对比（默认内嵌方案节）
+- 落点：`AGENTS.md`、`.cursor/rules/cronpilot-project.mdc`、`cronpilot-documentation.mdc`、`cronpilot-format-guard.mdc`
+- 自检：`grep -nE 'page-compare|BEFORE|AFTER|Before|After' doc/design/本设计.html`
+
+### UI — 任务中心顶栏追加运行中 / 已暂停计数（方案 E）
+- 顶栏由「N 个任务 · …」改为「N 个任务 · 运行中 X · 已暂停 Y · …」；chip「全部」与默认列表不变
+- AJAX `partial=1` stats 增加 `running` / `paused`
+- 设计：`doc/design/任务中心排除已下线任务统计与默认列表设计-2026-09.html`（rev.5）
+- 测试：`tests.test_dashboard_stats_stability` / `tests.test_dashboard_partial`
+
+### 文档 — UX 设计方案与页面对比默认内嵌
+- 单页 UX 设计稿须在方案节内嵌 Before/After，禁止方案与对比 Demo 拆成两份；规范见 `AGENTS.md` / `cronpilot-documentation.mdc`
+- 复盘：`doc/postmortem/2026-09-UX设计方案与页面对比拆分.html`
+- 「任务中心排除已下线」设计 rev.4 已合并对比画面至 §3.1.1
+
 ### 文档 — 下次执行相对时间误显示（复盘与修复设计）
 
 - **已修复**：只填小时、分钟留空时，「下次执行」与 APScheduler 默认第 0 分对齐；不再长期误显示 `in <1 min`。

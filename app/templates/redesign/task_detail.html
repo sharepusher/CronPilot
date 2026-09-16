@@ -73,9 +73,15 @@
       {% if health and health.health_status == 'failing' %}
         <span class="dot failing"></span>
         <span class="label failing">异常</span>
-      {% else %}
+      {% elif health and (health.consecutive_failures|int > 0) %}
+        <span class="dot watching"></span>
+        <span class="label watching">有失败</span>
+      {% elif health and health.health_status == 'ok' %}
         <span class="dot"></span>
         <span class="label">健康</span>
+      {% else %}
+        <span class="dot unknown"></span>
+        <span class="label unknown">N/A</span>
       {% endif %}
     </div>
     <div class="td-health-metrics">

@@ -324,5 +324,49 @@ class TestModelMigrationSync(unittest.TestCase):
             )
 
 
+
+
+class TestCorrectSubthresholdHealthOk(unittest.TestCase):
+    """方案 A：历史 ok+consecutive>0 校正为 unknown。"""
+
+    def test_correct_subthreshold_health_ok(self):
+        from flask import Flask
+        from app import db
+        from datas.model.job_health import JobHealth  # noqa: F401
+
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
+        mod = _load_ensure()
+        with app.app_context():
+            db.create_all()
+            db.session.execute(db.text(
+                "INSERT INTO job_health "
+                "(cron_info_id, consecutive_failures, health_status, "
+                "last_run_at, last_success_at, last_fail_at, updated_at, "
+                "last_run_status, last_run_trace_id) "
+                "VALUES (1, 1, 'ok', '0', '0', '0', '0', 'error', '')"
+            ))
+            db.session.execute(db.text(
+                "INSERT INTO job_health "
+                "(cron_info_id, consecutive_failures, health_status, "
+                "last_run_at, last_success_at, last_fail_at, updated_at, "
+                "last_run_status, last_run_trace_id) "
+                "VALUES (2, 0, 'ok', '0', '0', '0', '0', 'success', '')"
+            ))
+            db.session.commit()
+            with patch.object(mod, 'db', db):
+                mod._correct_subthreshold_health_ok()
+            rows = {
+                r.cron_info_id: r.health_status
+                for r in db.session.execute(
+                    db.text('SELECT cron_info_id, health_status FROM job_health')
+                ).mappings()
+            }
+            self.assertEqual(rows[1], 'unknown')
+            self.assertEqual(rows[2], 'ok')
+
+
 if __name__ == '__main__':
     unittest.main()

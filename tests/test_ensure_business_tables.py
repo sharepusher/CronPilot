@@ -93,9 +93,6 @@ class TestEnsureRbacUsersColumns(unittest.TestCase):
 
 class TestEnsureCronInfosColumns(unittest.TestCase):
     def test_adds_only_req_method_and_req_body_for_legacy_table(self):
-        from types import SimpleNamespace
-        from unittest.mock import patch
-
         mod = _load_ensure()
         executed_sql = []
 
@@ -137,9 +134,6 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN timeout_sec INTEGER', sql_text)
 
     def test_does_nothing_when_columns_already_exist(self):
-        from types import SimpleNamespace
-        from unittest.mock import patch
-
         mod = _load_ensure()
         executed_sql = []
 
@@ -180,9 +174,6 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         self.assertEqual(executed_sql, [])
 
     def test_mysql_uses_text_without_default_for_req_body(self):
-        from types import SimpleNamespace
-        from unittest.mock import patch
-
         mod = _load_ensure()
         executed_sql = []
 
@@ -228,6 +219,7 @@ class TestEnsureEmptyDbReplay(unittest.TestCase):
     REQUIRED_TABLES = (
         'cron_infos',
         'job_log',
+        'job_log_events',
         'job_log_items',
         'job_health',
         'rbac_users',
@@ -252,6 +244,8 @@ class TestEnsureEmptyDbReplay(unittest.TestCase):
             db.create_all()
             for _ in range(2):
                 mod._ensure_job_log_columns()
+                mod._ensure_job_log_item_columns()
+                mod._ensure_job_log_trace_ids(backend='sqlite')
                 mod._ensure_cron_infos_columns(backend='sqlite')
                 mod._ensure_rbac_users_columns()
             insp = inspect(db.engine)
@@ -269,13 +263,80 @@ class TestEnsureEmptyDbReplay(unittest.TestCase):
             ):
                 self.assertIn(col, cron_cols)
             jl_cols = {c['name'] for c in insp.get_columns('job_log')}
-            for col in ('http_status', 'status', 'fail_reason'):
+            for col in ('http_status', 'status', 'fail_reason', 'trace_id'):
                 self.assertIn(col, jl_cols)
+            item_cols = {c['name'] for c in insp.get_columns('job_log_items')}
+            self.assertIn('occurred_at_ms', item_cols)
+            self.assertTrue(insp.has_table('job_log_events'))
             rbac_cols = {c['name'] for c in insp.get_columns('rbac_users')}
             self.assertIn('must_reset_password', rbac_cols)
             self.assertIn('status_reason', rbac_cols)
             self.assertIn('api_token', rbac_cols)
             self.assertIn('api_token_expires_at', rbac_cols)
+
+    def test_trace_migration_replaces_duplicates_before_unique_index(self):
+        from flask import Flask
+        from sqlalchemy import inspect, text
+
+        from app import db
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
+        with app.app_context():
+            db.session.execute(text(
+                'CREATE TABLE job_log ('
+                'id INTEGER PRIMARY KEY, trace_id VARCHAR(65) NOT NULL)'
+            ))
+            db.session.execute(text(
+                "INSERT INTO job_log (id, trace_id) VALUES (1, 'duplicate'), (2, 'duplicate')"
+            ))
+            db.session.commit()
+
+            mod._ensure_job_log_trace_ids(backend='sqlite')
+
+            trace_ids = [row[0] for row in db.session.execute(
+                text('SELECT trace_id FROM job_log ORDER BY id')
+            )]
+            self.assertEqual(len(trace_ids), len(set(trace_ids)))
+            indexes = inspect(db.engine).get_indexes('job_log')
+            self.assertIn('uq_job_log_trace_id', {index['name'] for index in indexes})
+
+    def test_trace_migration_fails_closed_for_ambiguous_dependents(self):
+        from flask import Flask
+        from sqlalchemy import text
+
+        from app import db
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
+        with app.app_context():
+            db.session.execute(text(
+                'CREATE TABLE job_log (id INTEGER PRIMARY KEY, trace_id VARCHAR(65) NOT NULL)'
+            ))
+            db.session.execute(text(
+                'CREATE TABLE job_log_items (id INTEGER PRIMARY KEY, trace_id VARCHAR(65) NOT NULL)'
+            ))
+            db.session.execute(text(
+                "INSERT INTO job_log (id, trace_id) VALUES (1, 'duplicate'), (2, 'duplicate')"
+            ))
+            db.session.execute(text(
+                "INSERT INTO job_log_items (id, trace_id) VALUES (1, 'duplicate')"
+            ))
+            db.session.commit()
+
+            with self.assertRaisesRegex(RuntimeError, 'ambiguous trace_id duplicate'):
+                mod._ensure_job_log_trace_ids(backend='sqlite')
+
+            traces = [row[0] for row in db.session.execute(
+                text('SELECT trace_id FROM job_log ORDER BY id')
+            )]
+            self.assertEqual(traces, ['duplicate', 'duplicate'])
 
 
 class TestModelMigrationSync(unittest.TestCase):
@@ -322,8 +383,6 @@ class TestModelMigrationSync(unittest.TestCase):
                 missing, set(),
                 'SA 模型列在数据库中缺失（ensure 迁移脚本未补列）：%s' % missing
             )
-
-
 
 
 class TestCorrectSubthresholdHealthOk(unittest.TestCase):

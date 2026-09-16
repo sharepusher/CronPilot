@@ -10,6 +10,7 @@
 """
 import os
 import sys
+import uuid
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
@@ -17,18 +18,19 @@ if ROOT not in sys.path:
 
 from app import create_app, db  # noqa: E402
 from datas.model.cron_infos import CronInfos  # noqa: F401,E402
-from datas.model.job_log import JobLog  # noqa: F401,E402
-from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
 from datas.model.job_health import JobHealth  # noqa: F401,E402
-from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
-from datas.model.rbac_user import RbacUser  # noqa: F401,E402
+from datas.model.job_log import JobLog  # noqa: F401,E402
+from datas.model.job_log_event import JobLogEvent  # noqa: F401,E402
+from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
 from datas.model.operation_log import OperationLog  # noqa: F401,E402
-from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
-from datas.model.user_group import UserGroup  # noqa: F401,E402
+from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
 from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401,E402
-from datas.model.task_group import TaskGroup  # noqa: F401,E402
+from datas.model.rbac_user import RbacUser  # noqa: F401,E402
+from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
 from datas.model.tag import Tag  # noqa: F401,E402
+from datas.model.task_group import TaskGroup  # noqa: F401,E402
 from datas.model.task_tag import TaskTag  # noqa: F401,E402
+from datas.model.user_group import UserGroup  # noqa: F401,E402
 
 
 def business_db_backend(uri):
@@ -54,6 +56,9 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
+        _rename_log_id_to_trace_id(backend=backend)
+        _ensure_job_log_trace_ids(backend=backend)
+        _ensure_job_log_item_columns()
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
         _ensure_rbac_registration_requests_columns()
@@ -66,11 +71,14 @@ def main():
         _ensure_tags_description_column()
         _drop_resource_groups_code_column(backend=backend)
         _migrate_time_columns_to_bigint()
-        _rename_log_id_to_trace_id(backend=backend)
         _cleanup_orphan_health_records()
         _correct_subthreshold_health_ok()
         _ensure_id_columns_bigint(backend=backend)
-        from app.rbac.services import ensure_seed_admin, ensure_existing_users_have_token, expire_stale_registrations
+        from app.rbac.services import (
+            ensure_existing_users_have_token,
+            ensure_seed_admin,
+            expire_stale_registrations,
+        )
         ensure_seed_admin()
         ensure_existing_users_have_token()
         expire_stale_registrations()
@@ -128,6 +136,100 @@ def _ensure_job_log_columns():
     print('OK: job_log 列已补全 ->', ', '.join(
         c.split()[-1] for c in alters
     ))
+
+
+def _ensure_job_log_item_columns():
+    """为既有业务回传日志补充稳定排序时间。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log_items'):
+        return
+    cols = {c['name'] for c in insp.get_columns('job_log_items')}
+    if 'occurred_at_ms' not in cols:
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE job_log_items ADD COLUMN occurred_at_ms BIGINT'))
+
+
+def _ensure_job_log_trace_ids(backend=''):
+    """Backfill legacy blank/duplicate trace IDs before adding the unique index."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log'):
+        return
+    if 'trace_id' not in {c['name'] for c in insp.get_columns('job_log')}:
+        raise RuntimeError('job_log lacks trace_id after legacy column migration')
+    # Complete the data repair before DDL.  Keeping the unique-index creation
+    # in a separate transaction is required by SQLite's schema visibility
+    # rules and is equally safe for MySQL.
+    with db.engine.begin() as conn:
+        rows = conn.execute(text('SELECT id, trace_id FROM job_log ORDER BY id')).fetchall()
+        parent_counts = {}
+        for row in rows:
+            normalized = (row[1] or '').strip()
+            parent_counts[normalized] = parent_counts.get(normalized, 0) + 1
+
+        # A duplicate parent trace ID cannot be safely remapped when dependent
+        # rows already use that value: their original parent is unknowable.
+        # Fail closed before changing any parent row instead of silently
+        # orphaning or misattributing execution evidence.
+        dependent_tables = ('job_log_items', 'job_log_events')
+        for trace_id, parent_count in parent_counts.items():
+            if parent_count < 2:
+                continue
+            for table in dependent_tables:
+                if not insp.has_table(table):
+                    continue
+                dependent_cols = {c['name'] for c in insp.get_columns(table)}
+                if 'trace_id' not in dependent_cols:
+                    continue
+                if trace_id:
+                    dependent_count = conn.execute(text(
+                        'SELECT COUNT(*) FROM {} WHERE trace_id = :trace_id'.format(table)
+                    ), {'trace_id': trace_id}).scalar_one()
+                else:
+                    dependent_count = conn.execute(text(
+                        'SELECT COUNT(*) FROM {} WHERE trace_id IS NULL OR trace_id = :trace_id'.format(table)
+                    ), {'trace_id': ''}).scalar_one()
+                if dependent_count:
+                    raise RuntimeError(
+                        'ambiguous trace_id {} has {} dependent rows in {}'.format(
+                            trace_id or '<blank>', dependent_count, table,
+                        )
+                    )
+
+        seen = set()
+        for row in rows:
+            trace_id = (row[1] or '').strip()
+            if not trace_id or trace_id in seen:
+                trace_id = str(uuid.uuid1())
+                while trace_id in seen:
+                    trace_id = str(uuid.uuid1())
+                conn.execute(
+                    text('UPDATE job_log SET trace_id = :trace_id WHERE id = :id'),
+                    {'trace_id': trace_id, 'id': row[0]},
+                )
+            seen.add(trace_id)
+
+    insp = inspect(db.engine)
+    indexes = {index['name'] for index in insp.get_indexes('job_log')}
+    unique_columns = {
+        tuple(constraint.get('column_names') or [])
+        for constraint in insp.get_unique_constraints('job_log')
+    }
+    if 'uq_job_log_trace_id' in indexes or ('trace_id',) in unique_columns:
+        return
+
+    with db.engine.begin() as conn:
+        duplicate_count = conn.execute(text(
+            'SELECT COUNT(*) FROM ('
+            'SELECT trace_id FROM job_log GROUP BY trace_id HAVING COUNT(*) > 1'
+            ') AS duplicate_trace_ids'
+        )).scalar_one()
+        if duplicate_count:
+            raise RuntimeError('job_log trace_id backfill left duplicate values')
+        conn.execute(text('CREATE UNIQUE INDEX uq_job_log_trace_id ON job_log (trace_id)'))
 
 
 def _ensure_cron_infos_columns(backend=''):
@@ -700,6 +802,7 @@ def _migrate_time_columns_to_bigint():
     迁移策略 T-A：将历史本地时间转换为真正的 UTC。
     """
     import time
+
     from sqlalchemy import inspect, text
 
     insp = inspect(db.engine)
@@ -822,7 +925,8 @@ def _rename_log_id_to_trace_id(backend='sqlite'):
 
     Tables: job_log.log_id, job_log_items.log_id, job_health.last_run_log_id.
     """
-    from sqlalchemy import inspect as sa_inspect, text
+    from sqlalchemy import inspect as sa_inspect
+    from sqlalchemy import text
 
     insp = sa_inspect(db.engine)
     _RENAMES = [

@@ -25,6 +25,7 @@ from app.security.csrf import csrf_protect
 from app.services.cron_service import add_cron_web, edit_cron_web
 from app.services.job_log_filter import job_log_outcome_clause
 from app.services.pagination import PageQuery
+from app.services.run_inspector_presenter import build_event_timeline, build_run_inspector_view
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.task_group import TaskGroup
@@ -451,8 +452,8 @@ def task_detail_v2():
             group_name = rg.name
 
     # Cron expression (APScheduler-aligned effective fields)
-    from app.services.cron_schedule_display import effective_crontab_5, next_fire_datetime
-    cron_expr = effective_crontab_5(cif) or (cif.run_date or '—')
+    from app.services.cron_schedule_display import format_cron_expression, next_fire_datetime
+    cron_expr = format_cron_expression(cif) or (cif.run_date or '—')
 
     # Human-readable cron description
     cron_human = ''
@@ -663,31 +664,20 @@ def job_log_detail():
     jl = repo.get(JobLog, job_log_id)
     if not jl:
         return render_template("redesign/run_inspector.html",
-                               active_nav='logs', jl=None, cif=None, items=[],
-                               record_id='—', take_time_display='—',
-                               trigger_type='—', group_name='', health=None)
+                               active_nav='logs',
+                               run=build_run_inspector_view(None, None))
     cif = db.session.get(CronInfos, jl.cron_info_id)
     denied = authorize_resource('log:read', cif)
     if denied:
         return denied
     items = repo.items_for_trace_id(jl.trace_id) if jl.trace_id else []
+    role = session.get('role') or ''
+    can_view_sensitive = role == 'admin'
+    timeline = build_event_timeline(
+        repo.events_for_trace_id(jl.trace_id) if jl.trace_id else [],
+        include_detail=can_view_sensitive,
+    )
 
-    record_id = jl.id
-    raw_time = getattr(jl, 'take_time', None) or 0
-    try:
-        raw_time = float(raw_time)
-    except (TypeError, ValueError):
-        raw_time = 0
-    if raw_time >= 1:
-        take_time_display = '{:.1f}s'.format(raw_time)
-    elif raw_time > 0:
-        take_time_display = '{}ms'.format(int(raw_time * 1000))
-    else:
-        take_time_display = '—'
-    # Determine trigger type from job_log.trigger_source
-    _ts = getattr(jl, 'trigger_source', None) or 'schedule'
-    _trigger_labels = {'schedule': '定时调度', 'manual': '手动执行', 'one_shot': '一次性任务'}
-    trigger_type = _trigger_labels.get(_ts, _ts)
     # Build schedule display (cron expression) for context
     schedule_display = ''
     if cif:
@@ -695,7 +685,6 @@ def job_log_detail():
         schedule_display = format_cron_expression(cif) or humanize_schedule(cif)
     # Get group name and health for context
     group_name = ''
-    health = None
     if cif:
         from datas.model.resource_group import ResourceGroup
         grp_row = db.session.execute(
@@ -705,43 +694,19 @@ def job_log_detail():
             rg = db.session.get(ResourceGroup, grp_row[0])
             if rg:
                 group_name = rg.name
-        from datas.model.job_health import JobHealth
-        health = db.session.get(JobHealth, cif.id)
-    # Compute relative time (time_ago)
-    time_ago = ''
-    from datetime import datetime
-    started_raw = getattr(jl, 'started_at', None) or getattr(jl, 'create_time', None)
-    if started_raw:
-        try:
-            if isinstance(started_raw, str):
-                started_dt = datetime.strptime(started_raw, '%Y-%m-%d %H:%M:%S')
-            else:
-                started_dt = started_raw
-            delta = datetime.now() - started_dt
-            secs = int(delta.total_seconds())
-            if secs < 60:
-                time_ago = '刚刚'
-            elif secs < 3600:
-                time_ago = '{}分钟前'.format(secs // 60)
-            elif secs < 86400:
-                time_ago = '{}小时前'.format(secs // 3600)
-            else:
-                time_ago = '{}天前'.format(secs // 86400)
-        except (ValueError, TypeError):
-            pass
+    run = build_run_inspector_view(
+        jl,
+        cif,
+        group_name=group_name,
+        schedule_display=schedule_display,
+        timeline=timeline,
+        business_items=items,
+        is_admin=can_view_sensitive,
+    )
     return render_template(
         "redesign/run_inspector.html",
         active_nav='logs',
-        jl=jl,
-        cif=cif,
-        items=items,
-        record_id=record_id,
-        take_time_display=take_time_display,
-        trigger_type=trigger_type,
-        group_name=group_name,
-        health=health,
-        time_ago=time_ago,
-        schedule_display=schedule_display,
+        run=run,
     )
 
 
@@ -1155,5 +1120,3 @@ def cron_del():
 @require_permission('cron:read')
 def cron_batch_del():
     return json_response(errcode=1, errmsg='已禁止删除任务，请使用下线', status=410)
-
-

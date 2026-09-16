@@ -123,7 +123,7 @@
       <li>
         <a href="{{ url_for('main.job_log_detail', id=run.id) }}" class="td-rr-link">
           <span class="td-rr-time">{{ run.time_short }}</span>
-          <span class="td-rr-status {{ 'ok' if run.status == 'success' else 'fail' }}"></span>
+          <span class="td-rr-status {{ 'ok' if run.status == 'success' else ('running' if run.status == 'running' else ('pending' if run.status == 'pending' else 'fail')) }}"></span>
           <span class="td-rr-code">{{ run.http_status or '—' }}</span>
           <span class="td-rr-duration">{{ run.take_time }}</span>
         </a>

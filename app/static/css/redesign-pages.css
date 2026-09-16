@@ -306,6 +306,14 @@
   background: var(--cp-danger);
 }
 
+.cp-page-task-detail .td-rr-status.running {
+  background: var(--cp-signal);
+}
+
+.cp-page-task-detail .td-rr-status.pending {
+  background: var(--cp-muted);
+}
+
 .cp-page-task-detail .td-rr-code {
   font-family: var(--cp-font-mono);
   width: 30px;
@@ -390,6 +398,16 @@
 .cp-page-run-inspector .ri-badge.timeout {
   background: var(--cp-warn-bg);
   color: var(--cp-warn);
+}
+
+.cp-page-run-inspector .ri-badge.running {
+  background: var(--cp-signal-bg);
+  color: var(--cp-signal);
+}
+
+.cp-page-run-inspector .ri-badge.pending {
+  background: var(--cp-surface-3);
+  color: var(--cp-muted);
 }
 
 .cp-page-run-inspector .ri-meta {
@@ -487,6 +505,64 @@
 
 .cp-page-run-inspector .ri-config-grid .cfg-value {
   color: var(--cp-ink);
+}
+
+.cp-page-run-inspector .ri-metadata-body {
+  font-family: var(--cp-font-ui);
+}
+
+.cp-page-run-inspector .ri-mono-value {
+  font-family: var(--cp-font-mono);
+}
+
+.cp-page-run-inspector .ri-timeline-body {
+  padding: 12px 16px;
+}
+
+.cp-page-run-inspector .ri-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cp-page-run-inspector .ri-timeline-item {
+  display: grid;
+  grid-template-columns: 92px 12px minmax(120px, auto) 64px 1fr;
+  align-items: start;
+  column-gap: 8px;
+  min-height: 28px;
+}
+
+.cp-page-run-inspector .ri-timeline-time,
+.cp-page-run-inspector .ri-timeline-offset {
+  color: var(--cp-muted);
+}
+
+.cp-page-run-inspector .ri-timeline-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--cp-signal);
+}
+
+.cp-page-run-inspector .ri-timeline-item.fail .ri-timeline-dot,
+.cp-page-run-inspector .ri-timeline-item.timeout .ri-timeline-dot {
+  background: var(--cp-danger);
+}
+
+.cp-page-run-inspector .ri-timeline-label {
+  color: var(--cp-ink);
+}
+
+.cp-page-run-inspector .ri-timeline-detail {
+  color: var(--cp-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.cp-page-run-inspector .ri-empty-timeline {
+  color: var(--cp-muted);
 }
 
 
@@ -1242,6 +1318,7 @@ a.tc-name:hover { color: var(--cp-signal); }
 .hc-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .hc-dot.dot-ok { background: var(--cp-success); }
 .hc-dot.dot-fail { background: var(--cp-danger); animation: cp-health-pulse 2s ease-in-out infinite; }
+.hc-dot.dot-watching { background: var(--cp-warn); }
 .hc-dot.dot-unknown { background: var(--cp-text-faint); }
 .hc-dot.dot-run { background: var(--cp-signal); animation: c-pulse 1.8s ease-in-out infinite; }
 .hc-dot.dot-off { background: var(--cp-text-faint); }

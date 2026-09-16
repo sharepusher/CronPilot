@@ -38,11 +38,9 @@
 |------|------|------|----------|
 | **规模化信息架构 OPT-P2-13**（权威总稿） | L1/L2/L3 · job_health · 角色调制 · **当前焦点** | [HTML](design/规模化信息架构设计.html) | [MD](design/规模化信息架构设计.md) |
 | **任务中心需要关注项目排除下线任务设计**（已交付） | 下线任务不再进入异常提醒面板 | [HTML](design/任务中心需要关注项目排除下线任务设计.html) | [MD](design/任务中心需要关注项目排除下线任务设计.md) |
+| **下次执行相对时间误显示修复设计（2026-09）**（已实施） | 空 minute 展示与 APScheduler 默认 0 对齐 · CronTrigger 同源 | [HTML](design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](postmortem/2026-09-下次执行相对时间误显示.html) | [MD](design/下次执行相对时间误显示修复设计-2026-09.md) |
 | **任务中心顶栏运行中/已暂停分列统计（2026-09）**（已实施 · rev.5 · 方案 E） | 保留「N 个任务」后追加「运行中 X · 已暂停 Y」；不改 chip「全部」、不改默认列表 | [HTML](design/任务中心排除已下线任务统计与默认列表设计-2026-09.html) | [MD](design/任务中心排除已下线任务统计与默认列表设计-2026-09.md) |
 | **健康度未满阈值误标「健康」修复（2026-09）**（已实施 · 方案 A） | 连续失败 1～N−1 显示「有失败」，禁止标「健康」；≥N 仍为异常 | [HTML](design/健康度未满阈值误标健康修复设计-2026-09.html) | [MD](design/健康度未满阈值误标健康修复设计-2026-09.md) |
-| **健康度未满阈值误标「健康」** | 失败 1～2 次勿标健康 · 写 unknown + UI「有失败」 | [HTML](postmortem/2026-09-健康度未满阈值误标健康.html) | [MD](postmortem/2026-09-健康度未满阈值误标健康.md) |
-| **UX 设计方案与页面对比拆分** | 单页 UX 误拆独立 Demo · 默认内嵌进设计稿 | [HTML](postmortem/2026-09-UX设计方案与页面对比拆分.html) | [MD](postmortem/2026-09-UX设计方案与页面对比拆分.md) |
-| **下次执行相对时间误显示修复设计（2026-09）**（已实施） | 空 minute 展示与 APScheduler 默认 0 对齐 · CronTrigger 同源 | [HTML](design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](postmortem/2026-09-下次执行相对时间误显示.html) | [MD](design/下次执行相对时间误显示修复设计-2026-09.md) |
 | **用户管理「添加用户」入口布局优化设计**（已交付） | 标题区减负 · 主操作移入列表工具区左首位 · 桌面/窄屏前后对比 | [HTML](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html) | [MD](design/用户管理添加用户入口布局优化设计.md) |
 | **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **全量测试全绿修复设计（2026-09）**（待确认） | 90 项失败/错误分簇：Session fixture、离线 DNS、旧 schema 与 ORM 门禁 | [HTML](design/全量测试全绿修复设计-2026-09.html) | [MD](design/全量测试全绿修复设计-2026-09.md) |
@@ -51,7 +49,13 @@
 | **Codex 沙盒服务启停与验收脚本设计（2026-09）**（待确认） | 受限进程/端口/网络环境下的安全启停与 offline 验收 | [HTML](design/Codex沙盒服务启停与验收脚本设计-2026-09.html) | [MD](design/Codex沙盒服务启停与验收脚本设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | **OPT-P0-21 50-bit 任务 ID 生成器最终优化设计**（待确认） | 仅任务 ID 使用 · 32/12/6 位布局 · IP+PORT+PID worker · 引用列 BIGINT | [HTML](design/OPT-P0-21-ID生成策略优化设计.html) | [MD](design/OPT-P0-21-ID生成策略优化设计.md) |
-| **任务执行链路可观测性设计方案（收敛版）**（待确认） | 同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 | [HTML](design/任务执行链路可观测性设计方案-收敛版.html) | [MD](design/任务执行链路可观测性设计方案-收敛版.md) |
+| **任务执行链路可观测性设计方案（收敛版）**（待确认） | 同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 · rev.5 确认页面、线程池与保留边界 | [HTML](design/任务执行链路可观测性设计方案-收敛版.html) | [MD](design/任务执行链路可观测性设计方案-收敛版.md) |
+| ↳ **执行详情 URL 字段角色化脱敏修复设计**（已实施） | Bugbot High：全角色 URL 凭据脱敏 · 完整 Presenter DTO · 展示面修复 | [HTML](design/执行详情URL字段角色化脱敏修复设计-2026-09.html) | [MD](design/执行详情URL字段角色化脱敏修复设计-2026-09.md) |
+| ↳ 页面对比 Demo | Before/After · 详情主变更 + 列表/任务详情轻量 · 明确不改页 | [HTML](design/任务执行链路可观测性-页面对比Demo.html) | [MD](design/任务执行链路可观测性-页面对比Demo.md) |
+| ↳ Run Inspector 目标态场景 Demo | 状态呈现 / 时间线 / 三角色信息边界 | [HTML](design/任务执行链路可观测性-RunInspector-Demo.html) | [MD](design/任务执行链路可观测性-RunInspector-Demo.md) |
+| ↳ 收敛版专业 Review | 有条件通过 · 3 Blocker · 7 Major | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review.md) |
+| ↳ 专业 Review 评估 | rev.3 对照 · 采纳/修订/拒绝结论 | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.md) |
+| ↳ 文档与实现功能评估 | 有条件可用 · B4/B5 未闭环 | [HTML](design/任务执行链路可观测性-文档与实现功能评估.html) | [MD](design/任务执行链路可观测性-文档与实现功能评估.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](design/规模化双层IA与任务健康模型评审.html) | [MD](design/规模化双层IA与任务健康模型评审.md) |
 | P1 可观测小步 OPT-P1-01b/c | 失败筛选 · 展示统一 | [HTML](plan/P1可观测小步优化设计.html) | [MD](plan/P1可观测小步优化设计.md) |
@@ -112,6 +116,7 @@
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
 | **当前项目架构与代码质量全面评估报告（2026-09）**（待确认） | 架构 · 代码质量 · Bugbot 缺陷；逐项说明根因、影响、方案选型、实施路径与验收标准；统一采用“定时 HTTP 触发请求”术语 | [HTML](qa/当前项目架构与代码质量全面评估报告-2026-09.html) | [MD](qa/当前项目架构与代码质量全面评估报告-2026-09.md) |
+| **未提交变更与方案评估（2026-09-16）**（已交付） | HEAD Run Inspector 断链 · WIP 热修可提交 · B4/B5/B6 未交付 | [HTML](qa/未提交变更与方案评估-2026-09-16.html) | [MD](qa/未提交变更与方案评估-2026-09-16.md) |
 | **v4.0.0 之后变更与功能健康评估（2026-09-11）**（已交付） | 11 提交梳理 · 定向 148 绿 · 全量夹具红 · 未提交 P1/P2 分离 | [HTML](qa/v4.0.0之后变更与功能健康评估-2026-09.html) | [MD](qa/v4.0.0之后变更与功能健康评估-2026-09.md) |
 | P0 测试与验收手册 | 用例 · 冒烟 · 签字 | [HTML](qa/P0测试用例与验收手册.html) | [MD](qa/P0测试用例与验收手册.md) |
 | License Audit | Apache-2.0 合规 | [HTML](qa/LICENSE-AUDIT.html) | [MD](qa/LICENSE-AUDIT.md) |
@@ -131,6 +136,13 @@
 | **评估交付格式与测试状态漂移** | Canvas 误作交付 · 测试状态错误标记 · 双格式与索引防护 | [HTML](postmortem/2026-09-评估交付格式与测试状态漂移.html) | [MD](postmortem/2026-09-评估交付格式与测试状态漂移.md) |
 | **P1 测试夹具认证契约漂移** | Session schema fixture · 模型注册顺序 · fail-closed 回归 | [HTML](postmortem/2026-09-P1测试夹具认证契约漂移.html) | [MD](postmortem/2026-09-P1测试夹具认证契约漂移.md) |
 | **P2 触发 URL 签名与记录不一致** | fragment 解析 · PreparedRequest · 签名脱敏边界 | [HTML](postmortem/2026-09-P2触发URL签名与记录不一致.html) | [MD](postmortem/2026-09-P2触发URL签名与记录不一致.md) |
+| **设计 Demo HTML 未入库丢失** | 未跟踪 Demo 被删无法 git 恢复 · 索引链接存在性门禁 | [HTML](postmortem/2026-09-设计Demo未入库丢失.html) | [MD](postmortem/2026-09-设计Demo未入库丢失.md) |
+| **健康度未满阈值误标「健康」** | 失败 1～2 次勿标健康 · 写 unknown + UI「有失败」 | [HTML](postmortem/2026-09-健康度未满阈值误标健康.html) | [MD](postmortem/2026-09-健康度未满阈值误标健康.md) |
+| **UX 设计方案与页面对比拆分** | 单页 UX 误拆独立 Demo · 默认内嵌进设计稿 | [HTML](postmortem/2026-09-UX设计方案与页面对比拆分.html) | [MD](postmortem/2026-09-UX设计方案与页面对比拆分.md) |
+| **执行详情 URL 脱敏缺失修复** | Presenter 边界 · 全参数值脱敏 · HTML 否定断言 | [HTML](postmortem/2026-09-execution-detail-url-redaction.html) | [MD](postmortem/2026-09-execution-detail-url-redaction.md) |
+| **任务详情 seconds 展示丢失修复** | 调度表达式完整性 · 六字段展示 | [HTML](postmortem/2026-09-task-detail-seconds-display.html) | [MD](postmortem/2026-09-task-detail-seconds-display.md) |
+| **Dashboard 相对时间测试确定性修复** | 可注入时间基准 · 消除时钟漂移 | [HTML](postmortem/2026-09-dashboard-relative-time-test-determinism.html) | [MD](postmortem/2026-09-dashboard-relative-time-test-determinism.md) |
+| **全量回归门禁收口修复** | legacy 门禁 · 无上下文日志 | [HTML](postmortem/2026-09-regression-gate-cleanup.html) | [MD](postmortem/2026-09-regression-gate-cleanup.md) |
 
 ## 在线访问（服务启动后）
 

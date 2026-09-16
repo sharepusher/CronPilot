@@ -7,6 +7,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程 — 未提交变更与方案评估（2026-09-16）
+- 评估已落库：[`doc/qa/未提交变更与方案评估-2026-09-16.html`](doc/qa/未提交变更与方案评估-2026-09-16.html)
+- 结论：当前 WIP 为 Run Inspector 视图接线热修 + ensure B1 补齐；HEAD 详情页对 `run` 未定义会 500；不宜标注可观测性已交付
+
 ### 修复 — 健康度未满阈值误标「健康」（方案 A）
 - 连续失败 1～N−1：写 `unknown`、UI「有失败」；≥N 仍为「异常」；成功后回「健康」
 - 存量 `ok AND consecutive_failures>0` 由 `ensure_business_tables` 校正为 `unknown`
@@ -34,6 +38,39 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 实现：`next_fire_datetime` / `effective_crontab_5` / `cron_fire_interval_seconds`（`cron_schedule_display.py`）经 `CronTrigger` 与注册路径同源。
 - 验证：`tests.test_dashboard_next_run` + schedule display + overdue 单测通过。
 - 设计/复盘：[设计](doc/design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](doc/postmortem/2026-09-下次执行相对时间误显示.html)
+
+### 文档 — 任务执行链路可观测性（收敛版 rev.2）
+
+- 收敛版设计补充「〇、涉及页面」矩阵（改/不改路由与模板）
+- 新增 [页面对比 Demo](doc/design/任务执行链路可观测性-页面对比Demo.html)（Before/After）
+- 恢复并登记交互 Demo；复盘见 [设计 Demo 未入库丢失](doc/postmortem/2026-09-设计Demo未入库丢失.html)
+- 专业 Review（有条件通过）：[收敛版专业 Review](doc/design/任务执行链路可观测性设计方案-收敛版-专业Review.html)
+- 文档与实现功能评估（有条件可用）：[功能评估](doc/design/任务执行链路可观测性-文档与实现功能评估.html)
+
+### 安全修复 — 执行详情 URL 字段脱敏
+
+- 执行详情页改为只渲染 Presenter DTO；不再把任务配置 URL、实际 URL 或 URL userinfo 原文交给模板。
+- 所有角色均只看到 scheme、host、path 与参数名；每个 query 参数值统一显示为 `***`，userinfo 统一显示为 `***:***@`，fragment 不展示。
+- 验证：凭据 HTML 否定断言、Presenter 单元测试、86 条路由冒烟、UI 契约检查及本地浏览器加载通过。
+- 设计/复盘：[设计](doc/design/执行详情URL字段角色化脱敏修复设计-2026-09.html) · [复盘](doc/postmortem/2026-09-execution-detail-url-redaction.html)
+
+### 修复 — 任务详情 seconds 调度表达式展示
+
+- 任务详情改用完整 Cron 表达式格式化函数，保留 `second=*/10` 等秒级约束，不再展示截断后的五字段表达式。
+- 调度执行逻辑不变；新增 seconds 场景回归测试。
+- 复盘：[任务详情 seconds 展示丢失修复](doc/postmortem/2026-09-task-detail-seconds-display.html)
+
+### 工程修复 — Dashboard 相对时间测试确定性
+
+- `DashboardService.compute_next_runs()` 支持注入时间基准，测试不再依赖真实系统时钟。
+- 生产调用行为保持不变。
+- 复盘：[Dashboard 相对时间测试确定性修复](doc/postmortem/2026-09-dashboard-relative-time-test-determinism.html)
+
+### 工程修复 — 全量回归门禁收口
+
+- 修复 Presenter URL 解析触发 ORM legacy 静态门禁的问题。
+- Redis 锁竞争日志改用模块级 logger，支持脱离 Flask 应用上下文运行。
+- 复盘：[全量回归门禁收口修复](doc/postmortem/2026-09-regression-gate-cleanup.html)
 
 ### 工程 — v4.0.0 之后变更与功能健康评估
 

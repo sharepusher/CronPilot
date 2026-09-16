@@ -277,9 +277,24 @@
         <div class="title">
           <span class="badge b-wip">待确认</span>
           <a href="design/任务执行链路可观测性设计方案-收敛版.html">任务执行链路可观测性设计方案（收敛版）</a>
-          <span class="blurb">同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排</span>
+          <span class="blurb">同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 · rev.5 确认页面、线程池与保留边界</span>
+          <ul class="nest">
+            <li><span class="badge b-sub">已实施</span> <a href="design/执行详情URL字段角色化脱敏修复设计-2026-09.html">执行详情 URL 字段角色化脱敏修复设计</a>（Bugbot High：全角色 URL 凭据脱敏 · 完整 Presenter DTO）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-execution-detail-url-redaction.html">执行详情 URL 脱敏缺失修复复盘</a>（根因 · 防护测试 · DTO 边界门禁）</li>
+            <li><span class="badge b-sub">已实施</span> <a href="postmortem/2026-09-task-detail-seconds-display.html">任务详情 seconds 展示丢失修复复盘</a>（完整 Cron 表达式 · seconds 不丢失）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-dashboard-relative-time-test-determinism.html">Dashboard 相对时间测试确定性修复</a>（可注入时间基准 · 消除时钟漂移）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-regression-gate-cleanup.html">全量回归门禁收口修复</a>（legacy 门禁 · 无上下文日志）</li>
+            <li><span class="badge b-sub">对比 Demo</span> <a href="design/任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a>（Before/After · 详情主变更 + 列表/任务详情轻量 · 明确不改页）</li>
+            <li><span class="badge b-sub">场景 Demo</span> <a href="design/任务执行链路可观测性-RunInspector-Demo.html">Run Inspector 目标态场景 Demo</a>（状态呈现 / 时间线 / 三角色信息边界）</li>
+            <li><span class="badge b-sub">Review</span> <a href="design/任务执行链路可观测性设计方案-收敛版-专业Review.html">收敛版专业 Review</a>（有条件通过 · 3 Blocker · 7 Major）</li>
+            <li><span class="badge b-sub">评估</span> <a href="design/任务执行链路可观测性设计方案-收敛版-专业Review评估.html">专业 Review 评估</a>（rev.3 对照 · 采纳/修订/拒绝结论）</li>
+            <li><span class="badge b-sub">功能评估</span> <a href="design/任务执行链路可观测性-文档与实现功能评估.html">文档与实现功能评估</a>（有条件可用 · B4/B5 未闭环）</li>
+          </ul>
         </div>
-        <div class="links"><a href="design/任务执行链路可观测性设计方案-收敛版.html">HTML</a><a href="design/任务执行链路可观测性设计方案-收敛版.md">MD</a></div>
+        <div class="links"><a href="design/任务执行链路可观测性设计方案-收敛版.html">HTML</a><a href="design/任务执行链路可观测性设计方案-收敛版.md">MD</a>
+          · <a href="design/任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a>
+          · <a href="design/任务执行链路可观测性设计方案-收敛版-专业Review.html">专业 Review</a>
+          · <a href="design/任务执行链路可观测性-文档与实现功能评估.html">功能评估</a></div>
       </li>
       <li>
         <div class="title">
@@ -413,9 +428,9 @@
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心筛选按钮视觉统一与文案优化设计.html">任务中心筛选按钮视觉统一与文案优化设计</a>（Dashboard 筛选按钮视觉与文案统一）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心逾期未执行提示设计.html">任务中心「逾期未执行」提示设计</a>（「持续异常」与「今日失败」数据差异说明设计）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度统计语义优化设计.html">健康度统计语义优化设计</a>（Dashboard「持续异常」与健康度列语义对齐）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度未满阈值误标健康修复设计-2026-09.html">健康度未满阈值误标「健康」修复</a>（失败 1～2 次 →「有失败」· 已实施）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心需要关注项目排除下线任务设计.html">任务中心需要关注项目排除下线任务设计</a>（下线任务不再进入异常提醒面板）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/下次执行相对时间误显示修复设计-2026-09.html">下次执行相对时间误显示修复设计</a>（空 minute 与 APScheduler 默认 0 · 已实施）</li>
-            <li><span class="badge b-sub">Dashboard</span> <a href="design/健康度未满阈值误标健康修复设计-2026-09.html">健康度未满阈值误标「健康」修复</a>（失败 1～2 次 →「有失败」· 已实施）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心排除已下线任务统计与默认列表设计-2026-09.html">任务中心顶栏运行中/已暂停分列统计</a>（方案 E · 已实施 rev.5）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/screenshots/dashboard-table-overflow-demo.html">Dashboard 操作下拉菜单重叠修复 — 对比 Demo</a>（Dashboard 操作下拉菜单重叠修复对比 Demo）</li>
           </ul>
@@ -983,6 +998,14 @@
       <li>
         <div class="title">
           <span class="badge b-done">已交付</span>
+          <a href="qa/未提交变更与方案评估-2026-09-16.html">未提交变更与方案评估（2026-09-16）</a>
+          <span class="blurb">HEAD Run Inspector 断链 · WIP 热修可提交 · B4/B5/B6 未交付</span>
+        </div>
+        <div class="links"><a href="qa/未提交变更与方案评估-2026-09-16.html">HTML</a><a href="qa/未提交变更与方案评估-2026-09-16.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
           <a href="qa/v4.0.0之后变更与功能健康评估-2026-09.html">v4.0.0 之后变更与功能健康评估（2026-09-11）</a>
           <span class="blurb">11 提交梳理 · 148 定向绿 · 全量夹具红 · 未提交 P1/P2 分离</span>
         </div>
@@ -1235,20 +1258,6 @@
       </li>
       <li>
         <div class="title">
-          <a href="postmortem/2026-09-健康度未满阈值误标健康.html">复盘：健康度未满阈值误标「健康」</a>
-          <span class="blurb">失败 1～2 次勿标健康 · 写 unknown + UI「有失败」</span>
-        </div>
-        <div class="links"><a href="postmortem/2026-09-健康度未满阈值误标健康.html">HTML</a><a href="postmortem/2026-09-健康度未满阈值误标健康.md">MD</a></div>
-      </li>
-      <li>
-        <div class="title">
-          <a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">复盘：UX 设计方案与页面对比拆分</a>
-          <span class="blurb">单页 UX 误拆独立 Demo · 默认内嵌进设计稿</span>
-        </div>
-        <div class="links"><a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">HTML</a><a href="postmortem/2026-09-UX设计方案与页面对比拆分.md">MD</a></div>
-      </li>
-      <li>
-        <div class="title">
           <a href="postmortem/2026-09-文档索引结构损坏与登记丢失.html">复盘：文档索引结构损坏与登记丢失</a>
           <span class="blurb">剪贴断裂 · 登记删除 · 索引结构与复盘登记门禁</span>
         </div>
@@ -1281,6 +1290,27 @@
           <span class="blurb">fragment 解析 · PreparedRequest · 签名脱敏边界</span>
         </div>
         <div class="links"><a href="postmortem/2026-09-P2触发URL签名与记录不一致.html">HTML</a><a href="postmortem/2026-09-P2触发URL签名与记录不一致.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-设计Demo未入库丢失.html">复盘：设计 Demo HTML 未入库丢失</a>
+          <span class="blurb">未跟踪 Demo 被删无法 git 恢复 · 索引链接存在性门禁</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-设计Demo未入库丢失.html">HTML</a><a href="postmortem/2026-09-设计Demo未入库丢失.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-健康度未满阈值误标健康.html">复盘：健康度未满阈值误标「健康」</a>
+          <span class="blurb">失败 1～2 次勿标健康 · 写 unknown + UI「有失败」</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-健康度未满阈值误标健康.html">HTML</a><a href="postmortem/2026-09-健康度未满阈值误标健康.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">复盘：UX 设计方案与页面对比拆分</a>
+          <span class="blurb">单页 UX 误拆独立 Demo · 默认内嵌进设计稿</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-09-UX设计方案与页面对比拆分.html">HTML</a><a href="postmortem/2026-09-UX设计方案与页面对比拆分.md">MD</a></div>
       </li>
       <li>
         <div class="title">

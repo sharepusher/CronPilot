@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>未提交变更与方案评估（2026-09-16）</title>
+<style>
+:root{--p:#1d4ed8;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--bg:#f7f9fc;--card:#fff;--good:#047857;--warn:#b45309;--risk:#b91c1c;--info:#0e7490}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:1080px;margin:0 auto;padding:36px 24px 64px}h1{font-size:28px;line-height:1.25;margin:0 0 8px}h2{font-size:20px;margin:32px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--line)}h3{font-size:16px;margin:22px 0 8px}
+p{margin:8px 0}.meta,.muted{color:var(--muted)}code{background:#edf2f7;border-radius:4px;padding:1px 5px;font-size:.9em}a{color:var(--p)}
+.lead,.note,.danger,.good,.warnbox{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--p);border-radius:8px;padding:14px 16px;margin:16px 0}
+.danger{border-left-color:var(--risk)}.good{border-left-color:var(--good)}.warnbox{border-left-color:var(--warn)}.note{border-left-color:var(--info)}
+.score{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.score>div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px}.score strong{display:block;font-size:22px}.score span{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;background:var(--card);margin:12px 0 20px}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#edf2f7;font-size:13px}
+.pass{color:var(--good);font-weight:600}.fail{color:var(--risk);font-weight:600}.warn{color:var(--warn);font-weight:600}
+.badge{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.78em;font-weight:700;color:#fff}
+.b-ok{background:#059669}.b-warn{background:#d97706}.b-block{background:#dc2626}.b-info{background:#64748b}
+ul,ol{padding-left:24px}footer{margin-top:42px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:760px){.score{grid-template-columns:1fr 1fr}table{display:block;overflow-x:auto}}
+</style>
+</head>
+<body>
+<main>
+<h1>未提交变更与方案评估</h1>
+<p class="meta">日期：2026-09-16 · 基线：<code>82d59f9</code>（健康度/顶栏统计） atop <code>e073224</code>（任务执行链路可观测性大部） · 范围：当前工作区全部未提交 diff（10 文件，无 untracked） · 对照设计：<a href="../design/任务执行链路可观测性设计方案-收敛版.html">收敛版 rev.6</a></p>
+
+<div class="lead">
+<strong>结论：未提交代码是「HEAD 断链热修 + B1 迁移补齐 + 文档登记」，应尽快提交；不得据此宣称 Run Inspector / 收敛版已交付。</strong><br>
+<code>e073224</code> 已入库 Presenter、模板、Tracer、模型，但 <strong>未接线</strong> <code>job_log_detail</code> → 详情页对 <code>run</code> 未定义直接 500。本批 WIP 修好接线与 ensure 缺口。产品层 B4/B5/B6 契约（列表 pending、时间线主位、禁 raw detail、合同测试、四角色浏览器）仍未闭环。
+</div>
+
+<div class="score">
+  <div><strong>10</strong><span>未提交修改文件</span></div>
+  <div><strong>+385 / −106</strong><span>工作区 diff 体积</span></div>
+  <div><strong>24/24</strong><span>定向单测（含 Presenter / ensure）</span></div>
+  <div><strong>有条件</strong><span>可提交热修；不可标交付</span></div>
+</div>
+
+<h2 id="inventory">1. 未提交清单</h2>
+<table>
+<tr><th>文件</th><th>性质</th><th>评估</th></tr>
+<tr><td><code>app/main/views.py</code></td><td>功能接线</td><td><span class="badge b-block">必提交</span> Presenter 接线；<code>task_detail_v2</code> 改用 <code>format_cron_expression</code>（保留 seconds）</td></tr>
+<tr><td><code>scripts/ensure_business_tables.py</code></td><td>迁移补齐</td><td><span class="badge b-warn">应提交</span> 注册 <code>JobLogEvent</code>、<code>occurred_at_ms</code>、trace 唯一回填（fail-closed）</td></tr>
+<tr><td><code>tests/test_ensure_business_tables.py</code></td><td>迁移测试</td><td><span class="badge b-ok">应提交</span> 空库幂等 + 重复/歧义 dependents</td></tr>
+<tr><td><code>app/static/css/redesign-pages.css</code></td><td>样式</td><td><span class="badge b-ok">应提交</span> timeline / pending·running badge；含已提交健康度 watching 之上的增量</td></tr>
+<tr><td><code>app/templates/redesign/task_detail.html</code></td><td>轻量 UI</td><td><span class="badge b-ok">可提交</span> 近期执行点支持 pending/running class（1 行）</td></tr>
+<tr><td><code>RELEASE_NOTES.md</code></td><td>文档</td><td><span class="badge b-warn">可提交但勿夸大</span> 登记 Demo/Review/脱敏/seconds；无「功能已交付」句</td></tr>
+<tr><td><code>doc/index.html</code> / <code>doc/index.md</code></td><td>索引</td><td><span class="badge b-warn">可提交</span> 补登记 Demo/Review/评估与若干复盘；徽章仍写「待确认」与设计「实施中」不一致</td></tr>
+<tr><td><code>doc/postmortem/index.*</code></td><td>复盘索引</td><td><span class="badge b-ok">可提交</span> 篇数与条目需与实际入库复盘对齐</td></tr>
+</table>
+<p class="muted">无 untracked 文件。Run Inspector 主体（模板 / Presenter / Tracer / 模型 / 多数测试）已在 <code>e073224</code>。</p>
+
+<h2 id="breakage">2. HEAD 断链（关键事实）</h2>
+<div class="danger">
+<strong>已证实：</strong>暂存去掉 WIP 的 <code>views.py</code> 后，<code>tests.test_job_log_detail_integration.TestJobLogDetailIntegration.test_v2_detail_renders_without_error</code> → <code>jinja2.exceptions.UndefinedError: 'run' is undefined</code>（模板 <code>run_inspector.html:2</code>）。
+</div>
+<table>
+<tr><th>层</th><th>HEAD（<code>82d59f9</code>）</th><th>未提交 WIP</th></tr>
+<tr><td>模板</td><td>仅消费 <code>run.*</code> DTO</td><td>不变</td></tr>
+<tr><td>视图</td><td>仍传 <code>jl</code>/<code>cif</code>/<code>items</code>…</td><td><code>run=build_run_inspector_view(...)</code> + 事件时间线</td></tr>
+<tr><td>集成测试</td><td>期望 Presenter HTML（与模板一致）</td><td>与 WIP 对齐后 9/9 详情相关用例通过</td></tr>
+</table>
+<p>含义：<strong>当前 main 上已提交的 Run Inspector UI 在运行态不可用</strong>；未提交 views 是修复该断链的最小必要 diff，不是可选美化。</p>
+
+<h2 id="migration">3. ensure / 迁移 WIP</h2>
+<table>
+<tr><th>项</th><th>模型（已在 HEAD）</th><th>ensure（仅 WIP）</th></tr>
+<tr><td><code>job_log_events</code></td><td><code>datas/model/job_log_event.py</code></td><td>补 import，使 <code>create_all</code> 建表</td></tr>
+<tr><td><code>job_log_items.occurred_at_ms</code></td><td>模型已有</td><td>存量 <code>ALTER</code> 补列</td></tr>
+<tr><td><code>job_log.trace_id</code> UNIQUE</td><td>ORM <code>unique=True</code></td><td>回填空/重复 → <code>uq_job_log_trace_id</code>；有 dependents 的歧义重复 <strong>fail-closed</strong></td></tr>
+</table>
+<div class="warnbox">
+<strong>运维风险：</strong>若生产库存在「同一 <code>trace_id</code> 多父记录且已有 items/events」，ensure 会 <code>RuntimeError</code> 阻断启动。提交前须在副本上跑 ensure；必要时先手工消歧。另：<code>job_log_events</code> 仍未进启动 <code>critical_tables</code> 断言（漏表不会 FATAL）。
+</div>
+
+<h2 id="design">4. 方案对齐（收敛版 B0–B6）</h2>
+<p>权威设计：<a href="../design/任务执行链路可观测性设计方案-收敛版.html">收敛版 rev.6（徽章：实施中）</a>。先前功能评估：<a href="../design/任务执行链路可观测性-文档与实现功能评估.html">有条件可用 · B4/B5 未闭环</a>（评估时点早于 Presenter 入库；本轮对 B4 进度有上修）。</p>
+<table>
+<tr><th>批次</th><th>相对 HEAD+WIP</th><th>说明</th></tr>
+<tr><td>B0 契约基线</td><td><span class="badge b-warn">部分</span></td><td>缺 <code>tests/test_execution_observability_contract.py</code>；列表筛选未含 pending/running</td></tr>
+<tr><td>B1 模型与迁移</td><td><span class="badge b-warn">HEAD 半成品 → WIP 补齐</span></td><td>模型在仓；ensure/单测在 WIP；critical_tables 仍缺 events</td></tr>
+<tr><td>B2 Tracer</td><td><span class="badge b-warn">部分</span></td><td>写入路径已在 <code>e073224</code>；缺独立 redaction 模块；<code>http.start</code> detail 白名单仍偏窄</td></tr>
+<tr><td>B3 调度/锁</td><td><span class="badge b-warn">部分</span></td><td>ContextVar 路径已有；符合「锁失败不建父记录」</td></tr>
+<tr><td>B4 Presenter/详情</td><td><span class="badge b-warn">大幅前进，未达标</span></td><td>WIP 接线后 DTO 可用；仍：admin 可见结构化/JSON detail、时间线在请求/响应之后、非三角色细粒度</td></tr>
+<tr><td>B5 列表/保留</td><td><span class="badge b-warn">部分</span></td><td>保留策略已落地；列表 <code>pending</code> 仍落「未知」（未复用 <code>job_log_badge</code>）；WIP 仅补任务详情状态点</td></tr>
+<tr><td>B6 全量验收</td><td><span class="badge b-block">未做</span></td><td>无双后端压测证据、无四角色浏览器矩阵、无「功能交付」RELEASE 条</td></tr>
+</table>
+
+<h3>4.1 文档/方案自身问题</h3>
+<ul>
+<li><strong>索引徽章漂移</strong>：WIP <code>doc/index.html</code> 仍给收敛版标「待确认」，设计正文为「实施中」——提交时应改为实施中或移出「实现前」分区。</li>
+<li><strong>旧功能评估部分过时</strong>：写「模板仍读 ORM / 仅 timeline helper」已被 <code>e073224</code>+WIP 超越；宜在下一轮评估修订或加「截至 commit」脚注（本篇即该修订入口）。</li>
+<li><strong>设计双编号残留</strong>：收敛版仍含历史 Batch 1–4 表与 B0–B6 并存（Review M7）；不影响实施，但阅读易混。</li>
+</ul>
+
+<h2 id="risks">5. 风险与可否提交</h2>
+<table>
+<tr><th>风险</th><th>等级</th><th>建议</th></tr>
+<tr><td>继续不提交 views → 详情页 500</td><td class="fail">P0</td><td>尽快提交 views（可与 ensure/CSS/文档同 commit 或拆两 commit）</td></tr>
+<tr><td>把 WIP 标成「可观测性已交付」</td><td class="fail">产品误判</td><td>禁止；RELEASE 保持文档/安全/工程条目</td></tr>
+<tr><td>trace 唯一回填 fail-closed 卡启动</td><td class="warn">运维</td><td>副本试跑；准备手工消歧脚本说明</td></tr>
+<tr><td>admin raw/结构化 detail 与设计「任何角色不可见原始 detail JSON」</td><td class="warn">安全契约</td><td>单独立项收 B4；勿在热修里 silently 扩大暴露面</td></tr>
+<tr><td>列表 pending→「未知」</td><td class="warn">可用性</td><td>B5 优先；热修可不阻塞</td></tr>
+</table>
+
+<div class="good">
+<strong>推荐动作（按优先级）</strong>
+<ol>
+<li><strong>立即提交本批 WIP</strong>，说明为「修复 Run Inspector 视图接线 + ensure B1 补齐」，不要写交付完成。</li>
+<li>提交后 <code>cronpilot.sh restart</code>，用 admin 打开一条含 events 的 <code>/job_log_detail</code> 自证 200 + timeline。</li>
+<li>下一设计确认批次：B5 列表徽章/筛选 → B4 时间线主位 + 禁 raw detail + 角色矩阵 → B0 合同测试 → B6。</li>
+</ol>
+</div>
+
+<h2 id="verify">6. 本轮验收证据</h2>
+<table>
+<tr><th>命令 / 操作</th><th>结果</th></tr>
+<tr><td><code>git status --short</code></td><td>10 modified；0 untracked</td></tr>
+<tr><td><code>git diff --stat</code></td><td>+385 / −106</td></tr>
+<tr><td>stash 去掉 WIP views 后跑 <code>test_v2_detail_renders_without_error</code></td><td class="fail">UndefinedError: <code>run</code>（证实 HEAD 断链）</td></tr>
+<tr><td>恢复 WIP 后 <code>unittest tests.test_job_log_detail_integration tests.test_run_inspector_presenter tests.test_ensure_business_tables -v</code></td><td class="pass">24/24 OK</td></tr>
+<tr><td>静态核对</td><td>缺 <code>test_execution_observability_contract.py</code>、<code>run_event_redaction.py</code>；<code>_exec_logs_rows.html</code> pending→未知</td></tr>
+<tr><td>本机浏览器四角色 / Docker MySQL ensure</td><td class="warn">本轮未跑（评估范围限定工作区 diff）</td></tr>
+</table>
+
+<h2 id="related">7. 关联文档</h2>
+<ul>
+<li><a href="../design/任务执行链路可观测性设计方案-收敛版.html">收敛版设计</a> · <a href="../design/任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a> · <a href="../design/任务执行链路可观测性-RunInspector-Demo.html">场景 Demo</a></li>
+<li><a href="../design/任务执行链路可观测性设计方案-收敛版-专业Review.html">专业 Review</a> · <a href="../design/任务执行链路可观测性设计方案-收敛版-专业Review评估.html">Review 评估</a></li>
+<li><a href="../design/任务执行链路可观测性-文档与实现功能评估.html">先前功能评估（2026-09-15）</a> — 本篇为其工作区续评</li>
+<li>已提交：<code>e073224</code> feat: enhance task execution observability · <code>82d59f9</code> fix: dashboard running/paused + subthreshold health</li>
+</ul>
+
+<footer>
+评估落库：<code>doc/qa/未提交变更与方案评估-2026-09-16.html</code> ·
+同名 Markdown 由 <code>html_docs_to_markdown.py</code> 生成 ·
+索引登记见 <a href="../index.html">文档总索引</a>
+ · <a href="未提交变更与方案评估-2026-09-16.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</main>
+</body>
+</html>

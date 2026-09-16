@@ -29,6 +29,7 @@ class TestJobLogDisplay(unittest.TestCase):
     def test_badge(self):
         self.assertEqual(job_log_badge('success'), ('成功', 'ok'))
         self.assertEqual(job_log_badge('fail'), ('失败', 'fail'))
+        self.assertEqual(job_log_badge('pending'), ('已入队', 'pending'))
         self.assertEqual(job_log_badge(None), (None, None))
 
     def test_content_preview_truncates(self):

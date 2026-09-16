@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CronPilot 执行详情 URL 字段角色化脱敏修复设计</title>
+<style>
+body{max-width:1040px;margin:36px auto;padding:0 22px;font:15px/1.75 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937}h1{border-bottom:3px solid #2563eb;padding-bottom:12px}h2{color:#1d4ed8;border-bottom:1px solid #dbeafe;margin-top:40px;padding-bottom:7px}h3{color:#374151;margin-top:28px}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #d1d5db;padding:9px 11px;text-align:left;vertical-align:top}th{background:#f3f4f6}code{background:#f3f4f6;border-radius:3px;padding:1px 4px}.box{padding:14px 17px;margin:18px 0;border-left:4px solid #2563eb;background:#eff6ff}.decision{border-color:#059669;background:#ecfdf5}.risk{border-color:#dc2626;background:#fef2f2}.badge{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.85em;font-weight:700;color:#fff;background:#d97706}footer{margin:48px 0 24px;border-top:1px solid #e5e7eb;padding-top:14px;color:#6b7280}
+</style>
+</head>
+<body>
+<h1>执行详情 URL 字段角色化脱敏修复设计</h1>
+<p><span class="badge">已实施并验证</span> · 日期：2026-09-15 · 范围：<code>/job_log_detail</code> 的 URL 展示边界</p>
+
+<div class="box risk"><strong>问题：</strong>当前 <code>run_inspector.html</code> 直接读取 <code>cif.req_url</code>。拥有 <code>log:read</code> 的 Viewer 因而可看到任务 URL 中嵌入的 token、API key 或密码；模板也绕过了已确认的角色化 Presenter 契约。</div>
+
+<h2>一、问题、根因与目标</h2>
+<h3>1.1 事实与根因</h3>
+<p>任务 URL 是配置字段，不等于无敏感数据的地址。诸如 <code>?token=...</code>、<code>?api_key=...</code>、URL userinfo（<code>https://user:password@host/</code>）都可能是有效配置。当前页面仅在 <code>actual_url</code> 的局部展示处做角色判断，却无条件输出原始 <code>req_url</code>；原因是详情模板仍直接访问 ORM 对象，而现有 Presenter 只包装了时间线事件。</p>
+<h3>1.2 目标</h3>
+<ul>
+<li>所有执行详情角色均不能在 HTML、DOM 或复制控件中获得任何 URL 参数原值或 userinfo 凭据。</li>
+<li>保留排障必需的 scheme、host、path、参数名与参数存在性。</li>
+<li>详情模板只消费 <code>RunInspectorView</code>，不再读取 <code>JobLog</code>、<code>CronInfos</code> 或原始 URL 字段。</li>
+<li>本次只修复展示面；不回写、删除或迁移历史 <code>JobLog.actual_url</code>，不改变任务配置编辑能力。</li>
+</ul>
+
+<h2>二、范围与非范围</h2>
+<table>
+<tr><th>范围</th><th>处理</th></tr>
+<tr><td>执行详情请求区</td><td>原始 <code>req_url</code> 改为统一 DTO 的脱敏展示值。</td></tr>
+<tr><td>管理员实际 URL 区</td><td>保留管理员可见性，但只显示脱敏后的 URL；不显示签名或任意参数原值。</td></tr>
+<tr><td>模板数据边界</td><td>以 <code>RunInspectorView</code> / 子 DTO 取代模板中的原始 ORM 字段访问。</td></tr>
+<tr><th>非范围</th><th>原因</th></tr>
+<tr><td>事件 detail、异常文本、SSRF 原因入库脱敏</td><td>属于 Bugbot P0-2，另立修复，避免本次混入存储语义变更。</td></tr>
+<tr><td>任务配置编辑页的 URL 展示</td><td>由 <code>cron:write</code> 与表单安全契约管理，不属于执行详情读取面。</td></tr>
+<tr><td>历史库数据清洗</td><td>任务与执行证据不自动删除；展示修复立即覆盖历史记录，存储侧净化另经确认处理。</td></tr>
+</table>
+
+<h2>三、方案选择</h2>
+<table>
+<tr><th>方案</th><th>优点</th><th>缺陷</th><th>结论</th></tr>
+<tr><td>仅隐藏 Viewer 的 URL</td><td>改动小</td><td>Operator 仍可泄露；模板仍绕过 Presenter；管理员仍会回显凭据</td><td>拒绝</td></tr>
+<tr><td>按敏感参数名单替换值</td><td>保留普通参数原值</td><td>无法识别自定义凭据键；“管理员可见原值”仍扩大泄露面</td><td>拒绝</td></tr>
+<tr><td><strong>统一 DTO + 全参数值脱敏</strong></td><td>对未知参数 fail-closed；所有角色看到同一安全地址；模板边界清晰</td><td>管理员不能从执行详情复制任意参数原值</td><td><strong>采用</strong></td></tr>
+</table>
+
+<div class="box decision"><strong>决策：</strong>执行详情页对所有角色展示同一个 <code>display_url</code>：保留 <code>scheme://host[:port]/path</code>，保留 query 参数名与顺序，但每个参数值替换为 <code>***</code>；URL userinfo 统一替换为 <code>***:***@</code>。片段不展示。管理员可额外看到“实际请求已注入 trace 参数”的事实，但不能看到任一参数或签名原值。</div>
+
+<h2>四、详细技术设计</h2>
+<h3>4.1 URL 脱敏函数</h3>
+<p>新增纯函数 <code>sanitize_url_for_display(raw_url)</code>，输入为字符串或空值，输出语义化占位值或脱敏 URL。使用标准库 <code>urlsplit</code> / <code>parse_qsl(..., keep_blank_values=True)</code> / <code>urlunsplit</code>，不以正则替换整个 URL。</p>
+<ol>
+<li>空值返回 <code>—</code>；无法解析时返回 <code>地址格式异常（已隐藏）</code>，绝不回退原文。</li>
+<li>移除 fragment；fragment 不会发送到 HTTP 服务端，展示它只会扩大暴露面。</li>
+<li>保留 scheme、hostname、port 和 path；若 URL 含 username/password，netloc 固定显示为 <code>***:***@host</code>。</li>
+<li>解析 query 时保留重复键、原顺序与空键；每个值一律替换为 <code>***</code>，即 <code>?page=2&amp;token=x</code> 显示为 <code>?page=***&amp;token=***</code>。</li>
+<li>不得记录 raw URL、不得把 raw URL 作为异常消息、不得向模板传递 raw URL。</li>
+</ol>
+
+<h3>4.2 Presenter DTO 边界</h3>
+<p>新增 <code>build_run_inspector_view(...)</code>。View 层完成资源 Scope 鉴权后，将 <code>JobLog</code>、<code>CronInfos</code>、组名、健康度、事件与当前角色交给 Presenter；Presenter 输出只含页面允许渲染的基本类型（str / int / bool / list / dict）。</p>
+<table>
+<tr><th>DTO 区域</th><th>字段示例</th><th>数据约束</th></tr>
+<tr><td>request</td><td><code>method</code>、<code>display_url</code>、<code>has_actual_request</code></td><td>只含脱敏 URL，不含 <code>req_url</code> / <code>actual_url</code> 原值。</td></tr>
+<tr><td>response</td><td><code>http_status</code>、<code>body_visible</code>、<code>display_body</code></td><td>沿用已确认的管理员正文边界。</td></tr>
+<tr><td>metadata</td><td><code>task_name</code>、<code>trace_id</code>、<code>timeout_display</code></td><td>不包含 ORM 实例。</td></tr>
+<tr><td>timeline</td><td>既有事件 DTO</td><td>维持当前角色化 detail 规则。</td></tr>
+</table>
+<p>模板改为只读 <code>run.request.display_url</code> 等 DTO 字段。代码审计门禁应拒绝 <code>run_inspector.html</code> 内出现 <code>cif.</code>、<code>jl.</code>、<code>item.</code>。</p>
+
+<h3>4.3 角色矩阵</h3>
+<table>
+<tr><th>角色</th><th>请求地址</th><th>实际请求信息</th><th>响应正文 / 业务日志</th></tr>
+<tr><td>Viewer</td><td>脱敏 <code>display_url</code></td><td>不显示</td><td>不显示</td></tr>
+<tr><td>Operator</td><td>脱敏 <code>display_url</code></td><td>不显示</td><td>不显示</td></tr>
+<tr><td>Biz Admin / Seed Admin</td><td>脱敏 <code>display_url</code></td><td>显示“已注入运行参数”，但 URL 值仍脱敏</td><td>按既有管理员策略显示</td></tr>
+</table>
+
+<h2>五、实施分批</h2>
+<table>
+<tr><th>批次</th><th>文件边界</th><th>内容</th><th>完成条件</th></tr>
+<tr><td>B1：纯函数与 DTO</td><td><code>app/services/run_inspector_presenter.py</code>、新增测试</td><td>URL 解析/脱敏、角色化 <code>RunInspectorView</code></td><td>所有输入都不返回原始凭据；单元测试覆盖重复参数、userinfo、异常 URL。</td></tr>
+<tr><td>B2：路由与模板</td><td><code>app/main/views.py</code>、<code>run_inspector.html</code></td><td>路由改传 DTO；模板移除 ORM 直接读取</td><td>静态门禁无 <code>cif.</code>/<code>jl.</code>/<code>item.</code>；详情 200。</td></tr>
+<tr><td>B3：浏览器验收</td><td>测试与本地服务</td><td>四种角色正反向验证</td><td>DOM、复制按钮、页面源码均不存在测试 token 原值。</td></tr>
+</table>
+
+<h2>六、验收标准</h2>
+<ul>
+<li>使用含 <code>token=secret-value</code>、<code>api_key=secret-value</code>、重复 query key、空 query value 与 userinfo 的任务 URL，任意执行详情响应 HTML 不得包含 <code>secret-value</code>。</li>
+<li>Viewer、Operator 访问同一详情页仅见脱敏地址，且看不到实际 URL、响应正文、业务日志。</li>
+<li>两类 Admin 的页面仍能确认请求 method、host、path、参数名、是否有实际请求，但不能复制秘密值。</li>
+<li>历史 <code>JobLog.actual_url</code> 不被修改；同一历史记录刷新后也必须脱敏显示。</li>
+<li>运行定向单测、<code>python scripts/smoke_routes.py --check</code>、UI 浏览器正反向验证与模板静态门禁。</li>
+</ul>
+
+<h2>七、风险与回滚</h2>
+<p>主要代价是管理员不能通过执行详情复制普通 query 参数值。该信息应从具备写权限的任务编辑面读取；执行详情是审计读取面，安全优先。改动只影响展示 DTO，不改变表结构和存量数据；如需回滚，仅回退应用代码，历史数据不受影响。不得以恢复原始 URL 展示作为临时排障手段。</p>
+
+<h2>八、实施与验证记录</h2>
+<ul>
+<li>已实现 <code>sanitize_url_for_display()</code> 与完整 <code>RunInspectorView</code>，执行详情模板只接收 <code>run</code> DTO。</li>
+<li>单元与集成测试覆盖 userinfo、重复参数、空参数值、非法 URL，以及 Admin / Operator / Viewer 的展示边界；三种角色的响应 HTML 均不含测试凭据，只有 Admin 可见实际请求已注入的事实。定向回归共 36 项通过。</li>
+<li>2026-09-15 本地浏览器以管理员身份加载执行详情，确认请求区只显示脱敏摘要与“敏感值已隐藏”；复制控件仅复制执行记录 ID。</li>
+<li>已通过 <code>ruff check app/</code>、<code>scripts/check_ui_contract.py --check</code>、<code>scripts/smoke_routes.py --check</code>（86/86）及文档同步/完整性检查。</li>
+<li>本次仍只处理展示面。事件 detail、异常文本及存储字段的统一脱敏仍是独立的 Bugbot P0-2 修复项，未在本次变更中修改。</li>
+</ul>
+
+<footer><a href="执行详情URL字段角色化脱敏修复设计-2026-09.md">Markdown</a> · <a href="任务执行链路可观测性设计方案-收敛版.html">主设计</a> · <a href="../index.html">文档索引</a></footer>
+</body>
+</html>

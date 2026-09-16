@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|StrReplace|EditNotebook",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/summer/projects/opensource/CronPilot/.codex/hooks/postmortem-reminder.sh'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

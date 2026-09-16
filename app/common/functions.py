@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 import urllib
@@ -17,6 +18,8 @@ from flask import current_app
 from configs import configs
 from datas.utils.json import json_response
 from datas.utils.times import get_now_time
+
+_logger = logging.getLogger(__name__)
 
 # OPT-P0-09：仅当 value 仍为本持有者 token 时删除，避免 TTL 过期后误删后继锁
 _RELEASE_LOCK_LUA = (
@@ -240,6 +243,12 @@ def single_task():
                 task_name = "task:%s:%s" % (task, task_id)
                 token = acquire_task_lock(r, task_name)
                 if not token:
+                    from app.metrics import EXECUTION_SUPPRESSED
+                    EXECUTION_SUPPRESSED.labels(reason='redis_lock').inc()
+                    _logger.info(
+                        'scheduled execution suppressed by redis lock',
+                        extra={'event': 'cron.suppressed.redis_lock', 'task': task, 'cron_id': task_id},
+                    )
                     return
                 try:
                     return func(*args, **kwargs)

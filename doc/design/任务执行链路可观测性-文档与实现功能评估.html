@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务执行链路可观测性 — 文档与实现功能评估</title>
+<style>
+body{max-width:1080px;margin:36px auto;padding:0 22px 64px;font:15px/1.75 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937}
+h1{border-bottom:3px solid #2563eb;padding-bottom:12px}
+h2{color:#1d4ed8;border-bottom:1px solid #dbeafe;margin-top:36px;padding-bottom:6px}
+h3{color:#374151;margin-top:24px}
+table{border-collapse:collapse;width:100%;margin:14px 0}
+th,td{border:1px solid #d1d5db;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f3f4f6}
+code{background:#f3f4f6;border-radius:3px;padding:1px 4px;font-size:.92em}
+.meta{color:#6b7280}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #2563eb;background:#eff6ff}
+.verdict{border-color:#d97706;background:#fffbeb}
+.ok{border-color:#059669;background:#ecfdf5}
+.risk{border-color:#dc2626;background:#fef2f2}
+.badge{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.8em;font-weight:700;color:#fff}
+.b-ok{background:#059669}.b-warn{background:#d97706}.b-block{background:#dc2626}.b-info{background:#64748b}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid #e5e7eb;color:#6b7280}
+</style>
+</head>
+<body>
+<h1>任务执行链路可观测性 — 文档与实现功能评估</h1>
+<p class="meta">日期：2026-09-15 · 设计基准：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 rev.6</a> · 对照：工作区未提交实现 · 先前意见：<a href="任务执行链路可观测性设计方案-收敛版-专业Review.html">专业 Review</a> / <a href="任务执行链路可观测性设计方案-收敛版-专业Review评估.html">Review 评估</a></p>
+
+<div class="box verdict">
+<strong>总评：有条件可用（Conditional）— 写入侧已跑通，产品交付未完成。</strong><br>
+核心路径（提前建 <code>pending</code> 父记录 → 阶段事件 → 终态 finalize → 详情时间线）在本地库已产生真实数据；原 Review 的交互/调度/保留三类产品决策已在设计与代码中对齐。但 B4 Presenter/RBAC、B5 列表语义、事件字段契约与 §6.4 合同测试仍缺口明显，<strong>不宜标注「已交付」</strong>。
+</div>
+
+<h2>一、文档状态评估</h2>
+<table>
+<tr><th>文档</th><th>状态</th><th>评价</th></tr>
+<tr><td>收敛版设计 rev.6</td><td><span class="badge b-ok">可用作实施准绳</span></td><td>页面矩阵、非目标、审计保留、threadpool 范围、锁/<code>max_instances</code> 不产记录均已写死；B0–B6 为权威分批。状态徽章为「实施中」，与工作区有实现一致。</td></tr>
+<tr><td>专业 Review（rev.2 基准）</td><td><span class="badge b-warn">历史意见</span></td><td>B1–B3 对当时稿有效；不得原样当实施门槛（见评估文档）。</td></tr>
+<tr><td>专业 Review 评估</td><td><span class="badge b-ok">正确</span></td><td>对 B2/B3/M2/M5 的采纳/拒绝与 rev.5+ 决策一致；本轮功能评估以其结论为前置。</td></tr>
+<tr><td>页面对比 / 场景 Demo</td><td><span class="badge b-ok">评审可用</span></td><td>范围与目标态可读；实现尚未对齐 Demo 的 Presenter/时间线主位/角色边界。</td></tr>
+</table>
+
+<h3>1.1 原 Blocker 在设计与实现中的归宿</h3>
+<table>
+<tr><th>项</th><th>设计</th><th>实现</th></tr>
+<tr><td>双栏 vs 列表→详情</td><td>已统一为整页跳转（§5.5）</td><td>仍为 <code>/job_log_detail</code> → <code>run_inspector.html</code>，无双栏</td></tr>
+<tr><td>调度延迟注入</td><td>threadpool 提交边界 + ContextVar；禁 <code>next_run_time</code></td><td><code>ContextThreadPoolExecutor</code> + <code>_ctx_scheduled_run_time</code>；库内 <code>task.enqueued</code> 已见 <code>scheduled_delay_ms</code></td></tr>
+<tr><td>清理级联</td><td>改为取消自动物理删除、保留审计证据</td><td><code>delete/trim</code> 恒返回 0；与现行设计一致</td></tr>
+</table>
+
+<h2>二、实现对照 B0–B6</h2>
+<table>
+<tr><th>批次</th><th>完成度</th><th>证据摘要</th></tr>
+<tr><td>B0 契约基线</td><td><span class="badge b-warn">部分</span></td><td>display 已将 pending→「已入队」；缺设计要求的 <code>tests/test_execution_observability_contract.py</code>；列表筛选未纳入 pending/running。</td></tr>
+<tr><td>B1 模型与迁移</td><td><span class="badge b-ok">基本完成</span></td><td><code>job_log_events</code> 表存在；items <code>occurred_at_ms</code>；ensure 脚本与单测覆盖。</td></tr>
+<tr><td>B2 Tracer / 父记录</td><td><span class="badge b-warn">部分</span></td><td>独立 <code>db.engine.begin()</code> 写事件；pending 早建；缺独立 <code>run_event_redaction.py</code>；detail 白名单缺 <code>url</code>/<code>scheduled_at</code>/<code>timeout_sec</code> 等。</td></tr>
+<tr><td>B3 调度 / 锁</td><td><span class="badge b-warn">部分</span></td><td>ContextVar 路径有单测；<code>single_task()</code> 无 <code>observe_execution</code> 开关（观测写在 <code>cron_do</code> 内）；锁跳过仍无父记录（符合设计）。</td></tr>
+<tr><td>B4 Presenter / 详情</td><td><span class="badge b-block">未达标</span></td><td>仅 <code>build_event_timeline</code>；模板仍直接读 <code>jl</code>/<code>cif</code>；admin 可见原始 detail JSON；时间线在请求/响应/元数据<strong>之后</strong>。</td></tr>
+<tr><td>B5 列表 / 保留</td><td><span class="badge b-warn">部分</span></td><td>保留策略已落地；列表 <code>pending</code> 落入 else「未知」（<code>_exec_logs_rows.html</code>）；缺 pending/running 筛选。</td></tr>
+<tr><td>B6 全量验收</td><td><span class="badge b-block">未做</span></td><td>无双后端压测证据、无四角色浏览器矩阵、RELEASE 未写功能交付条目。</td></tr>
+</table>
+
+<h2>三、功能实测（本地）</h2>
+<div class="box ok">
+<strong>已验证的正向能力</strong>
+<ul>
+<li>库内 <code>job_log_events</code> 约 49 条；近期成功链路可见完整类型：<code>task.enqueued → task.start → db.load_cif → ssrf.check → http.start → http.error|complete → db.write_log</code>。</li>
+<li><code>task.enqueued.detail</code> 样例：<code>{"trigger_source":"schedule","scheduled_delay_ms":16}</code>（调度延迟未污染 <code>trigger_delay_ms</code>）。</li>
+<li>详情页（登录 admin）HTTP 200，含 <code>ri-timeline</code>；Seed Admin 可见事件 detail 字符串。</li>
+<li>相关单测 11 项通过：<code>test_execution_tracer</code> / <code>test_execution_context_executor</code> / <code>test_run_inspector_presenter</code> / <code>test_job_log_retention</code> / <code>test_job_log_display</code>。</li>
+</ul>
+</div>
+
+<div class="box risk">
+<strong>功能缺口与风险（按优先级）</strong>
+<ol>
+<li><strong>列表误标 pending</strong>：<code>_exec_logs_rows.html</code> 仅特殊处理 <code>running</code>，<code>pending</code> →「未知」；而 <code>job_log_display.job_log_badge</code> 已正确返回「已入队」——列表未复用。</li>
+<li><strong>Presenter/安全契约未兑现</strong>：设计要求模板不读敏感原字段、任何角色不可见原始 detail JSON；现状 <code>can_view_sensitive = (role == 'admin')</code> + 模板直读 + admin 时间线 dump JSON。</li>
+<li><strong>事件字段不完整</strong>：<code>http.start</code> 仅存 <code>method</code>（库证）；缺脱敏 URL；超时字段用 <code>exc_*</code> 而非设计 <code>timeout_sec</code>。</li>
+<li><strong>时间线非主诊断区</strong>：DOM 顺序为请求 → 响应 → 业务日志 → 元数据 → 时间线，与设计「摘要下主时间线」不符。</li>
+<li><strong>缺少合同/集成测试</strong>：无 lock-skip 零记录、三触发路径、Tracer 故障隔离、四角色矩阵测试。</li>
+<li><strong>旁路观察</strong>：库内 <code>http.error</code> 出现 <code>assert_hostname</code> TypeError——属触发 HTTP 客户端路径问题，会污染链路结论，建议另开缺陷跟踪（非本方案核心，但影响「可观测」可信度）。</li>
+</ol>
+</div>
+
+<p class="meta">说明：本轮未能强制 <code>cronpilot.sh restart</code>（环境拦截杀旧 PID）；页面冒烟命中当时监听进程。库内事件与代码审查结论不受影响；正式验收前仍须 restart 后再做浏览器四角色断言。</p>
+
+<h2>四、功能就绪度结论</h2>
+<table>
+<tr><th>场景</th><th>可否依赖</th></tr>
+<tr><td>工程师用详情时间线排查「走到哪一步」</td><td><span class="badge b-warn">有限可用</span>（阶段有；URL/耗时/角色裁剪不足）</td></tr>
+<tr><td>运维用列表发现「执行中/已入队」</td><td><span class="badge b-block">不可靠</span>（pending 显示未知；默认筛选易藏进行中）</td></tr>
+<tr><td>按角色脱敏对外演示 / 发版</td><td><span class="badge b-block">不可</span></td></tr>
+<tr><td>作为「收敛版已交付」写入路线图</td><td><span class="badge b-block">不可</span></td></tr>
+</table>
+
+<div class="box verdict">
+<strong>一句话：</strong>文档已收敛且可指导实施；实现处于「写入侧中期可用、产品契约未闭环」阶段。优先补齐 B4/B5 与合同测试，再谈 B6 与交付标注。
+</div>
+
+<h2>五、建议的收口顺序（仍须确认范围后改代码）</h2>
+<ol>
+<li>列表：复用 <code>job_log_badge</code>；补 pending/running 筛选；默认视图可发现进行中记录。</li>
+<li>Presenter：完整 DTO；模板去敏感直读；禁止原始 detail JSON；时间线上移并合并业务日志排序。</li>
+<li>事件白名单对齐 §4.2（至少 <code>http.start.url</code> 脱敏、<code>scheduled_at</code>、<code>timeout_sec</code>）。</li>
+<li>补 <code>test_execution_observability_contract.py</code> + cron_do 集成路径。</li>
+<li>B6：restart + 四角色浏览器 + RELEASE 功能条。</li>
+</ol>
+
+<footer>
+关联：<a href="任务执行链路可观测性设计方案-收敛版.html">设计原文</a> ·
+<a href="任务执行链路可观测性设计方案-收敛版-专业Review.html">专业 Review</a> ·
+<a href="任务执行链路可观测性设计方案-收敛版-专业Review评估.html">Review 评估</a> ·
+<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a> ·
+<a href="../index.html">文档索引</a>
+ · <a href="任务执行链路可观测性-文档与实现功能评估.md">Markdown</a>
+</footer>
+</body>
+</html>

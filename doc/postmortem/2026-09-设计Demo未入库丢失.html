@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>设计 Demo HTML 未入库丢失复盘（2026-09）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+</style>
+</head>
+<body>
+<h1>设计 Demo HTML 未入库丢失复盘</h1>
+<p><strong>日期</strong>：2026-09-14 · <strong>类型</strong>：工程 / 文档</p>
+
+<h2>1. Bug 定位</h2>
+<p><code>doc/design/任务执行链路可观测性-RunInspector-Demo.html</code> 在会话中曾可读，随后消失；仅残留 <code>.md</code> stub。索引与收敛版设计仍链接该 HTML。<code>git status</code> 显示该文件从未进入 HEAD（始终未跟踪）。</p>
+
+<h2>2. 根因</h2>
+<p>行为层：设计 Demo 先被索引/正文引用，但<strong>未入库（未 commit）</strong>。工作区一旦发生误删、工具脚注重写或清理，无法用 <code>git checkout</code> 恢复；<code>html_docs_to_markdown.py --check</code> 只校验「已有 HTML→MD 一致」，不校验「索引链接的 HTML 是否仍存在」。</p>
+
+<h2>3. 测试漏洞</h2>
+<p><code>check_doc_completeness.py</code> 校验「磁盘上每个 HTML 是否登记到 index」，不校验「index 中每个 href 指向的 HTML 是否仍存在」。链接指向已删未跟踪文件时仍可通过登记门禁。</p>
+
+<h2>4. 修复</h2>
+<p>从本轮已读内容重建 <code>任务执行链路可观测性-RunInspector-Demo.html</code>，重新跑 <code>html_docs_to_markdown.py</code> 与 <code>--check</code>；并新增页面对比 Demo，在收敛版设计中补「涉及页面」矩阵。</p>
+
+<h2>5. 防护测试</h2>
+<p>命令：</p>
+<pre>test -f "doc/design/任务执行链路可观测性-RunInspector-Demo.html" \
+  && test -f "doc/design/任务执行链路可观测性-页面对比Demo.html" \
+  && .venv-py311/bin/python scripts/html_docs_to_markdown.py --check \
+  && .venv-py311/bin/python scripts/check_doc_completeness.py --check</pre>
+<p>期望：文件存在、MD 同步 OK、登记 OK。</p>
+
+<h2>6. 同类排查</h2>
+<p><code>git status -- doc/design/</code>：本轮相关 Demo/收敛版多为未跟踪或仅本地修改。历史「对比 Demo」多数已入库；风险主要在<strong>待确认设计附属 Demo 长期 untracked</strong>。</p>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地位置</th><th>验证</th></tr>
+<tr>
+  <td>设计稿一旦挂进 <code>doc/index.html</code> 的附属 Demo，须在同轮进入版本库（至少本地 add；用户要求 commit 时一并提交），禁止长期「仅 MD stub + 无 HTML」</td>
+  <td><code>AGENTS.md</code> / <code>.cursor/rules/cronpilot-documentation.mdc</code>（设计附属 Demo 入库纪律）</td>
+  <td><code>git status -- doc/design/*Demo*</code> 不应长期仅有 orphan <code>.md</code></td>
+</tr>
+<tr>
+  <td>索引链接存在性：对 <code>doc/index.html</code> 内 <code>href="design/…html"</code> 断言目标文件存在</td>
+  <td><code>scripts/check_doc_completeness.py</code>（新增断言；本轮先用手工命令，下轮可编码）</td>
+  <td><code>python scripts/check_doc_completeness.py --check</code></td>
+</tr>
+</table>
+<p>本轮可立即验证的手工门禁：</p>
+<pre>python3 - &lt;&lt;'PY'
+from pathlib import Path
+import re
+root = Path('doc')
+html = (root/'index.html').read_text(encoding='utf-8')
+missing = []
+for href in re.findall(r'href="(design/[^"]+\.html)"', html):
+    if not (root/href).exists():
+        missing.append(href)
+print('MISSING', missing or 'OK')
+raise SystemExit(1 if missing else 0)
+PY</pre>
+
+<footer style="margin-top:2rem;color:#64748b;font-size:.9rem">
+<a href="index.html">复盘索引</a> · <a href="../index.html">文档总索引</a>
+ · <a href="2026-09-设计Demo未入库丢失.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -48,7 +48,7 @@ def job_log_badge(status):
     if status == STATUS_RUNNING:
         return '执行中', 'running'
     if status == STATUS_PENDING:
-        return '待执行', 'pending'
+        return '已入队', 'pending'
     return None, None
 
 

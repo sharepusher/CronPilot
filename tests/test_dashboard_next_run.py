@@ -64,7 +64,7 @@ class TestEffectiveCronAlignedWithApscheduler(unittest.TestCase):
         item = _Item(id=14, hour='*/2')
         now = datetime(2026, 9, 16, 10, 16, 0)
         svc = DashboardService(object())
-        label = svc.compute_next_runs([item])[14]
+        label = svc.compute_next_runs([item], now=now)[14]
         self.assertNotEqual(label, 'in <1 min', label)
         self.assertTrue(label.startswith('in '), label)
         # At 10:16, next even hour :00 is 12:00 → about 1h

@@ -101,7 +101,8 @@ class TestDashboardPartial(unittest.TestCase):
             self.assertIn('total', data)
             stats = data['stats']
             for key in ('failing', 'consecutive_failing', 'overdue_count',
-                        'today_fail_runs', 'total', 'today_success_rate'):
+                        'today_fail_runs', 'total', 'running', 'paused',
+                        'today_success_rate'):
                 self.assertIn(key, stats)
 
     def test_partial_with_filters(self):

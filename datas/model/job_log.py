@@ -15,7 +15,7 @@ class JobLog(db.Model):
         'trace_id',
         db.String(65),
         nullable=False,
-        index=True,
+        unique=True,
         server_default='',
         default='',
     )

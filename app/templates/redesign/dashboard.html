@@ -15,7 +15,7 @@
 {# ═══ Page Header (Mockup: title left + stat-line right) ═══ #}
 <div class="page-head">
   <div><h1>任务中心</h1><div class="sub">管理与监控所有定时任务</div></div>
-  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ overdue_count }}</span> 逾期 · {% if metrics.today_total_runs > 0 %}{{ metrics.today_fail_runs }} 今日失败{% else %}<span style="color:var(--cp-muted)">— 今日失败</span>{% endif %}</div>
+  <div class="stat-line"><b>{{ metrics.total }}</b> 个任务 · 运行中 <b>{{ metrics.running }}</b> · 已暂停 <b>{{ status_counts.paused }}</b> · <span style="color:var(--cp-danger)">{{ consecutive_failing }}</span> 持续异常 · <span style="color:var(--cp-warn)">{{ overdue_count }}</span> 逾期 · {% if metrics.today_total_runs > 0 %}{{ metrics.today_fail_runs }} 今日失败{% else %}<span style="color:var(--cp-muted)">— 今日失败</span>{% endif %}</div>
 </div>
 
 {# ═══ Stats Cards (OPT-P1-17: Health group + Today group) ═══ #}
@@ -400,7 +400,8 @@ function cpReschedule(cronId, btn) {
     var statLine = document.querySelector('.stat-line');
     if (statLine) {
       var failText = hasRuns ? stats.today_fail_runs + ' 今日失败' : '<span style="color:var(--cp-muted)">— 今日失败</span>';
-      statLine.innerHTML = '<b>' + stats.total + '</b> 个任务 · <span style="color:var(--cp-danger)">' +
+      statLine.innerHTML = '<b>' + stats.total + '</b> 个任务 · 运行中 <b>' + stats.running +
+        '</b> · 已暂停 <b>' + stats.paused + '</b> · <span style="color:var(--cp-danger)">' +
         stats.consecutive_failing + '</span> 持续异常 · <span style="color:var(--cp-warn)">' +
         stats.overdue_count + '</span> 逾期 · ' + failText;
     }

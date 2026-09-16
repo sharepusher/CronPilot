@@ -11,6 +11,7 @@ from urllib.parse import parse_qsl, urlsplit
 import requests
 from flask import current_app
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 
 from app import db, scheduler
 from app.common.functions import get_cronpilot_sign, single_task, wechat_info_err
@@ -25,7 +26,9 @@ from app.metrics import (
     ORPHAN_TASKS,
     TRIGGER_DELAY,
     _ctx_enqueue_time,
+    _ctx_scheduled_run_time,
 )
+from app.services.execution_tracer import ExecutionTracer
 from app.services.job_log_outcome import (
     STATUS_ERROR,
     STATUS_FAIL,
@@ -37,7 +40,6 @@ from app.services.job_log_outcome import (
     pre_request_outcome,
     should_alert,
 )
-from app.services.job_log_service import trim_job_logs_for_cron
 from app.services.scheduler_db import fetch_apscheduler_job_ids
 from app.services.url_security import make_pinned_session, validate_and_resolve_url
 from configs import configs
@@ -96,6 +98,28 @@ def _mask_cronpilot_sign(url):
     return re.sub(r'(cronpilot_sign=)[^&#]+', r'\1***', url) if url else None
 
 
+def _redact_event_text(value):
+    """Remove known trigger credentials before persisting diagnostic text."""
+    if not value:
+        return ''
+    return re.sub(r'(cronpilot_sign=)[^&#\s]+', r'\1***', str(value))
+
+
+def _ssrf_block_detail(message):
+    """Convert a validator message into stable, queryable event fields."""
+    text_value = _redact_event_text(message)
+    lowered = text_value.lower()
+    if '私有' in text_value or '内网' in text_value or 'private' in lowered:
+        block_type = 'private_ip'
+    elif 'dns' in lowered or '解析' in text_value:
+        block_type = 'dns_resolution'
+    elif '协议' in text_value or 'scheme' in lowered:
+        block_type = 'invalid_scheme'
+    else:
+        block_type = 'policy'
+    return {'block_type': block_type, 'block_detail': text_value}
+
+
 def _save_job_log(
     cron_id,
     content,
@@ -117,24 +141,26 @@ def _save_job_log(
         status, fail_reason = pre_request_outcome(content)
     if not trace_id:
         trace_id = str(uuid.uuid1())
-    jl = JobLog(
-        cron_info_id=cron_id,
-        content=content,
-        create_time=nows,
-        take_time=take_time,
-        trace_id=trace_id,
-        http_status=http_status,
-        status=status,
-        fail_reason=fail_reason,
-        started_at=started_at,
-        finished_at=utc_now_hms(),
-        timeout_sec=timeout_sec,
-        trigger_source=trigger_source,
-        actual_url=actual_url,
-        resolved_ip=resolved_ip,
-        trigger_delay_ms=trigger_delay_ms,
-    )
-    db.session.add(jl)
+    jl = db.session.scalars(select(JobLog).where(JobLog.trace_id == trace_id)).first()
+    if jl is None:
+        jl = JobLog(cron_info_id=cron_id, trace_id=trace_id, create_time=nows)
+        db.session.add(jl)
+    elif jl.status not in ('pending', 'running'):
+        # A terminal record is immutable.  A retrying or late code path must
+        # not rewrite the evidence that was already committed for this trace.
+        return jl
+    jl.content = content
+    jl.take_time = take_time
+    jl.http_status = http_status
+    jl.status = status
+    jl.fail_reason = fail_reason
+    jl.started_at = started_at
+    jl.finished_at = utc_now_hms()
+    jl.timeout_sec = timeout_sec
+    jl.trigger_source = trigger_source
+    jl.actual_url = actual_url
+    jl.resolved_ip = resolved_ip
+    jl.trigger_delay_ms = trigger_delay_ms
     db.session.commit()
     try:
         from app.services.job_health_service import update_job_health
@@ -159,6 +185,22 @@ def _save_job_log(
     return jl
 
 
+def _create_pending_job_log(cron_id, trace_id, nows, trigger_source, trigger_delay_ms):
+    """Commit the parent before any remote HTTP call so add_log can attach safely."""
+    record = JobLog(
+        cron_info_id=cron_id,
+        trace_id=trace_id,
+        content='',
+        create_time=nows,
+        status='pending',
+        trigger_source=trigger_source,
+        trigger_delay_ms=trigger_delay_ms,
+    )
+    db.session.add(record)
+    db.session.commit()
+    return record
+
+
 @single_task()
 def cron_check_db_sleep():
     with scheduler.app.app_context():
@@ -181,12 +223,12 @@ def cron_do(cron_id, trigger_source='schedule'):
         trigger_source: 触发来源 — 'schedule'(定时) / 'manual'(手动) / 'one_shot'(一次性)
     """
     saved_jl = None
+    tracer = None
     with scheduler.app.app_context():
         trace_id = str(uuid.uuid1())
         nows = utc_now_hms()
         t0 = time.time()
         task_name = None
-        _ctx_trace_id.set(trace_id)
         _ctx_cron_id.set(str(cron_id))
 
         # GAP-2: 链路起点日志 — 标记 cron_do 开始执行
@@ -200,18 +242,48 @@ def cron_do(cron_id, trigger_source='schedule'):
             },
         )
 
-        # 计算调度延迟
-        _enqueue_t = _ctx_enqueue_time.get()
-        _trigger_delay_ms = int((t0 - _enqueue_t) * 1000) if _enqueue_t > 0 else None
+        # Keep JobLog.trigger_delay_ms's legacy meaning: time from the
+        # single_task wrapper entry to cron_do's body.  Scheduler queue delay
+        # belongs only to task.enqueued.detail.scheduled_delay_ms.
+        enqueue_time = _ctx_enqueue_time.get()
+        _trigger_delay_ms = int((t0 - enqueue_time) * 1000) if enqueue_time else None
 
-        # 默认超时（秒）；per-task 值在 cif 加载后覆盖
-        _DEFAULT_TIMEOUT_SEC = 5
-
+        # The custom threadpool executor passes the specific APScheduler
+        # scheduled time through ContextVar.  Manual runs have no such value.
+        scheduled_run_time = _ctx_scheduled_run_time.get()
+        if scheduled_run_time is not None:
+            _scheduled_delay_ms = int((t0 - scheduled_run_time.timestamp()) * 1000)
+        else:
+            _scheduled_delay_ms = None
+        for _attempt in range(3):
+            try:
+                saved_jl = _create_pending_job_log(
+                    cron_id, trace_id, nows, trigger_source, _trigger_delay_ms
+                )
+                break
+            except IntegrityError:
+                db.session.rollback()
+                trace_id = str(uuid.uuid1())
+        else:
+            raise RuntimeError('unable to allocate unique cron trace_id')
+        _ctx_trace_id.set(trace_id)
         try:
+            tracer = ExecutionTracer(trace_id, cron_id)
+            tracer.emit('task.enqueued', detail={
+                'trigger_source': trigger_source,
+                'scheduled_delay_ms': _scheduled_delay_ms,
+            })
+            saved_jl.status = 'running'
+            db.session.commit()
+            tracer.emit('task.start')
+
+            # 默认超时（秒）；per-task 值在 cif 加载后覆盖
+            _DEFAULT_TIMEOUT_SEC = 5
 
             CRON_CONFIG = current_app.config.get('CRON_CONFIG')
 
             cif = db.session.get(CronInfos, cron_id)
+            tracer.emit('db.load_cif')
 
             if not cif:
                 ORPHAN_JOB_DETECTED.labels(cron_id=str(cron_id)).inc()
@@ -268,6 +340,14 @@ def cron_do(cron_id, trigger_source='schedule'):
                         )
                     else:
                         url_ok, url_msg, resolved_ip = validate_and_resolve_url(req_url, CRON_CONFIG)
+                        ssrf_detail = {}
+                        if not url_ok:
+                            ssrf_detail = _ssrf_block_detail(url_msg)
+                        tracer.emit(
+                            'ssrf.check',
+                            outcome='ok' if url_ok else 'blocked',
+                            detail=ssrf_detail,
+                        )
                         if not url_ok:
                             saved_jl = _save_job_log(
                                 cron_id,
@@ -326,6 +406,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         "timeout_sec": timeout_sec,
                                     },
                                 )
+                                tracer.emit('http.start', detail={'method': req_method})
 
                                 if req_method == 'POST':
                                     if cif.req_body:
@@ -387,6 +468,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                 )
+                                tracer.emit('http.complete', outcome='ok' if run_status == STATUS_SUCCESS else 'fail', detail={'http_status': req.status_code})
                                 if run_status == STATUS_ERROR:
                                     current_app.logger.error(
                                         "cron http trigger failed",
@@ -420,6 +502,14 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                 )
+                                tracer.emit(
+                                    'http.timeout' if fin_status == STATUS_TIMEOUT else 'http.error',
+                                    outcome='timeout' if fin_status == STATUS_TIMEOUT else 'fail',
+                                    detail={
+                                        'exc_type': type(e).__name__,
+                                        'exc_detail': _redact_event_text(str(e)),
+                                    },
+                                )
                                 current_app.logger.error(
                                     "cron http request exception",
                                     extra={
@@ -432,19 +522,18 @@ def cron_do(cron_id, trigger_source='schedule'):
         except Exception as e:
             db.session.rollback()
             try:
-                if saved_jl is None:
-                    saved_jl = _save_job_log(
-                        cron_id,
-                        "发生严重错误:%s" % str(e),
-                        nows,
-                        time.time() - t0,
-                        task_name=task_name,
-                        trace_id=trace_id,
-                        status=STATUS_ERROR,
-                        fail_reason=exception_fail_reason(e),
-                        trigger_source=trigger_source,
-                        trigger_delay_ms=_trigger_delay_ms,
-                    )
+                saved_jl = _save_job_log(
+                    cron_id,
+                    "发生严重错误:%s" % str(e),
+                    nows,
+                    time.time() - t0,
+                    task_name=task_name,
+                    trace_id=trace_id,
+                    status=STATUS_ERROR,
+                    fail_reason=exception_fail_reason(e),
+                    trigger_source=trigger_source,
+                    trigger_delay_ms=_trigger_delay_ms,
+                )
             except Exception:
                 pass
             current_app.logger.error(
@@ -462,6 +551,14 @@ def cron_do(cron_id, trigger_source='schedule'):
             )
 
         finally:
+            if tracer is not None and saved_jl is not None and getattr(saved_jl, 'status', None) in (
+                STATUS_SUCCESS, STATUS_FAIL, STATUS_TIMEOUT, STATUS_ERROR,
+            ):
+                tracer.emit(
+                    'db.write_log',
+                    outcome='ok',
+                    detail={'status': saved_jl.status, 'fail_reason': saved_jl.fail_reason},
+                )
             elapsed = time.time() - t0
             _ctx_duration_ms.set(int(elapsed * 1000))
             prom_status = 'error' if getattr(saved_jl, 'status', None) in (STATUS_ERROR, STATUS_TIMEOUT, STATUS_FAIL) else 'ok'
@@ -474,9 +571,8 @@ def cron_do(cron_id, trigger_source='schedule'):
                 content_bytes = len((saved_jl.content or '').encode('utf-8'))
                 if content_bytes > 0:
                     JOB_LOG_WRITE_BYTES.observe(content_bytes)
-            enqueue_t = _ctx_enqueue_time.get()
-            if enqueue_t > 0:
-                delay = t0 - enqueue_t
+            if scheduled_run_time is not None:
+                delay = t0 - scheduled_run_time.timestamp()
                 if delay >= 0:
                     TRIGGER_DELAY.labels(task_name=prom_task).observe(delay)
 
@@ -572,36 +668,14 @@ def cron_check():
             wechat_info_err('定时任务发生严重错误', '返回信息:%s' % str(e))
     return "ok"
 
-'''
-保留一千条数据
-'''
 @single_task()
 def cron_del_job_log():
+    """兼容历史调度注册：执行日志永久保留，不再按数量自动裁剪。"""
     with scheduler.app.app_context():
-        try:
-            job_log_counts = configs('job_log_counts') or 0
-            if int(job_log_counts) !=0:
-                crons = db.session.scalars(select(CronInfos)).all()
-                for item in crons:
-                    counts = db.session.scalar(
-                        select(func.count())
-                        .select_from(JobLog)
-                        .where(JobLog.cron_info_id == item.id)
-                    ) or 0
-                    if counts > int(job_log_counts):
-                        trim_job_logs_for_cron(item.id, int(job_log_counts))
-                        db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(
-                "cron_del_job_log exception",
-                extra={
-                    "event": "cron_del_job_log.exception",
-                    "error": str(e),
-                    "exc_type": type(e).__name__,
-                    "traceback": traceback.format_exc(),
-                },
-            )
+        current_app.logger.info(
+            'job log retention sweep skipped: automatic deletion is disabled',
+            extra={'event': 'cron.job_log_retention.disabled'},
+        )
     return "ok"
 
 

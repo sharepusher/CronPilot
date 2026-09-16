@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务详情 seconds 展示丢失修复复盘</title>
+<style>
+body{max-width:960px;margin:36px auto;padding:0 22px;font:15px/1.75 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937}h1{border-bottom:3px solid #2563eb;padding-bottom:12px}h2{color:#1d4ed8;border-bottom:1px solid #dbeafe;margin-top:36px;padding-bottom:7px}code{background:#f3f4f6;border-radius:3px;padding:1px 4px}.box{padding:14px 17px;margin:18px 0;border-left:4px solid #d97706;background:#fffbeb}footer{margin:42px 0 24px;border-top:1px solid #e5e7eb;padding-top:14px;color:#6b7280}
+</style>
+</head>
+<body>
+<h1>任务详情 seconds 展示丢失修复复盘</h1>
+<p>日期：2026-09-16 · 状态：已修复并验证 · 对应设计：<a href="../design/任务执行链路可观测性设计方案-收敛版.html">任务执行链路可观测性设计方案（收敛版）</a></p>
+<div class="box"><strong>影响：</strong>任务详情页使用五字段有效 Cron 展示调度规则，导致配置了 seconds 的任务丢失秒级约束，页面展示可能与实际调度频率不一致。此次修复只调整展示，不改变任务实际调度。</div>
+<h2>1. Bug 定位</h2>
+<p><code>app/main/views.py</code> 的任务详情视图调用 <code>effective_crontab_5()</code>，该函数按设计只返回五个字段，因此 <code>second=*/10</code> 没有进入页面的 <code>cron_expr</code>。</p>
+<h2>2. 根因</h2>
+<p>代码同时存在五字段辅助函数和包含可选 seconds 的完整格式化函数，调用方选择了较底层的五字段函数，未遵循统一展示契约。</p>
+<h2>3. 测试漏洞</h2>
+<p>既有测试覆盖分钟、小时和空调度，但没有覆盖任务详情调用方，也没有为 seconds 表达式建立断言。</p>
+<h2>4. 修复</h2>
+<p>任务详情改为调用 <code>format_cron_expression()</code>；seconds 为非默认值时输出六字段表达式。调度注册路径未改动。</p>
+<h2>5. 防护测试</h2>
+<ul><li><code>tests/test_cron_schedule_display.py</code> 新增 <code>*/10</code> 和显式秒值测试。</li><li>调度展示、下次执行计算与执行详情集成回归共 23 项通过。</li><li>Ruff 与 86 条路由冒烟测试通过。</li></ul>
+<h2>6. 同类排查</h2>
+<p>已检查任务详情和执行详情的调度展示调用方。任务表单已包含 seconds 字段；本次未改变输入校验、调度注册、下一次触发计算或数据库结构。</p>
+<h2>7. 预防方案</h2>
+<p>页面展示调度规则统一调用 <code>format_cron_expression()</code>，禁止业务视图直接调用 <code>effective_crontab_5()</code>。固定保留 seconds 页面样本测试；验证命令为 <code>.venv-py311/bin/python -m unittest tests.test_cron_schedule_display tests.test_dashboard_next_run tests.test_job_log_detail_integration -v</code>。</p>
+<footer><a href="2026-09-task-detail-seconds-display.md">Markdown</a> · <a href="index.html">复盘索引</a></footer>
+</body>
+</html>

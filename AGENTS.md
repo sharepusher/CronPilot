@@ -12,7 +12,11 @@
 | `rbac.mdc`                     | RBAC v4（OPT-P2-10；login/has_perm、三角色分权始终启用；**种子 `admin` 不可被任何主体停用**；见详设） |
 
 
-**协作闭环（强制）**：**设计文档（`doc/design/*.html`） → 用户 Review 并明确确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。**所有功能和页面变更（含 CSS/JS 代码质量修复）必须先创建正式设计文档（`doc/design/*.html`），禁止仅在聊天中给出设计而不落库**。设计文档须包含 7 项必备要素（问题/根因/方案/范围/分批/验收/风险）。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「交付闭环」。
+**协作闭环（强制）**：**设计文档（`doc/design/*.html`） → 用户 Review 并明确确认 → 实现 → 复盘（凡有修复） → 验证 → 可验证本地环境 → 文档 → commit**。**所有功能和页面变更（含 CSS/JS 代码质量修复）必须先创建正式设计文档（`doc/design/*.html`），禁止仅在聊天中给出设计而不落库**。设计文档须包含 7 项必备要素（问题/根因/方案/范围/分批/验收/风险）。**凡前端页面可见改动，设计稿还须含 Before/After 页面对比**（默认内嵌方案节；跨 ≥2 页才可另建 `*页面对比Demo.html`）；缺对比不得请确认、不得开干。用户要求补充信息（如对比图、影响分析等）时，须补充后**再次等待明确确认**，不得在补充过程中开始实现。确认前禁止写实现代码。「请完成 XX」不等于设计已确认。详 `.cursor/rules/cronpilot-project.mdc`「设计先行」「前端页面对比 Demo」「交付闭环」。
+
+**设计附属 Demo 入库纪律（强制 · 2026-09）**：设计稿一旦挂进索引/正文的对比 Demo 或 UI Demo，对应 HTML **须同轮落盘**，禁止长期「仅 orphan `.md`、HTML 未跟踪」；用户要求 commit 时与设计稿同 commit。自检：`git status -- doc/design/*Demo*`。违反教训：`doc/postmortem/2026-09-设计Demo未入库丢失.html`。
+
+**前端页面对比 Demo（强制 · 2026-09）**：模板/Redesign CSS/导航/筛选/统计/badge/表单布局等可见改动，设计必须带页面对比；默认内嵌于设计 HTML，禁止方案与对比长期拆成无关的两份。自检：`grep -nE 'page-compare|BEFORE|AFTER|Before|After' doc/design/本设计.html`。细则见 `cronpilot-project.mdc`。违反教训：`doc/postmortem/2026-09-UX设计方案与页面对比拆分.html`。
 
 **设计文档 API 假设验证（强制 · 2026-09 追加）**：凡设计文档的"方案"或"设计决策"节中包含具体 Python API 调用（如 `scheduler.get_job()`、`db.session.xxx()`、第三方库方法），**必须在该设计决策写入前 `Read` 相关实现文件**确认 API 实际行为与设计假设一致。禁止凭印象写 API 调用细节。自检：`grep -n 'scheduler\.\|db\.session\.' doc/design/新文档.html` 对每一条结果都要能说出对应的代码验证依据。**违反教训**：2026-09 D-2 建议 `scheduler.get_job().next_run_time`，未查 `CuGeventScheduler.py`，导致设计方案不可靠（`next_run_time` 在 `submit_job()` 后同步更新为下次时间，函数执行期间已是下一周期值）。
 
@@ -65,6 +69,8 @@
 | Viewer | 6 | 403: `/cron_add`、`/rbac/users`、`/operation_log_list` |
 
 **GitHub Release 文案（强制）**：Release title / notes 统一使用**专业英文**（结构化写 `What changed` / `Why` / `Validation` / `Compatibility & Risk`），禁止口语化或中英混杂标题。该规范已落库于 `.cursor/rules/cronpilot-project.mdc`。
+
+**审查 / 总结 / 评估文档交付（强制 · 2026-09）**：凡需持久化或引用仓库事实的审查、总结、评估，必须落库为 `doc/` 下 HTML 源文档并生成同名 Markdown，且登记 `doc/index.html` 与 `doc/index.md`；不得以 Canvas、聊天消息或仓库外文件替代。标注“已交付/已完成”前，文档必须记录对应的最新验收命令与结果。
 
 **颜色规范（强制）**：模板和 Vue 组件中**禁止硬编码十六进制颜色**（`#xxxxxx`），必须使用 `app/static/css/console-theme.css` 中定义的 CSS 变量（`var(--cp-*)`）。新增颜色需先在 `console-theme.css` 的 `:root` 中定义对应语义变量，再引用。CI 门禁 `scripts/audit_hardcoded_colors.py --check` 会阻断含硬编码颜色的 PR。
 

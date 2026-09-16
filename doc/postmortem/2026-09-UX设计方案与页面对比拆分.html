@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UX 设计方案与页面对比拆分复盘（2026-09）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+</style>
+</head>
+<body>
+<h1>UX 设计方案与页面对比拆分复盘</h1>
+<p><strong>日期</strong>：2026-09-16 · <strong>类型</strong>：文档 / 设计交付 · <strong>rev.2</strong>（规范升级为「凡前端页面可见改动」）</p>
+
+<h2>1. Bug 定位</h2>
+<p>
+  「任务中心排除已下线」方案写在
+  <code>doc/design/任务中心排除已下线任务统计与默认列表设计-2026-09.html</code>，
+  页面对比却单独落在
+  <code>doc/design/任务中心排除已下线-页面对比Demo.html</code>。
+  Review 时需在两份文档间跳转，方案与画面不同步。
+</p>
+
+<h2>2. 根因</h2>
+<p>
+  行为层：用户要求「方案里应有页面对比」时，Agent 套用仓库内<strong>多页 / 大入口改造</strong>的独立 Demo 惯例
+  （如用户管理入口、执行链路多页对比），而未区分本轮是<strong>单页 UX 文案/筛选语义</strong>变更。
+  同仓库内「逾期未执行」「筛选按钮视觉」等设计已采用正文内嵌 Before/After，却未被选为默认模板。
+</p>
+
+<h2>3. 测试漏洞</h2>
+<p>
+  文档门禁只校验 HTML↔MD、索引登记与链接可达，不校验「单页 UX 设计是否自带内嵌对比」。
+  拆成两份且互相链接时，门禁仍全绿。
+</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>将完整 Before/After 并入设计稿 <strong>§3.1.1</strong>（rev.4）。</li>
+  <li>删除独立 Demo HTML/MD，避免双源。</li>
+  <li>索引改为只指向设计稿（注明「内嵌页面对比」）。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<pre>test ! -f "doc/design/任务中心排除已下线-页面对比Demo.html"
+grep -n 'id="page-compare"' "doc/design/任务中心排除已下线任务统计与默认列表设计-2026-09.html"
+grep -n 'AFTER · 方案 D' "doc/design/任务中心排除已下线任务统计与默认列表设计-2026-09.html"
+python3 scripts/html_docs_to_markdown.py --check</pre>
+<p>期望：独立 Demo 不存在；设计稿含锚点与 After 画面；MD 同步 OK。</p>
+
+<h2>6. 同类排查</h2>
+<table>
+  <tr><th>文档</th><th>形态</th><th>结论</th></tr>
+  <tr><td>任务中心逾期未执行 / 筛选按钮视觉</td><td>正文内嵌 vs</td><td>正确模板，本轮应对齐</td></tr>
+  <tr><td>用户管理入口 / 停用恢复 / 执行链路多页</td><td>独立 Demo</td><td>多页或大入口，保留独立 Demo 合理</td></tr>
+  <tr><td>本轮「排除已下线」</td><td>曾拆分 → 已合并</td><td>单页 UX，应内嵌</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+<p>
+  <strong>rev.1</strong>：在 <code>cronpilot-documentation.mdc</code> / <code>AGENTS.md</code> 追加「单页 UX 对比默认内嵌」。
+</p>
+<p>
+  <strong>rev.2（2026-09-16 · 用户明确要求）</strong>：升级为总则
+  <strong>「前端页面对比 Demo」</strong>——凡模板 / Redesign CSS / 导航 / 筛选 / 统计 / badge / 表单布局等<strong>可见改动</strong>，
+  设计稿必须含 Before/After；缺对比 = 设计不完整，不得请确认开干。
+  落点：
+</p>
+<ul>
+  <li><code>.cursor/rules/cronpilot-project.mdc</code>（设计必备 + UI 确认表「页面对比」行）</li>
+  <li><code>.cursor/rules/cronpilot-documentation.mdc</code></li>
+  <li><code>.cursor/rules/cronpilot-format-guard.mdc</code>（模板可见变更）</li>
+  <li><code>AGENTS.md</code> 协作闭环</li>
+</ul>
+<p>验证：</p>
+<pre>grep -n '前端页面对比 Demo' .cursor/rules/cronpilot-project.mdc AGENTS.md .cursor/rules/cronpilot-documentation.mdc
+grep -nE 'page-compare|BEFORE|AFTER' doc/design/健康度未满阈值误标健康修复设计-2026-09.html</pre>
+
+<footer>
+  <a href="2026-09-UX设计方案与页面对比拆分.md">Markdown</a> ·
+  <a href="index.html">复盘索引</a> ·
+  <a href="../design/任务中心排除已下线任务统计与默认列表设计-2026-09.html">对应设计</a>
+</footer>
+</body>
+</html>

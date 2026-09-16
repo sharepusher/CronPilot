@@ -15,6 +15,7 @@ from app.services.job_health_service import (
     DEFAULT_FAILING_THRESHOLD,
     HEALTH_FAILING,
     HEALTH_OK,
+    HEALTH_UNKNOWN,
     get_failing_threshold,
     update_job_health,
 )
@@ -51,13 +52,26 @@ class TestUpdateJobHealth(unittest.TestCase):
         update_job_health(1, STATUS_FAIL, '2026-07-15 10:00:01', 'a', cron_config=cfg)
         row = db.session.get(JobHealth, 1)
         self.assertEqual(row.consecutive_failures, 1)
-        self.assertEqual(row.health_status, HEALTH_OK)
+        self.assertEqual(row.health_status, HEALTH_UNKNOWN)
 
         update_job_health(1, STATUS_FAIL, '2026-07-15 10:00:02', 'b', cron_config=cfg)
+        row = db.session.get(JobHealth, 1)
+        self.assertEqual(row.consecutive_failures, 2)
+        self.assertEqual(row.health_status, HEALTH_UNKNOWN)
+
         update_job_health(1, STATUS_FAIL, '2026-07-15 10:00:03', 'c', cron_config=cfg)
         row = db.session.get(JobHealth, 1)
         self.assertEqual(row.consecutive_failures, 3)
         self.assertEqual(row.health_status, HEALTH_FAILING)
+
+    def test_single_fail_is_not_healthy(self):
+        """方案 A：未满阈值失败不得写 ok（避免 UI 误标「健康」）。"""
+        cfg = {'health_failing_threshold': '3'}
+        update_job_health(10, STATUS_ERROR, '2026-07-15 10:00:01', 'x', cron_config=cfg)
+        row = db.session.get(JobHealth, 10)
+        self.assertEqual(row.consecutive_failures, 1)
+        self.assertEqual(row.health_status, HEALTH_UNKNOWN)
+        self.assertNotEqual(row.health_status, HEALTH_OK)
 
     def test_success_clears_streak(self):
         cfg = {'health_failing_threshold': '3'}
@@ -261,7 +275,7 @@ class TestCronListHealthFilters(unittest.TestCase):
                 last_run_at=str_to_hms(today + ' 10:00:00'),
                 last_run_status=STATUS_FAIL,
                 consecutive_failures=1,
-                health_status=HEALTH_OK,
+                health_status=HEALTH_UNKNOWN,
             )
         )
         db.session.add(

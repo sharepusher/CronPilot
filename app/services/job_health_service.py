@@ -2,6 +2,7 @@
 """任务健康写路径（OPT-P2-13 B0）。
 
 N = health_failing_threshold：连续失败达到 N 次才标 failing（默认 3）。
+未满 N 的失败写 unknown（UI「有失败」），禁止写 ok 冒充「健康」。
 失败 / 状态翻转同步写；连续成功可节流，降低秒级任务行锁压力。
 """
 from __future__ import absolute_import
@@ -90,7 +91,7 @@ def update_job_health(cron_info_id, outcome, at, trace_id='', threshold=None, cr
         row.last_run_status = outcome
         row.last_run_trace_id = trace_id or ''
         row.health_status = (
-            HEALTH_FAILING if row.consecutive_failures >= n else HEALTH_OK
+            HEALTH_FAILING if row.consecutive_failures >= n else HEALTH_UNKNOWN
         )
         row.updated_at = at or ''
         db.session.commit()

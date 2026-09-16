@@ -72,6 +72,7 @@ def _seed_user_and_log(db):
     from datas.model.rbac_user import RbacUser
     from datas.model.resource_group import ResourceGroup
     from datas.model.tag import Tag
+    from datas.model.task_tag import TaskTag  # noqa: F401
     from datas.utils.times import utc_now_hms
 
     u = RbacUser(
@@ -83,9 +84,19 @@ def _seed_user_and_log(db):
     )
     db.session.add(u)
     db.session.flush()
+    for username, role in (('operator', 'operator'), ('viewer', 'viewer')):
+        db.session.add(RbacUser(
+            username=username, password_hash=hash_password('changeme'),
+            role=role, is_active=1, status_reason='seed',
+            must_reset_password=0, email='', job_title='', nickname='',
+            api_token='fixture-{}-token'.format(username), api_token_expires_at=0,
+            last_login_at=0,
+            create_time=utc_now_hms(),
+        ))
 
     cif = CronInfos(
-        task_name='test-task', req_url='https://example.com/test',
+        task_name='test-task',
+        req_url='https://client:password@example.com/test?token=secret-value&limit=20',
         minute='*/5', status=1, scope_type='GLOBAL',
         last_operator_name=u.username, req_method='GET', req_body='',
         timeout_sec=5,
@@ -101,6 +112,7 @@ def _seed_user_and_log(db):
         status='success', fail_reason='',
         create_time=utc_now_hms(), take_time=0,
         started_at=utc_now_hms(), finished_at=utc_now_hms(),
+        actual_url='https://example.com/test?token=secret-value&cronpilot_sign=signature',
     )
     db.session.add(jl)
     db.session.flush()
@@ -120,6 +132,8 @@ class TestJobLogDetailIntegration(unittest.TestCase):
         self.ctx = self.app.app_context()
         self.ctx.push()
         from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
+        from datas.model.tag import Tag  # noqa: F401
+        from datas.model.task_tag import TaskTag  # noqa: F401
         self.db.create_all()
         self.user, self.cif, self.jl, self.trace_uuid = _seed_user_and_log(self.db)
 
@@ -131,6 +145,11 @@ class TestJobLogDetailIntegration(unittest.TestCase):
     def _login(self, client):
         client.post('/rbac/login', data={
             'username': 'admin', 'password': 'changeme',
+        })
+
+    def _login_as(self, client, username):
+        client.post('/rbac/login', data={
+            'username': username, 'password': 'changeme',
         })
 
     def test_v1_detail_renders_without_error(self):
@@ -156,6 +175,41 @@ class TestJobLogDetailIntegration(unittest.TestCase):
             self.assertNotIn('Internal Server Error', html)
             self.assertIn('Trace ID', html)
             self.assertIn(str(self.jl.id), html)
+
+    def test_task_detail_preserves_seconds_expression(self):
+        """任务详情页展示秒级 Cron 时不得截断为五字段。"""
+        self.cif.second = '*/10'
+        self.db.session.commit()
+        with self.app.test_client() as c:
+            c.set_cookie('cp_ui_mode', 'console')
+            self._login(c)
+            r = c.get(f'/task_detail?id={self.cif.id}')
+            self.assertEqual(r.status_code, 200)
+            self.assertIn('*/10 */5 * * * *', r.data.decode())
+
+    def test_execution_detail_never_renders_configured_url_credentials(self):
+        for username in ('admin', 'operator', 'viewer'):
+            with self.subTest(role=username), self.app.test_client() as c:
+                c.set_cookie('cp_ui_mode', 'console')
+                self._login_as(c, username)
+                r = c.get(f'/job_log_detail?id={self.jl.id}')
+                self.assertEqual(r.status_code, 200)
+                html = r.data.decode()
+                self.assertIn('token=***', html)
+                self.assertNotIn('secret-value', html)
+                self.assertNotIn('client:password', html)
+                self.assertNotIn('signature', html)
+                if username == 'admin':
+                    self.assertIn('已注入运行参数（敏感值已隐藏）', html)
+                else:
+                    self.assertNotIn('已注入运行参数（敏感值已隐藏）', html)
+
+    def test_template_has_no_raw_orm_access(self):
+        path = os.path.join(ROOT, 'app', 'templates', 'redesign', 'run_inspector.html')
+        with open(path, encoding='utf-8') as template_file:
+            template = template_file.read()
+        for forbidden in ('cif.', 'jl.', 'item.'):
+            self.assertNotIn(forbidden, template)
 
     def test_v1_detail_not_found(self):
         """v1 不存在的记录不报 500。"""

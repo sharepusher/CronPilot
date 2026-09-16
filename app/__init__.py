@@ -65,6 +65,10 @@ def create_app(config_name):
 
     register_hms_filters(app)
     scheduler.app = app
+    from app.execution_context_executor import ContextThreadPoolExecutor
+    app.config['SCHEDULER_EXECUTORS'] = {
+        'default': ContextThreadPoolExecutor(max_workers=30),
+    }
     if app.config.get('CRONPILOT_SCHEDULER_ENABLED', True):
         scheduler.init_app(app)
         scheduler.start()

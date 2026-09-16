@@ -38,6 +38,8 @@
     <span class="health-badge overdue"><span class="hc-dot dot-overdue"></span>逾期</span>
     {% elif h and h.health_status == 'failing' %}
     <span class="health-badge danger"><span class="hc-dot dot-fail"></span>异常</span>
+    {% elif h and (h.consecutive_failures|int > 0) %}
+    <span class="health-badge watching"><span class="hc-dot dot-watching"></span>有失败</span>
     {% elif h and h.health_status == 'ok' %}
     <span class="health-badge ok"><span class="hc-dot dot-ok"></span>健康</span>
     {% else %}

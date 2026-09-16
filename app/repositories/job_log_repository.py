@@ -6,6 +6,7 @@ from app.repositories.base import BaseRepository
 from app.services.job_log_filter import job_log_outcome_clause
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
+from datas.model.job_log_event import JobLogEvent
 from datas.model.job_log_items import JobLogItems
 
 
@@ -54,5 +55,16 @@ class JobLogRepository(BaseRepository):
         if not trace_id:
             return []
         return self.scalars_all(
-            select(JobLogItems).where(JobLogItems.trace_id == trace_id)
+            select(JobLogItems)
+            .where(JobLogItems.trace_id == trace_id)
+            .order_by(JobLogItems.occurred_at_ms.asc(), JobLogItems.id.asc())
+        )
+
+    def events_for_trace_id(self, trace_id):
+        if not trace_id:
+            return []
+        return self.scalars_all(
+            select(JobLogEvent)
+            .where(JobLogEvent.trace_id == trace_id)
+            .order_by(JobLogEvent.seq.asc())
         )

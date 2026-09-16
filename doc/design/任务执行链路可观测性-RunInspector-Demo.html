@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CronPilot Run Inspector — 目标态场景 Demo</title>
+<!-- 与生产页面相同的 Redesign 样式来源。 -->
+<link rel="stylesheet" data-demo-css="console-theme.css" href="../../app/static/css/console-theme.css">
+<link rel="stylesheet" data-demo-css="redesign-layout.css" href="../../app/static/css/redesign-layout.css">
+<link rel="stylesheet" data-demo-css="redesign-components.css" href="../../app/static/css/redesign-components.css">
+<link rel="stylesheet" data-demo-css="redesign-pages.css" href="../../app/static/css/redesign-pages.css">
+<link rel="stylesheet" data-demo-css="redesign-mockup-shared.css" href="../../app/static/css/redesign-mockup-shared.css">
+<script>if(location.protocol!=="file:"){document.querySelectorAll("link[data-demo-css]").forEach(function(link){link.href="/static/css/"+link.dataset.demoCss;});}</script>
+<style>
+.cp-page-run-inspector .demo-wrap{max-width:900px}.cp-page-run-inspector .demo-title{margin:0 0 var(--cp-space-1);font-size:var(--cp-font-lg)}.cp-page-run-inspector .demo-lead{margin:0 0 var(--cp-space-5);color:var(--cp-muted)}.cp-page-run-inspector .demo-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--cp-space-2);margin-bottom:var(--cp-space-5)}.cp-page-run-inspector .demo-status-card{padding:var(--cp-space-3);border:1px solid var(--cp-border);border-radius:var(--cp-radius-md);background:var(--cp-surface)}.cp-page-run-inspector .demo-status-card strong{display:block;margin-bottom:var(--cp-space-1);font-size:var(--cp-font-sm)}.cp-page-run-inspector .demo-status-card span{font-size:var(--cp-font-sm);color:var(--cp-muted)}.cp-page-run-inspector .demo-status-card .ri-badge{margin-bottom:var(--cp-space-2)}.cp-page-run-inspector .demo-running{background:var(--cp-signal-bg);color:var(--cp-signal)}.cp-page-run-inspector .demo-timeline{margin:0;padding:0;list-style:none;border-left:1px solid var(--cp-border)}.cp-page-run-inspector .demo-timeline li{position:relative;padding:0 0 var(--cp-space-3) var(--cp-space-4);font-size:var(--cp-font-sm)}.cp-page-run-inspector .demo-timeline li:last-child{padding-bottom:0}.cp-page-run-inspector .demo-timeline li::before{content:"";position:absolute;left:-5px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--cp-signal);box-shadow:0 0 0 3px var(--cp-signal-bg)}.cp-page-run-inspector .demo-timeline .ok::before{background:var(--cp-success);box-shadow:0 0 0 3px var(--cp-success-bg)}.cp-page-run-inspector .demo-timeline .warn::before{background:var(--cp-warn);box-shadow:0 0 0 3px var(--cp-warn-bg)}.cp-page-run-inspector .demo-timeline strong{color:var(--cp-ink)}.cp-page-run-inspector .demo-timeline span{display:block;margin-top:2px;color:var(--cp-muted)}.cp-page-run-inspector .demo-matrix{width:100%;border-collapse:collapse;font-size:var(--cp-font-sm)}.cp-page-run-inspector .demo-matrix th,.cp-page-run-inspector .demo-matrix td{padding:var(--cp-space-2);border-bottom:1px solid var(--cp-border);text-align:left}.cp-page-run-inspector .demo-matrix th{color:var(--cp-muted);font-weight:500;background:var(--cp-surface-3)}.cp-page-run-inspector .demo-foot{margin:var(--cp-space-5) 0;color:var(--cp-muted);font-size:var(--cp-font-sm)}.cp-page-run-inspector .demo-foot a{color:var(--cp-signal);text-decoration:none}@media(max-width:720px){.cp-page-run-inspector .demo-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-sidebar{display:none}.cp-shell{grid-template-columns:1fr}.cp-topbar{padding:0 var(--cp-space-4)}}
+</style>
+<style>.demo-document-footer{padding:var(--cp-space-4);border-top:1px solid var(--cp-border);background:var(--cp-surface);color:var(--cp-muted);font-size:var(--cp-font-sm);text-align:center}.demo-document-footer a{color:var(--cp-signal);text-decoration:none}</style>
+<style>.cp-page-run-inspector .demo-inline-note{float:right;font-weight:400;font-size:var(--cp-font-xs);color:var(--cp-muted);text-transform:none;letter-spacing:0}</style>
+</head>
+<body>
+<div class="cp-shell">
+  <aside class="cp-sidebar"><a class="cp-sidebar-brand" href="#"><span class="dot"></span><span>CronPilot</span></a><nav class="cp-sidebar-nav" aria-label="主导航"><div class="cp-nav-section"><div class="cp-nav-section-label">运维操作</div><a class="cp-nav-item" href="#"><span class="nav-icon">▦</span><span>任务中心</span></a><a class="cp-nav-item active" href="#"><span class="nav-icon">▤</span><span>执行记录</span></a></div></nav></aside>
+  <div class="cp-col-main">
+    <header class="cp-topbar"><div class="cp-topbar-search"><button class="cp-topbar-search-btn" type="button"><span>⌕</span><span>搜索任务或操作…</span><kbd>⌘K</kbd></button></div></header>
+    <main class="cp-main cp-page-run-inspector">
+      <nav class="cp-breadcrumb"><a href="#">任务中心</a><span>›</span><a href="#">订单回调检查</a><span>›</span><span class="current">执行 #10481</span></nav>
+      <div class="ri-container demo-wrap">
+        <h1 class="demo-title">Run Inspector：目标态场景</h1>
+        <p class="demo-lead">同一既有详情路由 <code>/job_log_detail</code> 的状态呈现、时间线与角色化字段边界。以下元素复用生产的 <code>ri-*</code>、<code>cp-*</code> 组件和令牌。</p>
+        <div class="demo-status-grid">
+          <article class="demo-status-card"><span class="ri-badge ok">● 成功</span><strong>success</strong><span>HTTP 与业务判定成功。</span></article>
+          <article class="demo-status-card"><span class="ri-badge timeout">⏱ 超时</span><strong>timeout</strong><span>请求超过任务阈值。</span></article>
+          <article class="demo-status-card"><span class="ri-badge demo-running">◎ 执行中</span><strong>pending / running</strong><span>可读已写事件；最终结果未知。</span></article>
+        </div>
+        <div class="ri-header"><span class="ri-id">执行 #10481</span><span class="ri-badge timeout">⏱ 超时</span><span class="td-relative-time">5 分钟前</span></div>
+        <div class="ri-meta"><span>HTTP <strong>—</strong></span><span>耗时 <strong>5.0s</strong></span><span>触发方式 <strong>定时调度</strong></span><span>调度延迟 <strong>18ms</strong></span><span>失败原因 <strong class="danger-text">请求超时</strong></span></div>
+        <section class="ri-section"><div class="ri-section-head">执行链路 <span class="demo-inline-note">新增 · 系统事件 + 业务日志</span></div><div class="ri-section-body"><ul class="demo-timeline"><li class="ok"><strong>任务入队</strong><span>T+0ms · 计划时间 10:27:00.000 → 实际进入 10:27:00.018</span></li><li class="ok"><strong>安全校验</strong><span>T+20ms · DNS Pinning 校验通过</span></li><li><strong>发起 HTTP 请求</strong><span>T+24ms · POST /v1/orders/callback</span></li><li class="warn"><strong>请求超时</strong><span>T+5.00s · 等待超过任务配置的 5 秒阈值</span></li></ul></div></section>
+        <section class="ri-section"><div class="ri-section-head">请求</div><div class="ri-section-body"><span class="key">POST</span> https://api.example.com/v1/orders/callback?token=••••</div></section>
+        <section class="ri-section"><div class="ri-section-head">响应 / 诊断</div><div class="ri-section-body">请求在 5s 超时阈值内未返回响应。</div></section>
+        <section class="ri-section"><div class="ri-section-head">角色化详情边界</div><div class="ri-section-body"><table class="demo-matrix"><thead><tr><th>字段</th><th>Viewer</th><th>Operator</th><th>Biz Admin / Seed Admin</th></tr></thead><tbody><tr><td>阶段、状态、耗时</td><td>可见</td><td>可见</td><td>可见</td></tr><tr><td>URL</td><td>协议、主机、路径</td><td>有限摘要</td><td>入库脱敏版本</td></tr><tr><td>请求体、响应、异常详情</td><td>不展示 / 通用原因</td><td>截断诊断摘要</td><td>脱敏且截断的详情</td></tr></tbody></table></div></section>
+        <p class="demo-foot">静态评审稿，不读取生产数据。<a href="任务执行链路可观测性-页面对比Demo.html">查看涉及页面的 Before / After 对比</a> · <a href="任务执行链路可观测性设计方案-收敛版.html">返回设计方案</a> · <a href="../index.html">文档索引</a></p>
+      </div>
+    </main>
+  </div>
+</div>
+<footer class="demo-document-footer"><a href="../index.html">文档索引</a> · <a href="任务执行链路可观测性-RunInspector-Demo.md">Markdown</a></footer>
+</body>
+</html>

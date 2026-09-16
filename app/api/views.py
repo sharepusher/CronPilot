@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
+import time
+
 from flask import current_app, request
 from sqlalchemy import func, select
 
@@ -464,7 +466,11 @@ def cron_add_log(form_data):
     if denied is not None:
         return denied
 
-    jli = JobLogItems(trace_id=cronpilot_trace_id, content=content)
+    jli = JobLogItems(
+        trace_id=cronpilot_trace_id,
+        content=content,
+        occurred_at_ms=int(time.time() * 1000),
+    )
     db.session.add(jli)
     db.session.commit()
 

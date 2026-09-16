@@ -19,8 +19,8 @@ class TestJobLogAlwaysHasLogId(unittest.TestCase):
         self.app = app
         self.db = db
         with app.app_context():
-            from datas.model.job_log import JobLog  # noqa: F401
             from datas.model.job_health import JobHealth  # noqa: F401
+            from datas.model.job_log import JobLog  # noqa: F401
             db.create_all()
 
     def test_save_job_log_generates_trace_id_when_missing(self):
@@ -49,6 +49,32 @@ class TestJobLogAlwaysHasLogId(unittest.TestCase):
                     status='success',
                 )
             self.assertEqual(jl.trace_id, 'fixed-uuid-for-test')
+
+    def test_terminal_record_is_not_rewritten_by_late_save(self):
+        from app.crons import _save_job_log
+        from datas.model.job_log import JobLog
+
+        with self.app.app_context():
+            original = JobLog(
+                cron_info_id=1,
+                trace_id='terminal-trace',
+                content='original response',
+                create_time=1,
+                status='success',
+            )
+            self.db.session.add(original)
+            self.db.session.commit()
+            with patch('app.crons._notify_job_outcome'):
+                saved = _save_job_log(
+                    1,
+                    'late exception',
+                    2,
+                    0.1,
+                    trace_id='terminal-trace',
+                    status='error',
+                )
+            self.assertEqual(saved.status, 'success')
+            self.assertEqual(saved.content, 'original response')
 
 
 if __name__ == '__main__':

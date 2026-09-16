@@ -146,7 +146,7 @@ class DashboardService:
             del _overdue_cache[k]
         return result
 
-    def compute_next_runs(self, cron_items):
+    def compute_next_runs(self, cron_items, now=None):
         """计算每个任务的下次执行相对时间。
 
         返回 {cron_id: '相对时间字符串'} 如 'in 3 min', 'in 2h'。
@@ -156,7 +156,7 @@ class DashboardService:
         from app.services.cron_schedule_display import next_fire_datetime
 
         result = {}
-        now = datetime.now()
+        now = now or datetime.now()
         for item in cron_items:
             if item.status == 0:
                 result[item.id] = '已暂停'

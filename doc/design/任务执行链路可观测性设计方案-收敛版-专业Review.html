@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务执行链路可观测性设计方案（收敛版）— 专业 Review</title>
+<style>
+body{max-width:1080px;margin:36px auto;padding:0 22px 64px;font:15px/1.75 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2937}
+h1{border-bottom:3px solid #2563eb;padding-bottom:12px}
+h2{color:#1d4ed8;border-bottom:1px solid #dbeafe;margin-top:36px;padding-bottom:6px}
+h3{color:#374151;margin-top:24px}
+table{border-collapse:collapse;width:100%;margin:14px 0}
+th,td{border:1px solid #d1d5db;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f3f4f6}
+code{background:#f3f4f6;border-radius:3px;padding:1px 4px;font-size:.92em}
+.meta{color:#6b7280}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #2563eb;background:#eff6ff}
+.verdict{border-color:#d97706;background:#fffbeb}
+.ok{border-color:#059669;background:#ecfdf5}
+.risk{border-color:#dc2626;background:#fef2f2}
+.badge{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.8em;font-weight:700;color:#fff}
+.b-block{background:#dc2626}.b-maj{background:#d97706}.b-min{background:#2563eb}.b-info{background:#64748b}.b-ok{background:#059669}
+.small{font-size:.9em;color:#4b5563}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid #e5e7eb;color:#6b7280}
+ol.fix>li{margin:8px 0}
+</style>
+</head>
+<body>
+<h1>任务执行链路可观测性设计方案（收敛版）— 专业 Review</h1>
+<p class="meta">评审对象：<a href="任务执行链路可观测性设计方案-收敛版.html">任务执行链路可观测性设计方案-收敛版.html</a>（rev.2）· 日期：2026-09-14 · 对照代码：当前 <code>main</code> 工作区</p>
+
+<div class="box verdict">
+<strong>总评：有条件通过（Conditional Approve）— 确认前须修订 3 项 Blocker</strong><br>
+产品边界清晰、非目标克制、安全与分批意识强，页面矩阵与对比 Demo 已补齐可读性。但存在与生产调度器/清理路径/交互契约不一致的假设，以及状态扩展消费面未写全。建议修完 Blocker 后再进入实施确认。
+</div>
+
+<h2>一、结论摘要</h2>
+<table>
+<tr><th>维度</th><th>评分</th><th>说明</th></tr>
+<tr><td>问题定义与非目标</td><td><span class="badge b-ok">强</span></td><td>正确拒绝工作流/lease/heartbeat/自动 interrupted；对齐 CronPilot「同步 HTTP 触发」定位</td></tr>
+<tr><td>与现状代码对齐</td><td><span class="badge b-maj">中</span></td><td>终态写入、pending/running 常量已存在、add_log 依赖父记录等判断基本正确；调度延迟注入路径写窄了</td></tr>
+<tr><td>数据与状态机</td><td><span class="badge b-maj">中+</span></td><td>复用 JobLog + events 合理；skipped 消费面与 MaxInstances 缺口未写清</td></tr>
+<tr><td>安全 / RBAC</td><td><span class="badge b-ok">强</span></td><td>写库前脱敏 + Presenter DTO + 无 events API 方向正确</td></tr>
+<tr><td>UI / 页面范围</td><td><span class="badge b-maj">中</span></td><td>§〇 与对比 Demo 清楚；§5.5「桌面双栏」与现网列表→详情跳转冲突</td></tr>
+<tr><td>分批与验收</td><td><span class="badge b-ok">强</span></td><td>B0→B6 + 暂停点/回滚意识好；但与上文 Batch 1–4 编号并行易混淆</td></tr>
+<tr><td>可实施性</td><td><span class="badge b-maj">中</span></td><td>独立 Tracer Engine 方向对；清理路径、返回值契约、枚举门禁清单需补强后才能开干</td></tr>
+</table>
+
+<h2>二、做得好的地方</h2>
+<ul>
+<li><strong>定位克制</strong>：明确「调度触发 → 同步 HTTP → 写结果」，避免把 CronPilot 做成分布式工作流。</li>
+<li><strong>复用 JobLog 作父记录</strong>：列表、清理、add_log、详情仍以 <code>trace_id</code> 关联，迁移成本低于新 <code>job_runs</code>。</li>
+<li><strong>提前创建父记录</strong>：顺带解锁今日缺口——<code>/api/cron/add_log</code> 当前要求 JobLog 已存在（<code>app/api/views.py</code>），终态前无法回传进度；pending 早建是真实产品增益，建议在价值表中显式写出。</li>
+<li><strong>安全分层</strong>：入库脱敏 + Presenter 裁剪 + 禁止模板读原始 detail，符合既有「凭据字段访问面」规范。</li>
+<li><strong>页面矩阵 + 对比 Demo</strong>：rev.2 补齐了「改哪些页 / 不改哪些页」，评审可执行。</li>
+<li><strong>分批暂停点</strong>：迁移幂等后再写、可靠数据后再产品化、四角色反向验证后再发版——顺序正确。</li>
+<li><strong>拒绝伪 interrupted</strong>：与既有事故教训（凭印象写 <code>next_run_time</code>）同向，避免二次误判。</li>
+</ul>
+
+<h2>三、必须修订（Blocker）— 确认前</h2>
+
+<h3>B1 · §5.5「桌面双栏」与 §〇 / 对比 Demo 冲突 <span class="badge b-block">Blocker</span></h3>
+<p>§5.5 写「桌面端采用近期执行列表 + 当前 Inspector 双栏；窄屏才列表跳详情」。但 §〇、对比 Demo、§5.6 均以现网路径为准：<code>/job_log_list</code> → <code>/job_log_detail</code> 整页跳转，<strong>不新增双栏壳</strong>。</p>
+<p><strong>要求</strong>：删掉或改写 §5.5 双栏句，统一为「本期保持列表→详情跳转；双栏若需要另立 UI 设计」。否则 Batch 3 范围会在实现时膨胀。</p>
+
+<h3>B2 · 调度延迟注入路径写得过窄 <span class="badge b-block">Blocker</span></h3>
+<p>§4.3 / B3 写「自定义 threadpool Executor + ContextVar」。现状：</p>
+<ul>
+<li><code>app/__init__.py</code> 固定 <code>CuBackgroundScheduler</code>；开发态默认 executor 为 <code>ThreadPoolExecutor</code>（已实测）。</li>
+<li>仓库仍保留 <code>CuGeventScheduler</code>；计划时间真实来源是 <code>submit_job(job, run_times)</code> 的 <code>run_times</code>（见 <code>CuBackgroundScheduler.py</code> / <code>CuGeventScheduler.py</code>），不是「换一个 ThreadPool 类」本身。</li>
+<li>既有教训：禁止用 <code>next_run_time</code> 反推（复盘已记录）。</li>
+</ul>
+<p><strong>要求</strong>：改为「在 executor 提交边界（或 job wrapper）注入本次 <code>run_times[-1]</code> 到 ContextVar，Background/Gevent 两条 executor 路径均须覆盖；worker/greenlet 结束必须 reset」。验收写清：串扰测试 + 手动路径 NULL。</p>
+
+<h3>B3 · 清理路径未纳入状态保护与 events 级联 <span class="badge b-block">Blocker</span></h3>
+<p>现状 <code>app/services/job_log_service.py</code> 的 <code>delete_job_logs_for_cron</code> / <code>trim_job_logs_for_cron</code> <strong>只删 JobLog</strong>，不删 items（历史已可能孤儿），更不会删 events。§5.3 / B5 要求级联与「不裁剪活跃 pending/running」，但未点名改造这两个函数与 <code>cron_del_job_log</code>。</p>
+<p><strong>要求</strong>：在范围与 B5 文件清单显式列入 <code>job_log_service.py</code>：① 删父时同批删 items+events；② trim 跳过 <code>pending/running</code>；③ 补回归测试防孤儿与误删执行中记录。</p>
+
+<h2>四、重要问题（Major）</h2>
+
+<table>
+<tr><th>#</th><th>问题</th><th>证据 / 影响</th><th>建议</th></tr>
+<tr>
+<td>M1</td>
+<td><code>pending</code>/<code>running</code> 常量与展示已存在，文案未对齐</td>
+<td><code>job_log_outcome.py</code> 已有常量；<code>job_log_display.py</code> 将 pending 显示为「待执行」、running 为「执行中」；模型 docstring 已含两态。设计写「本批次只新增 skipped」正确，但 UI 文案与「待执行」易误解为「尚未调度」。</td>
+<td>B0 明确：pending=父记录已建未进业务；展示文案建议「排队中/已入队」或统一「执行中（未开始业务）」；更新 display 映射与列表徽章。</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>Redis 锁跳过的返回值契约未定义</td>
+<td>今日 <code>single_task</code> 抢锁失败直接 <code>return</code>（None）。<code>cron_run_now</code> 把 falsy 当成「正在执行中」。若改为写 <code>skipped</code> 父记录，应返回 log id，否则手动触发 UX 仍报错文案。</td>
+<td>在装饰器契约写明：observe 路径锁失败 → finalize skipped → <strong>返回 JobLog.id</strong>；手动触发跳详情展示「已跳过」。</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>APS <code>MaxInstancesReachedError</code> 未纳入观测</td>
+<td><code>Cu*Scheduler</code> 在 max instances 时只打日志/事件，不进 <code>cron_do</code>，也不会走 Redis <code>skipped</code>。</td>
+<td>本期若不做，须在非目标写明「不覆盖 APS max_instances 抑制」。若要覆盖，另增事件类型或记入风险，避免用户以为「所有未执行都有 JobLog」。</td>
+</tr>
+<tr>
+<td>M4</td>
+<td><code>trigger_delay_ms</code> 语义冲突风险</td>
+<td>模型注释明确为「装饰器入口到 t0 的开销（通常 0–2ms）」；设计要用 <code>scheduled_delay_ms</code>（计划→实际）。若把新语义写进旧列，历史数据与文档全错。</td>
+<td>JobLog 保留 <code>trigger_delay_ms</code> 旧义或弃用；调度延迟只放在 <code>task.enqueued.detail.scheduled_delay_ms</code> + Presenter 摘要字段，禁止无说明地复用旧列。</td>
+</tr>
+<tr>
+<td>M5</td>
+<td>状态扩展消费面清单不完整</td>
+<td>后端规范要求新增 STATUS 时审计 filter/health/alert/API/CSS。设计 B0 点到 outcome/filter/display/health，但未列：API <code>status</code> 过滤（<code>app/api/views.py</code>）、OpenAPI 枚举、Prometheus label、列表 AJAX 筛选、种子数据。</td>
+<td>B0 附「枚举扩展检查清单」勾选表（对齐 <code>cronpilot-backend.mdc</code>），并标注 API Additive Change。</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>独立 Engine 与业务库同文件 SQLite</td>
+<td>设计已承认不保证零阻塞；但未规定默认 <code>TRACE_LEVEL</code>、超时毫秒、熔断阈值与开关配置键（且配置键须进 <code>configs()</code> 可达性门禁）。</td>
+<td>补 conf 键草案 + <code>test_config_keys</code> 登记；默认偏保守（例如仅终态前后关键事件，或短 timeout）。</td>
+</tr>
+<tr>
+<td>M7</td>
+<td>批次编号双轨</td>
+<td>§六 Batch 1–4 与 §6.2 B0–B6 并存，Review/实施易串。</td>
+<td>删掉简表或改成「B0–B6 为权威」，简表仅作索引。</td>
+</tr>
+</table>
+
+<h2>五、次要问题（Minor）与信息项</h2>
+<ul>
+<li><span class="badge b-min">Minor</span> <code>job_log_events.cron_id INTEGER</code> 与 <code>JobLog.cron_info_id</code> 同为 Integer；若 OPT-P0-21 任务 ID 升 BIGINT，须同步类型（可在风险表预留）。</li>
+<li><span class="badge b-min">Minor</span> 事件表缺 <code>(cron_id, occurred_at_ms)</code> / <code>(trace_id)</code> 查询索引说明；详情按 trace_id+seq 够用，清理按 cron 批量删时建议有索引。</li>
+<li><span class="badge b-min">Minor</span> §5.6 写「Demo 直接加载生产 CSS」——当前交互 Demo 仍是自包含样式；要么改 Demo 真链生产 CSS，要么改表述为「视觉 token 对齐，非强制同源 CSS」。</li>
+<li><span class="badge b-info">Info</span> <code>single_task()</code> 今日无参；改为 <code>single_task(observe_execution=False)</code> 时，所有 <code>@single_task()</code> 调用点需保持兼容（现状均为带括号调用，可行）。</li>
+<li><span class="badge b-info">Info</span> 提前建父记录后，业务方可在 running 期间 add_log——时间线合并业务日志的价值应写进 1.2 对比表。</li>
+<li><span class="badge b-info">Info</span> 种子 Admin 无 <code>cron:write</code> 但有 <code>log:read</code>：矩阵已覆盖，B4 浏览器验收须含 Seed Admin 正向读详情。</li>
+</ul>
+
+<h2>六、与代码现状对照（抽样）</h2>
+<table>
+<tr><th>设计陈述</th><th>代码事实</th><th>判定</th></tr>
+<tr><td><code>_save_job_log</code> 仅终态创建</td><td><code>app/crons.py</code> 各分支调用时已带终态 status</td><td>正确</td></tr>
+<tr><td>pending/running 产品化不足</td><td>常量与 display 已有，但 cron_do 不写这两态</td><td>正确（差写入与列表语义）</td></tr>
+<tr><td>Redis 锁可选，默认单机</td><td><code>single_task</code>：<code>is_single != '1'</code> 才抢锁</td><td>正确</td></tr>
+<tr><td>add_log 依赖已有 JobLog</td><td><code>cron_add_log</code> 查不到 trace 即错误</td><td>正确；早建父记录可解</td></tr>
+<tr><td>清理级联 events</td><td><code>job_log_service</code> 只删 JobLog</td><td>设计缺口 → B3</td></tr>
+<tr><td>threadpool ContextVar 传计划时间</td><td>默认确为 ThreadPoolExecutor；注入点应在 submit 边界</td><td>部分正确 → B2</td></tr>
+<tr><td><code>job_log_items.occurred_at_ms</code> 新增</td><td>模型仅有 id/trace_id/content</td><td>正确</td></tr>
+<tr><td>不改 Dashboard 健康统计</td><td>健康度基于终态；须显式排除 pending/running/skipped</td><td>依赖 B0 落地</td></tr>
+</table>
+
+<h2>七、建议的确认项修订（替换/追加第八章）</h2>
+<ol class="fix">
+<li>确认本期 UI <strong>保持列表→详情整页跳转</strong>，不做桌面双栏（或另立 UI 设计）。</li>
+<li>确认调度延迟经 <strong>executor 提交边界 ContextVar</strong> 注入，覆盖当前 Background 路径，并写清与 Gevent 变体的关系；禁止 <code>next_run_time</code> 反推。</li>
+<li>确认清理/裁剪改造 <code>job_log_service</code>：级联 items+events，保护 pending/running。</li>
+<li>确认 APS max_instances 抑制：本期不做观测 / 或纳入范围（二选一写死）。</li>
+<li>确认 <code>scheduled_delay_ms</code> 不复用扭曲 <code>trigger_delay_ms</code> 旧语义。</li>
+<li>保留原稿：仅观测 cron_do；复用 JobLog；脱敏+Presenter；无 events 公开 API。</li>
+</ol>
+
+<h2>八、修订后的实施建议顺序</h2>
+<ol>
+<li>改设计稿解决 B1–B3 + M1–M5（仍不写业务实现）。</li>
+<li>你明确「按修订稿执行」后，严格按 B0→B6，每批独立验收。</li>
+<li>B0 必须跑通枚举扩展清单（含 API/健康度/筛选/CSS）。</li>
+<li>B3 通过串扰与锁跳过返回值测试后，才开 B4 页面。</li>
+</ol>
+
+<div class="box ok">
+<strong>一句话</strong>：方案方向正确、值得做；先把「交互范围、调度延迟注入、清理级联」三处写死并对齐代码，再确认实施。
+</div>
+
+<footer>
+关联：<a href="任务执行链路可观测性设计方案-收敛版.html">设计原文</a> ·
+<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a> ·
+<a href="任务执行链路可观测性-RunInspector-Demo.html">目标态 Demo</a> ·
+<a href="../index.html">文档索引</a>
+ · <a href="任务执行链路可观测性设计方案-收敛版-专业Review.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>健康度未满阈值误标健康复盘（2026-09）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.85rem}
+</style>
+</head>
+<body>
+<h1>健康度未满阈值误标「健康」复盘</h1>
+<p><strong>日期</strong>：2026-09-16 · <strong>类型</strong>：UX / 健康模型 · 设计
+  <a href="../design/健康度未满阈值误标健康修复设计-2026-09.html">方案 A</a></p>
+
+<h2>1. Bug 定位</h2>
+<p>
+  任务 <code>testgoogle</code>：<code>job_log.status=error</code>，
+  <code>job_health.consecutive_failures=1</code>，
+  <code>health_status=ok</code> → Dashboard 健康列渲染「健康」。
+  写路径：<code>app/services/job_health_service.py</code> 失败分支
+  <code>consecutive &lt; N → HEALTH_OK</code>。
+</p>
+
+<h2>2. 根因</h2>
+<p>
+  「持续异常」阈值（≥N）与「可否称健康」共用 <code>ok/failing</code>。
+  未满 N 的失败被故意写入 <code>ok</code>，模板把 <code>ok</code> 一律显示为「健康」。
+  行为层：产品把「尚未进入持续异常」误表达成「健康」。
+</p>
+
+<h2>3. 测试漏洞</h2>
+<p>
+  <code>test_three_fails_marks_failing_when_n_is_3</code> 曾断言
+  「第 1 次失败 → <code>HEALTH_OK</code>」，把错误语义锁进回归门禁；
+  无「单次失败不得标健康」否定用例；无模板层断言「有失败」文案。
+</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>写路径：失败且 &lt;N → <code>unknown</code>（非 ok）</li>
+  <li>列表 / 详情：<code>consecutive_failures &gt; 0</code> → badge「有失败」（含历史 ok 兜底）</li>
+  <li><code>ensure_business_tables._correct_subthreshold_health_ok</code> 校正存量</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<pre>.venv-py311/bin/python -m unittest \
+  tests.test_job_health.TestUpdateJobHealth.test_single_fail_is_not_healthy \
+  tests.test_job_health.TestUpdateJobHealth.test_three_fails_marks_failing_when_n_is_3 \
+  tests.test_ensure_business_tables.TestCorrectSubthresholdHealthOk -v</pre>
+<p>期望：1 次失败 → unknown；3 次 → failing；历史 ok+failures&gt;0 → unknown。</p>
+
+<h2>6. 同类排查</h2>
+<table>
+  <tr><th>位置</th><th>结论</th></tr>
+  <tr><td>Dashboard 健康列</td><td>已改「有失败」分支</td></tr>
+  <tr><td>任务详情健康卡</td><td>原 failing/else→健康，已对齐三态</td></tr>
+  <tr><td>持续异常统计</td><td>仍仅 failing / ≥3，未改口径</td></tr>
+  <tr><td>OPT-P1-18 待验证</td><td>未实施；文案勿与「有失败」混淆</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+<p>
+  在 <code>job_health_service</code> 模块文档与设计中固定：
+  <strong>ok ≡ 连续失败为 0</strong>；未满阈值失败必须 unknown。
+  单测 <code>test_single_fail_is_not_healthy</code> 永久锁定。
+  启动校正落在 <code>scripts/ensure_business_tables.py</code>。
+</p>
+<pre>grep -n 'HEALTH_UNKNOWN if row.consecutive_failures' app/services/job_health_service.py
+grep -n '有失败' app/templates/redesign/_dashboard_rows.html</pre>
+
+<footer>
+  <a href="2026-09-健康度未满阈值误标健康.md">Markdown</a> ·
+  <a href="index.html">复盘索引</a>
+</footer>
+</body>
+</html>

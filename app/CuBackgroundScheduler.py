@@ -106,6 +106,8 @@ class CuBackgroundScheduler(BackgroundScheduler):
                             try:
                                 executor.submit_job(job, run_times)
                             except MaxInstancesReachedError:
+                                from app.metrics import EXECUTION_SUPPRESSED
+                                EXECUTION_SUPPRESSED.labels(reason='max_instances').inc()
                                 self._logger.warning(
                                     'Execution of job "%s" skipped: maximum number of running '
                                     'instances reached (%d)', job, job.max_instances)

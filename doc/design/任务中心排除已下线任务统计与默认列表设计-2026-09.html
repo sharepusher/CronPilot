@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务中心顶栏运行中/已暂停分列统计设计（2026-09）</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1180px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.4rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.1rem}
+h3{margin-top:1.3rem;color:#2d3748}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.82rem}
+blockquote{border-left:3px solid #3D6FE0;margin:1rem 0;padding:.5rem 1rem;background:#f8f9ff}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8rem;font-weight:600;margin-right:.25rem}
+.tag-draft{background:#fef3c7;color:#92400e}
+.tag-ux{background:#dbeafe;color:#1e40af}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #b45309;background:#fffbeb}
+.box-ok{border-left-color:#15803d;background:#f0fdf4}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+
+.demo-anchor{scroll-margin-top:1rem}
+.demo-scenario{margin:0 0 12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;color:#64748b}
+.demo-scenario strong{color:#1a1a2e}
+.demo-compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0 8px}
+.demo-panel{min-width:0}
+.demo-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px;font-size:13px;font-weight:700}
+.demo-panel.before .demo-label strong{color:#b91c1c}
+.demo-panel.after .demo-label strong{color:#15803d}
+.demo-frame{overflow:hidden;border:1px solid #d9e0ea;border-radius:10px;background:#fff;box-shadow:0 6px 18px rgba(30,41,59,.06)}
+.demo-appbar{height:36px;background:#202b3d;color:#e5e7eb;display:flex;align-items:center;padding:0 12px;gap:8px;font-size:11px}
+.demo-brand{font-weight:750}
+.demo-crumb{color:#94a3b8}
+.demo-main{padding:14px 12px}
+.demo-pagehead{margin-bottom:8px}
+.demo-pagehead h4{font-size:15px;margin:0}
+.demo-sub{font-size:10px;color:#6b7280;margin-top:2px}
+.demo-stat{font-size:11px;margin:0 0 10px;padding:7px 9px;background:#f7f9fc;border:1px solid #d9e0ea;border-radius:6px;line-height:1.45}
+.demo-stat b{font-weight:750}
+.demo-stat .d{color:#dc2626;font-weight:650}
+.demo-stat .w{color:#b45309;font-weight:650}
+.demo-stat .m{color:#6b7280}
+.stat-hit{outline:2px dashed #e11d48;outline-offset:2px;border-radius:4px;background:#fff1f2}
+.stat-fix{outline:2px solid #16a34a;outline-offset:2px;border-radius:4px;background:#f0fdf4}
+.demo-chips{display:flex;gap:4px;margin:0 0 6px;flex-wrap:wrap}
+.demo-chip{border:1px solid #d9e0ea;background:#f7f9fc;color:#6b7280;padding:2px 7px;border-radius:20px;font-size:10px}
+.demo-chip.active{border-color:#2563eb;background:#eaf2ff;color:#2563eb;font-weight:700}
+.demo-hint{font-size:10px;color:#6b7280;margin:0 0 8px}
+.demo-callout{font-size:10px;line-height:1.35;margin:0 0 8px;padding:6px 8px;border-radius:5px}
+.demo-callout.bad{color:#be123c;background:#fff1f2;border:1px solid #fecdd3}
+.demo-callout.good{color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0}
+.demo-summary{margin:12px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:.85rem}
+.demo-summary div{padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px}
+.demo-summary b{display:block;margin-bottom:4px}
+.no{color:#b91c1c}.yes{color:#15803d}
+@media(max-width:900px){.demo-compare,.demo-summary{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>任务中心顶栏 · 运行中 / 已暂停分列统计</h1>
+<p>
+  <span class="tag tag-ux">UX</span>
+  <span class="tag" style="background:#dcfce7;color:#166534">已实施</span><br>
+  <strong>日期</strong>：2026-09-16 · rev.5（实施）<br>
+  <strong>状态</strong>：用户确认方案 E 后已实施 · 顶栏追加「运行中 / 已暂停」<br>
+  <strong>页面对比</strong>：本文 <a href="#page-compare">§3.1.1</a> 内嵌<br>
+  <strong>文件名沿用</strong>：<code>任务中心排除已下线任务统计与默认列表设计-2026-09.*</code>（历史命名；rev.5 起范围已收窄，见下）
+</p>
+
+<div class="box">
+  <strong>用户表述（rev.5 · 收窄）：</strong>
+  <strong>不要</strong>把筛选 chip「全部」改为「在营」；
+  <strong>不要</strong>改默认列表过滤。
+  只调整数量统计：保留「N 个任务」，其后<strong>新增「运行中 X · 已暂停 Y」</strong>。
+</div>
+
+<div class="box box-ok">
+  <strong>相对 rev.2–4（方案 D）的变更：</strong>
+  取消「活跃/暂停」替代总数、取消 chip「在营」、取消默认列表排除下线。
+  文案对齐现有 chip：用「运行中 / 已暂停」，不用「活跃 / 暂停」。
+</div>
+
+<h2>1. 问题</h2>
+<ul>
+  <li>顶栏 <code>stat-line</code> 仅显示 <code>metrics.total</code>（「N 个任务」），看不到运行中与已暂停各多少。</li>
+  <li>数据层已有 <code>metrics.running</code> 与 <code>status_counts.paused</code>，模板未展示。</li>
+</ul>
+
+<h2>2. 根因</h2>
+<pre># dashboard.html stat-line 只拼 total + 异常/逾期/今日失败
+# metrics.running / status_counts.paused 已算好，未进入 stat-line
+# AJAX 刷新 statLine.innerHTML 同样只写 total</pre>
+
+<h2>3. 方案</h2>
+
+<h3>3.1 推荐方案 E（仅顶栏追加）</h3>
+<blockquote>
+  目标形态：<br>
+  <code><b>16</b> 个任务 · 运行中 <b>3</b> · 已暂停 <b>1</b> · <span>2</span> 持续异常 · <span>0</span> 逾期 · …</code>
+</blockquote>
+<ul>
+  <li><strong>全部任务数</strong>：仍用 <code>metrics.total</code>（Scope 内含已下线，语义不变）。</li>
+  <li><strong>运行中</strong>：<code>status = 1</code> ⇔ <code>metrics.running</code> / chip「运行中」。</li>
+  <li><strong>已暂停</strong>：<code>status = 0</code> ⇔ <code>status_counts.paused</code> / chip「已暂停」。</li>
+  <li><strong>不做</strong>：不改 chip 文案；不改默认列表 where；顶栏不展示「已下线」计数；不加 Stats 卡片；分列默认纯展示（不加点击跳转，若加链接须另批确认）。</li>
+</ul>
+
+<h3 id="page-compare" class="demo-anchor">3.1.1 页面对比（内嵌）</h3>
+<p class="demo-scenario">
+  <strong>示意</strong>：Scope 共 16 条 = 运行中 3 · 已暂停 1 · 已下线 12。
+  改后顶栏在总数后露出运行中/已暂停；chip 与表格不变。
+</p>
+
+<div class="demo-compare">
+  <section class="demo-panel before">
+    <div class="demo-label"><strong>BEFORE</strong><span>仅总数</span></div>
+    <div class="demo-frame">
+      <div class="demo-appbar"><span class="demo-brand">CronPilot</span><span class="demo-crumb">/ 任务中心</span></div>
+      <div class="demo-main">
+        <div class="demo-pagehead"><h4>任务中心</h4><div class="demo-sub">管理与监控所有定时任务</div></div>
+        <div class="demo-stat">
+          <span class="stat-hit"><b>16</b> 个任务</span>
+          · <span class="d">2</span> 持续异常
+          · <span class="w">0</span> 逾期
+          · <span class="m">— 今日失败</span>
+        </div>
+        <div class="demo-callout bad">看不出运行中 / 已暂停各多少</div>
+        <div class="demo-chips">
+          <span class="demo-chip active">全部</span>
+          <span class="demo-chip">运行中</span>
+          <span class="demo-chip">已暂停</span>
+          <span class="demo-chip">已下线</span>
+        </div>
+        <p class="demo-hint">chip「全部」与默认列表：本轮不改。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-panel after">
+    <div class="demo-label"><strong>AFTER · 方案 E</strong><span>总数后追加分列</span></div>
+    <div class="demo-frame">
+      <div class="demo-appbar"><span class="demo-brand">CronPilot</span><span class="demo-crumb">/ 任务中心</span></div>
+      <div class="demo-main">
+        <div class="demo-pagehead"><h4>任务中心</h4><div class="demo-sub">管理与监控所有定时任务</div></div>
+        <div class="demo-stat">
+          <b>16</b> 个任务 ·
+          <span class="stat-fix">运行中 <b>3</b> · 已暂停 <b>1</b></span>
+          · <span class="d">2</span> 持续异常
+          · <span class="w">0</span> 逾期
+          · <span class="m">— 今日失败</span>
+        </div>
+        <div class="demo-callout good">保留「个任务」；其后新增运行中 / 已暂停</div>
+        <div class="demo-chips">
+          <span class="demo-chip active">全部</span>
+          <span class="demo-chip">运行中</span>
+          <span class="demo-chip">已暂停</span>
+          <span class="demo-chip">已下线</span>
+        </div>
+        <p class="demo-hint">chip 文案与顺序、默认列表过滤均不变。</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="demo-summary">
+  <div><b class="no">Before</b>仅「16 个任务」，无法区分运行中与已暂停。</div>
+  <div><b class="yes">After · E</b>「16 个任务 · 运行中 3 · 已暂停 1 · …」。</div>
+  <div><b>明确不做</b>chip「在营」、默认列表排除下线、用「活跃」替换「运行中」。</div>
+</div>
+
+<table>
+  <tr><th>区域</th><th>Before</th><th>After（方案 E）</th></tr>
+  <tr>
+    <td>顶栏 <code>stat-line</code></td>
+    <td><code><b>16</b> 个任务 · …</code></td>
+    <td><code><b>16</b> 个任务 · 运行中 <b>3</b> · 已暂停 <b>1</b> · …</code></td>
+  </tr>
+  <tr>
+    <td>状态 chip</td>
+    <td>全部 / 运行中 / 已暂停 / 已下线</td>
+    <td>不变</td>
+  </tr>
+  <tr>
+    <td>默认列表</td>
+    <td>无 status 时三态全出</td>
+    <td>不变</td>
+  </tr>
+</table>
+
+<ol>
+  <li><strong>模板</strong>：首屏 <code>stat-line</code> 在「个任务」后插入运行中 / 已暂停（取 <code>metrics.running</code> + <code>status_counts.paused</code>，或 metrics 增返回 <code>paused</code>）。</li>
+  <li><strong>AJAX</strong>：<code>statLine.innerHTML</code> 与 stats payload 同步带上 running / paused。</li>
+  <li><strong>数值口径</strong>：与现网 stats 一致，按 Scope 统计，不随列表 status 筛选收缩。</li>
+</ol>
+
+<h3>3.2 备选对照（含已废弃）</h3>
+<table>
+  <tr><th>方案</th><th>内容</th><th>取舍</th></tr>
+  <tr><td>D（rev.2–4）</td><td>活跃/暂停替换总数 + 在营 + 默认排除下线</td><td><strong>本轮不做</strong>（用户明确收窄）</td></tr>
+  <tr><td><strong>E · 推荐</strong></td><td>保留总数 + 追加运行中/已暂停</td><td>最小 diff，对齐现有 chip 文案</td></tr>
+</table>
+
+<h3>3.3 交互契约</h3>
+<table>
+  <tr><th>项</th><th>约定</th></tr>
+  <tr><td>可见文案变更</td><td>仅 <code>stat-line</code>：在「N 个任务」后新增「运行中 X · 已暂停 Y」</td></tr>
+  <tr><td>chip / 列表</td><td><strong>无变更</strong></td></tr>
+  <tr><td>术语</td><td>与 chip 一致用「运行中」「已暂停」，不用「活跃」「暂停」「在营」</td></tr>
+</table>
+
+<h2>4. 范围</h2>
+<table>
+  <tr><th>路径</th><th>改动</th></tr>
+  <tr><td><code>dashboard.html</code> 首屏 + JS <code>statLine</code></td><td>追加运行中 / 已暂停文案</td></tr>
+  <tr><td><code>views.cron_list</code> AJAX stats（若缺 paused）</td><td>payload 带 running + paused</td></tr>
+  <tr><td>测试</td><td>渲染/AJAX 含「运行中」「已暂停」；断言 chip「全部」仍在、无「在营」</td></tr>
+  <tr><td><strong>不做</strong></td><td>默认列表 where；chip 改名；排除下线总数；异常面板</td></tr>
+</table>
+
+<h2>5. 分批</h2>
+<table>
+  <tr><th>批次</th><th>内容</th><th>验收</th></tr>
+  <tr><td>B1</td><td>模板 + AJAX + 必要时 stats 字段</td><td>HTML/JSON 含运行中/已暂停；无「在营」</td></tr>
+  <tr><td>B2</td><td>restart 浏览器自证</td><td>数字与 chip「运行中」「已暂停」计数一致</td></tr>
+</table>
+
+<h2>6. 验收</h2>
+<ol>
+  <li>构造运行 2 / 暂停 1 / 下线 5：顶栏为「<b>8</b> 个任务 · 运行中 <b>2</b> · 已暂停 <b>1</b> · …」</li>
+  <li>chip 仍为「全部」，默认列表仍含下线（若库中有）</li>
+  <li>AJAX 刷新后 stat-line 仍为「总数 + 运行中 + 已暂停」结构</li>
+</ol>
+
+<h2>7. 风险</h2>
+<ul>
+  <li>总数仍含下线，可能继续「虚高」——本轮接受；若以后要排除下线须另开设计。</li>
+  <li>stat-line 变长：窄屏换行，沿用现有 <code>stat-line</code> 样式即可。</li>
+  <li>回滚：恢复原 innerHTML / 模板一行即可。</li>
+</ul>
+
+<footer>
+  <a href="任务中心排除已下线任务统计与默认列表设计-2026-09.md">Markdown</a> ·
+  <a href="../index.html">文档索引</a> ·
+  已按方案 E 实施（2026-09-16）
+</footer>
+</body>
+</html>

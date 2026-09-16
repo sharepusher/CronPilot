@@ -8,6 +8,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from app.services.cron_schedule_display import (
+    cron_trigger_from_item,
     format_cron_expression,
     humanize_schedule,
     schedule_empty_hint,
@@ -30,6 +31,14 @@ class TestCronScheduleDisplay(unittest.TestCase):
         self.assertEqual(humanize_schedule(item), '每 5 分钟')
         self.assertIn('*/5', format_cron_expression(item))
 
+    def test_seconds_expression_is_preserved(self):
+        item = _Item(second='*/10', minute='*', hour='*')
+        self.assertEqual(format_cron_expression(item), '*/10 * * * * *')
+
+    def test_explicit_second_is_preserved_with_period(self):
+        item = _Item(second='5', minute='*/5')
+        self.assertEqual(format_cron_expression(item), '5 */5 * * * *')
+
     def test_hour_only_shows_minute_zero_not_star(self):
         item = _Item(hour='*/2')
         self.assertEqual(format_cron_expression(item), '0 */2 * * *')
@@ -50,6 +59,7 @@ class TestCronScheduleDisplay(unittest.TestCase):
 
     def test_empty_schedule(self):
         item = _Item()
+        self.assertIsNone(cron_trigger_from_item(item))
         self.assertEqual(humanize_schedule(item), '未配置调度')
         self.assertEqual(format_cron_expression(item), '')
 

@@ -114,6 +114,31 @@ class TestDashboardStatsStability(unittest.TestCase):
         resp_paused = self._get_v2_dashboard(status='0')
         self.assertEqual(resp_paused.status_code, 200)
 
+    def test_stat_line_shows_running_and_paused(self):
+        """方案 E：顶栏在总数后展示运行中 / 已暂停；chip「全部」不变。"""
+        self._login_as_seed()
+        resp = self._get_v2_dashboard()
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        # Seed: 3 running + 2 paused
+        self.assertIn('运行中 <b>3</b>', html)
+        self.assertIn('已暂停 <b>2</b>', html)
+        self.assertIn('个任务', html)
+        self.assertNotIn('在营', html)
+        self.assertRegex(html, r'data-filter-val=""[^>]*>全部<')
+
+    def test_partial_stats_include_running_and_paused(self):
+        """AJAX partial stats 须带 running/paused，且口径不受 status 筛选影响。"""
+        self._login_as_seed()
+        with self.client.session_transaction() as sess:
+            sess['ui_version'] = 'v2'
+        resp = self.client.get('/cron_list', query_string={'partial': '1', 'status': '0'})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertEqual(data['stats']['running'], 3)
+        self.assertEqual(data['stats']['paused'], 2)
+        self.assertEqual(data['stats']['total'], 5)
+
     def test_stats_stable_with_search_filter(self):
         """Stats should not change when task_name search is applied."""
         self._login_as_seed()

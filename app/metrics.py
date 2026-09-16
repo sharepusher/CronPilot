@@ -13,6 +13,7 @@ from contextvars import ContextVar
 
 # Enqueue timestamp written by single_task decorator; read by cron_do to compute trigger delay.
 _ctx_enqueue_time: ContextVar[float] = ContextVar('enqueue_time', default=0.0)
+_ctx_scheduled_run_time: ContextVar[object] = ContextVar('scheduled_run_time', default=None)
 
 try:
     from prometheus_client import Counter, Gauge, Histogram
@@ -81,6 +82,18 @@ try:
         'Retired (status=-1) or stale scheduler entries detected by reverse scan',
     )
 
+    EXECUTION_SUPPRESSED = Counter(
+        'cronpilot_execution_suppressed_total',
+        'Scheduled submissions suppressed before cron_do starts',
+        ['reason'],
+    )
+
+    EXECUTION_EVENT_WRITE_FAILED = Counter(
+        'cronpilot_execution_event_write_failed_total',
+        'Execution-event writes dropped without affecting the trigger result',
+        ['reason'],
+    )
+
     _PROMETHEUS_AVAILABLE = True
 
 except ImportError:
@@ -95,4 +108,5 @@ except ImportError:
 
     _noop = _NoOp()
     JOB_TOTAL = JOB_DURATION = TRIGGER_DELAY = JOB_LOG_WRITE_BYTES = JOBS_ACTIVE = _noop
-    ORPHAN_JOB_DETECTED = ORPHAN_TASKS = GHOST_TASKS = _noop
+    ORPHAN_JOB_DETECTED = ORPHAN_TASKS = GHOST_TASKS = EXECUTION_SUPPRESSED = _noop
+    EXECUTION_EVENT_WRITE_FAILED = _noop

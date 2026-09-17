@@ -17,6 +17,8 @@
 - [任务详情 seconds 展示丢失修复](2026-09-task-detail-seconds-display.html)（调度表达式完整性 · 六字段展示，2026-09-16）
 - [Dashboard 相对时间测试确定性修复](2026-09-dashboard-relative-time-test-determinism.html)（可注入时间基准 · 消除时钟漂移，2026-09-16）
 - [全量回归门禁收口修复](2026-09-regression-gate-cleanup.html)（legacy 门禁 · 无上下文日志，2026-09-16）
+- [Run Inspector raw detail 与时间线顺序](2026-09-RunInspector-raw-detail与时间线顺序.html)（禁 JSON · 时间线上移，2026-09-16）
+- [执行记录 pending 误标「未知」](2026-09-执行记录pending误标未知.html)（已入队徽章 · in_progress 白名单，2026-09-16）
 - [任务中心下线异常任务](2026-09-任务中心下线异常任务Bug修复复盘.html)（下线任务排除异常提醒面板，2026-09-09）
 - [下次执行相对时间误显示](2026-09-下次执行相对时间误显示.html)（空 minute vs APScheduler 默认 0 · 已修复，2026-09-16）
 
@@ -31,6 +33,8 @@
 - [标签页 Bootstrap Modal 迁移](2026-08-Z3-标签页Bootstrap模态框迁移.html)
 - [确认对话框修复与个人资料页](2026-08-确认对话框修复与个人资料页.html)
 - [Dashboard 表格操作列溢出修复](2026-09-Dashboard表格溢出修复.html)
+- [R3-C 设计偏离原方案 Demo UI](2026-09-R3-C设计偏离原方案DemoUI.html)（子设计 AFTER 须锚定父 Demo §B，2026-09-16）
+- [误把 Demo §C 当成 §B](2026-09-误把Demo-C当成-B.html)（多节 Demo 须写明节号，2026-09-17）
 - [Tier 3-5 代码质量修复](2026-08-tier345-code-quality.html)
 
 ## 表单与 UX

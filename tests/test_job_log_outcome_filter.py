@@ -20,8 +20,26 @@ class TestJobLogOutcomeClause(unittest.TestCase):
     def test_not_success(self):
         self.assertIsNotNone(job_log_outcome_clause('not_success'))
 
+    def test_not_success_excludes_pending_and_running(self):
+        clause = job_log_outcome_clause('not_success')
+        clause_str = str(clause.compile(compile_kwargs={"literal_binds": True}))
+        self.assertIn('fail', clause_str)
+        self.assertIn('error', clause_str)
+        self.assertIn('timeout', clause_str)
+        self.assertNotIn('pending', clause_str)
+        self.assertNotIn('running', clause_str)
+
+    def test_in_progress_covers_pending_and_running(self):
+        clause = job_log_outcome_clause('in_progress')
+        self.assertIsNotNone(clause)
+        clause_str = str(clause.compile(compile_kwargs={"literal_binds": True}))
+        self.assertIn('pending', clause_str)
+        self.assertIn('running', clause_str)
+        self.assertNotIn('fail', clause_str)
+        self.assertNotIn('success', clause_str)
+
     def test_known_values(self):
-        for v in ('success', 'fail', 'error', 'unknown'):
+        for v in ('success', 'fail', 'error', 'unknown', 'in_progress'):
             self.assertIsNotNone(job_log_outcome_clause(v))
 
     def test_exception_returns_clause(self):
@@ -33,6 +51,11 @@ class TestJobLogOutcomeClause(unittest.TestCase):
         clause_str = str(clause.compile(compile_kwargs={"literal_binds": True}))
         self.assertIn('error', clause_str)
         self.assertIn('timeout', clause_str)
+
+    def test_known_outcomes_include_in_progress(self):
+        from app.services.job_log_filter import KNOWN_OUTCOMES
+        self.assertIn('in_progress', KNOWN_OUTCOMES)
+        self.assertIn('not_success', KNOWN_OUTCOMES)
 
     def test_timeout_raw_is_unknown(self):
         self.assertIsNone(job_log_outcome_clause('timeout'))

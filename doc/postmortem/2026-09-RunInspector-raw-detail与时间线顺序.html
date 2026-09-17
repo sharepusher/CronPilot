@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>复盘：Run Inspector Admin 时间线 raw detail JSON 泄露与诊断顺序</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:980px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #b91c1c;padding-bottom:.5rem;font-size:1.3rem}
+h2{margin-top:1.8rem;border-left:4px solid #b91c1c;padding-left:.7rem;font-size:1.05rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.45rem .65rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem}
+footer{margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>复盘：Run Inspector Admin 时间线 raw detail JSON 泄露与诊断顺序</h1>
+<p>日期：2026-09-16 · 设计：<a href="../design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2 短设计</a> · 父方案：收敛版 B4</p>
+
+<h2>1. Bug 定位</h2>
+<ol>
+<li><strong>敏感泄露</strong>：<code>app/services/run_inspector_presenter.py</code> 的 <code>_detail_value(..., include_detail=True)</code> 对 Admin 将整段 <code>event.detail</code> <code>json.dumps</code>；模板 <code>run_inspector.html</code> 用 <code>&lt;code class="ri-timeline-detail"&gt;{{ event.detail }}&lt;/code&gt;</code> 渲染。</li>
+<li><strong>诊断顺序</strong>：同模板 DOM 顺序为 请求 → 响应 → 业务 → 元数据 → <strong>执行时间线</strong>，与「先看走到哪一步」相反。</li>
+<li><strong>角色粒度</strong>：视图仅 <code>role == 'admin'</code> 二元门，Viewer/Operator 同权，无法落地 Operator 有限正文摘要。</li>
+</ol>
+
+<h2>2. 根因</h2>
+<ul>
+<li><strong>行为层（泄露）</strong>：热修接线 Presenter 时把「Admin 可看更多」实现成「整段 detail JSON」，覆盖了收敛版「任何角色不得见 raw detail」硬约束；白名单摘要未实现。</li>
+<li><strong>行为层（顺序）</strong>：时间线作为增量区块追加在模板末尾，未按信息架构重排。</li>
+<li><strong>行为层（角色）</strong>：DTO 仍用 <code>is_admin</code> 布尔，未引入 <code>viewer_role</code> 三角色矩阵。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li><code>tests.test_run_inspector_presenter.test_admin_receives_structured_detail</code> <strong>正向锁定了泄露行为</strong>（断言 Admin 得到 JSON 字符串），把错误契约测成「正确」。</li>
+<li>集成测试只否定 URL 凭据明文，未否定时间线 <code>exc_detail</code> / <code>ri-timeline-detail</code>，也未断言 DOM 中时间线先于请求。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+<li>Presenter：删除 raw detail 输出；时间线仅 <code>summary</code>（白名单）；<code>viewer_role</code> 三角色（URL / 响应 / 业务日志）。</li>
+<li>模板：Meta → 未完成提示条 → 时间线 → 请求/响应/业务/元数据；渲染 <code>event.summary</code>。</li>
+<li>视图：<code>normalize_viewer_role(session['role'])</code> 传入 Presenter。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+<li><code>test_no_role_receives_raw_event_detail_json</code>：三角色 summary 不含 <code>exc_detail</code> / <code>{</code></li>
+<li><code>test_timeline_before_request_and_no_raw_detail_json</code>：HTML 时间线先于请求；无 <code>SENSITIVE_STACK_TRACE</code> / <code>ri-timeline-detail</code></li>
+<li><code>test_pending_shows_incomplete_banner</code> / <code>test_viewer_hides_business_logs_and_response_body</code> / Viewer URL 去 query</li>
+</ul>
+<p>验证：<code>.venv-py311/bin/python -m unittest tests.test_run_inspector_presenter tests.test_job_log_detail_integration -v</code></p>
+
+<h2>6. 同类排查</h2>
+<table>
+<tr><th>路径</th><th>结论</th></tr>
+<tr><td>执行列表 / 任务详情近期执行</td><td>不渲染 event.detail；无同类 JSON dump</td></tr>
+<tr><td><code>execution_tracer._safe_detail</code></td><td>写库仍存白名单键（含 <code>exc_detail</code>）；展示层已禁止原文输出，写路径属 R3 尾巴不在本轮</td></tr>
+<tr><td>API 执行详情</td><td>无等价时间线 HTML；未发现同源模板渲染</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+<p><strong>措施：</strong>在 <code>tests/test_job_log_detail_integration.py::test_template_has_no_raw_orm_access</code> 增加禁止 <code>event.detail</code>；并新增集成否定断言「HTML 不得出现 <code>ri-timeline-detail</code> / <code>exc_detail</code>」。后续时间线字段只能经 <code>summary</code> 白名单进入模板。</p>
+<p><strong>落地位置：</strong>上述测试文件（已落地）+ 设计契约 R2 §3.2。</p>
+<p><strong>第三方验证：</strong></p>
+<pre>grep -n 'event.detail\|ri-timeline-detail' app/templates/redesign/run_inspector.html && echo FAIL || echo OK
+.venv-py311/bin/python -m unittest tests.test_job_log_detail_integration.TestJobLogDetailIntegration.test_timeline_before_request_and_no_raw_detail_json -v</pre>
+
+<footer>
+相关：<a href="../design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2 设计</a> ·
+<a href="2026-09-execution-detail-url-redaction.html">URL 脱敏复盘</a> ·
+<a href="index.html">复盘索引</a>
+ · <a href="2026-09-RunInspector-raw-detail与时间线顺序.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

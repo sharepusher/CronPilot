@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2 Run Inspector Presenter/详情契约收口设计（2026-09）</title>
+<!-- 页面对比复用生产 Redesign 令牌与 .ri-* 样式，避免线框示意与实页漂移 -->
+<link rel="stylesheet" data-demo-css="console-theme.css" href="../../app/static/css/console-theme.css">
+<link rel="stylesheet" data-demo-css="redesign-pages.css" href="../../app/static/css/redesign-pages.css">
+<script>if(location.protocol!=="file:"){document.querySelectorAll("link[data-demo-css]").forEach(function(link){link.href="/static/css/"+link.dataset.demoCss;});}</script>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1180px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.08rem}
+h3{margin-top:1.2rem;color:#2d3748;font-size:1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.78rem;font-weight:600;margin-right:.25rem}
+.tag-draft{background:#fef3c7;color:#92400e}
+.tag-ux{background:#dbeafe;color:#1e40af}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #b45309;background:#fffbeb}
+.box-ok{border-left-color:#15803d;background:#f0fdf4}
+.box-info{border-left-color:#2563eb;background:#eff6ff}
+.toc a{margin-right:12px}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+/* —— page-compare shell（与《页面对比Demo》同构） —— */
+#page-compare{margin:1rem 0 2rem}
+#page-compare .demo-note{margin:0 0 12px;padding:10px 12px;border:1px solid var(--cp-accent-border,#bfdbfe);border-radius:8px;background:var(--cp-accent-bg,#eff6ff);color:var(--cp-ink-2,#334155);font-size:13px}
+#page-compare .demo-section-title{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:18px 0 10px}
+#page-compare .demo-section-title h3{margin:0;font-size:15px;border:0;padding:0;color:var(--cp-ink,#0f172a)}
+#page-compare .demo-section-title span{color:var(--cp-muted,#64748b);font-size:12px}
+#page-compare .demo-compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-bottom:8px}
+#page-compare .demo-variant{min-width:0;border:1px solid var(--cp-border,#e2e8f0);border-radius:8px;overflow:hidden;background:var(--cp-surface,#fff)}
+#page-compare .demo-variant.to-be{border-color:var(--cp-accent-border,#93c5fd)}
+#page-compare .demo-variant-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--cp-border,#e2e8f0);background:var(--cp-surface-3,#f1f5f9)}
+#page-compare .demo-variant.to-be .demo-variant-head{background:var(--cp-accent-bg,#eff6ff);border-bottom-color:var(--cp-accent-border,#93c5fd)}
+#page-compare .demo-variant-title{font-size:13px;font-weight:600;color:var(--cp-ink,#0f172a)}
+#page-compare .demo-variant-tag{font-family:ui-monospace,monospace;font-size:11px;color:var(--cp-muted,#64748b)}
+#page-compare .demo-variant-body{padding:12px;background:var(--cp-bg,#f8fafc)}
+#page-compare .demo-change{margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--cp-signal,#3D6FE0);background:var(--cp-signal-bg,#eff6ff);color:var(--cp-ink-2,#334155);font-size:12px}
+#page-compare .demo-change.bad{border-left-color:var(--cp-danger,#dc2626);background:var(--cp-danger-bg,#fef2f2)}
+#page-compare .ri-container{max-width:none;margin:0}
+#page-compare .cp-breadcrumb{margin-bottom:12px;font-size:12px;color:var(--cp-muted,#64748b);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#page-compare .cp-breadcrumb .current{color:var(--cp-ink,#0f172a)}
+/* R2 新增：未完成提示条（实现时落入 redesign-pages.css） */
+#page-compare .ri-incomplete-banner{margin:0 0 16px;padding:10px 14px;border:1px solid var(--cp-warn,#d97706);border-radius:8px;background:var(--cp-warn-bg,#fffbeb);color:var(--cp-ink,#0f172a);font-size:13px}
+#page-compare .ri-timeline-summary{color:var(--cp-muted,#64748b);font-size:12px}
+#page-compare .ri-section.demo-focus{box-shadow:0 0 0 2px var(--cp-signal,#3D6FE0)}
+@media(max-width:960px){#page-compare .demo-compare{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>R2 · Run Inspector Presenter / 详情契约收口设计</h1>
+<p>
+  <span class="tag" style="background:#dcfce7;color:#166534">已实施</span>
+  <span class="tag tag-ux">UX · 执行详情</span>
+  <span class="tag">收敛版 B4 · 短设计</span><br>
+  <span style="color:#64748b;font-size:.9rem">日期：2026-09-16 · 父设计：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 §5.4–5.5 / B4</a> · 对照 Demo：<a href="任务执行链路可观测性-页面对比Demo.html">页面对比</a> · 前序：<a href="R1-执行记录列表pending-running显示收口设计-2026-09.html">R1</a></p>
+<p class="toc"><strong>入口：</strong>
+  <a href="#problem">问题</a>
+  <a href="#root">根因</a>
+  <a href="#solution">方案</a>
+  <a href="#page-compare">页面对比</a>
+  <a href="#scope">范围</a>
+  <a href="#batches">分批</a>
+  <a href="#accept">验收</a>
+  <a href="#risk">风险</a>
+</p>
+
+<div class="box-info box">
+<strong>一句话：</strong>详情页已能打开且有时间线，但诊断顺序反了（时间线垫底），且 admin 仍可能看到事件 <code>detail</code> 的 JSON 串。本轮把时间线上移为摘要下第一诊断区，并按 Viewer / Operator / Admin 裁剪 DTO——<strong>任何角色都不得再看到原始 detail JSON</strong>。
+</div>
+
+<h2 id="problem">1. 问题</h2>
+<p>用户打开 <code>/job_log_detail</code>（Run Inspector）时：</p>
+<ol>
+  <li><strong>诊断路径反了</strong>：先看到请求/响应/业务日志/元数据，时间线在最下方，与「先看走到哪一步、再下钻」不符。</li>
+  <li><strong>敏感边界不达标</strong>：<code>include_detail=True</code>（当前 <code>session.role=='admin'</code>）时，时间线把整段 <code>event.detail</code> <code>json.dumps</code> 进页面；设计要求<strong>任何角色都不可见原始 detail JSON</strong>。</li>
+  <li><strong>角色粒度不够</strong>：仅 admin / 非 admin；Viewer 与 Operator 同权（都看不到正文），Admin 看到全文。设计矩阵要求 Operator 有「有限诊断摘要」。</li>
+</ol>
+<p><strong>已有、本轮不重复造的：</strong>Presenter DTO 接线已完成；pending/running 徽章文案已含「最终结果未知」；URL 查询值已统一脱敏为 <code>***</code>（执行详情 URL 脱敏修复）。</p>
+
+<h2 id="root">2. 根因</h2>
+<table>
+<tr><th>层</th><th>事实</th></tr>
+<tr><td>模板 DOM</td><td><code>run_inspector.html</code> 顺序：Header → Meta → 请求 → 响应 → 业务 → 元数据 → <strong>时间线</strong>。热修接线时保留了旧区块顺序。</td></tr>
+<tr><td>Presenter</td><td><code>_detail_value(..., include_detail=True)</code> 直接 <code>json.dumps</code> 全量 detail；无白名单摘要字段。</td></tr>
+<tr><td>视图鉴权</td><td><code>can_view_sensitive = (role == 'admin')</code> 二元门，未区分 viewer / operator；亦未覆盖「禁止 raw JSON」硬约束。</td></tr>
+</table>
+
+<h2 id="solution">3. 方案（推荐）</h2>
+
+<h3>3.1 信息架构（可见顺序）</h3>
+<p>固定为：</p>
+<ol>
+  <li>Header（ID + 状态徽章）</li>
+  <li>Meta（HTTP / 耗时 / 开始结束 / 触发方式 / 失败原因）</li>
+  <li><strong>未完成提示条</strong>（仅 <code>pending</code>/<code>running</code>）：「执行未完成，最终结果未知」——徽章已有文案时仍保留一条独立提示，避免只扫 meta 漏读</li>
+  <li><strong>执行时间线</strong>（首要诊断区）</li>
+  <li>请求 / 响应 / 业务日志 / 元数据（保留；默认折叠行为见下）</li>
+</ol>
+<p>折叠约定（沿用既有 <code>ri-section-head</code> 点击若已有；无则最小增量）：</p>
+<ul>
+  <li><code>success</code>：请求/响应/业务默认折叠</li>
+  <li><code>fail</code>/<code>error</code>/<code>timeout</code>：优先展开「响应」一节</li>
+  <li><code>pending</code>/<code>running</code>：时间线展开；请求/响应可折叠</li>
+</ul>
+
+<h3>3.2 时间线行契约（禁止 raw JSON）</h3>
+<table>
+<tr><th>字段</th><th>含义</th></tr>
+<tr><td><code>label</code></td><td>阶段中文名（已有映射）</td></tr>
+<tr><td><code>time</code> / <code>offset_ms</code></td><td>时刻与相对耗时</td></tr>
+<tr><td><code>outcome</code></td><td>结果语义 class</td></tr>
+<tr><td><code>summary</code></td><td><strong>唯一</strong>可展示的附加文案：由 Presenter 从 detail 白名单键生成（如 <code>method</code>、<code>block_type</code>、<code>http_status</code>）；缺键则空</td></tr>
+<tr><td><code>detail</code></td><td><strong>删除或恒为空</strong>；模板不得再渲染 <code>event.detail</code></td></tr>
+</table>
+<p>白名单摘要示例（实现时落在 Presenter，可测）：</p>
+<ul>
+  <li><code>http.start</code> → <code>GET</code>（仅 method；URL 不进时间线行，避免重复与泄露）</li>
+  <li><code>http.complete</code> → <code>HTTP 200</code></li>
+  <li><code>ssrf.check</code> blocked → <code>拦截：private_ip</code>（类型枚举，非原文）</li>
+  <li><code>http.error</code> → Viewer：<code>请求异常</code>；Operator/Admin：<code>连接失败</code> 等有限类型文案，<strong>不</strong>输出 <code>exc_detail</code> 原文</li>
+</ul>
+
+<h3>3.3 角色矩阵（本轮落地版）</h3>
+<table>
+<tr><th>能力</th><th>Viewer</th><th>Operator</th><th>Admin（含 Biz / Seed）</th></tr>
+<tr><td>状态 / 阶段 / 耗时 / 触发</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>时间线 <code>summary</code></td><td>通用短句</td><td>有限诊断短句</td><td>同 Operator + 允许的类型枚举</td></tr>
+<tr><td>请求 URL</td><td>scheme + host + path（<strong>无 query</strong>）</td><td>脱敏 URL（键名 + <code>***</code>）</td><td>同 Operator</td></tr>
+<tr><td>响应正文</td><td>占位：「响应正文仅管理员可见」→ 改为「无权限查看正文」</td><td>截断摘要 ≤200 字（去 HTML 噪声）</td><td>截断正文 ≤2KB（仍非无限）</td></tr>
+<tr><td>业务日志全文</td><td>不展示区块</td><td>不展示全文（时间线若未来合并另议）</td><td>可见（已有）</td></tr>
+<tr><td>原始 detail JSON / 模型字段</td><td>禁止</td><td>禁止</td><td>禁止</td></tr>
+</table>
+<p>视图入参：由 <code>session['role']</code> 映射为 <code>viewer</code> / <code>operator</code> / <code>admin</code> 传给 Presenter（替换裸 <code>is_admin</code> 布尔，或保留布尔并新增 <code>viewer_role</code> 枚举——实现择一，测试锁三角色）。</p>
+
+<div class="box">
+<strong>待确认点（默认按上表）：</strong>Viewer 的 URL 是否隐藏整个 query（推荐：隐藏）。若你希望 Viewer 也看到 <code>token=***</code> 键名，回复时说明即可。
+</div>
+
+<h3>3.4 交互契约</h3>
+<table>
+<tr><th>项</th><th>约定</th></tr>
+<tr><td>路由</td><td>仍 <code>GET /job_log_detail?id=</code>；无新 API、无新导航</td></tr>
+<tr><td>模板</td><td>只读 <code>run.*</code> DTO；禁止 <code>jl</code>/<code>cif</code>/<code>event.detail</code></td></tr>
+<tr><td>折叠</td><td><strong>已有</strong>：<code>.ri-section-head</code> 点击切换 <code>.collapsed</code>（见模板底部 JS）。本轮<strong>不重做</strong>折叠交互；仅重排 DOM。可选：失败态响应 section 默认不加 <code>collapsed</code>，成功态请求/业务可默认 <code>collapsed</code>（若做须写进验收）</td></tr>
+<tr><td>时间线文案</td><td>标签必须与 Presenter <code>_EVENT_LABELS</code> 一致（如「已入队」「发送 HTTP 请求」「HTTP 请求超时」），禁止另造「任务入队 / 发起 HTTP」等旧 Demo 用词</td></tr>
+</table>
+
+<h2 id="page-compare">4. 页面对比（Before / After）</h2>
+<p>对照源：当前模板 <code>app/templates/redesign/run_inspector.html</code> + <code>redesign-pages.css</code> 中 <code>.ri-*</code>。示意 DOM class / 区块标题 / 时间线标签与实页同构；数据为同构样例（非生产 ID）。</p>
+<p class="box-info box" style="margin-top:0">打开本页时若样式异常，请用本地文档服务或 <code>file:</code> 路径加载 <code>../../app/static/css/</code>。结构仍可对照下方 HTML。</p>
+
+<div id="page-compare" class="cp-page-run-inspector">
+  <p class="demo-note">本对比<strong>修正</strong>了早期线框版与实页的偏差：不再用灰色卡片堆砌；使用真实 <code>ri-header / ri-meta / ri-section / ri-timeline</code>；区块标题为「执行时间线」而非「执行链路」；Admin BEFORE 展示真实 <code>&lt;code class="ri-timeline-detail"&gt;</code> JSON dump。</p>
+
+  <div class="demo-section-title">
+    <h3>场景 A · 超时终态（Admin）</h3>
+    <span>问题：顺序反了 + 时间线泄 raw detail</span>
+  </div>
+  <div class="demo-compare">
+    <article class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">BEFORE · 与当前模板一致</span>
+        <span class="demo-variant-tag">AS-IS · Admin</span>
+      </div>
+      <div class="demo-variant-body">
+        <nav class="cp-breadcrumb" aria-hidden="true">
+          <a href="#">任务中心</a><span>›</span>
+          <a href="#">订单回调检查</a><span>›</span>
+          <span class="current">执行 #10481</span>
+          <span class="kbd-hint"><kbd>Esc</kbd> 返回</span>
+        </nav>
+        <div class="ri-container">
+          <div class="ri-header">
+            <span class="ri-id">执行 #10481</span>
+            <span class="ri-badge timeout">⏱ 超时</span>
+          </div>
+          <div class="ri-meta">
+            <span>HTTP <strong>—</strong></span>
+            <span>耗时 <strong>5.0s (超时)</strong></span>
+            <span>开始 <strong>2026-09-16 16:20:01</strong></span>
+            <span>结束 <strong>2026-09-16 16:20:06</strong></span>
+            <span>触发方式 <strong>定时调度</strong></span>
+            <span>失败原因 <strong class="danger-text">请求超时</strong></span>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">请求</div>
+            <div class="ri-section-body"><span class="key">POST</span> https://api.example.com/v1/orders/callback?token=***&amp;sign=***</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">响应</div>
+            <div class="ri-section-body">无响应内容</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">元数据</div>
+            <div class="ri-section-body ri-metadata-body">
+              <div class="ri-config-grid">
+                <span class="cfg-label">任务</span><span class="cfg-value">订单回调检查</span>
+                <span class="cfg-label">业务组</span><span class="cfg-value">订单中心</span>
+                <span class="cfg-label">触发方式</span><span class="cfg-value">定时调度</span>
+                <span class="cfg-label">Trace ID</span><span class="cfg-value ri-mono-value">cp_9f2a…e1</span>
+                <span class="cfg-label">超时阈值</span><span class="cfg-value">5s</span>
+                <span class="cfg-label">启动开销</span><span class="cfg-value">18ms</span>
+              </div>
+            </div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">执行时间线 (5 项)</div>
+            <div class="ri-section-body ri-timeline-body">
+              <ol class="ri-timeline">
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.012</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">已入队</span>
+                  <span class="ri-timeline-offset">+0ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.030</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">开始执行</span>
+                  <span class="ri-timeline-offset">+18ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.032</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">安全校验</span>
+                  <span class="ri-timeline-offset">+20ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.036</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">发送 HTTP 请求</span>
+                  <span class="ri-timeline-offset">+24ms</span>
+                  <code class="ri-timeline-detail">{"method": "POST", "url": "https://api.example.com/v1/orders/callback?token=secret"}</code>
+                </li>
+                <li class="ri-timeline-item timeout">
+                  <span class="ri-timeline-time">16:20:06.036</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">HTTP 请求超时</span>
+                  <span class="ri-timeline-offset">+5024ms</span>
+                  <code class="ri-timeline-detail">{"exc_detail": "HTTPSConnectionPool(...): Read timed out.", "timeout_sec": 5}</code>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <p class="demo-change bad">问题：① 时间线在请求/响应/元数据<strong>之后</strong>（与模板 DOM 顺序一致）；② Admin 下 <code>include_detail=True</code> 把整段 detail <code>json.dumps</code> 进 <code>.ri-timeline-detail</code>，含明文 token / 异常栈。</p>
+      </div>
+    </article>
+
+    <article class="demo-variant to-be">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">AFTER · 本轮目标</span>
+        <span class="demo-variant-tag">TO-BE · Admin</span>
+      </div>
+      <div class="demo-variant-body">
+        <nav class="cp-breadcrumb" aria-hidden="true">
+          <a href="#">任务中心</a><span>›</span>
+          <a href="#">订单回调检查</a><span>›</span>
+          <span class="current">执行 #10481</span>
+          <span class="kbd-hint"><kbd>Esc</kbd> 返回</span>
+        </nav>
+        <div class="ri-container">
+          <div class="ri-header">
+            <span class="ri-id">执行 #10481</span>
+            <span class="ri-badge timeout">⏱ 超时</span>
+          </div>
+          <div class="ri-meta">
+            <span>HTTP <strong>—</strong></span>
+            <span>耗时 <strong>5.0s (超时)</strong></span>
+            <span>开始 <strong>2026-09-16 16:20:01</strong></span>
+            <span>结束 <strong>2026-09-16 16:20:06</strong></span>
+            <span>触发方式 <strong>定时调度</strong></span>
+            <span>失败原因 <strong class="danger-text">请求超时</strong></span>
+          </div>
+          <div class="ri-section demo-focus">
+            <div class="ri-section-head">执行时间线 (5 项)</div>
+            <div class="ri-section-body ri-timeline-body">
+              <ol class="ri-timeline">
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.012</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">已入队</span>
+                  <span class="ri-timeline-offset">+0ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.030</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">开始执行</span>
+                  <span class="ri-timeline-offset">+18ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.032</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">安全校验</span>
+                  <span class="ri-timeline-offset">+20ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:20:01.036</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">发送 HTTP 请求</span>
+                  <span class="ri-timeline-offset">+24ms</span>
+                  <span class="ri-timeline-summary">POST</span>
+                </li>
+                <li class="ri-timeline-item timeout">
+                  <span class="ri-timeline-time">16:20:06.036</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">HTTP 请求超时</span>
+                  <span class="ri-timeline-offset">+5024ms</span>
+                  <span class="ri-timeline-summary">等待超过阈值</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">请求</div>
+            <div class="ri-section-body"><span class="key">POST</span> https://api.example.com/v1/orders/callback?token=***&amp;sign=***</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">响应</div>
+            <div class="ri-section-body">无响应内容</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">元数据</div>
+            <div class="ri-section-body ri-metadata-body">
+              <div class="ri-config-grid">
+                <span class="cfg-label">任务</span><span class="cfg-value">订单回调检查</span>
+                <span class="cfg-label">业务组</span><span class="cfg-value">订单中心</span>
+                <span class="cfg-label">触发方式</span><span class="cfg-value">定时调度</span>
+                <span class="cfg-label">Trace ID</span><span class="cfg-value ri-mono-value">cp_9f2a…e1</span>
+                <span class="cfg-label">超时阈值</span><span class="cfg-value">5s</span>
+                <span class="cfg-label">启动开销</span><span class="cfg-value">18ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="demo-change">变化：时间线紧接 Meta；去掉 <code>.ri-timeline-detail</code>，改用白名单 <code>.ri-timeline-summary</code>；请求/响应/元数据区块保留、仅下移。面包屑与徽章文案不变。</p>
+      </div>
+    </article>
+  </div>
+
+  <div class="demo-section-title">
+    <h3>场景 B · 执行中 pending（任意角色）</h3>
+    <span>问题：仅靠徽章「最终结果未知」，摘要区无独立提示</span>
+  </div>
+  <div class="demo-compare">
+    <article class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">BEFORE · 当前</span>
+        <span class="demo-variant-tag">AS-IS · pending</span>
+      </div>
+      <div class="demo-variant-body">
+        <div class="ri-container">
+          <div class="ri-header">
+            <span class="ri-id">执行 #10502</span>
+            <span class="ri-badge pending">○ 已入队 · 最终结果未知</span>
+          </div>
+          <div class="ri-meta">
+            <span>HTTP <strong>—</strong></span>
+            <span>耗时 <strong>—</strong></span>
+            <span>开始 <strong>2026-09-16 16:28:10</strong></span>
+            <span>触发方式 <strong>定时调度</strong></span>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">请求</div>
+            <div class="ri-section-body"><span class="key">GET</span> https://api.example.com/health</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">响应</div>
+            <div class="ri-section-body">无响应内容</div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">元数据</div>
+            <div class="ri-section-body ri-metadata-body">
+              <div class="ri-config-grid">
+                <span class="cfg-label">任务</span><span class="cfg-value">健康检查</span>
+                <span class="cfg-label">超时阈值</span><span class="cfg-value">5s</span>
+              </div>
+            </div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">执行时间线 (2 项)</div>
+            <div class="ri-section-body ri-timeline-body">
+              <ol class="ri-timeline">
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:28:10.100</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">已入队</span>
+                  <span class="ri-timeline-offset">+0ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:28:10.118</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">开始执行</span>
+                  <span class="ri-timeline-offset">+18ms</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <p class="demo-change bad">问题：未完成语义只在徽章；时间线仍垫底，扫摘要区易当成「已发出请求但无响应」的终态页。</p>
+      </div>
+    </article>
+
+    <article class="demo-variant to-be">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">AFTER · 本轮目标</span>
+        <span class="demo-variant-tag">TO-BE · pending</span>
+      </div>
+      <div class="demo-variant-body">
+        <div class="ri-container">
+          <div class="ri-header">
+            <span class="ri-id">执行 #10502</span>
+            <span class="ri-badge pending">○ 已入队 · 最终结果未知</span>
+          </div>
+          <div class="ri-meta">
+            <span>HTTP <strong>—</strong></span>
+            <span>耗时 <strong>—</strong></span>
+            <span>开始 <strong>2026-09-16 16:28:10</strong></span>
+            <span>触发方式 <strong>定时调度</strong></span>
+          </div>
+          <div class="ri-incomplete-banner">执行未完成，最终结果未知。以下为已记录阶段；请求/响应可能尚不完整。</div>
+          <div class="ri-section demo-focus">
+            <div class="ri-section-head">执行时间线 (2 项)</div>
+            <div class="ri-section-body ri-timeline-body">
+              <ol class="ri-timeline">
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:28:10.100</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">已入队</span>
+                  <span class="ri-timeline-offset">+0ms</span>
+                </li>
+                <li class="ri-timeline-item ok">
+                  <span class="ri-timeline-time">16:28:10.118</span>
+                  <span class="ri-timeline-dot" aria-hidden="true"></span>
+                  <span class="ri-timeline-label">开始执行</span>
+                  <span class="ri-timeline-offset">+18ms</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+          <div class="ri-section">
+            <div class="ri-section-head">请求</div>
+            <div class="ri-section-body"><span class="key">GET</span> https://api.example.com/health</div>
+          </div>
+          <div class="ri-section collapsed">
+            <div class="ri-section-head">响应</div>
+            <div class="ri-section-body">无响应内容</div>
+          </div>
+          <div class="ri-section collapsed">
+            <div class="ri-section-head">元数据</div>
+            <div class="ri-section-body ri-metadata-body">…</div>
+          </div>
+        </div>
+        <p class="demo-change">变化：Meta 下增加 <code>.ri-incomplete-banner</code>；时间线上移为首要区；请求/响应仍可点击折叠（复用现有 JS）。徽章文案保持 R1 Presenter 既有「最终结果未知」。</p>
+      </div>
+    </article>
+  </div>
+</div>
+
+<p><strong>与旧「页面对比 Demo §C」的差异说明：</strong>既有 Demo TO-BE 使用了「执行链路」标题与 <code>demo-chain</code> 自定义列表，且 Meta 出现「计划延迟」——<strong>均非当前实现</strong>。本 R2 对比以实页为准；实现后可再回写 Demo §C。</p>
+
+<h2 id="scope">5. 范围</h2>
+<table>
+<tr><th>做</th><th>不做</th></tr>
+<tr>
+<td>
+<ul>
+<li><code>run_inspector.html</code> 区块重排 + 未完成提示条</li>
+<li><code>run_inspector_presenter.py</code>：去掉 raw detail 输出；三角色 DTO；时间线 <code>summary</code></li>
+<li><code>views.py</code> <code>job_log_detail</code>：按 role 传 Presenter</li>
+<li>CSS：提示条 / 时间线主位微调（<code>redesign-pages.css</code> · <code>.cp-page-run-inspector</code>）</li>
+<li>测试：Presenter 三角色 + HTML 否定断言（无 <code>{</code> 形态 detail / 无 <code>exc_detail</code>）</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>业务日志合并进时间线排序（收敛版完整态；留待 R2+ 或 B5 后）</li>
+<li>列表 / 默认筛选（R1 已做）</li>
+<li>Tracer 写路径白名单扩字段（属 R3/B2 尾巴）</li>
+<li>events API、新导航、双栏</li>
+<li>标「可观测性已交付」/ B6</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<p><strong>可见变更清单：</strong></p>
+<table>
+<tr><th>元素</th><th>旧</th><th>新</th></tr>
+<tr><td>区块顺序</td><td>请求→…→时间线</td><td>时间线紧接 Meta（+ 未完成提示）</td></tr>
+<tr><td>时间线附加信息</td><td>可能整段 JSON</td><td>仅 <code>summary</code> 短句</td></tr>
+<tr><td>未完成提示条</td><td>无独立条（仅徽章）</td><td>pending/running 显示提示条</td></tr>
+<tr><td>面包屑 / 路由 / 列结构</td><td>—</td><td>不变</td></tr>
+</table>
+
+<h2 id="batches">6. 分批</h2>
+<table>
+<tr><th>子批</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>R2-A</td><td>DOM 重排 + 未完成提示条 + 最小 CSS</td><td>浏览器：时间线在请求区之上；pending 有提示条</td></tr>
+<tr><td>R2-B</td><td>Presenter 去 raw JSON + 三角色 + views 传 role + 测试</td><td>admin HTML 无 detail JSON；viewer/operator 断言矩阵</td></tr>
+<tr><td>R2-C</td><td>设计状态→已实施；RELEASE 一行；复盘（若有回归缺陷）</td><td>文档门禁</td></tr>
+</table>
+<p>禁止与 R3 合同测试大文件、B5 保留策略同 commit。</p>
+
+<h2 id="accept">7. 验收</h2>
+<ol>
+<li><code>python -m unittest tests.test_run_inspector_presenter tests.test_job_log_detail_integration -v</code>（含新增三角色 / 否定 raw JSON 用例）</li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code> 后：
+  <ul>
+    <li>admin 打开含 events 的详情：时间线位于请求上方；源码无 <code>exc_detail</code> / 整段 <code>{"</code> 事件 dump</li>
+    <li>viewer（或等价受限账号）：无响应正文、无业务日志区、时间线无 JSON</li>
+    <li>pending/running 样本：可见未完成提示</li>
+  </ul>
+</li>
+<li>Agent 自证：登录会话 curl + 断言 DOM 顺序（时间线 section 下标 &lt; 请求 section）</li>
+</ol>
+
+<h2 id="risk">8. 风险</h2>
+<ul>
+<li><strong>Admin 诊断变「短」</strong>：去掉 JSON 后依赖白名单摘要；须覆盖常见 event_type，缺映射时显示空 summary 而非回退 JSON。</li>
+<li><strong>默认折叠</strong>：现网已有点击折叠；若本轮给成功态加默认 <code>collapsed</code>，须在验收中点开确认内容仍在 DOM（非删除区块）。</li>
+<li><strong>角色会话</strong>：验证须真实 viewer/operator 账号，不能只用 seed admin。</li>
+</ul>
+
+<div class="box-ok box">
+<strong>状态：</strong>已按本方案实施（R2-A/B/C，2026-09-16）。验收见 §7；复盘见 <a href="../postmortem/2026-09-RunInspector-raw-detail与时间线顺序.html">raw detail 与时间线顺序</a>。
+</div>
+
+<footer>
+父设计：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 B4</a> ·
+页面对比：<a href="#page-compare">#page-compare</a> ·
+全页 Demo：<a href="任务执行链路可观测性-页面对比Demo.html">既有 Demo §C</a>
+ · <a href="R2-RunInspector-Presenter详情契约收口设计-2026-09.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

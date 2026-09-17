@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>复盘：执行记录 pending 误标「未知」与 outcome 白名单漏登</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:980px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #b91c1c;padding-bottom:.5rem;font-size:1.3rem}
+h2{margin-top:1.8rem;border-left:4px solid #b91c1c;padding-left:.7rem;font-size:1.05rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.45rem .65rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem}
+footer{margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>复盘：执行记录 pending 误标「未知」与 outcome 白名单漏登</h1>
+<p>日期：2026-09-16 · 设计：<a href="../design/R1-执行记录列表pending-running显示收口设计-2026-09.html">R1 短设计</a> · 父方案：收敛版 B5 前半</p>
+
+<h2>1. Bug 定位</h2>
+<ol>
+<li><strong>徽章</strong>：<code>app/templates/redesign/_exec_logs_rows.html</code> 结果列无 <code>pending</code> 分支，落入 <code>else → 「未知」</code>；<code>running</code> 误用 <code>el-log-unknown</code>。</li>
+<li><strong>筛选</strong>（实现中发现）：<code>job_log_filter.job_log_outcome_clause('in_progress')</code> 已支持，但 <code>app/main/views.py</code> 的 <code>_parse_log_outcome_param</code> / 单任务 outcome 白名单未含 <code>in_progress</code>，URL 参数被降级为默认 <code>not_success</code>。</li>
+</ol>
+
+<h2>2. 根因</h2>
+<ul>
+<li><strong>行为层（徽章）</strong>：B1 状态机写入 <code>pending/running</code> 后，列表模板仍按旧终态枚举手写分支；已有 <code>job_log_badge()</code> 未被列表复用，两套映射漂移。</li>
+<li><strong>行为层（白名单）</strong>：outcome 校验在视图层硬编码元组，与 filter 模块分离；新增 SQL 子句不等于 URL 可解析，缺集成断言时假绿（只测 clause、不测视图解析）。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>既有 <code>test_job_log_display</code> / <code>test_b1_execution_status</code> 覆盖 badge 映射，但<strong>不渲染</strong> <code>_exec_logs_rows.html</code>。</li>
+<li><code>test_job_log_outcome_filter</code> 只测 clause；不经 <code>_parse_log_outcome_param</code>。</li>
+<li><code>test_exec_logs_partial</code> 无 pending 夹具，发现不了「未知」误标与白名单丢弃。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+<li>结果列改为 <code>log.status|job_log_badge</code>；新增 <code>.el-log-pending</code> / <code>.el-log-running</code>。</li>
+<li>筛选 chip「进行中」→ <code>outcome=in_progress</code>；filter 子句含 pending+running；默认 not_success 不变。</li>
+<li>视图白名单改为引用 <code>KNOWN_OUTCOMES</code>（<code>job_log_filter.py</code>），全局列表与单任务列表共用。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+<li><code>tests.test_job_log_outcome_filter</code>：<code>in_progress</code> 含 pending/running；not_success 不含；<code>KNOWN_OUTCOMES</code> 含 in_progress。</li>
+<li><code>tests.test_exec_logs_partial.TestExecLogsPartial.test_pending_badge_and_in_progress_filter</code>：页面含「已入队」/「进行中」；partial in_progress 共 2 条且无「未知」；not_success 不含 pending id。</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<ul>
+<li>v1 列表模板：本轮 redesign 为主路径；未发现第二套 pending→未知分支。</li>
+<li>任务详情近期点：已有 pending/running class（热修），不在本 bug 范围。</li>
+<li>其它硬编码 outcome 元组：已收敛到 <code>KNOWN_OUTCOMES</code>。</li>
+</ul>
+
+<h2>7. 预防方案</h2>
+<table>
+<tr><th>措施</th><th>落地</th><th>验证</th></tr>
+<tr>
+<td>新增 outcome 值时<strong>只改</strong> <code>KNOWN_OUTCOMES</code> + <code>job_log_outcome_clause</code>；视图禁止再写死元组</td>
+<td><code>app/services/job_log_filter.py</code> · <code>app/main/views.py</code> 引用</td>
+<td><code>rg "_parse_log_outcome_param|KNOWN_OUTCOMES" app/main/views.py</code>；<code>python -m unittest tests.test_job_log_outcome_filter tests.test_exec_logs_partial -v</code></td>
+</tr>
+<tr>
+<td>列表状态展示必须走 <code>job_log_badge</code>，禁止模板手写 status 分支</td>
+<td>R1 模板 + 设计/本复盘</td>
+<td><code>rg "log.status ==" app/templates/redesign/_exec_logs_rows.html</code> 应无结果列分支</td>
+</tr>
+</table>
+
+<footer>
+关联设计：<a href="../design/R1-执行记录列表pending-running显示收口设计-2026-09.html">R1</a> ·
+<a href="index.html">复盘索引</a>
+ · <a href="2026-09-执行记录pending误标未知.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

@@ -34,7 +34,9 @@ def _make_app():
     db.init_app(app)
     register_hms_filters(app)
     from app.services.cron_schedule_display import format_duration
+    from app.services.job_log_display import job_log_badge
     app.jinja_env.filters['format_duration'] = format_duration
+    app.jinja_env.filters['job_log_badge'] = job_log_badge
     app.register_blueprint(main_blueprint)
     from app.rbac import rbac as rbac_blueprint
     app.register_blueprint(rbac_blueprint)
@@ -139,6 +141,72 @@ class TestExecLogsPartial(unittest.TestCase):
                 self.assertNotIn('rows', data)
             except (json.JSONDecodeError, ValueError):
                 pass  # Expected: HTML content, not JSON
+
+    def test_pending_badge_and_in_progress_filter(self):
+        """R1: pending →「已入队」；进行中筛选可见；非成功不含 pending。"""
+        with self.app.app_context():
+            from datas.model.cron_infos import CronInfos
+            from datas.model.job_log import JobLog
+            task = CronInfos(
+                task_name='r1-pending-task',
+                req_url='http://127.0.0.1/health',
+                status=1,
+            )
+            self.db.session.add(task)
+            self.db.session.flush()
+            pending = JobLog(
+                cron_info_id=task.id,
+                status='pending',
+                content='',
+                take_time=0,
+                http_status=0,
+                trace_id='r1-pending-trace',
+            )
+            running = JobLog(
+                cron_info_id=task.id,
+                status='running',
+                content='',
+                take_time=0,
+                http_status=0,
+                trace_id='r1-running-trace',
+            )
+            failed = JobLog(
+                cron_info_id=task.id,
+                status='fail',
+                content='boom',
+                take_time=0.1,
+                http_status=500,
+                trace_id='r1-fail-trace',
+            )
+            self.db.session.add_all([pending, running, failed])
+            self.db.session.commit()
+            pending_id = pending.id
+
+        with self.app.test_client() as c:
+            self._login_session(c)
+            page = c.get('/job_log_all_list?outcome=all')
+            self.assertEqual(page.status_code, 200)
+            html = page.data.decode('utf-8')
+            self.assertIn('进行中', html)
+            self.assertIn('已入队', html)
+            self.assertIn('el-log-pending', html)
+            self.assertIn('el-log-running', html)
+            self.assertRegex(html, r'el-log-pending[^>]*>[\s\S]*?已入队')
+
+            progress = c.get('/job_log_all_list?partial=1&outcome=in_progress')
+            self.assertEqual(progress.status_code, 200)
+            pdata = json.loads(progress.data)
+            self.assertEqual(pdata['total'], 2)
+            self.assertIn('已入队', pdata['rows'])
+            self.assertIn('执行中', pdata['rows'])
+            self.assertNotIn('未知', pdata['rows'])
+
+            not_success = c.get('/job_log_all_list?partial=1&outcome=not_success')
+            self.assertEqual(not_success.status_code, 200)
+            ndata = json.loads(not_success.data)
+            self.assertEqual(ndata['total'], 1)
+            self.assertIn('失败', ndata['rows'])
+            self.assertNotIn(str(pending_id), ndata['rows'])
 
 
 if __name__ == '__main__':

@@ -56,6 +56,11 @@
 | ↳ 收敛版专业 Review | 有条件通过 · 3 Blocker · 7 Major | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review.md) |
 | ↳ 专业 Review 评估 | rev.3 对照 · 采纳/修订/拒绝结论 | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.md) |
 | ↳ 文档与实现功能评估 | 有条件可用 · B4/B5 未闭环 | [HTML](design/任务执行链路可观测性-文档与实现功能评估.html) | [MD](design/任务执行链路可观测性-文档与实现功能评估.md) |
+| ↳ **R1 执行记录列表 pending/running 显示收口**（已实施） | 已入队徽章 +「进行中」筛选 · 不改默认非成功 | [HTML](design/R1-执行记录列表pending-running显示收口设计-2026-09.html) | [MD](design/R1-执行记录列表pending-running显示收口设计-2026-09.md) |
+| ↳ **R2 Run Inspector Presenter/详情契约收口**（已实施） | 时间线上移 · 禁 raw detail JSON · Viewer/Operator/Admin | [HTML](design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html) | [MD](design/R2-RunInspector-Presenter详情契约收口设计-2026-09.md) |
+| ↳ **R2-D Run Inspector 对齐 Demo §C**（待确认） | 页面对比=Demo §C 原文 · 纠偏 R2 | [HTML](design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html) | [MD](design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.md) |
+| ↳ **R3 执行可观测性契约门禁**（已实施） | B0 合同测试 · Tracer↔Presenter · 无 UI；R3-C 另评 | [HTML](design/R3-执行可观测性契约门禁设计-2026-09.html) | [MD](design/R3-执行可观测性契约门禁设计-2026-09.md) |
+| ↳ **R3-C 任务详情最近执行状态语义**（暂停） | 非本轮所指；页面对比=Demo §B | [HTML](design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html) | [MD](design/R3-C-任务详情最近执行状态语义收口设计-2026-09.md) |
 | ↳ Scope 过滤（L2 专章） | admin / 1～2 Scope Demo | [HTML](design/规模化Scope过滤与角色差异化设计.html) | [MD](design/规模化Scope过滤与角色差异化设计.md) |
 | ↳ L1/L2/L3 评审归档 | 讨论隐阱；结论已收束至总稿 | [HTML](design/规模化双层IA与任务健康模型评审.html) | [MD](design/规模化双层IA与任务健康模型评审.md) |
 | P1 可观测小步 OPT-P1-01b/c | 失败筛选 · 展示统一 | [HTML](plan/P1可观测小步优化设计.html) | [MD](plan/P1可观测小步优化设计.md) |
@@ -137,8 +142,11 @@
 | **P1 测试夹具认证契约漂移** | Session schema fixture · 模型注册顺序 · fail-closed 回归 | [HTML](postmortem/2026-09-P1测试夹具认证契约漂移.html) | [MD](postmortem/2026-09-P1测试夹具认证契约漂移.md) |
 | **P2 触发 URL 签名与记录不一致** | fragment 解析 · PreparedRequest · 签名脱敏边界 | [HTML](postmortem/2026-09-P2触发URL签名与记录不一致.html) | [MD](postmortem/2026-09-P2触发URL签名与记录不一致.md) |
 | **设计 Demo HTML 未入库丢失** | 未跟踪 Demo 被删无法 git 恢复 · 索引链接存在性门禁 | [HTML](postmortem/2026-09-设计Demo未入库丢失.html) | [MD](postmortem/2026-09-设计Demo未入库丢失.md) |
+| **执行记录 pending 误标「未知」** | 已入队徽章 · in_progress 白名单 · KNOWN_OUTCOMES | [HTML](postmortem/2026-09-执行记录pending误标未知.html) | [MD](postmortem/2026-09-执行记录pending误标未知.md) |
 | **健康度未满阈值误标「健康」** | 失败 1～2 次勿标健康 · 写 unknown + UI「有失败」 | [HTML](postmortem/2026-09-健康度未满阈值误标健康.html) | [MD](postmortem/2026-09-健康度未满阈值误标健康.md) |
 | **UX 设计方案与页面对比拆分** | 单页 UX 误拆独立 Demo · 默认内嵌进设计稿 | [HTML](postmortem/2026-09-UX设计方案与页面对比拆分.html) | [MD](postmortem/2026-09-UX设计方案与页面对比拆分.md) |
+| **R3-C 设计偏离原方案 Demo UI** | 子设计 AFTER 须锚定父 Demo §B · ●/◎+文案同构 | [HTML](postmortem/2026-09-R3-C设计偏离原方案DemoUI.html) | [MD](postmortem/2026-09-R3-C设计偏离原方案DemoUI.md) |
+| **误把 Demo §C 当成 §B** | 多节 Demo 须写明节号 · Run Inspector 非任务详情 | [HTML](postmortem/2026-09-误把Demo-C当成-B.html) | [MD](postmortem/2026-09-误把Demo-C当成-B.md) |
 | **执行详情 URL 脱敏缺失修复** | Presenter 边界 · 全参数值脱敏 · HTML 否定断言 | [HTML](postmortem/2026-09-execution-detail-url-redaction.html) | [MD](postmortem/2026-09-execution-detail-url-redaction.md) |
 | **任务详情 seconds 展示丢失修复** | 调度表达式完整性 · 六字段展示 | [HTML](postmortem/2026-09-task-detail-seconds-display.html) | [MD](postmortem/2026-09-task-detail-seconds-display.md) |
 | **Dashboard 相对时间测试确定性修复** | 可注入时间基准 · 消除时钟漂移 | [HTML](postmortem/2026-09-dashboard-relative-time-test-determinism.html) | [MD](postmortem/2026-09-dashboard-relative-time-test-determinism.md) |

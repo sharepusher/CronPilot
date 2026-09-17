@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>R3-C 设计偏离原方案 Demo UI 复盘（2026-09）</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+</style>
+</head>
+<body>
+<h1>R3-C 设计偏离原方案 Demo UI 复盘</h1>
+<p><strong>日期</strong>：2026-09-16 · <strong>类型</strong>：文档 / 设计交付 · <strong>关联</strong>：R3-C · <strong>rev.3</strong>（2026-09-17：页面对比改为 Demo §B 原文照录）</p>
+
+<h2>1. Bug 定位</h2>
+<p>
+  R3-C 短设计的 <code>#page-compare</code> 多次自造变体（点列+标签、保留 HTTP、五行注释），
+  与权威源
+  <code>doc/design/任务执行链路可观测性-页面对比Demo.html</code> <strong>§B</strong>
+  的 AS-IS / TO-BE 画面不一致。用户要求：「改造后页面 demo 应该和上面文档的一致」。
+</p>
+
+<h2>2. 根因</h2>
+<p>
+  行为层：写子设计时未把 Demo §B 的 HTML <strong>逐行抄进</strong> AFTER，而是「语义对齐 + 现网列保留」自行折中
+  （先拼圆点+标签，再保留 HTTP）。门禁只查有无 <code>page-compare</code>，不强制与父 Demo 列数/样例行同构。
+</p>
+
+<h2>3. 测试漏洞</h2>
+<p>
+  <code>grep page-compare|BEFORE|AFTER</code> 与「含 ● 超时」对「Demo+HTTP」变体仍绿。
+  无「AFTER 列数 / 样例行 = 父 Demo TO-BE」机械对照。
+</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>rev.3：R3-C <code>#page-compare</code> <strong>原文照录</strong> Demo §B 的 AS-IS / TO-BE（标题、三行、文案、变化说明相同）。</li>
+  <li>删掉自造 BEFORE（空白时间/HTTP/行注）、纠偏说明与折中列讨论；方案节只指向该对照。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<pre># 与 Demo §B TO-BE 关键文案一致
+grep -nF '● 超时' doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html
+grep -nF '◎ 执行中' doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html
+grep -nF '改造后：状态机语义' doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html
+# 不应再出现自造「列头 HTTP / 空心圆 BEFORE」
+grep -nE 'before-ball|td-rr-code|col-head before' \
+  doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html && echo FAIL || echo OK
+python3 scripts/html_docs_to_markdown.py --check</pre>
+
+<h2>6. 同类排查</h2>
+<table>
+  <tr><th>文档</th><th>结论</th></tr>
+  <tr><td>R1 执行记录列表</td><td>对齐列表徽章，非 Demo §B</td></tr>
+  <tr><td>R2 Run Inspector</td><td>对齐 Demo §C</td></tr>
+  <tr><td>承接页面对比 Demo 的短设计</td><td>AFTER 须抄录父节 HTML 结构，禁止「语义对 + 现网列折中」</td></tr>
+</table>
+
+<h2>7. 预防方案</h2>
+<p>
+  已有「子设计锚定父 Demo TO-BE」规范（rev.1）。<strong>rev.2 补强</strong>：锚定 = 
+  <strong>抄录父 TO-BE 的列结构与关键样例行</strong>，不得以「现网已有某列」为由在 AFTER 加回父 Demo 未画的列。
+  落点同 rev.1（<code>cronpilot-project.mdc</code> / <code>AGENTS.md</code>）；本复盘补记「禁止折中加列」。
+</p>
+<p>验证：打开父 Demo §B 与子设计 <code>#page-compare</code> AFTER 并排，列数与三行文案一致。</p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-09-R3-C设计偏离原方案DemoUI.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body>
+</html>

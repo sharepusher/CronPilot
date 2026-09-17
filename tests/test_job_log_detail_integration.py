@@ -66,12 +66,13 @@ def _seed_user_and_log(db):
 
     from app.auth.password import hash_password
     from datas.model.cron_infos import CronInfos
-    from datas.model.job_health import JobHealth
+    from datas.model.job_health import JobHealth  # noqa: F401
     from datas.model.job_log import JobLog
+    from datas.model.job_log_event import JobLogEvent
     from datas.model.job_log_items import JobLogItems
     from datas.model.rbac_user import RbacUser
-    from datas.model.resource_group import ResourceGroup
-    from datas.model.tag import Tag
+    from datas.model.resource_group import ResourceGroup  # noqa: F401
+    from datas.model.tag import Tag  # noqa: F401
     from datas.model.task_tag import TaskTag  # noqa: F401
     from datas.utils.times import utc_now_hms
 
@@ -119,6 +120,19 @@ def _seed_user_and_log(db):
 
     jli = JobLogItems(trace_id=trace_uuid, content='step 1: done')
     db.session.add(jli)
+
+    db.session.add(JobLogEvent(
+        trace_id=trace_uuid, cron_id=cif.id, seq=1,
+        event_type='http.start', occurred_at_ms=1_700_000_000_000,
+        offset_ms=24, outcome='ok',
+        detail='{"method":"GET","url":"https://internal.example/leak"}',
+    ))
+    db.session.add(JobLogEvent(
+        trace_id=trace_uuid, cron_id=cif.id, seq=2,
+        event_type='http.error', occurred_at_ms=1_700_000_000_100,
+        offset_ms=124, outcome='fail',
+        detail='{"exc_detail":"SENSITIVE_STACK_TRACE","exc_type":"Timeout"}',
+    ))
 
     db.session.commit()
     return u, cif, jl, trace_uuid
@@ -195,20 +209,67 @@ class TestJobLogDetailIntegration(unittest.TestCase):
                 r = c.get(f'/job_log_detail?id={self.jl.id}')
                 self.assertEqual(r.status_code, 200)
                 html = r.data.decode()
-                self.assertIn('token=***', html)
                 self.assertNotIn('secret-value', html)
                 self.assertNotIn('client:password', html)
                 self.assertNotIn('signature', html)
+                if username == 'viewer':
+                    self.assertNotIn('token=', html)
+                    self.assertIn('https://***:***@example.com/test', html)
+                else:
+                    self.assertIn('token=***', html)
                 if username == 'admin':
                     self.assertIn('已注入运行参数（敏感值已隐藏）', html)
                 else:
                     self.assertNotIn('已注入运行参数（敏感值已隐藏）', html)
 
+    def test_timeline_before_request_and_no_raw_detail_json(self):
+        for username in ('admin', 'operator', 'viewer'):
+            with self.subTest(role=username), self.app.test_client() as c:
+                c.set_cookie('cp_ui_mode', 'console')
+                self._login_as(c, username)
+                r = c.get(f'/job_log_detail?id={self.jl.id}')
+                self.assertEqual(r.status_code, 200)
+                html = r.data.decode()
+                tl = html.find('执行时间线')
+                req = html.find('ri-section-head">请求')
+                if req < 0:
+                    req = html.find('>请求</div>')
+                self.assertGreater(tl, 0)
+                self.assertGreater(req, 0)
+                self.assertLess(tl, req, 'timeline must appear before request section')
+                self.assertNotIn('SENSITIVE_STACK_TRACE', html)
+                self.assertNotIn('ri-timeline-detail', html)
+                self.assertNotIn('exc_detail', html)
+                self.assertIn('ri-timeline-summary', html)
+
+    def test_pending_shows_incomplete_banner(self):
+        self.jl.status = 'pending'
+        self.jl.finished_at = None
+        self.db.session.commit()
+        with self.app.test_client() as c:
+            c.set_cookie('cp_ui_mode', 'console')
+            self._login(c)
+            r = c.get(f'/job_log_detail?id={self.jl.id}')
+            self.assertEqual(r.status_code, 200)
+            html = r.data.decode()
+            self.assertIn('ri-incomplete-banner', html)
+            self.assertIn('最终结果未知', html)
+
+    def test_viewer_hides_business_logs_and_response_body(self):
+        with self.app.test_client() as c:
+            c.set_cookie('cp_ui_mode', 'console')
+            self._login_as(c, 'viewer')
+            r = c.get(f'/job_log_detail?id={self.jl.id}')
+            html = r.data.decode()
+            self.assertIn('无权限查看正文', html)
+            self.assertNotIn('业务日志', html)
+            self.assertNotIn('step 1: done', html)
+
     def test_template_has_no_raw_orm_access(self):
         path = os.path.join(ROOT, 'app', 'templates', 'redesign', 'run_inspector.html')
         with open(path, encoding='utf-8') as template_file:
             template = template_file.read()
-        for forbidden in ('cif.', 'jl.', 'item.'):
+        for forbidden in ('cif.', 'jl.', 'item.', 'event.detail'):
             self.assertNotIn(forbidden, template)
 
     def test_v1_detail_not_found(self):

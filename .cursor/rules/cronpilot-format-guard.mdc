@@ -21,7 +21,7 @@ alwaysApply: true
 | 可见按钮/链接文案变更 | 须在设计稿明确标注 |
 | CSS class 的增删（影响视觉样式） | 须列出受影响元素与类名 |
 
-**页面对比 Demo（强制 · 2026-09）**：上表任一类可见变更，对应设计稿必须含 Before/After 页面对比（默认内嵌；详见 `cronpilot-project.mdc`「前端页面对比 Demo」）。缺对比不得实现模板 diff。
+**页面对比 Demo（强制 · 2026-09）**：上表任一类可见变更，对应设计稿必须含 Before/After 页面对比（默认内嵌；详见 `cronpilot-project.mdc`「前端页面对比 Demo」）。承接父 Demo / 父 TO-BE 时 AFTER 须同构，不得另造变体。缺对比不得实现模板 diff。
 
 **自检要求**：交付前执行 `git diff -- app/templates/` 审查 diff，凡出现上表变更但设计稿中未列出者，须先向用户确认再提交。
 

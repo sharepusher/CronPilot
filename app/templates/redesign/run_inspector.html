@@ -52,16 +52,42 @@
     {% endif %}
   </div>
 
-  {# ─── Request Section ─── #}
+  {% if run.is_incomplete %}
+  <div class="ri-incomplete-banner" role="status">执行未完成，最终结果未知。以下为已记录阶段；请求/响应可能尚不完整。</div>
+  {% endif %}
+
+  {# ─── Timeline first (R2) ─── #}
   <div class="ri-section">
+    <div class="ri-section-head">执行时间线{% if run.timeline %} ({{ run.timeline|length }} 项){% endif %}</div>
+    <div class="ri-section-body ri-timeline-body">
+      {% if run.timeline %}
+      <ol class="ri-timeline">
+        {% for event in run.timeline %}
+        <li class="ri-timeline-item {{ event.outcome }}">
+          <span class="ri-timeline-time">{{ event.time }}</span>
+          <span class="ri-timeline-dot" aria-hidden="true"></span>
+          <span class="ri-timeline-label">{{ event.label }}</span>
+          <span class="ri-timeline-offset">+{{ event.offset_ms }}ms</span>
+          {% if event.summary %}<span class="ri-timeline-summary">{{ event.summary }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <span class="ri-empty-timeline">该执行发生在链路事件功能启用前，暂无阶段事件。</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ─── Request Section ─── #}
+  <div class="ri-section{% if run.collapse_downstream %} collapsed{% endif %}">
     <div class="ri-section-head">请求</div>
     <div class="ri-section-body"><span class="key">{{ run.request.method }}</span> {{ run.request.display_url }}
 {% if run.request.actual_request_sent %}
-<span class="key">实际请求：</span>已注入运行参数（敏感值已隐藏）{% endif %}</div>
+    <span class="key">实际请求：</span>已注入运行参数（敏感值已隐藏）{% endif %}</div>
   </div>
 
   {# ─── Response Section ─── #}
-  <div class="ri-section">
+  <div class="ri-section{% if run.collapse_downstream or run.is_incomplete %} collapsed{% endif %}">
     <div class="ri-section-head">响应</div>
     <div class="ri-section-body">{% if run.response.http_status %}HTTP/<span class="num">{{ run.response.http_status }}</span>{% if run.response.is_success %} OK{% endif %}
 
@@ -70,7 +96,7 @@
 
   {# ─── Business Logs Section ─── #}
   {% if run.business_logs.visible and run.business_logs.entries %}
-  <div class="ri-section">
+  <div class="ri-section{% if run.collapse_downstream %} collapsed{% endif %}">
     <div class="ri-section-head">业务日志 ({{ run.business_logs.entries|length }} 条)</div>
     <div class="ri-section-body">{% for entry in run.business_logs.entries %}{{ entry }}
 {% endfor %}</div>
@@ -78,7 +104,7 @@
   {% endif %}
 
   {# ─── Metadata Section ─── #}
-  <div class="ri-section">
+  <div class="ri-section{% if run.collapse_downstream or run.is_incomplete %} collapsed{% endif %}">
     <div class="ri-section-head">元数据</div>
     <div class="ri-section-body ri-metadata-body">
       <div class="ri-config-grid">
@@ -94,28 +120,6 @@
         <span class="cfg-label">启动开销</span><span class="cfg-value">{{ run.metadata.trigger_delay_ms }}ms</span>
         {% endif %}
       </div>
-    </div>
-  </div>
-
-  {# ─── Scheduler and application events ─── #}
-  <div class="ri-section">
-    <div class="ri-section-head">执行时间线{% if run.timeline %} ({{ run.timeline|length }} 项){% endif %}</div>
-    <div class="ri-section-body ri-timeline-body">
-      {% if run.timeline %}
-      <ol class="ri-timeline">
-        {% for event in run.timeline %}
-        <li class="ri-timeline-item {{ event.outcome }}">
-          <span class="ri-timeline-time">{{ event.time }}</span>
-          <span class="ri-timeline-dot" aria-hidden="true"></span>
-          <span class="ri-timeline-label">{{ event.label }}</span>
-          <span class="ri-timeline-offset">+{{ event.offset_ms }}ms</span>
-          {% if event.detail %}<code class="ri-timeline-detail">{{ event.detail }}</code>{% endif %}
-        </li>
-        {% endfor %}
-      </ol>
-      {% else %}
-      <span class="ri-empty-timeline">该执行发生在链路事件功能启用前，暂无阶段事件。</span>
-      {% endif %}
     </div>
   </div>
 

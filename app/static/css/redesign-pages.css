@@ -561,6 +561,21 @@
   word-break: break-all;
 }
 
+.cp-page-run-inspector .ri-timeline-summary {
+  color: var(--cp-muted);
+  font-size: 12px;
+}
+
+.cp-page-run-inspector .ri-incomplete-banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--cp-warn);
+  border-radius: 8px;
+  background: var(--cp-warn-bg);
+  color: var(--cp-ink);
+  font-size: 13px;
+}
+
 .cp-page-run-inspector .ri-empty-timeline {
   color: var(--cp-muted);
 }
@@ -1722,6 +1737,10 @@ a.tc-name:hover { color: var(--cp-signal); }
 .el-log-error .el-log-dot { background: var(--cp-warn); }
 .el-log-timeout { color: var(--cp-state-timeout); }
 .el-log-timeout .el-log-dot { background: var(--cp-state-timeout); }
+.el-log-running { color: var(--cp-state-running); }
+.el-log-running .el-log-dot { background: var(--cp-state-running); }
+.el-log-pending { color: var(--cp-warn); }
+.el-log-pending .el-log-dot { background: var(--cp-warn); }
 
 .el-log-unknown { color: var(--cp-text-muted); }
 .el-log-unknown .el-log-dot { background: var(--cp-border-strong); }

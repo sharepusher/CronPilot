@@ -16,7 +16,7 @@
 
 **设计附属 Demo 入库纪律（强制 · 2026-09）**：设计稿一旦挂进索引/正文的对比 Demo 或 UI Demo，对应 HTML **须同轮落盘**，禁止长期「仅 orphan `.md`、HTML 未跟踪」；用户要求 commit 时与设计稿同 commit。自检：`git status -- doc/design/*Demo*`。违反教训：`doc/postmortem/2026-09-设计Demo未入库丢失.html`。
 
-**前端页面对比 Demo（强制 · 2026-09）**：模板/Redesign CSS/导航/筛选/统计/badge/表单布局等可见改动，设计必须带页面对比；默认内嵌于设计 HTML，禁止方案与对比长期拆成无关的两份。自检：`grep -nE 'page-compare|BEFORE|AFTER|Before|After' doc/design/本设计.html`。细则见 `cronpilot-project.mdc`。违反教训：`doc/postmortem/2026-09-UX设计方案与页面对比拆分.html`。
+**前端页面对比 Demo（强制 · 2026-09）**：模板/Redesign CSS/导航/筛选/统计/badge/表单布局等可见改动，设计必须带页面对比；默认内嵌于设计 HTML，禁止方案与对比长期拆成无关的两份。**子设计锚定父 Demo TO-BE**：承接已入库 `*页面对比Demo*` / 父 TO-BE 时，AFTER 须引用父 Demo **节号**（多节 Demo 禁止默认猜节）且**抄录**列数/状态单元/关键样例行；自检：`grep -nE 'page-compare|BEFORE|AFTER|Demo §' doc/design/本设计.html`。细则见 `cronpilot-project.mdc`。违反教训：`doc/postmortem/2026-09-UX设计方案与页面对比拆分.html`、`doc/postmortem/2026-09-R3-C设计偏离原方案DemoUI.html`、`doc/postmortem/2026-09-误把Demo-C当成-B.html`。
 
 **设计文档 API 假设验证（强制 · 2026-09 追加）**：凡设计文档的"方案"或"设计决策"节中包含具体 Python API 调用（如 `scheduler.get_job()`、`db.session.xxx()`、第三方库方法），**必须在该设计决策写入前 `Read` 相关实现文件**确认 API 实际行为与设计假设一致。禁止凭印象写 API 调用细节。自检：`grep -n 'scheduler\.\|db\.session\.' doc/design/新文档.html` 对每一条结果都要能说出对应的代码验证依据。**违反教训**：2026-09 D-2 建议 `scheduler.get_job().next_run_time`，未查 `CuGeventScheduler.py`，导致设计方案不可靠（`next_run_time` 在 `submit_job()` 后同步更新为下次时间，函数执行期间已是下一周期值）。
 

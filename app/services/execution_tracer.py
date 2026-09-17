@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Best-effort execution events; failures never affect the trigger request."""
+"""Best-effort execution events; failures never affect the trigger request.
+
+Display-path summaries: ``app.services.run_inspector_presenter._SUMMARY_KEYS``
+must remain a subset of ``_DETAIL_KEYS``
+(see ``tests/test_execution_observability_contract.py``).
+"""
 import json
 import time
 

@@ -23,9 +23,13 @@ from app.repositories.job_log_repository import JobLogRepository
 from app.repositories.operation_log_repository import OperationLogRepository
 from app.security.csrf import csrf_protect
 from app.services.cron_service import add_cron_web, edit_cron_web
-from app.services.job_log_filter import job_log_outcome_clause
+from app.services.job_log_filter import KNOWN_OUTCOMES, job_log_outcome_clause
 from app.services.pagination import PageQuery
-from app.services.run_inspector_presenter import build_event_timeline, build_run_inspector_view
+from app.services.run_inspector_presenter import (
+    build_event_timeline,
+    build_run_inspector_view,
+    normalize_viewer_role,
+)
 from datas.model.cron_infos import CronInfos
 from datas.model.job_log import JobLog
 from datas.model.task_group import TaskGroup
@@ -35,6 +39,8 @@ from . import main
 
 logger = logging.getLogger(__name__)
 
+_OUTCOME_URL_VALUES = KNOWN_OUTCOMES - {'all'}
+
 
 def _parse_log_outcome_param():
     """无 outcome 参数时默认 not_success（排障优先）；outcome=all 表示全部。"""
@@ -43,7 +49,7 @@ def _parse_log_outcome_param():
     raw = (request.args.get('outcome') or '').strip().lower()
     if raw in ('', 'all'):
         return 'all'
-    if raw in ('success', 'fail', 'error', 'not_success', 'unknown', 'exception'):
+    if raw in _OUTCOME_URL_VALUES:
         return raw
     return 'not_success'
 
@@ -603,7 +609,7 @@ def job_log_list():
         raw = (request.args.get('outcome') or '').strip().lower()
         if raw in ('', 'all'):
             outcome = 'all'
-        elif raw in ('success', 'fail', 'error', 'not_success', 'unknown', 'exception'):
+        elif raw in _OUTCOME_URL_VALUES:
             outcome = raw
         else:
             outcome = 'all'
@@ -671,11 +677,10 @@ def job_log_detail():
     if denied:
         return denied
     items = repo.items_for_trace_id(jl.trace_id) if jl.trace_id else []
-    role = session.get('role') or ''
-    can_view_sensitive = role == 'admin'
+    viewer_role = normalize_viewer_role(session.get('role'))
     timeline = build_event_timeline(
         repo.events_for_trace_id(jl.trace_id) if jl.trace_id else [],
-        include_detail=can_view_sensitive,
+        viewer_role=viewer_role,
     )
 
     # Build schedule display (cron expression) for context
@@ -701,7 +706,7 @@ def job_log_detail():
         schedule_display=schedule_display,
         timeline=timeline,
         business_items=items,
-        is_admin=can_view_sensitive,
+        viewer_role=viewer_role,
     )
     return render_template(
         "redesign/run_inspector.html",

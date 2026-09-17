@@ -46,6 +46,7 @@
     <span class="el-f-label">结果</span>
     <button type="submit" name="outcome" value="not_success" class="el-f-btn{{ ' active' if outcome in ('not_success', None, '') }}">非成功</button>
     <button type="submit" name="outcome" value="all" class="el-f-btn{{ ' active' if outcome == 'all' }}">全部</button>
+    <button type="submit" name="outcome" value="in_progress" class="el-f-btn{{ ' active' if outcome == 'in_progress' }}">进行中</button>
     <button type="submit" name="outcome" value="fail" class="el-f-btn{{ ' active' if outcome == 'fail' }}">仅失败</button>
     <button type="submit" name="outcome" value="exception" class="el-f-btn{{ ' active' if outcome == 'exception' }}">仅异常</button>
     <button type="submit" name="outcome" value="success" class="el-f-btn{{ ' active' if outcome == 'success' }}">仅成功</button>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3 执行可观测性契约门禁与 Tracer/Presenter 对齐设计（2026-09）</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1100px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.08rem}
+h3{margin-top:1.2rem;color:#2d3748;font-size:1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.78rem;font-weight:600;margin-right:.25rem}
+.tag-draft{background:#fef3c7;color:#92400e}
+.tag-eng{background:#e0e7ff;color:#3730a3}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #b45309;background:#fffbeb}
+.box-ok{border-left-color:#15803d;background:#f0fdf4}
+.box-info{border-left-color:#2563eb;background:#eff6ff}
+.toc a{margin-right:12px}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;font-size:12px;overflow:auto;line-height:1.5}
+</style>
+</head>
+<body>
+
+<h1>R3 · 执行可观测性契约门禁与 Tracer / Presenter 对齐设计</h1>
+<p>
+  <span class="tag" style="background:#dcfce7;color:#166534">已实施</span>
+  <span class="tag tag-eng">工程门禁 · 无 UI 大改</span>
+  <span class="tag">收敛版 B0 收尾 · B2 尾巴</span><br>
+  <span style="color:#64748b;font-size:.9rem">日期：2026-09-16 · 父设计：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 §6.2 B0/B2</a> · 前序：<a href="R1-执行记录列表pending-running显示收口设计-2026-09.html">R1</a> · <a href="R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2</a></p>
+<p class="toc"><strong>入口：</strong>
+  <a href="#problem">问题</a>
+  <a href="#root">根因</a>
+  <a href="#solution">方案</a>
+  <a href="#page-compare">页面对比</a>
+  <a href="#scope">范围</a>
+  <a href="#batches">分批</a>
+  <a href="#accept">验收</a>
+  <a href="#risk">风险</a>
+</p>
+
+<div class="box-info box">
+<strong>一句话：</strong>R1/R2 已修好列表与详情产品面，但 Tracer 写库白名单与 Presenter 摘要规则仍是两份手写表，缺集中合同测试。本轮只加<strong>可 CI 的契约门禁</strong>并补齐映射表文档化断言，<strong>不改页面布局、不标已交付</strong>。
+</div>
+
+<h2 id="problem">1. 问题</h2>
+<ol>
+  <li><strong>双表漂移风险</strong>：写路径 <code>execution_tracer._DETAIL_KEYS</code> 与展示路径 <code>run_inspector_presenter._event_summary</code> / <code>_EVENT_LABELS</code> 独立维护。新增 <code>event_type</code> 或 detail 键时，容易出现「库里有字段、页面无摘要」或「摘要读了未白名单键」。</li>
+  <li><strong>B0 未收口</strong>：收敛版要求新增 <code>tests/test_execution_observability_contract.py</code> 冻结状态机/脱敏/未完成语义/锁边界；现有断言散落在 R1/R2 测试中，无单一合同入口，R2 安全约束易被后续热修改回。</li>
+  <li><strong>写库仍含敏感键</strong>：Tracer 允许 <code>exc_detail</code> 入库（故障诊断用）；展示已禁原文。若有人再次把 raw detail 拼进模板，仅靠人工 Review 不够。</li>
+</ol>
+<p><strong>不是：</strong>用户再改一遍详情页布局；也不是本轮做四角色浏览器发布（属 R4/B6）。</p>
+
+<h2 id="root">2. 根因</h2>
+<table>
+<tr><th>层</th><th>事实</th></tr>
+<tr><td>结构</td><td>B2 先落地 Tracer 白名单；B4/R2 另写 Presenter 摘要，无共享「事件类型登记表」或双向断言。</td></tr>
+<tr><td>测试</td><td>R2 否定了 HTML raw JSON，但<strong>未</strong>断言「每个 Tracer 事件类型都有标签」「summary 只用到 _DETAIL_KEYS 内的键」。</td></tr>
+<tr><td>流程</td><td>收敛版 B0「先冻结契约」在热修接线时被跳过；产品面先行，合同文件未建。</td></tr>
+</table>
+
+<h2 id="solution">3. 方案（推荐）</h2>
+
+<h3>3.1 单一合同测试模块（核心）</h3>
+<p>新增 <code>tests/test_execution_observability_contract.py</code>，作为可观测性的 <strong>B0 合同入口</strong>。至少覆盖：</p>
+<table>
+<tr><th>契约组</th><th>断言要点</th></tr>
+<tr><td>C1 事件登记</td><td><code>_EVENT_LABELS</code> 的 key ⊇ Tracer 实际 emit 的事件类型集合（从代码/测试夹具枚举：<code>task.enqueued</code>、<code>task.start</code>、<code>db.load_cif</code>、<code>ssrf.check</code>、<code>http.*</code>、<code>db.write_log</code>）</td></tr>
+<tr><td>C2 写↔展对齐</td><td>对每个有 summary 规则的 <code>event_type</code>：解析样例 detail 后，summary 字符串<strong>不得</strong>包含 <code>exc_detail</code> / <code>block_detail</code> / 任意非白名单键的字面值；允许使用的键 ⊆ <code>_DETAIL_KEYS[event_type]</code>（无登记则 summary 必须恒为空串）</td></tr>
+<tr><td>C3 展示硬禁</td><td>模板 <code>run_inspector.html</code> 静态禁止：<code>event.detail</code>、<code>ri-timeline-detail</code>、<code>jl.</code>、<code>cif.</code>；Presenter 行 dict 不得含 <code>detail</code> 键</td></tr>
+<tr><td>C4 角色矩阵冒烟</td><td>复用/薄封装 R2：viewer/operator/admin 对同一 fixture，URL/正文/业务日志可见性符合 R2 矩阵（可 import 已有断言函数，避免复制逻辑）</td></tr>
+<tr><td>C5 状态过滤</td><td><code>pending</code>/<code>running</code> 不落入 <code>not_success</code>；<code>in_progress</code> ∈ <code>KNOWN_OUTCOMES</code>（锁 R1，防回退）</td></tr>
+<tr><td>C6 锁未获取</td><td>若已有「锁未获取不建父记录」测试，合同文件 <code>import</code> 或文档引用其用例名；本轮<strong>不重写</strong>调度实现，仅保证合同清单列出并 CI 跑到</td></tr>
+</table>
+
+<h3>3.2 轻量代码整理（最小 diff）</h3>
+<ul>
+  <li>在 <code>execution_tracer.py</code> 与 <code>run_inspector_presenter.py</code> 顶部注释交叉引用对方模块与合同测试路径。</li>
+  <li><strong>推荐</strong>：将 Presenter 中「summary 可读键」显式声明为常量（如 <code>_SUMMARY_KEYS</code>），合同测试断言 <code>_SUMMARY_KEYS[t] ⊆ _DETAIL_KEYS.get(t, set())</code>。不强制合并两个模块为一个文件（避免循环依赖）。</li>
+  <li>禁止为「对齐」而扩大 Tracer 写入面（不新增可写敏感键）。</li>
+</ul>
+
+<pre># 合同关系（示意）
+Tracer._DETAIL_KEYS[event_type]  ⊇  Presenter 可读键
+Presenter._EVENT_LABELS          ⊇  运行时 emit 的 event_type
+页面 HTML                        ⊥  raw detail / exc_detail 原文
+</pre>
+
+<h3>3.3 交互契约</h3>
+<p>无新路由、无新 API、无模板结构变更（R3-A）。若确认纳入下方「可选 R3-B」，才允许任务详情近期执行文案微调。</p>
+
+<h2 id="page-compare">4. 页面对比</h2>
+<div class="box-info box">
+<strong>本轮默认范围：无前端可见变更。</strong>R3-A 仅测试与常量对齐，不改管理端 HTML/CSS 可见效果，故不强制 Before/After 画面。自检：实现 diff 不得出现 <code>app/templates/</code>、<code>app/static/css/</code> 的产品向改动（注释交叉引用除外）。
+</div>
+<p><strong>可选 R3-B</strong>（需你在确认时显式点名才做）：任务详情「最近执行」将纯色点扩展为与列表一致的超时/失败区分或短文案。若纳入，必须另补内嵌 Before/After（复用 <code>.td-recent-runs</code>），并单独分批验收。</p>
+
+<h2 id="scope">5. 范围</h2>
+<table>
+<tr><th>做</th><th>不做</th></tr>
+<tr>
+<td>
+<ul>
+<li><code>tests/test_execution_observability_contract.py</code>（C1–C6）</li>
+<li>Presenter 可选 <code>_SUMMARY_KEYS</code> 常量 + 交叉注释</li>
+<li>必要时把 R2 重复断言改为合同模块调用（去重，行为不变）</li>
+<li>设计状态 → 已实施；RELEASE 一行「工程门禁」</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>Run Inspector 再改布局 / 自动刷新 / 业务日志并入时间线</li>
+<li>扩大 Tracer detail 写入键；删减 <code>exc_detail</code> 入库（另立脱敏设计）</li>
+<li>四角色浏览器全矩阵、双后端压测、标「可观测性已交付」（R4/B6）</li>
+<li>未确认的 R3-B 任务详情 UI</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<h2 id="batches">6. 分批</h2>
+<table>
+<tr><th>子批</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>R3-A</td><td>合同测试文件 + <code>_SUMMARY_KEYS</code>（若需要）+ 交叉注释</td><td><code>python -m unittest tests.test_execution_observability_contract -v</code> 全绿</td></tr>
+<tr><td>R3-B</td><td>仅文档：设计已实施、RELEASE、索引；若有测试去重无行为 diff</td><td><code>html_docs_to_markdown.py --check</code></td></tr>
+<tr><td>R3-C（可选）</td><td>任务详情近期执行可见对齐（须确认 + 页面对比）</td><td>浏览器任务详情截图</td></tr>
+</table>
+<p>禁止与 R4 发布文案、B6 压测同 commit。</p>
+
+<h2 id="accept">7. 验收</h2>
+<ol>
+<li><code>.venv-py311/bin/python -m unittest tests.test_execution_observability_contract tests.test_run_inspector_presenter tests.test_job_log_detail_integration -v</code></li>
+<li>人为破坏抽检（实现时 Agent 自证一次后还原）：临时在 Presenter summary 拼入 <code>exc_detail</code> 样例值 → C2 必须红。</li>
+<li><code>grep -nE 'event\.detail|ri-timeline-detail' app/templates/redesign/run_inspector.html</code> → 无命中。</li>
+<li><strong>无 UI</strong>：<code>git diff --stat -- app/templates app/static/css</code> 在未确认 R3-C 时应为空（或仅文档无关）。</li>
+</ol>
+
+<h2 id="risk">8. 风险</h2>
+<ul>
+<li><strong>过严导致假红</strong>：emit 集合若含仅日志、不进时间线的类型，登记表需同步；以代码实测 emit 列表为准，不凭记忆。</li>
+<li><strong>重复测试变脆</strong>：合同模块应组合现有断言，避免三处复制角色矩阵。</li>
+<li><strong>误以为可交付</strong>：R3 绿 ≠ B6；RELEASE 只写「工程门禁」，不写「功能已交付」。</li>
+</ul>
+
+<div class="box-ok box">
+<strong>状态：</strong>已按本方案实施 R3-A/B（2026-09-16）。R3-C（任务详情近期执行）未纳入，待另评。验收见 §7。
+</div>
+
+<footer>
+父设计：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 B0/B2</a> ·
+前序：<a href="R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2</a> ·
+<a href="R3-执行可观测性契约门禁设计-2026-09.md">Markdown</a>
+</footer>
+</body>
+</html>

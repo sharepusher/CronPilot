@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2-D Run Inspector 对齐页面对比 Demo §C 设计（2026-09）</title>
+<link rel="stylesheet" data-demo-css="console-theme.css" href="../../app/static/css/console-theme.css">
+<link rel="stylesheet" data-demo-css="redesign-pages.css" href="../../app/static/css/redesign-pages.css">
+<script>if(location.protocol!=="file:"){document.querySelectorAll("link[data-demo-css]").forEach(function(link){link.href="/static/css/"+link.dataset.demoCss;});}</script>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1100px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.08rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.78rem;font-weight:600;margin-right:.25rem}
+.tag-draft{background:#fef3c7;color:#92400e}
+.tag-ux{background:#dbeafe;color:#1e40af}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #2563eb;background:#eff6ff}
+.box-ok{border-left-color:#15803d;background:#f0fdf4}
+.box-warn{border-left-color:#b45309;background:#fffbeb}
+.toc a{margin-right:12px}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+/* 页面对比 · 与「页面对比Demo」§C 同构 */
+#page-compare{margin:1rem 0 2rem}
+#page-compare .demo-ref{margin:0 0 12px;font-size:13px;color:#475569}
+#page-compare .demo-compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+#page-compare .demo-variant{min-width:0;border:1px solid var(--cp-border,#e2e8f0);border-radius:8px;overflow:hidden;background:var(--cp-surface,#fff)}
+#page-compare .demo-variant.to-be{border-color:var(--cp-accent-border,#93c5fd)}
+#page-compare .demo-variant-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--cp-border,#e2e8f0);background:var(--cp-surface-3,#f1f5f9);font-size:13px;font-weight:600}
+#page-compare .demo-variant.to-be .demo-variant-head{background:var(--cp-accent-bg,#eff6ff)}
+#page-compare .demo-variant-tag{font-family:ui-monospace,monospace;font-size:11px;font-weight:400;color:var(--cp-muted,#64748b)}
+#page-compare .demo-variant-body{padding:14px;background:var(--cp-bg,#f8fafc)}
+#page-compare .demo-change{margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--cp-signal,#3D6FE0);background:var(--cp-signal-bg,#eff6ff);font-size:12px;color:var(--cp-ink-2,#334155)}
+#page-compare .ri-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+#page-compare .ri-id{font-weight:600;font-size:14px}
+#page-compare .ri-badge{font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px}
+#page-compare .ri-badge.timeout{background:var(--cp-warn-bg,#fffbeb);color:var(--cp-warn,#d97706)}
+#page-compare .td-relative-time{font-size:12px;color:var(--cp-muted,#64748b)}
+#page-compare .ri-meta{display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:12px;font-size:12px;color:var(--cp-ink-2,#334155)}
+#page-compare .ri-meta strong{color:var(--cp-ink,#0f172a)}
+#page-compare .danger-text{color:var(--cp-danger,#dc2626)}
+#page-compare .ri-section{margin-bottom:10px;border:1px solid var(--cp-border,#e2e8f0);border-radius:8px;background:var(--cp-surface,#fff);overflow:hidden}
+#page-compare .ri-section-head{padding:8px 12px;font-size:12px;font-weight:600;background:var(--cp-surface-3,#f1f5f9);border-bottom:1px solid var(--cp-border,#e2e8f0)}
+#page-compare .ri-section-body{padding:10px 12px;font-size:12px}
+#page-compare .key{font-weight:600;margin-right:6px}
+#page-compare .demo-variant-tag.inline{margin-left:8px;font-weight:400}
+#page-compare .demo-chain{margin:0;padding:0 0 0 14px;list-style:none;border-left:1px solid var(--cp-border,#e2e8f0)}
+#page-compare .demo-chain li{position:relative;padding:0 0 10px 12px;font-size:12px}
+#page-compare .demo-chain li:last-child{padding-bottom:0}
+#page-compare .demo-chain li::before{content:"";position:absolute;left:-5px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--cp-signal,#3D6FE0);box-shadow:0 0 0 3px var(--cp-signal-bg,#eff6ff)}
+#page-compare .demo-chain .ok::before{background:var(--cp-success,#16a34a);box-shadow:0 0 0 3px var(--cp-success-bg,#f0fdf4)}
+#page-compare .demo-chain .warn::before{background:var(--cp-warn,#d97706);box-shadow:0 0 0 3px var(--cp-warn-bg,#fffbeb)}
+#page-compare .demo-chain strong{display:block;color:var(--cp-ink,#0f172a)}
+#page-compare .demo-chain span{display:block;margin-top:2px;color:var(--cp-muted,#64748b)}
+@media(max-width:900px){#page-compare .demo-compare{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>R2-D · Run Inspector 对齐页面对比 Demo §C</h1>
+<p>
+  <span class="tag tag-draft">待确认</span>
+  <span class="tag tag-ux">UX · Run Inspector</span>
+  <span class="tag">纠偏 R2 与原方案 Demo</span><br>
+  <span style="color:#64748b;font-size:.9rem">日期：2026-09-17 · UI 权威：
+  <a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §C</a>
+  · 场景补充：<a href="任务执行链路可观测性-RunInspector-Demo.html">Run Inspector 目标态 Demo</a>
+  · 前序：<a href="R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2</a>（已实施但偏离 §C）</span>
+</p>
+<p class="toc"><strong>入口：</strong>
+  <a href="#problem">问题</a>
+  <a href="#root">根因</a>
+  <a href="#solution">方案</a>
+  <a href="#page-compare">页面对比</a>
+  <a href="#scope">范围</a>
+  <a href="#batches">分批</a>
+  <a href="#accept">验收</a>
+  <a href="#risk">风险</a>
+</p>
+
+<div class="box">
+<strong>一句话：</strong>把 <code>/job_log_detail</code>（Run Inspector）的<strong>改造后画面</strong>拉回与
+<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §C</a>
+「改造后：先链路、后下钻」一致。本批不是 R3-C（任务详情最近执行 / Demo §B）。
+</div>
+
+<div class="box-warn box">
+<strong>说明：</strong>此前误把「与原方案 UI 不一致」理解成 Demo §B，并改写了 R3-C。用户所指是 <strong>§C Run Inspector 执行详情</strong>。R3-C 暂停，本设计专治 Run Inspector。
+</div>
+
+<h2 id="problem">1. 问题</h2>
+<p>原方案 Demo §C / 目标态 Demo 约定的详情页形态，与现网 R2 实现不一致，用户打开详情时看不到「原方案里的 UI」。</p>
+<table>
+<tr><th>Demo §C TO-BE</th><th>现网 R2</th></tr>
+<tr><td>Header 含相对时间（如「5 分钟前」）</td><td>无</td></tr>
+<tr><td>Meta 含<strong>计划延迟</strong> + HTTP + 耗时 + 触发方式</td><td>Meta 无计划延迟；延迟藏在元数据「启动开销」</td></tr>
+<tr><td>主诊断区标题「<strong>执行链路</strong>」+ 竖线链（标题行 + 副文案）</td><td>「执行时间线」+ <code>ri-timeline</code> 栅格（时刻/点/标签/偏移）</td></tr>
+<tr><td>链路下一步为「<strong>响应 / 诊断</strong>」</td><td>拆成请求 / 响应 / 业务日志 / 元数据</td></tr>
+</table>
+
+<h2 id="root">2. 根因</h2>
+<p>R2 设计稿写明「以实页为准、可再回写 Demo §C」，主动偏离了父 Demo。父 Demo 仍是产品确认过的 UI 权威；现网未回写对齐。</p>
+
+<h2 id="solution">3. 方案</h2>
+<p>可见效果以 Demo §C TO-BE 为准（下节原文照录）。实施要点：</p>
+<ol>
+  <li><strong>Header</strong>：badge 旁恢复相对时间（已有时间工具则复用）。</li>
+  <li><strong>Meta</strong>：展示「计划延迟」（数据即现有 <code>trigger_delay_ms</code>）；保留 HTTP / 耗时 / 触发方式；失败原因可保留（目标态 Demo 亦有）。</li>
+  <li><strong>主区块</strong>：标题改为「执行链路」；列表形态对齐 Demo 链（主标题 + 副行 <code>T+…</code>），仍只消费 Presenter 时间线 DTO（不回 raw detail）。</li>
+  <li><strong>其后</strong>：保留可折叠的请求；响应区标题对齐「响应 / 诊断」（超时等无 body 时展示诊断文案）。业务日志 / 元数据仍可保留在更下方（目标态 Demo 有请求；§C 示意省略不影响保留）。</li>
+  <li><strong>不动</strong>：路由、Presenter 三角色裁剪、禁 raw JSON、未完成提示条（可保留在 Meta 下）。</li>
+</ol>
+
+<h2 id="page-compare">4. 页面对比（Before / After）</h2>
+<p class="demo-ref">下列画面与
+<a href="任务执行链路可观测性-页面对比Demo.html">任务执行链路可观测性-页面对比Demo.html</a>
+<strong>§C Run Inspector 执行详情</strong>相同（AS-IS / TO-BE 原文照录）。</p>
+
+<div id="page-compare" class="cp-page-run-inspector">
+  <div class="demo-compare">
+    <article class="demo-variant">
+      <div class="demo-variant-head">
+        <span>现状：终态详情平铺</span>
+        <span class="demo-variant-tag">AS-IS</span>
+      </div>
+      <div class="demo-variant-body">
+        <div class="ri-header">
+          <span class="ri-id">执行 #10481</span>
+          <span class="ri-badge timeout">⏱ 超时</span>
+          <span class="td-relative-time">5 分钟前</span>
+        </div>
+        <div class="ri-meta">
+          <span>HTTP <strong>—</strong></span>
+          <span>耗时 <strong>5.0s</strong></span>
+          <span>失败原因 <strong class="danger-text">请求超时</strong></span>
+        </div>
+        <div class="ri-section">
+          <div class="ri-section-head">请求</div>
+          <div class="ri-section-body"><span class="key">POST</span> https://api.example.com/v1/orders/callback</div>
+        </div>
+        <div class="ri-section">
+          <div class="ri-section-head">响应</div>
+          <div class="ri-section-body">无响应内容</div>
+        </div>
+        <p class="demo-change">问题：不知道请求前经过哪些步骤、请求何时发出，也难以查看未终态记录。</p>
+      </div>
+    </article>
+
+    <article class="demo-variant to-be">
+      <div class="demo-variant-head">
+        <span>改造后：先链路、后下钻</span>
+        <span class="demo-variant-tag">TO-BE</span>
+      </div>
+      <div class="demo-variant-body">
+        <div class="ri-header">
+          <span class="ri-id">执行 #10481</span>
+          <span class="ri-badge timeout">⏱ 超时</span>
+          <span class="td-relative-time">5 分钟前</span>
+        </div>
+        <div class="ri-meta">
+          <span>计划延迟 <strong>18ms</strong></span>
+          <span>HTTP <strong>—</strong></span>
+          <span>耗时 <strong>5.0s</strong></span>
+          <span>触发方式 <strong>定时调度</strong></span>
+        </div>
+        <div class="ri-section">
+          <div class="ri-section-head">执行链路 <span class="demo-variant-tag inline">新增 · 系统事件 + 业务日志</span></div>
+          <div class="ri-section-body">
+            <ul class="demo-chain">
+              <li class="ok"><strong>任务入队</strong><span>T+0ms · 计划时间 → 实际进入 18ms</span></li>
+              <li class="ok"><strong>安全校验</strong><span>T+20ms · DNS Pinning 校验通过</span></li>
+              <li><strong>发起 HTTP 请求</strong><span>T+24ms · POST /v1/orders/callback</span></li>
+              <li class="warn"><strong>请求超时</strong><span>T+5.00s · 等待超过任务配置阈值</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="ri-section">
+          <div class="ri-section-head">响应 / 诊断</div>
+          <div class="ri-section-body">请求在 5s 超时阈值内未返回响应。</div>
+        </div>
+        <p class="demo-change">变化：请求、响应、业务日志、元数据均保留；时间线成为首要诊断区，详情只消费 Presenter 的角色化 DTO。</p>
+      </div>
+    </article>
+  </div>
+</div>
+
+<h2 id="scope">5. 范围</h2>
+<table>
+<tr><th>做</th><th>不做</th></tr>
+<tr>
+<td>
+<ul>
+<li><code>run_inspector.html</code> / <code>redesign-pages.css</code>：对齐 Demo §C 信息架构与链路样式</li>
+<li>Presenter：Meta 暴露计划延迟；链路项主/副文案足够支撑 Demo 形态（仍无 raw detail）</li>
+<li>测试：HTML 含「执行链路」「计划延迟」；无 raw detail JSON</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>R3-C 任务详情最近执行（Demo §B）— 另议</li>
+<li>新路由 / events API / 双栏</li>
+<li>改 R1 列表</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<h2 id="batches">6. 分批</h2>
+<table>
+<tr><th>子批</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>R2-D1</td><td>Header 相对时间 + Meta 计划延迟 + 标题「执行链路」</td><td>浏览器对照 Demo §C Meta/标题</td></tr>
+<tr><td>R2-D2</td><td>链路列表样式（主标题+副行）+「响应 / 诊断」</td><td>对照 Demo §C 链路区</td></tr>
+<tr><td>R2-D3</td><td>测试 + 设计已实施 + RELEASE</td><td>门禁绿</td></tr>
+</table>
+
+<h2 id="accept">7. 验收</h2>
+<ol>
+<li>打开超时类执行详情：画面关键区与 Demo §C TO-BE 同构（相对时间、计划延迟、执行链路、响应/诊断）。</li>
+<li>与 <a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §C</a> 并排对照。</li>
+<li><code>restart</code> 后 curl/浏览器断言；Presenter 测试仍禁 raw detail。</li>
+</ol>
+
+<h2 id="risk">8. 风险</h2>
+<p>链路展示文案若改回 Demo 用词（「任务入队」等），须与 Presenter 标签表同步，并回归既有事件类型测试。相对时间依赖现有时间格式化工具，避免新时钟漂移。</p>
+
+<div class="box box-ok">
+<strong>请确认后开干：</strong>回复「按此方案执行」。确认前不改 <code>app/</code>。
+</div>
+
+<footer>
+UI 权威：<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §C</a> ·
+<a href="任务执行链路可观测性-RunInspector-Demo.html">目标态 Demo</a> ·
+<a href="#page-compare">#page-compare</a> ·
+<a href="R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.md">Markdown</a>
+</footer>
+</body>
+</html>

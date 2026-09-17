@@ -39,18 +39,11 @@
   <td><span class="el-mono">{{ log.create_time|hms_display or '—' }}</span></td>
   {# COL 5: 耗时 #}
   <td><span class="el-mono">{{ log.take_time|format_duration }}</span></td>
-  {# COL 6: 结果 (fail/error/timeout 细分 + fail_reason 子标签) #}
+  {# COL 6: 结果 — 复用 job_log_badge（pending→已入队，running→执行中） #}
   <td>
-    {% if log.status == 'success' %}
-    <span class="el-log-result el-log-success"><span class="el-log-dot"></span> 成功</span>
-    {% elif log.status == 'fail' %}
-    <span class="el-log-result el-log-fail"><span class="el-log-dot"></span> 失败</span>
-    {% elif log.status == 'error' %}
-    <span class="el-log-result el-log-error"><span class="el-log-dot"></span> 异常</span>
-    {% elif log.status == 'timeout' %}
-    <span class="el-log-result el-log-timeout"><span class="el-log-dot"></span> 超时</span>
-    {% elif log.status == 'running' %}
-    <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 执行中</span>
+    {% set badge = log.status|job_log_badge %}
+    {% if badge[0] %}
+    <span class="el-log-result el-log-{{ 'success' if badge[1] == 'ok' else badge[1] }}"><span class="el-log-dot"></span> {{ badge[0] }}</span>
     {% else %}
     <span class="el-log-result el-log-unknown"><span class="el-log-dot"></span> 未知</span>
     {% endif %}

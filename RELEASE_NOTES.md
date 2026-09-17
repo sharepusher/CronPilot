@@ -7,6 +7,31 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 文档 — R2-D Run Inspector 对齐 Demo §C（待确认）
+- 纠正「原方案 UI」指向：页面对比 Demo **§C**（非 §B）；R3-C 暂停
+- 设计：`doc/design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html`
+- 复盘：`doc/postmortem/2026-09-误把Demo-C当成-B.html`
+
+### 文档 — R3-C 页面对比与 Demo §B 一致
+- R3-C `#page-compare` 原文照录页面对比 Demo §B（AS-IS / TO-BE）；**本轮用户所指非此节，暂停**
+- 复盘：`doc/postmortem/2026-09-R3-C设计偏离原方案DemoUI.html`
+- 设计（暂停）：`doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html`
+
+### 工程 — 执行可观测性契约门禁（R3）
+- 新增 `tests/test_execution_observability_contract.py`（C1–C6）：事件登记、Tracer↔Presenter 键对齐、模板硬禁、三角色冒烟、outcome 过滤、锁原语套件引用
+- Presenter `_SUMMARY_KEYS ⊆ Tracer._DETAIL_KEYS`；无页面可见变更（R3-C 任务详情另评）
+- 设计：`doc/design/R3-执行可观测性契约门禁设计-2026-09.html`
+
+### 改进 — Run Inspector Presenter/详情契约收口（R2）
+- 时间线上移为 Meta 后首要诊断区；`pending`/`running` 增加「执行未完成，最终结果未知」提示条
+- 任何角色不再渲染事件 raw detail JSON；时间线仅白名单 `summary`；Viewer/Operator/Admin 三角色裁剪 URL/响应/业务日志
+- 设计 / 复盘：`doc/design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html` · `doc/postmortem/2026-09-RunInspector-raw-detail与时间线顺序.html`
+
+### 修复 — 执行记录 pending 误标「未知」（R1）
+- 结果列复用 `job_log_badge`：`pending`→「已入队」，`running`→「执行中」；新增筛选「进行中」（`outcome=in_progress`）
+- 默认「非成功」不变；视图 outcome 白名单与 `KNOWN_OUTCOMES` 对齐，避免新筛选项被降级
+- 设计 / 复盘：`doc/design/R1-执行记录列表pending-running显示收口设计-2026-09.html` · `doc/postmortem/2026-09-执行记录pending误标未知.html`
+
 ### 工程 — 未提交变更与方案评估（2026-09-16）
 - 评估已落库：[`doc/qa/未提交变更与方案评估-2026-09-16.html`](doc/qa/未提交变更与方案评估-2026-09-16.html)
 - 结论：当前 WIP 为 Run Inspector 视图接线热修 + ensure B1 补齐；HEAD 详情页对 `run` 未定义会 500；不宜标注可观测性已交付

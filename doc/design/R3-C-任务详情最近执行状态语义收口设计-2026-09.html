@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3-C 任务详情「最近执行」状态语义收口设计（2026-09）</title>
+<link rel="stylesheet" data-demo-css="console-theme.css" href="../../app/static/css/console-theme.css">
+<link rel="stylesheet" data-demo-css="redesign-pages.css" href="../../app/static/css/redesign-pages.css">
+<script>if(location.protocol!=="file:"){document.querySelectorAll("link[data-demo-css]").forEach(function(link){link.href="/static/css/"+link.dataset.demoCss;});}</script>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1100px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #3D6FE0;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:2rem;border-left:4px solid #3D6FE0;padding-left:.8rem;font-size:1.08rem}
+h3{margin-top:1.2rem;color:#2d3748;font-size:1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.88rem}
+th,td{border:1px solid #ddd;padding:.5rem .7rem;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.82rem}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.78rem;font-weight:600;margin-right:.25rem}
+.tag-draft{background:#fef3c7;color:#92400e}
+.tag-ux{background:#dbeafe;color:#1e40af}
+.box{padding:14px 17px;margin:16px 0;border-left:4px solid #2563eb;background:#eff6ff}
+.box-ok{border-left-color:#15803d;background:#f0fdf4}
+.toc a{margin-right:12px}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+/* 页面对比：与「任务执行链路可观测性-页面对比Demo.html」§B 同构 */
+#page-compare{margin:1rem 0 2rem}
+#page-compare .demo-compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+#page-compare .demo-variant{min-width:0;border:1px solid var(--cp-border,#e2e8f0);border-radius:8px;overflow:hidden;background:var(--cp-surface,#fff)}
+#page-compare .demo-variant.to-be{border-color:var(--cp-accent-border,#93c5fd)}
+#page-compare .demo-variant-head{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--cp-border,#e2e8f0);background:var(--cp-surface-3,#f1f5f9);font-size:13px;font-weight:600}
+#page-compare .demo-variant.to-be .demo-variant-head{background:var(--cp-accent-bg,#eff6ff)}
+#page-compare .demo-variant-tag{font-family:ui-monospace,monospace;font-size:11px;font-weight:400;color:var(--cp-muted,#64748b)}
+#page-compare .demo-variant-body{padding:14px;background:var(--cp-bg,#f8fafc)}
+#page-compare .demo-change{margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--cp-signal,#3D6FE0);background:var(--cp-signal-bg,#eff6ff);font-size:12px;color:var(--cp-ink-2,#334155)}
+#page-compare .demo-recent{margin:0;padding:0;list-style:none}
+#page-compare .demo-recent li{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-border,#e2e8f0);font-family:ui-monospace,monospace;font-size:12px}
+#page-compare .demo-recent li:last-child{border-bottom:0}
+#page-compare .demo-status{font-family:system-ui,sans-serif;font-size:11px;font-weight:600}
+#page-compare .demo-status.ok{color:var(--cp-success,#16a34a)}
+#page-compare .demo-status.fail{color:var(--cp-danger,#dc2626)}
+#page-compare .demo-status.wait{color:var(--cp-state-running,#3D6FE0)}
+#page-compare .demo-ref{margin:0 0 12px;font-size:13px;color:#475569}
+@media(max-width:900px){#page-compare .demo-compare{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>R3-C · 任务详情「最近执行」状态语义收口设计</h1>
+<p>
+  <span class="tag tag-draft">待确认</span>
+  <span class="tag tag-ux">UX · 任务详情</span>
+  <span class="tag">收敛版 B5 · 短设计</span><br>
+  <span style="color:#64748b;font-size:.9rem">日期：2026-09-17 · UI 对照：
+  <a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §B</a>
+  · 父：<a href="任务执行链路可观测性设计方案-收敛版.html">收敛版 B5</a>
+  · 前序：<a href="R3-执行可观测性契约门禁设计-2026-09.html">R3</a></span>
+</p>
+<p class="toc"><strong>入口：</strong>
+  <a href="#problem">问题</a>
+  <a href="#root">根因</a>
+  <a href="#solution">方案</a>
+  <a href="#page-compare">页面对比</a>
+  <a href="#scope">范围</a>
+  <a href="#batches">分批</a>
+  <a href="#accept">验收</a>
+  <a href="#risk">风险</a>
+</p>
+
+<div class="box">
+<strong>一句话：</strong>把任务详情「最近执行」改成与
+<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §B</a>
+「改造后」一致：<code>● 成功</code> / <code>● 超时</code> / <code>◎ 执行中</code>；数据用 <code>job_log_badge</code>，并补 <code>time_short</code>。
+</div>
+
+<h2 id="problem">1. 问题</h2>
+<p>现网「最近执行」用手写三元 class，把 <code>timeout</code>/<code>error</code> 画成失败红点；执行中也可能被误读为失败。列表侧（R1）已用 <code>job_log_badge</code>，此处未对齐。另：视图未传 <code>time_short</code>，时间列常空。</p>
+
+<h2 id="root">2. 根因</h2>
+<table>
+<tr><th>层</th><th>事实</th></tr>
+<tr><td>模板</td><td>未用 <code>job_log_badge</code>，手写 <code>ok / running / pending / else→fail</code>。</td></tr>
+<tr><td>CSS</td><td><code>.td-rr-status</code> 仅 8px 圆点，无「●/◎ + 文案」形态。</td></tr>
+<tr><td>视图</td><td><code>recent_runs</code> 未写 <code>time_short</code> / <code>status_label</code> / <code>status_tone</code>。</td></tr>
+</table>
+
+<h2 id="solution">3. 方案</h2>
+<p>改造后的<strong>可见效果</strong>以 Demo §B TO-BE 为准（见下节页面对比，与父 Demo 同画面）。</p>
+<ul>
+  <li><strong>数据</strong>：<code>label, tone = job_log_badge(status)</code>；写入 <code>status_label</code>、<code>status_tone</code>、<code>time_short</code>。</li>
+  <li><strong>模板</strong>：每行渲染 <code>时间 | ●/◎ + 文案 | 耗时</code>（与 Demo 一致）；点击仍进 <code>/job_log_detail</code>。</li>
+  <li><strong>CSS</strong>：<code>.td-rr-status</code> 改为行内状态文案（同 Demo <code>.demo-status</code>）；行布局 <code>1fr auto auto</code>。</li>
+  <li><strong>不做</strong>：不新卡片、不塞时间线；列表 / Run Inspector 不在本批。</li>
+</ul>
+
+<h2 id="page-compare">4. 页面对比（Before / After）</h2>
+<p class="demo-ref">下列画面与
+<a href="任务执行链路可观测性-页面对比Demo.html">任务执行链路可观测性-页面对比Demo.html</a>
+<strong>§B 任务详情的最近执行</strong>相同（AS-IS / TO-BE 原文照录）。</p>
+
+<div id="page-compare">
+  <div class="demo-compare">
+    <article class="demo-variant">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">现状：二元状态点</span>
+        <span class="demo-variant-tag">AS-IS</span>
+      </div>
+      <div class="demo-variant-body">
+        <ul class="demo-recent">
+          <li><span>10:32:00</span><span class="demo-status ok">● 成功</span><span>1.2s</span></li>
+          <li><span>10:27:00</span><span class="demo-status fail">● 失败</span><span>5.0s</span></li>
+          <li><span>10:25:11</span><span class="demo-status fail">● 失败</span><span>—</span></li>
+        </ul>
+        <p class="demo-change">问题：执行中记录可能被二元展示误读为失败。</p>
+      </div>
+    </article>
+
+    <article class="demo-variant to-be">
+      <div class="demo-variant-head">
+        <span class="demo-variant-title">改造后：状态机语义</span>
+        <span class="demo-variant-tag">TO-BE</span>
+      </div>
+      <div class="demo-variant-body">
+        <ul class="demo-recent">
+          <li><span>10:32:00</span><span class="demo-status ok">● 成功</span><span>1.2s</span></li>
+          <li><span>10:27:00</span><span class="demo-status fail">● 超时</span><span>5.0s</span></li>
+          <li><span>10:25:11</span><span class="demo-status wait">◎ 执行中</span><span>—</span></li>
+        </ul>
+        <p class="demo-change">变化：终态失败与未完成记录按真实语义显示；锁竞争不会创建此处的执行记录，详情跳转 URL 不变。</p>
+      </div>
+    </article>
+  </div>
+</div>
+
+<h2 id="scope">5. 范围</h2>
+<table>
+<tr><th>做</th><th>不做</th></tr>
+<tr>
+<td>
+<ul>
+<li><code>views.py</code>：<code>recent_runs</code> 补 badge 字段 + <code>time_short</code></li>
+<li><code>task_detail.html</code> + <code>redesign-pages.css</code>：对齐 Demo §B 行形态</li>
+<li>测试：超时行见「● 超时」、执行中见「◎ 执行中」</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>执行记录列表（R1）、Run Inspector（R2）、R4 交付标注</li>
+</ul>
+</td>
+</tr>
+</table>
+
+<h2 id="batches">6. 分批</h2>
+<table>
+<tr><th>子批</th><th>内容</th><th>可独立验收</th></tr>
+<tr><td>R3-C1</td><td>views + 模板 + CSS</td><td>浏览器对照 Demo §B TO-BE</td></tr>
+<tr><td>R3-C2</td><td>测试 + 设计已实施 + RELEASE</td><td>测试绿；文档同步</td></tr>
+</table>
+
+<h2 id="accept">7. 验收</h2>
+<ol>
+<li>打开任务详情「最近执行」：可见 <code>● 超时</code>、<code>◎ 执行中</code>（有对应数据时），形态与 Demo §B TO-BE 一致。</li>
+<li><code>bash scripts/cronpilot.sh restart --daemon</code> 后 curl/浏览器断言文案；单测覆盖 badge 映射。</li>
+<li><code>audit_hardcoded_colors.py --check</code>、<code>check_ui_contract.py --check</code>（若触模板）。</li>
+</ol>
+
+<h2 id="risk">8. 风险</h2>
+<p>窄卡上「● 超时」比纯圆点略宽；用 nowrap + 现有卡片宽度即可。其它 status（失败/异常/已入队）用同一 ●/◎ + badge 规则扩展。</p>
+
+<div class="box box-ok">
+<strong>请确认后开干：</strong>回复「按此方案执行」。确认前不改 <code>app/</code>。
+</div>
+
+<footer>
+UI 权威：<a href="任务执行链路可观测性-页面对比Demo.html">页面对比 Demo §B</a> ·
+<a href="#page-compare">#page-compare</a> ·
+<a href="R3-C-任务详情最近执行状态语义收口设计-2026-09.md">Markdown</a>
+</footer>
+</body>
+</html>

@@ -56,6 +56,10 @@
 | ↳ 收敛版专业 Review | 有条件通过 · 3 Blocker · 7 Major | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review.md) |
 | ↳ 专业 Review 评估 | rev.3 对照 · 采纳/修订/拒绝结论 | [HTML](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.html) | [MD](design/任务执行链路可观测性设计方案-收敛版-专业Review评估.md) |
 | ↳ 文档与实现功能评估 | 有条件可用 · B4/B5 未闭环 | [HTML](design/任务执行链路可观测性-文档与实现功能评估.html) | [MD](design/任务执行链路可观测性-文档与实现功能评估.md) |
+| ↳ 当前实现评估（2026-09-17） | 有条件可用 · 执行观测闭环，调度注册观测未闭环 | [HTML](design/任务执行链路可观测性-当前实现评估-2026-09-17.html) | [MD](design/任务执行链路可观测性-当前实现评估-2026-09-17.md) |
+| ↳ 执行侧观测专项评估（2026-09-17） | 约 75% · 单次运行诊断可用，事件上下文与降级提示待补 | [HTML](design/任务执行链路可观测性-执行侧观测专项评估-2026-09-17.html) | [MD](design/任务执行链路可观测性-执行侧观测专项评估-2026-09-17.md) |
+| ↳ 执行侧观测优化设计（2026-09） | 待确认 · run_id 强关联、事件上下文、降级可见、统一时间线 | [HTML](design/执行侧观测优化设计-2026-09.html) | [MD](design/执行侧观测优化设计-2026-09.md) |
+| ↳ run_id 强关联决策说明（2026-09） | 待确认 · 数据一致性、迁移兼容、查询与回滚边界 | [HTML](design/执行侧观测-run_id强关联决策说明-2026-09.html) | [MD](design/执行侧观测-run_id强关联决策说明-2026-09.md) |
 | ↳ **R1 执行记录列表 pending/running 显示收口**（已实施） | 已入队徽章 +「进行中」筛选 · 不改默认非成功 | [HTML](design/R1-执行记录列表pending-running显示收口设计-2026-09.html) | [MD](design/R1-执行记录列表pending-running显示收口设计-2026-09.md) |
 | ↳ **R2 Run Inspector Presenter/详情契约收口**（已实施） | 时间线上移 · 禁 raw detail JSON · Viewer/Operator/Admin | [HTML](design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html) | [MD](design/R2-RunInspector-Presenter详情契约收口设计-2026-09.md) |
 | ↳ **R2-D Run Inspector 对齐 Demo §C**（待确认） | 页面对比=Demo §C 原文 · 纠偏 R2 | [HTML](design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html) | [MD](design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.md) |

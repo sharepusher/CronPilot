@@ -7,6 +7,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 改进 — 执行侧链路观测强化
+- `JobLogEvent` 新增执行实例 `run_id` 与 `schema_version`；新事件按父运行强关联，旧 trace 查询保持兼容
+- Tracer 增加脱敏 URL、超时阈值、计划触发时间与观测降级原因；Run Inspector 显示“观测不完整”提示
+- 业务执行结果状态保持不变；本次无 API Breaking Change
+- 验证：41 条执行观测/运行详情/迁移相关单测通过，Ruff 通过
+- 设计：[执行侧观测优化设计](doc/design/执行侧观测优化设计-2026-09.html)
+
 ### 文档 — R2-D Run Inspector 对齐 Demo §C（待确认）
 - 纠正「原方案 UI」指向：页面对比 Demo **§C**（非 §B）；R3-C 暂停
 - 设计：`doc/design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html`

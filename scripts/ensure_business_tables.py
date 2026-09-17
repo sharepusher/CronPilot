@@ -56,6 +56,8 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
+        _ensure_job_log_event_columns()
+        _backfill_job_log_event_run_ids()
         _rename_log_id_to_trace_id(backend=backend)
         _ensure_job_log_trace_ids(backend=backend)
         _ensure_job_log_item_columns()
@@ -128,6 +130,10 @@ def _ensure_job_log_columns():
         alters.append("ALTER TABLE job_log ADD COLUMN resolved_ip VARCHAR(45)")
     if 'trigger_delay_ms' not in cols:
         alters.append("ALTER TABLE job_log ADD COLUMN trigger_delay_ms INTEGER")
+    if 'observability_state' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN observability_state VARCHAR(16)")
+    if 'observability_drop_reason' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN observability_drop_reason VARCHAR(32)")
     if not alters:
         return
     with db.engine.begin() as conn:
@@ -136,6 +142,56 @@ def _ensure_job_log_columns():
     print('OK: job_log 列已补全 ->', ', '.join(
         c.split()[-1] for c in alters
     ))
+
+
+def _ensure_job_log_event_columns():
+    """补齐旧 job_log_events 的执行实例关联字段。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log_events'):
+        return
+    cols = {c['name'] for c in insp.get_columns('job_log_events')}
+    alters = []
+    if 'run_id' not in cols:
+        alters.append('ALTER TABLE job_log_events ADD COLUMN run_id BIGINT')
+    if 'schema_version' not in cols:
+        alters.append('ALTER TABLE job_log_events ADD COLUMN schema_version SMALLINT DEFAULT 1')
+    if not alters:
+        return
+    with db.engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+    print('OK: job_log_events 列已补全 ->', ', '.join(c.split()[-1] for c in alters))
+
+
+def _backfill_job_log_event_run_ids():
+    """Backfill only unambiguous legacy events; never guess a parent run."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log_events') or not insp.has_table('job_log'):
+        return
+    event_cols = {c['name'] for c in insp.get_columns('job_log_events')}
+    if 'run_id' not in event_cols:
+        return
+    with db.engine.begin() as conn:
+        events = conn.execute(text(
+            'SELECT id, trace_id FROM job_log_events WHERE run_id IS NULL'
+        )).fetchall()
+        matched = 0
+        for event_id, trace_id in events:
+            parents = conn.execute(text(
+                'SELECT id FROM job_log WHERE trace_id = :trace_id'
+            ), {'trace_id': trace_id}).fetchall()
+            if len(parents) != 1:
+                continue
+            conn.execute(text(
+                'UPDATE job_log_events SET run_id = :run_id WHERE id = :id'
+            ), {'run_id': parents[0][0], 'id': event_id})
+            matched += 1
+    if matched:
+        print('OK: job_log_events.run_id 已回填 ->', matched)
 
 
 def _ensure_job_log_item_columns():
@@ -517,6 +573,7 @@ def _ensure_composite_indexes():
     insp = inspect(db.engine)
     composite_targets = [
         ('job_log', 'ix_job_log_cron_id_create_time', ['cron_info_id', 'create_time']),
+        ('job_log_events', 'ix_job_log_events_run_id_seq', ['run_id', 'seq']),
     ]
     created = []
     for table, idx_name, columns in composite_targets:

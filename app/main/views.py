@@ -679,7 +679,7 @@ def job_log_detail():
     items = repo.items_for_trace_id(jl.trace_id) if jl.trace_id else []
     viewer_role = normalize_viewer_role(session.get('role'))
     timeline = build_event_timeline(
-        repo.events_for_trace_id(jl.trace_id) if jl.trace_id else [],
+        repo.events_for_run_id(jl.id, jl.trace_id),
         viewer_role=viewer_role,
     )
 

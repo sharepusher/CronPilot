@@ -68,3 +68,12 @@ class JobLogRepository(BaseRepository):
             .where(JobLogEvent.trace_id == trace_id)
             .order_by(JobLogEvent.seq.asc())
         )
+
+    def events_for_run_id(self, run_id, trace_id=None):
+        """Prefer strong run linkage; fall back for legacy events."""
+        if run_id is None:
+            return self.events_for_trace_id(trace_id)
+        rows = self.scalars_all(
+            select(JobLogEvent).where(JobLogEvent.run_id == run_id).order_by(JobLogEvent.seq.asc())
+        )
+        return rows or self.events_for_trace_id(trace_id)

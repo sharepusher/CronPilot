@@ -268,10 +268,11 @@ def cron_do(cron_id, trigger_source='schedule'):
             raise RuntimeError('unable to allocate unique cron trace_id')
         _ctx_trace_id.set(trace_id)
         try:
-            tracer = ExecutionTracer(trace_id, cron_id)
+            tracer = ExecutionTracer(trace_id, cron_id, run_id=saved_jl.id)
             tracer.emit('task.enqueued', detail={
                 'trigger_source': trigger_source,
                 'scheduled_delay_ms': _scheduled_delay_ms,
+                'scheduled_at': scheduled_run_time.isoformat() if scheduled_run_time else None,
             })
             saved_jl.status = 'running'
             db.session.commit()
@@ -406,7 +407,12 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         "timeout_sec": timeout_sec,
                                     },
                                 )
-                                tracer.emit('http.start', detail={'method': req_method})
+                                from app.services.execution_tracer import sanitize_event_url
+                                tracer.emit('http.start', detail={
+                                    'method': req_method,
+                                    'display_url': sanitize_event_url(req_url),
+                                    'timeout_sec': timeout_sec,
+                                })
 
                                 if req_method == 'POST':
                                     if cif.req_body:
@@ -468,7 +474,14 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                 )
-                                tracer.emit('http.complete', outcome='ok' if run_status == STATUS_SUCCESS else 'fail', detail={'http_status': req.status_code})
+                                tracer.emit(
+                                    'http.complete',
+                                    outcome='ok' if run_status == STATUS_SUCCESS else 'fail',
+                                    detail={
+                                        'http_status': req.status_code,
+                                        'response_bytes': len(getattr(req, 'content', b'') or b''),
+                                    },
+                                )
                                 if run_status == STATUS_ERROR:
                                     current_app.logger.error(
                                         "cron http trigger failed",
@@ -508,6 +521,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     detail={
                                         'exc_type': type(e).__name__,
                                         'exc_detail': _redact_event_text(str(e)),
+                                        'timeout_sec': timeout_sec,
                                     },
                                 )
                                 current_app.logger.error(
@@ -559,6 +573,13 @@ def cron_do(cron_id, trigger_source='schedule'):
                     outcome='ok',
                     detail={'status': saved_jl.status, 'fail_reason': saved_jl.fail_reason},
                 )
+            if tracer is not None and saved_jl is not None:
+                try:
+                    saved_jl.observability_state = 'degraded' if tracer.disabled_reason else 'healthy'
+                    saved_jl.observability_drop_reason = tracer.disabled_reason
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
             elapsed = time.time() - t0
             _ctx_duration_ms.set(int(elapsed * 1000))
             prom_status = 'error' if getattr(saved_jl, 'status', None) in (STATUS_ERROR, STATUS_TIMEOUT, STATUS_FAIL) else 'ok'

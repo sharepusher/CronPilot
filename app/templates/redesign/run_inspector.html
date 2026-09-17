@@ -36,7 +36,11 @@
       </button>
     </span>
     <span class="ri-badge {{ run.status_tone }}">{{ run.status_label }}</span>
+    {% if run.observability_state == 'degraded' %}<span class="ri-badge degraded">观测不完整</span>{% endif %}
   </div>
+  {% if run.observability_state == 'degraded' %}
+  <div class="ri-incomplete-banner" role="status">阶段事件可能不完整（{{ run.observability_drop_reason or '观测写入降级' }}），业务执行结果不受此提示影响。</div>
+  {% endif %}
 
   {# ─── Meta ─── #}
   <div class="ri-meta">

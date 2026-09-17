@@ -27,8 +27,9 @@ _EVENT_LABELS = {
 # Keys the summary path may read from event.detail (⊆ Tracer._DETAIL_KEYS).
 # Empty set = fixed phrase only; never surface exc_detail / block_detail text.
 _SUMMARY_KEYS = {
-    'http.start': frozenset({'method'}),
-    'http.complete': frozenset({'http_status'}),
+    'task.enqueued': frozenset({'trigger_source', 'scheduled_delay_ms', 'scheduled_at'}),
+    'http.start': frozenset({'method', 'display_url', 'timeout_sec'}),
+    'http.complete': frozenset({'http_status', 'response_bytes'}),
     'ssrf.check': frozenset({'block_type'}),
     'http.timeout': frozenset(),
     'http.error': frozenset(),
@@ -137,12 +138,29 @@ def _event_summary(event_type, outcome, raw_detail, viewer_role):
     }
     if event_type == 'http.start':
         method = parsed.get('method')
-        return str(method).upper() if method else ''
+        parts = [str(method).upper()] if method else []
+        if parsed.get('display_url'):
+            parts.append(str(parsed['display_url']))
+        if parsed.get('timeout_sec'):
+            parts.append('阈值 {}s'.format(parsed['timeout_sec']))
+        return ' · '.join(parts)
+    if event_type == 'task.enqueued':
+        source = parsed.get('trigger_source') or ''
+        delay = parsed.get('scheduled_delay_ms')
+        text = '已入队'
+        if source:
+            text += ' · {}'.format(_TRIGGER_LABELS.get(source, source))
+        if delay is not None:
+            text += ' · 延迟 {}ms'.format(delay)
+        return text
     if event_type == 'http.complete':
         status = parsed.get('http_status')
         if status is None or status == '':
             return ''
-        return 'HTTP {}'.format(status)
+        suffix = ''
+        if parsed.get('response_bytes') is not None:
+            suffix = ' · {}B'.format(parsed['response_bytes'])
+        return 'HTTP {}{}'.format(status, suffix)
     if event_type == 'ssrf.check' and outcome in ('blocked', 'fail', 'error'):
         block_type = parsed.get('block_type')
         if block_type and viewer_role != 'viewer':
@@ -263,6 +281,8 @@ def build_run_inspector_view(
         'status_tone': badge_tone,
         'status_label': badge_label,
         'is_incomplete': is_incomplete,
+        'observability_state': getattr(job_log, 'observability_state', None) or 'unknown',
+        'observability_drop_reason': getattr(job_log, 'observability_drop_reason', None) or '',
         'collapse_downstream': collapse_downstream,
         'task': {
             'id': cron_info.id if cron_info else None,

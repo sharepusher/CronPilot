@@ -59,6 +59,12 @@ class JobLog(db.Model):
     trigger_delay_ms: Mapped[Optional[int]] = mapped_column(
         db.Integer, nullable=True, doc='调度启动开销（毫秒）：@single_task 装饰器入口到 cron_do 函数体 t0 的时间差，通常 0-2ms；非 APScheduler 调度抖动'
     )
+    observability_state: Mapped[Optional[str]] = mapped_column(
+        db.String(16), nullable=True, doc='healthy | degraded | unknown'
+    )
+    observability_drop_reason: Mapped[Optional[str]] = mapped_column(
+        db.String(32), nullable=True, doc='event_budget | database_error | write_budget'
+    )
 
     def to_json(self):
         return {
@@ -66,4 +72,6 @@ class JobLog(db.Model):
             'content': self.content,
             'status': self.status,
             'create_time': self.create_time,
+            'observability_state': self.observability_state,
+            'observability_drop_reason': self.observability_drop_reason,
         }

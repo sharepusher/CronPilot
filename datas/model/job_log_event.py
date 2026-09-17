@@ -13,6 +13,7 @@ class JobLogEvent(db.Model):
 
     id: Mapped[int] = mapped_column(db.BigInteger, primary_key=True, default=next_id)
     trace_id: Mapped[str] = mapped_column(db.String(65), nullable=False, index=True)
+    run_id: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True, index=True)
     cron_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
     seq: Mapped[int] = mapped_column(db.Integer, nullable=False)
     event_type: Mapped[str] = mapped_column(db.String(48), nullable=False)
@@ -21,5 +22,9 @@ class JobLogEvent(db.Model):
     duration_ms: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
     outcome: Mapped[str] = mapped_column(db.String(16), nullable=False, default='ok')
     detail: Mapped[str] = mapped_column(db.TEXT, nullable=False, default='{}')
+    schema_version: Mapped[int] = mapped_column(db.SmallInteger, nullable=False, default=1)
 
-    __table_args__ = (db.UniqueConstraint('trace_id', 'seq', name='uq_job_log_events_trace_seq'),)
+    __table_args__ = (
+        db.UniqueConstraint('trace_id', 'seq', name='uq_job_log_events_trace_seq'),
+        db.UniqueConstraint('run_id', 'seq', name='uq_job_log_events_run_seq'),
+    )

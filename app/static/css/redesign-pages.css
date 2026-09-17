@@ -400,6 +400,11 @@
   color: var(--cp-warn);
 }
 
+.cp-page-run-inspector .ri-badge.degraded {
+  background: var(--cp-warn-bg);
+  color: var(--cp-warn);
+}
+
 .cp-page-run-inspector .ri-badge.running {
   background: var(--cp-signal-bg);
   color: var(--cp-signal);

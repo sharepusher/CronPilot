@@ -35,6 +35,17 @@ class TestExecutionTracer(unittest.TestCase):
         self.assertLess(rows[0].occurred_at_ms, before + 10_000)
         self.assertIn('scheduled_delay_ms', rows[0].detail)
 
+    def test_emits_run_id_for_strong_parent_link(self):
+        from app.services.execution_tracer import ExecutionTracer
+        from datas.model.job_log_event import JobLogEvent
+
+        with self.app.app_context():
+            tracer = ExecutionTracer('trace-run', 9, run_id=123)
+            self.assertTrue(tracer.emit('task.start'))
+            row = self.db.session.query(JobLogEvent).one()
+        self.assertEqual(row.run_id, 123)
+        self.assertEqual(row.schema_version, 1)
+
     def test_drops_unapproved_detail_fields_and_stops_at_event_budget(self):
         from app.services.execution_tracer import ExecutionTracer
         from datas.model.job_log_event import JobLogEvent

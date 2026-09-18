@@ -14,6 +14,7 @@
 - [auth_version Session 缺键 Fail-Open](2026-09-auth-version-session-failopen.html)
 - [全局管理员可停用种子账号](2026-09-全局管理员可停用种子账号.html)
 - [执行详情 URL 脱敏缺失修复](2026-09-execution-detail-url-redaction.html)（Presenter 边界 · 全参数值脱敏，2026-09-15）
+- [执行失败分类与 HTTP 响应语义](2026-09-执行失败分类与HTTP响应语义.html)（TypeError 误归类 · 无响应语义缺失，2026-09-18）
 - [任务详情 seconds 展示丢失修复](2026-09-task-detail-seconds-display.html)（调度表达式完整性 · 六字段展示，2026-09-16）
 - [Dashboard 相对时间测试确定性修复](2026-09-dashboard-relative-time-test-determinism.html)（可注入时间基准 · 消除时钟漂移，2026-09-16）
 - [全量回归门禁收口修复](2026-09-regression-gate-cleanup.html)（legacy 门禁 · 无上下文日志，2026-09-16）

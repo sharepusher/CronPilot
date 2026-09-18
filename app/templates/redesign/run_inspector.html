@@ -101,6 +101,14 @@
     <div><span class="key">传输状态：</span>未确认发送</div>
 {% elif run.summary.transport_state == 'prepared' %}
     <div><span class="key">传输状态：</span>已准备，尚未确认发送</div>
+{% elif run.summary.transport_state == 'client_failed' %}
+    <div><span class="key">传输状态：</span>客户端初始化失败</div>
+{% elif run.summary.transport_state == 'not_started' %}
+    <div><span class="key">传输状态：</span>尚未开始请求</div>
+{% elif run.summary.transport_state == 'unknown_failure' %}
+    <div><span class="key">传输状态：</span>状态未知，未确认发送</div>
+{% else %}
+    <div><span class="key">传输状态：</span>状态未知，未确认发送</div>
 {% endif %}</div>
   </div>
 

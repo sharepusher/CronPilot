@@ -255,6 +255,29 @@ class TestJobLogDetailIntegration(unittest.TestCase):
             self.assertIn('ri-incomplete-banner', html)
             self.assertIn('最终结果未知', html)
 
+    def test_transport_state_fallbacks_render_for_all_roles(self):
+        """新增传输态和未知值在三种角色下都必须有可见文案。"""
+        expected = {
+            'client_failed': '客户端初始化失败',
+            'not_started': '尚未开始请求',
+            'unknown_failure': '状态未知，未确认发送',
+            'future_state': '状态未知，未确认发送',
+        }
+        for state, label in expected.items():
+            with self.subTest(state=state):
+                self.jl.transport_state = state
+                self.jl.response_received = False
+                self.db.session.commit()
+                for username in ('admin', 'operator', 'viewer'):
+                    with self.subTest(role=username), self.app.test_client() as c:
+                        c.set_cookie('cp_ui_mode', 'console')
+                        self._login_as(c, username)
+                        response = c.get(f'/job_log_detail?id={self.jl.id}')
+                        self.assertEqual(response.status_code, 200)
+                        html = response.data.decode()
+                        marker = '<span class="key">传输状态：</span>{}'.format(label)
+                        self.assertEqual(html.count(marker), 1)
+
     def test_viewer_hides_business_logs_and_response_body(self):
         with self.app.test_client() as c:
             c.set_cookie('cp_ui_mode', 'console')

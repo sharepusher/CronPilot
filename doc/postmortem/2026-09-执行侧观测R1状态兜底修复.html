@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>执行侧观测 R1 状态兜底修复复盘</title></head><body><main>
+<h1>执行侧观测 R1 状态兜底修复复盘</h1><p>日期：2026-09-18 · 状态：已修复并验证</p>
+<h2>1. Bug 定位</h2><p>Run Inspector 只覆盖已响应、已发起未响应、连接失败、历史兼容态和 prepared；<code>client_failed</code>、<code>not_started</code>、<code>unknown_failure</code> 以及未来未知值没有传输状态行，导致执行记录出现状态空白。</p>
+<h2>2. 根因</h2><p>传输状态枚举在分类函数和模板中分散维护，模板采用有限分支但没有为新增枚举提供显式分支或最终兜底。</p>
+<h2>3. 测试漏洞</h2><p>Presenter 测试覆盖了字段值，却没有通过真实 <code>job_log_detail</code> 路由渲染模板，也没有覆盖三种角色和未知未来状态。</p>
+<h2>4. 修复</h2><p>新增客户端初始化失败、尚未开始请求、状态未知三条文案，并增加最终未知分支，确保任意未识别状态也显示“状态未知，未确认发送”。</p>
+<h2>5. 防护测试</h2><p>新增真实路由渲染矩阵，覆盖四种状态及 admin/operator/viewer 三角色。</p><pre>.venv-py311/bin/python -m unittest tests.test_job_log_detail_integration.TestJobLogDetailIntegration.test_transport_state_fallbacks_render_for_all_roles -v
+.venv-py311/bin/python -m unittest tests.test_run_inspector_presenter tests.test_execution_observability_contract -v</pre>
+<h2>6. 同类排查</h2><p>已检查 Run Inspector 请求区、响应区和 Presenter 的传输状态输出；响应优先级仍先于 sent/失败状态，历史 <code>failed_before_response</code> 展示保持兼容，未改变业务结果判定。</p>
+<h2>7. 预防方案</h2><p>将传输状态真实模板矩阵作为状态枚举扩展的强制验收项：每新增一个状态，必须在 <code>tests/test_job_log_detail_integration.py</code> 中加入三角色渲染断言，并保留未知值兜底断言；CI 直接运行该测试，避免只测 Presenter 不测页面消费。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="2026-09-执行侧观测R1状态兜底修复.md">Markdown</a></footer>
+</main></body></html>

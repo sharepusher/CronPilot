@@ -48,6 +48,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 验证：观测相关测试 40 条、Ruff、86 条路由冒烟通过。
 - 复盘：[执行侧观测外层 fatal 阶段映射修复](doc/postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html)
 
+### 修复 — Run Inspector 传输状态兜底（R1）
+- 补齐 `client_failed`、`not_started`、`unknown_failure` 及未知未来值的可见文案，避免请求区出现状态空白。
+- 新增 admin/operator/viewer 三角色真实路由渲染矩阵；不改变任务业务结果判定。
+- 复盘：[执行侧观测 R1 状态兜底修复](doc/postmortem/2026-09-执行侧观测R1状态兜底修复.html)
+
 ### 文档 — R2-D Run Inspector 对齐 Demo §C（待确认）
 - 纠正「原方案 UI」指向：页面对比 Demo **§C**（非 §B）；R3-C 暂停
 - 设计：`doc/design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html`

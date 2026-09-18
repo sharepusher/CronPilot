@@ -14,7 +14,7 @@ main{max-width:1080px;margin:auto;padding:38px 24px 70px}h1{margin:0 0 8px;font-
 <h1>执行侧观测优化完成后全面 Review</h1>
 <p class="muted">审查范围：F1/F2/F3/F6 本轮实现、JobLog/Tracer/Presenter/Run Inspector 全链路、迁移兼容、测试门禁与浏览器验收。不替代原始评估，本文记录优化完成后的复核结论。</p>
 
-<div class="callout"><b>结论：有条件通过，暂不建议标记“4.1.0 可发布”。</b> F1/F2/F3/F6 的主路径已实现且定向测试通过；R5 ORM legacy 门禁误报与 R8 文档断链已关闭。仍有 2 个 Medium 风险需要下一批修复：部分新状态无 UI 分支，以及 <code>ConnectionError</code>/<code>TooManyRedirects</code> 的传输阶段过度归类。</div>
+<div class="callout"><b>结论：有条件通过，暂不建议标记“4.1.0 可发布”。</b> F1/F2/F3/F6 的主路径已实现且定向测试通过；R1、R5、R8 已关闭。仍有 1 个 Medium 风险需要下一批修复：<code>ConnectionError</code>/<code>TooManyRedirects</code> 的传输阶段过度归类。</div>
 
 <h2>1. 已完成项核验</h2>
 <table><thead><tr><th>范围</th><th>核验结论</th><th>证据</th></tr></thead><tbody>
@@ -27,10 +27,10 @@ main{max-width:1080px;margin:auto;padding:38px 24px 70px}h1{margin:0 0 8px;font-
 
 <h2>2. 新发现问题（按严重度）</h2>
 <table><thead><tr><th>ID</th><th>严重度</th><th>位置</th><th>问题与影响</th><th>建议</th></tr></thead><tbody>
-<tr><td>R1</td><td class="bad">Medium</td><td><code>app/templates/redesign/run_inspector.html</code> 传输状态分支</td><td>模板仅处理 <code>response_received</code>、<code>sent</code>、<code>sent_no_response</code>、<code>connect_failed</code>、历史 <code>failed_before_response</code>、<code>prepared</code>。F1 已新增的 <code>client_failed</code>、<code>unknown_failure</code>、<code>not_started</code> 没有兜底分支；新产生的客户端初始化失败或未知异常可能完全不显示传输状态。</td><td>补齐状态→文案映射，未知状态必须显示“传输状态未知/未确认”，并加模板渲染否定用例。</td></tr>
+<tr><td>R1</td><td>已关闭</td><td><code>app/templates/redesign/run_inspector.html</code> 传输状态分支</td><td>已补齐 <code>client_failed</code>、<code>not_started</code>、<code>unknown_failure</code> 和未知未来值的显式/最终兜底分支。</td><td>真实 <code>job_log_detail</code> 路由三角色矩阵通过；复盘：<a href="../postmortem/2026-09-执行侧观测R1状态兜底修复.html">R1 状态兜底修复</a>。</td></tr>
 <tr><td>R2</td><td class="bad">Medium</td><td><code>app/services/job_log_outcome.py</code> <code>exception_failure_info()</code></td><td><code>ConnectionError</code> 是宽泛基类；<code>TooManyRedirects</code> 明确表示已经收到多次重定向响应。统一映射为 <code>connect_failed</code> 会把“请求已发出/远端参与但未完成”的场景显示为“连接未建立”。</td><td>按异常子类和可用 <code>exc.response</code> 信息拆分：Connect/Proxy 连接失败、Read/远端中断、TooManyRedirects 未完成响应；补充异常矩阵。</td></tr>
 <tr><td>R3</td><td class="warn">Low</td><td><code>fatal_failure_info()</code> 与 <code>cron_do()</code></td><td><code>job_log_started=True</code> 会把读取任务配置、Tracer 写入等非持久化异常也标为 <code>persistence</code>。相比旧的 <code>pre_request</code> 更安全，但阶段仍可能偏移。</td><td>引入显式 execution_stage ContextVar/局部状态，在配置加载、HTTP 准备、请求调用、终态持久化边界分别更新。</td></tr>
-<tr><td>R4</td><td class="warn">Low</td><td><code>run_inspector_presenter.py</code> / 模板测试</td><td>当前测试主要是 Presenter 字段和模板静态字符串断言，没有对 <code>client_failed</code>、<code>unknown_failure</code>、<code>not_started</code> 进行真实 Jinja 渲染。</td><td>增加 Admin/Operator/Viewer 三角色真实模板渲染矩阵，断言每个状态有且仅有一条传输状态文案。</td></tr>
+<tr><td>R4</td><td class="warn">Low</td><td><code>run_inspector_presenter.py</code> / 模板测试</td><td>已补 R1 真实路由三角色矩阵；仍缺少集中式状态字典与穷举门禁。</td><td>将状态枚举登记与模板矩阵纳入后续契约门禁。</td></tr>
 <tr><td>R5</td><td>已关闭</td><td><code>tests/test_orm_legacy_guard.py</code></td><td>AST guard 已识别 <code>urlsplit</code> 返回值别名，保留真实 ORM legacy 拦截；新增两行式回归。</td><td>已修复；复盘：<a href="../postmortem/2026-09-ORM-legacy-urlsplit误报修复.html">ORM legacy 门禁误报修复</a>。</td></tr>
 <tr><td>R6</td><td>Info</td><td><code>job_log_event.py</code> / 迁移脚本</td><td>模型声明 <code>(run_id, seq)</code> unique，但存量 SQLite 当前仅观察到 <code>trace_id,seq</code> unique 与普通 <code>run_id,seq</code> index；当前运行模型暂未被阻断，但 schema 漂移仍存在。</td><td>在 SQLite/MySQL 上补充约束存在性、重复数据清理和幂等迁移验收。</td></tr>
 <tr><td>R7</td><td>Info</td><td><code>events_for_run_id()</code></td><td>只要存在部分 <code>run_id</code> 行就不再 fallback 到同 trace 的 legacy 行；迁移中断或混合存量下可能出现时间线不完整。</td><td>采用显式 backfill 状态或合并去重查询，并补中断重跑测试。</td></tr>
@@ -39,10 +39,10 @@ main{max-width:1080px;margin:auto;padding:38px 24px 70px}h1{margin:0 0 8px;font-
 </tbody></table>
 
 <h2>3. 根因与范围</h2>
-<p>本轮优化把状态枚举从“单一失败文案”推进到三元契约，但枚举扩展仍分散在分类函数、模板分支和迁移脚本中，缺少集中式状态字典与穷举门禁。F1/F2/F6 解决了主要误导，却暴露出新增状态未被 UI 消费、异常基类边界过宽和阶段上下文不足的问题。R5/R8 已分别通过 AST 语义修复与链接校正关闭。</p>
+<p>本轮优化把状态枚举从“单一失败文案”推进到三元契约，但枚举扩展仍分散在分类函数、模板分支和迁移脚本中，缺少集中式状态字典与穷举门禁。F1/F2/F6 解决了主要误导；R1 已通过真实模板矩阵关闭，R5/R8 已分别通过 AST 语义修复与链接校正关闭，剩余主要风险是异常基类边界过宽。</p>
 
 <h2>4. 修复计划</h2>
-<ol><li><b>B5 · 状态兜底（R1/R4）：</b>集中定义传输状态标签；补齐未知/客户端失败/未开始分支；真实 Jinja 三角色矩阵。</li><li><b>B6 · 异常矩阵（R2）：</b>按 Requests 异常子类、<code>response</code> 是否存在、请求边界拆分状态；保留历史值兼容。</li><li><b>B7 · 阶段上下文（R3）：</b>用显式阶段变量替代 <code>saved_jl is not None</code> 代理。</li><li><b>G1 · 门禁修复（R5）：</b>已完成 AST 语义修复与别名回归。</li><li><b>M1 · 迁移观察（R6/R7）：</b>补 unique/index 和混合事件查询验证，不在本轮直接删除历史数据。</li></ol>
+<ol><li><b>B5 · 状态兜底（R1/R4）：</b>R1 状态分支与三角色真实模板矩阵已完成；R4 的完整枚举门禁仍可继续增强。</li><li><b>B6 · 异常矩阵（R2）：</b>按 Requests 异常子类、<code>response</code> 是否存在、请求边界拆分状态；保留历史值兼容。</li><li><b>B7 · 阶段上下文（R3）：</b>用显式阶段变量替代 <code>saved_jl is not None</code> 代理。</li><li><b>G1 · 门禁修复（R5）：</b>已完成 AST 语义修复与别名回归。</li><li><b>M1 · 迁移观察（R6/R7）：</b>补 unique/index 和混合事件查询验证，不在本轮直接删除历史数据。</li></ol>
 
 <h2>5. 验收标准</h2>
 <ul><li>每个 <code>transport_state</code> 枚举在分类函数、Presenter、模板和测试中均有登记；未知值有兜底文案。</li><li>ConnectTimeout、ReadTimeout、ProxyError、RemoteDisconnected、TooManyRedirects、客户端 TypeError 各有正反断言。</li><li>三角色真实模板渲染无空白传输状态、无错误“已收到响应”文案。</li><li><code>bash scripts/cronpilot.sh test</code> 全量通过；<code>ruff</code>、UI 契约、86 路由冒烟通过。</li><li>SQLite/MySQL 迁移幂等，唯一约束和混合事件时间线可验证。</li></ul>
@@ -51,7 +51,7 @@ main{max-width:1080px;margin:auto;padding:38px 24px 70px}h1{margin:0 0 8px;font-
 <p>异常细分只影响诊断字段与展示，不改变任务业务结果；旧状态保留读取兼容。若新分类导致历史页面误读，可先回滚 Presenter/模板标签映射，保留 JobLog 原始字段和事件数据；迁移批次不得删除旧事件或 trace_id。</p>
 
 <h2>7. 验证记录</h2>
-<p>定向观测测试、UI 契约、Ruff、86 条路由冒烟通过；浏览器 Viewer 路径可访问执行详情。全量测试结果：818 条执行通过，11 条跳过。文档链接检查：2123 个引用、0 broken。4.1.0 仍被 R1/R2 两个 Medium 风险阻断。</p>
+<p>R1 三角色真实路由矩阵、定向观测测试、UI 契约、Ruff、86 条路由冒烟通过；浏览器 Viewer 路径可访问执行详情。全量测试结果：818 条执行通过，11 条跳过。文档链接检查：2123 个引用、0 broken。4.1.0 仍被 R2 一个 Medium 风险阻断。</p>
 
 <footer><a href="../index.html">文档索引</a> · <a href="执行侧观测优化完成后全面Review-2026-09-18.md">Markdown</a> · <a href="执行侧观测近期提交专业Review评估-2026-09-18.html">原始 Review 评估</a></footer>
 </main></body></html>

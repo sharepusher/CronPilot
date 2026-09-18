@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>执行侧观测外层 fatal 阶段映射修复复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:1.75rem;border-left:4px solid #dc2626;padding-left:.75rem;font-size:1.05rem}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #dc2626;background:#fef2f2}
+.box-ok{border-left-color:#059669;background:#ecfdf5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>执行侧观测外层 fatal 阶段映射 · 复盘</h1>
+<p>日期：2026-09-18 · 状态：<strong>已修复并验证（F6）</strong></p>
+<p>关联评估：<a href="../design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估</a></p>
+
+<div class="box"><strong>问题：</strong><code>cron_do()</code> 外层 fatal except 只写 <code>fail_reason</code>，依赖默认值把已经创建运行记录、甚至请求调用后的异常标成 <code>pre_request</code>/<code>not_started</code>，造成排障阶段误导。</div>
+<div class="box box-ok"><strong>结果：</strong>新增边界感知的 fatal 映射：尚未创建运行记录为 <code>pre_request/not_started</code>，已创建记录但未开始调用为 <code>persistence/prepared</code>，请求调用已开始则复用传输异常分类。</div>
+
+<h2>1. Bug 定位</h2>
+<p>问题位于 <code>app/crons.py</code> 外层 <code>except Exception</code> 的 <code>_save_job_log()</code> 调用；原调用没有传入 <code>failure_stage</code>、<code>transport_state</code>、<code>response_received</code>。</p>
+
+<h2>2. 根因</h2>
+<p><code>_save_job_log()</code> 的默认策略适合普通前置失败，但外层 fatal 捕获跨越了任务创建、参数准备、HTTP 调用和持久化多个边界。异常处理器没有携带“是否已有运行记录”和“是否已开始请求调用”的上下文，因而所有路径共享同一组默认值。</p>
+
+<h2>3. 测试漏洞</h2>
+<p>既有测试覆盖了异常原因，却没有直接测试 outer fatal 的三种边界，也没有断言写入的 <code>failure_stage</code> 与 <code>transport_state</code>。因此默认值错误长期未暴露。</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li><code>app/services/job_log_outcome.py</code> 新增 <code>fatal_failure_info()</code>，根据运行边界返回非对称阶段映射。</li>
+  <li><code>app/crons.py</code> 在 <code>cron_do()</code> 入口初始化 <code>_request_call_started</code>，outer fatal 保存时传入完整失败契约。</li>
+  <li>请求已开始的 fatal 复用现有 <code>exception_failure_info()</code>；已创建记录但未开始调用的异常标记为持久化阶段，避免声称请求已发送。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+  <li><code>tests/test_job_log_outcome.py::test_outer_fatal_stage_depends_on_execution_boundary</code>：覆盖 pre-request、persistence、transport 三条路径。</li>
+  <li><code>.venv-py311/bin/python -m unittest tests.test_job_log_outcome tests.test_run_inspector_presenter tests.test_execution_observability_contract tests.test_execution_tracer -q</code>（40 条通过）</li>
+  <li><code>.venv-py311/bin/ruff check app/</code> 与 <code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>（86/86）</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>已检索 <code>_save_job_log()</code> 的所有调用点：正常 URL 拦截/缺失路径仍使用前置默认语义；HTTP 异常路径使用显式传输状态；outer fatal 现在使用边界感知映射。未改变任务业务结果、通知或权限语义。</p>
+
+<h2>7. 预防方案</h2>
+<p>所有跨越多个执行阶段的 catch-all 异常处理器必须显式传入阶段和传输状态，禁止依赖 <code>_save_job_log()</code> 默认值表达复杂上下文。新增异常边界时必须补充“记录是否已创建/请求是否已开始/是否收到响应”三维否定用例；门禁位置为 <code>tests/test_job_log_outcome.py</code>。</p>
+
+<footer><a href="2026-09-执行侧观测外层fatal阶段映射修复.md">Markdown</a> · <a href="index.html">复盘索引</a></footer>
+</body>
+</html>

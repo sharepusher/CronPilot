@@ -38,6 +38,12 @@ v0.1.0 2026-05-29 · 首发
 
 维护说明：未完成项请记在 [交付状态与路线图](交付状态与路线图.html)；本节不要写成内部进度板。
 
+- **UI 改进 — 任务中心标题统计收敛**：标题移除总任务数与“今日失败”，保留运行中、已暂停、持续异常和逾期；“今日失败”继续仅在独立统计卡显示。筛选、列表与 Dashboard stats API 口径不变。验证：Dashboard 定向测试、UI 契约、Ruff，以及本地浏览器首屏与 AJAX 筛选刷新通过。设计：[`doc/design/任务中心标题统计收敛设计-2026-09.html`](design/任务中心标题统计收敛设计-2026-09.html)
+- **改进 — 执行侧链路观测强化**：执行事件写入 `run_id` 强关联，补充脱敏 URL、超时阈值、计划触发时间与观测降级标记；Run Inspector 显示观测完整性。无 API Breaking Change。设计：[`doc/design/执行侧观测优化设计-2026-09.html`](design/执行侧观测优化设计-2026-09.html)
+- **修复 — 执行侧观测传输状态误导（F1）**：区分连接未建立与请求已发起但未收到响应，Run Inspector 不再把读取超时显示为“未确认发送”；保留历史状态展示兼容。验证：执行观测定向单测 27 条、UI 契约、Ruff、86 条路由冒烟全部通过。复盘：[`doc/postmortem/2026-09-执行侧观测传输状态误导修复.html`](postmortem/2026-09-执行侧观测传输状态误导修复.html)
+- **修复 — 执行侧观测 sent 状态判定（F2）**：`sent_no_response` 与兼容状态 `sent` 纳入“请求已发起”判定；仅收到响应时显示“已发送并收到响应”。验证：观测契约/Presenter/Tracer 25 条、UI 契约、Ruff、86 条路由冒烟通过。复盘：[`doc/postmortem/2026-09-执行侧观测sent状态判定修复.html`](postmortem/2026-09-执行侧观测sent状态判定修复.html)
+- **修复 — Run Inspector HTTP 状态标签（F3）**：Meta 区改用 `http_status_label`，无响应执行显示“未获得 HTTP 响应”，不再显示无语义的“—”。验证：观测契约、Presenter、详情集成测试 35 条通过；UI 契约、Ruff、86 条路由冒烟通过。复盘：[`doc/postmortem/2026-09-RunInspector-http状态标签未消费修复.html`](postmortem/2026-09-RunInspector-http状态标签未消费修复.html)
+- **修复 — 执行侧观测外层 fatal 阶段映射（F6）**：outer fatal 按执行边界区分 `pre_request/not_started`、`persistence/prepared` 与 `transport`，避免中段异常被误标为请求前置失败。验证：观测相关测试 40 条、Ruff、86 条路由冒烟通过。复盘：[`doc/postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html`](postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html)
 - **修复 — 触发术语全仓治理**：活跃代码/文档统一到“触发请求”模型；已发布 changelog 保持当时原文；`scripts/check_terminology.py` 放行技术回调与历史引用，并由 `docs-sync.yml` 与 `unit-tests.yml` 执行。设计 [`doc/design/全仓术语治理设计-2026-09.html`](design/全仓术语治理设计-2026-09.html) · 复盘 [`doc/postmortem/2026-09-trigger-terminology-cleanup.html`](postmortem/2026-09-trigger-terminology-cleanup.html)
 - **增强 — 任务链路日志完整性补全**：补齐 `cron.start` / `cron.http_sending` / `cron.created` / `cron.scheduler_registered` 过程日志；`job_log` 增加 `trigger_source`（当前仅 `schedule`/`manual`，`one_shot` 为预留）、`actual_url`（签名已脱敏）、`resolved_ip`、`trigger_delay_ms`；详情页按来源展示触发方式。设计 [`doc/design/任务链路日志完整性增强设计.html`](design/任务链路日志完整性增强设计.html) · 复盘 [`doc/postmortem/2026-09-任务链路日志Bug修复复盘.html`](postmortem/2026-09-任务链路日志Bug修复复盘.html)
 - **UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）**：将「+ 添加用户」移至用户列表工具区左首位，搜索框紧随其后；不改变路由、权限或后端行为。设计：[`doc/design/用户管理添加用户入口布局优化设计.html`](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html)

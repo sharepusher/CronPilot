@@ -154,6 +154,38 @@ class TestRunInspectorPresenter(unittest.TestCase):
         self.assertFalse(run['request']['actual_request_sent'])
         self.assertTrue(run['request']['parameter_prepared'])
 
+    def test_transport_state_labels_distinguish_connect_and_read_timeout(self):
+        base = dict(
+            id=10, status='timeout', http_status=None, take_time=1.2,
+            started_at='20260101120000', finished_at='20260101120001', create_time='20260101120000',
+            trigger_source='schedule', fail_reason='timeout', content='timeout', actual_url='https://example.com/',
+            trace_id='tid', timeout_sec=5, trigger_delay_ms=None,
+            failure_stage='transport', response_received=False,
+        )
+        cif = SimpleNamespace(id=1, task_name='t', req_method='GET', req_url='https://example.com/')
+        connect = build_run_inspector_view(
+            SimpleNamespace(**base, transport_state='connect_failed'), cif, viewer_role='admin'
+        )
+        read = build_run_inspector_view(
+            SimpleNamespace(**base, transport_state='sent_no_response'), cif, viewer_role='admin'
+        )
+        self.assertEqual(connect['summary']['transport_state'], 'connect_failed')
+        self.assertEqual(read['summary']['transport_state'], 'sent_no_response')
+        self.assertFalse(connect['request']['actual_request_sent'])
+        self.assertTrue(read['request']['actual_request_sent'])
+
+    def test_sent_state_is_treated_as_request_started(self):
+        base = dict(
+            id=11, status='error', http_status=None, take_time=1.2,
+            started_at='20260101120000', finished_at='20260101120001', create_time='20260101120000',
+            trigger_source='schedule', fail_reason='internal', content='error', actual_url='https://example.com/',
+            trace_id='tid-sent', timeout_sec=5, trigger_delay_ms=None,
+            failure_stage='transport', response_received=False, transport_state='sent',
+        )
+        cif = SimpleNamespace(id=1, task_name='t', req_method='GET', req_url='https://example.com/')
+        run = build_run_inspector_view(SimpleNamespace(**base), cif, viewer_role='admin')
+        self.assertTrue(run['request']['actual_request_sent'])
+
     def test_incomplete_flags_for_pending(self):
         jl = SimpleNamespace(
             id=8, status='pending', http_status=None, take_time=0,

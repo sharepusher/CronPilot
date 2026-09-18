@@ -44,7 +44,7 @@
 
   {# ─── Meta ─── #}
   <div class="ri-meta">
-    <span>HTTP <strong>{{ run.summary.http_status }}</strong></span>
+    <span>HTTP <strong>{{ run.summary.http_status_label }}</strong></span>
     <span>耗时 <strong>{{ run.summary.duration }}{% if run.summary.is_timeout %} (超时){% endif %}</strong></span>
     <span>开始 <strong>{{ run.summary.started_at }}</strong></span>
     {% if run.summary.has_finished_at %}
@@ -91,10 +91,14 @@
     <div class="ri-section-body"><span class="key">{{ run.request.method }}</span> {{ run.request.display_url }}
 {% if run.request.parameter_prepared %}
     <div><span class="key">参数准备：</span>已注入 trace_id / sign（敏感值已隐藏）</div>{% endif %}
-{% if run.request.actual_request_sent %}
+{% if run.summary.transport_state == 'response_received' or run.summary.response_received is true %}
     <div><span class="key">传输状态：</span>已发送并收到响应</div>
+{% elif run.summary.transport_state in ('sent', 'sent_no_response') or run.request.actual_request_sent %}
+    <div><span class="key">传输状态：</span>已发起，未收到响应</div>
+{% elif run.summary.transport_state == 'connect_failed' %}
+    <div><span class="key">传输状态：</span>连接未建立</div>
 {% elif run.summary.transport_state == 'failed_before_response' %}
-    <div><span class="key">传输状态：</span>未建立连接 · 未确认发送</div>
+    <div><span class="key">传输状态：</span>未确认发送</div>
 {% elif run.summary.transport_state == 'prepared' %}
     <div><span class="key">传输状态：</span>已准备，尚未确认发送</div>
 {% endif %}</div>

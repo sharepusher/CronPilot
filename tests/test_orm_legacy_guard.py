@@ -66,6 +66,35 @@ def find_violations(source, filename='<string>'):
     violations = []
 
     class Visitor(ast.NodeVisitor):
+        def __init__(self):
+            super().__init__()
+            # urlsplit(...).query is a URL component, not SQLAlchemy's
+            # legacy Model.query API. Track aliases used in two-line forms.
+            self.urlsplit_aliases = set()
+
+        def visit_Assign(self, node):
+            value = node.value
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == 'urlsplit'
+            ):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.urlsplit_aliases.add(target.id)
+            self.generic_visit(node)
+
+        def visit_AnnAssign(self, node):
+            value = node.value
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == 'urlsplit'
+                and isinstance(node.target, ast.Name)
+            ):
+                self.urlsplit_aliases.add(node.target.id)
+            self.generic_visit(node)
+
         def visit_Call(self, node):
             func = node.func
             base = _call_func_basename(func)
@@ -110,6 +139,12 @@ def find_violations(source, filename='<string>'):
                     isinstance(node.value, ast.Call)
                     and isinstance(node.value.func, ast.Name)
                     and node.value.func.id == 'urlsplit'
+                ):
+                    self.generic_visit(node)
+                    return
+                if (
+                    isinstance(node.value, ast.Name)
+                    and node.value.id in self.urlsplit_aliases
                 ):
                     self.generic_visit(node)
                     return
@@ -193,6 +228,15 @@ class TestOrmLegacyGuard(unittest.TestCase):
 
     def test_detector_ignores_string_literal(self):
         src = 'help_text = "do not use session.query or Model.query.paginate"\n'
+        vs = find_violations(src, filename='fixture.py')
+        self.assertEqual(vs, [])
+
+    def test_detector_ignores_urlsplit_alias_query(self):
+        src = (
+            'from urllib.parse import urlsplit\n'
+            'parts = urlsplit(url)\n'
+            'query = parts.query\n'
+        )
         vs = find_violations(src, filename='fixture.py')
         self.assertEqual(vs, [])
 

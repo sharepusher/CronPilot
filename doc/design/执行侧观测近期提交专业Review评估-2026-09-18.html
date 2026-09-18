@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>执行侧观测近期提交专业 Review 评估（2026-09-18）</title>
+<style>
+body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+main{max-width:1050px;margin:auto;padding:38px 24px 70px}
+h1{margin:0 0 8px;font-size:28px}
+h2{margin:36px 0 12px;font-size:20px}
+h3{margin:22px 0 8px;font-size:16px}
+.meta,.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.meta{background:#e7efff;color:#2455ba;margin-right:6px}
+.tag{background:#edf2f7;color:#465467}
+.card,.callout{margin:13px 0;padding:15px 17px;border:1px solid #dce4ef;border-radius:10px;background:#fff}
+.callout{border-left:4px solid #2563eb;background:#edf4ff}
+.callout.warn{border-left-color:#d97706;background:#fff7ed}
+table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0}
+th,td{padding:9px 10px;border:1px solid #dce4ef;text-align:left;vertical-align:top}
+th{background:#eff4fa;font-size:13px}
+.ok{color:#087f5b;font-weight:700}
+.warn{color:#b45309;font-weight:700}
+.bad{color:#c2413b;font-weight:700}
+code{padding:2px 5px;border-radius:4px;background:#eef2f7;font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{padding:12px;overflow:auto;border-radius:7px;background:#172238;color:#e6eef9;font-size:12px}
+ul,ol{padding-left:22px}
+.muted{color:#64748b;font-size:13px}
+footer{text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+<span class="meta">专业 Review 评估 · 2026-09-18</span>
+<span class="tag">执行侧观测</span>
+<span class="tag">已提交代码</span>
+<h1>执行侧观测近期提交专业 Review 评估</h1>
+<p class="muted">范围：<code>c30353b</code> → <code>0a303ed</code> → <code>4d8f2ac</code>（不含未提交工作区改动）。性质：代码审查结论落库；后续修复状态在 §8 记录，非修复设计确认稿。</p>
+
+<div class="callout">
+<b>结论：有条件通过（Conditional Pass）。</b>
+方向正确，且已实质补齐此前专项评估指出的 run_id 强关联、事件上下文、观测降级可见、失败/响应语义拆分，以及 Pinned HTTP TLS 参数误用。Bugbot 自动化审查未发现硬伤；人工复核确认 <b>2 个 Medium + 2 个 Low + 2 个 Info</b>，主风险是<strong>传输状态机与 Run Inspector 文案不一致</strong>，可能导致排障误判（尤其 ReadTimeout）。不阻断当前主干使用，但下一轮应优先完成状态机对齐。
+</div>
+
+<h2>1. 评估对象与方法</h2>
+<table>
+<thead><tr><th>提交</th><th>主题</th><th>核心路径</th></tr></thead>
+<tbody>
+<tr>
+<td><code>c30353b</code></td>
+<td>strengthen execution observability linkage and context</td>
+<td><code>execution_tracer</code>、<code>crons</code>、<code>job_log(_event)</code>、<code>run_inspector</code>、<code>ensure_business_tables</code></td>
+</tr>
+<tr>
+<td><code>0a303ed</code></td>
+<td>clarify execution failure and response observability</td>
+<td><code>job_log_outcome</code>、<code>crons</code>、<code>presenter</code>、失败阶段 / 传输态字段</td>
+</tr>
+<tr>
+<td><code>4d8f2ac</code></td>
+<td>separate HTTP and HTTPS pinned adapter parameters</td>
+<td><code>url_security._PinnedIPAdapter</code> + <code>tests/test_p0_phase_a.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>方法：完整 diff 精读 + 现网 SQLite schema 对照 + 相关单测/冒烟抽检 + Bugbot（natural-language 范围，结果：无 bugs）。</p>
+<p>验收命令（本轮评估执行时）：</p>
+<pre>.venv-py311/bin/python -m unittest tests.test_execution_tracer -v
+# 3/3 OK
+.venv-py311/bin/python scripts/smoke_routes.py --check
+# 86/86 PASS
+sqlite3 datas/job_log.sqlite "PRAGMA table_info(job_log); PRAGMA table_info(job_log_events);"
+# 含 observability_* / failure_* / transport_state / response_received / run_id / schema_version</pre>
+
+<h2>2. 相对 2026-09-17 专项评估的闭环对照</h2>
+<p>对照文档：<a href="任务执行链路可观测性-执行侧观测专项评估-2026-09-17.html">执行侧观测专项评估（2026-09-17）</a>（当时约 75%，缺上下文 / 降级提示 / 强关联）。</p>
+<table>
+<thead><tr><th>专项评估缺口</th><th>近期提交动作</th><th>判定</th></tr></thead>
+<tbody>
+<tr><td>事件上下文不足（URL/timeout/字节等）</td><td><code>sanitize_event_url</code>、<code>timeout_sec</code>、<code>response_bytes</code>、<code>scheduled_at</code> 等进入白名单与摘要</td><td class="ok">已闭环</td></tr>
+<tr><td>观测降级对用户不可见</td><td><code>observability_state</code> / <code>drop_reason</code> + Run Inspector「观测不完整」横幅</td><td class="ok">已闭环</td></tr>
+<tr><td>仅 trace_id 软关联</td><td>事件写 <code>run_id</code>；详情 <code>events_for_run_id</code> 优先；1:1 回填</td><td class="ok">已闭环（存量 unique 约束漂移见 §4）</td></tr>
+<tr><td>失败语义混淆（client bug vs 网络）</td><td><code>exception_failure_info</code> + <code>client_incompatible</code>；与 adapter 修复配套</td><td class="ok">已闭环</td></tr>
+<tr><td>无响应 vs HTTP 失败</td><td><code>failure_stage</code> / <code>transport_state</code> / <code>response_received</code></td><td class="warn">骨架已落地；状态机与文案仍有 Medium 不一致</td></tr>
+</tbody>
+</table>
+
+<h2>3. Findings（按严重度）</h2>
+<table>
+<thead><tr><th>ID</th><th>严重度</th><th>位置</th><th>问题</th><th>影响</th></tr></thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td class="warn">Medium</td>
+<td><code>app/crons.py</code>（异常路径 <code>transport_state</code>）<br><code>run_inspector.html</code> L96–97</td>
+<td>凡 <code>_request_call_started=True</code> 后失败（含 <b>ReadTimeout</b>）均写 <code>failed_before_response</code>；模板固定文案「未建立连接 · 未确认发送」。</td>
+<td>读超时场景下运维可能误判为「根本没连上」，掩盖「请求可能已发出、等待响应超时」。</td>
+</tr>
+<tr>
+<td>F2</td>
+<td class="warn">Medium</td>
+<td><code>run_inspector_presenter.py</code> L328–329</td>
+<td><code>actual_request_sent</code> 仅认 <code>('sent', 'response_received')</code>，但写入路径<strong>从未产生 <code>sent</code></strong>；超时/连接失败走 <code>failed_before_response</code>。</td>
+<td>布尔语义与模型文档中的 <code>sent</code> 态脱节；与模板分支叠加后，仅成功路径显示「已发送并收到响应」。</td>
+</tr>
+<tr>
+<td>F3</td>
+<td class="warn">Low</td>
+<td>Presenter <code>http_status_label</code> vs 模板 L47</td>
+<td>已计算并单测「未获得 HTTP 响应」，meta 仍渲染 <code>summary.http_status</code>（多为 <code>—</code>）。</td>
+<td>用户可见文案未吃到字段；形成死数据。</td>
+</tr>
+<tr>
+<td>F4</td>
+<td>Info</td>
+<td><code>JobLogEvent</code> 模型 vs 现网 SQLite</td>
+<td>模型声明 <code>UniqueConstraint(run_id, seq)</code>；现网仅有非唯一索引 <code>ix_job_log_events_run_id_seq</code>，无 <code>uq_job_log_events_run_seq</code>。<code>ensure_business_tables</code> 未补 unique。</td>
+<td>新建库与存量库约束漂移；现有 <code>trace_id</code> 唯一约束已覆盖当前执行模型，暂不构成独立运行时阻断。</td>
+</tr>
+<tr>
+<td>F5</td>
+<td>Info</td>
+<td><code>job_log_repository.events_for_run_id</code></td>
+<td><code>rows or fallback(trace_id)</code>：若某 run 已有部分带 <code>run_id</code> 的行，会挡住同 trace 遗留事件合并；事务化回填后通常不会发生。</td>
+<td>在 <code>job_log.trace_id</code> UNIQUE 与单事务回填前提下仅属迁移边界风险，需用回填中断/并发场景补测。</td>
+</tr>
+<tr>
+<td>F6</td>
+<td class="warn">Low</td>
+<td><code>crons.py</code> 外层 fatal except</td>
+<td>仍只传 <code>fail_reason</code>，默认落到 <code>pre_request</code> / <code>not_started</code>，没有消费 <code>exception_failure_info()</code> 的阶段语义。</td>
+<td>中段 fatal 或持久化异常可能被标成「请求前置」，导致排障方向错误；应升为 Low。</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<b>在本次审查范围内未发现安全硬伤。</b>
+<code>sanitize_event_url</code> 对 userinfo 与 query value 脱敏合理；Tracer 独立连接写入、失败不影响业务 session；失败分类把 <code>assert_hostname</code> TypeError 从 <code>internal</code> 拆出，与 <code>4d8f2ac</code> 根因一致。
+</div>
+
+<h2>4. 分提交评价</h2>
+<h3>4.1 <code>c30353b</code> — 强关联与上下文</h3>
+<ul>
+<li class="ok">优点：run_id 写入、回填仅 1:1、降级原因落库、事件 detail 白名单扩展与 Presenter 同步。</li>
+<li>注意：存量库 unique(run_id, seq) 未落地（F4）；观测状态二次 commit 吞异常可接受（best-effort）。</li>
+</ul>
+<h3>4.2 <code>0a303ed</code> — 失败 / 响应语义</h3>
+<ul>
+<li class="ok">优点：<code>failure_stage</code> / <code>transport_state</code> / <code>response_received</code> 三元组清晰；历史回填不把「有 actual_url」猜成「远端已收到」。</li>
+<li class="warn">短板：状态枚举含 <code>sent</code> 但运行时不写；UI 文案把多种「已发起后失败」折叠成「未建立连接」（F1/F2）。</li>
+</ul>
+<h3>4.3 <code>4d8f2ac</code> — Pinned adapter</h3>
+<ul>
+<li class="ok">优点：HTTP 不再传入 TLS-only kwargs；正反路径单测到位，属于根因级修复，建议保持为回归门禁。</li>
+</ul>
+
+<h2>5. 测试与验证覆盖评价</h2>
+<table>
+<thead><tr><th>已覆盖</th><th>仍缺 / 偏弱</th></tr></thead>
+<tbody>
+<tr>
+<td>Tracer run_id / schema_version；Presenter 无响应标签；Pinned HTTP/HTTPS pool kwargs；路由冒烟含 <code>/job_log_detail</code>。</td>
+<td>ReadTimeout vs ConnectTimeout 的 <code>transport_state</code> 与页面文案差异断言；模板是否渲染 <code>http_status_label</code>；存量库 unique 约束存在性检查；外层 fatal 的 failure_stage 默认值。</td>
+</tr>
+</tbody>
+</table>
+
+<h2>6. 建议优先级（不自动开干）</h2>
+<ol>
+<li><b>P1（语义）：</b>拆分传输失败态（至少 <code>connect_failed</code> / <code>sent_no_response</code>，或按 Connect/Read Timeout），UI 文案跟分类走（关闭 F1）。</li>
+<li><b>P1（契约）：</b>写入 <code>sent</code>，或修正 <code>actual_request_sent</code> 判定与模板分支一致（关闭 F2）。</li>
+<li><b>P2：</b>模板改用 <code>http_status_label</code>（或删除死字段）（F3）。</li>
+<li><b>P2：</b>补齐外层 fatal 的 <code>failure_stage=transport/persistence</code> 映射与测试（F6）。</li>
+<li><b>观察项：</b>迁移补齐 <code>uq_job_log_events_run_seq</code>（注意 SQLite 多 NULL <code>run_id</code>）（F4）；验证混合事件查询边界（F5）。</li>
+</ol>
+<p class="muted">若进入实现，须先出正式修复设计（含 Run Inspector 页面对比），经确认后再改代码。</p>
+
+<h2>7. 修复计划（待确认，不自动开工）</h2>
+<table>
+<thead><tr><th>批次</th><th>目标</th><th>实施范围</th><th>验收与退出条件</th></tr></thead>
+<tbody>
+<tr><td>B0 · 契约先行</td><td>锁定传输状态机</td><td>补充状态枚举、ConnectTimeout/ReadTimeout/连接异常/客户端兼容性/持久化异常的映射表；明确“已尝试发送”与“已收到响应”的区别。</td><td>设计稿获确认；Presenter、模板、事件白名单三方字段表一致。</td></tr>
+<tr><td>B1 · 失败语义</td><td>F1/F2/F6 已关闭</td><td>F1 已通过显式 <code>connect_failed</code>/<code>sent_no_response</code> 映射关闭；F2 已通过 Presenter 接受 <code>sent_no_response</code>、模板分支对齐关闭；F6 已通过 outer fatal 三阶段映射关闭。</td><td>40 条观测相关测试与 86 条路由冒烟通过；pre-request/persistence/transport 三条否定路径均有断言。</td></tr>
+<tr><td>B2 · 展示契约</td><td>F3 已关闭，避免回归</td><td>模板 Meta 区已消费 <code>http_status_label</code>；Presenter 与 <code>run_inspector.html</code> 继续统一消费 <code>transport_state</code>、<code>failure_stage</code>；补充模板字段契约断言。</td><td>无响应执行显示“未获得 HTTP 响应”；相关 35 条测试与 86 条路由冒烟通过。</td></tr>
+<tr><td>B3 · 存量迁移观察</td><td>收口 F4/F5</td><td>将 unique/index 检查放在正确迁移顺序；增加存量 SQLite/MySQL schema 检查、回填中断重跑、混合 run_id/trace_id 事件查询测试。</td><td>迁移幂等；唯一约束/索引状态可查询；回填后二次启动无重复写入或错误日志。</td></tr>
+<tr><td>B4 · 交付验证</td><td>形成可回滚交付</td><td>运行定向单测、全量路由冒烟、Ruff、文档同步；重启本地服务并用目标角色浏览器检查失败详情。</td><td>定向与集成测试全绿，<code>scripts/smoke_routes.py --check</code> 86/86，发布说明和复盘同步。</td></tr>
+</tbody>
+</table>
+
+<h2>8. 修复进度与最终判定</h2>
+<div class="card">
+<p><b>本轮进度：</b>F1、F2 已实施。F2 未强行写入无法由当前 HTTP 客户端可靠观测的中间 <code>sent</code> 事件，而是将已确认“请求调用已发起但无响应”的 <code>sent_no_response</code> 纳入 <code>actual_request_sent</code>，并调整模板优先级，避免误显示为“已发送并收到响应”。</p>
+<p><b>当前剩余：</b>F1/F2/F3/F6 已实施；F4/F5 继续作为迁移观察项。</p>
+</div>
+<div class="card">
+<p><b>判定：有条件通过。</b>执行侧观测相对 2026-09-17 专项评估已从「约 75% / 缺上下文与降级」推进到「工程可用且语义骨架完整」；F1/F2 的传输态与文案误导已关闭，剩余为展示字段与外层异常阶段收口。</p>
+<p><b>完成度（本评估主观）：约 92%</b> — 剩余主要是 F3/F6 低风险契约收口与 F4/F5 迁移观察。</p>
+<p><b>Bugbot：</b>无 bugs。<b>人工复核：</b>2 Medium / 2 Low / 2 Info。</p>
+</div>
+<p class="muted">本评估不覆盖调度注册观测、APScheduler 对账，以及工作区未提交的任务中心标题统计收敛改动。</p>
+</main>
+<footer>
+<a href="../index.html">文档索引</a>
+· <a href="执行侧观测近期提交专业Review评估-2026-09-18.md">Markdown</a>
+· <a href="任务执行链路可观测性-执行侧观测专项评估-2026-09-17.html">2026-09-17 专项评估</a>
+</footer>
+</body>
+</html>

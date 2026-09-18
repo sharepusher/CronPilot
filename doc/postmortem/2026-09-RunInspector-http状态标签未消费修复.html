@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Run Inspector HTTP 状态标签未消费修复复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:1.75rem;border-left:4px solid #dc2626;padding-left:.75rem;font-size:1.05rem}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #dc2626;background:#fef2f2}
+.box-ok{border-left-color:#059669;background:#ecfdf5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>Run Inspector HTTP 状态标签未消费 · 复盘</h1>
+<p>日期：2026-09-18 · 状态：<strong>已修复并验证（F3）</strong></p>
+<p>关联评估：<a href="../design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估</a></p>
+
+<div class="box"><strong>问题：</strong>Presenter 已计算 <code>http_status_label</code>，用于表达“未获得 HTTP 响应”，但模板 Meta 区仍渲染 <code>summary.http_status</code>。无响应执行因此只显示“—”，丢失了明确诊断信息。</div>
+<div class="box box-ok"><strong>结果：</strong>Meta 区统一消费 <code>http_status_label</code>；有 HTTP 状态时保持原数字，无响应时显示“未获得 HTTP 响应”。</div>
+
+<h2>1. Bug 定位</h2>
+<p>问题位于 <code>app/templates/redesign/run_inspector.html</code> Meta 区的 HTTP 字段。Presenter 的 <code>summary.http_status_label</code> 本身已正确计算。</p>
+
+<h2>2. 根因</h2>
+<p>Presenter DTO 同时保留原始 <code>http_status</code> 和面向展示的 <code>http_status_label</code>，模板沿用了旧字段名，缺少 DTO 字段消费门禁。行为层根因是展示层没有把“原始值”和“语义标签”区分为不同用途。</p>
+
+<h2>3. 测试漏洞</h2>
+<p>既有 Presenter 测试只断言 DTO 中的 <code>http_status_label</code>，没有读取模板并断言 Meta 区消费该字段。因此计算逻辑正确但页面未使用时，测试仍会通过。</p>
+
+<h2>4. 修复</h2>
+<p>将模板从 <code>run.summary.http_status</code> 改为 <code>run.summary.http_status_label</code>；新增契约测试，禁止 Meta 区回退到原始字段。没有改变 API、数据库字段或业务结果判定。</p>
+
+<h2>5. 防护测试</h2>
+<ul>
+  <li><code>tests/test_execution_observability_contract.py::test_run_inspector_meta_uses_http_status_label</code>：断言模板使用语义标签且不使用旧字段。</li>
+  <li><code>.venv-py311/bin/python -m unittest tests.test_execution_observability_contract tests.test_run_inspector_presenter tests.test_job_log_detail_integration -q</code>（35 条通过）</li>
+  <li><code>.venv-py311/bin/python scripts/check_ui_contract.py --check</code>、<code>.venv-py311/bin/ruff check app/</code>、<code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>（86/86）</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>已检索 Run Inspector 模板中所有 <code>summary.http_status</code>、<code>http_status_label</code> 引用；Meta 区已切换到语义标签，响应区仍按原始 HTTP 数值渲染，职责边界清晰。F6 外层 fatal 阶段映射与 F4/F5 迁移观察项仍保持独立。</p>
+
+<h2>7. 预防方案</h2>
+<p>对 Presenter DTO 中所有“原始值/展示标签”成对字段增加模板消费断言；新增展示字段时必须同时补“计算存在 + 模板消费”的测试。门禁位置：<code>tests/test_execution_observability_contract.py</code>，第三方可用 §5 命令复现。</p>
+
+<footer><a href="2026-09-RunInspector-http状态标签未消费修复.md">Markdown</a> · <a href="index.html">复盘索引</a></footer>
+</body>
+</html>

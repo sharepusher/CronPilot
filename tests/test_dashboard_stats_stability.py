@@ -114,8 +114,8 @@ class TestDashboardStatsStability(unittest.TestCase):
         resp_paused = self._get_v2_dashboard(status='0')
         self.assertEqual(resp_paused.status_code, 200)
 
-    def test_stat_line_shows_running_and_paused(self):
-        """方案 E：顶栏在总数后展示运行中 / 已暂停；chip「全部」不变。"""
+    def test_stat_line_shows_status_and_attention_only(self):
+        """标题保留状态/风险，不重复展示总任务数或今日失败。"""
         self._login_as_seed()
         resp = self._get_v2_dashboard()
         self.assertEqual(resp.status_code, 200)
@@ -123,7 +123,14 @@ class TestDashboardStatsStability(unittest.TestCase):
         # Seed: 3 running + 2 paused
         self.assertIn('运行中 <b>3</b>', html)
         self.assertIn('已暂停 <b>2</b>', html)
-        self.assertIn('个任务', html)
+        stat_line = html.split('<div class="stat-line">', 1)[1].split('</div>', 1)[0]
+        self.assertNotIn('个任务', stat_line)
+        self.assertNotIn('今日失败', stat_line)
+        self.assertIn('持续异常', stat_line)
+        self.assertIn('逾期', stat_line)
+        self.assertIn("statLine.innerHTML = '运行中 <b>' + stats.running", html)
+        self.assertNotIn("stats.total + '</b> 个任务 · 运行中", html)
+        self.assertNotIn("stats.today_fail_runs + ' 今日失败'", html)
         self.assertNotIn('在营', html)
         self.assertRegex(html, r'data-filter-val=""[^>]*>全部<')
 

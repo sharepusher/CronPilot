@@ -77,6 +77,13 @@ class TestObservabilityContractC3TemplateHardBan(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, template)
 
+    def test_run_inspector_meta_uses_http_status_label(self):
+        path = os.path.join(ROOT, 'app', 'templates', 'redesign', 'run_inspector.html')
+        with open(path, encoding='utf-8') as f:
+            template = f.read()
+        self.assertIn('HTTP <strong>{{ run.summary.http_status_label }}</strong>', template)
+        self.assertNotIn('HTTP <strong>{{ run.summary.http_status }}</strong>', template)
+
     def test_timeline_rows_have_no_detail_key(self):
         event = SimpleNamespace(
             seq=1,

@@ -281,9 +281,16 @@
           <ul class="nest">
             <li><span class="badge b-sub">已实施</span> <a href="design/执行详情URL字段角色化脱敏修复设计-2026-09.html">执行详情 URL 字段角色化脱敏修复设计</a>（Bugbot High：全角色 URL 凭据脱敏 · 完整 Presenter DTO）</li>
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-execution-detail-url-redaction.html">执行详情 URL 脱敏缺失修复复盘</a>（根因 · 防护测试 · DTO 边界门禁）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行失败分类与HTTP响应语义.html">执行失败分类与 HTTP 响应语义</a>（TypeError 误归类 · 无响应语义缺失 · 参数准备与实际发送混淆）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行侧观测传输状态误导修复.html">执行侧观测传输状态误导修复</a>（连接失败/已发送未响应分流 · F1 已修复）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行侧观测sent状态判定修复.html">执行侧观测 sent 状态判定修复</a>（Presenter/模板契约对齐 · F2 已修复）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-RunInspector-http状态标签未消费修复.html">Run Inspector HTTP 状态标签未消费修复</a>（Presenter/模板字段对齐 · F3 已修复）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html">执行侧观测外层 fatal 阶段映射修复</a>（outer fatal 三阶段映射 · F6 已修复）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-PinnedIPAdapter-HTTP协议参数错误.html">PinnedIPAdapter HTTP 协议参数错误</a>（HTTP 误传 TLS 参数 · HTTP/HTTPS 分支修复）</li>
             <li><span class="badge b-sub">已实施</span> <a href="postmortem/2026-09-task-detail-seconds-display.html">任务详情 seconds 展示丢失修复复盘</a>（完整 Cron 表达式 · seconds 不丢失）</li>
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-dashboard-relative-time-test-determinism.html">Dashboard 相对时间测试确定性修复</a>（可注入时间基准 · 消除时钟漂移）</li>
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-regression-gate-cleanup.html">全量回归门禁收口修复</a>（legacy 门禁 · 无上下文日志）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-ORM-legacy-urlsplit误报修复.html">ORM legacy 门禁误报修复</a>（urlsplit 别名与 <code>.query</code> 误报）</li>
             <li><span class="badge b-sub">对比 Demo</span> <a href="design/任务执行链路可观测性-页面对比Demo.html">页面对比 Demo</a>（Before/After · 详情主变更 + 列表/任务详情轻量 · 明确不改页）</li>
             <li><span class="badge b-sub">场景 Demo</span> <a href="design/任务执行链路可观测性-RunInspector-Demo.html">Run Inspector 目标态场景 Demo</a>（状态呈现 / 时间线 / 三角色信息边界）</li>
             <li><span class="badge b-sub">Review</span> <a href="design/任务执行链路可观测性设计方案-收敛版-专业Review.html">收敛版专业 Review</a>（有条件通过 · 3 Blocker · 7 Major）</li>
@@ -291,8 +298,13 @@
             <li><span class="badge b-sub">功能评估</span> <a href="design/任务执行链路可观测性-文档与实现功能评估.html">文档与实现功能评估</a>（有条件可用 · B4/B5 未闭环）</li>
             <li><span class="badge b-sub">当前评估</span> <a href="design/任务执行链路可观测性-当前实现评估-2026-09-17.html">当前实现评估（2026-09-17）</a>（有条件可用 · 执行观测闭环，调度注册观测未闭环）</li>
             <li><span class="badge b-sub">专项评估</span> <a href="design/任务执行链路可观测性-执行侧观测专项评估-2026-09-17.html">执行侧观测专项评估（2026-09-17）</a>（约 75% · 单次运行诊断可用，事件上下文与降级提示待补）</li>
+            <li><span class="badge b-sub">评估</span> <a href="design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估（2026-09-18）</a>（有条件通过 · c30353b/0a303ed/4d8f2ac · 2 Medium / 2 Low / 2 Info）</li>
+            <li><span class="badge b-sub">全面 Review</span> <a href="design/执行侧观测优化完成后全面Review-2026-09-18.html">执行侧观测优化完成后全面 Review（2026-09-18）</a>（有条件通过 · R1/R2 两个 Medium 待修 · R5/R8 已关闭 · 全量 818 通过）</li>
+            <li><span class="badge b-sub">发布前</span> <a href="design/4.1.0发布前变更梳理与文档收敛-2026-09-18.html">4.1.0 发布前变更梳理与文档收敛</a>（4.0.0 后提交分层 · 过期文档排除 · R1/R2 阻断）</li>
+            <li><span class="badge b-sub">设计</span> <a href="design/执行侧观测-传输状态机收口设计-2026-09-18.html">传输状态机收口设计（2026-09-18）</a>（待确认 · Connect/Read 分态 · Run Inspector 页面对比 · 关 F1–F4/F6）</li>
             <li><span class="badge b-sub">设计</span> <a href="design/执行侧观测优化设计-2026-09.html">执行侧观测优化设计（2026-09）</a>（待确认 · run_id 强关联、事件上下文、降级可见、统一时间线）</li>
             <li><span class="badge b-sub">决策说明</span> <a href="design/执行侧观测-run_id强关联决策说明-2026-09.html">run_id 强关联决策说明（2026-09）</a>（待确认 · 数据一致性、迁移兼容、查询与回滚边界）</li>
+            <li><span class="badge b-sub">设计</span> <a href="design/执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.html">失败分类与 HTTP 响应语义优化设计（2026-09）</a>（已实施 · 统一失败分类、请求生命周期、无响应语义与 Before/After Demo）</li>
             <li><span class="badge b-sub">短设计</span> <a href="design/R1-执行记录列表pending-running显示收口设计-2026-09.html">R1 执行记录列表 pending/running 显示收口</a>（已实施 · 已入队徽章 +「进行中」筛选）</li>
             <li><span class="badge b-sub">短设计</span> <a href="design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html">R2 Run Inspector Presenter/详情契约收口</a>（已实施 · 时间线上移 · 禁 raw JSON · 三角色）</li>
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-RunInspector-raw-detail与时间线顺序.html">Run Inspector raw detail 与时间线顺序</a>（禁 JSON · 时间线上移）</li>
@@ -442,6 +454,7 @@
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心需要关注项目排除下线任务设计.html">任务中心需要关注项目排除下线任务设计</a>（下线任务不再进入异常提醒面板）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/下次执行相对时间误显示修复设计-2026-09.html">下次执行相对时间误显示修复设计</a>（空 minute 与 APScheduler 默认 0 · 已实施）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心排除已下线任务统计与默认列表设计-2026-09.html">任务中心顶栏运行中/已暂停分列统计</a>（方案 E · 已实施 rev.5）</li>
+            <li><span class="badge b-sub">Dashboard</span> <a href="design/任务中心标题统计收敛设计-2026-09.html">任务中心标题统计收敛</a>（已实施 · 移除总任务数与今日失败，保留状态与风险信号）</li>
             <li><span class="badge b-sub">Dashboard</span> <a href="design/screenshots/dashboard-table-overflow-demo.html">Dashboard 操作下拉菜单重叠修复 — 对比 Demo</a>（Dashboard 操作下拉菜单重叠修复对比 Demo）</li>
           </ul>
         </div>

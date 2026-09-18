@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>执行侧观测 sent 状态判定修复复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:1.75rem;border-left:4px solid #dc2626;padding-left:.75rem;font-size:1.05rem}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #dc2626;background:#fef2f2}
+.box-ok{border-left-color:#059669;background:#ecfdf5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>执行侧观测 <code>sent</code> 状态判定 · 复盘</h1>
+<p>日期：2026-09-18 · 状态：<strong>已修复并验证（F2）</strong></p>
+<p>关联评估：<a href="../design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估</a></p>
+
+<div class="box"><strong>问题：</strong>Presenter 的 <code>actual_request_sent</code> 只接受 <code>sent</code> 与 <code>response_received</code>，但运行时没有可靠地产生中间 <code>sent</code> 状态。F1 新增的 <code>sent_no_response</code> 因此无法进入“请求已发起”语义；模板分支也可能把状态覆盖成“已发送并收到响应”。</div>
+<div class="box box-ok"><strong>结果：</strong><code>sent_no_response</code> 与未来兼容的 <code>sent</code> 均被识别为请求已发起；只有明确收到响应时才显示“已发送并收到响应”。本批次不伪造无法由同步 HTTP 客户端可靠观测的中间发送事件。</div>
+
+<h2>1. Bug 定位</h2>
+<p>问题位于 <code>app/services/run_inspector_presenter.py</code> 的 <code>actual_request_sent</code> 判定和 <code>app/templates/redesign/run_inspector.html</code> 的传输状态分支。</p>
+
+<h2>2. 根因</h2>
+<p>状态枚举预留了 <code>sent</code>，但当前同步 <code>requests.get/post</code> 调用在返回前没有可移植的“字节已发出”回调；异常终态由 <code>exception_failure_info</code> 直接落为 <code>connect_failed</code> 或 <code>sent_no_response</code>。Presenter 仍沿用旧的两值白名单，导致模型状态与展示判定契约脱节。行为层根因是“请求调用已发起”和“已收到响应”没有在 Presenter 与模板中使用同一套状态优先级。</p>
+
+<h2>3. 测试漏洞</h2>
+<p>已有测试只断言成功记录的 <code>response_received</code>，没有断言 <code>sent_no_response</code> 在 Admin 视角下的请求已发起语义，也没有覆盖模板分支优先级。因此即使 Presenter 返回 false 或模板错误显示成功，测试仍可能通过。</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li>Presenter 将 <code>sent_no_response</code> 纳入 <code>actual_request_sent</code>，并保留 <code>sent</code> 兼容。</li>
+  <li>Run Inspector 模板先判断 <code>response_received</code> / <code>response_received</code> 状态；仅收到响应时显示“已发送并收到响应”，<code>sent</code>/<code>sent_no_response</code> 显示“已发起，未收到响应”。</li>
+  <li>连接失败仍优先显示“连接未建立”；Viewer/Operator 的 URL 与响应权限语义不变。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+  <li><code>tests/test_run_inspector_presenter.py::test_transport_state_labels_distinguish_connect_and_read_timeout</code>：连接失败为 false，读取超时为 true。</li>
+  <li><code>tests/test_run_inspector_presenter.py::test_sent_state_is_treated_as_request_started</code>：兼容状态 <code>sent</code> 为 true。</li>
+  <li><code>.venv-py311/bin/python -m unittest tests.test_run_inspector_presenter tests.test_execution_observability_contract tests.test_execution_tracer -v</code>（25 条通过）</li>
+  <li><code>.venv-py311/bin/python scripts/check_ui_contract.py --check</code>、<code>.venv-py311/bin/ruff check app/</code>、<code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>（86/86）</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>已检索 <code>actual_request_sent</code>、<code>transport_state</code> 及 Run Inspector 模板的所有引用。成功响应、连接失败、已发起未响应、历史状态均有明确分支；未发现 Viewer/Operator 绕过角色裁剪或把无响应显示成成功响应的路径。F3（<code>http_status_label</code> 未被模板使用）与 F6（外层 fatal 阶段默认值）仍保持独立待办。</p>
+
+<h2>7. 预防方案</h2>
+<p>将“是否已发起请求”和“是否已收到响应”作为两个独立断言固定在 Presenter 测试矩阵中，并要求模板分支顺序先处理响应已收到，再处理已发起未响应，最后处理连接失败/准备阶段。新增状态时必须同步更新 <code>run_inspector_presenter.py</code>、<code>run_inspector.html</code> 与 <code>tests/test_run_inspector_presenter.py</code>；第三方可用 §5 命令复现。</p>
+
+<footer><a href="2026-09-执行侧观测sent状态判定修复.md">Markdown</a> · <a href="index.html">复盘索引</a></footer>
+</body>
+</html>

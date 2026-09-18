@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>执行侧观测传输状态误导修复复盘</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}
+h1{border-bottom:3px solid #dc2626;padding-bottom:.5rem;font-size:1.35rem}
+h2{margin-top:1.75rem;border-left:4px solid #dc2626;padding-left:.75rem;font-size:1.05rem}
+.box{padding:14px 17px;margin:18px 0;border-left:4px solid #dc2626;background:#fef2f2}
+.box-ok{border-left-color:#059669;background:#ecfdf5}
+code{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:.85rem}
+footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#64748b;font-size:.88rem}
+</style>
+</head>
+<body>
+<h1>执行侧观测传输状态误导 · 复盘</h1>
+<p>日期：2026-09-18 · 状态：<strong>已修复并验证（F1）</strong></p>
+<p>关联评估：<a href="../design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估</a></p>
+
+<div class="box"><strong>问题：</strong>连接超时、读取超时等异常都被记录为 <code>failed_before_response</code>，Run Inspector 因而把“已发起但未收到响应”误报为“未确认发送”。这会影响值班人员对请求是否离开进程的判断。</div>
+<div class="box box-ok"><strong>结果：</strong>失败信息现在同时携带 <code>failure_stage</code>、<code>fail_reason</code> 与 <code>transport_state</code>；连接失败显示“连接未建立”，读取超时显示“已发起，未收到响应”，并保留旧状态兼容展示。</div>
+
+<h2>1. Bug 定位</h2>
+<p>问题位于 <code>app/crons.py</code> 的 HTTP 异常处理和 <code>app/templates/redesign/run_inspector.html</code> 的请求阶段文案。原逻辑只依据 <code>_request_call_started</code> 写入单一的 <code>failed_before_response</code>，无法区分连接阶段与请求已发送后的等待阶段。</p>
+
+<h2>2. 根因</h2>
+<p>异常分类契约只有 <code>fail_reason</code>，传输阶段另由一个布尔值补推；该布尔值表达“调用函数是否开始”，却不能表达“TCP/TLS 是否建立”或“请求字节是否已经发送”。展示层又将该状态直接映射成“未确认发送”，造成运行事实与用户文案不一致。行为层根因是异常到传输状态的映射缺少单一、显式的契约。</p>
+
+<h2>3. 测试漏洞</h2>
+<p>既有测试只验证了异常的失败原因和通用失败记录，没有同时覆盖连接超时、读取超时、连接错误三种传输阶段，也没有断言 Run Inspector 对不同状态给出不同文案。因此测试可以在状态语义错误时仍然全绿。</p>
+
+<h2>4. 修复</h2>
+<ul>
+  <li><code>app/services/job_log_outcome.py</code> 新增 <code>exception_failure_info()</code>：<code>ConnectTimeout</code>/<code>ConnectionError</code> 映射为 <code>connect_failed</code>，<code>ReadTimeout</code>/<code>Timeout</code> 映射为 <code>sent_no_response</code>，客户端参数错误映射为 <code>client_failed</code>。</li>
+  <li><code>app/crons.py</code> 使用上述映射写入 JobLog 与执行追踪事件；未开始调用时仍写入 <code>prepared</code>，避免过度声称请求已经发出。</li>
+  <li><code>run_inspector.html</code> 为 <code>connect_failed</code>、<code>sent_no_response</code>、历史 <code>failed_before_response</code> 提供独立文案；模型字段说明同步更新。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<p>新增/更新 <code>tests/test_job_log_outcome.py</code> 与 <code>tests/test_run_inspector_presenter.py</code>，覆盖连接超时与读取超时的差异、连接错误状态以及 Presenter 透传。验收命令：</p>
+<ul>
+  <li><code>.venv-py311/bin/python -m unittest tests.test_job_log_outcome tests.test_run_inspector_presenter tests.test_execution_tracer -v</code>（27 条通过）</li>
+  <li><code>.venv-py311/bin/python scripts/check_ui_contract.py --check</code>（0 违规）</li>
+  <li><code>.venv-py311/bin/ruff check app/</code>（通过）</li>
+  <li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>（86/86 通过）</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>已检索 <code>failed_before_response</code>、<code>exception_fail_reason</code> 及 <code>transport_state</code> 的生产代码和模板引用。生产路径已改为显式状态映射；历史状态仅保留在展示兼容分支。未发现其他将连接失败直接描述为“已发送”或将读取超时描述为“未发送”的路径。F2（运行时未写入 <code>sent</code> 状态）属于下一项独立修复，未在本批次混入。</p>
+
+<h2>7. 预防方案</h2>
+<p>建立“异常类型 → failure_stage/fail_reason/transport_state → 展示文案”的三列契约表，并将每种状态的正向和否定用例固定在 <code>tests/test_job_log_outcome.py</code>；任何新增网络异常必须先补映射和测试，禁止在 <code>app/crons.py</code> 重新写布尔值推断。评估文档的 B0 契约批次将继续作为 F2 及后续观测修复的入口。第三方可用 §5 命令复现。</p>
+
+<footer><a href="2026-09-执行侧观测传输状态误导修复.md">Markdown</a> · <a href="index.html">复盘索引</a></footer>
+</body>
+</html>

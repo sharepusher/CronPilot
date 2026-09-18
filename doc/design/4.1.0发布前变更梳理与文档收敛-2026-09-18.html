@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>CronPilot 4.1.0 发布前变更梳理与文档收敛</title></head>
+<body>
+<main>
+<h1>CronPilot 4.1.0 发布前变更梳理与文档收敛</h1>
+<p>日期：2026-09-18 · 基线：<code>v4.0.0</code> · 当前 HEAD：<code>4d8f2ac</code></p>
+<h2>1. 目标与结论</h2>
+<p>本文把 <code>v4.0.0..HEAD</code> 的代码提交、设计/复盘文档和当前未提交变更分成发布范围、历史留档和发布阻断三类，避免把过期设计稿误写进 4.1.0 Release Notes。</p>
+<p><strong>结论：</strong>当前变更可以提交为发布前修复集，但暂不应创建 <code>v4.1.0</code> 正式 tag。全量测试已恢复为 818 条通过、11 条跳过；执行侧观测全面 Review 仍保留 R1/R2 两个 Medium 风险。</p>
+<h2>2. 4.1.0 建议纳入范围</h2>
+<ul><li>任务中心统计语义收敛：标题移除总任务数与今日失败，今日失败留在独立统计卡。</li><li>执行观测链路：run_id 关联、事件上下文、失败阶段/传输状态/HTTP 响应语义、Run Inspector 契约。</li><li>任务与安全修复：50-bit ID、健康度阈值、用户同名覆盖、SSRF fail-closed、Pinned HTTP/HTTPS 参数分离、下线任务排除。</li><li>工程门禁：文档索引/双格式同步、术语门禁、离线/沙盒验收、AST ORM legacy 门禁误报修复。</li></ul>
+<h2>3. 明确不纳入 4.1.0 发布说明的文档</h2>
+<ul><li><code>doc/archive/**</code> 历史设计、评估轮次和质量报告：保留追溯，不进入功能清单。</li><li>仍标记“待确认/暂停”的 R2-D、R3-C、传输状态机下一批 B5/B6/B7 与未完成测试修复方案。</li><li>仅描述评估过程、未对应已合并行为的旧 Review 快照。</li></ul>
+<p>不纳入发布说明不等于删除文件；历史文档继续保留。</p>
+<h2>4. 4.0.0 之后的提交清单</h2>
+<p>共 31 个已提交变更，主题覆盖 CQ-9、OPT-P0-21/22、Dashboard/UI、SEC-6、生命周期日志、RBAC/全量回归、沙盒验收、调度展示、执行观测、Pinned adapter，以及对应设计/复盘/索引登记。完整哈希与主题见同名 Markdown。</p>
+<h2>5. 当前未提交变更与提交边界</h2>
+<p>可提交内容包括执行观测 F1/F2/F3/F6、任务中心标题统计收敛、对应双格式设计/复盘、ORM legacy AST 误报修复和文档断链修复。不应在同一提交中伪装关闭 R1/R2。</p>
+<h2>6. 发布阻断与验收</h2>
+<ol><li>补齐 R1 状态兜底与真实模板测试。</li><li>完成 R2 Requests 异常矩阵。</li><li>完成 R6/R7 迁移与混合事件 fallback 验收。</li><li>重跑全量测试、Ruff、路由冒烟及文档门禁，更新版本文件。</li></ol>
+<pre>bash scripts/cronpilot.sh test
+ruff check app/
+python3 scripts/smoke_routes.py --check
+python3 scripts/html_docs_to_markdown.py --check
+python3 scripts/check_doc_completeness.py --check
+python3 scripts/check_doc_links.py --check
+python3 scripts/check_version_consistency.py --check</pre>
+<h2>7. 发布操作顺序</h2>
+<p>先提交当前修复集；R1/R2 关闭且门禁全绿后，再将确认条目从 <code>[Unreleased]</code> 下沉到 <code>[4.1.0]</code>，同步 README、路线图和双格式 Release Notes，最后由发布人创建 tag。本轮不执行 tag 或 push。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="4.1.0发布前变更梳理与文档收敛-2026-09-18.md">Markdown</a></footer>
+</main>
+</body>
+</html>

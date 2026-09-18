@@ -10,6 +10,7 @@ from app.services.job_log_outcome import (
     evaluate_http_response,
     exception_fail_reason,
     exception_failure_info,
+    fatal_failure_info,
     fail_on_http_4xx_5xx_enabled,
     keyword_matched,
     pre_request_outcome,
@@ -51,12 +52,34 @@ class TestJobLogOutcome(unittest.TestCase):
     def test_exception_timeout(self):
         self.assertEqual(exception_fail_reason(requests.exceptions.ReadTimeout()), 'timeout')
 
+    def test_connect_timeout_is_distinct_from_read_timeout(self):
+        connect = exception_failure_info(requests.exceptions.ConnectTimeout())
+        read = exception_failure_info(requests.exceptions.ReadTimeout())
+        self.assertEqual(connect['transport_state'], 'connect_failed')
+        self.assertEqual(read['transport_state'], 'sent_no_response')
+
+    def test_connection_error_reports_connect_failure(self):
+        info = exception_failure_info(requests.exceptions.ConnectionError())
+        self.assertEqual(info['transport_state'], 'connect_failed')
+
+    def test_outer_fatal_stage_depends_on_execution_boundary(self):
+        exc = RuntimeError('unexpected')
+        self.assertEqual(fatal_failure_info(exc)['failure_stage'], 'pre_request')
+        self.assertEqual(fatal_failure_info(exc)['transport_state'], 'not_started')
+        self.assertEqual(fatal_failure_info(exc, job_log_started=True)['failure_stage'], 'persistence')
+        self.assertEqual(fatal_failure_info(exc, job_log_started=True)['transport_state'], 'prepared')
+        self.assertEqual(fatal_failure_info(exc, request_call_started=True)['failure_stage'], 'transport')
+
     def test_client_incompatibility_is_not_connection_failure(self):
         exc = TypeError("HTTPConnection.__init__() got an unexpected keyword argument 'assert_hostname'")
         self.assertEqual(exception_fail_reason(exc), 'client_incompatible')
         self.assertEqual(
             exception_failure_info(exc),
-            {'failure_stage': 'transport', 'fail_reason': 'client_incompatible'},
+            {
+                'failure_stage': 'transport',
+                'fail_reason': 'client_incompatible',
+                'transport_state': 'client_failed',
+            },
         )
 
     def test_should_alert(self):

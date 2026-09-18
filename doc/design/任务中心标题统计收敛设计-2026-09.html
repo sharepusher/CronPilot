@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务中心标题统计收敛设计（2026-09）</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC",sans-serif;max-width:1120px;margin:2rem auto;padding:0 1.5rem 3rem;line-height:1.7;color:#1a1a2e}h1{border-bottom:3px solid #3d6fe0;padding-bottom:.5rem;font-size:1.4rem}h2{margin-top:2rem;border-left:4px solid #3d6fe0;padding-left:.8rem;font-size:1.1rem}h3{margin-top:1.35rem;color:#2d3748}table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.9rem}th,td{border:1px solid #d9dee8;padding:.55rem .7rem;text-align:left;vertical-align:top}th{background:#f5f7fb}code{background:#f0f2f6;padding:2px 5px;border-radius:3px;font-size:.85rem}.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8rem;font-weight:650;background:#dbeafe;color:#1e40af}.draft{background:#fef3c7;color:#92400e}.box{padding:12px 16px;margin:16px 0;border-left:4px solid #b45309;background:#fffbeb}.demo-compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}.demo-panel{border:1px solid #d9e0ea;border-radius:10px;overflow:hidden;background:#fff}.demo-label{padding:8px 12px;font-size:.82rem;font-weight:750;border-bottom:1px solid #d9e0ea}.before .demo-label{color:#b91c1c;background:#fff7f7}.after .demo-label{color:#15803d;background:#f0fdf4}.demo-appbar{height:34px;background:#202b3d;color:#e5e7eb;display:flex;align-items:center;padding:0 12px;font-size:11px}.demo-main{padding:14px 12px}.demo-main h4{font-size:16px;margin:0}.sub{font-size:11px;color:#6b7280;margin:2px 0 10px}.stat{font-size:12px;line-height:1.65;padding:8px 9px;border:1px solid #d9e0ea;border-radius:6px;background:#f7f9fc}.remove{color:#be123c;text-decoration:line-through;text-decoration-thickness:1px}.keep{color:#15803d;font-weight:700}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px}.card{border:1px solid #d9e0ea;border-radius:5px;padding:5px;font-size:9px;color:#64748b}.card b{display:block;font-size:13px;color:#1a1a2e}.card.fail b{color:#dc2626}.note{font-size:.82rem;color:#475569;margin:.7rem 0}footer{margin-top:36px;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:.88rem}@media(max-width:760px){.demo-compare{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<h1>任务中心标题统计收敛</h1>
+<p><span class="tag">UX</span> <span class="tag">已实施</span><br>
+<strong>日期</strong>：2026-09-18<br>
+<strong>状态</strong>：已实施；首屏与 AJAX 局部刷新均已验证<br>
+<strong>承接</strong>：已实施的<a href="任务中心排除已下线任务统计与默认列表设计-2026-09.html#page-compare">《任务中心顶栏运行中/已暂停分列统计》§3.1.1</a> AFTER；本稿仅收敛该标题统计行。</p>
+
+<h2>1. 问题</h2>
+<ul>
+  <li>标题行展示“17 个任务”，与页面下方任务列表和状态筛选重复，不能帮助判断当前需要处理什么。</li>
+  <li>“24 今日失败”与任务总数、任务状态混排在标题中；“今日失败”已有独立统计卡，标题重复且把执行结果与任务存量混为一行。</li>
+</ul>
+
+<h2>2. 根因</h2>
+<p>方案 E 为补足“运行中 / 已暂停”分列，将新字段追加到既有 <code>stat-line</code>，但保留了原有总任务数与今日失败。首屏渲染和 AJAX 刷新均拼接同一条完整统计串，因此信息架构在两个刷新路径中一致地过载。</p>
+
+<h2>3. 方案</h2>
+<h3>3.1 推荐方案：标题只保留状态与需关注信号</h3>
+<p>将 <code>stat-line</code> 固定为：</p>
+<blockquote><code>运行中 &lt;b&gt;10&lt;/b&gt; · 已暂停 &lt;b&gt;3&lt;/b&gt; · &lt;span&gt;2&lt;/span&gt; 持续异常 · &lt;span&gt;0&lt;/span&gt; 逾期</code></blockquote>
+<ul>
+  <li>移除：<strong>“N 个任务”</strong>与<strong>“N 今日失败”</strong>，首屏与 AJAX 局部刷新必须同步移除。</li>
+  <li>保留：“运行中 / 已暂停”作为当前配置状态摘要；“持续异常 / 逾期”作为待关注信号。</li>
+  <li>“今日失败”继续且只在下方“今日失败”统计卡中展示，保留其“0:00 以来 / 今日尚无执行记录”说明。</li>
+</ul>
+
+<h3 id="page-compare">3.2 页面 Before / After 对比</h3>
+<p class="note"><strong>示意数据</strong>：Scope 内共 17 个任务；运行中 10、已暂停 3；2 个持续异常、0 个逾期；今日 24 次失败。卡片与筛选 chip 的结构和样例均沿用父设计 §3.1.1 的 AFTER。</p>
+<div class="demo-compare">
+  <section class="demo-panel before"><div class="demo-label">BEFORE · 当前标题混排</div><div class="demo-appbar">CronPilot　/　任务中心</div><div class="demo-main"><h4>任务中心</h4><div class="sub">管理与监控所有定时任务</div><div class="stat"><span class="remove"><b>17</b> 个任务</span> · 运行中 <b>10</b> · 已暂停 <b>3</b> · <span class="keep">2 持续异常 · 0 逾期</span> · <span class="remove">24 今日失败</span></div><div class="cards"><div class="card"><b>2</b>持续异常</div><div class="card"><b>0</b>逾期未执行</div><div class="card"><b>87%</b>今日成功率</div><div class="card fail"><b>24</b>今日失败</div></div></div></section>
+  <section class="demo-panel after"><div class="demo-label">AFTER · 状态与关注信号</div><div class="demo-appbar">CronPilot　/　任务中心</div><div class="demo-main"><h4>任务中心</h4><div class="sub">管理与监控所有定时任务</div><div class="stat">运行中 <b>10</b> · 已暂停 <b>3</b> · <span class="keep">2 持续异常 · 0 逾期</span></div><div class="cards"><div class="card"><b>2</b>持续异常</div><div class="card"><b>0</b>逾期未执行</div><div class="card"><b>87%</b>今日成功率</div><div class="card fail"><b>24</b>今日失败</div></div></div></section>
+</div>
+<table><tr><th>区域</th><th>Before</th><th>After</th></tr><tr><td>标题 <code>stat-line</code></td><td>总任务数 + 状态 + 风险 + 今日失败</td><td>状态 + 风险；不含总任务数、今日失败</td></tr><tr><td>今日失败卡</td><td>展示 24</td><td>不变，成为该指标唯一的首屏数值入口</td></tr><tr><td>筛选 chip / 列表</td><td>全部 / 运行中 / 已暂停 / 已下线</td><td>不变；不改变默认列表或筛选交互</td></tr></table>
+
+<h3>3.3 交互与数据契约</h3>
+<ul><li>不新增点击、链接、筛选或接口字段；仅消费现有 <code>running</code>、<code>paused</code>、<code>consecutive_failing</code>、<code>overdue_count</code>。</li><li>首屏模板与 <code>refreshStats()</code> 的 <code>statLine.innerHTML</code> 使用完全相同的四项和顺序，避免 AJAX 后旧文案回现。</li><li>状态与风险数字仍按当前 Scope 口径统计，不随用户选择的列表 status/health 筛选收缩。</li></ul>
+
+<h2>4. 范围</h2>
+<table><tr><th>路径</th><th>处理</th></tr><tr><td><code>app/templates/redesign/dashboard.html</code></td><td>修改标题首屏文本与 AJAX 标题拼接。</td></tr><tr><td>既有 Dashboard stats JSON</td><td>不改字段、计算口径或 API 返回结构。</td></tr><tr><td>统计卡、异常面板、筛选 chip、任务表格</td><td>不改样式、文案、交互和查询逻辑。</td></tr><tr><td>不做</td><td>不隐藏“今日失败”卡；不新增“全部任务”卡；不调整响应式样式或数据模型。</td></tr></table>
+
+<h2>5. 分批</h2>
+<table><tr><th>批次</th><th>内容</th><th>独立验收</th></tr><tr><td>B1</td><td>将模板标题与 AJAX 拼接同步改为四项结构。</td><td>静态检查两处均不含“个任务”或“今日失败”。</td></tr><tr><td>B2</td><td>补充模板/AJAX 回归断言。</td><td>Stats payload 不变；标题结构与卡片结构分别断言。</td></tr><tr><td>B3</td><td>重启后浏览器验证。</td><td>首屏与一次筛选 AJAX 刷新均显示四项标题；今日失败只出现在卡片。</td></tr></table>
+
+<h2>6. 验收</h2>
+<ol><li>存在 17 个任务、24 次今日失败时，标题不出现“17 个任务”或“24 今日失败”。</li><li>标题显示“运行中 10 · 已暂停 3 · 2 持续异常 · 0 逾期”（数值随实际数据变化）。</li><li>“今日失败”统计卡仍显示 24；当今日无执行记录时，卡片原有“— / 今日尚无执行记录”语义不变。</li><li>筛选后触发 AJAX 局部刷新，标题不会恢复总数或今日失败；筛选 chip 和列表结果不变。</li><li>实现时运行对应 Dashboard 测试、<code>python scripts/check_ui_contract.py --check</code>，并按项目规范重启后自动完成浏览器登录与截图验证。</li></ol>
+
+<h2>7. 风险</h2>
+<ul><li>移除总数后，用户需要从列表/筛选语境获取总量；这是本轮明确的降噪取舍，若未来需要总量应另设计为非标题位置的独立信息。</li><li>模板与 AJAX 若只改一处会造成刷新前后不一致；B1 以双点同步修改和回归断言控制。</li><li>窄屏更短，不引入额外换行风险；仍需浏览器验证浅色、深色和窄屏布局未受影响。</li></ul>
+<footer><a href="任务中心标题统计收敛设计-2026-09.md">Markdown 版</a> · <a href="../index.html">文档索引</a> · 已实施（2026-09-18）</footer>
+</body>
+</html>

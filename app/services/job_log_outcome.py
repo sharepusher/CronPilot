@@ -53,9 +53,25 @@ def exception_fail_reason(exc):
 
 
 def exception_failure_info(exc):
-    """Classify an exception without confusing client bugs with network errors."""
-    if isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)):
-        return {'failure_stage': 'transport', 'fail_reason': 'timeout'}
+    """Classify transport failures and retain whether a response was possible."""
+    if isinstance(exc, requests.exceptions.ReadTimeout):
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'timeout',
+            'transport_state': 'sent_no_response',
+        }
+    if isinstance(exc, requests.exceptions.ConnectTimeout):
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'timeout',
+            'transport_state': 'connect_failed',
+        }
+    if isinstance(exc, requests.exceptions.Timeout):
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'timeout',
+            'transport_state': 'sent_no_response',
+        }
     if isinstance(
         exc,
         (
@@ -64,10 +80,39 @@ def exception_failure_info(exc):
             requests.exceptions.TooManyRedirects,
         ),
     ):
-        return {'failure_stage': 'transport', 'fail_reason': 'connection'}
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'connection',
+            'transport_state': 'connect_failed',
+        }
     if isinstance(exc, TypeError) and 'assert_hostname' in str(exc):
-        return {'failure_stage': 'transport', 'fail_reason': 'client_incompatible'}
-    return {'failure_stage': 'transport', 'fail_reason': 'internal'}
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'client_incompatible',
+            'transport_state': 'client_failed',
+        }
+    return {
+        'failure_stage': 'transport',
+        'fail_reason': 'internal',
+        'transport_state': 'unknown_failure',
+    }
+
+
+def fatal_failure_info(exc, request_call_started=False, job_log_started=False):
+    """Classify an outer cron fatal without defaulting every error to pre-request."""
+    if request_call_started:
+        return exception_failure_info(exc)
+    if job_log_started:
+        return {
+            'failure_stage': 'persistence',
+            'fail_reason': exception_fail_reason(exc),
+            'transport_state': 'prepared',
+        }
+    return {
+        'failure_stage': 'pre_request',
+        'fail_reason': exception_fail_reason(exc),
+        'transport_state': 'not_started',
+    }
 
 
 def is_timeout_exception(exc):

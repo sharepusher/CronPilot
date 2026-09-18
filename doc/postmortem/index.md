@@ -15,10 +15,15 @@
 - [全局管理员可停用种子账号](2026-09-全局管理员可停用种子账号.html)
 - [执行详情 URL 脱敏缺失修复](2026-09-execution-detail-url-redaction.html)（Presenter 边界 · 全参数值脱敏，2026-09-15）
 - [执行失败分类与 HTTP 响应语义](2026-09-执行失败分类与HTTP响应语义.html)（TypeError 误归类 · 无响应语义缺失，2026-09-18）
+- [执行侧观测传输状态误导修复](2026-09-执行侧观测传输状态误导修复.html)（连接失败/已发送未响应分流，2026-09-18）
+- [执行侧观测 sent 状态判定修复](2026-09-执行侧观测sent状态判定修复.html)（Presenter/模板契约对齐，2026-09-18）
+- [Run Inspector HTTP 状态标签未消费修复](2026-09-RunInspector-http状态标签未消费修复.html)（Presenter/模板字段对齐，2026-09-18）
+- [执行侧观测外层 fatal 阶段映射修复](2026-09-执行侧观测外层fatal阶段映射修复.html)（outer fatal 三阶段映射，2026-09-18）
 - [PinnedIPAdapter HTTP 协议参数错误](2026-09-PinnedIPAdapter-HTTP协议参数错误.html)（HTTP 误传 TLS 参数 · HTTP/HTTPS 分支修复，2026-09-18）
 - [任务详情 seconds 展示丢失修复](2026-09-task-detail-seconds-display.html)（调度表达式完整性 · 六字段展示，2026-09-16）
 - [Dashboard 相对时间测试确定性修复](2026-09-dashboard-relative-time-test-determinism.html)（可注入时间基准 · 消除时钟漂移，2026-09-16）
 - [全量回归门禁收口修复](2026-09-regression-gate-cleanup.html)（legacy 门禁 · 无上下文日志，2026-09-16）
+- [ORM legacy 门禁误报修复](2026-09-ORM-legacy-urlsplit误报修复.html)（urlsplit 别名与 `.query` 误报，2026-09-18）
 - [Run Inspector raw detail 与时间线顺序](2026-09-RunInspector-raw-detail与时间线顺序.html)（禁 JSON · 时间线上移，2026-09-16）
 - [执行记录 pending 误标「未知」](2026-09-执行记录pending误标未知.html)（已入队徽章 · in_progress 白名单，2026-09-16）
 - [任务中心下线异常任务](2026-09-任务中心下线异常任务Bug修复复盘.html)（下线任务排除异常提醒面板，2026-09-09）

@@ -7,12 +7,46 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### UI 改进 — 任务中心标题统计收敛
+- 标题移除总任务数与“今日失败”，保留运行中、已暂停、持续异常和逾期四项，减少任务存量与执行结果的混排。
+- “今日失败”继续仅在独立统计卡显示；筛选、列表与 Dashboard stats API 口径不变。
+- 验证：Dashboard 定向测试、UI 契约、Ruff，以及本地浏览器首屏与 AJAX 筛选刷新通过。
+- 设计：[任务中心标题统计收敛设计](doc/design/任务中心标题统计收敛设计-2026-09.html)
+
 ### 改进 — 执行侧链路观测强化
 - `JobLogEvent` 新增执行实例 `run_id` 与 `schema_version`；新事件按父运行强关联，旧 trace 查询保持兼容
 - Tracer 增加脱敏 URL、超时阈值、计划触发时间与观测降级原因；Run Inspector 显示“观测不完整”提示
 - 业务执行结果状态保持不变；本次无 API Breaking Change
 - 验证：41 条执行观测/运行详情/迁移相关单测通过，Ruff 通过
 - 设计：[执行侧观测优化设计](doc/design/执行侧观测优化设计-2026-09.html)
+
+### 修复 — 执行失败分类与 HTTP 响应语义
+- 区分连接失败、超时、HTTP 客户端兼容性错误和远端 HTTP 响应失败。
+- Run Inspector 明确展示失败阶段、参数准备状态、传输状态及“未获得 HTTP 响应”。
+- 历史 `assert_hostname` 错误回填为 `client_incompatible`；不改变任务业务结果判定。
+- 设计：[执行侧观测失败分类与 HTTP 响应语义优化设计](doc/design/执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.html)
+
+### 修复 — 执行侧观测传输状态误导（F1）
+- 区分连接未建立与请求已发起但未收到响应，Run Inspector 不再把读取超时显示为“未确认发送”。
+- 保留历史 `failed_before_response` 展示兼容；不改变任务业务结果判定。
+- 验证：执行观测定向单测 27 条、UI 契约、Ruff、86 条路由冒烟全部通过。
+- 复盘：[执行侧观测传输状态误导修复](doc/postmortem/2026-09-执行侧观测传输状态误导修复.html)
+
+### 修复 — 执行侧观测 sent 状态判定（F2）
+- `sent_no_response` 与兼容状态 `sent` 纳入“请求已发起”判定；仅收到响应时显示“已发送并收到响应”。
+- 同步 Run Inspector 模板分支优先级，避免无响应记录被显示为成功发送。
+- 验证：观测契约/Presenter/Tracer 25 条、UI 契约、Ruff、86 条路由冒烟通过。
+- 复盘：[执行侧观测 sent 状态判定修复](doc/postmortem/2026-09-执行侧观测sent状态判定修复.html)
+
+### 修复 — Run Inspector HTTP 状态标签（F3）
+- Meta 区改用 `http_status_label`，无响应执行显示“未获得 HTTP 响应”，不再显示无语义的“—”。
+- 验证：观测契约、Presenter、详情集成测试 35 条通过；UI 契约、Ruff、86 条路由冒烟通过。
+- 复盘：[Run Inspector HTTP 状态标签未消费修复](doc/postmortem/2026-09-RunInspector-http状态标签未消费修复.html)
+
+### 修复 — 执行侧观测外层 fatal 阶段映射（F6）
+- outer fatal 按执行边界区分 `pre_request/not_started`、`persistence/prepared` 与 `transport`，避免中段异常被误标为请求前置失败。
+- 验证：观测相关测试 40 条、Ruff、86 条路由冒烟通过。
+- 复盘：[执行侧观测外层 fatal 阶段映射修复](doc/postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html)
 
 ### 文档 — R2-D Run Inspector 对齐 Demo §C（待确认）
 - 纠正「原方案 UI」指向：页面对比 Demo **§C**（非 §B）；R3-C 暂停
@@ -28,6 +62,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 新增 `tests/test_execution_observability_contract.py`（C1–C6）：事件登记、Tracer↔Presenter 键对齐、模板硬禁、三角色冒烟、outcome 过滤、锁原语套件引用
 - Presenter `_SUMMARY_KEYS ⊆ Tracer._DETAIL_KEYS`；无页面可见变更（R3-C 任务详情另评）
 - 设计：`doc/design/R3-执行可观测性契约门禁设计-2026-09.html`
+
+### 工程修复 — ORM legacy AST 门禁误报
+- 识别 `urlsplit` 返回值别名的 `.query` 属性，避免将 URL 查询组件误判为 ORM legacy API。
+- 保留 `Model.query`、`session.query` 与 `paginate` 的真实拦截；新增两行式别名回归。
+- 复盘：[`doc/postmortem/2026-09-ORM-legacy-urlsplit误报修复.html`](doc/postmortem/2026-09-ORM-legacy-urlsplit误报修复.html)
 
 ### 改进 — Run Inspector Presenter/详情契约收口（R2）
 - 时间线上移为 Meta 后首要诊断区；`pending`/`running` 增加「执行未完成，最终结果未知」提示条

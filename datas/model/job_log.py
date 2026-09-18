@@ -38,7 +38,7 @@ class JobLog(db.Model):
         db.String(24), nullable=True, doc='失败阶段: pre_request | transport | remote_response | persistence'
     )
     transport_state: Mapped[Optional[str]] = mapped_column(
-        db.String(32), nullable=True, doc='not_started | prepared | sent | response_received | failed_before_response'
+        db.String(32), nullable=True, doc='not_started | prepared | connect_failed | sent_no_response | sent | response_received | failed_before_response'
     )
     response_received: Mapped[Optional[bool]] = mapped_column(
         db.Boolean, nullable=True, doc='是否获得 HTTP response object'

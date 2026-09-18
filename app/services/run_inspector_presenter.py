@@ -326,7 +326,12 @@ def build_run_inspector_view(
                 strip_query=strip_query,
             ),
             'actual_request_sent': (
-                role == 'admin' and getattr(job_log, 'transport_state', None) in ('sent', 'response_received')
+                role == 'admin'
+                and getattr(job_log, 'transport_state', None) in (
+                    'sent',
+                    'sent_no_response',
+                    'response_received',
+                )
             ),
             'parameter_prepared': bool(job_log.actual_url) if role == 'admin' else False,
         },

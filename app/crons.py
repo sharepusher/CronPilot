@@ -35,8 +35,8 @@ from app.services.job_log_outcome import (
     STATUS_SUCCESS,
     STATUS_TIMEOUT,
     evaluate_http_response,
-    exception_fail_reason,
     exception_failure_info,
+    fatal_failure_info,
     is_timeout_exception,
     pre_request_outcome,
     should_alert,
@@ -242,6 +242,7 @@ def cron_do(cron_id, trigger_source='schedule'):
         nows = utc_now_hms()
         t0 = time.time()
         task_name = None
+        _request_call_started = False
         _ctx_cron_id.set(str(cron_id))
 
         # GAP-2: 链路起点日志 — 标记 cron_do 开始执行
@@ -539,7 +540,11 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
                                     failure_stage=failure_info['failure_stage'],
-                                    transport_state='failed_before_response' if _request_call_started else 'prepared',
+                                    transport_state=(
+                                        failure_info['transport_state']
+                                        if _request_call_started
+                                        else 'prepared'
+                                    ),
                                     response_received=False,
                                 )
                                 tracer.emit(
@@ -551,7 +556,11 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         'timeout_sec': timeout_sec,
                                         'failure_stage': failure_info['failure_stage'],
                                         'fail_reason': failure_info['fail_reason'],
-                                        'transport_state': 'failed_before_response' if _request_call_started else 'prepared',
+                                        'transport_state': (
+                                            failure_info['transport_state']
+                                            if _request_call_started
+                                            else 'prepared'
+                                        ),
                                         'response_received': False,
                                     },
                                 )
@@ -566,6 +575,11 @@ def cron_do(cron_id, trigger_source='schedule'):
 
         except Exception as e:
             db.session.rollback()
+            fatal_info = fatal_failure_info(
+                e,
+                request_call_started=_request_call_started,
+                job_log_started=saved_jl is not None,
+            )
             try:
                 saved_jl = _save_job_log(
                     cron_id,
@@ -575,9 +589,12 @@ def cron_do(cron_id, trigger_source='schedule'):
                     task_name=task_name,
                     trace_id=trace_id,
                     status=STATUS_ERROR,
-                    fail_reason=exception_fail_reason(e),
+                    fail_reason=fatal_info['fail_reason'],
                     trigger_source=trigger_source,
                     trigger_delay_ms=_trigger_delay_ms,
+                    failure_stage=fatal_info['failure_stage'],
+                    transport_state=fatal_info['transport_state'],
+                    response_received=False,
                 )
             except Exception:
                 pass

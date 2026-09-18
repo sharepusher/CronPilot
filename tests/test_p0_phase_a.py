@@ -157,9 +157,22 @@ class TestPinnedSession(unittest.TestCase):
         self.assertIsInstance(adapter, url_security._PinnedIPAdapter)
         self.assertEqual(adapter.pinned_ip, '1.2.3.4')
         self.assertEqual(adapter.original_hostname, 'example.com')
+        self.assertEqual(adapter.scheme, 'http')
+
+    def test_http_poolmanager_does_not_receive_tls_arguments(self):
+        adapter = url_security._PinnedIPAdapter('1.2.3.4', 'example.com', scheme='http')
+        adapter.init_poolmanager(1, 1)
+        self.assertNotIn('assert_hostname', adapter.poolmanager.connection_pool_kw)
+        self.assertNotIn('server_hostname', adapter.poolmanager.connection_pool_kw)
+
+    def test_https_poolmanager_receives_tls_arguments(self):
+        adapter = url_security._PinnedIPAdapter('1.2.3.4', 'example.com', scheme='https')
+        adapter.init_poolmanager(1, 1)
+        self.assertEqual(adapter.poolmanager.connection_pool_kw['assert_hostname'], 'example.com')
+        self.assertEqual(adapter.poolmanager.connection_pool_kw['server_hostname'], 'example.com')
 
     def test_adapter_rewrites_url_and_host_header(self):
-        from requests import Request, PreparedRequest
+        from requests import PreparedRequest, Request
         adapter = url_security._PinnedIPAdapter('93.184.216.34', 'example.com')
         req = Request('GET', 'http://example.com/path?q=1',
                       headers={'user-agent': 'test'}).prepare()

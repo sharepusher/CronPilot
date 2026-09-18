@@ -172,9 +172,10 @@ class _PinnedIPAdapter(HTTPAdapter):
     保持服务端虚拟主机路由和 TLS SNI 正确性。
     """
 
-    def __init__(self, pinned_ip, original_hostname, **kwargs):
+    def __init__(self, pinned_ip, original_hostname, scheme='https', **kwargs):
         self.pinned_ip = pinned_ip
         self.original_hostname = original_hostname
+        self.scheme = (scheme or 'https').lower()
         super().__init__(**kwargs)
 
     def send(self, request, **kwargs):
@@ -188,8 +189,8 @@ class _PinnedIPAdapter(HTTPAdapter):
         return super().send(request, **kwargs)
 
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
-        # HTTPS: 让 TLS 对原始主机名做 SNI 和证书校验
-        if self.original_hostname:
+        # TLS 参数只适用于 HTTPS；HTTPConnection 不接受这些参数。
+        if self.scheme == 'https' and self.original_hostname:
             kwargs.setdefault('assert_hostname', self.original_hostname)
             kwargs.setdefault('server_hostname', self.original_hostname)
         super().init_poolmanager(connections, maxsize, block, **kwargs)
@@ -203,7 +204,7 @@ def make_pinned_session(pinned_ip, original_hostname, scheme='http'):
         resp = session.get('https://example.com/path', timeout=10)
     """
     session = requests.Session()
-    adapter = _PinnedIPAdapter(pinned_ip, original_hostname)
+    adapter = _PinnedIPAdapter(pinned_ip, original_hostname, scheme=scheme)
     prefix = '%s://' % scheme
     session.mount(prefix, adapter)
     return session

@@ -524,6 +524,15 @@ def cron_do(cron_id, trigger_source='schedule'):
                                 err_content = "发生严重错误:%s" % str(e)
                                 fin_status = STATUS_TIMEOUT if is_timeout_exception(e) else STATUS_ERROR
                                 failure_info = exception_failure_info(e)
+                                response_received = (
+                                    _request_call_started
+                                    and failure_info['transport_state'] == 'response_received'
+                                )
+                                exception_response = getattr(e, 'response', None)
+                                response_status = (
+                                    getattr(exception_response, 'status_code', None)
+                                    if response_received else None
+                                )
                                 saved_jl = _save_job_log(
                                     cron_id,
                                     err_content,
@@ -531,6 +540,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     time.time() - t0,
                                     task_name=task_name,
                                     trace_id=trace_id,
+                                    http_status=response_status,
                                     status=fin_status,
                                     fail_reason=failure_info['fail_reason'],
                                     started_at=started_at,
@@ -545,7 +555,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         if _request_call_started
                                         else 'prepared'
                                     ),
-                                    response_received=False,
+                                    response_received=response_received,
                                 )
                                 tracer.emit(
                                     'http.timeout' if fin_status == STATUS_TIMEOUT else 'http.error',
@@ -561,7 +571,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                             if _request_call_started
                                             else 'prepared'
                                         ),
-                                        'response_received': False,
+                                        'response_received': response_received,
                                     },
                                 )
                                 current_app.logger.error(

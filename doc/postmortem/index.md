@@ -20,6 +20,7 @@
 - [Run Inspector HTTP 状态标签未消费修复](2026-09-RunInspector-http状态标签未消费修复.html)（Presenter/模板字段对齐，2026-09-18）
 - [执行侧观测外层 fatal 阶段映射修复](2026-09-执行侧观测外层fatal阶段映射修复.html)（outer fatal 三阶段映射，2026-09-18）
 - [执行侧观测 R1 状态兜底修复](2026-09-执行侧观测R1状态兜底修复.html)（三角色传输状态兜底，2026-09-18）
+- [执行侧观测 R2 异常矩阵修复](2026-09-执行侧观测R2异常矩阵修复.html)（异常子类/response 证据分流，2026-09-18）
 - [PinnedIPAdapter HTTP 协议参数错误](2026-09-PinnedIPAdapter-HTTP协议参数错误.html)（HTTP 误传 TLS 参数 · HTTP/HTTPS 分支修复，2026-09-18）
 - [任务详情 seconds 展示丢失修复](2026-09-task-detail-seconds-display.html)（调度表达式完整性 · 六字段展示，2026-09-16）
 - [Dashboard 相对时间测试确定性修复](2026-09-dashboard-relative-time-test-determinism.html)（可注入时间基准 · 消除时钟漂移，2026-09-16）

@@ -41,7 +41,7 @@ footer{text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem}
 <body>
 <main>
 <span class="meta">执行侧观测 · 修复设计</span>
-<span class="tag draft">部分实施：R1 已完成；R2 待确认</span>
+<span class="tag">部分实施：R1 / R2 已完成</span>
 <span class="tag">承接 Review 评估 2026-09-18</span>
 <h1>传输状态机与 Run Inspector 展示收口</h1>
 <p class="muted">入口：<a href="执行侧观测近期提交专业Review评估-2026-09-18.html">专业 Review 评估</a> F1–F4 / F6。父语义：<a href="执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.html">失败分类与 HTTP 响应语义</a>。<strong>页面对比</strong>见 <a href="#page-compare">§5</a>。</p>
@@ -78,8 +78,8 @@ footer{text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem}
 <tr><td><code>not_started</code></td><td>未准备请求目标</td><td>（请求区不展示传输行，或「未开始」）</td></tr>
 <tr><td><code>prepared</code></td><td>已注入参数，尚未调用 <code>_http.get/post</code></td><td>已准备，尚未确认发送</td></tr>
 <tr><td><code>client_failed</code></td><td>客户端初始化失败（如 assert_hostname TypeError），请求栈未真正发出</td><td>客户端初始化失败</td></tr>
-<tr><td><code>connect_failed</code></td><td>ConnectTimeout / ConnectionError / SSLError / TooManyRedirects</td><td>连接未建立</td></tr>
-<tr><td><code>sent_no_response</code></td><td>ReadTimeout 或通用 Timeout（无法证明仅连接阶段）</td><td>已发起，未收到响应</td></tr>
+<tr><td><code>connect_failed</code></td><td>ConnectTimeout / ProxyError（可证明连接或代理未建立）</td><td>连接未建立</td></tr>
+<tr><td><code>sent_no_response</code></td><td>ReadTimeout、通用 Timeout、ConnectionError / SSLError（无法证明仅连接阶段）</td><td>已发起，未收到响应</td></tr>
 <tr><td><code>response_received</code></td><td>获得 HTTP response object</td><td>已发送并收到响应</td></tr>
 <tr><td><code>failed_before_response</code></td><td>仅作<strong>历史兼容/未知兜底</strong>；新写入尽量不用</td><td>未确认发送</td></tr>
 </tbody>
@@ -100,7 +100,10 @@ footer{text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem}
 <tr><td><code>ReadTimeout</code></td><td>timeout</td><td>sent_no_response</td></tr>
 <tr><td><code>ConnectTimeout</code></td><td>timeout</td><td>connect_failed</td></tr>
 <tr><td><code>Timeout</code>（基类，非上两者）</td><td>timeout</td><td>sent_no_response（保守：不宣称「未连接」）</td></tr>
-<tr><td>ConnectionError / SSLError / TooManyRedirects</td><td>connection</td><td>connect_failed</td></tr>
+<tr><td>ProxyError</td><td>connection</td><td>connect_failed</td></tr>
+<tr><td>ConnectionError / SSLError</td><td>connection</td><td>sent_no_response（宽泛异常，保守不声称未连接）</td></tr>
+<tr><td>TooManyRedirects + <code>exc.response</code></td><td>redirect_limit</td><td>response_received（remote_response）</td></tr>
+<tr><td>TooManyRedirects 无 response</td><td>redirect_limit</td><td>sent_no_response</td></tr>
 <tr><td>TypeError + assert_hostname</td><td>client_incompatible</td><td>client_failed</td></tr>
 <tr><td>其他</td><td>internal</td><td>若已 <code>_request_call_started</code> → <code>sent_no_response</code>；否则 <code>prepared</code> 或 <code>client_failed</code> 按能否证明调用边界</td></tr>
 </tbody>

@@ -58,9 +58,36 @@ class TestJobLogOutcome(unittest.TestCase):
         self.assertEqual(connect['transport_state'], 'connect_failed')
         self.assertEqual(read['transport_state'], 'sent_no_response')
 
-    def test_connection_error_reports_connect_failure(self):
-        info = exception_failure_info(requests.exceptions.ConnectionError())
+    def test_proxy_error_reports_connect_failure(self):
+        info = exception_failure_info(requests.exceptions.ProxyError())
         self.assertEqual(info['transport_state'], 'connect_failed')
+
+    def test_generic_connection_error_does_not_claim_connect_failed(self):
+        info = exception_failure_info(requests.exceptions.ConnectionError())
+        self.assertEqual(info['transport_state'], 'sent_no_response')
+
+    def test_ssl_error_does_not_claim_connect_failed(self):
+        info = exception_failure_info(requests.exceptions.SSLError())
+        self.assertEqual(info['transport_state'], 'sent_no_response')
+
+    def test_too_many_redirects_with_response_is_remote_response(self):
+        response = requests.Response()
+        response.status_code = 302
+        info = exception_failure_info(
+            requests.exceptions.TooManyRedirects('redirect limit', response=response)
+        )
+        self.assertEqual(
+            info,
+            {
+                'failure_stage': 'remote_response',
+                'fail_reason': 'redirect_limit',
+                'transport_state': 'response_received',
+            },
+        )
+
+    def test_too_many_redirects_without_response_is_not_connect_failure(self):
+        info = exception_failure_info(requests.exceptions.TooManyRedirects('redirect limit'))
+        self.assertEqual(info['transport_state'], 'sent_no_response')
 
     def test_outer_fatal_stage_depends_on_execution_boundary(self):
         exc = RuntimeError('unexpected')

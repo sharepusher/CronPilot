@@ -41,7 +41,7 @@
 | **下次执行相对时间误显示修复设计（2026-09）**（已实施） | 空 minute 展示与 APScheduler 默认 0 对齐 · CronTrigger 同源 | [HTML](design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](postmortem/2026-09-下次执行相对时间误显示.html) | [MD](design/下次执行相对时间误显示修复设计-2026-09.md) |
 | **任务中心顶栏运行中/已暂停分列统计（2026-09）**（已实施 · rev.5 · 方案 E） | 保留「N 个任务」后追加「运行中 X · 已暂停 Y」；不改 chip「全部」、不改默认列表 | [HTML](design/任务中心排除已下线任务统计与默认列表设计-2026-09.html) | [MD](design/任务中心排除已下线任务统计与默认列表设计-2026-09.md) |
 | **任务中心标题统计收敛（2026-09）**（已实施） | 移除标题中的总任务数与今日失败；保留运行中、已暂停、持续异常、逾期；今日失败仅留统计卡 | [HTML](design/任务中心标题统计收敛设计-2026-09.html) | [MD](design/任务中心标题统计收敛设计-2026-09.md) |
-| **4.1.0 发布前变更梳理与文档收敛（2026-09-18）**（发布前） | 4.0.0 后提交分层、过期文档排除、R1/R2 发布阻断与验收顺序 | [HTML](design/4.1.0发布前变更梳理与文档收敛-2026-09-18.html) | [MD](design/4.1.0发布前变更梳理与文档收敛-2026-09-18.md) |
+| **4.1.0 发布前变更梳理与文档收敛（2026-09-18）**（发布前） | 4.0.0 后提交分层、过期文档排除、R1/R2 已关闭与后续验收顺序 | [HTML](design/4.1.0发布前变更梳理与文档收敛-2026-09-18.html) | [MD](design/4.1.0发布前变更梳理与文档收敛-2026-09-18.md) |
 | **健康度未满阈值误标「健康」修复（2026-09）**（已实施 · 方案 A） | 连续失败 1～N−1 显示「有失败」，禁止标「健康」；≥N 仍为异常 | [HTML](design/健康度未满阈值误标健康修复设计-2026-09.html) | [MD](design/健康度未满阈值误标健康修复设计-2026-09.md) |
 | **用户管理「添加用户」入口布局优化设计**（已交付） | 标题区减负 · 主操作移入列表工具区左首位 · 桌面/窄屏前后对比 | [HTML](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html) | [MD](design/用户管理添加用户入口布局优化设计.md) |
 | **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
@@ -61,9 +61,10 @@
 | ↳ 当前实现评估（2026-09-17） | 有条件可用 · 执行观测闭环，调度注册观测未闭环 | [HTML](design/任务执行链路可观测性-当前实现评估-2026-09-17.html) | [MD](design/任务执行链路可观测性-当前实现评估-2026-09-17.md) |
 | ↳ 执行侧观测专项评估（2026-09-17） | 约 75% · 单次运行诊断可用，事件上下文与降级提示待补 | [HTML](design/任务执行链路可观测性-执行侧观测专项评估-2026-09-17.html) | [MD](design/任务执行链路可观测性-执行侧观测专项评估-2026-09-17.md) |
 | ↳ 执行侧观测近期提交专业 Review 评估（2026-09-18） | 有条件通过 · c30353b/0a303ed/4d8f2ac · 2 Medium / 2 Low / 2 Info | [HTML](design/执行侧观测近期提交专业Review评估-2026-09-18.html) | [MD](design/执行侧观测近期提交专业Review评估-2026-09-18.md) |
-| ↳ 执行侧观测优化完成后全面 Review（2026-09-18） | 有条件通过 · R2 一个 Medium 待修 · R1/R5/R8 已关闭 · 全量 818 通过 | [HTML](design/执行侧观测优化完成后全面Review-2026-09-18.html) | [MD](design/执行侧观测优化完成后全面Review-2026-09-18.md) |
+| ↳ 执行侧观测优化完成后全面 Review（2026-09-18） | 有条件通过 · R1/R2/R5/R8 已关闭 · R3/R4/R6/R7 待后续 | [HTML](design/执行侧观测优化完成后全面Review-2026-09-18.html) | [MD](design/执行侧观测优化完成后全面Review-2026-09-18.md) |
 | ↳ 执行侧观测 R1 状态兜底修复（2026-09-18） | 已实施 · client_failed/not_started/unknown_failure/未知值 · 三角色真实路由矩阵 | [HTML](postmortem/2026-09-执行侧观测R1状态兜底修复.html) | [MD](postmortem/2026-09-执行侧观测R1状态兜底修复.md) |
-| ↳ 传输状态机收口设计（2026-09-18） | 待确认 · Connect/Read 分态 · Run Inspector 页面对比 · 关 F1–F4/F6 | [HTML](design/执行侧观测-传输状态机收口设计-2026-09-18.html) | [MD](design/执行侧观测-传输状态机收口设计-2026-09-18.md) |
+| ↳ 执行侧观测 R2 异常矩阵修复（2026-09-18） | 已实施 · 异常子类/response 证据分流 · 保守传输状态 | [HTML](postmortem/2026-09-执行侧观测R2异常矩阵修复.html) | [MD](postmortem/2026-09-执行侧观测R2异常矩阵修复.md) |
+| ↳ 传输状态机收口设计（2026-09-18） | 部分实施 · R1/R2 已完成 · Run Inspector 页面对比 | [HTML](design/执行侧观测-传输状态机收口设计-2026-09-18.html) | [MD](design/执行侧观测-传输状态机收口设计-2026-09-18.md) |
 | ↳ 执行侧观测优化设计（2026-09） | 待确认 · run_id 强关联、事件上下文、降级可见、统一时间线 | [HTML](design/执行侧观测优化设计-2026-09.html) | [MD](design/执行侧观测优化设计-2026-09.md) |
 | ↳ run_id 强关联决策说明（2026-09） | 待确认 · 数据一致性、迁移兼容、查询与回滚边界 | [HTML](design/执行侧观测-run_id强关联决策说明-2026-09.html) | [MD](design/执行侧观测-run_id强关联决策说明-2026-09.md) |
 | ↳ **失败分类与 HTTP 响应语义优化设计（2026-09）**（已实施） | 统一失败分类、请求生命周期、无响应语义与 Before/After Demo | [HTML](design/执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.html) | [MD](design/执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.md) |
@@ -164,6 +165,7 @@
 | **执行侧观测 sent 状态判定修复** | Presenter/模板契约对齐 · F2 已修复 | [HTML](postmortem/2026-09-执行侧观测sent状态判定修复.html) | [MD](postmortem/2026-09-执行侧观测sent状态判定修复.md) |
 | **Run Inspector HTTP 状态标签未消费修复** | Presenter/模板字段对齐 · F3 已修复 | [HTML](postmortem/2026-09-RunInspector-http状态标签未消费修复.html) | [MD](postmortem/2026-09-RunInspector-http状态标签未消费修复.md) |
 | **执行侧观测外层 fatal 阶段映射修复** | outer fatal 三阶段映射 · F6 已修复 | [HTML](postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html) | [MD](postmortem/2026-09-执行侧观测外层fatal阶段映射修复.md) |
+| **执行侧观测 R2 异常矩阵修复** | 异常子类/response 证据分流 · 保守传输状态 | [HTML](postmortem/2026-09-执行侧观测R2异常矩阵修复.html) | [MD](postmortem/2026-09-执行侧观测R2异常矩阵修复.md) |
 | **PinnedIPAdapter HTTP 协议参数错误** | HTTP 误传 TLS 参数 · HTTP/HTTPS 分支修复 | [HTML](postmortem/2026-09-PinnedIPAdapter-HTTP协议参数错误.html) | [MD](postmortem/2026-09-PinnedIPAdapter-HTTP协议参数错误.md) |
 | **任务详情 seconds 展示丢失修复** | 调度表达式完整性 · 六字段展示 | [HTML](postmortem/2026-09-task-detail-seconds-display.html) | [MD](postmortem/2026-09-task-detail-seconds-display.md) |
 | **Dashboard 相对时间测试确定性修复** | 可注入时间基准 · 消除时钟漂移 | [HTML](postmortem/2026-09-dashboard-relative-time-test-determinism.html) | [MD](postmortem/2026-09-dashboard-relative-time-test-determinism.md) |

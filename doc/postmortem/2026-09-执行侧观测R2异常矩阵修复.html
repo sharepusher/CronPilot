@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>执行侧观测 R2 异常矩阵修复复盘</title></head><body><main>
+<h1>执行侧观测 R2 异常矩阵修复复盘</h1><p>日期：2026-09-18 · 状态：已修复并验证</p>
+<h2>1. Bug 定位</h2><p><code>exception_failure_info()</code> 将 <code>ConnectionError</code>、<code>SSLError</code> 和 <code>TooManyRedirects</code> 一律写为 <code>connect_failed</code>。Run Inspector 因而会在请求已进入客户端、远端可能已参与时显示“连接未建立”。</p>
+<h2>2. 根因</h2><p>实现按 Requests 的宽泛异常基类归类，忽略了异常子类和 <code>TooManyRedirects.response</code> 所携带的响应边界证据；分类逻辑把“连接类异常”错误等同于“连接尚未建立”。</p>
+<h2>3. 测试漏洞</h2><p>原测试只断言裸 <code>ConnectionError</code> 为连接失败，未覆盖 ProxyError、SSLError、远端断连语义，以及带/不带 response 的 TooManyRedirects 分支。</p>
+<h2>4. 修复</h2><p>仅 <code>ConnectTimeout</code> 与 <code>ProxyError</code> 使用 <code>connect_failed</code>；宽泛 <code>ConnectionError</code> 和 <code>SSLError</code> 保守使用 <code>sent_no_response</code>。TooManyRedirects 有 response 时记录为 <code>remote_response/response_received</code>，并持久化其 HTTP 状态；无 response 时记录为 <code>sent_no_response</code>。新增 <code>redirect_limit</code> 失败原因标签。</p>
+<h2>5. 防护测试</h2><p>新增异常矩阵断言，覆盖 ProxyError、ConnectionError、SSLError、带 response 的 TooManyRedirects 与无 response 的 TooManyRedirects；并运行 Presenter、观测契约和静态质量检查。</p><pre>.venv-py311/bin/python -m unittest tests.test_job_log_outcome tests.test_run_inspector_presenter tests.test_execution_observability_contract -v
+.venv-py311/bin/ruff check app/
+.venv-py311/bin/python scripts/check_ui_contract.py --check</pre>
+<h2>6. 同类排查</h2><p>已核对 cron 请求异常写入路径：分类值同时写入 JobLog 与 <code>http.error</code>/<code>http.timeout</code> 事件；当分类确认响应已收到时，<code>response_received</code> 和 <code>http_status</code> 同步写入，避免 DTO 与存储字段相互矛盾。HTTP 业务 4xx/5xx 判定和历史 transport_state 兼容未改动。</p>
+<h2>7. 预防方案</h2><p>在 <code>tests/test_job_log_outcome.py</code> 固化异常矩阵：每次新增 Requests 异常分支，必须同时断言 <code>failure_stage</code>、<code>fail_reason</code>、<code>transport_state</code>，并对可带 response 的异常覆盖带/不带 response 两条路径。该测试由全量 unittest discover 执行，可直接阻断重新把宽泛异常写成 <code>connect_failed</code> 的回归。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="2026-09-执行侧观测R2异常矩阵修复.md">Markdown</a></footer>
+</main></body></html>

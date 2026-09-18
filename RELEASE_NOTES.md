@@ -32,6 +32,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - 验证：执行观测定向单测 27 条、UI 契约、Ruff、86 条路由冒烟全部通过。
 - 复盘：[执行侧观测传输状态误导修复](doc/postmortem/2026-09-执行侧观测传输状态误导修复.html)
 
+### 修复 — 执行侧观测异常矩阵过度归类（R2）
+
+- 仅 ConnectTimeout 与 ProxyError 标记“连接未建立”；宽泛 ConnectionError/SSLError 保守标记“已发起，未收到响应”。
+- TooManyRedirects 按保留的 response 区分远端响应与未收到响应，并记录 `redirect_limit` 失败原因；不改变任务业务结果。
+- 复盘：[执行侧观测 R2 异常矩阵修复](doc/postmortem/2026-09-执行侧观测R2异常矩阵修复.html)
+
 ### 修复 — 执行侧观测 sent 状态判定（F2）
 - `sent_no_response` 与兼容状态 `sent` 纳入“请求已发起”判定；仅收到响应时显示“已发送并收到响应”。
 - 同步 Run Inspector 模板分支优先级，避免无响应记录被显示为成功发送。

@@ -54,6 +54,24 @@ def exception_fail_reason(exc):
 
 def exception_failure_info(exc):
     """Classify transport failures and retain whether a response was possible."""
+    if isinstance(exc, requests.exceptions.TooManyRedirects):
+        # Requests retains the last response when redirect resolution exceeds
+        # its limit.  That proves a remote HTTP response was received; it is
+        # not a connection-establishment failure.
+        if getattr(exc, 'response', None) is not None:
+            return {
+                'failure_stage': 'remote_response',
+                'fail_reason': 'redirect_limit',
+                'transport_state': 'response_received',
+            }
+        # A hand-built or non-standard exception may not retain a response.
+        # The request call was entered, but we must not claim it never
+        # connected.
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'redirect_limit',
+            'transport_state': 'sent_no_response',
+        }
     if isinstance(exc, requests.exceptions.ReadTimeout):
         return {
             'failure_stage': 'transport',
@@ -72,18 +90,20 @@ def exception_failure_info(exc):
             'fail_reason': 'timeout',
             'transport_state': 'sent_no_response',
         }
-    if isinstance(
-        exc,
-        (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.SSLError,
-            requests.exceptions.TooManyRedirects,
-        ),
-    ):
+    if isinstance(exc, requests.exceptions.ProxyError):
         return {
             'failure_stage': 'transport',
             'fail_reason': 'connection',
             'transport_state': 'connect_failed',
+        }
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        # ConnectionError is also the wrapper for remote disconnects and TLS
+        # failures.  Without a more specific connect/proxy subtype, the only
+        # sound assertion is that the call was attempted.
+        return {
+            'failure_stage': 'transport',
+            'fail_reason': 'connection',
+            'transport_state': 'sent_no_response',
         }
     if isinstance(exc, TypeError) and 'assert_hostname' in str(exc):
         return {

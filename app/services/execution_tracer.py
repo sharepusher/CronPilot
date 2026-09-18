@@ -17,10 +17,10 @@ from datas.utils.id_generator import next_id
 _DETAIL_KEYS = {
     'task.enqueued': {'trigger_source', 'scheduled_delay_ms', 'scheduled_at'},
     'ssrf.check': {'block_type', 'block_detail'},
-    'http.start': {'method', 'display_url', 'timeout_sec'},
-    'http.complete': {'http_status', 'response_bytes'},
-    'http.timeout': {'exc_type', 'exc_detail', 'timeout_sec'},
-    'http.error': {'exc_type', 'exc_detail'},
+    'http.start': {'method', 'display_url', 'timeout_sec', 'transport_state', 'response_received'},
+    'http.complete': {'http_status', 'response_bytes', 'transport_state', 'response_received'},
+    'http.timeout': {'exc_type', 'exc_detail', 'timeout_sec', 'failure_stage', 'fail_reason', 'transport_state', 'response_received'},
+    'http.error': {'exc_type', 'exc_detail', 'failure_stage', 'fail_reason', 'transport_state', 'response_received'},
     'db.write_log': {'status', 'fail_reason'},
 }
 _MAX_EVENTS_PER_EXECUTION = 16

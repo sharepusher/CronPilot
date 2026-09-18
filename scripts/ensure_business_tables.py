@@ -56,6 +56,7 @@ def main():
     with app.app_context():
         db.create_all()
         _ensure_job_log_columns()
+        _backfill_job_log_execution_semantics()
         _ensure_job_log_event_columns()
         _backfill_job_log_event_run_ids()
         _rename_log_id_to_trace_id(backend=backend)
@@ -134,6 +135,12 @@ def _ensure_job_log_columns():
         alters.append("ALTER TABLE job_log ADD COLUMN observability_state VARCHAR(16)")
     if 'observability_drop_reason' not in cols:
         alters.append("ALTER TABLE job_log ADD COLUMN observability_drop_reason VARCHAR(32)")
+    if 'failure_stage' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN failure_stage VARCHAR(24)")
+    if 'transport_state' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN transport_state VARCHAR(32)")
+    if 'response_received' not in cols:
+        alters.append("ALTER TABLE job_log ADD COLUMN response_received BOOLEAN")
     if not alters:
         return
     with db.engine.begin() as conn:
@@ -142,6 +149,41 @@ def _ensure_job_log_columns():
     print('OK: job_log 列已补全 ->', ', '.join(
         c.split()[-1] for c in alters
     ))
+
+
+def _backfill_job_log_execution_semantics():
+    """为历史执行记录补齐可解释的请求/响应状态，不猜测远端已收到请求。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log'):
+        return
+    cols = {c['name'] for c in insp.get_columns('job_log')}
+    required = {'http_status', 'status', 'fail_reason', 'actual_url', 'content',
+                'failure_stage', 'transport_state', 'response_received'}
+    if not required.issubset(cols):
+        return
+    with db.engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE job_log SET failure_stage = 'remote_response', "
+            "transport_state = 'response_received', response_received = 1 "
+            "WHERE http_status IS NOT NULL AND (failure_stage IS NULL OR response_received IS NULL)"
+        ))
+        conn.execute(text(
+            "UPDATE job_log SET failure_stage = CASE "
+            "WHEN actual_url IS NULL OR actual_url = '' THEN 'pre_request' ELSE 'transport' END, "
+            "transport_state = CASE "
+            "WHEN actual_url IS NULL OR actual_url = '' THEN 'not_started' ELSE 'failed_before_response' END, "
+            "response_received = 0 "
+            "WHERE http_status IS NULL AND status IN ('error', 'fail', 'timeout') "
+            "AND (failure_stage IS NULL OR response_received IS NULL)"
+        ))
+        result = conn.execute(text(
+            "UPDATE job_log SET fail_reason = 'client_incompatible' "
+            "WHERE fail_reason = 'internal' AND content LIKE '%assert_hostname%'"
+        ))
+    if result.rowcount:
+        print('OK: 历史 HTTP 客户端兼容性错误已归类 ->', result.rowcount)
 
 
 def _ensure_job_log_event_columns():

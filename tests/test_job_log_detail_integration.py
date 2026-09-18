@@ -218,9 +218,9 @@ class TestJobLogDetailIntegration(unittest.TestCase):
                 else:
                     self.assertIn('token=***', html)
                 if username == 'admin':
-                    self.assertIn('已注入运行参数（敏感值已隐藏）', html)
+                    self.assertIn('参数准备：</span>已注入 trace_id / sign（敏感值已隐藏）', html)
                 else:
-                    self.assertNotIn('已注入运行参数（敏感值已隐藏）', html)
+                    self.assertNotIn('参数准备：</span>已注入 trace_id / sign（敏感值已隐藏）', html)
 
     def test_timeline_before_request_and_no_raw_detail_json(self):
         for username in ('admin', 'operator', 'viewer'):

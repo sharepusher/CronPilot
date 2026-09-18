@@ -54,6 +54,9 @@
     {% if run.summary.fail_reason %}
     <span>失败原因 <strong class="danger-text">{{ run.summary.fail_reason }}</strong></span>
     {% endif %}
+    {% if run.summary.failure_stage %}
+    <span>失败阶段 <strong>{{ run.summary.failure_stage }}</strong></span>
+    {% endif %}
   </div>
 
   {% if run.is_incomplete %}
@@ -86,8 +89,15 @@
   <div class="ri-section{% if run.collapse_downstream %} collapsed{% endif %}">
     <div class="ri-section-head">请求</div>
     <div class="ri-section-body"><span class="key">{{ run.request.method }}</span> {{ run.request.display_url }}
+{% if run.request.parameter_prepared %}
+    <div><span class="key">参数准备：</span>已注入 trace_id / sign（敏感值已隐藏）</div>{% endif %}
 {% if run.request.actual_request_sent %}
-    <span class="key">实际请求：</span>已注入运行参数（敏感值已隐藏）{% endif %}</div>
+    <div><span class="key">传输状态：</span>已发送并收到响应</div>
+{% elif run.summary.transport_state == 'failed_before_response' %}
+    <div><span class="key">传输状态：</span>未建立连接 · 未确认发送</div>
+{% elif run.summary.transport_state == 'prepared' %}
+    <div><span class="key">传输状态：</span>已准备，尚未确认发送</div>
+{% endif %}</div>
   </div>
 
   {# ─── Response Section ─── #}
@@ -95,6 +105,7 @@
     <div class="ri-section-head">响应</div>
     <div class="ri-section-body">{% if run.response.http_status %}HTTP/<span class="num">{{ run.response.http_status }}</span>{% if run.response.is_success %} OK{% endif %}
 
+{% elif run.summary.response_received is false %}<span class="key">HTTP 响应：</span>未获得 HTTP 响应
 {% endif %}{{ run.response.display_body }}</div>
   </div>
 

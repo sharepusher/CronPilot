@@ -1,7 +1,7 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>执行侧观测：失败分类与 HTTP 响应语义优化设计</title><style>
 body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:36px 24px 70px}h1{margin:0 0 8px;font-size:28px}h2{margin:34px 0 10px;font-size:21px}h3{margin:22px 0 6px;font-size:16px}.meta,.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}.meta{background:#e7efff;color:#2455ba}.tag{background:#edf2f7;color:#465467}.card,.callout{margin:13px 0;padding:15px 17px;border:1px solid #dce4ef;border-radius:10px;background:#fff}.callout{border-left:4px solid #2563eb;background:#edf4ff}table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0}th,td{padding:9px 10px;border:1px solid #dce4ef;text-align:left;vertical-align:top}th{background:#eff4fa;font-size:13px}.bad{color:#b42318}.ok{color:#087f5b}.warn{color:#b45309}code{padding:2px 5px;border-radius:4px;background:#eef2f7;font:12px ui-monospace,SFMono-Regular,Menlo,monospace}pre{padding:13px;overflow:auto;border-radius:7px;background:#172238;color:#e6eef9}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.screen{border:1px solid #cfd9e6;border-radius:10px;background:#fff;overflow:hidden}.screen h4{margin:0;padding:11px 14px;background:#eff4fa}.screen .body{padding:15px}.line{padding:7px 0;border-bottom:1px solid #edf1f5}.line:last-child{border:0}.badge{display:inline-block;padding:2px 7px;border-radius:99px;background:#fff1f0;color:#b42318;font-size:12px;font-weight:700}.muted{color:#66758a}@media(max-width:760px){main{padding:24px 14px 50px}.compare{grid-template-columns:1fr}}
 </style></head><body><main>
-<span class="meta">执行侧观测优化设计 · 2026-09</span> <span class="tag">待确认 · 适用 OPT-P1 执行详情</span>
+<span class="meta">执行侧观测优化设计 · 2026-09</span> <span class="tag">已实施 · 适用 OPT-P1 执行详情</span>
 <h1>失败分类、HTTP 响应与请求状态语义收口</h1>
 <p>本文针对执行记录 <code>264147763200</code> 暴露的观测语义冲突，定义统一的数据模型、分类规则、页面交互和分批验收方案。它不改变业务成功/失败判定，只修正“失败发生在哪一层、是否收到 HTTP 响应、请求参数是否已准备/已发送”的表达。</p>
 
@@ -81,5 +81,5 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 <h2>9. 风险与回滚</h2>
 <table><thead><tr><th>风险</th><th>控制</th></tr></thead><tbody><tr><td>新枚举被旧 API/筛选器拒绝</td><td>保留旧字段值，新增字段向后兼容；先补枚举扩展检查和 API 契约测试。</td></tr><tr><td>“已发送”判断被误读</td><td>只由 transport_state 驱动，并保留“未确认发送”中间态。</td></tr><tr><td>错误正文扩大暴露面</td><td>凭据先脱敏；角色控制；完整内容操作写审计日志并设长度/下载限制。</td></tr><tr><td>迁移失败</td><td>新增 nullable 字段、双写兼容；回滚只关闭新字段读取，不删除旧数据。</td></tr></tbody></table>
 <div class="callout"><b>决策：</b>批准“分类统一 + 请求生命周期显式化 + 响应语义分层”作为执行侧观测下一阶段设计基线；<code>assert_hostname</code> 依赖兼容性问题另立实现任务，不能用“内部错误”掩盖。</div>
-<p class="tag">设计状态：待用户确认 · 本文仅落库设计，未修改实现代码。</p>
+<p class="tag">设计状态：已实施 · 失败分类、传输状态、历史回填与 Run Inspector 展示已落地；HTTP 客户端依赖升级仍单独跟踪。</p>
 </main><footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.md">Markdown</a></footer></body></html>

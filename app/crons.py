@@ -36,6 +36,7 @@ from app.services.job_log_outcome import (
     STATUS_TIMEOUT,
     evaluate_http_response,
     exception_fail_reason,
+    exception_failure_info,
     is_timeout_exception,
     pre_request_outcome,
     should_alert,
@@ -136,9 +137,18 @@ def _save_job_log(
     actual_url=None,
     resolved_ip=None,
     trigger_delay_ms=None,
+    failure_stage=None,
+    transport_state=None,
+    response_received=None,
 ):
     if status is None:
         status, fail_reason = pre_request_outcome(content)
+    if failure_stage is None:
+        failure_stage = 'remote_response' if http_status is not None else 'pre_request'
+    if response_received is None:
+        response_received = http_status is not None
+    if transport_state is None:
+        transport_state = 'response_received' if response_received else 'not_started'
     if not trace_id:
         trace_id = str(uuid.uuid1())
     jl = db.session.scalars(select(JobLog).where(JobLog.trace_id == trace_id)).first()
@@ -161,6 +171,9 @@ def _save_job_log(
     jl.actual_url = actual_url
     jl.resolved_ip = resolved_ip
     jl.trigger_delay_ms = trigger_delay_ms
+    jl.failure_stage = failure_stage
+    jl.transport_state = transport_state
+    jl.response_received = response_received
     db.session.commit()
     try:
         from app.services.job_health_service import update_job_health
@@ -369,6 +382,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                             timeout_sec = int(cif.timeout_sec) if cif.timeout_sec else _DEFAULT_TIMEOUT_SEC
                             started_at = utc_now_hms()
                             _actual_url = None  # 提前初始化：防止 try 内赋值前抛异常时 except 引用未定义变量
+                            _request_call_started = False
                             try:
                                 api_key = CRON_CONFIG.get('api_key') or ''
                                 signing_params = _build_trigger_signature_params(
@@ -412,6 +426,8 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     'method': req_method,
                                     'display_url': sanitize_event_url(req_url),
                                     'timeout_sec': timeout_sec,
+                                    'transport_state': 'prepared',
+                                    'response_received': False,
                                 })
 
                                 if req_method == 'POST':
@@ -425,6 +441,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         post_body['cronpilot_trace_id'] = trace_id
                                     if 'cronpilot_sign' not in post_body:
                                         post_body['cronpilot_sign'] = cronpilot_sign
+                                    _request_call_started = True
                                     req = _http.post(
                                         req_url,
                                         json=post_body,
@@ -432,6 +449,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         headers={'user-agent': 'CronPilot'},
                                     )
                                 else:
+                                    _request_call_started = True
                                     req = _http.get(
                                         req_url,
                                         params={
@@ -473,6 +491,9 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     actual_url=_mask_cronpilot_sign(_actual_url),
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
+                                    failure_stage='remote_response',
+                                    transport_state='response_received',
+                                    response_received=True,
                                 )
                                 tracer.emit(
                                     'http.complete',
@@ -480,6 +501,8 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     detail={
                                         'http_status': req.status_code,
                                         'response_bytes': len(getattr(req, 'content', b'') or b''),
+                                        'transport_state': 'response_received',
+                                        'response_received': True,
                                     },
                                 )
                                 if run_status == STATUS_ERROR:
@@ -499,6 +522,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                             except Exception as e:
                                 err_content = "发生严重错误:%s" % str(e)
                                 fin_status = STATUS_TIMEOUT if is_timeout_exception(e) else STATUS_ERROR
+                                failure_info = exception_failure_info(e)
                                 saved_jl = _save_job_log(
                                     cron_id,
                                     err_content,
@@ -507,13 +531,16 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     task_name=task_name,
                                     trace_id=trace_id,
                                     status=fin_status,
-                                    fail_reason=exception_fail_reason(e),
+                                    fail_reason=failure_info['fail_reason'],
                                     started_at=started_at,
                                     timeout_sec=timeout_sec,
                                     trigger_source=trigger_source,
                                     actual_url=_mask_cronpilot_sign(_actual_url),
                                     resolved_ip=resolved_ip,
                                     trigger_delay_ms=_trigger_delay_ms,
+                                    failure_stage=failure_info['failure_stage'],
+                                    transport_state='failed_before_response' if _request_call_started else 'prepared',
+                                    response_received=False,
                                 )
                                 tracer.emit(
                                     'http.timeout' if fin_status == STATUS_TIMEOUT else 'http.error',
@@ -522,6 +549,10 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         'exc_type': type(e).__name__,
                                         'exc_detail': _redact_event_text(str(e)),
                                         'timeout_sec': timeout_sec,
+                                        'failure_stage': failure_info['failure_stage'],
+                                        'fail_reason': failure_info['fail_reason'],
+                                        'transport_state': 'failed_before_response' if _request_call_started else 'prepared',
+                                        'response_received': False,
                                     },
                                 )
                                 current_app.logger.error(

@@ -52,7 +52,7 @@ class TestRunInspectorPresenter(unittest.TestCase):
                 if role == 'viewer':
                     self.assertEqual(row['summary'], '请求异常')
                 else:
-                    self.assertEqual(row['summary'], '连接失败')
+                    self.assertEqual(row['summary'], '请求异常')
 
     def test_admin_timeline_summary_uses_whitelist_only(self):
         event = SimpleNamespace(
@@ -82,6 +82,15 @@ class TestRunInspectorPresenter(unittest.TestCase):
         self.assertEqual(rows[0]['summary'], 'POST')
         self.assertEqual(rows[1]['summary'], 'HTTP 200')
 
+    def test_http_error_summary_uses_failure_reason(self):
+        event = SimpleNamespace(
+            seq=1, occurred_at_ms=1, offset_ms=0,
+            event_type='http.error', outcome='fail',
+            detail='{"fail_reason":"client_incompatible","failure_stage":"transport"}',
+        )
+        row = build_event_timeline([event], viewer_role='admin')[0]
+        self.assertEqual(row['summary'], 'HTTP 客户端初始化失败')
+
     def test_role_matrix_for_response_and_business_logs(self):
         jl = SimpleNamespace(
             id=7,
@@ -98,6 +107,9 @@ class TestRunInspectorPresenter(unittest.TestCase):
             trace_id='tid',
             timeout_sec=5,
             trigger_delay_ms=3,
+            failure_stage='remote_response',
+            transport_state='response_received',
+            response_received=True,
         )
         cif = SimpleNamespace(
             id=1, task_name='t', req_method='GET',
@@ -127,6 +139,20 @@ class TestRunInspectorPresenter(unittest.TestCase):
         self.assertTrue(admin['business_logs']['visible'])
         self.assertEqual(admin['business_logs']['entries'], ['biz-secret-step'])
         self.assertTrue(admin['request']['actual_request_sent'])
+
+    def test_no_http_response_has_explicit_label(self):
+        jl = SimpleNamespace(
+            id=9, status='error', http_status=None, take_time=1.2,
+            started_at='20260101120000', finished_at='20260101120001', create_time='20260101120000',
+            trigger_source='schedule', fail_reason='client_incompatible', content='client error', actual_url='https://example.com/',
+            trace_id='tid', timeout_sec=5, trigger_delay_ms=None,
+            failure_stage='transport', transport_state='failed_before_response', response_received=False,
+        )
+        cif = SimpleNamespace(id=1, task_name='t', req_method='GET', req_url='https://example.com/')
+        run = build_run_inspector_view(jl, cif, viewer_role='admin')
+        self.assertEqual(run['summary']['http_status_label'], '未获得 HTTP 响应')
+        self.assertFalse(run['request']['actual_request_sent'])
+        self.assertTrue(run['request']['parameter_prepared'])
 
     def test_incomplete_flags_for_pending(self):
         jl = SimpleNamespace(

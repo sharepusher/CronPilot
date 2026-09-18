@@ -48,8 +48,14 @@ def evaluate_http_response(http_status, body, error_keyword, fail_on_http_flag):
 
 
 def exception_fail_reason(exc):
+    """Return the stable failure reason for a transport or execution error."""
+    return exception_failure_info(exc)['fail_reason']
+
+
+def exception_failure_info(exc):
+    """Classify an exception without confusing client bugs with network errors."""
     if isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)):
-        return 'timeout'
+        return {'failure_stage': 'transport', 'fail_reason': 'timeout'}
     if isinstance(
         exc,
         (
@@ -58,8 +64,10 @@ def exception_fail_reason(exc):
             requests.exceptions.TooManyRedirects,
         ),
     ):
-        return 'connection'
-    return 'internal'
+        return {'failure_stage': 'transport', 'fail_reason': 'connection'}
+    if isinstance(exc, TypeError) and 'assert_hostname' in str(exc):
+        return {'failure_stage': 'transport', 'fail_reason': 'client_incompatible'}
+    return {'failure_stage': 'transport', 'fail_reason': 'internal'}
 
 
 def is_timeout_exception(exc):

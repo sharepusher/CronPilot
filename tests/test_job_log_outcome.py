@@ -9,6 +9,7 @@ from app.services.job_log_outcome import (
     STATUS_SUCCESS,
     evaluate_http_response,
     exception_fail_reason,
+    exception_failure_info,
     fail_on_http_4xx_5xx_enabled,
     keyword_matched,
     pre_request_outcome,
@@ -49,6 +50,14 @@ class TestJobLogOutcome(unittest.TestCase):
 
     def test_exception_timeout(self):
         self.assertEqual(exception_fail_reason(requests.exceptions.ReadTimeout()), 'timeout')
+
+    def test_client_incompatibility_is_not_connection_failure(self):
+        exc = TypeError("HTTPConnection.__init__() got an unexpected keyword argument 'assert_hostname'")
+        self.assertEqual(exception_fail_reason(exc), 'client_incompatible')
+        self.assertEqual(
+            exception_failure_info(exc),
+            {'failure_stage': 'transport', 'fail_reason': 'client_incompatible'},
+        )
 
     def test_should_alert(self):
         self.assertTrue(should_alert(STATUS_FAIL))

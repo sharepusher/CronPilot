@@ -28,11 +28,11 @@ _EVENT_LABELS = {
 # Empty set = fixed phrase only; never surface exc_detail / block_detail text.
 _SUMMARY_KEYS = {
     'task.enqueued': frozenset({'trigger_source', 'scheduled_delay_ms', 'scheduled_at'}),
-    'http.start': frozenset({'method', 'display_url', 'timeout_sec'}),
-    'http.complete': frozenset({'http_status', 'response_bytes'}),
+    'http.start': frozenset({'method', 'display_url', 'timeout_sec', 'transport_state', 'response_received'}),
+    'http.complete': frozenset({'http_status', 'response_bytes', 'transport_state', 'response_received'}),
     'ssrf.check': frozenset({'block_type'}),
-    'http.timeout': frozenset(),
-    'http.error': frozenset(),
+    'http.timeout': frozenset({'failure_stage', 'fail_reason', 'transport_state', 'response_received'}),
+    'http.error': frozenset({'failure_stage', 'fail_reason', 'transport_state', 'response_received'}),
     'db.write_log': frozenset({'status'}),
 }
 
@@ -55,8 +55,15 @@ _FAIL_REASON_LABELS = {
     'keyword': '关键词匹配',
     'timeout': '请求超时',
     'connection': '连接失败',
+    'client_incompatible': 'HTTP 客户端初始化失败',
     'blocked_url': 'URL 拦截',
     'internal': '内部错误',
+}
+_FAILURE_STAGE_LABELS = {
+    'pre_request': '请求前置',
+    'transport': '传输层',
+    'remote_response': '远端响应',
+    'persistence': '记录持久化',
 }
 _TRIGGER_LABELS = {
     'schedule': '定时调度',
@@ -132,8 +139,9 @@ def _event_summary(event_type, outcome, raw_detail, viewer_role):
     allowed = _SUMMARY_KEYS.get(event_type)
     if allowed is None:
         return ''
+    raw_parsed = _parse_detail(raw_detail)
     parsed = {
-        key: value for key, value in _parse_detail(raw_detail).items()
+        key: value for key, value in raw_parsed.items()
         if key in allowed
     }
     if event_type == 'http.start':
@@ -171,7 +179,10 @@ def _event_summary(event_type, outcome, raw_detail, viewer_role):
     if event_type == 'http.error':
         if viewer_role == 'viewer':
             return '请求异常'
-        return '连接失败'
+        reason = parsed.get('fail_reason')
+        if not reason and raw_parsed.get('exc_type') == 'TypeError' and 'assert_hostname' in str(raw_parsed.get('exc_detail') or ''):
+            reason = 'client_incompatible'
+        return _FAIL_REASON_LABELS.get(reason, '请求异常')
     if event_type == 'db.write_log' and viewer_role != 'viewer':
         status = parsed.get('status')
         return str(status) if status else ''
@@ -290,6 +301,10 @@ def build_run_inspector_view(
         },
         'summary': {
             'http_status': job_log.http_status or '—',
+            'http_status_label': (
+                '未获得 HTTP 响应' if not job_log.http_status and getattr(job_log, 'response_received', None) is False
+                else (job_log.http_status or '—')
+            ),
             'duration': _duration_display(job_log.take_time),
             'is_timeout': status == 'timeout',
             'started_at': _display_hms(job_log.started_at or job_log.create_time),
@@ -297,6 +312,12 @@ def build_run_inspector_view(
             'has_finished_at': bool(job_log.finished_at),
             'trigger_type': _TRIGGER_LABELS.get(trigger_source, trigger_source),
             'fail_reason': _FAIL_REASON_LABELS.get(job_log.fail_reason, job_log.fail_reason or ''),
+            'failure_stage': _FAILURE_STAGE_LABELS.get(
+                getattr(job_log, 'failure_stage', None),
+                getattr(job_log, 'failure_stage', None) or '',
+            ),
+            'transport_state': getattr(job_log, 'transport_state', None) or '',
+            'response_received': getattr(job_log, 'response_received', None),
         },
         'request': {
             'method': (getattr(cron_info, 'req_method', None) or 'GET').upper(),
@@ -304,7 +325,10 @@ def build_run_inspector_view(
                 getattr(cron_info, 'req_url', None),
                 strip_query=strip_query,
             ),
-            'actual_request_sent': bool(job_log.actual_url) if role == 'admin' else False,
+            'actual_request_sent': (
+                role == 'admin' and getattr(job_log, 'transport_state', None) in ('sent', 'response_received')
+            ),
+            'parameter_prepared': bool(job_log.actual_url) if role == 'admin' else False,
         },
         'response': {
             'http_status': job_log.http_status,

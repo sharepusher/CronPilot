@@ -48,6 +48,7 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 </tbody></table>
 
 <h2>5. 写入与查询流程</h2>
+<div class="callout"><b>根因更正：</b><code>assert_hostname</code> 在本记录中不是抽象的“依赖版本不兼容”结论，而是 CronPilot 的 <code>_PinnedIPAdapter.init_poolmanager</code> 将 HTTPS 专用 TLS 参数传给 HTTPConnection 的适配器协议使用错误。Batch E 应修正 HTTP/HTTPS 参数分支，并分别验证两种协议。</div>
 <pre>创建 JobLog(run_id) → request_prepared(trace/sign 注入) → http.start
 → transport 调用
    ├─ 异常：写 http.error（failure_stage/reason/state）→ 无 HTTP 状态

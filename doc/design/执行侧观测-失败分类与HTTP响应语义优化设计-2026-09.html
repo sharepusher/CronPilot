@@ -1,0 +1,85 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>执行侧观测：失败分类与 HTTP 响应语义优化设计</title><style>
+body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:36px 24px 70px}h1{margin:0 0 8px;font-size:28px}h2{margin:34px 0 10px;font-size:21px}h3{margin:22px 0 6px;font-size:16px}.meta,.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}.meta{background:#e7efff;color:#2455ba}.tag{background:#edf2f7;color:#465467}.card,.callout{margin:13px 0;padding:15px 17px;border:1px solid #dce4ef;border-radius:10px;background:#fff}.callout{border-left:4px solid #2563eb;background:#edf4ff}table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0}th,td{padding:9px 10px;border:1px solid #dce4ef;text-align:left;vertical-align:top}th{background:#eff4fa;font-size:13px}.bad{color:#b42318}.ok{color:#087f5b}.warn{color:#b45309}code{padding:2px 5px;border-radius:4px;background:#eef2f7;font:12px ui-monospace,SFMono-Regular,Menlo,monospace}pre{padding:13px;overflow:auto;border-radius:7px;background:#172238;color:#e6eef9}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.screen{border:1px solid #cfd9e6;border-radius:10px;background:#fff;overflow:hidden}.screen h4{margin:0;padding:11px 14px;background:#eff4fa}.screen .body{padding:15px}.line{padding:7px 0;border-bottom:1px solid #edf1f5}.line:last-child{border:0}.badge{display:inline-block;padding:2px 7px;border-radius:99px;background:#fff1f0;color:#b42318;font-size:12px;font-weight:700}.muted{color:#66758a}@media(max-width:760px){main{padding:24px 14px 50px}.compare{grid-template-columns:1fr}}
+</style></head><body><main>
+<span class="meta">执行侧观测优化设计 · 2026-09</span> <span class="tag">待确认 · 适用 OPT-P1 执行详情</span>
+<h1>失败分类、HTTP 响应与请求状态语义收口</h1>
+<p>本文针对执行记录 <code>264147763200</code> 暴露的观测语义冲突，定义统一的数据模型、分类规则、页面交互和分批验收方案。它不改变业务成功/失败判定，只修正“失败发生在哪一层、是否收到 HTTP 响应、请求参数是否已准备/已发送”的表达。</p>
+
+<h2>1. 问题与根因</h2>
+<div class="callout"><b>实证：</b>该记录的异常是 <code>TypeError: HTTPConnection.__init__() got an unexpected keyword argument 'assert_hostname'</code>。异常发生在本地 HTTP 客户端初始化阶段；没有远端 HTTP 响应，因此 <code>http_status</code> 为空。当前主摘要显示“内部错误”，时间线却把所有 <code>http.error</code> 显示为“连接失败”，两者矛盾。</div>
+<table><thead><tr><th>现象</th><th>根因</th><th>影响</th></tr></thead><tbody>
+<tr><td>连接类问题显示“内部错误”</td><td><code>exception_fail_reason</code> 只识别 requests 连接异常，其他异常统一归 <code>internal</code>。</td><td>无法区分远端连接失败与本地传输栈故障。</td></tr>
+<tr><td>时间线显示“连接失败”</td><td>Presenter 对所有非 Viewer 的 <code>http.error</code> 硬编码该文案。</td><td>同一运行出现两个失败原因。</td></tr>
+<tr><td>HTTP 显示“—”</td><td>请求未返回 response object，<code>http_status</code> 必然为空；页面未解释“未建立连接”。</td><td>用户误以为 HTTP 字段被隐藏或丢失。</td></tr>
+<tr><td>“实际请求：已注入运行参数”</td><td>当前以已构造并保存 <code>actual_url</code> 判断，早于真正的 transport 调用。</td><td>把“参数准备”误表达为“请求已发送”。</td></tr>
+<tr><td>正文不完整</td><td>展示层按角色截断（Viewer 禁止、Operator 200 字符、Admin 2048 字符）。</td><td>脱敏策略与长度策略混淆，缺少截断提示。</td></tr>
+</tbody></table>
+
+<h2>2. 设计目标与非目标</h2>
+<ul><li>目标：单一失败分类来源；明确请求生命周期；无响应时给出可诊断解释；敏感字段脱敏但不无理由截断。</li><li>非目标：不修改任务业务结果判定；不把所有 TypeError 误判成连接失败；不向 Viewer 开放响应正文或凭据。</li></ul>
+
+<h2>3. 统一执行状态模型</h2>
+<table><thead><tr><th>维度</th><th>枚举/字段</th><th>语义</th></tr></thead><tbody>
+<tr><td>业务结果</td><td><code>success|fail|timeout|error|pending|running</code></td><td>任务最终是否符合业务规则。</td></tr>
+<tr><td>失败阶段</td><td><code>pre_request|transport|remote_response|persistence</code></td><td>故障发生在哪个处理阶段。</td></tr>
+<tr><td>失败原因</td><td><code>connection|timeout|client_incompatible|http_4xx|http_5xx|keyword|internal|blocked_url</code></td><td>可操作的最小诊断分类。</td></tr>
+<tr><td>HTTP 交互</td><td><code>not_started|prepared|sent|response_received|failed_before_response</code></td><td>请求是否准备、发送、收到响应。</td></tr>
+<tr><td>观测完整性</td><td><code>healthy|degraded|unknown</code></td><td>仅表示观测事件是否完整，不代表业务成功。</td></tr>
+</tbody></table>
+<p>推荐新增 <code>failure_stage</code>、<code>transport_state</code>、<code>response_received</code>；保留现有 <code>status</code>、<code>fail_reason</code>、<code>http_status</code> 兼容 API。事件 detail 使用同一枚举，Presenter 不再自行推断文案。</p>
+
+<h2>4. 分类规则</h2>
+<table><thead><tr><th>异常/结果</th><th>failure_stage</th><th>fail_reason</th><th>transport_state</th><th>页面文案</th></tr></thead><tbody>
+<tr><td>DNS、TCP refused、ConnectionError</td><td>transport</td><td>connection</td><td>failed_before_response</td><td>连接建立失败</td></tr>
+<tr><td>连接或读取超时</td><td>transport</td><td>timeout</td><td>failed_before_response</td><td>请求超时</td></tr>
+<tr><td><code>assert_hostname</code> 等客户端 API 不兼容</td><td>transport</td><td>client_incompatible</td><td>failed_before_response</td><td>HTTP 客户端初始化失败</td></tr>
+<tr><td>收到 4xx/5xx</td><td>remote_response</td><td>http_4xx/http_5xx</td><td>response_received</td><td>远端返回 HTTP 4xx/5xx</td></tr>
+<tr><td>收到 2xx 但命中业务关键词</td><td>remote_response</td><td>keyword</td><td>response_received</td><td>响应内容命中失败规则</td></tr>
+<tr><td>无法归类的程序异常</td><td>transport 或 persistence</td><td>internal</td><td>按实际阶段记录</td><td>系统内部异常</td></tr>
+</tbody></table>
+
+<h2>5. 写入与查询流程</h2>
+<pre>创建 JobLog(run_id) → request_prepared(trace/sign 注入) → http.start
+→ transport 调用
+   ├─ 异常：写 http.error（failure_stage/reason/state）→ 无 HTTP 状态
+   └─ response：写 http.complete(status/bytes) → 业务判定
+→ db.write_log → 更新 JobLog 摘要与观测状态</pre>
+<p><code>actual_url</code> 只记录脱敏后的“准备发送目标”；新增 <code>transport_state</code> 后，页面是否显示“已发送”只由状态驱动。收到响应时才填 <code>http_status</code> 和 response body。</p>
+
+<h3>5.1 数据落点与页面入口</h3>
+<table><thead><tr><th>信息</th><th>存储位置</th><th>写入时机</th><th>页面位置</th></tr></thead><tbody>
+<tr><td>执行结果、失败阶段、失败原因</td><td><code>job_log</code></td><td>执行结束或异常捕获时</td><td>Run Inspector 顶部“结果”摘要</td></tr>
+<tr><td>参数准备与传输状态</td><td><code>job_log_events</code>：<code>request.prepared</code>、<code>http.start</code>、<code>http.error</code>、<code>http.complete</code></td><td>各阶段边界即时写入</td><td>Run Inspector“时间线”与“请求”区</td></tr>
+<tr><td>HTTP 状态码与响应长度</td><td><code>job_log.http_status</code>、<code>http.complete.detail</code></td><td>收到 response object 后</td><td>Run Inspector“响应”区</td></tr>
+<tr><td>异常详情</td><td><code>job_log.content</code>（脱敏后）及 <code>http.error.detail</code></td><td>异常捕获时</td><td>Run Inspector“错误详情”折叠区</td></tr>
+</tbody></table>
+<p>用户入口保持现有执行记录列表：点击某条记录的“查看详情”进入 <code>/job_log_detail/&lt;run_id&gt;</code>（旧 trace 链接先解析父记录再转 run_id）。不新增独立的“观测中心”页面，避免与执行记录形成两个事实源。</p>
+
+<h3>5.2 单次执行的交互顺序</h3>
+<ol><li>列表展示最终业务状态；若为异常，用户点击“查看详情”。</li><li>详情页先看顶部摘要：结果、失败阶段、失败原因、HTTP 是否收到响应。</li><li>用户展开“请求”：查看脱敏目标、参数是否准备、传输状态；这里不承诺远端已收到。</li><li>用户展开“时间线”：按 <code>run_id + seq</code> 查看每个阶段，异常节点必须与顶部失败分类一致。</li><li>若 <code>response_received=true</code>，展开“响应”查看 HTTP 状态、响应长度和有权限的正文；否则显示“未获得 HTTP 响应”及错误详情。</li></ol>
+
+<h2>6. 展示交互</h2>
+<p>Run Inspector 仍是执行观测的唯一详情入口。顶部摘要、请求、响应、时间线必须引用同一 DTO；用户不需要在多个页面拼接信息。</p>
+<div class="compare"><div class="screen"><h4>BEFORE · 当前页面</h4><div class="body"><div class="line">结果 <span class="badge">异常</span> · 失败原因：内部错误</div><div class="line">请求　GET http://163.com</div><div class="line">实际请求：已注入运行参数（敏感值已隐藏）</div><div class="line">响应　HTTP —<br>发生严重错误:HTTPConnection.__init__()...</div><div class="line">时间线　http.error · 连接失败</div></div></div>
+<div class="screen"><h4>AFTER · 目标页面</h4><div class="body"><div class="line">结果 <span class="badge">异常</span> · 失败阶段：传输层</div><div class="line">失败原因：HTTP 客户端初始化失败（依赖参数不兼容）</div><div class="line">请求　GET http://163.com</div><div class="line">参数准备　已注入 trace_id / sign（值已脱敏）</div><div class="line">传输状态　未建立连接 · 未确认发送</div><div class="line">HTTP 响应　未获得 HTTP 响应</div><div class="line">错误详情　完整显示；若超限，明确标注“已截断 N 字符”</div><div class="line">时间线　http.error · HTTP 客户端初始化失败</div></div></div></div>
+<p class="muted">角色边界：Viewer 只看阶段和分类；Operator 看脱敏后的错误摘要与最多 200 字符正文；Admin 看脱敏后的完整正文（默认不截断，超过安全上限时提供受控“查看完整内容”操作）。</p>
+
+<h3>6.1 场景验收对比</h3>
+<table><thead><tr><th>场景</th><th>顶部摘要</th><th>请求/响应区</th><th>时间线末节点</th></tr></thead><tbody>
+<tr><td>DNS/TCP 连接失败</td><td>传输层 · 连接建立失败</td><td>传输状态：连接失败；HTTP：未获得响应</td><td><code>http.error · 连接建立失败</code></td></tr>
+<tr><td>本地客户端 API 不兼容</td><td>传输层 · HTTP 客户端初始化失败</td><td>参数已准备；未确认发送；HTTP：未获得响应</td><td><code>http.error · HTTP 客户端初始化失败</code></td></tr>
+<tr><td>远端返回 500</td><td>远端响应 · HTTP 5xx</td><td>传输状态：已收到响应；HTTP 500；显示响应正文</td><td><code>http.complete · HTTP 500</code></td></tr>
+<tr><td>观测事件写入失败</td><td>业务结果照常显示；右上角“观测不完整”</td><td>业务响应仍可见；时间线标注缺失阶段</td><td>最后可写入节点标记 degraded</td></tr>
+</tbody></table>
+
+<h2>7. 实施范围与分批</h2>
+<ol><li><b>Batch A：分类契约。</b>扩展失败枚举和异常映射；事件与 JobLog 共用分类函数；补齐 TypeError/ConnectionError/Timeout/HTTP 4xx/5xx 测试。</li><li><b>Batch B：传输状态。</b>在请求准备、发送尝试、响应接收边界写入状态；修正 actual_url 文案；无 response 时明确显示“未获得 HTTP 响应”。</li><li><b>Batch C：Presenter/UI。</b>统一 DTO；时间线不再硬编码“连接失败”；增加失败阶段、传输状态、截断提示；按角色验证。</li><li><b>Batch D：依赖问题单独修复。</b>针对 <code>assert_hostname</code> 做 HTTP 客户端依赖兼容性排查，独立设计、测试和发布，不与观测语义改动混合。</li></ol>
+
+<h2>8. 验收标准</h2>
+<ul><li>同一运行的摘要、时间线、响应区使用同一 <code>fail_reason/failure_stage/transport_state</code>，不得出现“内部错误”与“连接失败”矛盾。</li><li>无 response object 的用例显示“未获得 HTTP 响应”，且 <code>http_status</code> 保持 NULL；有 response 的用例显示真实状态码。</li><li>“参数已注入”不再等同于“已发送”；页面分别展示准备状态和传输状态。</li><li>Admin 对短于限制的非敏感错误正文完整显示；超限正文必须显示截断标识和原文长度；Viewer/Operator 权限边界保持不变。</li><li>执行事件按 <code>run_id</code> 关联，观测写入失败仍显示 degraded，不影响业务结果。</li><li>通过定向单测、<code>ruff check</code>、<code>smoke_routes.py --check</code>、UI 契约门禁和浏览器三角色关键路径验证。</li></ul>
+
+<h2>9. 风险与回滚</h2>
+<table><thead><tr><th>风险</th><th>控制</th></tr></thead><tbody><tr><td>新枚举被旧 API/筛选器拒绝</td><td>保留旧字段值，新增字段向后兼容；先补枚举扩展检查和 API 契约测试。</td></tr><tr><td>“已发送”判断被误读</td><td>只由 transport_state 驱动，并保留“未确认发送”中间态。</td></tr><tr><td>错误正文扩大暴露面</td><td>凭据先脱敏；角色控制；完整内容操作写审计日志并设长度/下载限制。</td></tr><tr><td>迁移失败</td><td>新增 nullable 字段、双写兼容；回滚只关闭新字段读取，不删除旧数据。</td></tr></tbody></table>
+<div class="callout"><b>决策：</b>批准“分类统一 + 请求生命周期显式化 + 响应语义分层”作为执行侧观测下一阶段设计基线；<code>assert_hostname</code> 依赖兼容性问题另立实现任务，不能用“内部错误”掩盖。</div>
+<p class="tag">设计状态：待用户确认 · 本文仅落库设计，未修改实现代码。</p>
+</main><footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.md">Markdown</a></footer></body></html>

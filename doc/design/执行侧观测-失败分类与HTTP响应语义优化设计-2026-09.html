@@ -49,6 +49,16 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 
 <h2>5. 写入与查询流程</h2>
 <div class="callout"><b>根因更正：</b><code>assert_hostname</code> 在本记录中不是抽象的“依赖版本不兼容”结论，而是 CronPilot 的 <code>_PinnedIPAdapter.init_poolmanager</code> 将 HTTPS 专用 TLS 参数传给 HTTPConnection 的适配器协议使用错误。Batch E 应修正 HTTP/HTTPS 参数分支，并分别验证两种协议。</div>
+<h3>5.1 HTTP 适配器协议分支修复</h3>
+<p>修复对象是 <code>app/services/url_security.py::_PinnedIPAdapter</code>，不是更换 requests/urllib3 版本。适配器必须保存 <code>scheme</code>，并按协议初始化连接池：</p>
+<pre>if scheme == 'https':
+    kwargs['assert_hostname'] = original_hostname
+    kwargs['server_hostname'] = original_hostname
+super().init_poolmanager(...)</pre>
+<table><thead><tr><th>协议</th><th>连接池行为</th><th>验收断言</th></tr></thead><tbody><tr><td>HTTP</td><td>只做固定 IP、Host header 和端口重写；不得传 TLS 专用参数。</td><td>真实 <code>session.get(http://...)</code> 不再触发 <code>assert_hostname</code> TypeError。</td></tr><tr><td>HTTPS</td><td>固定 IP，同时保留原主机名用于 SNI/证书校验。</td><td>真实 HTTPS 请求仍完成 TLS 主机名校验；不能因 HTTP 修复而失去 SNI。</td></tr></tbody></table>
+<p>兼容策略：保留 <code>make_pinned_session(pinned_ip, original_hostname, scheme)</code> 的现有调用语义，新增 scheme 只影响适配器内部初始化；不改变 SSRF 校验、签名参数、Host header 和 <code>run_id</code> 观测链路。</p>
+<h3>5.2 HTTP/HTTPS 回归测试矩阵</h3>
+<ol><li>单测直接构造 HTTP adapter，断言 <code>init_poolmanager</code> 不包含 <code>assert_hostname/server_hostname</code>。</li><li>单测直接构造 HTTPS adapter，断言两个 TLS 参数使用原始 hostname。</li><li>本地 HTTP callback 集成测试真实调用 pinned session，验证拿到 response 或明确的网络异常，不允许出现客户端初始化 TypeError。</li><li>HTTPS 使用可控测试证书/本地 TLS 服务，验证 SNI 与证书主机名仍正确。</li><li>执行详情验收同时检查业务结果、<code>failure_stage</code>、<code>transport_state</code> 和时间线，不只检查页面文字。</li></ol>
 <pre>创建 JobLog(run_id) → request_prepared(trace/sign 注入) → http.start
 → transport 调用
    ├─ 异常：写 http.error（failure_stage/reason/state）→ 无 HTTP 状态
@@ -56,7 +66,7 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 → db.write_log → 更新 JobLog 摘要与观测状态</pre>
 <p><code>actual_url</code> 只记录脱敏后的“准备发送目标”；新增 <code>transport_state</code> 后，页面是否显示“已发送”只由状态驱动。收到响应时才填 <code>http_status</code> 和 response body。</p>
 
-<h3>5.1 数据落点与页面入口</h3>
+<h3>5.3 数据落点与页面入口</h3>
 <table><thead><tr><th>信息</th><th>存储位置</th><th>写入时机</th><th>页面位置</th></tr></thead><tbody>
 <tr><td>执行结果、失败阶段、失败原因</td><td><code>job_log</code></td><td>执行结束或异常捕获时</td><td>Run Inspector 顶部“结果”摘要</td></tr>
 <tr><td>参数准备与传输状态</td><td><code>job_log_events</code>：<code>request.prepared</code>、<code>http.start</code>、<code>http.error</code>、<code>http.complete</code></td><td>各阶段边界即时写入</td><td>Run Inspector“时间线”与“请求”区</td></tr>
@@ -65,7 +75,7 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 </tbody></table>
 <p>用户入口保持现有执行记录列表：点击某条记录的“查看详情”进入 <code>/job_log_detail/&lt;run_id&gt;</code>（旧 trace 链接先解析父记录再转 run_id）。不新增独立的“观测中心”页面，避免与执行记录形成两个事实源。</p>
 
-<h3>5.2 单次执行的交互顺序</h3>
+<h3>5.4 单次执行的交互顺序</h3>
 <ol><li>列表展示最终业务状态；若为异常，用户点击“查看详情”。</li><li>详情页先看顶部摘要：结果、失败阶段、失败原因、HTTP 是否收到响应。</li><li>用户展开“请求”：查看脱敏目标、参数是否准备、传输状态；这里不承诺远端已收到。</li><li>用户展开“时间线”：按 <code>run_id + seq</code> 查看每个阶段，异常节点必须与顶部失败分类一致。</li><li>若 <code>response_received=true</code>，展开“响应”查看 HTTP 状态、响应长度和有权限的正文；否则显示“未获得 HTTP 响应”及错误详情。</li></ol>
 
 <h2>6. 展示交互</h2>

@@ -28,6 +28,15 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 </tbody></table>
 <p>推荐新增 <code>failure_stage</code>、<code>transport_state</code>、<code>response_received</code>；保留现有 <code>status</code>、<code>fail_reason</code>、<code>http_status</code> 兼容 API。事件 detail 使用同一枚举，Presenter 不再自行推断文案。</p>
 
+<h3>3.1 JobLog Model 变更（本方案的持久化核心）</h3>
+<p>本方案不是只改页面文案，必须修改 <code>datas/model/job_log.py</code> 的 <code>JobLog</code> 模型。一次执行的最终摘要由 JobLog 持有，阶段事件只保存过程证据；两者通过同一组语义字段收口。</p>
+<table><thead><tr><th>字段</th><th>类型/可空</th><th>语义</th><th>写入规则</th></tr></thead><tbody>
+<tr><td><code>failure_stage</code></td><td>VARCHAR(24)，nullable</td><td><code>pre_request|transport|remote_response|persistence</code></td><td>异常终态写入；HTTP 已返回时为 <code>remote_response</code>。</td></tr>
+<tr><td><code>transport_state</code></td><td>VARCHAR(32)，nullable</td><td><code>not_started|prepared|sent|response_received|failed_before_response</code></td><td>由请求生命周期边界写入；不能用 <code>actual_url</code> 推断。</td></tr>
+<tr><td><code>response_received</code></td><td>BOOLEAN，nullable</td><td>是否获得 HTTP response object</td><td>获得响应为 1；异常且无响应为 0。</td></tr>
+</tbody></table>
+<ul><li><b>序列化：</b><code>JobLog.to_json()</code> 必须同步输出三个字段，避免模型与 API/调试输出不一致。</li><li><b>迁移：</b><code>scripts/ensure_business_tables.py</code> 为旧库补 nullable 列；有 <code>http_status</code> 的历史记录回填为 <code>remote_response/response_received</code>，无响应异常回填为 <code>transport/failed_before_response</code>，不猜测远端是否收到请求。</li><li><b>兼容：</b>保留 <code>status</code>、<code>fail_reason</code>、<code>http_status</code>、<code>actual_url</code>；旧 API 字段不删除。<code>actual_url</code> 的语义改为“脱敏后的请求目标”，不再表示已发送。</li><li><b>事务：</b>JobLog 终态与三个新字段在同一次业务提交中写入；事件写入仍是 best-effort，失败只把 <code>observability_state</code> 标记为 degraded。</li></ul>
+
 <h2>4. 分类规则</h2>
 <table><thead><tr><th>异常/结果</th><th>failure_stage</th><th>fail_reason</th><th>transport_state</th><th>页面文案</th></tr></thead><tbody>
 <tr><td>DNS、TCP refused、ConnectionError</td><td>transport</td><td>connection</td><td>failed_before_response</td><td>连接建立失败</td></tr>
@@ -73,10 +82,10 @@ body{margin:0;background:#f5f8fc;color:#172238;font:15px/1.7 -apple-system,Blink
 </tbody></table>
 
 <h2>7. 实施范围与分批</h2>
-<ol><li><b>Batch A：分类契约。</b>扩展失败枚举和异常映射；事件与 JobLog 共用分类函数；补齐 TypeError/ConnectionError/Timeout/HTTP 4xx/5xx 测试。</li><li><b>Batch B：传输状态。</b>在请求准备、发送尝试、响应接收边界写入状态；修正 actual_url 文案；无 response 时明确显示“未获得 HTTP 响应”。</li><li><b>Batch C：Presenter/UI。</b>统一 DTO；时间线不再硬编码“连接失败”；增加失败阶段、传输状态、截断提示；按角色验证。</li><li><b>Batch D：依赖问题单独修复。</b>针对 <code>assert_hostname</code> 做 HTTP 客户端依赖兼容性排查，独立设计、测试和发布，不与观测语义改动混合。</li></ol>
+<ol><li><b>Batch A：Model 与迁移。</b>修改 <code>JobLog</code> 模型、<code>to_json()</code> 和 <code>ensure_business_tables.py</code>，完成旧数据回填与 schema 验收。</li><li><b>Batch B：分类契约。</b>扩展失败枚举和异常映射；事件与 JobLog 共用分类函数；补齐 TypeError/ConnectionError/Timeout/HTTP 4xx/5xx 测试。</li><li><b>Batch C：传输状态。</b>在请求准备、发送尝试、响应接收边界写入状态；修正 actual_url 文案；无 response 时明确显示“未获得 HTTP 响应”。</li><li><b>Batch D：Presenter/UI。</b>统一 DTO；时间线不再硬编码“连接失败”；增加失败阶段、传输状态、截断提示；按角色验证。</li><li><b>Batch E：依赖问题单独修复。</b>针对 <code>assert_hostname</code> 做 HTTP 客户端依赖兼容性排查，独立设计、测试和发布，不与观测语义改动混合。</li></ol>
 
 <h2>8. 验收标准</h2>
-<ul><li>同一运行的摘要、时间线、响应区使用同一 <code>fail_reason/failure_stage/transport_state</code>，不得出现“内部错误”与“连接失败”矛盾。</li><li>无 response object 的用例显示“未获得 HTTP 响应”，且 <code>http_status</code> 保持 NULL；有 response 的用例显示真实状态码。</li><li>“参数已注入”不再等同于“已发送”；页面分别展示准备状态和传输状态。</li><li>Admin 对短于限制的非敏感错误正文完整显示；超限正文必须显示截断标识和原文长度；Viewer/Operator 权限边界保持不变。</li><li>执行事件按 <code>run_id</code> 关联，观测写入失败仍显示 degraded，不影响业务结果。</li><li>通过定向单测、<code>ruff check</code>、<code>smoke_routes.py --check</code>、UI 契约门禁和浏览器三角色关键路径验证。</li></ul>
+<ul><li><code>JobLog</code> 模型、<code>to_json()</code>、迁移脚本和数据库实际列结构一致，旧库回填计数可追溯。</li><li>同一运行的摘要、时间线、响应区使用同一 <code>fail_reason/failure_stage/transport_state</code>，不得出现“内部错误”与“连接失败”矛盾。</li><li>无 response object 的用例显示“未获得 HTTP 响应”，且 <code>http_status</code> 保持 NULL；有 response 的用例显示真实状态码。</li><li>“参数已注入”不再等同于“已发送”；页面分别展示准备状态和传输状态。</li><li>Admin 对短于限制的非敏感错误正文完整显示；超限正文必须显示截断标识和原文长度；Viewer/Operator 权限边界保持不变。</li><li>执行事件按 <code>run_id</code> 关联，观测写入失败仍显示 degraded，不影响业务结果。</li><li>通过定向单测、<code>ruff check</code>、<code>smoke_routes.py --check</code>、UI 契约门禁和浏览器三角色关键路径验证。</li></ul>
 
 <h2>9. 风险与回滚</h2>
 <table><thead><tr><th>风险</th><th>控制</th></tr></thead><tbody><tr><td>新枚举被旧 API/筛选器拒绝</td><td>保留旧字段值，新增字段向后兼容；先补枚举扩展检查和 API 契约测试。</td></tr><tr><td>“已发送”判断被误读</td><td>只由 transport_state 驱动，并保留“未确认发送”中间态。</td></tr><tr><td>错误正文扩大暴露面</td><td>凭据先脱敏；角色控制；完整内容操作写审计日志并设长度/下载限制。</td></tr><tr><td>迁移失败</td><td>新增 nullable 字段、双写兼容；回滚只关闭新字段读取，不删除旧数据。</td></tr></tbody></table>

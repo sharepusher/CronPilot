@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>OPT-P0-21 数据库自增 ID 迁移设计专业 Review（2026-09-20）</title></head><body><main>
 <h1>OPT-P0-21：数据库自增 ID 迁移设计专业 Review</h1>
-<p>日期：2026-09-20 · 评估对象：<a href="OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">数据库自增 ID 迁移设计</a> · 结论：<strong>方向合理，暂不具备直接实施条件</strong></p>
+<p>日期：2026-09-20 · 评估对象：<a href="OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">数据库自增 ID 写入机制切换设计</a> · 结论：<strong>方向合理，暂不具备直接实施条件</strong></p>
 
 <h2>1. 评估范围与方法</h2>
 <p>本次 Review 对照设计稿、当前 ORM 模型、ExecutionTracer 写入路径、SQLite 物理 schema 和迁移脚本，重点检查自增语义、历史 ID 容量、双后端 DDL、事务回滚、并发以及验收可证性。已核对 <code>cron_infos</code>、<code>job_log</code>、<code>job_log_events</code>，以及任务引用列的实际定义。</p>
 
 <h2>2. 总体结论</h2>
-<p>“生产路径停止使用 <code>next_id</code>，新 ID 交给数据库生成，优先保证新写入的唯一性、事务性和准确性”是正确且符合用户最新目标的方向。历史兼容可以收敛为迁移前范围/孤儿引用检查，发现不满足即拒绝迁移，不再承担全面历史扩容。设计稿仍缺少可直接编码的 SQLAlchemy 类型契约、Core insert 省略主键的精确定义和停写边界。因此建议评定为<strong>有条件通过设计方向；补齐 P0 后再进入 Batch B</strong>。</p>
+<p>“不搬迁历史数据，只把后续新写入切换为数据库自增”是正确且符合用户最新目标的方向。历史行应保持值级不变；数据库只需调整自增属性和起点。设计稿仍缺少可直接编码的 SQLAlchemy 类型契约、Core insert 省略主键的精确定义和停写边界。因此建议评定为<strong>有条件通过设计方向；补齐 P0 后再进入 Batch B</strong>。</p>
 
 <h2>3. 阻断项（P0/P1）</h2>
 <ol>
 <li><strong>P0：SQLite 自增语义未落到 ORM 类型。</strong> 当前 <code>CronInfos.id</code>、<code>JobLog.id</code>、<code>JobLogEvent.id</code> 都声明为 <code>BigInteger</code>。SQLite 只有声明为精确 <code>INTEGER PRIMARY KEY</code> 的列才自动绑定 rowid；仅写“数据库自增”不能保证新建表或测试库具备该语义。设计必须明确 SQLite 类型变体/建表契约，并给出 <code>CREATE TABLE</code> 断言。</li>
 <li><strong>P0：ExecutionTracer 仍会把 <code>id=None</code> 送进 Core INSERT。</strong> 当前代码按模型所有列构造 <code>values</code>，再显式填入 <code>next_id()</code>。改造后若只删除赋值而保留 <code>id</code> 键，可能生成显式 NULL，无法触发自增。设计必须规定“主键键名不进入 values”，并验证写入后数据库确实分配 ID。</li>
-<li><strong>P1：引用列策略仍需收敛。</strong> 当前 SQLite 的多个任务引用列仍为 INTEGER。既然本轮不追求全面历史兼容，设计必须明确迁移前只做最大值/孤儿引用检查；超出目标范围就 fail-closed，不能继续迁移，也不能静默截断。</li>
+<li><strong>P1：引用列策略仍需收敛。</strong> 当前 SQLite 的多个任务引用列仍为 INTEGER。本轮不搬迁历史行，但必须明确目标自增值不会超出列范围；若结构确实不足，只做 DDL 扩容，不改写历史值。</li>
 </ol>
 
 <h2>4. 重要缺口（P1/P2）</h2>
@@ -29,7 +29,7 @@
 <ol>
 <li>将范围改写为“仅迁移三张使用 <code>next_id</code> 的主表；其他已经由数据库自增的主键不重建”。</li>
 <li>为三张表分别定义 SQLite 与 MySQL 的目标 DDL，并加入 schema 断言：SQLite 主键类型必须是精确 <code>INTEGER PRIMARY KEY</code>，MySQL 必须是 <code>BIGINT NOT NULL AUTO_INCREMENT</code>。</li>
-<li>为关键引用列建立最小检查清单：当前最大值、孤儿引用数量、目标范围；超出范围直接拒绝迁移，不新增复杂兼容层。</li>
+<li>为关键引用列建立最小检查清单：当前最大值、孤儿引用数量、目标范围；必要时只执行列类型 DDL 扩容，验证历史值集合完全不变。</li>
 <li>ExecutionTracer 的 Core insert 明确构造白名单字段，绝不包含 <code>id</code>；如需拿到 ID，使用后端支持的 <code>RETURNING</code> 或 <code>lastrowid</code>，并分别验证 SQLite/MySQL。</li>
 <li>定义迁移锁/停写方案：迁移期间禁止任务创建、日志写入和事件写入，完成 schema 与探针后再恢复；否则“事务内切换”不能证明并发安全。</li>
 <li>把验收拆成结构断言、数据不变量、并发写入、重启恢复和失败回滚五类，每类都提供可执行命令与预期输出。</li>

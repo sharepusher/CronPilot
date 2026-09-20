@@ -53,6 +53,7 @@
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | **OPT-P0-21 50-bit 任务 ID 生成器最终优化设计**（待确认） | 仅任务 ID 使用 · 32/12/6 位布局 · IP+PORT+PID worker · 引用列 BIGINT | [HTML](design/OPT-P0-21-ID生成策略优化设计.html) | [MD](design/OPT-P0-21-ID生成策略优化设计.md) |
 | **OPT-P0-21 数据库自增 ID 迁移设计（2026-09-20）**（待确认） | 下线 next_id · SQLite/MySQL 自增迁移 · 保留历史 50-bit 引用兼容 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.md) |
+| ↳ **OPT-P0-21 数据库自增 ID 迁移设计专业 Review（2026-09-20）**（有条件通过） | P0：SQLite 类型契约、Core INSERT 省略主键；P1：引用列迁移清单与停写边界 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.md) |
 | **任务执行链路可观测性设计方案（收敛版）**（待确认） | 同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 · rev.5 确认页面、线程池与保留边界 | [HTML](design/任务执行链路可观测性设计方案-收敛版.html) | [MD](design/任务执行链路可观测性设计方案-收敛版.md) |
 | ↳ **执行详情 URL 字段角色化脱敏修复设计**（已实施） | Bugbot High：全角色 URL 凭据脱敏 · 完整 Presenter DTO · 展示面修复 | [HTML](design/执行详情URL字段角色化脱敏修复设计-2026-09.html) | [MD](design/执行详情URL字段角色化脱敏修复设计-2026-09.md) |
 | ↳ 页面对比 Demo | Before/After · 详情主变更 + 列表/任务详情轻量 · 明确不改页 | [HTML](design/任务执行链路可观测性-页面对比Demo.html) | [MD](design/任务执行链路可观测性-页面对比Demo.md) |

@@ -1,0 +1,65 @@
+# OPT-P0-21 数据库自增 ID 迁移设计专业 Review（2026-09-20）
+
+> HTML 版：[OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.html](OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.html) · [文档索引](../index.html) · [索引 Markdown](../index.md)
+
+# OPT-P0-21：数据库自增 ID 迁移设计专业 Review
+
+日期：2026-09-20 · 评估对象：[数据库自增 ID 迁移设计](OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · 结论：**方向合理，暂不具备直接实施条件**
+
+## 1. 评估范围与方法
+
+本次 Review 对照设计稿、当前 ORM 模型、ExecutionTracer 写入路径、SQLite 物理 schema 和迁移脚本，重点检查自增语义、历史 ID 容量、双后端 DDL、事务回滚、并发以及验收可证性。已核对 `cron_infos`、`job_log`、`job_log_events`，以及任务引用列的实际定义。
+
+## 2. 总体结论
+
+“生产路径停止使用 `next_id`，新 ID 交给数据库生成，历史 50-bit ID 不重编号”是正确且符合用户目标的方向。设计稿对迁移风险和分批方式已有较好覆盖，但仍缺少可直接编码的 SQLAlchemy 类型契约、Core insert 省略主键的精确定义、引用列迁移清单和在线/停写边界。因此建议评定为**有条件通过设计方向；Batch B 暂缓**。
+
+## 3. 阻断项（P0/P1）
+
+1. **P0：SQLite 自增语义未落到 ORM 类型。** 当前 `CronInfos.id`、`JobLog.id`、`JobLogEvent.id` 都声明为 `BigInteger`。SQLite 只有声明为精确 `INTEGER PRIMARY KEY` 的列才自动绑定 rowid；仅写“数据库自增”不能保证新建表或测试库具备该语义。设计必须明确 SQLite 类型变体/建表契约，并给出 `CREATE TABLE` 断言。
+2. **P0：ExecutionTracer 仍会把 `id=None` 送进 Core INSERT。** 当前代码按模型所有列构造 `values`，再显式填入 `next_id()`。改造后若只删除赋值而保留 `id` 键，可能生成显式 NULL，无法触发自增。设计必须规定“主键键名不进入 values”，并验证写入后数据库确实分配 ID。
+3. **P1：历史 50-bit 引用列仍是 INTEGER。** 当前 SQLite 的 `task_groups.task_id`、`task_tags.task_id`、`job_health.cron_info_id`、`operation_log.target_id`、`job_log.cron_info_id`、`job_log_events.cron_id` 均为 INTEGER；模型也有对应 `db.Integer`。设计虽然列出字段，但没有为每列定义迁移方式、数据校验和完成条件。若历史任务 ID 已超过 32-bit，Batch D 不能只改三张主表。
+
+## 4. 重要缺口（P1/P2）
+
+- **主键范围边界不清。** 仓库还有多个普通 `primary_key=True` 模型（标签、组、RBAC、操作日志等）。应明确本次范围是“曾使用 `next_id` 的三张表”还是“所有业务主键”，避免把已正常使用 SQLite/MySQL 自增的表无谓重建。
+- **SQLite 原子切换描述过于乐观。** 外键、索引、唯一约束、触发器（如存在）和并发写入会影响表重建；必须先确定停写窗口或迁移锁策略，并在 `PRAGMA foreign_keys` 开启/关闭两种模式下验证。
+- **MySQL 自增起点缺少精确契约。** 需要定义空表、最大值接近上限、手工插入高 ID、重复运行时 `AUTO_INCREMENT` 的行为；不能只写“设置为最大值以上”。
+- **迁移“探针后回滚”不适合作为唯一验证。** 应使用独立事务/临时数据库做真实插入验收；生产迁移中插入再删除会污染审计、触发器或自增序列。
+- **生成器测试与死代码策略缺失。** 下线生产调用后，现有 `tests/test_id_generator.py` 应删除、改为迁移回归，或明确其仅作为历史兼容测试；否则验收命令会继续允许生成器残留。
+
+## 5. 建议修订后的实施契约
+
+1. 将范围改写为“仅迁移三张使用 `next_id` 的主表；其他已经由数据库自增的主键不重建”。
+2. 为三张表分别定义 SQLite 与 MySQL 的目标 DDL，并加入 schema 断言：SQLite 主键类型必须是精确 `INTEGER PRIMARY KEY`，MySQL 必须是 `BIGINT NOT NULL AUTO_INCREMENT`。
+3. 为所有引用列建立逐列清单：旧类型、目标类型、最大历史值、迁移 SQL、回滚方式和引用计数；至少覆盖设计稿列出的 7 个字段。
+4. ExecutionTracer 的 Core insert 明确构造白名单字段，绝不包含 `id`；如需拿到 ID，使用后端支持的 `RETURNING` 或 `lastrowid`，并分别验证 SQLite/MySQL。
+5. 定义迁移锁/停写方案：迁移期间禁止任务创建、日志写入和事件写入，完成 schema 与探针后再恢复；否则“事务内切换”不能证明并发安全。
+6. 把验收拆成结构断言、数据不变量、并发写入、重启恢复和失败回滚五类，每类都提供可执行命令与预期输出。
+
+## 6. 推荐实施顺序
+
+1. 先补设计契约和双后端 schema fixture，不改生产代码。
+2. 再改模型和 tracer 写路径，先用 SQLite 内存库验证“不提供 id 时必得新 ID”。
+3. 实现 SQLite 重建及引用列迁移，使用旧小 ID、旧 50-bit ID、混合引用三套快照。
+4. 实现 MySQL DDL 与起点校正，再做两个进程并发插入。
+5. 最后删除生成器生产代码和过时测试，运行完整门禁后再进入 4.1.0 发布评估。
+
+## 7. 验收与风险判定
+
+| 维度 | 当前设计 | Review 结论 |
+| --- | --- | --- |
+| 业务方向 | 下线应用层 ID，保留历史值 | 通过 |
+| SQLite 自增 | 提出 rowid 重建，但未规定 ORM/DDL 精确契约 | 阻断，需补充 |
+| Core insert | 仅描述数据库回填 | 阻断，需明确省略 id |
+| 引用兼容 | 列出字段但未覆盖实际 INTEGER schema 的迁移 | 阻断，需逐列方案 |
+| 回滚与并发 | 有快照和回滚原则 | 需增加停写/锁定边界 |
+| 发布验收 | 有全量测试与文档门禁 | 需增加结构与双后端断言 |
+
+**最终建议：**保留当前设计作为方向基线，补齐上述 P0/P1 后重新确认；在补齐前不得开始 Batch B，也不得删除 `id_generator.py`。本 Review 不构成代码实施授权。
+
+[文档索引](../index.html) · [原设计](OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · [Markdown](OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.md)
+
+---
+
+[← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

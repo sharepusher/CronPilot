@@ -23,6 +23,20 @@
 <ul><li><code>rg "from datas.utils.id_generator|next_id\(" app datas --glob '*.py'</code> 不存在生产写路径。</li><li>切换前后每张表的行数、历史主键集合、历史列值和引用关系完全一致；禁止任何历史行变化。</li><li>SQLite/MySQL 新插入记录的 ID 均大于切换前最大值，且重复执行切换不会产生重复或跳回。</li><li>两进程/多线程同时插入三类记录不产生主键冲突；应用重启后仍由数据库分配唯一 ID。</li><li>创建、更新、失败回滚、观测事件写入和重试路径的 ID/状态一致。</li><li>运行 Ruff、模型序列化测试、关键路由冒烟、全量测试和版本/文档门禁；未创建 4.1.0 tag 直至全部通过。</li></ul>
 <h2>7. 风险与回滚</h2>
 <table border="1"><thead><tr><th>风险</th><th>控制</th><th>回滚</th></tr></thead><tbody><tr><td>SQLite 重建遗漏约束/索引</td><td>目标 schema 断言与迁移后关键查询</td><td>事务失败保留原表，恢复快照</td></tr><tr><td>当前数据不满足目标范围</td><td>迁移前检查并 fail-closed</td><td>停止发布，先处理数据</td></tr><tr><td>并发写入造成状态分裂</td><td>停写窗口、事务边界和并发测试</td><td>回滚迁移，不上线半成品</td></tr><tr><td>数据库自增起点错误</td><td>迁移前设置并验证 sequence/AUTO_INCREMENT</td><td>停止发布，修正起点后重跑幂等迁移</td></tr></tbody></table>
-<p>确认本设计后，才允许实施 Batch B；确认前不得删除 <code>id_generator.py</code> 或修改生产模型。</p>
+<h2>8. 实施计划（确认版）</h2>
+<p>本计划默认采用“彻底下线生产路径 <code>id_generator</code>”方案；历史行不搬迁、不重编号、不改值。SQLite 的 <code>job_log_events</code> 如需获得真正的数据库自增，只允许做值不变的 schema 重建。</p>
+<table border="1"><thead><tr><th>阶段</th><th>实施内容</th><th>主要文件/范围</th><th>完成门槛</th></tr></thead><tbody>
+<tr><td>A. 基线冻结</td><td>记录三张表当前最大 ID、行数、schema、索引和约束；生成可恢复备份；确认服务停写窗口。</td><td><code>scripts/ensure_business_tables.py</code>、SQLite/MySQL fixture</td><td>基线快照可重放；历史主键集合已记录。</td></tr>
+<tr><td>B. 写入契约</td><td>移除三个模型的 <code>default=next_id</code>；ExecutionTracer Core INSERT 使用字段白名单，完全省略 <code>id</code>；明确 ORM flush/lastrowid 回填。</td><td><code>datas/model/{cron_infos,job_log,job_log_event}.py</code>、<code>app/services/execution_tracer.py</code></td><td>空库和现有库新增记录均返回数据库生成 ID；无生产 <code>next_id</code> 调用。</td></tr>
+<tr><td>C. SQLite 结构</td><td><code>cron_infos</code>/<code>job_log</code> 保持现有 rowid 主键；将 <code>job_log_events</code> 重建为精确 <code>INTEGER PRIMARY KEY</code>，逐行复制且校验历史值完全一致；迁移期间停写。</td><td><code>scripts/ensure_business_tables.py</code></td><td>迁移前后行数、主键集合、非主键列、索引/唯一约束一致；重复执行无变化。</td></tr>
+<tr><td>D. MySQL 结构</td><td>三张表主键使用 <code>BIGINT AUTO_INCREMENT</code>；设置起点为当前最大 ID + 1；不改写历史行。</td><td><code>scripts/ensure_business_tables.py</code>、MySQL fixture</td><td>空表、存量表、手工高 ID 后均能生成更大唯一 ID。</td></tr>
+<tr><td>E. 防护测试</td><td>覆盖 ORM flush、Core insert、双进程/多线程并发、事务失败回滚、进程重启、重复迁移和观测事件失败隔离。</td><td><code>tests/</code></td><td>新增专项测试全绿；并发无主键冲突，失败无半写入。</td></tr>
+<tr><td>F. 清理与发布</td><td>删除生产路径生成器依赖；处理过时的生成器测试；运行 Ruff、路由冒烟、全量测试和文档门禁。</td><td><code>datas/utils/id_generator.py</code>、<code>tests/test_id_generator.py</code>、Release 文档</td><td>生产代码无 <code>next_id</code>；所有门禁通过后才评估 4.1.0。</td></tr>
+</tbody></table>
+<h3>8.1 回滚点</h3>
+<ol><li>阶段 B 失败：恢复模型/Tracer 写入契约，数据库无需回滚。</li><li>阶段 C/D DDL 失败：停止服务恢复结构备份，历史数据不做补偿性改写。</li><li>阶段 E 测试失败：不进入发布，不删除备份和旧实现，修复后从失败阶段重跑。</li></ol>
+<h3>8.2 实施命令与证据</h3>
+<p>每阶段必须保存命令和结果：<code>python scripts/check_doc_completeness.py --check</code>、<code>python scripts/check_doc_links.py --check</code>、<code>ruff check app/</code>、专项 ID/迁移测试、<code>python scripts/smoke_routes.py --check</code>、<code>bash scripts/cronpilot.sh restart --daemon</code>。任何阶段未通过都不得标记“已完成”。</p>
+<p>确认本设计后，才允许实施 Batch A；确认前不得删除 <code>id_generator.py</code> 或修改生产模型。</p>
 <footer><a href="../index.html">文档索引</a> · <a href="OPT-P0-21-数据库自增ID迁移设计-2026-09-20.md">Markdown</a></footer>
 </main></body></html>

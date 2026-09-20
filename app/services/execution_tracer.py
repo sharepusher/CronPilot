@@ -12,7 +12,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from app import db
 from app.metrics import EXECUTION_EVENT_WRITE_FAILED
 from datas.model.job_log_event import JobLogEvent
-from datas.utils.id_generator import next_id
 
 _DETAIL_KEYS = {
     'task.enqueued': {'trigger_source', 'scheduled_delay_ms', 'scheduled_at'},
@@ -100,13 +99,13 @@ class ExecutionTracer:
                 values = {
                     column.name: getattr(event, column.name)
                     for column in JobLogEvent.__table__.columns
+                    if column.name != 'id'
                 }
                 if values.get('schema_version') is None:
                     values['schema_version'] = 1
-                # SQLAlchemy's Python-side default is applied during an ORM
-                # flush; this best-effort writer intentionally uses its own
-                # connection, so supply the primary key explicitly.
-                values['id'] = next_id()
+                # The database owns primary-key allocation.  Do not include
+                # ``id`` in this Core INSERT: an explicit NULL would disable
+                # SQLite rowid allocation and diverge from the ORM path.
                 conn.execute(JobLogEvent.__table__.insert(), values)
         except Exception:
             # The business db.session must remain untouched by observability failures.

@@ -5,12 +5,15 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app import db
-from datas.utils.id_generator import next_id
 
 
 class JobLog(db.Model):
     __tablename__ = 'job_log'
-    id: Mapped[int] = mapped_column(db.BigInteger, primary_key=True, default=next_id)
+    id: Mapped[int] = mapped_column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'),
+        primary_key=True,
+        autoincrement=True,
+    )
     trace_id: Mapped[str] = mapped_column(
         'trace_id',
         db.String(65),

@@ -55,6 +55,8 @@ def main():
         return 0
     with app.app_context():
         db.create_all()
+        if backend == 'sqlite':
+            _ensure_sqlite_event_id_autoincrement()
         _ensure_job_log_columns()
         _backfill_job_log_execution_semantics()
         _ensure_job_log_event_columns()
@@ -205,6 +207,98 @@ def _ensure_job_log_event_columns():
         for sql in alters:
             conn.execute(text(sql))
     print('OK: job_log_events 列已补全 ->', ', '.join(c.split()[-1] for c in alters))
+
+
+def _ensure_sqlite_event_id_autoincrement():
+    """Make the existing event PK a SQLite rowid alias without changing rows.
+
+    SQLite only auto-allocates a primary key when the declared type is exactly
+    INTEGER.  Older databases created ``job_log_events.id`` as BIGINT, so an
+    omitted id would otherwise fail with NOT NULL.  The rebuild is strictly a
+    schema operation: every existing column value is copied unchanged, and the
+    operation is transactional.
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(db.engine)
+    if not insp.has_table('job_log_events'):
+        return
+    id_column = next(
+        (col for col in insp.get_columns('job_log_events') if col['name'] == 'id'),
+        None,
+    )
+    if id_column is None or str(id_column['type']).upper() == 'INTEGER':
+        return
+
+    def quote(name):
+        return '"%s"' % str(name).replace('"', '""')
+
+    columns = db.session.execute(text('PRAGMA table_info("job_log_events")')).fetchall()
+    if not columns:
+        return
+    temp_table = 'job_log_events__id_switch_old'
+    if insp.has_table(temp_table):
+        raise RuntimeError('job_log_events ID switch left an unfinished temporary table')
+
+    unique_constraints = insp.get_unique_constraints('job_log_events')
+    indexes = insp.get_indexes('job_log_events')
+    names = [column[1] for column in columns]
+    definitions = []
+    for _cid, name, col_type, not_null, default, pk in columns:
+        if name == 'id':
+            definitions.append('%s INTEGER PRIMARY KEY' % quote(name))
+            continue
+        definition = '%s %s' % (quote(name), col_type or 'BLOB')
+        if not_null:
+            definition += ' NOT NULL'
+        if default is not None:
+            definition += ' DEFAULT %s' % default
+        definitions.append(definition)
+    for constraint in unique_constraints:
+        constraint_name = constraint.get('name')
+        constraint_columns = constraint.get('column_names') or []
+        if constraint_columns:
+            prefix = 'CONSTRAINT %s ' % quote(constraint_name) if constraint_name else ''
+            definitions.append(
+                '%sUNIQUE (%s)' % (
+                    prefix,
+                    ', '.join(quote(name) for name in constraint_columns),
+                )
+            )
+
+    with db.engine.begin() as conn:
+        conn.exec_driver_sql(
+            'ALTER TABLE job_log_events RENAME TO %s' % quote(temp_table)
+        )
+        conn.exec_driver_sql(
+            'CREATE TABLE job_log_events (%s)' % ', '.join(definitions)
+        )
+        quoted_names = ', '.join(quote(name) for name in names)
+        conn.exec_driver_sql(
+            'INSERT INTO job_log_events (%s) SELECT %s FROM %s' % (
+                quoted_names,
+                quoted_names,
+                quote(temp_table),
+            )
+        )
+        # The old table keeps its index names after the rename; drop it before
+        # recreating those indexes on the new table.  The surrounding
+        # transaction restores the old table if any later DDL fails.
+        conn.exec_driver_sql('DROP TABLE %s' % quote(temp_table))
+        for index in indexes:
+            index_name = index.get('name')
+            index_columns = index.get('column_names') or []
+            if not index_name or not index_columns:
+                continue
+            unique = 'UNIQUE ' if index.get('unique') else ''
+            conn.exec_driver_sql(
+                'CREATE %sINDEX %s ON job_log_events (%s)' % (
+                    unique,
+                    quote(index_name),
+                    ', '.join(quote(name) for name in index_columns),
+                )
+            )
+    print('OK: SQLite job_log_events.id 已切换为 INTEGER PRIMARY KEY（历史行值不变）')
 
 
 def _backfill_job_log_event_run_ids():
@@ -1103,7 +1197,7 @@ def _correct_subthreshold_health_ok():
 
 
 def _ensure_id_columns_bigint(backend='sqlite'):
-    """OPT-P0-21: MySQL 环境下将 cron_infos.id 和 job_log.id 从 INT 升级为 BIGINT。
+    """OPT-P0-21: MySQL 主键使用 BIGINT AUTO_INCREMENT。
 
     SQLite 无需操作（INTEGER 底层已支持 8 字节）。
     """
@@ -1115,6 +1209,7 @@ def _ensure_id_columns_bigint(backend='sqlite'):
     targets = [
         ('cron_infos', 'id'),
         ('job_log', 'id'),
+        ('job_log_events', 'id'),
     ]
     altered = []
     for table, col in targets:
@@ -1124,7 +1219,8 @@ def _ensure_id_columns_bigint(backend='sqlite'):
         if not col_info:
             continue
         col_type = str(col_info[0]['type']).upper()
-        if 'BIGINT' in col_type:
+        is_auto = bool(col_info[0].get('autoincrement'))
+        if 'BIGINT' in col_type and is_auto:
             continue
         try:
             with db.engine.begin() as conn:

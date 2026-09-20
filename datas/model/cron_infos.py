@@ -6,12 +6,15 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app import db
-from datas.utils.id_generator import next_id
 
 
 class CronInfos(db.Model):
     __tablename__ = 'cron_infos'
-    id: Mapped[int] = mapped_column(db.BigInteger, primary_key=True, default=next_id)
+    id: Mapped[int] = mapped_column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'),
+        primary_key=True,
+        autoincrement=True,
+    )
     task_name: Mapped[str] = mapped_column(db.String(120), nullable=False)
     task_keyword: Mapped[str] = mapped_column(
         db.String(500), nullable=False, default=''

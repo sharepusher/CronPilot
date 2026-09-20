@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>OPT-P0-21 数据库自增 ID 迁移设计（2026-09-20）</title></head><body><main>
+<h1>OPT-P0-21：数据库自增 ID 迁移设计</h1>
+<p>日期：2026-09-20 · 状态：<strong>待用户确认</strong> · 前置：v4.0.0 后深度 Review、用户澄清“id_generator 不应继续使用”</p>
+<h2>1. 问题与目标</h2>
+<p>当前代码仍在 <code>cron_infos</code>、<code>job_log</code>、<code>job_log_events</code> 模型中设置 <code>default=next_id</code>，<code>execution_tracer.py</code> 还直接写入 <code>next_id()</code>。目标是统一由数据库生成所有业务主键，生产路径不再依赖 <code>datas/utils/id_generator.py</code>；保留历史 50-bit ID，只保证新记录安全插入、引用可继续查询。</p>
+<h2>2. 根因与现状证据</h2>
+<ul><li>应用层生成器只有进程内锁，不能提供 Gunicorn 多 worker 的全局唯一性；时钟回拨也未形成跨进程契约。</li><li>当前 SQLite 库的 <code>cron_infos.id</code>、<code>job_log.id</code> 是 <code>INTEGER PRIMARY KEY</code>，但 <code>job_log_events.id</code> 是 <code>BIGINT PRIMARY KEY</code>；三者都由应用层默认值填充，不能把“模型写成 BigInteger”误认为已启用数据库自增。</li><li>现有收敛设计已要求至少 <code>job_log.id</code> 恢复数据库自增；本设计将范围扩展为所有业务主键，消除用户目标与实现分叉。</li></ul>
+<h2>3. 方案</h2>
+<h3>3.1 主键策略</h3>
+<p>移除全部生产代码对 <code>next_id</code> 的 import、模型 default 和显式赋值。SQLAlchemy 模型使用数据库自增语义；新建记录不提供 <code>id</code>，flush/insert 后读取数据库返回的 ID。历史 50-bit ID 不重编号、不降位、不删除。</p>
+<h3>3.2 后端实现契约</h3>
+<table border="1"><thead><tr><th>后端</th><th>实现</th><th>验收</th></tr></thead><tbody><tr><td>SQLite</td><td>需要将主键列建成 SQLite 的 INTEGER rowid 主键；对现有 <code>BIGINT PRIMARY KEY</code> 表采用受控重建，复制全部列、索引、约束和数据，再原子替换。</td><td>重启/迁移幂等；最大历史 ID 后插入得到更大 ID；进程重启后仍唯一。</td></tr><tr><td>MySQL</td><td>主键保持 BIGINT，声明 <code>AUTO_INCREMENT</code>；迁移前读取最大 ID，保证自增起点大于存量最大值。</td><td>空库、仅旧小 ID、含 50-bit 历史 ID 三种数据集均能插入并回读 ID。</td></tr></tbody></table>
+<h3>3.3 引用列语义审计</h3>
+<p>下列字段独立语义均是“任务或执行记录的外键/引用”，不能因新 ID 变小而恢复为窄类型：<code>job_log.cron_info_id</code>、<code>job_log_events.cron_id</code>、<code>job_log_events.run_id</code>、<code>job_health.cron_info_id</code>、<code>task_groups.task_id</code>、<code>task_tags.task_id</code>、<code>operation_log.target_id</code>。它们必须在 SQLite/MySQL 上可容纳历史 50-bit 值；迁移不得把无法区分的历史引用截断。</p>
+<h3>3.4 迁移事务与回滚</h3>
+<ol><li>迁移前备份/快照并记录每表行数、最大 ID、引用完整性和约束清单。</li><li>先创建临时表并复制数据；逐项校验行数、主键集合、引用集合、索引和 unique 约束。</li><li>事务内切换表名；切换失败保留原表并回滚。SQLite 重建不可依赖跨表 DDL 的假设，脚本必须按后端分支实现。</li><li>迁移完成后插入探针记录，确认数据库返回新 ID，再回滚探针数据；重复运行不得重复重建或丢数据。</li></ol>
+<h2>4. 范围</h2>
+<p><strong>包含：</strong>三张主键模型、ExecutionTracer 写入、SQLite/MySQL 建表与迁移脚本、全部任务引用列类型、模型/仓储测试、ID 生成器死代码审计和设计文档。</p><p><strong>不包含：</strong>历史 ID 重编号、业务 URL/API ID 格式改造、删除历史数据、在本轮保留 worker 位继续扩展生成器。</p>
+<h2>5. 分批实施</h2>
+<ol><li><strong>Batch A 语义与盘点：</strong>冻结表/列清单，读取 SQLite/MySQL schema，确认历史 50-bit 数据与引用计数。</li><li><strong>Batch B 模型写路径：</strong>移除 next_id 生产调用，改为 ORM/核心 insert 的数据库回填；补 flush 后 ID 测试。</li><li><strong>Batch C SQLite：</strong>仅对需要 rowid 重建的表执行临时表迁移，保留索引/约束/数据并验证幂等。</li><li><strong>Batch D MySQL：</strong>将所有主键与引用列调整到兼容 BIGINT/AUTO_INCREMENT 的结构，验证最大值和自增起点。</li><li><strong>Batch E 回归与发布：</strong>全量测试、双后端迁移、并发插入、重启、历史引用和发布文档收口。</li></ol>
+<h2>6. 验收标准</h2>
+<ul><li><code>rg "from datas.utils.id_generator|next_id\(" app datas --glob '*.py'</code> 只剩允许的历史兼容/测试说明，不存在生产写路径。</li><li>SQLite/MySQL 均通过空库、历史小 ID、历史 50-bit ID、混合引用四组迁移测试；迁移重复运行结果不变。</li><li>两进程/多线程同时插入三类记录不产生主键冲突；应用重启后仍由数据库分配唯一 ID。</li><li>所有引用列可查询历史 50-bit 任务；行数、主键集合、引用完整性、索引和 unique 约束前后一致。</li><li>运行 Ruff、模型序列化测试、关键路由冒烟、全量测试和版本/文档门禁；未创建 4.1.0 tag 直至全部通过。</li></ul>
+<h2>7. 风险与回滚</h2>
+<table border="1"><thead><tr><th>风险</th><th>控制</th><th>回滚</th></tr></thead><tbody><tr><td>SQLite 重建遗漏约束/索引</td><td>迁移前后 schema 快照和集合比对</td><td>事务失败保留原表，恢复备份</td></tr><tr><td>引用列截断历史 50-bit ID</td><td>逐列 BIGINT 容量检查与历史引用探针</td><td>禁止切换，原表继续服务</td></tr><tr><td>第三方代码依赖 50-bit 新 ID 形状</td><td>保留旧值、API 仍按整数读取，补路由/序列化测试</td><td>仅回滚写路径，不重编号历史数据</td></tr><tr><td>数据库自增起点落后于存量最大值</td><td>迁移前设置并验证 sequence/AUTO_INCREMENT</td><td>停止发布，修正起点后重跑幂等迁移</td></tr></tbody></table>
+<p>确认本设计后，才允许实施 Batch B；确认前不得删除 <code>id_generator.py</code> 或修改生产模型。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="OPT-P0-21-数据库自增ID迁移设计-2026-09-20.md">Markdown</a></footer>
+</main></body></html>

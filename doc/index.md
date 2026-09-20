@@ -48,12 +48,13 @@
 | **全量测试全绿修复设计（2026-09）**（待确认） | 90 项失败/错误分簇：Session fixture、离线 DNS、旧 schema 与 ORM 门禁 | [HTML](design/全量测试全绿修复设计-2026-09.html) | [MD](design/全量测试全绿修复设计-2026-09.md) |
 | **B1 认证夹具复盘与修复计划（2026-09）**（Review 未通过） | 30 失败 + 5 错误；统一真实用户、auth_version 与模型注册 | [HTML](postmortem/2026-09-B1认证夹具复盘与修复计划.html) | [MD](postmortem/2026-09-B1认证夹具复盘与修复计划.md) |
 | **v4.0.0 之后提交深度 Review（2026-09-20）**（Review 未通过） | 3 个 P1：多 worker ID、时钟回拨、IPv6 DNS pinning；4.1.0 暂不可发布 | [HTML](qa/4.0之后提交深度Review-2026-09-20.html) | [MD](qa/4.0之后提交深度Review-2026-09-20.md) |
+| **三份 Review 报告专业性与合理性评估（2026-09-20）** | 技术结论总体成立；校准基线/闭环/观察项的状态治理 | [HTML](qa/三份Review报告专业性与合理性评估-2026-09-20.html) | [MD](qa/三份Review报告专业性与合理性评估-2026-09-20.md) |
 | **全量测试与 Bugbot 复核（2026-09）**（未通过） | 754 项：4 failures、1 error、11 skipped；last-admin 保护覆盖回归 | [HTML](design/全量测试与Bugbot复核-2026-09.html) | [MD](design/全量测试与Bugbot复核-2026-09.md) |
 | **Codex 沙盒服务启停与验收脚本设计（2026-09）**（待确认） | 受限进程/端口/网络环境下的安全启停与 offline 验收 | [HTML](design/Codex沙盒服务启停与验收脚本设计-2026-09.html) | [MD](design/Codex沙盒服务启停与验收脚本设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
 | **OPT-P0-21 50-bit 任务 ID 生成器最终优化设计**（待确认） | 仅任务 ID 使用 · 32/12/6 位布局 · IP+PORT+PID worker · 引用列 BIGINT | [HTML](design/OPT-P0-21-ID生成策略优化设计.html) | [MD](design/OPT-P0-21-ID生成策略优化设计.md) |
-| **OPT-P0-21 数据库自增 ID 迁移设计（2026-09-20）**（待确认） | 下线 next_id · SQLite/MySQL 自增迁移 · 保留历史 50-bit 引用兼容 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.md) |
-| ↳ **OPT-P0-21 数据库自增 ID 迁移设计专业 Review（2026-09-20）**（有条件通过） | P0：SQLite 类型契约、Core INSERT 省略主键；P1：引用列迁移清单与停写边界 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.md) |
+| **OPT-P0-21 数据库自增 ID 迁移设计（2026-09-20）**（待确认） | 下线 next_id · SQLite/MySQL 自增迁移 · 新写入健壮性与 fail-closed 数据检查 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.md) |
+| ↳ **OPT-P0-21 数据库自增 ID 迁移设计专业 Review（2026-09-20）**（有条件通过） | P0：SQLite 类型契约、Core INSERT 省略主键；P1：引用范围检查与停写边界 | [HTML](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.html) | [MD](design/OPT-P0-21-数据库自增ID迁移设计-专业Review-2026-09-20.md) |
 | **任务执行链路可观测性设计方案（收敛版）**（待确认） | 同步 HTTP 触发执行事件与执行中记录 · 不引入工作流编排 · rev.5 确认页面、线程池与保留边界 | [HTML](design/任务执行链路可观测性设计方案-收敛版.html) | [MD](design/任务执行链路可观测性设计方案-收敛版.md) |
 | ↳ **执行详情 URL 字段角色化脱敏修复设计**（已实施） | Bugbot High：全角色 URL 凭据脱敏 · 完整 Presenter DTO · 展示面修复 | [HTML](design/执行详情URL字段角色化脱敏修复设计-2026-09.html) | [MD](design/执行详情URL字段角色化脱敏修复设计-2026-09.md) |
 | ↳ 页面对比 Demo | Before/After · 详情主变更 + 列表/任务详情轻量 · 明确不改页 | [HTML](design/任务执行链路可观测性-页面对比Demo.html) | [MD](design/任务执行链路可观测性-页面对比Demo.md) |

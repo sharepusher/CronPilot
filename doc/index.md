@@ -47,6 +47,7 @@
 | **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **全量测试全绿修复设计（2026-09）**（待确认） | 90 项失败/错误分簇：Session fixture、离线 DNS、旧 schema 与 ORM 门禁 | [HTML](design/全量测试全绿修复设计-2026-09.html) | [MD](design/全量测试全绿修复设计-2026-09.md) |
 | **B1 认证夹具复盘与修复计划（2026-09）**（Review 未通过） | 30 失败 + 5 错误；统一真实用户、auth_version 与模型注册 | [HTML](postmortem/2026-09-B1认证夹具复盘与修复计划.html) | [MD](postmortem/2026-09-B1认证夹具复盘与修复计划.md) |
+| **v4.0.0 之后提交深度 Review（2026-09-20）**（Review 未通过） | 3 个 P1：多 worker ID、时钟回拨、IPv6 DNS pinning；4.1.0 暂不可发布 | [HTML](qa/4.0之后提交深度Review-2026-09-20.html) | [MD](qa/4.0之后提交深度Review-2026-09-20.md) |
 | **全量测试与 Bugbot 复核（2026-09）**（未通过） | 754 项：4 failures、1 error、11 skipped；last-admin 保护覆盖回归 | [HTML](design/全量测试与Bugbot复核-2026-09.html) | [MD](design/全量测试与Bugbot复核-2026-09.md) |
 | **Codex 沙盒服务启停与验收脚本设计（2026-09）**（待确认） | 受限进程/端口/网络环境下的安全启停与 offline 验收 | [HTML](design/Codex沙盒服务启停与验收脚本设计-2026-09.html) | [MD](design/Codex沙盒服务启停与验收脚本设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |

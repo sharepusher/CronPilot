@@ -7,6 +7,13 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+### 工程修复 — 业务 ID 切换为数据库自增
+- `cron_infos`、`job_log`、`job_log_events` 生产写入路径移除 `next_id`；ExecutionTracer Core INSERT 不再显式写入主键。
+- SQLite 旧事件表执行值不变的 schema 切换，MySQL 主键统一为 `BIGINT AUTO_INCREMENT`；历史行不重编号。
+- 验证：25 项专项/导入测试、86 条路由冒烟通过；live 服务验收需在允许本地监听的环境复验。
+- 设计：[OPT-P0-21 数据库自增 ID 写入机制切换设计](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html)
+- 复盘：[数据库自增 ID 生成器下线](doc/postmortem/2026-09-数据库自增ID生成器下线.html)
+
 ### UI 改进 — 任务中心标题统计收敛
 - 标题移除总任务数与“今日失败”，保留运行中、已暂停、持续异常和逾期四项，减少任务存量与执行结果的混排。
 - “今日失败”继续仅在独立统计卡显示；筛选、列表与 Dashboard stats API 口径不变。

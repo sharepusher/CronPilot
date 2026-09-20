@@ -62,6 +62,8 @@
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
 <h2 id="unreleased">[Unreleased]</h2>
+<h3>工程修复 — 业务 ID 切换为数据库自增</h3>
+<ul><li><code>cron_infos</code>、<code>job_log</code>、<code>job_log_events</code> 生产写入路径移除 <code>next_id</code>；ExecutionTracer Core INSERT 不再显式写入主键。</li><li>SQLite 旧事件表执行值不变的 schema 切换，MySQL 主键统一为 <code>BIGINT AUTO_INCREMENT</code>；历史行不重编号。</li><li>验证：25 项专项/导入测试、86 条路由冒烟通过；live 服务验收需在允许本地监听的环境复验。</li><li>设计：<a href="design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">OPT-P0-21 数据库自增 ID 写入机制切换设计</a></li><li>复盘：<a href="postmortem/2026-09-数据库自增ID生成器下线.html">数据库自增 ID 生成器下线</a></li></ul>
   <div class="card">
     <p class="muted">说明：本页为 `/docs/` 历史快照，最新版本日志以仓库根 <a href="../RELEASE_NOTES.md"><code>RELEASE_NOTES.md</code></a> 为准。</p>
     <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>

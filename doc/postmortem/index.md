@@ -55,6 +55,8 @@
 
 ## 基础设施与工程
 
+- [数据库自增 ID 生成器下线](2026-09-数据库自增ID生成器下线.html)（写入路径切换 · SQLite 结构切换 · 并发与幂等验证，2026-09-20）
+
 - [users_reset_password 装饰器丢失](2026-08-missing-route-decorator.html)
 - [迁移脚本清零有效时间戳](2026-08-迁移脚本清零有效时间戳.html)
 - [文档链接 140 处 broken](2026-08-doc-links-broken-index.html)

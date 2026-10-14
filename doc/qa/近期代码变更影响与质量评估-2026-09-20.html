@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>近期代码变更影响与质量评估（2026-09-20）</title></head><body><main>
+<h1>近期代码变更影响与质量评估</h1>
+<p>日期：2026-09-20 · 主焦点：<code>7063ff7</code> / <code>0e1cc41</code>（业务 ID → 数据库自增）· 辅焦点：2026-09-18 执行观测修复簇（<code>0a303ed</code>…<code>700ec94</code>）· 状态：审查完成，未改业务代码</p>
+
+<h2>1. 总体结论</h2>
+<p><strong>已合入部分质量 B+，影响面高，发布条件未满足。</strong> A–C 批次正确关闭了多 worker 下 <code>next_id</code> 碰撞的生产写路径；ExecutionTracer 省略主键与 SQLite 事件表值不变重建质量良好。但设计稿 Batch D–F 未完成，且切回无 <code>AUTOINCREMENT</code> 关键字的 SQLite 主键后，硬删除场景会复用 ID——这与 OPT-P0-21 当年引入应用层 ID 的原始动机冲突。完成 MySQL 复验、复用防护与死代码清理前，不应标记可发布。</p>
+
+<h2>2. 审查范围与证据</h2>
+<ul>
+<li>代码：三模型 PK、<code>execution_tracer.py</code>、<code>scripts/ensure_business_tables.py</code>、<code>tests/test_id_autoincrement.py</code></li>
+<li>命令：<code>.venv-py311/bin/python -m unittest tests.test_id_autoincrement tests.test_execution_tracer tests.test_ensure_business_tables -v</code>（16 OK）</li>
+<li>本地库：<code>datas/job_log.sqlite</code> 中 <code>cron_infos</code>/<code>job_log</code> 为 <code>INTEGER</code> PK；<code>job_log_events</code> 已为 <code>INTEGER PRIMARY KEY</code></li>
+<li>复现：内存库硬删 <code>CronInfos</code> 后新插入 <code>id</code> 复用（deleted=1 → new=1）</li>
+<li>对照文档：<a href="../design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">迁移设计</a>、<a href="../postmortem/2026-09-数据库自增ID生成器下线.html">下线复盘</a>、<a href="4.0之后提交深度Review-2026-09-20.html">深度 Review</a></li>
+</ul>
+
+<h2>3. 影响矩阵</h2>
+<table border="1"><thead><tr><th>维度</th><th>影响</th><th>说明</th></tr></thead><tbody>
+<tr><td>多 worker ID 唯一性</td><td>高正面</td><td>关闭 CR-2：生产路径不再依赖进程内序列</td></tr>
+<tr><td>历史数据兼容</td><td>中正面</td><td>事件表重建复制列值；测试断言超大历史 ID 不变、新 ID=max+1</td></tr>
+<tr><td>ExecutionTracer</td><td>中正面</td><td>Core INSERT 省略 <code>id</code>，避免显式 NULL 抑制 SQLite 分配</td></tr>
+<tr><td>ID 复用 / 健康别名</td><td>中负面残差</td><td>无 AUTOINCREMENT；生产靠 retire 软下线缓解；硬删仍可别名 <code>job_health</code></td></tr>
+<tr><td>MySQL 生产路径</td><td>未验证</td><td>ALTER 已写；Batch D 未实跑；失败仅 WARN</td></tr>
+<tr><td>4.1.0 readiness</td><td>仍阻断</td><td>叠加 CR-3（IPv6）、观测 R3/R6/R7、本变更 D–F</td></tr>
+</tbody></table>
+
+<h2>4. 质量评分</h2>
+<table border="1"><thead><tr><th>维度</th><th>分</th><th>依据</th></tr></thead><tbody>
+<tr><td>方向与根因对齐</td><td>A</td><td>对准 CR-2；Tracer 注释准确</td></tr>
+<tr><td>实现最小 diff</td><td>A-</td><td>模型 + Tracer + ensure + 专项测试，范围克制</td></tr>
+<tr><td>测试覆盖（已做）</td><td>B+</td><td>ORM/重建好；缺 MySQL、并发、复用否定</td></tr>
+<tr><td>迁移稳健性</td><td>B</td><td>SQLite 事务重建合理；MySQL WARN 削弱 fail-closed</td></tr>
+<tr><td>文档/复盘诚实度</td><td>B</td><td>标明 live/MySQL 待验；「CI 门禁」略超前</td></tr>
+<tr><td>交付完整度</td><td>C+</td><td>A–C 完成；D–F 与设计状态未同步</td></tr>
+</tbody></table>
+
+<h2>5. Finding 清单</h2>
+<table border="1"><thead><tr><th>级别</th><th>发现</th><th>证据 / 影响</th><th>建议</th></tr></thead><tbody>
+<tr><td>P1</td><td>交付未闭环（Batch D–F）</td><td>设计仍写「实施中」；MySQL 未复验；<code>id_generator.py</code> 与 <code>tests/test_id_generator.py</code> 仍在树内；无双进程并发插入测试</td><td>完成 D–F 前不标已交付</td></tr>
+<tr><td>P1</td><td>SQLite 硬删后 ID 复用</td><td>本机复现硬删后复用；<code>job_health</code> 以 <code>cron_info_id</code> 为 PK；生产 retire 缓解但不构成 DDL 级防护</td><td>补 <code>AUTOINCREMENT</code>，或创建时清理孤儿关联 + 否定用例</td></tr>
+<tr><td>P2</td><td>MySQL ALTER 失败仅 WARN</td><td><code>_ensure_id_columns_bigint</code> 捕获异常后继续启动；应用已省略显式 id</td><td>迁移失败 fail-closed</td></tr>
+<tr><td>P2</td><td>预防门禁未进 CI</td><td>复盘写明 <code>rg next_id</code>，未落 workflow</td><td>删死代码或加 CI 断言</td></tr>
+<tr><td>P3</td><td>DDL 形态漂移</td><td><code>create_all</code> 与事件表迁移产出的 INTEGER PK 文本形态不一致</td><td>统一目标 DDL 断言</td></tr>
+</tbody></table>
+
+<h2>6. 辅评：9/18 执行观测簇</h2>
+<p>transport 异常矩阵与 Run Inspector 兜底修复质量高，定向测试补强充分。仍开放：fatal 阶段代理（R3）、事件 unique vs 迁移索引（R6）、混合 <code>run_id</code> 查询（R7）、IPv6 pinning（CR-3）。与本轮 ID 切换正交，共同构成 4.1.0 发布门槛。</p>
+
+<h2>7. 建议下一步</h2>
+<ol>
+<li><strong>关闭 P1：</strong>MySQL 三表 AUTO_INCREMENT 实跑 + 并发插入；硬删复用否定用例或 AUTOINCREMENT DDL；清理/隔离 <code>id_generator</code>。</li>
+<li><strong>加固迁移：</strong>ALTER 失败 fail-closed；<code>create_all</code> 与迁移目标 DDL 对齐断言。</li>
+<li><strong>发布门禁：</strong>仅当 D–F + CR-3 + 观测残留项有明确 Closure 状态后，再评估 4.1.0。</li>
+</ol>
+
+<footer><a href="../index.html">文档索引</a> · <a href="近期代码变更影响与质量评估-2026-09-20.md">Markdown</a></footer>
+</main></body></html>

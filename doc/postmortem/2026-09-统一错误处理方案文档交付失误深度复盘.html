@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>统一错误处理方案文档交付失误深度复盘（2026-09）</title>
+<style>
+body{font-family:system-ui,"PingFang SC",sans-serif;line-height:1.7;max-width:1080px;margin:auto;padding:24px;color:#1f2937}h1{color:#123b6d}h2{border-left:4px solid #2563eb;padding-left:10px;margin-top:32px}h3{margin-top:22px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #cbd5e1;padding:8px;vertical-align:top}th{background:#eff6ff}pre{background:#f8fafc;border:1px solid #cbd5e1;padding:12px;overflow:auto}.note{padding:12px 14px;background:#fff7ed;border-left:4px solid #f97316}.ok{padding:12px 14px;background:#ecfdf5;border-left:4px solid #10b981}.risk{padding:12px 14px;background:#fef2f2;border-left:4px solid #dc2626}code{background:#f1f5f9;padding:2px 5px}
+</style>
+</head>
+<body><main>
+<h1>统一错误处理方案文档交付失误深度复盘</h1>
+<p>日期：2026-09-23 · 版本：<strong>v1.1</strong> · 状态：<strong>已复盘</strong> · 范围：P0 统一错误处理方案、管理平台 REST API 后续方案及其交付规范</p>
+<div class="note"><strong>复盘结论：</strong>本次不是单一格式疏漏，而是“需求语义—架构边界—文档结构—交付链接—浏览器可验证性”五层交付契约没有在首轮形成闭环。后续已将关键约束写入文档规范，但自动门禁仍需继续建设。</div>
+<h2>版本变更记录</h2>
+<table><thead><tr><th>版本</th><th>日期</th><th>变更内容</th><th>原因</th></tr></thead><tbody>
+<tr><td>v1.1</td><td>2026-09-23</td><td>将复盘提出的“交付契约矩阵”实际加入 P0 计划、管理平台后续方案和文档规范，固定实现前的来源/责任/失败/验收输入。</td><td>把复盘结论转为前置设计产物，避免只记录问题而不改变工作流程。</td></tr>
+<tr><td>v1.0</td><td>2026-09-23</td><td>首次建立深度复盘：记录 request_id 语义反复修订、SSR/REST 边界误判、版本记录位置错误、URL 交付格式错误及浏览器打开失败。</td><td>将多轮用户纠正归并为可验证的流程和门禁改进，而不是分别修补表象。</td></tr>
+</tbody></table>
+
+<h2>1. 事件概览与影响</h2>
+<table><thead><tr><th>阶段</th><th>出现的问题</th><th>用户可见影响</th></tr></thead><tbody>
+<tr><td>方案初稿</td><td>没有先把外部 API、管理平台 Ajax、SSR 导航/form、scheduler 分层。</td><td>request_id 是否必填、是否服务端生成、是否覆盖 HTML 路径反复摇摆。</td></tr>
+<tr><td>语义修订</td><td>先后出现“一律忽略入站 Header”“缺失服务端生成”“缺失也必须报错”等互相冲突的表述。</td><td>用户需要反复纠正请求方责任、请求/响应同 ID 和 API 字段契约。</td></tr>
+<tr><td>文档交付</td><td>版本记录先放在文档末尾；交付回复使用了内部 Markdown 链接和路径，而非用户要求的可复制完整 URL。</td><td>用户无法在打开文档前确认版本，也无法稳定复制链接到浏览器。</td></tr>
+<tr><td>浏览器验证</td><td>没有在首次交付前验证本地 URL 的实际跳转；浏览器策略阻止自动打开时才被动说明。</td><td>用户看到的仍可能是旧标签页或无法直接访问的地址。</td></tr>
+</tbody></table>
+<div class="risk"><strong>交付影响：</strong>虽然最终设计文件、Markdown 同步和索引检查通过，但交付过程不满足“用户可直接确认、复制、打开和识别版本”的完整标准；这属于流程质量事故，不应以“文件已经写入”视为完成。</div>
+
+<h2>2. 根因分析：从行为层追溯</h2>
+<h3>2.1 首要根因：没有先建立交付契约矩阵</h3>
+<p>开始分析时直接进入方案内容，先讨论 Header、trace 和 JSON 信封，后补充调用方、SSR、浏览器和文档交付边界。缺少一张先行矩阵：</p>
+<table><thead><tr><th>维度</th><th>本应先固定的答案</th><th>实际表现</th></tr></thead><tbody>
+<tr><td>传输类型</td><td>公开 REST/JSON、管理端 JSON、SSR 文档、scheduler 分开</td><td>一度把全局 HTTP 请求当作同一种来源</td></tr>
+<tr><td>request_id 责任</td><td>外部值可重复；本端生成的异步/调度值由本端保证 UUID v4</td><td>先用统一 fallback 覆盖所有来源，后被纠正</td></tr>
+<tr><td>缺失行为</td><td>已登记 REST/JSON 端点缺失即 400；SSR 排除</td><td>先设计为服务端生成，再改为缺失报错</td></tr>
+<tr><td>文档输出</td><td>HTML/MD、版本记录位置、完整 URL、浏览器可达性</td><td>只验证文件和索引，未验证交付形态</td></tr>
+</tbody></table>
+<h3>2.2 次要根因：把“内容正确”误当成“交付完成”</h3>
+<p>工作重心放在 APIFlask、OpenAPI、ContextVar 和错误信封等专业内容，形成了“方案技术上越来越完整”的错觉，但没有把用户实际验收动作作为同等级目标：打开哪个 URL、看到哪个版本、复制哪一行、如何确认 HTML 与 MD。结果是技术内容改对了，交付接口仍不合格。</p>
+<h3>2.3 组织性根因：规则存在，但没有在行动前转化为检查表</h3>
+<p>仓库已有设计先行、HTML/MD 同步、文档索引、复盘和可验证环境规则；但这些规则是分散文本，没有形成“文档交付前一页式检查表”，也没有门禁检查“版本记录位于顶部”和“回复中的 URL 是纯文本完整地址”。因此规则在事后修复中才被逐步补齐。</p>
+
+<h2>3. 逐项问题复盘</h2>
+<table><thead><tr><th>问题</th><th>直接原因</th><th>深层原因</th><th>应采取的控制</th></tr></thead><tbody>
+<tr><td>request_id 语义反复</td><td>先写实现形态，后问来源和责任</td><td>缺少传输分层和“谁生成、谁负责唯一性”字段</td><td>设计开头必须有来源矩阵和反例；缺失/非法/SSR 三类负向用例先写</td></tr>
+<tr><td>把管理平台等同纯 REST</td><td>只看到 Ajax/API，没有先盘点 SSR 导航和原生 form</td><td>没有以路由清单而不是技术偏好判断架构事实</td><td>M0 路由盘点先于管理端 REST 化；每条路由标注 JSON required 或 SSR excluded</td></tr>
+<tr><td>版本记录放末尾</td><td>把版本历史当附录，而非文档入口元信息</td><td>缺少“读者打开第一屏应知道什么”的文档信息架构检查</td><td>版本记录紧跟标题/元信息/确认门禁；当前版本首行且与标题一致</td></tr>
+<tr><td>URL 无法复制/跳转</td><td>使用了内部 Markdown 路径链接和尖括号形式</td><td>没有区分应用渲染链接与浏览器地址栏可复制 URL</td><td>回复只输出百分号编码的完整 URL 纯文本代码块，一行一个，并验证浏览器行为</td></tr>
+<tr><td>浏览器仍显示旧页</td><td>只写文件，没有确认当前标签页是否刷新到新版本</td><td>未将“用户实际看到的页面”纳入文档交付验收</td><td>交付前打开/刷新 HTML URL；若安全策略阻止，必须记录阻塞并提供可复制地址</td></tr>
+</tbody></table>
+
+<h2>4. 测试与门禁漏洞</h2>
+<table><thead><tr><th>现有检查</th><th>能发现什么</th><th>不能发现什么</th><th>补强方向</th></tr></thead><tbody>
+<tr><td><code>html_docs_to_markdown.py --check</code></td><td>HTML/MD 是否同步</td><td>HTML 内容是否符合信息架构、版本记录是否置顶</td><td>增加文档元信息结构检查</td></tr>
+<tr><td><code>check_doc_completeness.py --check</code></td><td>索引登记、链接完整性</td><td>交付回复是否给出完整 URL、浏览器是否能打开</td><td>增加交付清单静态检查；浏览器验证保留人工/自动化步骤</td></tr>
+<tr><td><code>git diff --check</code></td><td>空白字符问题</td><td>语义边界、版本位置、链接格式</td><td>不能把通用 diff 检查误当文档验收</td></tr>
+<tr><td>人工 Review</td><td>可发现专业语义问题</td><td>没有清单时容易漏掉基础交付项</td><td>使用固定交付检查表，并在最终回复前逐项勾选</td></tr>
+<tr><td>浏览器打开</td><td>真实页面可达性和版本可见性</td><td>未执行时完全没有证据</td><td>HTML 交付必须记录打开结果、当前 URL 和页面版本</td></tr>
+</tbody></table>
+
+<h2>5. 修复与当前状态</h2>
+<ol><li>P0 方案已改为 REST/JSON 专属 request_id 契约：缺失/非法 400，SSR 排除。</li><li>新增管理平台渐进式 REST API 后续方案，明确 Session/CSRF/RBAC 与外部 Token API 隔离。</li><li>两份设计均已补顶部版本变更记录和交付契约矩阵，当前版本分别为 rev.7 和 v0.3。</li><li>HTML/Markdown 已同步，索引已登记，文档完整性检查通过。</li><li><code>cronpilot-documentation.mdc</code> 已新增完整 URL、纯文本代码块、百分号编码、浏览器可达性、版本记录置顶和契约矩阵前置规范。</li><li>本地浏览器自动跳转曾被安全策略阻止，已将其定义为交付阻塞条件，不再假装“已打开”。</li></ol>
+
+<h2>6. 预防方案与落地计划</h2>
+<table><thead><tr><th>优先级</th><th>措施</th><th>落地位置</th><th>验证方式</th></tr></thead><tbody>
+<tr><td>P0</td><td>文档顶部元信息模板：标题、版本、日期、状态、确认门禁、版本记录</td><td><code>.cursor/rules/cronpilot-documentation.mdc</code>；后续设计模板</td><td>人工检查 + 静态脚本断言版本记录在首个正文章节之前</td></tr>
+<tr><td>P0</td><td>交付 URL 固定为百分号编码完整 URL 的纯文本代码块，一行一个；HTML/MD 成对</td><td>同上；交付回复检查表</td><td>抽取最终回复中的 URL，执行 <code>test -f</code> 或 HTTP 状态检查</td></tr>
+<tr><td>P0</td><td>设计开头先写传输/来源/唯一性/缺失行为矩阵</td><td>所有 API、错误处理、架构设计</td><td>Review 未通过矩阵不得进入实施批次</td></tr>
+<tr><td>P1</td><td>新增文档结构门禁：当前版本与标题一致、版本记录置顶、HTML/MD 同步</td><td><code>scripts/check_doc_completeness.py</code> 或独立 docs lint</td><td><code>python scripts/check_doc_completeness.py --check</code></td></tr>
+<tr><td>P1</td><td>交付回复生成器/模板，禁止仅输出内部链接格式</td><td>文档交付工具或固定回复模板</td><td>单元测试覆盖中文文件名 URL 编码、HTML/MD 配对和纯文本输出</td></tr>
+<tr><td>P1</td><td>浏览器验收记录当前 URL、页面标题和版本文本；策略阻止时记录原因</td><td>交付闭环记录</td><td>浏览器状态 + 页面断言，不以文件存在替代打开验证</td></tr>
+</tbody></table>
+
+<h2>7. 关闭条件</h2>
+<div class="ok">本次复盘只有在以下条件全部满足后才关闭：两份设计顶部版本记录和标题版本一致；HTML/MD 与索引检查通过；文档交付规范包含完整 URL 纯文本格式；至少一次交付回复按新格式提供 HTML/MD URL；文档结构门禁或等价人工检查能够复现上述断言；后续 API 设计继续保留来源矩阵和 SSR/REST 边界。</div>
+</main><footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="2026-09-统一错误处理方案文档交付失误深度复盘.md">Markdown 版</a></footer></body></html>

@@ -51,12 +51,27 @@
 | **用户管理「添加用户」入口布局优化设计**（已交付） | 标题区减负 · 主操作移入列表工具区左首位 · 桌面/窄屏前后对比 | [HTML](design/用户管理添加用户入口布局优化设计.html) · [页面对比 Demo](design/用户管理添加用户入口-页面对比Demo.html) | [MD](design/用户管理添加用户入口布局优化设计.md) |
 | **全仓术语治理设计（2026-09）**（已完成） | 业务旧术语 → 触发语义 · 技术 API 保留 · 活跃文档与语境化门禁 | [HTML](design/全仓术语治理设计-2026-09.html) | [MD](design/全仓术语治理设计-2026-09.md) |
 | **全量测试全绿修复设计（2026-09）**（待确认） | 90 项失败/错误分簇：Session fixture、离线 DNS、旧 schema 与 ORM 门禁 | [HTML](design/全量测试全绿修复设计-2026-09.html) | [MD](design/全量测试全绿修复设计-2026-09.md) |
+| **统一人工操作错误处理设计（2026-09）**（历史草案） | 已拆分为 P0-A2、P0-S、P0-B 与 P0-C 子方案，仅作决策溯源 | [HTML](design/统一人工操作错误处理设计-2026-09.html) | [MD](design/统一人工操作错误处理设计-2026-09.md) |
+| **统一错误处理治理路线图（2026-09）**（待确认） | 权威层级、P0/P1 优先级、依赖、确认边界与拆分导航 | [HTML](design/统一错误处理P0实施计划-2026-09.html) | [MD](design/统一错误处理P0实施计划-2026-09.md) |
+| **P0-A-lite Request ID 协议设计（2026-10）**（待确认） | UUID v4 Header、端点登记、双 ID、缓存与原子发布 | [HTML](design/P0-A-lite-Request-ID协议设计-2026-10.html) | [MD](design/P0-A-lite-Request-ID协议设计-2026-10.md) |
+| **P1-A2 JSON 错误信封设计（2026-10）**（待确认） | P1：输出兼容快照、入口适配与稳定错误码（保留旧路径） | [HTML](design/P0-A2-JSON错误信封设计-2026-10.html) | [MD](design/P0-A2-JSON错误信封设计-2026-10.md) |
+| **P0-S 异常脱敏与输出 Sink 设计（2026-10）**（待确认） | P0 安全前置：sink 台账、统一 sanitizer 与 HTTP/日志/通知输出面 | [HTML](design/P0-S-异常脱敏与输出Sink设计-2026-10.html) | [MD](design/P0-S-异常脱敏与输出Sink设计-2026-10.md) |
+| **P1-B 错误交互与表单回显设计（2026-10）**（待确认） | P1：页面级字段错误、表单回显、无障碍与真实页面对比 | [HTML](design/P0-B-错误交互与表单回显设计-2026-10.html) | [MD](design/P0-B-错误交互与表单回显设计-2026-10.md) |
+| **P0-C（C-0）任务调度最终一致性设计（2026-10）**（待确认） | 先冻结 generation、迁移、锁与对账证据，再评审实施切片 | [HTML](design/P0-C-任务调度最终一致性设计-2026-10.html) | [MD](design/P0-C-任务调度最终一致性设计-2026-10.md) |
+| **管理平台渐进式 REST API 化后续方案（2026-09）**（待确认） | SSR 保留、管理端 JSON 层、Session/CSRF/RBAC 边界与垂直迁移计划 | [HTML](design/管理平台REST_API化后续方案-2026-09.html) | [MD](design/管理平台REST_API化后续方案-2026-09.md) |
+| **统一错误处理 P0 设计契约修订复盘（2026-09）** | 首期兼容决议、scheduler 最终一致性与可验证入口覆盖 | [HTML](postmortem/2026-09-统一错误处理P0设计契约修订.html) | [MD](postmortem/2026-09-统一错误处理P0设计契约修订.md) |
+| **统一错误处理方案文档交付失误深度复盘（2026-09）** | request_id 语义、SSR/REST 边界、版本记录、URL 交付与浏览器验证的系统复盘 | [HTML](postmortem/2026-09-统一错误处理方案文档交付失误深度复盘.html) | [MD](postmortem/2026-09-统一错误处理方案文档交付失误深度复盘.md) |
+| **统一错误处理现状评估（2026-09-21）**（评估） | 当前未满足统一契约；2 个 P0、3 个 P1 和 1 个 P2 缺口 | [HTML](qa/统一错误处理现状评估-2026-09-21.html) | [MD](qa/统一错误处理现状评估-2026-09-21.md) |
+| **统一错误处理 P0 方案专业 Review（2026-09-21）**（评估） | B+：方向正确但需补齐接口覆盖、trace_id 复用、API 兼容和事务状态机 | [HTML](qa/统一错误处理P0方案专业Review-2026-09-21.html) | [MD](qa/统一错误处理P0方案专业Review-2026-09-21.md) |
+| **统一错误处理 P0 与管理平台 REST 方案全面专业 Review（2026-09）**（评估） | 专业性、准确性、合理性与实施阻塞项：request_id、SSR/REST、ContextVar、兼容性 | [HTML](qa/统一错误处理P0与管理平台REST方案全面专业Review-2026-09.html) | [MD](qa/统一错误处理P0与管理平台REST方案全面专业Review-2026-09.md) |
 | **B1 认证夹具复盘与修复计划（2026-09）**（Review 未通过） | 30 失败 + 5 错误；统一真实用户、auth_version 与模型注册 | [HTML](postmortem/2026-09-B1认证夹具复盘与修复计划.html) | [MD](postmortem/2026-09-B1认证夹具复盘与修复计划.md) |
 | **数据库自增 ID 生成器下线复盘（2026-09）**（已实施） | 根因、写入路径修复、SQLite 结构切换、25 项专项测试与 86 路由冒烟 | [HTML](postmortem/2026-09-数据库自增ID生成器下线.html) | [MD](postmortem/2026-09-数据库自增ID生成器下线.md) |
 | **SSRF 内外网区域校验修复（2026-09）**（已实施） | 部署 DNS 控制私网/ULA 可达性、危险地址硬拒绝、单次解析 pinning、重定向防护 | [HTML](postmortem/2026-09-SSRF内外网区域校验修复.html) | [MD](postmortem/2026-09-SSRF内外网区域校验修复.md) |
 | **MySQL 任务 ID 关联列类型修复（2026-09）**（已实施） | 任务 ID 关联列统一 BIGINT；高位 ID 写入与迁移 fail-closed | [HTML](postmortem/2026-09-MySQL任务ID关联列类型修复.html) | [MD](postmortem/2026-09-MySQL任务ID关联列类型修复.md) |
 | **v4.0.0 之后提交深度 Review（2026-09-20）**（历史审查） | 当时记录的 3 个 P1；当前状态以 2026-10-12 全面复核为准 | [HTML](qa/4.0之后提交深度Review-2026-09-20.html) | [MD](qa/4.0之后提交深度Review-2026-09-20.md) |
 | **三份 Review 报告专业性与合理性评估（2026-09-20）** | 技术结论总体成立；校准基线/闭环/观察项的状态治理 | [HTML](qa/三份Review报告专业性与合理性评估-2026-09-20.html) | [MD](qa/三份Review报告专业性与合理性评估-2026-09-20.md) |
+| **近期代码变更影响与质量评估（2026-09-20）** | 7063ff7 ID 自增切换：B+ / 条件通过；P1 含 D–F 未闭环与 SQLite ID 复用 | [HTML](qa/近期代码变更影响与质量评估-2026-09-20.html) | [MD](qa/近期代码变更影响与质量评估-2026-09-20.md) |
+| **全面代码 Bugbot 评估（2026-09-21）**（不建议发布） | 2 个 P0 SSRF 绕过、4 个 P1：SQLite 迁移中断、IPv6、MySQL 关联列与 DDL fail-open | [HTML](qa/全面代码Bugbot评估-2026-09-21.html) | [MD](qa/全面代码Bugbot评估-2026-09-21.md) |
 | **全量测试与 Bugbot 复核（2026-09）**（未通过） | 754 项：4 failures、1 error、11 skipped；last-admin 保护覆盖回归 | [HTML](design/全量测试与Bugbot复核-2026-09.html) | [MD](design/全量测试与Bugbot复核-2026-09.md) |
 | **Codex 沙盒服务启停与验收脚本设计（2026-09）**（待确认） | 受限进程/端口/网络环境下的安全启停与 offline 验收 | [HTML](design/Codex沙盒服务启停与验收脚本设计-2026-09.html) | [MD](design/Codex沙盒服务启停与验收脚本设计-2026-09.md) |
 | **质量门禁与测试稳定性最小修复方案（2026-09）** | 4 项阻断修复：单测隔离、golden path、CSS reachability、postmortem completeness | [HTML](design/质量门禁与测试稳定性最小修复方案-2026-09.html) | [MD](design/质量门禁与测试稳定性最小修复方案-2026-09.md) |
@@ -201,4 +216,17 @@
 
 ---
 
-*CronPilot · 技术文档索引 · Release Notes（v1.2.0）*
+*CronPilot · 技术文档索引 · 当前正式版本 v4.0.0 · 4.1.0 候选版整理中*
+# 专项评审入口
+
+- 任务触发 URL 3xx 失败语义与 Pinning 修复设计（已实施，2026-10）：[HTML](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [Markdown](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.md)
+
+- 任务触发 URL DNS 二次解析安全修复设计（已确认并实施，2026-10-12）：[HTML](design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [Markdown](design/任务触发URL-DNS二次解析安全修复设计-2026-10.md)
+
+- 代码全面 Review 与未提交变更评估（2026-10-12 v6：历史 P0/P2 已关闭；完整测试 839 项已运行，其中 838 通过、1 项风险演示跳过，11 项服务集成测试全部通过；发布仅待真实 MySQL 迁移演练）：[HTML](qa/2026-10-10-代码全面Review与未提交变更评估.html) · [Markdown](qa/2026-10-10-代码全面Review与未提交变更评估.md)
+
+- 任务触发安全与测试契约漂移复盘（2026-10-10）：[HTML](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html) · [Markdown](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.md)
+
+- P0-D 数据库写入失败闭环设计（待确认）：[HTML](design/P0-D-数据库写入失败闭环设计-2026-10.html) · [MD](design/P0-D-数据库写入失败闭环设计-2026-10.md)
+
+- 统一错误处理拆分文档专业评审（2026-10-09）：[HTML](qa/error-handling-split-review-2026-10-09.html) · [Markdown](qa/error-handling-split-review-2026-10-09.md)

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>历史截图凭据脱敏与迁移原子性复盘（2026-10）</title></head><body><main>
+<h1>历史截图凭据脱敏与迁移原子性复盘</h1>
+<p>日期：2026-10-13 · 范围：历史文档图片治理 H1–H5 · 状态：已修复并建立门禁</p>
+
+<h2>1. Bug 定位</h2>
+<ol>
+<li>全量目视审查发现 5 张历史 API Token 页面截图展示了完整凭据值及命令行 Bearer 示例，不适合继续进入当前公开树与后续发布资产。</li>
+<li>首次图片迁移预检在遇到后续坏引用前，已逐文件写回前面的 HTML；由于规范资产和 manifest 尚未落盘，运行失败后形成“引用已改、资产未写”的部分状态。</li>
+<li>另发现 18 个历史 <code>&lt;img&gt;</code> 指向开发机 <code>/var/folders/...</code> 临时路径，原图从未入库，任何外部环境均无法加载。</li>
+</ol>
+
+<h2>2. 根因</h2>
+<ul>
+<li>历史截图采集流程只验证页面效果，没有把凭据可见性、来源和公开发布资格作为入库条件。</li>
+<li>旧文档没有统一图片资产身份与结构化门禁，复制、Base64 内嵌和本机临时路径可长期共存。</li>
+<li>首版一次性迁移器采用“扫描到一个文件就立即写回”，缺少先完成全量解析与引用验证、再统一提交的事务边界；同时没有考虑失败后的可恢复重入。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>既有 <code>check_doc_links.py</code> 不解析图片属性，也不校验图片文件头、哈希、manifest、绝对路径或数据 URI。</li>
+<li>迁移前没有故障注入用例覆盖“前半段文档已改写、后半段引用失败”的中断场景。</li>
+<li>发布流程没有按图片路径与内容哈希双重验证历史截图是否误入。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+<li>初次处置曾为 5 张敏感截图生成脱敏衍生图并记录原图哈希；后续 Review 确认这些图片不具备持续证据价值，已将衍生图与全部引用从现行树删除，仅在本复盘保留原始 SHA-256 已被审计的事实。</li>
+<li>87 个旧路径 PNG、19 张 QA 图片和历史 Base64 图经迁移、去重与敏感图删除后，最终为 71 个唯一内容寻址资产。</li>
+<li>迁移器增加已有规范资产/manifest 合并，以及从 Git 基线恢复原始数据 URI 字节的能力，使中断后的再次执行可恢复。</li>
+<li>18 个不可恢复的绝对路径图片标签改为明确的“原图未入库”说明，不以相似图片替代历史证据。</li>
+<li>公开安装包使用 Git ref 白名单构建，排除历史截图、测试截图、数据库、日志、缓存和本地配置。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+<li><code>python scripts/check_doc_image_assets.py --check</code>：验证真实图片属性无数据 URI/绝对路径，引用存在，PNG 结构与压缩流可解码，MIME、SHA 文件名、manifest、来源和审查状态一致。</li>
+<li><code>python -m unittest tests.test_doc_image_assets tests.test_release_asset -v</code>：覆盖合法资产、真实数据 URI、说明文字不误报、哈希篡改、双构建确定性、缺省链接改写和发布包独立校验。</li>
+<li><code>python scripts/check_release_asset.py</code>：按 manifest 路径和哈希双重排除历史截图，并校验单一顶层目录、运行必需文件、危险文件和文档链接闭包。</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>对迁移阶段的 76 个唯一图片完成九宫格目视审查和来源分类；命中的 5 张凭据截图最终删除，现行资产库剩余 71 个唯一 PNG。19 张上游/本项目对照图分别记录上游公开仓库与固定 commit、CronPilot 本地采集日期及对照用途。全仓 HTML 图片绝对路径与数据 URI 当前均为 0，<code>doc/</code> 下旧目录 PNG 为 0。</p>
+
+<h2>7. 预防方案</h2>
+<ol>
+<li><strong>入库门禁：</strong><code>.github/workflows/doc-completeness.yml</code> 固定执行 <code>scripts/check_doc_image_assets.py --check</code>；落点覆盖每次 <code>doc/**</code> 变更。</li>
+<li><strong>发布门禁：</strong><code>.github/workflows/release-asset.yml</code> 在 tag 上双构建、比较 SHA、独立校验、仓库外解压并运行黄金路径，任一步失败均不上传。</li>
+<li><strong>审查证据：</strong><code>doc/assets/screenshots/manifest.json</code> 是图片来源、旧路径、引用方、敏感审查与脱敏链的机器可读唯一清单。</li>
+<li><strong>迁移纪律：</strong>后续批量迁移必须先完成全量只读解析与验证，再进入写阶段；如需支持中断恢复，必须先提供重入测试，不再依赖一次性顺序写回。</li>
+</ol>
+
+<h2>安全边界</h2>
+<p>当前提交只移除现行树中的敏感原图，不自动重写既有 Git 历史。原图所示凭据如仍具有效性，应由凭据所有者撤销或轮换；是否清理历史须作为独立安全处置评估，不能与普通图片去重混为一谈。</p>
+
+<footer><a href="index.html">复盘索引</a> · <a href="../index.html">文档总索引</a> · <a href="2026-10-历史截图凭据脱敏与迁移原子性复盘.md">Markdown</a></footer>
+</main></body></html>

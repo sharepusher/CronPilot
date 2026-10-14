@@ -32,7 +32,7 @@ Mockup 覆盖页面
 
 实际效果 — 停用 Modal
 
-![R3 停用Modal](eval14-r3-modal.png)
+![R3 停用Modal](../../assets/screenshots/a7302856a17dbb61d85fe468946cd25c9f597a15cf3a3a25bf210b59cdd04ab8.png)
 
 | 验证项 | 预期 | 实际 | 结论 |
 | --- | --- | --- | --- |
@@ -63,7 +63,7 @@ Mockup 规格
 
 当前截图 — 任务中心
 
-![任务中心](eval14-dashboard.png)
+![任务中心](../../assets/screenshots/44e300e5dc18645692ba585037cef59e8b2e2e13da64f30b4dd58e8a495d72c7.png)
 
 ✅
 
@@ -87,7 +87,7 @@ Mockup 规格
 
 当前截图 — 执行记录（空状态）
 
-![执行记录](eval14-exec-logs.png)
+![执行记录](../../assets/screenshots/d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7.png)
 
 ✅
 
@@ -111,7 +111,7 @@ Mockup 规格
 
 当前截图 — 操作记录
 
-![操作记录](eval14-op-log.png)
+![操作记录](../../assets/screenshots/680169726503931842c29983e37c0620d222a6ff57639c5d6811e424c5d057dd.png)
 
 ✅
 
@@ -137,7 +137,7 @@ Mockup 规格
 
 当前截图 — 用户管理
 
-![用户管理](eval14-users.png)
+![用户管理](../../assets/screenshots/617102336119f35086879487b2510ffc23a57b2aa605fc952b6a3835d8f357e7.png)
 
 ✅
 
@@ -160,7 +160,7 @@ Mockup 规格
 
 当前截图 — 审计日志
 
-![审计日志](eval14-audit.png)
+![审计日志](../../assets/screenshots/2c7a96be89a7297f9db1adf0662d7d4be28fce60030f2fd3bcd4e23de037501e.png)
 
 ✅
 
@@ -183,7 +183,7 @@ Mockup 规格
 
 当前截图 — 业务组
 
-![业务组](eval14-groups.png)
+![业务组](../../assets/screenshots/5ef3e4ee2fb1831bc9a9c427f422c3efa86dfc74776ee6dbad73201c2bd8cc3c.png)
 
 ⚠️
 
@@ -218,7 +218,7 @@ Mockup 规格
 
 当前截图 — 标签管理
 
-![标签管理](eval14-tags.png)
+![标签管理](../../assets/screenshots/681d8b7e618844bdfe249189d07799c965292fa5df99d0ded8561ff9fa20514a.png)
 
 ⚠️
 

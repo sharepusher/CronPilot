@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>历史图片资产去重与发布包瘦身设计专业 Review（2026-10）</title></head><body><main>
+<h1>历史图片资产去重与发布包瘦身设计专业 Review</h1>
+<p>版本：v1.4 · 日期：2026-10-13 · 对象：<a href="../design/历史图片资产去重与发布包瘦身设计-2026-10.html">历史图片资产去重与发布包瘦身设计 v1.4</a> · 结论：<strong>修订后通过；方向合理，关键工程闭环已补齐，实施仍须按 H1–H5 验证</strong></p>
+
+<h2>1. 结论</h2>
+<p>按“历史图片保留在仓库，但不得进入 4.1.0 公开发布包”的用户目标全面复核后，原 v1.3 的方向正确，但存在四个会影响可实施性的缺口：没有现成发布构建器、入口文档可能断链、现有链接门禁不检查图片、缺少截图敏感信息审查。v1.4 已逐项补齐，因此方案层面可以确认。</p>
+<p>v1.4 不额外发布历史证据包，仓库本身即是完整证据载体；公开安装包从最终 tag 以机器可读白名单构建。这一边界直接对齐“仓库完整、公开安装包轻量”的目标。</p>
+
+<h2>2. Review 发现与处置</h2>
+<ol>
+<li><strong>P1 · 发布构建不可复现：</strong>仓库当前没有 Release asset 构建脚本或 workflow。v1.4 要求新增 manifest、构建器、独立校验器和 tag workflow，禁止正式版本使用手工 tar。</li>
+<li><strong>P1 · 入口文档断链：</strong>README、INSTALL、Release Notes 当前引用 41 个不同的仓库文档路径。v1.4 增加包内链接闭包门禁，未入包目标必须确定性改写为固定到 <code>v4.1.0</code> tag 的 URL。</li>
+<li><strong>P1 · 图片门禁误用：</strong><code>check_doc_links.py</code> 不检查图片 <code>src</code>、Markdown 图片、哈希或解码。v1.4 明确新增专用结构化检查器，并保留浏览器代表性验证。</li>
+<li><strong>P1 · 公开截图内容与来源：</strong>图片继续保留在公开仓库时，必须检查凭据、个人信息、内部环境数据、元数据和公开使用依据。v1.4 将审查前置；发现敏感内容或来源不清时，字节保真和不重写历史的默认规则不能作为继续公开的理由。</li>
+<li><strong>P2 · 19 张 QA 图旁路：</strong>如决定提交，必须与引用文档同批纳入哈希资产库和安全审查，不允许继续放在未治理目录。</li>
+<li><strong>P2 · 3.09 MiB 口径：</strong>该值是当前基线的隔离模拟，不是最终 4.1.0 的硬承诺；最终报告必须解释核心代码增量，同时确保历史截图贡献为 0。</li>
+</ol>
+
+<h2>3. 合理性评估</h2>
+<table border="1"><thead><tr><th>决策</th><th>评价</th><th>专业依据</th></tr></thead><tbody>
+<tr><td>按 SHA-256 去重</td><td>合理</td><td>只合并字节完全相同的图片，不使用感知哈希或相似度判定，不会误合并视觉相似但证据不同的截图。</td></tr>
+<tr><td>使用完整 SHA-256 文件名</td><td>合理</td><td>命名规则确定，无前缀长度歧义；可直接验证文件名与内容是否一致。</td></tr>
+<tr><td>Base64 外置</td><td>合理且优先级高</td><td>减少 HTML/Markdown 重复编码，使 diff 可审查，并让图片可单独校验。</td></tr>
+<tr><td>保持原始字节</td><td>合理且稳妥</td><td>不做 WebP/JPEG 转码，不改像素、颜色、压缩参数和截图内容，保留历史证据完整性。</td></tr>
+<tr><td>不使用 Git LFS</td><td>合理</td><td>当前图片规模不需要引入额外克隆、配额和发布归档复杂度。</td></tr>
+<tr><td>不重写 Git 历史</td><td>合理</td><td>目标是缩小后续 HEAD/source archive，无需为回收旧 commit 空间承担历史改写风险。</td></tr>
+<tr><td>仓库/公开发布包分层</td><td>合理且必要</td><td>去重后唯一历史截图仍占完整 source archive 约 83.5%；仓库保留证据而公开安装包排除截图，可同时保留审计性和正常发布体积。</td></tr>
+<tr><td>发布文件白名单</td><td>合理且必要</td><td>从最终 tag/commit 明确选择运行文件与核心文档，比持续维护排除黑名单更不容易误带截图、未跟踪文件或本地数据。</td></tr>
+<tr><td>Python 确定性归档</td><td>合理</td><td>避免依赖 GNU/BSD tar 的参数差异；排序、时间戳、属主和权限归一化后，可用双构建同哈希证明可重现。</td></tr>
+<tr><td>链接闭包与 tag 固定 URL</td><td>必要</td><td>安装包不携带全部仓库文档时，必须保证入口文档仍可导航；固定 tag 避免链接随主分支漂移。</td></tr>
+<tr><td>图片专项门禁</td><td>必要</td><td>通用文档链接检查不覆盖图片，必须验证引用存在、可解码、哈希一致、manifest 完整和发布包排除。</td></tr>
+<tr><td>截图公开内容与来源审查</td><td>必要</td><td>仓库保留意味着截图仍公开可下载；体积优化不能替代凭据、个人信息、元数据和公开使用依据检查。</td></tr>
+</tbody></table>
+
+<h2>4. 数据准确性</h2>
+<table border="1"><thead><tr><th>项目</th><th>复核值</th><th>结论</th></tr></thead><tbody>
+<tr><td>基线</td><td>commit <code>0e1cc411abd6</code>；HEAD 压缩归档 30,317,868 字节（约 28.92 MiB）</td><td>已锁定</td></tr>
+<tr><td><code>doc/</code> 已跟踪 PNG</td><td>68 个，20,998,017 字节（约 20.03 MiB）</td><td>准确</td></tr>
+<tr><td>完全重复图片</td><td>9 组，18 个冗余副本，可回收 5,281,524 字节（约 5.04 MiB）</td><td>准确</td></tr>
+<tr><td>Base64 数据 URI</td><td>30 次引用，12 张唯一 PNG；5 张可复用，7 张需新增</td><td>准确</td></tr>
+<tr><td>理论原始体积收益</td><td>约 13.99 MiB，未计引用文本和清单开销</td><td>收益显著；压缩归档收益以实测为准</td></tr>
+<tr><td>新 QA 截图</td><td>19 张，2,153,774 字节，全部哈希唯一，且与现有 68 张文档 PNG 无重合</td><td>如全部入库，完整源码快照压缩体积预计额外增加约 1.92 MiB；公开安装包不受影响</td></tr>
+<tr><td>全仓已跟踪 PNG</td><td>80 张：<code>doc/</code> 68 张，视觉回归基线 12 张</td><td>安装包应同时排除历史文档截图和测试基线，但不能笼统禁止未来运行时图片</td></tr>
+<tr><td>入口文档本地引用</td><td>41 个不同的 <code>doc/*.html</code>/<code>.md</code> 目标</td><td>H5 必须验证链接闭包</td></tr>
+<tr><td>现有发布构建器</td><td>0 个专用脚本，0 个 Release workflow</td><td>H5 是必要交付，不是可选优化</td></tr>
+</tbody></table>
+
+<h2>5. 历次版本已收敛的准确性细节</h2>
+<ol>
+<li>原验收命令 <code>rg 'data:image' doc/</code> 会匹配说明文字，v1.1 已改为只检查 HTML <code>src</code> 和 Markdown 图片语法中的真实数据 URI。</li>
+<li>同名 HTML 与 Markdown 实际位于同一目录；v1.1 已将风险修正为“不同 HTML 目录到统一资产库的相对层级不同”。</li>
+<li>公开发布包必须同时排除历史截图和仅为它们服务的非核心文档，禁止只排除图片却留下断链文档。</li>
+<li>3.09 MiB 是当前基线模拟值，不应伪装成未来代码冻结后的绝对值；最终门禁是截图贡献为 0，并对获批核心代码造成的体积增量作可审计说明。</li>
+</ol>
+<p>四项都属实施边界与验收口径修正，不是图片去重思路或数据基础的方向性问题。</p>
+
+<h2>6. 范围与专业性确认</h2>
+<ul>
+<li><strong>本次实施 H1–H5：</strong>安全清单、Base64 外置、严格去重、图片专项门禁、索引分层、可重现公开发布包。</li>
+<li><strong>不改业务代码：</strong>不影响 UI、API、数据库、部署或运行时行为。</li>
+<li><strong>不改图片语义：</strong>只有字节完全一致的副本才合并，不做相似图自动删除。</li>
+<li><strong>可回滚：</strong>普通资产迁移与引用变更都可通过对应 commit 回退；若发现既有历史包含真实敏感信息，则转入安全处置，不受普通回滚结论约束。</li>
+<li><strong>可验证：</strong>SHA-256、图片专项门禁、文档链接闭包、HTML→Markdown 同步、浏览器图片自然尺寸和解压安装测试构成完整验收链。</li>
+</ul>
+
+<h2>7. 最终专业意见</h2>
+<p><strong>合理性：高。准确性：高。复杂度：中。实施风险：中低。</strong></p>
+<p>该方案符合历史证据资产的常规治理方式：公开内容先审、内容寻址、字节保真、引用收敛、可重现构建、仓库与发布产物职责分离。v1.4 在设计层面没有遗留阻断问题；但“通过”只表示可以进入实施，不表示构建器、图片门禁或 4.1.0 包已经完成。用户明确确认后方可实施 H1–H5。</p>
+
+<h2>8. 复核命令与结果</h2>
+<ul>
+<li><code>git archive --format=tar.gz HEAD</code>：30,317,868 字节。</li>
+<li><code>git ls-files</code> + SHA-256：<code>doc/</code> PNG 68 个，9 个重复组，18 个冗余副本。</li>
+<li>Base64 解码与哈希对照：30 次引用，12 个唯一哈希，5 个已存在、7 个需新增。</li>
+<li><code>scripts/html_docs_to_markdown.py</code> 实现复核：同名 HTML/Markdown 位于同一目录。</li>
+<li><code>git ls-files</code>：全仓 PNG 80 张，其中 <code>doc/</code> 68 张、视觉回归基线 12 张。</li>
+<li>入口文档链接统计：README、INSTALL、Release Notes 共引用 41 个不同的仓库文档目标。</li>
+<li>19 张 QA 图片哈希交叉检查：内部重复 0，与现有文档 PNG 重合 0；独立 gzip 归档约 1.92 MiB。</li>
+<li>发布能力盘点：未发现专用 Release asset 构建脚本、包清单或 tag Release workflow。</li>
+<li><code>scripts/check_doc_links.py</code> 实现复核：只解析 <code>href</code> 和普通 Markdown 文档链接，不覆盖图片资产完整性。</li>
+</ul>
+
+<footer><a href="../index.html">文档索引</a> · <a href="历史图片资产去重与发布包瘦身设计-专业Review-2026-10.md">Markdown</a></footer>
+</main></body></html>

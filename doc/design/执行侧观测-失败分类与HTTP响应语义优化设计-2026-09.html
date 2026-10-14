@@ -58,7 +58,7 @@ super().init_poolmanager(...)</pre>
 <table><thead><tr><th>协议</th><th>连接池行为</th><th>验收断言</th></tr></thead><tbody><tr><td>HTTP</td><td>只做固定 IP、Host header 和端口重写；不得传 TLS 专用参数。</td><td>真实 <code>session.get(http://...)</code> 不再触发 <code>assert_hostname</code> TypeError。</td></tr><tr><td>HTTPS</td><td>固定 IP，同时保留原主机名用于 SNI/证书校验。</td><td>真实 HTTPS 请求仍完成 TLS 主机名校验；不能因 HTTP 修复而失去 SNI。</td></tr></tbody></table>
 <p>兼容策略：保留 <code>make_pinned_session(pinned_ip, original_hostname, scheme)</code> 的现有调用语义，新增 scheme 只影响适配器内部初始化；不改变 SSRF 校验、签名参数、Host header 和 <code>run_id</code> 观测链路。</p>
 <h3>5.2 HTTP/HTTPS 回归测试矩阵</h3>
-<ol><li>单测直接构造 HTTP adapter，断言 <code>init_poolmanager</code> 不包含 <code>assert_hostname/server_hostname</code>。</li><li>单测直接构造 HTTPS adapter，断言两个 TLS 参数使用原始 hostname。</li><li>本地 HTTP callback 集成测试真实调用 pinned session，验证拿到 response 或明确的网络异常，不允许出现客户端初始化 TypeError。</li><li>HTTPS 使用可控测试证书/本地 TLS 服务，验证 SNI 与证书主机名仍正确。</li><li>执行详情验收同时检查业务结果、<code>failure_stage</code>、<code>transport_state</code> 和时间线，不只检查页面文字。</li></ol>
+<ol><li>单测直接构造 HTTP adapter，断言 <code>init_poolmanager</code> 不包含 <code>assert_hostname/server_hostname</code>。</li><li>单测直接构造 HTTPS adapter，断言两个 TLS 参数使用原始 hostname。</li><li>本地 HTTP 触发端点集成测试真实调用 pinned session，验证拿到 response 或明确的网络异常，不允许出现客户端初始化 TypeError。</li><li>HTTPS 使用可控测试证书/本地 TLS 服务，验证 SNI 与证书主机名仍正确。</li><li>执行详情验收同时检查业务结果、<code>failure_stage</code>、<code>transport_state</code> 和时间线，不只检查页面文字。</li></ol>
 <pre>创建 JobLog(run_id) → request_prepared(trace/sign 注入) → http.start
 → transport 调用
    ├─ 异常：写 http.error（failure_stage/reason/state）→ 无 HTTP 状态

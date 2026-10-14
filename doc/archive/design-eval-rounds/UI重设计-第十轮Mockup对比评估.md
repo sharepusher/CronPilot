@@ -70,7 +70,7 @@ FAIL
 <table><th>任务<th>调度策略<th>运行状态<th>操作
 <span class="status running"><span class="pin"></span>运行中</span>
 
-![当前实现：任务中心](screenshots/eval10/01-dashboard-davy.png)
+![当前实现：任务中心](../../assets/screenshots/a2a1d23e0bea38a8bfb251002f72f14b768c46a35a81e0693b09724de7ada907.png)
 
 D1-01 [高]
 
@@ -135,7 +135,7 @@ FAIL
 任务名称 · req\_url(.err+hint) · two-col(方式/超时) · Cron单行 · 标签 · switch-row(启用任务)
 form-actions: btn-primary 保存修改 · btn-ghost 取消
 
-![当前实现：任务创建表单](screenshots/eval10/02-task-form.png)
+![当前实现：任务创建表单](../../assets/screenshots/f5cc7b537d057772ba6dcbbf842c8723c05cb489a9a5f0b8c82721aa26781541.png)
 
 D2-01 [高]
 
@@ -188,7 +188,7 @@ FAIL
 <thead>任务 · 触发时间 · 耗时 · 响应码 · 状态
 <div class="chip active">全部</div> 失败 · 超时
 
-![当前实现：执行记录](screenshots/eval10/03-execution-logs.png)
+![当前实现：执行记录](../../assets/screenshots/29737800c08222b278a9d2b62538163de007f8c32f3b8385b41de257df0fb8c9.png)
 
 D3-01 [高]
 
@@ -236,7 +236,7 @@ PARTIAL
 <thead>操作人 · 操作 · 对象 · 时间 · 来源 IP
 <span class="badge badge-signal">修改</span>
 
-![当前实现：操作记录](screenshots/eval10/04-operation-log.png)
+![当前实现：操作记录](../../assets/screenshots/707178a5ae0bf44f17f3920f15fae0156c00402351d7d09ae5fa9066a040fe46.png)
 
 D4-01 [中]
 
@@ -280,7 +280,7 @@ PARTIAL
 <button class="btn btn-primary">邀请成员</button>
 <span class="badge badge-signal">管理员</span>
 
-![当前实现：用户管理](screenshots/eval10/05-users.png)
+![当前实现：用户管理](../../assets/screenshots/e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607.png)
 
 D5-01 [高]
 
@@ -327,7 +327,7 @@ PARTIAL
 <div class="avatars">张 · 李 · +3</div>
 <span class="badge badge-muted">18 个任务</span>
 
-![当前实现：业务组](screenshots/eval10/06-groups.png)
+![当前实现：业务组](../../assets/screenshots/b0a0cdbad7f6ae7913ba9eb29f7b9f2c3eb7e72fcf240821cbacd84f6e3d4ab5.png)
 
 D6-01 [中]
 
@@ -368,7 +368,7 @@ PARTIAL
 <thead>事件 · 用户 · 时间 · IP · 结果
 <div class="chip">登录失败</div> 权限变更
 
-![当前实现：审计日志](screenshots/eval10/07-audit-logs.png)
+![当前实现：审计日志](../../assets/screenshots/363c93c28bc0572e5e1942227ce5a6586ec96cb84e22669184e0fc17d229df97.png)
 
 D7-01 [中]
 
@@ -409,7 +409,7 @@ PARTIAL
 <div class="search">新建标签…</div>
 <div class="tag-lg">交易 <span class="cnt">18</span> <span class="del">×</span></div>
 
-![当前实现：标签管理](screenshots/eval10/08-tags.png)
+![当前实现：标签管理](../../assets/screenshots/e44a79d80db123b377d6b68125a347fa9325631539f4eef39335e6b65d9627cb.png)
 
 D8-01 [中]
 
@@ -444,7 +444,7 @@ N/A — Mockup 无独立页
 - sidebar「个人资料」导航项
 - `.form-card` 风格接近 Mockup 表单规范
 
-![当前实现：个人资料](screenshots/eval10/09-profile.png)
+![当前实现：个人资料](../../assets/screenshots/6612569f3603bf57c598865f56f22968c420c935f1d571553ecc440f78d13b90.png)
 
 D9-01 [低]
 
@@ -473,7 +473,7 @@ N/A — Mockup 无独立页
 - 使用说明 code block + 自动重置规则列表
 - 功能完整，视觉接近 form-card 风格
 
-![当前实现：API Token](screenshots/eval10/10-api-token.png)
+含凭据的 API Token 历史截图不具备继续保留价值，已删除；本节的功能与偏差结论保留。
 
 D10-01 [低]
 

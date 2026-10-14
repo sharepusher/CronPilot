@@ -20,7 +20,7 @@ redis==3.5.3
 portalocker==2.6.0
 tablib==2.0.0
 PyMySQL==1.1.2
-pytz==2020.1
+pytz==2026.1.post1
 tzlocal==2.1
 apiflask==2.4.0
 apispec==6.10.0

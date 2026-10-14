@@ -1,0 +1,1674 @@
+{
+  "assets": [
+    {
+      "byte_size": 161223,
+      "canonical_path": "doc/assets/screenshots/0354c7cf38f836d8755e62be8c89d84ffe4010ad1580882f3a1bc50e0a1bfe0f.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-003"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
+      ],
+      "sha256": "0354c7cf38f836d8755e62be8c89d84ffe4010ad1580882f3a1bc50e0a1bfe0f"
+    },
+    {
+      "byte_size": 411958,
+      "canonical_path": "doc/assets/screenshots/070d3f09c782eb7579047bd0d4792f22c71aa9bebaffca9a7a243712ab391326.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/audit_logs.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md"
+      ],
+      "sha256": "070d3f09c782eb7579047bd0d4792f22c71aa9bebaffca9a7a243712ab391326"
+    },
+    {
+      "byte_size": 161463,
+      "canonical_path": "doc/assets/screenshots/08ae822041bc6cf2ff48feb40a3bfbd10e311a37605bee160ce1237cd473d717.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval6/groups.png",
+        "doc/archive/screenshots/round4/groups.png",
+        "doc/design/screenshots/groups.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "08ae822041bc6cf2ff48feb40a3bfbd10e311a37605bee160ce1237cd473d717"
+    },
+    {
+      "byte_size": 180964,
+      "canonical_path": "doc/assets/screenshots/0b82f5b998d8515f5d47b879c3206ccfb84f6953326d30c623e719cd0f477c06.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval8/registration_review.png",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-008"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
+      ],
+      "sha256": "0b82f5b998d8515f5d47b879c3206ccfb84f6953326d30c623e719cd0f477c06"
+    },
+    {
+      "byte_size": 160388,
+      "canonical_path": "doc/assets/screenshots/11fd24258be10f3f95a76a227afa7a976680bf063f1b96832ebbaea0afc4cfec.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-02-dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "11fd24258be10f3f95a76a227afa7a976680bf063f1b96832ebbaea0afc4cfec"
+    },
+    {
+      "byte_size": 417297,
+      "canonical_path": "doc/assets/screenshots/1d65b8a55796841bf319759d53cb0ba364216a496735f5f65c409e49d1e6c954.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval6/dashboard.png",
+        "doc/archive/screenshots/round4/dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "1d65b8a55796841bf319759d53cb0ba364216a496735f5f65c409e49d1e6c954"
+    },
+    {
+      "byte_size": 244534,
+      "canonical_path": "doc/assets/screenshots/27b52f9b608d12fb747a5172e55d6bf4085816e42f1241d973f640982b8c69e5.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-005"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
+      ],
+      "sha256": "27b52f9b608d12fb747a5172e55d6bf4085816e42f1241d973f640982b8c69e5"
+    },
+    {
+      "byte_size": 472710,
+      "canonical_path": "doc/assets/screenshots/29737800c08222b278a9d2b62538163de007f8c32f3b8385b41de257df0fb8c9.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/03-execution-logs.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "29737800c08222b278a9d2b62538163de007f8c32f3b8385b41de257df0fb8c9"
+    },
+    {
+      "byte_size": 459242,
+      "canonical_path": "doc/assets/screenshots/2c7a96be89a7297f9db1adf0662d7d4be28fce60030f2fd3bcd4e23de037501e.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-audit.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "2c7a96be89a7297f9db1adf0662d7d4be28fce60030f2fd3bcd4e23de037501e"
+    },
+    {
+      "byte_size": 420988,
+      "canonical_path": "doc/assets/screenshots/2e38e9724e74e33ab709039d4c8b346644200700ac1f1378088bc58bc7fe3cb6.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-006"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
+      ],
+      "sha256": "2e38e9724e74e33ab709039d4c8b346644200700ac1f1378088bc58bc7fe3cb6"
+    },
+    {
+      "byte_size": 357258,
+      "canonical_path": "doc/assets/screenshots/32be76beffebcf5b7907588f90ba8adbbfead8c15302d41133a596bc717f3784.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-before-users-dark.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "32be76beffebcf5b7907588f90ba8adbbfead8c15302d41133a596bc717f3784"
+    },
+    {
+      "byte_size": 204329,
+      "canonical_path": "doc/assets/screenshots/3362000dc0be42af5b7abf350cc61f19cbe3289a4f551867a38e02ec677c04f3.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-05-api-doc.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "3362000dc0be42af5b7abf350cc61f19cbe3289a4f551867a38e02ec677c04f3"
+    },
+    {
+      "byte_size": 194223,
+      "canonical_path": "doc/assets/screenshots/35da476db74a4146004de4cc28e5bbe6faf2d9837228cbb10dedec9b99b39b12.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-06-users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "35da476db74a4146004de4cc28e5bbe6faf2d9837228cbb10dedec9b99b39b12"
+    },
+    {
+      "byte_size": 166903,
+      "canonical_path": "doc/assets/screenshots/35e0b93c733ee7375d0781c481ef37787f45f6c333a7fb9daf69745007e4a159.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/tags.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md"
+      ],
+      "sha256": "35e0b93c733ee7375d0781c481ef37787f45f6c333a7fb9daf69745007e4a159"
+    },
+    {
+      "byte_size": 451569,
+      "canonical_path": "doc/assets/screenshots/363c93c28bc0572e5e1942227ce5a6586ec96cb84e22669184e0fc17d229df97.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/07-audit-logs.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "363c93c28bc0572e5e1942227ce5a6586ec96cb84e22669184e0fc17d229df97"
+    },
+    {
+      "byte_size": 430794,
+      "canonical_path": "doc/assets/screenshots/38eb3272d5e2820dd6694bc78151fd7eb37af4ea6a3432bec5634e7b41e0933e.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval8/audit_logs.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [],
+      "sha256": "38eb3272d5e2820dd6694bc78151fd7eb37af4ea6a3432bec5634e7b41e0933e"
+    },
+    {
+      "byte_size": 151073,
+      "canonical_path": "doc/assets/screenshots/3da0c9662988b4ccb08980614f581c2fe0b8730f8d741ba43a8bd614185e80e6.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/postmortem/screenshots/y1-profile-page.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.html",
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.md"
+      ],
+      "sha256": "3da0c9662988b4ccb08980614f581c2fe0b8730f8d741ba43a8bd614185e80e6"
+    },
+    {
+      "byte_size": 109074,
+      "canonical_path": "doc/assets/screenshots/3e404209f981c3e591825b44853bce989e9144a84bb09c95d2794224b6e46d76.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-03-cron-add.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "3e404209f981c3e591825b44853bce989e9144a84bb09c95d2794224b6e46d76"
+    },
+    {
+      "byte_size": 421796,
+      "canonical_path": "doc/assets/screenshots/4319d7077fa8647ad44afe59230591e08e192e155aecde20e497006f9388ecaa.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-after-dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "4319d7077fa8647ad44afe59230591e08e192e155aecde20e497006f9388ecaa"
+    },
+    {
+      "byte_size": 415559,
+      "canonical_path": "doc/assets/screenshots/44e300e5dc18645692ba585037cef59e8b2e2e13da64f30b4dd58e8a495d72c7.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "44e300e5dc18645692ba585037cef59e8b2e2e13da64f30b4dd58e8a495d72c7"
+    },
+    {
+      "byte_size": 415256,
+      "canonical_path": "doc/assets/screenshots/45861ba76e2ef833912083c58bf395ead2a956abb1a72b2291f517129303317b.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md"
+      ],
+      "sha256": "45861ba76e2ef833912083c58bf395ead2a956abb1a72b2291f517129303317b"
+    },
+    {
+      "byte_size": 402611,
+      "canonical_path": "doc/assets/screenshots/577975fbe3d39df01f02e0c65a13046e121fe370e17f1ab83abacf4fb675fcf0.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval6/audit_logs.png",
+        "doc/archive/screenshots/round4/audit_logs.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "577975fbe3d39df01f02e0c65a13046e121fe370e17f1ab83abacf4fb675fcf0"
+    },
+    {
+      "byte_size": 418174,
+      "canonical_path": "doc/assets/screenshots/5b307eb2098695294eb249d839db4628df653e42fea0e58b4f6821b6dbeee6ec.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/01-dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [],
+      "sha256": "5b307eb2098695294eb249d839db4628df653e42fea0e58b4f6821b6dbeee6ec"
+    },
+    {
+      "byte_size": 163349,
+      "canonical_path": "doc/assets/screenshots/5ef3e4ee2fb1831bc9a9c427f422c3efa86dfc74776ee6dbad73201c2bd8cc3c.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-groups.png",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-005"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "5ef3e4ee2fb1831bc9a9c427f422c3efa86dfc74776ee6dbad73201c2bd8cc3c"
+    },
+    {
+      "byte_size": 327841,
+      "canonical_path": "doc/assets/screenshots/617102336119f35086879487b2510ffc23a57b2aa605fc952b6a3835d8f357e7.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "617102336119f35086879487b2510ffc23a57b2aa605fc952b6a3835d8f357e7"
+    },
+    {
+      "byte_size": 147267,
+      "canonical_path": "doc/assets/screenshots/6612569f3603bf57c598865f56f22968c420c935f1d571553ecc440f78d13b90.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/09-profile.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "6612569f3603bf57c598865f56f22968c420c935f1d571553ecc440f78d13b90"
+    },
+    {
+      "byte_size": 541430,
+      "canonical_path": "doc/assets/screenshots/66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval6/operation_log.png",
+        "doc/archive/screenshots/eval7/operation_log.png",
+        "doc/archive/screenshots/round4/operation_log.png",
+        "doc/design/screenshots/operation_log.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45"
+    },
+    {
+      "byte_size": 507314,
+      "canonical_path": "doc/assets/screenshots/680169726503931842c29983e37c0620d222a6ff57639c5d6811e424c5d057dd.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-op-log.png",
+        "doc/archive/screenshots/eval7/z1_result.png",
+        "doc/design/screenshots/css-fix-before-oplog.png",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-007",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-003"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "680169726503931842c29983e37c0620d222a6ff57639c5d6811e424c5d057dd"
+    },
+    {
+      "byte_size": 181174,
+      "canonical_path": "doc/assets/screenshots/681d8b7e618844bdfe249189d07799c965292fa5df99d0ded8561ff9fa20514a.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-tags.png",
+        "doc/archive/screenshots/eval6/tags.png",
+        "doc/archive/screenshots/round4/tags.png",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-004",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-007"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "681d8b7e618844bdfe249189d07799c965292fa5df99d0ded8561ff9fa20514a"
+    },
+    {
+      "byte_size": 357092,
+      "canonical_path": "doc/assets/screenshots/6b217c3bf5ee519c0d5372b79b2953b0e04ec88fd7651bae8279a8050dbff1b3.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-after-users-dark.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "6b217c3bf5ee519c0d5372b79b2953b0e04ec88fd7651bae8279a8050dbff1b3"
+    },
+    {
+      "byte_size": 470006,
+      "canonical_path": "doc/assets/screenshots/707178a5ae0bf44f17f3920f15fae0156c00402351d7d09ae5fa9066a040fe46.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/04-operation-log.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "707178a5ae0bf44f17f3920f15fae0156c00402351d7d09ae5fa9066a040fe46"
+    },
+    {
+      "byte_size": 417436,
+      "canonical_path": "doc/assets/screenshots/7278db7440b4839bf74a5af14ffaba8951b1166bd5302d38f06c12e15017f3d0.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-001"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md"
+      ],
+      "sha256": "7278db7440b4839bf74a5af14ffaba8951b1166bd5302d38f06c12e15017f3d0"
+    },
+    {
+      "byte_size": 25293,
+      "canonical_path": "doc/assets/screenshots/73e5ed4763101e5b31b71ca8ab2f8779802d23ce9f142edb720afcca34ce2ce3.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/up-01-login.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "public upstream UI comparison documentation",
+        "owner": "aniu-lee/xiaoniu_cron",
+        "source": "https://github.com/aniu-lee/xiaoniu_cron",
+        "source_ref": "0883731"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "73e5ed4763101e5b31b71ca8ab2f8779802d23ce9f142edb720afcca34ce2ce3"
+    },
+    {
+      "byte_size": 104622,
+      "canonical_path": "doc/assets/screenshots/773ad9e068584bfab384369b648a1bf8dbf200b4d600a9aa154380a3ad040c5e.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/up-05-api-doc.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "public upstream UI comparison documentation",
+        "owner": "aniu-lee/xiaoniu_cron",
+        "source": "https://github.com/aniu-lee/xiaoniu_cron",
+        "source_ref": "0883731"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "773ad9e068584bfab384369b648a1bf8dbf200b4d600a9aa154380a3ad040c5e"
+    },
+    {
+      "byte_size": 204510,
+      "canonical_path": "doc/assets/screenshots/78cc2682eba96ea560174058552ad76dc0e8b9afa6945563dced023187a00122.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-04-job-log-all.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "78cc2682eba96ea560174058552ad76dc0e8b9afa6945563dced023187a00122"
+    },
+    {
+      "byte_size": 131602,
+      "canonical_path": "doc/assets/screenshots/7b863a526e4c62bfbc9ba18aed3361f28389cfb98f43dff6af4a08c232c42f82.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-12-registration.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "7b863a526e4c62bfbc9ba18aed3361f28389cfb98f43dff6af4a08c232c42f82"
+    },
+    {
+      "byte_size": 212306,
+      "canonical_path": "doc/assets/screenshots/7c15e1a90514403ea7c6a3488284f8288785c530e27b84a6d917c2e3da5e992b.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/round4/tags_create_modal.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "7c15e1a90514403ea7c6a3488284f8288785c530e27b84a6d917c2e3da5e992b"
+    },
+    {
+      "byte_size": 98989,
+      "canonical_path": "doc/assets/screenshots/845b82f18b406312c914410ddb38b9e9a34f45a027e417afacbda7d89fa821f8.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-14-task-detail.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "845b82f18b406312c914410ddb38b9e9a34f45a027e417afacbda7d89fa821f8"
+    },
+    {
+      "byte_size": 214905,
+      "canonical_path": "doc/assets/screenshots/85d51931b7cc60cdbc45fa88ef97f649c6e98d8e5ac4b2be4c1e998cb0acc520.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval6/users.png",
+        "doc/archive/screenshots/round4/users.png",
+        "doc/design/screenshots/users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "85d51931b7cc60cdbc45fa88ef97f649c6e98d8e5ac4b2be4c1e998cb0acc520"
+    },
+    {
+      "byte_size": 413445,
+      "canonical_path": "doc/assets/screenshots/8e74d3a526c063e9d689e0dcc5570efb6cfb52ae774a879e80f9232a42b81f72.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval5-task-center.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [],
+      "sha256": "8e74d3a526c063e9d689e0dcc5570efb6cfb52ae774a879e80f9232a42b81f72"
+    },
+    {
+      "byte_size": 198296,
+      "canonical_path": "doc/assets/screenshots/8fbc8969c297079bb22f0e9fd32c42ae6f45b3f1900f42f9ac227c1365a86bd7.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-09-oplog.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "8fbc8969c297079bb22f0e9fd32c42ae6f45b3f1900f42f9ac227c1365a86bd7"
+    },
+    {
+      "byte_size": 62860,
+      "canonical_path": "doc/assets/screenshots/94414833f4072c9c390246b7fab3e9a8057d47448cfd4070adc4d2a181a4a354.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-13-profile.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "94414833f4072c9c390246b7fab3e9a8057d47448cfd4070adc4d2a181a4a354"
+    },
+    {
+      "byte_size": 186542,
+      "canonical_path": "doc/assets/screenshots/94de3901d8e53ef651bcb10c6d0c8df194b10a1138eeee44686f04224ac03538.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-10-audit.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "94de3901d8e53ef651bcb10c6d0c8df194b10a1138eeee44686f04224ac03538"
+    },
+    {
+      "byte_size": 33908,
+      "canonical_path": "doc/assets/screenshots/a271663b6dcca6c9c6a53554c58f3e8d73d3e4160781c268f6c8f3d4a152cab7.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-01-login.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "a271663b6dcca6c9c6a53554c58f3e8d73d3e4160781c268f6c8f3d4a152cab7"
+    },
+    {
+      "byte_size": 413927,
+      "canonical_path": "doc/assets/screenshots/a2a1d23e0bea38a8bfb251002f72f14b768c46a35a81e0693b09724de7ada907.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/01-dashboard-davy.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "a2a1d23e0bea38a8bfb251002f72f14b768c46a35a81e0693b09724de7ada907"
+    },
+    {
+      "byte_size": 339079,
+      "canonical_path": "doc/assets/screenshots/a7302856a17dbb61d85fe468946cd25c9f597a15cf3a3a25bf210b59cdd04ab8.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-r3-modal.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
+      ],
+      "sha256": "a7302856a17dbb61d85fe468946cd25c9f597a15cf3a3a25bf210b59cdd04ab8"
+    },
+    {
+      "byte_size": 312521,
+      "canonical_path": "doc/assets/screenshots/af92c4f21f79109a8c747ea7d2f57177fba60dcb00f52839c339a93b191e11ad.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-004"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md"
+      ],
+      "sha256": "af92c4f21f79109a8c747ea7d2f57177fba60dcb00f52839c339a93b191e11ad"
+    },
+    {
+      "byte_size": 138652,
+      "canonical_path": "doc/assets/screenshots/b0a0cdbad7f6ae7913ba9eb29f7b9f2c3eb7e72fcf240821cbacd84f6e3d4ab5.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/06-groups.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "b0a0cdbad7f6ae7913ba9eb29f7b9f2c3eb7e72fcf240821cbacd84f6e3d4ab5"
+    },
+    {
+      "byte_size": 60834,
+      "canonical_path": "doc/assets/screenshots/b27f693a4542408f622d8af751ac29089467d90a51865eccca1d8a52014c30cf.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/up-03-cron-add.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "public upstream UI comparison documentation",
+        "owner": "aniu-lee/xiaoniu_cron",
+        "source": "https://github.com/aniu-lee/xiaoniu_cron",
+        "source_ref": "0883731"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "b27f693a4542408f622d8af751ac29089467d90a51865eccca1d8a52014c30cf"
+    },
+    {
+      "byte_size": 415722,
+      "canonical_path": "doc/assets/screenshots/bb40553e44ff38c2202a88b090ff9dd4542086befd5906288fbe608da6a3c606.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval7/task_center.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.md"
+      ],
+      "sha256": "bb40553e44ff38c2202a88b090ff9dd4542086befd5906288fbe608da6a3c606"
+    },
+    {
+      "byte_size": 413427,
+      "canonical_path": "doc/assets/screenshots/bf9ad8a62c8566ba16e8e3c0394118dbdad7439a5606f62703fca3def4626259.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-after-dashboard-dark.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "bf9ad8a62c8566ba16e8e3c0394118dbdad7439a5606f62703fca3def4626259"
+    },
+    {
+      "byte_size": 203095,
+      "canonical_path": "doc/assets/screenshots/c4c752ca86e805b5adab2cf72e765d45cfc5408482c87892732db2c339efb378.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/round4/tags_delete_modal.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "c4c752ca86e805b5adab2cf72e765d45cfc5408482c87892732db2c339efb378"
+    },
+    {
+      "byte_size": 415294,
+      "canonical_path": "doc/assets/screenshots/c4f231c2def09d39a584a991d20393bb5c3c10b0816e7f0416cba1185e526cc1.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-001"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
+      ],
+      "sha256": "c4f231c2def09d39a584a991d20393bb5c3c10b0816e7f0416cba1185e526cc1"
+    },
+    {
+      "byte_size": 240919,
+      "canonical_path": "doc/assets/screenshots/c696344f03142ce69ee9d11435c42684a5cbe79a05e300eaf5e30b5225636a6d.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/postmortem/screenshots/confirm-reset-pwd-after.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.html",
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.md"
+      ],
+      "sha256": "c696344f03142ce69ee9d11435c42684a5cbe79a05e300eaf5e30b5225636a6d"
+    },
+    {
+      "byte_size": 82488,
+      "canonical_path": "doc/assets/screenshots/ce4cc03607834174831c7dac9e8ca8403337b3cfe893642a726de48687536600.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-07-groups.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "ce4cc03607834174831c7dac9e8ca8403337b3cfe893642a726de48687536600"
+    },
+    {
+      "byte_size": 139176,
+      "canonical_path": "doc/assets/screenshots/d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval14-exec-logs.png",
+        "doc/archive/screenshots/eval6/execution_logs.png",
+        "doc/archive/screenshots/eval8/execution_logs.png",
+        "doc/archive/screenshots/round4/execution_logs.png",
+        "doc/design/screenshots/execution_logs.png",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html#image-002",
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-002"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第三轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
+      ],
+      "sha256": "d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7"
+    },
+    {
+      "byte_size": 168168,
+      "canonical_path": "doc/assets/screenshots/d409b9eaf0130ef05bec0559b759cd2003c598178cadb7a85acda6cdd7ddbac3.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/tags_after.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [],
+      "sha256": "d409b9eaf0130ef05bec0559b759cd2003c598178cadb7a85acda6cdd7ddbac3"
+    },
+    {
+      "byte_size": 460000,
+      "canonical_path": "doc/assets/screenshots/d4be202555bfadd3408eef1634329a4d58ceeba2d2f305bf4ab797b3c124b2b5.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "embedded:doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html#image-006"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical HTML embedded screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十一轮Mockup对比评估.md"
+      ],
+      "sha256": "d4be202555bfadd3408eef1634329a4d58ceeba2d2f305bf4ab797b3c124b2b5"
+    },
+    {
+      "byte_size": 418670,
+      "canonical_path": "doc/assets/screenshots/d76785b0459dabdd645e3b37b8700d584c2638b40870bbba1a58f914fbb24b47.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-before-dashboard.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "d76785b0459dabdd645e3b37b8700d584c2638b40870bbba1a58f914fbb24b47"
+    },
+    {
+      "byte_size": 66595,
+      "canonical_path": "doc/assets/screenshots/d8674261d463817a7199d05b8d75dccfb41044e2ac4c1fa32f3c0bb8368443c0.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/up-02-cron-list.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "public upstream UI comparison documentation",
+        "owner": "aniu-lee/xiaoniu_cron",
+        "source": "https://github.com/aniu-lee/xiaoniu_cron",
+        "source_ref": "0883731"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "d8674261d463817a7199d05b8d75dccfb41044e2ac4c1fa32f3c0bb8368443c0"
+    },
+    {
+      "byte_size": 362096,
+      "canonical_path": "doc/assets/screenshots/e3bcaf2e9f93096e4791e929d331fb2ac6d7b6ba33cf96d651f2bfbbae2cd0cb.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-after-users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "e3bcaf2e9f93096e4791e929d331fb2ac6d7b6ba33cf96d651f2bfbbae2cd0cb"
+    },
+    {
+      "byte_size": 154510,
+      "canonical_path": "doc/assets/screenshots/e44a79d80db123b377d6b68125a347fa9325631539f4eef39335e6b65d9627cb.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/08-tags.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "e44a79d80db123b377d6b68125a347fa9325631539f4eef39335e6b65d9627cb"
+    },
+    {
+      "byte_size": 232013,
+      "canonical_path": "doc/assets/screenshots/e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/05-users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607"
+    },
+    {
+      "byte_size": 412227,
+      "canonical_path": "doc/assets/screenshots/e92aabefc73f0efe21476ec4d7169b9f80bae24d2239af86e03afefbbf8f49bf.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-before-dashboard-dark.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "e92aabefc73f0efe21476ec4d7169b9f80bae24d2239af86e03afefbbf8f49bf"
+    },
+    {
+      "byte_size": 362260,
+      "canonical_path": "doc/assets/screenshots/e9e87b0759e949bba21f85be4e3b5b22d054e1fd1d7c68a7491005ed1569d5d6.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/design/screenshots/css-fix-before-users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/design/CSS硬编码颜色修复设计.html"
+      ],
+      "sha256": "e9e87b0759e949bba21f85be4e3b5b22d054e1fd1d7c68a7491005ed1569d5d6"
+    },
+    {
+      "byte_size": 86055,
+      "canonical_path": "doc/assets/screenshots/ec676b7f1318fdebe43f9ab188ceec64ac6136804173001b57f95c199cf82cae.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/cp-08-tags.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned comparative documentation",
+        "owner": "CronPilot",
+        "source": "local CronPilot v4 Redesign capture",
+        "source_ref": "captured 2026-09-24"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "ec676b7f1318fdebe43f9ab188ceec64ac6136804173001b57f95c199cf82cae"
+    },
+    {
+      "byte_size": 433036,
+      "canonical_path": "doc/assets/screenshots/ecd350efef225e2b54343a4c7d015e3a547e292574271168be8edfc18d2b6b1a.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval7/audit_log.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第七轮Mockup对比评估.md"
+      ],
+      "sha256": "ecd350efef225e2b54343a4c7d015e3a547e292574271168be8edfc18d2b6b1a"
+    },
+    {
+      "byte_size": 235019,
+      "canonical_path": "doc/assets/screenshots/f04c19acc87a823226f658cdebb7399d0a827155ac786f1ab339b7c5bba9c614.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval8/users.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [],
+      "sha256": "f04c19acc87a823226f658cdebb7399d0a827155ac786f1ab339b7c5bba9c614"
+    },
+    {
+      "byte_size": 269397,
+      "canonical_path": "doc/assets/screenshots/f5cc7b537d057772ba6dcbbf842c8723c05cb489a9a5f0b8c82721aa26781541.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/eval10/02-task-form.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
+      ],
+      "sha256": "f5cc7b537d057772ba6dcbbf842c8723c05cb489a9a5f0b8c82721aa26781541"
+    },
+    {
+      "byte_size": 150910,
+      "canonical_path": "doc/assets/screenshots/faf38f874c249735a9f06cb6c85fa20b31ebddc0f6bb9c8a2914c0b951d234bb.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/archive/screenshots/round4/profile.png",
+        "doc/postmortem/screenshots/y1-profile-grayed.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "project-owned historical UI evidence",
+        "owner": "CronPilot",
+        "source": "historical repository screenshot",
+        "source_ref": "repository documentation"
+      },
+      "referenced_by": [
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.html",
+        "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md",
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.html",
+        "doc/postmortem/2026-08-确认对话框修复与个人资料页.md"
+      ],
+      "sha256": "faf38f874c249735a9f06cb6c85fa20b31ebddc0f6bb9c8a2914c0b951d234bb"
+    },
+    {
+      "byte_size": 47069,
+      "canonical_path": "doc/assets/screenshots/ff7cc9e17487df2e61073b0d8dcfe75c40ee3236b64f088d37111ebd1c6b3e49.png",
+      "content_review": {
+        "reviewed_on": "2026-10-13",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "legacy_paths": [
+        "doc/qa/assets/ui-compare-2026-09/up-04-job-log-all.png"
+      ],
+      "mime": "image/png",
+      "provenance": {
+        "basis": "public upstream UI comparison documentation",
+        "owner": "aniu-lee/xiaoniu_cron",
+        "source": "https://github.com/aniu-lee/xiaoniu_cron",
+        "source_ref": "0883731"
+      },
+      "referenced_by": [
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html",
+        "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
+      ],
+      "sha256": "ff7cc9e17487df2e61073b0d8dcfe75c40ee3236b64f088d37111ebd1c6b3e49"
+    }
+  ],
+  "baseline_commit": "0e1cc411abd60353929065e8618c7193ba077082",
+  "policy": "content-addressed PNG assets; reviewed derivatives are explicit",
+  "reviewed_on": "2026-10-13",
+  "schema_version": 1
+}

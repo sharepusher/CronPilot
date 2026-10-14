@@ -54,7 +54,7 @@ Mockup 设计
 
 当前实现
 
-![Dashboard screenshot](screenshots/dashboard.png)
+![Dashboard screenshot](../../assets/screenshots/45861ba76e2ef833912083c58bf395ead2a956abb1a72b2291f517129303317b.png)
 
 - 符合
 
@@ -96,7 +96,7 @@ Mockup 设计
 
 当前实现
 
-![Execution logs screenshot](screenshots/execution_logs.png)
+![Execution logs screenshot](../../assets/screenshots/d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7.png)
 
 - 符合
 
@@ -130,7 +130,7 @@ Mockup 设计（5 列，对象独立列，操作用 Badge）
 
 当前实现（6 列，含 ID，内容列冗长）
 
-![Operation log screenshot](screenshots/operation_log.png)
+![Operation log screenshot](../../assets/screenshots/66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45.png)
 
 ##### 当前（6 列）
 
@@ -198,7 +198,7 @@ Mockup 设计（5 列简洁）
 
 当前实现（8 列，含冗余 ID/目标类型/详情）
 
-![Audit logs screenshot](screenshots/audit_logs.png)
+![Audit logs screenshot](../../assets/screenshots/070d3f09c782eb7579047bd0d4792f22c71aa9bebaffca9a7a243712ab391326.png)
 
 ##### 当前（8 列）
 
@@ -276,7 +276,7 @@ Mockup 设计（5 列极简）
 
 当前实现（9 列，X1 用户确认版）
 
-![Users screenshot](screenshots/users.png)
+![Users screenshot](../../assets/screenshots/85d51931b7cc60cdbc45fa88ef97f649c6e98d8e5ac4b2be4c1e998cb0acc520.png)
 
 - 已确认
 
@@ -318,7 +318,7 @@ Mockup 设计（卡片网格）
 
 当前实现
 
-![Groups screenshot](screenshots/groups.png)
+![Groups screenshot](../../assets/screenshots/08ae822041bc6cf2ff48feb40a3bfbd10e311a37605bee160ce1237cd473d717.png)
 
 - 符合
 
@@ -355,7 +355,7 @@ P0 4 ×
 
 当前实现（云视图 + 额外表格）
 
-![Tags screenshot](screenshots/tags.png)
+![Tags screenshot](../../assets/screenshots/35e0b93c733ee7375d0781c481ef37787f45f6c333a7fb9daf69745007e4a159.png)
 
 - 中
 

@@ -1,0 +1,55 @@
+# CronPilot public installation package allowlist.
+# A trailing slash includes every tracked file below that directory.
+
+.dockerignore
+Dockerfile
+INSTALL.md
+LICENSE
+NOTICE
+README.md
+RELEASE_NOTES.md
+THIRD_PARTY_NOTICES.md
+conf.example.ini
+conf.ini.example
+conf.local.sqlite.example
+config.py
+configs.py
+docker-compose.run.yml
+docker-compose.yml
+docker_gun.py
+docker_start.sh
+gun.py
+manage.py
+pyproject.toml
+requirements-core.txt
+requirements.txt
+start.sh
+
+app/
+datas/logs/readme.txt
+datas/model/
+datas/utils/
+frontend/
+release/package-manifest.txt
+scripts/
+
+# Curated release documentation. Historical QA evidence and screenshots stay
+# in the repository but are deliberately absent from the public asset.
+doc/RELEASE_NOTES.html
+doc/RELEASE_NOTES.md
+doc/index.html
+doc/index.md
+doc/交付状态与路线图.html
+doc/交付状态与路线图.md
+doc/deps/依赖升级RFC.html
+doc/deps/依赖升级RFC.md
+doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html
+doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.md
+doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.html
+doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.md
+doc/postmortem/2026-09-MySQL任务ID关联列类型修复.html
+doc/postmortem/2026-09-MySQL任务ID关联列类型修复.md
+doc/postmortem/2026-09-SSRF内外网区域校验修复.html
+doc/postmortem/2026-09-SSRF内外网区域校验修复.md
+doc/postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html
+doc/postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.md

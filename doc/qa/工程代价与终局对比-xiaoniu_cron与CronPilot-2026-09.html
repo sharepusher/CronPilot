@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工程代价与终局对比：xiaoniu_cron → CronPilot v4.0 的交付复盘</title>
+  <style>
+    :root {
+      --text: #1a1a1a; --muted: #5c5c5c; --border: #e5e5e5; --bg: #fff;
+      --p: #0b3d91; --line: #0b3d91; --warn: #8a4b08; --ok: #0d5c2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Charter", "Iowan Old Style", "Songti SC", "Noto Serif SC", Georgia, serif;
+      max-width: 760px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem;
+      color: var(--text); line-height: 1.88; background: var(--bg); font-size: 17px;
+    }
+    .sans { font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif; }
+    .kicker {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--p); font-weight: 700; margin: 0 0 .55rem;
+    }
+    h1 {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: 1.68rem; line-height: 1.3; margin: 0 0 .9rem; letter-spacing: -.02em;
+    }
+    .deck {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: 1.02rem; color: #333; margin: 0 0 1.25rem; line-height: 1.65;
+      border-bottom: 1px solid var(--border); padding-bottom: 1.1rem;
+    }
+    .meta {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .78rem; color: var(--muted); margin-bottom: 1.4rem; line-height: 1.55;
+    }
+    .meta a, a { color: var(--p); }
+    h2 {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: 1.18rem; margin: 2.5rem 0 .8rem; border-bottom: 2px solid #111; padding-bottom: .35rem;
+    }
+    h3 {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: 1.02rem; margin: 1.7rem 0 .45rem;
+    }
+    p { margin: 0 0 1rem; }
+    ul, ol { margin: 0 0 1.1rem; padding-left: 1.3rem; }
+    li { margin-bottom: .38rem; }
+    blockquote {
+      margin: 1.2rem 0; padding-left: 1rem; border-left: 3px solid #bbb;
+      color: #333; font-style: italic;
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .74rem; margin: .9rem 0 1.3rem;
+    }
+    th, td { border: 1px solid var(--border); padding: .4rem .5rem; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; }
+    td.y { color: var(--ok); font-weight: 600; }
+    td.n { color: #a33; }
+    td.p { color: var(--warn); }
+    code {
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: .84em; background: #f4f4f4; padding: .05rem .28rem;
+    }
+    .box {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .88rem; line-height: 1.65; background: #f8f8f8;
+      border: 1px solid var(--border); padding: .9rem 1.05rem; margin: 1.1rem 0 1.35rem;
+    }
+    .box.strong { background: #0b3d91; color: #fff; border: none; }
+    .box.strong a { color: #cde; }
+    .sister {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .82rem; background: #f0f4fa; border: 1px solid #c5d4eb;
+      padding: .75rem 1rem; margin: 0 0 1.4rem; line-height: 1.55;
+    }
+    .note {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .72rem; color: var(--muted); margin: -.65rem 0 1.15rem;
+    }
+    .lesson {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      border-left: 4px solid var(--p); padding: .55rem 0 .55rem .9rem;
+      margin: 1rem 0 1.35rem; background: #fafafa;
+    }
+    .lesson strong { display: block; margin-bottom: .25rem; font-size: .92rem; }
+    .lesson span { font-size: .86rem; color: #333; line-height: 1.6; }
+    footer {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      margin-top: 3rem; padding-top: 1.1rem; border-top: 1px solid var(--border);
+      font-size: .78rem; color: var(--muted); text-align: center;
+    }
+    .toc {
+      font-family: "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+      font-size: .84rem; border: 1px solid var(--border); padding: .85rem 1rem; margin: 0 0 1.75rem;
+    }
+    .toc ol { margin: .35rem 0 0; }
+  </style>
+</head>
+<body>
+
+<p class="kicker">工程交付复盘 · 姊妹篇其三</p>
+<h1>工程代价与终局对比：xiaoniu_cron → CronPilot v4.0</h1>
+
+<p class="deck">
+  前两篇分别讲「坑清单」与「假完成病理」。本篇换到工程负责人视角：
+  开发过程里哪些决策真正伤到了交付质量，最终端到端效果究竟比上游强在哪里、贵在哪里，
+  以及——如果把两套系统放在同一张验收表上，谁赢、赢的是什么。
+</p>
+
+<div class="meta">
+  对比锚点：上游 <a href="https://github.com/aniu-lee/xiaoniu_cron">aniu-lee/xiaoniu_cron</a>
+  HEAD <code>0883731</code>（2022-12-26，冻结参考） vs CronPilot <strong>v4.0.0</strong>（2026-09-04）及后续加固现状<br>
+  数据：本地上游 commit 树（~2551 行 Python）· CronPilot <code>app/</code>~22k · <code>tests/</code>~15k · 66 篇复盘 · 12 CI<br>
+  版本 v1.0 · 2026-09-23 · 已交付分析文
+</div>
+
+<div class="sister">
+  <strong>姊妹篇（均保留）：</strong>
+  <a href="我用Cursor重构十年GitHub项目的坑-专栏-2026-09.html">① 坑与账本</a> ·
+  <a href="假完成工业-Cursor重构工程病理学-2026-09.html">② 假完成工业</a> ·
+  <strong>③ 本文（工程代价与终局对比）</strong> ·
+  <a href="xiaoniu_cron与CronPilot-页面截图对照-2026-09.html">④ 页面截图对照</a>
+</div>
+
+<div class="toc sans">
+  <strong>目录</strong>
+  <ol>
+    <li><a href="#s1">对照前提：比的是「产品终局」，不是 star 数</a></li>
+    <li><a href="#s2">工程过程教训：十条会再次踩到的坑</a></li>
+    <li><a href="#s3">最终效果对照矩阵</a></li>
+    <li><a href="#s4">终局裁决：赢了什么、输掉什么、还欠什么</a></li>
+    <li><a href="#s5">若重来一次：工程优先级重排</a></li>
+  </ol>
+</div>
+
+<table class="sans">
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>v1.0</td><td>2026-09-23</td><td>首发：过程教训十条 + 双项目终局矩阵 + 裁决与重排优先级</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s1">一、对照前提：比的是「产品终局」，不是 star 数</h2>
+
+<p>
+  上游是一个「能用、好装、有通知、有 Docker」的 HTTP 定时调度台；最后公开提交停在 2022 年底，
+  README 体验口令仍是公开的 <code>123456</code>。它解决的是 2010 年代中小团队的真实痛点：
+  <em>把 crontab 收到一个面板里，挂了能喊人。</em>
+</p>
+
+<p>
+  CronPilot 刻意拆仓独立演进：同一业务内核（到点向 <code>req_url</code> 发触发请求），
+  但把安全基线、多用户权限、可观测、现代管理端与工程门禁当成一等公民。
+  因此终局对比必须分三层，否则会变成「功能表堆砌」：
+</p>
+
+<ol>
+  <li><strong>业务闭环</strong>：调度是否仍可靠触发、日志是否可读、集群是否可用。</li>
+  <li><strong>生产就绪</strong>：鉴权、SSRF、CSRF、密钥、审计、升级路径是否经得住多用户/公网威胁模型。</li>
+  <li><strong>工程可持续</strong>：改一处会不会静默炸全站、回归能否自动否决、文档是否与现实同构。</li>
+</ol>
+
+<div class="box">
+  <strong>公平性声明：</strong>上游数字取自其 Git <code>HEAD</code> 提交树（不含本地未提交的实验补丁）。
+  CronPilot 数字取自 v4.0 发行线及仓库当前工程资产。两者不是「同一作者同一迭代」，
+  而是「冻结原版」与「三年后用 Cursor 结对重做的增强线」。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s2">二、工程过程教训：十条会再次踩到的坑</h2>
+
+<p>
+  以下不按时间线堆砌，而按<strong>对最终效果伤害最大</strong>排序。
+  每条都绑定仓库内可复核病例；目标是给下一次遗留系统 AI 重构当检查清单。
+</p>
+
+<div class="lesson">
+  <strong>教训 1 · 先把「完成」定义成可执行合同，再允许写代码</strong>
+  <span>
+    最大损失不是写错一行，而是在错误验收函数上高速取极值。Redesign 被命名为「换皮」，
+    实际重写交互后仍按换皮验收，一次扫出约 77 个缺陷。
+    <em>工程含义：</em>工作单的命名即预算；命名错了，后续所有速度都在错误方向上加速。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 2 · 否定路径必须先于 happy path 进入门禁</strong>
+  <span>
+    Session 缺键、旧 Cookie、DNS 失败、配置损坏、Scope 外角色——这些阴性状态最容易被
+    「对称默认值」和「Fixture 总写入键」消灭。auth_version 漏洞正是「实现好看 + 测试帮凶」。
+    <em>工程含义：</em>安全与权限类变更，没有否定用例 = 未完成，不论单测是否全绿。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 3 · 进程模型属于验收的一部分，不是运维八卦</strong>
+  <span>
+    <code>debug=False / use_reloader=False</code> 下改模板后「请刷新」等于验收假绿。
+    交付话术必须绑定 restart 后的新 PID 与新标记 curl。
+    <em>工程含义：</em>本地开发拓扑（热更新与否、端口分叉）要写进 Definition of Done。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 4 · 跨层改动没有「渲染层冒烟」，单元测试会撒谎</strong>
+  <span>
+    路由装饰器被连续 StrReplace 吃掉 → 用户管理整页 500；跨层重命名后详情页 500。
+    单元层可以全程绿色。后来的 86 条路由冒烟不是锦上添花，是补上失踪的集成层。
+    <em>工程含义：</em>凡 touch 路由/模板/<code>url_for</code>/序列化字段，强制 smoke。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 5 · 测试隔离失败会直接摧毁可交付环境</strong>
+  <span>
+    <code>from manage import db</code> 绑开发库再 <code>drop_all()</code>：套件绿、磁盘库空、全站 500。
+    这是「工程效果」层面的自杀，比功能 bug 更狠——用户连验收入口都没有。
+    <em>工程含义：</em>测试基础设施与业务正确性同级；禁止导入应用工厂副作用模块。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 6 · 策略只守大门等于没守</strong>
+  <span>
+    「停用不可恢复」只加在显眼入口；API 只做 scope 不做角色能力；标签 CRUD 未对齐组管理 scope。
+    AI 特别擅长完成「用户刚说的那一条」。
+    <em>工程含义：</em>策略变更必须 grep 全赋值点 + 每入口单测，禁止「UI 不暴露就不防」。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 7 · 文字规范对 Agent 是软约束，第三次违反必须升级武器</strong>
+  <span>
+    复盘规范被跳过至少三次；最终靠 Hooks + CI 才从「提醒」变成「阻断」。
+    <em>工程含义：</em>把「写进 AGENTS.md」当成治理完成，是自我安慰。可执行否决权才算治理。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 8 · 文档吞吐可以超过治理吞吐，本身变成事故源</strong>
+  <span>
+    140 断链、索引剪切损坏、Demo 未入库、整合文档抄数值导致 15 处偏离——
+    文档行数最终远超业务代码。
+    <em>工程含义：</em>双格式与索引登记必要，但要设门禁与「禁止第二套真相」纪律，否则外部海马体会精神分裂。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 9 · 版本号猛跳不等于成熟度；3 日大版本是危险信号</strong>
+  <span>
+    v1.0→v2.0 仅约 3 个日历日。繁荣账好看，随后安全与 CSRF/锁/密钥类债务集中兑付。
+    <em>工程含义：</em>发版节奏应绑定验证带宽，而不是绑定 Agent 吞吐。
+  </span>
+</div>
+
+<div class="lesson">
+  <strong>教训 10 · 参考系错误会让「认真评估」变成负功</strong>
+  <span>
+    连续 7 轮 Mockup 评估用错 Downloads 简化版，列数方向评反。劳动越多，错误坐标系越稳固。
+    <em>工程含义：</em>任何对比/还原工作，第一步是锁定仓库内权威文件，而不是用户随手丢的路径。
+  </span>
+</div>
+
+<div class="box strong">
+  十条教训可压缩成一句工程口号：
+  <strong>把「宣布完成」变贵，把「证伪完成」变便宜。</strong>
+  Cursor 会持续压低前者的成本；团队必须用合同、否定用例、冒烟、Hooks、CI 抬高它，
+  否则最终效果会被假完成污染，无论功能列表多长。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s3">三、最终效果对照矩阵</h2>
+
+<h3>3.1 体量与工程资产</h3>
+
+<table>
+  <tr><th>维度</th><th>xiaoniu_cron（HEAD 2022-12）</th><th>CronPilot（v4.0 线）</th></tr>
+  <tr><td>定位</td><td>小牛定时任务管理 · 开箱面板</td><td>HTTP 定时触发调度台 · 独立增强线</td></tr>
+  <tr><td>最后公开演进</td><td>2022-12-26 · ~16 commits</td><td>2026-09 · 20 个正式 tag · ~300+ commits</td></tr>
+  <tr><td>Python 体量（约）</td><td>~2.5k 行（提交树）</td><td>app ~12k py + tests ~15k</td></tr>
+  <tr><td>运行时栈</td><td>Flask 1.1.2 · SA 1.3 · records 0.5.3 · gevent 20</td><td>Flask 2.3.3 · SA 2.0.36 · FSA 3.1.1 · gevent 23</td></tr>
+  <tr><td>自动化测试</td><td>提交树基本无体系化单测</td><td>~68 个 test 文件 · 路由冒烟 86 条</td></tr>
+  <tr><td>CI</td><td>无（公开树）</td><td>12 workflows · 16+ check 脚本</td></tr>
+  <tr><td>复盘/设计资产</td><td>少量部署文档</td><td>66 复盘 · 100+ 设计/RFC · /docs 站</td></tr>
+  <tr><td>默认密钥姿态</td><td>演示口令公开；SECRET_KEY 弱默认可见于同类年代项目</td><td>生产 SECRET_KEY fail-fast · 密码哈希 · 强制改密路径</td></tr>
+</table>
+<p class="note">上游 Python 行数：对 HEAD 全部 .py blob 计数；CronPilot：当前工作区 app/tests 统计。</p>
+
+<h3>3.2 能力对照（终局「能不能」）</h3>
+
+<table>
+  <tr><th>能力</th><th>上游</th><th>CronPilot</th><th>终局含义</th></tr>
+  <tr><td>秒级 Cron + 集群锁</td><td class="y">有</td><td class="y">有（锁原子化加固）</td><td>内核同构，CronPilot 更硬</td></tr>
+  <tr><td>Web 管任务 / 看日志</td><td class="y">有</td><td class="y">有（Console UI + 健康度/逾期）</td><td>CronPilot 信息架构显著升级</td></tr>
+  <tr><td>API 动态改任务</td><td class="y">有</td><td class="y">有（OpenAPI/Swagger + Token/Scope）</td><td>契约与鉴权层级不同代</td></tr>
+  <tr><td>Webhook/企微/钉钉通知</td><td class="y">有（产品卖点）</td><td class="p">非主叙事重点</td><td>上游在「喊人」上更完整</td></tr>
+  <tr><td>多用户 RBAC + 组隔离</td><td class="n">无（共享口令模型）</td><td class="y">三角色 + Scope + 审计</td><td>CronPilot 质变</td></tr>
+  <tr><td>SSRF / 触发 URL 安全</td><td class="n">无体系化防护</td><td class="y">校验 + pinned IP + fail-closed</td><td>公网暴露面天差地别</td></tr>
+  <tr><td>CSRF / 写操作方法约束</td><td class="n">弱/缺</td><td class="y">管理端写操作 CSRF</td><td>浏览器威胁模型对齐</td></tr>
+  <tr><td>执行状态机 / 超时 / 健康度</td><td class="p">日志为主</td><td class="y">多终态 + job_health + 观测事件</td><td>可运维性跃迁</td></tr>
+  <tr><td>Prometheus / 结构化日志</td><td class="n">无</td><td class="y">有</td><td>可接入现代监控</td></tr>
+  <tr><td>注册审批 / 标签 / 组归属</td><td class="n">无</td><td class="y">有</td><td>组织协作场景</td></tr>
+  <tr><td>一键 Docker / 低门槛试用</td><td class="y">强（卖点）</td><td class="y">有，但门槛因安全升高</td><td>上游「五分钟玩起来」仍更轻</td></tr>
+</table>
+
+<h3>3.3 最终效果：用户与运维实际感知</h3>
+
+<table>
+  <tr><th>感知面</th><th>上游终局</th><th>CronPilot 终局</th></tr>
+  <tr>
+    <td>第一次登录</td><td>共享密码，演示友好</td><td>用户名+密码；种子策略；强制改密/哈希路径</td>
+  </tr>
+  <tr>
+    <td>多人协作</td><td>基本不支持分权</td><td>Viewer/Operator/Admin + 组 Scope；种子只读裁剪</td>
+  </tr>
+  <tr>
+    <td>任务出问题怎么查</td><td>日志列表 + 通知推送</td><td>执行记录 / Run Inspector / 健康度 / 逾期 / 指标</td>
+  </tr>
+  <tr>
+    <td>被扫到或误配内网 URL</td><td>高风险（缺 SSRF 体系）</td><td>默认拒绝私网与危险解析路径</td>
+  </tr>
+  <tr>
+    <td>改完代码敢不敢发</td><td>靠人工与经验</td><td>单测 + 冒烟 + 多 CI；仍需人审安全语义</td>
+  </tr>
+  <tr>
+    <td>学习/维护成本</td><td>低：文件少、概念少</td><td>高：规则、复盘、双格式文档、OPT 编号体系</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s4">四、终局裁决：赢了什么、输掉什么、还欠什么</h2>
+
+<h3>4.1 CronPilot 明确赢下的盘</h3>
+
+<ol>
+  <li><strong>生产安全基线</strong>：ORM 化、密码哈希、SSRF、CSRF、SECRET_KEY fail-fast、会话版本——上游不在同一量级。</li>
+  <li><strong>组织级使用权</strong>：从「一个口令管所有人」到 RBAC + Scope + 审计 + 注册审批。</li>
+  <li><strong>可观测与排障</strong>：状态机、健康度、结构化日志、Prometheus、Run Inspector 时间线。</li>
+  <li><strong>工程再生能力</strong>：没有上游那种「改完只能赌」的脆弱性；门禁与复盘让错误可命名、可回归。</li>
+  <li><strong>UI 作为操作系统</strong>：Console Mode、双主题、局部 AJAX、信息架构接近现代运维台，而非 2010 年代后台页。</li>
+</ol>
+
+<h3>4.2 上游仍然更强、或 CronPilot 付出的代价</h3>
+
+<ol>
+  <li><strong>心智负担</strong>：上游一个下午能读完；CronPilot 需要路线图 + 编号规范 + 大量文档才能安全协作。</li>
+  <li><strong>通知闭环产品化</strong>：企微/钉钉/webhook 在上游是一等卖点；CronPilot 主线把精力砸在权限与观测，通知不是同等叙事重心。</li>
+  <li><strong>试用摩擦力</strong>：上游「密码 123456」是糟糕的安全，却是出色的增长；CronPilot 正确的安全姿态天然更重。</li>
+  <li><strong>复杂度税</strong>：66 篇复盘与文档体积证明——增强线用治理债务换来了能力，债务不会自动消失。</li>
+</ol>
+
+<h3>4.3 还没赢完的盘（对终局要诚实）</h3>
+
+<ul>
+  <li>v4 之后仍持续出现 SSRF 细节、ID 类型、观测语义、错误处理契约等修复——说明「大版本」不是稳态。</li>
+  <li>E2E 浏览器层相对单测仍偏弱；若干缺陷只能在集成/人工路径暴露。</li>
+  <li>文档与规则的维护本身已成为产品成本中心，需要持续裁剪，否则增强线会重演「文档事故」。</li>
+</ul>
+
+<div class="box">
+  <strong>一句话裁决：</strong>
+  若评价标准是「中小团队快速挂上定时 HTTP 触发并被通知叫醒」，上游在 2022 年已经交付了一个完整小产品；
+  若评价标准是「可多人、可审计、可暴露面受控、可升级依赖、可回归的调度平台」，
+  <strong>CronPilot v4 是跨代结果</strong>——但它不是免费的升级，而是用三个月级的验证债务与治理军备买下来的。
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s5">五、若重来一次：工程优先级重排</h2>
+
+<p>基于终局对比与过程教训，若对同类十年级项目再做一遍 Cursor 重构，建议的强制顺序是：</p>
+
+<ol>
+  <li><strong>P0 安全与数据访问契约</strong>（ORM / 密码 / SSRF / 密钥）——先达到「可公网讨论」的底线。</li>
+  <li><strong>测试隔离 + 路由/会话冒烟</strong>——在加速前先装上刹车。</li>
+  <li><strong>鉴权模型（RBAC/Scope）</strong>——一旦多用户，所有 API/UI 必须同源。</li>
+  <li><strong>观测最小集</strong>（执行终态 + 结构化日志）——再谈漂亮 UI。</li>
+  <li><strong>UI 重写按重写立项</strong>——禁止「换皮」预算购买「重写」工作量。</li>
+  <li><strong>通知与增长路径</strong>——在安全基线之后补齐，避免回到「演示口令式」增长。</li>
+  <li><strong>治理资产瘦身</strong>——Rules/文档只保留有门禁的；第三次违反直接 CI，不写第四次强调。</li>
+</ol>
+
+<blockquote>
+  终局对比的最大教益不是「AI 真强」或「AI 真坑」，而是：
+  增强线的胜负手，从来不在生成速度，而在你是否愿意为最终效果支付验证与治理的全价。
+</blockquote>
+
+<div class="sister">
+  <a href="我用Cursor重构十年GitHub项目的坑-专栏-2026-09.html">姊妹篇① 坑与账本</a> ·
+  <a href="假完成工业-Cursor重构工程病理学-2026-09.html">姊妹篇② 假完成工业</a> ·
+  <a href="../postmortem/index.html">复盘索引</a> ·
+  <a href="../交付状态与路线图.html">路线图</a> ·
+  <a href="https://github.com/aniu-lee/xiaoniu_cron">上游仓库</a>
+</div>
+
+<div class="box sans">
+  <strong>抽样复核</strong>
+  <pre style="margin:.5rem 0 0;font-size:.78rem;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace"># 上游（在 xiaoniu_cron 克隆）
+git log -1 --format='%h %ad %s' --date=short
+git ls-tree -r HEAD --name-only | grep '\.py$' | wc -l
+git show HEAD:requirements.txt | head -20
+
+# CronPilot
+git describe --tags --abbrev=0
+wc -l app/**/*.py 2>/dev/null | tail -1
+ls tests/test_*.py | wc -l
+ls .github/workflows | wc -l
+ls doc/postmortem/2026-*.html | wc -l</pre>
+</div>
+
+<footer>
+  <a href="../index.html">文档索引</a> ·
+  <a href="工程代价与终局对比-xiaoniu_cron与CronPilot-2026-09.md">Markdown</a> ·
+  姊妹篇其三 · v1.0 · 2026-09-23
+</footer>
+</body>
+</html>

@@ -114,7 +114,7 @@ BEFORE · 与当前模板一致
 AS-IS · Admin
 
 [任务中心](#)›
-[订单回调检查](#)›
+[订单触发检查](#)›
 执行 #10481
 `Esc` 返回
 
@@ -130,7 +130,7 @@ HTTP **—**
 
 请求
 
-POST https://api.example.com/v1/orders/callback?token=\*\*\*&sign=\*\*\*
+POST https://api.example.com/v1/orders/trigger?token=\*\*\*&sign=\*\*\*
 
 响应
 
@@ -138,7 +138,7 @@ POST https://api.example.com/v1/orders/callback?token=\*\*\*&sign=\*\*\*
 
 元数据
 
-任务订单回调检查
+任务订单触发检查
 业务组订单中心
 触发方式定时调度
 Trace IDcp\_9f2a…e1
@@ -163,7 +163,7 @@ Trace IDcp\_9f2a…e1
 
    发送 HTTP 请求
    +24ms
-   `{"method": "POST", "url": "https://api.example.com/v1/orders/callback?token=secret"}`
+   `{"method": "POST", "url": "https://api.example.com/v1/orders/trigger?token=secret"}`
 5. 16:20:06.036
 
    HTTP 请求超时
@@ -176,7 +176,7 @@ AFTER · 本轮目标
 TO-BE · Admin
 
 [任务中心](#)›
-[订单回调检查](#)›
+[订单触发检查](#)›
 执行 #10481
 `Esc` 返回
 
@@ -217,7 +217,7 @@ HTTP **—**
 
 请求
 
-POST https://api.example.com/v1/orders/callback?token=\*\*\*&sign=\*\*\*
+POST https://api.example.com/v1/orders/trigger?token=\*\*\*&sign=\*\*\*
 
 响应
 
@@ -225,7 +225,7 @@ POST https://api.example.com/v1/orders/callback?token=\*\*\*&sign=\*\*\*
 
 元数据
 
-任务订单回调检查
+任务订单触发检查
 业务组订单中心
 触发方式定时调度
 Trace IDcp\_9f2a…e1

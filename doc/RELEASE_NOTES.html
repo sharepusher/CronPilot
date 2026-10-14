@@ -31,29 +31,9 @@
 <div class="hero">
   <h1>CronPilot Release Notes</h1>
   <p>
-    <span class="tag new">v2.7.1</span> 2026-08-03 · Documentation reorganization + CI automation + post-mortem rule strengthening
+    <span class="tag new">4.1.0 RC</span> DNS/3xx security · database ID migration · execution observability
     &nbsp;|&nbsp;
-    <span class="tag">v2.7.0</span> 2026-08-03 · Admin scope + audit scope + search + indexing + doc reorganization
-    &nbsp;|&nbsp;
-    <span class="tag">v2.6.0</span> 2026-07-31 · Color consolidation + API access_token hardening + S6/API docs redesign
-    &nbsp;|&nbsp;
-    <span class="tag">v2.1.1</span> 2026-07-21 · Security hardening (lock / SECRET_KEY / CSRF)
-    &nbsp;|&nbsp;
-    <span class="tag">v2.1.0</span> 2026-07-20 · Runtime stack (Flask 2.3 + SQLAlchemy 2.0)
-    &nbsp;|&nbsp;
-    <span class="tag">v2.0.0</span> 2026-07-17 · 任务中心 / POST 触发 / 账户生命周期
-    &nbsp;|&nbsp;
-    <span class="tag">v1.2.0</span> 2026-07-15 · 顶栏身份 / 种子权限 / 启停用语
-    &nbsp;|&nbsp;
-    <span class="tag">v1.1.0</span> 2026-07-14 · 业务组隔离 / 自助改密
-    &nbsp;|&nbsp;
-    <span class="tag">v1.0.0</span> 2026-07-14 · 多用户权限 / 生命周期 / 操作审计
-    &nbsp;|&nbsp;
-    <span class="tag">v0.2.0</span> 2026-06-10 · 执行可观测 / 依赖与部署加固
-    &nbsp;|&nbsp;
-    <span class="tag">v0.1.1</span> 2026-06-01 · 文档 / 部署 / 多版本 Python
-    &nbsp;|&nbsp;
-    <span class="tag">v0.1.0</span> 2026-05-29 · 首发
+    <span class="tag">v4.0.0</span> 2026-09-04 · V1 UI decommission · security hardening · performance · ghost-job cleanup
   </p>
 </div>
 <div class="layout">
@@ -61,30 +41,43 @@
   <a class="back" href="../RELEASE_NOTES.md">Markdown 版（仓库根）</a> ·
   <a class="back" href="RELEASE_NOTES.md">Markdown 版（doc）</a>
 
-<h2 id="unreleased">[Unreleased]</h2>
-<h3>工程修复 — 业务 ID 切换为数据库自增</h3>
-<ul><li><code>cron_infos</code>、<code>job_log</code>、<code>job_log_events</code> 生产写入路径移除 <code>next_id</code>；ExecutionTracer Core INSERT 不再显式写入主键。</li><li>SQLite 旧事件表执行值不变的 schema 切换，MySQL 主键统一为 <code>BIGINT AUTO_INCREMENT</code>；历史行不重编号。</li><li>验证：25 项专项/导入测试、86 条路由冒烟通过；live 服务验收需在允许本地监听的环境复验。</li><li>设计：<a href="design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">OPT-P0-21 数据库自增 ID 写入机制切换设计</a></li><li>复盘：<a href="postmortem/2026-09-数据库自增ID生成器下线.html">数据库自增 ID 生成器下线</a></li></ul>
-  <div class="card">
-    <p class="muted">说明：本页为 `/docs/` 历史快照，最新版本日志以仓库根 <a href="../RELEASE_NOTES.md"><code>RELEASE_NOTES.md</code></a> 为准。</p>
-    <p class="muted">维护说明：未完成项请记在 <a href="交付状态与路线图.html">交付状态与路线图</a>；本节不要写成内部进度板。</p>
-    <ul>
-      <li><strong>UI 改进 — 任务中心标题统计收敛</strong>：标题移除总任务数与“今日失败”，保留运行中、已暂停、持续异常和逾期；“今日失败”继续仅在独立统计卡显示。筛选、列表与 Dashboard stats API 口径不变。验证：Dashboard 定向测试、UI 契约、Ruff，以及本地浏览器首屏与 AJAX 筛选刷新通过。设计：<a href="design/任务中心标题统计收敛设计-2026-09.html"><code>doc/design/任务中心标题统计收敛设计-2026-09.html</code></a></li>
-      <li><strong>改进 — 执行侧链路观测强化</strong>：执行事件写入 <code>run_id</code> 强关联，补充脱敏 URL、超时阈值、计划触发时间与观测降级标记；Run Inspector 显示观测完整性。无 API Breaking Change。设计：<a href="design/执行侧观测优化设计-2026-09.html"><code>doc/design/执行侧观测优化设计-2026-09.html</code></a></li>
-      <li><strong>修复 — 执行侧观测传输状态误导（F1）</strong>：区分连接未建立与请求已发起但未收到响应，Run Inspector 不再把读取超时显示为“未确认发送”；保留历史状态展示兼容。验证：执行观测定向单测 27 条、UI 契约、Ruff、86 条路由冒烟全部通过。复盘：<a href="postmortem/2026-09-执行侧观测传输状态误导修复.html"><code>doc/postmortem/2026-09-执行侧观测传输状态误导修复.html</code></a></li>
-      <li><strong>修复 — 执行侧观测 sent 状态判定（F2）</strong>：<code>sent_no_response</code> 与兼容状态 <code>sent</code> 纳入“请求已发起”判定；仅收到响应时显示“已发送并收到响应”。验证：观测契约/Presenter/Tracer 25 条、UI 契约、Ruff、86 条路由冒烟通过。复盘：<a href="postmortem/2026-09-执行侧观测sent状态判定修复.html"><code>doc/postmortem/2026-09-执行侧观测sent状态判定修复.html</code></a></li>
-      <li><strong>修复 — Run Inspector HTTP 状态标签（F3）</strong>：Meta 区改用 <code>http_status_label</code>，无响应执行显示“未获得 HTTP 响应”，不再显示无语义的“—”。验证：观测契约、Presenter、详情集成测试 35 条通过；UI 契约、Ruff、86 条路由冒烟通过。复盘：<a href="postmortem/2026-09-RunInspector-http状态标签未消费修复.html"><code>doc/postmortem/2026-09-RunInspector-http状态标签未消费修复.html</code></a></li>
-      <li><strong>修复 — 执行侧观测外层 fatal 阶段映射（F6）</strong>：outer fatal 按执行边界区分 <code>pre_request/not_started</code>、<code>persistence/prepared</code> 与 <code>transport</code>，避免中段异常被误标为请求前置失败。验证：观测相关测试 40 条、Ruff、86 条路由冒烟通过。复盘：<a href="postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html"><code>doc/postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html</code></a></li>
-      <li><strong>修复 — 触发术语全仓治理</strong>：活跃代码/文档统一到“触发请求”模型；已发布 changelog 保持当时原文；<code>scripts/check_terminology.py</code> 放行技术回调与历史引用，并由 <code>docs-sync.yml</code> 与 <code>unit-tests.yml</code> 执行。设计 <a href="design/全仓术语治理设计-2026-09.html"><code>doc/design/全仓术语治理设计-2026-09.html</code></a> · 复盘 <a href="postmortem/2026-09-trigger-terminology-cleanup.html"><code>doc/postmortem/2026-09-trigger-terminology-cleanup.html</code></a></li>
-      <li><strong>增强 — 任务链路日志完整性补全</strong>：补齐 <code>cron.start</code> / <code>cron.http_sending</code> / <code>cron.created</code> / <code>cron.scheduler_registered</code> 过程日志；<code>job_log</code> 增加 <code>trigger_source</code>（当前仅 <code>schedule</code>/<code>manual</code>，<code>one_shot</code> 为预留）、<code>actual_url</code>（签名已脱敏）、<code>resolved_ip</code>、<code>trigger_delay_ms</code>；详情页按来源展示触发方式。设计 <a href="design/任务链路日志完整性增强设计.html"><code>doc/design/任务链路日志完整性增强设计.html</code></a> · 复盘 <a href="postmortem/2026-09-任务链路日志Bug修复复盘.html"><code>doc/postmortem/2026-09-任务链路日志Bug修复复盘.html</code></a></li>
-      <li><strong>UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）</strong>：将「+ 添加用户」移至用户列表工具区左首位，搜索框紧随其后；不改变路由、权限或后端行为。设计：<a href="design/用户管理添加用户入口布局优化设计.html"><code>doc/design/用户管理添加用户入口布局优化设计.html</code></a> · <a href="design/用户管理添加用户入口-页面对比Demo.html">页面对比 Demo</a></li>
-      <li><strong>工程 — 文档索引结构与复盘登记门禁</strong>：<code>scripts/check_doc_completeness.py</code> 新增手工索引页块级标签配对校验与复盘 HTML/MD 双索引登记、篇数一致性校验，修复索引剪贴断裂与误删登记。复盘：<a href="postmortem/2026-09-文档索引结构损坏与登记丢失.html"><code>doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html</code></a></li>
-            <li><strong>OPT-P0-22 — 停用用户同名覆盖启用</strong>：原行覆盖 + 日志继承；申请人零提示；审批/管理员警示；auth_version fail-closed。设计 <a href="design/停用用户同名恢复设计.html"><code>doc/design/停用用户同名恢复设计.html</code></a> · 复盘 <a href="postmortem/2026-09-停用用户同名恢复.html"><code>doc/postmortem/2026-09-停用用户同名恢复.html</code></a> · Session 深入复盘 <a href="postmortem/2026-09-auth-version-session-failopen.html"><code>doc/postmortem/2026-09-auth-version-session-failopen.html</code></a></li>
-      <li><strong>安全修复 — 禁止停用种子系统管理员（OPT-P2-15 补丁）</strong>：全局业务管理员不可停用种子 <code>admin</code>（仍可编辑资料）。服务层双路径 + 视图 + UI 对齐。复盘：<a href="postmortem/2026-09-全局管理员可停用种子账号.html"><code>doc/postmortem/2026-09-全局管理员可停用种子账号.html</code></a></li>
-<li><strong>质量门禁与测试稳定性最小修复（2026-09-04）</strong>：修复 <code>test_rbac_scope</code> 单跑建表缺失、修正 <code>verify_golden_path</code> 文档路径、修复 CSS 注释误报、补齐 <code>doc/postmortem/index.md</code>。</li>
-      <li>设计文档：<a href="design/质量门禁与测试稳定性最小修复方案-2026-09.html"><code>doc/design/质量门禁与测试稳定性最小修复方案-2026-09.html</code></a></li>
-      <li>复盘文档：<a href="postmortem/2026-09-质量门禁四项修复复盘.html"><code>doc/postmortem/2026-09-质量门禁四项修复复盘.html</code></a></li>
-    </ul>
-  </div>
+<h2 id="unreleased">[Unreleased] · 4.1.0 Release Candidate</h2>
+<div class="card highlight">
+  <p class="muted">本节是发布摘要；实现细节、历史发现与验证证据保留在关联的设计、复盘和 QA 文档中。正式版本仍以仓库根 <a href="../RELEASE_NOTES.md"><code>RELEASE_NOTES.md</code></a> 为准。</p>
+  <h3>What changed</h3>
+  <ul>
+    <li>任务触发网络边界改为单次 DNS 解析、校验结果原样 pin、混合回答 fail-closed，并硬拒绝环回、链路本地、保留、组播、未指定及危险映射地址；RFC1918/IPv6 ULA 仍由部署 DNS 控制可达性。</li>
+    <li>所有首跳 HTTP 3xx 均按 <code>fail / redirect_blocked</code> 记录，不跟随 <code>Location</code>，事件中仅保留脱敏摘要。</li>
+    <li>完成数据库自增 ID 写入切换；MySQL 任务关联列统一为 <code>BIGINT</code>，关键迁移 DDL 失败时拒绝启动。</li>
+    <li>收敛执行观测、Run Inspector、生命周期日志、账户身份连续性、种子管理员保护、任务中心统计及文档质量门禁。</li>
+    <li>将历史文档图片收敛为经审查的内容寻址资产库，移除 Base64 副本及 5 张含凭据且不具备持续证据价值的截图，并新增排除历史证据图片的可重现公开安装包；详见<a href="postmortem/2026-10-历史截图凭据脱敏与迁移原子性复盘.html">图片治理复盘</a>。</li>
+    <li>对齐 <code>pytz</code> 与 <code>croniter==6.0.0</code> 的依赖约束，修复全新环境安装失败，并补齐精简发布包的运行时文档与链接闭包；详见<a href="postmortem/2026-10-发布包隔离安装闭环修复.html">发布包隔离安装复盘</a>。</li>
+  </ul>
+  <h3>Why</h3>
+  <ul>
+    <li>在真实出站请求边界消除 DNS TOCTOU 与重定向结果歧义。</li>
+    <li>统一 SQLite/MySQL 的主外键宽度和所有权语义，并让失败执行可诊断但不泄露凭据。</li>
+    <li>保持 RBAC、用户身份和历史审计连续性，同时将发布说明从内部进度板收敛为面向发布的专业摘要。</li>
+  </ul>
+  <h3>Validation</h3>
+  <ul>
+    <li>完整 unittest：<strong>839 项已运行，838 passed，1 intentionally skipped</strong>；唯一跳过项用于显式展示 SQLite ID 复用与孤儿关联风险。</li>
+    <li>运行中服务集成测试：任务操作与 CSRF 共 <strong>11 passed，0 skipped</strong>。</li>
+    <li><code>ruff check app/</code> 通过；扩展扫描发现的 34 个 I001 均位于测试代码，仅属于可选 import 排序债务，不是当前发布门禁。</li>
+    <li>HTML→Markdown 同步、文档完整性、链接可达性、OPT 一致性、pending-sync 与空白检查通过。</li>
+    <li>图片与发布资产门禁通过：71 个唯一已审查资产，旧路径/Base64 引用为 0，基线双构建 SHA-256 一致，公开包历史截图字节为 0。</li>
+    <li>严格预发布快照已通过双构建一致性、全新环境安装与解压包黄金路径；最终文件数、字节数和 SHA-256 将从删图后发布候选版记录，并由最终 tag workflow 重复验证。</li>
+  </ul>
+  <h3>Compatibility &amp; Risk</h3>
+  <ul>
+    <li><strong>发布阻断项：</strong>在一次性真实 MySQL 环境完成迁移演练并记录 schema 断言。</li>
+    <li>既有任务 URL 不自动改写；返回 3xx 的任务由“可能误报成功”变为明确失败。</li>
+    <li>既有数据 ID 不重编号；新 ID 由数据库生成，MySQL 任务关联列迁移为 <code>BIGINT</code>。</li>
+    <li><code>auth_version</code> 加固会使缺少版本键的旧 Web Session 重新登录；本候选版本不删除 API 响应字段。</li>
+  </ul>
+  <p>详细证据：<a href="qa/2026-10-10-代码全面Review与未提交变更评估.html">代码全面 Review 与未提交变更评估</a> · <a href="postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html">任务触发安全与测试契约漂移复盘</a></p>
+  <p>关键设计：<a href="design/任务触发URL-DNS二次解析安全修复设计-2026-10.html">DNS 安全设计</a> · <a href="design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html">3xx 与 Pinning 设计</a> · <a href="design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">数据库自增 ID 设计</a></p>
+</div>
 
 <h2 class="new" id="v2-7-1">[2.7.1] — 2026-08-03</h2>
   <div class="card highlight">

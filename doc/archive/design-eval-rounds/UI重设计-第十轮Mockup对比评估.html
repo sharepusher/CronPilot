@@ -167,7 +167,7 @@ table.summary tr:hover td{background:#fafbfc}
   任务总数 · 运行中 · 今日失败 · 24h 成功率
 &lt;<span class="tag">table</span>&gt;&lt;<span class="tag">th</span>&gt;任务&lt;<span class="tag">th</span>&gt;调度策略&lt;<span class="tag">th</span>&gt;运行状态&lt;<span class="tag">th</span>&gt;操作
 &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"status running"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"pin"</span>&gt;&lt;/span&gt;运行中&lt;/span&gt;</div>
-  <img class="screenshot" src="screenshots/eval10/01-dashboard-davy.png" alt="当前实现：任务中心">
+  <img class="screenshot" src="../../assets/screenshots/a2a1d23e0bea38a8bfb251002f72f14b768c46a35a81e0693b09724de7ada907.png" alt="当前实现：任务中心">
   <div class="deviations">
     <div class="dev dev-high"><span class="dev-id">D1-01 [高]</span><div class="dev-desc">表格列结构与 Mockup 根本不同：实现 7 列 Health-First vs Mockup 4 列简化视图</div><div class="dev-compare"><span class="dev-mockup">Mockup: 4列（任务/调度/运行状态/操作）</span><span class="dev-actual">实现: 7列 + 健康度/最近/下次/业务组</span></div><div class="dev-fix"><b>修复：</b>新增 Mockup 对齐模式或重构 dashboard 为 4 列；运行状态合并健康度+最近执行为单列 <code>.status</code> pin 组件；移除或折叠 Exception Panel 为可选区块。</div></div>
     <div class="dev dev-high"><span class="dev-id">D1-02 [高]</span><div class="dev-desc">Stats 指标名称与语义不匹配</div><div class="dev-compare"><span class="dev-mockup">任务总数/运行中/今日失败/24h成功率</span><span class="dev-actual">异常任务/连续失败/运行中/今日失败次数</span></div><div class="dev-fix"><b>修复：</b>后端聚合接口返回 Mockup 四指标；Stats 组件改用 <code>.stat .value.signal|danger|success</code> 色类。</div></div>
@@ -208,7 +208,7 @@ table.summary tr:hover td{background:#fafbfc}
   <div class="mockup-snippet">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"form-card"</span>&gt;
   任务名称 · req_url(.err+hint) · two-col(方式/超时) · Cron单行 · 标签 · switch-row(启用任务)
   form-actions: btn-primary 保存修改 · btn-ghost 取消</div>
-  <img class="screenshot" src="screenshots/eval10/02-task-form.png" alt="当前实现：任务创建表单">
+  <img class="screenshot" src="../../assets/screenshots/f5cc7b537d057772ba6dcbbf842c8723c05cb489a9a5f0b8c82721aa26781541.png" alt="当前实现：任务创建表单">
   <div class="deviations">
     <div class="dev dev-high"><span class="dev-id">D2-01 [高]</span><div class="dev-desc">表单信息架构完全不同：Mockup 精简 6 字段 vs 实现完整业务表单 10+ 字段</div><div class="dev-fix"><b>修复：</b>Redesign 表单层拆为 Mockup 主卡（核心字段）+「高级选项」折叠区保留 Cron 五段/JSON Body。</div></div>
     <div class="dev dev-high"><span class="dev-id">D2-02 [高]</span><div class="dev-desc">缺少 Mockup <code>.switch-row</code> 启用任务开关</div><div class="dev-fix"><b>修复：</b>在表单末添加 switch 组件，绑定 <code>is_active</code>；样式复制 Mockup 173–178 行。</div></div>
@@ -246,7 +246,7 @@ table.summary tr:hover td{background:#fafbfc}
   </div>
   <div class="mockup-snippet">&lt;<span class="tag">thead</span>&gt;任务 · 触发时间 · 耗时 · 响应码 · 状态
 &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"chip active"</span>&gt;全部&lt;/div&gt; 失败 · 超时</div>
-  <img class="screenshot" src="screenshots/eval10/03-execution-logs.png" alt="当前实现：执行记录">
+  <img class="screenshot" src="../../assets/screenshots/29737800c08222b278a9d2b62538163de007f8c32f3b8385b41de257df0fb8c9.png" alt="当前实现：执行记录">
   <div class="deviations">
     <div class="dev dev-high"><span class="dev-id">D3-01 [高]</span><div class="dev-desc">列结构不匹配：7 列含 LOG ID/返回内容/操作 vs Mockup 5 列精简视图</div><div class="dev-fix"><b>修复：</b>Mockup 模式下隐藏 LOG ID 与返回内容（或移入详情页）；保留任务/时间/耗时/响应码/状态五列。</div></div>
     <div class="dev dev-med"><span class="dev-id">D3-02 [中]</span><div class="dev-desc">筛选 chip 文案与数量：Mockup 全部/失败/超时；实现 5 态按钮组 + 日期</div><div class="dev-fix"><b>修复：</b>简化为三 chip；日期筛选收进「高级筛选」折叠。</div></div>
@@ -283,7 +283,7 @@ table.summary tr:hover td{background:#fafbfc}
   </div>
   <div class="mockup-snippet">&lt;<span class="tag">thead</span>&gt;操作人 · 操作 · 对象 · 时间 · 来源 IP
 &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"badge badge-signal"</span>&gt;修改&lt;/span&gt;</div>
-  <img class="screenshot" src="screenshots/eval10/04-operation-log.png" alt="当前实现：操作记录">
+  <img class="screenshot" src="../../assets/screenshots/707178a5ae0bf44f17f3920f15fae0156c00402351d7d09ae5fa9066a040fe46.png" alt="当前实现：操作记录">
   <div class="deviations">
     <div class="dev dev-med"><span class="dev-id">D4-01 [中]</span><div class="dev-desc">列数与 Mockup 不同：实现 7 列 vs Mockup 5 列；Mockup 无「变更详情」「操作结果」独立列</div><div class="dev-fix"><b>修复：</b>Mockup 模式下合并变更详情入「对象」列 subtitle；结果列改为行内 badge 或移除（Mockup 隐含成功）。</div></div>
     <div class="dev dev-med"><span class="dev-id">D4-02 [中]</span><div class="dev-desc">Mockup 无工具栏筛选；实现有 keyword + action 下拉</div><div class="dev-fix"><b>修复：</b>可选：默认隐藏筛选栏，仅保留 Mockup 纯表格；或改为 Mockup 风格 search chip。</div></div>
@@ -321,7 +321,7 @@ table.summary tr:hover td{background:#fafbfc}
   <div class="mockup-snippet">&lt;<span class="tag">thead</span>&gt;用户 · 角色 · 状态 · 最近登录 · 操作
 &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="txt">"btn btn-primary"</span>&gt;邀请成员&lt;/button&gt;
 &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"badge badge-signal"</span>&gt;管理员&lt;/span&gt;</div>
-  <img class="screenshot" src="screenshots/eval10/05-users.png" alt="当前实现：用户管理">
+  <img class="screenshot" src="../../assets/screenshots/e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607.png" alt="当前实现：用户管理">
   <div class="deviations">
     <div class="dev dev-high"><span class="dev-id">D5-01 [高]</span><div class="dev-desc">表格列结构与 Mockup 差异大：实现 9 列 enterprise 视图 vs Mockup 5 列精简视图</div><div class="dev-fix"><b>修复：</b>提供 Mockup 列预设：用户/角色/状态/最近登录/操作；花名/岗位等移入编辑抽屉。</div></div>
     <div class="dev dev-high"><span class="dev-id">D5-02 [高]</span><div class="dev-desc">缺少「最近登录」列；Mockup 展示相对时间（2 分钟前）</div><div class="dev-fix"><b>修复：</b>从 audit/login 聚合 <code>last_login_at</code>；列渲染人类可读相对时间。</div></div>
@@ -358,7 +358,7 @@ table.summary tr:hover td{background:#fafbfc}
   <div class="mockup-snippet">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"gfoot"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"avatars"</span>&gt;张 · 李 · +3&lt;/div&gt;
   &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"badge badge-muted"</span>&gt;18 个任务&lt;/span&gt;</div>
-  <img class="screenshot" src="screenshots/eval10/06-groups.png" alt="当前实现：业务组">
+  <img class="screenshot" src="../../assets/screenshots/b0a0cdbad7f6ae7913ba9eb29f7b9f2c3eb7e72fcf240821cbacd84f6e3d4ab5.png" alt="当前实现：业务组">
   <div class="deviations">
     <div class="dev dev-med"><span class="dev-id">D6-01 [中]</span><div class="dev-desc">卡脚成员展示：Mockup 头像叠堆 vs 实现 👥 + 文字计数</div><div class="dev-fix"><b>修复：</b><code>.grp-foot</code> 改用 <code>.avatars .avatar</code> 叠堆（最多 3 + +N）。</div></div>
     <div class="dev dev-med"><span class="dev-id">D6-02 [中]</span><div class="dev-desc">Seed Admin 缺「新建业务组」入口（需在 admin 账号验证；Mockup 始终显示）</div><div class="dev-fix"><b>修复：</b>对有 <code>user:manage</code> 权限用户在 page-head 显示 Mockup primary 按钮。</div></div>
@@ -393,7 +393,7 @@ table.summary tr:hover td{background:#fafbfc}
   </div>
   <div class="mockup-snippet">&lt;<span class="tag">thead</span>&gt;事件 · 用户 · 时间 · IP · 结果
 &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"chip"</span>&gt;登录失败&lt;/div&gt; 权限变更</div>
-  <img class="screenshot" src="screenshots/eval10/07-audit-logs.png" alt="当前实现：审计日志">
+  <img class="screenshot" src="../../assets/screenshots/363c93c28bc0572e5e1942227ce5a6586ec96cb84e22669184e0fc17d229df97.png" alt="当前实现：审计日志">
   <div class="deviations">
     <div class="dev dev-med"><span class="dev-id">D7-01 [中]</span><div class="dev-desc">列顺序与命名：Mockup「事件/用户/时间/IP/结果」vs 实现「时间/用户名/动作/说明/IP/结果」</div><div class="dev-fix"><b>修复：</b>重排列顺序；「动作+说明」合并为 Mockup「事件」单列。</div></div>
     <div class="dev dev-med"><span class="dev-id">D7-02 [中]</span><div class="dev-desc">筛选 chip 集合不同：Mockup 3 项 vs 实现 5 项</div><div class="dev-fix"><b>修复：</b>Mockup 模式下展示 全部/登录失败/权限变更；其余收进「更多」。</div></div>
@@ -428,7 +428,7 @@ table.summary tr:hover td{background:#fafbfc}
   </div>
   <div class="mockup-snippet">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"search"</span>&gt;新建标签…&lt;/div&gt;
 &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="txt">"tag-lg"</span>&gt;交易 &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"cnt"</span>&gt;18&lt;/span&gt; &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="txt">"del"</span>&gt;×&lt;/span&gt;&lt;/div&gt;</div>
-  <img class="screenshot" src="screenshots/eval10/08-tags.png" alt="当前实现：标签管理">
+  <img class="screenshot" src="../../assets/screenshots/e44a79d80db123b377d6b68125a347fa9325631539f4eef39335e6b65d9627cb.png" alt="当前实现：标签管理">
   <div class="deviations">
     <div class="dev dev-med"><span class="dev-id">D8-01 [中]</span><div class="dev-desc">Mockup 仅 tag-cloud；实现额外有明细表格区块</div><div class="dev-fix"><b>修复：</b>Mockup 模式下隐藏表格；或表格改为 tag 点击后的侧栏详情。</div></div>
     <div class="dev dev-med"><span class="dev-id">D8-02 [中]</span><div class="dev-desc">新建交互：Mockup search 输入 inline 创建 vs 实现 modal 按钮</div><div class="dev-fix"><b>修复：</b>filters 区改用 Mockup <code>.search</code> + 回车创建；保留 modal 为 fallback。</div></div>
@@ -459,7 +459,7 @@ table.summary tr:hover td{background:#fafbfc}
       </ul>
     </div>
   </div>
-  <img class="screenshot" src="screenshots/eval10/09-profile.png" alt="当前实现：个人资料">
+  <img class="screenshot" src="../../assets/screenshots/6612569f3603bf57c598865f56f22968c420c935f1d571553ecc440f78d13b90.png" alt="当前实现：个人资料">
   <div class="deviations">
     <div class="dev dev-low"><span class="dev-id">D9-01 [低]</span><div class="dev-desc">Mockup 无此页 — 为实现扩展；与 Mockup 用户 dropdown 信息架构不同</div><div class="dev-fix"><b>修复：</b>可选：顶栏增加 Mockup <code>.user-chip</code> 下拉，profile 页作为深链接保留。</div></div>
     <div class="dev dev-low"><span class="dev-id">D9-02 [低]</span><div class="dev-desc">顶栏缺少 Mockup 用户头像 chip（当前仅 sidebar 导航）</div><div class="dev-fix"><b>修复：</b>在 <code>_topbar.html</code> 实现 user-menu dropdown 对齐 Mockup 301–324 行。</div></div>
@@ -489,7 +489,7 @@ table.summary tr:hover td{background:#fafbfc}
       </ul>
     </div>
   </div>
-  <img class="screenshot" src="screenshots/eval10/10-api-token.png" alt="当前实现：API Token">
+  <p>含凭据的 API Token 历史截图不具备继续保留价值，已删除；本节的功能与偏差结论保留。</p>
   <div class="deviations">
     <div class="dev dev-low"><span class="dev-id">D10-01 [低]</span><div class="dev-desc">Mockup 仅在 dropdown 提及，无页面规格 — 当前页为实现扩展</div><div class="dev-fix"><b>修复：</b>确保 dropdown 与 sidebar 双入口一致；样式沿用 Mockup <code>.code-block</code>。</div></div>
     <div class="dev dev-low"><span class="dev-id">D10-02 [低]</span><div class="dev-desc">Shell 层：Mockup 顶栏含 theme-toggle + 通知 + user-chip；实现顶栏较简</div><div class="dev-fix"><b>修复：</b>顶栏补齐 Mockup 288–299 行组件（theme-toggle/通知/user-menu）。</div></div>

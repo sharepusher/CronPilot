@@ -46,7 +46,7 @@
 
 ### 当前实现（截图）— 6 列
 
-![操作记录当前截图](screenshots/eval7/operation_log.png)
+![操作记录当前截图](../../assets/screenshots/66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45.png)
 
 http://127.0.0.1:5001/operation\_log\_list · 2026-08-20
 
@@ -87,7 +87,7 @@ IP
 
 ### 当前实现（截图）— 8 列
 
-![审计日志当前截图](screenshots/eval7/audit_log.png)
+![审计日志当前截图](../../assets/screenshots/ecd350efef225e2b54343a4c7d015e3a547e292574271168be8edfc18d2b6b1a.png)
 
 http://127.0.0.1:5001/rbac/audit-logs · 2026-08-20
 
@@ -134,7 +134,7 @@ IP
 
 ### 当前实现（截图）— 7 列 + 异常面板
 
-![任务中心当前截图](screenshots/eval7/task_center.png)
+![任务中心当前截图](../../assets/screenshots/bb40553e44ff38c2202a88b090ff9dd4542086befd5906288fbe608da6a3c606.png)
 
 http://127.0.0.1:5001/cron\_list · 2026-08-20
 

@@ -186,6 +186,22 @@
     <ul class="doc-list">
       <li>
         <div class="title">
+          <span class="badge b-done">已实施</span>
+          <a href="design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html">任务触发 URL 3xx 失败语义与 Pinning 修复设计（2026-10）</a>
+          <span class="blurb">保持禁止自动跳转 · 3xx 显性失败 · IPv6 与配置契约修复 · 全量测试 832 通过</span>
+        </div>
+        <div class="links"><a href="design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html">HTML</a><a href="design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已确认并实施</span>
+          <a href="design/任务触发URL-DNS二次解析安全修复设计-2026-10.html">任务触发 URL DNS 二次解析安全修复设计（2026-10）</a>
+          <span class="blurb">P0：单次已验证 DNS 结果与 pinning 绑定；保留私网/ULA 可达性；2026-10-12 用户确认</span>
+        </div>
+        <div class="links"><a href="design/任务触发URL-DNS二次解析安全修复设计-2026-10.html">HTML</a><a href="design/任务触发URL-DNS二次解析安全修复设计-2026-10.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <a href="arch/架构设计文档.html">架构设计文档</a>
           <span class="blurb">C4 上下文/容器/组件、数据架构、集群双锁</span>
         </div>
@@ -274,7 +290,15 @@
         <div class="links"><a href="postmortem/2026-09-数据库自增ID生成器下线.html">HTML</a><a href="postmortem/2026-09-数据库自增ID生成器下线.md">MD</a></div>
       </li>
       <li>
-        <div class="title"><span class="badge b-draft">Review 未通过</span><a href="qa/4.0之后提交深度Review-2026-09-20.html">v4.0.0 之后提交深度 Review（2026-09-20）</a><span class="blurb">3 个 P1：多 worker ID、时钟回拨、IPv6 DNS pinning；4.1.0 暂不可发布</span></div>
+        <div class="doc-meta"><span class="badge b-done">已实施</span><a href="postmortem/2026-09-SSRF内外网区域校验修复.html">SSRF 内外网区域校验修复（2026-09）</a><span class="blurb">部署 DNS 控制私网/ULA 可达性、危险地址硬拒绝、单次解析 pinning、重定向防护</span></div>
+        <div class="links"><a href="postmortem/2026-09-SSRF内外网区域校验修复.html">HTML</a><a href="postmortem/2026-09-SSRF内外网区域校验修复.md">MD</a></div>
+      </li>
+      <li>
+        <div class="doc-meta"><span class="badge b-done">已实施</span><a href="postmortem/2026-09-MySQL任务ID关联列类型修复.html">MySQL 任务 ID 关联列类型修复（2026-09）</a><span class="blurb">任务 ID 关联列统一 BIGINT；高位 ID 写入与迁移 fail-closed</span></div>
+        <div class="links"><a href="postmortem/2026-09-MySQL任务ID关联列类型修复.html">HTML</a><a href="postmortem/2026-09-MySQL任务ID关联列类型修复.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-draft">历史审查</span><a href="qa/4.0之后提交深度Review-2026-09-20.html">v4.0.0 之后提交深度 Review（2026-09-20）</a><span class="blurb">当时记录的 3 个 P1；当前状态以 2026-10-12 全面复核为准</span></div>
         <div class="links"><a href="qa/4.0之后提交深度Review-2026-09-20.html">HTML</a><a href="qa/4.0之后提交深度Review-2026-09-20.md">MD</a></div>
       </li>
       <li>
@@ -319,6 +343,11 @@
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行侧观测R1状态兜底修复.html">执行侧观测 R1 状态兜底修复</a>（三角色传输状态兜底 · 已实施）</li>
             <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-09-执行侧观测R2异常矩阵修复.html">执行侧观测 R2 异常矩阵修复</a>（异常子类/response 证据分流 · 已实施）</li>
             <li><span class="badge b-sub">发布前</span> <a href="design/4.1.0发布前变更梳理与文档收敛-2026-09-18.html">4.1.0 发布前变更梳理与文档收敛</a>（4.0.0 后提交分层 · 过期文档排除 · R1/R2 已关闭）</li>
+            <li><span class="badge b-sub">已实施</span> <a href="design/历史图片资产去重与发布包瘦身设计-2026-10.html">历史图片资产去重与发布包瘦身设计（2026-10）</a>（v1.4 · 71 个内容寻址资产 · 图片门禁 · tag 白名单发布包 · 不发布证据包）</li>
+            <li><span class="badge b-sub">专业 Review</span> <a href="qa/历史图片资产去重与发布包瘦身设计-专业Review-2026-10.html">历史图片资产去重与发布包瘦身设计专业 Review（2026-10）</a>（v1.4 修订后通过 · 用户确认后已实施）</li>
+            <li><span class="badge b-sub">体积评估</span> <a href="qa/历史图片治理瘦身后项目体积评估-2026-10.html">历史图片治理瘦身后项目体积评估（2026-10）</a>（实施后 71 个唯一资产；凭据截图已删除）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-10-历史截图凭据脱敏与迁移原子性复盘.html">历史截图凭据脱敏与迁移原子性复盘（2026-10）</a>（5 张凭据截图最终删除 · 可恢复迁移 · CI/发布门禁）</li>
+            <li><span class="badge b-sub">复盘</span> <a href="postmortem/2026-10-发布包隔离安装闭环修复.html">发布包隔离安装闭环修复（2026-10）</a>（pytz 锁冲突 · 运行时文档闭包 · 0.60 MiB 严格双构建 · 黄金路径通过）</li>
             <li><span class="badge b-sub">设计</span> <a href="design/执行侧观测-传输状态机收口设计-2026-09-18.html">传输状态机收口设计（2026-09-18）</a>（部分实施 · R1/R2 已完成 · Run Inspector 页面对比）</li>
             <li><span class="badge b-sub">设计</span> <a href="design/执行侧观测优化设计-2026-09.html">执行侧观测优化设计（2026-09）</a>（待确认 · run_id 强关联、事件上下文、降级可见、统一时间线）</li>
             <li><span class="badge b-sub">决策说明</span> <a href="design/执行侧观测-run_id强关联决策说明-2026-09.html">run_id 强关联决策说明（2026-09）</a>（待确认 · 数据一致性、迁移兼容、查询与回滚边界）</li>
@@ -1046,6 +1075,38 @@
     <ul class="doc-list">
       <li>
         <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html">xiaoniu_cron ↔ CronPilot 页面截图对照（2026-09）</a>
+          <span class="blurb">双系统实装 1440×900 截图 · 同构 5 页并排 + CronPilot 独有 RBAC/组/标签/审计等</span>
+        </div>
+        <div class="links"><a href="qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.html">HTML</a><a href="qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="qa/工程代价与终局对比-xiaoniu_cron与CronPilot-2026-09.html">工程代价与终局对比：xiaoniu_cron → CronPilot v4.0</a>
+          <span class="blurb">工程过程十条教训 · 双项目终局矩阵 · 赢/输/欠账裁决 · 若重来的优先级重排</span>
+        </div>
+        <div class="links"><a href="qa/工程代价与终局对比-xiaoniu_cron与CronPilot-2026-09.html">HTML</a><a href="qa/工程代价与终局对比-xiaoniu_cron与CronPilot-2026-09.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="qa/假完成工业-Cursor重构工程病理学-2026-09.html">假完成工业：Cursor 重构十年级开源项目的工程病理学报告</a>
+          <span class="blurb">长篇尸检 · 时间经济学/认识论/安全先验/治理军备 · 四场手术级病例 · 双账本与可迁移判据</span>
+        </div>
+        <div class="links"><a href="qa/假完成工业-Cursor重构工程病理学-2026-09.html">HTML</a><a href="qa/假完成工业-Cursor重构工程病理学-2026-09.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-done">已交付</span>
+          <a href="qa/我用Cursor重构十年GitHub项目的坑-专栏-2026-09.html">我用 10 天用 Cursor 重构了一个 10 年前的 GitHub 项目，没想到有这么多坑</a>
+          <span class="blurb">专栏 · v0.1→v4.0 变更账本 · 量化指标 · 七种假完成与深层机制 · 复盘/会话/Rules 证据</span>
+        </div>
+        <div class="links"><a href="qa/我用Cursor重构十年GitHub项目的坑-专栏-2026-09.html">HTML</a><a href="qa/我用Cursor重构十年GitHub项目的坑-专栏-2026-09.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
           <span class="badge b-draft">待确认</span>
           <a href="qa/当前项目架构与代码质量全面评估报告-2026-09.html">当前项目架构与代码质量全面评估报告（2026-09）</a>
           <span class="blurb">架构 · 代码质量 · Bugbot 缺陷；逐项说明根因、影响、方案选型、实施路径与验收标准；统一采用“定时 HTTP 触发请求”术语</span>
@@ -1674,31 +1735,36 @@
       </li>
       <li>
         <div class="title">
-          <span class="badge b-archive">归档</span>
-          <span>eval14 截图集（8 张）</span>
-          <span class="blurb">audit · dashboard · exec-logs · groups · op-log · r3-modal · tags · users</span>
-          <ul class="nest">
-            <li><a href="archive/screenshots/eval14-audit.png">eval14-audit.png</a> · <a href="archive/screenshots/eval14-dashboard.png">dashboard</a> · <a href="archive/screenshots/eval14-exec-logs.png">exec-logs</a> · <a href="archive/screenshots/eval14-groups.png">groups</a></li>
-            <li><a href="archive/screenshots/eval14-op-log.png">op-log</a> · <a href="archive/screenshots/eval14-r3-modal.png">r3-modal</a> · <a href="archive/screenshots/eval14-tags.png">tags</a> · <a href="archive/screenshots/eval14-users.png">users</a></li>
-          </ul>
+          <span class="badge b-archive">已治理</span>
+          <a href="assets/screenshots/manifest.json">历史截图内容寻址资产清单</a>
+          <span class="blurb">原 eval/round 目录已迁移；旧路径、规范 SHA-256 路径、引用方、来源与敏感审查结果以 manifest 为准</span>
         </div>
-        <div class="links"></div>
-      </li>
-      <li>
-        <div class="title">
-          <span class="badge b-archive">归档</span>
-          <span>评估轮次截图目录</span>
-          <span class="blurb">round4 · eval6 · eval7 · eval8 · eval10 · eval5-task-center.png</span>
-          <ul class="nest">
-            <li><a href="archive/screenshots/round4/">round4/</a> · <a href="archive/screenshots/eval6/">eval6/</a> · <a href="archive/screenshots/eval7/">eval7/</a> · <a href="archive/screenshots/eval8/">eval8/</a> · <a href="archive/screenshots/eval10/">eval10/</a></li>
-            <li><a href="archive/screenshots/eval5-task-center.png">eval5-task-center.png</a></li>
-          </ul>
-        </div>
-        <div class="links"></div>
+        <div class="links"><a href="design/历史图片资产去重与发布包瘦身设计-2026-10.html">治理设计</a><a href="postmortem/2026-10-历史截图凭据脱敏与迁移原子性复盘.html">复盘</a></div>
       </li>
     </ul>
   </section>
 
+  <section id="review-2026-10-10">
+    <h2>专项评审入口</h2>
+    <ul class="doc-list">
+      <li>
+        <div class="title">
+          <span class="badge b-draft">评审</span>
+          <a href="qa/2026-10-10-代码全面Review与未提交变更评估.html">代码全面 Review 与未提交变更评估（2026-10-10）</a>
+          <span class="blurb">历史 Finding 已关闭；完整测试 839 项已运行（838 通过、1 项风险演示跳过），其中 11 项服务集成测试全部通过。发布仅待真实 MySQL 迁移演练</span>
+        </div>
+        <div class="links"><a href="qa/2026-10-10-代码全面Review与未提交变更评估.html">HTML</a><a href="qa/2026-10-10-代码全面Review与未提交变更评估.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title">
+          <span class="badge b-draft">复盘</span>
+          <a href="postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html">任务触发安全与测试契约漂移复盘（2026-10-10）</a>
+          <span class="blurb">根因、方案取舍、测试防线与三批修复路径</span>
+        </div>
+        <div class="links"><a href="postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html">HTML</a><a href="postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.md">MD</a></div>
+      </li>
+    </ul>
+  </section>
   <footer>CronPilot · 技术文档 · HTML + Markdown · 发行版 v2.9.0</footer>
 </body>
 </html>

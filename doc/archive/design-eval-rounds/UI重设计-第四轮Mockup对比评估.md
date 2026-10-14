@@ -62,11 +62,11 @@ Z3
 
 #### 删除确认对话框（修复后）
 
-![删除确认对话框](screenshots/round4/tags_delete_modal.png)
+![删除确认对话框](../../assets/screenshots/c4c752ca86e805b5adab2cf72e765d45cfc5408482c87892732db2c339efb378.png)
 
 #### 新建标签对话框（修复后）
 
-![新建标签对话框](screenshots/round4/tags_create_modal.png)
+![新建标签对话框](../../assets/screenshots/7c15e1a90514403ea7c6a3488284f8288785c530e27b84a6d917c2e3da5e992b.png)
 
 已修复
 
@@ -106,7 +106,7 @@ Mockup: 4 stats + 4列表格 | 当前: 4 stats + Exception Panel + 7列表格
 
 ### 当前实现（截图）
 
-![任务中心截图](screenshots/round4/dashboard.png)
+![任务中心截图](../../assets/screenshots/1d65b8a55796841bf319759d53cb0ba364216a496735f5f65c409e49d1e6c954.png)
 
 ### Mockup 规格
 
@@ -134,7 +134,7 @@ Mockup: 5列（任务/触发时间/耗时/响应码/状态）+ 3个 filter chip
 
 ### 当前实现（截图）
 
-![执行记录截图](screenshots/round4/execution_logs.png)
+![执行记录截图](../../assets/screenshots/d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7.png)
 
 ### Mockup 规格
 
@@ -160,7 +160,7 @@ Mockup: 5列（操作人/操作/对象/时间/来源IP）| 当前: 6列（ID/用
 
 ### 当前实现（截图）
 
-![操作记录截图](screenshots/round4/operation_log.png)
+![操作记录截图](../../assets/screenshots/66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45.png)
 
 ### Mockup 规格
 
@@ -194,7 +194,7 @@ Mockup: 5列（事件/用户/时间/IP/结果）+ 3个 filter chip | 当前: 8�
 
 ### 当前实现（截图）
 
-![审计日志截图](screenshots/round4/audit_logs.png)
+![审计日志截图](../../assets/screenshots/577975fbe3d39df01f02e0c65a13046e121fe370e17f1ab83abacf4fb675fcf0.png)
 
 ### Mockup 规格
 
@@ -230,7 +230,7 @@ Mockup: 5列（用户/角色/状态/最近登录/单图标操作）| 当前: 8�
 
 ### 当前实现（截图）
 
-![用户管理截图](screenshots/round4/users.png)
+![用户管理截图](../../assets/screenshots/85d51931b7cc60cdbc45fa88ef97f649c6e98d8e5ac4b2be4c1e998cb0acc520.png)
 
 ### Mockup 规格
 
@@ -265,7 +265,7 @@ Mockup: 卡片布局 | 当前: 卡片布局 ✅
 
 ### 当前实现（截图）
 
-![业务组截图](screenshots/round4/groups.png)
+![业务组截图](../../assets/screenshots/08ae822041bc6cf2ff48feb40a3bfbd10e311a37605bee160ce1237cd473d717.png)
 
 ### 状态评估
 
@@ -289,7 +289,7 @@ Mockup: 只有标签云（tag-lg pill + × 删除）| 当前: 标签云 + 管理
 
 ### 当前实现（截图）
 
-![标签管理截图](screenshots/round4/tags.png)
+![标签管理截图](../../assets/screenshots/681d8b7e618844bdfe249189d07799c965292fa5df99d0ded8561ff9fa20514a.png)
 
 ### Mockup 规格
 
@@ -321,13 +321,13 @@ Mockup 未包含，但对管理员有必要。无需调整。
 
 ### API Token 页
 
-![API Token](screenshots/round4/api_token.png)
+含凭据的历史截图不具备继续保留价值，已删除；本轮评估的文字结论保留。
 
 重置按钮使用 CpConfirm 正常工作 ✅
 
 ### 个人资料页（Y1）
 
-![个人资料](screenshots/round4/profile.png)
+![个人资料](../../assets/screenshots/faf38f874c249735a9f06cb6c85fa20b31ebddc0f6bb9c8a2914c0b951d234bb.png)
 
 只读字段置灰、可编辑字段正常 ✅
 

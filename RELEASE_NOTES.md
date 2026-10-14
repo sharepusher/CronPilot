@@ -7,287 +7,46 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-### 工程修复 — 业务 ID 切换为数据库自增
-- `cron_infos`、`job_log`、`job_log_events` 生产写入路径移除 `next_id`；ExecutionTracer Core INSERT 不再显式写入主键。
-- SQLite 旧事件表执行值不变的 schema 切换，MySQL 主键统一为 `BIGINT AUTO_INCREMENT`；历史行不重编号。
-- 验证：25 项专项/导入测试、86 条路由冒烟通过；live 服务验收需在允许本地监听的环境复验。
-- 设计：[OPT-P0-21 数据库自增 ID 写入机制切换设计](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html)
-- 复盘：[数据库自增 ID 生成器下线](doc/postmortem/2026-09-数据库自增ID生成器下线.html)
+> 4.1.0 release candidate. This section is intentionally concise; implementation details and historical findings remain in the linked design, post-mortem, and QA documents.
 
-### UI 改进 — 任务中心标题统计收敛
-- 标题移除总任务数与“今日失败”，保留运行中、已暂停、持续异常和逾期四项，减少任务存量与执行结果的混排。
-- “今日失败”继续仅在独立统计卡显示；筛选、列表与 Dashboard stats API 口径不变。
-- 验证：Dashboard 定向测试、UI 契约、Ruff，以及本地浏览器首屏与 AJAX 筛选刷新通过。
-- 设计：[任务中心标题统计收敛设计](doc/design/任务中心标题统计收敛设计-2026-09.html)
+### What changed
 
-### 改进 — 执行侧链路观测强化
-- `JobLogEvent` 新增执行实例 `run_id` 与 `schema_version`；新事件按父运行强关联，旧 trace 查询保持兼容
-- Tracer 增加脱敏 URL、超时阈值、计划触发时间与观测降级原因；Run Inspector 显示“观测不完整”提示
-- 业务执行结果状态保持不变；本次无 API Breaking Change
-- 验证：41 条执行观测/运行详情/迁移相关单测通过，Ruff 通过
-- 设计：[执行侧观测优化设计](doc/design/执行侧观测优化设计-2026-09.html)
+- Hardened task-trigger networking: one DNS resolution per execution, validated-IP pinning, fail-closed mixed DNS answers, and unconditional blocking of loopback, link-local, reserved, multicast, unspecified, and mapped dangerous addresses. RFC1918 and IPv6 ULA targets remain available through deployment-controlled DNS.
+- Classified every first-hop HTTP 3xx response as `fail / redirect_blocked` without following `Location`; event data stores only a sanitized redirect summary.
+- Completed the database-generated ID transition and aligned MySQL task-reference columns to `BIGINT`; critical migration DDL now fails closed.
+- Strengthened execution observability: run-level event correlation, sanitized request metadata, explicit transport/failure states, stable Run Inspector presentation, and lifecycle logging.
+- Improved account and task lifecycle controls: disabled-user identity continuity, seed-admin disable protection, retired-task filtering, and consistent scheduling/display semantics.
+- Refined the Redesign UI and engineering gates, including task-center statistics, user-management layout, documentation/index validation, terminology checks, and deterministic regression coverage.
+- Consolidated historical documentation images into a reviewed, content-addressed asset library; removed embedded Base64 copies and five credential-bearing screenshots with no continuing evidence value; and added a reproducible public installation package that excludes historical evidence images. See the [image-governance post-mortem](doc/postmortem/2026-10-历史截图凭据脱敏与迁移原子性复盘.html).
+- Repaired fresh-install dependency resolution by aligning the `pytz` pin with `croniter==6.0.0`, and closed the curated package's runtime documentation/link dependencies. See the [release-package installation post-mortem](doc/postmortem/2026-10-发布包隔离安装闭环修复.html).
 
-### 修复 — 执行失败分类与 HTTP 响应语义
-- 区分连接失败、超时、HTTP 客户端兼容性错误和远端 HTTP 响应失败。
-- Run Inspector 明确展示失败阶段、参数准备状态、传输状态及“未获得 HTTP 响应”。
-- 历史 `assert_hostname` 错误回填为 `client_incompatible`；不改变任务业务结果判定。
-- 设计：[执行侧观测失败分类与 HTTP 响应语义优化设计](doc/design/执行侧观测-失败分类与HTTP响应语义优化设计-2026-09.html)
+### Why
 
-### 修复 — 执行侧观测传输状态误导（F1）
-- 区分连接未建立与请求已发起但未收到响应，Run Inspector 不再把读取超时显示为“未确认发送”。
-- 保留历史 `failed_before_response` 展示兼容；不改变任务业务结果判定。
-- 验证：执行观测定向单测 27 条、UI 契约、Ruff、86 条路由冒烟全部通过。
-- 复盘：[执行侧观测传输状态误导修复](doc/postmortem/2026-09-执行侧观测传输状态误导修复.html)
+- Eliminate DNS TOCTOU and redirect ambiguity at the actual outbound-request boundary.
+- Keep database key widths and ownership semantics consistent across SQLite and MySQL.
+- Make failed or incomplete executions diagnosable without exposing credentials or misrepresenting transport state.
+- Preserve RBAC, user identity, and historical audit continuity while reducing release-document noise.
 
-### 修复 — 执行侧观测异常矩阵过度归类（R2）
+### Validation
 
-- 仅 ConnectTimeout 与 ProxyError 标记“连接未建立”；宽泛 ConnectionError/SSLError 保守标记“已发起，未收到响应”。
-- TooManyRedirects 按保留的 response 区分远端响应与未收到响应，并记录 `redirect_limit` 失败原因；不改变任务业务结果。
-- 复盘：[执行侧观测 R2 异常矩阵修复](doc/postmortem/2026-09-执行侧观测R2异常矩阵修复.html)
+- Full unittest suite: **839 tests run: 838 passed, 1 intentionally skipped**. The remaining skip is an explicit SQLite ID-reuse/orphan-risk demonstration, not an unavailable service test.
+- Live-service integration: **11 passed, 0 skipped** across task operations and CSRF flows with the application running on `127.0.0.1:5001`.
+- Application lint gate: `ruff check app/` passes. The 34 import-order findings from the broader `app/ tests/` scan are test-only hygiene debt and are not part of the configured release gate.
+- Documentation synchronization, completeness, link reachability, OPT consistency, pending-sync, and whitespace checks pass.
+- Image governance and release-asset gates pass: 71 unique reviewed assets, no legacy/Base64 image references, deterministic baseline builds with identical SHA-256, and zero historical screenshot bytes in the public package.
+- A strict pre-tag package snapshot passed identical double-build, clean-environment dependency installation, and the full extracted-package golden path; final file count, byte size, and SHA-256 will be recorded from the post-cleanup release candidate and repeated by the final tag workflow.
+- Detailed evidence: [code and uncommitted-change review](doc/qa/2026-10-10-代码全面Review与未提交变更评估.html) · [task-trigger security post-mortem](doc/postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html)
 
-### 修复 — 执行侧观测 sent 状态判定（F2）
-- `sent_no_response` 与兼容状态 `sent` 纳入“请求已发起”判定；仅收到响应时显示“已发送并收到响应”。
-- 同步 Run Inspector 模板分支优先级，避免无响应记录被显示为成功发送。
-- 验证：观测契约/Presenter/Tracer 25 条、UI 契约、Ruff、86 条路由冒烟通过。
-- 复盘：[执行侧观测 sent 状态判定修复](doc/postmortem/2026-09-执行侧观测sent状态判定修复.html)
+### Compatibility & Risk
 
-### 修复 — Run Inspector HTTP 状态标签（F3）
-- Meta 区改用 `http_status_label`，无响应执行显示“未获得 HTTP 响应”，不再显示无语义的“—”。
-- 验证：观测契约、Presenter、详情集成测试 35 条通过；UI 契约、Ruff、86 条路由冒烟通过。
-- 复盘：[Run Inspector HTTP 状态标签未消费修复](doc/postmortem/2026-09-RunInspector-http状态标签未消费修复.html)
+- **Release blocker:** complete a disposable real-MySQL migration rehearsal and record the resulting schema assertions before publishing 4.1.0.
+- Existing task URLs are not rewritten. A task returning 3xx now fails instead of being reported as successful.
+- Deployment DNS continues to control RFC1918/ULA reachability; application switches cannot bypass the hard-blocked address classes.
+- Existing rows retain their IDs. New IDs are database-generated, and MySQL task-reference columns migrate to `BIGINT`.
+- The `auth_version` hardening invalidates legacy web sessions that lack the version key; affected users must sign in again.
+- No API response field removal is introduced by this release candidate.
 
-### 修复 — 执行侧观测外层 fatal 阶段映射（F6）
-- outer fatal 按执行边界区分 `pre_request/not_started`、`persistence/prepared` 与 `transport`，避免中段异常被误标为请求前置失败。
-- 验证：观测相关测试 40 条、Ruff、86 条路由冒烟通过。
-- 复盘：[执行侧观测外层 fatal 阶段映射修复](doc/postmortem/2026-09-执行侧观测外层fatal阶段映射修复.html)
-
-### 修复 — Run Inspector 传输状态兜底（R1）
-- 补齐 `client_failed`、`not_started`、`unknown_failure` 及未知未来值的可见文案，避免请求区出现状态空白。
-- 新增 admin/operator/viewer 三角色真实路由渲染矩阵；不改变任务业务结果判定。
-- 复盘：[执行侧观测 R1 状态兜底修复](doc/postmortem/2026-09-执行侧观测R1状态兜底修复.html)
-
-### 文档 — R2-D Run Inspector 对齐 Demo §C（待确认）
-- 纠正「原方案 UI」指向：页面对比 Demo **§C**（非 §B）；R3-C 暂停
-- 设计：`doc/design/R2-D-RunInspector对齐页面对比Demo-C设计-2026-09.html`
-- 复盘：`doc/postmortem/2026-09-误把Demo-C当成-B.html`
-
-### 文档 — R3-C 页面对比与 Demo §B 一致
-- R3-C `#page-compare` 原文照录页面对比 Demo §B（AS-IS / TO-BE）；**本轮用户所指非此节，暂停**
-- 复盘：`doc/postmortem/2026-09-R3-C设计偏离原方案DemoUI.html`
-- 设计（暂停）：`doc/design/R3-C-任务详情最近执行状态语义收口设计-2026-09.html`
-
-### 工程 — 执行可观测性契约门禁（R3）
-- 新增 `tests/test_execution_observability_contract.py`（C1–C6）：事件登记、Tracer↔Presenter 键对齐、模板硬禁、三角色冒烟、outcome 过滤、锁原语套件引用
-- Presenter `_SUMMARY_KEYS ⊆ Tracer._DETAIL_KEYS`；无页面可见变更（R3-C 任务详情另评）
-- 设计：`doc/design/R3-执行可观测性契约门禁设计-2026-09.html`
-
-### 工程修复 — ORM legacy AST 门禁误报
-- 识别 `urlsplit` 返回值别名的 `.query` 属性，避免将 URL 查询组件误判为 ORM legacy API。
-- 保留 `Model.query`、`session.query` 与 `paginate` 的真实拦截；新增两行式别名回归。
-- 复盘：[`doc/postmortem/2026-09-ORM-legacy-urlsplit误报修复.html`](doc/postmortem/2026-09-ORM-legacy-urlsplit误报修复.html)
-
-### 改进 — Run Inspector Presenter/详情契约收口（R2）
-- 时间线上移为 Meta 后首要诊断区；`pending`/`running` 增加「执行未完成，最终结果未知」提示条
-- 任何角色不再渲染事件 raw detail JSON；时间线仅白名单 `summary`；Viewer/Operator/Admin 三角色裁剪 URL/响应/业务日志
-- 设计 / 复盘：`doc/design/R2-RunInspector-Presenter详情契约收口设计-2026-09.html` · `doc/postmortem/2026-09-RunInspector-raw-detail与时间线顺序.html`
-
-### 修复 — 执行记录 pending 误标「未知」（R1）
-- 结果列复用 `job_log_badge`：`pending`→「已入队」，`running`→「执行中」；新增筛选「进行中」（`outcome=in_progress`）
-- 默认「非成功」不变；视图 outcome 白名单与 `KNOWN_OUTCOMES` 对齐，避免新筛选项被降级
-- 设计 / 复盘：`doc/design/R1-执行记录列表pending-running显示收口设计-2026-09.html` · `doc/postmortem/2026-09-执行记录pending误标未知.html`
-
-### 工程 — 未提交变更与方案评估（2026-09-16）
-- 评估已落库：[`doc/qa/未提交变更与方案评估-2026-09-16.html`](doc/qa/未提交变更与方案评估-2026-09-16.html)
-- 结论：当前 WIP 为 Run Inspector 视图接线热修 + ensure B1 补齐；HEAD 详情页对 `run` 未定义会 500；不宜标注可观测性已交付
-
-### 修复 — 健康度未满阈值误标「健康」（方案 A）
-- 连续失败 1～N−1：写 `unknown`、UI「有失败」；≥N 仍为「异常」；成功后回「健康」
-- 存量 `ok AND consecutive_failures>0` 由 `ensure_business_tables` 校正为 `unknown`
-- 设计 / 复盘：`doc/design/健康度未满阈值误标健康修复设计-2026-09.html` · `doc/postmortem/2026-09-健康度未满阈值误标健康.html`
-
-### 工程 — 前端页面改动强制页面对比 Demo
-- 规范升级：凡模板/Redesign/导航/筛选/badge 等可见改动，设计稿必须含 Before/After 页面对比（默认内嵌方案节）
-- 落点：`AGENTS.md`、`.cursor/rules/cronpilot-project.mdc`、`cronpilot-documentation.mdc`、`cronpilot-format-guard.mdc`
-- 自检：`grep -nE 'page-compare|BEFORE|AFTER|Before|After' doc/design/本设计.html`
-
-### UI — 任务中心顶栏追加运行中 / 已暂停计数（方案 E）
-- 顶栏由「N 个任务 · …」改为「N 个任务 · 运行中 X · 已暂停 Y · …」；chip「全部」与默认列表不变
-- AJAX `partial=1` stats 增加 `running` / `paused`
-- 设计：`doc/design/任务中心排除已下线任务统计与默认列表设计-2026-09.html`（rev.5）
-- 测试：`tests.test_dashboard_stats_stability` / `tests.test_dashboard_partial`
-
-### 文档 — UX 设计方案与页面对比默认内嵌
-- 单页 UX 设计稿须在方案节内嵌 Before/After，禁止方案与对比 Demo 拆成两份；规范见 `AGENTS.md` / `cronpilot-documentation.mdc`
-- 复盘：`doc/postmortem/2026-09-UX设计方案与页面对比拆分.html`
-- 「任务中心排除已下线」设计 rev.4 已合并对比画面至 §3.1.1
-
-### 文档 — 下次执行相对时间误显示（复盘与修复设计）
-
-- **已修复**：只填小时、分钟留空时，「下次执行」与 APScheduler 默认第 0 分对齐；不再长期误显示 `in <1 min`。
-- 实现：`next_fire_datetime` / `effective_crontab_5` / `cron_fire_interval_seconds`（`cron_schedule_display.py`）经 `CronTrigger` 与注册路径同源。
-- 验证：`tests.test_dashboard_next_run` + schedule display + overdue 单测通过。
-- 设计/复盘：[设计](doc/design/下次执行相对时间误显示修复设计-2026-09.html) · [复盘](doc/postmortem/2026-09-下次执行相对时间误显示.html)
-
-### 文档 — 任务执行链路可观测性（收敛版 rev.2）
-
-- 收敛版设计补充「〇、涉及页面」矩阵（改/不改路由与模板）
-- 新增 [页面对比 Demo](doc/design/任务执行链路可观测性-页面对比Demo.html)（Before/After）
-- 恢复并登记交互 Demo；复盘见 [设计 Demo 未入库丢失](doc/postmortem/2026-09-设计Demo未入库丢失.html)
-- 专业 Review（有条件通过）：[收敛版专业 Review](doc/design/任务执行链路可观测性设计方案-收敛版-专业Review.html)
-- 文档与实现功能评估（有条件可用）：[功能评估](doc/design/任务执行链路可观测性-文档与实现功能评估.html)
-
-### 安全修复 — 执行详情 URL 字段脱敏
-
-- 执行详情页改为只渲染 Presenter DTO；不再把任务配置 URL、实际 URL 或 URL userinfo 原文交给模板。
-- 所有角色均只看到 scheme、host、path 与参数名；每个 query 参数值统一显示为 `***`，userinfo 统一显示为 `***:***@`，fragment 不展示。
-- 验证：凭据 HTML 否定断言、Presenter 单元测试、86 条路由冒烟、UI 契约检查及本地浏览器加载通过。
-- 设计/复盘：[设计](doc/design/执行详情URL字段角色化脱敏修复设计-2026-09.html) · [复盘](doc/postmortem/2026-09-execution-detail-url-redaction.html)
-
-### 修复 — 任务详情 seconds 调度表达式展示
-
-- 任务详情改用完整 Cron 表达式格式化函数，保留 `second=*/10` 等秒级约束，不再展示截断后的五字段表达式。
-- 调度执行逻辑不变；新增 seconds 场景回归测试。
-- 复盘：[任务详情 seconds 展示丢失修复](doc/postmortem/2026-09-task-detail-seconds-display.html)
-
-### 工程修复 — Dashboard 相对时间测试确定性
-
-- `DashboardService.compute_next_runs()` 支持注入时间基准，测试不再依赖真实系统时钟。
-- 生产调用行为保持不变。
-- 复盘：[Dashboard 相对时间测试确定性修复](doc/postmortem/2026-09-dashboard-relative-time-test-determinism.html)
-
-### 工程修复 — 全量回归门禁收口
-
-- 修复 Presenter URL 解析触发 ORM legacy 静态门禁的问题。
-- Redis 锁竞争日志改用模块级 logger，支持脱离 Flask 应用上下文运行。
-- 复盘：[全量回归门禁收口修复](doc/postmortem/2026-09-regression-gate-cleanup.html)
-
-### 工程 — v4.0.0 之后变更与功能健康评估
-
-- 评估已落库：[`doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html`](doc/qa/v4.0.0之后变更与功能健康评估-2026-09.html)
-- 结论：已提交 11 个主题定向测试与 86 条路由冒烟通过；全量 unittest 仍因 OPT-P0-22 Session 夹具未对齐而失败，不建议按全绿 CI 发下一版
-
-### 增强 — 任务链路日志完整性补全
-
-- **背景**：CronPilot 的结果层日志（job_log + Prometheus + 健康聚合）设计完善，但过程层日志存在盲区——从 APScheduler 触发到 HTTP 发出之间的中间状态不可观测
-- **变更**：
-  - **应用日志** 4 处新增：`cron_do` 入站日志（`cron.start`）、HTTP 触发请求发出前日志（`cron.http_sending`）、任务创建成功日志（`cron.created`）、Scheduler 注册成功日志（`cron.scheduler_registered`）
-  - **调度器操作日志**：`toggle_status` resume/pause 成功后写 INFO 日志
-  - **`job_log` 表 4 个新列**：`trigger_source`（触发来源，当前只会写入 `schedule` / `manual`；`one_shot` 为预留值，一次性任务尚未在 `register_cron_job` 中区分，仍记为 `schedule`）、`actual_url`（含注入 trace_id 的完整 URL，`cronpilot_sign` 已脱敏为 `***`）、`resolved_ip`（DNS pinning IP）、`trigger_delay_ms`（调度启动开销，通常 0-2ms，非 APScheduler 调度抖动）
-  - **详情页增强**：触发方式从硬编码"定时调度"改为动态读取（定时调度/手动执行；"一次性任务"文案已就绪但暂无数据写入），新增展示调度规则（cron 表达式）、调度延迟、实际请求 URL、DNS Pinning IP
-  - **`cron_run_now`** 传递 `trigger_source='manual'` 区分手动执行
-- **DB 迁移**：`ensure_business_tables.py` 自动补列（SQLite/MySQL 通用）
-- **测试**：新增 `tests/test_lifecycle_logging.py`（17 个用例）
-- **设计文档**：[doc/design/任务链路日志完整性增强设计.html](doc/design/任务链路日志完整性增强设计.html)
-- **同期 Bug 修复**（2026-09-07）：
-  - `crons.py` 内层 `except` 路径 `_actual_url` NameError（在 `cronpilot_sign` 计算异常时导致异常处理器本身崩溃）
-  - `actual_url` 字段对 GET 请求 URL 中 `cronpilot_sign` 值进行脱敏（`***`），防止 `log:read` 角色读取签名
-  - `JobLog.to_json()` 引用了不存在的 `job_id`/`remark`/`traces` 字段（AttributeError 炸弹）
-  - 历史 `job_log` 的「未执行触发」识别：`job_log_display` / `job_log_outcome` 的前缀判定改用 `BLOCKED_URL_PREFIXES` 元组同时兼容旧文案 `回调URL安全校验未通过`，否则改名前入库的 SSRF 拦截记录会掉档为 `—` 且失败原因不再归入 `blocked_url`
-  - 复盘：[`doc/postmortem/2026-09-任务链路日志Bug修复复盘.html`](doc/postmortem/2026-09-任务链路日志Bug修复复盘.html)
-
-### 工程 — 文档索引结构与复盘登记门禁
-
-- **问题**：索引页条目搬运时剪贴断裂，`doc/index.html` 出现半截开标签与裸露属性文本；同时误删一条设计文档登记，`doc/postmortem/index.md` 丢失一条复盘登记，全部逃过现有门禁。
-- **门禁**：`scripts/check_doc_completeness.py` 新增手工索引页块级标签配对校验（含 `<pre>`/`<code>` 代码示例排除），以及复盘 HTML/MD 双索引登记与「共 N 篇」一致性校验；该脚本已由 `doc-completeness.yml` 在 `doc/**` 变更时执行。
-- **验证**：`python scripts/check_doc_completeness.py --check` 通过；`python -m unittest tests.test_check_doc_completeness -v`（4 条）通过；全仓 `doc/**/*.html` 结构扫描 0 违规。
-- **复盘**：[文档索引结构损坏与登记丢失](doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html)
-
-### UI 改进 — 用户管理添加用户入口布局（OPT-P1-16 子项）
-
-- **变更**：将「+ 添加用户」从页面标题栏最右端移至用户列表工具区左首位，搜索框紧随其后。
-- **目的**：让创建、搜索、筛选与表格形成连续操作动线，并与业务组/标签管理页面保持一致。
-- **兼容性**：不改变路由、权限、表单字段及后端行为；窄屏下新增按钮独占一行，搜索区自然换行。
-- **验证**：静态 UI/颜色/CSS/表单门禁通过；浏览器验证入口唯一、位于搜索前且可跳转 `/rbac/users/add`。
-- **设计**：[`doc/design/用户管理添加用户入口布局优化设计.html`](doc/design/用户管理添加用户入口布局优化设计.html) · [`页面对比 Demo`](doc/design/用户管理添加用户入口-页面对比Demo.html)
-
-### 修复 — 任务中心排除已下线异常任务
-
-- **问题**：任务中心“需要关注的任务”面板会展示已下线但保留历史持续失败健康记录的任务。
-- **修复**：`CronRepository.top_failing()` 增加 `CronInfos.status != -1` 条件；下线任务仍可通过“已下线”状态筛选查看。
-- **验证**：新增 Dashboard 回归用例；定向健康测试通过；`ruff check app/` 与 86 条路由冒烟测试通过。
-- **设计/复盘**：[任务中心需要关注项目排除下线任务设计](doc/design/任务中心需要关注项目排除下线任务设计.html) · [复盘](doc/postmortem/2026-09-任务中心下线异常任务Bug修复复盘.html)
-
-### OPT-P0-22 — 停用用户同名覆盖启用（身份连续性）
-
-- **产品语义（rev.3）**：同名再申请未必是原使用人。申请人零同名提示；仅审批人/管理员确认后在原 `user_id` 上**覆盖**资料与权限并启用，历史日志因同一 ID 继承。禁止删行重建。
-- **服务**：共享 `_overwrite_disabled_user_inplace`；组全量替换；Token 重签；§4.5 凭据分支（审批用申请密码 / 管理员默认密码+强制改密）；`is_reactivation` / `target_user_id` / 审计 `detail`
-- **Session**：`auth_version` 缺键 fail-closed + 一次性 bump（部署后旧 Web Session 需重登）
-- **UI**：停用文案「不可直接启用」；审批「同名停用」标签与覆盖警示；添加用户二次确认 `CpModal`
-- **测试**：`tests.test_user_reactivation`（含回滚 / stale target / 文案门禁）；`tests.test_redesign_sidebar` Fixture 对齐 `auth_version`（缺键不再误 302）
-- **文档**：覆盖 OPT-P1-10 §3.1.7；路线图新增 OPT-P0-22；设计 [`doc/design/停用用户同名恢复设计.html`](doc/design/停用用户同名恢复设计.html) · Demo · 复盘 [`doc/postmortem/2026-09-停用用户同名恢复.html`](doc/postmortem/2026-09-停用用户同名恢复.html)
-- **B2 深入复盘（Session）**：[`doc/postmortem/2026-09-auth-version-session-failopen.html`](doc/postmortem/2026-09-auth-version-session-failopen.html)
-
-### 安全修复 — 禁止停用种子系统管理员（OPT-P2-15 补丁）
-
-- **问题**：全局业务管理员（空业务组 / Scope bypass）可停用种子账号 `admin`
-- **策略**：维持旧设计（全局 admin 仍可编辑种子资料）；**任何人不可停用**种子
-- **修复**：服务层双路径拦截 + 视图前置拦截 + 列表隐藏停用按钮 + 编辑页状态只读
-- **测试**：`test_cannot_disable_seed_admin_via_set_active_or_edit`
-- **复盘**：[`doc/postmortem/2026-09-全局管理员可停用种子账号.html`](doc/postmortem/2026-09-全局管理员可停用种子账号.html)
-
-### 修复 — OPT-P0-21 新任务继承旧健康记录 + 50-bit ID 策略升级
-
-- **问题**：新建任务 `test123`（cron_info_id=14）创建后立即显示"健康异常"（consecutive_failures=1969），原因是 SQLite ID 复用导致新任务继承了已删除旧任务的 job_health 和 job_log 数据
-- **根因**：SQLite `INTEGER PRIMARY KEY` 无 AUTOINCREMENT 允许 ID 复用；`job_health` / `job_log` 无外键约束；`create_cron()` 获取新 ID 后无清理逻辑
-- **修复**：
-  - 核心业务表（`cron_infos`、`job_log`）主键升级为 50-bit 时间戳 ID（38-bit 秒时间戳 + 12-bit 序列号），从根源消除 ID 复用
-  - 新增 `datas/utils/id_generator.py`：线程安全的 ID 生成器，12 位十进制，8700 年可用，4096 ID/秒，完全在 JS `MAX_SAFE_INTEGER` 范围内
-  - `ensure_business_tables.py` 新增孤儿 job_health 清理 + MySQL BIGINT 列迁移
-  - 存量数据修复：清理 3 条孤儿 health 记录、重置 test123 health、删除 59 条旧任务遗留日志
-- **前端影响**：无（50-bit < 2^53，JS 精度安全）
-- **⚠️ API 兼容**：新创建的任务/日志 ID 从 12 位数字开始（如 `260504313856`），旧记录保留原始小 ID，二者共存无冲突
-- **测试**：10 个 ID 生成器测试 + 4 个新 ID 策略测试 + 全量回归 713 测试通过
-- **设计文档**：`doc/design/新任务继承旧健康记录Bug设计.html`
-
-### 修复 — 触发术语全仓治理
-
-- 代码与测试：URL 安全校验函数重命名为 `validate_trigger_url`，并同步调用链与单测
-- 用户可见文案与指标：统一到“触发请求” / `trigger request` 模型
-- 活跃文档与规则：清理 `doc/`（不含 archive）、`README.md`、`AGENTS.md`、`.cursor/rules/` 中的业务旧术语
-- 已发布 Release Notes 保持当时原文；门禁放行技术回调（含 `beforeSubmit`）与历史 `job_log` 引用
-- 门禁：`scripts/check_terminology.py`；CI 在 `docs-sync.yml`（路径含 `app/**`）与 `unit-tests.yml` 执行
-- 设计/复盘：[`doc/design/全仓术语治理设计-2026-09.html`](doc/design/全仓术语治理设计-2026-09.html) · [`doc/postmortem/2026-09-trigger-terminology-cleanup.html`](doc/postmortem/2026-09-trigger-terminology-cleanup.html)
-
-### 增强 — 任务链路日志完整性补全
-
-- **背景**：CronPilot 的结果层日志（job_log + Prometheus + 健康聚合）设计完善，但过程层日志存在盲区——从 APScheduler 触发到 HTTP 发出之间的中间状态不可观测
-- **变更**：
-  - **应用日志** 4 处新增：`cron_do` 入站日志（`cron.start`）、HTTP 触发请求发出前日志（`cron.http_sending`）、任务创建成功日志（`cron.created`）、Scheduler 注册成功日志（`cron.scheduler_registered`）
-  - **调度器操作日志**：`toggle_status` resume/pause 成功后写 INFO 日志
-  - **`job_log` 表 4 个新列**：`trigger_source`（触发来源：schedule/manual/one_shot）、`actual_url`（含注入 trace_id 的完整 URL，`cronpilot_sign` 已脱敏为 `***`）、`resolved_ip`（DNS pinning IP）、`trigger_delay_ms`（调度启动开销，通常 0-2ms，非 APScheduler 调度抖动）
-  - **详情页增强**：触发方式从硬编码"定时调度"改为动态读取（定时调度/手动执行/一次性任务），新增展示调度规则（cron 表达式）、调度延迟、实际请求 URL、DNS Pinning IP
-  - **`cron_run_now`** 传递 `trigger_source='manual'` 区分手动执行
-- **DB 迁移**：`ensure_business_tables.py` 自动补列（SQLite/MySQL 通用）
-- **测试**：新增 `tests/test_lifecycle_logging.py`（17 个用例），总测试数 702
-- **设计文档**：[doc/design/任务链路日志完整性增强设计.html](doc/design/任务链路日志完整性增强设计.html)
-- **同期 Bug 修复**（2026-09-07）：
-  - `crons.py` 内层 `except` 路径 `_actual_url` NameError（在 `cronpilot_sign` 计算异常时导致异常处理器本身崩溃）
-  - `actual_url` 字段对 GET 请求 URL 中 `cronpilot_sign` 值进行脱敏（`***`），防止 `log:read` 角色读取签名
-  - `JobLog.to_json()` 引用了不存在的 `job_id`/`remark`/`traces` 字段（AttributeError 炸弹）
-
-### 安全修复 — SEC-6 SSRF DNS 解析失败 Fail-Open → Fail-Closed（P1）
-
-- **问题**：`url_security.py` 两层 SSRF 校验中，DNS 解析失败时均返回 `True`（放行），攻击者可利用 DNS 瞬断绕过 IP 黑名单
-- **修复**：
-  - Layer 1（`validate_trigger_url`）+ Layer 2（`validate_and_resolve_url`）DNS 失败时默认 **fail-closed**（拒绝请求）
-  - `_resolve_host_ips()` 新增 1 次 DNS 重试（间隔 0.5s），减少瞬时 DNS 抖动误拦
-  - 新增 `conf.ini` 配置项 `url_ssrf_dns_fail_open=0`，内网 DNS 不稳定环境可设 `1` 恢复旧行为
-  - `configs()` 读取该配置项并注入 `CRON_CONFIG`（此前该键未进入运行配置，设为 `1` 也不生效——逃生开关实际为死键）
-- **测试**：7 个新增用例（`TestUrlSecurity` 2 个 + `TestValidateAndResolve` 2 个 + `TestDnsRetry` 3 个）；另新增 `tests/test_config_keys.py` 3 条，以 `conf.ini.example` 为准断言配置键可达性
-- **复盘文档**：[doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html](doc/postmortem/2026-08-SEC6-SSRF-dns-fail-open.html)
-- **设计文档**：`doc/design/Redesign代码全面Review修复方案-2026-08.html` §3.1 SEC-6
-
-### 修复 — CQ-9 调度器启动异常静默吞掉（P1）
-
-- **问题**：`app/__init__.py` 中 `cron_check()` 被 `except Exception: pass` 包裹，调度器对账失败（DB 连接、表结构等）完全无日志
-- **修复**：`pass` → `logging.getLogger('cronpilot.init').error(..., exc_info=True)`，保持进程不中断但确保异常完整记录
-- **设计文档**：`doc/design/Redesign代码全面Review修复方案-2026-08.html` §3.5 CQ-9
-
-### 改进 — Redesign 全面 Review 修复方案深度分析
-
-- 对 47 项 Review 发现进行源码级逐项验证，更新 `doc/design/Redesign代码全面Review修复方案-2026-08.html`
-- P1 项从 14 项修订为 4 项（SEC-6 SSRF fail-open、A11Y-1 label 关联、A11Y-6 焦点陷阱、CQ-9 异常吞掉）
-- 新增 §1.1 修订矩阵 + 各 Batch 深度分析摘要
+Key sources: [DNS design](doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx and pinning design](doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [database ID design](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · [delivery roadmap](doc/交付状态与路线图.html)
 
 ---
 

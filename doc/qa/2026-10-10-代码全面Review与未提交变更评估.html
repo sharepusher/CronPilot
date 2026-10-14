@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>CronPilot 代码全面 Review 与未提交变更评估（2026-10-10）</title></head><body><main>
+<h1>CronPilot 代码全面 Review 与未提交变更评估</h1>
+<p>初始审查日期：2026-10-10 · 审查对象：当前工作树的全部未提交代码与关联文档 · 方法：先 Bugbot 完整性审查，后 Security Review 安全专项审查。最新复核见 v6。</p>
+
+<h2>版本变更记录</h2>
+<table border="1"><thead><tr><th>版本</th><th>日期</th><th>变更</th><th>结论</th></tr></thead><tbody>
+<tr><td>v6</td><td>2026-10-12</td><td>启动真实本地服务，修复集成测试的旧页面/账号契约，完成文档事实校准与 Release Notes 收敛。</td><td>完整 unittest 共运行 839 项：838 通过、1 项显式风险演示跳过；其中 11 项服务集成测试全部执行且通过。当前唯一发布阻断项是真实 MySQL 迁移演练。</td></tr>
+<tr><td>v5</td><td>2026-10-12</td><td>用户确认 Commit 1 的 DNS 与 3xx 安全策略；复核当时工作树并执行全量单测。</td><td>历史快照：当时为 839 通过、12 跳过，并暂列三项发布门槛；该结论已由 v6 的服务实测与门禁复核取代。</td></tr>
+<tr><td>v4</td><td>2026-10-10</td><td>按“私网/ULA 默认允许”为既有功能契约，完成 Bugbot 与 Security Review 二次复核。</td><td>确认仅 1 项 P0 二次 DNS 禁止地址绕过；P2 改为活动 README/索引的契约漂移。</td></tr>
+<tr><td>v3</td><td>2026-10-10</td><td>更正 v2 对既有“内外网按部署 DNS 区域访问”功能的误判；私网/ULA 本身是已记录的允许目标。</td><td>“审查文档状态漂移”已由 v3 修正，不再作为当前 finding。</td></tr>
+<tr><td>v2</td><td>2026-10-10</td><td>以本轮未提交 diff 重审；此前报告中的 3xx 成功、IPv6 URL、旧 ID 断言和退役 DNS 开关问题已由当前 diff 处理。</td><td>被 v3 更正：不得将经内部 DNS 解析的私网/ULA 目标本身标为缺陷。</td></tr>
+<tr><td>v1</td><td>2026-10-10</td><td>初始工作树审查。</td><td>已被 v2 取代；不得再将其中已修复项标为当前缺陷。</td></tr>
+</tbody></table>
+
+<h2>v6 最新复核（2026-10-12）</h2>
+<p><strong>确认结果：</strong>用户确认“RFC1918/IPv6 ULA 允许、危险地址执行期硬拒绝、每次执行单次 DNS 解析并原样 pin、任何 3xx 首跳均失败且不访问 Location”的 Commit 1 安全契约。该契约已由当前实现与测试覆盖。</p>
+<ul><li><code>validate_and_resolve_url()</code> 在一次执行内只解析一次 DNS，对所有回答执行硬禁止地址检查；混合安全/危险回答 fail-closed。</li><li><code>cron_do()</code> 仅允许使用非空的已验证 pinned IP，3xx 请求显式 <code>allow_redirects=False</code> 并写入 <code>redirect_blocked</code>。</li><li>完整命令 <code>.venv-py311/bin/python -m unittest discover -s tests -q</code>：Ran 839 tests；838 passed，1 skipped。唯一跳过项是 SQLite ID 复用与孤儿关联风险的显式演示，不是服务未启动造成的跳过。</li><li>运行中服务集成测试：<code>tests.test_cron_ops_integration</code> 7 项与 <code>tests.test_csrf_integration</code> 4 项全部执行并通过，0 skipped；CSRF 套件改用专用测试管理员，并在登录失败时先给出明确诊断。</li><li><code>ruff check app/</code>（正式 CI 范围）通过；扩展扫描 <code>app/ tests/</code> 的 34 个 I001 全部位于测试目录，仅属于可选 import 排序债务。</li></ul>
+<p><strong>发布剩余门槛：</strong>Release Notes 已从 44 个内部进度式小节收敛为面向发布的四段摘要。当前唯一发布阻断项是在一次性真实 MySQL 环境完成迁移演练并记录 schema 断言；不得在该验证完成前发布 4.1.0。</p>
+
+<h2>范围与审查边界</h2>
+<p>覆盖当前未提交的任务 HTTP 触发、URL 校验与 DNS pinning、配置契约、ID 关联列迁移、执行追踪、模型、单元/集成测试，以及 Release、设计、复盘与索引文档。审查阶段未修改生产代码；为消除服务未启动导致的跳过，后续仅更新了集成测试契约与文档，并保留用户既有工作。</p>
+
+<h2>历史发现总览（v4，均已关闭）</h2>
+<table border="1"><thead><tr><th>级别</th><th>位置</th><th>结论</th></tr></thead><tbody>
+<tr><td>P0</td><td><code>app/services/url_security.py:149-157</code></td><td>二次 DNS 解析未经同等校验；可把首次通过校验的主机切换并 pin 到环回、链路本地、保留或组播地址。</td></tr>
+<tr><td>P2</td><td><code>README.md:377</code>；<code>doc/index.html:339</code>；<code>doc/index.md:64</code></td><td>活动配置/索引文档仍称全面禁止内网或应用维护内网白名单，与已确认的部署 DNS 区域访问契约冲突。</td></tr>
+</tbody></table>
+
+<h2>历史 P0：DNS rebinding 可绕过禁止地址过滤（已关闭）</h2>
+<p><strong>已更正的功能边界：</strong>私网/ULA 默认允许不是回归。<code>doc/postmortem/2026-09-SSRF内外网区域校验修复.html</code> §4 及 Release Notes 已定义：内网和外网均依部署 DNS 的实际解析结果访问，应用只拒绝环回、链路本地、保留和组播地址，并以 pinned IP 防止解析漂移。当前 <code>tests/test_p0_phase_a.py:84-107</code> 对私网字面量和内部 DNS 的允许断言与该设计一致。</p>
+<p><strong>定位与证据：</strong><code>validate_trigger_url()</code> 的 98–111 行会检查第一次 DNS 解析出的每个地址；但 <code>validate_and_resolve_url()</code> 在 149–157 行重新解析并直接将每个答案加入 <code>allowed</code>，未调用 <code>_is_private_or_reserved_ip()</code>。攻击者可令首次解析为公网、第二次解析为 <code>127.0.0.1</code>、<code>169.254.169.254</code>、保留或组播地址，最终 adapter 使用第二次的禁止地址。</p>
+<p><strong>影响：</strong>拥有创建或修改触发 URL 权限且能影响 DNS 回答的攻击者，可绕过项目已定义的环回/链路本地/保留/组播拒绝边界，访问本机控制面或云元数据。此问题与私网服务的正常可达性无冲突。</p>
+<p><strong>合并前最低修复：</strong>执行阶段必须使用第一次已逐一校验的 DNS 结果，或对第二次每个结果重新执行同一禁止地址过滤后才允许 pin。新增“首次公网、第二次环回/链路本地/保留”的双解析回归测试；私网 RFC1918 和 IPv6 ULA 的允许测试应继续保留。</p>
+
+<h2>历史 P2：活动文档未同步已确认的网络区域契约（已关闭）</h2>
+<p><strong>定位：</strong><code>README.md:377</code> 将 <code>block_private_ip=1</code> 描述为“禁止触发内网/本机/元数据地址”；<code>doc/index.html:339</code> 与 <code>doc/index.md:64</code> 仍描述“内网域名/IP 白名单、外网隔离”。然而 <code>doc/postmortem/2026-09-SSRF内外网区域校验修复.html</code> §4 和 Release Notes 已明确：私网/ULA 可依据部署 DNS 正常访问，应用不再维护内网 hostname/CIDR 白名单，只拒绝环回、链路本地、保留和组播地址。</p>
+<p><strong>影响与处理：</strong>运维人员可能错误关闭 <code>block_private_ip</code> 才能访问内部服务，或错误配置不存在的应用侧白名单。应同步 README 与索引为当前契约，并保留 <code>url_allow_hosts</code> 作为可选的精确主机限制，而非内网访问的必需前提。</p>
+
+<h2>已复核的非阻断项</h2>
+<ul>
+<li>当前 diff 对禁用自动重定向后的 3xx 执行语义、IPv6 pinned URL 方括号、ID 自增契约和已退役 DNS fail-open 键提供了相应代码或测试调整；本轮 Bugbot 未把它们重报为未修复的代码缺陷。</li>
+<li>Bugbot 已运行的专项套件为 117 项通过；<code>git diff --check</code>、HTML→Markdown 同步、文档完整性与链接检查均通过。该结果不覆盖 P0 威胁模型，因此不能作为合并依据。</li>
+<li>ID 关联列迁移仍宜在真实 MySQL 临时库演练，以确认既有索引、nullable 与主键属性在 <code>ALTER TABLE</code> 后保持；这是一项发布前验证建议，不是本轮已证实的 defect。</li>
+</ul>
+
+<h2>发布裁决与复审门禁</h2>
+<p><strong>最新裁决：</strong>DNS/3xx 安全契约、活动文档契约和服务集成测试已通过复核，不再构成合并阻断。4.1.0 仍不可发布，直至真实 MySQL 迁移演练完成并记录证据。</p>
+<ol>
+<li>保留设计已确认的私网/ULA 可达性、危险地址硬拒绝、单次 DNS 解析与 3xx 首跳失败语义。</li>
+<li>在一次性真实 MySQL 数据库执行升级，核对主键、关联列、索引、nullable 与 auto-increment 属性。</li>
+<li>迁移证据入库后再次运行完整测试、文档门禁与版本一致性检查，再执行 4.1.0 发布归档。</li>
+</ol>
+<footer><a href="../index.html">文档索引</a> · <a href="2026-10-10-代码全面Review与未提交变更评估.md">Markdown</a></footer>
+</main></body></html>

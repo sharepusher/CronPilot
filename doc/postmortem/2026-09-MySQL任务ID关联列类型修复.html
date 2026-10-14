@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>MySQL 任务 ID 关联列类型修复</title></head><body><main>
+<h1>MySQL 任务 ID 关联列类型修复复盘</h1><p>日期：2026-09-21</p>
+<h2>1. Bug 定位</h2><p>任务主键切换为 BIGINT 后，部分关联列仍为 INT，可能导致高位任务 ID 写入溢出。</p>
+<h2>2. 根因</h2><p>主键迁移只覆盖了三个主键列，未建立任务 ID 引用列的完整清单，ORM 类型与启动迁移也未形成统一契约。</p>
+<h2>3. 测试漏洞</h2><p>测试只验证主键自增，没有验证 MySQL 方言下所有关联列的类型。</p>
+<h2>4. 修复</h2><p>将 job_log、job_health、job_log_events、task_groups、task_tags、operation_log 中的任务 ID 引用统一为 BIGINT；启动迁移补齐旧库列类型并对关键 DDL 失败 fail-closed。</p>
+<h2>5. 防护测试</h2><p>新增所有引用列编译为 MySQL BIGINT 的专项测试；数据库自增与迁移专项 14 项通过，Ruff 通过。</p>
+<h2>6. 同类排查</h2><p>全仓搜索 task_id、cron_info_id、cron_id、target_id，确认模型和迁移目标一致。</p>
+<h2>7. 预防方案</h2><p>新增任务主键时必须同步更新“引用列清单”和 MySQL 方言测试；迁移脚本对关键类型变更不得仅告警。验证：<code>.venv-py311/bin/python -m unittest tests.test_id_autoincrement tests.test_ensure_business_tables -v</code>。</p>
+</main><footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-09-MySQL任务ID关联列类型修复.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body></html>

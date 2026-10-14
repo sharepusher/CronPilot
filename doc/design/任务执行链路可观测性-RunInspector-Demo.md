@@ -10,7 +10,7 @@
 
 ⌕搜索任务或操作…`⌘K`
 
-[任务中心](#)›[订单回调检查](#)›执行 #10481
+[任务中心](#)›[订单触发检查](#)›执行 #10481
 
 # Run Inspector：目标态场景
 
@@ -30,12 +30,12 @@ HTTP **—**耗时 **5.0s**触发方式 **定时调度**调度延迟 **18ms**失
 
 - **任务入队**T+0ms · 计划时间 10:27:00.000 → 实际进入 10:27:00.018
 - **安全校验**T+20ms · DNS Pinning 校验通过
-- **发起 HTTP 请求**T+24ms · POST /v1/orders/callback
+- **发起 HTTP 请求**T+24ms · POST /v1/orders/trigger
 - **请求超时**T+5.00s · 等待超过任务配置的 5 秒阈值
 
 请求
 
-POST https://api.example.com/v1/orders/callback?token=••••
+POST https://api.example.com/v1/orders/trigger?token=••••
 
 响应 / 诊断
 

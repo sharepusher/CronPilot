@@ -45,7 +45,7 @@ Mockup 覆盖页面
 
 实际效果 — 停用用户只读页（N1 验证）
 
-![N1 停用原因显示](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-47-04-844Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 | 验证项 | 预期 | 实际 | 结论 |
 | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ Mockup 规格
 
 当前截图 — 任务中心
 
-![任务中心](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-42-57-408Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ✅
 
@@ -98,7 +98,7 @@ Mockup 规格
 
 当前截图 — 执行记录（空状态）
 
-![执行记录](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-45-05-300Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ✅
 
@@ -122,7 +122,7 @@ Mockup 规格
 
 当前截图 — 操作记录
 
-![操作记录](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-45-44-281Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ✅
 
@@ -151,11 +151,11 @@ N1 ✅：停用用户只读页显示停用原因
 
 当前截图 — 用户管理
 
-![用户管理](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-43-19-418Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 当前截图 — 添加用户表单（R2 全局用户视图）
 
-![添加用户表单](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-43-50-527Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ✅
 
@@ -179,7 +179,7 @@ Mockup 规格
 
 当前截图 — 审计日志
 
-![审计日志](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-44-51-407Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ✅
 
@@ -203,7 +203,7 @@ Mockup 规格
 
 当前截图 — 业务组
 
-![业务组](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-44-05-784Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ⚠️
 
@@ -229,7 +229,7 @@ Mockup 规格
 
 当前截图 — 标签管理
 
-![标签管理](/var/folders/9s/vb2p40tn0c53xs0dl5xsmy1c0000gn/T/cursor/screenshots/page-2026-08-24T06-44-18-688Z.png)
+历史截图原文件未入库（旧引用为开发机临时绝对路径），无法可靠恢复；本节文字验收记录予以保留。
 
 ⚠️
 

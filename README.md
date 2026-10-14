@@ -4,6 +4,12 @@
 
 当前版本 **v4.0.0**（V1 UI 下线 · 安全加固 · 时间戳 BIGINT · AJAX 化 · 逾期检测；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
+## 下载与安装包选择
+
+生产部署请从 [GitHub Releases](https://github.com/sharepusher/CronPilot/releases) 下载 `cronpilot-<version>.tar.gz`，并使用同名 `.sha256` 文件校验完整性。该文件是经过白名单构建、重复构建一致性检查和仓库外安装验证的**推荐安装包**，不包含历史截图、测试代码和开发期证据资产。
+
+GitHub 自动生成的 “Source code” 压缩包以及 `git clone` 得到的是完整源码仓库，包含历史文档和截图，适合开发、审计与追溯，不是最小部署包。两类产物代码来源相同，但面向场景和体积不同。
+
 ## 主要能力
 
 | 版本 | 能力 |
@@ -273,7 +279,7 @@ server {
 2. **会话密钥 `SECRET_KEY`**：生产必须设置（勿写入 `conf.ini`）。`export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"`，或使用 `scripts/run_production.sh`（首次写入 `datas/.flask_secret_key`）。多节点须共用同一密钥。
 3. **管理端 CSRF**：升级后请硬刷新；启停 / 立即执行等写操作须为 POST 并携带页面 CSRF token（勿使用旧书签 GET）。
 4. `/docs/` **无需登录**，含架构与 API 说明；公网部署时建议 Nginx **IP 白名单** 或 **Basic Auth**，或仅内网/VPN 访问。
-5. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`。
+5. 保持 `block_private_ip=1`，按需配置 `url_allow_hosts`；执行期无条件拒绝环回、链路本地、保留、组播和未指定地址。
 6. 勿对 `0.0.0.0` 使用 `debug=True` 的开发服务器。
 
 ### 健康检查
@@ -374,9 +380,9 @@ scripts/             # 本地启动、验收、密码哈希、颜色审计工具
 | `SECRET_KEY`（环境变量） | 开发有默认；生产必强 | 会话签名；勿写入 conf.ini。生产可用 `run_production.sh` 生成 `datas/.flask_secret_key` |
 | `api_access_token` | 空 | 全局 API Token（Bearer）；空且 `api_access_token_required=0` 时 API 免鉴权 |
 | `api_access_token_required` | `0` | `1` 时生产启动 fail-fast：`api_access_token` 为空则拒绝启动 |
-| `block_private_ip` | `1` | 禁止触发内网/本机/元数据地址 |
+| `block_private_ip` | `1` | 兼容性校验开关；不会降低执行期对环回、链路本地、保留、组播、未指定地址的硬拒绝。RFC1918/IPv6 ULA 由部署 DNS 决定可达性 |
 | `url_allow_hosts` | 空 | 非空时仅允许列出的主机（逗号分隔） |
-| `url_ssrf_observe_only` | `0` | `1` 时仅记录不拦截（灰度） |
+| `url_ssrf_observe_only` | `0` | 录入期可仅记录不拦截（灰度）；执行期仍硬拒绝危险地址和 DNS 失败 |
 | `operation_log_counts` | `5000` | 业务操作记录保留条数上限 |
 
 ## 许可证

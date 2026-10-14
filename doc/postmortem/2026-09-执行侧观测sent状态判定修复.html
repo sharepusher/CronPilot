@@ -25,7 +25,7 @@ footer{margin:36px 0 16px;border-top:1px solid #e5e7eb;padding-top:12px;color:#6
 <p>问题位于 <code>app/services/run_inspector_presenter.py</code> 的 <code>actual_request_sent</code> 判定和 <code>app/templates/redesign/run_inspector.html</code> 的传输状态分支。</p>
 
 <h2>2. 根因</h2>
-<p>状态枚举预留了 <code>sent</code>，但当前同步 <code>requests.get/post</code> 调用在返回前没有可移植的“字节已发出”回调；异常终态由 <code>exception_failure_info</code> 直接落为 <code>connect_failed</code> 或 <code>sent_no_response</code>。Presenter 仍沿用旧的两值白名单，导致模型状态与展示判定契约脱节。行为层根因是“请求调用已发起”和“已收到响应”没有在 Presenter 与模板中使用同一套状态优先级。</p>
+<p>状态枚举预留了 <code>sent</code>，但当前同步 <code>requests.get/post</code> 调用在返回前没有可移植的“字节已发出”钩子；异常终态由 <code>exception_failure_info</code> 直接落为 <code>connect_failed</code> 或 <code>sent_no_response</code>。Presenter 仍沿用旧的两值白名单，导致模型状态与展示判定契约脱节。行为层根因是“请求调用已发起”和“已收到响应”没有在 Presenter 与模板中使用同一套状态优先级。</p>
 
 <h2>3. 测试漏洞</h2>
 <p>已有测试只断言成功记录的 <code>response_received</code>，没有断言 <code>sent_no_response</code> 在 Admin 视角下的请求已发起语义，也没有覆盖模板分支优先级。因此即使 Presenter 返回 false 或模板错误显示成功，测试仍可能通过。</p>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>三份 Review 报告专业性与合理性评估（2026-09-20）</title></head><body><main>
+<h1>三份 Review 报告专业性与合理性评估</h1>
+<p>日期：2026-09-20 · 对象：<a href="4.0之后提交深度Review-2026-09-20.html">v4.0.0 之后提交深度 Review</a>、<a href="../design/执行侧观测近期提交专业Review评估-2026-09-18.html">执行侧观测近期提交专业 Review 评估</a>、<a href="../design/执行侧观测优化完成后全面Review-2026-09-18.html">执行侧观测优化完成后全面 Review</a>。</p>
+
+<h2>1. 总体结论</h2>
+<p><strong>三份报告的技术判断总体专业且大体合理；不足集中在审查状态治理和结论措辞，而非核心事实。</strong> 它们能给出具体文件、状态模型、迁移边界和可执行验证，且主要结论可由当前代码复现。应保留“4.1.0 暂不发布”的谨慎结论；但不应把不同时间点的基线 Finding、已修复项、低优先级观察项混写为同一时点的“当前剩余风险”。</p>
+
+<h2>2. 逐份判定</h2>
+<table border="1"><thead><tr><th>报告</th><th>专业性</th><th>合理性</th><th>主要问题</th></tr></thead><tbody>
+<tr><td>v4.0.0 之后提交深度 Review</td><td>高：范围、证据命令、修复顺序均明确。</td><td>高：ID 生成器仅进程内锁，且 <code>gun.py</code> 为双 worker；IPv6 裸 netloc 可稳定复现 <code>InvalidURL</code>。</td><td>CR-1 是“与已确认目标不一致”，CR-2 才是生成器自身正确性缺陷；建议在标题/等级定义中明确两者性质。R3/R4 与 R6/R7 应分别标为发布门槛和观察项，不能用“阻断/观察项”合并表述。</td></tr>
+<tr><td>执行侧观测近期提交专业 Review 评估</td><td>高：F1--F6 的定位、原因和测试缺口具体，F1/F2 的 ReadTimeout 误导分析专业。</td><td>高：当时的状态机不一致确实存在，后续代码以 <code>sent_no_response</code> 修正了该问题。</td><td>基线 Finding 与后续修复状态混入同一正文：§3 仍写开放 Finding，§8 又写已实施；“当前剩余 F1/F2/F3/F6 已实施”自相矛盾，92% 的口径也无法由该表直接推导。</td></tr>
+<tr><td>执行侧观测优化完成后全面 Review</td><td>中高：能识别 R3 阶段代理、R4 枚举门禁、R6 schema 漂移、R7 混合事件查询等真实边界。</td><td>高：当前 <code>fatal_failure_info(..., job_log_started=saved_jl is not None)</code> 仍会把部分非持久化异常归为 persistence；模型 unique 与迁移脚本仅普通索引、<code>rows or fallback</code> 的判断也仍成立。</td><td>“全面 Review”与“Viewer 浏览器路径待本地服务可用后复验”不相容。应标为“代码/定向测试复核完成，浏览器验收未完成”，不能把待验证的 UI 路径写入已完成验证记录。</td></tr>
+</tbody></table>
+
+<h2>3. 已复核的关键事实</h2>
+<ul>
+<li><strong>CR-2 成立：</strong><code>datas/utils/id_generator.py</code> 的锁、时间戳和序列均为进程内状态；两个 worker 同秒首次分配会产生相同 ID。该事实支持“不能继续将其视为跨进程全局唯一”的结论。</li>
+<li><strong>CR-3 成立：</strong><code>_PinnedIPAdapter.send()</code> 将 IPv6 直接拼入 netloc；<code>https://2606:4700::1111/a</code> 在 Requests prepare 阶段报 <code>InvalidURL</code>。报告将其列为发布前必须修复的功能兼容性问题是合理的。</li>
+<li><strong>F1/F2/R2 的闭环成立：</strong>当前分类把 ReadTimeout、通用 ConnectionError 等保守地映射为 <code>sent_no_response</code>，Presenter 将其视为已发起但未收到响应，模板也有相应分支。</li>
+<li><strong>R3/R6/R7 尚未自然失效：</strong>当前外层 fatal 仍使用 <code>saved_jl is not None</code> 推断阶段；<code>JobLogEvent</code> 有 <code>uq_job_log_events_run_seq</code> 模型约束而迁移仅确保普通复合索引；仓储查询仍是“有 run_id 行即不回退 trace_id”。</li>
+</ul>
+
+<h2>4. 对发布结论的校准</h2>
+<p>“暂不发布 4.1.0”是合理的，但原因应分层：CR-1/CR-2/CR-3 是实际的正确性或目标一致性门槛；R3/R4 是诊断准确性与回归防护门槛；R6/R7 当前更适合列为迁移风险与发布前核验项。这样不会将 Info 级观察项误写成与 P1 缺陷同等级的发布阻断，也保留了其在迁移时必须关闭的意义。</p>
+
+<h2>5. 建议的报告治理方式</h2>
+<ol>
+<li>原始 Review 保持不可变“基线快照”，页首写明审查 commit、审查时间和状态有效期。</li>
+<li>后续修复只在独立“Closure/Status”报告更新；该报告用固定字段列出 Finding ID、当前状态、关闭 commit、证据命令、剩余风险和发布影响。</li>
+<li>每个最终结论必须区分：<strong>已验证关闭</strong>、<strong>待浏览器/双后端验证</strong>、<strong>观察项</strong>。没有完成的验证不得进入“通过”统计或完成度百分比。</li>
+<li>发布报告只引用最新状态报告，不回读旧基线的 Finding 表来判断当前状态。</li>
+</ol>
+
+<h2>6. 本次复核证据</h2>
+<pre>.venv-py311/bin/python -m unittest tests.test_id_generator tests.test_p0_phase_a tests.test_job_log_outcome tests.test_run_inspector_presenter tests.test_job_log_detail_integration -v
+.venv-py311/bin/python -c "from requests import Request; Request('GET', 'https://2606:4700::1111/a').prepare()"
+.venv-py311/bin/python scripts/html_docs_to_markdown.py --check
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+.venv-py311/bin/python scripts/check_doc_links.py --check</pre>
+<p>结果：定向 87 项测试通过；IPv6 请求构造稳定复现 <code>requests.exceptions.InvalidURL</code>；文档 HTML/Markdown 同步、262 个 HTML 登记和 2161 个链接检查通过。本轮仅审查与记录，未修改业务实现。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="三份Review报告专业性与合理性评估-2026-09-20.md">Markdown</a></footer>
+</main></body></html>

@@ -16,7 +16,7 @@
 
 summer业务管理员
 
-[任务中心](#)›[订单回调检查](#)›执行链路方案
+[任务中心](#)›[订单触发检查](#)›执行链路方案
 
 # 执行链路可观测性：页面改造对比
 
@@ -90,7 +90,7 @@ HTTP **—**耗时 **5.0s**失败原因 **请求超时**
 
 请求
 
-POST https://api.example.com/v1/orders/callback
+POST https://api.example.com/v1/orders/trigger
 
 响应
 
@@ -108,7 +108,7 @@ POST https://api.example.com/v1/orders/callback
 
 - **任务入队**T+0ms · 计划时间 → 实际进入 18ms
 - **安全校验**T+20ms · DNS Pinning 校验通过
-- **发起 HTTP 请求**T+24ms · POST /v1/orders/callback
+- **发起 HTTP 请求**T+24ms · POST /v1/orders/trigger
 - **请求超时**T+5.00s · 等待超过任务配置阈值
 
 响应 / 诊断

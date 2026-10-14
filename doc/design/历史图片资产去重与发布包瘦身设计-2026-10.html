@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>历史图片资产去重与发布包瘦身设计（2026-10）</title></head><body><main>
+<h1>历史图片资产去重与发布包瘦身设计</h1>
+<p>版本：v1.4 · 日期：2026-10-13 · 状态：<strong>已确认并实施（H1–H5）</strong> · 目标版本：4.1.0 发布准备</p>
+<p><strong>实施结果：</strong>87 个旧路径 PNG 与 15 个 HTML 内嵌引用经去重和安全处置后收敛为 71 个内容寻址 PNG；5 张包含完整凭据值且不具备持续证据价值的截图已从现行树删除，仅在复盘中保留原始哈希与处置结论；18 个从未入库的开发机绝对路径引用改为明确的缺失证据说明。图片门禁、发布白名单、确定性构建器、独立校验器与 tag workflow 均已落库。此前临时快照的仓库外全新安装、双重启、文档路由、登录、API、任务列表、404 与隔离数据库黄金路径已通过；最终文件数、字节数和 SHA-256 以本轮删图后重建及正式 tag workflow 为准。</p>
+
+<h2>1. 问题</h2>
+<p>文档截图分散在 <code>doc/design/screenshots/</code>、<code>doc/archive/screenshots/</code>、<code>doc/postmortem/screenshots/</code> 与 HTML/Markdown Base64 数据 URI 中。相同图片被复制到多个历史评估目录，部分图片又分别内嵌进 HTML 与生成的 Markdown，导致源码归档和仓库工作树无效膨胀。</p>
+<table border="1"><thead><tr><th>项目</th><th>当前事实</th><th>影响</th></tr></thead><tbody>
+<tr><td>当前 HEAD 压缩归档</td><td>基线 commit <code>0e1cc411abd6</code>；<code>git archive --format=tar.gz HEAD</code> 为 30,317,868 字节（约 28.92 MiB）</td><td>源码归档包含大量历史截图</td></tr>
+<tr><td><code>doc/</code> 已跟踪图片</td><td>68 个 PNG，20,998,017 字节（约 20.03 MiB）</td><td>随 tag/source archive 分发</td></tr>
+<tr><td>二进制重复</td><td>9 组、18 个冗余副本</td><td>按字节哈希可回收约 5.04 MiB</td></tr>
+<tr><td>Base64 内嵌</td><td>30 次引用、12 张唯一 PNG；重复解码量 8.45 MiB，唯一内容 3.44 MiB</td><td>HTML/Markdown 双份编码，差异不可审查</td></tr>
+<tr><td>新 QA 截图</td><td><code>doc/qa/assets/ui-compare-2026-09/</code> 共 19 张、约 2.1 MiB，尚未跟踪</td><td>若误暂存会直接进入 4.1.0 tag</td></tr>
+<tr><td>发布构建能力</td><td>当前没有 Release asset 构建脚本或发布工作流</td><td>若不补齐，只能人工打包，无法证明产物来自最终 tag</td></tr>
+<tr><td>发布入口链接</td><td>README、INSTALL、Release Notes 当前直接引用 41 个仓库内文档路径</td><td>只排除非核心文档会让安装包内入口文档产生断链</td></tr>
+</tbody></table>
+
+<h2>2. 根因</h2>
+<ol>
+<li>历史评估以“每轮目录自包含”为目标复制截图，没有建立跨文档资产身份。</li>
+<li>HTML 是源文档，但部分旧 Markdown 仍保存完整 Base64，生成链没有禁止数据 URI。</li>
+<li>源码归档直接承载全部已跟踪文件，因此重复图片和 Base64 会直接放大发布源码包。</li>
+<li>索引只区分文档状态，没有明确区分“4.1.0 发布依据”和“非核心历史/对照资产”。</li>
+<li>现有 <code>scripts/check_doc_links.py</code> 只检查 HTML <code>href</code> 与部分 Markdown 文档链接，不检查 <code>&lt;img src&gt;</code>、Markdown 图片、图片哈希或解码有效性。</li>
+<li>仓库尚无由 tag 可重现构建 Release asset 的脚本与 CI，发布包文件边界没有机器可读契约。</li>
+</ol>
+
+<h2>3. 方案</h2>
+<h3>3.1 内容寻址的无损资产库</h3>
+<p>新增 <code>doc/assets/screenshots/</code>，文件名统一使用完整 64 位小写十六进制 SHA-256 加原扩展名，并生成排序稳定的 <code>doc/assets/screenshots/manifest.json</code>。清单至少记录哈希、规范路径、字节数、从文件头识别的 MIME、旧路径、引用方、来源/公开使用依据和敏感信息审查结果。所有通过审查的图片保持原始字节与原始格式，不做 JPEG/WebP 转码，不改变像素、颜色或压缩参数。</p>
+<ul>
+<li>对已跟踪图片计算 SHA-256；同哈希只保留一个规范文件。</li>
+<li>解码历史数据 URI；若哈希已存在则直接复用，只有 7 张真正新增的唯一 PNG 需要写入资产库。</li>
+<li>19 张新 QA 截图及其引用文档如决定入库，必须在同一批纳入清单、敏感信息审查、哈希命名和引用迁移；禁止继续作为未治理的旁路目录提交。</li>
+<li>只修改 HTML 源文档中的 <code>src</code>，再运行生成器更新 Markdown；禁止直接维护生成 Markdown。</li>
+<li>删除旧副本前，全仓 <code>rg</code> 确认所有引用已迁移；不使用符号链接，避免 GitHub/Windows 渲染差异。</li>
+</ul>
+
+<h3>3.2 公开内容安全与来源审查</h3>
+<p>“保持原始字节”只适用于确认可公开且来源合规的图片。每张准备保留或新增的截图必须检查访问令牌、签名、密码、Cookie、邮箱、真实姓名、内部域名/IP、数据库连接信息、本机绝对路径、图片元数据，以及截图来源和公开使用依据；结果记录在 manifest 的审查字段中。包含上游产品界面的对照截图必须单独记录来源与用途。</p>
+<ul>
+<li>无敏感内容：保留原始字节，进入内容寻址资产库。</li>
+<li>发现敏感内容：立即阻断入库/发布，先撤销相关凭据；只允许提交经人工确认的脱敏替代图。</li>
+<li>来源或公开使用依据不清：不得提交原图；先补齐来源说明、授权依据或改用自有环境重拍图。</li>
+<li>若敏感原图已进入 Git 历史，“不重写历史”不再适用，须单独启动安全处置并评估历史清理；本方案不得用去重掩盖泄露。</li>
+</ul>
+
+<h3>3.3 仓库与 4.1.0 公开发布包分层</h3>
+<p>历史截图拆分是本次图片治理的必选目标。去重后的唯一截图正常保留在 Git 仓库中，供开发、审计和在 GitHub 页面查看；但公开发布的 4.1.0 安装包不携带任何历史截图。不额外发布历史证据包。</p>
+<ul>
+<li><strong>仓库：</strong>保留去重后的历史截图、引用文档、旧路径→新哈希路径 manifest。正常 clone 仓库时可获得全部证据。</li>
+<li><strong>公开发布包 <code>cronpilot-4.1.0.tar.gz</code>：</strong>包含应用代码、依赖清单、迁移/安装脚本、README、INSTALL、Release Notes 和 4.1.0 核心文档；排除历史截图和仅为截图服务的非核心文档。当前基线预测约 3.1 MiB，最终值须叠加已批准的 4.1.0 核心代码增量后实测。</li>
+<li><strong>不发布证据包：</strong>不生成、不上传 <code>cronpilot-4.1.0-doc-evidence.tar.gz</code>；历史证据以 Git 仓库为唯一公开载体。</li>
+<li>19 张新 QA 截图如最终入库，也仅属于仓库文档证据，必须先完成治理与公开内容安全及来源审查，不得进入 4.1.0 公开发布包。</li>
+<li>不使用 Git LFS；在未发现敏感内容的普通治理场景下不重写 Git 历史。这两项均不作为常规 4.1.0 前置操作。</li>
+</ul>
+<p>GitHub 自动生成的 Source code archive 是完整源码快照，与面向安装用户的 <code>cronpilot-4.1.0.tar.gz</code> 不是同一产物。Release 页和 README 必须明确把后者标记为推荐安装包，避免用户误下载完整源码快照。</p>
+
+<h3>3.4 发布包构建契约</h3>
+<p>当前仓库没有 Release asset 构建器，H5 必须新增机器可读白名单、构建脚本、验证脚本和 tag 发布工作流，不能依赖人工复制。构建输入锁定为最终 4.1.0 tag/commit，并通过 Git 对象数据库导出到临时 staging 目录，不从当前工作树复制文件；随后生成带单一顶层目录 <code>cronpilot-4.1.0/</code> 的归档。</p>
+<ul>
+<li><strong>新增契约文件：</strong><code>release/package-manifest.txt</code> 固化允许进入安装包的路径；<code>scripts/build_release_asset.py</code> 只接受版本号和已解析的 tag/commit；<code>scripts/check_release_asset.py</code> 独立验证归档。</li>
+<li><strong>运行必需：</strong><code>app/</code>、<code>datas/</code> 中受版本控制的 Python 模块、<code>scripts/</code>、依赖清单、配置示例、许可证/第三方声明及启动入口。数据库、日志、PID、密钥和本地配置即使存在于工作树也不得进入。</li>
+<li><strong>用户必读：</strong>README、INSTALL、Release Notes，以及经清单明确批准的 4.1.0 核心设计、迁移和安全说明。</li>
+<li><strong>明确不含：</strong><code>doc/assets/screenshots/</code>、历史 QA 截图、视觉回归基线、截图专属历史评估、测试套件、开发环境产物、数据库、日志、缓存和未跟踪文件。</li>
+<li><strong>文档链接闭包：</strong>对安装包中每个 HTML/Markdown 文件检查本地链接；目标要么同时入包，要么由构建器确定性改写为指向 <code>v4.1.0</code> tag 的公开仓库 URL。禁止留下相对断链，改写记录写入构建报告。</li>
+<li><strong>截图识别：</strong>以图片 manifest 的路径和 SHA-256 双重校验历史截图是否误入，不能把“包内所有 PNG 为 0”作为规则，以免未来误伤运行时图片。</li>
+<li><strong>确定性归档：</strong>文件按 UTF-8 路径排序，归档成员时间取目标 commit 时间，uid/gid 固定为 0，属主/属组固定为 <code>root</code>，权限从 Git mode 规范化，gzip 时间戳固定；同一 commit 连续构建两次必须得到相同 SHA-256。</li>
+<li><strong>可审计输出：</strong>归档文件清单、总字节数、逐文件大小、SHA-256，以及相对当前 3.09 MiB 基线预测的增量说明。</li>
+<li><strong>发布自动化：</strong>新增 tag 触发的 Release workflow，先构建、校验、在全新临时目录解压验收，再上传归档与校验和；任一步失败均不得上传。</li>
+</ul>
+
+<h3>3.5 图片资产门禁</h3>
+<p>新增 <code>scripts/check_doc_image_assets.py</code>，使用 HTML/Markdown 结构解析而非宽泛文本搜索，至少检查：</p>
+<ul>
+<li>真实图片属性中不存在 Base64 数据 URI，说明文字与代码示例不误报。</li>
+<li>每个本地图片引用均存在、可解码，MIME/扩展名一致；内容寻址文件名与实际 SHA-256 一致。</li>
+<li>manifest 覆盖全部治理图片和引用方，旧路径无残留，文档图片不存在重复哈希。</li>
+<li>公开安装包中不存在 manifest 所列路径或哈希；包内文档链接闭包成立。</li>
+</ul>
+
+<h3>3.5.1 H5 隔离安装发现与最小依赖修正</h3>
+<p>仓库外解压安装在 2026-10-14 暴露既有锁冲突：<code>croniter==6.0.0</code> 要求 <code>pytz&gt;2021.1</code>，而两份 requirements 仍固定 <code>pytz==2020.1</code>。这不是图片变更引入，但会直接阻断本方案 H5 的“全新目录可安装”验收。按已确认的 H5 安装闭包范围，最小修正为将两份清单同步固定到已发布且兼容 Python 3.8–3.11 的 <code>pytz==2026.1.post1</code>，不改变 croniter、APScheduler 或 tzlocal 主版本；随后重跑依赖解析、调度相关测试与解压黄金路径。静态契约测试保证两份 pin 一致且不再回退到 croniter 明确拒绝的版本区间。</p>
+
+<h3>3.6 索引与入口说明</h3>
+<p><code>doc/index.html</code>/<code>.md</code> 增加明确分区：</p>
+<ol>
+<li><strong>4.1.0 发布依据：</strong>安全、迁移、3xx、测试以及对应设计/复盘。</li>
+<li><strong>非核心历史与对照材料：</strong>统一错误处理草案、历史 QA、截图对照；明确“不属于 4.1.0 核心发布依据”。</li>
+</ol>
+<p>索引链接继续指向仓库文档，不因发布分类改变文档可读性。</p>
+
+<h2>4. 范围</h2>
+<p><strong>包含：</strong><code>doc/</code> 下所有已跟踪位图、拟入库的 19 张 QA 截图及其引用文档、4 份含数据 URI 的历史评估 HTML/Markdown、截图引用、公开内容安全审查、资产映射清单、图片门禁、发布构建器以及仓库与公开发布包的拆分规则与验证。</p>
+<p><strong>不包含：</strong>应用 UI、业务模板、数据库、HTTP API、测试截图 fixture、批量截图重拍、图片有损转码、普通场景下的 Git 历史重写、Git LFS 迁移。安全或来源审查命中的图片停止普通治理，另行处置。</p>
+
+<h2>5. 分批实施</h2>
+<table border="1"><thead><tr><th>批次</th><th>动作</th><th>完成条件</th></tr></thead><tbody>
+<tr><td>H1 基线与公开审查清单</td><td>生成旧路径、字节数、MIME、SHA-256、引用方、新路径、敏感信息和来源/公开使用依据；对 19 张拟入库 QA 图作纳入/不纳入决策</td><td>每个文档图片与数据 URI 均有唯一身份和审查状态，敏感项与来源不明项均为 0</td></tr>
+<tr><td>H2 Base64 外置</td><td>复用 5 张既有图片，新增 7 张唯一 PNG，替换 30 个数据 URI</td><td>结构化 Base64 图片门禁为 0（忽略 code/pre 中的说明文字）</td></tr>
+<tr><td>H3 文件去重</td><td>迁移 9 组重复图片引用并删除 18 个冗余副本</td><td><code>doc/</code> 下已跟踪位图不存在重复 SHA-256</td></tr>
+<tr><td>H4 门禁与索引分层</td><td>新增图片资产门禁；发布依据与非核心材料分区，标注运行时包边界</td><td>全量图片引用静态检查通过，入口说明准确</td></tr>
+<tr><td>H5 可重现公开发布包</td><td>新增白名单、构建器、校验器和 tag workflow；从最终 tag/commit 生成 <code>cronpilot-4.1.0.tar.gz</code>，校验文档链接闭包并输出构建报告；不生成证据包</td><td>历史/测试截图为 0，未跟踪文件为 0，解压后的安装/启动黄金路径通过</td></tr>
+</tbody></table>
+
+<h2>6. 验收</h2>
+<ol>
+<li>字节保真：迁移前后每张被引用图片的 SHA-256 一致；数据 URI 解码结果与新资产一致。</li>
+<li>唯一性：<code>doc/</code> 下已跟踪文档图片按 SHA-256 分组后无重复；不检查或修改测试 fixture。</li>
+<li>引用完整：新增的 <code>python scripts/check_doc_image_assets.py --check</code>、现有 <code>python scripts/check_doc_links.py --check</code> 与 <code>python scripts/check_doc_completeness.py --check</code> 均通过；三者职责不可互相替代。</li>
+<li>双格式同步：<code>python scripts/html_docs_to_markdown.py --check</code> 通过。</li>
+<li>浏览器验证：静态门禁覆盖全部图片；另选择 Base64 外置、跨目录引用、重复图合并和新 QA 图各至少一个代表文档，断言全部图片加载完成且自然尺寸非零。</li>
+<li>体积：当前基线预测约 3.09 MiB；最终包必须输出实际文件数、字节数、SHA-256 及相对基线的增量来源，包内历史截图数量与字节数均为 0。</li>
+<li>核心包完整性：在仓库外全新临时目录解压，按 INSTALL 执行安装/启动黄金路径；包内所有本地文档链接可达，改写为远程地址的链接固定到 <code>v4.1.0</code> tag。</li>
+<li>仓库完整性：正常工作树中所有历史文档图片引用可解析，浏览器中图片自然尺寸非零。</li>
+<li>4.1.0 防误入：发布包不得包含图片 manifest 中任一路径或 SHA-256，也不得包含 <code>doc/qa/assets/ui-compare-2026-09/</code> 与 <code>tests/visual_regression/baseline/</code>。</li>
+<li>来源确定性：归档只能由最终 4.1.0 tag/commit 生成，清单中不存在未跟踪文件，解压后只有一个版本化顶层目录。</li>
+<li>构建确定性：同一环境对同一 tag 连续构建两次，文件清单、成员元数据和归档 SHA-256 完全一致。</li>
+</ol>
+
+<h2>7. 风险与回滚</h2>
+<ul>
+<li><strong>历史图片直链变化：</strong>旧图片路径不是公开 API，但外部深链可能失效。实施时保留迁移清单，并在 Release Notes 的工程说明中记录路径治理。</li>
+<li><strong>相对路径错误：</strong>各 HTML 源文档到统一资产库的目录层级不同；必须按源文档路径生成相对引用，再由 HTML 生成同目录 Markdown 并运行链接门禁。</li>
+<li><strong>历史文档失真：</strong>仅替换图片载入方式，不改正文、图片字节与页面顺序。</li>
+<li><strong>发布包文档断图：</strong>公开发布包不保留仅用于历史截图的非核心文档，禁止只排除图片却留下断链文档。</li>
+<li><strong>入口文档断链：</strong>README、INSTALL、Release Notes 当前引用大量仓库文档；构建器必须执行链接闭包检查，并将未入包目标确定性改写为 tag 固定的公开 URL。</li>
+<li><strong>截图泄露或来源不清：</strong>截图继续随公开仓库分发，必须先完成敏感信息、元数据和来源/公开使用依据审查；发现凭据时立即阻断并进入安全处置，来源不清时不得提交原图。</li>
+<li><strong>人工打包漂移：</strong>当前没有发布构建器；H5 完成前不得把手工 tar 包作为正式 4.1.0 资产。</li>
+<li><strong>回滚：</strong>普通治理批次只做文档资产、门禁、发布构建器与引用变更，可按批次 commit 回退；既有 tag 不移动。敏感内容处置若涉及历史清理，必须使用独立安全方案。</li>
+</ul>
+
+<h2>确认项</h2>
+<p>确认后按 H1→H5 实施。默认采用“公开内容安全与来源审查 + 原始字节无损集中存储 + 引用迁移 + 图片专项门禁 + 仓库保留 + 从最终 tag 白名单构建 4.1.0 公开安装包”，不发布历史证据包，不采用 WebP 有损转换、Git LFS 或普通场景下的历史重写。</p>
+<h2>参考依据</h2>
+<ul>
+<li><a href="https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives">GitHub Docs：Downloading source code archives</a>——用于界定 GitHub 自动源码快照与自定义 Release asset 的职责差异。</li>
+<li><a href="https://git-scm.com/docs/gitattributes/">Git documentation：gitattributes</a>——用于复核 Git archive 的导出行为；本方案的公开安装包仍以显式白名单构建为主。</li>
+</ul>
+<footer><a href="../index.html">文档索引</a> · <a href="历史图片资产去重与发布包瘦身设计-2026-10.md">Markdown</a></footer>
+</main></body></html>

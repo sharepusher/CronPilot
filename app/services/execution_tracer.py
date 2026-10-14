@@ -7,7 +7,7 @@ must remain a subset of ``_DETAIL_KEYS``
 """
 import json
 import time
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from app import db
 from app.metrics import EXECUTION_EVENT_WRITE_FAILED
@@ -17,7 +17,10 @@ _DETAIL_KEYS = {
     'task.enqueued': {'trigger_source', 'scheduled_delay_ms', 'scheduled_at'},
     'ssrf.check': {'block_type', 'block_detail'},
     'http.start': {'method', 'display_url', 'timeout_sec', 'transport_state', 'response_received'},
-    'http.complete': {'http_status', 'response_bytes', 'transport_state', 'response_received'},
+    'http.complete': {
+        'http_status', 'response_bytes', 'transport_state', 'response_received',
+        'redirect_location',
+    },
     'http.timeout': {'exc_type', 'exc_detail', 'timeout_sec', 'failure_stage', 'fail_reason', 'transport_state', 'response_received'},
     'http.error': {'exc_type', 'exc_detail', 'failure_stage', 'fail_reason', 'transport_state', 'response_received'},
     'db.write_log': {'status', 'fail_reason'},
@@ -26,11 +29,13 @@ _MAX_EVENTS_PER_EXECUTION = 16
 _WRITE_BUDGET_MS = 200
 
 
-def sanitize_event_url(raw_url):
+def sanitize_event_url(raw_url, base_url=None):
     """Persist a display-safe URL; query values are never retained."""
     if not raw_url:
         return ''
     try:
+        if base_url:
+            raw_url = urljoin(str(base_url), str(raw_url))
         parts = urlsplit(str(raw_url))
         if not parts.scheme or not parts.hostname:
             return ''

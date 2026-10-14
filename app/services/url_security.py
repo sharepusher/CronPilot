@@ -31,23 +31,57 @@ def _observe_only(cron_config):
     return str(val).strip() in ('1', 'true', 'True', 'yes', 'YES')
 
 
-def _dns_fail_open(cron_config):
-    val = (cron_config or {}).get('url_ssrf_dns_fail_open', '0')
-    return str(val).strip() in ('1', 'true', 'True', 'yes', 'YES')
+def _is_hard_blocked_ip(addr):
+    """Return whether an address is never a valid execution-time target.
 
-
-def _is_private_or_reserved_ip(addr):
+    RFC1918 and IPv6 ULA are intentionally not in this baseline: CronPilot
+    supports deployment-controlled internal DNS.  IPv4-mapped IPv6 must be
+    evaluated as its embedded IPv4 address so it cannot bypass loopback or
+    link-local checks.
+    """
     try:
         ip = ipaddress.ip_address(addr)
     except ValueError:
-        return False
+        return True
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
     return (
-        ip.is_private
-        or ip.is_loopback
+        ip.is_loopback
         or ip.is_link_local
         or ip.is_reserved
         or ip.is_multicast
+        or ip.is_unspecified
     )
+
+
+def _url_structure_error(req_url, cron_config):
+    """Validate URL syntax and hostname policy without performing DNS I/O."""
+    if not req_url:
+        return '触发 URL 必填！', None
+
+    req_url = req_url.strip()
+    lower = req_url.lower()
+    if not (lower.startswith('http://') or lower.startswith('https://')):
+        return 'URL格式有误！须为 http 或 https', None
+
+    parsed = urlparse(req_url)
+    hostname = (parsed.hostname or '').strip().lower()
+    if not hostname:
+        return 'URL格式有误！无法解析主机名', None
+
+    if hostname in _BLOCKED_HOSTS:
+        return '不允许访问的主机名：%s' % hostname, None
+
+    allow_hosts = _parse_allow_hosts(cron_config)
+    if allow_hosts is not None and hostname not in allow_hosts:
+        return '触发 URL 主机不在白名单内（url_allow_hosts）', None
+    return None, hostname
+
+
+def _hard_block_message(hostname, addr=None):
+    if addr:
+        return '域名 %s 解析到禁止地址 %s，已拒绝' % (hostname, addr)
+    return '不允许触发禁止地址：%s' % hostname
 
 
 def _resolve_host_ips(hostname, retries=1):
@@ -70,49 +104,28 @@ def validate_trigger_url(req_url, cron_config=None):
     校验触发 URL（调度器到点发起的 GET 目标地址）。
     返回 (ok: bool, message: str)
     """
-    if not req_url:
-        return False, '触发 URL 必填！'
+    error, hostname = _url_structure_error(req_url, cron_config)
+    if error:
+        return False, error
 
-    req_url = req_url.strip()
-    lower = req_url.lower()
-    if not (lower.startswith('http://') or lower.startswith('https://')):
-        return False, 'URL格式有误！须为 http 或 https'
-
-    parsed = urlparse(req_url)
-    hostname = (parsed.hostname or '').strip().lower()
-    if not hostname:
-        return False, 'URL格式有误！无法解析主机名'
-
-    if hostname in _BLOCKED_HOSTS:
-        return False, '不允许访问的主机名：%s' % hostname
-
-    allow_hosts = _parse_allow_hosts(cron_config)
-    if allow_hosts is not None and hostname not in allow_hosts:
-        return False, '触发 URL 主机不在白名单内（url_allow_hosts）'
-
+    # Network zone is determined by the deployment DNS boundary.  Private
+    # answers are valid for internal DNS names; pinning prevents post-check
+    # DNS drift.  Public-DNS split-horizon isolation remains a deployment
+    # contract rather than an application-maintained hostname/CIDR list.
     if _block_private_ip_enabled(cron_config):
-        if hostname in ('127.0.0.1', '0.0.0.0', '::1'):
-            return _fail_or_observe(cron_config, '不允许触发本机地址（127.0.0.1 / ::1）')
-
-        if hostname.startswith('169.254.'):
-            return _fail_or_observe(cron_config, '不允许访问链路本地 / 云元数据地址段')
-
         try:
             ip = ipaddress.ip_address(hostname)
-            if _is_private_or_reserved_ip(str(ip)):
-                return _fail_or_observe(cron_config, '不允许触发内网或保留 IP 地址')
+            if _is_hard_blocked_ip(str(ip)):
+                return _fail_or_observe(cron_config, _hard_block_message(hostname))
         except ValueError:
             ips = _resolve_host_ips(hostname)
             if ips is None:
-                # SEC-6: fail-closed — DNS 失败默认拒绝（防 DNS rebinding 绕过）
-                if _dns_fail_open(cron_config):
-                    return True, ''  # fail-open — 仅 conf.ini dns_fail_open=1 时启用
                 return False, 'DNS 解析失败（%s），请确认域名正确后重试' % hostname
             for addr in ips:
-                if _is_private_or_reserved_ip(addr):
+                if _is_hard_blocked_ip(addr):
                     return _fail_or_observe(
                         cron_config,
-                        '域名 %s 解析到内网/保留地址 %s，已拒绝' % (hostname, addr),
+                        _hard_block_message(hostname, addr),
                     )
 
     return True, ''
@@ -134,35 +147,35 @@ def validate_and_resolve_url(req_url, cron_config=None):
 
     返回 (ok: bool, message: str, resolved_ip: str | None)
     - resolved_ip 为通过校验的 IP（可用于 DNS pinning）
-    - 若 hostname 本身是 IP 字面量或 DNS 不可用，resolved_ip 为 None
+    - 执行期硬禁止地址与 DNS 失败始终 fail-closed，不受观测/兼容开关影响
+    - 一个域名在单次调用内只进行一次 DNS 解析
     """
-    ok, msg = validate_trigger_url(req_url, cron_config)
-    if not ok:
-        return False, msg, None
+    error, hostname = _url_structure_error(req_url, cron_config)
+    if error:
+        return False, error, None
 
-    parsed = urlparse(req_url)
-    hostname = (parsed.hostname or '').strip().lower()
-
-    # hostname 已是 IP 字面量：无需 pin（请求不会二次 DNS 解析）
+    # hostname 已是 IP 字面量：无需 DNS；硬禁止集合不允许任何开关绕过。
     try:
         ipaddress.ip_address(hostname)
+        if _is_hard_blocked_ip(hostname):
+            return False, _hard_block_message(hostname), None
         return True, '', hostname
     except ValueError:
         pass
 
-    # 域名：解析并返回第一个安全 IP 供 pinning
+    # 域名：只解析一次。任何危险或无效回答均使整次执行失败，避免
+    # 多 A/AAAA 记录中选择一个地址绕过同一 hostname 的安全判定。
     ips = _resolve_host_ips(hostname)
     if ips is None:
-        # SEC-6: fail-closed — DNS 失败默认拒绝（无 IP pinning 则拒绝执行）
-        if _dns_fail_open(cron_config):
-            return True, '', None  # fail-open — 仅 conf.ini dns_fail_open=1 时启用
         return False, 'DNS 解析失败（%s），拒绝执行' % hostname, None
-    # 选取第一个通过校验的 IP
+    if not ips:
+        return False, 'DNS 未返回可用地址，拒绝执行', None
+    normalized_ips = []
     for addr in ips:
-        if not _is_private_or_reserved_ip(addr):
-            return True, '', addr
-    # 全部 IP 为内网（理论上上面 validate_trigger_url 已拦截）
-    return True, '', None
+        if _is_hard_blocked_ip(addr):
+            return False, _hard_block_message(hostname, addr), None
+        normalized_ips.append(str(ipaddress.ip_address(addr)))
+    return True, '', sorted(normalized_ips)[0]
 
 
 class _PinnedIPAdapter(HTTPAdapter):
@@ -183,8 +196,11 @@ class _PinnedIPAdapter(HTTPAdapter):
         if parsed.hostname and parsed.hostname != self.pinned_ip:
             request.headers.setdefault('Host', self.original_hostname)
             port_suffix = ':%d' % parsed.port if parsed.port else ''
+            pinned_host = self.pinned_ip
+            if ipaddress.ip_address(pinned_host).version == 6:
+                pinned_host = '[%s]' % pinned_host
             request.url = urlunparse(parsed._replace(
-                netloc=self.pinned_ip + port_suffix
+                netloc=pinned_host + port_suffix
             ))
         return super().send(request, **kwargs)
 

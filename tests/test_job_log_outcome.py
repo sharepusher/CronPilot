@@ -29,6 +29,13 @@ class TestJobLogOutcome(unittest.TestCase):
         self.assertEqual(status, STATUS_SUCCESS)
         self.assertIsNone(reason)
 
+    def test_all_redirect_statuses_are_blocked(self):
+        for code in (300, 301, 302, 303, 307, 308, 399):
+            with self.subTest(code=code):
+                status, reason = evaluate_http_response(code, '', None, '0')
+                self.assertEqual(status, STATUS_FAIL)
+                self.assertEqual(reason, 'redirect_blocked')
+
     def test_keyword_on_200(self):
         status, reason = evaluate_http_response(200, '{"error":true}', 'error', '1')
         self.assertEqual(status, STATUS_FAIL)

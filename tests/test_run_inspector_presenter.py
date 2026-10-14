@@ -91,6 +91,18 @@ class TestRunInspectorPresenter(unittest.TestCase):
         row = build_event_timeline([event], viewer_role='admin')[0]
         self.assertEqual(row['summary'], 'HTTP 客户端初始化失败')
 
+    def test_redirect_blocked_failure_reason_has_stable_label(self):
+        jl = SimpleNamespace(
+            id=12, status='fail', http_status=302, take_time=0.1,
+            started_at='20260101120000', finished_at='20260101120001', create_time='20260101120000',
+            trigger_source='manual', fail_reason='redirect_blocked', content='', actual_url='https://example.com/',
+            trace_id='tid-redirect', timeout_sec=5, trigger_delay_ms=None,
+            failure_stage='remote_response', transport_state='response_received', response_received=True,
+        )
+        cif = SimpleNamespace(id=1, task_name='t', req_method='GET', req_url='https://example.com/')
+        run = build_run_inspector_view(jl, cif, viewer_role='admin')
+        self.assertEqual(run['summary']['fail_reason'], '重定向已阻止')
+
     def test_role_matrix_for_response_and_business_logs(self):
         jl = SimpleNamespace(
             id=7,

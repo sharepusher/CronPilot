@@ -1,9 +1,4 @@
-"""Guard tests: conf.ini.example keys must actually reach runtime config.
-
-2026-09 教训：`url_ssrf_dns_fail_open` 写进了 `conf.ini.example` 和设计文档，
-但 `configs()` 从未返回该键，而 `url_security._dns_fail_open()` 只从
-`CRON_CONFIG` 字典读取、没有 `configs(key)` 兜底，于是运维设成 1 也不生效。
-"""
+"""Guard tests: conf.ini.example keys must actually reach runtime config."""
 
 import configparser
 import os
@@ -28,7 +23,6 @@ SSRF_KEYS = (
     'block_private_ip',
     'url_allow_hosts',
     'url_ssrf_observe_only',
-    'url_ssrf_dns_fail_open',
 )
 
 
@@ -68,26 +62,6 @@ class TestExampleConfigReachable(unittest.TestCase):
         runtime = _configs_from_example()
         for key in SSRF_KEYS:
             self.assertIn(key, runtime, '%s 缺失于 configs() 返回值' % key)
-
-    def test_dns_fail_open_defaults_to_closed(self):
-        """缺配置项时必须默认 fail-closed（'0'）。"""
-        tmp = tempfile.mkdtemp()
-        try:
-            with open(os.path.join(tmp, 'conf.ini'), 'w', encoding='utf-8') as fh:
-                parser = configparser.ConfigParser()
-                parser.read(EXAMPLE, encoding='utf-8')
-                parser.remove_option('default', 'url_ssrf_dns_fail_open')
-                parser.write(fh)
-            original = configs_module._proj_root
-            configs_module._proj_root = tmp
-            try:
-                runtime = configs()
-            finally:
-                configs_module._proj_root = original
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
-        self.assertEqual(runtime['url_ssrf_dns_fail_open'], '0')
-
 
 if __name__ == '__main__':
     unittest.main()

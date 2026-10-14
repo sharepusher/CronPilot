@@ -29,10 +29,10 @@ class TestUrlSecurity(unittest.TestCase):
     def setUp(self):
         self.cfg = {'block_private_ip': '1', 'url_allow_hosts': '', 'url_ssrf_observe_only': '0'}
 
-    def test_reject_localhost_ip(self):
+    def test_reject_loopback_ip(self):
         ok, msg = url_security.validate_trigger_url('http://127.0.0.1/trigger', self.cfg)
         self.assertFalse(ok)
-        self.assertIn('本机', msg)
+        self.assertIn('禁止地址', msg)
 
     def test_reject_metadata_range(self):
         ok, msg = url_security.validate_trigger_url('http://169.254.169.254/latest', self.cfg)
@@ -50,9 +50,9 @@ class TestUrlSecurity(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn('白名单', msg)
 
-    def test_observe_only_allows_private(self):
+    def test_internal_private_ip_is_allowed(self):
         cfg = dict(self.cfg, url_ssrf_observe_only='1')
-        ok, msg = url_security.validate_trigger_url('http://127.0.0.1/x', cfg)
+        ok, msg = url_security.validate_trigger_url('http://10.0.0.1/x', cfg)
         self.assertTrue(ok, msg)
 
     @patch.object(url_security, '_resolve_host_ips', return_value=None)
@@ -63,11 +63,11 @@ class TestUrlSecurity(unittest.TestCase):
         self.assertIn('DNS', msg)
 
     @patch.object(url_security, '_resolve_host_ips', return_value=None)
-    def test_dns_fail_open_layer1_config(self, mock_dns):
-        """SEC-6: Layer 1 DNS failure → allow when config enabled."""
+    def test_dns_failure_remains_closed_for_legacy_config_value(self, mock_dns):
+        """A retired config value must not recreate an unpinned fallback."""
         cfg = dict(self.cfg, url_ssrf_dns_fail_open='1')
         ok, msg = url_security.validate_trigger_url('http://example.com/x', cfg)
-        self.assertTrue(ok, msg)
+        self.assertFalse(ok)
 
 
 class TestValidateAndResolve(unittest.TestCase):
@@ -81,10 +81,10 @@ class TestValidateAndResolve(unittest.TestCase):
         self.assertTrue(ok, msg)
         self.assertEqual(ip, '8.8.8.8')
 
-    def test_private_ip_literal_rejected(self):
-        ok, msg, ip = url_security.validate_and_resolve_url('http://127.0.0.1/x', self.cfg)
-        self.assertFalse(ok)
-        self.assertIsNone(ip)
+    def test_private_ip_literal_is_allowed(self):
+        ok, msg, ip = url_security.validate_and_resolve_url('http://10.0.0.1/x', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '10.0.0.1')
 
     @patch.object(url_security, '_resolve_host_ips', return_value={'93.184.216.34'})
     def test_domain_returns_resolved_ip(self, mock_dns):
@@ -93,10 +93,64 @@ class TestValidateAndResolve(unittest.TestCase):
         self.assertEqual(ip, '93.184.216.34')
 
     @patch.object(url_security, '_resolve_host_ips', return_value={'10.0.0.1'})
-    def test_domain_resolving_to_private_rejected(self, mock_dns):
+    def test_domain_resolving_to_private_is_allowed(self, mock_dns):
         ok, msg, ip = url_security.validate_and_resolve_url('http://evil.com/x', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '10.0.0.1')
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'10.2.3.4'})
+    def test_internal_domain_is_allowed_by_internal_dns(self, mock_dns):
+        cfg = dict(self.cfg)
+        ok, msg, ip = url_security.validate_and_resolve_url(
+            'http://service.corp.example/internal', cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '10.2.3.4')
+
+    @patch.object(url_security, '_resolve_host_ips')
+    def test_execution_resolves_domain_once_and_pins_checked_answer(self, mock_dns):
+        """A second DNS answer must never become the connection target."""
+        mock_dns.side_effect = [
+            {'93.184.216.34'},
+            AssertionError('execution must not resolve the hostname twice'),
+        ]
+        ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/x', self.cfg)
+        self.assertTrue(ok, msg)
+        self.assertEqual(ip, '93.184.216.34')
+        self.assertEqual(mock_dns.call_count, 1)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'93.184.216.34', '127.0.0.1'})
+    def test_mixed_dns_answers_fail_closed(self, mock_dns):
+        ok, _msg, ip = url_security.validate_and_resolve_url('http://example.com/x', self.cfg)
         self.assertFalse(ok)
         self.assertIsNone(ip)
+        self.assertEqual(mock_dns.call_count, 1)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'0.0.0.0'})
+    def test_dns_unspecified_address_is_hard_blocked(self, mock_dns):
+        ok, _msg, ip = url_security.validate_and_resolve_url('http://example.com/x', self.cfg)
+        self.assertFalse(ok)
+        self.assertIsNone(ip)
+
+    def test_ip_literal_unspecified_and_mapped_loopback_are_hard_blocked(self):
+        for addr in ('0.0.0.0', '::', '::ffff:127.0.0.1'):
+            with self.subTest(addr=addr):
+                ok, _msg, ip = url_security.validate_and_resolve_url(
+                    'http://[{0}]/x'.format(addr) if ':' in addr else 'http://{0}/x'.format(addr),
+                    self.cfg,
+                )
+                self.assertFalse(ok)
+                self.assertIsNone(ip)
+
+    @patch.object(url_security, '_resolve_host_ips', return_value={'127.0.0.1'})
+    def test_execution_hard_block_ignores_observe_and_compatibility_switches(self, mock_dns):
+        for cfg in (
+            dict(self.cfg, url_ssrf_observe_only='1'),
+            dict(self.cfg, block_private_ip='0'),
+        ):
+            with self.subTest(cfg=cfg):
+                ok, _msg, ip = url_security.validate_and_resolve_url('http://example.com/x', cfg)
+                self.assertFalse(ok)
+                self.assertIsNone(ip)
 
     @patch.object(url_security, '_resolve_host_ips', return_value=None)
     def test_dns_unavailable_fail_closed(self, mock_dns):
@@ -107,11 +161,11 @@ class TestValidateAndResolve(unittest.TestCase):
         self.assertIsNone(ip)
 
     @patch.object(url_security, '_resolve_host_ips', return_value=None)
-    def test_dns_unavailable_fail_open_config(self, mock_dns):
-        """SEC-6: DNS failure → fail-open when url_ssrf_dns_fail_open=1."""
+    def test_dns_unavailable_remains_closed_for_legacy_config_value(self, mock_dns):
+        """DNS failure never reaches an unpinned request path."""
         cfg = dict(self.cfg, url_ssrf_dns_fail_open='1')
         ok, msg, ip = url_security.validate_and_resolve_url('http://example.com/x', cfg)
-        self.assertTrue(ok, msg)
+        self.assertFalse(ok)
         self.assertIsNone(ip)
 
 
@@ -172,16 +226,12 @@ class TestPinnedSession(unittest.TestCase):
         self.assertEqual(adapter.poolmanager.connection_pool_kw['server_hostname'], 'example.com')
 
     def test_adapter_rewrites_url_and_host_header(self):
-        from requests import PreparedRequest, Request
+        from requests import Request
         adapter = url_security._PinnedIPAdapter('93.184.216.34', 'example.com')
         req = Request('GET', 'http://example.com/path?q=1',
                       headers={'user-agent': 'test'}).prepare()
-        # 模拟 send 中的 URL 重写逻辑（不实际发请求）
-        from urllib.parse import urlparse, urlunparse
-        parsed = urlparse(req.url)
-        if parsed.hostname and parsed.hostname != '93.184.216.34':
-            req.headers.setdefault('Host', 'example.com')
-            req.url = urlunparse(parsed._replace(netloc='93.184.216.34'))
+        with patch.object(url_security.HTTPAdapter, 'send', return_value=object()):
+            adapter.send(req)
         self.assertIn('93.184.216.34', req.url)
         self.assertEqual(req.headers['Host'], 'example.com')
 
@@ -189,13 +239,25 @@ class TestPinnedSession(unittest.TestCase):
         from requests import Request
         adapter = url_security._PinnedIPAdapter('1.2.3.4', 'api.example.com')
         req = Request('GET', 'http://api.example.com:8080/v1').prepare()
-        from urllib.parse import urlparse, urlunparse
-        parsed = urlparse(req.url)
-        port_suffix = ':%d' % parsed.port if parsed.port else ''
-        req.headers.setdefault('Host', 'api.example.com')
-        req.url = urlunparse(parsed._replace(netloc='1.2.3.4' + port_suffix))
+        with patch.object(url_security.HTTPAdapter, 'send', return_value=object()):
+            adapter.send(req)
         self.assertIn('1.2.3.4:8080', req.url)
         self.assertEqual(req.headers['Host'], 'api.example.com')
+
+    def test_adapter_brackets_ipv6_with_and_without_port(self):
+        from requests import Request
+        cases = (
+            ('http://api.example.com/v1', 'http://[fd00::1]/v1'),
+            ('https://api.example.com:8443/v1', 'https://[fd00::1]:8443/v1'),
+        )
+        for original, expected in cases:
+            with self.subTest(original=original):
+                adapter = url_security._PinnedIPAdapter('fd00::1', 'api.example.com')
+                req = Request('GET', original).prepare()
+                with patch.object(url_security.HTTPAdapter, 'send', return_value=object()):
+                    adapter.send(req)
+                self.assertEqual(req.url, expected)
+                self.assertEqual(req.headers['Host'], 'api.example.com')
 
 
 class TestPassword(unittest.TestCase):

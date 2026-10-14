@@ -180,7 +180,7 @@ class TestExecLogsPartial(unittest.TestCase):
             )
             self.db.session.add_all([pending, running, failed])
             self.db.session.commit()
-            pending_id = pending.id
+            pending_trace_id = pending.trace_id
 
         with self.app.test_client() as c:
             self._login_session(c)
@@ -206,7 +206,7 @@ class TestExecLogsPartial(unittest.TestCase):
             ndata = json.loads(not_success.data)
             self.assertEqual(ndata['total'], 1)
             self.assertIn('失败', ndata['rows'])
-            self.assertNotIn(str(pending_id), ndata['rows'])
+            self.assertNotIn(pending_trace_id, ndata['rows'])
 
 
 if __name__ == '__main__':

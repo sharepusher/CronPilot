@@ -93,7 +93,7 @@ class TestUpdateJobHealth(unittest.TestCase):
 
 
 class TestNewIdStrategy(unittest.TestCase):
-    """OPT-P0-21: 新 ID 策略下创建的任务使用 50-bit 时间戳 ID。"""
+    """OPT-P0-21: 新 ID 策略由数据库生成正数、自增且唯一的主键。"""
 
     def setUp(self):
         self.app = Flask(__name__)
@@ -113,7 +113,7 @@ class TestNewIdStrategy(unittest.TestCase):
         db.drop_all()
         self.ctx.pop()
 
-    def test_cron_infos_gets_50bit_id(self):
+    def test_cron_infos_gets_database_generated_id(self):
         from datas.model.cron_infos import CronInfos
         cif = CronInfos(
             task_name='test50bit', task_keyword='', req_url='https://example.com',
@@ -121,18 +121,16 @@ class TestNewIdStrategy(unittest.TestCase):
         )
         db.session.add(cif)
         db.session.flush()
-        self.assertGreater(cif.id, 1_000_000_000,
-                           "Expected 50-bit ID, got %d" % cif.id)
-        self.assertLess(cif.id, 9007199254740991,
-                        "ID exceeds JS MAX_SAFE_INTEGER")
+        self.assertIsInstance(cif.id, int)
+        self.assertGreater(cif.id, 0)
 
-    def test_job_log_gets_50bit_id(self):
+    def test_job_log_gets_database_generated_id(self):
         from datas.model.job_log import JobLog
         jl = JobLog(cron_info_id=999, content='test', status='success', create_time=0)
         db.session.add(jl)
         db.session.flush()
-        self.assertGreater(jl.id, 1_000_000_000,
-                           "Expected 50-bit ID, got %d" % jl.id)
+        self.assertIsInstance(jl.id, int)
+        self.assertGreater(jl.id, 0)
 
     def test_new_task_no_inherited_health(self):
         """新任务的 ID 是全新的，不会命中任何已有的 job_health 记录。"""

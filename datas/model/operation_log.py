@@ -34,7 +34,9 @@ class OperationLog(db.Model):
     target_type: Mapped[str] = mapped_column(
         db.String(16), nullable=False, default='cron'
     )
-    target_id: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+    target_id: Mapped[Optional[int]] = mapped_column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'), nullable=True
+    )
     task_name: Mapped[str] = mapped_column(
         db.String(120), nullable=False, default='', index=True
     )

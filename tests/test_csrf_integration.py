@@ -20,7 +20,7 @@ import re
 import unittest
 
 BASE_URL = os.environ.get('CRONPILOT_BASE_URL', '').rstrip('/')
-LOGIN_USER = os.environ.get('CRONPILOT_USER', 'admin')
+LOGIN_USER = os.environ.get('CRONPILOT_USER', 'admintest')
 LOGIN_PASS = os.environ.get('CRONPILOT_PASS', 'changeme')
 
 _SKIP_REASON = None
@@ -52,24 +52,40 @@ def _extract_csrf(html):
     return m.group(1) if m else ''
 
 
+def _login_session():
+    """登录专用测试管理员；失败时在解析业务响应前给出明确诊断。"""
+    import requests
+    session = requests.Session()
+    response = session.get(BASE_URL + '/rbac/login', timeout=5)
+    login_csrf = _extract_csrf(response.text)
+    if not login_csrf:
+        raise AssertionError('登录页缺少 csrf-token meta tag')
+    login = session.post(
+        BASE_URL + '/rbac/login',
+        data={
+            'username': LOGIN_USER,
+            'password': LOGIN_PASS,
+            'csrf_token': login_csrf,
+        },
+        allow_redirects=False,
+        timeout=5,
+    )
+    location = login.headers.get('Location', '')
+    if login.status_code != 302 or '/rbac/login' in location:
+        raise AssertionError(
+            '测试管理员登录失败: status=%s location=%s user=%s'
+            % (login.status_code, location, LOGIN_USER)
+        )
+    return session
+
+
 @unittest.skipIf(_SKIP_REASON, _SKIP_REASON)
 class TestCsrfGroupsAdd(unittest.TestCase):
     """groups/add：带/不带 csrf_token 行为差异断言。"""
 
     @classmethod
     def setUpClass(cls):
-        import requests
-        cls.session = requests.Session()
-        # 1. 获取登录页 CSRF
-        r = cls.session.get(BASE_URL + '/rbac/login', timeout=5)
-        login_csrf = _extract_csrf(r.text)
-        # 2. 登录
-        cls.session.post(
-            BASE_URL + '/rbac/login',
-            data={'username': LOGIN_USER, 'password': LOGIN_PASS, 'csrf_token': login_csrf},
-            allow_redirects=False,
-            timeout=5,
-        )
+        cls.session = _login_session()
 
     def _get_page_csrf(self, path):
         r = self.session.get(BASE_URL + path, timeout=5)
@@ -119,16 +135,7 @@ class TestCsrfUsersAdd(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import requests
-        cls.session = requests.Session()
-        r = cls.session.get(BASE_URL + '/rbac/login', timeout=5)
-        login_csrf = _extract_csrf(r.text)
-        cls.session.post(
-            BASE_URL + '/rbac/login',
-            data={'username': LOGIN_USER, 'password': LOGIN_PASS, 'csrf_token': login_csrf},
-            allow_redirects=False,
-            timeout=5,
-        )
+        cls.session = _login_session()
 
     def _get_page_csrf(self, path):
         r = self.session.get(BASE_URL + path, timeout=5)

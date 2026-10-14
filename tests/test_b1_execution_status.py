@@ -42,6 +42,11 @@ class TestEvaluateHttpResponse(unittest.TestCase):
         self.assertEqual(status, STATUS_SUCCESS)
         self.assertIsNone(reason)
 
+    def test_3xx_is_fail_even_when_http_failure_flag_disabled(self):
+        status, reason = evaluate_http_response(302, '', None, '0')
+        self.assertEqual(status, STATUS_FAIL)
+        self.assertEqual(reason, 'redirect_blocked')
+
     def test_5xx_fail(self):
         status, reason = evaluate_http_response(500, 'err', None, None)
         self.assertEqual(status, STATUS_FAIL)

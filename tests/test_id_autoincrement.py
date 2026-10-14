@@ -7,6 +7,7 @@ import unittest
 
 from flask import Flask
 from sqlalchemy import inspect, text
+from sqlalchemy.dialects import mysql
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
@@ -58,6 +59,25 @@ class TestDatabaseOwnedIds(unittest.TestCase):
             self.assertGreater(cron.id, 0)
             self.assertGreater(log.id, 0)
             self.assertGreater(event.id, 0)
+
+    def test_task_id_references_compile_as_mysql_bigint(self):
+        from datas.model.job_health import JobHealth
+        from datas.model.job_log import JobLog
+        from datas.model.job_log_event import JobLogEvent
+        from datas.model.operation_log import OperationLog
+        from datas.model.task_group import TaskGroup
+        from datas.model.task_tag import TaskTag
+
+        refs = (
+            JobLog.__table__.c.cron_info_id,
+            JobHealth.__table__.c.cron_info_id,
+            JobLogEvent.__table__.c.cron_id,
+            TaskGroup.__table__.c.task_id,
+            TaskTag.__table__.c.task_id,
+            OperationLog.__table__.c.target_id,
+        )
+        for column in refs:
+            self.assertIn('BIGINT', column.type.dialect_impl(mysql.dialect()).compile())
 
     def test_existing_bigint_event_table_switches_without_changing_rows(self):
         mod = _load_ensure()

@@ -23,7 +23,8 @@ class JobLog(db.Model):
         default='',
     )
     cron_info_id: Mapped[int] = mapped_column(
-        db.Integer, nullable=False, default=0, index=True
+        db.BigInteger().with_variant(db.Integer, 'sqlite'),
+        nullable=False, default=0, index=True
     )
     content: Mapped[str] = mapped_column(
         db.TEXT, nullable=False, default='', doc='返回的内容'

@@ -17,7 +17,9 @@ class JobLogEvent(db.Model):
     )
     trace_id: Mapped[str] = mapped_column(db.String(65), nullable=False, index=True)
     run_id: Mapped[Optional[int]] = mapped_column(db.BigInteger, nullable=True, index=True)
-    cron_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+    cron_id: Mapped[int] = mapped_column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'), nullable=False, index=True
+    )
     seq: Mapped[int] = mapped_column(db.Integer, nullable=False)
     event_type: Mapped[str] = mapped_column(db.String(48), nullable=False)
     occurred_at_ms: Mapped[int] = mapped_column(db.BigInteger, nullable=False)

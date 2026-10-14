@@ -37,6 +37,12 @@ def keyword_matched(body, error_keyword):
 def evaluate_http_response(http_status, body, error_keyword, fail_on_http_flag):
     """HTTP 已返回时综合判定 status / fail_reason。"""
     code = int(http_status)
+    # cron_do explicitly does not follow redirects.  A 3xx therefore proves
+    # only that the first hop replied, never that the configured trigger URL's
+    # destination was invoked.  This policy is independent of the optional
+    # 4xx/5xx compatibility switch.
+    if 300 <= code < 400:
+        return STATUS_FAIL, 'redirect_blocked'
     if fail_on_http_4xx_5xx_enabled(fail_on_http_flag):
         if code >= 500:
             return STATUS_FAIL, 'http_5xx'

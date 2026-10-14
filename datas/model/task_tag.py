@@ -10,7 +10,9 @@ from app import db
 class TaskTag(db.Model):
     __tablename__ = 'task_tags'
     id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+    task_id: Mapped[int] = mapped_column(
+        db.BigInteger().with_variant(db.Integer, 'sqlite'), nullable=False, index=True
+    )
     tag_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
 
     __table_args__ = (

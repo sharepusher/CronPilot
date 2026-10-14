@@ -409,7 +409,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                 if resolved_ip:
                                     _http = make_pinned_session(resolved_ip, _urlparse(req_url).hostname, _parsed_scheme)
                                 else:
-                                    _http = requests
+                                    raise RuntimeError('触发 URL 未获得经过校验的 pinned IP，拒绝发送请求')
 
                                 # GAP-3: HTTP 发出前日志 — 记录实际请求参数
                                 current_app.logger.info(
@@ -448,6 +448,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         json=post_body,
                                         timeout=timeout_sec,
                                         headers={'user-agent': 'CronPilot'},
+                                        allow_redirects=False,
                                     )
                                 else:
                                     _request_call_started = True
@@ -459,6 +460,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                         },
                                         timeout=timeout_sec,
                                         headers={'user-agent': 'CronPilot'},
+                                        allow_redirects=False,
                                     )
 
                                 ret = req.text
@@ -476,6 +478,18 @@ def cron_do(cron_id, trigger_source='schedule'):
                                     CRON_CONFIG.get('error_keyword'),
                                     CRON_CONFIG.get('fail_on_http_4xx_5xx'),
                                 )
+                                http_event_detail = {
+                                    'http_status': req.status_code,
+                                    'response_bytes': len(getattr(req, 'content', b'') or b''),
+                                    'transport_state': 'response_received',
+                                    'response_received': True,
+                                }
+                                if fail_reason == 'redirect_blocked':
+                                    redirect_location = sanitize_event_url(
+                                        req.headers.get('Location'), base_url=_actual_url,
+                                    )
+                                    if redirect_location:
+                                        http_event_detail['redirect_location'] = redirect_location
                                 saved_jl = _save_job_log(
                                     cron_id,
                                     ret,
@@ -499,12 +513,7 @@ def cron_do(cron_id, trigger_source='schedule'):
                                 tracer.emit(
                                     'http.complete',
                                     outcome='ok' if run_status == STATUS_SUCCESS else 'fail',
-                                    detail={
-                                        'http_status': req.status_code,
-                                        'response_bytes': len(getattr(req, 'content', b'') or b''),
-                                        'transport_state': 'response_received',
-                                        'response_received': True,
-                                    },
+                                    detail=http_event_detail,
                                 )
                                 if run_status == STATUS_ERROR:
                                     current_app.logger.error(

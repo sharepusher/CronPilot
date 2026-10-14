@@ -55,6 +55,7 @@ _FAIL_REASON_LABELS = {
     'keyword': '关键词匹配',
     'timeout': '请求超时',
     'connection': '连接失败',
+    'redirect_blocked': '重定向已阻止',
     'redirect_limit': '重定向次数超限',
     'client_incompatible': 'HTTP 客户端初始化失败',
     'blocked_url': 'URL 拦截',

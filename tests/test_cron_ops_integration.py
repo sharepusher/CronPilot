@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""CronStatusCell Vue 组件操作全链路集成测试。
+"""Redesign Dashboard 任务操作全链路集成测试。
 
 回归防护：
-- Vue onRunNow / onToggle 发出的 POST URL 是否正确（不得双拼 ?id=）
-- X-CSRFToken header 驱动的 CSRF 校验（模拟 Vue 的 csrfPost 行为）
+- Dashboard 的立即执行/启停操作是否携带唯一 task id
+- X-CSRFToken header 驱动的 CSRF 校验（模拟 Dashboard 的 $.post 行为）
 - 无 CSRF token 时接口必须拒绝
 
 前提条件：
@@ -21,11 +21,13 @@
 强制跳过：
   SKIP_INTEGRATION=1 python -m unittest tests.test_cron_ops_integration -v
 
-若未设置 CRONPILOT_WRITER_USER，会尝试 'op_testf1'（本地开发账号）；
-创建任务失败时测试自动跳过（skip），不会 fail。
+若未设置 CRONPILOT_WRITER_USER，会尝试 'op_testf1'（本地开发账号）。
+服务可用但测试任务创建失败时必须失败，不能以 skip 掩盖验证缺口。
 """
+import html
 import os
 import re
+import time
 import unittest
 
 BASE_URL = os.environ.get('CRONPILOT_BASE_URL', '').rstrip('/')
@@ -86,14 +88,75 @@ def _login_session(user=None, password=None):
     return s
 
 
-def _csrf_post(session, url, extra_headers=None):
-    """模拟 Vue csrfPost：从 cron_list 页面取 meta csrf-token，以 X-CSRFToken header POST。"""
+def _csrf_post(session, path, data, extra_headers=None):
+    """模拟 Dashboard $.post：从 cron_list 页面取 CSRF token 后携带 id POST。"""
     r = session.get(BASE_URL + '/cron_list', timeout=5)
     token = _extract_csrf_meta(r.text)
     headers = {'X-CSRFToken': token, 'Accept': 'application/json'}
     if extra_headers:
         headers.update(extra_headers)
-    return session.post(BASE_URL + url, headers=headers, timeout=5)
+    return session.post(BASE_URL + path, data=data, headers=headers, timeout=5)
+
+
+def _group_id_from_form(html_text):
+    """从当前 Redesign 表单取得 operator 被允许使用的业务组。"""
+    hidden = re.search(
+        r'<input[^>]+name=["\']group_id["\'][^>]+value=["\'](\d+)["\']',
+        html_text,
+    )
+    if hidden:
+        return hidden.group(1)
+    selected = re.search(
+        r'<select[^>]+name=["\']group_id["\'][^>]*>.*?'
+        r'<option[^>]+value=["\'](\d+)["\']',
+        html_text,
+        re.S,
+    )
+    if selected:
+        return selected.group(1)
+    raise AssertionError('cron_add 页面未提供可用业务组；operator 必须先绑定业务组')
+
+
+def _create_test_task(session, prefix):
+    """经真实 Web 表单创建作用域内任务，并从 Dashboard 行取得其数据库 ID。"""
+    form = session.get(BASE_URL + '/cron_add', timeout=5)
+    if form.status_code != 200:
+        raise AssertionError('GET /cron_add failed: %s' % form.status_code)
+    csrf = _extract_csrf_meta(form.text)
+    if not csrf:
+        raise AssertionError('cron_add 页面缺少 csrf token')
+    task_name = '%s-%d' % (prefix, time.time_ns())
+    create = session.post(
+        BASE_URL + '/cron_add',
+        data={
+            'task_name': task_name,
+            'task_keyword': 'automated integration test task',
+            'group_id': _group_id_from_form(form.text),
+            'ds_ms': '2',
+            'minute': '30',
+            'req_url': 'https://example.com/integration-test',
+            'req_method': 'GET',
+            'timeout_sec': '1',
+            'csrf_token': csrf,
+        },
+        headers={'X-Requested-With': 'XMLHttpRequest'},
+        timeout=5,
+    )
+    if create.status_code != 200:
+        raise AssertionError('POST /cron_add failed: %s %s' % (create.status_code, create.text))
+    payload = create.json()
+    if payload.get('errcode') != 0:
+        raise AssertionError('POST /cron_add rejected: %s' % payload)
+
+    dashboard = session.get(BASE_URL + '/cron_list', timeout=5)
+    name = re.escape(html.escape(task_name))
+    match = re.search(
+        r'href=["\'](/task_detail\?id=(\d+))["\'][^>]*>\s*%s\s*<' % name,
+        dashboard.text,
+    )
+    if not match:
+        raise AssertionError('新建任务未出现在 Dashboard: %s' % task_name)
+    return match.group(2), dashboard.text
 
 
 @unittest.skipIf(_SKIP_REASON, _SKIP_REASON)
@@ -102,45 +165,24 @@ class TestRunNowIntegration(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # 用 operator 账号（有 cron:write）创建测试任务
+        # 用 operator 账号（有 cron:write）经当前 Redesign 表单创建测试任务。
         cls.session = _login_session(user=WRITER_USER, password=WRITER_PASS)
-        r = cls.session.get(BASE_URL + '/cron_list', timeout=5)
-        csrf = _extract_csrf_meta(r.text)
-        cls.session.post(
-            BASE_URL + '/cron_add',
-            data={
-                'task_name': 'integration-run-now-test',
-                'task_keyword': 'integration test task for run_now',
-                'ds_ms': '2',
-                'minute': '30',
-                'req_url': 'https://example.com/integration-test',
-                'req_method': 'GET',
-                'csrf_token': csrf,
-            },
-            headers={'X-Requested-With': 'XMLHttpRequest'},
-            timeout=5,
-        )
-        # 重新取列表，提取 data-run-url
-        r = cls.session.get(BASE_URL + '/cron_list', timeout=5)
-        cls.list_html = r.text
-        m = re.search(r'data-run-url="([^"]+)"', cls.list_html)
-        cls.run_url = m.group(1) if m else None
+        cls.task_id, cls.list_html = _create_test_task(cls.session, 'integration-run-now')
+        cls.run_path = '/cron_run_now'
 
-    def test_run_url_format_no_double_question_mark(self):
-        """data-run-url 中 ? 只出现一次（防止 url_for+Vue 双拼 ?id= 的回归）。"""
-        if not self.run_url:
-            self.skipTest('No data-run-url found in cron_list (no tasks?)')
-        self.assertEqual(
-            self.run_url.count('?'), 1,
-            'data-run-url 含多个 ?，疑似 Vue 双拼 bug 回归: %s' % self.run_url,
+    def test_dashboard_run_action_has_one_task_id(self):
+        """Dashboard 行操作必须把该任务 ID 仅作为一次函数参数传入。"""
+        self.assertIn(
+            'onclick="cpRunNow(%s, this)"' % self.task_id,
+            self.list_html,
+            'Dashboard 未为新建任务渲染立即执行操作',
         )
-        self.assertIn('?id=', self.run_url, 'data-run-url 应含 ?id= 参数: %s' % self.run_url)
 
     def test_run_now_without_csrf_is_rejected(self):
         """不带 X-CSRFToken header 的 POST 应被 CSRF 拦截（403 或 errcode!=0 且 errmsg 含 csrf）。"""
-        if not self.run_url:
-            self.skipTest('No data-run-url found in cron_list (no tasks?)')
-        resp = self.session.post(BASE_URL + self.run_url, timeout=5)
+        resp = self.session.post(
+            BASE_URL + self.run_path, data={'id': self.task_id}, timeout=5
+        )
         self.assertIn(resp.status_code, (200, 400, 403))
         if resp.status_code == 200:
             data = resp.json()
@@ -151,9 +193,7 @@ class TestRunNowIntegration(unittest.TestCase):
 
     def test_run_now_with_csrf_header_passes_csrf_check(self):
         """带 X-CSRFToken header 的 POST 通过 CSRF 校验（errcode 由业务层决定，非 csrf 错误）。"""
-        if not self.run_url:
-            self.skipTest('No data-run-url found in cron_list (no tasks?)')
-        resp = _csrf_post(self.session, self.run_url)
+        resp = _csrf_post(self.session, self.run_path, {'id': self.task_id})
         self.assertIn(resp.status_code, (200, 400, 403))
         if resp.status_code == 200:
             data = resp.json()
@@ -168,44 +208,24 @@ class TestUpdateStatusIntegration(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # 用 operator 账号（有 cron:write）创建测试任务
+        # 用 operator 账号（有 cron:write）经当前 Redesign 表单创建测试任务。
         cls.session = _login_session(user=WRITER_USER, password=WRITER_PASS)
-        r = cls.session.get(BASE_URL + '/cron_list', timeout=5)
-        csrf = _extract_csrf_meta(r.text)
-        cls.session.post(
-            BASE_URL + '/cron_add',
-            data={
-                'task_name': 'integration-toggle-test',
-                'task_keyword': 'integration test task for update_status',
-                'ds_ms': '2',
-                'minute': '30',
-                'req_url': 'https://example.com/integration-toggle',
-                'req_method': 'GET',
-                'csrf_token': csrf,
-            },
-            headers={'X-Requested-With': 'XMLHttpRequest'},
-            timeout=5,
-        )
-        r = cls.session.get(BASE_URL + '/cron_list', timeout=5)
-        cls.list_html = r.text
-        m = re.search(r'data-update-url="([^"]+)"', cls.list_html)
-        cls.update_url = m.group(1) if m else None
+        cls.task_id, cls.list_html = _create_test_task(cls.session, 'integration-toggle')
+        cls.update_path = '/update_status'
 
-    def test_update_url_format_no_double_question_mark(self):
-        """data-update-url 中 ? 只出现一次（防止双拼回归）。"""
-        if not self.update_url:
-            self.skipTest('No data-update-url found in cron_list (no tasks?)')
-        self.assertEqual(
-            self.update_url.count('?'), 1,
-            'data-update-url 含多个 ?，疑似双拼 bug: %s' % self.update_url,
+    def test_dashboard_toggle_action_has_one_task_id(self):
+        """Dashboard 的状态菜单必须把该任务 ID 仅作为一次函数参数传入。"""
+        self.assertIn(
+            'onclick="cpToggleStatus(%s, 0, this)"' % self.task_id,
+            self.list_html,
+            'Dashboard 未为新建任务渲染暂停操作',
         )
-        self.assertIn('?id=', self.update_url)
 
     def test_update_status_without_csrf_is_rejected(self):
         """不带 X-CSRFToken 的 POST 应被拒。"""
-        if not self.update_url:
-            self.skipTest('No data-update-url found in cron_list (no tasks?)')
-        resp = self.session.post(BASE_URL + self.update_url, timeout=5)
+        resp = self.session.post(
+            BASE_URL + self.update_path, data={'id': self.task_id}, timeout=5
+        )
         self.assertIn(resp.status_code, (200, 400, 403))
         if resp.status_code == 200:
             data = resp.json()
@@ -213,9 +233,7 @@ class TestUpdateStatusIntegration(unittest.TestCase):
 
     def test_update_status_with_csrf_header_passes_csrf_check(self):
         """带 X-CSRFToken header 通过 CSRF 校验。"""
-        if not self.update_url:
-            self.skipTest('No data-update-url found in cron_list (no tasks?)')
-        resp = _csrf_post(self.session, self.update_url)
+        resp = _csrf_post(self.session, self.update_path, {'id': self.task_id})
         self.assertIn(resp.status_code, (200, 400, 403))
         if resp.status_code == 200:
             data = resp.json()
@@ -226,13 +244,15 @@ class TestUpdateStatusIntegration(unittest.TestCase):
         """viewer 角色无 cron:write，update_status 应返回 403。"""
         viewer_session = _login_session(user=VIEWER_USER, password=VIEWER_PASS)
         r = viewer_session.get(BASE_URL + '/cron_list', timeout=5)
-        self.assertNotIn('data-update-url=', r.text,
-                         'viewer 不应看到 data-update-url')
+        self.assertNotIn(
+            'onclick="cpToggleStatus(%s,' % self.task_id,
+            r.text,
+            'viewer 不应看到该任务的启停操作',
+        )
         # 即使直接 POST 也应 403
-        if self.update_url:
-            resp = _csrf_post(viewer_session, self.update_url)
-            self.assertEqual(resp.status_code, 403,
-                             'viewer POST update_status 应 403: %s' % resp.status_code)
+        resp = _csrf_post(viewer_session, self.update_path, {'id': self.task_id})
+        self.assertEqual(resp.status_code, 403,
+                         'viewer POST update_status 应 403: %s' % resp.status_code)
 
 
 if __name__ == '__main__':

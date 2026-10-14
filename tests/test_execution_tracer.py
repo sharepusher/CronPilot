@@ -62,3 +62,23 @@ class TestExecutionTracer(unittest.TestCase):
 
         self.assertEqual(len(rows), 16)
         self.assertEqual(rows[0].detail, '{"method": "GET"}')
+
+    def test_redirect_location_is_sanitized_before_persistence(self):
+        from app.services.execution_tracer import ExecutionTracer, sanitize_event_url
+        from datas.model.job_log_event import JobLogEvent
+
+        location = sanitize_event_url(
+            '/next?token=secret', base_url='https://example.com/start?sign=secret',
+        )
+        self.assertEqual(location, 'https://example.com/next?token=***')
+        with self.app.app_context():
+            tracer = ExecutionTracer('trace-redirect', 9)
+            self.assertTrue(tracer.emit('http.complete', detail={
+                'http_status': 302,
+                'redirect_location': location,
+                'unapproved': 'must-not-persist',
+            }))
+            row = self.db.session.query(JobLogEvent).one()
+        self.assertIn('redirect_location', row.detail)
+        self.assertNotIn('secret', row.detail)
+        self.assertNotIn('unapproved', row.detail)

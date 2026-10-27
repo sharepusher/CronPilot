@@ -51,6 +51,12 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 - 既有数据 ID 不重编号；新 ID 由数据库生成，MySQL 任务关联列迁移为 `BIGINT`。
 - `auth_version` 加固会使缺少版本键的旧 Web Session 重新登录；本候选版本不删除 API 响应字段。
 
+### Release assets
+
+Download `cronpilot-4.1.1.tar.gz` and verify it with `cronpilot-4.1.1.tar.gz.sha256`. This is the supported production deployment package; its companion `cronpilot-4.1.1.tar.gz.build.json` records reproducible build inputs.
+
+GitHub-generated `Source code` archives are complete repository snapshots for development and audit and are **not recommended for production deployment**.
+
 详细证据：[代码全面 Review 与未提交变更评估](qa/2026-10-10-代码全面Review与未提交变更评估.html) · [任务触发安全与测试契约漂移复盘](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html)
 
 关键设计：[DNS 安全设计](design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx 与 Pinning 设计](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [数据库自增 ID 设计](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html)
@@ -58,6 +64,12 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 ## [4.1.0] — 2026-10-14 · Security, Data Integrity, and Release Packaging
 
 Released the v4.1 baseline for task-trigger DNS/redirect hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible lightweight packaging. v4.1.1 adds the RBAC Scope boundary controls described above.
+
+### Release assets
+
+Download `cronpilot-4.1.0.tar.gz` and verify it with `cronpilot-4.1.0.tar.gz.sha256`. This is the supported production deployment package; its companion `cronpilot-4.1.0.tar.gz.build.json` records reproducible build inputs.
+
+GitHub-generated `Source code` archives are complete repository snapshots for development and audit and are **not recommended for production deployment**.
 
 ## [2.7.1] — 2026-08-03
 

@@ -79,12 +79,19 @@
     <li>既有数据 ID 不重编号；新 ID 由数据库生成，MySQL 任务关联列迁移为 <code>BIGINT</code>。</li>
     <li><code>auth_version</code> 加固会使缺少版本键的旧 Web Session 重新登录；本候选版本不删除 API 响应字段。</li>
   </ul>
+  <h3>Release assets</h3>
+  <p>Download <code>cronpilot-4.1.1.tar.gz</code> and verify it with <code>cronpilot-4.1.1.tar.gz.sha256</code>. This is the supported production deployment package; its companion <code>cronpilot-4.1.1.tar.gz.build.json</code> records reproducible build inputs.</p>
+  <p>GitHub-generated <code>Source code</code> archives are complete repository snapshots for development and audit and are <strong>not recommended for production deployment</strong>.</p>
   <p>详细证据：<a href="qa/2026-10-10-代码全面Review与未提交变更评估.html">代码全面 Review 与未提交变更评估</a> · <a href="postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html">任务触发安全与测试契约漂移复盘</a></p>
   <p>关键设计：<a href="design/任务触发URL-DNS二次解析安全修复设计-2026-10.html">DNS 安全设计</a> · <a href="design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html">3xx 与 Pinning 设计</a> · <a href="design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html">数据库自增 ID 设计</a></p>
 </div>
 
 <h2 id="v4-1-0">[4.1.0] — 2026-10-14 · Security, Data Integrity, and Release Packaging</h2>
-<div class="card highlight"><p>Released the v4.1 baseline for task-trigger DNS/redirect hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible lightweight packaging. v4.1.1 adds the RBAC Scope boundary controls described above.</p></div>
+<div class="card highlight"><p>Released the v4.1 baseline for task-trigger DNS/redirect hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible lightweight packaging. v4.1.1 adds the RBAC Scope boundary controls described above.</p>
+  <h3>Release assets</h3>
+  <p>Download <code>cronpilot-4.1.0.tar.gz</code> and verify it with <code>cronpilot-4.1.0.tar.gz.sha256</code>. This is the supported production deployment package; its companion <code>cronpilot-4.1.0.tar.gz.build.json</code> records reproducible build inputs.</p>
+  <p>GitHub-generated <code>Source code</code> archives are complete repository snapshots for development and audit and are <strong>not recommended for production deployment</strong>.</p>
+</div>
 
 <h2 class="new" id="v2-7-1">[2.7.1] — 2026-08-03</h2>
   <div class="card highlight">

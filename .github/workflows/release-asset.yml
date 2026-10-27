@@ -74,4 +74,23 @@ jobs:
               --title "CronPilot $VERSION" \
               --notes-file dist/release-notes.md
           fi
+          release_assets="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
+          for asset in "${assets[@]}"; do
+            asset_name="${asset#dist/}"
+            if ! grep -Fqx "$asset_name" <<<"$release_assets"; then
+              echo "Release asset is missing after upload: $asset_name" >&2
+              exit 1
+            fi
+          done
+          release_body="$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)"
+          for required_text in \
+            "cronpilot-$VERSION.tar.gz" \
+            "cronpilot-$VERSION.tar.gz.sha256" \
+            "Source code" \
+            "not recommended for production deployment"; do
+            if ! grep -Fq "$required_text" <<<"$release_body"; then
+              echo "Release body is missing required deployment-boundary text: $required_text" >&2
+              exit 1
+            fi
+          done
           gh release edit "$GITHUB_REF_NAME" --draft=false --latest

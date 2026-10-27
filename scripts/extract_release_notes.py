@@ -14,7 +14,19 @@ REQUIRED_HEADINGS = (
     "### Why",
     "### Validation",
     "### Compatibility & Risk",
+    "### Release assets",
 )
+
+
+def required_asset_markers(version: str) -> tuple[str, ...]:
+    """Return the non-negotiable deployment-boundary language for a release."""
+    archive = f"cronpilot-{version}.tar.gz"
+    return (
+        archive,
+        f"{archive}.sha256",
+        "Source code",
+        "not recommended for production deployment",
+    )
 
 
 def extract_release_notes(text: str, version: str) -> str:
@@ -30,6 +42,14 @@ def extract_release_notes(text: str, version: str) -> str:
             if missing:
                 raise ValueError(
                     f"release notes section [{target}] is missing: {', '.join(missing)}"
+                )
+            missing_markers = [
+                marker for marker in required_asset_markers(version) if marker not in body
+            ]
+            if missing_markers:
+                raise ValueError(
+                    f"release notes section [{target}] is missing required release-asset "
+                    f"language: {', '.join(missing_markers)}"
                 )
             return f"# CronPilot {version}\n\n{body}\n"
     raise ValueError(f"no [{version}] or [Unreleased] release notes section found")

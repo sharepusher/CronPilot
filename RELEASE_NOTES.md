@@ -65,6 +65,12 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - No API response field removal is introduced by this release candidate.
 - User-management response shapes are unchanged; only previously unauthorized global/out-of-scope grants are now rejected.
 
+### Release assets
+
+Download `cronpilot-4.1.1.tar.gz` and verify it with `cronpilot-4.1.1.tar.gz.sha256`. This is the supported production deployment package; its companion `cronpilot-4.1.1.tar.gz.build.json` records the reproducible build inputs.
+
+GitHub-generated `Source code` archives are complete repository snapshots for development and audit and are **not recommended for production deployment**.
+
 Key sources: [DNS design](doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx and pinning design](doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [database ID design](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · [delivery roadmap](doc/交付状态与路线图.html)
 
 ---
@@ -79,6 +85,12 @@ Key sources: [DNS design](doc/design/任务触发URL-DNS二次解析安全修复
 ### Compatibility & Risk
 
 - Existing task URLs and stored IDs remain compatible. Operators should run the standard business-table migration before starting an upgraded deployment.
+
+### Release assets
+
+Download `cronpilot-4.1.0.tar.gz` and verify it with `cronpilot-4.1.0.tar.gz.sha256`. This is the supported production deployment package; its companion `cronpilot-4.1.0.tar.gz.build.json` records the reproducible build inputs.
+
+GitHub-generated `Source code` archives are complete repository snapshots for development and audit and are **not recommended for production deployment**.
 
 ---
 

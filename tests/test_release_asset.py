@@ -119,6 +119,11 @@ Checks.
 
 ### Compatibility & Risk
 Risk.
+
+### Release assets
+
+Download `cronpilot-4.1.0.tar.gz` and verify it with `cronpilot-4.1.0.tar.gz.sha256`.
+GitHub-generated `Source code` archives are complete repository snapshots and are not recommended for production deployment.
 """
         result = EXTRACTOR.extract_release_notes(source, "4.1.0")
         self.assertTrue(result.startswith("# CronPilot 4.1.0\n"))
@@ -132,6 +137,34 @@ Risk.
                 "4.1.0",
             )
 
+    def test_release_notes_reject_missing_deployment_boundary(self):
+        source = """## [Unreleased]
+
+### What changed
+A
+
+### Why
+B
+
+### Validation
+C
+
+### Compatibility & Risk
+D
+
+### Release assets
+
+Download `cronpilot-4.1.0.tar.gz`.
+"""
+        with self.assertRaisesRegex(ValueError, "release-asset language"):
+            EXTRACTOR.extract_release_notes(source, "4.1.0")
+
+    def test_current_release_notes_satisfy_deployment_boundary(self):
+        source = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+        result = EXTRACTOR.extract_release_notes(source, "4.1.1")
+        self.assertIn("cronpilot-4.1.1.tar.gz.sha256", result)
+        self.assertIn("not recommended for production deployment", result)
+
     def test_workflow_creates_draft_before_publishing(self):
         workflow = (ROOT / ".github" / "workflows" / "release-asset.yml").read_text(
             encoding="utf-8"
@@ -142,6 +175,10 @@ Risk.
         self.assertIn("--draft", workflow[create:publish])
         self.assertIn("--verify-tag", workflow[create:publish])
         self.assertIn("scripts/extract_release_notes.py", workflow)
+        self.assertIn('gh release view "$GITHUB_REF_NAME" --json assets', workflow)
+        self.assertIn("not recommended for production deployment", workflow)
+        self.assertLess(workflow.index("release_assets=\"$(gh release view"), publish)
+        self.assertLess(workflow.index("release_body=\"$(gh release view"), publish)
 
 
 if __name__ == "__main__":

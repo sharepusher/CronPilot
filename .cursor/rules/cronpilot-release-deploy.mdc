@@ -31,6 +31,7 @@ alwaysApply: false
 - [ ] **验证通过**：`cronpilot.sh test` + `verify_golden_path.sh`；**Docker 须** `verify_cronpilot_docker_mac.sh`（full）**且** `verify_docker_compose.sh`
 - [ ] **Release 前文档梳理**（打 tag / 发 GitHub Release **之前**必做）：
   - [ ] `RELEASE_NOTES.md` / `doc/RELEASE_NOTES.html`：对外专业英文表述（变更要点 + 升级步骤）；**无**内部编号与进度板口吻
+  - [ ] **发布资产边界**：版本说明必须有 `Release assets` 小节，指定 `cronpilot-<version>.tar.gz` + 同名 `.sha256` 为唯一生产部署入口；必须声明 GitHub 自动 `Source code` 为完整审计快照、**not recommended for production deployment**。随 Release 上传 tar、`.sha256`、`.build.json` 三项资产；不得把自动 Source code 当作安装包。
   - [ ] **Unreleased 归档**：将 `[Unreleased]` 节下所有实质内容合并到新版本节，Unreleased 节清空（仅保留占位说明）
   - [ ] **双文件同步**：根目录 `RELEASE_NOTES.md` 与 `doc/RELEASE_NOTES.html` 的版本节数、子节标题、测试计数三项须一致
   - [ ] **版本总览表更新**：底部 "Version index" 表须包含新版本行

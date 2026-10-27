@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>发布资产与源码归档边界规范（2026-10）</title></head><body><main>
+<h1>发布资产与源码归档边界规范</h1>
+<p>版本：v1.0 · 日期：2026-10-27 · 状态：<strong>已确认并实施（R1–R3；R4 已完成本地演练，待下一 tag 端到端执行）</strong> · 目标版本：4.1.2 起的所有发布</p>
+
+<h2>1. 问题</h2>
+<p>GitHub Release 页面会自动显示 <code>Source code (zip)</code> 与 <code>Source code (tar.gz)</code>。它们是 tag 对应的完整仓库快照，包含经审计保留的历史文档截图；因此体积可达二十余 MiB。虽然项目已能生成约 0.61 MiB 的白名单安装包 <code>cronpilot-&lt;version&gt;.tar.gz</code>，但发布页面和自动化没有把二者的职责边界变成不可遗漏的发布契约，下载者仍可能误将 Source code 当成部署包。</p>
+
+<h2>2. 根因</h2>
+<ol>
+<li>白名单仅控制自定义 Release asset，不能改变 GitHub 自动 Source code 归档的完整源码快照语义。</li>
+<li>现有工作流会构建并上传自定义资产，但没有机器校验 Release 文案必须明确“部署包唯一入口”和自动归档的非部署用途。</li>
+<li>发布检查只验证归档内容，未在发布完成后核验 Release 页面具备 tar、SHA-256 与构建报告三个交付物。</li>
+</ol>
+
+<h2>3. 方案与决策</h2>
+<h3>3.1 产物职责（规范性要求）</h3>
+<table border="1"><thead><tr><th>产物</th><th>用途</th><th>截图策略</th><th>部署支持</th></tr></thead><tbody>
+<tr><td>Git clone</td><td>开发、审计、追溯</td><td>保留历史证据</td><td>非最小部署入口</td></tr>
+<tr><td>GitHub 自动 Source code</td><td>tag 的完整源码快照、审计与源码浏览</td><td>保留历史证据</td><td><strong>不推荐用于生产部署</strong></td></tr>
+<tr><td><code>cronpilot-&lt;version&gt;.tar.gz</code></td><td>生产部署</td><td>白名单强制排除历史截图、QA 资产与测试代码</td><td><strong>唯一推荐安装包</strong></td></tr>
+<tr><td><code>.sha256</code>、<code>.build.json</code></td><td>完整性与可审计性</td><td>不含截图内容</td><td>必须与安装包一起发布</td></tr>
+</tbody></table>
+<p>不删除历史截图、不重写 Git 历史，也不以 <code>.gitattributes export-ignore</code> 改变自动源码归档。本规范选择保留完整审计快照，并消除它被误作部署包的可能；若将来要让 GitHub 自动归档也排除文件，必须另立设计评估其对源码复现和审计的影响。</p>
+
+<h3>3.2 发布文案与自动化门禁</h3>
+<ol>
+<li><code>RELEASE_NOTES.md</code> 的每个可发布版本段必须含固定的 <code>Release assets</code> 小节：明确下载 <code>cronpilot-&lt;version&gt;.tar.gz</code>，先使用同名 <code>.sha256</code> 校验；声明 GitHub 自动 Source code 是完整仓库快照，不推荐生产部署。</li>
+<li><code>scripts/extract_release_notes.py</code> 将该小节列为必需标题和必需语义；缺失时 tag 工作流在创建/更新 Release 前失败。</li>
+<li><code>.github/workflows/release-asset.yml</code> 在发布前校验三项自定义资产的文件名；发布后以 <code>gh release view --json assets,body</code> 断言 tar、sha256、build.json 均存在，且正文含受控提示文本。发布后断言失败时将工作流标红并保留可诊断输出。</li>
+<li>README 保持同一边界：推荐安装包在前，自动 Source code 的完整快照用途紧随其后。该条是文档一致性检查项。</li>
+</ol>
+
+<h2>4. 范围</h2>
+<p><strong>包含：</strong>发布说明模板、提取校验、tag 工作流的发布前后断言、README/Release Notes 的一致性检查和 4.1.2 起的发布操作规范。</p>
+<p><strong>不包含：</strong>应用代码、用户界面、数据库、API、已有 tag 的重写、历史截图删除、Git 历史清理、Git LFS 或自动 Source code 的内容裁剪。本设计没有应用页面可见变更，故不需要页面 Before/After 对比。</p>
+
+<h2>5. 分批实施</h2>
+<table border="1"><thead><tr><th>批次</th><th>动作</th><th>完成条件</th></tr></thead><tbody>
+<tr><td>R1 文案契约</td><td>为 Release Notes 增加固定 Release assets 小节；README 与发布规则引用同一术语</td><td>提取器能拒绝缺失或不完整的版本段</td></tr>
+<tr><td>R2 发布前门禁</td><td>扩展提取器及其测试，确保 tag workflow 只接受具备四个专业英文小节和资产提示的版本说明</td><td>正反用例均通过，缺少资产提示不能生成 notes</td></tr>
+<tr><td>R3 发布后核验</td><td>在工作流上传/创建 Release 后核验正文和 tar、sha256、build.json 三项资产</td><td>模拟缺一资产或缺提示时工作流命令失败</td></tr>
+<tr><td>R4 发布演练</td><td>以非破坏性本地构建和 workflow 静态检查验证；下一新 tag 由 CI 完成端到端验证</td><td>自定义包仍无历史截图，文案和资产契约均可复现</td></tr>
+</tbody></table>
+
+<h2>6. 验收</h2>
+<ol>
+<li><code>python scripts/build_release_asset.py --version X.Y.Z --ref vX.Y.Z --output /tmp/cronpilot-X.Y.Z.tar.gz</code> 与 <code>python scripts/check_release_asset.py --archive /tmp/cronpilot-X.Y.Z.tar.gz --version X.Y.Z</code> 均通过，且校验器报告中无历史截图。</li>
+<li><code>python -m unittest tests.test_extract_release_notes -v</code> 覆盖资产小节缺失、提示文本缺失和合格文案三类情形。</li>
+<li>工作流静态检查确认上传资产恰为 tar、sha256、build.json，并有发布后 <code>gh release view</code> 断言。</li>
+<li>从 GitHub Release 页面下载自定义 tar 后，校验 SHA-256 与构建报告一致；自动 Source code 只作为完整源码快照存在，Release 正文明确其不适用于生产部署。</li>
+<li>不修改 <code>v4.1.1</code> tag；规范仅对确认后的下一版本生效。</li>
+</ol>
+
+<h2>7. 风险与回滚</h2>
+<ul>
+<li><strong>措辞漂移：</strong>固定提示文本可能被手改删除；用提取器和发布后 API 断言阻断。</li>
+<li><strong>发布后核验失败：</strong>Release 可能已创建但未完整；工作流输出实际 assets/body，维护者补齐后仅重跑失败 job，不移动 tag。</li>
+<li><strong>误解为删除自动归档：</strong>GitHub 自动归档无法通过白名单构建器替代；本规范明确保留它的审计用途。</li>
+<li><strong>回滚：</strong>若 R3 兼容性问题阻断发布，可仅回滚发布后核验步骤；R1 的下载指引和自定义包白名单不回退。</li>
+</ul>
+
+<h2>确认记录</h2>
+<p>用户于 2026-10-27 确认采用本规范：保留 GitHub 自动 Source code 作为完整审计快照，从 4.1.2 起只将自定义 tar + SHA-256 + 构建报告视为可部署发布资产，并由 CI 强制文案与资产完整性。若未来要求自动 Source code 也排除截图，须另立 <code>export-ignore</code> 方案评估，不直接改变本规范。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="发布资产与源码归档边界规范-2026-10.md">Markdown</a></footer>
+</main></body></html>

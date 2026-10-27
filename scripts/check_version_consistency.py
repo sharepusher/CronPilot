@@ -13,8 +13,10 @@
     4. RELEASE_NOTES.md 中各 tag 对应的章节存在
     5. RELEASE_NOTES.md [Unreleased] 节无残留实质内容
     6. RELEASE_NOTES.md 底部版本总览表涵盖所有已发布版本
+    7. 已发布章节不得保留指向已发布版本的 "before publishing" blocker
 """
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -25,6 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / 'README.md'
 ROADMAP = ROOT / 'doc' / '交付状态与路线图.html'
 RELEASE_NOTES = ROOT / 'RELEASE_NOTES.md'
+RELEASE_MANIFEST = ROOT / 'release' / 'release-manifest.json'
+PUBLISHED_BLOCKER_RE = re.compile(
+    r'\bbefore\s+publishing\s+v?(\d+\.\d+\.\d+)\b', re.IGNORECASE
+)
 
 
 def get_git_tags():
@@ -42,6 +48,10 @@ def get_git_tags():
         return tags
     except FileNotFoundError:
         return []
+
+
+def is_valid_release_tag(value):
+    return bool(re.fullmatch(r'v\d+\.\d+\.\d+', value or ''))
 
 
 def extract_readme_versions(path):
@@ -118,10 +128,63 @@ def check_version_index_table(path, expected_versions):
     return []
 
 
+def check_published_release_note_semantics(path, published_tags):
+    """Reject stale release-blocker language in already-published sections.
+
+    This intentionally checks one explicit, versioned English phrase instead of
+    attempting broad natural-language classification. Historical migration
+    explanations remain valid when they do not claim to block an already
+    published version.
+    """
+    if not path.exists():
+        return []
+    text = path.read_text(encoding='utf-8')
+    sections = list(re.finditer(
+        r'^## \[(\d+\.\d+\.\d+)\].*?\n(.*?)(?=^## |\Z)',
+        text, re.MULTILINE | re.DOTALL,
+    ))
+    issues = []
+    for section in sections:
+        current = 'v' + section.group(1)
+        for match in PUBLISHED_BLOCKER_RE.finditer(section.group(2)):
+            referenced = 'v' + match.group(1)
+            if referenced in published_tags:
+                issues.append(
+                    '%s 节仍含已发布版本 %s 的 before publishing blocker' %
+                    (current, referenced)
+                )
+    return issues
+
+
+def check_release_manifest(path, expected_tag):
+    """Validate structured release readiness for a tagged publish."""
+    if not path.exists():
+        return ['release/release-manifest.json 缺失']
+    try:
+        manifest = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        return ['release manifest 无法解析: %s' % exc]
+    if not isinstance(manifest, dict):
+        return ['release manifest 必须为 JSON object']
+    errors = []
+    expected_fields = {'version', 'readiness', 'release_blockers'}
+    actual_fields = set(manifest)
+    if actual_fields != expected_fields:
+        errors.append('release manifest 字段必须严格为 version/readiness/release_blockers')
+    if manifest.get('version') != expected_tag.lstrip('v'):
+        errors.append('release manifest version 与 tag 不一致')
+    if manifest.get('readiness') not in {'ready', 'published'}:
+        errors.append('release manifest readiness 必须为 ready 或 published')
+    if manifest.get('release_blockers') != []:
+        errors.append('release manifest release_blockers 必须为空数组')
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description='检查版本一致性')
     parser.add_argument('--check', action='store_true',
                         help='CI 模式：不一致则 exit 1')
+    parser.add_argument('--tag', help='在 tag workflow 中显式校验当前 tag')
     args = parser.parse_args()
 
     tags = get_git_tags()
@@ -138,6 +201,12 @@ def main():
     readme_current = extract_readme_current_version(README)
 
     issues = []
+
+    if args.tag and not is_valid_release_tag(args.tag):
+        issues.append(('当前 tag', f'格式非法: {args.tag}'))
+    if args.tag and is_valid_release_tag(args.tag):
+        for msg in check_release_manifest(RELEASE_MANIFEST, args.tag):
+            issues.append(('release manifest', msg))
 
     # 1. README 版本表 vs git tags
     missing_in_readme = tag_set - readme_versions
@@ -169,6 +238,10 @@ def main():
     rn_versions_raw = extract_release_notes_versions(RELEASE_NOTES)
     for msg in check_version_index_table(RELEASE_NOTES, rn_versions_raw):
         issues.append(('RELEASE_NOTES 版本总览', msg))
+
+    # 7. 已发布章节语义完整性
+    for msg in check_published_release_note_semantics(RELEASE_NOTES, tag_set):
+        issues.append(('RELEASE_NOTES 发布语义', msg))
 
     # 输出
     if issues:

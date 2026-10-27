@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>发布治理语义门禁与 Release Notes 收口设计（2026-10）</title>
+  <style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.7;max-width:1040px;margin:auto;padding:32px;color:#1f2937}h1,h2{color:#111827}h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.6rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code,pre{background:#f3f4f6}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto}.decision,.risk,.scope{padding:1rem;border-left:5px solid;margin:1rem 0}.decision{background:#eff6ff;border-color:#2563eb}.risk{background:#fff7ed;border-color:#f97316}.scope{background:#ecfdf5;border-color:#059669}</style>
+</head>
+<body><main>
+<h1>发布治理语义门禁与 Release Notes 收口设计</h1>
+<p>编号：Release Governance 2026-10 · 状态：已确认并实施 · 适用版本：后续发布版本，不回写已发布 tag 的历史事实。</p>
+
+<div class="decision"><strong>推荐决策：</strong>修正 4.1.1 Release Notes 中已过期的历史 blocker 文案；将版本一致性检查接入 tag 发布工作流；新增已发布版本的语义一致性门禁；在发布前增加远端 Release 资产与工作流结果核验。四项分批实施，每批可独立验证。</div>
+
+<h2>1. 问题</h2>
+<p>当前版本结构事实已闭环：<code>v4.1.0</code>、<code>v4.1.1</code> tag 存在，README、路线图、Release Notes 与版本一致性脚本对齐。但 4.1.1 节仍保留面向旧时点的“发布 4.1.0 前完成 MySQL 演练”表述。现有版本脚本主要检查版本是否存在，不检查已发布章节的状态语义；版本工作流也未在 tag 发布路径直接调用该脚本。</p>
+
+<h2>2. 根因</h2>
+<ul><li>发布说明同时承担历史决策记录和当前部署指引，缺少“已完成事实/当前阻断/历史说明”的机器可判定边界。</li><li>版本一致性门禁触发于 main/PR 的文档变更路径，而 tag 发布工作流独立运行，存在门禁链路断开。</li><li>结构完整性（章节存在、tag 存在）与语义准确性（不能把旧 blocker 留在已发布版本）被视为同一层检查。</li></ul>
+
+<h2>3. 方案</h2>
+<table><thead><tr><th>措施</th><th>设计决策</th><th>不做什么</th></tr></thead><tbody>
+<tr><td>A · 修正文案</td><td>将 4.1.1 的旧 blocker 改成已完成的 MySQL 演练事实，或移入 4.1.0 历史节；不改变 tag、代码和资产。</td><td>不重写历史版本日期和 tag 指向。</td></tr>
+<tr><td>B · Tag 工作流接入结构门禁</td><td>在 <code>.github/workflows/release-asset.yml</code> 的 tagged checkout 后执行 <code>check_version_consistency.py --check</code>；失败则不构建或发布资产。</td><td>不以本地工作树状态代替 tagged commit 验证。</td></tr>
+<tr><td>C · 增加语义门禁</td><td>在 <code>scripts/check_version_consistency.py</code> 增加已发布章节语义检查：禁止引用更早已发布版本的“before publishing” blocker；复杂自然语言不做全面 NLP，只做明确、可审计的模式与版本比较。</td><td>不把所有 Release Notes 文案交给脆弱的关键词扫描；不阻止正常的历史迁移说明。</td></tr>
+<tr><td>D · 远端发布核验</td><td>保留现有工作流的双构建、资产校验、启动验证和资产存在性断言；补充发布后核验记录，确认 workflow 成功、Release 非 draft、3 个资产存在且 Release notes 取自目标版本节。</td><td>不在本地伪造 GitHub 状态；无法访问远端时只标记为未核验。</td></tr>
+</tbody></table>
+
+<h2>4. 范围</h2>
+<p><strong>包含：</strong><code>RELEASE_NOTES.md</code>、对应 HTML/Markdown 同步、<code>scripts/check_version_consistency.py</code>、其测试、<code>.github/workflows/release-asset.yml</code>、必要的文档索引和验收记录。</p>
+<p><strong>不包含：</strong>业务代码、数据库迁移、tag 重建、删除 GitHub Release、修改已发布资产、依赖升级和发布流程之外的安全策略。</p>
+
+<h2>5. 分批实施</h2>
+<ol><li><strong>批次 A：文案收口。</strong>修正 4.1.1 说明，生成 HTML/Markdown，运行文档同步与链接门禁。</li><li><strong>批次 B：语义门禁。</strong>先写失败测试，再实现旧 blocker 识别和版本比较；验证正常历史说明不误报。</li><li><strong>批次 C：Tag 工作流。</strong>在 tagged checkout 上接入结构与语义门禁，验证失败时不会生成/上传资产。</li><li><strong>批次 D：发布验收。</strong>执行版本检查、全量相关测试、发布包双构建/验包；若有远端权限，再核对 GitHub Actions 与 Release 状态并记录证据。</li></ol>
+
+<h2>6. 验收标准</h2>
+<ul><li><code>.venv-py311/bin/python scripts/check_version_consistency.py --check</code> 通过。</li><li>新增语义门禁测试覆盖：旧版本 blocker 被拒绝、已完成事实通过、正常历史说明通过、无版本号文案不误报。</li><li><code>.github/workflows/release-asset.yml</code> 在 tag checkout 后执行门禁；模拟失败时 job 在资产构建前退出。</li><li><code>.venv-py311/bin/python scripts/html_docs_to_markdown.py --check</code>、<code>check_doc_completeness.py --check</code>、<code>check_doc_links.py --check</code> 全部通过。</li><li>发布资产仍满足双构建字节一致、包内容校验、解压启动黄金路径和 Release 资产完整性。</li></ul>
+
+<h2>7. 风险与回滚</h2>
+<div class="risk"><ul><li>自然语言门禁可能误报：只允许明确版本化 blocker 模式，并为历史说明提供反例测试。</li><li>Tag 工作流新增门禁可能阻断已有发布：先在 pull request/main 门禁验证，再接入 tag；失败时只阻断新发布，不修改历史 tag。</li><li>远端状态需要 GitHub 权限：无权限时保留本地可复现证据，并明确“远端未核验”，不伪造通过。</li></ul></div>
+
+<h2>8. 待确认事项</h2>
+<p>用户已确认按 A→B→C→D 四批实施。本轮已完成 A/B/C，并执行 D 批次本地验收；远端 GitHub Actions/Release 状态未在本地伪造为已核验。</p>
+
+<h2>9. 实施记录与结果</h2>
+<ul><li>A：根目录 <code>RELEASE_NOTES.md</code> 的 4.1.1 MySQL blocker 已改为完成事实。</li><li>B：<code>check_published_release_note_semantics()</code> 已加入 <code>scripts/check_version_consistency.py</code>，并新增 4 项回归测试。</li><li>C：<code>release-asset.yml</code> 在 tagged checkout 后、资产构建前执行版本一致性门禁。</li><li>D：版本、文档、链接、语义测试、Ruff 与差异检查通过；远端发布结果需在实际 tag workflow 中确认。</li></ul>
+</main><footer><a href="../index.html">文档索引</a> · <a href="发布治理语义门禁与Release-Notes收口设计-2026-10.md">Markdown</a></footer></body></html>

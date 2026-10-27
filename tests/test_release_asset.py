@@ -8,7 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 EXTRACTOR_SPEC = importlib.util.spec_from_file_location(
     "extract_release_notes", ROOT / "scripts" / "extract_release_notes.py"
@@ -137,6 +136,23 @@ GitHub-generated `Source code` archives are complete repository snapshots and ar
                 "4.1.0",
             )
 
+    def test_release_notes_tag_mode_rejects_unreleased_fallback(self):
+        source = """## [Unreleased]
+
+### What changed
+A
+### Why
+B
+### Validation
+C
+### Compatibility & Risk
+D
+### Release assets
+Download `cronpilot-4.1.0.tar.gz` and verify it with `cronpilot-4.1.0.tar.gz.sha256`.
+"""
+        with self.assertRaisesRegex(ValueError, r"no \[4.1.0\]"):
+            EXTRACTOR.extract_release_notes(source, "4.1.0", allow_unreleased=False)
+
     def test_release_notes_reject_missing_deployment_boundary(self):
         source = """## [Unreleased]
 
@@ -175,6 +191,13 @@ Download `cronpilot-4.1.0.tar.gz`.
         self.assertIn("--draft", workflow[create:publish])
         self.assertIn("--verify-tag", workflow[create:publish])
         self.assertIn("scripts/extract_release_notes.py", workflow)
+        self.assertIn("--require-version-section", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("actions/upload-artifact@", workflow)
+        self.assertIn("gh release download", workflow)
+        self.assertIn('"remote-assets/cronpilot-$VERSION.tar.gz.build.json"', workflow)
+        self.assertIn(".source_commit == $commit", workflow)
+        self.assertNotIn(".source_commit == $commit and .release_blockers", workflow)
         self.assertIn('gh release view "$GITHUB_REF_NAME" --json assets', workflow)
         self.assertIn("not recommended for production deployment", workflow)
         self.assertLess(workflow.index("release_assets=\"$(gh release view"), publish)

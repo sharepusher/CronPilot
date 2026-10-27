@@ -7,7 +7,6 @@ import argparse
 import re
 from pathlib import Path
 
-
 SECTION_RE = re.compile(r"^## \[(?P<name>[^]]+)](?:\s.*)?$", re.MULTILINE)
 REQUIRED_HEADINGS = (
     "### What changed",
@@ -29,10 +28,11 @@ def required_asset_markers(version: str) -> tuple[str, ...]:
     )
 
 
-def extract_release_notes(text: str, version: str) -> str:
-    """Return the version section, falling back to Unreleased before tagging."""
+def extract_release_notes(text: str, version: str, *, allow_unreleased: bool = True) -> str:
+    """Return a version section, optionally allowing the pre-tag Unreleased draft."""
     matches = list(SECTION_RE.finditer(text))
-    for target in (version, "Unreleased"):
+    targets = (version, "Unreleased") if allow_unreleased else (version,)
+    for target in targets:
         for index, match in enumerate(matches):
             if match.group("name") != target:
                 continue
@@ -52,7 +52,9 @@ def extract_release_notes(text: str, version: str) -> str:
                     f"language: {', '.join(missing_markers)}"
                 )
             return f"# CronPilot {version}\n\n{body}\n"
-    raise ValueError(f"no [{version}] or [Unreleased] release notes section found")
+    if allow_unreleased:
+        raise ValueError(f"no [{version}] or [Unreleased] release notes section found")
+    raise ValueError(f"no [{version}] release notes section found")
 
 
 def main() -> int:
@@ -60,10 +62,19 @@ def main() -> int:
     parser.add_argument("--version", required=True, help="release version without the v prefix")
     parser.add_argument("--input", type=Path, default=Path("RELEASE_NOTES.md"))
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--require-version-section",
+        action="store_true",
+        help="tag-release mode: reject fallback to [Unreleased]",
+    )
     args = parser.parse_args()
 
     try:
-        notes = extract_release_notes(args.input.read_text(encoding="utf-8"), args.version)
+        notes = extract_release_notes(
+            args.input.read_text(encoding="utf-8"),
+            args.version,
+            allow_unreleased=not args.require_version_section,
+        )
     except (OSError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
     args.output.parent.mkdir(parents=True, exist_ok=True)

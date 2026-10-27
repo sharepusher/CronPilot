@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>当前项目全面专业性 Bugbot 评估（2026-10-27）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.7;max-width:1080px;margin:0 auto;padding:32px;color:#1f2937;background:#fff}h1,h2{color:#111827;line-height:1.3}h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code{background:#f3f4f6;padding:.1rem .3rem;border-radius:3px}pre{background:#f3f4f6;padding:1rem;overflow:auto}.decision,.ok,.risk{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#eff6ff;border-color:#2563eb}.ok{background:#ecfdf5;border-color:#059669}.risk{background:#fff7ed;border-color:#f97316}.high{color:#b91c1c;font-weight:700}.medium{color:#b45309;font-weight:700}footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#6b7280}
+  </style>
+</head>
+<body>
+<main>
+<h1>当前项目全面专业性 Bugbot 评估</h1>
+<p>日期：2026-10-27 · 基线：<code>main</code> / <code>8e3a1b0</code> · 方法：Bugbot 差异审查、代码与 CI 配置抽查、全量单元测试及文档/UI 静态门禁 · 状态：<strong>工程质量较成熟；本次没有差异引入型 Bugbot 发现；版本发布结构已闭环，但仍有 Release Notes 语义准确性待收口</strong></p>
+
+<div class="decision"><strong>结论：</strong>CronPilot 已具备明显高于一般小型 Flask 项目的工程化程度：运行时版本矩阵、RBAC/Scope 否定路径、双后端迁移契约、文档双格式与可达性门禁、UI 静态契约均已制度化。本次 Bugbot 因工作树干净且 <code>main</code> 与 <code>origin/main</code> 一致，未发现可归因于待审差异的缺陷。当前 <code>v4.1.0</code>/<code>v4.1.1</code> tag、README、路线图、Release Notes 与 22-tag 一致性门禁已闭环；此前“发布治理未闭环”的判断仅对应 tag 创建前的历史快照，不能作为当前阻断。仍不应把项目表述为“无风险”：CI 尚未把依赖漏洞扫描、测试覆盖率阈值和需运行服务的 HTTP 集成测试固化为必经门禁。</div>
+
+<h2>1. 审查边界与证据</h2>
+<ul>
+  <li><strong>Bugbot 差异范围：</strong><code>git status --short</code>、<code>git diff --stat origin/main...HEAD</code> 与工作树差异均为空；因此没有可审的变更行，也就没有“本次提交引入”的 finding。</li>
+  <li><strong>本地质量验证：</strong>Ruff、Redesign UI 契约、硬编码颜色、文档完整性与 2,630 条文档链接检查均通过。</li>
+  <li><strong>行为验证：</strong><code>.venv-py311/bin/python -m unittest discover -s tests -p 'test_*.py' -v</code> 退出码为 0。4 个 CSRF HTTP 集成用例因本地未启动服务而 skipped，不能被计作运行态验证通过。</li>
+  <li><strong>边界：</strong>这不是渗透测试、性能压测或生产环境演练；未将静态检查或单测全绿误作安全/可用性绝对保证。</li>
+</ul>
+
+<h2>2. 多维度判断</h2>
+<table><thead><tr><th>维度</th><th>评级</th><th>依据与判断</th></tr></thead><tbody>
+<tr><td>技术架构</td><td>A-</td><td>Flask/SQLAlchemy/APScheduler 的版本被明确锁定；SQLite/MySQL 迁移有双后端测试；调度、执行追踪、RBAC 和展示契约分层明确。</td></tr>
+<tr><td>安全与权限</td><td>A-</td><td>存在 CSRF、认证版本 fail-closed、API Scope、角色矩阵、SSRF 与脱敏等专项回归。历史高风险项已有复盘和防护测试。仍应引入独立依赖漏洞扫描，并以实际部署配置复验。</td></tr>
+<tr><td>工程治理</td><td>A</td><td>Python 3.8–3.11 CI 矩阵、Ruff、文档索引/链接/双格式同步、颜色和 UI 契约门禁形成了较完整的可执行规则链。</td></tr>
+<tr><td>测试与可验证性</td><td>B+</td><td>测试目录覆盖授权、迁移、调度、展示及安全负例；全量发现式测试通过。但当前无覆盖率阈值，且部分真实 HTTP 集成用例随服务缺席而 skipped，未能证明本机运行态。</td></tr>
+<tr><td>可维护性</td><td>A-</td><td>设计、复盘、Release/路线图和质量脚本具备可追溯性；严格规则降低回归概率。代价是流程与文档规模较大，后续应持续防止状态过期和重复结论。</td></tr>
+<tr><td>发布与运维就绪度</td><td>A-</td><td>注释 tag、版本文档、空 Unreleased 和版本一致性门禁已形成闭环；tag 触发的发布资产工作流还会双构建、验包、解压启动验证并校验 GitHub Release 资产。Release Notes 仍有一条过期 blocker 文案，属于内容准确性问题。</td></tr>
+</tbody></table>
+
+<h2>3. Bugbot 结果</h2>
+<div class="ok"><strong>0 项差异引入型发现。</strong>这只说明当前基线没有待审 diff，不说明全仓库不存在历史缺陷。Bugbot 不应在零差异时伪造文件/行号 finding。</div>
+
+<h2>4. 主要风险与优先级</h2>
+<table><thead><tr><th>优先级</th><th>风险</th><th>影响</th><th>建议的可验证收口</th></tr></thead><tbody>
+<tr><td class="medium">P2</td><td>Release Notes 含过期 blocker 语义</td><td><code>RELEASE_NOTES.md</code> 的 4.1.1 节仍写“发布 4.1.0 前完成 MySQL 演练”，但 4.1.0/4.1.1 均已存在注释 tag；这会误导读者对当前发布状态的判断，但不破坏 tag 或资产事实。</td><td>将该句改为已完成事实或移入对应历史版本；增加 release-note 内容断言，禁止已发布版本节出现“before publishing”指向更早已发布版本的 blocker 文案。</td></tr>
+<tr><td class="medium">P2</td><td>依赖供应链扫描未进入 CI</td><td>锁定版本不等于无已知 CVE；Ruff 与单测都不能发现第三方漏洞。</td><td>在 CI 增加受版本控制的依赖审计步骤及允许例外清单；以非零退出码阻断高危、可修复漏洞。</td></tr>
+<tr><td class="medium">P2</td><td>测试质量缺少覆盖率目标</td><td>大量测试可以证明关键路径被测试过，却不能量化未覆盖区域，重构风险难以比较。</td><td>先只采集基线覆盖率，再按模块设置递增阈值；不得以总覆盖率掩盖 RBAC、调度和迁移关键模块的缺口。</td></tr>
+<tr><td class="medium">P2</td><td>运行态 HTTP 验证并非每次本地全量测试必经</td><td>本次 4 个 CSRF 集成用例 skipped；模板、会话、代理或真实端口配置问题仍可能逃过内存测试。</td><td>在可启动服务的 CI job 中将这些用例设为必跑，或在本地交付脚本中把 skipped 判为未验收。</td></tr>
+</tbody></table>
+
+<h2>5. 值得保留的实践</h2>
+<ul>
+  <li>对安全缺陷实行设计、负例测试、复盘和规则回灌，避免只修单点。</li>
+  <li>通过双后端迁移测试、路由冒烟和模型守卫处理 ORM 演进，降低“单测绿、页面 500”的常见风险。</li>
+  <li>文档链接、索引注册和 HTML↔Markdown 同步均可自动验证，审计证据不依赖口头结论。</li>
+  <li>UI 颜色、内联 CSS、表单防重复提交等前端约束有可执行检查，适合长期多人协作。</li>
+</ul>
+
+<h2>6. 本次已执行命令与结果</h2>
+<pre>.venv-py311/bin/ruff check app/                         # 通过
+.venv-py311/bin/python scripts/check_ui_contract.py --check # 0 violations
+.venv-py311/bin/python scripts/audit_hardcoded_colors.py --check # 未发现硬编码颜色
+.venv-py311/bin/python scripts/check_doc_completeness.py --check # 340 HTML 已登记，0 broken refs
+.venv-py311/bin/python scripts/check_doc_links.py --check    # 2,630 引用，0 broken
+.venv-py311/bin/python -m unittest discover -s tests -p 'test_*.py' -v # exit 0；4 skipped</pre>
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="当前项目全面专业性Bugbot评估-2026-10-27.md">Markdown</a></footer>
+</body>
+</html>

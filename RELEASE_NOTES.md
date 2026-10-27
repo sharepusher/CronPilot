@@ -57,7 +57,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ### Compatibility & Risk
 
-- **Release blocker:** complete a disposable real-MySQL migration rehearsal and record the resulting schema assertions before publishing 4.1.0.
+- Real MySQL 8 migration rehearsal completed: critical ID columns upgraded, primary-key auto-increment semantics preserved, and high-bit task ID insertion verified before this release.
 - Existing task URLs are not rewritten. A task returning 3xx now fails instead of being reported as successful.
 - Deployment DNS continues to control RFC1918/ULA reachability; application switches cannot bypass the hard-blocked address classes.
 - Existing rows retain their IDs. New IDs are database-generated, and MySQL task-reference columns migrate to `BIGINT`.

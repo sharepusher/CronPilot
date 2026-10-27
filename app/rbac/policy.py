@@ -21,6 +21,12 @@ SEED_ADMIN_PERMISSIONS = frozenset({
     'cron:read', 'log:read', 'operation:read', 'user:manage', 'audit:read',
 })
 
+SCOPE_ASSIGN_DENY_PERMISSION = 'actor_permission_denied'
+SCOPE_ASSIGN_DENY_GLOBAL = 'actor_global_assignment_denied'
+SCOPE_ASSIGN_DENY_GROUP = 'actor_group_assignment_denied'
+SCOPE_ASSIGN_DENY_TARGET_ROLE = 'target_role_global_forbidden'
+SCOPE_ASSIGN_DENY_GROUPS_REQUIRED = 'requested_groups_required'
+
 
 def is_seed_admin_username(username):
     return (username or '') == SEED_ADMIN_USERNAME
@@ -50,6 +56,45 @@ def user_bypasses_scope(role, username=None, group_ids=None):
     if is_seed_admin_username(username):
         return True
     return not group_ids
+
+
+def user_scope_assignment_denial(
+    actor_role,
+    actor_username,
+    actor_group_ids,
+    target_role,
+    request_is_global,
+    requested_group_ids,
+):
+    """纯策略：返回 Scope 授予拒绝原因码；允许时返回 None。
+
+    输入必须已由服务层规范化；本函数不读 Session/DB，不写日志。
+    """
+    if not has_permission(actor_role, 'user:manage', username=actor_username):
+        return SCOPE_ASSIGN_DENY_PERMISSION
+
+    actor_groups = frozenset(actor_group_ids or [])
+    requested_groups = frozenset(requested_group_ids or [])
+    actor_is_global = user_bypasses_scope(
+        actor_role,
+        username=actor_username,
+        group_ids=actor_groups,
+    )
+
+    if request_is_global:
+        if target_role != 'admin':
+            return SCOPE_ASSIGN_DENY_TARGET_ROLE
+        if not actor_is_global:
+            return SCOPE_ASSIGN_DENY_GLOBAL
+        return None
+
+    if not requested_groups:
+        return SCOPE_ASSIGN_DENY_GROUPS_REQUIRED
+    if actor_is_global:
+        return None
+    if not requested_groups.issubset(actor_groups):
+        return SCOPE_ASSIGN_DENY_GROUP
+    return None
 
 
 def check_policy(role, permission, resource):

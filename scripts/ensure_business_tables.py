@@ -25,6 +25,9 @@ from datas.model.job_log_items import JobLogItems  # noqa: F401,E402
 from datas.model.operation_log import OperationLog  # noqa: F401,E402
 from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401,E402
 from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401,E402
+from datas.model.rbac_registration_request_group import (  # noqa: F401,E402
+    RbacRegistrationRequestGroup,
+)
 from datas.model.rbac_user import RbacUser  # noqa: F401,E402
 from datas.model.resource_group import ResourceGroup  # noqa: F401,E402
 from datas.model.tag import Tag  # noqa: F401,E402
@@ -67,6 +70,7 @@ def main():
         _ensure_cron_infos_columns(backend=backend)
         _ensure_rbac_users_columns()
         _ensure_rbac_registration_requests_columns()
+        _ensure_rbac_registration_request_groups()
         _ensure_rbac_audit_logs_columns()
         _ensure_time_column_indexes()
         _ensure_composite_indexes()
@@ -93,6 +97,7 @@ def main():
         critical_tables = [
             'cron_infos', 'job_log', 'resource_groups',
             'rbac_users', 'rbac_audit_logs',
+            'rbac_registration_requests', 'rbac_registration_request_groups',
             'task_groups', 'tags', 'task_tags',
         ]
         insp = sa_inspect(db.engine)
@@ -633,6 +638,159 @@ def _ensure_rbac_registration_requests_columns():
                 pass  # 索引已存在（idempotent）
     print('OK: rbac_registration_requests 列已补全 ->',
           ', '.join(a.split()[5] for a in alters))
+
+
+REGISTRATION_REQUEST_GROUPS_FLAG = 'r2_2_registration_request_groups_v1'
+REGISTRATION_REQUEST_GROUPS_CUTOVER_FLAG = (
+    'r2_2_registration_request_groups_read_cutover_v1'
+)
+
+
+def _ensure_rbac_registration_request_groups():
+    """切读前最终同步；切读标记存在后只对账，漂移时拒绝启动。"""
+    from sqlalchemy import delete, insert, select, text
+
+    from app.rbac.registration_requested_scope import (
+        normalize_registration_requested_scope,
+    )
+    from datas.utils.times import utc_now_hms
+
+    request_table = RbacRegistrationRequest.__table__
+    relation_table = RbacRegistrationRequestGroup.__table__
+    resource_group_table = ResourceGroup.__table__
+
+    with db.engine.begin() as conn:
+        conn.execute(text(
+            'CREATE TABLE IF NOT EXISTS cp_schema_flags ('
+            'flag_name VARCHAR(64) PRIMARY KEY, '
+            'applied_at BIGINT NOT NULL DEFAULT 0)'
+        ))
+        migrated = conn.execute(
+            text('SELECT 1 FROM cp_schema_flags WHERE flag_name = :flag'),
+            {'flag': REGISTRATION_REQUEST_GROUPS_FLAG},
+        ).first() is not None
+        cutover = conn.execute(
+            text('SELECT 1 FROM cp_schema_flags WHERE flag_name = :flag'),
+            {'flag': REGISTRATION_REQUEST_GROUPS_CUTOVER_FLAG},
+        ).first() is not None
+
+        valid_group_ids = set(conn.execute(
+            select(resource_group_table.c.id)
+        ).scalars().all())
+        requests = conn.execute(select(
+            request_table.c.id,
+            request_table.c.role,
+            request_table.c.group_ids,
+        )).all()
+
+        expected = set()
+        counts = {
+            'concrete': 0,
+            'global': 0,
+            'invalid': 0,
+            'normalized': 0,
+        }
+        invalid_ids = []
+        for row in requests:
+            scope = normalize_registration_requested_scope(
+                row.role,
+                row.group_ids,
+                valid_group_ids,
+            )
+            if not scope['ok']:
+                counts['invalid'] += 1
+                invalid_ids.append((row.id, scope['reason']))
+                continue
+            counts[scope['kind']] += 1
+            if scope['normalized']:
+                counts['normalized'] += 1
+            for group_id in scope['group_ids']:
+                expected.add((int(row.id), int(group_id)))
+
+        existing = set(conn.execute(select(
+            relation_table.c.registration_request_id,
+            relation_table.c.group_id,
+        )).all())
+        if existing != expected and cutover:
+            missing = sorted(expected - existing)[:10]
+            extra = sorted(existing - expected)[:10]
+            raise RuntimeError(
+                'registration request group drift after read cutover: '
+                'missing=%r extra=%r' % (missing, extra)
+            )
+        if existing != expected:
+            conn.execute(delete(relation_table))
+            if expected:
+                conn.execute(insert(relation_table), [
+                    {
+                        'registration_request_id': request_id,
+                        'group_id': group_id,
+                    }
+                    for request_id, group_id in sorted(expected)
+                ])
+
+        actual = set(conn.execute(select(
+            relation_table.c.registration_request_id,
+            relation_table.c.group_id,
+        )).all())
+        if actual != expected:
+            missing = sorted(expected - actual)[:10]
+            extra = sorted(actual - expected)[:10]
+            raise RuntimeError(
+                'registration request group reconciliation failed: '
+                'missing=%r extra=%r' % (missing, extra)
+            )
+
+        orphan = conn.execute(text(
+            'SELECT r.registration_request_id '
+            'FROM rbac_registration_request_groups r '
+            'LEFT JOIN rbac_registration_requests q '
+            'ON q.id = r.registration_request_id '
+            'WHERE q.id IS NULL LIMIT 1'
+        )).first()
+        if orphan is not None:
+            raise RuntimeError(
+                'registration request group orphan: %s' % orphan[0]
+            )
+
+        if not migrated:
+            conn.execute(
+                text(
+                    'INSERT INTO cp_schema_flags (flag_name, applied_at) '
+                    'VALUES (:flag, :ts)'
+                ),
+                {
+                    'flag': REGISTRATION_REQUEST_GROUPS_FLAG,
+                    'ts': utc_now_hms(),
+                },
+            )
+        if not cutover:
+            conn.execute(
+                text(
+                    'INSERT INTO cp_schema_flags (flag_name, applied_at) '
+                    'VALUES (:flag, :ts)'
+                ),
+                {
+                    'flag': REGISTRATION_REQUEST_GROUPS_CUTOVER_FLAG,
+                    'ts': utc_now_hms(),
+                },
+            )
+
+    print(
+        'OK: registration request groups (%s) -> '
+        'requests=%d concrete=%d global=%d invalid=%d normalized=%d relations=%d'
+        % (
+            'verify-only' if cutover else 'final-sync',
+            len(requests),
+            counts['concrete'],
+            counts['global'],
+            counts['invalid'],
+            counts['normalized'],
+            len(expected),
+        )
+    )
+    if invalid_ids:
+        print('WARN: registration requests not backfilled ->', invalid_ids[:20])
 
 
 def _ensure_rbac_audit_logs_columns():

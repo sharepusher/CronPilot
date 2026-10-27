@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RBAC 注册审批拒绝 Scope 授权闭环方案（2026-10）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.72;max-width:1080px;margin:0 auto;padding:32px;color:#1f2937;background:#fff}h1,h2,h3{line-height:1.3;color:#111827}h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code{background:#f3f4f6;padding:.1rem .3rem;border-radius:3px}pre{background:#f3f4f6;padding:1rem;overflow:auto}.meta{color:#6b7280}.risk,.ok,.note,.decision{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}.note{background:#eff6ff;border-color:#2563eb}.decision{background:#fff7ed;border-color:#f97316}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.screen{border:1px solid #cbd5e1;border-radius:8px;padding:1rem}.bad{border-color:#dc2626}.good{border-color:#059669}.bar{padding:.55rem .7rem;margin:.5rem 0;border-radius:5px;background:#f8fafc}.error{background:#fef2f2}.success{background:#ecfdf5}.p1{color:#b91c1c;font-weight:700}@media(max-width:760px){.compare{grid-template-columns:1fr}}footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#6b7280}
+  </style>
+</head>
+<body><main>
+<h1>RBAC 注册审批拒绝 Scope 授权闭环方案</h1>
+<p class="meta">版本：rev.3 · 日期：2026-10-27 · 状态：<strong>已确认、已实施并验证</strong> · 前置发现：<a href="../qa/当前未提交代码与方案Bugbot专业评估-2026-10-26.html">Bugbot P1</a> · 父方案：<a href="RBAC四项Review问题闭环优化方案-2026-10.html">RBAC 四项 Review 问题闭环方案</a> · 页面响应对比：<a href="#page-compare">§7</a></p>
+
+<div class="decision"><strong>决策：</strong>拒绝注册申请必须像批准一样在服务边界校验数据库当前 actor 的对象 Scope；但拒绝不是授予新权限，因此 scoped admin 的允许集合与注册审批列表可见集合同源：viewer/operator 为精确交集，admin 为完整非空子集。全局/seed admin 保留拒绝异常或漂移申请的唯一治理出口。</div>
+
+<h2>1. 问题</h2>
+<p>当前 <code>reject_registration(request_id, comment)</code> 仅按 ID 读取 pending 申请并提交 rejected；它从 Session 写 reviewer，而不接收明确 actor，也未校验 actor 对目标申请的 Scope。路由层的 <code>user:manage</code> 和 CSRF 不构成对象级授权：一个拥有组 A 的 Biz Admin 可以提交组 B 或全局申请 ID，将原本不可见的申请拒绝。</p>
+<div class="risk"><strong>风险等级：<span class="p1">P1</span>。</strong>攻击不要求伪造身份；已登录的受限管理员只需知道或猜测顺序 ID。影响是完整性：合法申请可被跨组终止；同时 reviewer 审计会错误归因到该 actor。</div>
+
+<h2>2. 根因</h2>
+<ol>
+  <li>批准服务已读取 reviewer 并使用数据库当前 Scope；拒绝服务仍是早期“状态更新”实现，授权模型没有同步演进。</li>
+  <li>路由把功能权限误当成对象权限，服务层没有成为不可绕过的最终防线。</li>
+  <li>注册申请有正常、全局和存储漂移三类 Scope 数据，而拒绝路径没有定义异常数据应由谁治理。</li>
+  <li>单条和批量拒绝都调用同一个未授权服务，因此漏洞在两个入口同时存在。</li>
+</ol>
+
+<h2>3. 方案</h2>
+<h3>3.1 服务边界与事务顺序</h3>
+<ol>
+  <li><code>reject_registration</code> 改为强制接收 <code>reviewer_id</code>，不再在服务内部从 Session 获取 actor。</li>
+  <li>服务以与批准路径相同的行锁读取申请，先确认存在且仍为 pending。</li>
+  <li>读取数据库当前 actor：不存在/停用、没有 <code>user:manage</code>、或授权读取异常时返回受控失败且不写申请。</li>
+  <li>完成对象 Scope 授权后，才更新 status、pending_username、reviewer_id、review_comment、update_time，并一次 commit。</li>
+  <li>commit 失败 rollback，返回通用错误与 trace_id；成功后写不含申请敏感内容的拒绝审计。</li>
+</ol>
+<p>该顺序已按现有实现验证：<code>resolve_user_management_actor()</code> 可读取数据库当前 role、username、group_ids；批准路径已用 <code>with_for_update()</code> 锁住申请与关联行。因此本方案不依赖尚不存在的调度器或 ORM API。</p>
+
+<h3>3.2 冻结的授权矩阵</h3>
+<table>
+<thead><tr><th>actor</th><th>申请角色/Scope</th><th>允许拒绝</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td>seed/global admin</td><td>所有正常申请</td><td>是</td><td>拥有全局审阅职责。</td></tr>
+<tr><td>seed/global admin</td><td>非法 CSV、缺关联、关联漂移、悬空组</td><td>是</td><td>唯一治理出口；拒绝可结束不可批准的异常申请。</td></tr>
+<tr><td>scoped admin</td><td>viewer/operator，申请组与 actor 组有精确交集</td><td>是</td><td>与列表可见集合一致。</td></tr>
+<tr><td>scoped admin</td><td>admin，申请所有具体组是 actor 当前组的非空子集</td><td>是</td><td>避免按组管理员处置覆盖其权限外的管理员申请。</td></tr>
+<tr><td>scoped admin</td><td><code>__ALL__</code> 全局申请</td><td>否</td><td>全局 Scope 不属于任何按组管理员。</td></tr>
+<tr><td>scoped admin</td><td>无交集、部分超集、异常/漂移申请</td><td>否</td><td>fail-closed；防止把异常数据变成越权治理入口。</td></tr>
+<tr><td>viewer/operator</td><td>任何申请</td><td>否</td><td>数据库当前 actor 无 <code>user:manage</code>。</td></tr>
+</tbody></table>
+
+<h3>3.3 同源实现策略</h3>
+<p>新增一个只读授权 helper，由拒绝服务调用。它应先获得数据库当前 actor，再根据申请的规范化 Scope 返回固定 reason code；scoped actor 必须先通过存储一致性校验。为避免“列表可见、服务不可操作”或两处规则漂移，测试以同一组真值样本同时断言：</p>
+<ul>
+  <li>Repository 的 SQL 可见集合；</li>
+  <li>拒绝服务的允许/拒绝结果；</li>
+  <li>最终申请状态和 reviewer_id。</li>
+</ul>
+<p>全局 actor 对异常数据不调用“必须一致”的 scoped 判定；其治理许可应记录 <code>registration_reject_anomaly</code> 审计原因。scoped actor 遇到同类数据只获得不泄露字段细节的“无权处理该申请”响应。</p>
+
+<h3>3.4 路由与批量行为</h3>
+<ul>
+  <li>单条路由把 <code>session.user_id</code> 显式传给服务。</li>
+  <li>批量路由逐项调用同一服务；允许项成功、拒绝项保持 pending，并继续沿用现有 partial-failure 摘要，不产生假成功跳转。</li>
+  <li>所有 Scope 拒绝使用稳定 reason code；客户端不根据中文错误文案做安全判断。</li>
+</ul>
+
+<h2>4. 范围</h2>
+<h3>包含</h3>
+<ul><li><code>app/rbac/services.py</code> 的拒绝服务、审计和授权 helper。</li><li><code>app/rbac/views.py</code> 的单条/批量 reviewer 传递和受控反馈。</li><li>注册审批 Scope 专项测试、服务测试、HTTP 批量测试及目标角色浏览器验证。</li><li>本设计、复盘、Release Notes、QA 证据和索引同步。</li></ul>
+<h3>不包含</h3>
+<ul><li>不改变批准授权规则或列表 SQL 本身。</li><li>不改变用户管理陈旧 Session、全局 Scope 表单回显、批量最终状态契约；它们由父方案后续批次处理。</li><li>不新增 RBAC 角色、权限字符串或公开 API。</li></ul>
+
+<h2>5. 分批实施</h2>
+<table><thead><tr><th>批次</th><th>工作</th><th>停止条件</th></tr></thead><tbody>
+<tr><td>B0</td><td>写失败红线：单条/批量组外拒绝、全局拒绝、异常申请拒绝；合法交集、完整子集及 global 正向。</td><td>每条红线必须在旧实现上失败，且断言 DB 未写或错误写入。</td></tr>
+<tr><td>B1</td><td>实现 actor 显式传递、数据库当前 actor 和 scoped 授权 helper。</td><td>拒绝服务不读取 Session actor；越权项不变，合法项有正确 reviewer。</td></tr>
+<tr><td>B2</td><td>接入单条/批量路由、审计与受控错误。</td><td>部分失败无跳转；不泄露范围外申请详情。</td></tr>
+<tr><td>B3</td><td>同类排查、目标角色浏览器、路由/文档/复盘收口。</td><td>全部验收通过前不得把 P1 标记关闭。</td></tr>
+</tbody></table>
+
+<h2>6. 验收标准</h2>
+<ul>
+<li>组 A scoped admin 直接 POST 拒绝组 B、全局、异常/漂移申请：响应受控失败，状态仍 pending，reviewer_id/comment 均不变。</li>
+<li>组 A scoped admin 可拒绝组 A viewer/operator 申请；可拒绝组 A（或 A 的完整子集）admin 申请；不能拒绝 A+B admin 申请。</li>
+<li>global/seed admin 可拒绝正常全局申请，也可拒绝异常申请，异常路径产生治理审计。</li>
+<li>混合批量中，成功/失败计数精确，越权项不会被修改或重定向掩盖。</li>
+<li>HTTP 测试有真实 CSRF、session 与数据库断言；浏览器以 scoped/global 两类角色完成正反路径并保存截图。</li>
+<li>回归通过：<code>tests.test_rbac_global_scope_assignment</code>、<code>tests.test_registration</code>、路由冒烟、Ruff、文档同步及链接门禁。</li>
+</ul>
+
+<h2>7. 风险与控制</h2>
+<table><thead><tr><th>风险</th><th>控制</th></tr></thead><tbody>
+<tr><td>拒绝规则与列表 SQL 语义漂移</td><td>同一真值样本对 Repository 与服务双断言；覆盖 1/10、交集、完整子集、global、非法关联。</td></tr>
+<tr><td>拒绝异常申请时绕过所有安全检查</td><td>仅 bypass actor 可进入治理分支；仍要求 pending、行锁和单次事务。</td></tr>
+<tr><td>授权查询错误被误作“无可见数据”</td><td>返回通用失败并记录服务端异常；绝不退回 Session 或放行。</td></tr>
+<tr><td>批量部分成功被 UI 误报</td><td>保持 errcode=1、url 为空的部分失败语义；逐项显示受控结果。</td></tr>
+</tbody></table>
+
+<h2 id="page-compare">8. Before / After 响应对比</h2>
+<div class="compare"><section class="screen bad"><h3>BEFORE · 组 A 管理员直接提交</h3><div class="bar">POST /registration_review/reject id=组B申请</div><div class="bar error">返回：已拒绝</div><div class="bar error">数据库：组 B 申请变为 rejected</div></section><section class="screen good"><h3>AFTER · 服务边界授权</h3><div class="bar">POST /registration_review/reject id=组B申请</div><div class="bar success">返回：无权处理该申请</div><div class="bar success">数据库：申请保持 pending，reviewer/comment 不变</div></section></div>
+
+<h2>9. 设计自评</h2>
+<div class="ok"><strong>结论：方案可实施，无设计阻断。</strong>它没有复用错误的“批准即授予”语义，也没有仅在路由打补丁；以数据库当前 actor、服务边界、锁与事务建立完整性防线。唯一需要产品确认的规则已在 §3.2 冻结：scoped admin 对 viewer/operator 使用交集，对 admin 使用完整子集，异常申请仅由全局治理。</div>
+<h2>10. 实施与验收记录</h2>
+<ul><li>实施：<code>reject_registration(request_id, reviewer_id, comment)</code> 使用行锁、数据库当前 actor 与 Scope 授权 helper；单条/批量入口均显式传递 actor。</li><li>专项矩阵：<code>TestRegistrationApprovalScopeClosure</code> 24 项通过，覆盖组外、全局、admin 部分子集、关联漂移、陈旧 Session、混合批量与全局异常治理。</li><li>相关回归：<code>tests.test_rbac_global_scope_assignment tests.test_registration tests.test_user_reactivation</code> 共 172 项通过。</li><li>质量门禁：Ruff、HTML↔Markdown 同步、文档完整性/链接、路由完整性及 86 条路由冒烟均通过。</li><li>运行验证：本地服务 <code>http://127.0.0.1:5001/rbac/login</code> 返回 200；Playwright 注册审批角色矩阵通过，临时用户与申请清理为零。</li></ul>
+</main><footer><a href="../index.html">文档索引</a> · <a href="RBAC注册审批拒绝Scope授权闭环方案-2026-10.md">Markdown</a></footer></body></html>

@@ -19,6 +19,15 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - Refined the Redesign UI and engineering gates, including task-center statistics, user-management layout, documentation/index validation, terminology checks, and deterministic regression coverage.
 - Consolidated historical documentation images into a reviewed, content-addressed asset library; removed embedded Base64 copies and five credential-bearing screenshots with no continuing evidence value; and added a reproducible public installation package that excludes historical evidence images. See the [image-governance post-mortem](doc/postmortem/2026-10-历史截图凭据脱敏与迁移原子性复盘.html).
 - Repaired fresh-install dependency resolution by aligning the `pytz` pin with `croniter==6.0.0`, and closed the curated package's runtime documentation/link dependencies. See the [release-package installation post-mortem](doc/postmortem/2026-10-发布包隔离安装闭环修复.html).
+- Closed an RBAC privilege-escalation path in user add/edit: scoped business administrators can no longer grant global administrator scope or groups outside their current database-backed management scope. Denials occur before business writes and remain fail-closed if audit recording fails. See the [RBAC scope-assignment post-mortem](doc/postmortem/2026-10-RBAC全局权限授予边界缺失.html).
+- Corrected RBAC batch registration feedback so partial and total failures return a failure contract without a redirect; the page now preserves structured per-item results, treats malformed responses as unknown rather than success, and uses the jQuery 1.8-compatible POST option. Internal exceptions remain in server logs and are correlated to the safe client response by `trace_id`. See the [batch-feedback post-mortem](doc/postmortem/2026-10-RBAC批量审批反馈误报成功.html).
+- Hardened the registration-review read boundary so stale Session role/group data can no longer preserve broader visibility after a database-side role downgrade or group-scope reduction. List rows, heading count, and navigation badge now share one request-local database-current actor decision; exact group membership and query-level pagination/count alignment now use request-to-group associations. See the [stale-Session read post-mortem](doc/postmortem/2026-10-RBAC注册审批列表陈旧Session读取.html).
+- Prepared the R2-2 registration-scope normalization layer: a deduplicated request-to-group association table, deterministic fail-closed normalizer, transactionally reconciled startup backfill, and atomic CSV/association writes for new registration requests are now in place. Scoped review queries now use exact association membership for viewer/operator requests and complete nonempty subsets for administrator requests. Filtering precedes pagination, and list/count/badge share one authorization predicate. See the [query-boundary validation and post-mortem](doc/design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.html#r2d).
+- Completed R2-2 registration-scope delivery: approval rejects CSV/association/resource-group drift before any user write, while scoped review queries use role-disjoint ID branches and set-based administrator subset aggregation. Focused/full regression, route smoke, golden-path, browser role-matrix, and delivery gates passed; calibrated SQLite 10k/30k, MySQL 10k/30k, and five-way concurrency gates passed; 100k remains a non-blocking stress diagnostic.
+- Closed the F-02 registration-review visibility gap through R2-4: group 1, group 10, multi-group, global-admin, and stale-cookie downgrade browser paths now have repeatable exact-row, total, heading-badge, and navigation-badge assertions with redacted PNG/JSON evidence and self-cleaning fixtures.
+- Closed a P1 registration-review integrity gap: scoped administrators can no longer reject out-of-scope, global, or scope-corrupted registration requests by submitting a known request ID. Rejection authorization now reads the database-current actor and uses the same role-specific scope semantics as the review queue; only global/seed administrators can close corrupted legacy requests. See the [post-mortem](doc/postmortem/2026-10-RBAC注册审批拒绝Scope绕过修复.html).
+- Hardened all seven RBAC user-management entries against stale Session role and group scope. Each request now resolves the current database actor before target lookup, and user edits atomically persist authorization changes with a single session-version revocation bump. See the [post-mortem](doc/postmortem/2026-10-RBAC用户管理陈旧Session读取.html).
+- Fixed RBAC global-administrator edit-form scope replay: the persisted zero-group global representation now renders as the selected `__ALL__` form marker without changing authorization or storage semantics. See the [post-mortem](doc/postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.html).
 
 ### Why
 
@@ -26,6 +35,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - Keep database key widths and ownership semantics consistent across SQLite and MySQL.
 - Make failed or incomplete executions diagnosable without exposing credentials or misrepresenting transport state.
 - Preserve RBAC, user identity, and historical audit continuity while reducing release-document noise.
+- Ensure an administrator can delegate only scope they currently possess, using database state rather than stale session scope at the write boundary.
 
 ### Validation
 
@@ -36,6 +46,10 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - Image governance and release-asset gates pass: 71 unique reviewed assets, no legacy/Base64 image references, deterministic baseline builds with identical SHA-256, and zero historical screenshot bytes in the public package.
 - A strict pre-tag package snapshot passed identical double-build, clean-environment dependency installation, and the full extracted-package golden path; final file count, byte size, and SHA-256 will be recorded from the post-cleanup release candidate and repeated by the final tag workflow.
 - Detailed evidence: [code and uncommitted-change review](doc/qa/2026-10-10-代码全面Review与未提交变更评估.html) · [task-trigger security post-mortem](doc/postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html)
+- RBAC S5 delivery evidence: 39/39 focused tests and 217/217 related regressions (256 total), 86/86 route smoke checks, and 26/26 post-restart live HTTP checks. User add/edit and single/batch registration approval share the same database-current scope-assignment policy for every target role. Real-browser verification covered scoped-option absence, global-option presence, legitimate global create/edit/approval, and zero console errors; valid-CSRF tampered add/edit plus single/batch approval requests were rejected with unchanged database state.
+- RBAC S0–S5 independent review: final grade **A- (9.3/10)**. Database-current write authorization, F-01 batch truth, and F-02 approval-list visibility are closed. “Zero business side effects” applies specifically to scope-authorization denial paths; the separate user-edit transaction/no-op design remains unimplemented.
+- RBAC batch-feedback B3 closure: 163/163 expanded regressions passed. R2-4 then passed 207/207 related regressions, 86/86 route smoke checks, and the five-role real-browser matrix; temporary users, requests, and associations were all cleaned to zero.
+- Registration-rejection Scope closure: 172/172 related regressions, 86/86 route smoke checks, and the local Playwright registration-review role matrix passed after restart; browser fixtures were cleaned to zero.
 
 ### Compatibility & Risk
 
@@ -45,6 +59,7 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - Existing rows retain their IDs. New IDs are database-generated, and MySQL task-reference columns migrate to `BIGINT`.
 - The `auth_version` hardening invalidates legacy web sessions that lack the version key; affected users must sign in again.
 - No API response field removal is introduced by this release candidate.
+- User-management response shapes are unchanged; only previously unauthorized global/out-of-scope grants are now rejected.
 
 Key sources: [DNS design](doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx and pinning design](doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [database ID design](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · [delivery roadmap](doc/交付状态与路线图.html)
 

@@ -46,6 +46,9 @@
   <p class="muted">本节是发布摘要；实现细节、历史发现与验证证据保留在关联的设计、复盘和 QA 文档中。正式版本仍以仓库根 <a href="../RELEASE_NOTES.md"><code>RELEASE_NOTES.md</code></a> 为准。</p>
   <h3>What changed</h3>
   <ul>
+    <li>注册审批按关联表精确匹配业务组：普通申请采用交集，管理员申请采用非空完整子集；授权过滤在分页前执行，列表与待审批计数共用条件，消除组 1/10 误匹配和分页统计偏差。详见<a href="design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.html#r2d">查询边界验收与复盘</a>。</li>
+    <li>注册审批 R2-2 已完成：批准前核对父 CSV、关联集合与当前资源组；scoped 列表改用角色互斥 ID 分支和管理员集合聚合。专项、全量、路由、黄金路径、浏览器角色矩阵和交付门禁均通过；校准后的 SQLite 10k/30k、MySQL 10k/30k 与并发 5 绝对性能门槛均通过；100k 保留为非阻断压力诊断。</li>
+    <li>注册审批 F-02 已通过 R2-4 关闭：组 1、组 10、多组、全局管理员及旧 Cookie 降权五类浏览器路径均精确断言页面行、total、标题与导航 badge；脱敏 PNG/JSON 和自清理 fixture 已落库。</li>
     <li>任务触发网络边界改为单次 DNS 解析、校验结果原样 pin、混合回答 fail-closed，并硬拒绝环回、链路本地、保留、组播、未指定及危险映射地址；RFC1918/IPv6 ULA 仍由部署 DNS 控制可达性。</li>
     <li>所有首跳 HTTP 3xx 均按 <code>fail / redirect_blocked</code> 记录，不跟随 <code>Location</code>，事件中仅保留脱敏摘要。</li>
     <li>完成数据库自增 ID 写入切换；MySQL 任务关联列统一为 <code>BIGINT</code>，关键迁移 DDL 失败时拒绝启动。</li>
@@ -67,6 +70,7 @@
     <li>HTML→Markdown 同步、文档完整性、链接可达性、OPT 一致性、pending-sync 与空白检查通过。</li>
     <li>图片与发布资产门禁通过：71 个唯一已审查资产，旧路径/Base64 引用为 0，基线双构建 SHA-256 一致，公开包历史截图字节为 0。</li>
     <li>严格预发布快照已通过双构建一致性、全新环境安装与解压包黄金路径；最终文件数、字节数和 SHA-256 将从删图后发布候选版记录，并由最终 tag workflow 重复验证。</li>
+    <li>RBAC S0–S5 最终 Review 为 <strong>A-（9.3/10）</strong>；R2-4 的 207 项相关回归、86 条路由及五角色真实浏览器矩阵通过，临时用户/申请/关联行残留为 0/0/0。</li>
   </ul>
   <h3>Compatibility &amp; Risk</h3>
   <ul>

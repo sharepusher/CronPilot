@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RBAC 全局权限授予边界加固方案专业评估（2026-10-15）</title>
+  <style>
+    :root{--ink:#172033;--muted:#64748b;--line:#cbd5e1;--blue:#2563eb;--blue-bg:#eff6ff;--green:#15803d;--green-bg:#f0fdf4;--amber:#b45309;--amber-bg:#fff7ed;--red:#b91c1c;--red-bg:#fef2f2;--panel:#f8fafc}
+    *{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;max-width:1120px;margin:0 auto;padding:28px;line-height:1.68;color:var(--ink)}h1{line-height:1.25;color:#123b6d}h2{margin-top:32px;border-left:4px solid var(--blue);padding-left:10px}h3{margin-top:23px}a{color:#1d4ed8}code{background:#f1f5f9;padding:.08em .3em;border-radius:4px}pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;overflow:auto}table{width:100%;border-collapse:collapse;margin:14px 0}th,td{border:1px solid var(--line);padding:9px;vertical-align:top}th{background:var(--blue-bg);text-align:left}.meta,.muted{color:var(--muted)}.gate,.note,.risk,.ok{padding:13px 15px;margin:14px 0;border-left:4px solid}.gate{background:var(--amber-bg);border-color:#f97316}.note{background:var(--blue-bg);border-color:var(--blue)}.risk{background:var(--red-bg);border-color:var(--red)}.ok{background:var(--green-bg);border-color:var(--green)}.score{font-size:20px;font-weight:700}.small{font-size:13px;color:var(--muted)}@media(max-width:760px){body{padding:18px}table{font-size:14px}}
+  </style>
+</head>
+<body><main>
+<h1>RBAC 全局权限授予边界加固方案专业评估</h1>
+<p class="meta">版本：rev.1 · 日期：2026-10-15 · 评估对象：<a href="../design/RBAC全局权限授予边界加固优化需求-2026-10.html">优化需求 rev.2</a> · 评估基线：当前仓库代码与定向测试</p>
+<div class="ok"><strong>总体结论：专业、准确且合理，达到“可提交用户确认”的设计成熟度。</strong>方案正确把问题定义为授权者边界缺失，而不是普通表单校验；rev.2 已修正对旧测试的错误解读，并将实施拆成可停止、可验收、可局部回滚的 S0–S5。但它仍是待确认设计，不代表已修复。</div>
+<div class="gate"><strong>实施判定：有条件通过。</strong>用户明确确认后可从 S0 开始；不得跳过红线测试直接改路由，不得把 S3 前端隐藏当作安全修复，不得顺带实施另一份用户编辑事务方案。</div>
+
+<h2>1. 评估范围与依据</h2>
+<p>本评估逐项对照了 <code>app/rbac/views.py</code> 的用户新增/编辑路由、<code>app/rbac/services.py</code> 的组参数校验/用户写入/注册审批、<code>app/rbac/policy.py</code> 的 Scope bypass 语义、<code>app/templates/redesign/user_form.html</code> 的 <code>__ALL__</code> 渲染与 JavaScript，并搜索了 <code>create_user()</code>、<code>set_user_groups()</code>、<code>approve_registration()</code> 生产调用方。</p>
+<p>定向基线命令：</p>
+<pre>.venv-py311/bin/python -m unittest \
+  tests.test_registration.TestNonAdminCannotSelectGlobal \
+  tests.test_registration.TestApproveRejectRegistration \
+  tests.test_rbac_scope -v</pre>
+<p>结果：<strong>44 项全部通过</strong>，用时 18.225s。其中 <code>test_admin_with_all_accepted_on_add</code> 由于 fixture 未建立注册申请表，触发一次被容错的缺表日志后仍通过；这不改变权限结论，但是 S0 应消除的测试噪声。</p>
+
+<h2>2. 量化评估</h2>
+<table><thead><tr><th>维度</th><th>评分</th><th>结论</th><th>主要依据</th></tr></thead><tbody>
+<tr><td>专业性</td><td class="score">9.2 / 10</td><td>优</td><td>具备威胁定义、权威矩阵、fail-closed、服务端守卫、测试先行、分批准入/退出、回滚与浏览器反向验证。</td></tr>
+<tr><td>准确性</td><td class="score">9.0 / 10</td><td>优</td><td>关键代码事实和调用链一致；rev.2 已明确种子 <code>admin</code> 测试是正确正向基线，而非漏洞证据。</td></tr>
+<tr><td>合理性</td><td class="score">9.3 / 10</td><td>优</td><td>后端先于 UI、安全修复与事务重构解耦、审批保护以等价回归为主，符合最小变更和风险递减原则。</td></tr>
+<tr><td>可实施性</td><td class="score">8.8 / 10</td><td>良好</td><td>文件、依赖、每批验收和停止条件已明确；尚需在 S0 建立干净红线和最终确定内部函数签名。</td></tr>
+<tr><td><strong>综合</strong></td><td class="score"><strong>9.1 / 10</strong></td><td><strong>A-</strong></td><td><strong>可进入设计确认，确认后按 S0–S5 串行实施。</strong></td></tr>
+</tbody></table>
+
+<h2>3. 准确性复核</h2>
+<h3>3.1 已证实的核心事实</h3>
+<ul>
+  <li>新增和编辑路由都只在 target role 非 admin 时拒绝 <code>__ALL__</code>，没有同步判断 actor 是否有全局授予能力；漏洞判定成立。</li>
+  <li><code>set_user_groups()</code> 将 <code>__ALL__</code> 表达为无具体组关系，而 <code>user_bypasses_scope(role='admin', group_ids=[])</code> 将这一状态解释为全局 admin；风险链路完整。</li>
+  <li>用户表单始终输出 <code>__ALL__</code> option，现有 JavaScript 只根据 target role 显隐；“模板不渲染+后端拒绝”的改法准确。</li>
+  <li>注册审批已对 admin 申请执行 seed/global/scoped 范围判定，批量入口逐项调用单条审批；将其作为回归基线合理。</li>
+  <li>当前审批 helper 读的是 Session 中的 role/username/group_ids，不是 helper 内数据库回读。rev.2 已把这一点明示为 S4 的等价性边界，没有夸大现状保证。</li>
+</ul>
+
+<h3>3.2 已纠正的原方案不准确点</h3>
+<p>rev.1 曾把 <code>test_admin_with_all_accepted_on_add</code> 解读为“按组管理员错误被允许”。实际 fixture 用户名是 <code>admin</code>，会命中种子管理员 bypass；该用例期望应保留。rev.2 已改为“新增非种子、单组/多组 Biz Admin 负向用例”，修正后的证据链可信。</p>
+
+<h2>4. 专业性与合理性分析</h2>
+<table><thead><tr><th>决策</th><th>评价</th><th>专业理由</th></tr></thead><tbody>
+<tr><td>独立安全需求</td><td>正确</td><td>与 no-op、差异写入、单事务解耦，避免安全边界被大型重构掩盖，也可独立回归。</td></tr>
+<tr><td>actor 与 target 分离</td><td>核心正确</td><td>“target 可以成为 admin”不等于“actor 可授予全局范围”；这是权限提升类缺陷的正确建模。</td></tr>
+<tr><td>纯策略+服务数据读取</td><td>合理</td><td>使权限矩阵可穷举单测，同时避免纯策略函数隐式依赖 Flask Session 或 DB 事务。</td></tr>
+<tr><td>S2 后端先于 S3 UI</td><td>必要</td><td>前端可被绕过；后端守卫是独立安全边界，UI 只是减少误操作和暴露。</td></tr>
+<tr><td>审批路径优先回归</td><td>稳健</td><td>已有保护不应为了“代码统一”被迫重构；只在等价性可证明时才共享新策略。</td></tr>
+<tr><td>红线→策略→写边界→UI→回归→交付</td><td>风险递减</td><td>每批都有可观测结果和停止点，故障定位面小，且不会在 UI 完成时误报安全修复完成。</td></tr>
+</tbody></table>
+
+<h2>5. 剩余风险与实施门禁</h2>
+<table><thead><tr><th>剩余风险</th><th>等级</th><th>判断</th><th>门禁</th></tr></thead><tbody>
+<tr><td>红线 fixture 把 actor 误建成种子/全局 admin</td><td>高</td><td>会导致漏洞用例假通过，是本次已暴露的主要测试风险。</td><td>用非保留用户名、真实 UserGroup 行及显式 actor 类型断言；旧代码上必须稳定红。</td></tr>
+<tr><td>只在 route 层加守卫，未来新调用方绕过</td><td>中</td><td>当前生产调用方数量有限，但只靠代码评审不是长期保证。</td><td>S2 用服务层 actor-aware 校验器作为唯一策略，S4 登记全部写入调用方；新入口必须复用。</td></tr>
+<tr><td>actor 在授权检查后被并发降权</td><td>中-低</td><td>数据库回读缩小陈旧 Session 窗口，但本需求没有许诺串行化或解决编辑多 commit。</td><td>守卫紧邻第一个写入；文档明示剩余竞态，禁止宣称强原子保证。</td></tr>
+<tr><td>审批从 Session 逻辑迁移时行为回退</td><td>中</td><td>现有保护是正确基线，不必为了形式统一贸然改动。</td><td>S4 默认只回归；若迁移，需补齐真实 actor DB fixture 和单条/批量全矩阵。</td></tr>
+<tr><td>定向基线含缺表异常日志</td><td>低</td><td>当前容错使测试通过，但会干扰安全用例失败归因。</td><td>S0 完善内存库建表，红线命令不得依赖容错日志证明失败。</td></tr>
+</tbody></table>
+
+<h2>6. 分批计划专业性审查</h2>
+<table><thead><tr><th>批次</th><th>审查结论</th><th>不得弱化的要点</th></tr></thead><tbody>
+<tr><td>S0</td><td>必要且应单独提交</td><td>旧代码必须只在真实漏洞路径红；保留种子 admin 允许期望；消除 fixture 缺表噪声。</td></tr>
+<tr><td>S1</td><td>拆分合理</td><td>策略函数无 Session/DB/事务副作用；actor 与 target 必须是独立输入。</td></tr>
+<tr><td>S2</td><td>安全核心</td><td>数据库当前 actor 状态、写入前拒绝、零副作用断言缺一不可；不声称解决事务原子性。</td></tr>
+<tr><td>S3</td><td>用户体验增强</td><td>必须依赖 S2；模板不渲染而非仅 CSS/JS 隐藏；JS 要验证 option 缺席路径。</td></tr>
+<tr><td>S4</td><td>决定是否有遗漏</td><td>搜索结果必须形成调用方登记；审批优先等价回归，不为代码形式统一扩大风险。</td></tr>
+<tr><td>S5</td><td>交付闭环完整</td><td>必须用多组 Biz Admin 和非种子全局 admin 实际操作；包含直接 POST 反向验证、截图、复盘、可验证本地环境。</td></tr>
+</tbody></table>
+
+<h2>7. 最终建议</h2>
+<ol>
+  <li><strong>批准方案本身：</strong>rev.2 的权威矩阵、范围边界和分批次序无需重写，可作为实施基线。</li>
+  <li><strong>实施前只需用户明确确认：</strong>本评估不代替设计确认，当前不应修改业务代码。</li>
+  <li><strong>S0 作为硬门禁：</strong>先证明非种子 Biz Admin 的新增与编辑路径在旧代码上真红，再写修复。</li>
+  <li><strong>安全修复与事务优化继续分离：</strong>本轮只保证“无权 actor 在任何写入前被拒绝”，不借机解决 no-op 或多 commit。</li>
+  <li><strong>交付判定保持严格：</strong>没有调用方清单、浏览器双角色证据和 7 要素复盘，不得标记完成。</li>
+</ol>
+
+<div class="risk"><strong>尚未授权实施：</strong>本文是对设计 rev.2 的专业评估，未修改 <code>app/</code> 或 <code>tests/</code>。后续只能在用户明确确认设计后从 S0 开始。</div>
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC全局权限授予边界加固方案专业评估-2026-10-15.md">Markdown 版</a> · <a href="../design/RBAC全局权限授予边界加固优化需求-2026-10.html">被评估方案</a></footer>
+</body></html>

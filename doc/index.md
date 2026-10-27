@@ -63,6 +63,23 @@
 | **统一错误处理方案文档交付失误深度复盘（2026-09）** | request_id 语义、SSR/REST 边界、版本记录、URL 交付与浏览器验证的系统复盘 | [HTML](postmortem/2026-09-统一错误处理方案文档交付失误深度复盘.html) | [MD](postmortem/2026-09-统一错误处理方案文档交付失误深度复盘.md) |
 | **统一错误处理现状评估（2026-09-21）**（评估） | 当前未满足统一契约；2 个 P0、3 个 P1 和 1 个 P2 缺口 | [HTML](qa/统一错误处理现状评估-2026-09-21.html) | [MD](qa/统一错误处理现状评估-2026-09-21.md) |
 | **统一错误处理 P0 方案专业 Review（2026-09-21）**（评估） | B+：方向正确但需补齐接口覆盖、trace_id 复用、API 兼容和事务状态机 | [HTML](qa/统一错误处理P0方案专业Review-2026-09-21.html) | [MD](qa/统一错误处理P0方案专业Review-2026-09-21.md) |
+| **统一错误处理后续优化步骤评估（2026-10-15）**（评估） | 代码完成度、确认状态漂移、P0/P1 实施顺序与逐批停止条件 | [HTML](qa/统一错误处理后续优化步骤评估-2026-10-15.html) | [MD](qa/统一错误处理后续优化步骤评估-2026-10-15.md) |
+| **RBAC 用户编辑差异写入与事务闭环方案专业 Review（2026-10-15）**（条件通过） | B+：方向正确；实施前须关闭 __ALL__ 授权、回显、停用策略与 UI/审计契约 | [HTML](qa/RBAC用户编辑差异写入与事务闭环方案专业Review-2026-10-15.html) | [MD](qa/RBAC用户编辑差异写入与事务闭环方案专业Review-2026-10-15.md) |
+| **RBAC 全局权限授予边界 S0–S5 全过程专业 Review（2026-10-16）**（最终复核） | A-（9.3/10），正式通过：写入安全、批量反馈、列表 Scope 与持久化证据均已闭环，S5 关闭 | [HTML](qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html) | [MD](qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.md) |
+| **CronPilot 4.1.1 发布就绪度评估（2026-10-27）**（发布阻断） | 候选变更可提交；版本归档与真实 MySQL 迁移演练未闭环，暂不可发版 | [HTML](qa/4.1.1发布就绪度评估-2026-10-27.html) | [MD](qa/4.1.1发布就绪度评估-2026-10-27.md) |
+| **当前未提交代码与方案 Bugbot 专业评估（2026-10-26）**（历史基线） | 修复前发现的 2 个 P1 权限缺陷、2 个 P2 真值/交互缺陷 | [HTML](qa/当前未提交代码与方案Bugbot专业评估-2026-10-26.html) | [MD](qa/当前未提交代码与方案Bugbot专业评估-2026-10-26.md) |
+| **RBAC 四项 Review 问题闭环优化方案（2026-10）**（待确认） | 服务边界授权、DB-current actor、Session 撤销、全局 Scope 双向映射与最终状态真值契约 | [HTML](design/RBAC四项Review问题闭环优化方案-2026-10.html) | [MD](design/RBAC四项Review问题闭环优化方案-2026-10.md) |
+| **RBAC 注册审批拒绝 Scope 授权闭环方案（2026-10）**（已实施） | P1：服务边界对象授权、DB-current actor、异常申请全局治理出口 | [HTML](design/RBAC注册审批拒绝Scope授权闭环方案-2026-10.html) | [MD](design/RBAC注册审批拒绝Scope授权闭环方案-2026-10.md) |
+| **RBAC 注册审批拒绝 Scope 授权方案专业评估（2026-10-27）**（方案评估） | 专业通过；待确认审阅授权矩阵后实施 | [HTML](qa/RBAC注册审批拒绝Scope授权方案专业评估-2026-10-27.html) | [MD](qa/RBAC注册审批拒绝Scope授权方案专业评估-2026-10-27.md) |
+| **RBAC 用户管理数据库当前授权与 Session 撤销方案（2026-10）**（已实施） | P1：用户管理 7 个入口的数据库当前 Scope 与授权变更原子撤销 | [HTML](design/RBAC用户管理数据库当前授权与Session撤销方案-2026-10.html) | [MD](design/RBAC用户管理数据库当前授权与Session撤销方案-2026-10.md) |
+| **RBAC 全局管理员表单 Scope 回显优化方案（2026-10）**（已实施） | 无关联行 global Scope → 表单 `__ALL__` 回显 | [HTML](design/RBAC全局管理员表单Scope回显优化方案-2026-10.html) | [MD](design/RBAC全局管理员表单Scope回显优化方案-2026-10.md) |
+| **RBAC 全局管理员表单 Scope 回显方案专业评估（2026-10-27）**（方案评估） | A：展示层映射，不改变授权或持久化语义 | [HTML](qa/RBAC全局管理员表单Scope回显方案专业评估-2026-10-27.html) | [MD](qa/RBAC全局管理员表单Scope回显方案专业评估-2026-10-27.md) |
+| **RBAC 批量审批失败项最终状态真值优化方案（2026-10）**（待确认） | 请求动作结果与最终持久化状态分离，消除“失败项保持原状态”误导 | [HTML](design/RBAC批量审批失败项最终状态真值优化方案-2026-10.html) | [MD](design/RBAC批量审批失败项最终状态真值优化方案-2026-10.md) |
+| **RBAC 批量审批失败项最终状态方案专业评估（2026-10-27）**（方案评估） | A：结构化 disposition 与 final_status，异常默认未知 | [HTML](qa/RBAC批量审批失败项最终状态方案专业评估-2026-10-27.html) | [MD](qa/RBAC批量审批失败项最终状态方案专业评估-2026-10-27.md) |
+| **RBAC 用户管理陈旧 Session 方案专业评估（2026-10-27）**（方案评估） | A- 条件通过；B1 数据库当前授权与 B2 原子撤销须同轮闭环 | [HTML](qa/RBAC用户管理陈旧Session方案专业评估-2026-10-27.html) | [MD](qa/RBAC用户管理陈旧Session方案专业评估-2026-10-27.md) |
+| **RBAC 注册审批拒绝 Scope 绕过修复复盘（2026-10-27）**（已修复） | 数据库当前 actor、对象 Scope 与异常申请全局治理闭环 | [HTML](postmortem/2026-10-RBAC注册审批拒绝Scope绕过修复.html) | [MD](postmortem/2026-10-RBAC注册审批拒绝Scope绕过修复.md) |
+| **RBAC 批量审批反馈误报成功复盘（2026-10-16）**（已修复） | 三态真值契约、原始异常服务端留存与 trace_id 安全关联 | [HTML](postmortem/2026-10-RBAC批量审批反馈误报成功.html) | [MD](postmortem/2026-10-RBAC批量审批反馈误报成功.md) |
+| **RBAC 全局权限授予边界加固方案专业评估（2026-10-15）**（评估） | A-：专业、准确且合理；rev.2 可进入用户确认，确认后按 S0–S5 实施 | [HTML](qa/RBAC全局权限授予边界加固方案专业评估-2026-10-15.html) | [MD](qa/RBAC全局权限授予边界加固方案专业评估-2026-10-15.md) |
 | **统一错误处理 P0 与管理平台 REST 方案全面专业 Review（2026-09）**（评估） | 专业性、准确性、合理性与实施阻塞项：request_id、SSR/REST、ContextVar、兼容性 | [HTML](qa/统一错误处理P0与管理平台REST方案全面专业Review-2026-09.html) | [MD](qa/统一错误处理P0与管理平台REST方案全面专业Review-2026-09.md) |
 | **B1 认证夹具复盘与修复计划（2026-09）**（Review 未通过） | 30 失败 + 5 错误；统一真实用户、auth_version 与模型注册 | [HTML](postmortem/2026-09-B1认证夹具复盘与修复计划.html) | [MD](postmortem/2026-09-B1认证夹具复盘与修复计划.md) |
 | **数据库自增 ID 生成器下线复盘（2026-09）**（已实施） | 根因、写入路径修复、SQLite 结构切换、25 项专项测试与 86 路由冒烟 | [HTML](postmortem/2026-09-数据库自增ID生成器下线.html) | [MD](postmortem/2026-09-数据库自增ID生成器下线.md) |
@@ -176,6 +193,9 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **RBAC 全局管理员表单 Scope 回显缺失（2026-10-27）** | 零关联行 global Scope 的表单 marker 回显 | [HTML](postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.html) | [MD](postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.md) |
+| **RBAC 用户管理陈旧 Session 读取（2026-10-27）** | 7 个入口数据库当前 actor · 单事务版本撤销 | [HTML](postmortem/2026-10-RBAC用户管理陈旧Session读取.html) | [MD](postmortem/2026-10-RBAC用户管理陈旧Session读取.md) |
+| **RBAC 全局权限授予边界缺失（2026-10）** | actor/target 授权混淆 · 数据库当前事实 · 写前拒绝 · 写入安全与 F-01/F-02 已闭环，S5 正式通过 | [HTML](postmortem/2026-10-RBAC全局权限授予边界缺失.html) | [MD](postmortem/2026-10-RBAC全局权限授予边界缺失.md) |
 | **停用用户同名覆盖启用（OPT-P0-22）** | 删行重建 → 原行覆盖 · 申请人零提示 · auth_version fail-closed | [HTML](postmortem/2026-09-停用用户同名恢复.html) | [MD](postmortem/2026-09-停用用户同名恢复.md) |
 | **auth_version Session 缺键 Fail-Open** | OPT-P0-22 B2 | [HTML](postmortem/2026-09-auth-version-session-failopen.html) | [MD](postmortem/2026-09-auth-version-session-failopen.md) |
 | **全局管理员可停用种子账号** | Scope bypass 短路 · 双路径拦截 | [HTML](postmortem/2026-09-全局管理员可停用种子账号.html) | [MD](postmortem/2026-09-全局管理员可停用种子账号.md) |
@@ -219,6 +239,27 @@
 *CronPilot · 技术文档索引 · 当前正式版本 v4.0.0 · 4.1.0 候选版整理中*
 # 专项评审入口
 
+- RBAC 注册审批关联表 R2-2E1 一致性加固实施验收（审批集合核验、切读后 verify-only，2026-10-22）：[HTML](qa/RBAC注册审批关联表R2-2E1一致性加固实施验收-2026-10-22.html) · [Markdown](qa/RBAC注册审批关联表R2-2E1一致性加固实施验收-2026-10-22.md)
+
+- RBAC 注册审批关联表 R2-2E2 数据库性能验收阻断报告（100k SQLite 真值/索引通过；10 组 2.219×超阈值；MySQL 证实父表 ALL 扫描，2026-10-22）：[HTML](qa/RBAC注册审批关联表R2-2E2数据库性能验收阻断报告-2026-10-22.html) · [Markdown](qa/RBAC注册审批关联表R2-2E2数据库性能验收阻断报告-2026-10-22.md)
+- RBAC 注册审批关联表 R2-2E2 校准性能验收（Fix B 集合聚合；MySQL 10k/30k、并发 5 与 SQLite 四档绝对 SLO 全部通过，2026-10-23）：[HTML](qa/RBAC注册审批关联表R2-2E2校准性能验收-2026-10-23.html) · [Markdown](qa/RBAC注册审批关联表R2-2E2校准性能验收-2026-10-23.md)
+- RBAC 注册审批关联表 R2-2E3 集成验收（专项、全量、86 路由、黄金路径与浏览器角色矩阵通过，2026-10-23）：[HTML](qa/RBAC注册审批关联表R2-2E3集成验收-2026-10-23.html) · [Markdown](qa/RBAC注册审批关联表R2-2E3集成验收-2026-10-23.md)
+- RBAC 注册审批关联表 R2-2E4 交付收口验收（R2-2 完成；运行态、文档和质量门禁收口，2026-10-23）：[HTML](qa/RBAC注册审批关联表R2-2E4交付收口验收-2026-10-23.html) · [Markdown](qa/RBAC注册审批关联表R2-2E4交付收口验收-2026-10-23.md)
+
+- RBAC 注册审批关联表 R2-2C 双存储实施验收（父子单事务、实时双写，2026-10-20）：[HTML](qa/RBAC注册审批关联表R2-2C双存储实施验收-2026-10-20.html) · [Markdown](qa/RBAC注册审批关联表R2-2C双存储实施验收-2026-10-20.md)
+
+- RBAC 注册审批关联表 R2-2B 实施验收（15 条关联、0 孤儿，2026-10-20）：[HTML](qa/RBAC注册审批关联表R2-2B实施验收-2026-10-20.html) · [Markdown](qa/RBAC注册审批关联表R2-2B实施验收-2026-10-20.md)
+
+- RBAC 注册审批关联表 R2-2A 数据审计（16 张申请全部可分类，零写入，2026-10-20）：[HTML](qa/RBAC注册审批关联表R2-2A数据审计-2026-10-20.html) · [Markdown](qa/RBAC注册审批关联表R2-2A数据审计-2026-10-20.md)
+
+- RBAC 注册审批列表 R2-2 专业评估（A-，DEC 前置，2026-10-20）：[HTML](qa/RBAC注册审批列表R2-2专业评估-2026-10-20.html) · [Markdown](qa/RBAC注册审批列表R2-2专业评估-2026-10-20.md)
+
+- RBAC 注册审批列表陈旧 Session 读取复盘（R2-1 已修复，2026-10-19）：[HTML](postmortem/2026-10-RBAC注册审批列表陈旧Session读取.html) · [Markdown](postmortem/2026-10-RBAC注册审批列表陈旧Session读取.md)
+
+- RBAC 注册审批列表 R2-1 实施说明与专业评估（已实施并验收，2026-10-19）：[HTML](qa/RBAC注册审批列表R2-1实施说明与专业评估-2026-10-19.html) · [Markdown](qa/RBAC注册审批列表R2-1实施说明与专业评估-2026-10-19.md)
+
+- RBAC 注册审批列表 Scope 精确化方案专业 Review（A-，修订后确认，2026-10-19）：[HTML](qa/RBAC注册审批列表Scope精确化方案专业Review-2026-10-19.html) · [Markdown](qa/RBAC注册审批列表Scope精确化方案专业Review-2026-10-19.md)
+
 - 任务触发 URL 3xx 失败语义与 Pinning 修复设计（已实施，2026-10）：[HTML](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [Markdown](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.md)
 
 - 任务触发 URL DNS 二次解析安全修复设计（已确认并实施，2026-10-12）：[HTML](design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [Markdown](design/任务触发URL-DNS二次解析安全修复设计-2026-10.md)
@@ -228,5 +269,25 @@
 - 任务触发安全与测试契约漂移复盘（2026-10-10）：[HTML](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html) · [Markdown](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.md)
 
 - P0-D 数据库写入失败闭环设计（待确认）：[HTML](design/P0-D-数据库写入失败闭环设计-2026-10.html) · [MD](design/P0-D-数据库写入失败闭环设计-2026-10.md)
+
+- RBAC 注册审批申请业务组关联表 R2-2 实施方案（R2-2 已完成；R2-3/R2-4 亦已验收，2026-10）：[HTML](design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.html) · [MD](design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.md)
+
+- RBAC 注册审批列表 Scope 精确化优化方案（R2-0–R2-4 已完成；F-02 关闭，2026-10）：[HTML](design/RBAC注册审批列表Scope精确化优化方案-2026-10.html) · [MD](design/RBAC注册审批列表Scope精确化优化方案-2026-10.md)
+
+- RBAC 注册审批 R2-3 集成与同类排查实施方案（已完成；无读取旁路，2026-10）：[HTML](design/RBAC注册审批R2-3集成同类排查实施方案-2026-10.html) · [MD](design/RBAC注册审批R2-3集成同类排查实施方案-2026-10.md)
+
+- RBAC 注册审批 R2-4 浏览器最终验收与 F-02 关闭方案（已完成，2026-10）：[HTML](design/RBAC注册审批R2-4浏览器最终验收与F-02关闭方案-2026-10.html) · [MD](design/RBAC注册审批R2-4浏览器最终验收与F-02关闭方案-2026-10.md)
+
+- RBAC 注册审批 R2-4 浏览器最终验收与 F-02 关闭（通过，2026-10-26）：[HTML](qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html) · [MD](qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.md)
+
+- RBAC 注册审批 R2-3 集成与同类排查验收（通过，2026-10-26）：[HTML](qa/RBAC注册审批R2-3集成同类排查验收-2026-10-26.html) · [MD](qa/RBAC注册审批R2-3集成同类排查验收-2026-10-26.md)
+
+- RBAC 注册审批批量反馈真值闭环优化方案（B0–B3 已完成；F-01 已关闭，2026-10）：[HTML](design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html) · [MD](design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.md)
+- RBAC 批量审批请求 ID 规范化修复方案（已实施，2026-10）：重复或非法请求 ID 在写入前整体拒绝，专项测试与 86 条路由冒烟均通过。[HTML](design/RBAC批量审批请求ID规范化修复方案-2026-10.html) · [MD](design/RBAC批量审批请求ID规范化修复方案-2026-10.md)
+- RBAC 批量审批请求 ID 规范化缺失复盘（2026-10）：输入集合缺少唯一性边界；共享解析器与三条 HTTP 红线测试防回归。[HTML](postmortem/2026-10-RBAC批量审批请求ID规范化缺失.html) · [MD](postmortem/2026-10-RBAC批量审批请求ID规范化缺失.md)
+
+- RBAC 全局权限授予边界加固优化需求（S0–S5 与 F-01/F-02 均已关闭，2026-10）：[HTML](design/RBAC全局权限授予边界加固优化需求-2026-10.html) · [MD](design/RBAC全局权限授予边界加固优化需求-2026-10.md)
+
+- RBAC 用户编辑差异写入与事务闭环优化方案（待确认，2026-10）：[HTML](design/RBAC用户编辑差异写入与事务闭环优化方案-2026-10.html) · [MD](design/RBAC用户编辑差异写入与事务闭环优化方案-2026-10.md)
 
 - 统一错误处理拆分文档专业评审（2026-10-09）：[HTML](qa/error-handling-split-review-2026-10-09.html) · [Markdown](qa/error-handling-split-review-2026-10-09.md)

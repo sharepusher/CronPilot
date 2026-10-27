@@ -1,0 +1,13 @@
+{
+  "global_form_all_selected": true,
+  "initial_global_visible": [
+    35,
+    36
+  ],
+  "after_group_narrowing_visible": [
+    35
+  ],
+  "outside_detail_redirected": true,
+  "after_role_downgrade_forbidden": true,
+  "residue_users": 0
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>RBAC 批量审批请求 ID 规范化修复方案（2026-10）</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 980px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #1f2937; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #d1d5db; padding: .65rem; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
+    code { background: #f3f4f6; padding: .1rem .25rem; }
+    .meta, .notice { padding: .8rem 1rem; background: #eff6ff; border-left: 4px solid #2563eb; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>RBAC 批量审批请求 ID 规范化修复方案</h1>
+  <p class="meta">日期：2026-10-27 · 版本：v1.1 · 状态：<strong>已实施并验证</strong> · 来源：当前未提交代码 Bugbot 审查 P2</p>
+
+  <h2>版本变更记录</h2>
+  <table><thead><tr><th>版本</th><th>日期</th><th>变更</th><th>状态</th></tr></thead><tbody>
+    <tr><td>v1.1</td><td>2026-10-27</td><td>用户确认后实施共享严格解析器；重复、空或非法 ID 在写入前整体拒绝，新增三条 HTTP 红线测试。</td><td>已验证</td></tr>
+    <tr><td>v1.0</td><td>2026-10-27</td><td>首次提出：批量注册审批入口对请求 ID 执行严格、保序去重的规范化。</td><td>待确认</td></tr>
+  </tbody></table>
+
+  <h2>交付契约矩阵</h2>
+  <table><thead><tr><th>对象 / 传输</th><th>调用方</th><th>认证边界</th><th>唯一性责任</th><th>缺失 / 非法行为</th><th>响应 / 日志</th><th>浏览器验收</th><th>文档交付物</th></tr></thead><tbody>
+    <tr><td><code>POST /rbac/registration_review/batch_approve</code>、<code>batch_reject</code>；<code>ids</code> CSV</td><td>注册审批页 AJAX、同源自动化调用</td><td>既有 <code>user:manage</code>、CSRF 与审批服务 Scope 校验不变</td><td>View 在任何逐项写入前保序去重；每个有效 ID 最多处理一次</td><td>空、非十进制正整数或重复项：整体拒绝，零项写入</td><td><code>errcode=1</code>、受控参数错误；不记录审批成功/失败业务审计</td><td>页面正常多选仍成功；构造重复/非法请求时显示错误且列表状态不变</td><td>本设计 HTML / Markdown、专项 HTTP 测试与复盘</td></tr>
+  </tbody></table>
+
+  <h2>1. 问题</h2>
+  <p>现有两个批量入口把 <code>ids</code> 按逗号拆分后，只要 token 由数字组成便直接加入待处理列表。重复 ID 会被顺序执行两次：第一次改变申请状态，第二次返回“已处理”，最终把一次成功请求误报为部分失败；混入非数字 token 则被静默跳过，响应集合与请求集合不再一一对应。</p>
+
+  <h2>2. 根因</h2>
+  <p>入口把 CSV 解析同时当作“宽容清洗”和“业务校验”，没有形成一个可验证的规范化结果，也没有在逐项调用 <code>approve_registration()</code> / <code>reject_registration()</code> 前确保输入集合唯一、完整。因此服务层虽能保证第二次不重复写入，却无法使批量摘要表达调用方的原始意图。</p>
+
+  <h2>3. 推荐方案与评估</h2>
+  <p><strong>推荐 A：严格、保序规范化。</strong>新增私有 View 辅助函数，接收原始 CSV 并返回 <code>(ids, error)</code>：</p>
+  <ol>
+    <li>空 token、非 ASCII 十进制整数、零或负数均为非法；</li>
+    <li>重复正整数为非法；不静默去重，避免调用方误以为所有 token 已被处理；</li>
+    <li>只有全部 token 有效且唯一时，才进入逐项审批循环；保持首次出现顺序；</li>
+    <li>两个批量入口共用该函数，返回既有 JSON 错误信封；不调整单项审批、Scope、数据库模式或成功/部分失败三态契约。</li>
+  </ol>
+  <p>该方案以最小改动恢复“输入集合 = 尝试处理集合 = 摘要 total”的可审计关系。相较于“静默保序去重”，严格拒绝能暴露脚本、重放或参数拼接缺陷；相较于继续逐项处理，避免了已经发生状态变化后才报告输入错误。评级维持 P2：正常 UI 无法构造重复复选框，且当前实现不会重复创建用户或越权，但自动化与重放调用会获得不准确结果。</p>
+
+  <h2>4. 范围</h2>
+  <table><thead><tr><th>包含</th><th>明确不包含</th></tr></thead><tbody>
+    <tr><td><code>app/rbac/views.py</code> 的两条批量审批路由、专门的 HTTP/单元测试、修复复盘和文档同步。</td><td>页面布局、JS、CSS、API 鉴权、审批状态机、数据库迁移、已有“部分成功”业务反馈语义。</td></tr>
+  </tbody></table>
+  <p class="notice">无前端可见变更：现有页面仅会消费既有 JSON 错误信封，故不新增 Before/After 页面 Demo。</p>
+
+  <h2>5. 分批实施</h2>
+  <ol>
+    <li><strong>B0：红线测试。</strong>为通过与拒绝分别覆盖重复 ID、混合非法 token、空 token；断言 <code>errcode=1</code>、无申请状态改变、无创建用户。</li>
+    <li><strong>B1：入口收口。</strong>实现并复用严格解析器；在调用服务前返回受控错误，保留合法请求的原有顺序和响应格式。</li>
+    <li><strong>B2：验证与复盘。</strong>运行专项注册审批测试、Ruff、路由冒烟；浏览器自动化验证正常多选成功与构造非法请求零写入；写入 7 项复盘和双格式文档同步。</li>
+  </ol>
+
+  <h2>6. 验收标准</h2>
+  <ul>
+    <li><code>ids=12,12</code>、<code>ids=12,abc</code>、<code>ids=12,,13</code> 均返回 JSON 参数错误，且对应申请保持 <code>pending</code>。</li>
+    <li><code>ids=12,13</code> 保留输入顺序，每个 ID 至多调用一次服务；既有 all-success / partial-failure / all-failure 契约不变。</li>
+    <li>通过和拒绝路由使用同一规则，不存在一侧静默忽略的旁路。</li>
+    <li><code>.venv-py311/bin/python -m unittest tests.test_registration -v</code>、<code>.venv-py311/bin/ruff check app/</code>、<code>.venv-py311/bin/python scripts/smoke_routes.py --check</code> 通过。</li>
+  </ul>
+
+  <h2>7. 风险与控制</h2>
+  <table><thead><tr><th>风险</th><th>控制</th></tr></thead><tbody>
+    <tr><td>既有自动化依赖宽容解析</td><td>仅非规范请求被拒绝；正常 UI 生成的唯一正整数 CSV 不变。错误消息明确指出修正方式。</td></tr>
+    <tr><td>重复检测后才写入造成半完成</td><td>在进入任何服务调用前完成整串解析与唯一性校验；测试断言零写入。</td></tr>
+    <tr><td>两条端点实现漂移</td><td>抽取共享函数并对 approve / reject 分别建立回归测试。</td></tr>
+  </tbody></table>
+
+  <h2>8. 确认门禁</h2>
+  <p>用户已明确确认并按 v1.1 实施。验证：三条新增 HTTP 红线测试、Ruff 与 86 条路由冒烟均通过；复盘见 <a href="../postmortem/2026-10-RBAC批量审批请求ID规范化缺失.html">批量审批请求 ID 规范化缺失</a>。</p>
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC批量审批请求ID规范化修复方案-2026-10.md">Markdown 版</a></footer>
+</body>
+</html>

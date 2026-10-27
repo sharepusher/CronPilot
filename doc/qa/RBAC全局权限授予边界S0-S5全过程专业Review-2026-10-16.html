@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RBAC 全局权限授予边界 S0–S5 全过程专业 Review（2026-10-16）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.7;max-width:1120px;margin:0 auto;padding:32px;color:#1f2937;background:#fff}
+    h1,h2,h3{line-height:1.3;color:#111827} h1{font-size:2rem} h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}
+    table{width:100%;border-collapse:collapse;margin:1rem 0} th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left} th{background:#f3f4f6}
+    code{background:#f3f4f6;padding:.1rem .3rem;border-radius:3px} pre{background:#f3f4f6;padding:1rem;overflow:auto}
+    .meta{color:#6b7280}.decision,.risk,.ok{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#fff7ed;border-color:#f97316}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}
+    .p1{color:#b91c1c;font-weight:700}.p2{color:#b45309;font-weight:700}.pass{color:#047857;font-weight:700}.conditional{color:#c2410c;font-weight:700}
+    footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#6b7280}
+  </style>
+</head>
+<body>
+<main>
+<h1>RBAC 全局权限授予边界 S0–S5 全过程专业 Review</h1>
+<p class="meta">版本：rev.2 · 初审：2026-10-16 · 最终复核：2026-10-26 · 审查对象：<a href="../design/RBAC全局权限授予边界加固优化需求-2026-10.html">实施设计 rev.11</a>、实现代码、专项测试、修复复盘、Release Notes、R2-4 浏览器证据与 S5 验收记录</p>
+
+<div class="ok"><strong>最终复核结论（2026-10-26）：正式通过，S5 关闭。</strong>S0–S5 安全主链、F-01 批量反馈和 F-02 注册审批读取隔离均已闭环。R2 使用关联表权威查询、数据库当前 actor 和分页前授权谓词；R2-4 以五类真实浏览器角色、旧 Cookie 降权、持久化截图/JSON 和零残留 fixture 完成最终验收。综合评级更新为 <strong>A-（9.3/10）</strong>。独立用户编辑 no-op/单事务不属于本方案完成声明。</div>
+
+<h2>1. 审查边界与方法</h2>
+<p>本次 Review 不是重新设计，也不授权追加实现。审查以代码事实为准，逐项对照 S0–S5 的前置条件、停止条件、授权矩阵、测试和交付声明；对安全写入、可见性、事务、响应契约和证据持久性分别判断。已执行静态调用链核对、专项测试复跑、SQL 匹配语义验证、未提交差异检查与文档交叉核对。</p>
+<ul>
+  <li>安全写入链：<code>users_add/users_edit → validate_user_scope_assignment → create/update/set groups</code>。</li>
+  <li>审批链：单条/批量路由 → <code>approve_registration()</code> → 数据库当前 reviewer 授权。</li>
+  <li>展示链：注册审批列表 Repository 查询、分页、pending 数量及模板批量交互。</li>
+  <li>证据链：设计 rev.8、专项测试、修复复盘、Release Notes、索引状态与本地验收记录。</li>
+</ul>
+
+<h2>2. 分维度评分</h2>
+<table>
+<thead><tr><th>维度</th><th>评分</th><th>评价</th></tr></thead>
+<tbody>
+<tr><td>专业性</td><td>9.4 / 10</td><td>actor/target、写入/读取和 UI/服务端边界清晰；关联表、请求级同源与分批停止线完整。</td></tr>
+<tr><td>准确性</td><td>9.3 / 10</td><td>F-01/F-02 旧结论均以代码、数据库、双后端及浏览器事实校准；完成声明不再覆盖独立事务方案。</td></tr>
+<tr><td>合理性</td><td>9.2 / 10</td><td>S0–S5、B0–B3、R2-0–R2-4 逐层收口，安全、性能与交付证据成本匹配实际风险。</td></tr>
+<tr><td>一致性</td><td>9.1 / 10</td><td>设计、实现、测试、Release Notes、索引与可验证环境对 F-01/F-02 状态一致。</td></tr>
+<tr><td>可验证性</td><td>9.5 / 10</td><td>207 项回归、86 路由、幂等浏览器脚本、PNG/JSON、Cookie Scope 断言和 0/0/0 清理证据可重复。</td></tr>
+<tr><td><strong>综合</strong></td><td><strong>9.3 / 10</strong></td><td><strong>A-，正式通过；S5 关闭。</strong></td></tr>
+</tbody>
+</table>
+
+<h2>3. 已确认正确的核心结论</h2>
+<div class="ok"><strong>安全目标已经实质达成：</strong>受限 Biz Admin 不能通过新增、编辑、单条审批或批量审批把目标授予全局 Scope；合法 seed/global admin 能力保持。最终写入授权不依赖页面隐藏，也不只信任 Session。</div>
+<ul>
+  <li><strong>S1 纯策略正确：</strong><code>user_scope_assignment_denial()</code> 不读 Session/DB、不产生写副作用，稳定原因码覆盖 actor 权限、全局授予、组越界、目标角色和空组。</li>
+  <li><strong>数据库当前事实正确：</strong><code>validate_user_scope_assignment()</code> 回读 actor 当前角色、活动状态和组，并对读取异常 fail-closed。</li>
+  <li><strong>S2 写前守卫正确：</strong>新增/编辑中的 Scope 拒绝发生在 <code>create_user()</code>、<code>update_user()</code> 和 <code>set_user_groups()</code> 之前；编辑同时校验 target 管理范围。</li>
+  <li><strong>S3 UI 定位正确：</strong><code>can_assign_global</code> 复用后端能力判定；受限 actor 的 HTML 不渲染 <code>__ALL__</code>，UI 只是纵深防御。</li>
+  <li><strong>S4 审批写入正确：</strong>单条和批量均逐项调用同一审批服务，服务按 reviewer ID 读取数据库当前授权；越权项保持 pending 且不创建用户。</li>
+  <li><strong>测试隔离与角色建模良好：</strong>专项测试使用内存数据库，明确区分 seed、非种子 global、单组/多组 Biz Admin、operator 和 viewer。</li>
+</ul>
+
+<h2>4. 阻断正式验收的发现</h2>
+
+<h3>F-01 · <span class="p1">P1</span> · 批量审批失败被成功码和立即跳转掩盖</h3>
+<p class="pass"><strong>状态：已关闭（2026-10-19）。</strong>按<a href="../design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html">B0–B3 独立方案</a>完成：后端统一全成功/部分失败/全部失败契约，页面仅在全部成功时跳转，失败详情以纯文本持久展示，系统异常以同一 <code>trace_id</code> 关联服务端原始日志。浏览器覆盖全部成功、部分成功、全部失败和系统异常；扩展回归 163/163 通过。原始证据保留如下，作为修复前基线。</p>
+<p><strong>证据：</strong><code>app/rbac/views.py:1278–1302</code> 对每项统计成功/失败，但无论全部失败还是部分失败均返回 <code>web_api_return(code=0, ..., url=...)</code>；<code>app/templates/redesign/registration_review.html:213–233</code> 收到响应后只要有 URL 就立即跳转，不读取 <code>errcode</code> 或展示 <code>errmsg</code>。专项测试 <code>test_batch_scoped_admin_partially_approves_only_authorized_scope</code> 也把 <code>errcode == 0</code> 固化为期望。内存库直接复现全部失败时，响应仍为 <code>errcode=0</code>、<code>成功 0 条，失败 1 条</code>并携带跳转 URL，而数据库正确保持 <code>pending</code> 且未创建用户。</p>
+<p><strong>影响：</strong>数据库安全边界没有被绕过，但用户会看不到全部失败或部分失败的详细结果，形成“操作像成功、事实未完成”的反馈风险。这与项目最初治理“误报成功”的目标不一致，也不足以证明设计所称的“保留逐条成功/失败语义”已经在 UI 交付层成立。批量拒绝路由存在相同响应模式，应一并审查。</p>
+<p><strong>修正要求：</strong>为批量结果定义明确契约：全失败必须失败码；部分成功必须返回结构化成功/失败清单并在跳转前可见，或由重定向后的持久提示承载；增加真实浏览器的全部失败、部分成功和全部成功三态测试。</p>
+
+<h3>F-02 · <span class="p1">P1</span> · 注册审批列表存在跨组误展示与旧 Session 可见性</h3>
+<p class="pass"><strong>状态：已关闭（2026-10-26）。</strong>R2-0–R2-4 已完成：数据库当前 actor、申请—组关联表、精确交集/admin 完整子集、分页/count/badge 同源、SQLite/MySQL 性能及五角色浏览器矩阵均通过。旧 Cookie 从全局降为组 1 后立即只见组 1；证据见<a href="RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html">R2-4 最终验收</a>。以下保留原发现作为修复前基线。</p>
+<p><strong>证据：</strong><code>app/repositories/registration_request_repository.py:42–65,75–90</code> 对逗号分隔的 <code>group_ids</code> 使用 <code>LIKE '%&lt;gid&gt;%'</code>。因此组 1 会匹配组 10/11/21；本次 SQL 语义复核结果为 <code>'10' LIKE '%1%' = 1</code>。<code>app/rbac/views.py:1166–1182,1221–1224</code> 又使用 Session 中的组和 bypass 状态筛选列表及计数，而不是数据库当前 actor 事实。</p>
+<p><strong>影响：</strong>写操作仍会被数据库当前事实拒绝，因此不是全局权限写入绕过；但申请用户名、角色、组、理由等可能被范围外管理员看到，待审批数量和分页也可能泄露范围外记录。对于 viewer/operator 申请，分页后的 Python 二次过滤不会纠正数字子串误匹配；actor 被从 global 降为 scoped 后，旧 Session 还可能继续看到全量列表。</p>
+<p><strong>修正要求：</strong>短期使用边界安全的精确 token 条件并统一用于列表与计数；中期将申请与组规范化为关联表。页面可见性读取数据库当前 actor 授权，至少新增“组 1 不匹配组 10”和“数据库降权覆盖旧 Session”的测试。</p>
+
+<h3>F-03 · <span class="p1">P1（文档验收）</span> · “拒绝路径零业务副作用”声明范围过宽</h3>
+<p class="pass"><strong>状态：已关闭（2026-10-16 起持续生效）。</strong>父设计 rev.9–rev.11 和索引已统一限定为“Scope 授权拒绝路径零业务写入”，并明确岗位校验、no-op 与单事务属于独立 U0–U3 方案，未纳入 S5 完成声明。</p>
+<p><strong>证据：</strong>设计 §8.3 正确限定“Scope 拒绝在首个写入前”，§8.3 又明确本需求不解决编辑路由多次 commit；但 §12 写成无条件的“拒绝路径零业务副作用”，rev.8 顶部和索引也笼统写“数据库零副作用”。实际 <code>app/rbac/views.py:799–829</code> 先调用会各自提交的 <code>update_user()</code> 和 <code>set_user_groups()</code>，之后才校验岗位；岗位缺失或自定义岗位为空会返回失败，但角色/状态/组可能已经改变。</p>
+<p><strong>影响：</strong>S2 的 Scope 安全拒绝结论仍然成立，但文档会让读者误以为所有表单失败路径都已具备事务原子性。这与独立的<a href="../design/RBAC用户编辑差异写入与事务闭环优化方案-2026-10.html">用户编辑差异写入与事务闭环方案</a>“待确认、未实施”状态冲突。</p>
+<p><strong>修正要求：</strong>把所有相关表述限定为“Scope 授权拒绝路径零业务写入”；明确岗位、资料、后续提交失败仍属独立 U0–U3 方案范围。在该独立方案实施前，不得宣称编辑端点整体具备零副作用或单事务。</p>
+
+<h2>5. 非阻断但必须收口的发现</h2>
+<table>
+<thead><tr><th>编号</th><th>级别</th><th>发现</th><th>建议</th></tr></thead>
+<tbody>
+<tr><td>F-04</td><td><span class="pass">已关闭</span></td><td>R2-4 保存 6 张脱敏 PNG、结构化 JSON 与 SHA-256，并提供可重复浏览器脚本。</td><td><code>doc/qa/evidence/rbac-registration-r2-4-2026-10-26/</code></td></tr>
+<tr><td>F-05</td><td><span class="pass">已关闭</span></td><td>脚本幂等创建随机密码 fixture，并在 <code>finally</code> 清理；最终用户/申请/关联行 0/0/0。</td><td><code>scripts/verify_registration_scope_browser.py</code></td></tr>
+<tr><td>F-06</td><td><span class="pass">已关闭</span></td><td>B3 已覆盖批量 UI 四态；R2-3/R2-4 已覆盖精确 Scope、筛选、分页、badge 与真实浏览器。</td><td>207 项相关回归及五角色浏览器矩阵通过。</td></tr>
+</tbody>
+</table>
+
+<h2>6. S0–S5 逐批评价</h2>
+<table>
+<thead><tr><th>批次</th><th>结论</th><th>专业评价</th><th>遗留</th></tr></thead>
+<tbody>
+<tr><td>S0</td><td class="pass">通过（A）</td><td>先固定漏洞红线、角色 fixture 与 before/after 快照，失败确实由授权缺口触发，方法严谨。</td><td>没有把批量反馈和列表 Scope 精确性纳入证据面。</td></tr>
+<tr><td>S1</td><td class="pass">通过（A-）</td><td>纯策略与数据库适配器职责分离；原因码稳定、读取失败拒绝，避免 target 角色反推 actor 能力。</td><td>无阻断项。</td></tr>
+<tr><td>S2</td><td class="pass">通过（A-）</td><td>新增/编辑的 Scope 守卫位于业务写入前，数据库当前 actor 与 target Scope 都有覆盖。</td><td>只保证 Scope 拒绝，不解决整个编辑链的校验顺序和事务原子性。</td></tr>
+<tr><td>S3</td><td class="pass">通过（A）</td><td>后端先于 UI，模板不渲染而非 CSS 隐藏；允许/拒绝两类角色都有自动化。</td><td>组列表仍基于 Session，可能短期展示旧范围，但提交会被后端拒绝。</td></tr>
+<tr><td>S4</td><td class="pass">通过（A-）</td><td>审批写授权、批量三态/UI 真值及读取 Scope 已分别由 S4、B0–B3、R2 完成。</td><td>无本方案阻断项。</td></tr>
+<tr><td>S5</td><td class="pass">通过（A-）</td><td>真实角色、篡改 POST、DB 快照、五角色读取矩阵、持久化证据、幂等 fixture 与路由门禁完整。</td><td>用户编辑 no-op/单事务继续独立推进。</td></tr>
+</tbody>
+</table>
+
+<h2>7. 设计、实现、测试、文档一致性矩阵</h2>
+<table>
+<thead><tr><th>声明</th><th>代码事实</th><th>测试事实</th><th>判定</th></tr></thead>
+<tbody>
+<tr><td>新增/编辑/审批最终授权读取数据库当前事实</td><td>四个入口最终均进入 <code>validate_user_scope_assignment()</code></td><td>角色/组降权覆盖旧 Session 的写入用例已覆盖</td><td class="pass">一致</td></tr>
+<tr><td>按组管理员不能授予 <code>__ALL__</code></td><td>策略与服务均拒绝</td><td>新增、编辑、单条、批量及 DB 状态均覆盖</td><td class="pass">一致</td></tr>
+<tr><td>批量保留逐条成功/失败语义</td><td>后端按三态返回结构化摘要；仅全成功带跳转 URL</td><td>接口/DB 自动化与浏览器四态矩阵均覆盖</td><td class="pass">F-01 已关闭</td></tr>
+<tr><td>拒绝路径零业务副作用</td><td>Scope 拒绝成立；岗位等后置失败不成立</td><td>专项只验证 Scope 拒绝</td><td class="conditional">表述过宽</td></tr>
+<tr><td>列表授权使用数据库当前 actor</td><td>请求级解析当前角色、启用状态和关联组</td><td>角色降权、组收窄、旧 Cookie 五角色矩阵覆盖</td><td class="pass">一致</td></tr>
+<tr><td>浏览器证据可持续</td><td>幂等脚本输出 PNG/JSON 并清理 fixture</td><td>R2-4 可重复运行，证据与 SHA-256 已落库</td><td class="pass">一致</td></tr>
+</tbody>
+</table>
+
+<h2>8. 推荐收口顺序</h2>
+<ol>
+  <li><strong>R0 · 文档校准：</strong><span class="pass">已完成。</span>“零业务副作用”已限定为 Scope 授权拒绝，独立事务方案边界明确。</li>
+  <li><strong>R1 · 批量反馈单一垂直修复：</strong><span class="pass">已完成。</span>正式设计、B0–B3、页面四态与复盘证据均已落库，F-01 已关闭。</li>
+  <li><strong>R2 · 审批列表 Scope 精确化：</strong><span class="pass">已完成。</span>关联表、DB-current actor、分页/计数同源、双后端性能与读取入口审计已验收。</li>
+  <li><strong>R3 · 重新执行 S5 验收：</strong><span class="pass">已完成。</span>R2-4 已持久化浏览器证据并以幂等 fixture 完成五角色正反矩阵，S5 已关闭。</li>
+  <li><strong>R4 · 独立推进编辑事务/no-op：</strong>继续使用既有 U0–U3 方案，须另行明确确认；不得把它混入本次安全边界修补。</li>
+</ol>
+
+<h2>9. 最终验收门槛</h2>
+<ul>
+  <li>批量全部失败不再返回成功语义，部分失败在 UI 中可见且可追溯；</li>
+  <li>组 1/10 等数字边界不会导致跨组列表、计数或分页泄露；</li>
+  <li>数据库降权后旧 Session 不再获得超出当前授权的审批列表可见性；</li>
+  <li>设计、复盘、Release Notes 和索引统一限定 Scope 拒绝边界；</li>
+  <li>两类角色浏览器证据可从仓库或自动化流程重复获得。</li>
+</ul>
+
+<div class="ok"><strong>发布判断：</strong>S0–S5 整体闭环成立；Biz Admin 全局授予阻断、批量反馈真值和审批列表 Scope 展示均已验证。F-01/F-02 关闭不改变 API 返回字段，也不包含独立的用户编辑事务改造。</div>
+
+<h2>10. 本次自证</h2>
+<pre>专项复跑：1/1（当前批量部分成功测试通过，但同时证明其固化 code=0）
+全部失败复现：errcode=0、成功 0/失败 1、携带跳转 URL；DB 保持 pending 且无用户
+SQL 语义：'10' LIKE '%1%' = 1（确认数字子串碰撞）
+git diff --check：通过
+文档完整性：303/303 HTML 已登记，0 broken refs
+文档链接：扫描 2376 个引用，0 broken
+HTML↔Markdown、pending-sync、图片资产与 OPT 一致性门禁：通过
+静态调用方：create_user/update_user/set_user_groups/approve_registration 的生产调用点与设计清单一致
+事务事实：update_user 与 set_user_groups 各自 commit；岗位校验位于其后
+2026-10-19 B3 扩展回归：163/163 通过
+2026-10-26 R2-4 相关回归：207/207；关键路由：86/86
+浏览器：组 1、组 10、多组、全局、旧 Cookie 降权五类矩阵通过
+持久化证据：6 PNG + evidence.json；fixture 残留 users/requests/relations=0/0/0
+F-01：三态接口、页面四态、异常脱敏/trace_id、自动化证据已关闭
+F-02：关联表精确 Scope、DB-current actor、同源分页/计数/badge 和浏览器证据已关闭
+审查结论：A-（9.3/10），正式通过；S5 关闭</pre>
+
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.md">Markdown 版</a> · <a href="../design/RBAC全局权限授予边界加固优化需求-2026-10.html">被审查设计</a> · <a href="../postmortem/2026-10-RBAC全局权限授予边界缺失.html">实施复盘</a></footer>
+</body>
+</html>

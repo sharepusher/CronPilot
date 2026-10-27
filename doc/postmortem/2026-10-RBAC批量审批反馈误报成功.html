@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>RBAC 批量审批反馈误报成功修复复盘</title>
+<style>body{font-family:system-ui,sans-serif;max-width:980px;margin:2em auto;padding:0 18px;line-height:1.7;color:#1e293b}h1{border-bottom:2px solid #2563eb;padding-bottom:.3em}h2{margin-top:1.7em}code,pre{background:#f1f5f9}code{padding:2px 5px}pre{padding:12px;overflow:auto}.risk{border-left:4px solid #dc2626;background:#fef2f2;padding:12px}.ok{border-left:4px solid #16a34a;background:#f0fdf4;padding:12px}</style></head><body>
+<p><a href="index.html">← 返回复盘索引</a></p>
+<h1>RBAC 批量审批反馈误报成功修复复盘</h1>
+<p>日期：2026-10-16（2026-10-19 B3 收口） · 对应设计：<a href="../design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html">B0–B3 方案</a> · 状态：已完成</p>
+<div class="risk"><strong>一句话：</strong>后端已逐项识别失败，但批量路由在汇总时固定返回 <code>errcode=0</code> 与跳转 URL，使部分/全失败在协议层被伪装为成功。</div>
+<h2>1. Bug 定位</h2><p><code>registration_batch_approve()</code> 和 <code>registration_batch_reject()</code> 收集 <code>ok_count/fail_msgs</code> 后无条件调用 <code>web_api_return(code=0, url=...)</code>。B0 在旧实现上用 6 条红线稳定复现：4 条证明失败仍 code=0，2 条证明成功响应缺结构化摘要。</p>
+<h2>2. 根因</h2><p>行为层根因是“人类可读文案”代替了“机器可判定结果”：实现者把失败数写进 <code>errmsg</code> 便认为已反馈，却没有同步修改成功码、导航权与结构化数据。通过/拒绝两条路由复制了同一汇总模式，因而问题成对出现。</p>
+<h2>3. 测试漏洞</h2><p>原测试重点是数据库授权不越界，未同时断言 <code>errcode</code>、<code>url</code>、结果摘要和逐项 DB 状态之间的不变量；也没有覆盖原始异常脱敏与日志关联号。</p>
+<h2>4. 修复</h2><p>新增共享结果组装函数，统一 <code>all_success / partial_failure / all_failure</code> 三态；仅全成功返回 code=0 和 URL。失败项返回 ID 和受控文案。系统异常在服务层或路由边界生成 <code>trace_id</code>，原文与 traceback 仅写服务端日志。</p>
+<h2>5. 防护测试</h2><p><code>TestRegistrationApprovalScopeClosure</code> 覆盖通过/拒绝的三态和数量不变量；新增异常测试确认响应不含敏感原文且同一 <code>trace_id</code> 存在于日志。<code>TestApproveRejectRegistration</code> 直接注入 commit 异常，证明服务层的关联链真实可查。</p>
+<h2>6. 同类排查</h2><p>本轮同时修复批量通过和批量拒绝，并保留单条路由契约。全仓异常原文输出由既有“异常信息脱敏”门禁持续覆盖；B2 将独立处理前端对三态摘要的消费。</p>
+<h2>7. 预防方案</h2><div class="ok"><p><strong>可落地措施 1：</strong>在 <code>tests/test_rbac_global_scope_assignment.py</code> 固定 <code>total = success_count + failure_count</code>、<code>failure_count = len(failures)</code> 和“任一失败无 URL”契约。</p><p><strong>可落地措施 2：</strong>在 <code>tests/test_registration.py</code> 固定“原始异常只在日志，同 trace_id 可查”，防止后续只加通用文案却丢失运维可观测性。</p><p><strong>验证：</strong><code>.venv-py311/bin/python -m unittest tests.test_rbac_global_scope_assignment.TestRegistrationApprovalScopeClosure tests.test_registration.TestApproveRejectRegistration -v</code></p></div>
+<h2>8. 最新验收证据</h2><p>2026-10-16：定向 22/22，相关回归 123/123，Import smoke 9/9，路由冒烟 86/86；Ruff、文档完整性、链接、HTML/Markdown 同步通过。本地服务登录页 HTTP 200，无写入的不存在 ID 冒烟返回 <code>all_failure</code> 且无跳转 URL。</p>
+<h2>9. B2 实施中的 jQuery 兼容性修复</h2><p>B2 首次浏览器验收发现批量请求进入网络失败分支。定位到项目固定使用 jQuery 1.8，而新实现写成 <code>$.ajax({method: 'POST'})</code>；jQuery 1.8 忽略该新版配置后默认发出 GET，路由因仅允许 POST 返回 405。修复为兼容语法 <code>type: 'POST'</code>，并在 <code>tests/test_registration.py</code> 增加“必须 type，禁止 method”渲染契约。根因是实施时按现代 jQuery API 习惯编写，未先读取本仓库 jQuery 实际版本；预防措施的落地位置是上述静态契约测试与真实浏览器 POST 验收。</p>
+<h2>10. B3 最终验收</h2><p>2026-10-19：注册、授权边界、会话撤销、CSRF、四角色侧边栏与表单守卫扩展回归 163/163 通过，路由冒烟 86/86，<code>verify_all.sh --local-only</code> 为 4 通过、0 失败；沙箱禁止端口绑定导致黄金路径按脚本规则跳过，但运行服务的真实登录 GET=200、POST=302，审批页=200。浏览器以受限 Biz Admin 验证全部成功、部分成功、全部失败和系统异常：导航权、结果条、逐项原因、32 位 trace_id、焦点恢复与数据库状态均符合设计，控制台 0 错误；临时用户、申请、审计记录和故障注入 trigger 清理后均为 0 残留。该证据关闭父 Review F-01；审批列表 Scope 精确性 F-02 仍是独立问题。</p>
+<footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="index.html">文档索引</a> · <a href="2026-10-RBAC批量审批反馈误报成功.md">Markdown</a> · <a href="index.html">索引</a></footer>
+</body></html>

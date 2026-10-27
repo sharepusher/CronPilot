@@ -44,16 +44,14 @@ def _get_pending_reg_count():
         from app import db
         from app.repositories.registration_request_repository import RegistrationRequestRepository
 
-        from .policy import is_seed_admin_username, user_bypasses_scope
+        from .registration_scope import current_registration_actor_scope
         repo = RegistrationRequestRepository(db.session)
-        bypasses = user_bypasses_scope(
-            session.get('role') or '',
-            username=session.get('username') or '',
-            group_ids=session.get('group_ids') or [],
-        )
-        if bypasses:
+        actor_scope = current_registration_actor_scope()
+        if not actor_scope['ok']:
+            return 0
+        if actor_scope['bypass']:
             return repo.get_pending_count_all()
-        return repo.get_pending_count_by_groups(session.get('group_ids') or [])
+        return repo.get_pending_count_by_groups(actor_scope['group_ids'])
     except Exception:
         logger.warning('pending_registration_count: DB query failed', exc_info=True)
         return 0

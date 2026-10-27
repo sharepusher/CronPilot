@@ -37,6 +37,47 @@ def require_login(func):
     return wrapper
 
 
+def require_user_management_actor(func):
+    """用户管理专用守卫：以数据库当前 actor 取代陈旧 Cookie 权限。"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if 'is_login' not in session:
+            next_url = request.full_path.rstrip('?')
+            return redirect(f'/rbac/login?next={next_url}')
+        from .user_management_scope import current_user_management_actor_scope
+
+        actor_scope = current_user_management_actor_scope()
+        if actor_scope['ok']:
+            return func(*args, **kwargs)
+        if actor_scope['reason'] == 'actor_missing_or_inactive':
+            session.clear()
+            login_url = '/rbac/login?msg=登录状态已失效，请重新登录'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return json_response(errcode=1, errmsg='登录状态已失效，请重新登录', url=login_url)
+            return redirect(login_url)
+        if actor_scope['reason'] == 'authorization_check_failed':
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return json_response(errcode=1, errmsg='服务器内部错误，请稍后重试', status=500)
+            return render_template(
+                'redesign/error.html',
+                icon='fa-triangle-exclamation',
+                title='服务异常',
+                description='服务器内部错误，请稍后重试。',
+                show_nav=False,
+                home_url='/cron_list',
+                home_text='返回任务中心',
+            ), 500
+        write_audit_log(
+            action='permission:deny',
+            resource='user:manage',
+            status='deny',
+            user_id=actor_scope.get('actor_id'),
+            username=actor_scope.get('username', ''),
+        )
+        return _forbidden_response('user:manage')
+    return wrapper
+
+
 def session_group_ids():
     gids = session.get('group_ids')
     if not isinstance(gids, list):

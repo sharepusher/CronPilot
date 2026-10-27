@@ -23,10 +23,17 @@ li { margin: 4px 0; font-size: 0.9rem; }
 <body>
 <div class="back"><a href="../index.html">← 返回文档总索引</a></div>
 <h1>复盘文档索引</h1>
-<p>本目录包含 CronPilot 的所有事后复盘文档（Bug 分析、事故回顾、预防方案等），共 69 篇。</p>
+<p>本目录包含 CronPilot 的所有事后复盘文档（Bug 分析、事故回顾、预防方案等），共 76 篇。</p>
 
 <h2>安全与前端关键问题</h2>
 <ul>
+<li><span class="badge b-sec">RBAC</span> <a href="2026-10-RBAC全局管理员表单Scope回显缺失.html">RBAC 全局管理员表单 Scope 回显缺失</a>（零关联行 global Scope · ViewModel marker 回显，2026-10-27）</li>
+<li><span class="badge b-sec">RBAC</span> <a href="2026-10-RBAC用户管理陈旧Session读取.html">RBAC 用户管理陈旧 Session 读取</a>（7 个入口数据库当前 actor · 单事务版本撤销，2026-10-27）</li>
+<li><span class="badge b-sec">RBAC</span> <a href="2026-10-RBAC注册审批拒绝Scope绕过修复.html">RBAC 注册审批拒绝 Scope 绕过修复</a>（数据库当前 actor · 对象 Scope · 异常申请全局治理，2026-10-27）</li>
+<li><span class="badge b-sec">RBAC</span> <a href="2026-10-RBAC注册审批列表陈旧Session读取.html">RBAC 注册审批列表陈旧 Session 读取</a>（数据库当前 actor · 请求级同源 · 302/403/500，2026-10-19）</li>
+<li><span class="badge b-sec">RBAC</span> <a href="2026-10-RBAC批量审批反馈误报成功.html">RBAC 批量审批反馈误报成功</a>（三态真值契约 · trace_id 安全关联，2026-10-16）</li>
+<li><span class="badge b-bug">Bug</span> <a href="2026-10-RBAC批量审批请求ID规范化缺失.html">RBAC 批量审批请求 ID 规范化缺失</a>（重复/非法 ID 写前整体拒绝 · 双入口共享解析，2026-10-27）</li>
+<li><span class="badge b-sec">安全</span> <a href="2026-10-RBAC全局权限授予边界缺失.html">RBAC 全局权限授予边界缺失</a>（actor/target 授权混淆 · 数据库当前事实 · 写前拒绝 · 写入安全通过、S5 条件验收，2026-10-16）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-08-security-S1-S5.html">安全问题 S1–S5 修复复盘</a>（Logout CSRF · Tag Scope · XSS · 异常泄露）</li>
 <li><span class="badge b-sec">P0</span> <a href="2026-08-P0-frontend-bugs.html">P0 前端关键 Bug 复盘</a>（CpConfirm 参数 · Open Redirect · 异常脱敏 · Escape 选择器）</li>
 <li><span class="badge b-sec">安全</span> <a href="2026-08-全面CodeReview复盘.html">全面 Code Review 综合复盘</a>（2026-08-28 全量 Review）</li>

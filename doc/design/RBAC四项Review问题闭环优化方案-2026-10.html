@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RBAC 四项 Review 问题闭环优化方案（2026-10）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.72;max-width:1160px;margin:0 auto;padding:32px;color:#1f2937;background:#fff}
+    h1,h2,h3{line-height:1.3;color:#111827} h2{margin-top:2.2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}
+    table{width:100%;border-collapse:collapse;margin:1rem 0} th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left} th{background:#f3f4f6}
+    code{background:#f3f4f6;padding:.1rem .3rem;border-radius:3px} pre{background:#f3f4f6;padding:1rem;overflow:auto}
+    .meta{color:#6b7280}.decision,.risk,.ok,.note{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#fff7ed;border-color:#f97316}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}.note{background:#eff6ff;border-color:#2563eb}
+    .p1{color:#b91c1c;font-weight:700}.p2{color:#b45309;font-weight:700}.pass{color:#047857;font-weight:700}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:1rem 0}.screen{border:1px solid #cbd5e1;border-radius:10px;overflow:hidden}.screen h4{margin:0;padding:.7rem 1rem;background:#f1f5f9}.screen .body{padding:1rem}.bad{border-color:#dc2626}.good{border-color:#059669}.bar{padding:.55rem .7rem;border-radius:6px;margin:.5rem 0;background:#f8fafc}.warn{background:#fff7ed}.error{background:#fef2f2}.success{background:#ecfdf5}.muted{color:#64748b}
+    footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#6b7280}
+    @media(max-width:800px){.compare{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+<h1>RBAC 四项 Review 问题闭环优化方案</h1>
+<p class="meta">版本：rev.1 · 日期：2026-10-26 · 状态：<strong>待用户 Review 与明确确认</strong> · 来源：<a href="../qa/当前未提交代码与方案Bugbot专业评估-2026-10-26.html">当前未提交代码与方案 Bugbot 专业评估</a> · 页面/响应对比：<a href="#page-compare">§8</a></p>
+
+<div class="decision"><strong>推荐结论：</strong>4 条发现均准确。问题 1、2 为 P1，必须在提交前关闭；问题 3、4 为 P2，但与同一 RBAC 交付的正确性和真值契约直接相关，建议同轮闭环。方案采用四个稳定原则：<strong>授权落在服务边界、授权事实来自数据库当前状态、持久化 Scope 与表单 sentinel 双向映射、响应显式描述最终状态效果</strong>。</div>
+
+<h2>1. 问题与准确性校准</h2>
+<table>
+  <thead><tr><th>编号</th><th>原发现</th><th>准确性</th><th>专业定性</th><th>是否阻断</th></tr></thead>
+  <tbody>
+    <tr><td>R-01</td><td>单条/批量拒绝绕过申请 Scope</td><td class="pass">成立，高置信</td><td><span class="p1">P1 对象级授权缺失</span>。CSRF 只能证明请求来自已登录页面，不能替代目标对象授权；顺序 ID 可被直接提交。</td><td>是</td></tr>
+    <tr><td>R-02</td><td>用户管理读取面信任陈旧 Session</td><td class="pass">成立，高置信</td><td><span class="p1">P1 授权事实分裂</span>。全局 before-request 只校验账号、启用状态和 <code>auth_version</code>；角色/组变更当前不 bump 版本，因此旧 role/group_ids 仍有效。</td><td>是</td></tr>
+    <tr><td>R-03</td><td>全局 admin 编辑页不回显 <code>__ALL__</code></td><td class="pass">成立，高置信</td><td><span class="p2">P2 双向映射缺陷</span>。不是权限提升，但会令合法全局管理员的原样保存失败，破坏 no-op 与可用性。</td><td>建议同轮</td></tr>
+    <tr><td>R-04</td><td>“失败项保持原状态”与自动拒绝冲突</td><td class="pass">成立，高置信</td><td><span class="p2">P2 结果真值缺陷</span>。数据库行为是设计过的自动拒绝，不是数据损坏；错误在于 <code>ok=False</code> 无法表达“请求动作失败但状态已改变”。</td><td>建议同轮</td></tr>
+  </tbody>
+</table>
+
+<h2>2. 根因</h2>
+<ol>
+  <li><strong>动作授权不对称：</strong>批准服务读取 reviewer 并校验当前数据库 Scope；拒绝服务仍是“拿到 ID 即更新”，路由只做粗粒度 <code>user:manage</code>。</li>
+  <li><strong>同域存在两套授权事实：</strong>注册审批列表和用户写入已使用数据库当前 actor；用户列表、详情、编辑上下文及管理范围仍使用 Session role/group_ids。<code>web_session_user_is_valid()</code> 又不会发现角色/组变化。</li>
+  <li><strong>领域值缺少反向转换：</strong>POST 使用 <code>__ALL__</code> 表示全局，数据库使用“admin + 0 条 UserGroup”表示全局，但 GET 直接把数据库组 ID 列表交给模板，未恢复 sentinel。</li>
+  <li><strong>结果模型只有成功/失败：</strong>批准服务的自动拒绝分支返回 <code>ok=False</code>，批量层把它归为 failure；页面由 failure 推导“未变化”，把“请求动作结果”和“状态副作用”错误合并。</li>
+  <li><strong>完成门禁按局部场景收口：</strong>现有测试覆盖批准、注册审批列表和常规批量失败，但没有从“所有写动作”“所有用户管理读入口”“GET→原样保存”“失败后的最终状态”四个集合做完整性检查。</li>
+</ol>
+
+<h2>3. 设计原则与方案总览</h2>
+<table>
+  <thead><tr><th>原则</th><th>约束</th><th>落点</th></tr></thead>
+  <tbody>
+    <tr><td>服务边界授权</td><td>任何按 ID 改变注册申请状态的服务都必须接收明确 actor，并在写入前完成对象级授权；路由检查只作纵深防御。</td><td><code>app/rbac/services.py</code></td></tr>
+    <tr><td>数据库当前事实</td><td>用户管理路由不得再用 Session role/group_ids 决定可见集合或目标管理权；数据库读取失败 fail-closed。</td><td><code>app/rbac/registration_scope.py</code> 可抽象为通用 actor context；<code>app/rbac/views.py</code></td></tr>
+    <tr><td>授权变更撤销会话</td><td>角色或组集合发生有效变化时，目标用户 <code>auth_version</code> 在同一业务事务中只 bump 一次。</td><td>用户编辑原子服务；不得在两个独立 commit 中重复 bump</td></tr>
+    <tr><td>显式领域映射</td><td><code>admin + []</code> 只在合法全局语义下映射为表单 <code>['__ALL__']</code>；非 admin 空组不得误映射。</td><td>纯映射 helper + 模板上下文</td></tr>
+    <tr><td>结果与状态分离</td><td><code>ok</code> 表达请求动作是否成功；<code>state_changed/final_status/disposition</code> 表达数据库最终效果。</td><td>审批服务、批量摘要、页面结果条</td></tr>
+  </tbody>
+</table>
+
+<h2>4. R-01：拒绝入口对象级授权</h2>
+<h3>4.1 推荐方案</h3>
+<ol>
+  <li>将 <code>reject_registration()</code> 改为必须显式接收 <code>reviewer_id</code>；禁止服务内部隐式从 Session 取 actor。</li>
+  <li>申请加锁并确认仍为 pending 后，读取数据库当前 actor；actor 不存在、停用、无 <code>user:manage</code> 或授权读取异常时 fail-closed，且不得改变申请。</li>
+  <li>冻结拒绝授权语义：
+    <ul>
+      <li>seed/global admin：可拒绝所有合法申请，也可处理异常/漂移申请，作为唯一治理出口；</li>
+      <li>scoped admin + viewer/operator 申请：目标申请组与 actor 组有精确交集才可拒绝，与列表可见性一致；</li>
+      <li>scoped admin + admin 申请：申请的全部具体组必须是 actor 当前组的非空子集；</li>
+      <li><code>__ALL__</code>、缺关联、关联漂移、非法历史 Scope：scoped admin 一律不可拒绝。</li>
+    </ul>
+  </li>
+  <li>单条与批量路由都传 <code>session.user_id</code> 给服务；服务返回稳定原因码，路由只做受控文案映射和审计。</li>
+  <li>拒绝成功写入 <code>reviewer_id</code>，失败审计只记录 actor ID、request ID、reason code，不记录申请敏感字段。</li>
+</ol>
+<div class="note"><strong>为何不用批准校验直接代替：</strong>批准是“授予用户 Scope”，必须按目标角色执行授予边界；拒绝是“终止申请”，其合法范围应与申请列表的审阅责任一致。对 viewer/operator 采用精确交集，对 admin 采用完整子集，可避免页面可见但无法拒绝，也不会让按组管理员处置全局或异常申请。</div>
+
+<h3>4.2 不推荐方案</h3>
+<ul>
+  <li>只在路由里检查当前页是否出现该 ID：可被其他调用方绕过，且分页/筛选不是授权依据。</li>
+  <li>只复用 <code>@require_permission('user:manage')</code>：它是功能权限，不是对象 Scope。</li>
+  <li>对异常申请默认允许 scoped admin 拒绝：会把存储漂移变成越权治理入口。</li>
+</ul>
+
+<h2>5. R-02：用户管理数据库当前授权与 Session 撤销</h2>
+<h3>5.1 推荐方案：双层闭环</h3>
+<p><strong>第一层：请求内即时授权。</strong>将现有 <code>resolve_user_management_actor()</code> 提升为通用、请求级缓存的 user-management actor context。以下入口全部从同一 context 获取 <code>role/username/group_ids/bypass</code>：</p>
+<ul>
+  <li>用户列表及其 count、分页；</li>
+  <li>用户新增页面可选组与全局能力；</li>
+  <li>用户查看、编辑、重置密码、重置 Token、停用的目标 Scope；</li>
+  <li>用户编辑成功/失败回渲时的可选组。</li>
+</ul>
+<p>actor 缺失/停用时清 Session 并要求重新登录；数据库当前角色无 <code>user:manage</code> 时返回 403；授权查询失败返回通用 500。不得回退到 Session。</p>
+
+<p><strong>第二层：授权变更后的会话撤销。</strong>当目标用户的角色或有效组集合发生变化时，在用户编辑的同一数据库事务中把 <code>auth_version</code> 增加一次；无变化不得 bump。这样旧 Cookie 在下一请求进入全局 before-request 时被撤销，顶栏、导航和其他仍使用 Session 的页面也不会长期展示旧权限。</p>
+
+<div class="risk"><strong>事务约束：</strong>当前 <code>users_edit()</code> 依次调用 <code>update_user()</code>、<code>set_user_groups()</code> 和个人资料 commit，存在多个提交点。不得简单地在两个现有函数中各自 bump；应接入已设计的用户编辑差异写入/单事务服务，使 role、groups、auth_version、Token/cache 失效与审计形成一个原子结果。</div>
+
+<h3>5.2 取舍</h3>
+<table>
+  <thead><tr><th>方案</th><th>优点</th><th>缺点</th><th>结论</th></tr></thead>
+  <tbody>
+    <tr><td>只在每个用户管理路由读数据库</td><td>即时阻断越权；不依赖会话撤销</td><td>导航和其他 Session 消费点仍陈旧；每个入口都要保持同源</td><td>必要但不充分</td></tr>
+    <tr><td>只在角色/组变化时 bump auth_version</td><td>全站旧会话统一失效</td><td>遗漏某个写入口就重新出现漏洞；并发窗口依赖写路径完整性</td><td>必要但不单独依赖</td></tr>
+    <tr><td>数据库当前授权 + 原子 bump</td><td>即时正确 + 全站收敛，纵深防御</td><td>需并入用户编辑单事务改造</td><td><strong>推荐</strong></td></tr>
+  </tbody>
+</table>
+
+<h2>6. R-03：全局 Scope 的表单双向映射</h2>
+<h3>6.1 推荐方案</h3>
+<ol>
+  <li>新增纯函数，把目标用户的持久化角色与组集合转换为表单值：
+    <ul>
+      <li>非种子 <code>admin + []</code> → <code>['__ALL__']</code>；</li>
+      <li>具体组用户 → 对应字符串组 ID；</li>
+      <li>非 admin + [] → 无效数据状态，绝不映射为全局；</li>
+      <li>seed admin → 固定全局语义，页面只读/锁定，不允许降级为具体组。</li>
+    </ul>
+  </li>
+  <li>模板只消费 <code>selected_group_values</code>，不再自行猜测数据库空关系的含义。</li>
+  <li>POST 仍以现有 <code>validate_user_scope_assignment()</code> 为唯一授权入口；GET 映射只负责回显，不能放宽后端。</li>
+  <li>错误回渲优先使用本次已校验的表单值；数据库 reload 只用于成功后的事实展示，避免用户输入无故消失。</li>
+</ol>
+<p><strong>稳定性关键：</strong>不要让模板出现“如果空组且 admin 就 selected”这类领域判断；映射应有纯函数单测，保证持久化值、表单值、change-set 值三者一致。</p>
+
+<h2>7. R-04：批量反馈最终状态真值契约</h2>
+<h3>7.1 推荐方案</h3>
+<p>保留现有 <code>ok</code> 含义——“用户请求的 approve/reject 动作是否成功”，同时为每项服务结果增加状态效果：</p>
+<table>
+  <thead><tr><th>字段</th><th>语义</th><th>示例</th></tr></thead>
+  <tbody>
+    <tr><td><code>state_changed</code></td><td><code>true/false/null</code>；null 表示内部异常后无法在当前响应中安全断言最终状态。</td><td>自动拒绝为 true；Scope 拒绝为 false。</td></tr>
+    <tr><td><code>final_status</code></td><td>已知时为 <code>pending/approved/rejected</code>；未知时为 null。</td><td>用户名冲突自动拒绝为 rejected。</td></tr>
+    <tr><td><code>disposition</code></td><td>稳定原因类别，不让页面解析中文文案。</td><td><code>requested_succeeded</code>、<code>auto_rejected</code>、<code>unchanged</code>、<code>unknown</code>。</td></tr>
+  </tbody>
+</table>
+<p>批量 summary 保持 <code>success_count/failure_count/outcome</code> 兼容，同时增加 <code>changed_failure_count</code>、<code>unchanged_failure_count</code>、<code>unknown_failure_count</code>。页面不再写“失败项保持原状态”，而是按计数与每项 disposition 展示最终事实。</p>
+<div class="note"><strong>兼容性：</strong>这是管理端 JSON 返回结构新增字段。按仓库规则，即使是加字段也须在 Release Notes 标注 <code>⚠️ API Breaking Change</code> 并同步前端契约测试；旧字段语义不得悄然改变。</div>
+
+<h3>7.2 最小补丁为何不够</h3>
+<p>只把文案改成“失败项请查看详情”可以消除当前误导，但后续调用方仍必须解析中文消息才能知道是否自动拒绝。它可作为紧急止血，不是稳定终局；本方案选择结构化状态效果。</p>
+
+<h2 id="page-compare">8. Before / After 页面与响应对比</h2>
+<h3>8.1 用户编辑页：全局管理员原样保存</h3>
+<div class="compare">
+  <section class="screen bad"><h4>BEFORE · 全局管理员编辑</h4><div class="body">
+    <div class="bar">角色：业务管理员</div>
+    <div class="bar error">业务组：“全部（全局权限）”存在但未选中</div>
+    <div class="bar">修改花名后点击保存</div>
+    <div class="bar error">结果：请至少选择一个业务组</div>
+    <p class="muted">持久化全局语义没有恢复为表单 sentinel。</p>
+  </div></section>
+  <section class="screen good"><h4>AFTER · 全局管理员编辑</h4><div class="body">
+    <div class="bar">角色：业务管理员</div>
+    <div class="bar success">业务组：“全部（全局权限）”已选中</div>
+    <div class="bar">修改花名后点击保存</div>
+    <div class="bar success">结果：资料保存；Scope 保持全局</div>
+    <p class="muted">GET/POST/持久化三态映射一致。</p>
+  </div></section>
+</div>
+
+<h3>8.2 注册审批页：部分失败最终状态</h3>
+<div class="compare">
+  <section class="screen bad"><h4>BEFORE · 批量通过部分失败</h4><div class="body">
+    <div class="bar warn">成功 1 条，失败 2 条</div>
+    <div class="bar error">成功项已经生效，失败项保持原状态</div>
+    <div class="bar">#18 用户名冲突，申请已自动拒绝</div>
+    <p class="muted">摘要与逐项详情互相矛盾。</p>
+  </div></section>
+  <section class="screen good"><h4>AFTER · 批量通过部分完成</h4><div class="body">
+    <div class="bar warn">按请求通过 1 条；未按请求完成 2 条</div>
+    <div class="bar">其中：自动拒绝 1 条；保持待审批 1 条；状态未知 0 条</div>
+    <div class="bar error">#18 · 自动拒绝 · 用户名已被占用</div>
+    <div class="bar">#19 · 未变化 · 超出当前管理范围</div>
+    <p class="muted">摘要与数据库最终状态同源。</p>
+  </div></section>
+</div>
+
+<h3>8.3 越权请求的可见响应</h3>
+<div class="compare">
+  <section class="screen bad"><h4>BEFORE · 直接提交范围外 ID</h4><div class="body"><div class="bar error">组 1 管理员 POST 拒绝组 10 申请 → “已拒绝”</div></div></section>
+  <section class="screen good"><h4>AFTER · 服务边界拒绝</h4><div class="body"><div class="bar success">组 1 管理员 POST 拒绝组 10 申请 → 权限不足；申请仍 pending</div></div></section>
+</div>
+<div class="compare">
+  <section class="screen bad"><h4>BEFORE · 旧 Cookie</h4><div class="body"><div class="bar error">数据库 global→组 1，用户列表仍显示全量</div></div></section>
+  <section class="screen good"><h4>AFTER · 数据库当前事实</h4><div class="body"><div class="bar success">同一 Cookie 立即按组 1 限制；授权变更后下一请求注销旧会话</div></div></section>
+</div>
+
+<h2>9. 范围</h2>
+<h3>9.1 包含</h3>
+<ul>
+  <li>注册申请单条/批量拒绝的 actor 传递、对象级授权、审计和测试。</li>
+  <li>所有 <code>/rbac/users*</code> 管理入口的数据库当前 actor 同源。</li>
+  <li>角色/组变化时的单次 <code>auth_version</code> bump，并入用户编辑原子事务。</li>
+  <li>全局 admin/seed/concrete/invalid 四类表单映射。</li>
+  <li>批量结果状态效果字段、页面摘要和契约测试。</li>
+  <li>相关 QA、复盘、Release Notes、路线图状态校准。</li>
+</ul>
+<h3>9.2 不包含</h3>
+<ul>
+  <li>不改变注册审批列表 R2-2 的 SQL 可见集合和分页性能方案。</li>
+  <li>不新增角色或权限字符串。</li>
+  <li>不改变 seed admin 不可停用、不可自编辑等既有策略。</li>
+  <li>不借本轮重做全部 RBAC context/sidebar；仅通过会话撤销保证其最终收敛。</li>
+  <li>不修改公开 <code>app/api/</code> 端点；管理端 JSON 契约变化单独标注。</li>
+</ul>
+
+<h2>10. 分批实施</h2>
+<table>
+  <thead><tr><th>批次</th><th>内容</th><th>独立停止条件</th></tr></thead>
+  <tbody>
+    <tr><td>B0</td><td>先写 4 组红线测试：拒绝越权、用户管理旧 Cookie、global 原样保存、auto-reject 最终状态。</td><td>必须在未修复代码上按预期失败；不得用 mock 绕过 HTTP/模板链路。</td></tr>
+    <tr><td>B1</td><td>R-01 服务边界授权，单条/批量同源。</td><td>组外、global、异常申请均无写入；合法交集/子集与 global 正向通过。</td></tr>
+    <tr><td>B2</td><td>R-02 user-management actor context；随后接入单事务 auth_version bump。</td><td>列表/详情/编辑/重置/停用全部使用 DB-current；旧会话立即受限并最终注销。</td></tr>
+    <tr><td>B3</td><td>R-03 纯映射 helper 与模板上下文。</td><td>global GET 已选中；不改 Scope 保存成功；非 admin 空组不被误判全局。</td></tr>
+    <tr><td>B4</td><td>R-04 状态效果契约、批量摘要和页面文案。</td><td>自动拒绝、未变化、未知三类可机器判定；页面不含绝对错误表述。</td></tr>
+    <tr><td>B5</td><td>同类排查、浏览器角色矩阵、文档/复盘/Release 收口。</td><td>全部门禁和本地可验证环境通过后才恢复“已关闭”状态。</td></tr>
+  </tbody>
+</table>
+
+<h2>11. 验收标准</h2>
+<h3>11.1 自动化</h3>
+<ul>
+  <li>单条拒绝：scoped admin 拒绝组外、global、异常申请均失败且状态保持；合法 viewer/operator 交集与 admin 子集成功。</li>
+  <li>批量拒绝：合法 + 越权混合时精确部分成功，越权项保持 pending；每项审计 actor 正确。</li>
+  <li>用户管理：global Session 在数据库降为组 1 后，列表 total、详情、编辑、密码/Token 重置、停用全部不能越界；角色降为 viewer 后固定 403/注销。</li>
+  <li>Session：角色或组实际变化只 bump 一次；no-op 不 bump；缺键、版本不匹配、一次性 bump 既有矩阵继续通过。</li>
+  <li>表单：非种子 global admin GET 中 <code>__ALL__</code> selected；原样保存/只改资料成功且 0 条组关系不变；seed 固定全局；非法非 admin 空组 fail-closed。</li>
+  <li>反馈：自动拒绝返回 <code>state_changed=true</code>、<code>final_status=rejected</code>；Scope 拒绝返回 false/pending；内部异常为 null/null/unknown。</li>
+</ul>
+<h3>11.2 浏览器</h3>
+<ul>
+  <li>以组 1 Biz Admin、组 10 Biz Admin、全局 Admin、seed Admin、Viewer 五类账号验证正向与反向路径并截图。</li>
+  <li>全局 Admin 打开编辑页，不触碰业务组，仅修改花名并保存；断言成功、仍为全局。</li>
+  <li>真实批量通过触发“自动拒绝 + Scope 拒绝 + 成功”混合结果；检查摘要、逐项 badge 和刷新后数据库状态一致。</li>
+  <li>同一 Cookie 完成 global→scoped/role downgrade，验证用户列表即时收敛或被注销。</li>
+</ul>
+<h3>11.3 命令门禁</h3>
+<pre>.venv-py311/bin/python -m unittest tests.test_rbac_global_scope_assignment tests.test_registration tests.test_user_reactivation -v
+.venv-py311/bin/python -m unittest tests.test_redesign_sidebar -v
+.venv-py311/bin/ruff check app/ tests/
+.venv-py311/bin/python scripts/check_route_completeness.py --check app/rbac/views.py
+.venv-py311/bin/python scripts/smoke_routes.py --check
+.venv-py311/bin/python scripts/check_ui_contract.py --check
+.venv-py311/bin/python scripts/audit_hardcoded_colors.py --check
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+.venv-py311/bin/python scripts/check_doc_links.py --check
+.venv-py311/bin/python scripts/html_docs_to_markdown.py --check
+git diff --check</pre>
+
+<h2>12. 风险与控制</h2>
+<table>
+  <thead><tr><th>风险</th><th>影响</th><th>控制</th></tr></thead>
+  <tbody>
+    <tr><td>拒绝规则与列表 SQL 再次漂移</td><td>可见但不可操作，或越权操作</td><td>用同一纯策略真值样本同时断言 Repository SQL 和 service 授权；1/10、多组、global、异常数据全覆盖。</td></tr>
+    <tr><td>auth_version 在多提交中重复或漏 bump</td><td>误登出或旧会话不撤销</td><td>只在用户编辑原子服务的 change-set 中生成一次；提交后统一 cache 失效。</td></tr>
+    <tr><td>数据库当前 actor 查询增加开销</td><td>用户管理页额外查询</td><td>请求级 <code>g</code> 缓存；列表/详情/导航同请求复用，禁止跨请求缓存权限事实。</td></tr>
+    <tr><td>批量 JSON 增字段影响前端</td><td>契约测试或第三方脚本变化</td><td>保留旧字段及语义；新增字段显式发版标注；前端先容忍缺字段再切换展示。</td></tr>
+    <tr><td>global 空关系映射掩盖非法数据</td><td>非 admin 被误显示为全局</td><td>映射必须同时检查 target role/seed 语义；非 admin 空关系输出 invalid，不得自动修复。</td></tr>
+  </tbody>
+</table>
+
+<h2>13. 用户确认点</h2>
+<p>推荐按 B0→B5 全部实施。请确认以下关键语义：<strong>scoped admin 对 viewer/operator 申请按“精确交集”拥有拒绝权，对 admin 申请必须“完整子集”；异常/漂移申请只允许 seed/global admin 拒绝；角色或组变化会使目标用户旧 Web Session 在下一请求失效。</strong></p>
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC四项Review问题闭环优化方案-2026-10.md">Markdown</a></footer>
+</body>
+</html>

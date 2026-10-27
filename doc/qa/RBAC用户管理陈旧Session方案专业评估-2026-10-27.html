@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>RBAC 用户管理陈旧 Session 方案专业评估（2026-10-27）</title><style>body{font-family:system-ui,sans-serif;line-height:1.7;max-width:900px;margin:auto;padding:2rem;color:#1f2937}h1,h2{color:#0f172a}.ok{background:#ecfdf5;border-left:4px solid #059669;padding:1rem}.risk{background:#fef2f2;border-left:4px solid #dc2626;padding:1rem}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:.6rem;text-align:left;vertical-align:top}th{background:#f8fafc}</style></head><body><main>
+<h1>RBAC 用户管理陈旧 Session 方案专业评估</h1>
+<p>日期：2026-10-27 · 对象：<a href="../design/RBAC用户管理数据库当前授权与Session撤销方案-2026-10.html">独立方案 rev.1</a></p>
+<h2>结论</h2><div class="ok"><strong>A- / 条件通过。</strong>方案对问题定性、授权边界和事务风险的判断准确；在 B1 请求内数据库当前授权与 B2 原子会话撤销均完成、并通过完整入口矩阵前，不应宣布 R-02 关闭。</div>
+<h2>维度评估</h2><table><tr><th>维度</th><th>结论</th></tr><tr><td>准确性</td><td>高。现有 <code>resolve_user_management_actor()</code> 的确从 DB 获取 role/group_ids；用户管理路由和 <code>@require_permission</code> 的确仍读 Session。</td></tr><tr><td>专业性</td><td>高。区分功能权限、对象 Scope、请求内授权与会话撤销；明确 fail-closed 和信息枚举边界。</td></tr><tr><td>合理性</td><td>高。复用既有 actor resolver，限定 7 个入口，避免无界重构；以单事务防止重复 bump/半提交。</td></tr><tr><td>可验证性</td><td>高。验收包含 global 降权、组收窄、角色降权、失败 rollback、no-op 和真实浏览器 Cookie。</td></tr></table>
+<h2>必须遵守的实施条件</h2><ol><li>守卫必须在按 ID 读取目标用户之前执行，不能仅在页面模板隐藏数据。</li><li>所有 7 个入口须迁移；遗漏 reset_token 或 set_active 仍构成 P1。</li><li>禁止在 <code>update_user()</code>、<code>set_user_groups()</code> 等旧多提交函数各自 bump 版本。</li><li>授权读取异常必须 500/拒绝，不能降级使用 Cookie。</li></ol>
+<h2>不推荐替代方案</h2><div class="risk">仅清 Session、只改用户列表、或只在 Session role 不符时隐藏导航都不能保证对象读取和敏感操作安全，不能作为本问题的修复结论。</div>
+</main><footer style="text-align:center;padding:1.5rem;color:#64748b;font-size:.85rem"><a href="../index.html">文档索引</a> · <a href="RBAC用户管理陈旧Session方案专业评估-2026-10-27.md">Markdown</a></footer></body></html>

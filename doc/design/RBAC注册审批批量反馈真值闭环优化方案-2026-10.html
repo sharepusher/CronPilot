@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RBAC 注册审批批量反馈真值闭环优化方案（2026-10）</title>
+  <style>
+    :root{--ink:#172033;--muted:#64748b;--line:#cbd5e1;--blue:#2563eb;--blue-bg:#eff6ff;--green:#15803d;--green-bg:#f0fdf4;--amber:#b45309;--amber-bg:#fff7ed;--red:#b91c1c;--red-bg:#fef2f2;--panel:#f8fafc}
+    *{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;max-width:1120px;margin:0 auto;padding:28px;line-height:1.68;color:var(--ink)}h1{line-height:1.25;color:#123b6d}h2{margin-top:32px;border-left:4px solid var(--blue);padding-left:10px}h3{margin-top:23px}a{color:#1d4ed8}code{background:#f1f5f9;padding:.08em .3em;border-radius:4px}pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;overflow:auto}table{width:100%;border-collapse:collapse;margin:14px 0}th,td{border:1px solid var(--line);padding:9px;vertical-align:top}th{background:var(--blue-bg);text-align:left}.meta,.muted{color:var(--muted)}.gate,.note,.risk,.ok{padding:13px 15px;margin:14px 0;border-left:4px solid}.gate{background:var(--amber-bg);border-color:#f97316}.note{background:var(--blue-bg);border-color:var(--blue)}.risk{background:var(--red-bg);border-color:var(--red)}.ok{background:var(--green-bg);border-color:var(--green)}.flow{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;white-space:pre-wrap}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.screen{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:white}.screen h3{margin:0;padding:12px 14px;background:#e2e8f0;font-size:16px}.screen-body{padding:14px}.bar{padding:10px 12px;border-radius:7px;margin:10px 0;font-size:14px}.bar-ok{background:var(--green-bg);border:1px solid #bbf7d0;color:#166534}.bar-warn{background:var(--amber-bg);border:1px solid #fed7aa;color:#9a3412}.bar-danger{background:var(--red-bg);border:1px solid #fecaca;color:#991b1b}.button{display:inline-block;background:#2563eb;color:white;border-radius:6px;padding:7px 16px;margin:7px 7px 0 0}.button-line{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:7px 16px;margin:7px 7px 0 0;color:var(--ink)}.small{font-size:13px;color:var(--muted)}@media(max-width:760px){body{padding:18px}.compare{grid-template-columns:1fr}table{font-size:14px}}
+  </style>
+</head>
+<body><main>
+<h1>RBAC 注册审批批量反馈真值闭环优化方案</h1>
+<p class="meta">版本：rev.5 · 日期：2026-10-19 · 状态：<strong>B0–B3 已实施并验收；F-01 已关闭</strong> · 父项：<a href="RBAC全局权限授予边界加固优化需求-2026-10.html">全局权限授予边界加固</a> S5 P1 收口 · 对应审查：<a href="../qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html">全过程专业 Review F-01</a></p>
+
+<div class="gate"><strong>确认门禁：</strong>本方案只解决“批量审批/拒绝的接口反馈与页面真值一致”。确认前不修改路由、模板、JS、CSS 或测试；确认后按 B0→B3 串行实施，每批实施前说明、实施后测试验证。</div>
+
+<h2>版本变更记录</h2>
+<table><thead><tr><th>版本</th><th>日期</th><th>变更</th><th>状态</th></tr></thead><tbody>
+<tr><td>rev.5</td><td>2026-10-19</td><td>完成 B3：扩大安全、注册、CSRF、侧边栏与表单回归；复核浏览器四态证据、trace_id 日志关联、静态门禁、文档与本地可复验环境；同步关闭父 Review F-01。</td><td>B0–B3 完成；F-01 关闭</td></tr>
+<tr><td>rev.4</td><td>2026-10-19</td><td>实施 B2：页面三态真值消费、持久结果条、纯文本失败渲染、trace_id 展示、结果未知与防重复提交；修复 jQuery 1.8 <code>method</code>/<code>type</code> 兼容性。</td><td>B2 完成；B3 待确认</td></tr>
+<tr><td>rev.3</td><td>2026-10-16</td><td>补充并实施 B1：系统异常原文仅记服务端日志，返回通用文案与 <code>trace_id</code>；批量通过/拒绝统一三态真值契约。</td><td>B1 完成；B2 待确认</td></tr>
+<tr><td>rev.2</td><td>2026-10-16</td><td>用户确认并完成 B0：新增批量通过/拒绝全成功、部分成功、全失败的内存数据库红线，断言响应三态与逐项数据库状态。</td><td>B0 完成；B1 待确认</td></tr>
+<tr><td>rev.1</td><td>2026-10-16</td><td>冻结批量审批反馈真值闭环方案、页面对比、三态契约、分批、验收和风险。</td><td>待确认</td></tr>
+</tbody></table>
+<div class="risk"><strong>B0 实测结果（2026-10-16）：</strong><code>TestRegistrationApprovalScopeClosure</code> 共 10 项，4 项既有授权回归通过，6 项新增红线全部按预期失败。部分/全失败的 4 项均实证当前接口错误返回 <code>errcode=0</code>；全成功的 2 项实证当前响应缺少 <code>data/result</code> 结构化摘要。所有测试在内存数据库运行；<code>datas/job_log.sqlite</code> 表结构核验正常。B0 不修改生产代码，失败是进入 B1 的前置证据。</div>
+<div class="ok"><strong>B1 实测结果（2026-10-16）：</strong>定向契约与服务测试 22/22 通过；<code>tests.test_registration</code> + <code>tests.test_rbac_global_scope_assignment</code> 相关回归 123/123 通过；Import smoke 9/9、路由冒烟 86/86、Ruff 与文档门禁通过。重启后登录页 HTTP 200；以不存在 ID 做无写入冒烟，返回 <code>errcode=1</code>、<code>all_failure</code>、<code>url=null</code> 且摘要计数一致。</div>
+<div class="ok"><strong>B2 浏览器实测（2026-10-19）：</strong>受限 Biz Admin 真实页面已覆盖全部成功、部分成功、全部失败和系统异常四条路径。部分成功显示“成功 1/失败 1”及逐项原因且不跳转；全失败显示两个失败项；系统异常仅显示通用文案和完整 32 位 trace_id；全成功自动跳转后页面显示已通过。关闭结果后焦点回到触发按钮，控制台 0 错误。验收临时用户、申请和数据库 trigger 已全部清理（0 残留）。</div>
+<div class="ok"><strong>B3 最终验收（2026-10-19）：</strong>注册、授权边界、会话撤销、CSRF、四角色侧边栏和表单守卫扩展回归 163/163 通过；路由冒烟 86/86，Ruff、UI/CSS、文档同步与链接门禁通过；<code>verify_all.sh --local-only</code> 汇总 4 通过、0 失败（沙箱禁止绑定端口，黄金路径按脚本规则跳过但环境检查通过）。B1/B2 已持久化自动化分别覆盖三态接口与数据库逐项一致性、系统异常安全响应/同一 trace_id 日志关联、jQuery 1.8 POST 传输、纯文本渲染和按钮恢复。浏览器四态结果与数据库快照一致，临时数据 0 残留；运行服务真实登录 GET=200、POST=302，审批页=200。B3 关闭本方案与父 Review F-01，但不关闭仍独立存在的 F-02 审批列表 Scope 精确性问题。</div>
+
+<h2>1. 问题与影响</h2>
+<p>注册审批页的批量通过、批量拒绝会逐条执行业务动作，但当前无论成功多少条都返回 <code>errcode=0</code> 和跳转 URL。页面 JavaScript 只要收到 URL 就立即跳转，既不读取 <code>errcode</code>，也不显示 <code>errmsg</code>。</p>
+<div class="risk"><strong>已复现：</strong>受限管理员批量批准一条无权处理的全局申请时，数据库正确保持 <code>pending</code>、不创建用户，但响应是 <code>{errcode: 0, errmsg: "成功 0 条，失败 1 条…", url: "/rbac/registration_review"}</code>。用户被立即带回列表，失败原因不可见。</div>
+<p>这不是越权写入：已有审批服务仍会按数据库当前授权拒绝。但它违反“用户反馈必须如实反映已提交事实”的基本交互契约，尤其会在部分成功时掩盖未完成项。</p>
+
+<h2>2. 根因与已验证实现事实</h2>
+<table><thead><tr><th>位置</th><th>事实</th><th>结论</th></tr></thead><tbody>
+<tr><td><code>app/rbac/views.py::registration_batch_approve</code></td><td>逐项调用 <code>approve_registration()</code>，收集 <code>ok_count</code>/<code>fail_msgs</code> 后固定 <code>code=0</code>。</td><td>数据库逐项结果正确，但 HTTP 结果没有区分全成、部分失败、全失败。</td></tr>
+<tr><td><code>registration_batch_reject</code></td><td>采用同样的固定成功码和 URL 模式。</td><td>同源问题必须一起修，不得只修“批量通过”。</td></tr>
+<tr><td><code>registration_review.html</code></td><td>两个批量 <code>$.post()</code> 回调遇 URL 即跳转。</td><td>即使后端文字包含失败项，页面也不会向用户展示。</td></tr>
+<tr><td><code>datas.utils.json.json_response</code></td><td><code>data</code> 同时映射到历史字段 <code>result</code>，可安全承载结构化摘要。</td><td>无需改变全局 JSON 信封。</td></tr>
+<tr><td><code>redesign-toast.js</code></td><td>已有 <code>CpToast.success/error/warning</code>；消息使用 <code>textContent</code> 写入。</td><td>可复用现有安全提示能力，不引入第三方组件。</td></tr>
+</tbody></table>
+
+<h2>3. 目标、范围与非范围</h2>
+<h3>3.1 目标</h3>
+<ul>
+  <li>批量通过和批量拒绝对全成功、部分成功、全失败给出无歧义的 HTTP 与页面反馈。</li>
+  <li>只有所有选中项都成功时，才返回成功码并自动跳转/刷新。</li>
+  <li>存在任意失败时，用户在当前页面可看到成功数、失败数和逐项失败原因；不自动跳转掩盖结果。</li>
+  <li>不改变已有逐项 fail-closed 业务行为、授权规则、CSRF、审计和事务语义。</li>
+</ul>
+<h3>3.2 范围</h3>
+<ul>
+  <li><code>POST /rbac/registration_review/batch_approve</code> 与 <code>batch_reject</code> 的响应契约。</li>
+  <li>注册审批页两个批量按钮的提交、结果展示、刷新交互与无障碍通知。</li>
+  <li>路由、服务结果、模板 DOM、浏览器交互的定向测试与交付证据。</li>
+</ul>
+<h3>3.3 非范围</h3>
+<ul>
+  <li>不修改单条通过/拒绝接口，不重写注册审批业务服务。</li>
+  <li>不改变任何审批授权规则；范围外审批仍由既有数据库当前事实守卫拒绝。</li>
+  <li>不解决审批列表的精确组匹配和旧 Session 可见性；该问题另立 R2 方案。</li>
+  <li>不把批量操作改为全有或全无事务：保持已存在的“逐项执行、允许部分成功”业务语义。</li>
+</ul>
+
+<h2>4. 权威结果契约</h2>
+<p>沿用项目既有 JSON Envelope：<code>errcode</code> 表示“本次批量请求是否完全达成”，<code>errmsg</code> 供人读，<code>data/result</code> 承载可编程摘要。HTTP 状态仍为 200；鉴权、CSRF 与参数缺失继续沿用现有失败响应。</p>
+<table><thead><tr><th>结果</th><th>errcode</th><th>url</th><th>data.outcome</th><th>页面行为</th></tr></thead><tbody>
+<tr><td>全部成功</td><td>0</td><td>审批列表 URL</td><td><code>all_success</code></td><td>成功 Toast 后跳转刷新；显示“已成功通过/拒绝 N 条”。</td></tr>
+<tr><td>部分成功</td><td>1</td><td>空</td><td><code>partial_failure</code></td><td>当前页显示 warning 结果条；成功项已落库，失败项及原因可见；用户点击“刷新列表”后取得最新状态。</td></tr>
+<tr><td>全部失败</td><td>1</td><td>空</td><td><code>all_failure</code></td><td>当前页显示 error 结果条；列表不自动跳转，用户可直接继续检查或重试。</td></tr>
+</tbody></table>
+<pre>{
+  "errcode": 1,
+  "errmsg": "已通过 1 条，失败 1 条",
+  "url": null,
+  "data": {
+    "operation": "approve",
+    "outcome": "partial_failure",
+    "success_count": 1,
+    "failure_count": 1,
+    "failures": [{"id": 42, "msg": "您无权授予全局管理权限"}]
+  },
+  "result": "与 data 相同"
+}</pre>
+<div class="note"><strong>重要语义：</strong>部分成功使用 <code>errcode=1</code> 并不表示所有业务动作回滚；它精确表示“选中的所有目标没有全部完成”。<code>data.outcome</code> 区分部分与全失败，页面以 warning 而不是 error 呈现部分成功。</div>
+
+<h2>5. 页面 Before / After</h2>
+<p id="page-compare" class="small">本设计只改变批量操作完成后的反馈区，不改变列表列、筛选、确认弹窗或单条审批交互。</p>
+<div class="compare">
+  <section class="screen"><h3>BEFORE · 部分失败</h3><div class="screen-body">
+    <div class="bar bar-ok">页面跳转完成</div>
+    <p>列表重新显示；用户不知道“2 条中哪一条失败、为什么失败”。</p>
+    <span class="button">批量通过</span>
+    <p class="small">实际：成功 1 条、失败 1 条，但失败信息已随跳转丢失。</p>
+  </div></section>
+  <section class="screen"><h3>AFTER · 部分失败</h3><div class="screen-body">
+    <div class="bar bar-warn" role="status"><strong>批量通过未全部完成：</strong>成功 1 条，失败 1 条。<br>申请 #42：您无权授予全局管理权限</div>
+    <span class="button-line">刷新列表</span><span class="button-line">关闭结果</span>
+    <p class="small">当前页不自动跳转；用户确认结果后主动刷新，避免掩盖尚未完成的申请。</p>
+  </div></section>
+</div>
+<div class="compare" style="margin-top:16px">
+  <section class="screen"><h3>AFTER · 全部成功</h3><div class="screen-body"><div class="bar bar-ok" role="status">批量通过成功：已处理 2 条，正在刷新列表…</div><p class="small">保留现有快速刷新体验；只有全部成功才自动跳转。</p></div></section>
+  <section class="screen"><h3>AFTER · 全部失败</h3><div class="screen-body"><div class="bar bar-danger" role="alert"><strong>批量通过未完成：</strong>成功 0 条，失败 2 条。逐项列出失败原因。</div><p class="small">不跳转、不伪造成功；原始列表仍可用于检查和重新选择。</p></div></section>
+</div>
+
+<h2>6. 实施设计</h2>
+<h3>6.1 后端：统一批量结果组装</h3>
+<p>在 <code>app/rbac/views.py</code> 提取仅供本模块使用的结果组装函数，输入操作类型、逐项结果，输出上述摘要。两个批量路由必须共同调用它，避免再次产生两个不一致的结果协议。</p>
+<div class="flow">解析既有 ids / comment
+  → 保持当前逐项 approve_registration / reject_registration
+  → 收集 success_count 与 failures[{id, msg}]
+  → failure_count == 0：code=0, outcome=all_success, url=列表 URL
+  → success_count &gt; 0：code=1, outcome=partial_failure, url=''
+  → success_count == 0：code=1, outcome=all_failure, url=''
+  → web_api_return(..., data=summary)</div>
+<p>不得改变逐项调用顺序、不得因任一项失败撤销先前已成功的审批、不得把异常原文放入 <code>msg</code>。失败消息继续来自既有服务层受控文案。</p>
+
+<h3>6.1.1 原始异常与 trace_id 关联</h3>
+<p>失败分为业务失败与系统异常。“申请不存在”“已处理”“无权授予”等受控业务文案可返回前端，不生成关联号。数据库、驱动或未知程序异常必须使用 <code>logger.exception()</code> 记录原始异常与完整 traceback，日志同时记录 32 位十六进制 <code>trace_id</code>、操作类型和申请 ID。</p>
+<pre>ERROR ... trace_id=a7c921... operation=approve request_id=42
+Traceback ...
+DatabaseError: [原始异常仅在服务端日志]</pre>
+<p>客户端对同一失败项仅获得 <code>{id, msg: "服务器内部错误，请稍后重试", trace_id}</code>，不返回异常类型、SQL、路径、凭据或 traceback。若异常已在服务层捕获，<code>trace_id</code> 必须由服务层生成并随受控结果传递；路由不得二次生成无法对应原始日志的假关联号。本地可从 <code>datas/logs/local-server.log</code> 按 <code>trace_id</code> 检索；生产环境在实际 systemd/容器日志中使用同一关联号。</p>
+
+<h3>6.2 前端：结果条优先于导航</h3>
+<p>在 <code>registration_review.html</code> 的批量条之后新增空的页面级结果容器，使用 <code>aria-live="polite"</code>；全失败使用 <code>role="alert"</code>。页面脚本新增一个只用 <code>textContent</code> 写入结果的渲染函数，禁止拼接服务端消息到 <code>innerHTML</code>。</p>
+<ul>
+  <li><strong>all_success：</strong>调用现有 <code>CpToast.success()</code>；仅在 <code>errcode===0 &amp;&amp; url</code> 时跳转。</li>
+  <li><strong>partial_failure：</strong>调用 <code>CpToast.warning()</code>；渲染 warning 结果条和“刷新列表”按钮，不跳转。</li>
+  <li><strong>all_failure：</strong>调用 <code>CpToast.error()</code>；渲染 error 结果条和“关闭结果”按钮，不跳转。</li>
+  <li><strong>网络/非 JSON：</strong>保持现有错误 Toast；两个批量按钮恢复可用，避免被永久禁用。</li>
+</ul>
+<p>页面专属样式必须放入 <code>app/static/css/redesign-pages.css</code> 的 <code>.cp-page-reg-review</code> 作用域，使用既有 <code>--cp-*</code> token；模板内不新增超过 3 行的非注释 CSS。</p>
+
+<h3>6.3 防重复提交与确认框</h3>
+<p>现有批量批准确认框和批量拒绝输入框保留。两个异步回调在请求开始时禁用相应确认按钮，完成、失败、网络错误后恢复；页面级结果展示不得通过嵌套 form 或 Bootstrap modal 实现。批准仍使用 <code>CpConfirm.show({body: ...})</code>，拒绝仍使用现有页面内 <code>CpModal</code>。</p>
+
+<h2>7. 分批实施计划</h2>
+<table><thead><tr><th>批次</th><th>动作</th><th>前置与停止条件</th><th>验收</th></tr></thead><tbody>
+<tr><td>B0 · 红线</td><td>新增全成功、部分成功、全失败的 HTTP 契约测试；固定当前“全失败仍 code=0”的失败证据。</td><td>不改生产实现；若 fixture 不能同时证明数据库状态与响应，停止并修 fixture。</td><td>旧实现上全失败/部分失败的真值断言按预期失败；既有逐项授权测试保持通过。</td></tr>
+<tr><td>B1 · 后端契约</td><td>提取共享结果组装逻辑；两个路由输出同一摘要结构；系统异常以 <code>trace_id</code> 关联服务端原始日志。</td><td>不得修改逐项部分成功语义；不得把异常原文返回客户端。</td><td>全成功 code=0+URL；部分/全失败 code=1+空 URL；DB 状态与摘要逐项一致；关联号可在原始异常日志中查到。</td></tr>
+<tr><td>B2 · 页面真值</td><td>新增结果条、刷新/关闭动作；调整批量 AJAX 的导航规则和按钮恢复。</td><td>B1 测试全绿；不得用 Toast 作为失败详情的唯一载体。</td><td>浏览器验证三态：全成功刷新、部分成功可见失败项且不跳转、全失败可见原因且不跳转。</td></tr>
+<tr><td>B3 · 回归与交付</td><td>浏览器 E2E、静态门禁、复盘、Release Notes、文档同步与本地环境。</td><td>任何三态结果与 DB 状态不一致，停止交付。</td><td>全部验收矩阵通过；截图/自动化证据持久化；服务重启后可复验。</td></tr>
+</tbody></table>
+
+<h2>8. 验收矩阵</h2>
+<table><thead><tr><th>编号</th><th>场景</th><th>预期接口</th><th>预期页面与数据库</th></tr></thead><tbody>
+<tr><td>BF-01</td><td>批量通过，全部合法</td><td>code=0、all_success、有 URL、success=N</td><td>成功 Toast 后刷新；全部申请 approved/用户创建。</td></tr>
+<tr><td>BF-02</td><td>批量通过，1 合法 + 1 无权</td><td>code=1、partial_failure、无 URL、失败项含 ID/受控文案</td><td>warning 结果条；不跳转；合法项 approved，无权项 pending。</td></tr>
+<tr><td>BF-03</td><td>批量通过，全部无权</td><td>code=1、all_failure、无 URL</td><td>error 结果条；不跳转；全部 pending，无用户创建。</td></tr>
+<tr><td>BF-04</td><td>批量拒绝，部分项已处理/失效</td><td>与 BF-02 对称</td><td>成功项 rejected；失败项状态不变；原因可见。</td></tr>
+<tr><td>BF-05</td><td>未选任何项/缺拒绝原因/CSRF 失败</td><td>保留 code=1 既有文案</td><td>不跳转，不产生业务写入。</td></tr>
+<tr><td>BF-06</td><td>网络或非 JSON 错误</td><td>客户端 error 回调</td><td>错误 Toast；确认按钮恢复可点击；无假成功提示。</td></tr>
+<tr><td>BF-07</td><td>失败消息含 HTML 特殊字符</td><td>结构化 data 原样承载</td><td>结果条按文本显示，不执行 HTML/脚本。</td></tr>
+<tr><td>BF-08</td><td>批量项触发未知/数据库异常</td><td>code=1，只含通用文案与 <code>trace_id</code></td><td>响应不含原始异常；服务端日志可按同一 <code>trace_id</code> 找到原文和 traceback。</td></tr>
+</tbody></table>
+
+<h2>9. 测试与验证</h2>
+<pre>.venv-py311/bin/python -m unittest tests.test_rbac_global_scope_assignment tests.test_registration -v
+.venv-py311/bin/python -m unittest tests.test_ajax_form_guard tests.test_user_reactivation -v
+.venv-py311/bin/python scripts/smoke_routes.py --check
+ruff check app/
+python scripts/check_ui_contract.py --check
+python scripts/check_doc_completeness.py --check
+python scripts/check_doc_links.py --check
+python scripts/html_docs_to_markdown.py --check
+bash scripts/check_pending_sync.sh</pre>
+<p>实施后必须重启本地服务，先断言登录页 200，再用受限 Biz Admin 和全局 Admin 在浏览器执行 BF-01 至 BF-04；结果页截图或可重复运行的自动化断言须作为 S5 补充证据落盘。B3 采用已落库的 HTTP/DOM 契约测试和本节验收记录作为可重复自动化证据，浏览器人工矩阵用于补充交互验证。</p>
+
+<h2>10. 风险、回滚与完成定义</h2>
+<table><thead><tr><th>风险</th><th>控制</th><th>回滚原则</th></tr></thead><tbody>
+<tr><td>把部分成功当成完整失败，误以为数据库已回滚</td><td>明确 <code>outcome</code> 与成功/失败数量；页面文字写明“成功项已完成”。</td><td>可回滚结果条样式，但不得恢复固定成功码或自动跳转掩盖失败。</td></tr>
+<tr><td>接口字段影响历史调用方</td><td>仅修改本页面专用批量端点；保留既有 <code>errmsg/result/url</code> 字段，新增 data 摘要。</td><td>保留 B1 的后端三态契约，前端可暂时降级为不跳转+Toast。</td></tr>
+<tr><td>失败详情被注入页面</td><td>页面用 <code>textContent</code>，服务端只传受控业务文案。</td><td>不得改用 <code>innerHTML</code> 输出错误详情。</td></tr>
+<tr><td>页面成功项状态陈旧</td><td>部分/全失败不自动跳转，提供显式刷新；全部成功才自动刷新。</td><td>不得静默刷新并吞掉详情。</td></tr>
+</tbody></table>
+<p><strong>完成定义（已达成）：</strong>两个批量端点和页面均满足三态契约；所有失败信息在用户离开当前页前可见；接口摘要与数据库逐项状态一致；全成功体验不回退；可重复自动化证据、浏览器矩阵、复盘、Release Notes、HTML/Markdown 和索引已同步。父方案 F-01 于 B3 关闭；父方案整体仍受 F-02 阻断，不得据此宣称 S0–S5 已全部关闭。</p>
+
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC注册审批批量反馈真值闭环优化方案-2026-10.md">Markdown 版</a> · <a href="../qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html">对应 Review</a></footer>
+</body></html>

@@ -1,0 +1,67 @@
+{
+  "global": {
+    "heading_badge": 30,
+    "nav_badge": 30,
+    "total": 8,
+    "users": [
+      "r2_r4_matrix_admin_g1",
+      "r2_r4_matrix_admin_g10",
+      "r2_r4_matrix_admin_g1_g10",
+      "r2_r4_matrix_admin_global",
+      "r2_r4_matrix_approved_g1",
+      "r2_r4_matrix_viewer_g1",
+      "r2_r4_matrix_viewer_g10",
+      "r2_r4_matrix_viewer_g1_g10"
+    ]
+  },
+  "group1": {
+    "heading_badge": 24,
+    "nav_badge": 24,
+    "total": 4,
+    "users": [
+      "r2_r4_matrix_admin_g1",
+      "r2_r4_matrix_approved_g1",
+      "r2_r4_matrix_viewer_g1",
+      "r2_r4_matrix_viewer_g1_g10"
+    ]
+  },
+  "group10": {
+    "heading_badge": 3,
+    "nav_badge": 3,
+    "total": 3,
+    "users": [
+      "r2_r4_matrix_admin_g10",
+      "r2_r4_matrix_viewer_g10",
+      "r2_r4_matrix_viewer_g1_g10"
+    ]
+  },
+  "multi": {
+    "heading_badge": 27,
+    "nav_badge": 27,
+    "total": 7,
+    "users": [
+      "r2_r4_matrix_admin_g1",
+      "r2_r4_matrix_admin_g10",
+      "r2_r4_matrix_admin_g1_g10",
+      "r2_r4_matrix_approved_g1",
+      "r2_r4_matrix_viewer_g1",
+      "r2_r4_matrix_viewer_g10",
+      "r2_r4_matrix_viewer_g1_g10"
+    ]
+  },
+  "residue": {
+    "requests": 0,
+    "users": 0
+  },
+  "stale_session_downgraded": {
+    "heading_badge": 24,
+    "nav_badge": 24,
+    "total": 4,
+    "users": [
+      "r2_r4_matrix_admin_g1",
+      "r2_r4_matrix_approved_g1",
+      "r2_r4_matrix_viewer_g1",
+      "r2_r4_matrix_viewer_g1_g10"
+    ]
+  }
+}

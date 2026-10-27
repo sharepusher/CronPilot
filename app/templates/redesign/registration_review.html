@@ -28,6 +28,16 @@
   <button type="button" class="btn-c btn-danger-c btn-xs" id="rr-batch-reject-btn">批量拒绝</button>
 </div>
 
+<section id="rr-batch-result" class="rr-batch-result" hidden aria-live="polite" aria-atomic="true" tabindex="-1">
+  <h2 id="rr-batch-result-title" class="rr-batch-result-title"></h2>
+  <p id="rr-batch-result-summary" class="rr-batch-result-summary"></p>
+  <ul id="rr-batch-result-failures" class="rr-batch-result-failures"></ul>
+  <div class="rr-batch-result-actions">
+    <button type="button" class="btn-c btn-line btn-xs" id="rr-batch-result-refresh">刷新列表</button>
+    <button type="button" class="btn-c btn-line btn-xs" id="rr-batch-result-close">关闭结果</button>
+  </div>
+</section>
+
 <div class="c-table-wrap">
   <table class="c-table">
     <thead>
@@ -181,6 +191,96 @@ function submitForm(action, fields) {
 
 var batchApproveUrl = '{{ url_for("rbac.registration_batch_approve") }}';
 var batchRejectUrl = '{{ url_for("rbac.registration_batch_reject") }}';
+var batchSubmitting = false;
+var lastBatchTrigger = null;
+
+function setBatchControlsDisabled(disabled) {
+    $('#rr-batch-approve-btn, #rr-batch-reject-btn, #rr-select-all, .rr-select').prop('disabled', disabled);
+}
+
+function batchSummaryFromResponse(response) {
+    var summary = response && (response.data || response.result);
+    var validOutcome = summary && ['all_success', 'partial_failure', 'all_failure'].indexOf(summary.outcome) !== -1;
+    var validCounts = validOutcome && Number.isInteger(summary.total) && Number.isInteger(summary.success_count) &&
+        Number.isInteger(summary.failure_count) && summary.total >= 0 && summary.success_count >= 0 &&
+        summary.failure_count >= 0 && summary.total === summary.success_count + summary.failure_count;
+    var validFailures = validCounts && Array.isArray(summary.failures) && summary.failure_count === summary.failures.length;
+    if (!validFailures) return null;
+    if (summary.outcome === 'all_success' && (response.errcode !== 0 || summary.failure_count !== 0 || !response.url)) return null;
+    if (summary.outcome !== 'all_success' && response.errcode === 0) return null;
+    return summary;
+}
+
+function appendBatchFailure(list, failure) {
+    var item = document.createElement('li');
+    var message = document.createElement('span');
+    message.textContent = '申请 #' + String(failure.id) + '：' + String(failure.msg || '未知错误');
+    item.appendChild(message);
+    if (failure.trace_id) {
+        var trace = document.createElement('code');
+        trace.className = 'rr-batch-trace';
+        trace.textContent = '错误编号：' + String(failure.trace_id);
+        item.appendChild(trace);
+    }
+    list.appendChild(item);
+}
+
+function showBatchResult(kind, title, summaryText, failures) {
+    var panel = document.getElementById('rr-batch-result');
+    var list = document.getElementById('rr-batch-result-failures');
+    panel.classList.remove('is-warning', 'is-error', 'is-unknown');
+    panel.classList.add(kind);
+    panel.setAttribute('role', kind === 'is-warning' ? 'status' : 'alert');
+    document.getElementById('rr-batch-result-title').textContent = title;
+    document.getElementById('rr-batch-result-summary').textContent = summaryText;
+    list.replaceChildren();
+    (failures || []).forEach(function(failure) { appendBatchFailure(list, failure); });
+    panel.hidden = false;
+    panel.focus();
+}
+
+function handleBatchResponse(response) {
+    var summary = batchSummaryFromResponse(response);
+    if (!summary) {
+        showBatchResult('is-unknown', '批量操作结果无法确认', '服务器返回结果格式异常，请刷新列表核对实际状态后再操作。', []);
+        if (window.CpToast) CpToast.error('服务器返回结果格式异常');
+        return false;
+    }
+    if (summary.outcome === 'all_success' && response.url) {
+        if (window.CpToast) CpToast.success(response.errmsg || '批量操作成功');
+        window.location.href = response.url;
+        return true;
+    }
+    var operationLabel = summary.operation === 'reject' ? '批量拒绝' : '批量通过';
+    if (summary.outcome === 'partial_failure') {
+        showBatchResult('is-warning', operationLabel + '未全部完成', '成功 ' + summary.success_count + '条，失败 ' + summary.failure_count + '条。成功项已经生效，失败项保持原状态。', summary.failures);
+        if (window.CpToast) CpToast.warning(operationLabel + '部分完成');
+    } else {
+        showBatchResult('is-error', operationLabel + '未完成', '本次没有任何申请处理成功，共失败 ' + summary.failure_count + '条。', summary.failures);
+        if (window.CpToast) CpToast.error(operationLabel + '失败');
+    }
+    return false;
+}
+
+function submitBatchReview(url, fields, closeModal) {
+    if (batchSubmitting) return;
+    batchSubmitting = true;
+    setBatchControlsDisabled(true);
+    $.ajax({ url: url, type: 'POST', data: fields, dataType: 'json' })
+        .done(function(response) {
+            var navigating = handleBatchResponse(response);
+            if (!navigating && typeof closeModal === 'function') closeModal();
+        })
+        .fail(function() {
+            showBatchResult('is-unknown', '批量操作结果未知', '请求未能正常完成，服务器可能已处理部分申请。请先刷新列表核对实际状态，不要立即重试。', []);
+            if (window.CpToast) CpToast.error('网络异常，批量操作结果未知');
+            if (typeof closeModal === 'function') closeModal();
+        })
+        .always(function() {
+            batchSubmitting = false;
+            setBatchControlsDisabled(false);
+        });
+}
 
 function getSelectedIds() {
     var ids = [];
@@ -211,6 +311,8 @@ $(document).on('change', '.rr-select', function() {
 });
 
 $('#rr-batch-approve-btn').on('click', function() {
+    if (batchSubmitting) return;
+    lastBatchTrigger = this;
     var ids = getSelectedIds();
     if (!ids.length) return;
     var reactCount = 0;
@@ -226,13 +328,13 @@ $('#rr-batch-approve-btn').on('click', function() {
         body: body,
         confirmText: '确认通过',
         onConfirm: function() {
-            $.post(batchApproveUrl, { csrf_token: csrfToken, ids: ids.join(',') }, function(r) {
-                if (r.url) { window.location.href = r.url; } else { location.reload(); }
-            });
+            submitBatchReview(batchApproveUrl, { csrf_token: csrfToken, ids: ids.join(',') });
         }
     });
 });
 $('#rr-batch-reject-btn').on('click', function() {
+    if (batchSubmitting) return;
+    lastBatchTrigger = this;
     var ids = getSelectedIds();
     if (!ids.length) return;
     CpModal({
@@ -248,11 +350,15 @@ $('#rr-batch-reject-btn').on('click', function() {
             if (!comment) { var ta = document.getElementById('rr-batch-reject-comment'); ta.style.borderColor = 'var(--cp-danger)'; ta.focus(); ta.setAttribute('placeholder', '拒绝原因不能为空'); return; }
             var btn = overlay.querySelector('.cp-modal-confirm-btn');
             if (btn) { btn.disabled = true; btn.textContent = '提交中…'; }
-            $.post(batchRejectUrl, { csrf_token: csrfToken, ids: ids.join(','), comment: comment }, function(r) {
-                if (r.url) { window.location.href = r.url; } else { location.reload(); }
-            });
+            submitBatchReview(batchRejectUrl, { csrf_token: csrfToken, ids: ids.join(','), comment: comment }, close);
         }
     });
+});
+
+$('#rr-batch-result-refresh').on('click', function() { window.location.reload(); });
+$('#rr-batch-result-close').on('click', function() {
+    document.getElementById('rr-batch-result').hidden = true;
+    if (lastBatchTrigger) lastBatchTrigger.focus();
 });
 
 $(document).on('click', '.js-rr-expand', function() {

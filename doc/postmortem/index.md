@@ -6,6 +6,13 @@
 
 ## 安全与前端关键问题
 
+- [RBAC 全局管理员表单 Scope 回显缺失](2026-10-RBAC全局管理员表单Scope回显缺失.html)（零关联行 global Scope · ViewModel marker 回显，2026-10-27）
+- [RBAC 用户管理陈旧 Session 读取](2026-10-RBAC用户管理陈旧Session读取.html)（7 个入口数据库当前 actor · 单事务版本撤销，2026-10-27）
+- [RBAC 注册审批拒绝 Scope 绕过修复](2026-10-RBAC注册审批拒绝Scope绕过修复.html)（数据库当前 actor · 对象 Scope · 异常申请全局治理，2026-10-27）
+- [RBAC 注册审批列表陈旧 Session 读取](2026-10-RBAC注册审批列表陈旧Session读取.html)（数据库当前 actor · 请求级同源 · 302/403/500，2026-10-19）
+- [RBAC 批量审批反馈误报成功](2026-10-RBAC批量审批反馈误报成功.html)（三态真值契约 · trace_id 安全关联，2026-10-16）
+- [RBAC 批量审批请求 ID 规范化缺失](2026-10-RBAC批量审批请求ID规范化缺失.html)（重复/非法 ID 写前整体拒绝 · 双入口共享解析，2026-10-27）
+- [RBAC 全局权限授予边界缺失](2026-10-RBAC全局权限授予边界缺失.html)（actor/target 授权混淆 · 数据库当前事实 · 写前拒绝 · 写入安全通过、S5 条件验收，2026-10-16）
 - [安全问题 S1–S5 修复复盘](2026-08-security-S1-S5.html)
 - [P0 前端关键 Bug 复盘](2026-08-P0-frontend-bugs.html)
 - [全面 Code Review 综合复盘](2026-08-全面CodeReview复盘.html)

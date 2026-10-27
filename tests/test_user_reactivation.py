@@ -22,6 +22,9 @@ class TestDisabledUserOverwriteIdentity(unittest.TestCase):
         with self.app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest
+            from datas.model.rbac_registration_request_group import (
+                RbacRegistrationRequestGroup,
+            )
             from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup
             from datas.model.user_group import UserGroup
@@ -31,6 +34,18 @@ class TestDisabledUserOverwriteIdentity(unittest.TestCase):
             new_group = ResourceGroup(name='新业务组')
             self.db.session.add_all([old_group, new_group])
             self.db.session.flush()
+
+            reviewer = RbacUser(
+                username='admin',
+                role='admin',
+                is_active=1,
+                auth_version=0,
+                create_time=90,
+            )
+            reviewer.set_password('test-password')
+            self.db.session.add(reviewer)
+            self.db.session.flush()
+            self.reviewer_id = reviewer.id
 
             disabled = RbacUser(
                 username='returning',
@@ -71,6 +86,11 @@ class TestDisabledUserOverwriteIdentity(unittest.TestCase):
             )
             req.set_password('new-password')
             self.db.session.add(req)
+            self.db.session.flush()
+            self.db.session.add(RbacRegistrationRequestGroup(
+                registration_request_id=req.id,
+                group_id=new_group.id,
+            ))
             self.db.session.commit()
             self.request_id = req.id
 
@@ -84,7 +104,7 @@ class TestDisabledUserOverwriteIdentity(unittest.TestCase):
 
             from app.rbac.services import approve_registration
 
-            session['user_id'] = 999
+            session['user_id'] = self.reviewer_id
             session['username'] = 'admin'
             result = approve_registration(self.request_id)
             self.assertTrue(result['ok'], result)
@@ -168,9 +188,8 @@ class TestDisabledUserOverwriteIdentity(unittest.TestCase):
     def test_submit_registration_allows_disabled_username_without_hint(self):
         """申请人侧：同名停用可提交，响应不得含同名/恢复提示。"""
         with self.app.test_request_context():
-            from datas.model.rbac_registration_request import RbacRegistrationRequest
-
             from app.rbac.services import submit_registration
+            from datas.model.rbac_registration_request import RbacRegistrationRequest
 
             # 清掉 setUp 里已有的 pending，避免「已有待审批」干扰本断言
             pending = self.db.session.get(RbacRegistrationRequest, self.request_id)
@@ -355,8 +374,9 @@ class TestAuthVersionOneTimeBump(unittest.TestCase):
         from scripts.ensure_business_tables import _bump_auth_version_once
 
         with self.app.app_context():
-            from datas.model.rbac_user import RbacUser
             from sqlalchemy import text
+
+            from datas.model.rbac_user import RbacUser
 
             _bump_auth_version_once()
             user = self.db.session.get(RbacUser, self.user_id)
@@ -382,6 +402,9 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
         with self.app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest
+            from datas.model.rbac_registration_request_group import (
+                RbacRegistrationRequestGroup,
+            )
             from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup
             from datas.model.user_group import UserGroup
@@ -391,6 +414,17 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
             new_group = ResourceGroup(name='新组-B3')
             self.db.session.add_all([old_group, new_group])
             self.db.session.flush()
+            reviewer = RbacUser(
+                username='admin',
+                role='admin',
+                is_active=1,
+                auth_version=0,
+                create_time=5,
+            )
+            reviewer.set_password('test-password')
+            self.db.session.add(reviewer)
+            self.db.session.flush()
+            self.reviewer_id = reviewer.id
             disabled = RbacUser(
                 username='overwrite_b3',
                 role='viewer',
@@ -425,6 +459,11 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
             )
             req.set_password('ApplicantB3Pass')
             self.db.session.add(req)
+            self.db.session.flush()
+            self.db.session.add(RbacRegistrationRequestGroup(
+                registration_request_id=req.id,
+                group_id=new_group.id,
+            ))
             self.db.session.commit()
             self.request_id = req.id
 
@@ -438,7 +477,7 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
 
             from app.rbac.services import approve_registration
 
-            session['user_id'] = 1
+            session['user_id'] = self.reviewer_id
             session['username'] = 'admin'
             result = approve_registration(self.request_id)
             self.assertTrue(result['ok'], result)
@@ -480,7 +519,7 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
 
             from app.rbac.services import approve_registration
 
-            session['user_id'] = 1
+            session['user_id'] = self.reviewer_id
             session['username'] = 'admin'
             result = approve_registration(self.request_id)
             self.assertFalse(result['ok'])
@@ -509,7 +548,7 @@ class TestAtomicOverwriteServiceB3(unittest.TestCase):
 
             from app.rbac.services import approve_registration
 
-            session['user_id'] = 1
+            session['user_id'] = self.reviewer_id
             session['username'] = 'admin'
             with patch(
                 'app.rbac.services._auto_issue_token',

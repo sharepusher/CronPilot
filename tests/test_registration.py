@@ -3,6 +3,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
@@ -49,7 +50,7 @@ class TestRegistrationModel(unittest.TestCase):
         with self.app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
-            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
@@ -232,9 +233,18 @@ class TestSubmitRegistration(unittest.TestCase):
             self.db.create_all()
             # 创建一个业务组
             g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
-            self.db.session.add(g)
+            seed = RbacUser(
+                username='admin',
+                role='admin',
+                is_active=1,
+                auth_version=0,
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            seed.set_password('test-password')
+            self.db.session.add_all([g, seed])
             self.db.session.commit()
             self.group_id = g.id
+            self.seed_admin_id = seed.id
 
     def tearDown(self):
         with self.app.app_context():
@@ -537,14 +547,38 @@ class TestApproveRejectRegistration(unittest.TestCase):
         with self.app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
-            from datas.model.rbac_user import RbacUser  # noqa: F401
-            from datas.model.resource_group import ResourceGroup  # noqa: F401
-            from datas.model.user_group import UserGroup  # noqa: F401
+            from datas.model.rbac_user import RbacUser
+            from datas.model.resource_group import ResourceGroup
+            from datas.model.user_group import UserGroup
             self.db.create_all()
             g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
-            self.db.session.add(g)
+            outside = ResourceGroup(
+                name='外部组',
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            seed = RbacUser(
+                username='admin', role='admin', is_active=1, auth_version=0,
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            manager = RbacUser(
+                username='manager', role='admin', is_active=1, auth_version=0,
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            operator = RbacUser(
+                username='op_user', role='operator', is_active=1, auth_version=0,
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            for actor in (seed, manager, operator):
+                actor.set_password('test-password')
+            self.db.session.add_all([g, outside, seed, manager, operator])
+            self.db.session.flush()
+            self.db.session.add(UserGroup(user_id=manager.id, group_id=g.id))
             self.db.session.commit()
             self.group_id = g.id
+            self.outside_group_id = outside.id
+            self.seed_admin_id = seed.id
+            self.manager_id = manager.id
+            self.operator_id = operator.id
 
     def tearDown(self):
         with self.app.app_context():
@@ -578,7 +612,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_pending_request()
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import approve_registration
             result = approve_registration(req_id)
@@ -603,7 +637,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_pending_request()
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import approve_registration
             approve_registration(req_id)
@@ -626,7 +660,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_pending_request()
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import approve_registration
             approve_registration(req_id)
@@ -638,10 +672,14 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_pending_request()
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import reject_registration
-            result = reject_registration(req_id, comment='Not needed')
+            result = reject_registration(
+                req_id,
+                reviewer_id=self.seed_admin_id,
+                comment='Not needed',
+            )
             self.assertTrue(result['ok'])
 
         with self.app.app_context():
@@ -653,19 +691,45 @@ class TestApproveRejectRegistration(unittest.TestCase):
     def test_reject_nonexistent(self):
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import reject_registration
-            result = reject_registration(99999)
+            result = reject_registration(99999, reviewer_id=self.seed_admin_id)
             self.assertFalse(result['ok'])
             self.assertIn('不存在', result['msg'])
+
+    def test_reject_internal_error_logs_trace_id_and_returns_safe_message(self):
+        """原始异常留在服务端日志，调用方只获得通用文案和关联号。"""
+        req_id = self._create_pending_request()
+        raw_error = 'database password leaked by driver'
+        with self.app.test_request_context():
+            from flask import session
+            session['user_id'] = self.seed_admin_id
+            session['username'] = 'admin'
+            from app.rbac.services import reject_registration
+            with mock.patch.object(
+                self.db.session,
+                'commit',
+                side_effect=RuntimeError(raw_error),
+            ), self.assertLogs('app.rbac.services', level='ERROR') as logs:
+                result = reject_registration(
+                    req_id,
+                    reviewer_id=self.seed_admin_id,
+                    comment='Not needed',
+                )
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['msg'], '服务器内部错误，请稍后重试')
+        self.assertEqual(result['error_kind'], 'internal')
+        self.assertRegex(result['trace_id'], r'^[0-9a-f]{32}$')
+        self.assertTrue(any(result['trace_id'] in line for line in logs.output))
+        self.assertTrue(any(raw_error in line for line in logs.output))
 
     def test_user_can_login_after_approval(self):
         """审批通过后，用户可以使用注册密码登录。"""
         req_id = self._create_pending_request()
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import approve_registration
             approve_registration(req_id)
@@ -683,6 +747,9 @@ class TestApproveRejectRegistration(unittest.TestCase):
         """创建一条 admin 角色的 pending 申请，返回 request_id。"""
         with self.app.app_context():
             from datas.model.rbac_registration_request import RbacRegistrationRequest
+            from datas.model.rbac_registration_request_group import (
+                RbacRegistrationRequestGroup,
+            )
             req = RbacRegistrationRequest(
                 email='admin_req@corp.com', username='admin_applicant',
                 password_hash='h', role='admin',
@@ -693,6 +760,17 @@ class TestApproveRejectRegistration(unittest.TestCase):
                 create_time=str_to_hms('2026-08-03 10:00:00'),
             )
             self.db.session.add(req)
+            self.db.session.flush()
+            if group_ids_str != '__ALL__':
+                for group_id in {
+                    int(value.strip())
+                    for value in group_ids_str.split(',')
+                    if value.strip()
+                }:
+                    self.db.session.add(RbacRegistrationRequestGroup(
+                        registration_request_id=req.id,
+                        group_id=group_id,
+                    ))
             self.db.session.commit()
             return req.id
 
@@ -701,7 +779,7 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_admin_pending_request(str(self.group_id))
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             session['role'] = 'admin'
             session['group_ids'] = []
@@ -714,44 +792,44 @@ class TestApproveRejectRegistration(unittest.TestCase):
         req_id = self._create_admin_pending_request(str(self.group_id))
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 2
+            session['user_id'] = self.manager_id
             session['username'] = 'manager'
             session['role'] = 'admin'
-            session['group_ids'] = [self.group_id, 999]
+            session['group_ids'] = [self.group_id, self.outside_group_id]
             from app.rbac.services import approve_registration
             result = approve_registration(req_id)
             self.assertTrue(result['ok'])
 
     def test_manager_admin_no_superset_cannot_approve_admin(self):
         """业务组未覆盖的 manager admin 不可审批 admin 角色申请。"""
-        # 申请组 = group_id + 999, 审批者只有 group_id
+        # 申请组 = 自己组 + 外部组，审批者数据库当前范围只有自己组
         req_id = self._create_admin_pending_request(
-            '%d,999' % self.group_id
+            '%d,%d' % (self.group_id, self.outside_group_id)
         )
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 2
+            session['user_id'] = self.manager_id
             session['username'] = 'manager'
             session['role'] = 'admin'
             session['group_ids'] = [self.group_id]
             from app.rbac.services import approve_registration
             result = approve_registration(req_id)
             self.assertFalse(result['ok'])
-            self.assertIn('不覆盖', result['msg'])
+            self.assertIn('管理范围之外', result['msg'])
 
     def test_operator_cannot_approve_admin_request(self):
         """operator 不可审批 admin 角色申请。"""
         req_id = self._create_admin_pending_request(str(self.group_id))
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 3
+            session['user_id'] = self.operator_id
             session['username'] = 'op_user'
             session['role'] = 'operator'
             session['group_ids'] = [self.group_id]
             from app.rbac.services import approve_registration
             result = approve_registration(req_id)
             self.assertFalse(result['ok'])
-            self.assertIn('管理员', result['msg'])
+            self.assertIn('无权管理用户', result['msg'])
 
 
 class TestDisableNoReenable(unittest.TestCase):
@@ -952,6 +1030,7 @@ class TestNonAdminCannotSelectGlobal(unittest.TestCase):
     def setUp(self):
         self.app, self.db = _make_app()
         with self.app.app_context():
+            from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
             from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup
             from datas.model.user_group import UserGroup  # noqa: F401
@@ -1119,14 +1198,23 @@ class TestCheckRegistrationStatus(unittest.TestCase):
         with self.app.app_context():
             from datas.model.rbac_audit_log import RbacAuditLog  # noqa: F401
             from datas.model.rbac_registration_request import RbacRegistrationRequest  # noqa: F401
-            from datas.model.rbac_user import RbacUser  # noqa: F401
+            from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup  # noqa: F401
             from datas.model.user_group import UserGroup  # noqa: F401
             self.db.create_all()
             g = ResourceGroup(name='研发组', create_time=str_to_hms('2026-08-03 00:00:00'))
-            self.db.session.add(g)
+            seed = RbacUser(
+                username='admin',
+                role='admin',
+                is_active=1,
+                auth_version=0,
+                create_time=str_to_hms('2026-08-03 00:00:00'),
+            )
+            seed.set_password('test-password')
+            self.db.session.add_all([g, seed])
             self.db.session.commit()
             self.group_id = g.id
+            self.seed_admin_id = seed.id
 
     def tearDown(self):
         with self.app.app_context():
@@ -1181,10 +1269,14 @@ class TestCheckRegistrationStatus(unittest.TestCase):
             req_id = req.id
         with self.app.test_request_context():
             from flask import session
-            session['user_id'] = 1
+            session['user_id'] = self.seed_admin_id
             session['username'] = 'admin'
             from app.rbac.services import reject_registration
-            reject_registration(req_id, comment='No reason given')
+            reject_registration(
+                req_id,
+                reviewer_id=self.seed_admin_id,
+                comment='No reason given',
+            )
         with self.app.app_context():
             from app.rbac.services import check_registration_status
             status = check_registration_status('rejected')
@@ -1377,6 +1469,27 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             self.assertIn('注册审批', html)
             self.assertIn('暂无注册申请', html)
 
+    def test_registration_review_batch_feedback_contract_markup(self):
+        """B2: 页面必须安全消费三态摘要并保留失败详情。"""
+        with self.app.test_client() as c:
+            self._login_admin(c)
+            response = c.get('/rbac/registration_review')
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('id="rr-batch-result"', html)
+        self.assertIn('aria-live="polite"', html)
+        self.assertIn('id="rr-batch-result-refresh"', html)
+        self.assertIn('id="rr-batch-result-close"', html)
+        self.assertIn("['all_success', 'partial_failure', 'all_failure']", html)
+        self.assertIn("message.textContent = '申请 #'", html)
+        self.assertIn("trace.textContent = '错误编号：'", html)
+        self.assertIn('batchSubmitting = true', html)
+        self.assertIn("type: 'POST'", html)
+        self.assertNotIn("method: 'POST'", html)
+        self.assertIn("dataType: 'json'", html)
+        self.assertIn('批量操作结果未知', html)
+        self.assertNotIn('if (r.url) { window.location.href', html)
+
     def test_registration_review_renders_with_data(self):
         """GET /rbac/registration_review 有数据时返回 200 + 申请记录。"""
         with self.app.app_context():
@@ -1435,6 +1548,9 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
         """POST approve 应创建用户并更新状态。"""
         with self.app.app_context():
             from datas.model.rbac_registration_request import RbacRegistrationRequest
+            from datas.model.rbac_registration_request_group import (
+                RbacRegistrationRequestGroup,
+            )
             req = RbacRegistrationRequest(
                 email='approve_integ@corp.com', username='approve_integ',
                 password_hash='h', role='operator',
@@ -1446,6 +1562,11 @@ class TestRegistrationHTTPIntegration(unittest.TestCase):
             )
             req.set_password('Test1234')
             self.db.session.add(req)
+            self.db.session.flush()
+            self.db.session.add(RbacRegistrationRequestGroup(
+                registration_request_id=req.id,
+                group_id=self.group_id,
+            ))
             self.db.session.commit()
             req_id = req.id
 

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>当前未提交代码与方案 Bugbot 专业评估（2026-10-26）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.7;max-width:1120px;margin:0 auto;padding:32px;color:#1f2937;background:#fff}
+    h1,h2,h3{line-height:1.3;color:#111827} h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}
+    table{width:100%;border-collapse:collapse;margin:1rem 0} th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left} th{background:#f3f4f6}
+    code{background:#f3f4f6;padding:.1rem .3rem;border-radius:3px} pre{background:#f3f4f6;padding:1rem;overflow:auto}
+    .meta{color:#6b7280}.decision,.risk,.ok{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#fff7ed;border-color:#f97316}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}
+    .p1{color:#b91c1c;font-weight:700}.p2{color:#b45309;font-weight:700}.pass{color:#047857;font-weight:700}
+    footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;color:#6b7280}
+  </style>
+</head>
+<body>
+<main>
+<h1>当前未提交代码与方案 Bugbot 专业评估</h1>
+<p class="meta">日期：2026-10-26 · 对象：工作区全部未提交变更 · 方法：Bugbot 独立审查 + 主审逐条代码/设计/测试复核 · 状态：<strong>不建议提交或发布</strong></p>
+
+<div class="risk"><strong>结论：</strong>工程方向与多数实现细节具有较高专业度，但当前存在 2 个 P1 权限边界缺陷和 2 个 P2 交互/真值缺陷。更严重的是，其中“陈旧 Session 读取”和“全局管理员表单回显”已在先前专业 Review 中明确记录，当前完成性文档仍宣称整体闭环。故本轮只能评为 <strong>C+ / 阻断提交</strong>，不能维持“A- 正式通过”或“F-02 全部闭环”的宽泛结论。</div>
+
+<h2>1. 审查范围与基线</h2>
+<ul>
+  <li>工作区状态：20 个已跟踪文件发生变化，64 个未跟踪条目；已跟踪差异为 1330 行新增、220 行删除。</li>
+  <li>核心范围：RBAC policy/service/view、注册申请关联表与迁移、注册审批页面、用户编辑表单、专项测试、设计/QA/复盘/Release 文档。</li>
+  <li>本评估没有修改业务实现，也没有把现有测试全绿等同于缺陷不存在。</li>
+</ul>
+
+<h2>2. 多维度评分</h2>
+<table>
+  <thead><tr><th>维度</th><th>评分</th><th>判断</th></tr></thead>
+  <tbody>
+    <tr><td>专业性</td><td>7.5 / 10</td><td>数据库当前 actor、精确关联集合、fail-closed、双后端迁移与分层测试方法专业；但已知问题未纳入完成门禁，削弱工程可信度。</td></tr>
+    <tr><td>准确性</td><td>6.0 / 10</td><td>注册审批读取集合与多数写入策略准确；拒绝入口授权、批量反馈文案以及“整体闭环”声明与真实行为不一致。</td></tr>
+    <tr><td>合理性</td><td>7.0 / 10</td><td>关联表替代 CSV 模糊匹配、请求级 actor 缓存、列表/count/badge 同源均合理；但同一用户管理域同时保留 DB-current 与 Session-current 两套授权事实，不合理。</td></tr>
+    <tr><td>安全性</td><td>5.0 / 10</td><td>批准路径加固充分，但拒绝路径存在对象级授权绕过；用户读取面在角色/组降权后仍可能使用旧 Cookie 越权读取。</td></tr>
+    <tr><td>测试充分性</td><td>7.0 / 10</td><td>164 项相关自动化全绿，覆盖正反授权、分页、badge、迁移与错误脱敏；但恰缺 4 个发现对应的否定路径，出现“测试很强但覆盖边界不完整”。</td></tr>
+    <tr><td>方案/文档一致性</td><td>5.5 / 10</td><td>设计分批、验收和证据链完整；但既有 Review 已指出的风险未闭环，QA 又提前将 F-02/S0–S5 标记关闭，状态治理失真。</td></tr>
+    <tr><td>提交/发布就绪度</td><td>4.0 / 10</td><td>存在 P1 权限缺陷，当前不应 commit、合并或发布。</td></tr>
+  </tbody>
+</table>
+
+<h2>3. 可复现发现</h2>
+<table>
+  <thead><tr><th>严重级别</th><th>位置</th><th>发现与影响</th><th>缺失防护</th></tr></thead>
+  <tbody>
+    <tr><td class="p1">P1</td><td><code>app/rbac/views.py:1279</code><br><code>app/rbac/views.py:1390</code></td><td>单条与批量拒绝仅校验 <code>user:manage</code>，没有按数据库当前 actor 校验目标申请 Scope。按组管理员可直接提交不可见的组外或全局申请 ID，将其改为 rejected。</td><td>服务边界的对象级授权；单条/批量组外、全局、异常申请反向测试。</td></tr>
+    <tr><td class="p1">P1</td><td><code>app/rbac/views.py:91</code><br><code>:575</code><br><code>:630-635</code><br><code>:745-748</code></td><td>用户列表、详情和编辑 GET 继续以 Session role/group_ids 作为最终授权。角色降权不 bump <code>auth_version</code>，组变更也不撤销 Web Session；旧 Cookie 可继续读取范围外用户资料。</td><td>统一使用 <code>resolve_user_management_actor()</code>，或对角色/组变化实施 Session 撤销；列表/详情/编辑旧 Cookie 反向矩阵。</td></tr>
+    <tr><td class="p2">P2</td><td><code>app/templates/redesign/user_form.html:141</code></td><td>全局 admin 以零条用户组关系表示，但模板只在 <code>user_group_ids</code> 非空且含 <code>__ALL__</code> 时预选“全部”。编辑全局管理员后直接保存会提交空组并被拒绝。</td><td>持久化空关系到表单 sentinel 的双向映射；GET→不改 Scope→保存回归。</td></tr>
+    <tr><td class="p2">P2</td><td><code>app/templates/redesign/registration_review.html:256</code><br><code>app/rbac/services.py:1479-1485</code></td><td>部分失败摘要称“失败项保持原状态”，但批准服务在同名目标丢失、目标已启用或用户名冲突时会先自动拒绝申请，再返回 <code>ok=False</code>。页面陈述与数据库最终状态矛盾。</td><td>响应契约返回每项最终状态/changed，或移除绝对文案；批量 auto-reject 测试。</td></tr>
+  </tbody>
+</table>
+
+<h2>4. 方案与实现一致性</h2>
+<ul>
+  <li><strong>成立：</strong>注册审批列表已使用数据库当前 actor；关联表精确表达多组关系；列表、分页、total 与 badge 使用同一授权集合；授权查询失败按 500 fail-closed。</li>
+  <li><strong>不成立：</strong>“受限 Biz Admin 不能通过单条或批量审批影响范围外申请”只对批准路径成立，拒绝路径仍可绕过 Scope。</li>
+  <li><strong>状态过度声明：</strong><code>doc/qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html</code> 将写入安全和整体闭环标为正式通过；当前拒绝越权使该表述需要收窄。</li>
+  <li><strong>已知风险遗漏：</strong>先前 Review 已明确记录用户管理陈旧 Session 与 <code>__ALL__</code> 回显缺口，当前实现没有消除，却仍进入“关闭”状态。</li>
+  <li><strong>边界说明：</strong>F-02 若严格只指“注册审批列表读取”，其关闭证据仍成立；若文档以此推导整个 RBAC 用户管理/审批面已闭环，则结论不成立。</li>
+</ul>
+
+<h2>5. 值得保留的工程质量</h2>
+<div class="ok"><ul>
+  <li>将授权事实从 Session 收敛到数据库当前 actor 的方向正确，并且在注册审批列表/批准写入上实现了请求级同源。</li>
+  <li>关联表方案消除了组 1/10 的字符串碰撞，并覆盖 SQLite/MySQL 方言、迁移幂等与性能验证。</li>
+  <li>异常信息脱敏、trace_id、批量三态摘要、分页/count/badge 同源等工程细节成熟。</li>
+  <li>测试角色矩阵、存储漂移、正向 global 基线和 fail-closed 场景覆盖广，说明缺陷集中在边界完整性而非整体实现失控。</li>
+</ul></div>
+
+<h2>6. 修复优先级与重新放行条件</h2>
+<ol>
+  <li><strong>先修 P1：</strong>拒绝路径对象级授权；用户管理所有读取入口统一数据库当前 actor 或可靠撤销旧 Session。</li>
+  <li><strong>再修 P2：</strong>补全 global admin 表单双向映射；让批量反馈表达最终状态而非仅表达 <code>ok</code>。</li>
+  <li><strong>补防护测试：</strong>每个发现至少一条 HTTP/浏览器否定路径；拒绝越权必须同时覆盖单条和批量。</li>
+  <li><strong>校准文档状态：</strong>在修复和复验前，将“S0–S5 正式通过/全部闭环”等宽泛表述改为条件通过或明确限定范围。</li>
+  <li><strong>重新验收：</strong>专项自动化、目标角色浏览器正反向、86 路由、Ruff、文档门禁与本地可验证环境全部通过后，方可 commit。</li>
+</ol>
+
+<h2>7. 本次验证证据</h2>
+<pre>.venv-py311/bin/python -m unittest \
+  tests.test_rbac_global_scope_assignment \
+  tests.test_registration \
+  tests.test_user_reactivation -v
+
+Ran 164 tests in 212.162s
+OK</pre>
+<p>自动化全绿不推翻上述发现：现有测试分别没有覆盖拒绝对象级 Scope、用户管理旧 Cookie 读取、global admin 原样保存、以及批准失败时自动拒绝后的页面最终状态。</p>
+
+</main>
+<footer><a href="../index.html">文档索引</a> · <a href="当前未提交代码与方案Bugbot专业评估-2026-10-26.md">Markdown</a></footer>
+</body>
+</html>

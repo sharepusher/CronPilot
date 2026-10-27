@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>RBAC 全局权限授予边界缺失修复复盘（2026-10）</title></head><body><main>
+<h1>RBAC 全局权限授予边界缺失修复复盘</h1>
+<p>日期：2026-10-16 · 范围：S0–S5（新增、编辑、前端最小暴露、注册审批与最终交付） · 状态：实现与写入安全验证完成；独立 Review 条件通过，S5 待 P1 收口后验收</p>
+
+<h2>1. Bug 定位</h2>
+<p><code>POST /rbac/users/add</code> 与 <code>POST /rbac/users/edit</code> 只检查目标角色能否使用 <code>__ALL__</code>，没有在业务写入前检查当前操作人是否有权授予全局 Scope。单组或多组 Biz Admin 因拥有 <code>user:manage</code>，可构造 <code>role=admin&amp;group_ids=__ALL__</code>，创建或修改为无组关系的全局管理员；多组 Biz Admin 还可提交自身范围外的具体组。</p>
+
+<h2>2. 根因</h2>
+<ul>
+<li><strong>授权对象混淆：</strong>原逻辑验证的是 target 角色与目标组参数是否合法，却把“target 可以是 admin”误当成“actor 可以授予全局权限”。</li>
+<li><strong>页面约束代替写边界：</strong>锁定组只在路由中覆盖部分表单值；多组管理员仍可看到全局选项，直接 POST 更不受前端约束。</li>
+<li><strong>授权事实来源不稳定：</strong>既有管理范围检查主要依赖 Session 组集合，不能证明写入时 actor 的数据库当前角色、活动状态和组关系仍然有效。</li>
+</ul>
+
+<h2>3. 测试漏洞</h2>
+<ul>
+<li>已有用例覆盖“非 admin target 不得使用 <code>__ALL__</code>”和种子 admin 的合法路径，没有覆盖“受限 admin actor 授予 admin target 全局 Scope”的负向矩阵。</li>
+<li>缺少 Ajax/原生 POST、单组/多组 actor、新增/编辑、范围外具体组、陈旧 Session 与拒绝零副作用的组合测试。</li>
+<li><code>tests/test_registration.py</code> 的一个独立 fixture 未导入注册申请模型，单文件执行时可能以缺表异常污染诊断；S0 已补齐模型注册。</li>
+<li>S3 首轮页面测试用裸 <code>value="__ALL__"</code> 判断 DOM，误命中页面脚本中的 <code>querySelector</code> 字符串而产生 4 个假失败；这说明“源码包含字符串”不等于“实际渲染了 option”。</li>
+<li>S4 发现审批仅对 admin 目标检查 Scope，范围外 viewer/operator 申请可被直接 POST 批准；审批者能力又取自 Session，数据库已降权时仍可能批准全局申请。</li>
+<li>重新启用测试用例只伪造审批人 Session、数据库没有对应有效用户，旧实现因此未真正覆盖数据库授权事实；S4 将夹具改为真实审批人。</li>
+</ul>
+
+<h2>4. 修复</h2>
+<ul>
+<li><code>app/rbac/policy.py</code> 新增无 Session、无数据库、无写副作用的授予矩阵：只有种子/当前全局 admin 可授予 <code>admin + __ALL__</code>；按组 admin 只能授予当前数据库组集合的子集。</li>
+<li><code>app/rbac/services.py</code> 统一规范化 <code>__ALL__</code>、具体组与非法参数，并从数据库读取 actor 当前角色、活动状态和组关系；编辑 POST 还以数据库当前关系校验 actor 是否仍可管理 target。</li>
+<li><code>app/rbac/views.py</code> 在新增/编辑的第一个业务副作用前调用统一校验，拒绝后不进入 <code>create_user()</code>、<code>update_user()</code> 或组关系写入；合法结果只使用服务层返回的规范化 Scope。</li>
+<li>拒绝审计使用稳定原因码，detail 仅记录入口、原因和目标 ID；审计本身异常时记录受保护错误，主请求仍拒绝，禁止 fail-open。</li>
+<li>S3 由同一数据库当前校验派生页面 <code>can_assign_global</code>；受限管理员的 HTML 不渲染 <code>option[value="__ALL__"]</code>，并明确提示只能分配当前管理组。全局/种子管理员仍保留合法选项；模板脚本在该 option 缺席时安全返回。</li>
+<li>页面测试断言收紧为真实标签前缀 <code>&lt;option value="__ALL__"</code>，既排除脚本字符串误命中，也保留浏览器 DOM 查询作为第二层证据。</li>
+<li>S4 将单条与批量审批的 reviewer ID 显式传入服务层，并对 admin、operator、viewer 全部调用 <code>validate_user_scope_assignment()</code>；Session 只定位用户 ID，最终角色、状态和组范围从数据库读取。</li>
+</ul>
+
+<h2>5. 防护测试</h2>
+<ul>
+<li><code>.venv-py311/bin/python -m unittest tests.test_rbac_global_scope_assignment -v</code>：39/39 通过，新增单条/批量、全局/受限、陈旧 Session 和非 admin 范围外审批矩阵。</li>
+<li>注册 78、重新启用 19、RBAC 95、Redesign 侧边栏/表单/import 25，共 217 项相关回归通过；连同专项共 256 项。Ruff、Python 编译与路由完整性通过。</li>
+<li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>：86/86 内存路由通过；使用本地配置口令执行 <code>--live --check</code>：26/26 实时 HTTP 路由通过。</li>
+<li>真实浏览器：双组 <code>s2_biz_admin</code> 在新增和编辑页选择 <code>admin + 全部</code> 后均出现“您无权授予全局管理权限”；数据库不存在 <code>s2_browser_denied</code>，<code>s2_edit_target</code> 仍为 viewer 且保留原组。非种子全局 <code>s2_global_admin</code> 成功创建 <code>s2_global_created</code>，角色为 admin、组关系数为 0。</li>
+<li>S3 真实浏览器：<code>s2_biz_admin</code> 的新增/编辑 DOM 只含组 9/10、无全局 option，范围提示可见，角色切换后 console error 为 0；<code>s2_global_admin</code> 仍可见全局 option 并成功创建 <code>s3_global_created</code>，数据库确认角色 admin、组关系数 0。</li>
+<li>S4 真实浏览器：受限管理员只看到并批准组 9 内申请；全局申请对其不可见。全局管理员成功批准 <code>admin + __ALL__</code>；数据库确认合法具体组用户有 1 条组关系、合法全局用户为 0 条，负向全局申请保持 pending。</li>
+<li>S5 写入安全验证：受限管理员新增/编辑 DOM 无全局 option，有效 CSRF 篡改 POST 均返回“您无权授予全局管理权限”，用户行和组关系前后不变；全局管理员新增、编辑全局 admin 成功且组关系均为 0。受限管理员单条/批量直接审批全局申请均未产生业务写入，负向申请保持 pending 且未创建用户；全局管理员合法审批成功。浏览器 console error 为 0。批量失败反馈与列表 Scope 精确性不由该记录证明。</li>
+<li>S5 最终门禁：核心自动化 256/256、内存路由 86/86、重启后实时 HTTP 26/26，Ruff、路由完整性、UI 契约、颜色、diff 与文档门禁全部通过；登录页健康检查为 200，本地服务保持运行。</li>
+</ul>
+
+<h2>6. 同类排查</h2>
+<p>S2–S4 已检查用户新增、编辑、停用用户同名覆盖、单条审批、批量审批、Ajax/原生响应及页面正反暴露。生产调用方已逐项归类：新增、编辑、单条审批、批量审批均已守卫；事务内组替换为受信任私有函数；未发现其他生产写入调用点。写入授权全部回读数据库。后续独立 Review 发现列表展示使用 Session 和字符串模糊匹配会造成可见性残余风险，已列为 S5 验收前收口项。</p>
+
+<h2>7. 预防方案</h2>
+<ol>
+<li><strong>可执行安全矩阵：</strong>保留 <code>tests/test_rbac_global_scope_assignment.py</code> 作为独立门禁；任何用户 Scope 写入口变更必须运行该模块，并要求受限 actor 的直接 POST、零业务副作用和审计故障用例同时通过。</li>
+<li><strong>单一写边界：</strong>新增或修改用户 Scope 的生产入口必须调用 <code>validate_user_scope_assignment()</code>，禁止重新在 view 中仅按 target role 判断。复核命令：<code>rg -n "create_user\(|update_user\(|set_user_groups\(|approve_registration\(" app/</code>；调用方分类与最终验收已写入设计 rev.8。</li>
+<li><strong>数据库事实优先：</strong>最终授权只允许 Session 提供 actor ID，角色、活动状态、actor 组和 target 管理范围必须在写入边界回读数据库；陈旧 Session 防护由专项测试固定。</li>
+<li><strong>交付门禁：</strong>涉及 RBAC 授权语义的三文件及以上变更，除单测外必须运行 86 路由冒烟，并用受限和允许两种真实角色执行浏览器正反路径；证据写回设计文档与本复盘。</li>
+<li><strong>DOM 断言精度：</strong>服务端渲染可见性测试必须匹配实际 HTML 标签或解析 DOM，禁止用可能同时存在于 JS/CSS 的裸属性字符串判断元素存在；落地位置为 <code>TestGlobalScopeAssignmentPageExposure</code>。</li>
+</ol>
+
+<h2>边界声明</h2>
+<p>本复盘确认 S2 后端写入边界和 S3 前端最小暴露已完成；S4 审批最终写授权已收口。2026-10-16 独立<a href="../qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html">全过程专业 Review</a>判定 S4/S5 条件通过：批量失败反馈、审批列表精确 Scope/DB-current 可见性与持久化证据仍须收口。独立的“用户编辑差异写入与事务闭环”方案未被本次结果自动授权或标记完成。</p>
+
+<footer><a href="index.html">复盘索引</a> · <a href="../index.html">文档总索引</a> · <a href="2026-10-RBAC全局权限授予边界缺失.md">Markdown</a> · <a href="../design/RBAC全局权限授予边界加固优化需求-2026-10.html">设计文档</a></footer>
+</main></body></html>

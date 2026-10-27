@@ -1,6 +1,8 @@
+import json
+import uuid
 from urllib.parse import quote
 
-from flask import current_app, jsonify, redirect, render_template, request, session
+from flask import abort, current_app, jsonify, redirect, render_template, request, session
 from sqlalchemy import select
 
 from app import db
@@ -11,9 +13,15 @@ from app.security.csrf import csrf_protect, ensure_csrf_token
 from app.services.pagination import PageQuery
 
 from . import rbac
-from .decorators import require_login, require_permission
+from .decorators import (
+    _forbidden_response,
+    require_login,
+    require_permission,
+    require_user_management_actor,
+)
 from .login_limiter import check_login_limit, record_login_failure, record_login_success
 from .policy import is_seed_admin_username, user_bypasses_scope
+from .registration_scope import current_registration_actor_scope
 from .safe_redirect import safe_next_url
 from .services import (
     AUDIT_ACTION_LABELS,
@@ -38,28 +46,37 @@ from .services import (
     reject_registration,
     save_profile_completion,
     set_user_active,
-    set_user_groups,
     submit_registration,
     trigger_password_reset,
     update_own_profile,
     update_resource_group,
-    update_user,
+    update_user_management,
     user_in_management_scope,
     user_must_reset_password,
     user_needs_profile_completion,
-    validate_groups_for_role,
+    validate_user_scope_assignment,
     web_session_user_is_valid,
     write_audit_log,
 )
+from .user_management_scope import current_user_management_actor_scope
 
 
 def _actor_bypasses_scope():
-    """当前登录管理员是否绕过 Scope（种子 admin 或全局管理员 admin）。"""
+    """当前登录管理员是否绕过 Scope（供既有非用户管理入口使用）。"""
     return user_bypasses_scope(
         session.get('role') or '',
         username=session.get('username') or '',
         group_ids=session.get('group_ids') or [],
     )
+
+
+def _user_management_actor_bypasses_scope():
+    """用户管理入口使用数据库当前 actor 的 bypass 判定。"""
+    return bool(current_user_management_actor_scope().get('bypass'))
+
+
+def _current_user_management_group_ids():
+    return list(current_user_management_actor_scope().get('group_ids') or [])
 
 
 def _get_locked_group(bypass, groups):
@@ -71,14 +88,38 @@ def _get_locked_group(bypass, groups):
     return None
 
 
+def _form_group_ids_for_user(user):
+    """将持久化的全局 Scope（零关联行）转换为表单回显 marker。"""
+    group_ids = get_user_group_ids_for_user(user.id)
+    if user_bypasses_scope(
+        user.role,
+        username=user.username,
+        group_ids=group_ids,
+    ):
+        return ['__ALL__']
+    return group_ids
+
+
+def _can_current_actor_assign_global(target_user=None):
+    """使用 S2 数据库实时授权边界派生页面能力；读取失败时隐藏全局选项。"""
+    result = validate_user_scope_assignment(
+        session.get('user_id'),
+        'admin',
+        ['__ALL__'],
+        target_username=target_user.username if target_user else None,
+        target_user_id=target_user.id if target_user else None,
+    )
+    return bool(result['ok'])
+
+
 def _check_management_scope(target_user_id):
     """按组管理员是否可操作目标用户。返回 None 可操作；返回 Response 表示被拦截。"""
-    if _actor_bypasses_scope():
+    if _user_management_actor_bypasses_scope():
         return None
     target = get_user_by_id(target_user_id)
     if target and is_seed_admin_username(target.username):
         return _users_form_response(False, '按组管理员不可操作系统管理员账号', url='/rbac/users')
-    actor_gids = session.get('group_ids') or []
+    actor_gids = _current_user_management_group_ids()
     if not user_in_management_scope(actor_gids, target_user_id):
         return _users_form_response(False, '该用户不在您的管理范围内', url='/rbac/users')
     return None
@@ -121,6 +162,34 @@ def _users_form_response(ok, msg, url='/rbac/users', template=None, data=None, *
     if template:
         return render_template(template, form_msg=msg, roles=ROLE_ORDER, **ctx)
     return redirect(url)
+
+
+def _write_user_scope_denial_audit(entry, reason, target_user_id=None):
+    """best-effort 记录用户 Scope 授予拒绝；失败不得改变拒绝结果。"""
+    detail = {
+        'entry': entry,
+        'reason': reason,
+        'target_user_id': target_user_id,
+    }
+    try:
+        write_audit_log(
+            action='scope:deny',
+            resource=entry,
+            status='deny',
+            detail=json.dumps(
+                detail,
+                ensure_ascii=False,
+                separators=(',', ':'),
+            ),
+        )
+    except Exception:
+        current_app.logger.error(
+            'user scope denial audit failed entry=%s reason=%s target_user_id=%s',
+            entry,
+            reason,
+            target_user_id,
+            exc_info=True,
+        )
 
 
 def _group_field_data(result):
@@ -515,7 +584,7 @@ def api_token_reset():
 
 
 @rbac.route('/users', methods=['GET'])
-@require_permission('user:manage')
+@require_user_management_actor
 def users_list():
     page_query = PageQuery.from_args(request.args)
     search_username = (request.args.get('username') or '').strip()
@@ -529,12 +598,12 @@ def users_list():
         is_active = 0
 
     repo = RbacUserRepository(db.session)
-    if _actor_bypasses_scope():
+    if _user_management_actor_bypasses_scope():
         page_data = repo.paginate_all(
             page_query, username=search_username or None, is_active=is_active)
         cnt_total, cnt_active, cnt_inactive = repo.count_by_status()
     else:
-        actor_gids = session.get('group_ids') or []
+        actor_gids = _current_user_management_group_ids()
         page_data = repo.paginate_by_groups(
             page_query, actor_gids, username=search_username or None, is_active=is_active)
         cnt_total, cnt_active, cnt_inactive = repo.count_by_status(group_ids=actor_gids)
@@ -581,58 +650,60 @@ def users_list():
 
 
 @rbac.route('/users/add', methods=['GET', 'POST'])
-@require_permission('user:manage')
+@require_user_management_actor
 @csrf_protect
 def users_add():
-    bypass = _actor_bypasses_scope()
+    bypass = _user_management_actor_bypasses_scope()
     if bypass:
         groups = list_resource_groups()
     else:
-        actor_gids = set(session.get('group_ids') or [])
+        actor_gids = set(_current_user_management_group_ids())
         groups = [g for g in list_resource_groups() if g.id in actor_gids]
     locked_group = _get_locked_group(bypass, groups)
+    add_ctx = dict(
+        groups=groups,
+        locked_group=locked_group,
+        can_assign_global=_can_current_actor_assign_global(),
+        default_password=DEFAULT_USER_PASSWORD,
+        job_title_choices=JOB_TITLE_CHOICES,
+    )
     if request.method == 'GET':
         return render_template(
             'redesign/user_form.html',
             roles=ROLE_ORDER,
-            groups=groups,
-            locked_group=locked_group,
-            default_password=DEFAULT_USER_PASSWORD,
-            job_title_choices=JOB_TITLE_CHOICES,
+            **add_ctx,
         )
     role = request.values.get('role', 'viewer')
     target_username = request.values.get('username', '').strip()
-    group_ids = request.values.getlist('group_ids')
-    if locked_group:
-        group_ids = [str(locked_group.id)]
-    # 非 admin 不允许选择全局
-    if role != 'admin' and '__ALL__' in group_ids:
+    raw_group_ids = request.values.getlist('group_ids')
+    scope_result = validate_user_scope_assignment(
+        session.get('user_id'),
+        role,
+        raw_group_ids,
+        target_username=target_username,
+    )
+    if not scope_result['ok']:
+        _write_user_scope_denial_audit(
+            'users:add',
+            scope_result['reason'],
+        )
         return _users_form_response(
             False,
-            '仅 admin 角色可选择「全部（全局权限）」',
+            scope_result['msg'],
             template='redesign/user_form.html',
-            groups=groups,
-            default_password=DEFAULT_USER_PASSWORD,
-            job_title_choices=JOB_TITLE_CHOICES,
+            **add_ctx,
         )
-    groups_err = validate_groups_for_role(role, group_ids, username=target_username)
-    if groups_err:
-        return _users_form_response(
-            False,
-            groups_err,
-            template='redesign/user_form.html',
-            groups=groups,
-            default_password=DEFAULT_USER_PASSWORD,
-            job_title_choices=JOB_TITLE_CHOICES,
-        )
+    group_ids = (
+        ['__ALL__']
+        if scope_result['is_global']
+        else [str(group_id) for group_id in scope_result['group_ids']]
+    )
     if not groups and role != 'admin':
         return _users_form_response(
             False,
             '请先创建业务组，再添加非管理员用户',
             template='redesign/user_form.html',
-            groups=groups,
-            default_password=DEFAULT_USER_PASSWORD,
-            job_title_choices=JOB_TITLE_CHOICES,
+            **add_ctx,
         )
     # 岗位类型：必填验证
     add_job_title = request.values.get('job_title', '').strip()
@@ -641,9 +712,7 @@ def users_add():
             False,
             '岗位类型为必填项，请选择岗位',
             template='redesign/user_form.html',
-            groups=groups,
-            default_password=DEFAULT_USER_PASSWORD,
-            job_title_choices=JOB_TITLE_CHOICES,
+            **add_ctx,
         )
     if add_job_title == 'other':
         custom = request.values.get('job_title_other', '').strip()
@@ -654,9 +723,7 @@ def users_add():
                 False,
                 '选择「其他」时须填写自定义岗位名称',
                 template='redesign/user_form.html',
-                groups=groups,
-                default_password=DEFAULT_USER_PASSWORD,
-                job_title_choices=JOB_TITLE_CHOICES,
+                **add_ctx,
             )
     result = create_user(
         target_username,
@@ -679,13 +746,12 @@ def users_add():
         result['msg'],
         template='redesign/user_form.html',
         data=response_data,
-        groups=groups,
-        default_password=DEFAULT_USER_PASSWORD,
+        **add_ctx,
     )
 
 
 @rbac.route('/users/edit', methods=['GET', 'POST'])
-@require_permission('user:manage')
+@require_user_management_actor
 @csrf_protect
 def users_edit():
     user_id = request.values.get('id')
@@ -696,28 +762,30 @@ def users_edit():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
-    denied = _check_management_scope(user_id)
-    if denied:
-        return denied
     session_uid = session.get('user_id')
     if session_uid is not None and int(session_uid) == int(user.id):
         msg = '不能在用户管理中编辑自己的账号；请使用「修改密码」调整密码'
         if _wants_ajax_json():
             return web_api_return(code=1, msg=msg, url='/rbac/password')
         return redirect('/rbac/password')
-    bypass = _actor_bypasses_scope()
+    bypass = _user_management_actor_bypasses_scope()
     groups = list_resource_groups() if bypass else [
-        g for g in list_resource_groups() if g.id in set(session.get('group_ids') or [])
+        g for g in list_resource_groups()
+        if g.id in set(_current_user_management_group_ids())
     ]
     locked_group = _get_locked_group(bypass, groups)
     edit_ctx = dict(
         groups=groups,
         locked_group=locked_group,
-        user_group_ids=get_user_group_ids_for_user(user.id),
+        can_assign_global=_can_current_actor_assign_global(user),
+        user_group_ids=_form_group_ids_for_user(user),
         default_password=DEFAULT_USER_PASSWORD,
         job_title_choices=JOB_TITLE_CHOICES,
     )
     if request.method == 'GET':
+        denied = _check_management_scope(user_id)
+        if denied:
+            return denied
         return render_template(
             'redesign/user_form.html',
             user=user,
@@ -725,68 +793,67 @@ def users_edit():
             **edit_ctx,
         )
     new_role = request.values.get('role', user.role)
-    group_ids = request.values.getlist('group_ids')
-    if locked_group:
-        group_ids = [str(locked_group.id)]
-    # 非 admin 不允许选择全局
-    if new_role != 'admin' and '__ALL__' in group_ids:
-        return _users_form_response(
-            False,
-            '仅 admin 角色可选择「全部（全局权限）」',
-            template='redesign/user_form.html',
-            user=user,
-            **edit_ctx,
-        )
-    groups_err = validate_groups_for_role(new_role, group_ids, username=user.username)
-    if groups_err:
-        return _users_form_response(
-            False,
-            groups_err,
-            template='redesign/user_form.html',
-            user=user,
-            **edit_ctx,
-        )
-    result = update_user(
-        user_id,
-        role=new_role,
-        is_active=request.values.get('is_active', user.is_active),
+    raw_group_ids = request.values.getlist('group_ids')
+    scope_result = validate_user_scope_assignment(
+        session.get('user_id'),
+        new_role,
+        raw_group_ids,
+        target_username=user.username,
+        target_user_id=user.id,
     )
-    if result['ok']:
-        bound = set_user_groups(user_id, group_ids, role=new_role, username=user.username)
-        if not bound['ok']:
-            result = bound
-    # 保存个人信息字段（email / nickname / job_title）
-    if result['ok']:
-        raw_jt = request.values.get('job_title', '').strip()
-        if raw_jt == 'other':
-            custom_jt = request.values.get('job_title_other', '').strip()
-            if not custom_jt:
-                return _users_form_response(
-                    False,
-                    '选择「其他」时须填写自定义岗位名称',
-                    template='redesign/user_form.html',
-                    user=user,
-                    **edit_ctx,
-                )
-            raw_jt = 'other:' + custom_jt[:20]
-        if not raw_jt:
+    if not scope_result['ok']:
+        _write_user_scope_denial_audit(
+            'users:edit',
+            scope_result['reason'],
+            target_user_id=user.id,
+        )
+        if scope_result['reason'] == 'actor_target_management_denied':
             return _users_form_response(
                 False,
-                '岗位类型为必填项，请选择岗位',
+                scope_result['msg'],
+                url='/rbac/users',
+            )
+        return _users_form_response(
+            False,
+            scope_result['msg'],
+            template='redesign/user_form.html',
+            user=user,
+            **edit_ctx,
+        )
+    group_ids = (
+        ['__ALL__']
+        if scope_result['is_global']
+        else [str(group_id) for group_id in scope_result['group_ids']]
+    )
+    raw_jt = request.values.get('job_title', '').strip()
+    if raw_jt == 'other':
+        custom_jt = request.values.get('job_title_other', '').strip()
+        if not custom_jt:
+            return _users_form_response(
+                False,
+                '选择「其他」时须填写自定义岗位名称',
                 template='redesign/user_form.html',
                 user=user,
                 **edit_ctx,
             )
-        email_val = (request.values.get('email') or '').strip()
-        nick_val = (request.values.get('nickname') or '').strip()
-        user.email = email_val or user.email
-        user.nickname = nick_val or None
-        user.job_title = raw_jt
-        try:
-            db.session.commit()
-        except Exception:
-            current_app.logger.warning('profile commit failed for user_id=%s', user.id, exc_info=True)
-            db.session.rollback()
+        raw_jt = 'other:' + custom_jt[:20]
+    if not raw_jt:
+        return _users_form_response(
+            False,
+            '岗位类型为必填项，请选择岗位',
+            template='redesign/user_form.html',
+            user=user,
+            **edit_ctx,
+        )
+    result = update_user_management(
+        user_id,
+        role=new_role,
+        is_active=request.values.get('is_active', user.is_active),
+        group_ids=group_ids,
+        email=request.values.get('email'),
+        nickname=request.values.get('nickname'),
+        job_title=raw_jt,
+    )
     if not result['ok']:
         user.role = request.values.get('role', user.role)
         try:
@@ -794,7 +861,7 @@ def users_edit():
         except (TypeError, ValueError):
             pass
     # 刷新编辑上下文（业务组可能已变更）
-    edit_ctx['user_group_ids'] = get_user_group_ids_for_user(user.id)
+    edit_ctx['user_group_ids'] = _form_group_ids_for_user(user)
     return _users_form_response(
         result['ok'],
         result['msg'],
@@ -805,7 +872,7 @@ def users_edit():
 
 
 @rbac.route('/users/view', methods=['GET'])
-@require_permission('user:manage')
+@require_user_management_actor
 def users_view():
     """Read-only detail view for any user (active or deactivated)."""
     user_id = request.args.get('id')
@@ -836,7 +903,7 @@ def users_view():
 
 
 @rbac.route('/users/reset_password', methods=['POST'])
-@require_permission('user:manage')
+@require_user_management_actor
 @csrf_protect
 def users_reset_password():
     user_id = request.values.get('id')
@@ -856,7 +923,7 @@ def users_reset_password():
 
 
 @rbac.route('/users/reset_token', methods=['POST'])
-@require_permission('user:manage')
+@require_user_management_actor
 @csrf_protect
 def users_reset_token():
     """管理员触发重置用户 API Token（S6）。"""
@@ -879,7 +946,7 @@ def users_reset_token():
 
 
 @rbac.route('/users/set_active', methods=['GET', 'POST'])
-@require_permission('user:manage')
+@require_user_management_actor
 @csrf_protect
 def users_set_active():
     user_id = request.values.get('id')
@@ -1113,23 +1180,28 @@ def registration_review():
     search_username = (request.args.get('username') or '').strip() or None
     repo = RegistrationRequestRepository(db.session)
 
-    if _actor_bypasses_scope():
+    actor_scope = current_registration_actor_scope()
+    if not actor_scope['ok']:
+        if actor_scope['reason'] == 'actor_missing_or_inactive':
+            session.clear()
+            return redirect(
+                '/rbac/login?msg=%s'
+                % quote('登录状态已失效，请重新登录')
+            )
+        if actor_scope['reason'] == 'actor_permission_denied':
+            write_audit_log(
+                action='permission:deny',
+                resource='user:manage',
+                status='deny',
+            )
+            return _forbidden_response('user:manage')
+        abort(500)
+
+    if actor_scope['bypass']:
         page_data = repo.paginate_all(page_query, status=status_filter, search_username=search_username)
     else:
-        actor_gids = session.get('group_ids') or []
+        actor_gids = actor_scope['group_ids']
         page_data = repo.paginate_by_groups(page_query, actor_gids, status=status_filter, search_username=search_username)
-        # 按组管理员：隐藏其业务组未完全覆盖的 admin 角色申请
-        # __ALL__ 申请仅种子/全局 admin 可见（上方已走 _actor_bypasses_scope 分支）
-        actor_gids_set = set(actor_gids)
-        def _can_see_admin_req(r):
-            if r.role != 'admin':
-                return True
-            gids_raw = r.group_ids.strip()
-            if gids_raw == '__ALL__':
-                return False
-            req_gids = set(int(g) for g in gids_raw.split(',') if g.strip())
-            return req_gids.issubset(actor_gids_set)
-        page_data.items = [r for r in page_data.items if _can_see_admin_req(r)]
 
     job_title_map = dict(JOB_TITLE_CHOICES)
 
@@ -1168,10 +1240,10 @@ def registration_review():
         ).all()
         reviewer_map = {rv.id: rv.username for rv in reviewers}
 
-    if _actor_bypasses_scope():
+    if actor_scope['bypass']:
         pending_count = repo.get_pending_count_all()
     else:
-        pending_count = repo.get_pending_count_by_groups(session.get('group_ids') or [])
+        pending_count = repo.get_pending_count_by_groups(actor_scope['group_ids'])
 
     return render_template(
         'redesign/registration_review.html',
@@ -1197,7 +1269,10 @@ def registration_approve():
         request_id = int(request_id)
     except (TypeError, ValueError):
         return _users_form_response(False, '参数错误', url='/rbac/registration_review')
-    result = approve_registration(request_id)
+    result = approve_registration(
+        request_id,
+        reviewer_id=session.get('user_id'),
+    )
     return _users_form_response(
         result['ok'], result['msg'], url='/rbac/registration_review',
     )
@@ -1216,10 +1291,95 @@ def registration_reject():
     comment = request.values.get('comment', '').strip()
     if not comment:
         return _users_form_response(False, '请填写拒绝原因', url='/rbac/registration_review')
-    result = reject_registration(request_id, comment=comment)
+    result = reject_registration(
+        request_id,
+        reviewer_id=session.get('user_id'),
+        comment=comment,
+    )
     return _users_form_response(
         result['ok'], result['msg'], url='/rbac/registration_review',
     )
+
+
+def _batch_review_response(operation, success_count, failures):
+    """组装批量审批真值响应；任一失败都不得返回成功跳转。"""
+    failure_count = len(failures)
+    total = success_count + failure_count
+    action_label = '通过' if operation == 'approve' else '拒绝'
+    if failure_count == 0:
+        outcome = 'all_success'
+        code = 0
+        url = '/rbac/registration_review'
+        msg = '已%s %d 条申请' % (action_label, success_count)
+    elif success_count == 0:
+        outcome = 'all_failure'
+        code = 1
+        url = ''
+        msg = '批量%s未完成：成功 0 条，失败 %d 条' % (
+            action_label, failure_count,
+        )
+    else:
+        outcome = 'partial_failure'
+        code = 1
+        url = ''
+        msg = '批量%s未全部完成：成功 %d 条，失败 %d 条' % (
+            action_label, success_count, failure_count,
+        )
+    summary = {
+        'operation': operation,
+        'outcome': outcome,
+        'total': total,
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'failures': failures,
+    }
+    return web_api_return(code=code, msg=msg, url=url, data=summary)
+
+
+def _batch_failure_from_result(request_id, result):
+    """仅内部异常返回日志关联号；业务失败只返回受控文案。"""
+    failure = {'id': request_id, 'msg': result['msg']}
+    if result.get('error_kind') == 'internal' and result.get('trace_id'):
+        failure['trace_id'] = result['trace_id']
+    return failure
+
+
+def _unexpected_batch_failure(operation, request_id):
+    trace_id = uuid.uuid4().hex
+    current_app.logger.exception(
+        'registration batch item failed trace_id=%s operation=%s request_id=%s',
+        trace_id,
+        operation,
+        request_id,
+    )
+    return {
+        'id': request_id,
+        'msg': '服务器内部错误，请稍后重试',
+        'trace_id': trace_id,
+    }
+
+
+def _parse_batch_request_ids(ids_raw):
+    """严格解析批量审批 CSV；任一非法或重复 ID 均不得开始写入。"""
+    tokens = (ids_raw or '').split(',')
+    parsed = []
+    seen = set()
+    for raw_token in tokens:
+        token = raw_token.strip()
+        if (
+            not token
+            or not token.isascii()
+            or not token.isdecimal()
+        ):
+            return [], '批量申请 ID 参数无效'
+        request_id = int(token)
+        if request_id <= 0:
+            return [], '批量申请 ID 参数无效'
+        if request_id in seen:
+            return [], '批量申请 ID 不可重复'
+        seen.add(request_id)
+        parsed.append(request_id)
+    return parsed, ''
 
 
 @rbac.route('/registration_review/batch_approve', methods=['POST'])
@@ -1227,25 +1387,22 @@ def registration_reject():
 @csrf_protect
 def registration_batch_approve():
     """批量批准注册申请。"""
-    ids_raw = request.values.get('ids', '')
-    ids = []
-    for s in ids_raw.split(','):
-        s = s.strip()
-        if s.isdigit():
-            ids.append(int(s))
-    if not ids:
-        return web_api_return(code=1, msg='未选择任何申请')
-    ok_count, fail_msgs = 0, []
+    ids, error = _parse_batch_request_ids(request.values.get('ids', ''))
+    if error:
+        return web_api_return(code=1, msg=error)
+    reviewer_id = session.get('user_id')
+    ok_count, failures = 0, []
     for rid in ids:
-        result = approve_registration(rid)
+        try:
+            result = approve_registration(rid, reviewer_id=reviewer_id)
+        except Exception:
+            failures.append(_unexpected_batch_failure('approve', rid))
+            continue
         if result['ok']:
             ok_count += 1
         else:
-            fail_msgs.append('#%d: %s' % (rid, result['msg']))
-    msg = '成功 %d 条' % ok_count
-    if fail_msgs:
-        msg += '，失败 %d 条（%s）' % (len(fail_msgs), '；'.join(fail_msgs))
-    return web_api_return(code=0, msg=msg, url='/rbac/registration_review')
+            failures.append(_batch_failure_from_result(rid, result))
+    return _batch_review_response('approve', ok_count, failures)
 
 
 @rbac.route('/registration_review/batch_reject', methods=['POST'])
@@ -1253,28 +1410,29 @@ def registration_batch_approve():
 @csrf_protect
 def registration_batch_reject():
     """批量拒绝注册申请。"""
-    ids_raw = request.values.get('ids', '')
     comment = request.values.get('comment', '').strip()
     if not comment:
         return web_api_return(code=1, msg='请填写拒绝原因')
-    ids = []
-    for s in ids_raw.split(','):
-        s = s.strip()
-        if s.isdigit():
-            ids.append(int(s))
-    if not ids:
-        return web_api_return(code=1, msg='未选择任何申请')
-    ok_count, fail_msgs = 0, []
+    ids, error = _parse_batch_request_ids(request.values.get('ids', ''))
+    if error:
+        return web_api_return(code=1, msg=error)
+    reviewer_id = session.get('user_id')
+    ok_count, failures = 0, []
     for rid in ids:
-        result = reject_registration(rid, comment=comment)
+        try:
+            result = reject_registration(
+                rid,
+                reviewer_id=reviewer_id,
+                comment=comment,
+            )
+        except Exception:
+            failures.append(_unexpected_batch_failure('reject', rid))
+            continue
         if result['ok']:
             ok_count += 1
         else:
-            fail_msgs.append('#%d: %s' % (rid, result['msg']))
-    msg = '成功 %d 条' % ok_count
-    if fail_msgs:
-        msg += '，失败 %d 条（%s）' % (len(fail_msgs), '；'.join(fail_msgs))
-    return web_api_return(code=0, msg=msg, url='/rbac/registration_review')
+            failures.append(_batch_failure_from_result(rid, result))
+    return _batch_review_response('reject', ok_count, failures)
 
 
 # ─── OPT-P1-11：标签管理 ───────────────────────────────────────────

@@ -2044,6 +2044,18 @@ a.tc-name:hover { color: var(--cp-signal); }
 .cp-page-reg-review .rr-col-chk { width: 30px; text-align: center; }
 .cp-page-reg-review .rr-batch-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--cp-surface-2); border-radius: 6px; margin-bottom: 8px; font-size: 12px; color: var(--cp-text-muted); }
 .cp-page-reg-review .rr-batch-count strong { color: var(--cp-ink); }
+.cp-page-reg-review .rr-batch-result { margin: 0 0 12px; padding: 14px 16px; border: 1px solid var(--cp-border); border-left-width: 4px; border-radius: 8px; background: var(--cp-surface); }
+.cp-page-reg-review .rr-batch-result[hidden] { display: none; }
+.cp-page-reg-review .rr-batch-result:focus { outline: 2px solid var(--cp-signal); outline-offset: 2px; }
+.cp-page-reg-review .rr-batch-result.is-warning { border-left-color: var(--cp-warn-icon); background: var(--cp-warn-bg); }
+.cp-page-reg-review .rr-batch-result.is-error,
+.cp-page-reg-review .rr-batch-result.is-unknown { border-left-color: var(--cp-danger); background: var(--cp-danger-bg); }
+.cp-page-reg-review .rr-batch-result-title { margin: 0 0 6px; color: var(--cp-ink); font-size: 14px; }
+.cp-page-reg-review .rr-batch-result-summary { margin: 0; color: var(--cp-text-muted); font-size: 12px; }
+.cp-page-reg-review .rr-batch-result-failures { margin: 10px 0 0; padding-left: 20px; color: var(--cp-ink); font-size: 12px; }
+.cp-page-reg-review .rr-batch-result-failures li + li { margin-top: 6px; }
+.cp-page-reg-review .rr-batch-trace { display: block; width: fit-content; margin-top: 3px; color: var(--cp-text-muted); background: var(--cp-surface-2); padding: 2px 5px; border-radius: 4px; font-size: 11px; }
+.cp-page-reg-review .rr-batch-result-actions { display: flex; gap: 8px; margin-top: 12px; }
 .cp-page-reg-review .rr-col-ops { width: 190px; }
 .cp-page-reg-review .rr-expand-btn { display: inline-block; padding: 2px 6px; font-size: 11px; color: var(--cp-signal); cursor: pointer; background: none; border: none; font-family: inherit; white-space: nowrap; }
 .cp-page-reg-review .rr-expand-btn:hover { text-decoration: underline; }

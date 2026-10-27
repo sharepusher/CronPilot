@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 
 from flask import request, session
 from sqlalchemy import func, select
@@ -9,10 +10,22 @@ from app import db
 logger = logging.getLogger(__name__)
 from configs import configs
 from datas.model.rbac_audit_log import RbacAuditLog
+from datas.model.rbac_registration_request_group import (
+    RbacRegistrationRequestGroup,
+)
 from datas.model.rbac_user import RbacUser
 from datas.utils.times import datetime_to_hms, utc_now_hms
 
-from .policy import ROLE_PERMISSIONS, SEED_ADMIN_USERNAME, effective_permissions, is_seed_admin_username
+from .policy import (
+    ROLE_PERMISSIONS,
+    SEED_ADMIN_USERNAME,
+    effective_permissions,
+    has_permission,
+    is_seed_admin_username,
+    user_bypasses_scope,
+    user_scope_assignment_denial,
+)
+from .registration_requested_scope import normalize_registration_requested_scope
 
 VALID_ROLES = frozenset(ROLE_PERMISSIONS.keys())
 # 用于表单下拉的角色排序（高频→低频）
@@ -292,6 +305,188 @@ def validate_groups_for_role(role, group_ids, username=None):
     if not cleaned:
         return '必须选择「全部」或至少一个业务组'
     return ''
+
+
+SCOPE_ASSIGNMENT_ERROR_MESSAGES = {
+    'actor_missing_or_inactive': '当前登录账号已失效，请重新登录',
+    'actor_permission_denied': '您无权管理用户',
+    'actor_global_assignment_denied': '您无权授予全局管理权限',
+    'actor_group_assignment_denied': '不能分配您管理范围之外的业务组',
+    'actor_target_management_denied': '该用户不在您的管理范围内',
+    'target_role_global_forbidden': '仅 admin 角色可选择「全部（全局权限）」',
+    'requested_groups_required': '必须选择「全部」或至少一个业务组',
+    'scope_marker_mixed': '「全部」与具体业务组不能同时选择',
+    'group_id_invalid': '业务组参数无效',
+    'group_not_found': '存在无效业务组',
+    'target_role_invalid': '角色无效，可选：viewer / operator / admin',
+    'authorization_check_failed': '权限校验失败，请稍后重试',
+}
+
+
+def _scope_assignment_error(reason):
+    return {
+        'ok': False,
+        'is_global': False,
+        'group_ids': [],
+        'reason': reason,
+        'msg': SCOPE_ASSIGNMENT_ERROR_MESSAGES[reason],
+    }
+
+
+def _load_scope_assignment_actor(actor_user_id):
+    """从数据库读取 actor 的当前授权事实；不读 Session。"""
+    from .scope import get_user_group_ids
+
+    actor = db.session.get(RbacUser, actor_user_id)
+    if not actor or not actor.is_active:
+        return None
+    return {
+        'role': actor.role,
+        'username': actor.username,
+        'group_ids': get_user_group_ids(actor.id),
+    }
+
+
+def resolve_user_management_actor(actor_user_id):
+    """读取用户管理页面所需的数据库当前 actor Scope；不读 Session。"""
+    try:
+        actor = _load_scope_assignment_actor(actor_user_id)
+    except Exception:
+        logger.exception(
+            'resolve_user_management_actor read failed actor_user_id=%s',
+            actor_user_id,
+        )
+        return {
+            'ok': False,
+            'reason': 'authorization_check_failed',
+            'actor_id': actor_user_id,
+            'role': '',
+            'username': '',
+            'group_ids': [],
+            'bypass': False,
+        }
+    if not actor:
+        return {
+            'ok': False,
+            'reason': 'actor_missing_or_inactive',
+            'actor_id': actor_user_id,
+            'role': '',
+            'username': '',
+            'group_ids': [],
+            'bypass': False,
+        }
+    bypass = user_bypasses_scope(
+        actor['role'],
+        username=actor['username'],
+        group_ids=actor['group_ids'],
+    )
+    if not has_permission(
+        actor['role'], 'user:manage', username=actor['username'],
+    ):
+        return {
+            'ok': False,
+            'reason': 'actor_permission_denied',
+            'actor_id': actor_user_id,
+            'role': actor['role'],
+            'username': actor['username'],
+            'group_ids': list(actor['group_ids']),
+            'bypass': bypass,
+        }
+    return {
+        'ok': True,
+        'reason': 'allowed',
+        'actor_id': actor_user_id,
+        'role': actor['role'],
+        'username': actor['username'],
+        'group_ids': list(actor['group_ids']),
+        'bypass': bypass,
+    }
+
+
+def validate_user_scope_assignment(
+    actor_user_id,
+    target_role,
+    raw_group_ids,
+    target_username=None,
+    target_user_id=None,
+):
+    """只读校验 actor 是否可向 target 授予请求的用户 Scope。"""
+    if _validate_role(target_role):
+        return _scope_assignment_error('target_role_invalid')
+
+    values = list(raw_group_ids or [])
+    str_values = [str(value) for value in values]
+    has_all = GROUP_ALL_MARKER in str_values
+    concrete_values = [
+        value for value in values if str(value) != GROUP_ALL_MARKER
+    ]
+    if has_all and concrete_values:
+        return _scope_assignment_error('scope_marker_mixed')
+
+    cleaned = []
+    for value in concrete_values:
+        try:
+            cleaned.append(int(value))
+        except (TypeError, ValueError):
+            return _scope_assignment_error('group_id_invalid')
+    cleaned = list(dict.fromkeys(cleaned))
+
+    seed_target_empty_scope = (
+        not has_all
+        and not cleaned
+        and target_role == 'admin'
+        and is_seed_admin_username(target_username)
+    )
+    request_is_global = has_all or seed_target_empty_scope
+    if not request_is_global and not cleaned:
+        return _scope_assignment_error('requested_groups_required')
+
+    try:
+        if cleaned:
+            from datas.model.resource_group import ResourceGroup
+
+            found = db.session.scalars(
+                select(ResourceGroup.id).where(ResourceGroup.id.in_(cleaned))
+            ).all()
+            if set(found) != set(cleaned):
+                return _scope_assignment_error('group_not_found')
+        actor = _load_scope_assignment_actor(actor_user_id)
+    except Exception:
+        logger.exception(
+            'validate_user_scope_assignment read failed actor_user_id=%s',
+            actor_user_id,
+        )
+        return _scope_assignment_error('authorization_check_failed')
+
+    if not actor:
+        return _scope_assignment_error('actor_missing_or_inactive')
+    if (
+        target_user_id is not None
+        and not user_bypasses_scope(
+            actor['role'],
+            username=actor['username'],
+            group_ids=actor['group_ids'],
+        )
+        and not user_in_management_scope(actor['group_ids'], target_user_id)
+    ):
+        return _scope_assignment_error('actor_target_management_denied')
+    denial = user_scope_assignment_denial(
+        actor['role'],
+        actor['username'],
+        actor['group_ids'],
+        target_role,
+        request_is_global,
+        cleaned,
+    )
+    if denial:
+        return _scope_assignment_error(denial)
+    return {
+        'ok': True,
+        'is_global': request_is_global,
+        'group_ids': cleaned,
+        'reason': None,
+        'msg': '',
+    }
 
 
 def user_must_reset_password(user_id):
@@ -634,6 +829,119 @@ def update_user(user_id, role=None, is_active=None):
     return {'ok': True, 'msg': '保存成功'}
 
 
+def update_user_management(
+    user_id,
+    role,
+    is_active,
+    group_ids,
+    email,
+    nickname,
+    job_title,
+):
+    """原子更新用户管理表单涉及的授权及资料字段。
+
+    角色、业务组、资料和会话版本必须同一次提交，避免前两项成功后资料
+    校验或提交失败而留下半完成授权状态。调用方已经完成 actor Scope 校验；
+    此处仍独立校验目标字段和组存在性。
+    """
+    from datas.model.resource_group import ResourceGroup
+    from datas.model.user_group import UserGroup
+
+    try:
+        new_active = 1 if int(is_active) else 0
+    except (TypeError, ValueError):
+        return {'ok': False, 'msg': '启用状态参数无效'}
+    role_error = _validate_role(role)
+    if role_error:
+        return {'ok': False, 'msg': role_error}
+    groups_error = validate_groups_for_role(role, group_ids)
+    if groups_error:
+        return {'ok': False, 'msg': groups_error}
+
+    str_ids = [str(group_id) for group_id in (group_ids or [])]
+    has_all = GROUP_ALL_MARKER in str_ids
+    desired_group_ids = set()
+    if not has_all:
+        try:
+            desired_group_ids = {
+                int(group_id) for group_id in group_ids or []
+                if str(group_id) != GROUP_ALL_MARKER
+            }
+        except (TypeError, ValueError):
+            return {'ok': False, 'msg': '业务组参数无效'}
+
+    try:
+        user = db.session.scalar(
+            select(RbacUser)
+            .where(RbacUser.id == user_id)
+            .with_for_update()
+        )
+        if not user:
+            return {'ok': False, 'msg': '用户不存在'}
+        if new_active == 1 and user.is_active == 0:
+            return {'ok': False, 'msg': '停用后不可恢复启用，如需使用请重新注册或由管理员创建'}
+        if new_active == 0 and is_seed_admin_username(user.username):
+            return {'ok': False, 'msg': '系统管理员账号不可停用'}
+        losing_admin = (
+            user.role == 'admin'
+            and user.is_active == 1
+            and (role != 'admin' or new_active == 0)
+        )
+        if losing_admin and _count_active_admins(exclude_id=user.id) < 1:
+            return {'ok': False, 'msg': '不能停用或降权最后一名启用中的管理员'}
+        if desired_group_ids:
+            found_group_ids = set(db.session.scalars(
+                select(ResourceGroup.id).where(
+                    ResourceGroup.id.in_(desired_group_ids)
+                )
+            ).all())
+            if found_group_ids != desired_group_ids:
+                return {'ok': False, 'msg': '存在无效业务组'}
+
+        links = db.session.scalars(
+            select(UserGroup)
+            .where(UserGroup.user_id == user.id)
+            .with_for_update()
+        ).all()
+        existing_group_ids = {link.group_id for link in links}
+        role_changed = user.role != role
+        groups_changed = existing_group_ids != desired_group_ids
+        deactivated = bool(user.is_active) and not bool(new_active)
+
+        user.role = role
+        user.is_active = new_active
+        user.email = (email or '').strip() or user.email
+        user.nickname = (nickname or '').strip() or None
+        user.job_title = (job_title or '').strip()
+        for link in links:
+            if link.group_id not in desired_group_ids:
+                db.session.delete(link)
+        for group_id in desired_group_ids - existing_group_ids:
+            db.session.add(UserGroup(user_id=user.id, group_id=group_id))
+
+        auth_changed = role_changed or groups_changed or deactivated
+        if auth_changed:
+            user.auth_version = int(user.auth_version or 0) + 1
+            if deactivated:
+                user.api_token = None
+                user.api_token_expires_at = None
+            else:
+                _auto_issue_token(user)
+        db.session.commit()
+    except Exception:
+        logger.exception('update_user_management commit failed user_id=%s', user_id)
+        db.session.rollback()
+        return {'ok': False, 'msg': '保存失败'}
+
+    write_audit_log(action='user:update', resource=user.username)
+    _invalidate_api_scope_cache(user.id)
+    return {
+        'ok': True,
+        'msg': '保存成功',
+        'auth_version_bumped': auth_changed,
+    }
+
+
 def validate_status_reason(reason):
     """停用/启用缘由：trim 后 1～500 字。成功返回 ('', reason)，失败返回 (msg, '')。"""
     text = (reason or '').strip()
@@ -972,6 +1280,15 @@ JOB_TITLE_CHOICES = [
 VALID_JOB_TITLES = frozenset(k for k, _ in JOB_TITLE_CHOICES)
 JOB_TITLE_OTHER_MAX_LEN = 20
 
+REGISTRATION_SCOPE_ERROR_MESSAGES = {
+    'groups_required': '请至少选择一个业务组',
+    'empty_group_token': '业务组参数无效',
+    'invalid_group_id': '业务组参数无效',
+    'group_not_found': '选择的业务组不存在，请刷新后重试',
+    'global_requires_admin': '非管理员角色不可选择全局权限',
+    'global_and_specific_groups_mixed': '「全部」与具体业务组不能同时选择',
+}
+
 
 def _extract_username_from_email(email):
     """从邮箱地址提取 @ 前部分作为用户名。"""
@@ -1025,28 +1342,35 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
         return {'ok': False, 'msg': '请填写申请缘由'}
     if len(reason) > 500:
         return {'ok': False, 'msg': '申请缘由最长 500 字'}
-    # 校验 group_ids（admin 可选 __ALL__）
-    if not group_ids:
-        return {'ok': False, 'msg': '请至少选择一个业务组'}
-    str_ids = [str(g) for g in group_ids]
-    has_all = GROUP_ALL_MARKER in str_ids
-    if has_all and role != 'admin':
-        return {'ok': False, 'msg': '非管理员角色不可选择全局权限'}
-    if has_all:
-        real_ids = [g for g in str_ids if g != GROUP_ALL_MARKER]
-        if real_ids:
-            return {'ok': False, 'msg': '「全部」与具体业务组不能同时选择'}
-        gids_str = GROUP_ALL_MARKER
-    else:
-        cleaned_gids = []
-        for g in group_ids:
-            try:
-                cleaned_gids.append(int(g))
-            except (TypeError, ValueError):
-                return {'ok': False, 'msg': '业务组参数无效'}
-        if not cleaned_gids:
-            return {'ok': False, 'msg': '请至少选择一个业务组'}
-        gids_str = ','.join(str(g) for g in cleaned_gids)
+    # R2-2C：同一个规范化结果驱动父表 CSV 与关联行，避免双重解释。
+    from datas.model.resource_group import ResourceGroup
+    try:
+        valid_group_ids = set(db.session.scalars(
+            select(ResourceGroup.id)
+        ).all())
+    except Exception:
+        logger.exception('submit_registration group lookup failed')
+        db.session.rollback()
+        return {'ok': False, 'msg': '提交失败，请稍后重试'}
+    requested_scope = normalize_registration_requested_scope(
+        role,
+        group_ids,
+        valid_group_ids,
+    )
+    if not requested_scope['ok']:
+        return {
+            'ok': False,
+            'msg': REGISTRATION_SCOPE_ERROR_MESSAGES.get(
+                requested_scope['reason'],
+                '业务组参数无效',
+            ),
+        }
+    normalized_group_ids = requested_scope['group_ids']
+    gids_str = (
+        GROUP_ALL_MARKER
+        if requested_scope['kind'] == 'global'
+        else ','.join(str(group_id) for group_id in normalized_group_ids)
+    )
 
     # 检查用户名是否已存在于 rbac_users（仅检查启用中的用户；停用用户可重新注册）
     exists = db.session.scalars(
@@ -1093,12 +1417,21 @@ def submit_registration(email, password, confirm_password, role, group_ids, reas
     req.set_password(password)
     try:
         db.session.add(req)
+        db.session.flush()
+        for group_id in normalized_group_ids:
+            db.session.add(RbacRegistrationRequestGroup(
+                registration_request_id=req.id,
+                group_id=group_id,
+            ))
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
         # 唯一索引冲突 = 并发竞态，另一条 pending 抢先入库
         exc_str = str(exc).lower()
-        if 'unique' in exc_str or 'duplicate' in exc_str:
+        if (
+            'pending_username' in exc_str
+            or 'uix_reg_pending_username' in exc_str
+        ):
             return {'ok': False, 'msg': '该用户名已有待审批的申请，请等待审批结果'}
         logger.exception('submit_registration failed for email=%s', email)
         return {'ok': False, 'msg': '提交失败，请稍后重试'}
@@ -1129,33 +1462,172 @@ def check_registration_status(username):
     }
 
 
-def _check_admin_approval_scope(req):
-    """校验当前审批者是否有权审批 admin 角色申请。
+def _validate_registration_storage_consistency(req):
+    """批准前核对父表 Scope、关联集合与当前资源组，返回唯一可信集合。"""
+    from datas.model.resource_group import ResourceGroup
 
-    规则：审批者的业务组范围 ≥ 申请者请求的业务组。
-    种子 admin 和拥有全部业务组的 admin 可审批任何 admin 申请。
-    返回错误信息字符串，无错返回 None。
+    relation_group_ids = list(db.session.scalars(
+        select(RbacRegistrationRequestGroup.group_id)
+        .where(
+            RbacRegistrationRequestGroup.registration_request_id == req.id,
+        )
+        .with_for_update()
+    ).all())
+    valid_group_ids = set(db.session.scalars(
+        select(ResourceGroup.id)
+    ).all())
+    requested_scope = normalize_registration_requested_scope(
+        req.role,
+        req.group_ids,
+        valid_group_ids,
+    )
+    if not requested_scope['ok']:
+        logger.warning(
+            'registration approval storage invalid request_id=%s reason=%s',
+            req.id,
+            requested_scope['reason'],
+        )
+        return {
+            'ok': False,
+            'msg': '申请业务组数据异常，请联系管理员处理',
+        }
+
+    actual = set(relation_group_ids)
+    expected = set(requested_scope['group_ids'])
+    if len(actual) != len(relation_group_ids) or actual != expected:
+        logger.warning(
+            'registration approval storage mismatch request_id=%s '
+            'expected=%s actual=%s',
+            req.id,
+            sorted(expected),
+            sorted(actual),
+        )
+        return {
+            'ok': False,
+            'msg': '申请业务组数据不一致，请联系管理员处理',
+        }
+    return {
+        'ok': True,
+        'requested_scope': requested_scope,
+        'group_ids': (
+            [GROUP_ALL_MARKER]
+            if requested_scope['kind'] == 'global'
+            else list(requested_scope['group_ids'])
+        ),
+    }
+
+
+def _validate_registration_approval_scope(req, reviewer_id, requested_scope=None):
+    """使用与新增/编辑相同的数据库当前事实校验注册审批授予范围。"""
+    if requested_scope is None:
+        raw_group_ids = (
+            [GROUP_ALL_MARKER]
+            if req.group_ids.strip() == GROUP_ALL_MARKER
+            else [value.strip() for value in req.group_ids.split(',') if value.strip()]
+        )
+    else:
+        raw_group_ids = (
+            [GROUP_ALL_MARKER]
+            if requested_scope['kind'] == 'global'
+            else list(requested_scope['group_ids'])
+        )
+    target_user_id = (
+        req.target_user_id
+        if int(getattr(req, 'is_reactivation', 0) or 0) == 1
+        else None
+    )
+    return validate_user_scope_assignment(
+        reviewer_id,
+        req.role,
+        raw_group_ids,
+        target_username=req.username,
+        target_user_id=target_user_id,
+    )
+
+
+def _registration_reject_denial(reason, msg='无权处理该申请'):
+    """返回拒绝审批的受控失败结果，避免暴露申请的 Scope 细节。"""
+    return {'ok': False, 'msg': msg, 'reason': reason}
+
+
+def _audit_registration_reject_denial(request_id, actor_scope, reason):
+    """记录拒绝审批的最小审计事实，不写入申请人或业务组等敏感上下文。"""
+    write_audit_log(
+        action='scope:deny',
+        resource='registration_request:%s' % request_id,
+        status='deny',
+        user_id=actor_scope.get('actor_id'),
+        username=actor_scope.get('username', ''),
+        detail=json.dumps({'reason': reason}, ensure_ascii=False),
+    )
+
+
+def _authorize_registration_rejection(req, reviewer_id):
+    """按数据库当前事实校验拒绝注册申请的权限与 Scope。
+
+    审批通过会把目标 Scope 授予新用户；拒绝虽不授予权限，但同样能改变
+    申请生命周期，不能成为 scoped admin 绕过注册审批队列可见性的入口。
     """
-    from .policy import is_seed_admin_username, user_bypasses_scope
-    actor_role = session.get('role') or ''
-    actor_username = session.get('username') or ''
-    actor_gids = session.get('group_ids') or []
-    # 种子 admin 或全局管理员直接通过
-    if user_bypasses_scope(actor_role, username=actor_username, group_ids=actor_gids):
-        return None
-    # 非 admin 角色不可审批 admin 申请
-    if actor_role != 'admin':
-        return '仅管理员可审批 admin 角色申请'
-    # 申请全局权限（__ALL__）：仅种子/全局 admin 可审批（上方已放行），按组管理员无权
-    if req.group_ids.strip() == GROUP_ALL_MARKER:
-        return '全局权限申请仅系统管理员可审批'
-    # 按组管理员：检查业务组是否覆盖
-    req_gids = set(int(g) for g in req.group_ids.split(',') if g.strip())
-    actor_gids_set = set(actor_gids)
-    if not req_gids.issubset(actor_gids_set):
-        uncovered = req_gids - actor_gids_set
-        return '您的业务组范围不覆盖该申请的部分业务组（组 ID：%s）' % ', '.join(str(g) for g in uncovered)
-    return None
+    actor_scope = resolve_user_management_actor(reviewer_id)
+    if not actor_scope['ok']:
+        if actor_scope['reason'] == 'authorization_check_failed':
+            return _registration_reject_denial(
+                actor_scope['reason'],
+                msg='权限校验失败，请稍后重试',
+            ), actor_scope
+        return _registration_reject_denial(actor_scope['reason']), actor_scope
+
+    try:
+        storage_result = _validate_registration_storage_consistency(req)
+    except Exception:
+        trace_id = uuid.uuid4().hex
+        logger.exception(
+            'registration rejection consistency check failed '
+            'trace_id=%s request_id=%s',
+            trace_id,
+            req.id,
+        )
+        db.session.rollback()
+        return {
+            'ok': False,
+            'msg': '服务器内部错误，请稍后重试',
+            'reason': 'storage_check_failed',
+            'error_kind': 'internal',
+            'trace_id': trace_id,
+        }, actor_scope
+
+    # 仅全局管理员可处理存储异常的遗留申请，避免该异常记录永久卡死。
+    if actor_scope['bypass']:
+        return {
+            'ok': True,
+            'storage_anomaly': not storage_result['ok'],
+            'storage_reason': (
+                storage_result.get('msg', '') if not storage_result['ok'] else ''
+            ),
+        }, actor_scope
+
+    # Scoped actor 必须先能由父表、关联表和现存资源组还原可信 Scope。
+    if not storage_result['ok']:
+        return _registration_reject_denial('request_scope_unverifiable'), actor_scope
+
+    requested_scope = storage_result['requested_scope']
+    if requested_scope['kind'] != 'concrete':
+        return _registration_reject_denial('global_scope_denied'), actor_scope
+
+    requested_group_ids = set(requested_scope['group_ids'])
+    actor_group_ids = set(actor_scope['group_ids'])
+    if not requested_group_ids or not actor_group_ids:
+        return _registration_reject_denial('no_scope_relation'), actor_scope
+
+    if req.role in ('viewer', 'operator'):
+        allowed = bool(requested_group_ids & actor_group_ids)
+    elif req.role == 'admin':
+        allowed = requested_group_ids.issubset(actor_group_ids)
+    else:
+        allowed = False
+    if not allowed:
+        return _registration_reject_denial('scope_denied'), actor_scope
+    return {'ok': True, 'storage_anomaly': False, 'storage_reason': ''}, actor_scope
 
 
 def approve_registration(request_id, reviewer_id=None):
@@ -1174,11 +1646,33 @@ def approve_registration(request_id, reviewer_id=None):
         return {'ok': False, 'msg': '申请不存在'}
     if req.status != 'pending':
         return {'ok': False, 'msg': '该申请已处理（%s）' % req.status}
-    # admin 角色申请：审批者的业务组须覆盖申请者请求的业务组
-    if req.role == 'admin':
-        scope_err = _check_admin_approval_scope(req)
-        if scope_err:
-            return {'ok': False, 'msg': scope_err}
+    actor_user_id = reviewer_id or session.get('user_id')
+    try:
+        storage_result = _validate_registration_storage_consistency(req)
+    except Exception:
+        trace_id = uuid.uuid4().hex
+        logger.exception(
+            'registration approval consistency check failed '
+            'trace_id=%s request_id=%s',
+            trace_id,
+            request_id,
+        )
+        db.session.rollback()
+        return {
+            'ok': False,
+            'msg': '服务器内部错误，请稍后重试',
+            'error_kind': 'internal',
+            'trace_id': trace_id,
+        }
+    if not storage_result['ok']:
+        return storage_result
+    scope_result = _validate_registration_approval_scope(
+        req,
+        actor_user_id,
+        requested_scope=storage_result['requested_scope'],
+    )
+    if not scope_result['ok']:
+        return {'ok': False, 'msg': scope_result['msg']}
 
     def _reject_pending(msg, comment):
         req.status = 'rejected'
@@ -1219,11 +1713,7 @@ def approve_registration(request_id, reviewer_id=None):
         if existing and not existing.is_active:
             target = existing
 
-    group_ids = (
-        [GROUP_ALL_MARKER]
-        if req.group_ids.strip() == GROUP_ALL_MARKER
-        else [int(g) for g in req.group_ids.split(',') if g.strip()]
-    )
+    group_ids = storage_result['group_ids']
     reactivated = target is not None
     try:
         if target:
@@ -1258,13 +1748,23 @@ def approve_registration(request_id, reviewer_id=None):
             _replace_user_groups_in_session(user.id, group_ids)
         req.status = 'approved'
         req.pending_username = None
-        req.reviewer_id = reviewer_id or session.get('user_id')
+        req.reviewer_id = actor_user_id
         req.update_time = utc_now_hms()
         db.session.commit()
     except Exception:
-        logger.exception('approve_registration failed for request_id=%s', request_id)
+        trace_id = uuid.uuid4().hex
+        logger.exception(
+            'approve_registration failed trace_id=%s request_id=%s',
+            trace_id,
+            request_id,
+        )
         db.session.rollback()
-        return {'ok': False, 'msg': '审批失败'}
+        return {
+            'ok': False,
+            'msg': '服务器内部错误，请稍后重试',
+            'error_kind': 'internal',
+            'trace_id': trace_id,
+        }
     _invalidate_api_scope_cache(user.id)
     if reactivated and snap:
         _write_reactivate_audit(
@@ -1288,30 +1788,63 @@ def approve_registration(request_id, reviewer_id=None):
     }
 
 
-def reject_registration(request_id, comment=''):
-    """拒绝注册申请。"""
+def reject_registration(request_id, reviewer_id, comment=''):
+    """拒绝注册申请，并按数据库当前权限与业务组 Scope 授权。"""
     from datas.model.rbac_registration_request import RbacRegistrationRequest
 
-    req = db.session.get(RbacRegistrationRequest, request_id)
+    req = db.session.scalars(
+        select(RbacRegistrationRequest)
+        .where(RbacRegistrationRequest.id == request_id)
+        .with_for_update()
+    ).first()
     if not req:
         return {'ok': False, 'msg': '申请不存在'}
     if req.status != 'pending':
         return {'ok': False, 'msg': '该申请已处理（%s）' % req.status}
+    authorization, actor_scope = _authorize_registration_rejection(
+        req,
+        reviewer_id,
+    )
+    if not authorization['ok']:
+        _audit_registration_reject_denial(
+            request_id,
+            actor_scope,
+            authorization['reason'],
+        )
+        return authorization
     req.status = 'rejected'
     req.pending_username = None
-    req.reviewer_id = session.get('user_id')
+    req.reviewer_id = reviewer_id
     req.review_comment = (comment or '').strip()[:500]
     req.update_time = utc_now_hms()
     try:
         db.session.commit()
     except Exception:
-        logger.exception('reject_registration commit failed request_id=%s', request_id)
+        trace_id = uuid.uuid4().hex
+        logger.exception(
+            'reject_registration commit failed trace_id=%s request_id=%s',
+            trace_id,
+            request_id,
+        )
         db.session.rollback()
-        return {'ok': False, 'msg': '操作失败'}
+        return {
+            'ok': False,
+            'msg': '服务器内部错误，请稍后重试',
+            'error_kind': 'internal',
+            'trace_id': trace_id,
+        }
     write_audit_log(
         action='user:register_reject',
         resource=req.username,
         status='deny',
+        user_id=actor_scope['actor_id'],
+        username=actor_scope['username'],
+        detail=json.dumps({
+            'scope_resolution': (
+                'global_anomaly_governance'
+                if authorization['storage_anomaly'] else 'authorized'
+            ),
+        }, ensure_ascii=False),
     )
     return {'ok': True, 'msg': '已拒绝'}
 

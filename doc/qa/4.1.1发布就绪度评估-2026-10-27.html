@@ -11,9 +11,9 @@
 <body>
 <main>
 <h1>CronPilot 4.1.1 发布就绪度评估</h1>
-<p>日期：2026-10-27 · 基线：<code>main</code> 的全部未提交工作树 · 对象：拟议 <strong>v4.1.1</strong> · 状态：<strong>不具备发版条件，可提交为候选变更</strong></p>
+<p>日期：2026-10-27 · 基线：<code>main</code> 的全部未提交工作树 · 对象：拟议 <strong>v4.1.1</strong> · 状态：<strong>版本归档完成前不具备发版条件</strong></p>
 
-<div class="decision"><strong>裁决：</strong>本轮 RBAC Scope 边界、注册审批关联表、数据库当前 actor 与陈旧 Session 防护已经形成有测试、有迁移和有浏览器证据的候选变更，适合先提交形成可审计基线；但不得创建 <code>v4.1.1</code> tag 或发布 Release。当前版本资料没有完成上一版 <code>v4.1.0</code> 的归档，而发布门禁也仍要求完成并记录一次性真实 MySQL 迁移演练。</div>
+<div class="decision"><strong>裁决：</strong>本轮 RBAC Scope 边界、注册审批关联表、数据库当前 actor 与陈旧 Session 防护已经形成有测试、有迁移和有浏览器证据的候选变更。真实 MySQL 迁移演练现已通过；在补齐上一版 <code>v4.1.0</code> 的版本归档并使版本门禁全绿前，仍不得创建 <code>v4.1.1</code> tag 或发布 Release。</div>
 
 <h2>1. 范围与版本序列</h2>
 <ul>
@@ -29,12 +29,13 @@
 <tr><td><code>python scripts/html_docs_to_markdown.py --check</code></td><td>全部生成的 Markdown 与 HTML 源稿一致</td><td>通过</td></tr>
 <tr><td>认证版本否定路径</td><td>4/4 通过，含缺失 <code>auth_version</code> fail-closed</td><td>通过</td></tr>
 <tr><td><code>python scripts/smoke_routes.py --check</code></td><td>86/86 路由通过</td><td>通过</td></tr>
+<tr><td>临时 MySQL 8 迁移演练</td><td>9 个关键 ID 列升级为 <code>BIGINT</code>；主键保留自增；高位 ID 写入成功</td><td>通过</td></tr>
 <tr><td><code>python scripts/check_version_consistency.py --check</code></td><td>4 项失败</td><td><strong>阻断</strong></td></tr>
 </tbody></table>
 
 <h2>3. 发布阻断项</h2>
 <div class="block"><strong>B1 · 版本归档不完整：</strong>版本一致性门禁报告路线图缺少 v4.1.0、Release Notes 缺少 v4.1.0 正式章节，且 <code>[Unreleased]</code> 仍含 4 个小节和 40 个实质条目。现有 <code>v4.1.0</code> tag 与文档状态矛盾，不能在此基础上发布 4.1.1。</div>
-<div class="block"><strong>B2 · 真实 MySQL 迁移演练尚未作为发布证据闭环：</strong>现有 Release Notes 与 2026-10-12 全面评估均把一次性真实 MySQL 迁移演练及 schema 断言列为发布前条件。RBAC 查询性能证据不能替代对既有任务 ID/关联列迁移路径的升级演练。</div>
+<div class="ok"><strong>已关闭 · 真实 MySQL 迁移演练：</strong>在自动清理的 MySQL 8 容器中，以旧版 <code>INT</code> 主键/关联列创建 7 张目标表后实际调用 <code>_ensure_id_columns_bigint(backend='mysql')</code>。9 个目标列均变为 <code>BIGINT</code>，三张主键仍为 auto-increment；随后成功插入 <code>35184372088832</code> 的高位任务 ID。</div>
 
 <h2>4. 发版前最小收口顺序</h2>
 <ol>
@@ -46,7 +47,7 @@
 
 <h2>5. 可提交性与风险</h2>
 <div class="ok"><strong>提交建议：</strong>可以将当前所有代码、迁移、测试、设计、复盘、QA 和脱敏浏览器证据作为单一候选提交保存。提交不会声称发版完成，且能固定本次已通过的授权行为与验证证据。</div>
-<p>发布风险集中在版本治理和历史升级路径证明，不是本次已验证 RBAC 逻辑的已知回归。提交后仍须保持 release status 为 blocked，直至 B1/B2 均关闭。</p>
+<p>发布风险现集中在版本治理，而不是本次已验证 RBAC 逻辑或历史升级路径。提交后仍须保持 release status 为 blocked，直至 B1 关闭。</p>
 
 <h2>6. 可复现命令</h2>
 <pre>.venv-py311/bin/ruff check app/

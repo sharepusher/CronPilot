@@ -7,7 +7,11 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
-> 4.1.0 release candidate. This section is intentionally concise; implementation details and historical findings remain in the linked design, post-mortem, and QA documents.
+> No draft entries.
+
+---
+
+## [4.1.1] — 2026-10-27 · RBAC Scope Boundary Hardening
 
 ### What changed
 
@@ -62,6 +66,19 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 - User-management response shapes are unchanged; only previously unauthorized global/out-of-scope grants are now rejected.
 
 Key sources: [DNS design](doc/design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx and pinning design](doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [database ID design](doc/design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html) · [delivery roadmap](doc/交付状态与路线图.html)
+
+---
+
+## [4.1.0] — 2026-10-14 · Security, Data Integrity, and Release Packaging
+
+### What changed
+
+- Released the v4.1 baseline for task-trigger DNS/redirect hardening, database-generated IDs, execution observability, account lifecycle protection, and reproducible lightweight packaging.
+- Established the compatibility baseline used by v4.1.1; the later RBAC Scope boundary changes are documented in the v4.1.1 section above.
+
+### Compatibility & Risk
+
+- Existing task URLs and stored IDs remain compatible. Operators should run the standard business-table migration before starting an upgraded deployment.
 
 ---
 
@@ -1949,6 +1966,8 @@ HTTP 定时触发调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
+| **4.1.1** | RBAC Scope boundary hardening, database-current authorization, normalized registration-request group associations, stale-session revocation, and browser-backed verification |
+| **4.1.0** | Task-trigger DNS/3xx hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible packaging |
 | **4.0.0** | V1 UI decommission, 7 P0 security fixes, timestamp BIGINT UTC, AJAX partial refresh (5 pages), overdue detection, orphan reconciliation, ghost job cleanup, inline form errors, Heroicons, Ruff lint |
 | **3.0.0** | Console Mode UI, dual-mode switch (Classic/Console), dark theme, responsive layout, keyboard shortcuts |
 | **2.9.0** | Task group affiliation (single-group), tag system (group-isolated), unified error pages, `code` field removal, API breaking change |

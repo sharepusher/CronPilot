@@ -4,7 +4,7 @@
 
 # CronPilot Release Notes
 
-4.1.0 RC DNS/3xx security · database ID migration · execution observability
+4.1.1 RBAC Scope boundary hardening · database-current authorization · registration review integrity
  | 
 v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · ghost-job cleanup
 
@@ -12,7 +12,7 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
-## [Unreleased] · 4.1.0 Release Candidate
+## [4.1.1] — 2026-10-27 · RBAC Scope Boundary Hardening
 
 本节是发布摘要；实现细节、历史发现与验证证据保留在关联的设计、复盘和 QA 文档中。正式版本仍以仓库根 [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) 为准。
 
@@ -46,7 +46,7 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 
 ### Compatibility & Risk
 
-- **发布阻断项：**在一次性真实 MySQL 环境完成迁移演练并记录 schema 断言。
+- 真实 MySQL 8 迁移演练已验证关键 ID 列升级、主键自增语义和高位 ID 写入。
 - 既有任务 URL 不自动改写；返回 3xx 的任务由“可能误报成功”变为明确失败。
 - 既有数据 ID 不重编号；新 ID 由数据库生成，MySQL 任务关联列迁移为 `BIGINT`。
 - `auth_version` 加固会使缺少版本键的旧 Web Session 重新登录；本候选版本不删除 API 响应字段。
@@ -54,6 +54,10 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 详细证据：[代码全面 Review 与未提交变更评估](qa/2026-10-10-代码全面Review与未提交变更评估.html) · [任务触发安全与测试契约漂移复盘](postmortem/2026-10-10-任务触发安全与测试契约漂移复盘.html)
 
 关键设计：[DNS 安全设计](design/任务触发URL-DNS二次解析安全修复设计-2026-10.html) · [3xx 与 Pinning 设计](design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html) · [数据库自增 ID 设计](design/OPT-P0-21-数据库自增ID迁移设计-2026-09-20.html)
+
+## [4.1.0] — 2026-10-14 · Security, Data Integrity, and Release Packaging
+
+Released the v4.1 baseline for task-trigger DNS/redirect hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible lightweight packaging. v4.1.1 adds the RBAC Scope boundary controls described above.
 
 ## [2.7.1] — 2026-08-03
 

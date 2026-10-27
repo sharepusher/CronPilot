@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitHub 发布信任根核验（2026-10-27）</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.7;max-width:1080px;margin:auto;padding:32px;color:#1f2937}h1,h2,h3{color:#111827}h2{margin-top:2rem;border-bottom:1px solid #e5e7eb;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code,pre{background:#f3f4f6}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto}.decision,.risk,.ok,.note{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#eff6ff;border-color:#2563eb}.risk{background:#fff7ed;border-color:#f97316}.ok{background:#ecfdf5;border-color:#059669}.note{background:#f8fafc;border-color:#64748b}</style></head><body><main>
+<h1>GitHub 发布信任根核验</h1>
+<p>日期：2026-10-27 · 仓库：<code>sharepusher/CronPilot</code> · 本地基线：<code>061f73f</code> · 远端 <code>main</code>：<code>8e3a1b0</code> · 状态：<strong>只读核验完成，远端发布信任根未闭环</strong></p>
+<div class="risk"><strong>结论：当前不应触发新版本发布。</strong>远端仍运行旧版单 Job、<code>contents: write</code> 工作流；<code>main</code> 明确未保护，且仓库 ruleset 列表为空。<code>release</code> Environment 保护、Actions 默认 token 权限和标签保护因当前无管理员认证不可见，不得猜测为“已配置”。</div>
+
+<h2>1. 核验范围与证据边界</h2>
+<ul><li>使用 GitHub 公开 REST API 读取仓库、分支、ruleset 和 workflow 元数据。</li><li>使用本地 Git 对比 <code>origin/main</code> 与 <code>HEAD</code>，并读取远端基线中的 workflow。</li><li>浏览器未登录 GitHub，本机也无 <code>gh</code> CLI；因此不读取、不修改仅管理员可见的 Settings。</li><li>本轮未 push、未创建 tag/Release、未修改 Environment、ruleset 或 Actions 设置。</li></ul>
+
+<h2>2. 事实矩阵</h2>
+<table><thead><tr><th>检查项</th><th>实测结果</th><th>确定性</th><th>专业判断</th></tr></thead><tbody>
+<tr><td>远端基线</td><td><code>main = 8e3a1b0</code>；本地 <code>HEAD = 061f73f</code>，本地领先 1 个提交。</td><td>已验证</td><td>安全加固尚未进入远端默认分支。</td></tr>
+<tr><td>远端活动 workflow</td><td><code>Public release asset</code> 为 active；远端文件仍为单 Job，顶层 <code>contents: write</code>，Actions 使用浮动版本标签。</td><td>已验证</td><td>本地 S1–S4 的权限隔离和资产回读尚未生效。</td></tr>
+<tr><td><code>main</code> 保护</td><td>GitHub 分支 API 返回 <code>protected: false</code>、<code>enforcement_level: off</code>。</td><td>已验证</td><td><strong>P0：</strong>默认分支可被直接改变，发布 workflow 的代码信任根不稳定。</td></tr>
+<tr><td>仓库 rulesets</td><td><code>GET /repos/sharepusher/CronPilot/rulesets</code> 返回空数组。GitHub 文档明确活动 ruleset 可由有读权限的人查看。</td><td>已验证</td><td><strong>P0：</strong>没有可观测的 branch/tag ruleset；无法证明 <code>v*.*.*</code> 标签不可随意创建、更新或删除。</td></tr>
+<tr><td><code>release</code> Environment</td><td>REST API 与 Settings 页在未认证状态下均不可见。</td><td>未验证</td><td><strong>P0 核验项：</strong>不能把 workflow 中写了 <code>environment: release</code> 等同于已有审批门禁。</td></tr>
+<tr><td>Actions 默认权限</td><td><code>/actions/permissions</code> 未认证请求返回 401。</td><td>未验证</td><td>必须用管理员视图确认默认 <code>GITHUB_TOKEN</code> 为只读，且 Actions 不能创建/批准 PR。</td></tr>
+<tr><td>历史 tag protection</td><td>旧 tag-protection API 在未认证状态下返回 404。</td><td>不可判定</td><td>不以 404 推导“未配置”；以新 tag ruleset 作为后续权威配置和验收对象。</td></tr>
+</tbody></table>
+
+<h2>3. 核心风险分析</h2>
+<h3>3.1 远端仍使用旧 workflow（P0）</h3>
+<p>本地提交完成不等于远端生效。在 <code>061f73f</code> 进入默认分支前，新 tag 仍会使用旧 workflow：构建、验证和发布共享写 token，缺少严格 tag 校验、Environment 隔离和远端资产内容比对。因此“当前不创建新 tag”是必须的停止条件。</p>
+
+<h3>3.2 分支与标签信任根未加固（P0）</h3>
+<p>发布 workflow 来自被 tag 指向的 Git 提交。当 <code>main</code> 无保护且无 ruleset 时，应用内的最小权限设计仍可被后续直接提交改写。只修 workflow 而不保护 workflow 的代码来源，不能形成完整供应链边界。</p>
+
+<h3>3.3 Environment 名称存在不等于审批存在（P0 核验）</h3>
+<p>GitHub 官方文档说明：workflow 引用不存在的 Environment 时，GitHub 会自动创建同名 Environment；普通 workflow 自动创建的 Environment 默认没有保护规则或 secrets。所以必须在首次 tag 演练前由管理员显式确认审批者和允许的部署分支/tag。</p>
+
+<h2>4. 建议的安全执行顺序</h2>
+<ol><li><strong>先配置远端保护：</strong>为 <code>main</code> 创建活动 branch ruleset，至少禁止 force push/删除并要求 PR；为 <code>v*.*.*</code> 创建活动 tag ruleset，限制创建、更新和删除主体。</li><li><strong>显式配置 <code>release</code> Environment：</strong>设置 required reviewers，部署来源只允许受保护的发布 tag；不依赖 workflow 首次运行隐式创建。</li><li><strong>收紧 Actions 仓库默认值：</strong>默认 <code>GITHUB_TOKEN</code> 只读；关闭 Actions 创建/批准 PR；保留 workflow 内 publish Job 的显式最小 <code>contents: write</code>。</li><li><strong>通过 PR 纳入 <code>061f73f</code>：</strong>不在未保护 <code>main</code> 上直接 push 作为正常发布流程的范例。</li><li><strong>再做受控演练：</strong>用新版本 tag 验证 build Job 无写权、publish Job 等待审批、资产回读后才解除 draft。该步会产生外部状态，须另行明确授权。</li></ol>
+
+<h2>5. 管理员认证后的验收清单</h2>
+<table><thead><tr><th>对象</th><th>最低验收断言</th><th>不通过时的处理</th></tr></thead><tbody>
+<tr><td>Branch ruleset</td><td>目标包含 default branch；enforcement 为 active；要求 PR；禁止 force push 和 deletion；bypass 主体最小化。</td><td>不 push 发布加固提交，不创建发布 tag。</td></tr>
+<tr><td>Tag ruleset</td><td>目标模式覆盖 <code>v*.*.*</code>；active；限制 create/update/delete；bypass 主体是审核后的发布账号/应用。</td><td>停止所有新 tag 发布。</td></tr>
+<tr><td><code>release</code> Environment</td><td>存在 required reviewers；禁止自审（若计划支持）；部署来源限制正确。</td><td>不进行受控 tag 演练。</td></tr>
+<tr><td>Actions settings</td><td>Workflow permissions 为 read-only contents/packages；Actions 不可创建或批准 PR。</td><td>修正默认值后再推进。</td></tr>
+<tr><td>远端 workflow</td><td>默认分支已包含 <code>061f73f</code> 或其等价后继；workflow 显示两个 Job 及 <code>release</code> Environment。</td><td>不得用旧 workflow 创建新 Release。</td></tr>
+</tbody></table>
+
+<h2>6. 准确性与局限</h2>
+<ul><li><code>protected: false</code>、空 ruleset、远端 commit 和远端 workflow 内容均是当前可重现的远端事实。</li><li>Environment、Actions 默认权限和历史 tag protection 没有认证证据，本报告只标记“未验证”，不标记“不存在”。</li><li>本地 <code>origin/main</code> 与 GitHub 分支 API 均指向 <code>8e3a1b0</code>；<code>git ls-remote</code> 曾因一次 DNS 解析失败未返回，不影响 API 和本地远端跟踪引用的交叉结论。</li></ul>
+
+<h2>7. 官方依据</h2>
+<ul><li><a href="https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments">GitHub Docs: Managing environments for deployment</a></li><li><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets">GitHub Docs: About rulesets</a></li><li><a href="https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository">GitHub Docs: Managing GitHub Actions settings for a repository</a></li></ul>
+
+<h2>8. 最终判断</h2>
+<div class="decision"><strong>专业性：A、准确性：A-、完整性：B（受管理员认证证据缺口限制）。</strong>下一个可执行动作不是创建 tag，而是由仓库管理员先完成 branch/tag ruleset、<code>release</code> Environment 和 Actions 默认权限的受认证核验/配置。这些远端保护通过后，再以 PR 方式纳入 <code>061f73f</code>，最后执行受控发布演练。</div>
+</main><footer><a href="../index.html">文档索引</a> · <a href="GitHub发布信任根核验-2026-10-27.md">Markdown</a></footer></body></html>

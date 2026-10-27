@@ -2,7 +2,7 @@
 
 中心化 **HTTP 定时触发调度台**：到点向业务 `req_url` 发起 GET/POST（POST 支持 JSON Body），支持 Web 管理、REST API 动态改任务、秒级 Cron、集群双锁与执行日志。
 
-当前版本 **v4.1.0**（任务触发 DNS/3xx 安全加固 · 数据库自增 ID · 执行链路可观测性 · 用户与任务生命周期加固 · 可复现轻量发布包；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
+当前版本 **v4.1.1**（RBAC Scope 授予边界加固 · 数据库当前授权 · 注册审批关联表精确授权 · 陈旧 Session 撤销；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
 ## 下载与安装包选择
 
@@ -14,6 +14,7 @@ GitHub 自动生成的 “Source code” 压缩包以及 `git clone` 得到的�
 
 | 版本 | 能力 |
 |------|------|
+| **v4.1.1** | RBAC Scope 授予边界加固 · 数据库当前授权 · 注册审批关联表精确匹配 · 陈旧 Session 撤销 · 全局管理员 Scope 回显 |
 | **v4.1.0** | 任务触发 DNS 单次解析与 IP pinning · 首跳 3xx 阻断 · 数据库自增 ID 与 MySQL BIGINT 对齐 · 执行链路关联与 Run Inspector · 用户/任务生命周期加固 · 可复现轻量发布包 |
 | **v4.0.0** | V1 UI 下线 · 安全加固（7 项 P0）· 时间戳 BIGINT UTC · AJAX 局部刷新（5 页）· 逾期检测 · 孤儿 Job 对账 · 表单字段错误 · Heroicons · Ruff lint |
 | **v3.0.0** | Console Mode UI · 双模切换（Classic/Console）· 暗色主题 · 响应式布局 · 键盘快捷键（OPT-P2-14）|
@@ -294,7 +295,7 @@ bash scripts/cronpilot.sh test        # 全量单测（679 用例）
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v4.1.0**；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v4.1.1**；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

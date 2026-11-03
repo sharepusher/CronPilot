@@ -1,0 +1,54 @@
+{
+  "review_commit": "c727146edb455df14bf91dd3bcff4b2b9bb66dee",
+  "date": "2026-11-03",
+  "full_suite": {
+    "command": ".venv-py311/bin/python -m unittest discover -s tests -q",
+    "exit_code": 1,
+    "ran": 1132,
+    "passed": 1114,
+    "failed": 6,
+    "skipped": 12,
+    "seconds": 489.572,
+    "failures": [
+      "test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)",
+      "test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)",
+      "test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)",
+      "test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)",
+      "test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)",
+      "test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)"
+    ]
+  },
+  "focused": {
+    "ran": 41,
+    "passed": 41,
+    "seconds": 13.175,
+    "subset_of_full": true
+  },
+  "routes": {
+    "passed": 86,
+    "total": 86
+  },
+  "browser": {
+    "passed": 27,
+    "total": 27
+  },
+  "independent_user_checks": {
+    "passed": 4,
+    "total": 4
+  },
+  "remaining_task_probes": {
+    "modes": [
+      "DELETE",
+      "WAL"
+    ],
+    "issue_observed": true
+  },
+  "status_race": {
+    "revocation_committed": true,
+    "job_resumed": true
+  },
+  "status_postcommit_read": {
+    "exception_escaped": true
+  },
+  "business_fixes_made_during_review": false
+}

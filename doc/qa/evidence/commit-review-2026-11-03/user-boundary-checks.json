@@ -1,0 +1,96 @@
+[
+  {
+    "mode": "DELETE",
+    "case_id": "save_first_role",
+    "outcome": "updated",
+    "trace": {
+      "dml": 2,
+      "relationship_dml": 0,
+      "commits": 1,
+      "cache_invalidations": 0,
+      "invalidations": 0,
+      "physical_read": true,
+      "fault_hits": 0,
+      "transaction_at_return": false,
+      "outcome": "updated",
+      "pool_timeout_after": 5000
+    },
+    "competition": {
+      "state": "busy",
+      "code": 5
+    },
+    "audit_delta": 1,
+    "credential_changed": false,
+    "group_preserved": true,
+    "passed": true
+  },
+  {
+    "mode": "DELETE",
+    "case_id": "same_field_before",
+    "outcome": "conflict",
+    "trace": {
+      "dml": 0,
+      "relationship_dml": 0,
+      "commits": 0,
+      "cache_invalidations": 0,
+      "invalidations": 0,
+      "physical_read": true,
+      "fault_hits": 0,
+      "transaction_at_return": false,
+      "outcome": "conflict",
+      "pool_timeout_after": 5000
+    },
+    "competition": null,
+    "audit_delta": 0,
+    "credential_changed": false,
+    "group_preserved": true,
+    "passed": true
+  },
+  {
+    "mode": "WAL",
+    "case_id": "save_first_role",
+    "outcome": "updated",
+    "trace": {
+      "dml": 2,
+      "relationship_dml": 0,
+      "commits": 1,
+      "cache_invalidations": 0,
+      "invalidations": 0,
+      "physical_read": true,
+      "fault_hits": 0,
+      "transaction_at_return": false,
+      "outcome": "updated",
+      "pool_timeout_after": 5000
+    },
+    "competition": {
+      "state": "busy",
+      "code": 5
+    },
+    "audit_delta": 1,
+    "credential_changed": false,
+    "group_preserved": true,
+    "passed": true
+  },
+  {
+    "mode": "WAL",
+    "case_id": "same_field_before",
+    "outcome": "conflict",
+    "trace": {
+      "dml": 0,
+      "relationship_dml": 0,
+      "commits": 0,
+      "cache_invalidations": 0,
+      "invalidations": 0,
+      "physical_read": true,
+      "fault_hits": 0,
+      "transaction_at_return": false,
+      "outcome": "conflict",
+      "pool_timeout_after": 5000
+    },
+    "competition": null,
+    "audit_delta": 0,
+    "credential_changed": false,
+    "group_preserved": true,
+    "passed": true
+  }
+]

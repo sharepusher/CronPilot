@@ -1,0 +1,30 @@
+[
+  {
+    "mode": "DELETE",
+    "probe": "task_authorization",
+    "mutation": {
+      "state": "committed"
+    },
+    "result": {
+      "outcome": "updated",
+      "actor_role": "viewer",
+      "stored_value": "requested"
+    },
+    "remaining_issue_observed": true,
+    "task_business_modified": false
+  },
+  {
+    "mode": "WAL",
+    "probe": "task_authorization",
+    "mutation": {
+      "state": "committed"
+    },
+    "result": {
+      "outcome": "updated",
+      "actor_role": "viewer",
+      "stored_value": "requested"
+    },
+    "remaining_issue_observed": true,
+    "task_business_modified": false
+  }
+]

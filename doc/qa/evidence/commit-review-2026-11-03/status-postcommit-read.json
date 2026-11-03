@@ -1,0 +1,8 @@
+{
+  "commit_completed": true,
+  "post_commit_read_failed": true,
+  "exception_escaped": "RuntimeError",
+  "stored_status": 1,
+  "scheduler_apply_calls": 0,
+  "retry_context": {}
+}

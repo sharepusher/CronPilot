@@ -1,0 +1,72 @@
+[
+  {
+    "command": ".venv-py311/bin/ruff check app/",
+    "exit_code": 0,
+    "output_tail": "All checks passed!\n"
+  },
+  {
+    "command": "git diff --check",
+    "exit_code": 0,
+    "output_tail": ""
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/html_docs_to_markdown.py --check",
+    "exit_code": 0,
+    "output_tail": "OK: all generated doc/*.md match HTML sources\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_doc_completeness.py --check",
+    "exit_code": 0,
+    "output_tail": "OK: 395 HTML files all registered in index.html, 0 broken refs\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_doc_links.py --check",
+    "exit_code": 0,
+    "output_tail": "✓ 文档链接检查通过（扫描 3056 个引用，0 broken）。\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_opt_consistency.py --check",
+    "exit_code": 0,
+    "output_tail": "✓ OPT 编号一致性检查通过（编号无歧义引用，设计文档状态与路线图一致）。\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_postmortem_completeness.py --check",
+    "exit_code": 0,
+    "output_tail": " ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-数据库自增ID生成器下线.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-文档索引结构损坏与登记丢失.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-统一错误处理P0设计契约修订.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-统一错误处理方案文档交付失误深度复盘.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-设计Demo未入库丢失.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-评估交付格式与测试状态漂移.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-09-误把Demo-C当成-B.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-10-RBAC批量审批请求ID规范化缺失.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-10-发布工作流安全加固复盘.html\n  ⚠ Postmortem not referenced in RELEASE_NOTES: doc/postmortem/2026-10-发布治理评估时态误判.html\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_terminology.py --check",
+    "exit_code": 1,
+    "output_tail": "但不承诺永远不再出现 Job。自动一次性下线和启动时 cron_check 的现有行为必须单独列出影响分析，不把它们等同于首期新增的后台恢复能力。</p>\n  doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md:28: 2026-11-02 使用现有内存业务库 fixture、独立临时 SQLite SQLAlchemyJobStore、实际 APScheduler/Flask-APScheduler。调度器全局暂停避免回调；创建 Job 后，对 retire\\_cron\\_by\\_id 的 DB commit 注入失败，随后结束事务并读取两个存储。结果：\n  doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md:32: \"original_database_used\": false, \"callback_executed\": false}\n  doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md:47: 1. **定义下线成功：**持久化不可恢复的下线目标、原因、时间；正常调度移除按接口契约判成功，异常核实仅证明观察到的状态。已开始执行的回调不被撤销。\n  doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md:95: 晚到的并发旧写仍可能在检查之后重新注册 Job；版本检查不能冒称调度 fencing。执行保护能阻断读取到已下线状态的回调，重试负责清除残留项，但不承诺永远不再出现 Job。自动一次性下线和启动时 cron\\_check 的现有行为必须单独列出影响分析，不把它们等同于首期新增的后台恢复能力。\n  doc/qa/evidence/cron-retire-d3-assessment-2026-11-02/result.json:5: \"callback_executed\": false\n  scripts/verify_cron_edit_d1.py:1: \"\"\"D1 隔离端到端验收；D1_PREVIEW=1 保持 5003 预览，全局暂停禁止执行回调。\"\"\"\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/audit_hardcoded_colors.py --check",
+    "exit_code": 0,
+    "output_tail": "未发现硬编码颜色。\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_ui_contract.py --check",
+    "exit_code": 0,
+    "output_tail": "✓ check_ui_contract: 0 violations in app/templates/redesign/\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_dead_css.py --check",
+    "exit_code": 0,
+    "output_tail": "No dead CSS classes found.\n\n✓ Dead CSS check passed (≤0)\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_css_token_reachability.py --check",
+    "exit_code": 0,
+    "output_tail": "✓ All CSS token references and animation names are reachable.\n"
+  },
+  {
+    "command": ".venv-py311/bin/python scripts/check_version_consistency.py --check",
+    "exit_code": 1,
+    "output_tail": "发现 2 个版本一致性问题：\n\n  ✗ [RELEASE_NOTES [Unreleased]] Unreleased 节含 4 个 ### 小节（疑似未合并到正式版本）：### What changed, ### Why, ### Validation\n  ✗ [RELEASE_NOTES [Unreleased]] Unreleased 节含 20 个实质列表项（疑似未合并）\n\nCI 检查失败：请补全上述缺失项。\n"
+  },
+  {
+    "command": "bash scripts/check_pending_sync.sh",
+    "exit_code": 0,
+    "output_tail": "OK: pending_sync guards\n"
+  }
+]

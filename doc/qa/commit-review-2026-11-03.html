@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>提交 c727146 后代码与文档复审（2026-11-03）</title><style>body{font:16px/1.8 system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px}h1,h2,h3{line-height:1.4}section{margin:2em 0}pre{padding:16px;background:rgb(244,246,248);white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}.decision{padding:16px;border-left:5px solid rgb(180,60,40);background:rgb(255,246,240)}</style></head><body><main>
+<h1>提交 c727146 后代码与文档复审</h1>
+<p>2026-11-03（Asia/Shanghai）· rev.1 · 复审对象：<code>c727146edb455df14bf91dd3bcff4b2b9bb66dee</code>，父提交 <code>3b7583f</code>。本页为提交后独立复审，后续报告提交不改变被审查业务代码。</p>
+<div class="decision"><strong>已按用户指令提交全部原有未提交变更；当前仍不建议发布 v4.2.0。</strong>用户编辑 SQLite 保护已落实，但任务编辑及启停仍有撤权竞态；启停新增提交后读取异常未被结果分类保护。全量与发布门禁结果见本页验证节，不以专项绿色替代全量状态。</div>
+<h2>版本记录</h2><ul><li>rev.1 · 2026-11-03：记录全部变更提交、以固定 commit 复审、新增启停撤权及提交后读取反例、任务遗留问题复核及用户边界正向验证。</li></ul>
+<h2>交付契约与范围</h2><p>用户要求为“将所有未提交代码提交，并再次 review”。本轮先提交工作区全部 364 个文件（代码、测试、工具、设计、复盘、HTML/Markdown 和证据），随后以 c727146 为基线审查。提交为本地检查点，不是发布批准；未 push、tag 或创建 Release。此次仅新增审查文档及隔离复现证据，未修业务代码；不将本页视为后续修复设计的确认。</p>
+<p>原提交包含 25828 行新增、369 行删除及 140 张新增 PNG 证据；它们属于不同历史批次，不能按本轮单一实现计算质量。检查了新增源码、凭据样式文件名及常见私钥/访问令牌模式，未发现需排除的相应命中；这一检查不是完整秘密扫描或截图 OCR 认证。提交后 git status 一度为空，证明原有可见变更已纳入；后续报告另行提交。</p>
+<section><h2>1. 审查发现（按严重程度）</h2>
+<h3>R1 · P1 · SQLite 任务编辑与启停仍允许撤权在途请求完成写入</h3>
+<p><strong>定位：</strong><code>app/services/cron_edit_concurrency.py:148–156</code>、<code>app/services/cron_status_apply.py:80–81,109–114</code>。两者通过 FOR UPDATE 重读 actor，但没有用户编辑已接入的 SQLite 物理写入保护；任务 edit_revision 不能证明 actor 权限未发生变化。</p>
+<p><strong>任务编辑：遗留问题再次确认。</strong>执行仓库现有 task probe，DELETE/WAL 两种模式均由独立进程在 actor 已读取后提交降权，原保存仍返回 updated，最终 actor=viewer、说明=requested。任务的 SQLite 原子保护设计仍为待确认，<code>save_task_edit</code> 尚未接入保护，因此该结果与其设计状态一致，不能声称用户编辑修复已关闭整个 SQLite 条目。</p>
+<p><strong>启停：本轮补充同类实证。</strong>在临时文件 SQLite 中，服务读过 Operator 后、读组关系前，另一个 engine/connection 将其改为 Viewer 并提交。随后调用真实 <code>save_status</code> 与真实 APScheduler，任务从暂停写为运行，真实 Job 由暂停恢复。调度器全局暂停防止任何实际执行；只替换模块中的调度器对象为本次隔离实例，没有替换权限或保存逻辑。</p>
+<pre>{"independent_revocation_committed":true,"ok":true,"current_role":"viewer","stored_status":1,"real_job_resumed":true}</pre>
+<p>实证证明服务内部撤权窗口及真实 Job 状态改变，不冒称已重放完整 HTTP 攻击链；没有证实 MySQL 行锁下相同交错成立。D2 文档已经保留未覆盖全部撤权竞态的边界，本轮将其变为具体反例。</p>
+<p><strong>建议：</strong>任务编辑按待确认设计处理锁外 URL 校验和受保护重算；启停另明确保存边界与提交后外部副作用的授权时点。不要将任意未来撤权都定义为取消已经合法提交的操作；本例撤权发生在本次业务写入前，且原请求没有保护其已读授权。新增与真实撤权入口配套的竞争矩阵，而非只测试保存调用前已降权。</p>
+<p>证据：<a href="evidence/commit-review-2026-11-03/task-probes.json">任务双模式结果</a> · <a href="evidence/commit-review-2026-11-03/status-race.json">启停结果</a>。复现入口：</p>
+<pre>.venv-py311/bin/python doc/qa/evidence/commit-review-2026-11-03/task_authorization_probes.py
+.venv-py311/bin/python doc/qa/evidence/commit-review-2026-11-03/status_authorization_race.py</pre>
+<h3>R2 · P2 · 启停提交后的摘要生成会隐式读取，读取失败逃出错误契约</h3>
+<p><strong>定位：</strong><code>app/services/cron_status_apply.py:122–123</code>。commit 成功后通过 <code>status_config(task)</code> 生成重试上下文；当前 Session 在提交后使 ORM 属性过期，该函数访问时间字段触发重新 SELECT。该调用位于提交异常分类和调度异常分类两个 try 之外。</p>
+<p><strong>本轮内存库复现：</strong>真实提交状态后，在首次 SELECT cron_infos 时注入读取失败，观察到异常直接抛出、状态已经持久化为 1、调度尚未调用、上下文为空。生产 Web/API 都传入 context，因此并非仅直接服务的无效参数组合。</p>
+<pre>{"commit_completed":true,"post_commit_read_failed":true,"exception_escaped":"RuntimeError","stored_status":1,"scheduler_apply_calls":0,"retry_context":{}}</pre>
+<p><strong>影响：</strong>调用方可能得到通用异常或 HTTP 错误，而不是“目标状态已保存、尚未应用/无法完成核验”的受控结果。错误发生在调度写入前，不能误称调度调用已失败或已成功。该实验注入固定读取异常，未模拟真实网络断线或所有 DBAPI 错误种类。</p>
+<p><strong>建议：</strong>提交前从同一快照固定摘要及签名所需纯值；提交后的所有可失败操作纳入明确分类。单纯将读取异常吞掉再继续调度不符合设计。防护用例应在真实 after_commit 后拦截首次读取，断言保存事实、调度调用次数、返回语义和重试能力；现有 check_version 读失败用例没有经过本分支。</p>
+<p>证据：<a href="evidence/commit-review-2026-11-03/status-postcommit-read.json">结果</a>；可执行：</p>
+<pre>.venv-py311/bin/python doc/qa/evidence/commit-review-2026-11-03/status_postcommit_read.py</pre>
+<h3>R3 · P2 · 全量与发布门禁尚未收口</h3>
+<p><strong>全量实际失败：</strong><code>.venv-py311/bin/python -m unittest discover -s tests -q</code>：1132 项、489.572 秒，1114 通过、6 失败、12 跳过，退出 1。失败为 API Scope 的 global_task_allowed/group_change_immediate/own_group_allowed 三项、任务中心 run_url_already_contains_id_param/vue_mount_point_data_attrs_present 两项，以及启停 CSRF post_with_token_ok 一项。与 2026-11-02 专项记录的六个失败 ID 相同；本轮未证明它们在父提交 3b7583f 也同样失败，不称其为父版本既有故障。</p>
+<p>术语门禁仍退出 1，新增设计、验收和脚本均存在命中。需要区分 JavaScript/异步技术词和对触发模型的旧称，不能关闭检查器整体放行。版本检查仍退出 1：Unreleased 有 4 个子节和 20 个实质列表项；当前提交不是 v4.2.0 版本归档。</p>
+<p>默认 git diff --check 曾漏掉未跟踪内容；全部暂存后发现 11 处 Markdown 行尾空格，均为生成文档的双空格换行语法。本轮保留生成结果，并以 <code>git -c core.whitespace=-blank-at-eol show --check c727146</code> 验证其他空白问题通过；未把默认检查失败写成默认检查通过。</p>
+<p>建议保持鉴权与实际调度结果语义，校准旧测试所依赖的调度 fixture、模板按钮和渲染结构。不能只修改预期让测试变绿；失败列表与实际原因须逐项映射。版本归档属于发布准备，不需为保存本地检查点擅自宣布发版。</p>
+<h3>R4 · P2/P3 · 对外升级边界和历史工具仍需整理</h3>
+<p>RELEASE_NOTES 仅说明新增 edit_revision，仍未完整承载内部设计所要求的备份、停止旧写入进程、迁移检查、禁止新旧写入者混跑与回滚说明。原 <code>verify_cron_edit_baseline.py</code> 当前执行仍退出 1，因引用业务组 7 却未创建 ResourceGroup；其后续 no_change 断言也期待修复前副作用，应绑定历史版本或转为当前回归，不应按当前绿色工具交付。</p>
+<p>设计/验收中“未提交”是历史时态，本次已有 c727146 可作统一定位；不必批量改写历史记录，但应以本页或后续收口入口标明当前提交。Release Notes 应汇总最终候选版本的验证，不将多个历史全量数字堆成当前保证。</p></section>
+<section><h2>2. 已改善事项与上次发现的状态</h2>
+<ul><li><strong>用户编辑 SQLite 原子性：本批已实施。</strong>保护在当前授权读取前建立，使用同 Session/同 bind 的 BEGIN IMMEDIATE；忙错误不继续写，恢复 busy_timeout，清理失败淘汰连接。用户与审计仍同事务，no-op 路由不进入写边界。四个新鲜独立进程交错对照在 DELETE/WAL 分别验证保存先保护的撤权竞争受阻，以及先提交的同字段变更被识别为 conflict，见<a href="evidence/commit-review-2026-11-03/user-boundary-checks.json">本轮结果</a>。未据四项就宣称覆盖全部原 36 项矩阵。</li>
+<li><strong>任务编辑调度影响减小：</strong>仅改说明、请求、超时或关系不再无谓重注册 Job；真正调度改变才进入 apply_edit；暂停目标在注册时指定 next_run_time=None。同步成功零 JobStore 证明查询，异常时有限观察，不把跨库版本检查误称 fencing。</li>
+<li><strong>启停失败语义改善：</strong>不再对提交后的未知调度结果反向恢复旧 DB 状态；显式目标与签名重试避免盲目取反；匹配目标不重复 resume，成功日志故障独立隔离。API 新重试头已标注兼容变更。</li>
+<li><strong>用户编辑基础保障保持：</strong>签名 T0、同范围投影、范围外组保留、字段三方比较、有效副作用、审计整条结构校验仍有对应实现及测试。旧任务授权反例不应被误记为用户保护专项失败。</li></ul>
+<p>整体判断：方案分批与兼容处理合理，已有隔离验证工具有价值；当前主要缺口是任务/启停授权边界尚未统一、一个提交后异常分支遗漏，以及最终集成和发布门禁。不建议趁本次审查直接引入统一全站状态机或重构全部事务；对应评估与待确认设计应继续独立审阅。</p></section>
+<section><h2>3. 本轮实际验证与限制</h2>
+<ul><li>新增专项组合：<code>.venv-py311/bin/python -m unittest tests.test_user_edit_sqlite_boundary tests.test_cron_edit_apply tests.test_cron_status_apply_d2 tests.test_cron_status_logging_d2 tests.test_cron_timeout_types -q</code>，41/41，13.175 秒，通过；它们是全量子集，不能相加。</li><li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>，86/86，通过。</li><li><code>.venv-py311/bin/python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/cronpilot-20261103-outcomes-review-retry --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'</code>：27/27，通过。首次沙箱内无法监听端口，获准后外部执行；<a href="evidence/commit-review-2026-11-03/browser-results.json">本轮浏览器结果</a>。</li><li>DELETE/WAL 用户边界四个独立进程验证通过；任务撤权两模式、真实启停撤权及提交后读取三组反例均可观察，见对应证据。用户验证重放入口：<code>.venv-py311/bin/python doc/qa/evidence/commit-review-2026-11-03/user_boundary_checks.py</code>。</li><li>旧 baseline 脚本退出 1；开发 SQLite 表清单仍含任务、组、用户、标签与审计等业务表，仅证明表存在，不是逐行完整性验证。<a href="evidence/commit-review-2026-11-03/validation-summary.json">本轮验证摘要</a>。</li></ul>
+<p>静态门禁：Ruff app、HTML/Markdown 同步、文档完整性、文档链接、OPT 一致性、UI 契约、颜色审计、CSS 死代码与 token 可达、pending_sync 均退出 0；复盘完整性退出 0，保留历史引用警告。完整命令/返回码见<a href="evidence/commit-review-2026-11-03/gates.json">门禁记录</a>。</p>
+<p>最终文档校验：HTML/Markdown 同步、396 份 HTML 登记、3061 个链接可达、4 项索引结构测试、pending_sync 与本轮文档 diff 空白检查通过。5001 在沙箱内外均不可达；本轮另启动只监听本机的只读文档预览，<code>http://127.0.0.1:5095/qa/commit-review-2026-11-03.html</code> 与同名 .md 均 HTTP 200，HTML 已实际在浏览器打开。该端口仅提供文档，无需登录，不代表业务服务已重启或可验收。</p>
+<p>未重跑全部真实 MySQL/Docker/发布包安装，也未认证 GitHub 远端保护。本轮没有重跑 D1/D2 全部双后端浏览器矩阵，其历史结果未计为当前通过。浏览器七状态使用串行内存服务，不能替代内部双连接竞态。新权限反例是服务/数据库/真实 Job 级证据，不是未测的 HTTP 全链路证明。</p>
+<p>提交附带的自动 Git 后台维护提示远端跟踪引用锁权限不足；c727146 已成功创建且对象可读取，原工作区干净。该提示属于本地 Git 维护问题，不等于 commit 或远端 push 失败；本轮未扩大修改 Git 目录权限。</p></section>
+<section><h2>4. 建议后续顺序</h2><ol><li>Review 确认 SQLite 任务编辑保护设计；同时为启停明确原子授权边界，分别验证撤权先提交/保存先取得保护的合法顺序。</li><li>为 R2 补最小错误分类修复设计与提交后读取否定用例，确认后实施并补七项复盘。</li><li>逐项收口全量失败和术语门禁；冻结最终业务候选后再归档 v4.2.0、补对外升级/回滚说明。</li><li>对最终 commit 执行双后端、目标角色浏览器、黄金路径和发布包外安装验证，再讨论 tag/Release。</li></ol>
+<p>本轮没有业务修复动作，未新增修复复盘。报告与复现代码仅为审查交付物；未来修复必须按仓库设计确认流程推进。</p></section>
+</main><footer><a href="../index.html">文档索引</a> · <a href="commit-review-2026-11-03.md">Markdown 版</a></footer></body></html>

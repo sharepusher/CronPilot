@@ -1,0 +1,103 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>未提交代码与文档专业评估（2026-10-29）</title><style>body{font-family:system-ui,sans-serif;line-height:1.75;max-width:1080px;margin:auto;padding:32px}table{border-collapse:collapse;width:100%}td,th{border:1px solid;padding:10px;text-align:left;vertical-align:top}pre{overflow:auto;padding:16px;background:whitesmoke}code{overflow-wrap:anywhere}h2{margin-top:2em}</style></head><body>
+<h1>未提交代码与文档专业评估</h1>
+<p><strong>后续实施状态：</strong>本页是最初只读评估快照。两项 P1、两项 P2 已分别确认实施并通过验收，见<a href="../postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">最新补修复盘</a>；下文保留原始发现和复现实验，不代表当前仍未修复。</p>
+<p>日期：2026-10-29 · 基线：HEAD <code>3b7583f</code> 与评审开始时工作区差异（含未跟踪文件） · rev.1 · 状态：初评历史记录，四项发现已后续修复</p>
+<p><strong>结论：方案方向合理，当前不建议直接提交为“U0–U3 全部闭环”。</strong>发现 2 项 P1、2 项 P2；其中并发覆盖与前端组差异判定已运行复现。后端主事务的改进成立，但不能由此推导完整交互和文档契约全部成立。本轮只评审及新增本报告/索引，没有修改业务实现，也没有替用户提交。</p>
+<table><tr><th>版本</th><th>日期</th><th>内容</th></tr><tr><td>rev.1</td><td>2026-10-29</td><td>静态核对、内存数据库并发时序复现、真实 Chrome/jQuery 选择器复现、回归和文档门禁。</td></tr></table>
+<h2>1. 范围与评价方法</h2>
+<p>核对 services/views、用户表单、公共 Ajax、审计模板和 CSS、相关测试及新增 MySQL 脚本；交叉检查独立设计 rev.2.4、U0/U2/U3 验收、三份复盘、方案 Review、横向风险审计、Release Notes、索引与 GitHub 信任根文档差异。历史批次的验收数字视为当时记录，不把它们直接当成本轮运行结果。该审查不构成全仓库安全审计。</p>
+<p>评判依据是当前代码、已冻结设计与实际执行结果；不依据文档中的自评 A 等级。当前会话没有历史确认消息，设计内“用户已逐批确认”的记载只能作为文档陈述，无法独立认证当时审批过程。GitHub 文档新增所有者接受残余风险属于决策记录，不等于技术保护已配置；本轮未重查远端实时状态。</p>
+<h2>2. 必须处理的发现</h2>
+<h3>R1 · P1 · 原生确认回显重新签发快照，破坏并发保护</h3>
+<p><strong>位置：</strong><code>app/rbac/views.py:798–807, 901–918</code>。POST 先基于数据库当前值生成 <code>edit_ctx</code>；确认/理由失败后虽然保留提交字段，却回显这个新 token，未保留已验签的页面原始 token。</p>
+<p><strong>复现：</strong>GET 时邮箱为 old；其他请求改为 concurrent；旧页面请求清空且未确认；服务返回确认表单，其 token 的 original 已变成 concurrent；使用该表单确认提交，返回“保存成功”，邮箱变成 NULL。设计本应拒绝陈旧确认，实际将未展示的新邮箱当作已确认原值。花名等保留字段也可能在该回显过程中被重新解释为对新快照的修改。</p>
+<pre>original_email=old@example.invalid
+reissued_original_email=concurrent@example.invalid
+response.errcode=0; response.errmsg=保存成功
+stored_email=null</pre>
+<p><strong>建议：</strong>确认回显保留最初通过验签的 token 和 original；若需要切换到新基线，必须先明确展示新值并要求重新编辑确认。增加“并发修改发生在首次 POST 之前 → 原生确认回显 → 二次提交”的端到端路由测试，断言 CONFLICT、保留 concurrent 和零成功审计。现有原生回退测试只检查输入/字段数量，没有验证 token 连续性。</p>
+<h3>R2 · P1 · MySQL 验证脚本会无条件删除传入数据库的已有表</h3>
+<p><strong>位置：</strong><code>scripts/verify_user_edit_transaction_mysql.py:51–55, 175–179</code>。任意 <code>--database-url</code> 进入 <code>verify()</code> 后立即 <code>db.drop_all()</code>，未校验后端、专用库标记、已有表或用户明确的销毁意图。导入模型的表将被删除；当前进程 metadata 更大时影响面随之扩大。误把开发或生产连接串用于验收会丢失业务数据。</p>
+<p><strong>建议：</strong>连接前验证 MySQL 和专用测试库命名，默认拒绝非空库，优先生成唯一空库并只清理本轮创建的数据。可参考 <code>scripts/benchmark_registration_scope.py::assert_isolated_database</code> 与 <code>ensure_empty_schema</code> 的拒绝式隔离思路。新增负向测试，断言非法 URL/非空库在任何 DDL 前拒绝。本轮仅静态确认危险调用链，未执行该破坏性脚本。</p>
+<h3>R3 · P2 · 业务组选项选择器错误，既漏拦 no-op，也吞掉真实组修改</h3>
+<p><strong>位置：</strong><code>app/templates/redesign/user_form.html:287–306</code>。<code>[name="group_ids"]:selected</code> 要求选中节点自身带 name；实际 name 在 select，selected 在 option。因此多选框中的选项完全读不到，只有 locked_group 隐藏 input 的分支可用。</p>
+<pre>真实 Chrome + 仓库 jquery.js：
+当前选择器匹配数 = 0
+select[name=group_ids] option:selected 匹配数 = 1
+真实按钮点击（执行当前模板脚本 + common-redesign.js）：
+unchanged_specific_group: posts=1, messages=[]
+global_to_specific_group: posts=0, messages=[未检测到变更，无需保存]</pre>
+<p><strong>影响：</strong>目标原本绑定具体业务组时，原样提交仍被前端判为变化并发送 POST；后端通常会挡为 no_change。更严重的是目标原为全局 admin（快照 group_ids=[]），管理员仅把“全部”改成具体组时，前端仍读出 [] 并提示无变更，直接阻止保存，权限收窄不生效。全局 actor 可编辑这种目标，因此不是不可达边界。</p>
+<p><strong>建议：</strong>正确读取 select 的 option:selected，或读取 select.val() 并归一化，同时兼容隐藏 input。浏览器测试分别覆盖单组锁定、具体组多选、全局 admin 改具体组，直接计数 POST 并核对持久化组关系；字符串包含断言不能替代执行 JS。</p>
+<h3>R4 · P2 · 审计兼容策略与冻结设计不一致，完成声明超过证据</h3>
+<p><strong>位置：</strong><code>app/rbac/services.py:127–160</code> 与设计 <strong>D6c</strong>（设计 HTML 第 56 行）。D6c 明确要求未知字段/类型或形状错误整体回退，“不部分猜测渲染”；实现却把未知 changes 字段标记为 partial，继续展示已知字段，且没有校验顶层键集合。专项测试还固定了 partial 行为。这是代码/测试自洽而偏离设计，不是已发现的 XSS。</p>
+<p><strong>建议：</strong>先裁定整条回退还是部分兼容，再对齐设计、解析器、测试和 Review，不以测试通过倒推契约已满足。U3 验收“前后端规范化一致”“无 JS 回退完备”、设计 rev.2.4/索引/Release Notes 的“全部闭环”被 R1/R3 反例否定，应在修复及重验后更新状态。当前文档也未列出七种 outcome 的逐场景浏览器可重放证据，单测 PRG 不能代替完整浏览器矩阵。</p>
+<h2>3. 已成立的优点与合理性</h2>
+<ul><li>签名快照不承担授权；写边界再次从数据库读取 actor/target、检查权限和 Scope，职责分离正确。</li><li>将意图差异与有效差异分开、资料独立比较、角色与组耦合比较，适合小型管理写入。R1 是回显链路丢失原值，并不否定三方比较本身。</li><li>业务与 JSON v1 审计同 Session/flush/commit，且授权副作用仅由有效角色/组变化触发，改善原有第二次提交导致的审计丢失。</li><li>COMMIT_UNKNOWN 表述保守，避免把连接确认丢失误报成明确失败；普通自动转义展示审计字段，没有引入原始 HTML 注入。</li><li>没有新增表、依赖或全站事务框架；成本与低并发管理场景匹配。管理员降权会锁额外 admin 行，不能将所有写入的锁成本一概称为“仅两个用户”。</li><li>文档双格式、索引、分批与七项复盘结构总体齐备；横向风险审计主张按入口独立设计，避免将本切片机械推广，方向合理。</li></ul>
+<h2>4. 本轮实际验证</h2>
+<div id="verification"><ul>
+<li><code>.venv-py311/bin/python -m unittest tests.test_user_edit_change_set tests.test_rbac_global_scope_assignment tests.test_rbac_phase tests.test_user_reactivation tests.test_ajax_form_guard tests.test_redesign_sidebar -q</code>：204 项通过，295.927 秒。故障注入产生预期异常日志，最终为 OK。</li>
+<li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>：86/86，无失败。</li>
+<li><code>.venv-py311/bin/ruff check app/</code>、<code>check_ui_contract.py --check</code>、<code>audit_hardcoded_colors.py --check</code>：均通过。</li>
+<li><code>.venv-py311/bin/python -m unittest tests.test_check_doc_completeness -q</code>：4/4 通过。</li>
+<li><code>check_doc_completeness.py --check</code>：360 份 HTML 均登记，0 broken refs；<code>check_doc_links.py --check</code>：扫描 2756 个引用，0 broken；<code>html_docs_to_markdown.py --check</code>：HTML/Markdown 一致。</li>
+<li>R1 内存 SQLite 复现：新邮箱被清空且返回保存成功，反例成立。R3 真实 Chrome/jQuery 当前选择器匹配 0 个、正确目标匹配 1 个，反例成立。</li>
+<li><code>sqlite3 datas/job_log.sqlite '.tables'</code>：业务表仍存在。<code>git diff --check</code>：通过。</li>
+</ul></div>
+<p><strong>限制：</strong>MySQL 并发脚本没有重跑，历史 MySQL 结果仅作为历史报告；Chrome 复现使用隔离 DOM 和真实 jQuery，不声称完成目标角色登录的全站 E2E。本轮未修改模板/Python，实现服务不需要重启；未重置真实账号或变更开发数据库。内存测试后的磁盘库表清单已核对仍在。</p>
+<h2>5. 提交建议与防再发方向</h2>
+<p>先处理 R1/R2，再处理 R3 并裁定 R4。修复必须沿用仓库的设计确认和修复复盘流程；本评估只提供可审查的问题与最小方向，不替代修复设计确认。</p>
+<p>下一轮的验收重点应从“有某段代码/某段提示”转向“跨请求上下文保持不变量”：冻结首次 GET token；任何确认/错误回显都不能静默更换 original；浏览器真实提交量和组关系是前端验收事实；破坏性 harness 在 DDL 前证明专用隔离。将这些负向场景固化到 <code>tests/test_user_edit_change_set.py</code> 和脚本隔离测试，才能直接针对本次测试盲区防再发。</p>
+<h2>附录：R1 最小可执行复现</h2>
+<p>以下代码仅使用现有专项 fixture 的内存 SQLite。保存到 /private/tmp 后，在仓库运行 <code>.venv-py311/bin/python /private/tmp/cronpilot_review_repro.py</code>；断言目标应为冲突且保留并发邮箱，当前输出见 R1。</p>
+<pre>import sys,re,json
+sys.path.insert(0,&#x27;/Users/summer/projects/opensource/CronPilot&#x27;)
+from tests.test_user_edit_change_set import TestUserEditChangeSet
+from app.rbac.services import verify_user_edit_snapshot
+from datas.model.rbac_user import RbacUser
+case=TestUserEditChangeSet()
+case.setUp()
+try:
+ with case.app.test_client() as client:
+  case._login(client)
+  token=case._edit_token(client)
+  data=case._same_values(token)
+  data.update(email=&#x27;&#x27;,nickname=&#x27;intended-name&#x27;)
+  with case.app.app_context():
+   user=case.db.session.get(RbacUser,case.target_id)
+   user.email=&#x27;concurrent@example.invalid&#x27;
+   case.db.session.commit()
+  response=client.post(&#x27;/rbac/users/edit&#x27;,data=data)
+  html=response.get_data(as_text=True)
+  retry_token=re.search(r&#x27;name=&quot;edit_snapshot_token&quot;\s+value=&quot;([^&quot;]+)&quot;&#x27;,html).group(1)
+  before=verify_user_edit_snapshot(case.app.secret_key,token,case.actor_id,case.target_id)[&#x27;snapshot&#x27;][&#x27;email&#x27;]
+  after=verify_user_edit_snapshot(case.app.secret_key,retry_token,case.actor_id,case.target_id)[&#x27;snapshot&#x27;][&#x27;email&#x27;]
+  data.update(edit_snapshot_token=retry_token,confirm_clear_email=&#x27;1&#x27;,email_clear_reason=&#x27;review-test&#x27;)
+  response=client.post(&#x27;/rbac/users/edit&#x27;,data=data,headers=case._ajax_headers())
+  with case.app.app_context():
+   email=case.db.session.get(RbacUser,case.target_id).email
+  print(json.dumps(dict(original_email=before,reissued_original_email=after,response=response.get_json(),stored_email=email)))
+finally:
+ case.tearDown()
+</pre>
+<h2>附录：R3 浏览器复现</h2><p>以下脚本执行当前模板中的实际用户编辑脚本和公共 Ajax 文件，以隔离 DOM 检查提交数。脚本未连接业务服务，也不写业务数据。</p><pre>import json
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+root=Path(&#x27;/Users/summer/projects/opensource/CronPilot&#x27;)
+source=(root/&#x27;app/templates/redesign/user_form.html&#x27;).read_text().split(&#x27;{% if user and not view_mode %}&#x27;)[1].split(&#x27;{% endif %}&#x27;)[0]
+with sync_playwright() as p:
+ browser=p.chromium.launch(executable_path=&#x27;/Applications/Google Chrome.app/Contents/MacOS/Google Chrome&#x27;,headless=True)
+ for label,original_groups in [(&#x27;unchanged_specific_group&#x27;,[1]),(&#x27;global_to_specific_group&#x27;,[])]:
+  page=browser.new_page()
+  page.set_content(&#x27;&#x27;&#x27;&lt;form class=&quot;js-ajax-form js-user-edit-form&quot; novalidate action=&quot;/rbac/users/edit&quot;&gt;&lt;input name=email value=&quot;a@example.invalid&quot;&gt;&lt;input name=nickname value=old&gt;&lt;select name=job_title&gt;&lt;option selected&gt;qa&lt;/option&gt;&lt;/select&gt;&lt;select name=role&gt;&lt;option selected&gt;admin&lt;/option&gt;&lt;/select&gt;&lt;select name=group_ids multiple&gt;&lt;option value=1 selected&gt;A&lt;/option&gt;&lt;option value=__ALL__&gt;ALL&lt;/option&gt;&lt;/select&gt;&lt;button type=submit class=js-ajax-submit&gt;保存&lt;/button&gt;&lt;/form&gt;&#x27;&#x27;&#x27;)
+  page.add_script_tag(path=str(root/&#x27;app/static/js/jquery.js&#x27;))
+  page.evaluate(&#x27;window.posts=0; window.messages=[]; window.CpToast={success:function(m){messages.push(m)}}; jQuery.ajax=function(){posts++};&#x27;)
+  page.add_script_tag(path=str(root/&#x27;app/static/js/common-redesign.js&#x27;))
+  original=dict(email=&#x27;a@example.invalid&#x27;,nickname=&#x27;old&#x27;,job_title=&#x27;qa&#x27;,role=&#x27;admin&#x27;,group_ids=original_groups)
+  page.add_script_tag(content=source.replace(&#x27;{{ user_edit_original|tojson }}&#x27;,json.dumps(original)))
+  page.evaluate(&#x27;window.posts=0;window.messages=[]&#x27;)
+  page.click(&#x27;button&#x27;)
+  print(label,page.evaluate(&#x27;({posts:posts,messages:messages})&#x27;))
+  page.close()
+ browser.close()
+</pre><footer><a href="../index.html">文档索引</a> · <a href="未提交代码与文档专业评估-2026-10-29.md">Markdown 版</a></footer></body></html>

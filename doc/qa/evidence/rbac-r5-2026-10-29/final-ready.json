@@ -1,0 +1,17 @@
+{
+  "login_get": 200,
+  "actual_post_login": true,
+  "editable_groups": [
+    16
+  ],
+  "full_target_groups": [
+    16,
+    17
+  ],
+  "noop_business_posts": 0,
+  "fixture_tasks_retired": [
+    263765631004,
+    263765631005
+  ],
+  "postmortem_html_md": 200
+}

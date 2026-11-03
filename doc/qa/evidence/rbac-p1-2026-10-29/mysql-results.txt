@@ -1,0 +1,3 @@
+MYSQL_USER_EDIT_U2: OK isolated_schema=1 lock_wait_observed=1 conflict=1 lock_release_ms=5.0 audit_rows=1
+MYSQL_USER_EDIT_U2: OK isolated_schema=1 lock_wait_observed=1 conflict=1 lock_release_ms=9.0 audit_rows=1
+P1_MYSQL_INTEGRATION: {"concurrent_empty_schema_one_winner": true, "metadata_whitelist_and_repeat_refusal": true, "nonempty_table_preserved": true, "nonempty_view_preserved": true, "partial_ddl_preserved_and_rerun_refused": true, "restricted_user_without_drop": true}

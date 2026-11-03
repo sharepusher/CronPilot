@@ -1,0 +1,50 @@
+{
+  "baseline_head": "3b7583f",
+  "date": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "full_suite": {
+    "command": ".venv-py311/bin/python -m unittest discover -s tests -q",
+    "exit_code": 0,
+    "ran": 1086,
+    "passed": 1074,
+    "skipped": 12,
+    "seconds": 499.023
+  },
+  "focused_suite": {
+    "ran": 297,
+    "exit_code": 0,
+    "seconds": 379.407,
+    "subset_of_full": true
+  },
+  "routes": {
+    "passed": 86,
+    "total": 86
+  },
+  "browser_outcomes": {
+    "passed": 27,
+    "total": 27,
+    "evidence": "browser-results.json"
+  },
+  "browser_group_preflight": {
+    "passed": 18,
+    "total": 18
+  },
+  "index_structure_tests": {
+    "passed": 4,
+    "total": 4
+  },
+  "negative_reproductions": {
+    "sqlite_races_observed": 3,
+    "baseline_script_exit_code": 1
+  },
+  "failing_gates": [
+    "check_version_consistency.py --check",
+    "check_terminology.py --check"
+  ],
+  "not_rerun": [
+    "real MySQL",
+    "Docker release package installation",
+    "GitHub authenticated settings"
+  ],
+  "production_code_modified_by_review": false
+}

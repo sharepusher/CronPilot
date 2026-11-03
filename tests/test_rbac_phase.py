@@ -1,4 +1,5 @@
 import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -611,6 +612,15 @@ class TestRbacUsersManage(unittest.TestCase):
                 sess['user_id'] = user_id
                 sess['auth_version'] = 0
 
+    def _edit_token(self, user_id):
+        response = self.client.get('/rbac/users/edit?id=%s' % user_id)
+        match = re.search(
+            r'name="edit_snapshot_token"\s+value="([^"]+)"',
+            response.get_data(as_text=True),
+        )
+        self.assertIsNotNone(match)
+        return match.group(1)
+
     def test_operator_users_list_403(self):
         self._login('operator')
         resp = self.client.get('/rbac/users')
@@ -689,13 +699,16 @@ class TestRbacUsersManage(unittest.TestCase):
             self.db.session.commit()
 
         self._login('admin', user_id=999)
+        token = self._edit_token(user_id)
         resp = self.client.post(
             '/rbac/users/edit',
             data={
                 'id': str(user_id),
+                'edit_snapshot_token': token,
                 'role': 'operator',
                 'is_active': '0',
                 'group_ids': str(self.group_id),
+                'email': '',
                 'job_title': 'tech',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
@@ -713,6 +726,7 @@ class TestRbacUsersManage(unittest.TestCase):
     def test_cannot_disable_last_admin(self):
         from sqlalchemy import select
 
+        from app.rbac.services import update_user
         from datas.model.rbac_user import RbacUser
 
         with self.app.app_context():
@@ -729,20 +743,10 @@ class TestRbacUsersManage(unittest.TestCase):
             self.db.session.commit()
             admin_id = admin.id
 
-        self._login('admin', user_id=999)
-        resp = self.client.post(
-            '/rbac/users/edit',
-            data={
-                'id': str(admin_id),
-                'role': 'viewer',
-                'is_active': '0',
-                'group_ids': str(self.group_id),
-                'job_title': 'tech',
-            },
-            headers={'X-Requested-With': 'XMLHttpRequest'},
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.get_json().get('errcode'), 1)
+        with self.app.test_request_context('/rbac/users/edit', method='POST'):
+            result = update_user(admin_id, role='viewer', is_active=1)
+        self.assertFalse(result['ok'])
+        self.assertIn('最后一名', result['msg'])
         with self.app.app_context():
             updated = self.db.session.get(RbacUser, admin_id)
             self.assertEqual(updated.role, 'admin')
@@ -805,20 +809,23 @@ class TestRbacUsersManage(unittest.TestCase):
         self.assertEqual(resp.get_json().get('errcode'), 1)
         self.assertIn('系统管理员账号不可停用', resp.get_json().get('errmsg', ''))
 
+        token = self._edit_token(seed_id)
         edit = self.client.post(
             '/rbac/users/edit',
             data={
                 'id': str(seed_id),
+                'edit_snapshot_token': token,
                 'role': 'admin',
                 'is_active': '0',
-                'group_ids': str(self.group_id),
+                'group_ids': '__ALL__',
+                'email': '',
+                'nickname': '',
                 'job_title': 'tech',
             },
             headers={'X-Requested-With': 'XMLHttpRequest'},
         )
         self.assertEqual(edit.status_code, 200)
-        self.assertEqual(edit.get_json().get('errcode'), 1)
-        self.assertIn('系统管理员账号不可停用', edit.get_json().get('errmsg', ''))
+        self.assertEqual(edit.get_json().get('errcode'), 0)
 
         with self.app.app_context():
             seed = self.db.session.get(RbacUser, seed_id)
@@ -829,7 +836,9 @@ class TestRbacUsersManage(unittest.TestCase):
         body = listing.get_data(as_text=True)
         self.assertNotIn('aria-label="停用用户 admin"', body)
         edit_page = self.client.get('/rbac/users/edit?id=%s' % seed_id)
-        self.assertIn('系统管理员不可停用', edit_page.get_data(as_text=True))
+        edit_body = edit_page.get_data(as_text=True)
+        self.assertIn('状态不可在编辑页修改', edit_body)
+        self.assertNotIn('name="is_active"', edit_body)
 
 
 class TestForcedPasswordReset(unittest.TestCase):
@@ -901,6 +910,15 @@ class TestForcedPasswordReset(unittest.TestCase):
             sess['user_id'] = user_id
             sess['auth_version'] = 0
             sess['group_ids'] = list(group_ids or [])
+
+    def _edit_token(self, user_id):
+        response = self.client.get('/rbac/users/edit?id=%s' % user_id)
+        match = re.search(
+            r'name="edit_snapshot_token"\s+value="([^"]+)"',
+            response.get_data(as_text=True),
+        )
+        self.assertIsNotNone(match)
+        return match.group(1)
 
     def test_existing_user_not_migrated_to_force_reset(self):
         with self.app.app_context():
@@ -1094,13 +1112,17 @@ class TestForcedPasswordReset(unittest.TestCase):
 
     def test_edit_ignores_password_field(self):
         self._login_session('mgr', 'admin', self.admin_id)
+        token = self._edit_token(self.existing_id)
         resp = self.client.post(
             '/rbac/users/edit',
             data={
                 'id': str(self.existing_id),
+                'edit_snapshot_token': token,
                 'role': 'viewer',
                 'is_active': '1',
                 'group_ids': str(self.group_id),
+                'email': '',
+                'nickname': '',
                 'job_title': 'tech',
                 'password': 'hacked-pass',
             },

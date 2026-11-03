@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RBAC 用户编辑 U0 契约基线与缺口证据（2026-10-28）</title>
+<style>body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.72;max-width:1120px;margin:auto;padding:30px;color:#1f2937}h1,h2,h3{color:#111827}h2{margin-top:2rem;border-bottom:1px solid #d1d5db;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code,pre{background:#f3f4f6}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}.decision,.risk,.ok,.note{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#eff6ff;border-color:#2563eb}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}.note{background:#f8fafc;border-color:#64748b}</style></head><body><main>
+<h1>RBAC 用户编辑 U0 契约基线与缺口证据</h1>
+<p>日期：2026-10-28 · 对象：<code>GET/POST /rbac/users/edit</code> · 状态：<strong>U0 完成，生产代码未修改，等待确认进入 U1</strong></p>
+<p>上位设计：<a href="../design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">RBAC 用户编辑差异写入与单事务收口独立设计 rev.2.1</a></p>
+<div class="decision"><strong>U0 结论：</strong>目标契约均可转换成可重现断言，且当前缺口已由一次性内存 SQLite harness 稳定证明。既有 Scope、陈旧 Session 撤权和防重复提交基线 18/18 通过。U1 可以开始，但按确认方案不得在本批提前修改生产代码。</div>
+
+<h2>1. U0 范围与方法</h2>
+<ul><li>一次性 harness：<code>/private/tmp/cronpilot_u0_user_edit_harness.py</code>，使用 <code>create_app('testing')</code> 间接构建的测试应用和内存 SQLite，不导入 <code>manage</code>。</li><li>fixture：全局 admin、启用/停用目标、一个业务组、用户组关系和审计表。</li><li>业务观测：返回结果、DML 次数、commit 次数、审计增量、缓存失效次数和最终数据库事实。</li><li>本批只诊断与冻结测试规格；不新增故意失败的仓库测试，不修改服务、路由、模板或 JavaScript。</li></ul>
+
+<h2>2. 当前缺口的运行证据</h2>
+<table><thead><tr><th>场景</th><th>实测结果</th><th>目标契约</th><th>判定</th></tr></thead><tbody>
+<tr><td>全字段原样提交</td><td>返回成功；2 次 commit；1 次 DML（成功审计 INSERT）；1 条审计；缓存失效 1 次；源码在差异判断前已构造 <code>FOR UPDATE</code>。</td><td><code>NO_CHANGE</code>；0 行锁、0 DML、0 写 commit、0 审计、0 缓存副作用。</td><td><strong>缺口稳定复现</strong></td></tr>
+<tr><td>非空邮箱提交为空</td><td>返回成功；邮箱仍为 <code>old@example.invalid</code>；新增 1 条审计；2 次 commit；缓存失效 1 次。</td><td>缺少确认/理由时零写入；有效确认后存 SQL <code>NULL</code>，理由与 before/after 同事务审计。</td><td><strong>意图被静默丢弃且误记成功</strong></td></tr>
+<tr><td>路由校验后 actor 在数据库降为 viewer</td><td>服务没有 <code>actor_user_id</code> 参数；直接调用仍返回成功并把目标花名改为 <code>changed-with-stale-actor</code>。</td><td>写边界锁定并复核数据库当前 actor、角色与 Scope；无权时零业务变化。</td><td><strong>服务边界授权缺失</strong></td></tr>
+<tr><td>停用目标直接调用服务</td><td>目标保持停用，但资料仍被改为 <code>changed-while-disabled</code> 并返回成功。</td><td>停用目标 GET/POST 均不允许编辑；固定去只读详情。</td><td><strong>路由策略未在写边界闭合</strong></td></tr>
+<tr><td>业务成功后审计丢失</td><td>模拟审计写入无结果时，目标花名已持久化为 <code>business-without-audit</code>，新增审计 0，服务仍返回成功。</td><td>业务与成功审计同一事务；任一失败全部回滚。</td><td><strong>双事务缺口稳定复现</strong></td></tr>
+</tbody></table>
+
+<h2>3. 冻结的签名快照契约</h2>
+<p>使用 <code>URLSafeSerializer(secret_key, salt='rbac-user-edit-snapshot-v1')</code> 的运行验证结果为：roundtrip 通过、篡改拒绝、禁止字段未出现。</p>
+<table><thead><tr><th>项目</th><th>冻结值</th></tr></thead><tbody>
+<tr><td>精确键集合</td><td><code>actor_user_id</code>、<code>email</code>、<code>group_ids</code>、<code>job_title</code>、<code>nickname</code>、<code>role</code>、<code>schema_version</code>、<code>target_user_id</code></td></tr>
+<tr><td>固定版本</td><td><code>schema_version == 1</code></td></tr>
+<tr><td>组格式</td><td>去重、升序整数数组；全局 admin 持久化事实为零关系行，快照规范值使用空数组，表单 marker 仍为 <code>__ALL__</code>。</td></tr>
+<tr><td>拒绝条件</td><td>签名无效、版本未知、任一键缺失/多余、类型错误、actor/target 与当前请求不匹配。</td></tr>
+<tr><td>禁止进入载荷</td><td>密码、密码哈希、API Token、Token 过期时间、auth_version、Session、CSRF、状态原因及其他未回显字段。</td></tr>
+</tbody></table>
+
+<h2>4. 冻结的规范化与差异规则</h2>
+<table><thead><tr><th>字段/单元</th><th>规范化</th><th>意图比较</th></tr></thead><tbody>
+<tr><td>email</td><td>字段必须存在；trim；空值为 <code>None</code>；非空包含 <code>@</code> 且不超过 128。</td><td>原非空→请求空必须确认标志和 1–500 字 trim 后理由。</td></tr>
+<tr><td>nickname</td><td>trim；空为 <code>None</code>；最长 64。</td><td>独立资料字段。</td></tr>
+<tr><td>job_title</td><td>必填；标准枚举或 <code>other:</code> + 1–20 字；禁止静默截断。</td><td>独立资料字段。</td></tr>
+<tr><td>role + group_ids</td><td>角色必须为现有三角色；组去重升序；<code>__ALL__</code> 只允许合规全局 admin。</td><td>作为一个耦合授权单元三方比较，禁止混合两个时点。</td></tr>
+<tr><td>is_active</td><td>编辑端点不接收。</td><td>只读展示；停用走专用流程。</td></tr>
+</tbody></table>
+
+<h2>5. 冻结的结果与响应契约</h2>
+<table><thead><tr><th>结果</th><th>终态</th><th>Ajax</th><th>原生 POST</th></tr></thead><tbody>
+<tr><td><code>UPDATED</code></td><td>是</td><td><code>errcode=0</code>，跳用户列表。</td><td>303/302 PRG 到用户列表。</td></tr>
+<tr><td><code>NO_CHANGE</code></td><td>是</td><td><code>errcode=0</code>、<code>data.outcome=no_change</code>、无 URL，Toast 后留页。</td><td>PRG 回编辑页，固定提示。</td></tr>
+<tr><td><code>ALREADY_APPLIED</code></td><td>是</td><td><code>errcode=0</code>、<code>data.outcome=already_applied</code>、无 URL。</td><td>PRG 回编辑页，固定提示。</td></tr>
+<tr><td><code>CONFLICT</code></td><td>是</td><td><code>errcode=1</code>、<code>data.outcome=conflict</code>，要求刷新。</td><td>PRG 回编辑 GET，重新读取数据库。</td></tr>
+<tr><td><code>FAILED</code></td><td>是</td><td><code>errcode=1</code>；字段错误可带固定 field key。</td><td>PRG 或安全回显，不重复提交。</td></tr>
+<tr><td><code>COMMIT_UNKNOWN</code></td><td>是</td><td><code>errcode=1</code>、<code>data.outcome=commit_unknown</code>，禁止自动重试。</td><td>PRG 回编辑 GET，固定警示。</td></tr>
+<tr><td><code>CONFIRM_REQUIRED</code></td><td>否</td><td><code>errcode=1</code>、<code>data.outcome=confirm_required</code>；页面收集理由后由管理员再次明确提交。</td><td>安全回编辑页；不得通过 URL 携带理由。</td></tr>
+</tbody></table>
+
+<h2>6. U1/U2 永久测试规格</h2>
+<p>正式测试文件固定为 <code>tests/test_user_edit_change_set.py</code>，必须使用内存 SQLite，不导入 <code>manage</code>。U1 先落地纯函数与写前拒绝用例，U2 再落地真实事务和 MySQL 锁用例。</p>
+<ul>
+<li>快照：roundtrip、篡改、未知版本、缺/多键、错误类型、actor/target 不匹配、禁止字段零出现。</li>
+<li>no-op：全字段相同、组顺序变化、重复组、全局 admin <code>__ALL__</code>，均断言锁/DML/commit/审计/Token/缓存为 0。</li>
+<li>邮箱：取消不 POST；缺确认、空/超长理由零写入；有效理由 trim；原值冲突不覆盖；当前已为空为 <code>ALREADY_APPLIED</code>。</li>
+<li>三方比较：资料字段独立；授权单元耦合；任一冲突整体拒绝，不部分保存。</li>
+<li>副作用：资料-only 不 bump/不重签/不失效；角色或组有效变化只 bump、重签、失效一次。</li>
+<li>审计：仅 <code>UPDATED</code> 产生；changes 键精确等于五字段白名单与有效差异交集；理由只在邮箱清空；凭据值零出现。</li>
+<li>故障注入：审计 add/flush 失败整体回滚；commit 抛错分类 <code>COMMIT_UNKNOWN</code>；授权尝试后 best-effort 缓存失效。</li>
+<li>锁：SQLite 验证调用边界；真 MySQL 双连接验证 <code>CONFLICT</code>/<code>ALREADY_APPLIED</code>/锁后失败均立即释放。</li>
+</ul>
+
+<h2>7. 既有安全基线回归</h2>
+<pre>.venv-py311/bin/python -m unittest \
+  tests.test_rbac_global_scope_assignment.TestUserManagementCurrentActorRedLines \
+  tests.test_rbac_global_scope_assignment.TestGlobalScopeAssignmentRedline \
+  tests.test_user_reactivation.TestDisabledSessionRevocation \
+  tests.test_ajax_form_guard.TestAntiDoubleSubmitGuard -v
+
+Ran 18 tests in 33.652s
+OK</pre>
+<p>这证明 U0 没有破坏数据库当前 actor、全局 Scope 授予边界、Session 缺键 fail-closed 和表单防重复提交基线。</p>
+<p>文档门禁同时通过：<code>html_docs_to_markdown.py --check</code> 一致；<code>check_doc_completeness.py --check</code> 登记 354 个 HTML、0 broken refs；<code>check_doc_links.py --check</code> 扫描 2708 个引用、0 broken；<code>tests.test_check_doc_completeness</code> 4/4 通过。</p>
+
+<h2>8. U0 完成判定与下一门禁</h2>
+<div class="ok"><strong>U0 通过。</strong>当前缺口、目标契约、签名 schema、规范化、结果枚举、审计白名单和正式测试迁移路径均已可重现。下一步是 U1“快照、规范化与意图”，仅实现写前纯逻辑和拒绝路径；U1 不得提前实施行锁内三方写入、同事务审计展示或完整浏览器交付。</div>
+</main><footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑U0契约基线与缺口证据-2026-10-28.md">Markdown</a></footer></body></html>

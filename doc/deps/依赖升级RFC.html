@@ -362,7 +362,12 @@ RBAC 插入点（推荐）:
     <li>无 <code>rbac_enable</code> 配置项。</li>
   </ul>
 
+  <p>用户编辑 R5 验收扩展：<code>scripts/verify_user_edit_transaction_mysql.py</code> 已包含外组保留/资料-only/授权并发；需新建专用空库，无新增依赖。专项测试 <code>python -m unittest tests.test_user_edit_scope_projection -v</code>。见<a href="../postmortem/2026-10-RBAC用户编辑范围外组误删.html">R5 验收与复盘</a>。</p>
+<p>用户编辑浏览器专项入口：<code>python scripts/verify_user_edit_group_preflight.py</code>，使用现有 Playwright Chromium；系统 Chrome 可传 <code>--executable-path</code>。它执行真实模板/jQuery 提交前比较，不连接业务服务；组选择与审计补修的完整验收见<a href="../design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html">两项 P2 设计与实施记录</a>。本入口不改变依赖 pin 或 Tier 状态。</p>
   <h3>7.6 不必因 RBAC 而升级的内容</h3>
+<p>SQLite用户编辑局部事务保护已按确认设计实施，无新增依赖或pin变化。内存守卫：<code>python -m unittest tests.test_user_edit_sqlite_boundary -q</code>；专用临时文件集成：<code>python scripts/verify_user_edit_sqlite_boundary.py --output-dir /private/tmp/boundary-new-empty --executable-path &lt;Chrome路径&gt;</code>。真实边界、基线失败及预览见<a href="../qa/SQLite用户编辑原子保护验收-2026-11-02.html">专项验收</a>，不改变Tier状态或全仓事务规范。</p>
+  <p>用户编辑七状态真实页面验收：<code>python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/rbac-outcomes-new</code>自行创建内存库与回环HTTP服务；目录须空，现有Playwright可使用系统Chrome的<code>--executable-path</code>。测试隔离、故障注入和实际证据见<a href="../qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html">七状态验收</a>；无新增运行时依赖、pin或Tier状态变化。</p>
+  <p>用户编辑锁释放专项：现有 <code>scripts/verify_user_edit_transaction_mysql.py</code> 已增强清理前独立连接探针、正负校准和可选JSON证据；快速守卫 <code>python -m unittest tests.test_user_edit_lock_release_guard -q</code>。运行条件与实际验收见<a href="../postmortem/2026-10-RBAC锁释放验收观察边界.html">锁释放验收复盘</a>，无依赖pin、生产配置或Tier状态变化。</p>
   <div class="note">
     <ul style="margin:.25rem 0;padding-left:1.25rem">
       <li>Flask 2.x / 3.x、Werkzeug 2+</li>

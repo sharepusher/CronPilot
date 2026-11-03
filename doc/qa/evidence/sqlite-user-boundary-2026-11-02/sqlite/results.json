@@ -1,0 +1,964 @@
+{
+  "status": "passed",
+  "run_id": "b61d12493970a25b",
+  "calibration": [
+    {
+      "mode": "DELETE",
+      "unprotected": {
+        "state": "committed"
+      },
+      "protected": {
+        "state": "busy",
+        "code": 5
+      },
+      "after_release": {
+        "state": "committed"
+      },
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "unprotected": {
+        "state": "committed"
+      },
+      "protected": {
+        "state": "busy",
+        "code": 5
+      },
+      "after_release": {
+        "state": "committed"
+      },
+      "passed": true
+    }
+  ],
+  "scope": "rbac_user_edit_only",
+  "business": [
+    {
+      "mode": "DELETE",
+      "case_id": "normal",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "actor_role_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "actor_inactive_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "actor_scope_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "target_inactive_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "target_scope_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "same_field_before",
+      "outcome": "conflict",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "conflict",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "equivalent_before",
+      "outcome": "already_applied",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "already_applied",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "unrelated_before",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "save_first_role",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": {
+        "state": "busy",
+        "code": 5
+      },
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "save_first_target",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": {
+        "state": "busy",
+        "code": 5
+      },
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "admission_busy",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": false,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "flush_failure",
+      "outcome": "failed",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "unknown_before",
+      "outcome": "commit_unknown",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "commit_unknown",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "unknown_after",
+      "outcome": "commit_unknown",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "commit_unknown",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "restore_failure",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 1,
+        "physical_read": false,
+        "fault_hits": 0,
+        "restore_fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "email_clear",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "auth_update",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 1,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": true,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": true,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "normal",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "actor_role_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "actor_inactive_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "actor_scope_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "target_inactive_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "target_scope_before",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "same_field_before",
+      "outcome": "conflict",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "conflict",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "equivalent_before",
+      "outcome": "already_applied",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "already_applied",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "unrelated_before",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "save_first_role",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": {
+        "state": "busy",
+        "code": 5
+      },
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "save_first_target",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": {
+        "state": "busy",
+        "code": 5
+      },
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "admission_busy",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": false,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "flush_failure",
+      "outcome": "failed",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "unknown_before",
+      "outcome": "commit_unknown",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "commit_unknown",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "unknown_after",
+      "outcome": "commit_unknown",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "commit_unknown",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "restore_failure",
+      "outcome": "failed",
+      "trace": {
+        "dml": 0,
+        "relationship_dml": 0,
+        "commits": 0,
+        "cache_invalidations": 0,
+        "invalidations": 1,
+        "physical_read": false,
+        "fault_hits": 0,
+        "restore_fault_hits": 1,
+        "transaction_at_return": false,
+        "outcome": "failed",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 0,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "email_clear",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 0,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": false,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": false,
+      "group_preserved": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "auth_update",
+      "outcome": "updated",
+      "trace": {
+        "dml": 2,
+        "relationship_dml": 0,
+        "commits": 1,
+        "cache_invalidations": 1,
+        "invalidations": 0,
+        "physical_read": true,
+        "fault_hits": 0,
+        "transaction_at_return": true,
+        "outcome": "updated",
+        "pool_timeout_after": 5000
+      },
+      "competition": null,
+      "audit_delta": 1,
+      "credential_changed": true,
+      "group_preserved": true,
+      "passed": true
+    }
+  ],
+  "http_cases": [
+    {
+      "mode": "DELETE",
+      "case_id": "revoke_first_role",
+      "gate": "before",
+      "actor_posts": 1,
+      "actor_errcode": 1,
+      "competitor_errcode": 0,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "revoke_first_target",
+      "gate": "before",
+      "actor_posts": 1,
+      "actor_errcode": 1,
+      "competitor_errcode": 0,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "save_first_role",
+      "gate": "protected",
+      "actor_posts": 1,
+      "actor_errcode": 0,
+      "competitor_errcode": 1,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "DELETE",
+      "case_id": "save_first_target",
+      "gate": "protected",
+      "actor_posts": 1,
+      "actor_errcode": 0,
+      "competitor_errcode": 1,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "revoke_first_role",
+      "gate": "before",
+      "actor_posts": 1,
+      "actor_errcode": 1,
+      "competitor_errcode": 0,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "revoke_first_target",
+      "gate": "before",
+      "actor_posts": 1,
+      "actor_errcode": 1,
+      "competitor_errcode": 0,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "save_first_role",
+      "gate": "protected",
+      "actor_posts": 1,
+      "actor_errcode": 0,
+      "competitor_errcode": 1,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "case_id": "save_first_target",
+      "gate": "protected",
+      "actor_posts": 1,
+      "actor_errcode": 0,
+      "competitor_errcode": 1,
+      "real_login_csrf_scope": true,
+      "two_http_instances": true,
+      "passed": true
+    }
+  ],
+  "task_probes": [
+    {
+      "mode": "DELETE",
+      "probe": "task_authorization",
+      "mutation": {
+        "state": "committed"
+      },
+      "result": {
+        "outcome": "updated",
+        "actor_role": "viewer",
+        "stored_value": "requested"
+      },
+      "remaining_issue_observed": true,
+      "task_business_modified": false
+    },
+    {
+      "mode": "WAL",
+      "probe": "task_authorization",
+      "mutation": {
+        "state": "committed"
+      },
+      "result": {
+        "outcome": "updated",
+        "actor_role": "viewer",
+        "stored_value": "requested"
+      },
+      "remaining_issue_observed": true,
+      "task_business_modified": false
+    }
+  ],
+  "temporary_files_removed": true
+}

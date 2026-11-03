@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "case": "click_noop",
+      "posts": 0,
+      "database_unchanged": true
+    },
+    {
+      "case": "revert_and_enter",
+      "posts": 0
+    },
+    {
+      "case": "bypass_js",
+      "outcome": "no_change"
+    },
+    {
+      "case": "description_change_without_scheduler_job",
+      "posts": 1
+    },
+    {
+      "case": "native_prg",
+      "status": 302
+    },
+    {
+      "case": "javascript_disabled",
+      "outcome": "no_change"
+    },
+    {
+      "case": "concurrent_unrelated_merge",
+      "passed": true
+    },
+    {
+      "case": "native_conflict_keeps_original_token",
+      "passed": true
+    },
+    {
+      "case": "conflict_rejects_partial_save_and_explicit_reload",
+      "passed": true
+    },
+    {
+      "case": "pending_tag_input",
+      "saved": true
+    },
+    {
+      "case": "viewer_access",
+      "status": 403
+    },
+    {
+      "case": "admin_access",
+      "status": 200
+    },
+    {
+      "case": "seed_access",
+      "status": 403
+    }
+  ],
+  "fixture_cleanup": "complete"
+}

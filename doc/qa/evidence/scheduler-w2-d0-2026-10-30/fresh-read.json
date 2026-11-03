@@ -1,0 +1,1 @@
+{"sqlite": {"identity_map_stale": true, "independent_read_current": true, "caller_pending_work_untouched": true}, "mysql": {"identity_map_stale": true, "independent_read_current": true, "caller_pending_work_untouched": true}, "isolated_cleanup": true}

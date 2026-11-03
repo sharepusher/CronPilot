@@ -1,0 +1,975 @@
+{
+  "status": "passed",
+  "run_id": "97bdb6fd2da423c8",
+  "cases": [
+    {
+      "case_id": "updated",
+      "semantic": "updated",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "保存成功",
+        "url": "/rbac/users"
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "4",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "no_change",
+      "semantic": "no_change",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 0,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "no_change_server",
+      "semantic": "no_change",
+      "role": "actor",
+      "channel": "browser_fetch",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "未检测到变更，无需保存",
+        "url": null
+      },
+      "actual_outcome": "no_change",
+      "outcome_present": true,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "18",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "confirm_cancel_save",
+      "semantic": "updated",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "保存成功",
+        "url": "/rbac/users"
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "email"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "25",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "confirm_server",
+      "semantic": "confirm_required",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": true,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "清空现有邮箱需要二次确认并填写变更理由",
+        "url": null
+      },
+      "actual_outcome": "confirm_required",
+      "outcome_present": true,
+      "events": [
+        "confirm_required"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "32",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "already_applied",
+      "semantic": "already_applied",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "目标状态已存在，无需重复保存",
+        "url": null
+      },
+      "actual_outcome": "already_applied",
+      "outcome_present": true,
+      "events": [
+        "already_applied"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "39",
+          "service_calls": 1,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "already_applied",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "conflict",
+      "semantic": "conflict",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "该用户信息已变更，未覆盖新数据，请刷新后重新确认",
+        "url": null
+      },
+      "actual_outcome": "conflict",
+      "outcome_present": true,
+      "events": [
+        "conflict"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "46",
+          "service_calls": 1,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "conflict",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "failed_field",
+      "semantic": "failed",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "选择「其他」时须填写自定义岗位名称",
+        "url": null
+      },
+      "actual_outcome": "failed",
+      "outcome_present": true,
+      "events": [
+        "failed"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "53",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "failed_flush",
+      "semantic": "failed",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "保存失败",
+        "url": null
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "60",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 1,
+          "service_outcome": "failed",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "unknown_before",
+      "semantic": "commit_unknown",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "保存结果无法确认，请刷新核实当前信息",
+        "url": null
+      },
+      "actual_outcome": "commit_unknown",
+      "outcome_present": true,
+      "events": [
+        "commit_unknown"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "67",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 1,
+          "service_outcome": "commit_unknown",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "unknown_after",
+      "semantic": "commit_unknown",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "保存结果无法确认，请刷新核实当前信息",
+        "url": null
+      },
+      "actual_outcome": "commit_unknown",
+      "outcome_present": true,
+      "events": [
+        "commit_unknown"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "74",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 1,
+          "service_outcome": "commit_unknown",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "unknown_after_auth",
+      "semantic": "commit_unknown",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "保存结果无法确认，请刷新核实当前信息",
+        "url": null
+      },
+      "actual_outcome": "commit_unknown",
+      "outcome_present": true,
+      "events": [
+        "commit_unknown"
+      ],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "auth_version",
+          "nickname",
+          "role"
+        ],
+        "credentials_changed": true,
+        "audit_delta": 1,
+        "auth_version_delta": 1,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "81",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 1,
+          "fault_hits": 1,
+          "service_outcome": "commit_unknown",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    },
+    {
+      "case_id": "recovery",
+      "semantic": "updated",
+      "role": "actor",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "保存成功",
+        "url": "/rbac/users"
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "88",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "global_updated",
+      "semantic": "updated",
+      "role": "global",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 0,
+        "errmsg": "保存成功",
+        "url": "/rbac/users"
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "95",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "global_no_change",
+      "semantic": "no_change",
+      "role": "global",
+      "channel": "actual_button",
+      "preflight_bypassed": false,
+      "posts": 0,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "scope_denied",
+      "semantic": "access_denied",
+      "role": "actor",
+      "http_status": 200,
+      "passed": true
+    },
+    {
+      "case_id": "operator_denied",
+      "semantic": "access_denied",
+      "role": "operator",
+      "http_status": 403,
+      "passed": true
+    },
+    {
+      "case_id": "viewer_denied",
+      "semantic": "access_denied",
+      "role": "viewer",
+      "http_status": 403,
+      "passed": true
+    },
+    {
+      "case_id": "native_no_change",
+      "semantic": "no_change",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "130",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_confirm",
+      "semantic": "updated",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 2,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "email"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "137",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        },
+        {
+          "target_id": "137",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_updated",
+      "semantic": "updated",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "144",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "updated",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_already_applied",
+      "semantic": "already_applied",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "151",
+          "service_calls": 1,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "already_applied",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_conflict",
+      "semantic": "conflict",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "158",
+          "service_calls": 1,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "service_outcome": "conflict",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_failed",
+      "semantic": "failed",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "165",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_unknown_before",
+      "semantic": "commit_unknown",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "172",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 2,
+          "cache_invalidations": 0,
+          "fault_hits": 1,
+          "service_outcome": "commit_unknown",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "native_unknown_after",
+      "semantic": "commit_unknown",
+      "role": "actor",
+      "channel": "native",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": null,
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [
+          "audit",
+          "nickname"
+        ],
+        "credentials_changed": false,
+        "audit_delta": 1,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "179",
+          "service_calls": 1,
+          "dml": 2,
+          "relationship_dml": 0,
+          "commits": 1,
+          "rollbacks": 1,
+          "cache_invalidations": 0,
+          "fault_hits": 1,
+          "service_outcome": "commit_unknown",
+          "http_status": 302
+        }
+      ],
+      "button_reused_after_refresh": null,
+      "passed": true
+    },
+    {
+      "case_id": "csrf_denied",
+      "semantic": "failed",
+      "role": "actor",
+      "channel": "browser_fetch",
+      "preflight_bypassed": false,
+      "posts": 1,
+      "response": {
+        "errcode": 1,
+        "errmsg": "CSRF 校验失败，请刷新页面重试",
+        "url": null
+      },
+      "actual_outcome": null,
+      "outcome_present": false,
+      "events": [],
+      "path": "/rbac/users/edit",
+      "effects": {
+        "changed_fields": [],
+        "credentials_changed": false,
+        "audit_delta": 0,
+        "auth_version_delta": 0,
+        "outside_groups_preserved": true
+      },
+      "traces": [
+        {
+          "target_id": "186",
+          "service_calls": 0,
+          "dml": 0,
+          "relationship_dml": 0,
+          "commits": 0,
+          "rollbacks": 0,
+          "cache_invalidations": 0,
+          "fault_hits": 0,
+          "http_status": 200
+        }
+      ],
+      "button_reused_after_refresh": true,
+      "passed": true
+    }
+  ],
+  "environment": {
+    "database": "sqlite:///:memory:",
+    "browser": "155.0.8059.80",
+    "csrf_bypass": false,
+    "production_code_modified": false
+  }
+}

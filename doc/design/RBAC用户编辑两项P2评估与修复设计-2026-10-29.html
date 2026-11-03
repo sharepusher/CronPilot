@@ -1,0 +1,102 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RBAC 用户编辑两项 P2 评估与修复设计（2026-10-29）</title><style>
+:root{--ink:#192b3a;--line:#c9d5df;--accent:#155776;--paper:#f5f8fb;--warn:#87431e}*{box-sizing:border-box}body{font-family:system-ui,"PingFang SC",sans-serif;color:var(--ink);line-height:1.8;background:var(--paper);margin:0}main{max-width:1180px;background:white;margin:auto;padding:36px}h2{border-bottom:1px solid var(--line);padding-bottom:7px;margin-top:34px}a{color:var(--accent)}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid var(--line);padding:9px;text-align:left;vertical-align:top}th,pre{background:var(--paper)}pre{padding:16px;overflow:auto;line-height:1.6}code{background:var(--paper);overflow-wrap:anywhere}.gate{border-left:4px solid var(--accent);padding:15px 20px;background:var(--paper)}.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}.screen{border:1px solid var(--line);border-radius:10px;padding:20px}.row{display:flex;gap:20px;border-bottom:1px solid var(--line);padding:10px 0}.field{min-width:85px}.box{border:1px solid var(--line);padding:10px;margin:12px 0}.selected{background:var(--paper);font-weight:600}.button{display:inline-block;background:var(--accent);color:white;border-radius:5px;padding:5px 13px}.warn{color:var(--warn)}.audit{overflow:auto}p,li{overflow-wrap:anywhere}@media(max-width:800px){main{padding:18px}.compare{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>RBAC 用户编辑两项 P2 评估与修复设计</h1>
+<p>版本：rev.1.1 · 日期：2026-10-29 · 状态：<strong>用户已确认；两项 P2 已实现并验证</strong> · 基线：两项 P1 已修复后的当前工作区</p>
+<div class="gate"><strong>边界：</strong>用户已明确回复“确认实现”，本轮按 A/B/C 完成实现与验收。以下方案条文保留批准基线，实际结果见末尾实施记录。管理员权限以现有设计为准；已确认的 P1 快照连续性与 MySQL 隔离方案保持。本文 P2-A/P2-B 是发现编号，不新增 OPT 编号。</div>
+<p>父设计：<a href="RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">用户编辑独立设计（当前 rev.2.5）</a> D1b/D3/D5/D6a/D6c、§8 两个 AFTER；<a href="RBAC用户编辑两项P1根因与修复设计-2026-10-29.html">已完成的 P1 设计</a>；<a href="../qa/未提交代码与文档专业评估-2026-10-29.html">初始评估</a>。</p>
+<p><a href="#page-compare">Before / After</a> · <a href="#evaluation">专业性与合理性</a> · <a href="#acceptance">验收矩阵</a></p>
+<table><tr><th>版本</th><th>日期</th><th>说明</th></tr><tr><td>rev.1.1</td><td>2026-10-29</td><td>记录用户确认、实现完成，228 项联合、18 组真实 DOM、16 项 live 与 P1 浏览器回归通过。</td></tr><tr><td>rev.1</td><td>2026-10-29</td><td>复核组选择 DOM 误读与空选择/全局语义混淆；审计未知键、版本类型、字段类型宽松解析；给出契约对齐方案和否定验收。</td></tr></table>
+<h2>交付契约矩阵</h2>
+<table><tr><th>对象/传输</th><th>调用方/认证</th><th>唯一性责任</th><th>非法/缺失行为</th><th>响应、日志和验收</th></tr>
+<tr><td>编辑页 preflight / 浏览器本地</td><td>已通过现有 GET 权限的管理员；客户端比较不构成授权。</td><td>组值仅从实际参与提交的 select 或锁定 hidden 来源读取，归一化后与 P1 保留的 original 比较。</td><td>无选择、全局+具体混合、格式异常、来源冲突都不可被判为 no-op；继续交给后端现有校验。</td><td>合法无变更 0 POST；真实组变化正常 POST；请求组值不被新逻辑改写。浏览器直接计数 POST 并核对 DB/审计/Token。</td></tr>
+<tr><td>管理写入 / POST</td><td>沿用数据库当前 actor、Scope、CSRF、写服务再授权。</td><td>服务端继续是唯一事实裁决者；角色/组作为耦合授权单元；原始 token 连续。</td><td>空/混合/越界组由原校验拒绝；保留种子目标的既有空 Scope 特例，不从前端新增或撤销权限。</td><td>沿用现有 outcome、同事务审计、auth_version/Token/缓存副作用。P1 回归不得退化。</td></tr>
+<tr><td>审计 detail / DB JSON v1 → 纯文本展示</td><td>仅现有 audit:read 访问面；种子/全局/合法 Scope 管理员；Operator/Viewer 仍拒绝。</td><td>writer 仍只从五字段有效差异建模；reader 对整条 schema 判定，成功前不暴露部分变化。</td><td>未知字段、顶层扩展、类型/形状错误整条 invalid 回退；未知整数版本 unsupported；历史空 detail legacy。</td><td>保留通用 resource、时间/actor/action/IP/result；不展示失败记录中的 before/after/reason；不改 DB 原文，不增加字段或审计查询。</td></tr>
+<tr><td>文档与浏览器交付</td><td>HTML 源、生成 Markdown、索引；确认后才实施。</td><td>本设计继承父 D6c，不通过改写父设计来迁就 partial 实现。</td><td>未跑功能验收不得标完成；异常数据只能在隔离 fixture 准备，不修改真实历史记录。</td><td>两个页面的内嵌对比、命令/截图/结果、七项修复复盘和本地复验入口。</td></tr></table>
+<h2>1. 结论与风险分级</h2>
+<p><strong>P2-A 是实际功能缺陷：</strong>具体组原样保存会多发请求；全局 admin 只改为具体组时却被误判 no-op，权限收窄意图没有提交。后端没有授予超范围权限，但管理员以为操作未变化/无法保存，已有全局授权会继续保留，因此应优先修复。</p>
+<p><strong>P2-B 是解析契约与审计展示可信度问题：</strong>代码和现有测试允许 partial，但父 D6c 明确禁止部分猜测渲染。当前自动转义仍在，未发现由此造成的 XSS 或读权限绕过；不据此升级为 P1 或声称历史审计被篡改。P2-B 在 P2-A 后独立验收。</p>
+<h2>2. P2-A 根因、证据与影响</h2>
+<p>HTML 的 <code>name="group_ids"</code> 在 select 上，<code>selected</code> 在 option 上。当前 <code>[name="group_ids"]:selected</code> 要求同一节点同时满足两者，所以读不到多选框的 option；只有锁定业务组的 hidden 分支可能正确。读到的组集合反复变成空数组，比较与真正序列化的请求脱节。</p>
+<pre>真实 Chrome + 当前模板脚本 + common-redesign.js，隔离 DOM 实测：
+specific_noop          → POST=1，本应 0
+global_to_specific     → POST=0，误提示“未检测到变更”，本应 1
+global_missing_selection → POST=0，误判等价于全局，本应交服务校验
+global_noop            → POST=0，此例碰巧正确</pre>
+<p><strong>同源边界：</strong>即使只改成正确 option 选择器，如果仍把“没有选项”归一化为空数组，就无法区分它和明确选中 <code>__ALL__</code> 的全局语义。当前后端对非种子 admin 的无组选项会拒绝；前端不应提前把非法输入伪装成合法 no-op。不是为新增规则，而是恢复既有 D3/Scope 契约。</p>
+<p><strong>测试为何漏掉：</strong>静态字符串用例只证明 preflight 存在；后端 no-op 测试绕过了真实 DOM；若浏览器只用单组锁定 hidden 或全局原样保存，两者均绕开失败分支。必须同时覆盖 select/hidden 与空/全局/具体集合。</p>
+<h2>3. P2-A 推荐方案</h2>
+<ol><li>保留现有表单和 marker，不增加字段。读取当前表单中<strong>启用且参与提交</strong>的 <code>select[name="group_ids"]</code> 的 <code>.val()</code> 数组；无 select 时读取锁定 <code>input[type="hidden"][name="group_ids"]</code>。两种来源按现有 DOM 互斥，遇到多来源/多 select 不做 no-op 优化。</li>
+<li>读取结果分成 <strong>合法全局、合法具体组、不可可靠比较</strong>。只有显式且唯一的 <code>__ALL__</code>、角色为 admin，才映射成全局规范值 []。具体组转为整数、去重、升序；不可把非法字符串用 parseInt 部分解析，也不可静默忽略坏值后再比较。</li>
+<li>无选择、混合 marker、空/非法 ID、表单来源冲突均标为“不可可靠比较”，不得调用本地 no-op 短路。原请求仍照常序列化，服务端返回既有错误；不在客户端猜授权或修正选择。种子目标空组特例交回后端判断，宁可多一次无副作用请求，也不扩大前端特权推断。</li>
+<li>只在全部待比较字段可可靠归一化、且与原始快照相等时，阻止 POST 并提示无变化。有效组变化让公共 Ajax 正常提交；本地辅助状态不增加到请求 payload。</li>
+<li>邮箱确认、原生 POST、P1 token 回显、服务端差异/Scope/事务不变。修复后应以真实后端检查授权变更仅 bump 一次、Token 重签、成功审计 1 行；重复 no-op 无上述副作用。</li></ol>
+<p>具体整数转换可使用既有 ES5 能力和严格字符串检查，不依赖当前旧 jQuery 环境没有的现代接口；本次不升级 jQuery、不重构公共 Ajax、不引入前端框架。选择器可达性已通过模板实际节点核对。</p>
+<h2>4. P2-B 根因与运行证据</h2>
+<p><code>format_user_update_audit_detail()</code> 先忽略未知 changes 键，继续渲染已知键，再标 partial；未验证顶层键集合。版本用 <code>== 1</code> 比较，Python 中 True 与 1 相等；值函数把 int 转成 str，所以错误邮箱数值被展示成“42”。测试又明确期待 partial，与实现自洽而偏离父设计。</p>
+<pre>当前解析器直接运行：
+已知 nickname + future_field → partial，继续展示 nickname
+合法 v1 + 顶层 future_metadata → ok
+schema_version=true         → ok
+email.before=42             → ok，展示字符串“42”</pre>
+<p>已读取 writer 的实际建模：顶层为 schema_version/changes，仅邮箱清空时写 reason；role 是字符串，group_ids 是排序整数列表，资料值是字符串或 null。以上异常不是当前合法 writer 应生成的数据。禁止为“兼容未知未来结构”继续猜测它们的语义。</p>
+<h2>5. P2-B 推荐方案：恢复整条 v1 验证</h2>
+<table><tr><th>层次</th><th>冻结规则</th><th>失败行为</th></tr>
+<tr><td>历史空详情</td><td>仅 DB None/空字符串视为 legacy；不将任意 falsy 类型一概当空详情。</td><td>legacy 保持原通用 resource 展示。</td></tr>
+<tr><td>顶层对象与版本</td><td>必须 JSON object；schema_version 类型必须恰为 int，值为 1。bool/float/string 不能冒充版本 1。未知整数版本为 unsupported。</td><td>错误类型 invalid；未知整数版本 unsupported。两者 changes=[]、reason=None。</td></tr>
+<tr><td>顶层键</td><td>必有 schema_version、changes；可选 reason。无其他键，不能把未知顶层元数据静默忽略。</td><td>整条 invalid，不尝试展示已知片段。</td></tr>
+<tr><td>changes</td><td>非空 object，键严格属于 email/nickname/job_title/role/group_ids；每项恰有 before、after。</td><td>未知或缺/多键均整条 invalid；移除 partial 展示路径。</td></tr>
+<tr><td>资料值</td><td>email/nickname/job_title 只允许字符串或 null，禁止整数/布尔/容器自动转字符串。保留现有空值语义化展示与自动转义。</td><td>任一字段类型错误，整条 invalid。审计读取不重新执行邮箱格式或岗位枚举等当前业务表单校验，避免把历史合法变更误判。</td></tr>
+<tr><td>授权值</td><td>role 前后值只允许字符串；group_ids 前后值为去重、升序整数列表，排除 bool。不把 form marker 字符串当 DB 审计值。</td><td>类型/结构错误整条 invalid。不重新用当前角色枚举否定历史文本；不凭空补未记录的 role 来解释组范围。</td></tr>
+<tr><td>reason</td><td>仅 email 非 null→null 时存在，且 trim 后 1–500 字；该变化缺 reason 也非法。非清空事件带 reason 与当前 v1 writer 契约不符。</td><td>整条 invalid；不显示理由或部分字段。有效理由继续普通 Jinja 自动转义，不使用 safe/innerHTML。</td></tr></table>
+<p><strong>渲染：</strong>合法整条 v1 才返回 ok；其余使用已有 legacy/invalid/unsupported。模板只在 ok 显示变化和理由；保留原六列表格的基础事件，invalid/unsupported 使用已有固定提示。数据库原 detail、审计保留期、action 命名、查询和 RBAC 不变；不做历史数据清洗、不新增审计 schema_version=2。</p>
+<p><strong>扩展边界：</strong>未来需要新字段时先定义新版本与 reader 分支，再升级 writer；不能在固定 v1 中加入任意键并要求旧 reader 猜测。若未来业务选择“部分兼容”，必须另行修改 D6c 并获确认，本次不选择它。</p>
+<h2 id="evaluation">6. 方案取舍与专业性</h2>
+<table><tr><th>候选</th><th>优点</th><th>不足/判断</th></tr>
+<tr><td>仅修 option 选择器</td><td>diff 最小。</td><td>不能区分“无选择”与显式全局；仍可能伪 no-op，未完整解决语义缺口。</td></tr>
+<tr><td>取消全部前端 no-op</td><td>避免吞掉真实变更。</td><td>违背父设计“正常 no-op 零 POST”的收益；只可作为临时止损，不是推荐最终方案。</td></tr>
+<tr><td>正确读取 + 可比较状态</td><td>保持有效集合归一化，非法输入交服务端；不改 payload 或权限。</td><td><strong>P2-A 推荐。</strong>增加少量状态分支，有浏览器矩阵可验证，复杂度与风险匹配。</td></tr>
+<tr><td>修改父 D6c 接受 partial</td><td>贴合当前代码，未来字段可局部展示。</td><td>改变已确认的整体解释契约，可能被误认为完整审计；本轮没有新产品理由支持这种变更。</td></tr>
+<tr><td>严格 v1 整条验证、固定回退</td><td>与父设计一致，易测试、可解释；异常记录不影响整页。</td><td><strong>P2-B 推荐。</strong>异常/未来数据的详细字段会隐藏，但原记录完整保留、通用事件仍可查，是明确取舍。</td></tr>
+<tr><td>新增 JSON schema 依赖/通用解析框架</td><td>可集中表达复杂 schema。</td><td>仅固定五字段，现有纯函数足够；增加依赖与全局抽象不合算。</td></tr></table>
+<p><strong>专业性：</strong>区分客户端交互优化与服务端授权、完整审计事件与不可靠字段片段；异常既不误显成功，也不冒称攻击。冻结了失败路径、历史保留、兼容边界和独立批次，而不以“当前单测全绿”证明契约正确。</p>
+<p><strong>合理性：</strong>P2-A 是少量 DOM 读取和固定字段比较；P2-B 是已有 JSON 解析后的 schema 检查，不增加 DB 查询；有效记录只遍历五个字段及已有组列表。实际成本主要是补浏览器矩阵，远低于改权限模型、引入新依赖或迁移数据。</p>
+<h2 id="page-compare">7. 页面 Before / After</h2>
+<p>承接父设计<strong>§8 AFTER · 目标（编辑用户）</strong>与<strong>§8 AFTER · 访问审计</strong>，不是其他 Demo：编辑页保留角色、状态、邮箱和保存按钮，仅修正保存判断；审计页仍是<strong>6 列</strong>（时间、用户名、动作、说明、来源 IP、结果），不新增列。审计关键样例保留 alice、邮箱 alice@example.com→—（已清空）、理由“员工已离职，注销原企业邮箱”、花名“小夏→Summer”；以下另加 future_field 作为异常测试输入。</p>
+<section class="screen"><h3>父 §8 AFTER · 编辑用户合法基础样例（Before/After 均保持）</h3><div class="row"><span class="field">角色</span><span>viewer</span></div><div class="row"><span class="field">状态</span><span>启用（如需停用，请返回用户管理填写缘由）</span></div><div class="row"><span class="field">邮箱</span><span>user@company.com</span></div><span class="button">保存</span><p>下面单列 admin 的全局切换复现场景，不以它替换父稿 viewer 基础样例。</p></section>
+<div class="compare"><section class="screen"><h3>BEFORE · 全局改具体组</h3><h4>编辑用户 · alice</h4><div class="row"><span class="field">角色</span><span>admin</span></div><div class="row"><span class="field">状态</span><span>启用</span></div><div class="row"><span class="field">邮箱</span><span>user@company.com</span></div><div class="box"><div>□ 全部（全局权限）</div><div class="selected">☑ 业务组 A</div></div><span class="button">保存</span><p class="warn">未检测到变更，无需保存</p><p>0 POST；数据库仍全局。UI 样例因验证全局权限切换而将父稿角色 viewer 明确替换为 admin，其他结构不变。</p></section><section class="screen"><h3>AFTER · 提交真实组变化</h3><h4>编辑用户 · alice</h4><div class="row"><span class="field">角色</span><span>admin</span></div><div class="row"><span class="field">状态</span><span>启用</span></div><div class="row"><span class="field">邮箱</span><span>user@company.com</span></div><div class="box"><div>□ 全部（全局权限）</div><div class="selected">☑ 业务组 A</div></div><span class="button">保存</span><p>提交一次 → 保存成功 → 用户列表</p><p>DB 仅组 A；auth_version +1、Token 重签、审计 1 行。无变化时才 0 POST；全不选交服务端报错。</p></section></div>
+<p>上述复选符号仅为 multiple select 的线框选中示意，不把现有多选控件改成 checkbox，不增加新的确认弹窗或按钮类型。</p>
+<section class="screen"><h3>父 §8 AFTER · 访问审计合法样例（Before/After 均保持）</h3><div class="audit"><table><tr><th>时间</th><th>用户名</th><th>动作</th><th>说明</th><th>来源 IP</th><th>结果</th></tr><tr><td>示例时间</td><td>管理员</td><td>更新用户</td><td>账号 alice<br>邮箱：alice@example.com → —（已清空）<br>清空理由：员工已离职，注销原企业邮箱<br>花名：小夏 → Summer</td><td>127.0.0.1</td><td>允许</td></tr></table></div><p>仅下方含 future_field 的异常版本回退，不修改这条合法样例。</p></section>
+<div class="compare"><section class="screen"><h3>BEFORE · 含未知审计字段</h3><p>同一记录变化包含父样例合法 email/nickname，另含 future_field。</p><div class="audit"><table><tr><th>时间</th><th>用户名</th><th>动作</th><th>说明</th><th>来源 IP</th><th>结果</th></tr><tr><td>示例时间</td><td>管理员</td><td>更新用户</td><td>账号 alice<br>邮箱：alice@example.com → —（已清空）<br>清空理由：员工已离职，注销原企业邮箱<br>花名：小夏 → Summer<br><span class="warn">含未知字段，已安全忽略</span></td><td>127.0.0.1</td><td>允许</td></tr></table></div><p>读者看见部分字段，即使整条不满足 v1。</p></section><section class="screen"><h3>AFTER · 异常整条回退</h3><p>输入完全相同，原始 detail 不修改。</p><div class="audit"><table><tr><th>时间</th><th>用户名</th><th>动作</th><th>说明</th><th>来源 IP</th><th>结果</th></tr><tr><td>示例时间</td><td>管理员</td><td>更新用户</td><td>账号 alice<br><span class="warn">审计详情格式无效</span></td><td>127.0.0.1</td><td>允许</td></tr></table></div><p>父样例在不含 future_field 的合法 v1 中仍完整展示邮箱、理由和花名，不把异常回退误解为所有历史详情被隐藏。</p></section></div>
+<h2>8. 范围、批次与停止条件</h2>
+<table><tr><th>批次</th><th>路径</th><th>交付/停止条件</th></tr>
+<tr><td>A · 组读取与 no-op</td><td>user_form.html 的 requestedValues/preflight；专项浏览器/静态测试。</td><td>select/hidden 语义一致、明确全局与无选择不混同；真实授权切换生效且 no-op 零 POST。若为了通过测试改写后端权限或 P1 原值则停止。</td></tr>
+<tr><td>B · 审计 v1 整条验证</td><td>services.py 的 formatter/value helper、_audit_logs_rows.html、专项测试。</td><td>合法记录完整，未知/坏结构全部回退；单个坏数据不使 full/partial 页面 500、无 XSS。不得改写历史 detail 或放宽 D6c 迁就测试。</td></tr>
+<tr><td>C · 回归、复盘与文档</td><td>父设计/本设计/验收/七项复盘/Release Notes、索引、证据。</td><td>两批分别通过后再汇总；P1 连续性和权限矩阵继续通过；restart 后实际目标角色 POST 登录、浏览器截图与本地复验入口齐备，才标完成。</td></tr></table>
+<p><strong>不做：</strong>不改管理员权限、Scope 授予策略、数据库结构、审计保留期、外部 API、公共 Ajax 机制、凭据事件命名；不新增依赖或全站 schema 框架。新发现的其他问题先登记，不夹带实现。300+ 行文件修改前先做函数/块作用域分析，连续替换逐次读回，运行浏览器验证预期执行时机。</p>
+<h2 id="acceptance">9. 验收矩阵</h2>
+<h3>9.1 P2-A：必须是真实 DOM 与 POST 观测</h3>
+<table><tr><th>场景</th><th>预期</th></tr>
+<tr><td>锁定单组 hidden、具体组单/多选原样提交、选择顺序变化</td><td>合法 no-op 0 POST；DB/审计/版本/Token/缓存零副作用。</td></tr>
+<tr><td>全局 admin 原样 __ALL__</td><td>0 POST；空数组只来自明确 marker。</td></tr>
+<tr><td>全局→具体、具体→全局、具体集合增加/移除</td><td>1 POST；与后端真实请求一致；权限仅一次 bump、Token 重签、成功审计一次；再次原样 0 POST。</td></tr>
+<tr><td>全局 admin 清空全部选择、混合 marker、非法 ID/来源冲突</td><td>不得提示合法 no-op；原请求进服务端校验，非法输入零业务变化。种子空 Scope 既有特例由服务端决定。</td></tr>
+<tr><td>Viewer/Operator 角色选全局、按组管理员企图授予越界/全局</td><td>既有角色/Scope 拒绝仍成立，不因前端比较扩大权限。</td></tr>
+<tr><td>邮箱清空确认取消、理由无效、成功、原生回退恢复 JS</td><td>与组读取同时运行不回归 P1；确认字段唯一，原 token 连续。键盘兼容不凭模拟声称全部真实输入行为已覆盖。</td></tr></table>
+<h3>9.2 P2-B：reader/模板/write 交叉验证</h3>
+<table><tr><th>场景</th><th>预期</th></tr>
+<tr><td>真实 writer 产生的资料、授权、邮箱清空 v1</td><td>全部 ok，精确显示字段与合法理由；旧空 detail legacy 保持。</td></tr>
+<tr><td>未知 change、未知顶层键、已知+未知混合；未知键带 HTML</td><td>整条 invalid；changes=[]、reason=None；已知旧/新值和理由均不得出现在该条详情区域。</td></tr>
+<tr><td>版本 True/1.0/"1"、未知整数 2</td><td>前三类 invalid；整数 2 unsupported；不把 Python True 当作版本 1。</td></tr>
+<tr><td>changes 非 object/空、字段缺/多 before/after；整数邮箱、bool 角色、null 角色、非列表组/组含 bool/重复乱序</td><td>全 invalid，不执行 str() 猜测；混合合法字段也不得部分呈现。</td></tr>
+<tr><td>清空缺/空/超长理由；非清空附 reason；reason 容器或数值</td><td>全 invalid；符合 writer 的合法理由自动转义。</td></tr>
+<tr><td>审计 full GET 与 AJAX partial 分页、搜索</td><td>同一 parser/context；每类坏数据无 500；原六列和基础事件保留，DB detail 原文不变。</td></tr>
+<tr><td>管理员正向与 Operator/Viewer 反向</td><td>audit:read/Scope 不扩张；异常回退不泄露额外数据。</td></tr></table>
+<p>实施后命令（含新增断言）：<code>.venv-py311/bin/python -m unittest tests.test_user_edit_change_set tests.test_user_edit_mysql_guard tests.test_rbac_global_scope_assignment tests.test_ajax_form_guard tests.test_redesign_sidebar -v</code>；<code>scripts/smoke_routes.py --check</code>；Ruff、UI 契约、颜色、路由完整性、HTML/MD/链接与复盘门禁。现有 partial 期待必须按 D6c 改成整条回退，并新增未知顶层/版本类型/字段类型负例；不能只改一条断言后宣布通过。</p>
+<p>浏览器目标矩阵至少包含全局管理员、按组单组/多组管理员和 Operator/Viewer；使用真实 POST 参数/数量、DB 字段、审计与版本断言，不仅看 toast。Agent 自行准备隔离账号/数据，恢复服务并保持运行；测试后核对开发 SQLite 表清单。</p>
+<h2>10. 风险、回滚与防再发</h2>
+<ul><li>严格 reader 会隐藏过去被宽松解析的异常细节；保留原事件和原始 DB，不迁移不删除。若合法 writer 样本被拒绝，停止 B 批次并修正 schema 判断，不能直接放回 partial。</li><li>客户端“不可比较”多发一次请求属于有意保守退让，不把它当客户端权限拒绝；后端已有校验负责错误。</li><li>前端若需紧急止损，可暂不做本地 no-op 优化，不能恢复吞掉真实授权变化；这会偏离零 POST 指标，必须明确记录。</li><li>reader 回滚只能退回基础 resource 展示，而非无声恢复未知结构的部分解释。已生成审计和 P1 修复不回滚。</li><li>永久预防：在浏览器用例冻结 select/hidden/全局/无选择的 POST 数量与请求集合；在 tests/test_user_edit_change_set.py 冻结整条错误原子回退及真实 writer 兼容性。每个新增 detail 版本必须同时提供 writer+reader+异常矩阵。</li><li>实施后的七项复盘须覆盖定位、行为根因、测试漏洞、修复、实际防护用例、同类排查和新增预防措施；不能把本设计预期当成已修复结果。</li></ul>
+<h2>11. 本轮评估证据与确认门禁</h2>
+<ul><li>已读取 user_form.html、common-redesign.js、formatter/value helper、writer detail 建模、Scope 校验、审计 full/partial 模板和现有专项测试；在写设计前核对具体调用行为，未凭记忆引入第三方 API。</li><li>Chrome 隔离 DOM 使用当前模板脚本、实际 jquery.js/common-redesign.js，四组结果见 §2；本轮不声称已完成修复后的端到端验证。</li><li>当前 Python parser 四组直接调用结果见 §4，均证明异常接受行为；没有写入真实审计数据库。</li><li>本轮文档门禁：check_doc_completeness.py --check 为 363 HTML 全登记、0 broken refs；check_doc_links.py --check 扫描 2782 引用、0 broken；html_docs_to_markdown.py --check 一致；tests.test_check_doc_completeness 4/4 通过；git diff --check 通过。真实 Chrome 设计预览：6 个样例/对比卡片，桌面无横向溢出；已人工查看审计 Before/After 截图。以上为设计阶段预览记录；实际修复结果见末尾实施记录。</li></ul>
+<div class="gate"><strong>确认与实施记录：</strong>用户已确认 A/B/C；组读取及不可比较状态、审计整条 v1 回退均已落实。228 项联合、18 组真实 DOM、16 项 live 与 P1 浏览器六项回归通过。<a href="../postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">七项复盘、命令、截图和本地复验</a>。另在同类排查发现范围外绑定保留缺口 R5，已登记在复盘 §6.1，未夹带修改；前文“未实施/实施后”描述设计阶段和验收契约。</div>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑两项P2评估与修复设计-2026-10-29.md">Markdown 版</a></footer></main></body></html>

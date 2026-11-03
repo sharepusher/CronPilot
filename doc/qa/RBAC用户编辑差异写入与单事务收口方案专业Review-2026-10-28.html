@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RBAC 用户编辑差异写入与单事务收口方案专业 Review（2026-10-28）</title>
+<style>body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.72;max-width:1120px;margin:auto;padding:30px;color:#1f2937}h1,h2,h3{color:#111827}h2{margin-top:2rem;border-bottom:1px solid #d1d5db;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code,pre{background:#f3f4f6}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}.decision,.risk,.ok,.note{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.decision{background:#eff6ff;border-color:#2563eb}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}.note{background:#f8fafc;border-color:#64748b}</style></head><body><main>
+<h1>RBAC 用户编辑差异写入与单事务收口方案专业 Review</h1>
+<p>日期：2026-10-28 · 评审对象：<a href="../design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">独立设计方案 rev.2.1</a> · 状态：<strong>A 通过设计校准；用户已确认，U0 已完成</strong></p>
+<div class="decision"><strong>总结论：</strong>rev.2 已将“页面修改意图”与“数据库并发保护”分成两阶段：GET 产生签名原始快照，前端提交前预判，服务端无锁重算意图，只有真实变更才进入行锁与三方比较。审计已冻结五字段白名单、JSON v1 容错以及“凭据操作必须审计、凭据值永不记录”边界。用户已于 2026-10-28 确认实施，U0 契约基线与缺口证据已完成，下一门禁为 U1。</div>
+<div class="ok"><strong>2026-10-28 用户决策：</strong>用户变更审计用于长期追溯，不设时间过期或自动清理。G4 的保留策略已关闭；“陈旧确认失效”只指确认后原邮箱被并发改动，不是按时间过期。</div>
+<div class="ok"><strong>2026-10-28 用户补充决策：</strong>邮箱清空必须二次确认并填写明确变更理由。该需求使确认从纯确认对话框升级为表单型 <code>CpModal</code>；理由 trim 后 1–500 字，与邮箱 before/after 同事务进入持续保留的审计 detail。缺失/超长理由必须零写入。</div>
+<div class="ok"><strong>2026-10-28 流程校准：</strong>进入页面时已读取原始数据，不应跨用户思考时间保持事务。rev.2 以签名快照保证服务端原值完整性，以前端 DOM 初值做及时预判，以锁内 <code>original/current/requested</code> 比较处理提交前并发变化。</div>
+<div class="ok"><strong>2026-10-28 审计语义校准：</strong>五字段白名单只限制 <code>user:update</code> 的前后值快照，不限制其他审计事件。密码修改/重置、Token 签发/重置/撤销仍必须记录事件，但密码、哈希、完整 Token、Session/CSRF 凭据值不得入审计。</div>
+
+<h2>1. 事实核验</h2>
+<table><thead><tr><th>方案判断</th><th>代码证据</th><th>评审</th></tr></thead><tbody>
+<tr><td>当前用户编辑已是一次业务 commit，但成功审计是第二个事务。</td><td><code>app/rbac/services.py</code> 中 <code>update_user_management()</code> 先 commit，然后调用自带 commit 的 <code>write_audit_log()</code>。</td><td><strong>准确。</strong>新方案没有沿用旧文档的过时“多次业务提交”判断。</td></tr>
+<tr><td>no-op 仍会 commit、写审计并失效缓存。</td><td>现有服务无空 change set 返回分支，成功后无条件审计与缓存失效。</td><td><strong>准确。</strong>属于可重现的无效写入和误导审计。</td></tr>
+<tr><td>当前清空邮箱会静默保留旧值。</td><td><code>user.email = (email or '').strip() or user.email</code>。模型列可空，页面也标识邮箱可选。</td><td><strong>准确。</strong>“显式清空 → 确认 → SQL NULL”比静默恢复旧值更符合用户意图。</td></tr>
+<tr><td>审计可存储字段级快照，且当前只有 admin/种子 admin 可读。</td><td><code>RbacAuditLog.detail</code> 是可空 TEXT；<code>/audit-logs</code> 需 <code>audit:read</code>；权限矩阵只将该权限授予 admin 和种子 admin。</td><td><strong>准确。</strong>完整邮箱前后值可进入受控审计面；邮箱是个人信息，但不是密码/Token 类凭据。</td></tr>
+</tbody></table>
+
+<h2>2. 准确性评估</h2>
+<p><strong>评级：A（96/100）。</strong>主要事实、当前代码边界、RBAC 访问面和前端响应行为与仓库一致。rev.2 还正确区分了“请求相对页面原值有无修改”与“数据库当前值是否产生并发变化”；<code>NO_CHANGE</code>、<code>ALREADY_APPLIED</code>、<code>CONFLICT</code> 和 <code>COMMIT_UNKNOWN</code> 的语义互不混淆。</p>
+<div class="ok"><strong>R-1 已关闭：</strong><code>NO_CHANGE</code>、<code>CONFIRM_REQUIRED</code> 和输入 <code>FAILED</code> 已前移到行锁之前；只有非空 <code>intent_change_set</code> 才进入写边界。<code>CONFLICT</code>、<code>ALREADY_APPLIED</code> 和锁后失败返回前显式 rollback/退出事务，并将真 MySQL 双连接锁释放列为 U2 硬验收。</div>
+
+<h2>3. 专业性评估</h2>
+<p><strong>评级：A（96/100）。</strong>方案使用签名无状态快照而非跨请求事务/内存缓存，将前端即时交互与服务端强制复核分层，将意图差异与有效写入差异分离，并明确将授权角色+组作为耦合单元。这些决策符合低并发管理面的一致性与可追溯工程方法。</p>
+<div class="ok"><strong>R-2 已关闭：</strong><code>user:update</code> detail 必须直接从 <code>effective_change_set</code> 和精确五字段白名单的交集构建，禁止“整模型序列化后删键”。同时明确白名单只限制字段值快照；密码/Token 操作仍必须有事件审计。</div>
+<div class="ok"><strong>R-3 已关闭：</strong>JSON v1 已冻结 <code>schema_version</code>、<code>changes</code>、单字段 <code>before/after</code> 与邮箱清空 <code>reason</code>。空、非法 JSON、未知版本、未知字段和类型/形状错误统一回退通用 resource 文案，不 500、不部分猜测渲染、禁止 <code>|safe</code>。</div>
+
+<h2>4. 合理性与性能评估</h2>
+<p><strong>评级：A（95/100）。</strong>用户管理对象数量和编辑并发远低于任务调度数据。签名快照只对小型 JSON 做本地 HMAC，不增加数据库往返；no-op 正常路径不发 POST，服务端防绕过路径也不获行锁。真写路径才读取 actor、target 和少量用户-组关系，性能收益大于额外验签/比较开销。</p>
+<ul><li>邮箱清空二次确认只在“非空 → 空”时触发，不干扰普通换邮箱。</li><li><code>edit_snapshot_token</code> 用于快照完整性而非保密或授权；写边界仍重查当前 actor/Scope。它替代可篡改的 <code>expected_current_email</code>，不需服务器跨请求保存缓存。</li><li>任一意图字段冲突则整体拒绝，比部分保存更易向管理员解释且避免混合授权状态；低并发场景下重新刷新的操作成本可接受。</li><li>完整邮箱快照在当前 admin-only 审计面下持续保留；不设时间过期或自动清理已作为明确用户决策。</li></ul>
+
+<h2>5. 实施门禁关闭状态</h2>
+<table><thead><tr><th>编号</th><th>已补入主设计</th><th>U0–U3 可验收证据</th></tr></thead><tbody>
+<tr><td>G1<br><strong>已关闭</strong></td><td>无意图/确认无效在行锁前返回；<code>CONFLICT</code>、<code>ALREADY_APPLIED</code> 及所有锁后确定失败在返回前显式结束事务/释放行锁。</td><td>SQLite 功能断言 + 真 MySQL 双连接锁释放用例。</td></tr>
+<tr><td>G2<br><strong>已关闭</strong></td><td>审计 detail 仅从五字段白名单与 <code>effective_change_set</code> 交集构建；禁止模型整体序列化/事后删键；凭据操作审计与凭据值排除已分开定义。</td><td>白名单精确集合断言 + 凭据操作有事件但凭据值不得出现的回归测试。</td></tr>
+<tr><td>G3<br><strong>已关闭</strong></td><td>冻结 JSON v1 的 <code>schema_version</code>、<code>changes</code>、<code>before/after</code>、<code>reason</code> 与空/损坏/未知版本/未知字段/类型错误回退策略；渲染使用普通自动转义文本。</td><td>四类历史/异常 detail 渲染无 500、理由 HTML 不执行、空/超长理由零写入。</td></tr>
+<tr><td>G4<br><strong>已关闭</strong></td><td>完整个人信息前后值继续仅受 <code>audit:read</code> 保护；用户已确认不设时间过期或自动清理，未来若增加清理必须另立设计；修改权限矩阵时必须运行角色反向可见性回归。</td><td>admin/种子 admin 正向可见；operator/viewer 访问审计仍 403；全仓库搜索无未声明的审计自动删除路径。</td></tr>
+</tbody></table>
+
+<h2>6. 最终判断</h2>
+<table><thead><tr><th>维度</th><th>评级</th><th>判断</th></tr></thead><tbody>
+<tr><td>准确性</td><td>A / 96</td><td>事实边界、页面意图、并发状态和结果分类已明确；无写入路径不再先获行锁。</td></tr>
+<tr><td>专业性</td><td>A / 96</td><td>前后端分层、签名快照、三方并发比较、原子审计、白名单与安全回退已形成完整契约。</td></tr>
+<tr><td>合理性</td><td>A / 95</td><td>与实际数据量、低管理并发和现有模型相匹配；不需数据库迁移或跨请求缓存。</td></tr>
+<tr><td>综合</td><td><strong>A 通过设计校准</strong></td><td>G1–G4 已全部关闭；用户已确认且 U0 已通过，允许在下一次明确确认后进入 U1，不得跨批提前实施 U2。</td></tr>
+</tbody></table>
+</main><footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑差异写入与单事务收口方案专业Review-2026-10-28.md">Markdown</a></footer></body></html>

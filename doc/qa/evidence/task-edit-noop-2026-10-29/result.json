@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "case": "click_noop",
+      "posts": 0,
+      "database_unchanged": true
+    },
+    {
+      "case": "revert_and_enter",
+      "posts": 0
+    },
+    {
+      "case": "bypass_js",
+      "outcome": "no_change"
+    },
+    {
+      "case": "real_change",
+      "posts": 1
+    },
+    {
+      "case": "native_prg",
+      "status": 302
+    },
+    {
+      "case": "javascript_disabled",
+      "outcome": "no_change"
+    },
+    {
+      "case": "pending_tag_input",
+      "saved": true
+    },
+    {
+      "case": "viewer_access",
+      "status": 403
+    },
+    {
+      "case": "admin_access",
+      "status": 200
+    },
+    {
+      "case": "seed_access",
+      "status": 403
+    }
+  ],
+  "fixture_cleanup": "complete"
+}

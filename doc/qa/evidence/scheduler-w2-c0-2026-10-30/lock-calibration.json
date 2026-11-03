@@ -1,0 +1,1 @@
+{"sqlite": {"other_process_blocked": true, "released_after_rollback": true, "released_after_process_exit": true, "same_file_jobstore_separate_connection_blocked": true}, "mysql": {"lock_excludes_contender": true, "disconnect_releases_lock": true, "old_process_still_overwrites_jobstore": true}, "isolated_cleanup": true}

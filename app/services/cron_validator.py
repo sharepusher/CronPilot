@@ -103,7 +103,7 @@ def _validate_part(value, label, value_range, out_of_range_msg=None):
     return False, '【%s】必须是整数' % label.strip('【】'), value
 
 
-def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, api_mode=False):
+def normalize_cron_form(datas, is_dev, *, mode='add', api_mode=False):
     """
     校验并规范化任务表单。
     成功返回 (None, normalized_dict, None)；失败返回 (error_message, None, field_key)。
@@ -133,9 +133,6 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
 
     if mode == 'edit' and ds_ms == '2':
         run_date = ''
-
-    if run_date and run_date < get_now_time('%Y-%m-%d %H:%M'):
-        return _fail('具体时间已过期，请重新选择未来的执行时刻', 'run_date')
 
     day = datas.get('day') or ''
     if day:
@@ -194,10 +191,6 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
     req_url = (datas.get('req_url') or '').strip()
     if not req_url:
         return _fail('请填写触发 URL（到点由调度器发起 GET/POST 请求）', 'req_url')
-    url_ok, url_msg = validate_trigger_url(req_url, cron_config)
-    if not url_ok:
-        return _fail(url_msg, 'req_url')
-
     req_method = (datas.get('req_method') or 'GET').upper().strip()
     if req_method not in ('GET', 'POST'):
         return _fail('请求方式只能为 GET 或 POST', 'req_method')
@@ -212,9 +205,14 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
         if not isinstance(parsed, dict):
             return _fail('请求 body 须为 JSON 对象（object）', 'req_body')
 
-    timeout_sec_raw = (datas.get('timeout_sec') or '').strip()
+    # Web/旧 API 提供字符串，Schema 反序列化后提供 int；统一输出 int/None。
+    timeout_sec_raw = datas.get('timeout_sec')
+    if isinstance(timeout_sec_raw, bool) or not isinstance(timeout_sec_raw, (str, int, type(None))):
+        return _fail('超时（秒）必须是整数', 'timeout_sec')
+    if isinstance(timeout_sec_raw, str):
+        timeout_sec_raw = timeout_sec_raw.strip() or None
     timeout_sec = None
-    if timeout_sec_raw:
+    if timeout_sec_raw is not None:
         try:
             timeout_sec = int(timeout_sec_raw)
         except (ValueError, TypeError):
@@ -242,6 +240,20 @@ def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, 
     if not schedule_configured_from_normalized(normalized, ds_ms):
         return _fail(schedule_incomplete_msg, 'cron_div')
 
+    return None, normalized, None
+
+
+def validate_cron_form(datas, is_dev, cron_config, *, mode='add', cron_id=None, api_mode=False):
+    """完整写入校验；无变化探测仅复用上面的纯解析，不执行 DNS/时效检查。"""
+    err, normalized, field = normalize_cron_form(datas, is_dev, mode=mode, api_mode=api_mode)
+    if err:
+        return err, None, field
+    run_date = normalized['run_date']
+    if run_date and run_date < get_now_time('%Y-%m-%d %H:%M'):
+        return '具体时间已过期，请重新选择未来的执行时刻', None, 'run_date'
+    url_ok, url_msg = validate_trigger_url(normalized['req_url'], cron_config)
+    if not url_ok:
+        return url_msg, None, 'req_url'
     return None, normalized, None
 
 

@@ -174,32 +174,13 @@
 {% endblock %}
 
 {% block js %}
+<script src="{{ url_for('static', filename='js/cron-status.js') }}"></script>
 <script>
 var _cpCsrf = {{ csrf_token|tojson }};
 
 /* ── Toggle status ── */
-function cpToggleStatus(cronId, newStatus, btn) {
-  var title = newStatus === 0 ? '暂停任务' : '启动任务';
-  var msg = newStatus === 0 ? '暂停后任务将不再按计划执行，确认暂停？' : '启动后任务将按计划调度，确认启动？';
-  CpConfirm.show({ title: title, body: msg, confirmText: '确认', cancelText: '取消' }).then(function(confirmed) {
-    if (!confirmed) return;
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
-    $.post('/update_status', {id: cronId, csrf_token: _cpCsrf}, function(r) {
-      if (r.errcode === 0) {
-        CpToast.success(newStatus === 0 ? '已暂停' : '已启动');
-        setTimeout(function() { location.reload(); }, 600);
-      } else {
-        CpToast.error(r.errmsg || '操作失败');
-        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-      }
-    }).fail(function() {
-      CpToast.error('网络错误');
-      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-    });
-  });
-}
+function cpToggleStatus(cronId, newStatus, btn) { CpStatus.perform(cronId, newStatus, btn); }
 
-/* ── Run now ── */
 function cpRunNow(cronId, btn) {
   CpConfirm.show({ title: '立即执行', body: '将立即触发一次该任务执行，确认？', confirmText: '确认', cancelText: '取消' }).then(function(confirmed) {
     if (!confirmed) return;

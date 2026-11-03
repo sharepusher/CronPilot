@@ -64,7 +64,8 @@ class TestCronEditPreservesPause(unittest.TestCase):
 
     def test_edit_without_resume_keeps_paused(self):
         mock_sched = MagicMock()
-        with patch('app.services.cron_service.scheduler', mock_sched):
+        with patch('app.services.cron_service.scheduler', mock_sched), \
+                patch('app.services.cron_edit_apply.scheduler', mock_sched):
             with patch('app.services.cron_service.register_cron_job'):
                 with patch(
                     'app.services.operation_log_service.resolve_operator_from_request'
@@ -82,11 +83,12 @@ class TestCronEditPreservesPause(unittest.TestCase):
         self.assertEqual(self.cif.task_keyword, 'kw-updated')
         self.assertEqual(self.cif.last_operator_name, 'editor')
         self.assertTrue(self.cif.last_operated_at)
-        mock_sched.pause_job.assert_called()
+        mock_sched.pause_job.assert_not_called()
 
     def test_edit_with_resume_starts_job(self):
         mock_sched = MagicMock()
-        with patch('app.services.cron_service.scheduler', mock_sched):
+        with patch('app.services.cron_service.scheduler', mock_sched), \
+                patch('app.services.cron_edit_apply.scheduler', mock_sched):
             with patch('app.services.cron_service.register_cron_job'):
                 with patch(
                     'app.services.operation_log_service.resolve_operator_from_request'

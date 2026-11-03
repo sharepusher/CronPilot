@@ -6,6 +6,7 @@
 | 规则文件                           | 作用                                           |
 | ------------------------------ | -------------------------------------------- |
 | `cronpilot-project.mdc`        | 项目定位、仓库边界、路线图、Git/测试总则（始终生效）                 |
+| `cronpilot-edit-contract.mdc` | 编辑/局部更新：字段意图、当前授权、并发、范围外保留与有效副作用；详 `doc/arch/编辑与局部更新开发规范.html` |
 | `cronpilot-backend.mdc`        | 后端安全、服务层、API 与 `/docs` 路由；**新增枚举值扩展检查清单**（强制）|
 | `cronpilot-documentation.mdc`  | HTML+Markdown 双格式文档与 CI 同步                   |
 | `cronpilot-release-deploy.mdc` | 非 Docker 部署、发布与 GitHub CI                    |
@@ -88,6 +89,8 @@
 
 **测试数据库隔离（强制 · 2026-08 事故教训）**：测试文件中**严禁** `from manage import app` 或 `from manage import db`（`manage.py` 在模块级别 `create_app('development')` 绑定开发数据库）。所有测试必须使用 `sqlite:///:memory:`。改动测试文件后须在测试完成后 `sqlite3 datas/job_log.sqlite ".tables"` 确认表未被破坏。交付前须 `cronpilot.sh restart` → 浏览器 **POST 登录**（非仅 GET）→ 确认主页正常。详 `.cursor/rules/cronpilot-project.mdc`「测试数据库隔离」。
 
+**用户编辑范围保护回归**：`python -m unittest tests.test_user_edit_scope_projection -v` 固定单组管理员/多组目标交叉矩阵，断言资料-only 零组 DML/Token/认证版本副作用。真实 MySQL 工具同时验证范围外保留。
+
 **快速命令**
 
 ```bash
@@ -120,6 +123,10 @@ python scripts/check_terminology.py --check       # 术语门禁：禁止旧术�
 python scripts/check_brand_svg_consistency.py --check  # 品牌 SVG include 链完整性：_brand_paths → _brand_block/sidebar → 4 auth 模板
 python scripts/smoke_routes.py --check             # 关键路由冒烟：86 条路由 v1+v2 含 GET/POST/API/错误路径（跨层重命名/模板变更后必跑）
 python scripts/smoke_routes.py --live --check      # 对运行中的服务做 HTTP 冒烟（16 条非 seed 路由）
+python scripts/verify_user_edit_group_preflight.py  # 组选择浏览器矩阵；需 Playwright Chromium，系统 Chrome 可传 --executable-path
+python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/rbac-outcomes-new  # 七状态真实页面；目录须空，系统 Chrome 可传 --executable-path
+python -m unittest tests.test_user_edit_sqlite_boundary -q  # SQLite局部保护内存守卫
+python scripts/verify_user_edit_sqlite_boundary.py --output-dir /private/tmp/boundary-new-empty  # 专用临时文件集成，系统Chrome可传 --executable-path
 python scripts/html_docs_to_markdown.py --check
 bash scripts/check_pending_sync.sh
 ```
@@ -207,3 +214,6 @@ bash scripts/check_pending_sync.sh
 **AskQuestion 前置门禁（强制 + Hook 程序化强制）**：Agent 在 invoke `AskQuestion` 之前必须自检"本轮是否有修复性变更？如有，是否已包含 7 项复盘要素？"缺失则先补复盘再提问。**修复 = 改代码 + 测试通过 + 复盘**，三者为原子整体，缺一不可。适用于所有修复（含自发现的问题、文案/文档修正）。**程序化强制**：`.cursor/hooks.json` 配置了 L1（`postToolUse` 每次编辑后注入提醒）+ L2（`stop` prompt hook 结束前评估是否遗漏复盘）。纯文字规范已被证明反复失效（3+ 次），Hook 为硬约束层。
 
 **勿改**：上游 `xiaoniu_cron` 仓库（除非用户明确要求）。
+
+
+**D2 启停例外（2026-11-02，用户已确认）**：启停已提交后不得因为调度异常无条件恢复旧 DB 状态。正常同步成功不额外查询；不确定异常有限核实，明确目标签名重试按当前版本拒绝陈旧意图。保存事务未提交仍须 rollback；下线等其他路径不由本例外自动授权迁移。见 `doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html` §13。

@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>RBAC 用户编辑 U3 交互与审计展示验收</title><style>body{font-family:system-ui,sans-serif;max-width:980px;margin:auto;padding:2rem;line-height:1.7;color:#1e293b}h1,h2{color:#0f766e}code{background:#f1f5f9;padding:1px 4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:.55rem;text-align:left;vertical-align:top}.ok{border-left:4px solid #15803d;background:#f0fdf4;padding:1rem}.note{border-left:4px solid #2563eb;background:#eff6ff;padding:1rem}</style></head><body>
+<p><strong>后续 Review 补充：</strong>本页为原 U3 基础验收记录；两项 P1 已补修，见<a href="../postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html">本轮复盘与验收</a>。两项 P2 后续亦已补修，见<a href="../postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">最新复盘与验收</a>；本页原数量和评级保留为历史记录。</p><main>
+<h1>RBAC 用户编辑 U3 交互与审计展示验收</h1><p>日期：2026-10-29 · 状态：<strong>通过</strong> · 范围：<code>/rbac/users/edit</code> 与访问审计中的 <code>user:update</code> JSON v1</p>
+<div class="ok"><strong>结论：</strong>U3 已完成，U0–U3 设计闭环全部落地。正常浏览器路径在请求前阻止 no-op；邮箱清空必须经表单型确认并填写理由；各写入 outcome 不再误刷新或误报成功；审计详情只展示经过严格解析的五字段白名单，损坏和未来结构安全降级。</div>
+<h2>1. 实施内容</h2><ul>
+<li>公共 Ajax 提交增加可取消的 <code>cp:form-before-ajax-submit</code> 和 opt-in <code>cp:form-outcome</code>，只对显式 outcome 留页，不改变其他表单默认跳转。</li>
+<li>编辑页用与服务端一致的五字段规范化比较原始快照；无变化直接提示且不发 POST。</li>
+<li>仅“原邮箱非空 → 请求邮箱为空”打开 <code>CpModal</code>；理由 trim 后必须为 1–500 字，取消和空理由均不提交；确认字段动态写入前移除同名旧节点。</li>
+<li>无 JavaScript 的原生 POST 回退保留表单输入、确认标志和理由输入区；NO_CHANGE、ALREADY_APPLIED、CONFLICT、COMMIT_UNKNOWN 经 PRG 返回稳定提示。</li>
+<li>访问审计严格解析 JSON v1；只渲染 email、nickname、job_title、role、group_ids 的 before/after 和邮箱清空理由；不使用 <code>|safe</code>。</li>
+</ul>
+<h2>2. 验收证据</h2><table><thead><tr><th>验证</th><th>结果</th></tr></thead><tbody>
+<tr><td>专项测试</td><td><code>tests.test_user_edit_change_set</code> 24/24；覆盖前端契约、原生回退、PRG、JSON v1、XSS 转义和 U1/U2 写边界。</td></tr>
+<tr><td>联合相关回归</td><td>111/111；RBAC phase、Ajax 守卫、用户恢复全部通过。</td></tr>
+<tr><td>Scope 全模块</td><td>81/81；数据库当前 actor、授予边界、注册审批和用户管理红线全部通过。</td></tr>
+<tr><td>角色导航</td><td>12/12；Seed Admin、Biz Admin、Operator、Viewer 正反向路径通过。</td></tr>
+<tr><td>路由冒烟</td><td>86/86；v1/v2 GET、POST、API 和错误路径无 500。</td></tr>
+<tr><td>静态门禁</td><td>Ruff、UI 契约、Ajax 防重复提交、硬编码颜色检查全部通过。</td></tr>
+<tr><td>真实浏览器 no-op</td><td>原样保存留在编辑页并提示“未检测到变更”；数据库、审计和 <code>auth_version</code> 均未变化。</td></tr>
+<tr><td>真实浏览器邮箱清空</td><td>空理由被对话框阻止，取消不提交；有效理由后邮箱保存为 SQL <code>NULL</code>，资料-only 不 bump，审计 1 行且理由完整。</td></tr>
+<tr><td>真实浏览器冲突</td><td>页面加载后外部修改花名；陈旧提交留页提示冲突，数据库保留并发值，未新增成功审计。</td></tr>
+<tr><td>审计回退矩阵</td><td>正常 v1 显示前后值、已清空和理由；损坏 JSON、未知版本、未知字段分别安全提示，页面无 500。</td></tr>
+<tr><td>fixture 清理</td><td>隔离用户、关系、成功审计和三类异常审计样本全部删除，残留均为 0。</td></tr>
+</tbody></table>
+<h2>3. 专业评估</h2><p><strong>准确性：A。</strong>浏览器比较值与后端规范化字段一致，前端只优化交互，最终安全仍由 U1/U2 服务端契约保证；审计解析器不把数据库 JSON 当可信 HTML。</p><p><strong>专业性：A。</strong>公共 Ajax 扩展采用 opt-in 事件而不是页面特判；输入型确认使用 <code>CpModal</code>；原生 POST、无 JavaScript、损坏历史数据均有降级路径。</p><p><strong>合理性：A。</strong>所有比较和 JSON 解析规模均为固定五字段，性能开销可忽略；no-op 减少网络与数据库入口，审计展示不增加查询。</p>
+<h2>4. 交付边界</h2><div class="note">本验收只声明 <code>/rbac/users/edit</code> 的 U0–U3 完成。密码、Token、停用、审批和其他编辑入口继续使用各自既有流程；凭据操作仍记录事件，但凭据值永不进入 detail。</div>
+</main><footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑U3交互与审计展示验收-2026-10-29.md">Markdown</a> · <a href="../design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">正式设计</a></footer></body></html>

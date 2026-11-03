@@ -1,0 +1,1 @@
+{"backend": "MySQL", "results": [{"case": "direct", "dml": 0, "commits": 0, "scheduler_writes": 0}, {"case": "web", "dml": 0, "commits": 0, "scheduler_writes": 0}, {"case": "api", "dml": 0, "commits": 0, "scheduler_writes": 0}], "isolated_database_removed": true}

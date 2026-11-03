@@ -1,0 +1,14 @@
+[
+  {
+    "route": "/api/cron",
+    "success_without_query": true,
+    "committed_error": true,
+    "lost_ack_confirmed": true
+  },
+  {
+    "route": "/api/cron/add",
+    "success_without_query": true,
+    "committed_error": true,
+    "lost_ack_confirmed": true
+  }
+]

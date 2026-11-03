@@ -1,0 +1,58 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>R5：用户编辑字段意图与范围外组保留设计</title><style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:auto;padding:32px;line-height:1.8}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd5df;padding:10px;text-align:left;vertical-align:top}th,pre,.note{background:#f5f8fa}pre,.note{padding:16px}.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}.screen{border:1px solid #ccd5df;padding:20px;border-radius:10px}.row{padding:10px 0;border-bottom:1px solid #ccd5df}.button{display:inline-block;border:1px solid #215c78;padding:6px 15px;margin-top:12px}h2{margin-top:32px}code{overflow-wrap:anywhere}@media(max-width:750px){.compare{grid-template-columns:1fr}body{padding:18px}}</style></head><body>
+<h1>R5：用户编辑字段意图与范围外组保留设计</h1>
+<p>版本：rev.1.1 · 日期：2026-10-29 · 状态：<strong>用户已明确确认；按设计实施并验证</strong>。R5 为评估发现编号，不新增 OPT 编号。</p>
+<div class="note"><strong>核心原则：</strong>只改花名，就只更新花名。表单含某字段不等于用户修改了该字段；服务端必须根据可信的页面原始值判定修改意图。范围外的组不能因页面未展示而被删除。</div>
+<p>依据：<a href="管理员admin-Scope差异化设计.html">管理员 Scope 设计</a> §3.6/§7 明确要求保留范围外组；<a href="RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">父设计</a> D1/D5/D7 规定意图、有效差异和授权副作用；<a href="../postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">P2 复盘</a> §6.1 登记了 R5 只读复现。<a href="#page-compare">页面对比</a>。</p>
+<table><tr><th>版本</th><th>日期</th><th>内容</th></tr><tr><td>rev.1.1</td><td>2026-10-29</td><td>用户确认实施；v2 签名编辑范围、同范围投影、范围内关系差异写入完成；SQLite/MySQL、1020 项全量（12 跳过）与目标角色浏览器通过。</td></tr><tr><td>rev.1</td><td>2026-10-29</td><td>冻结可编辑投影与完整绑定的区别、资料-only 零授权写入、范围外保留及并发边界；提出分批验收。</td></tr></table>
+<h2>交付契约矩阵</h2>
+<table><tr><th>对象/传输</th><th>认证与责任</th><th>失败与响应</th><th>验收</th></tr>
+<tr><td>GET 原值与表单</td><td>当前数据库 actor/target Scope 校验。完整目标组用于保护；可编辑投影用于表单意图比较，二者不得混用。</td><td>不能忠实展示/授权读取失败，不提供可提交缩水表单。</td><td>A 管理员打开 A+B 用户，页面可编辑组初值 A；完整原始绑定仍受保护。</td></tr>
+<tr><td>POST / Ajax 与原生</td><td>CSRF、已验签原值、数据库当前再授权。浏览器不承担最终修改字段裁决。</td><td>非法/陈旧 actor 上下文拒绝；冲突整体不写。沿用原 outcome。</td><td>只改花名时 user_groups、role、Token/auth_version/Scope 缓存本次零变更。</td></tr>
+<tr><td>真正授权变更</td><td>只授权可管理组增减；原范围外绑定不是新授予。角色/完整组保持授权单元三方比较。</td><td>无法证明合法则拒绝，不通过跳过 Scope 校验实现“保留”。</td><td>范围外绑定始终保留；并发授权变化不静默覆盖；仅真实权限变化触发授权副作用。</td></tr>
+<tr><td>审计/交付</td><td>沿用同事务 JSON v1，只记录有效差异，不复制凭据。</td><td>未通过不得标修复；HTML/MD、索引、浏览器与复盘同轮同步。</td><td>资料-only 审计只有实际资料字段，不出现伪 group_ids 变化。</td></tr></table>
+<h2>1. 问题与根因</h2>
+<p>当前目标完整原值是 A+B，单组管理员的表单只有 A；后端直接比较完整原值与不完整提交值，产生伪组修改。它不是没有做差异判断，而是两侧比较对象不一致。后续全量替换会进一步把范围外 B 当作待删除项。</p>
+<p>只在前端过滤、或只在最终写库前补回 B 都不完整：前者可被原生请求绕过，后者仍可能生成伪授权意图，造成无意义冲突、重签 Token、版本递增或错误审计。</p>
+<h2>2. 推荐方案：分别保存和比较三种事实</h2>
+<ol><li><strong>页面可编辑原值：</strong>管理员当时能编辑的字段/组。A 管理员看到的组原值是 A。</li><li><strong>页面请求值：</strong>本次提交的组仍为 A，因此组没有修改意图；花名变了才产生花名意图。</li><li><strong>数据库完整当前值：</strong>保存时重新读取并保护 A+B，或期间被合法更改后的最新集合。没有组意图时不执行任何组关系 DML。</li></ol>
+<pre>页面初值：花名=小夏，可编辑组=A
+本次输入：花名=Summer，可编辑组=A
+
+修改意图：只有 nickname
+本次写入：只有 nickname + 对应成功审计
+组 A/B、角色、其他资料：不写
+Token/auth_version/Scope 缓存：本次零副作用</pre>
+<h3>2.1 可信原值的实现方向</h3>
+<p>推荐保留完整目标组原值，并把“GET 时的编辑范围”一并签名；派生表单比较投影。为避免隐式兼容，已将编辑快照升为 v2，增加 editor_scope（bypass 布尔值与按组管理员的排序组集合）。全局/种子 bypass 不把所有业务组装进 token，只记录全局模式。旧 v1 编辑页明确刷新，不修改数据库字段或外部 API。</p>
+<p>前端的比较基准来自 signed original 的<strong>同一可编辑投影</strong>，服务端也用相同投影计算意图；角色、邮箱、花名、岗位仍使用对应原值。token 原文在失败回显中保持不变，继承 P1。P1 原来“JS original 等于整个 token 对象”的表达需细化为“JS original 等于 token 的表单投影”，不能悄悄修改语义。</p>
+<p>editor_scope 只是证明当时的展示范围，不是授权凭据。服务锁内仍读取当前 actor 能力/Scope；与签名编辑范围不一致时要求刷新，不能用新范围重新解释旧选择。全局角色、资料修改权限仍按现有设计，不能借此扩大授权。</p>
+<h3>2.2 服务端按实际意图执行</h3>
+<ul><li><strong>没有 group_ids/role 意图：</strong>不计算组替换、不改角色、不重签 Token、不 bump，不因未改字段的陈旧请求值写回其他状态。仍检查当前 actor 可管理目标、账号启用，以及本次资料字段的三方比较。</li><li><strong>存在可见组修改意图：</strong>只 diff 当前 actor 允许编辑的组。范围外绑定保持；禁止把完整目标组当作“本次新授予组”全部塞进子集校验，也禁止直接绕过校验。新增/删除可见关系必须分别受当前授权约束。</li><li><strong>存在角色/组授权意图：</strong>仍以完整 role+group_ids 单元比较原始、当前和逻辑目标；授权并发不一致时拒绝，不拼接两个时点的授权。实际关系 DML 只触及可编辑集合。</li><li><strong>资料-only 遇到别人的无关变化：</strong>例如他人把外组 B 改成 D，只要当前仍有管理资格，且本次花名没有冲突，应只改花名，保留当前 A+D；不恢复旧 B。若真实调整授权时遇到该并发，则沿用更严格的整个授权单元冲突检查。</li></ul>
+<p>空选择、移出唯一可管理组、全局 marker 等不在本方案中顺手开放；沿用现有必选和授权约束。若后续需要“移出本组但保留其他组”，应另明确交互和权限，不从空数组猜测。角色是用户全局字段，其既有授权继续单独校验，不把范围外组保留解释为任意提权许可。</p>
+<h2>3. 示例与正确结果</h2>
+<table><tr><th>操作</th><th>结果</th></tr>
+<tr><td>A 管理员原样保存 A+B 用户</td><td>无修改意图；正常 JS 0 POST，构造 POST 也零业务写/审计/授权副作用。</td></tr>
+<tr><td>A 管理员只改花名</td><td>只改花名；A+B 不动，不 bump/重签。</td></tr>
+<tr><td>A/C 管理员把可编辑组 A 改成 C，目标另有 B</td><td>合法且无并发时变为 C+B；B 不增删。真实组变化才生成授权副作用和 group_ids 审计。</td></tr>
+<tr><td>仅改花名，期间他人把 B 改成 D</td><td>保留当前 A+D，只更新花名；若失去当前管理资格则拒绝。</td></tr>
+<tr><td>真正改组，期间他人改了角色或完整组</td><td>整个授权单元检查；非等价并发冲突不覆盖。</td></tr></table>
+<h2 id="page-compare">4. 页面 Before / After</h2>
+<p>承接父设计 §8 AFTER · 编辑用户：保留 viewer、启用、user@company.com、保存的表单结构；增加本场景花名和只读提示，不新增可编辑业务字段。以下左右同一用户，范围外组只用于说明保护要求，不增加操作入口。</p>
+<div class="compare"><section class="screen"><h3>BEFORE</h3><div class="row">角色：viewer</div><div class="row">状态：启用</div><div class="row">邮箱：user@company.com</div><div class="row">花名：小夏 → Summer</div><div class="row">业务组：A（锁定）</div><span class="button">保存</span><p>后台误把 A+B→A 当作组修改，可能删除 B，并产生授权副作用。</p></section><section class="screen"><h3>AFTER</h3><div class="row">角色：viewer</div><div class="row">状态：启用</div><div class="row">邮箱：user@company.com</div><div class="row">花名：小夏 → Summer</div><div class="row">业务组：A（锁定）<br><small>仅显示可管理的组；其他组绑定保留。未修改组时不会调整绑定。</small></div><span class="button">保存</span><p>只保存花名；组、角色、其他资料、Token 和会话版本不因本次保存而变化。</p></section></div>
+<h2>5. 范围、分批与 API 核对</h2>
+<p>已读取 views.py 的 GET/POST、services.py 的 build/verify snapshot、build intent、update_user_management 的权限/三方比较/关系写入，以及 user_management_scope.py。现有算法先构造全量 desired 集合再差异写入，必须同时改意图层和写入层；禁止只改模板。</p>
+<table><tr><th>批次</th><th>范围</th><th>门禁</th></tr>
+<tr><td>R5-A</td><td>正式固定 v2 签名 schema、展示投影和服务端纯意图规则；同步所有内部调用方/测试。</td><td>旧 v1 刷新、类型/actor/target/范围校验、失败 token 连续；A+B 的原样/花名-only 不产生权限意图。</td></tr>
+<tr><td>R5-B</td><td>views/services 的当前授权、范围内 diff、全量授权并发保护和有效审计；保留原子提交。</td><td>外组保持、非法新增拒绝、资料-only 零授权副作用；SQLite 与隔离 MySQL 均验证。</td></tr>
+<tr><td>R5-C</td><td>模板提示、浏览器正反向、七项复盘、父设计/文档/索引与可验证环境。</td><td>restart 后登录 GET 200、目标角色 POST 登录、截图和 DB/审计断言，才标完成。</td></tr></table>
+<p>不新增数据库列/依赖，不改注册/创建用户策略、停用、凭据操作或审计 reader；不重构全站授权框架。新 helper/schema 是拟实施内容，不冒称现有 API；实现前须以本设计核对所有调用方。</p>
+<h2>6. 验收</h2>
+<ul><li>actor A、target A+B：原样 no-op 和只改花名；后者其他所有标量、UserGroup、Token/auth_version/缓存均本次零变化，审计仅 nickname。</li><li>actor A/C、target A+B：原样保留 A+B；A→C 只变可编辑关系，保留 B，授权版本一次增加；伪造新组 D 拒绝。</li><li>原生 POST、JS、锁定 hidden、多选 select、失败回显后再次提交均同样成立；不能只检查 Toast。</li><li>资料-only 期间外组/无关字段并发，保留当前值；意图字段三方冲突拒绝；真正角色/组变更仍检查完整授权单元。</li><li>actor Scope/角色在 GET 后或写前变化、目标停用/离开交集、组删除：fail-closed，不用新范围解释旧请求。</li><li>保留 P1、P2 的全部回归，新增外组保留永久测试；86 路由、Ruff、Ajax/导航、UI/颜色与文档门禁。改测试后核对开发 SQLite 表完整。</li></ul>
+<h2>7. 取舍、风险与回滚</h2>
+<p><strong>推荐：</strong>以可信表单投影判定用户意图，以当前数据库完整集合保证写入范围。它同时解决“不应变更”和“即使真改也不能误删外组”，不依赖用户理解隐藏字段。</p>
+<p>只修前端或只补最终集合不充分；把含外组的所有用户一律禁止编辑会改变现有权限，并阻碍正常资料修改。服务端投影和范围内写入更符合已有设计，但需要同步前后端及调用方，不能只做一行补丁。</p>
+<p>风险是快照版本迁移、将外组保留误当新授权、或对并发组变化处理过宽。控制方式是旧页显式刷新、授权与保留分开校验、真正授权变更保持完整单元比较。不扩张空组移出能力；无法证明合法时拒绝。若修复验收失败，停止含外组目标的写入并给出明确提示，不回到缩水全量覆盖。</p>
+<p>实施后复盘必须覆盖七项要素；永久防护落在专项单测和现有浏览器 preflight/live 验证，重点断言“只改花名不影响其他字段”，不能只再写一条既有规则。</p>
+<h2>8. 当前状态</h2>
+<p>只读复现见 R5 已登记证据：完整原值 [13,14]、表单 [13]、准备提交 [13]，探针实际业务 POST=0。用户随后明确“确认实施”。R5-A/B/C 已完成，最新验收命令、结果、可复验环境和七项复盘见<a href="../postmortem/2026-10-RBAC用户编辑范围外组误删.html">修复复盘</a>。测试专用账号/组保留；业务代码与文档未 commit。</p>
+<footer><a href="../index.html">文档索引</a> · <a href="R5用户编辑字段意图与范围外组保留设计-2026-10-29.md">Markdown 版</a></footer></body></html>

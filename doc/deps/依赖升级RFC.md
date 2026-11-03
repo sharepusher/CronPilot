@@ -290,7 +290,17 @@ RBAC 插入点（推荐）:
 - 建表：目标环境执行 `db upgrade` 成功，或文档记录 `ensure_rbac_tables` 使用条件与限制（不替代 Alembic 历史时的局限须写清）。
 - 无 `rbac_enable` 配置项。
 
+用户编辑 R5 验收扩展：`scripts/verify_user_edit_transaction_mysql.py` 已包含外组保留/资料-only/授权并发；需新建专用空库，无新增依赖。专项测试 `python -m unittest tests.test_user_edit_scope_projection -v`。见[R5 验收与复盘](../postmortem/2026-10-RBAC用户编辑范围外组误删.html)。
+
+用户编辑浏览器专项入口：`python scripts/verify_user_edit_group_preflight.py`，使用现有 Playwright Chromium；系统 Chrome 可传 `--executable-path`。它执行真实模板/jQuery 提交前比较，不连接业务服务；组选择与审计补修的完整验收见[两项 P2 设计与实施记录](../design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html)。本入口不改变依赖 pin 或 Tier 状态。
+
 ### 7.6 不必因 RBAC 而升级的内容
+
+SQLite用户编辑局部事务保护已按确认设计实施，无新增依赖或pin变化。内存守卫：`python -m unittest tests.test_user_edit_sqlite_boundary -q`；专用临时文件集成：`python scripts/verify_user_edit_sqlite_boundary.py --output-dir /private/tmp/boundary-new-empty --executable-path <Chrome路径>`。真实边界、基线失败及预览见[专项验收](../qa/SQLite用户编辑原子保护验收-2026-11-02.html)，不改变Tier状态或全仓事务规范。
+
+用户编辑七状态真实页面验收：`python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/rbac-outcomes-new`自行创建内存库与回环HTTP服务；目录须空，现有Playwright可使用系统Chrome的`--executable-path`。测试隔离、故障注入和实际证据见[七状态验收](../qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html)；无新增运行时依赖、pin或Tier状态变化。
+
+用户编辑锁释放专项：现有 `scripts/verify_user_edit_transaction_mysql.py` 已增强清理前独立连接探针、正负校准和可选JSON证据；快速守卫 `python -m unittest tests.test_user_edit_lock_release_guard -q`。运行条件与实际验收见[锁释放验收复盘](../postmortem/2026-10-RBAC锁释放验收观察边界.html)，无依赖pin、生产配置或Tier状态变化。
 
 - Flask 2.x / 3.x、Werkzeug 2+
 - SQLAlchemy 2.0、Flask-SQLAlchemy 3.x

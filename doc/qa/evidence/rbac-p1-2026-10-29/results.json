@@ -1,0 +1,21 @@
+{
+  "results": {
+    "restored_js_unique_fields_and_conflict": true,
+    "global_native_conflict_and_invalid": true,
+    "scoped_native_conflict_and_invalid": true,
+    "js_modal_success": true,
+    "operator_403": true,
+    "target_403": true
+  },
+  "ids": {
+    "global": 34,
+    "scoped": 35,
+    "target": 36,
+    "outside": 37,
+    "operator": 38
+  },
+  "groups": [
+    11,
+    12
+  ]
+}

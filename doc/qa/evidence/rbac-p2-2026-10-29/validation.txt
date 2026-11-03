@@ -1,0 +1,14 @@
+2026-10-29 Asia/Shanghai
+Joint unittest regression: 228 passed in 294.690s
+Actual-template Chrome preflight: 18/18 passed, POST counts and untouched payloads
+Live browser: 16/16 true (results.json); global/multi/single admin + viewer/operator
+P1 browser regression: 6/6 true
+smoke_routes.py --check: 86/86 passed
+Ruff app + changed tests + verify_user_edit_group_preflight.py: 0 violations
+UI contract, route completeness, hardcoded colors, git diff --check: passed
+Development SQLite tables intact; GET login 200 and browser POST login performed
+Local foreground service retained, fixture accounts and audit samples retained for review
+Documentation: HTML/MD synchronized, 364 HTML registered, 2797 references valid, 4 doc-index tests passed
+Postmortem check: exit 0, 41 existing historical release-reference warnings
+Additional read-only R5 probe: original groups [13,14], hidden/submitted group [13], AJAX intercepted, actual business POST=0
+R5 outside-scope membership preservation remains open and was not implemented in this batch

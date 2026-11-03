@@ -1,0 +1,24 @@
+{
+  "focused": {
+    "command": ".venv-py311/bin/python -m unittest tests.test_cron_edit_apply tests.test_cron_edit_status tests.test_cron_edit_noop tests.test_cron_edit_concurrency tests.test_lifecycle_logging -q",
+    "ran": 78,
+    "result": "OK"
+  },
+  "full_discovery": {
+    "ran": 1099,
+    "skipped": 12,
+    "result": "OK",
+    "scope": "Earlier D1 snapshot; final test additions and message calibration covered by focused suite"
+  },
+  "routes": {
+    "ran": 86,
+    "passed": 86
+  },
+  "ruff": "passed",
+  "preview_login_http": 200,
+  "backends": [
+    "sqlite",
+    "mysql"
+  ],
+  "postmortem_gate_existing_warnings": 41
+}

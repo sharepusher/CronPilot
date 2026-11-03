@@ -1,0 +1,92 @@
+[
+  {
+    "case": "specific_noop",
+    "posts": 0,
+    "passed": true
+  },
+  {
+    "case": "order_and_duplicates",
+    "posts": 0,
+    "passed": true
+  },
+  {
+    "case": "global_noop",
+    "posts": 0,
+    "passed": true
+  },
+  {
+    "case": "global_to_specific",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "specific_to_global",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "add_group",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "remove_group",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "empty_is_not_global",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "mixed_marker",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "invalid_integer",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "unsafe_integer",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "disabled_source",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "conflicting_sources",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "multiple_selects",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "hidden_noop",
+    "posts": 0,
+    "passed": true
+  },
+  {
+    "case": "hidden_change",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "missing_control",
+    "posts": 1,
+    "passed": true
+  },
+  {
+    "case": "non_admin_global",
+    "posts": 1,
+    "passed": true
+  }
+]

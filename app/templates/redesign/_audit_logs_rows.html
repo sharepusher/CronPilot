@@ -18,7 +18,24 @@
       <span class="pg-audit-badge pg-audit-badge-muted">{{ audit_action_label(item.action) or '—' }}</span>
     {% endif %}
   </td>
-  <td class="cp-text-xs pg-desc-cell">{{ audit_resource_label(item.action, item.resource) }}</td>
+  <td class="cp-text-xs pg-desc-cell">
+    <div>{{ audit_resource_label(item.action, item.resource) }}</div>
+    {% if item.action == 'user:update' %}
+      {% set detail_view = format_user_update_audit_detail(item.detail) %}
+      {% if detail_view.state == 'ok' %}
+      <ul class="pg-audit-change-list">
+        {% for change in detail_view.changes %}
+        <li><strong>{{ change.label }}</strong>：{{ change.before }} → {{ change.after }}{% if change.cleared %}（已清空）{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% if detail_view.reason %}<div class="pg-audit-reason"><strong>变更理由：</strong>{{ detail_view.reason }}</div>{% endif %}
+      {% elif detail_view.state == 'invalid' %}
+      <div class="pg-audit-detail-fallback">审计详情格式无效</div>
+      {% elif detail_view.state == 'unsupported' %}
+      <div class="pg-audit-detail-fallback">审计详情版本暂不支持</div>
+      {% endif %}
+    {% endif %}
+  </td>
   <td class="mono cp-text-xs cp-text-muted">{{ item.ip or '—' }}</td>
   <td>
     {% if item.status == 'deny' %}

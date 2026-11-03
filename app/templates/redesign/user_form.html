@@ -8,9 +8,15 @@
 {% if form_msg %}
 <div class="uf-alert uf-alert-err">{{ form_msg }}</div>
 {% endif %}
+{% if outcome_notice %}
+<div class="uf-alert {{ 'uf-alert-ok' if outcome_notice[0] == 'ok' else 'uf-alert-err' }}">{{ outcome_notice[1] }}</div>
+{% endif %}
 
 <div class="uf-card">
-  {% if view_mode %}
+  {% if edit_unavailable %}
+  <p>当前表单不能继续提交。请重新加载后编辑，重新加载将显示数据库当前资料。</p>
+  <a class="btn-c btn-line" href="{{ url_for('rbac.users_edit', id=user.id) }}">重新加载编辑页</a>
+  {% elif view_mode %}
   <!-- View mode: read-only display -->
   <div class="uf-row">
     <label class="uf-label">用户名</label>
@@ -58,9 +64,11 @@
     <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">← 返回用户管理</a>
   </div>
   {% else %}
-  <form method="post" class="js-ajax-form" novalidate action="{{ url_for('rbac.users_edit') if user else url_for('rbac.users_add') }}">
+  {% set fv = form_values if form_values is defined and form_values else none %}
+  <form method="post" class="js-ajax-form{% if user %} js-user-edit-form{% endif %}" novalidate action="{{ url_for('rbac.users_edit') if user else url_for('rbac.users_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% if user %}<input type="hidden" name="id" value="{{ user.id }}">{% endif %}
+    {% if user %}<input type="hidden" name="edit_snapshot_token" value="{{ edit_snapshot_token }}">{% endif %}
 
     <!-- Username row -->
     <div class="uf-row" data-field="uf-username">
@@ -88,7 +96,7 @@
       <label class="uf-label" for="uf-role-select">角色 <span class="uf-req">*</span></label>
       <select name="role" class="f-input uf-select" id="uf-role-select">
         {% for r in roles %}
-        <option value="{{ r }}"{% if user and user.role == r %} selected{% elif not user and r == 'viewer' %} selected{% endif %}>{{ r }}</option>
+        <option value="{{ r }}"{% if fv and fv.role == r %} selected{% elif not fv and user and user.role == r %} selected{% elif not user and r == 'viewer' %} selected{% endif %}>{{ r }}</option>
         {% endfor %}
       </select>
       <span class="uf-hint">viewer 只读；operator 可写任务+看变更记录；admin 含用户管理/访问审计/下线</span>
@@ -97,14 +105,25 @@
     <!-- Email -->
     <div class="uf-row" data-field="uf-email">
       <label class="uf-label" for="uf-email">邮箱</label>
-      <input type="email" name="email" id="uf-email" class="f-input uf-input" maxlength="128" value="{{ user.email if user and user.email else '' }}" placeholder="user@company.com" />
+      <input type="email" name="email" id="uf-email" class="f-input uf-input" maxlength="128" value="{{ (fv.email or '') if fv else (user.email if user and user.email else '') }}" placeholder="user@company.com" />
       <span class="uf-hint">可选；留空则用户首次登录后补填</span>
+      {% if server_confirm_clear_email is defined and server_confirm_clear_email %}
+      <div class="uf-clear-email-fallback" role="alert">
+        <strong>确认清空邮箱</strong>
+        <span>清空后该用户将没有登记邮箱，请填写可审计的变更理由。</span>
+        <p>本次确认原邮箱：<strong>{{ user_edit_original.email or '—' }}</strong></p>
+        <p>提交时若该资料已变更，将拒绝保存并要求重新确认。</p>
+        <label class="uf-label" for="uf-email-clear-reason">清空理由 <span class="uf-req">*</span></label>
+        <textarea id="uf-email-clear-reason" name="email_clear_reason" class="f-input uf-clear-email-textarea" maxlength="500" rows="3" required>{{ email_clear_reason or '' }}</textarea>
+        <input type="hidden" name="confirm_clear_email" value="1">
+      </div>
+      {% endif %}
     </div>
 
     <!-- Nickname -->
     <div class="uf-row">
       <label class="uf-label" for="uf-nickname">花名</label>
-      <input type="text" name="nickname" id="uf-nickname" class="f-input uf-input uf-input-short" maxlength="64" value="{{ user.nickname if user and user.nickname else '' }}" />
+      <input type="text" name="nickname" id="uf-nickname" class="f-input uf-input uf-input-short" maxlength="64" value="{{ (fv.nickname or '') if fv else (user.nickname if user and user.nickname else '') }}" />
       <span class="uf-hint">可选</span>
     </div>
 
@@ -115,11 +134,11 @@
         <select name="job_title" class="f-input uf-select" id="uf-job-title-select">
           <option value="">-- 请选择岗位 --</option>
           {% for code, label in (job_title_choices or []) %}
-          <option value="{{ code }}"{% if user and user.job_title == code %} selected{% elif user and user.job_title and user.job_title.startswith('other') and code == 'other' %} selected{% endif %}>{{ label }}</option>
+          <option value="{{ code }}"{% if fv and fv.job_title == code %} selected{% elif fv and fv.job_title and fv.job_title.startswith('other:') and code == 'other' %} selected{% elif not fv and user and user.job_title == code %} selected{% elif not fv and user and user.job_title and user.job_title.startswith('other') and code == 'other' %} selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
         <span id="uf-job-title-other-wrap" style="display:none">
-          <input type="text" name="job_title_other" class="f-input uf-input-other" maxlength="20" value="{% if user and user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="请填写具体岗位" aria-label="具体岗位" />
+          <input type="text" name="job_title_other" class="f-input uf-input-other" maxlength="20" value="{% if fv and fv.job_title and fv.job_title.startswith('other:') %}{{ fv.job_title[6:] }}{% elif not fv and user and user.job_title and user.job_title.startswith('other:') %}{{ user.job_title[6:] }}{% endif %}" placeholder="请填写具体岗位" aria-label="具体岗位" />
         </span>
       </div>
     </div>
@@ -135,10 +154,10 @@
       {% elif groups %}
       <select name="group_ids" multiple class="f-input uf-select-multi" id="uf-group-select" size="{% if groups|length < 4 %}{{ groups|length + (1 if can_assign_global else 0) }}{% else %}5{% endif %}">
         {% for g in groups %}
-        <option value="{{ g.id }}"{% if user and user_group_ids and g.id in user_group_ids %} selected{% endif %}>{{ g.name }}</option>
+        <option value="{{ g.id }}"{% if fv and g.id in fv.group_ids %} selected{% elif not fv and user and user_group_ids and g.id in user_group_ids %} selected{% endif %}>{{ g.name }}</option>
         {% endfor %}
         {% if can_assign_global %}
-        <option value="__ALL__"{% if user and user_group_ids and '__ALL__' in (user_group_ids|map('string')|list) %} selected{% endif %}>全部（全局权限）</option>
+        <option value="__ALL__"{% if fv and '__ALL__' in (fv.group_ids|map('string')|list) %} selected{% elif not fv and user and user_group_ids and '__ALL__' in (user_group_ids|map('string')|list) %} selected{% endif %}>全部（全局权限）</option>
         {% endif %}
       </select>
       {% if can_assign_global %}
@@ -149,28 +168,22 @@
       {% else %}
       <span class="uf-hint" style="color:var(--cp-warn)">暂无业务组，请先在「业务组」创建</span>
       {% endif %}
+      {% if user and not view_mode and not can_assign_global %}
+      <span class="uf-hint">仅显示可管理的组；其他组绑定保留。未修改组时不会调整绑定。</span>
+      {% endif %}
     </div>
 
-    <!-- Edit-only: is_active toggle -->
+    <!-- Edit-only: status is read-only; lifecycle changes use the dedicated flow. -->
     {% if user %}
     <div class="uf-row">
       <label class="uf-label">状态</label>
-      {% if is_seed_admin_username(user.username) %}
-      <span class="f-input uf-select uf-disabled">启用（系统管理员不可停用）</span>
-      <input type="hidden" name="is_active" value="1">
-      {% elif user.is_active %}
-      <select name="is_active" class="f-input uf-select" aria-label="用户状态">
-        <option value="1" selected>启用</option>
-        <option value="0">停用（不可直接启用）</option>
-      </select>
-      {% else %}
-      <span class="f-input uf-select uf-disabled">已停用（不可直接启用）</span>
-      {% endif %}
+      <span class="f-input uf-select uf-disabled">{{ '启用' if user.is_active else '已停用' }}</span>
+      <span class="uf-hint">状态不可在编辑页修改；请返回用户列表使用专用停用流程并填写缘由</span>
     </div>
     {% endif %}
 
     <!-- Actions -->
-    <div class="uf-actions">
+    <div class="uf-actions" data-field="uf-submit">
       <button type="submit" class="btn-c btn-accent js-ajax-submit">保存</button>
       <a class="btn-c btn-line" href="{{ url_for('rbac.users_list') }}">返回</a>
     </div>
@@ -265,6 +278,151 @@
                 close();
             }
         });
+    });
+})(jQuery);
+{% endif %}
+{% if user and not view_mode and not edit_unavailable %}
+(function($){
+    var $form = $('form.js-user-edit-form');
+    if (!$form.length) return;
+    var original = {{ user_edit_original|tojson }};
+
+    function trimOrNull(value) {
+        var text = String(value || '').trim();
+        return text || null;
+    }
+
+    function requestedGroups(role) {
+        var $select = $form.find('select[name="group_ids"]:enabled');
+        var $hidden = $form.find('input[type="hidden"][name="group_ids"]:enabled');
+        var values;
+        // null is deliberately incomparable: missing/invalid controls must
+        // reach server validation rather than masquerade as global scope [].
+        if ($select.length === 1 && !$hidden.length) {
+            values = $select.val() || [];
+            if (!Array.isArray(values)) values = [values];
+        } else if (!$select.length && $hidden.length) {
+            values = $hidden.map(function(){ return this.value; }).get();
+        } else {
+            return null;
+        }
+        if (!values.length) return null;
+        if (values.indexOf('__ALL__') >= 0) {
+            return values.length === 1 && role === 'admin' ? [] : null;
+        }
+        var groups = [];
+        for (var i = 0; i < values.length; i++) {
+            var text = String(values[i]);
+            if (!/^\d+$/.test(text)) return null;
+            var value = Number(text);
+            if (value < 1 || value > 9007199254740991) return null;
+            if (groups.indexOf(value) < 0) groups.push(value);
+        }
+        groups.sort(function(a, b){ return a - b; });
+        return groups;
+    }
+
+    function requestedValues() {
+        var role = String($form.find('[name="role"]').val() || '');
+        var jobTitle = String($form.find('[name="job_title"]').val() || '').trim();
+        if (jobTitle === 'other') {
+            jobTitle = 'other:' + String($form.find('[name="job_title_other"]').val() || '').trim();
+        }
+        return {
+            email: trimOrNull($form.find('[name="email"]').val()),
+            nickname: trimOrNull($form.find('[name="nickname"]').val()),
+            job_title: jobTitle,
+            role: role,
+            group_ids: requestedGroups(role)
+        };
+    }
+
+    function sameValues(left, right) {
+        var fields = ['email', 'nickname', 'job_title', 'role', 'group_ids'];
+        for (var i = 0; i < fields.length; i++) {
+            if (JSON.stringify(left[fields[i]]) !== JSON.stringify(right[fields[i]])) return false;
+        }
+        return true;
+    }
+
+    function removeEmailConfirmationFields() {
+        $form.find('input[type="hidden"][name="confirm_clear_email"], input[type="hidden"][name="email_clear_reason"]').remove();
+        // JS can be enabled after a native fallback response. Hidden fields
+        // must own these names when the modal resumes AJAX submission.
+        $form.find('textarea[name="email_clear_reason"]').removeAttr('name');
+    }
+
+    function openClearEmailModal() {
+        if (typeof CpModal !== 'function') {
+            if (window.CpToast) CpToast.error('清空邮箱确认对话框不可用，请刷新后重试');
+            return;
+        }
+        CpModal({
+            title: '确认清空邮箱',
+            bodyHtml: '<div class="uf-clear-email-modal"><p class="uf-clear-email-warning">清空后该用户将没有登记邮箱。此操作较少见，请填写变更理由。</p>' +
+                '<label class="uf-label" for="uf-clear-email-modal-reason">清空理由 <span class="uf-req">*</span></label>' +
+                '<textarea id="uf-clear-email-modal-reason" class="f-input uf-clear-email-textarea" maxlength="500" rows="3" placeholder="请说明为什么清空邮箱"></textarea>' +
+                '<span class="uf-clear-email-count">0 / 500</span>' +
+                '<div class="uf-clear-email-error" role="alert"></div></div>',
+            confirmText: '确认清空并保存',
+            cancelText: '取消',
+            danger: true,
+            onConfirm: function(overlay, close) {
+                var textarea = overlay.querySelector('.uf-clear-email-textarea');
+                var error = overlay.querySelector('.uf-clear-email-error');
+                var reason = String(textarea ? textarea.value : '').trim();
+                if (!reason) {
+                    if (error) error.textContent = '请填写清空邮箱的变更理由';
+                    if (textarea) textarea.focus();
+                    return;
+                }
+                if (reason.length > 500) {
+                    if (error) error.textContent = '变更理由最长 500 字';
+                    if (textarea) textarea.focus();
+                    return;
+                }
+                removeEmailConfirmationFields();
+                $('<input>', {type: 'hidden', name: 'confirm_clear_email', value: '1'}).appendTo($form);
+                $('<input>', {type: 'hidden', name: 'email_clear_reason', value: reason}).appendTo($form);
+                $form.data('email-clear-confirmed', true);
+                close();
+                $form.find('button.js-ajax-submit').first().trigger('click');
+            }
+        });
+        var overlay = document.querySelector('.cp-modal-overlay:last-of-type');
+        var textarea = overlay && overlay.querySelector('.uf-clear-email-textarea');
+        var count = overlay && overlay.querySelector('.uf-clear-email-count');
+        if (textarea && count) {
+            textarea.addEventListener('input', function(){ count.textContent = textarea.value.length + ' / 500'; });
+            textarea.focus();
+        }
+    }
+
+    $form.on('cp:form-before-ajax-submit', function(event) {
+        var requested = requestedValues();
+        if (sameValues(original, requested)) {
+            event.preventDefault();
+            removeEmailConfirmationFields();
+            if (window.CpToast) CpToast.success('未检测到变更，无需保存');
+            return;
+        }
+        var clearsEmail = original.email !== null && requested.email === null;
+        if (!clearsEmail) {
+            removeEmailConfirmationFields();
+            $form.removeData('email-clear-confirmed');
+            return;
+        }
+        if ($form.data('email-clear-confirmed')) {
+            $form.removeData('email-clear-confirmed');
+            return;
+        }
+        event.preventDefault();
+        openClearEmailModal();
+    });
+
+    $(document).on('cp:form-outcome', function(_event, data, outcomeForm) {
+        if (!outcomeForm || outcomeForm[0] !== $form[0]) return;
+        if (data && data.data && data.data.outcome === 'confirm_required') openClearEmailModal();
     });
 })(jQuery);
 {% endif %}

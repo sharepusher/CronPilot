@@ -1,0 +1,12 @@
+{
+  "regression": 92,
+  "routes": 86,
+  "ruff": "passed",
+  "backends": [
+    "sqlite",
+    "mysql"
+  ],
+  "current_preview": "http://127.0.0.1:5008",
+  "full_discovery": "not rerun",
+  "commit": "not performed"
+}

@@ -2,6 +2,7 @@
 import json
 import logging
 import traceback
+from types import SimpleNamespace
 
 from flask import current_app, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import and_, desc, select
@@ -22,7 +23,12 @@ from app.repositories.cron_repository import CronRepository
 from app.repositories.job_log_repository import JobLogRepository
 from app.repositories.operation_log_repository import OperationLogRepository
 from app.security.csrf import csrf_protect
-from app.services.cron_service import add_cron_web, edit_cron_web
+from app.services.cron_edit_concurrency import (
+    TaskEditError,
+    build_task_edit_snapshot,
+    save_task_edit,
+)
+from app.services.cron_service import add_cron_web
 from app.services.job_log_filter import KNOWN_OUTCOMES, job_log_outcome_clause
 from app.services.pagination import PageQuery
 from app.services.run_inspector_presenter import (
@@ -860,19 +866,34 @@ def cron_edit():
         return denied
     if cif.status == -1:
         return web_api_return(code=1, msg='任务已下线，不能编辑；请新建任务', url='/cron_list')
+    edit_message = None
+    token = request.form.get('edit_snapshot', '')
     if request.method == 'POST':
         datas = request.values.to_dict()
-        scope_err = _apply_scope_from_form(datas)
-        if scope_err:
-            return web_api_return(code=1, msg=scope_err)
         # OPT-P1-11：标签
         raw_tags = request.form.get('tags', '').strip()
         datas['tag_names'] = [t.strip() for t in raw_tags.split(',') if t.strip()] if raw_tags else []
-        err, field = edit_cron_web(datas, is_dev, CRON_CONFIG, id)
-        if err:
-            payload = {'field': field} if field else None
-            return web_api_return(code=1, msg=err, data=payload)
-        return web_api_return(code=0, msg='修改成功！', url='/cron_list')
+        result = save_task_edit(session.get('user_id'), cif.id, token, datas, is_dev, CRON_CONFIG)
+        outcome = result['outcome']
+        if outcome in ('no_change', 'already_applied'):
+            if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+                return redirect(url_for('main.cron_edit', id=cif.id, outcome=outcome))
+            return web_api_return(
+                code=0, msg=result['msg'], data={'outcome': outcome},
+            )
+        if outcome == 'updated':
+            return web_api_return(code=0, msg=result['msg'], url='/cron_list')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return web_api_return(code=1, msg=result['msg'], data={
+                'outcome': outcome, 'field': result['field'],
+                'reload_required': result['reload_required'],
+            })
+        if outcome != 'conflict' and not result['field']:
+            title = '调度操作结果' if outcome == 'saved_scheduler_error' else '保存结果'
+            return render_template('redesign/error.html', title=title,
+                                   description=result['msg'], show_nav=False,
+                                   home_url=url_for('main.cron_edit', id=cif.id), home_text='重新加载')
+        edit_message = result['msg']
 
     scope_ctx = _scope_form_context()
     # OPT-P1-11：编辑时回显当前 task_groups + tags
@@ -880,6 +901,27 @@ def cron_edit():
     from app.services.tag_service import get_task_tag_names
     current_group_id = get_task_group_id(cif.id)
     current_tags = get_task_tag_names(cif.id)
+    if request.method == 'GET':
+        try:
+            token, display_values = build_task_edit_snapshot(session.get('user_id'), cif, return_values=True)
+            # 展示与签名必须使用同一份投影，不能随后重新读取关系拼出另一基线。
+            current_group_id = display_values['group_id']
+            current_tags = display_values['tag_names']
+        except (TaskEditError, ValueError) as exc:
+            return web_api_return(code=1, msg=str(exc))
+        except Exception:
+            current_app.logger.exception('task edit snapshot failed task_id=%s', cif.id)
+            return web_api_return(code=1, msg='编辑页面加载失败，请稍后重试')
+    elif edit_message:
+        values = {column.key: getattr(cif, column.key) for column in CronInfos.__table__.columns}
+        for field in ('task_keyword', 'run_date', 'day_of_week', 'day', 'hour', 'minute',
+                      'second', 'req_url', 'req_method', 'req_body', 'timeout_sec', 'scope_type'):
+            if field in request.form:
+                values[field] = request.form[field]
+        values['ds_ms'] = request.form.get('ds_ms', '2')
+        cif = SimpleNamespace(**values)
+        current_group_id = request.form.get('group_id', type=int)
+        current_tags = datas['tag_names']
 
     return render_template(
         "redesign/task_form.html",
@@ -889,25 +931,62 @@ def cron_edit():
         is_dev=is_dev,
         current_group_id=current_group_id,
         current_tags=current_tags,
+        edit_snapshot_token=token,
+        edit_message=edit_message,
         **scope_ctx,
     )
 
 
 @main.route('/update_status', methods=['POST'])
+@main.route('/cron_status_apply', methods=['POST'])
+@main.route('/cron_status_check', methods=['GET'])
 @require_permission('cron:write')
 @csrf_protect
 def update_status():
-    from app.services.cron_service import toggle_status
+    from itsdangerous import BadData, URLSafeSerializer
 
-    id = request.values.get('id') or request.args.get('id')
-    cif = db.session.get(CronInfos, id)
-    if not cif:
-        return web_api_return(code=1, msg='项目不存在', url='/cron_list')
-    denied = authorize_resource('cron:write', cif)
-    if denied:
-        return denied
-    ok, msg, _old, _new = toggle_status(cif.id)
-    return web_api_return(code=0 if ok else 1, msg=msg)
+    from app.rbac.authorize import AuthorizationError, authorize
+    from app.services.cron_edit_concurrency import TaskEditError, _actor
+    from app.services.cron_status_apply import save_status, status_config
+
+    task_id = request.values.get('id', type=int)
+    cif = db.session.get(CronInfos, task_id) if task_id else None
+    if cif is None:
+        return web_api_return(code=1, msg='任务不存在')
+    try:
+        actor, scope = _actor(session.get('user_id'))
+        authorize(actor.role, 'cron:write', cif, group_ids=scope['groups'], username=actor.username)
+    except (AuthorizationError, TaskEditError):
+        return web_api_return(code=1, msg='当前权限不允许此操作'), 403
+    serializer = URLSafeSerializer(current_app.secret_key, salt='cron-status-retry-v1')
+    if request.method == 'GET':
+        if cif.status not in (0, 1):
+            return web_api_return(code=1, msg='任务已下线')
+        payload = dict(actor=actor.id, task=cif.id, revision=cif.edit_revision, target=cif.status, config=status_config(cif))
+        return web_api_return(code=0, msg='已读取当前目标，请按明确目标操作',
+                              data=dict(retry_token=serializer.dumps(payload), target=cif.status))
+    expected = None
+    expected_config = None
+    target = request.form.get('status')
+    if request.path == '/cron_status_apply':
+        try:
+            payload = serializer.loads(request.form.get('retry_token', ''))
+            if (not isinstance(payload, dict) or set(payload) != {'actor', 'task', 'revision', 'target', 'config'}
+                    or payload['actor'] != actor.id or payload['task'] != cif.id
+                    or type(payload['revision']) is not int or payload['revision'] < 0
+                    or type(payload['target']) is not int or payload['target'] not in (0, 1)
+                    or str(payload['target']) != target):
+                raise BadData('invalid retry')
+            expected = payload['revision']
+            expected_config = payload['config']
+        except BadData:
+            return web_api_return(code=1, msg='重试基线无效，请刷新确认')
+    context = {}
+    ok, msg, _old, _new = save_status(cif.id, target, expected_revision=expected, context=context, actor_id=actor.id, expected_config=expected_config)
+    data = None
+    if not ok and context:
+        data = dict(retry_token=serializer.dumps(dict(context, actor=actor.id)), target=context['target'])
+    return web_api_return(code=0 if ok else 1, msg=msg, data=data)
 
 
 @main.route('/cron_run_now', methods=['POST'])

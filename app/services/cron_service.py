@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 from apscheduler.jobstores.base import JobLookupError
 
 from app import db, scheduler
-from app.services.cron_validator import validate_cron_form, validate_retire_reason
+from app.services.cron_edit_apply import EditWriteError, apply_edit
+from app.services.cron_edit_noop import cron_edit_is_noop
+from app.services.cron_validator import normalize_cron_form, validate_cron_form, validate_retire_reason
 from datas.model.cron_infos import CronInfos
 from datas.utils.times import utc_now_hms
 
@@ -34,54 +36,9 @@ def toggle_status(cron_id, target_status=None):
         (ok, msg, old_status, new_status)
         ok=False 时 msg 为错误信息；ok=True 且 old==new 时表示状态未变。
     """
-    from app.services.operation_log_service import record_operation
+    from app.services.cron_status_apply import save_status
+    return save_status(cron_id, target_status)
 
-    cif = db.session.get(CronInfos, cron_id)
-    if not cif:
-        return False, '项目不存在', None, None
-    if cif.status == -1:
-        return False, '任务已下线，不能启动或暂停；请新建任务', None, None
-
-    old = cif.status
-    if target_status is None:
-        new = 1 if old == 0 else 0
-    else:
-        new = int(target_status)
-
-    if old == new:
-        msg = '已启动' if new == 1 else '已暂停'
-        return True, msg, old, new
-
-    cif.status = new
-    db.session.add(cif)
-    db.session.commit()
-
-    try:
-        if new == 1:
-            scheduler.resume_job('cron_%s' % cif.id)
-        else:
-            scheduler.pause_job('cron_%s' % cif.id)
-        # GAP-4f: 调度器操作成功日志
-        _log.info(
-            "scheduler %s: cron_%s (%s)",
-            'resumed' if new == 1 else 'paused', cif.id, cif.task_name or '',
-            extra={"event": "cron.scheduler_toggled", "cron_id": cif.id, "new_status": new},
-        )
-    except Exception:
-        logger.error('scheduler op failed after DB commit, rolling back status', exc_info=True)
-        cif.status = old
-        db.session.add(cif)
-        db.session.commit()
-        return False, '调度器操作失败，状态已回滚', None, None
-
-    record_operation(
-        action='toggle_status',
-        target_id=cif.id,
-        task_name=cif.task_name or '',
-        detail={'status': {'old': old, 'new': new}},
-    )
-    msg = '已启动' if new == 1 else '已暂停'
-    return True, msg, old, new
 
 
 def stamp_last_operator(cif, operator=None):
@@ -115,7 +72,7 @@ def build_scheduler_kwargs(normalized):
     return cron_datas
 
 
-def register_cron_job(cron_id, normalized):
+def register_cron_job(cron_id, normalized, *, paused=False):
     from app.crons import cron_do
     from app.services.cron_schedule_display import schedule_configured_from_normalized
 
@@ -124,13 +81,16 @@ def register_cron_job(cron_id, normalized):
     if not schedule_configured_from_normalized(normalized, ds_ms):
         raise ValueError('未配置调度策略，无法注册任务')
     cron_datas = build_scheduler_kwargs(normalized)
-    scheduler.add_job(
+    if paused:
+        cron_datas['next_run_time'] = None
+    job = scheduler.add_job(
         'cron_%s' % cron_id,
         func=cron_do,
         args=[cron_id],
         replace_existing=True,
         **cron_datas,
     )
+
     # GAP-1b: Scheduler 注册成功日志（含 trigger 类型和参数）
     _log.info(
         "scheduler registered: cron_%s trigger=%s %s",
@@ -142,6 +102,8 @@ def register_cron_job(cron_id, normalized):
             "trigger": cron_datas.get('trigger'),
         },
     )
+
+    return job
 
 
 def reschedule_orphan_task(cron_id):
@@ -246,7 +208,7 @@ def create_cron(normalized):
         from app.services.tag_service import sync_task_tags
         sync_task_tags(cif.id, tag_names,
                        created_by=flask_session.get('username') or '',
-                       group_id=group_id)
+                       group_id=group_id, bump_revision=False)
     db.session.commit()
     register_cron_job(cif.id, normalized)
     # GAP-1a: 任务创建成功应用日志（operation_log 仅写 DB，此处写日志文件/ELK）
@@ -265,6 +227,22 @@ def create_cron(normalized):
 
 
 def update_cron(cif, normalized, resume_after_save=False):
+    # 保留返回模型的旧约定；直接服务调用与 Web/API 共用同一只读防线。
+    return update_cron_with_outcome(cif, normalized, resume_after_save)[0]
+
+
+def update_cron_with_outcome(cif, normalized, resume_after_save=False):
+    from sqlalchemy.orm.exc import StaleDataError
+    try:
+        return _update_cron_with_outcome(cif, normalized, resume_after_save)
+    except StaleDataError:
+        db.session.rollback()
+        raise EditWriteError('任务已被修改，本次未保存，请重新加载后确认') from None
+
+
+def _update_cron_with_outcome(cif, normalized, resume_after_save=False):
+    if cron_edit_is_noop(cif, normalized, resume_after_save):
+        return cif, 'no_change'
     from app.services.operation_log_service import (
         build_cron_diff,
         record_operation,
@@ -273,11 +251,18 @@ def update_cron(cif, normalized, resume_after_save=False):
 
     before = snapshot_cron(cif)
     was_paused = cif.status == 0
+    schedule_fields = ('run_date', 'day_of_week', 'day', 'hour', 'minute', 'second')
+    schedule_changed = any((getattr(cif, field) or '') != normalized.get(field, '')
+                           for field in schedule_fields)
+    needs_scheduler = schedule_changed or (resume_after_save and was_paused) or cif.status not in (0, 1)
     apply_normalized_to_model(cif, normalized)
     if resume_after_save and was_paused:
         cif.status = 1
     stamp_last_operator(cif)
+    # 即使墙钟相同或仅关系变化，也必须先发出父行版本条件 UPDATE。
+    cif.edit_revision += 1
     db.session.add(cif)
+    db.session.flush()
     # OPT-P1-11：同步 task_groups 关联（单组）
     new_group_id = normalized.get('group_id')
     if new_group_id is not None:
@@ -296,21 +281,23 @@ def update_cron(cif, normalized, resume_after_save=False):
         task_gid = new_group_id if new_group_id is not None else normalized.get('group_id')
         sync_task_tags(cif.id, tag_names,
                        created_by=flask_session.get('username') or '',
-                       group_id=task_gid if task_gid else None)
-    db.session.commit()
-    register_cron_job(cif.id, normalized)
-    if cif.status == 0:
-        try:
-            scheduler.pause_job('cron_%s' % cif.id)
-        except Exception:
-            _log.warning('pause_job failed for cron_%s', cif.id, exc_info=True)
+                       group_id=task_gid if task_gid else None, bump_revision=False)
+    task_id, revision, status = cif.id, cif.edit_revision, cif.status
+    try:
+        db.session.commit()
+    except Exception:
+        logger.exception('edit commit uncertain task_id=%s', task_id)
+        db.session.rollback()
+        raise EditWriteError('保存结果待核实，请勿重复提交') from None
+    if needs_scheduler:
+        apply_edit(task_id, revision, dict(normalized, status=status))
     record_operation(
         action='update_cron',
         target_id=cif.id,
         task_name=cif.task_name or '',
         detail=build_cron_diff(before, snapshot_cron(cif)),
     )
-    return cif
+    return cif, 'changed'
 
 
 def apply_retire(cif, reason, operator=None):
@@ -396,9 +383,7 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
     API /cron 添加或更新：按 task_name 查找。
     返回 (error_msg, cif)；error_msg 为 None 表示成功。
     """
-    err, normalized, _field = validate_cron_form(
-        datas, is_dev, cron_config, mode='add', api_mode=True
-    )
+    err, normalized, _field = normalize_cron_form(datas, is_dev, mode='add', api_mode=True)
     if err:
         return err, None
 
@@ -412,12 +397,25 @@ def upsert_cron_by_task_name(datas, is_dev, cron_config):
     cif = db.session.scalars(
         select(CronInfos).where(CronInfos.task_name == task_name)
     ).first()
+    if cif and cif.status == -1:
+        return '任务已下线，不能更新；请使用新的任务名称新建', None
+    try:
+        if cif and cron_edit_is_noop(cif, normalized):
+            return None, cif
+    except ValueError as exc:
+        return str(exc), None
+    err, _validated, _field = validate_cron_form(
+        datas, is_dev, cron_config, mode='add', api_mode=True
+    )
+    if err:
+        return err, None
     if not cif:
         cif = create_cron(normalized)
     else:
-        if cif.status == -1:
-            return '任务已下线，不能更新；请使用新的任务名称新建', None
-        update_cron(cif, normalized)
+        try:
+            update_cron(cif, normalized)
+        except EditWriteError as exc:
+            return str(exc), None
     return None, cif
 
 
@@ -440,12 +438,15 @@ def add_cron_web(datas, is_dev, cron_config):
     return None, None
 
 
-def edit_cron_web(datas, is_dev, cron_config, cron_id):
-    err, normalized, field = validate_cron_form(
-        datas, is_dev, cron_config, mode='edit', cron_id=cron_id
-    )
+def edit_cron_web(datas, is_dev, cron_config, cron_id, *, return_outcome=False):
+    result = _edit_cron_web_result(datas, is_dev, cron_config, cron_id)
+    return result if return_outcome else result[:2]
+
+
+def _edit_cron_web_result(datas, is_dev, cron_config, cron_id):
+    err, normalized, field = normalize_cron_form(datas, is_dev, mode='edit')
     if err:
-        return err, field
+        return err, field, None
     if 'scope_type' in datas:
         normalized['scope_type'] = datas.get('scope_type') or 'GLOBAL'
         normalized['group_id'] = datas.get('group_id') or None
@@ -459,13 +460,26 @@ def edit_cron_web(datas, is_dev, cron_config, cron_id):
         )
     ).first()
     if dup:
-        return '任务名称「%s」已被占用，请更换名称' % normalized['task_name'], 'task_name'
+        return '任务名称「%s」已被占用，请更换名称' % normalized['task_name'], 'task_name', None
     cif = db.session.get(CronInfos, cron_id)
     if not cif:
-        return '任务不存在', None
+        return '任务不存在', None, None
     if cif.status == -1:
-        return '任务已下线，不能编辑；请新建任务', None
+        return '任务已下线，不能编辑；请新建任务', None, None
     resume = (datas.get('resume_after_save') or '').strip() in ('1', 'on', 'true', 'True')
-    update_cron(cif, normalized, resume_after_save=resume)
-    return None, None
+    try:
+        if cron_edit_is_noop(cif, normalized, resume):
+            return None, None, 'no_change'
+    except ValueError as exc:
+        return str(exc), None, None
+    err, _validated, field = validate_cron_form(
+        datas, is_dev, cron_config, mode='edit', cron_id=cron_id
+    )
+    if err:
+        return err, field, None
+    try:
+        _task, outcome = update_cron_with_outcome(cif, normalized, resume)
+    except EditWriteError as exc:
+        return str(exc), None, None
+    return None, None, outcome
 

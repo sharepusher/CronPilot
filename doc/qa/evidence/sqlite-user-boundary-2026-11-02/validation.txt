@@ -1,0 +1,35 @@
+Executed 2026-11-02 (Asia/Shanghai), scoped to RBAC user editing.
+.venv-py311/bin/python scripts/verify_user_edit_sqlite_boundary.py --output-dir /private/tmp/cronpilot-sqlite-boundary-complete-1 --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+SQLITE_BOUNDARY: OK modes=2 controls=6 business=36 http=8
+All temporary files removed; 16 real-browser interleaving screenshots archived unchanged under sqlite/.
+Task authorization probes in both modes still observed the separate remaining issue; no task business fix.
+
+.venv-py311/bin/python -m unittest tests.test_user_edit_sqlite_boundary tests.test_user_edit_change_set tests.test_user_edit_scope_projection tests.test_user_edit_lock_release_guard tests.test_user_edit_browser_harness_guard tests.test_user_edit_mysql_guard tests.test_rbac_global_scope_assignment tests.test_user_reactivation -q
+Ran 199 tests in 323.895s — OK
+Standalone new memory guards: 14 tests — OK.
+
+.venv-py311/bin/python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/cronpilot-sqlite-boundary-outcomes --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+RBAC_OUTCOMES: OK cases=27 isolated_memory=1 seven_states=1
+
+Existing MySQL verifier on a fresh restricted-account dedicated schema:
+MYSQL_USER_EDIT_U2: OK isolated_schema=1 lock_wait_observed=1 conflict=1 lock_release_ms=1.8 audit_rows=1
+MYSQL_USER_EDIT_R5: OK profile_only=1 outside_preserved=1 replay=1 auth_conflict=1 concurrent_profile=1
+MYSQL_USER_EDIT_LOCK_RELEASE: OK normal_cases=9 mutations_detected=3 calibration=1 teardown_contrast=1
+Protected connection URL stored locally mode0600; omitted from evidence.
+
+Golden path: in an owned source copy, isolated configuration/database, LOCAL_PORT=5097, CRONPILOT_SCHEDULER_ENABLED=false.
+GOLDEN_PATH: OK (copy removed afterwards; workspace conf.ini not overwritten).
+Smoke routes: owned minimal source copy, current user service, isolated configuration, CRONPILOT_SCHEDULER_ENABLED=false.
+SMOKE_ROUTES: OK — 86/86, 5.8s.
+The first direct smoke attempt did not produce route totals and showed an existing global JobStore error; excluded from passing evidence, rerun in isolated configuration.
+
+bash scripts/cronpilot.sh test
+Ran 1132 tests in 499.897s — FAILED (failures=6, skipped=12).
+Unchanged failing classes on a private copy with pre-change services.py restored:
+17 tests — FAILED (same 6 failures). See baseline-comparison.json. No new failure IDs found.
+
+Ruff on app/ and all new source/test/verifier files: All checks passed!
+Python 3.8 syntax parse: OK. Runtime execution available only on Python 3.11.4; no claim for 3.8–3.10 runtime coverage.
+SQLite development schema table list checked intact; no full data-integrity claim.
+Preview: http://127.0.0.1:5091 — GET login 200, real POST login, restricted save and outside-scope denial passed.
+Credentials remain only in /private/tmp/cronpilot-boundary-preview-credentials.json (0600), not in evidence.

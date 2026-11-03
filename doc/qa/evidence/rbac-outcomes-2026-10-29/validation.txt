@@ -1,0 +1,14 @@
+Execution: 2026-10-30 (Asia/Shanghai); approved design dated 2026-10-29.
+Command actually executed:
+.venv-py311/bin/python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/rbac-outcomes-complete --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+RBAC_OUTCOMES: OK cases=27 isolated_memory=1 seven_states=1
+Runner-generated JSON and PNG artifacts copied without content edits into this directory.
+
+.venv-py311/bin/python -m unittest tests.test_user_edit_browser_harness_guard tests.test_user_edit_change_set tests.test_user_edit_scope_projection tests.test_ajax_form_guard -q
+Ran 64 tests in 55.617s — OK
+.venv-py311/bin/python scripts/verify_user_edit_group_preflight.py --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+USER_EDIT_GROUP_PREFLIGHT: OK cases=18
+.venv-py311/bin/ruff check app/ scripts/user_edit_browser_harness.py scripts/verify_user_edit_outcomes_browser.py tests/test_user_edit_browser_harness_guard.py
+All checks passed!
+SQLite in-memory for UI/application outcomes; not a MySQL network-failure or physical-lock test.
+Expected injected flush/commit exceptions are control experiments, not product failures.

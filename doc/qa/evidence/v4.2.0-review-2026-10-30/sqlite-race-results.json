@@ -1,0 +1,26 @@
+[
+  {
+    "case": "task_revoke",
+    "independent_commit": true,
+    "outcome": "updated",
+    "current_actor_role": "viewer",
+    "stored_value": "request-value",
+    "observed": true
+  },
+  {
+    "case": "user_revoke",
+    "independent_commit": true,
+    "outcome": "updated",
+    "current_actor_role": "viewer",
+    "stored_value": "request-value",
+    "observed": true
+  },
+  {
+    "case": "user_conflict",
+    "independent_commit": true,
+    "outcome": "updated",
+    "current_actor_role": "admin",
+    "stored_value": "request-value",
+    "observed": true
+  }
+]

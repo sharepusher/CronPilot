@@ -1,0 +1,17 @@
+R5 validation 2026-10-29
+Combined regression: 236 tests / 311.900s / OK (8 R5 cases loaded at invocation).
+Latest dedicated regression: 10 tests / 7.375s / OK.
+Full discovery: 1020 tests / 439.590s / OK (skipped=12; before two extra R5 cases).
+Smoke routes: 86/86 OK.
+Browser preflight: 18/18 OK.
+Live target-role browser: 8/8 OK; see results.json and screenshots.
+P1 live browser: 6/6 OK.
+Golden path: GOLDEN_PATH: OK (isolated DB).
+MySQL dedicated schema: cronpilot_user_edit_verify_ae9c7fa82b6c (preserved).
+MYSQL_USER_EDIT_U2: OK isolated_schema=1 lock_wait_observed=1 conflict=1 lock_release_ms=4.2 audit_rows=1
+MYSQL_USER_EDIT_R5: OK profile_only=1 outside_preserved=1 replay=1 auth_conflict=1 concurrent_profile=1
+Ruff, UI contract, colors, route completeness: OK.
+Docs sync/completeness/links, OPT, pending, 4 index tests: OK.
+Postmortem completeness: exit 0; 41 existing historical Release-reference warnings.
+Sandbox-skipped HTTP integration cases rerun with fixture roles outside sandbox: 11/11 OK (2.730s).
+Final restart: PID 74213 listening on 127.0.0.1:5001. Browser POST login OK; login/docs HTML/docs MD 200; full groups=[16,17], editable=[16], noop posts=0. Two HTTP fixture tasks retired via normal endpoint.

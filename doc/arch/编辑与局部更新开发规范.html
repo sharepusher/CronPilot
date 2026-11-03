@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>编辑与局部更新开发规范</title>
+<style>body{font-family:system-ui,sans-serif;max-width:1160px;margin:auto;padding:28px;line-height:1.8;color:#172033}h2{margin-top:2em}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #cbd5e1;padding:10px;text-align:left;vertical-align:top}th,.note,pre{background:#f1f5f9}.note,pre{padding:16px}pre{white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}.flow{display:flex;flex-wrap:wrap;gap:8px}.flow span{padding:10px;border:1px solid #cbd5e1;border-radius:6px}a{color:#155e75}</style></head><body>
+<h1>编辑与局部更新开发规范</h1>
+<p>版本：v1.0 · 日期：2026-10-29 · 状态：<strong>开发规范已落库；无运行时或 CI 行为变更</strong>。适用于编辑表单、资源局部更新、关联集合编辑及相关服务和验收。本文的“必须/禁止”为 CronPilot 项目要求；“建议”允许在正式设计中说明替代方案。</p>
+<p class="note"><strong>总原则：</strong>只更新被明确请求、当前有权修改、通过并发检查且确实发生变化的数据；未编辑、不可编辑和范围外数据必须受到保护。可读、可编辑、可授予是三种不同权限，不能互相推导。本规范不改变现有管理员权限；具体权利继续以已批准的业务设计为准。</p>
+<table><tr><th>版本</th><th>日期</th><th>变更与来源</th></tr><tr><td>v1.0</td><td>2026-10-29</td><td>从已确认用户编辑设计抽象通用契约，对照 Google/Microsoft/AWS 官方公开实践与 OWASP；登记规则入口、例外、验收矩阵及实施状态边界。</td></tr></table>
+<h2>交付契约矩阵</h2>
+<table><tr><th>对象/调用方</th><th>边界与责任</th><th>非法/失败与响应</th><th>验收和交付</th></tr>
+<tr><td>浏览器编辑页、原生表单与 Ajax</td><td>可信初始值与可编辑投影由服务端确定；前端负责交互提示与防重复提交。</td><td>缺少必须的编辑基线、非法字段/控件不可比较时进入明确错误；不得猜作清空、全局或无变化。确认回显不重置基线。</td><td>填写→确认→提交→跳转/错误全路径，检查网络请求及 DB 差异；HTML/MD 与业务设计同步。</td></tr>
+<tr><td>Web/API/内部服务</td><td>入口解析规范化；服务在提交边界验证对象/字段/关系操作权限，并原子执行并发条件与写入。</td><td>当前无权则拒绝；冲突不覆盖；结果未知不假报失败已回滚或自动重试。遵守现有各接口响应契约。</td><td>直接请求绕过 JS、非法新增/删除关系、当前授权变化；禁止仅以 UI 隐藏作证。</td></tr>
+<tr><td>事务、审计、外部副作用</td><td>本库业务变更与成功审计同事务；副作用由有效差异驱动；外部发送需有一致性与幂等方案。</td><td>每个终态明确事务结束责任，不能靠请求 teardown 掩盖服务返回时仍持锁；拒绝日志与成功审计分开。</td><td>失败零部分保存、重复不重复副作用；真实后端/独立连接证据。待确认的增强测试不得写成已经实现。</td></tr></table>
+<h2>1. 官方实践及项目推导边界</h2>
+<p>以下是公开可核对的工程资料，不代表这些企业所有系统使用同一实现，也不是对 CronPilot 的官方背书。来源结论与项目决策分开标注；核对日期为本文日期。</p>
+<table><tr><th>来源</th><th>来源支持的原则</th><th>CronPilot 的采用方式与边界</th></tr>
+<tr><td>Google <a href="https://google.aip.dev/134">AIP-134 Update</a>、<a href="https://google.aip.dev/161">AIP-161 Field masks</a></td><td>支持局部更新；字段掩码表达更新路径，未选路径不应随请求改变。AIP 的 Update 还将一般资源更新与其他副作用区分。</td><td>采用“更新字段集合”概念；传统 POST 表单可由可信原值计算意图，无需为规范而迁移为 gRPC/FieldMask。掩码表达范围，不证明字段实际变过或调用者有权。角色变化所需认证失效仍由本项目安全契约约束。</td></tr>
+<tr><td>Google <a href="https://google.aip.dev/154">AIP-154 Resource freshness</a>；Microsoft <a href="https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-implementation#use-etags-to-support-optimistic-concurrency">API implementation / optimistic concurrency</a></td><td>使用资源版本/ETag 验证客户端看到的状态；Microsoft 指出版本条件检查与写入必须原子执行，内存检查后无条件保存仍有竞态。</td><td>本项目用户编辑采用可信原值三方比较与写事务内校验。它解决类似并发问题，但不是实现了 HTTP ETag。整资源 ETag 可更保守地拒绝无关并发，不可误称其不专业。新 API 可在设计中选择原子版本条件更新。</td></tr>
+<tr><td>AWS Builders’ Library：<a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">Making retries safe with idempotent APIs</a></td><td>用调用方请求标识识别同一操作的重试，并使标识记录和业务变更原子；相同标识、不同意图不能当作相同操作。</td><td>普通目标状态编辑先保证等价请求不重复生效；支付、发送、创建等命令如需重试，另设计操作键、参数绑定和保留期限。签名编辑 token 不承担操作去重键职责。</td></tr>
+<tr><td>AWS <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">Transactional outbox pattern</a></td><td>本地数据库与外部消息双写可出现不一致；outbox 把发送意图与业务状态写在同一事务，后续可靠投递。</td><td>本库成功审计直接与业务同事务。仅当引入外部事件、邮件等可靠副作用时评估 outbox；本轮不引入队列，不声称 DB commit 能使任意远端操作原子化，也不声称 outbox 天然 exactly-once。</td></tr>
+<tr><td>OWASP <a href="https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html">Authorization</a>、<a href="https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html">Mass Assignment</a></td><td>服务端校验每次请求的权限、默认拒绝；使用专用输入对象和字段白名单限制可写属性。</td><td>字段白名单与对象/操作授权分别执行；禁止把整个请求自动绑定 ORM。禁用控件、隐藏字段和签名均不能替代当前授权。OWASP 是安全社区，不将其写成某家企业标准。</td></tr></table>
+<h2>2. 统一模型：四类事实、两层差异</h2>
+<ul><li><strong>原始值 O：</strong>用户打开编辑页时的可信基线；由签名或服务端存储保证完整性，绑定对象及编辑者。snapshot 是数据集合，不是截图。</li><li><strong>可编辑范围 E：</strong>字段白名单、可管理集合及允许的操作。比较两侧必须是同一 E 下的规范化值；只读展示值不等于可写输入。</li><li><strong>请求值 R：</strong>用户提交的规范化输入，或带明确字段集合的局部更新请求。字段在 payload 出现，不等于用户修改了它。</li><li><strong>当前值 C：</strong>写入时重新读取并受事务/并发条件保护的数据库事实；决定当前权限、冲突及实际写入。</li></ul>
+<p><strong>意图差异</strong>回答“用户请求改什么”；<strong>有效差异</strong>回答“授权和并发检查后，本次真正改变什么”。审计、Token 轮换、认证版本和缓存处理必须依有效差异，不能仅依字段出现或意图非空。</p>
+<p>“只改一个字段”指业务字段的修改边界；更新时间、操作者等系统维护元数据可按已声明契约随真实修改更新，不得借此改变无关业务字段。无真实修改时是否更新访问元数据，应与业务写入和成功变更审计分开定义。</p>
+<div class="flow" aria-label="编辑处理链"><span>可信基线与编辑范围</span><span>→ 规范化与意图</span><span>→ 当前授权与并发校验</span><span>→ 有效差异</span><span>→ 业务与审计原子提交</span><span>→ 已设计的副作用与结果</span></div>
+<h2>3. 必须执行的更新契约</h2>
+<h3>EDIT-01：声明字段语义，禁止全量盲写</h3>
+<p>设计必须逐字段定义可写主体、可读范围、规范化、缺失/null/空串/空集合语义及副作用；输入字段须白名单解析。局部更新中“未选择该字段”表示不更新；显式清空须符合业务约定。完整 HTML 表单缺失其必需字段时可以拒绝，不能机械套用 PATCH 的省略语义。JSON Merge Patch 的 null 有删除含义，不可无设计地套给合法可空字段。</p>
+<p>集合若为数学集合，才可排序去重；有序数组、可重复项不能按组 ID 集合规则处理。空组不应默认解释成全局，必须存在明确业务表示和授权。</p>
+<h3>EDIT-02：意图必须来自同一编辑范围</h3>
+<p>传统表单在同一可信投影内比较 O 与 R；局部 API 可用明确更新字段集合表示意图。服务端必须重新验证字段和范围，不能信任 JS 给出的 dirty 标志或客户端自行上传的原始值。未知字段应按接口契约拒绝或安全忽略，不能悄悄绑定到实体；当前带版本签名基线采用精确 schema 校验。</p>
+<h3>EDIT-03：范围外关系必须保留</h3>
+<p>可见子集不能作为完整关联集合替换。若仅允许编辑 E 内成员，则无并发冲突时完整目标等于“受保护的 E 外绑定 + 合法请求的 E 内绑定”。每次新增/删除分别校验当前权限；已有外部绑定是保留状态，不是本次新授权。对完整授权单元仍须做并发校验，不能为了保留外部关系而跳过授权或随意拼接两个时点的数据。</p>
+<pre>管理员只管理 A；目标属于 A+B；表单原值 A，提交 A：没有组修改。
+只把花名“小夏”改为“Summer”：仅更新花名及对应成功审计。
+管理员管理 A/C；目标 A+B；合法改 A→C：目标 C+B，保留 B。
+只改花名期间他人把外部 B 改为 D：有权且花名无冲突时，保留当前 A+D。
+真正改组期间他人改变完整授权：按授权单元并发策略拒绝不兼容覆盖。</pre>
+<h3>EDIT-04：保存前使用当前权限</h3>
+<p>对象、字段与关系操作权限必须在服务端依据当前可信事实检查；需要消除授权检查到写入的竞态时，在事务边界锁定或使用等价原子机制。当前用户停用、降权、退出管理交集应拒绝。编辑范围变化时，本项目签名表单要求刷新，不能用新范围重新解释旧表单。跨请求 Session 缓存只可按已批准的失效/版本策略使用。</p>
+<h3>EDIT-05：并发检查必须与写入原子结合</h3>
+<p>必须在正式设计中选择版本条件更新、三方比较或其他可验证策略，并说明比较粒度。独立资料字段可以逐字段处理；角色与组等耦合权限必须作为整体检查。本规范不强制所有业务采用同一粒度。</p>
+<table><tr><th>针对有修改意图的独立字段</th><th>行为</th></tr><tr><td>C 等于请求目标 R</td><td>已等价完成，不重复写入及副作用。</td></tr><tr><td>C 等于原始值 O，且 C 与 R 不同</td><td>允许写入 R。</td></tr><tr><td>C 既不是 O，也不是 R</td><td>冲突，整体拒绝本次需原子完成的编辑。</td></tr><tr><td>该字段没有修改意图</td><td>不写回；保留 C，仍执行当前对象权限及必要业务不变量检查。</td></tr></table>
+<p>整资源 ETag 方案可以拒绝更多并发，三方比较方案则须明确定义可合并边界；两者都不能先在事务外检查，再无条件覆盖。SQLite 逻辑通过不能证明 MySQL 行锁语义。</p>
+<h3>EDIT-06：确认和错误回显不能重新建立原值</h3>
+<p>合法可恢复 POST 的确认、校验失败和重试必须保留原始编辑基线，用户输入另存，不把 DB 当前值冒充原值。必须显式重新 GET/刷新才能建立新基线。旧版本/坏签名/主体失配应拒绝继续编辑。签名保护完整性，不提供保密性、当前新鲜度或授权；不可读取的数据不应因“已经签名”而泄露给客户端，可选择服务端保存基线。</p>
+<p>二次确认用于表达清空等高影响行为的意愿，不能代替权限、并发和服务端校验。原因应按业务约定验证且不含秘密；确认取消零业务 POST。原生与 Ajax 路径应具备相同安全契约。</p>
+<h3>EDIT-07：业务与成功审计同事务</h3>
+<p>同库业务变更与成功审计必须一次原子提交。任何字段冲突或审计写失败不得留下部分业务结果。审计只记录实际 before/after 和必要原因，不记录密码、Token 或 Session 内容。拒绝审计、HTTP 访问日志和安全日志可以独立存在；“no-op 零成功变更审计”不等于禁止记录请求访问或攻击。</p>
+<p>事务所有权必须明确：服务拥有写事务时须在返回终态前结束；外层拥有事务时须明确由外层承担完成责任。禁止隐式依赖框架 teardown 才释放锁。该规则是设计与验收要求，不是对所有现有路径已完成验证的声明。</p>
+<h3>EDIT-08：副作用必须有触发条件和可靠性边界</h3>
+<p>仅改花名不应重签 Token、递增认证版本或变更组；真正授权变化按既有安全契约执行必要失效动作。无变化、已等价应用、冲突均不得重复触发成功副作用。对 COMMIT_UNKNOWN，不可假设事务必然未提交；按既有设计进行结果核对和必要的保守缓存失效，不盲目重放。</p>
+<p>跨进程缓存失效、事件和邮件不因本地 commit 自动可靠。新需求必须单独设计 outbox/CDC/可重试投递及消费幂等；本项目当前 worker 的 best-effort 缓存失效不等同于全局可靠通知。</p>
+<h3>EDIT-09：目标状态编辑与业务命令分别定义幂等</h3>
+<p>对“设置为某值”可通过有效差异与等价完成保护重复提交；禁用按钮只改善体验，不是服务幂等保证。“增加一次额度”“发送通知”“创建实例”不能用参数相同就判重复，需另设计操作标识、请求参数绑定、保留期限、原子记录与结果查询。角色切换/凭据重置/上下线等行为是否拆为专用命令，由业务设计确定，不往通用资料保存中暗加。</p>
+<h3>EDIT-10：响应必须区分结果而非统一“成功”</h3>
+<p>至少区分实际更新、无修改意图、已等价完成、冲突、确定失败与提交结果未知。确认尚未完成是非终态。表单可以沿用业务 outcome 和 PRG，API 可以采用相应 HTTP/领域错误；Google 的 ABORTED 与 HTTP If-Match 的 412 不是同一套响应约定，禁止无迁移设计改现有接口。</p>
+<h2>4. 测试与 Review 的最低矩阵</h2>
+<table><tr><th>场景</th><th>必须观测的断言</th></tr>
+<tr><td>无修改；直接绕过前端提交</td><td>正常 JS 零 POST；服务端零业务 DML、零成功变更审计、零授权副作用；当前权限仍有效才可响应。</td></tr>
+<tr><td>仅改一个资料字段</td><td>字段级 DB 差异、关系表零 DML、其他标量/Token/认证版本不变；成功审计只有有效字段。</td></tr>
+<tr><td>管理员 A / 目标 A+B；管理员 A/C / 目标 A+B</td><td>原样、资料-only、真实改可编辑组均覆盖；外部 B 不丢失；非法新增和删除都拒绝。</td></tr>
+<tr><td>并发改相同字段、无关字段、完整权限单元</td><td>冲突不覆盖；允许的无关变化保留；耦合授权不混合；重复等价请求不重复副作用。</td></tr>
+<tr><td>GET 后 actor 降权/换组、target 停用/离开 Scope</td><td>以当前事实拒绝；坏签名/缺基线/旧版本不重签成可继续提交的新表单。</td></tr>
+<tr><td>确认、输入失败、多次原生回显、恢复 JS</td><td>基线 token 保持；原值投影不漂移；字段名唯一；完整交互与正反向角色路径截图。</td></tr>
+<tr><td>审计失败、提交结果未知、重复/延迟请求</td><td>审计和业务一致；未知结果明确提示；不按“报错”等同“肯定未提交”；命令幂等契约单独覆盖。</td></tr>
+<tr><td>数据库锁和事务生命周期</td><td>在明确的服务返回边界、原上下文仍存活时，用独立真实连接探测；先证明探针能检出已持有锁，再验证正确释放。清理先于观察会使证据失效；否定校准需真实命中分支。</td></tr></table>
+<p>测试不得只检查 Toast、200、最终 DB 值或字符串存在。对事务、关系和副作用需独立观测。锁释放用例应遵循已确认并实施的<a href="../design/RBAC用户编辑锁释放验收增强设计-2026-10-29.html">锁释放验收增强设计</a>；最新执行结果与适用边界见源设计§11及<a href="../postmortem/2026-10-RBAC锁释放验收观察边界.html">对应复盘</a>，不扩张为全站锁协议已完成。</p>
+<h2>5. CronPilot 参考实现与验证入口</h2>
+<p>以下是定位索引，精确实现、版本及历史验收数值以源文件为准，本文不复制版本号和历史绿测总数。</p>
+<ul><li><code>app/rbac/services.py</code>：project_user_edit_values、build_user_edit_intent、verify_user_edit_snapshot、update_user_management；<code>app/rbac/views.py::users_edit</code> 为双提交适配。</li><li><a href="../design/R5用户编辑字段意图与范围外组保留设计-2026-10-29.html">R5 设计 §2/§6</a>：同范围投影、外组保留及授权并发；<a href="../postmortem/2026-10-RBAC用户编辑范围外组误删.html">对应复盘</a>提供验收证据。</li><li><a href="../design/RBAC用户编辑两项P1根因与修复设计-2026-10-29.html">P1 设计 §4</a>：原生确认基线连续性；<a href="../design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html">P2 设计</a>：DOM 可比较性与审计 reader 契约。</li><li><a href="../design/管理员admin-Scope差异化设计.html">管理员 Scope 设计 §3.6/§7</a>：具体管理员权限及范围外绑定规则。本文不以“大厂最佳实践”替代该业务授权依据。</li></ul>
+<pre>.venv-py311/bin/python -m unittest tests.test_user_edit_scope_projection tests.test_user_edit_change_set -q
+.venv-py311/bin/python scripts/verify_user_edit_group_preflight.py --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+# 数据库锁行为：按源设计，在每次新建的专用 MySQL 空库验收。
+# 当前入口：scripts/verify_user_edit_transaction_mysql.py --database-url &lt;专用验收库URL&gt;
+# 终态锁释放增强已实施；场景/参数与验收结果见源设计和复盘。
+.venv-py311/bin/python -m unittest tests.test_user_edit_lock_release_guard -q</pre>
+<h2>6. 设计评审与交付检查单</h2><p>可直接填写的 C01–C10 检查单、行为用例映射和拟实施 CI 门禁见<a href="../design/编辑契约检查单与行为回归门禁设计-2026-10-29.html#checklist">检查单与行为门禁设计 §2</a>。该 CI 设计待确认；现有 unittest discovery 已覆盖专项测试，不能将其误写为完全没有自动回归。</p>
+<ol><li>设计阶段：列字段语义、可读/可写/可授予范围、集合替换/增减语义、并发比较粒度及副作用矩阵；已有页面可见变更仍先提供 Before/After。</li><li>实现阶段：入口白名单规范化，服务执行当前授权及原子并发检查，写入与成功审计单事务；基线、请求和当前状态分别保存。</li><li>验收阶段：按第4节选出适用场景并说明不适用原因；浏览器测正反向、数据库测实际差异、真实后端测事务语义，不能用静态规则声称行为已证明。</li><li>交付阶段：同步设计/复盘/索引和可复验环境；如要新增协议、字段、DB结构或 CI 门禁，先走独立设计确认。本规范自身不授权这些运行时变更。</li></ol>
+<h2>7. 适用、采用与风险</h2>
+<p><strong>问题与根因：</strong>通用“保存表单”容易混淆 payload、用户意图、当前权限与实际变更；全量回写和覆盖式关系保存会放大到越权、丢失更新与错误审计。本文用统一模型和可执行断言解决认知分歧。</p>
+<p><strong>范围：</strong>规范已写入 <code>.cursor/rules/cronpilot-edit-contract.mdc</code>，由 <code>AGENTS.md</code> 登记。面向今后新增或修改的编辑路径；不宣称现有全仓库均符合，不自动迁移接口、不改变管理员权限。本轮只增加开发规范与文档索引，无产品 UI、数据库、依赖、测试实现或 CI 行为改动，因此不要求产品页面 Before/After，也不重启业务服务。</p>
+<p><strong>采用分批：</strong>第一步完成规范/规则/索引（本轮）；第二步后续改动按检查单逐入口采用；第三步若要推广自动门禁或升级既有路径，先单独设计、Review 确认，再实施与复盘。</p>
+<p><strong>风险与例外：</strong>不能把组集合投影机械用于有序数据；不能把所有系统强制改成同一快照协议；不可把状态编辑幂等当作命令 exactly-once；跨系统副作用须另设计可靠性。不适用条款必须在业务设计中写明原因与替代保证，仍不得降低授权或无声覆盖并发数据。</p>
+<h2>8. 本轮文档验收</h2>
+<p id="validation">2026-10-29 本轮已执行以下校验并通过；只验证规范文档及规则登记，未重新执行历史业务回归。浏览器实际打开本 HTML，桌面与手机宽度均无横向溢出，10 条规范标题完整。历史业务结果仅引用源复盘，不作为本轮重新执行结果。</p>
+<pre>.venv-py311/bin/python scripts/html_docs_to_markdown.py --check
+  OK: generated Markdown matches HTML
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+  OK: all HTML registered, 0 broken refs
+.venv-py311/bin/python scripts/check_doc_links.py --check
+  OK: 0 broken links
+.venv-py311/bin/python -m unittest tests.test_check_doc_completeness -q
+  Ran 4 tests; OK
+bash scripts/check_pending_sync.sh
+  OK: pending_sync guards
+git diff --check
+  exit 0
+EDIT_STANDARD_BROWSER: OK headings=10 desktop=1440 mobile=390 overflow=0</pre>
+<footer><a href="../index.html">文档索引</a> · <a href="编辑与局部更新开发规范.md">Markdown 版</a></footer>
+</body></html>

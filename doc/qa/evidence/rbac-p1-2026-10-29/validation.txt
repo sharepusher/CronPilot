@@ -1,0 +1,15 @@
+2026-10-29 Asia/Shanghai
+.venv-py311/bin/python -m unittest tests.test_user_edit_change_set tests.test_user_edit_mysql_guard tests.test_rbac_global_scope_assignment tests.test_rbac_phase tests.test_user_reactivation tests.test_ajax_form_guard tests.test_redesign_sidebar -q
+Ran 223 tests in 318.156s: OK
+Focused snapshot + MySQL guards: 43 passed
+smoke_routes.py --check: 86/86 passed
+ruff app + changed scripts/tests: 0 violations
+check_ui_contract.py: 0 violations
+check_route_completeness.py app/rbac/views.py: OK
+audit_hardcoded_colors.py: no hardcoded colors
+Local restart: completed; daemon did not persist, foreground managed session kept running
+GET http://127.0.0.1:5001/rbac/login -> 200
+Browser: POST login, global/scoped native T0 continuity + concurrency rejection, invalid token no form,
+restored JS unique confirm/reason fields + conflict, normal JS modal success, operator/viewer 403.
+Development SQLite table inventory preserved.
+Independent P2 group selector and unknown audit-field partial policy remain open.

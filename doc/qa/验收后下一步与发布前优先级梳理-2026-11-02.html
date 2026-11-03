@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>验收后下一步与发布前优先级梳理（2026-11-02）</title><style>body{font-family:system-ui,sans-serif;max-width:1080px;margin:auto;padding:28px;line-height:1.8;color:#172033}h2{margin-top:2em}pre{padding:16px;background:#f1f5f9;white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}li{margin:.6em 0}</style></head><body><main>
+<h1>验收后下一步与发布前优先级梳理</h1>
+<p>日期：2026-11-02 · 类型：只读核验与顺序建议。未修改生产代码、测试实现、配置或旧复现脚本；未提交或发布。本页不是修复设计或实施授权。</p>
+<p><strong>建议先处理SQLite保存边界，再做最终审查与提交/发布收口。</strong>此前验收专项完成，不等于当前整个未提交工作区已具备发布条件。今天实际复现两条RBAC并发问题。</p>
+<p><strong>后续状态（2026-11-02）：</strong>RBAC用户编辑保存边界已按批准设计修复并专项验收；任务保存独立诊断仍复现同类问题，全量基线6项失败仍在。见<a href="SQLite用户编辑原子保护验收-2026-11-02.html">最新专项验收</a>。下文为历史发现与当时状态，不代表整体问题已关闭。</p>
+<h2>1. 已完成事项及边界</h2>
+<ul><li><a href="RBAC用户编辑七状态浏览器验收-2026-10-30.html">七状态验收</a>和<a href="../postmortem/2026-10-RBAC锁释放验收观察边界.html">锁释放验收</a>完成的是对应批准范围，不覆盖服务内部所有SQLite并发交错。其历史测试数字不计为今天的新结果。</li>
+<li><a href="../design/任务启停结果判定与冲突报错D2设计-2026-11-02.html">任务启停结果专项rev.4</a>及<a href="../design/任务API超时参数类型兼容修复设计-2026-11-02.html">任务API超时参数兼容专项</a>记录已修复并验收、未提交。本轮只读其交付记录，未重跑这些验收。</li>
+<li>本轮开始时git status有36个已跟踪修改条目及121个未跟踪条目（目录按默认聚合），暂存区为空；HEAD为3b7583f。包含RBAC、任务编辑/启停/调度、API、迁移和证据等，不全属于本聊天独占范围。</li></ul>
+<h2>2. 今天核验的新阻断：SQLite用户保存边界</h2>
+<p>来源为<a href="v4.2.0-release-review-2026-10-30.html">发布前审查F1</a>，与此前“锁释放测试盲点F1”不是同一项。</p>
+<ol><li><code>user_revoke</code>：原请求读过授权后，另一独立连接将actor降为viewer并提交，原请求仍返回updated并保存。</li><li><code>user_conflict</code>：原请求读过目标后，另一独立连接保存concurrent-value，原请求仍返回updated，最终request-value覆盖新值。</li></ol>
+<p>两项今天均observed=true，属于产品保存边界问题。串行处理的七状态页面测试不涵盖该内部交错；MySQL锁结论不能替代SQLite原子保护。<a href="evidence/next-steps-2026-11-02/rbac-sqlite-races.json">今天的原始结果</a>。</p>
+<p>使用既有隔离诊断函数，数据库仅位于TemporaryDirectory并自动清理，未连接datas开发库。整个旧脚本因任务模块移除了scheduler属性而退出1，任务那一例本轮没有结论；随后只执行仍可运行的两个用户用例，未修旧脚本。</p>
+<pre>.venv-py311/bin/python -c "import runpy,json; m=runpy.run_path('doc/qa/evidence/v4.2.0-review-2026-10-30/sqlite_authorization_race.py'); print(json.dumps([m['run_case'](c) for c in ('user_revoke','user_conflict')],indent=2))"
+两项：independent_commit=true, outcome=updated, stored_value=request-value, observed=true</pre>
+<h2>3. 建议执行顺序与完成条件</h2>
+<ol><li><strong>第一优先：SQLite保存边界专项设计。</strong>核对实际驱动的事务启动、授权读取、三方比较和写入边界，同时盘点任务保存同类入口。论证SQLite适用的最小原子保护方案，明确连接所有权、忙错误/等待预算、回滚和提交未知处理，与MySQL分开说明。先正式设计并经Review确认，再实现。本页不预选事务API或擅自降低隔离级别。完成条件：独立连接交错不能在撤权后继续写入，不能静默覆盖同字段新值；正常保存及MySQL、no-op、范围外组、审计和结果语义不退化；有七项复盘。</li>
+<li><strong>第二优先：最终基线审查与提交清单。</strong>在修复后的同一工作区检查RBAC、任务、启停、API和迁移交叉影响。逐项登记设计/批准范围、代码、测试、证据和限制；纳入未跟踪Python/JS/HTML/MD/图片/JSON。完成条件：最终基线相关回归、双后端、目标角色页面与文档门禁都有本轮证据，提交边界清楚。仅用户要求时commit，本轮不git add。</li>
+<li><strong>第三优先：发布收口。</strong>今天术语、版本门禁仍退出1。开发阶段保留Unreleased合理，发布前必须归档正式版本；同步Release Notes、README、路线图及索引，补备份、停止旧写入者、版本列迁移/验证和回滚/混跑边界。审阅失效历史复现脚本，不能将无法执行解释为问题已修复。完成条件：发布门禁通过、升级步骤与风险明确。tag/push/Release须用户明确指令。</li>
+<li><strong>后续治理：事务所有权清单，再按证据优化。</strong>沿用<a href="数据库事务与锁使用规范及当前实现评估-2026-10-29.html">规范评估§4–5</a>，盘点update_user/set_user_groups/set_user_active等真实调用方、事务所有者、审计原子性和锁顺序，再核对MySQL索引/EXPLAIN、等待预算与热点。有实证才优化锁，不一次重构全站。</li>
+<li><strong>自动门禁另批确认。</strong><a href="../design/编辑契约检查单与行为回归门禁设计-2026-10-29.html">编辑契约门禁设计</a>仍待确认。接入前对齐已经完成的专项状态及本次SQLite反例；CI工具上线不等于远端required检查已启用，也不能替代第一优先的产品修复。</li></ol>
+<h2>4. 今天的命令与结果</h2>
+<pre>.venv-py311/bin/python scripts/check_terminology.py --check
+退出1：文档/脚本命中。逐项区分技术概念和业务术语，不关闭检查或全局放行。
+.venv-py311/bin/python scripts/check_version_consistency.py --check
+退出1：Unreleased含4个子节及19个实质列表项，尚未正式归档。
+git status --short / git diff --cached --stat / git log -4 --oneline
+用于核验未提交范围与HEAD，不表示全仓代码已重新审查。</pre>
+<p>本轮未运行全量、真实MySQL、Docker或线上检查。已有任务启停与超时专项记录不能自动关闭SQLite问题；过时父设计状态应在后续事实对齐中引用最新子设计。</p>
+<h2>5. 本文交付检查</h2><p>2026-11-02实际检查：check_doc_completeness通过（387份HTML均登记）；check_doc_links通过（2996引用、0 broken）；HTML/Markdown全局同步检查通过；tests.test_check_doc_completeness 4项通过；check_pending_sync及git diff --check通过。5001在沙箱内外均连接失败（curl退出7），本轮提供本地HTML/Markdown，不声称在线可达，也未为纯文档任务启动或修复业务服务。本轮只梳理和保存核验结果，未修复上述问题。</p>
+</main><footer><a href="验收后下一步与发布前优先级梳理-2026-11-02.md">Markdown 版</a> · <a href="../index.html">文档索引</a></footer></body></html>

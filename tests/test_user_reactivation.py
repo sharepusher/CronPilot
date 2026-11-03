@@ -634,8 +634,9 @@ class TestApproverAdminCopyB4(unittest.TestCase):
         path = os.path.join(ROOT, 'app/templates/redesign/user_form.html')
         with open(path, 'r', encoding='utf-8') as fh:
             text = fh.read()
-        self.assertIn('停用（不可直接启用）', text)
-        self.assertIn('已停用（不可直接启用）', text)
+        self.assertIn('状态不可在编辑页修改', text)
+        self.assertIn('专用停用流程并填写缘由', text)
+        self.assertNotIn('name="is_active"', text)
         self.assertNotIn('不可恢复', text)
         self.assertIn('cp:form-confirm-reactivation', text)
         self.assertIn('确认同名覆盖启用', text)

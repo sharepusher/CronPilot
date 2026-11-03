@@ -340,3 +340,6 @@ grep -rn "startswith('[^']*[一-龥]" app/services/ app/main/ | cat
 
 - HTML/MD 技术文档：`app/docs/` Blueprint，`url_prefix=/docs`，根目录 `doc/`。
 - `.md` 响应设置 `Content-Type: text/markdown; charset=utf-8`。
+
+
+**D2 启停例外（2026-11-02，用户已确认）**：启停已提交后不得因为调度异常无条件恢复旧 DB 状态。正常同步成功不额外查询；不确定异常有限核实，明确目标签名重试按当前版本拒绝陈旧意图。保存事务未提交仍须 rollback；下线等其他路径不由本例外自动授权迁移。见 `doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html` §13。

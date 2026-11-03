@@ -1,0 +1,12 @@
+[
+  {
+    "route": "/api/cron",
+    "success_without_query": true,
+    "committed_error": true
+  },
+  {
+    "route": "/api/cron/add",
+    "success_without_query": true,
+    "committed_error": true
+  }
+]

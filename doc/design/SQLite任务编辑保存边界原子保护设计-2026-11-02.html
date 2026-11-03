@@ -1,0 +1,129 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SQLite 任务编辑保存边界原子保护设计与评估（2026-11-02）</title><style>body{font-family:system-ui,sans-serif;max-width:1140px;margin:auto;padding:28px;line-height:1.85;color:#172033}h2{margin-top:2em;border-bottom:1px solid #cbd5e1}table{border-collapse:collapse;width:100%;display:block;overflow:auto}th,td{border:1px solid #cbd5e1;padding:10px;text-align:left;vertical-align:top}pre,.note{background:#f1f5f9;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}li{margin:.5em 0}</style></head><body><main>
+<h1>SQLite 任务编辑保存边界原子保护设计与评估</h1>
+<p>版本 rev.1.0 · 2026-11-02 · 状态：<strong>设计与自评完成，待用户 Review 确认；未修改业务、测试、配置或调度实现。</strong></p>
+<p>承接<a href="../qa/SQLite用户编辑原子保护验收-2026-11-02.html">用户编辑专项验收§4的任务遗留问题</a>，遵守<a href="../arch/编辑与局部更新开发规范.html">编辑契约</a>。确认对象为本稿全部决策，包含§5的有限校验循环、§7日志边界豁免及§10临时文件集成工具窄例外；设计确认前不得实施。</p>
+<p class="note"><strong>建议结论：</strong>局部 SQLite 即时写事务可填补当前授权读取到业务提交的窗口；但任务编辑包含 DNS、版本重试、关系写入、提交后调度及独立日志，不能直接复制用户编辑函数。推荐“受保护读取与规划 → 必要时释放后校验URL → 重新保护并重算 → 短事务写入 → 提交后调度”。SQLite 写者保护期间禁止DNS与scheduler调用；当前URL的本次校验结果不能被拿去写另一URL。</p>
+<h2 id="revision">版本记录</h2><table><tr><th>版本</th><th>日期</th><th>变更</th></tr><tr><td>rev.1.0</td><td>2026-11-02</td><td>首次专项设计；核实API与调用链，冻结事务/并发/校验/异常/调度/日志契约，并完成准确性、合理性及专业性评估。</td></tr></table>
+<h2 id="contract">交付契约矩阵（前置）</h2><table><tr><th>对象/传输</th><th>调用方及认证</th><th>唯一性/缺失与非法</th><th>结果、日志及关联</th><th>验收与交付</th></tr>
+<tr><td>GET /cron_edit?id=…；SSR HTML</td><td>真实Session、cron:write、对象Scope；GET签发保密基线</td><td>task id定位资源；签名绑定actor/task；缺失任务与无权限继续沿用入口拒绝</td><td>签名schema和页面不变；GET不是保存时授权依据</td><td>Operator正向、Viewer/外组反向；HTML/MD本稿及后续QA</td></tr>
+<tr><td>POST /cron_edit；Ajax JSON / 原生POST</td><td>views预检+CSRF；服务内重新读取actor活动态、role、username、全部组及当前task/关系后授权</td><td>task_name不可改；edit_revision是并发版本，不是幂等操作键；坏签名/字段不完整拒绝</td><td>原outcome、msg、field、reload_required结构；updated分支当前只返回成功及跳转，不擅加字段；日志关联task id/阶段/本次轮次，不记录URL、body、token</td><td>真实登录、浏览器提交、双HTTP竞争、持久化事实共同验证</td></tr>
+<tr><td>服务 save_task_edit；Python内部</td><td>独立请求事务的顶层所有者；直接调用也须当前授权</td><td>拒绝待写ORM事务；原生SQL待写同样禁止组合调用；同库不同bind不接受</td><td>失败由服务终结事务；提交开始后的异常保守判定commit_unknown</td><td>内存单元+owned临时文件DELETE/WAL；原上下文存活时测释放</td></tr>
+<tr><td>业务提交后scheduler与OperationLog</td><td>仅确定提交成功且存在对应有效差异时调用；沿用当前操作者解析</td><td>版本检查不是跨库原子保证；重复等价提交不再次调度/写成功日志</td><td>saved_scheduler_error保留；OperationLog仍独立提交且可能失败；不能写“审计必达”</td><td>调度故障、后续版本、日志故障专项；本稿§7显式范围</td></tr></table>
+<h2 id="problem">1. 问题、根因与证据强度</h2>
+<p>save_task_edit已具备当前授权重读、签名原值、六个业务单元三方比较及ORM版本CAS。但在SQLite上，with_for_update不提供预期行锁；当前驱动SELECT不一定建立持续物理读事务。actor读取后另一连接提交降权，旧请求仍可写入任务；任务行CAS只检查任务版本，授权变更未必推进任务版本，因此不能替代授权保护。</p>
+<p>直接证据沿用本日已落库<a href="../qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/results.json">task_probes</a>：DELETE与WAL均出现竞争降权committed、actor_role=viewer、旧请求outcome=updated、值requested。该探针在独立进程替代URL校验以避DNS；权限/比较/写入是真实服务。<strong>它证明服务层授权窗口；本轮未重跑，也不等同当前已验证HTTP攻击链。</strong>实现前S0须按冻结源码重新复现，并补实际撤权入口。</p>
+<p>测试漏洞：test_current_actor_downgrade_rejects_stale_form是保存前先撤权的串行用例；test_mapper_cas_detects_write_after_read证明任务行版本，不保护actor；同线程回调等待竞争者提交在修复后可能形成测试自锁。故新增独立进程调度、反向变异校准和同上下文释放观察。</p>
+<h2 id="inventory">2. 代码核实与最小依赖盘点</h2>
+<p>本轮已逐文件Read并用AST登记源位置和SHA256，见<a href="../qa/evidence/sqlite-task-boundary-design-2026-11-02/review.json">代码/API核实证据</a>；位置以该指纹版本为准，实施前漂移必须重读。</p>
+<table><tr><th>源实现</th><th>已确认行为</th><th>设计约束</th></tr>
+<tr><td>app/main/views.py::cron_edit</td><td>GET/POST先读task与对象预检；POST唯一生产调用save_task_edit；还有测试与诊断工具直接调用</td><td>入口事务可有只读；不可复用入口对象作为保护内真值；不改路由/CSRF/模板</td></tr>
+<tr><td>cron_edit_concurrency.py::_actor、task_edit_values、save_task_edit</td><td>重新读actor及UserGroup、task、TaskGroup/TaskTag/Tag；ResourceGroup用Session.get；仅StaleData最多两次尝试；入口rollback当前在主try外</td><td>保护先于全部决策读；入口和终态清理进入统一错误边界；重新保护必须重算完整计划，不能沿用旧ORM对象</td></tr>
+<tr><td>datas/model/cron_infos.py；task_revision.py</td><td>version_id_col为edit_revision；flush版本CAS；标签关系入口可touch父版本</td><td>保留CAS；权限变更不自动改变task版本；不新增/删除/迁移字段</td></tr>
+<tr><td>cron_validator.py；url_security.py</td><td>normalize是纯解析；validate_cron_form=解析+当前时间+validate_trigger_url；后者可getaddrinfo并重试sleep，无硬DNS时限</td><td>SQLite锁内只做纯解析与时间校验；URL校验锁外且与最终candidate精确绑定；不声称请求总耗时有硬上限</td></tr>
+<tr><td>sqlite_write_boundary.py</td><td>传具体Session和模型列表；校验同bind；MySQL不发SQLite SQL；SQLite临时timeout=0、BEGIN IMMEDIATE、立即恢复timeout；恢复失败invalidate；不commit</td><td>复用已有API；具体Session由当前scoped session取得；所有依赖模型列入同bind校验；清理失败不继续</td></tr>
+<tr><td>tag_service.py::sync_task_tags/get_or_create_tag</td><td>无独立commit；缺失标签用begin_nested/SAVEPOINT并处理唯一冲突；可关闭额外父版本推进</td><td>关系写在业务事务，CAS先于关系DML；新标签flush/SAVEPOINT回滚必须实测</td></tr>
+<tr><td>cron_edit_apply.py::apply_edit；cron_service.py::register_cron_job</td><td>业务提交后独立连接check_version；注册后再次检查；异常可查询调度目标；pending不当成功</td><td>不把scheduler放进业务锁；不改现有有限并发检测；不许以rollback已提交DB来假装补偿调度</td></tr>
+<tr><td>operation_log_service.py::record_operation；cron_service.py::stamp_last_operator</td><td>日志独立commit、失败只记日志；当前任务编辑在调度成功后才调用；操作者从请求上下文解析</td><td>本批保留日志语义并显式豁免；不声称任务日志与业务同事务；关联可公开task id，敏感URL/body仅changed事实</td></tr>
+<tr><td>app/crons.py</td><td>执行前validate_and_resolve_url并使用pinned IP</td><td>保存校验只作保存策略门禁，不能代替执行时DNS校验/固定IP；不缓存DNS答案供未来执行</td></tr></table>
+<h2 id="scope">3. 范围、字段意图与兼容性</h2>
+<p>计划修改生产文件仅cron_edit_concurrency.py和cron_validator.py；复用sqlite_write_boundary.py而不修改其用户服务行为。允许在前者提取内部只读规划函数和SQLite协调函数，避免两套授权/比较规则；若确需另拆文件，应在同批列明纯搬迁和调用点。新增任务专项内存测试、独立文件集成工具、QA/复盘及规范要求的命令登记。<strong>无前端可见变更</strong>：模板、CSS/JS、布局、文案、字段及结果类型沿用当前契约，免页面Before/After；真实页面仍要端到端验收。</p>
+<p>API任务编辑、启停、下线、任务创建、批量任务、调度器回补路径均不纳入新保存协议；实施时静态盘点相关写入口并记录剩余项，不代表它们已有等价保护。无全站engine事件、默认隔离级别、busy_timeout配置、journal模式、依赖或数据库结构变更；不修改全量6项既有失败。</p>
+<table><tr><th>单元</th><th>原意图、授权和规范化</th><th>保护及副作用</th></tr>
+<tr><td>task_name</td><td>只读；与原签名摘要比对，禁止改名</td><td>不参与可写集合</td></tr>
+<tr><td>description：task_keyword</td><td>沿用trim、必填及长度规则；原值O/请求R/当前C比较</td><td>未编辑保留C；有效变化推进版本，不触发scheduler</td></tr>
+<tr><td>schedule：run_date/day_of_week/day/hour/minute/second</td><td>耦合单元；沿用模式切换与开发模式解析；最终写前重验时间有效性</td><td>同单元冲突全单拒绝；有效变更提交后apply_edit</td></tr>
+<tr><td>request：req_url/req_method/req_body</td><td>耦合单元；URL必填、方法白名单、body JSON对象；最终候选URL必须已按本请求固定策略校验</td><td>不把请求出现当编辑；敏感值不写日志；单改请求单元不额外注册job</td></tr>
+<tr><td>timeout_sec</td><td>空串/None表示系统默认；数值及bool拒绝规则沿用normalize</td><td>NULL与整数语义保持；单改不注册job</td></tr>
+<tr><td>scope：scope_type/group_id/tag_names</td><td>授权与关系耦合；沿用GROUP单组、GLOBAL无组、当前可赋组、标签小写集合；缺scope_type/tag_names拒绝</td><td>事务内校验组/标签；未编辑不重写关系；不可将其他组的绑定误当可分配</td></tr>
+<tr><td>status</td><td>只有显式resume_after_save才产生恢复意图；未表达不覆盖当前状态；已下线拒绝</td><td>有效恢复提交后调度；无变化/等价不改版本与日志</td></tr></table>
+<p>不存在通用PATCH协议改造：各字段缺失/null/空值仍按当前Web表单解析，不新增“缺失=清空”。输入归一化副本与原T0签名在请求各轮固定；失败回显不签发悄悄重基线的新token。</p>
+<h2 id="alternatives">4. 备选及推荐取舍</h2><ul>
+<li><strong>仅任务版本CAS：</strong>不足；actor撤权和组关联变化不必推进该版本。</li>
+<li><strong>仅条件UPDATE加actor谓词：</strong>单条业务行可校验，但scope/标签关系、缺失关系、整单比较及异常清理需重新设计多条协议，本次改动面更大。</li>
+<li><strong>所有请求全局BEGIN或全站改事务模式：</strong>影响GET、日志与其他服务，不选。</li>
+<li><strong>全程BEGIN IMMEDIATE并保持现有完整校验：</strong>正确性方向可行，但DNS可能长时间占数据库写者资格，不选。</li>
+<li><strong>推荐局部物理保护+锁外URL校验+重新保护重算：</strong>复用已有helper与CAS；显式增加至多两次URL校验和至多三轮保护。额外实现复杂度由规划函数复用、状态计数和变异测试约束。MySQL原有锁/校验顺序保留，本批不顺带治理其DNS锁持有成本。</li></ul>
+<h2 id="algorithm">5. 推荐算法与证明义务</h2>
+<h3>5.1 事务所有权与最初清理</h3>
+<p>服务仅接受独立请求、无待写ORM工作的Session；入口守卫先于任何rollback，不得丢弃调用方写入。已flush或原生SQL待写不一定出现在dirty集合，仍由禁止组合调用契约约束，不能声称已自动识别。签名校验及入口只读事务rollback统一纳入主异常边界；记录清理异常并invalidate，清理不成功即停止。禁止仅依赖teardown。</p>
+<p>每次SQLite保护前Session必须已成功结束上轮事务；复用begin_sqlite_write_boundary，完整模型集为RbacUser、UserGroup、CronInfos、TaskGroup、TaskTag、Tag、ResourceGroup。配置与请求取本次不可变副本；同bind必须是同一物理业务库。多bind/其他后端不做静默降级。已有helper执行BEGIN前发现物理事务已开始时拒绝，不能嵌套BEGIN或用SAVEPOINT代替全库写者保护。</p>
+<h3>5.2 三轮上限、锁内重算与URL校验凭据</h3>
+<ol>
+<li><strong>进入保护：</strong>每轮重新取得同Session物理保护，恢复原busy_timeout后才读业务。保持未编辑字段保留C、scope整体比较及当前actor授权；使用新读取值重建计划。所有轮次沿用最初O和R，禁止自动接受新基线。</li>
+<li><strong>先处理终态：</strong>无效主体、无权限、下线、冲突、非法输入直接清理返回；no_change/already_applied在保护内确定后释放，无DNS、无DML、无成功日志、无scheduler。</li>
+<li><strong>需写且没有可用URL校验结果：</strong>只复制候选标量，不修改任何ORM属性、不flush；成功rollback释放保护，再执行原有validate_trigger_url校验精确candidate.req_url与本请求固定策略。失败返回既有failed/req_url，不写DB。校验期间当前Session不得重新读业务或开启事务。</li>
+<li><strong>校验结果只在本次请求内有效：</strong>以完整归一化URL（包括路径/query）和固定策略为匹配条件；既不持久化也不跨请求缓存，不记录URL明文。策略输入冻结为当前config副本，涵盖实际消费url_allow_hosts、block_private_ip、url_ssrf_observe_only；不凭配置名称推断其他键已被消费。再次保护后，重新查actor/目标/关系、授权、三方比较；只有最终候选精确匹配时才允许复用校验成功。角色/组/状态变化仍须拒绝，校验成功不是授权凭据。</li>
+<li><strong>最终本地校验：</strong>提取计划新增的纯函数validate_cron_form_local（当前尚不存在），从现有validate_cron_form原样拆出normalize与get_now_time比较；完整validate_cron_form仍调用它再校验URL，原签名、返回结构和默认行为不变。SQLite写前调用local，重验候选与当前时间；不得在锁内调用完整校验。API及MySQL原有完整校验继续使用同一纯逻辑。</li>
+<li><strong>写入：</strong>只有最终匹配并通过全部本地校验的轮次才能设置ORM属性、stamp操作者、推进edit_revision、flush CAS、scope关系DML与标签SAVEPOINT，再commit。每次请求最多一次确定成功的业务commit；不得在URL校验轮次写入关系或成功日志。</li>
+</ol>
+<p>预算定义：SQLite全请求最多<strong>3次保护进入尝试、2次锁外URL校验、1次StaleData重新规划</strong>，共享预算而非相乘循环。BEGIN忙立即failed，不自动重试；保护成功后因URL变动需要重验可以消耗下一轮，预算耗尽返回既有conflict消息、零本次写入。一次无关字段并发（含另一人改URL、本请求只改说明）应在预算内重新校验新URL并合并；持续改变可拒绝，不声称无界追赶。StaleData仅commit调用前、成功清理且仍有总轮次预算时允许一次，必须重读重算；MySQL保持原两次StaleData尝试，不增加SQLite循环。任何commit开始后的异常均不重试。</p>
+<pre>伪流程（语义设计，非可直接粘贴实现）
+clean-owner guard → 主错误边界：校验原token；结束入口只读事务
+SQLite：至多3轮
+  BEGIN IMMEDIATE → 当前actor/task/全部关系 → 授权与三方规划
+  终态？→ 清理并返回
+  最终URL未按固定策略校验？
+    复制候选 → rollback确认释放 → URL校验（上限2次）→ 成功后下一轮
+  纯校验/时间重验 → 赋值 → 版本flush → 关系DML → commit
+MySQL：原行锁/完整校验/两次StaleData语义；不发送SQLite SQL
+确定commit成功 → 按有效差异apply_edit → 沿用独立record_operation → updated
+</pre>
+<p><strong>安全证明：</strong>允许写入的最后一轮，从当前授权读到业务提交持续持有同库写者资格；另一写者不能在中间提交撤权/关系变化。释放锁作DNS的轮次没有业务修改；重新进入后旧授权与旧candidate均作废。CAS仍作为防御层；URL校验绑定最终写入的URL且执行前独立DNS防护保持不变。保存前DNS检查并不保证未来解析不变。</p>
+<h2 id="ordering">6. 并发胜负与异常结果</h2>
+<ul><li><strong>撤权/停用/换组先提交：</strong>最终受保护读看见新事实，拒绝，业务版本/关系/成功日志不变。</li><li><strong>最后一轮保存先取得保护：</strong>竞争撤权等待或明确忙；保存可合法完成，释放后撤权再执行。不能用“撤权请求已发起”断言保存必须失败。</li><li><strong>DNS释放期间发生变更：</strong>竞争写可以成功；保存重入必须重新授权与比较，不能因为此前拿过锁而沿用旧事实。</li><li><strong>同单元先改：</strong>conflict整单拒绝；不同单元先改：保留C并合并；目标已等价：already_applied；未表达恢复不得覆盖暂停/运行状态。</li></ul>
+<table><tr><th>故障阶段</th><th>返回与持久化</th><th>清理/重试</th></tr>
+<tr><td>签名/入口rollback/BEGIN/恢复timeout/URL失败/纯校验</td><td>failed，固定安全错误；无本次业务DML与调度；签名缺失保持reload_required</td><td>主try覆盖所有清理；恢复失败淘汰连接；不以任意OperationalError当“已阻止竞争”</td></tr>
+<tr><td>flush、标签SAVEPOINT、关系DML失败</td><td>commit前failed；StaleData可按共享预算重算，耗尽conflict</td><td>rollback_or_invalidate；清理失败禁止继续；独立连接确认无残留</td></tr>
+<tr><td>设置attempting_commit之后commit抛异常</td><td>commit_unknown；分别核验异常发生前后真实DB事实；不能宣称未提交</td><td>清理但绝不自动重试、注册job或写成功日志；StaleData若发生在该阶段同样保守处理</td></tr>
+<tr><td>确定commit成功后调度失败/版本变更</td><td>saved_scheduler_error既有结果；已提交业务不倒回</td><td>沿用apply_edit有限检查；不引入伪补偿/分布式事务；仅schedule/status有效变化调用</td></tr>
+<tr><td>独立OperationLog写失败</td><td>保留当前updated语义，业务不回滚</td><td>日志记录错误，失败独立事务须结束；本批不承诺可靠投递</td></tr></table>
+<h2 id="side-effects">7. 日志、调度和规范边界的显式决策</h2>
+<p><strong>重要差异：</strong>RBAC用户编辑成功审计在业务事务；任务OperationLog当前是提交后独立事务，且调度失败提前返回时不会写该成功日志。本设计明确请求本专项保留这一既有边界，作为EDIT-07“业务/成功审计同事务”的局部现状豁免，不将其宣传成已合规。若验收目标必须包括强审计，则须改选同事务日志或outbox并更新设计后再确认；不得在实施中悄悄扩大。</p>
+<p>暂不选同事务日志：record_operation内含独立commit并吞异常，直接移到锁内会破坏事务所有权；拆成可靠事务日志影响更多调用方。暂不选outbox：涉及表、投递、重放和运维，不是关闭当前授权窗口必需。后续强审计应独立设计。当前窄范围可批准，但不能据此关闭整站审计/调度一致性问题。</p>
+<p>本设计保护到业务提交为止。提交后的apply_edit仍可能与新版本交错，其版本检查存在窗口，不能视作线性化scheduler协议。保留已有结果核验，单列后续评估；不把新业务锁保持到scheduler完成，也不为消除错误强行重注册旧目标。未注册时钟变更与纯说明变更两类均需独立观察。</p>
+<p>时间戳、版本、组/标签关系都无字段迁移；API返回无字段增删，不需新增API Breaking Change标记。若实施发现必须改结构或结果类型，须先更新设计再确认。无新增凭据列；复用摘要token不包含URL/body明文。</p>
+<h2 id="batches">8. 分批实施及每步专业评估</h2><table><tr><th>批次</th><th>目的/具体动作</th><th>进入/退出判据</th><th>主要风险与控制</th></tr>
+<tr><td>S0：冻结与校准</td><td>保存当前HEAD+全部相关未提交内容指纹；重读调用链；DELETE/WAL复现actor窗口；搭建独立进程/屏障观察</td><td>无保护可插入、有保护真忙、释放后可写三对照均命中；超时/未到屏障直接失败；记录实际错误码</td><td>避免用旧探针故障或测试互等当修复；S0工具按临时文件窄例外隔离</td></tr>
+<tr><td>S1：纯校验与规划提取</td><td>原样拆local校验，提取只读授权/比较规划，MySQL仍原完整校验；尚未宣称修复</td><td>原有任务编辑/no-op/URL校验测试通过；纯规划零DML；全路径签名/字段语义对照</td><td>拆分遗漏安全分支；新旧完整校验逐条等价测试，不以mock完整校验代替</td></tr>
+<tr><td>S2：SQLite协调与错误边界</td><td>接helper、三轮共享预算、锁外URL结果绑定、每轮授权重算、失败清理</td><td>内存守卫及独立竞争矩阵通过；DNS时物理事务已结束且竞争写可提交；最终保护内无DNS</td><td>双循环次数爆炸、旧URL复用、待写丢弃；状态计数和变异验收拦截</td></tr>
+<tr><td>S3：真实入口与兼容</td><td>双HTTP实例角色浏览器、MySQL独立库、真实scheduler边界、86路由/黄金路径</td><td>正反路径及业务事实、版本、关系、日志和scheduler调用一致；同上下文锁释放</td><td>仅服务直调不足以证明Web链；调度独立JobStore，禁止绑定开发数据</td></tr>
+<tr><td>S4：复盘与交付</td><td>七项复盘、QA HTML/MD、Release Notes、命令登记、索引、scope指纹、本地复验</td><td>新缺口专项关闭有证据；全量结果与既有6失败逐项保留；无批准不提交/发布</td><td>专项成功冒称全仓可发布；最终状态绑定内容指纹，漂移重验</td></tr></table>
+<h2 id="acceptance">9. 验收矩阵与计划命令</h2>
+<p>以下是<strong>待实施的验收要求</strong>，不是本轮绿色结果。单元库只用sqlite:///:memory:；真实文件竞争及MySQL分别使用owned临时文件/独占专用库。任何mock DNS用例只能证明事务调度，另设实际校验分支和一次真浏览器无mock提交，不得把DNS旁路当完整安全验收。</p>
+<ol><li><strong>物理/API守卫：</strong>同Session连接、7模型同bind、helper前零授权读取；timeout恢复先于读；BEGIN真实忙失败、恢复失败淘汰、rollback失败无掩盖；MySQL无SQLite SQL；待写ORM拒绝不丢工作；原生写契约单独说明。</li>
+<li><strong>授权竞争：</strong>role降级、停用、actor换组、task移出可见组、下线，各覆盖竞争先提交/最终保存先保护/DNS间隙提交；正常忙失败后显式新请求可成功。actor合法旧role先提交不是漏洞。</li>
+<li><strong>比较与关系：</strong>同字段冲突整单零写、不同字段保留、scope耦合、tag改名/删除、关系异常、等价、no-op、重复token、显式恢复；新标签SAVEPOINT失败主事务回滚；提交版本只增一次。</li>
+<li><strong>URL与预算：</strong>DNS时零物理事务/零待写，竞争者能写；URL被另一人改动后旧校验不可用；新URL重新校验后合并其他单元；连续URL变化超过预算conflict；DNS失败无写；同URL仍重验当前授权；DNS期间run_date过期写前拒绝；3轮/2校验/1Stale上限逐项断言，BEGIN忙和未知提交零重试。</li>
+<li><strong>异常事实：</strong>入口/保护/flush/关系/commit之前与之后/清理双失败；独立连接查DB、版本、关系；未知提交两个事实分支均不得scheduler/成功日志；敏感异常原文不回前端。</li>
+<li><strong>副作用：</strong>非schedule/status零scheduler调用；确定提交成功后apply_edit一次；调度失败、pending、调度前后新版本、OperationLog故障分别验；日志独立性按§7豁免准确展示。</li>
+<li><strong>灵敏性校准：</strong>隔离进程暂时绕过BEGIN、跳过DNS后授权重读、把URL匹配改恒真、遗漏终态rollback四类变异，验证器必须检测；变异只能在工具进程或源码副本，禁止改开发服务。关闭原上下文前探针验证释放，再做teardown对照。</li>
+<li><strong>Web与MySQL：</strong>真实Operator保存及Viewer/外组拒绝；第二账号通过真实RBAC入口撤权、第二Operator通过真实表单改任务；双实例共享专用业务库/固定同一secret、独立Session。DELETE/WAL均覆盖先撤权、保存先保护、DNS间隙撤权、同字段冲突与不同字段合并；Ajax及原生POST至少各一条完整链。MySQL保持FOR UPDATE及现有竞争语义，原提交后调度继续可用。</li></ol>
+<pre>现有命令（实现后须重跑）
+.venv-py311/bin/python -m unittest tests.test_cron_edit_concurrency tests.test_cron_edit_noop tests.test_user_edit_sqlite_boundary -q
+.venv-py311/bin/ruff check app/
+.venv-py311/bin/python scripts/smoke_routes.py --check
+bash scripts/verify_golden_path.sh
+bash scripts/cronpilot.sh test
+
+计划新增（当前文件尚不存在，不是可立即运行的已交付工具）
+.venv-py311/bin/python -m unittest tests.test_task_edit_sqlite_boundary -q
+.venv-py311/bin/python scripts/verify_task_edit_sqlite_boundary.py --output-dir /private/tmp/task-boundary-new-empty --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+</pre>
+<p>命令执行工厂必须核验业务库和全局JobStore都隔离；smoke/golden需隔离配置并关闭不相关调度执行，不能重演全局JobStore误接。真实MySQL采用已有工具允许的专用库前缀与最小权限、受保护连接文件，禁止删表或连接开发库。任务专项MySQL工具能力在S0核实，不能把只测no-op的现有脚本当全部矩阵完成。</p>
+<h2 id="isolation">10. 性能、隔离、风险与回滚</h2>
+<p>锁成本是SQLite数据库级写者资格，包含不同任务/其他模块写竞争。BEGIN只临时零等待，取得保护后恢复原timeout，不声称整次保存零等待；DELETE模式commit可能受读者影响。DNS虽不再占写事务，resolver自身无硬期限；不在本批虚构硬请求超时、取消线程或新配置开关。</p>
+<p>每轮增加actor/关系重读，最大三轮；TaskGroup/UserGroup/TaskTag已有按主体id索引，Tag按id或name/group查询。实际关系量与SQL耗时尚未量测，不能据此判定性能已通过。S3记录1/10/100标签的锁持有时长、总耗时、轮次、busy比例及同条件旧实现对照；如业务上限更低则用实际允许上限。硬性通过项为无网络/调度调用发生在锁内、循环有界、终态释放；延迟数值作为测量结果而非设计拍脑袋门槛，异常增长必须说明并阻止性能合格声明。</p>
+<p><strong>临时文件窄例外待随设计确认：</strong>普通unittest仍仅内存库；计划新增独立CLI为验证文件锁可使用自身TemporaryDirectory下的SQLite DELETE/WAL文件。必须校验路径归属、run_id标记、拒绝任意数据库URL，输出目录须空，结束dispose并清理自身DB/WAL/SHM；不清理调用方目录，不接触开发库。此为本专项新授权范围，不能默认沿用上一批用户编辑工具例外。双HTTP/scheduler验收的JobStore也只用该拥有目录；浏览器账号由工具创建，密码不进仓库或HTTP证据。</p>
+<p>发布回滚为撤销本批代码与文档状态，无迁移可逆负担；回退会重新暴露原授权窗口，不能当安全降级。遇无法确定的数据库/清理错误应拒绝本次保存，保留日志调查，不降级绕过BEGIN。多进程部署各进程均须运行同版本，混合旧写协议不作为已保证场景。</p>
+<h2 id="evaluation">11. 准确性、合理性与专业性评估</h2>
+<table><tr><th>维度</th><th>评估依据与结论</th><th>条件/未获证明部分</th></tr>
+<tr><td>准确性：设计复核通过</td><td>任务CAS不保护actor的判断有已存两模式反例及当前代码支持；helper、标签SAVEPOINT、DNS函数、日志独立commit和提交后调度均已Read核实；未引用不存在的scheduler属性</td><td>本轮未重跑竞争/HTTP；最新源码复现及修复效果仍是S0–S3任务；当前36单元绿色不是原子保护已实现</td></tr>
+<tr><td>合理性：推荐方案可批准</td><td>局部物理事务覆盖多表授权；保存先保护可合法先完成；DNS锁外重新规划保留并发合并；有界循环控制成本；不引入DB迁移或分布式锁</td><td>为避免DNS持锁增加规划复杂度；必须逐分支验证URL绑定与预算，不能只加一行BEGIN；MySQL DNS成本不在本批治理</td></tr>
+<tr><td>专业性：具备实施设计完整度</td><td>前置契约、所有权、字段意图、错误分类、实际依赖、分批、反向校准、隔离、内容指纹、回滚及日志豁免齐全；七个必备要素可定位</td><td>不承诺跨库原子、强审计、全仓写协议或发布就绪；可靠日志与scheduler收敛仍需后续设计；自评不是独立第三方审计</td></tr></table>
+<p><strong>确认建议：</strong>批准本稿作为该任务编辑专项的实施依据；必须同时接受“有限保护重入+锁外校验”的范围，以及§7既有日志语义豁免与§10工具隔离例外。若要求本批提供日志必达或跨库调度原子性，当前方案范围不足，应先扩写而不能直接实施。仅需关闭已证明的SQLite任务授权窗口时，本方案范围适当。</p>
+<h2 id="sources">12. 官方依据与API版本边界</h2>
+<p>本轮在线核对<a href="https://www.sqlite.org/lang_transaction.html">SQLite事务</a>：IMMEDIATE提前申请写事务，竞争写者可致BUSY，COMMIT亦可受读者阻塞。<a href="https://www.sqlite.org/isolation.html">SQLite隔离</a>说明写者串行及journal差异；不因此声称所有读者被BEGIN阻塞。<a href="https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#legacy-transaction-mode-with-the-sqlite3-driver">SQLAlchemy sqlite3事务说明</a>支持区分逻辑与物理事务；在线版本可能高于仓库，具体API以本地2.0.36实现与现有helper为准，不使用Python3.12的autocommit参数。此处是基于官方机制与当前代码的工程推导，没有宣称任何大厂给CronPilot做过认证。</p>
+<h2 id="validation">13. 本轮实际验证与待实施声明</h2>
+<p>本轮重读上述22个源文件并登记AST位置/指纹；读取历史DELETE/WAL任务探针（未重跑）；运行现有内存测试命令，<strong>36 tests / 11.231s / OK</strong>。包含主动故障注入日志，测试退出0。无新生产/测试实现，无新任务并发修复结果，无MySQL/全量新运行。本机Python3.11.4；其他版本运行未验证。上一轮全量6失败仅引用其历史状态，不当作本轮重新验收。</p>
+<p id="doc-gates">本轮最终验证：check_doc_completeness --check通过（393 HTML全部登记）；check_doc_links --check通过（3046引用、0 broken）；tests.test_check_doc_completeness 4项通过；html_docs_to_markdown --check、git diff --check通过。HTML与Markdown均HTTP 200，浏览器实际打开标题、契约、算法及评估内容。22个源文件SHA256读回一致，未修改受评业务或测试实现。本轮仅设计，不需要重启Python服务加载文档源文件。</p>
+</main><footer><a href="SQLite任务编辑保存边界原子保护设计-2026-11-02.md">Markdown 版</a> · <a href="../index.html">文档索引</a></footer></body></html>

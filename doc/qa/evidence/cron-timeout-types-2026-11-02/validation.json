@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-02",
+  "before": {
+    "tests": 5,
+    "failures": 4,
+    "subtest_errors": 8
+  },
+  "focused": {
+    "tests": 83,
+    "result": "OK"
+  },
+  "broad": {
+    "tests": 81,
+    "skipped": 1,
+    "result": "OK"
+  },
+  "routes": {
+    "passed": 86,
+    "total": 86
+  },
+  "ruff": "passed",
+  "backends": [
+    "sqlite",
+    "mysql"
+  ],
+  "preview": "http://127.0.0.1:5004",
+  "login_http": 200,
+  "original_database_tables": "present",
+  "full_discovery": "not rerun",
+  "git_commit": "not performed"
+}

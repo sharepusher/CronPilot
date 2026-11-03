@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RBAC 用户编辑两项 P1 根因与修复设计（2026-10-29）</title>
+<style>
+:root{--ink:#172636;--muted:#506176;--line:#ced8e3;--accent:#165a78;--paper:#f5f8fa;--warn:#8a4514}
+*{box-sizing:border-box}body{font-family:system-ui,"PingFang SC",sans-serif;color:var(--ink);background:var(--paper);line-height:1.8;margin:0}main{max-width:1180px;margin:auto;background:white;padding:40px}h1{line-height:1.4}h2{border-bottom:1px solid var(--line);padding-bottom:8px;margin-top:38px}h3{margin-top:26px}a{color:var(--accent)}p,li{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid var(--line);padding:10px;vertical-align:top;text-align:left}th{background:var(--paper)}code{background:var(--paper);padding:2px 4px;overflow-wrap:anywhere}pre{background:var(--paper);padding:18px;overflow:auto;line-height:1.6}.gate,.note{border-left:4px solid var(--accent);background:var(--paper);padding:16px 20px;margin:18px 0}.gate strong{color:var(--warn)}.compare{display:grid;grid-template-columns:1fr 1fr;gap:20px}.screen{border:1px solid var(--line);border-radius:12px;padding:22px}.screen h4{margin:0 0 16px}.row{display:flex;gap:16px;border-bottom:1px solid var(--line);padding:10px 0}.label{min-width:90px;color:var(--muted)}.dialog{margin-top:20px;border:1px solid var(--line);border-radius:8px;padding:16px}.fake-input{border:1px solid var(--line);padding:8px;margin:8px 0;min-height:42px;background:white}.actions{display:flex;gap:10px;margin-top:15px}.button{border:1px solid var(--accent);padding:5px 12px;border-radius:5px;display:inline-block}.primary{background:var(--accent);color:white}.error{color:var(--warn)}small{color:var(--muted)}@media(max-width:800px){main{padding:20px}.compare{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>RBAC 用户编辑两项 P1 根因与修复设计</h1>
+<p>版本：rev.1.1 · 日期：2026-10-29 · 基线：HEAD <code>3b7583f</code> 与当前未提交用户编辑变更 · 状态：<strong>已获用户明确确认；两项 P1 已实施并验证</strong></p>
+<div class="gate"><strong>确认门禁：</strong>用户已明确回复“确认执行”，本轮按 A1/B1/V1 完成实施与验收。以下正文保留原批准契约，实际结果以新增实施记录为准。管理员权限继续以现有设计为准，本方案不采用对话中已经撤回的“管理员不能修改用户信息”说法。</div>
+<p>父设计：<a href="RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">RBAC 用户编辑独立设计（批准基线 rev.2.4，当前 rev.2.5）</a>；父评估：<a href="../qa/未提交代码与文档专业评估-2026-10-29.html">未提交代码与文档专业评估</a>。本轮简称 <strong>P1-A</strong>＝确认回显更换原始快照，<strong>P1-B</strong>＝MySQL 验证脚本无条件删表；仅为本文发现编号，不分配新的 OPT 编号。</p>
+<p><a href="#page-compare">页面 Before / After</a> · <a href="#evaluation">方案专业性与合理性</a> · <a href="#acceptance">验收矩阵</a></p>
+<table><tr><th>版本</th><th>日期</th><th>变更</th></tr><tr><td>rev.1.1</td><td>2026-10-29</td><td>记录用户确认、两项 P1 修复完成，223 项联合回归、真实 MySQL 与目标角色浏览器验收；独立 P2 保留。</td></tr><tr><td>rev.1</td><td>2026-10-29</td><td>复核两项 P1，冻结快照连续性、非破坏性专用空库、错误/浏览器/双后端验收与分批停止条件。</td></tr></table>
+<h2>交付契约矩阵</h2>
+<table><tr><th>对象 / 传输</th><th>调用方与认证边界</th><th>唯一性责任</th><th>缺失/非法行为</th><th>响应、日志与验收</th></tr>
+<tr><td>编辑页 GET / SSR</td><td>现有数据库当前 actor 守卫、目标 Scope、自编辑禁止、停用限制。</td><td>一次明确进入 GET 才产生新的编辑基线；token 绑定 actor/target，签名不代替授权。</td><td>无权不展示目标快照；读失败拒绝。不得为了错误回显自动产生新基线。</td><td>渲染可编辑表单、单个 token；浏览器检查目标角色正反向路径。</td></tr>
+<tr><td>POST / 原生 HTML 与 Ajax JSON</td><td>CSRF、当前 actor/Scope；写服务内再授权和锁内比较继续保留。</td><td>GET 原始 token 在同一次编辑的可恢复失败、确认和重试中逐字保持；token/original/表单值各有独立职责。</td><td>无效 token 不返回可继续提交的新表单；Ajax FAILED，原生失效提示页仅提供显式刷新入口。合法 token 的确认/输入失败保留同一基线。</td><td>成功、冲突、已应用、结果未知沿用既有 outcome；无秘密回填 URL。原生多次 POST 和目标角色浏览器验证。</td></tr>
+<tr><td>邮箱清空确认 / 原生回退</td><td>仍允许管理 Scope 内管理员操作；必须确认和合法理由。</td><td>确认依据是已经验签的首次邮箱，不是 POST 时重新读取的邮箱。隐藏字段同名唯一。</td><td>空/超长理由零业务写；三值不同整体冲突。当前已是请求值则 ALREADY_APPLIED。</td><td>理由与成功审计同事务；展示只读原邮箱（自动转义）；不向页面暴露额外数据库新值。</td></tr>
+<tr><td>MySQL 脚本 / CLI URL</td><td>专用测试凭据、调用方预建的独占空 schema；不读取开发配置。不是 Web/RBAC 认证。</td><td>每次 run 使用新的 schema；整库检查 + 固定顺序非幂等建表确保同脚本竞争不共用已有表。</td><td>非 MySQL、库名非法在连接前拒绝；已有任何表/视图、检查失败在 DDL 前拒绝；建表失败在 fixture DML 前停止。</td><td>只输出固定阶段、脱敏错误；不打印完整 URL/密码；真 MySQL 隔离实例验证哨兵不变和锁测试保留。</td></tr>
+<tr><td>文档交付</td><td>仓库 HTML 源 + 生成 Markdown；索引双登记。</td><td>本文件是两项 P1 的新增补充设计；父设计的权限与审计语义继续适用。</td><td>任何一项验收不通过，不写“已修复/全部闭环”。</td><td>提供 HTML/MD 文件入口；本轮校验设计可访问性和文档门禁，实施后再给 URL、登录方式与 Agent 自证。</td></tr></table>
+<h2>1. 问题与影响边界</h2>
+<h3>1.1 P1-A：签名没有被破解，原始比较基准被服务器替换</h3>
+<p>数据 snapshot 指字段值集合，不是截图。正常三方比较应使用首次页面 <code>original</code>、锁内数据库 <code>current</code> 和用户提交的 <code>requested</code>。现有服务的比较本身正确；路由在原生 POST 的确认回显中重新生成 original，破坏比较前提。</p>
+<ol><li>管理员甲 GET：原邮箱 <code>old@example.invalid</code>，签名 token 为 T0。</li><li>管理员乙或该用户本人把数据库邮箱改为 <code>concurrent@example.invalid</code>。</li><li>甲旧表单提交清空邮箱，缺清空确认；回显保留空输入，却携带服务器按当前邮箱生成的 T1。</li><li>甲填写理由重提交；后端比较 T1 的 current 邮箱与数据库一致，返回成功并清空。</li></ol>
+<p><strong>影响：</strong>丢失并发更新，且成功审计把实际被删除的新邮箱记录下来，却不能证明管理员看过它。回显本身没有业务写入，危险发生在下一次 POST。该问题不是“所有管理员都能越权”，也不等于常规 JS 弹窗每次都有此问题；已复现的是原生确认回显路径。凡保留旧请求、同时换新基线的后续回显，都属于同源检查范围。</p>
+<h3>1.2 P1-B：验收工具可在错误数据库中删除已有表</h3>
+<p><code>verify(database_url)</code> 不校验 URL/库名/已有对象，初始化 app 后立即执行 <code>db.drop_all()</code> 和 <code>db.create_all()</code>。错误连接串只要账户有相应权限，就可能删除已注册在 metadata 的用户、组、审计等表。真实范围取决于该进程已导入的模型；不是仅删除本轮 fixture。</p>
+<p><strong>严重性：</strong>P1-B 的潜在损失比普通测试失败高，可能不可逆；P1-A 损害业务更新与确认的可信性。两项均应在提交前处理。当前没有证据表明生产数据已经受损，本方案不臆测事故已经发生。</p>
+<h2>2. 根因与测试漏洞</h2>
+<table><tr><th>层次</th><th>P1-A</th><th>P1-B</th></tr>
+<tr><td>直接代码原因</td><td><code>users_edit()</code> 在 GET/POST 分支前统一构造 edit_ctx；其 token/original 来自 POST 当前 DB。确认失败返回时只传 form_values，没有覆盖这个新 token。</td><td>verify() 把任意调用者传入的 URL 当成一次性测试库，直接 drop_all；create_all 默认还依赖当前全局 metadata。</td></tr>
+<tr><td>建模原因</td><td>没有把“当前授权/只读对象”“首次原值”“用户请求值”分成三个数据源。回显被当作纯展示，忽略隐藏字段会控制下一次写入。</td><td>把 fixture 生命周期和数据库生命周期混在一起，用全表清空获得干净基线；脚本名中的 MySQL 不构成后端约束。</td></tr>
+<tr><td>行为原因</td><td>验证只关注单个响应和最终写服务，未追踪 GET→首次 POST→回显→二次 POST 的原值不变量。</td><td>只在正确的一次性容器运行脚本，由正确环境掩盖了脚本没有自证隔离；没有给生产式连接串做否定演练。</td></tr>
+<tr><td>既有测试为何漏掉</td><td><code>test_native_clear_email_fallback_preserves_form_and_unique_names</code> 检查文字、保留输入和节点数量，没有提取回显 token 验证它仍是 T0；并发测试直接一次 POST，没有中间回显。</td><td>没有入口负向测试证明“非法 URL 不连接”“占用库不 DDL”“无 DROP 仍可运行”；成功锁等待演练无法揭示误删。</td></tr></table>
+<p>这两项根因不能归结为“粗心”。应增加跨请求不变量、外部资源所有权和否定路径观测，而不是只增加成功用例数量。</p>
+<h2>3. 已核对的实现/API 依据</h2>
+<table><tr><th>读取对象</th><th>确认事实</th><th>本设计据此限制</th></tr>
+<tr><td><code>app/rbac/views.py</code>：users_edit、_user_edit_snapshot_token、_users_form_response</td><td>token 在分支前生成；统一失败回显接受 ctx；辅助签名函数为空 snapshot 时可重建。</td><td>GET 构造与 POST 回显分开；POST 复用已验签原 token，不调用签名辅助函数兜底。</td></tr>
+<tr><td><code>app/rbac/services.py</code>：verify_user_edit_snapshot、normalize_user_edit_values、update_user_management</td><td>验签检查精确 schema 与 actor/target；写服务逐字段三方比较、授权单元耦合、冲突 rollback；确认/理由有独立校验。</td><td>继续使用这些已存在的原语，不改 schema/salt、不新增会话版本或服务器快照缓存。</td></tr>
+<tr><td><code>app/templates/redesign/user_form.html</code>、专项测试</td><td>隐藏 token、JS original、form_values 分别独立消费；非 Ajax 回退有理由 textarea 和确认标志。</td><td>三个载体必须同源；添加只读确认原邮箱，不触发新提交机制或新弹窗类型。</td></tr>
+<tr><td>MySQL 脚本、benchmark 隔离参考、四个模型</td><td>现脚本无保护；参考 benchmark 校验库名并只建指定表，但只查目标表是否占用，不能直接当成“整个空 schema”的充分保证；四模型无跨表 FK。</td><td>复用隔离思路，禁止照搬部分表空检查；只允许明确四表。</td></tr>
+<tr><td>本地 SQLAlchemy 实现与签名：MetaData.create_all、SchemaGenerator.visit_metadata；Inspector.get_table_names/get_view_names；make_url</td><td>已读取 create_all 和 visitor 源码：tables 限定目标表，checkfirst 默认 True；False 会对已存在表发 CREATE 并失败；Inspector 能分别列出表/视图。</td><td>使用解析 URL、整库对象检查、限定表清单及 checkfirst=False；不假定 Flask db.create_all 支持 tables 参数。</td></tr></table>
+<p>具体调用形式仅用于说明已验证 API：<code>db.metadata.create_all(bind=engine, tables=明确的四个 Table 对象, checkfirst=False)</code>；四个对象来自 <code>RbacUser.__table__</code>、<code>ResourceGroup.__table__</code>、<code>UserGroup.__table__</code>、<code>RbacAuditLog.__table__</code>。实施前必须复核这些已读文件和实际作用域，不新增凭记忆假设的 import。当前源码检查发生于本设计落盘之前。</p>
+<h2>4. P1-A 推荐方案：冻结一次编辑的原始快照</h2><p><strong>R5 后续细化：</strong>已确认的 R5 将签名升为 v2 并加入 editor_scope；本文“不改 schema/salt”为当时 P1 批次边界。token 在可恢复 POST 中仍不变，JS original 现在等于已验签 token 的表单投影（而非整个载荷），详见<a href="R5用户编辑字段意图与范围外组保留设计-2026-10-29.html">R5 设计 §2.1</a>。</p>
+<h3>4.1 三份数据各司其职</h3>
+<ul><li><strong>original：</strong>首次 GET 签名载荷；在可恢复 POST 回显中不可替换。服务端验签后的对象是 JS original 表单投影和只读确认邮箱的唯一来源。</li>
+<li><strong>requested：</strong>独立表单值对象，按白名单恢复输入；不得写回 ORM user 以求回显。规范化成功时使用规范化结果；失败时只在独立展示模型里保留可安全展示的原始文本。</li>
+<li><strong>current：</strong>只用于当前授权、目标状态和最终写服务比较。不得因为重新读取 DB 就覆盖 original 或未修改字段的表单初值。</li></ul>
+<h3>4.2 路由阶段与响应冻结</h3>
+<ol><li>先执行既有身份、CSRF、目标存在/停用、自编辑及目标管理 Scope 检查。未授权不回显快照，API 读取异常 fail-closed。</li>
+<li>GET 通过校验后，按现有字段构建 T0 并渲染；这是新编辑的入口。</li>
+<li>POST 读取请求 token，调用已存在的 <code>verify_user_edit_snapshot()</code> 验签及 actor/target 绑定。通过后，只能将<strong>收到的 token 原文</strong>和 verified snapshot 放入 POST 回显上下文，不能用当前 DB 重新签名。角色/组授予校验继续读当前授权，不因为 token 有效就放行。</li>
+<li>输入无效、清空未确认、理由无效、可确定的 flush/保存失败等<strong>可继续填写</strong>响应，保持 T0，恢复表单请求值；POST 回显上下文构造不允许有“缺 original 则从数据库构建”的默认分支。</li>
+<li>token 缺失、签名/形状/绑定无效：Ajax 返回既有 failed 语义和刷新提示；原生返回<strong>无可提交编辑表单</strong>的失效提示区，只有显式“重新加载编辑页”GET 链接。不把未验签内容塞入 script，也不静默丢弃旧输入后生成可提交新基线。</li>
+<li>无法忠实、安全回显的角色/组非法参数，或者当前 Scope 已不足以展示目标时，使用固定错误/禁止响应和显式重新加载入口；不能删除不可见选项后留下可提交的缩水组集合。</li>
+<li>已有 CONFLICT/COMMIT_UNKNOWN 原生 PRG 继续明确提示并重新 GET 数据；这是显式结束旧编辑后的新页面，不是保留旧请求的确认回显。Ajax 继续留页提示刷新，不自动重新发 POST。</li></ol>
+<p><strong>最小必要变化：</strong>路由拆开 GET/POST 的上下文构造，原生失效状态增加不可提交提示；邮箱回退确认加入原始邮箱只读说明。正常编辑、CSRF、原生提交方式、Ajax 公共守卫与提交按钮类型保持原机制。现有 JS 组选择器 P2 是独立发现，本方案不顺手修复。</p>
+<h3>4.3 不变量和数据语义</h3>
+<pre>可恢复 POST 响应：
+  echoed_token == incoming_verified_token（原文完全相等）
+  JS original == decode(echoed_token)
+  确认原邮箱 == verified_snapshot.email
+  回显输入 == 本次 requested 的可安全展示值
+  下一次服务比较仍使用 T0 的 original
+
+业务提交：
+  current == original → 应用有效差异
+  current == requested → 已等价完成，不重复写
+  current 同时不同于 original / requested → 整体冲突</pre>
+<p>不增加确认时数据库锁，也不在页面等待期间持有事务。对“邮箱原来为空、后来被他人新增”的场景，请求仍空表示该字段没有修改意图，不应清掉新值；其他字段有效修改可独立应用，沿用父设计。签名快照没有时间过期，不借本次修复引入 TTL 或 auth_version 新字段。</p>
+<h2>5. P1-B 推荐方案：无自动删除、专用独占空库、限定建表</h2>
+<h3>5.1 入口先拒绝，再连接</h3>
+<ol><li>仍要求显式传入 <code>--database-url</code>，不读 conf.ini、不从环境兜底开发连接。用 SQLAlchemy URL 解析，不做子串判断。</li>
+<li>仅接受脚本已使用的 <code>mysql+pymysql</code>；SQLite、其他后端/驱动、缺库名、格式损坏直接拒绝。专用库名完整匹配 <code>^cronpilot_user_edit_verify_[0-9a-f]{12}$</code>。旧随意库名不再兼容；不提供 --force / --allow-production 豁免。</li>
+<li>库名只是误用防线，不能证明数据库所有权。调用方必须使用预建、每次新建的独占 schema，优先放在一次性 MySQL 容器；账户仅能访问该 schema，无全局写权限，不授予 DROP/ALTER/DELETE/TRUNCATE 等无关权限。具体最小 CREATE/索引权限按实际 MySQL 建表结果配置，不以文档猜测替代验证。</li>
+<li>错误日志只给固定阶段与后端/安全库名，不输出原始 URL、password、查询参数或未经处理的连接异常文本。<code>hide_password</code> 仅处理 URL 密码位置，不能据此认为 query 参数也已脱敏。</li></ol>
+<h3>5.2 数据库准备和失败顺序</h3>
+<ol><li>连接专用 schema 后先只读核对实际默认 schema 与已验证库名一致，确认可见所有对象；读取失败一律拒绝。</li>
+<li>通过 Inspector 分别读取整个 schema 的表名和视图名。<strong>任一对象存在都拒绝</strong>，包括与本轮四表无关的哨兵表；不是只检查是否已有 rbac_users。库内对象可见性须由专用账户权限和隔离实例保证，不声称检查能识别故意隐藏的对象。</li>
+<li><strong>移除 drop_all，整个脚本不执行 DROP/TRUNCATE 或全表清理。</strong>按固定清单和顺序创建上述四表，<code>checkfirst=False</code>。metadata 即使注册额外模型也不能扩大建表集合。</li>
+<li>必须等全部建表成功后才插入 fixture。建表失败就停止，保留可能部分建成的空表，不调用清理和重建。MySQL DDL 可能隐式提交，不能靠 rollback 撤销部分 DDL。</li>
+<li>同版本脚本误用同一新库并发启动时，固定首个 CREATE 至多让一个实例成功，另一个因表已存在失败并在 fixture 写入前停止；必须有真 MySQL 并发验收。禁止将 checkfirst 改回 True 后复用另一实例已建表。</li>
+<li>验收仍执行现有双连接锁等待、更新、冲突及锁释放检查；成功输出保留 <code>MYSQL_USER_EDIT_U2: OK</code>，加隔离阶段成功标志。失败退出非零，不输出成功标志。</li>
+<li>脚本结束仅关闭本轮 session/连接；成功和失败均保留专用 schema 供排查。下一次使用新 schema；销毁一次性容器/专用库由外层明确生命周期管理，不把清理权限重新放回脚本。</li></ol>
+<p><strong>承诺边界：</strong>这能防止验收脚本自动删除已有业务表，防止占用 schema 被复用。它不是对恶意 DBA 或任意外部进程的数据库安全隔离：前置检查到建表之间外部仍可能建对象，必须结合独占 schema 与受限账户；遇到竞争/残留以停止为准，不自动修复环境。</p>
+<h2 id="evaluation">6. 方案合理性、专业性与备选比较</h2>
+<table><tr><th>问题</th><th>候选</th><th>评估</th><th>决定</th></tr>
+<tr><td>P1-A</td><td>只给 CONFIRM_REQUIRED 分支补回 T0</td><td>diff 最小，但理由失败、资料校验失败和事务失败的回显仍可重置基线，根因未收口。</td><td>不选。</td></tr>
+<tr><td>P1-A</td><td>所有失败都丢弃输入并刷新</td><td>可避免混合新旧值，但恢复成本高，改变既有失败回显契约；并不能代替 token 无效时的明确说明。</td><td>只用于不可安全继续的失效/越界状态，不作为正常失败策略。</td></tr>
+<tr><td>P1-A</td><td>冻结已验签 token，分离三个数据源</td><td>恢复三方比较前提；覆盖多次回显；不加表/缓存/长事务；保留既有权限与交互。</td><td><strong>推荐。</strong></td></tr>
+<tr><td>P1-A</td><td>服务器缓存快照、加新版本列或跨请求持锁</td><td>引入跨 worker 状态、迁移或锁时长成本，没有必要；仍需解决回显基线一致性。</td><td>不选。</td></tr>
+<tr><td>P1-B</td><td>只检查库名，再 drop_all</td><td>带专用名的库也可能已有重要数据；删除能力仍在，不满足不破坏已存在状态。</td><td>不选。</td></tr>
+<tr><td>P1-B</td><td>提示确认 / 加 --force</td><td>自动化易误传或习惯性确认；没有资源隔离的可验证保证。</td><td>不选。</td></tr>
+<tr><td>P1-B</td><td>专用空库、取消删除、四表显式建表、受限账户</td><td>使误用默认失败，且保留证据。代价是调用方准备新库、失败残留需外层清理；与现有一次性 MySQL 验收方式匹配。</td><td><strong>推荐。</strong></td></tr>
+<tr><td>P1-B</td><td>脚本自动创建/删除数据库或自建容器</td><td>隔离强，但增加全局权限/Docker 耦合和生命周期复杂度；本次必要目标可由外层准备满足。</td><td>不在本批加入。</td></tr></table>
+<p><strong>专业性判断：</strong>推荐方案直接对应信任边界和数据生命周期，具备否定路径、失败分类、最小权限、审计一致性、可复现实验与明确停止条件；不依赖“已有测试都绿”。不以没有统计依据的分数或全 A 自评分代替验证。</p>
+<p><strong>合理性判断：</strong>P1-A 主要是路由上下文组织，时间/空间成本与固定字段数量相当，仍只在有意图变更时进入行锁；P1-B 每次多一次 URL 检查和少量元数据查询，远小于启动数据库与锁测试成本。复杂度和用户影响均局限于对应入口；双 P1 可以独立验收和提交。</p>
+<h2 id="page-compare">7. 页面 Before / After（内嵌）</h2>
+<p>锚定父设计<strong>§8 AFTER · 目标（编辑用户及清空确认）</strong>，不是该节的“访问审计”示例。抄录关键可见结构：角色 viewer、状态“启用（如需停用，请返回用户管理填写缘由）”、邮箱输入、保存、取消/确认清空并保存；表单无表格列。沿用父稿示例邮箱 user@company.com（对应本文复现 old 的角色），并发新邮箱另记 concurrent；不新增业务字段或改动审计页。Before/After 是本设计方案画面，不代表修复已经落地。</p>
+<div class="compare">
+<section class="screen"><h3>BEFORE · 确认回显</h3><h4>编辑用户 · alice</h4><div class="row"><span class="label">角色</span><span>viewer</span></div><div class="row"><span class="label">状态</span><span>启用<br><small>如需停用，请返回用户管理填写缘由</small></span></div><div class="row"><span class="label">邮箱</span><span class="fake-input">（空）</span></div><div class="dialog"><strong>确认清空邮箱</strong><p>清空后该用户将没有登记邮箱，请填写可审计的变更理由。</p><label>清空理由 *</label><div class="fake-input">员工邮箱注销</div><div class="actions"><span class="button">返回</span><span class="button primary">保存</span></div></div><p class="error">甲原来看 user@company.com；乙已改 concurrent；回显隐含换成 T1，再保存可误清空 concurrent。</p></section>
+<section class="screen"><h3>AFTER · 保留首次确认基线</h3><h4>编辑用户 · alice</h4><div class="row"><span class="label">角色</span><span>viewer</span></div><div class="row"><span class="label">状态</span><span>启用<br><small>如需停用，请返回用户管理填写缘由</small></span></div><div class="row"><span class="label">邮箱</span><span class="fake-input">（空）</span></div><div class="dialog"><strong>确认清空邮箱</strong><p>清空后该用户将没有登记邮箱，请填写可审计的变更理由。</p><p><strong>本次确认原邮箱：</strong>user@company.com<br><small>提交时若该资料已变更，将拒绝保存并要求重新确认。</small></p><label>清空理由 *</label><div class="fake-input">员工邮箱注销</div><div class="actions"><span class="button">返回</span><span class="button primary">保存</span></div></div><p class="error">再次提交：该用户信息已变更，未覆盖新数据，请刷新后重新确认。数据库保留 concurrent，未写成功审计。</p></section></div>
+<p>原生回退保留现有“保存”提交按钮，不引入另一个独立 POST；正常 JS 表单型对话框仍使用父设计的“取消 / 确认清空并保存”，本次不改其按钮类型和提交事件。只读原邮箱默认增加在原生回退理由区域，由 Jinja 普通转义输出，禁止拼接 innerHTML。</p>
+<div class="compare"><section class="screen"><h3>BEFORE · token 无效</h3><p class="error">编辑页数据已失效，请刷新后重试</p><div class="fake-input">回显了可继续保存的编辑表单</div><span class="button primary">保存</span><p>错误页悄悄生成新 token，旧请求可能重新进入保存链路。</p></section><section class="screen"><h3>AFTER · token 无效</h3><p class="error">编辑页数据已失效，请重新加载后编辑</p><p>当前表单不能继续提交。重新加载将显示数据库当前资料。</p><a class="button" href="#page-compare">重新加载编辑页（示意）</a><p>实现为经过当前权限检查的目标 GET 链接；本区域无 form、无保存按钮、无新 token。</p></section></div>
+<h2>8. 范围与分批</h2>
+<table><tr><th>批次</th><th>路径 / 工作</th><th>验收与停止条件</th></tr>
+<tr><td>A1 · 原始快照与回显</td><td><code>app/rbac/views.py</code>、<code>app/templates/redesign/user_form.html</code>；必要的页面专属 CSS 仅进 <code>redesign-pages.css</code> 现有作用域；专项测试扩充。服务比较逻辑以复用为主。</td><td>所有可恢复错误 echo T0，非法 token 无可提交新表单，原生二次确认并发反例转为冲突；任何原值被覆盖则停止。</td></tr>
+<tr><td>B1 · 验收脚本隔离</td><td><code>scripts/verify_user_edit_transaction_mysql.py</code>、新增 <code>tests/test_user_edit_mysql_guard.py</code>（拟新增）。</td><td>非法 URL 不连接、非空库不 DDL、metadata 污染只建四表、无 DROP、建表失败零 fixture DML；真 MySQL 哨兵不变及并发启动测试。任一失败则停止。</td></tr>
+<tr><td>V1 · 交付收口</td><td>目标角色浏览器、路由/静态/双后端回归，补七项实际修复复盘，父设计/验收文档与 Release Notes 事实同步。</td><td>先 restart→登录 GET 200→POST 登录→角色正反向，保留可复验环境；对应用的改动按实际结果更新文档。完成前不 commit；commit 仅用户要求时。</td></tr></table>
+<p><strong>明确不做：</strong>不收紧既有管理员编辑/Token 权限；不处理 P2 组选择器或审计 partial 策略；不推广到其他业务写入口；不引入新表/字段/依赖/会话 TTL/全局 Unit of Work；不改 <code>app/api/</code> 外部 API 返回结构。若在本批发现前置问题，登记后单独决策，不悄悄扩张。</p>
+<p><strong>大文件纪律：</strong>views.py、user_form.html 等超过门槛；实施前需按函数/块边界结构分析，编辑后运行路由/模板；若连续替换同文件须逐次读回。模板新样式遵循 CSS 归属和颜色 token 门禁。</p>
+<h2 id="acceptance">9. 可执行验收矩阵</h2>
+<h3>9.1 P1-A：不能只断言页面出现文字</h3>
+<table><tr><th>编号</th><th>输入/时序</th><th>必需断言</th></tr>
+<tr><td>A-01</td><td>原值 old → 并发 concurrent → 原生清空缺确认 → 回显 → 合法理由提交</td><td>中间 token 原文等于 T0；第二次 CONFLICT；DB concurrent；无成功审计、无 auth_version/Token/缓存副作用。</td></tr>
+<tr><td>A-02</td><td>先回显确认，之后并发更新；或连续两次理由失败后并发更新再提交</td><td>每一层回显均 T0；二次/三次提交仍冲突，不部分保存。</td></tr>
+<tr><td>A-03</td><td>相同确认流程，无并发</td><td>合法确认后 SQL NULL，理由 trim 后与一条 user:update 同事务；资料-only 无授权副作用。</td></tr>
+<tr><td>A-04</td><td>邮箱、花名、岗位校验失败 / Scope 参数非法 / 审计 flush 失败</td><td>能安全继续的分支 token/JS original 保持 T0、请求字段保留、无 ORM dirty 回填；无法忠实回显时不得提供可提交新表单。</td></tr>
+<tr><td>A-05</td><td>缺 token、篡改、未知版本、actor/target 不匹配</td><td>Ajax failed；原生失效提示无 form/token/保存按钮，显式 GET 可重新加载；不能把非法载荷作为 JS/HTML。</td></tr>
+<tr><td>A-06</td><td>当前邮箱已被其他请求清空；原邮箱为空后来被填入</td><td>前者 ALREADY_APPLIED、零成功审计；后者无清空意图，不清除新增邮箱。</td></tr>
+<tr><td>A-07</td><td>并发改变花名/岗位，或角色+组授权单元；本人资料更新与管理员编辑交错</td><td>资料意图字段分别比较，角色/组耦合，任一冲突全拒绝；未动字段不覆盖别人新值。</td></tr>
+<tr><td>A-08</td><td>反复确认期间 actor 降级/离组、目标停用；组被删除</td><td>当前授权/存在性仍拒绝；原始 token 不成为授权凭证，无越界数据回显。</td></tr>
+<tr><td>A-09</td><td>无 JS 浏览器 POST；JS 正常确认；先 JS 关闭后恢复再确认</td><td>完整填写→确认→响应/PRG；三动态字段唯一；成功与冲突准确，重新启用 JS 不造成同名 visible/hidden 字段冲突。遇到现有 P2 组问题独立登记，不把它当本 P1 已修复。</td></tr></table>
+<p>基础命令（实施后）：<code>.venv-py311/bin/python -m unittest tests.test_user_edit_change_set tests.test_rbac_global_scope_assignment tests.test_user_reactivation tests.test_ajax_form_guard tests.test_redesign_sidebar -v</code>。必须新增矩阵负例，不能只复用当前绿色用例。A-01/A-02/A-04 的 token 原文断言是核心防再发措施。</p>
+<h3>9.2 P1-B：默认拒绝与不破坏</h3>
+<table><tr><th>编号</th><th>输入/场景</th><th>必需断言</th></tr>
+<tr><td>B-01</td><td>SQLite/其他 backend/缺库名/生产式库名/仅包含而非完整匹配前缀</td><td>解析拒绝；app/engine/连接/DDL/fixture 调用均为 0；测试不能访问真实业务库。</td></tr>
+<tr><td>B-02</td><td>合法专用名但库中已有用户表、无关 sentinel 表或视图</td><td>非零退出；零 DDL/fixture DML；完整哨兵对象/行校验值不变。</td></tr>
+<tr><td>B-03</td><td>检查对象失败、连接失败、默认 schema 不一致</td><td>拒绝，不回退空集合；不写成功标志，日志不含密码/原始 URL。</td></tr>
+<tr><td>B-04</td><td>空专用库，额外模型已注册到全局 metadata</td><td>只建四表，明确 checkfirst=False；没有 drop_all / DROP / TRUNCATE 调用；全部建表结束才 DML。</td></tr>
+<tr><td>B-05</td><td>第二张表建表故障；或同脚本两个进程误用同一空库</td><td>失败者 fixture DML=0，未删任何表；部分 DDL 留存且重跑拒绝。并发最多一个成功写 fixture，其余非零退出。</td></tr>
+<tr><td>B-06</td><td>无 DROP 权限的专用账户 + 新空 schema</td><td>真 MySQL 完成原有锁等待、更新审计、冲突与锁释放，成功标志保留；结束不自动删除 schema。</td></tr>
+<tr><td>B-07</td><td>合法占用库再次执行</td><td>拒绝；首次成功结果/审计/fixture 原样保留，调用方使用新库重跑。</td></tr></table>
+<p>拟新增命令：<code>.venv-py311/bin/python -m unittest tests.test_user_edit_mysql_guard -v</code>。该模块的纯守卫/编排测试用 mock 或内存测试资源，不连接业务库。真 MySQL 集成单独用一次性实例中的多个专用 schema 运行脚本，不能把 mock/SQLite 当作锁或 MySQL DDL 验证。</p>
+<h3>9.3 共同门禁与可验证环境</h3>
+<ul><li><code>.venv-py311/bin/ruff check app/</code>；变更脚本/测试另做对应 Ruff 检查。</li><li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>；模板链路和 Scope 正反向不得出现 500。</li><li><code>.venv-py311/bin/python scripts/check_ui_contract.py --check</code>、<code>scripts/audit_hardcoded_colors.py --check</code>、<code>scripts/check_route_completeness.py --check app/rbac/views.py</code>，以及 Ajax 防重复测试。</li><li>改动测试后 <code>sqlite3 datas/job_log.sqlite '.tables'</code> 确认开发库完整。</li><li>浏览器实施交付入口：<code>http://127.0.0.1:5001/rbac/users</code>。Agent 自行准备全局管理员、按组管理员、同组/异组目标及本人账号；不得只用种子 admin。隔离 fixture 密码仅在验证环境使用，交付提供登录方式；完成后默认保持服务运行。</li><li>必须 restart 后确认登录 GET 200，并完成 POST 登录；A-01 在 JS 禁用的真实浏览器操作和截图，同时让另一个隔离会话修改邮箱。允许无副作用的确定性测试同步点；不以截图代替数据库/审计断言。</li></ul>
+<h2>10. 风险、回滚与安全评估</h2>
+<table><tr><th>风险</th><th>控制/取舍</th></tr>
+<tr><td>反复失败后原值显得陈旧</td><td>这是保持首次编辑意图所需；显示原邮箱和刷新提示。用户主动重新 GET 才换基线，不能为了减少冲突静默接纳新值。</td></tr>
+<tr><td>旧 token 长期存在</td><td>沿用父设计无时间过期；每次再授权、锁内比较。密钥变化/格式/绑定失败拒绝；不在本批引入额外超时策略。</td></tr>
+<tr><td>新失效提示使用户输入不能继续提交</td><td>仅在原始快照无法证明或当前授权不足时停止；显式提示重新加载，与静默换基线相比安全且可解释。</td></tr>
+<tr><td>专用 schema 命名看起来正确但实际含业务数据</td><td>整库非空拒绝、不 DROP、账户独占，三者缺一不能称为隔离；库名不被描述为安全认证。</td></tr>
+<tr><td>DDL 部分成功或进程崩溃遗留</td><td>保留现场、非零退出、新库重跑；不声称 MySQL DDL 可由回滚完全恢复。清理由外层已知的一次性实例生命周期负责。</td></tr>
+<tr><td>旧脚本调用方依赖重复清空同库</td><td>这是有意的验收工具兼容性收紧；更新 U2 验收说明，明确每 run 新库。不新增绕过安全守卫开关。</td></tr>
+<tr><td>回滚方式</td><td>P1-A 若需止损，临时禁止原生清空提交并明确提示，不恢复混合基线；P1-B 若新工具不可用，停用该验证入口，不回滚到无条件删表。历史成功审计不重写，生产业务字段不迁移。</td></tr></table>
+<p>权限与数据访问仍按父设计：种子/全局管理员及有合法 Scope 的按组管理员可编辑目标；Operator/Viewer 无用户管理权限。邮箱是个人信息，回显只使用原已展示值；密码、完整 Token、Session、CSRF 等不进入 snapshot/detail，不增加审计可见角色。</p>
+<h2>11. 复盘与防再发落点（实施后必须落实）</h2>
+<p>设计阶段未执行修复；以下为原批准复盘契约，现已由末尾链接的实际七项复盘落实：</p>
+<ol><li><strong>定位：</strong>P1-A 路由回显上下文，P1-B verify() 初始化删表；附实际负例输出/浏览器证据。</li><li><strong>根因：</strong>分别追到三份状态混用、验收工具信任环境且缺资源所有权检查，不使用“粗心”作为根因。</li><li><strong>测试漏洞：</strong>既有回显测试没检查 token 连续性；成功专用库测试没覆盖非法目标。</li><li><strong>修复：</strong>记录最终文件/最小差异，确保与本设计逐条一致。</li><li><strong>防护测试：</strong>A-01～A-09、B-01～B-07 中新增实际用例名称、命令、断言和结果。</li><li><strong>同类排查：</strong>全仓搜索签名快照回显重建、drop_all/TRUNCATE 与 raw URL 日志；登记结果，新增范围外问题不夹带实现。</li><li><strong>预防：</strong><code>tests/test_user_edit_change_set.py</code> 必须持久化“任意可恢复失败 token 原文不变”矩阵；<code>tests/test_user_edit_mysql_guard.py</code> 固化“非法目标零连接、非空目标零 DDL、额外 metadata 不扩表、无 DROP”断言。实际修复复盘落在 <code>doc/postmortem/</code>，HTML/MD、两份索引及 Release Notes 同步。</li></ol>
+<h2>12. 设计验证及实施记录</h2>
+<p>以下前四项为设计阶段记录，只证明问题与方案依据；修复验收结果见末尾实施记录：</p>
+<ul><li>P1-A 在内存 SQLite 复现：首次 old，回显 token 变为 concurrent，二次提交 errcode=0、邮箱 NULL；本轮再次运行结果相同。</li><li>P1-B 用 mock 在 drop_all 前强制中断，无真实连接/DDL：生产式 MySQL URL 与 SQLite URL 都到达 drop_all，调用数各 1，证明入口未拒绝；未执行危险原脚本。</li><li>已读路由、服务、模板、测试、四模型、参考 benchmark；已核对本地 SQLAlchemy API 签名并读取 MetaData.create_all/SchemaGenerator 实现。</li><li>文档自检实测：<code>html_docs_to_markdown.py --check</code> 一致；<code>check_doc_completeness.py --check</code>：361 个 HTML 均登记、0 broken refs；<code>check_doc_links.py --check</code>：2763 个引用、0 broken；<code>tests.test_check_doc_completeness</code>：4/4 通过；<code>git diff --check</code> 通过。真实 Chrome 已打开本设计 HTML：4 个对比卡片，桌面无横向溢出，窄屏对比切为单列；本轮未运行修复后功能验收。</li></ul>
+<div class="gate"><strong>确认与实施记录：</strong>用户已明确确认 A1/B1/V1；核心决策全部落实。<a href="../postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html">七项复盘与实际验收</a>：43 项专项、223 项联合、86 条路由、MySQL 六项检查、浏览器六项结果均通过。旧设计阶段“本轮未实施”及原验收矩阵为历史契约描述，不代表当前状态。</div>
+<footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑两项P1根因与修复设计-2026-10-29.md">Markdown 版</a></footer>
+</main></body></html>

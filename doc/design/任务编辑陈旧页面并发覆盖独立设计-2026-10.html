@@ -1,0 +1,125 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>任务编辑陈旧页面并发覆盖独立设计</title><style>body{font-family:system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px;line-height:1.8;color:#1e293b}h2{margin-top:2rem;border-bottom:1px solid #cbd5e1}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:10px;text-align:left;vertical-align:top}pre,code,.note{background:#f1f5f9}pre,.note{padding:16px;white-space:pre-wrap}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{border:1px solid #cbd5e1;padding:18px;border-radius:8px}.field{border:1px solid #cbd5e1;padding:8px;margin:10px 0}button{padding:8px;margin-right:8px}@media(max-width:760px){.compare{grid-template-columns:1fr}}</style></head><body><main>
+<h1>任务编辑陈旧页面并发覆盖独立设计</h1>
+<p>版本：rev.1.2 · 日期：2026-10-29 · 状态：<strong>已实现，主要验证完成；验证边界见第 11 节</strong> · 编号：M1-P2（五项问题中的第 2 项，非 OPT 优先级编号）</p>
+<p class="note">最终选择：新增 edit_revision，updated_at 继续只表示时间。使用 SQLAlchemy 映射器版本条件检查保护 ORM 任务更新，关系-only 写入口显式推进父任务版本；Web 采用可信基线与三方比较。下方无新增字段路线保留为决策比较，不作为本轮实施分支。</p>
+<div class="note">目标：旧页面不能悄悄覆盖别人已提交的新配置。只保存用户真正修改且当前有权修改的内容；保留未编辑字段的当前值；不兼容冲突整体拒绝。本稿只设计问题②，第一项零副作用继续有效，问题③调度恢复、④日志原子性、⑤暂停注册窗口仍单独处理。</div>
+<h2>版本记录</h2><table><tr><th>版本</th><th>日期</th><th>内容</th></tr><tr><td>rev.1.2</td><td>2026-10-29</td><td>用户明确选择新增字段并实施；冻结版本列路线，保留时间戳语义；记录映射器条件更新与关系入口配套。</td></tr><tr><td>rev.1.1</td><td>2026-10-29</td><td>补充现有更新时间戳的真实精度/赋值点证据及不新增字段的替代路径；明确 edit_revision 是推荐候选，尚未确认，不把新列写成解决问题的唯一方式。</td></tr><tr><td>rev.1</td><td>2026-10-29</td><td>基于现有代码设计可信展示基线、字段意图、三方比较和原子版本更新；覆盖所有任务/关系写者、双后端迁移、回显连续性、独立分批和页面对比。</td></tr></table>
+<h2>交付契约矩阵</h2><table><tr><th>维度</th><th>契约</th></tr>
+<tr><td>对象、调用方</td><td>GET/POST /cron_edit；共享任务写服务与 API upsert；会改变同一任务配置/状态/关联的其他服务。</td></tr>
+<tr><td>认证边界</td><td>保存边界读取当前 actor、任务和业务组权限；验证 cron:write、CSRF、可编辑范围及任务未下线。签名 token 不提供当前授权。普通管理员与 Operator 可按现有政策编辑；Viewer 和种子 admin 拒绝。</td></tr>
+<tr><td>标识责任</td><td>task_id 定位任务；edit_revision 是 DB 比较并写入的单调并发版本；edit_snapshot 是绑定主体的原始基线凭证。都不是请求幂等键、调度 generation 或 HTTP ETag。</td></tr>
+<tr><td>缺失/非法</td><td>Web 缺 token、签名非法、schema 过旧、actor/target 不符或编辑范围变动：要求重新加载，零业务写入。不可用普通 POST 提交的新数据重新签一个基线继续保存。</td></tr>
+<tr><td>响应与日志</td><td>沿用 errcode/errmsg/url/data，Web 明确 no_change、already_applied、conflict、failed、commit_unknown、updated。冲突无跳转/无成功日志；不回传原始 DB 异常或秘密字段值。</td></tr>
+<tr><td>浏览器验证</td><td>两会话同字段冲突、无关字段保留、Scope 变化、错误后原 token 保持、原生回显、回车与重复提交。</td></tr>
+<tr><td>交付物</td><td>本 HTML/MD、双索引；实施后逐批证据、七项复盘、本地可复验环境。当前没有新增功能代码、迁移或测试实现。</td></tr></table>
+
+<h2>1. 问题与根因</h2>
+<p>示例：甲打开页面时说明是 A；乙保存为 B；甲只修改超时，提交的完整表单仍带旧说明 A。当前 update_cron 的赋值逻辑把说明也写回 A，乙的修改丢失。第一个问题的 no-op 比较只判断目标是否与当前配置相同；此时并不相同，仍会进入全量写入。</p>
+<p>现有隔离基线已证明顺序提交也能覆盖，无须大量用户或高并发。代码依据是 <code>app/main/views.py:cron_edit</code> 和 <code>app/services/cron_service.py:_edit_cron_web_result/update_cron_with_outcome/apply_normalized_to_model</code>。当前 CronInfos 没有并发版本字段，updated_at 不是原子版本：同一时刻可多次修改，关系变化也未必更新它。</p>
+<p>根因是请求未携带可信原始基线，字段出现被当作修改意图；比较与写入缺少原子条件。仅 POST 时重新 get、只加行锁或前端 dirty 标记，都不能判断用户看过什么。</p>
+
+<h2>2. 方案选择与边界</h2>
+<p><strong>推荐：可信字段基线 + 三方比较 + edit_revision 原子条件更新。</strong>字段比较允许合并无关并发；原子版本条件防止“比较通过后又被别人修改”的竞态。整资源版本不匹配就直接拒绝也是合理的保守方案，但会拒绝本可安全保留的无关字段更新，因此本稿选择三方比较。</p>
+<p>GET 读出完整一致的展示快照后结束请求事务，用户思考期间不持锁。保存时才开短事务；数据库当前事实不能复用早期 identity map 或 MySQL 旧读快照。服务明确拥有保存事务；只读入口预检与写边界之间不能存在待写的其他业务对象，不能无条件 rollback 调用方事务。</p>
+<p>本批允许为并发保护新增 edit_revision，并修改必要的其他写入口以共同维护版本；不新增调度状态表或后台应用者。不改变管理员业务权限。日志与调度仍有既有独立失败边界，不能因新增版本就宣称后三项解决。</p>
+<h3 id="timestamp-alternatives">2.1 是否必须新增字段：时间戳与无新列替代方案</h3>
+<p><strong>决策过程：</strong>并发保护并非理论上必须新增字段；比较现有时间戳及替代锁协议后，用户已明确选择新增 <code>edit_revision</code> 并确认实施。更新时间戳保留原有含义，下表仅作为备选方案的历史比较。</p>
+<p>代码证据：datas/utils/times.py 的 utc_now_hms 返回 int(time.time()*10)，是百毫秒而非毫秒/微秒；1000.01 秒和 1000.09 秒两次调用均为 10000。app/services/cron_service.py 的普通编辑会更新 updated_at，但 toggle_status、apply_retire 与自动下线 fallback 不保证更新该列；tag_service.delete_tag 会删除 TaskTag，却不更新关联任务的 updated_at。因此“时间相同”不能证明配置/状态/关系没有变化，last_operated_at 也不是所有写入统一维护的版本。</p>
+<table><tr><th>路径</th><th>可行性与必须承担的责任</th></tr>
+<tr><td>直接比较现有 updated_at</td><td>本项目当前不可作为唯一并发裁决：同精度碰撞、未覆盖关系/状态变化；即使提升时间精度，也不自然获得唯一或单调保证。检查时间后无条件写入同样有竞态。</td></tr>
+<tr><td>重新定义 updated_at 为严格递增并发戳</td><td>技术上可行，但必须在 DB 原子地保证严格变化、覆盖全部写者并条件更新。简单用当前时间不够；强行 old+1 会将真实墙钟时间与逻辑版本混合，显示时间/排序等消费者须核验。省一个列不等于省掉协议改造，也不能悄悄改变既有字段语义。</td></tr>
+<tr><td>无新列：可信基线 + 三方比较 + 事务锁</td><td>合理替代。MySQL 在短写事务中锁定任务及必要关联/授权实体，读取最新 C，比较并仅写有效差异，完成后释放；关系-only 修改/删除等所有写者遵守相同父任务协调协议。SQLite 采用能在读取后保护后续写入的写事务策略，分别验证其数据库级写竞争与超时。不能用 SQLite 的 with_for_update 假定已有行锁。</td></tr>
+<tr><td>无新列：以当前字段值构造原子条件更新</td><td>标量字段可以用原值作为更新条件；需处理 NULL、文本的数据库比较语义、请求字段范围与受影响行数。关系集合仍要锁或等价原子保护，单条任务 UPDATE 不能自动保护 TaskTag。按 task_id 主键定位后比较字段，不必然破坏索引，但长文本比较和 SQL 复杂度需评估。</td></tr>
+<tr><td>独立 edit_revision（正文推荐）</td><td>职责单一、条件简短，不依赖时钟；代价是新增列与迁移。仍必须覆盖所有相关写者，不能靠新增列自动解决权限或关系并发。</td></tr></table>
+<p>选择依据应是协议复杂度、双后端写竞争和维护成本，不是“专业方案一定要有 version 字段”。无新列方案可满足本问题目标，但需要完整设计和验证；当前 updated_at 原样复用则不能满足。无新列按当前值比较通常不记录 A→B→A 的中间修改历史，若业务要求任何中间修改都使表单失效，需另有可靠版本/历史证据；普通三方比较本身允许当前值恢复为 O 后继续合法保存。</p>
+
+<h2>3. 基线、规范化与字段意图</h2>
+<p>O 是页面打开时的可信原值，R 是提交目标，C 是保存时的当前值，E 是当时可编辑范围。I 为在同一 E 下 O 与 R 的差异；有效差异由 I、C、授权及业务校验共同确定。未出现在 I 的字段不赋值、不重写关联，必须保留 C。</p>
+<p>token 使用独立 schema/salt，绑定 actor_user_id、task_id、原始 revision、编辑范围和每个比较单元的基线摘要。URL/body 可能带凭据，不能把原值明文放入签名 token；采用带服务端密钥与字段/主体域分离的 HMAC 摘要，外层再签名。仅 SHA256 不能保护低熵内容被猜测。客户端原值只用于提示；服务端依据已签摘要重算 I。输出长度、类型、字段集合严格验证，不接受未知字段混入 ORM。</p>
+<p>签名保护完整性，不是加密、授权或新鲜度；前端已可见的原值不额外写入日志、控制台、localStorage。密钥轮换或 schema 变动使旧表单需要刷新；token 不是幂等键。原值不因校验失败、并发错误或确认回显而改变，只有用户明确重新 GET 才建立新基线。</p>
+<table><tr><th>比较单元</th><th>可写/缺省与规范化</th><th>并发粒度与副作用</th></tr>
+<tr><td>任务名称</td><td>Web 只读，以 task_id 定位；篡改拒绝。API 按既有任务名定位，命名协议本批不重设计。</td><td>不可借 readonly 当服务端保护。</td></tr>
+<tr><td>task_keyword</td><td>当前有写权主体；沿用 trim/长度。Web 缺失必填拒绝，非空字符串。</td><td>独立单元；只改说明不覆写他人超时、URL、标签或启停。</td></tr>
+<tr><td>调度方式与全部时间字段</td><td>按当前 mode 规则规范化；明确空串/NULL，空 Cron 不等于 *，不推导复杂语法等价；缺字段不悄悄当用户清空。</td><td>耦合整体比较；切换一次性/Cron 不能拼出两个时点的混合策略。完整候选需再次校验未来时间与调度合法性。</td></tr>
+<tr><td>URL + 方法 + Body</td><td>trim、方法大小写、JSON 对象沿用现有契约。Body 文本比较，不改变 JSON 排序/数值语义；GET 的已有 Body 不隐式删除。</td><td>请求配置作为耦合单元保守比较，防止把别人新 URL 与旧 Body 组合。日志只给字段名和安全摘要。</td></tr>
+<tr><td>timeout_sec</td><td>空为 NULL，整数 1–120；NULL 不等于显式 5。</td><td>独立单元；并发修改说明时可保留另一方新超时。</td></tr>
+<tr><td>scope_type + group_id + 任务标签关系</td><td>GLOBAL 零关联，GROUP 恰好一有效组；标签按既有 trim/lower 去重集合与命名空间。空标签明确清空，缺标签不能按清空猜测；异常多组/孤立标签拒绝治理。</td><td>范围/标签绑定作为耦合单元。组切换需当前授权和目标组标签解析。没有关系意图时完全不运行 sync_task_tags/组删除重建，保留当前完整关系。</td></tr>
+<tr><td>status 与显式恢复命令</td><td>普通配置不提交 status 覆盖值；不改变当前启停。恢复必须是显式命令意图，已下线拒绝。</td><td>配置编辑遇到并发暂停可保留暂停；遇到下线禁止保存。恢复与状态比较使用基线，冲突不隐式重启。</td></tr>
+<tr><td>时间、操作人、认证凭据</td><td>系统维护字段不得客户端绑定；凭据不属于任务表单白名单。</td><td>真实变化才更新编辑元数据；配置版本不触发用户 Token/认证版本。</td></tr></table>
+<p>共享标签名称属于 Tag 实体元信息，不等于 TaskTag 关系。未编辑标签时只保留当前关系 ID，不能按旧名称重新创建标签；编辑标签时须读取并锁定解析用的当前 Tag，验证名称/命名空间。标签强制删除会改关系，必须参与任务版本协议；标签说明修改不影响任务配置。这样避免把每次公共标签改名都变成对全部任务的无谓重写。</p>
+
+<h2>4. 三方比较与原子保存</h2>
+<table><tr><th>条件（针对有意图的单元）</th><th>处理</th></tr>
+<tr><td>C=O，且 C≠R</td><td>候选写为 R。</td></tr><tr><td>C=R</td><td>该单元已等价完成，不重复写入或副作用。</td></tr><tr><td>C≠O 且 C≠R</td><td>冲突，整体拒绝本次需原子完成的编辑；不能部分保存另外几个字段。</td></tr><tr><td>无修改意图</td><td>保持 C，仍校验当前对象权限与业务不变量。</td></tr></table>
+<pre>原始基线校验 → 当前授权与可编辑范围核验 → 读 C 与当前 revision
+  → 计算 I / 三方比较 → 构造最终候选并完整校验
+  → 无有效差异：no_change 或 already_applied，零业务 DML/变更日志/调度操作
+  → 有有效差异：按 task_id + 读到的 revision 原子更新所需字段、revision=revision+1
+  → 条件命中后，在同一事务内处理真正变化的关系和编辑元数据 → 提交
+  → 条件未命中：回滚整个尝试，重新读 C 并重新比较；最多重试一次，仍竞争则返回 conflict
+  → 结果不确定：commit_unknown，不自动重复业务写入</pre>
+<p>CAS 只用于有效变化，不为 no-op 写入版本“抢锁”。关系-only 改变也必须先在同一事务中推进父任务 revision；任意步骤失败回滚关系与父行。MySQL 可辅以短行锁，SQLite 以原子条件更新为裁决，不能认为 with_for_update 在 SQLite 生效。重试必须重新授权/重读，不能盲用旧候选。</p>
+<p>标签新建、关系删除、SQLAlchemy 自动 flush 均不能在 CAS 之前偷偷写入；解析目标标签先只读，确认版本获胜后在事务内创建需要的标签，保留既有唯一性冲突处理。发生冲突后不得注册 job 或追加成功变更日志。当前配置日志仍有第二次提交的问题，单列问题④；本批不把外部日志和调度声明成原子事务。</p>
+<p>MySQL 保存前读必须是最新事实。锁/条件更新之后事务终态必须明确结束：no_change、already_applied、conflict、校验拒绝、异常均需按所有权释放；不能只靠 HTTP teardown。真实锁验证需在原请求上下文仍存活、清理前用独立连接探测，并包含“故意不结束事务”的反向校准，防止测到框架清理后的假释放。</p>
+
+<h2>5. edit_revision 与所有修改者</h2>
+<p>新增建议列 <code>cron_infos.edit_revision</code>：非空 BIGINT、服务端默认 0；新任务初始 0，已有任务补列后也从 0 开始。它只区分启用协议后的提交，不声称反映迁移前修改次数。每次真正改变任务配置/状态/关联的原子事务推进一次；不把 updated_at 或调度 generation 复用为该语义。按主键定位，revision 不需要单列索引。</p>
+<p>本批只加列，不删/迁移/合并旧字段：status 仍表示生命周期，updated_at 仍表示配置编辑时间，scope_type 与关系表仍保持原语义；revision 不替代其中任何字段。采用 business_db_backend 分 SQLite/MySQL 幂等加列与约束检查，空库/存量/重复执行/失败拒启均演练。不支持携带旧写服务的进程与新协议混跑；升级停旧进程、迁移、启动新进程。回退到旧写服务时必须停止对“并发保护有效”的声明。</p>
+<table><tr><th>入口</th><th>本批必须承担的并发责任</th></tr>
+<tr><td>Web 编辑、API 同名 upsert、直接 update_cron</td><td>统一任务写协议；Web 必带可信基线。API 保留原全目标 upsert 意义，但必须新鲜读取、原子推进版本，保护 Web 不被其绕过。API 没有历史客户端基线，不能宣称 API 调用者间也获得相同旧页面保护；增设 API 条件字段另行设计。</td></tr>
+<tr><td>toggle_status、人工下线与补偿写回</td><td>实际状态变化推进版本；补偿也属于新修改，不得无条件覆写后续状态。至少条件校验“仍是本次写入的版本”，过期则停止覆盖并记录明确结果。这里只保护 DB，并不完成调度恢复设计。</td></tr>
+<tr><td>CuBackgroundScheduler / CuGeventScheduler 自动下线和 fallback</td><td>主路径与异常 fallback 都须按当前版本/状态更新，避免只修主分支。按条件推进任务版本，过期结果不能使后来修改的任务误下线；一次性已开始执行的取消保证仍不在本批。</td></tr>
+<tr><td>sync_task_tags、组关系写入、标签强制删除</td><td>关系与父 revision 同事务。批量影响任务时按 task_id 固定顺序协调；未编辑关系完全不重建。</td></tr>
+<tr><td>Tag 改名、ResourceGroup 元信息和删除</td><td>元信息改名不能让旧页面重新创建旧关系。编辑所依赖的当前实体需受相应行锁/原子条件保护；删除组若改任务 Scope/关系则推进任务版本。P2-0 须搜索实际组删除入口和豁免证据，未完成清单不进入实现。</td></tr>
+<tr><td>重新调度/现有对账</td><td>若只改 JobStore 不影响配置，本批不假造任务版本更新；若路径改变状态则纳入协议。调度器侧的相互覆盖仍由问题③处理。</td></tr></table>
+<p>当前授权还涉及 actor 的角色、启用与业务组绑定。保存锁定主体并读取当前绑定，绑定修改者也必须遵守主体锁或等价条件协议；仅锁现有 UserGroup 行不能防止新关联插入。全局锁顺序需在 P2-0 明确并核对 RBAC 已有写者。不能因目标版本正确就漏掉 actor 已降权的竞态。</p>
+
+<h2>6. 前端、失败回显与结果</h2>
+<p>前端延续问题①的本地 no-op 预检，不向浏览器增加长事务。表单新增唯一 edit_snapshot hidden 字段，检查与其他 visible/hidden 不重名。预检比较需排除 token 与 CSRF 等非业务字段。后端始终以验签后的 O 重算意图，不信任 JS dirty 标志。</p>
+<p>合法校验错误/冲突显示保留输入 R，并保留原 token T0；不把 DB 当前值悄悄当新 O。请求仍可对同一基线重试，但不可通过刷新 token 隐式覆盖。非法 token 或权限范围改变只能显式重新加载。重新加载会放弃未保存输入，使用现有 CpConfirm.show 的 body 属性提示；不显示对方不可读范围的值、URL/body 凭据或原始异常。</p>
+<table><tr><th>outcome</th><th>页面 / 提交行为</th></tr>
+<tr><td>no_change / already_applied</td><td>零变更副作用；留页提示“无需保存”或“目标值已存在，无需重复保存”，不重置原始基线。</td></tr>
+<tr><td>conflict</td><td>“任务已被修改，本次未保存。请重新加载后确认。”保留当前输入，提供重新加载；本次零部分保存、零成功日志/调度。</td></tr>
+<tr><td>updated</td><td>完成有效字段写入后走现有成功行为；不能附带“调度已确认生效”的新承诺。</td></tr>
+<tr><td>failed / commit_unknown</td><td>分别明确未保存与结果待核实；未知不能自动重发。不得把同库 commit 不确定和既有调度失败混成一个“保存失败”。</td></tr></table>
+<p>Ajax 与原生回退语义一致。原生失败可直接渲染输入与 T0，不将含秘密的整份表单置入 URL 或客户端 cookie session；当前安全重定向/CSRF 与防重复提交保留。任何 API 公共字段或语义改变须回到设计补充兼容和发布说明；本稿不新增 API 响应字段。</p>
+
+<h2>7. 页面 Before / After</h2>
+<p>基准为当前 task_form.html 及已完成问题①：保留单列表单、任务名只读、说明、Scope/组、标签、时间、URL/Body、超时与保存/返回按钮。本文只增加并发结果与显式重新加载，不承接综合稿的调度状态 UI。</p>
+<div class="compare" id="page-compare"><section class="panel"><h3>BEFORE</h3><h4>编辑任务</h4><div class="field">页面原说明：A</div><div class="field">用户只修改超时为 10 秒</div><p>另一人已把说明改成 B。</p><button type="button">保存修改</button><p class="note">完整表单把说明写回 A，新说明 B 丢失；没有冲突提示。</p></section><section class="panel"><h3>AFTER</h3><h4>编辑任务</h4><div class="field">本次输入：超时 10 秒</div><p>未编辑说明：保存时保留当前 B。</p><button type="button">保存修改</button><p class="note" role="alert">若双方修改同一说明且目标不同：任务已被修改，本次未保存。请重新加载后确认。</p><button type="button">重新加载</button><p>本次输入保留；确认重新加载后才读取新基线。</p></section></div>
+<p>实现须检查 common-redesign 的 button click、submit、loading 与 outcome 监听；冲突不得走通用成功跳转。对话框须实际 click 验证 heading/body/确认/取消，无 Bootstrap modal。截图与网络/DB证据共同验收。</p>
+
+<h2>8. 独立分批、验收与停止条件</h2>
+<table><tr><th>批次</th><th>交付与门槛</th></tr>
+<tr><td>P2-0 写协议校准</td><td>完整配置/关系/状态赋值点与 actor 授权修改清单，固定锁顺序、revision 原子表达式、双后端加列与 CAS 实验；对照已确认规范。发现未参与写者不得开始 P2-1。</td></tr>
+<tr><td>P2-1 基线与意图</td><td>token 精确 schema、绑定、HMAC 无秘密副本、完整单元比较、回显 T0 连续、前端 no-op 兼容。合法表单与坏 token 都有否定用例。</td></tr>
+<tr><td>P2-2 原子写入与全部写者</td><td>当前授权、CAS、有效字段/关系保存；API、状态、系统下线和关系修改参与同协议。P2-1/2 同发布单元，不部署半套并发保护。</td></tr>
+<tr><td>P2-3 页面与完整验证</td><td>两会话浏览器、原生/Ajax回显、MySQL双连接与SQLite写竞态、锁生命周期、第一项回归、迁移和可验证本地环境；修复复盘后交付。</td></tr></table>
+<ul><li>同字段：O=A，乙提交 B，甲提交 D → conflict，DB 保留 B，甲其他字段不部分落库。</li><li>无关字段：乙改说明 B，甲只改超时 → 保留 B，仅写超时及必要元数据；组/标签零 DML。</li><li>等价完成：乙已设为甲目标 → already_applied，不重复日志/job操作；部分单元已完成而另一单元可写时只写有效变化。</li><li>比较后竞态：在 CAS 前让独立连接完成另一次写入，0 行命中后重读重新比较；反复竞争有界返回，不无条件覆盖。</li><li>关系：组迁移/标签增删、公共标签重命名/删除、异常多组、actor换组；未编辑关联不被旧完整表单重建。</li><li>生命周期：甲编辑中乙暂停/下线、系统自动下线与 fallback、旧补偿写回；暂停不得被默认恢复，下线优先拒绝。</li><li>安全与回显：缺/坏/旧 schema、主体不符、当前降权、原生多次错误仍同 T0、无明文秘密副本/错误泄露；重新加载后才换 token。</li><li>第一项：按钮/回车无变化零 POST，服务 no-op 零 DML/日志/scheduler；新增 token 不造成永远“有变化”。</li><li>后端：SQLite/MySQL 双后端迁移、CAS、独立真实连接释放探针与负向校准；不能只测最终值或 teardown 后的锁。</li></ul>
+
+<h2>9. 准确性、合理性、性能与风险</h2>
+<p>证据说明当前丢失更新真实存在，但不量化线上发生率。版本条件更新与可信三方比较是成熟机制；二者分别解决用户意图和数据库竞态，不能互相替代。比起仅拒绝所有版本变化，本稿允许保留无关修改，代价是比较与写者协议更复杂。</p>
+<p>正常请求按 task_id 主键定位，读字段/小型关系集合后在内存比较；新增一个 BIGINT 字段和有效变更时的一次条件写，不做全表 SQL 运算、不引入全局缓存。无意图维持零写；真实变化增加短事务/锁开销。批量标签删除需按其影响任务数量处理，不假设任务总量小；P2-0 应实测影响规模、执行计划和锁等待，不给未测试的性能收益比例。</p>
+<p>风险是漏掉写者、原 token 被错误重签、非意图字段仍进入全量 apply、actor/关系并发保护不完整，以及把版本计数误认为调度一致。没有全部写者参与就不能上线声称解决。问题③④⑤仍分别设计；本稿不承诺取消已运行任务，也不把当前 best-effort 日志当强审计。</p>
+
+<h2>10. 本轮代码依据与验证记录</h2>
+<p>本轮只读核验：cron_service 的 Web/API/直接服务、toggle_status、apply_retire 和补偿，main 的编辑路由，CronInfos 全部字段，tag_service 的同步/更新/删除，自定义调度器的主路径与 fallback，迁移脚本 backend 分支，以及用户编辑 sign/verify 与事务实现；未把拟新增任务 token 服务当成现有 API。这里只复用经过核验的机制，不能直接复制用户编辑服务的无条件 rollback 到其他事务。</p>
+<p>问题①前的隔离基线证明旧表单会覆盖其他事务的新值。rev.1.2 已实现版本列、签名基线与三方比较；写入口已按现有代码复核，迁移、全量、浏览器与 MySQL 验证结果及其边界见第 11 节。</p>
+<p>rev.1 的文档验收曾通过双格式同步、索引与链接检查；该历史结果不代表 rev.1.2 最终验收。</p>
+<p>rev.1.1 额外只读验证：通过 mock 两个不同墙钟时刻调用真实 utc_now_hms，输出 different_times_same_stamp=True，values=10000,10000；AST 检查 toggle_status 的 updated_at 赋值点输出 False。时间戳冲突和覆盖范围结论有代码依据；未执行替代锁方案的真实双后端实验，不将其写成已实施/已验证。</p>
+<h2>11. 修复复盘与当前验证状态</h2>
+<ol><li>定位：任务编辑页面在他人提交后，旧表单提交可能覆盖其已保存字段。</li><li>根因：原流程将完整表单当成修改意图，未在写入边界比较展示原值、当前值与提交值。</li><li>测试漏洞：原有测试重视保存后字段，未验证两个独立编辑者的先后提交与零部分写入。</li><li>修复：新增 edit_revision 和绑定主体的签名基线，按字段单元比较并在写入时执行版本条件校验。</li><li>防护：<code>python -m unittest tests.test_cron_edit_concurrency tests.test_cron_edit_noop -q</code> 覆盖无关字段合并、同字段冲突、等价提交、权限变化和版本条件更新。</li><li>同类排查：检查 Web、API、状态变更、系统下线和标签关联入口；API 缺少客户端旧基线，不声称提供 Web 相同的旧页面保护，调度与日志独立失败边界仍需后续设计。</li><li>预防：将 tests/test_cron_edit_concurrency.py 纳入 unittest discover，并用 scripts/verify_cron_edit_noop_browser.py 复验真实双会话与原生回显；涉及关系和授权写入的边界须继续按编辑开发规范审查。</li></ol>
+<p>2026-10-30：专项迁移、编辑和权限回归 54 项通过；浏览器双会话、原生回显、重新加载确认及角色路径通过，记录见 <a href="../qa/evidence/task-edit-concurrency-2026-10-29/result.json">浏览器结果</a>。MySQL 真实连接合并、冲突与锁释放通过。后续收尾验证与边界见本节末尾。</p>
+<p>自动下线兜底复核：两种调度器的主路径异常后原先重新读取任务并直接下线，可能覆盖主路径读取后提交的编辑。原测试只覆盖常规编辑，未覆盖异常后并发写入。现保存首次读取的版本，兜底仅在版本仍相同时尝试下线，ORM 版本条件仍负责兜底读取与写入之间的竞争；初次读取失败时不盲目下线。<code>tests.test_cron_edit_concurrency.TestTaskEditConcurrency.test_scheduler_fallback_never_retires_a_newer_revision</code> 对两种调度器注入主路径失败与中途提交，断言新配置与状态保留，随 unittest discover 持续执行。该修复不保证已开始的调度操作可撤销，调度恢复仍属后续问题。</p>
+<p>授权组绑定复核：<code>set_user_groups</code> 原先未在修改组关系之前显式获取用户行锁，无法保证与任务编辑当前授权检查使用相同锁顺序；已有测试未校验顺序。现先锁用户行，再锁并更新组关系；<code>test_group_change_locks_user_before_group_writes</code> 固定执行顺序。<code>scripts/verify_cron_edit_noop_mysql.py --port 33089</code> 另以独立连接占用用户行锁，验证该入口受阻、释放后可操作。其余写入口复核见下文；此实验不证明全部授权竞态均已覆盖。</p>
+<p>全量测试历史结果：修复自动下线兜底前执行的 unittest discover 为 1079 项、跳过 12 项、其余通过；该结果不代表后续代码的最终全量验收。</p>
+<p>标签删除复核：在最初关联计数之后、新关联检查之前出现关联时，非强制删除此前可能继续清除它。原因是仅依据首次计数决定是否需要确认，原测试未覆盖该间隙；现于锁定并复核实际关联后再次检查 force，发现新关联则回滚并要求刷新确认。<code>test_tag_delete_without_force_rechecks_new_association</code> 在两次读取之间注入关联并断言拒绝删除；该用例随 unittest discover 运行。强制删除的批量实验见下文。</p>
+<p>授权入口静态复核：用户编辑先按 ID 顺序锁 actor/target，再锁组关系；停用用户覆盖启用在锁住目标后替换关系；新用户先创建用户再建立关系；旧角色/停用入口通过更新用户行参与数据库行锁。组绑定独立入口先锁用户再锁关系。组资源目前仅发现创建与元信息编辑入口，未发现业务组删除入口。以上是代码路径核对及部分锁实验，不代表已覆盖所有故障交错或外部直接 SQL 写入。</p>
+<p>标签复核：<code>test_tag_rename_preserves_unedited_relation_and_conflicts_on_tag_edit</code> 验证改名后未编辑标签保持现有关系、编辑标签发生冲突。MySQL 隔离库验证任务编辑读锁可阻挡其他连接修改标签，强制删除使关联消失且任务版本增加一次；测试库清理完成。该实验验证指定交错，批量结果见下文；未覆盖所有可能交错。</p>
+<p>2026-10-30 收尾验证：当前生产代码全量 <code>.venv-py311/bin/python -m unittest discover -s tests -q</code> 共 1084 项，跳过 12 项，其余通过（本次运行后新增的标签改名测试另行单独通过）；最终代码浏览器 13 个场景通过，结果见 <a href="../qa/evidence/task-edit-concurrency-2026-10-29/result.json">浏览器证据</a>。<code>.venv-py311/bin/python scripts/verify_task_tag_delete_mysql.py</code> 在隔离 MySQL 建立 1000 个任务关联：删除用时 1536.23ms；索引计划使用 ix_task_tags_tag_id；设置 1 秒锁等待时实际等待 1040.41ms，冲突回滚后关系与版本未改，释放锁后所有关系删除且各版本推进一次。原始结果见 <a href="../qa/evidence/task-edit-concurrency-2026-10-29/bulk-mysql.json">批量验证证据</a>。该数字是一次本地测量，不是生产 SLA 或普遍性能上限；首次测试误将超时设置到连接池中另一连接导致约 50 秒等待，已修正脚本并重跑。</p>
+<p>最终新增的 CAS 重试用例通过故障注入校验：首次条件写冲突后有界重试，连续冲突时拒绝保存且不改变数据库；<code>python -m unittest tests.test_cron_edit_concurrency -q</code> 19 项通过。注入用例不等同于全部双连接时序的实测。升级必须先停旧写入进程、执行迁移再启动新版本；不支持混跑旧写入者。调度一致性、配置与审计同事务等其他问题仍按各自设计处理。</p>
+<h2>12. 后续问题评估（2026-10-30）</h2>
+<p>按用户要求继续逐项独立设计。建议下一项先研究“暂停任务编辑后先注册再暂停的窗口”（综合背景中的问题⑤）：当前 Web 路径在提交配置后依次调用 <code>register_cron_job</code> 和 <code>pause_job</code>；前者通过 <code>scheduler.add_job(..., replace_existing=True)</code> 注册，未显式传入暂停运行时间。两次调用之间可能存在可触发窗口；不能把已有库实验当作已发生线上误执行。Web 暂停失败会报告“配置已保存，调度更新失败”；旧共享更新路径仍捕获暂停异常并继续记录成功，不可混为相同结果。</p>
+<p>独立方案应先核对实际 APScheduler 包装器、持久 JobStore、自定义扫描器和 Web/API 共享写入口，验证创建时指定暂停状态的实际效果；明确已有执行、并发启停、一次性任务和异常返回的边界，设计测试与回滚。暂停窗口收窄不等于解决问题③的跨资源持久恢复，也不等于问题④的业务与审计原子性。若验证发现独立修复无法保证入口一致，则在设计中先阐明依赖，不能据此宣布可直接实施。</p>
+<p>问题③仍存在配置已提交而 JobStore 旧、缺失或结果未知的可能；Web 的明确提示改善了结果表述，但未提供持久恢复。问题④中配置已提交后才追加操作日志，日志失败或调度先失败可能缺少对应成功变更记录；应另行决定强审计策略与事务边界。上述为代码分析和既有隔离基线，不代表已观测生产事故或事故发生概率。</p>
+</main><footer><a href="../index.html">文档索引</a> · <a href="任务编辑陈旧页面并发覆盖独立设计-2026-10.md">Markdown</a> · <a href="任务编辑无变更保存零副作用独立设计-2026-10.html">已完成问题①</a> · <a href="../arch/编辑与局部更新开发规范.html">编辑开发规范</a></footer></body></html>

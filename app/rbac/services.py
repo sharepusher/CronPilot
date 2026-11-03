@@ -2,10 +2,12 @@ import json
 import logging
 import uuid
 
-from flask import request, session
-from sqlalchemy import func, select
+from flask import has_request_context, request, session
+from itsdangerous import BadData, URLSafeSerializer
+from sqlalchemy import func, or_, select
 
 from app import db
+from app.services.sqlite_write_boundary import begin_sqlite_write_boundary, rollback_or_invalidate
 
 logger = logging.getLogger(__name__)
 from configs import configs
@@ -59,6 +61,14 @@ AUDIT_STATUS_LABELS = {
     'deny': '拒绝',
 }
 
+USER_EDIT_AUDIT_FIELD_LABELS = {
+    'email': '邮箱',
+    'nickname': '花名',
+    'job_title': '岗位类型',
+    'role': '角色',
+    'group_ids': '业务组',
+}
+
 
 def audit_action_label(action):
     action = action or ''
@@ -101,6 +111,90 @@ def audit_resource_label(action, resource):
     if action == 'api:deny':
         return '接口 %s 鉴权失败' % resource if resource else 'API 鉴权失败'
     return resource
+
+
+def format_user_update_audit_detail(detail):
+    """将 user:update JSON v1 转成模板可安全展示的纯文本结构。"""
+    if detail is None or detail == '':
+        return {'state': 'legacy', 'changes': [], 'reason': None}
+    try:
+        payload = json.loads(detail)
+    except (TypeError, ValueError):
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    if not isinstance(payload, dict):
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    version = payload.get('schema_version')
+    if type(version) is not int:
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    if version != 1:
+        return {'state': 'unsupported', 'changes': [], 'reason': None}
+    required_keys = {'schema_version', 'changes'}
+    if not required_keys.issubset(payload) or set(payload) - (required_keys | {'reason'}):
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    changes = payload.get('changes')
+    if not isinstance(changes, dict) or not changes:
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+
+    if set(changes) - set(USER_EDIT_AUDIT_FIELD_LABELS):
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    rendered = []
+    for field in USER_EDIT_FIELDS:
+        if field not in changes:
+            continue
+        change = changes[field]
+        if not isinstance(change, dict) or set(change) != {'before', 'after'}:
+            return {'state': 'invalid', 'changes': [], 'reason': None}
+        before = _user_edit_audit_value(change['before'], field)
+        after = _user_edit_audit_value(change['after'], field)
+        if before is None or after is None:
+            return {'state': 'invalid', 'changes': [], 'reason': None}
+        rendered.append({
+            'field': field,
+            'label': USER_EDIT_AUDIT_FIELD_LABELS[field],
+            'before': before,
+            'after': after,
+            'cleared': field == 'email' and change['after'] is None,
+        })
+    if not rendered:
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+
+    email_change = changes.get('email')
+    clears_email = (
+        email_change is not None
+        and email_change['before'] is not None
+        and email_change['after'] is None
+    )
+    reason = None
+    if clears_email:
+        raw_reason = payload.get('reason')
+        if not isinstance(raw_reason, str) or not 1 <= len(raw_reason.strip()) <= 500:
+            return {'state': 'invalid', 'changes': [], 'reason': None}
+        reason = raw_reason.strip()
+    elif 'reason' in payload:
+        return {'state': 'invalid', 'changes': [], 'reason': None}
+    return {
+        'state': 'ok',
+        'changes': rendered,
+        'reason': reason or None,
+    }
+
+
+def _user_edit_audit_value(value, field):
+    """返回可展示字符串；None 表示结构非法，空业务值使用破折号。"""
+    if value is None and field in ('email', 'nickname', 'job_title'):
+        return '—'
+    if field == 'group_ids':
+        if not isinstance(value, list):
+            return None
+        if any(not isinstance(item, int) or isinstance(item, bool) for item in value):
+            return None
+        if value != sorted(set(value)):
+            return None
+        return '、'.join(str(item) for item in value) or '全部（全局权限）'
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or '—'
 
 
 def get_role_permission_set(role, username=None):
@@ -830,115 +924,344 @@ def update_user(user_id, role=None, is_active=None):
 
 
 def update_user_management(
+    actor_user_id,
     user_id,
-    role,
-    is_active,
-    group_ids,
-    email,
-    nickname,
-    job_title,
+    original,
+    requested,
+    intent_change_set,
+    reason=None,
 ):
-    """原子更新用户管理表单涉及的授权及资料字段。
-
-    角色、业务组、资料和会话版本必须同一次提交，避免前两项成功后资料
-    校验或提交失败而留下半完成授权状态。调用方已经完成 actor Scope 校验；
-    此处仍独立校验目标字段和组存在性。
-    """
+    """数据库当前授权、三方比较、业务写入与审计的单一事务边界。"""
     from datas.model.resource_group import ResourceGroup
     from datas.model.user_group import UserGroup
 
+    concrete_session = db.session()
+    if concrete_session.new or concrete_session.dirty or concrete_session.deleted:
+        logger.error('update_user_management requires a clean top-level request session')
+        return {'ok': False, 'outcome': 'failed', 'msg': '保存失败'}
+
     try:
-        new_active = 1 if int(is_active) else 0
+        actor_user_id = int(actor_user_id)
+        user_id = int(user_id)
     except (TypeError, ValueError):
-        return {'ok': False, 'msg': '启用状态参数无效'}
+        return {'ok': False, 'outcome': 'failed', 'msg': '用户参数无效'}
+    if actor_user_id == user_id:
+        return {
+            'ok': False,
+            'outcome': 'failed',
+            'msg': '不能在用户管理中编辑自己的账号',
+        }
+    if not isinstance(original, dict) or not isinstance(requested, dict):
+        return {'ok': False, 'outcome': 'failed', 'msg': '编辑数据无效，请刷新后重试'}
+    if any(field not in original or field not in requested for field in USER_EDIT_FIELDS):
+        return {'ok': False, 'outcome': 'failed', 'msg': '编辑数据无效，请刷新后重试'}
+    if 'editor_scope' not in original:
+        return {'ok': False, 'outcome': 'failed', 'msg': '编辑页数据已失效，请刷新后重试'}
+    expected_intent = build_user_edit_intent(original, requested)
+    if intent_change_set != expected_intent or not expected_intent:
+        return {'ok': False, 'outcome': 'failed', 'msg': '编辑意图无效，请刷新后重试'}
+
+    role = requested['role']
     role_error = _validate_role(role)
     if role_error:
-        return {'ok': False, 'msg': role_error}
-    groups_error = validate_groups_for_role(role, group_ids)
+        return {'ok': False, 'outcome': 'failed', 'msg': role_error}
+    requested_group_ids = requested['group_ids']
+    if (
+        not isinstance(requested_group_ids, list)
+        or any(not isinstance(group_id, int) or isinstance(group_id, bool)
+               for group_id in requested_group_ids)
+        or requested_group_ids != sorted(set(requested_group_ids))
+    ):
+        return {'ok': False, 'outcome': 'failed', 'msg': '业务组参数无效'}
+    groups_error = validate_groups_for_role(
+        role,
+        [GROUP_ALL_MARKER] if role == 'admin' and not requested_group_ids
+        else requested_group_ids,
+    )
     if groups_error:
-        return {'ok': False, 'msg': groups_error}
+        return {'ok': False, 'outcome': 'failed', 'msg': groups_error}
 
-    str_ids = [str(group_id) for group_id in (group_ids or [])]
-    has_all = GROUP_ALL_MARKER in str_ids
-    desired_group_ids = set()
-    if not has_all:
-        try:
-            desired_group_ids = {
-                int(group_id) for group_id in group_ids or []
-                if str(group_id) != GROUP_ALL_MARKER
-            }
-        except (TypeError, ValueError):
-            return {'ok': False, 'msg': '业务组参数无效'}
-
+    desired_group_ids = set(requested_group_ids)
+    auth_attempted = bool({'role', 'group_ids'} & set(expected_intent))
+    # 路由阶段已有只读查询。写边界必须从新的数据库事务读取当前事实，
+    # 避免复用 identity map 或 MySQL REPEATABLE READ 的旧快照。
     try:
-        user = db.session.scalar(
+        db.session.rollback()
+        begin_sqlite_write_boundary(
+            concrete_session, (RbacUser, UserGroup, ResourceGroup, RbacAuditLog),
+        )
+        lock_filter = RbacUser.id.in_([actor_user_id, user_id])
+        potential_admin_downgrade = (
+            original['role'] == 'admin' and requested['role'] != 'admin'
+        )
+        if potential_admin_downgrade:
+            lock_filter = or_(
+                lock_filter,
+                (RbacUser.role == 'admin') & (RbacUser.is_active == 1),
+            )
+        locked_users = db.session.scalars(
             select(RbacUser)
-            .where(RbacUser.id == user_id)
-            .with_for_update()
-        )
-        if not user:
-            return {'ok': False, 'msg': '用户不存在'}
-        if new_active == 1 and user.is_active == 0:
-            return {'ok': False, 'msg': '停用后不可恢复启用，如需使用请重新注册或由管理员创建'}
-        if new_active == 0 and is_seed_admin_username(user.username):
-            return {'ok': False, 'msg': '系统管理员账号不可停用'}
-        losing_admin = (
-            user.role == 'admin'
-            and user.is_active == 1
-            and (role != 'admin' or new_active == 0)
-        )
-        if losing_admin and _count_active_admins(exclude_id=user.id) < 1:
-            return {'ok': False, 'msg': '不能停用或降权最后一名启用中的管理员'}
-        if desired_group_ids:
-            found_group_ids = set(db.session.scalars(
-                select(ResourceGroup.id).where(
-                    ResourceGroup.id.in_(desired_group_ids)
-                )
-            ).all())
-            if found_group_ids != desired_group_ids:
-                return {'ok': False, 'msg': '存在无效业务组'}
-
-        links = db.session.scalars(
-            select(UserGroup)
-            .where(UserGroup.user_id == user.id)
+            .where(lock_filter)
+            .order_by(RbacUser.id)
             .with_for_update()
         ).all()
-        existing_group_ids = {link.group_id for link in links}
-        role_changed = user.role != role
-        groups_changed = existing_group_ids != desired_group_ids
-        deactivated = bool(user.is_active) and not bool(new_active)
+        locked_by_id = {locked.id: locked for locked in locked_users}
+        actor = locked_by_id.get(actor_user_id)
+        user = locked_by_id.get(user_id)
+        if not actor or not actor.is_active or not has_permission(
+            actor.role, 'user:manage', username=actor.username,
+        ):
+            rollback_or_invalidate(concrete_session)
+            return {'ok': False, 'outcome': 'failed', 'msg': '当前账号已无用户管理权限'}
+        if not user:
+            rollback_or_invalidate(concrete_session)
+            return {'ok': False, 'outcome': 'failed', 'msg': '用户不存在'}
+        if not user.is_active:
+            rollback_or_invalidate(concrete_session)
+            return {
+                'ok': False,
+                'outcome': 'failed',
+                'msg': '已停用用户不可编辑；如需重新使用，请通过同名覆盖启用流程',
+            }
 
-        user.role = role
-        user.is_active = new_active
-        user.email = (email or '').strip() or user.email
-        user.nickname = (nickname or '').strip() or None
-        user.job_title = (job_title or '').strip()
-        for link in links:
-            if link.group_id not in desired_group_ids:
-                db.session.delete(link)
-        for group_id in desired_group_ids - existing_group_ids:
-            db.session.add(UserGroup(user_id=user.id, group_id=group_id))
+        locked_links = db.session.scalars(
+            select(UserGroup)
+            .where(UserGroup.user_id.in_([actor_user_id, user_id]))
+            .order_by(UserGroup.user_id, UserGroup.group_id)
+            .with_for_update()
+        ).all()
+        actor_group_ids = sorted({
+            link.group_id for link in locked_links if link.user_id == actor_user_id
+        })
+        target_links = [link for link in locked_links if link.user_id == user_id]
+        current_group_ids = sorted({link.group_id for link in target_links})
+        actor_bypasses = user_bypasses_scope(
+            actor.role,
+            username=actor.username,
+            group_ids=actor_group_ids,
+        )
+        current_editor_scope = {
+            'bypass': actor_bypasses,
+            'group_ids': [] if actor_bypasses else actor_group_ids,
+        }
+        if current_editor_scope != original['editor_scope']:
+            rollback_or_invalidate(concrete_session)
+            return {'ok': False, 'outcome': 'failed', 'msg': '管理范围已变更，请刷新后重试'}
+        if not actor_bypasses and not (set(actor_group_ids) & set(current_group_ids)):
+            rollback_or_invalidate(concrete_session)
+            return {'ok': False, 'outcome': 'failed', 'msg': '该用户不在您的管理范围内'}
 
-        auth_changed = role_changed or groups_changed or deactivated
+        request_is_global = role == 'admin' and not requested_group_ids
+        assignment_denial = user_scope_assignment_denial(
+            actor.role,
+            actor.username,
+            actor_group_ids,
+            role,
+            request_is_global,
+            requested_group_ids,
+        )
+        if assignment_denial:
+            rollback_or_invalidate(concrete_session)
+            return {
+                'ok': False,
+                'outcome': 'failed',
+                'msg': SCOPE_ASSIGNMENT_ERROR_MESSAGES[assignment_denial],
+            }
+        if desired_group_ids:
+            found_group_ids = set(db.session.scalars(
+                select(ResourceGroup.id)
+                .where(ResourceGroup.id.in_(desired_group_ids))
+                .order_by(ResourceGroup.id)
+                .with_for_update()
+            ).all())
+            if found_group_ids != desired_group_ids:
+                rollback_or_invalidate(concrete_session)
+                return {'ok': False, 'outcome': 'failed', 'msg': '存在无效业务组'}
+
+        current = {
+            'email': (user.email or '').strip() or None,
+            'nickname': (user.nickname or '').strip() or None,
+            'job_title': (user.job_title or '').strip() or None,
+            'role': user.role,
+            'group_ids': current_group_ids,
+        }
+        effective_change_set = {}
+        profile_fields = ('email', 'nickname', 'job_title')
+        for field in profile_fields:
+            if field not in expected_intent:
+                continue
+            if current[field] == original[field]:
+                effective_change_set[field] = {
+                    'before': current[field],
+                    'after': requested[field],
+                }
+            elif current[field] != requested[field]:
+                rollback_or_invalidate(concrete_session)
+                return {
+                    'ok': False,
+                    'outcome': 'conflict',
+                    'msg': '该用户信息已变更，未覆盖新数据，请刷新后重新确认',
+                }
+
+        if {'role', 'group_ids'} & set(expected_intent):
+            # Build the logical full target from T0. Outside bindings are
+            # retained, but a concurrent full authorization change still conflicts.
+            desired_group_ids = set(requested_group_ids)
+            if not actor_bypasses:
+                desired_group_ids |= set(original['group_ids']) - set(actor_group_ids)
+            desired_auth_values = {'role': role, 'group_ids': sorted(desired_group_ids)}
+            original_auth = (original['role'], tuple(original['group_ids']))
+            current_auth = (current['role'], tuple(current['group_ids']))
+            requested_auth = (role, tuple(desired_auth_values['group_ids']))
+            if current_auth == original_auth:
+                for field in ('role', 'group_ids'):
+                    if current[field] != desired_auth_values[field]:
+                        effective_change_set[field] = {
+                            'before': current[field],
+                            'after': desired_auth_values[field],
+                        }
+            elif current_auth != requested_auth:
+                rollback_or_invalidate(concrete_session)
+                return {
+                    'ok': False,
+                    'outcome': 'conflict',
+                    'msg': '该用户权限信息已变更，未覆盖新数据，请刷新后重新确认',
+                }
+
+        if not effective_change_set:
+            rollback_or_invalidate(concrete_session)
+            return {
+                'ok': True,
+                'outcome': 'already_applied',
+                'msg': '目标状态已存在，无需重复保存',
+                'auth_version_bumped': False,
+            }
+
+        normalized_reason = None
+        if (
+            'email' in effective_change_set
+            and effective_change_set['email']['before'] is not None
+            and effective_change_set['email']['after'] is None
+        ):
+            normalized_reason = (reason or '').strip()
+            if not normalized_reason:
+                rollback_or_invalidate(concrete_session)
+                return {
+                    'ok': False,
+                    'outcome': 'failed',
+                    'msg': '请填写清空邮箱的变更理由',
+                }
+            if len(normalized_reason) > 500:
+                rollback_or_invalidate(concrete_session)
+                return {
+                    'ok': False,
+                    'outcome': 'failed',
+                    'msg': '变更理由最长 500 字',
+                }
+
+        if (
+            'role' in effective_change_set
+            and current['role'] == 'admin'
+            and requested['role'] != 'admin'
+            and not any(
+                locked.id != user.id
+                and locked.role == 'admin'
+                and locked.is_active == 1
+                for locked in locked_users
+            )
+        ):
+            rollback_or_invalidate(concrete_session)
+            return {
+                'ok': False,
+                'outcome': 'failed',
+                'msg': '不能降权最后一名启用中的管理员',
+            }
+
+        for field in profile_fields:
+            if field in effective_change_set:
+                setattr(user, field, requested[field])
+        if 'role' in effective_change_set:
+            user.role = requested['role']
+        if 'group_ids' in effective_change_set:
+            for link in target_links:
+                if (link.group_id not in desired_group_ids
+                        and (actor_bypasses or link.group_id in actor_group_ids)):
+                    db.session.delete(link)
+            existing_group_ids = set(current_group_ids)
+            for group_id in desired_group_ids - existing_group_ids:
+                db.session.add(UserGroup(user_id=user.id, group_id=group_id))
+
+        auth_changed = bool({'role', 'group_ids'} & set(effective_change_set))
         if auth_changed:
             user.auth_version = int(user.auth_version or 0) + 1
-            if deactivated:
-                user.api_token = None
-                user.api_token_expires_at = None
-            else:
-                _auto_issue_token(user)
+            _auto_issue_token(user)
+
+        detail = {
+            'schema_version': 1,
+            'changes': {
+                field: effective_change_set[field]
+                for field in USER_EDIT_FIELDS
+                if field in effective_change_set
+            },
+        }
+        if (
+            'email' in effective_change_set
+            and effective_change_set['email']['before'] is not None
+            and effective_change_set['email']['after'] is None
+        ):
+            detail['reason'] = normalized_reason
+        actor_groups_csv = (
+            ',' + ','.join(str(group_id) for group_id in actor_group_ids) + ','
+            if actor_group_ids else ''
+        )
+        db.session.add(RbacAuditLog(
+            user_id=actor.id,
+            username=actor.username,
+            action='user:update',
+            resource=user.username,
+            ip=(request.remote_addr or '') if has_request_context() else '',
+            status='allow',
+            create_time=utc_now_hms(),
+            actor_group_ids=actor_groups_csv,
+            detail=json.dumps(
+                detail,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(',', ':'),
+            ),
+        ))
+        try:
+            db.session.flush()
+        except Exception:
+            logger.exception('update_user_management flush failed user_id=%s', user_id)
+            rollback_or_invalidate(concrete_session)
+            return {'ok': False, 'outcome': 'failed', 'msg': '保存失败'}
+    except Exception:
+        logger.exception('update_user_management transaction failed user_id=%s', user_id)
+        rollback_or_invalidate(concrete_session)
+        return {'ok': False, 'outcome': 'failed', 'msg': '保存失败'}
+
+    try:
         db.session.commit()
     except Exception:
-        logger.exception('update_user_management commit failed user_id=%s', user_id)
-        db.session.rollback()
-        return {'ok': False, 'msg': '保存失败'}
+        logger.exception('update_user_management commit result unknown user_id=%s', user_id)
+        rollback_or_invalidate(concrete_session)
+        if auth_attempted:
+            _invalidate_api_scope_cache(user_id)
+        return {
+            'ok': False,
+            'outcome': 'commit_unknown',
+            'msg': '保存结果无法确认，请刷新核实当前信息',
+        }
 
-    write_audit_log(action='user:update', resource=user.username)
-    _invalidate_api_scope_cache(user.id)
+    if auth_changed:
+        _invalidate_api_scope_cache(user.id)
     return {
         'ok': True,
+        'outcome': 'updated',
         'msg': '保存成功',
         'auth_version_bumped': auth_changed,
+        'effective_change_set': effective_change_set,
     }
 
 
@@ -1223,8 +1546,14 @@ def set_user_groups(user_id, group_ids, role=None, username=None):
         if set(found) != set(cleaned):
             return {'ok': False, 'msg': '存在无效业务组'}
     try:
+        # 与任务保存的当前授权校验共用用户行锁，先锁用户再修改组绑定。
+        user = db.session.scalar(select(RbacUser).where(RbacUser.id == user_id)
+                                 .with_for_update().execution_options(populate_existing=True))
+        if not user:
+            db.session.rollback()
+            return {'ok': False, 'msg': '用户不存在'}
         existing = db.session.scalars(
-            select(UserGroup).where(UserGroup.user_id == user_id)
+            select(UserGroup).where(UserGroup.user_id == user_id).with_for_update()
         ).all()
         existing_group_ids = {row.group_id for row in existing}
         desired_group_ids = set(cleaned)
@@ -1279,6 +1608,227 @@ JOB_TITLE_CHOICES = [
 ]
 VALID_JOB_TITLES = frozenset(k for k, _ in JOB_TITLE_CHOICES)
 JOB_TITLE_OTHER_MAX_LEN = 20
+
+USER_EDIT_SNAPSHOT_SCHEMA_VERSION = 2
+USER_EDIT_SNAPSHOT_SALT = 'rbac-user-edit-snapshot-v2'
+USER_EDIT_SNAPSHOT_KEYS = frozenset({
+    'schema_version',
+    'actor_user_id',
+    'target_user_id',
+    'editor_scope',
+    'email',
+    'nickname',
+    'job_title',
+    'role',
+    'group_ids',
+})
+USER_EDIT_FIELDS = ('email', 'nickname', 'job_title', 'role', 'group_ids')
+
+
+def user_edit_editor_scope(actor_scope):
+    """Canonical editing boundary; never a substitute for current authorization."""
+    if not actor_scope.get('ok'):
+        raise ValueError('用户管理权限已失效，请刷新后重试')
+    bypass = bool(actor_scope['bypass'])
+    return {'bypass': bypass, 'group_ids': [] if bypass else sorted(set(actor_scope['group_ids']))}
+
+
+def project_user_edit_values(snapshot):
+    """Compare only values the signed editor could actually submit."""
+    values = {field: snapshot[field] for field in USER_EDIT_FIELDS}
+    scope = snapshot['editor_scope']
+    if not scope['bypass']:
+        values['group_ids'] = sorted(set(snapshot['group_ids']) & set(scope['group_ids']))
+    return values
+
+
+def build_user_edit_snapshot(actor_user_id, target_user, group_ids, actor_scope=None):
+    """Sign complete target facts and the independently resolved editing boundary."""
+    editor_scope = user_edit_editor_scope(
+        actor_scope if actor_scope is not None else resolve_user_management_actor(actor_user_id)
+    )
+    return {
+        'schema_version': USER_EDIT_SNAPSHOT_SCHEMA_VERSION,
+        'actor_user_id': int(actor_user_id),
+        'target_user_id': int(target_user.id),
+        'editor_scope': editor_scope,
+        'email': (target_user.email or '').strip() or None,
+        'nickname': (target_user.nickname or '').strip() or None,
+        'job_title': (target_user.job_title or '').strip() or None,
+        'role': target_user.role,
+        'group_ids': sorted({int(group_id) for group_id in (group_ids or [])}),
+    }
+
+
+def sign_user_edit_snapshot(secret_key, snapshot):
+    """签名用户编辑页原始快照；签名仅保证完整性，不承担授权。"""
+    serializer = URLSafeSerializer(secret_key, salt=USER_EDIT_SNAPSHOT_SALT)
+    return serializer.dumps(snapshot)
+
+
+def verify_user_edit_snapshot(
+    secret_key,
+    token,
+    actor_user_id,
+    target_user_id,
+):
+    """验签并验证快照 schema、类型和当前请求 actor/target 绑定。"""
+    if not token:
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    serializer = URLSafeSerializer(secret_key, salt=USER_EDIT_SNAPSHOT_SALT)
+    try:
+        snapshot = serializer.loads(token)
+    except BadData:
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    if not isinstance(snapshot, dict) or set(snapshot) != USER_EDIT_SNAPSHOT_KEYS:
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    if (type(snapshot.get('schema_version')) is not int
+            or snapshot['schema_version'] != USER_EDIT_SNAPSHOT_SCHEMA_VERSION):
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    actor_value = snapshot.get('actor_user_id')
+    target_value = snapshot.get('target_user_id')
+    if (
+        not isinstance(actor_value, int)
+        or isinstance(actor_value, bool)
+        or not isinstance(target_value, int)
+        or isinstance(target_value, bool)
+        or actor_value != actor_user_id
+        or target_value != target_user_id
+    ):
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    for field in ('email', 'nickname', 'job_title'):
+        if snapshot[field] is not None and not isinstance(snapshot[field], str):
+            return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    if not isinstance(snapshot['role'], str):
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    group_ids = snapshot['group_ids']
+    if (
+        not isinstance(group_ids, list)
+        or any(not isinstance(group_id, int) or isinstance(group_id, bool)
+               for group_id in group_ids)
+        or group_ids != sorted(set(group_ids))
+    ):
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    scope = snapshot['editor_scope']
+    if (
+        not isinstance(scope, dict) or set(scope) != {'bypass', 'group_ids'}
+        or type(scope['bypass']) is not bool
+        or not isinstance(scope['group_ids'], list)
+        or any(type(gid) is not int or gid <= 0 for gid in scope['group_ids'])
+        or scope['group_ids'] != sorted(set(scope['group_ids']))
+        or (scope['bypass'] and scope['group_ids'])
+        or (not scope['bypass'] and not scope['group_ids'])
+    ):
+        return {'ok': False, 'msg': '编辑页数据已失效，请刷新后重试'}
+    return {'ok': True, 'msg': '', 'snapshot': snapshot}
+
+
+def normalize_user_edit_values(
+    role,
+    group_ids,
+    *,
+    email_present,
+    email,
+    nickname,
+    job_title,
+    job_title_other='',
+):
+    """纯规范化用户编辑请求；不读数据库、不进入写事务。"""
+    role_error = _validate_role(role)
+    if role_error:
+        return {'ok': False, 'msg': role_error, 'field': 'uf-role-select'}
+    if not email_present:
+        return {'ok': False, 'msg': '邮箱字段缺失，请刷新后重试', 'field': 'uf-email'}
+    normalized_email = (email or '').strip() or None
+    if normalized_email is not None:
+        if '@' not in normalized_email:
+            return {'ok': False, 'msg': '邮箱格式不正确', 'field': 'uf-email'}
+        if len(normalized_email) > 128:
+            return {'ok': False, 'msg': '邮箱最长 128 字符', 'field': 'uf-email'}
+    normalized_nickname = (nickname or '').strip() or None
+    if normalized_nickname is not None and len(normalized_nickname) > 64:
+        return {'ok': False, 'msg': '花名最长 64 字符', 'field': 'uf-nickname'}
+    normalized_job_title = (job_title or '').strip()
+    if normalized_job_title == 'other':
+        custom = (job_title_other or '').strip()
+        if not custom:
+            return {
+                'ok': False,
+                'msg': '选择「其他」时须填写自定义岗位名称',
+                'field': 'uf-job-title-select',
+            }
+        if len(custom) > JOB_TITLE_OTHER_MAX_LEN:
+            return {
+                'ok': False,
+                'msg': '自定义岗位名称最长 %d 字符' % JOB_TITLE_OTHER_MAX_LEN,
+                'field': 'uf-job-title-select',
+            }
+        normalized_job_title = 'other:' + custom
+    elif normalized_job_title.startswith('other:'):
+        custom = normalized_job_title[len('other:'):].strip()
+        if not custom or len(custom) > JOB_TITLE_OTHER_MAX_LEN:
+            return {
+                'ok': False,
+                'msg': '自定义岗位名称须为 1～%d 字符' % JOB_TITLE_OTHER_MAX_LEN,
+                'field': 'uf-job-title-select',
+            }
+        normalized_job_title = 'other:' + custom
+    elif not normalized_job_title:
+        return {
+            'ok': False,
+            'msg': '岗位类型为必填项，请选择岗位',
+            'field': 'uf-job-title-select',
+        }
+    elif normalized_job_title not in VALID_JOB_TITLES:
+        return {
+            'ok': False,
+            'msg': '岗位类型无效',
+            'field': 'uf-job-title-select',
+        }
+    normalized_group_ids = sorted({int(group_id) for group_id in (group_ids or [])})
+    return {
+        'ok': True,
+        'msg': '',
+        'values': {
+            'email': normalized_email,
+            'nickname': normalized_nickname,
+            'job_title': normalized_job_title,
+            'role': role,
+            'group_ids': normalized_group_ids,
+        },
+    }
+
+
+def build_user_edit_intent(snapshot, requested_values):
+    """计算请求相对签名页面快照的修改意图。"""
+    original_values = project_user_edit_values(snapshot)
+    return {
+        field: {
+            'before': original_values[field],
+            'after': requested_values[field],
+        }
+        for field in USER_EDIT_FIELDS
+        if original_values[field] != requested_values[field]
+    }
+
+
+def validate_user_edit_confirmation(snapshot, requested_values, confirmed, reason):
+    """在任何写事务之前校验邮箱清空确认和理由。"""
+    clears_email = snapshot['email'] is not None and requested_values['email'] is None
+    if not clears_email:
+        return {'ok': True, 'outcome': None, 'reason': None}
+    if str(confirmed or '') != '1':
+        return {
+            'ok': False,
+            'outcome': 'confirm_required',
+            'msg': '清空现有邮箱需要二次确认并填写变更理由',
+        }
+    normalized_reason = (reason or '').strip()
+    if not normalized_reason:
+        return {'ok': False, 'outcome': 'failed', 'msg': '请填写清空邮箱的变更理由'}
+    if len(normalized_reason) > 500:
+        return {'ok': False, 'outcome': 'failed', 'msg': '变更理由最长 500 字'}
+    return {'ok': True, 'outcome': None, 'reason': normalized_reason}
 
 REGISTRATION_SCOPE_ERROR_MESSAGES = {
     'groups_required': '请至少选择一个业务组',

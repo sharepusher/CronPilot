@@ -139,6 +139,7 @@
     <h2>① 项目管理与进度</h2>
     <p class="dim-desc">版本、变更、仓库边界与「先看哪里」——推荐从进度总览进入。</p>
     <ul class="doc-list">
+      <li><div class="title"><span class="badge b-auth">开发规范</span><a href="arch/编辑与局部更新开发规范.html">编辑与局部更新开发规范</a><span class="blurb">字段意图、当前授权、并发保护、外组保留、事务审计与幂等；附官方来源和验收矩阵</span></div><div class="links"><a href="arch/编辑与局部更新开发规范.html">HTML</a><a href="arch/编辑与局部更新开发规范.md">MD</a></div></li>
       <li><div class="title"><a href="qa/error-handling-split-review-2026-10-09.html">统一错误处理拆分文档专业评审（2026-10-09）</a></div><div class="links"><a href="qa/error-handling-split-review-2026-10-09.html">HTML</a><a href="qa/error-handling-split-review-2026-10-09.md">Markdown</a></div></li>
       <li>
         <div class="title">
@@ -270,6 +271,14 @@
     <h2>③ 设计中（待确认 · 实现前）</h2>
     <p class="dim-desc">规格已写、须用户确认后再改代码。子文档挂在权威总稿下，避免平行阅读混乱。</p>
     <ul class="doc-list">
+<li><div class="title"><span class="badge b-draft">rev.1.0 · 待确认</span><a href="design/SQLite任务编辑保存边界原子保护设计-2026-11-02.html">SQLite 任务编辑保存边界原子保护设计与评估（2026-11-02）</a><span class="blurb">即时保护、锁外DNS与重入重算、有限预算、调度/日志边界；本轮仅设计</span></div><div class="links"><a href="design/SQLite任务编辑保存边界原子保护设计-2026-11-02.html">HTML</a><a href="design/SQLite任务编辑保存边界原子保护设计-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-done">专项通过</span><a href="design/SQLite用户编辑保存边界原子保护设计-2026-11-02.html">SQLite 用户编辑保存边界原子保护设计（2026-11-02）</a><span class="blurb">局部即时事务、明确串行顺序、独立竞争验收及临时库窄例外；S0–S3已实施；全仓发布条件未满足</span></div><div class="links"><a href="design/SQLite用户编辑保存边界原子保护设计-2026-11-02.html">HTML</a><a href="design/SQLite用户编辑保存边界原子保护设计-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-done">已验证</span><a href="design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.html">RBAC 用户编辑七状态浏览器验收与锁成本文案校准设计</a><span class="blurb">B1–B3已验证：F2完整页面与提交真值对照；F3源设计成本描述已校准</span></div><div class="links"><a href="design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.html">HTML</a><a href="design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-draft">待确认</span><a href="design/编辑契约检查单与行为回归门禁设计-2026-10-29.html">编辑契约检查单与行为回归门禁设计</a><span class="blurb">C01–C10责任检查单、分层行为验证、稳定合并检查与防假绿；复用现有discovery</span></div><div class="links"><a href="design/编辑契约检查单与行为回归门禁设计-2026-10-29.html">HTML</a><a href="design/编辑契约检查单与行为回归门禁设计-2026-10-29.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-done">已验证</span><a href="design/RBAC用户编辑锁释放验收增强设计-2026-10-29.html">RBAC 用户编辑锁释放验收增强设计（2026-10-29）</a><span class="blurb">F1关闭：同上下文观察、独立MySQL探针与省略回滚负向校准；实施结果见源设计</span></div><div class="links"><a href="design/RBAC用户编辑锁释放验收增强设计-2026-10-29.html">HTML</a><a href="design/RBAC用户编辑锁释放验收增强设计-2026-10-29.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-wip">R5 · 已验证</span><a href="design/R5用户编辑字段意图与范围外组保留设计-2026-10-29.html">R5 用户编辑字段意图与范围外组保留设计（2026-10-29）</a><span class="blurb">只改花名只写花名；可信投影判定意图、范围外绑定保护与并发边界</span></div><div class="links"><a href="design/R5用户编辑字段意图与范围外组保留设计-2026-10-29.html">HTML</a><a href="design/R5用户编辑字段意图与范围外组保留设计-2026-10-29.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">rev.1.1 · P2 已验证</span><a href="design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html">RBAC 用户编辑两项 P2 评估与修复设计（2026-10-29）</a><span class="blurb">组选择误判/全局与空选择；审计 v1 整条验证，按父 D6c 回退；含两页对比与否定验收</span></div><div class="links"><a href="design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html">HTML</a><a href="design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">rev.1.1 · P1 已验证</span><a href="design/RBAC用户编辑两项P1根因与修复设计-2026-10-29.html">RBAC 用户编辑两项 P1 根因与修复设计（2026-10-29）</a><span class="blurb">确认回显冻结原始快照；MySQL 验收取消自动删表、专用独占空库；根因/备选/页面对比/否定验收</span></div><div class="links"><a href="design/RBAC用户编辑两项P1根因与修复设计-2026-10-29.html">HTML</a><a href="design/RBAC用户编辑两项P1根因与修复设计-2026-10-29.md">MD</a></div></li>
       <li>
         <div class="title"><span class="badge b-done">R2-2 完成</span><a href="design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.html">RBAC 注册审批申请业务组关联表 R2-2 实施方案（2026-10）</a><span class="blurb">关联表 Scope 精确化、审批一致性、性能、集成和交付门禁已完成；R2-3/R2-4 亦已验收</span></div>
         <div class="links"><a href="design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.html">HTML</a><a href="design/RBAC注册审批申请业务组关联表R2-2实施方案-2026-10.md">MD</a></div>
@@ -416,6 +425,44 @@
         <div class="links"><a href="qa/RBAC用户编辑差异写入与事务闭环方案专业Review-2026-10-15.html">HTML</a><a href="qa/RBAC用户编辑差异写入与事务闭环方案专业Review-2026-10-15.md">MD</a></div>
       </li>
       <li>
+        <div class="title"><span class="badge b-done">rev.2.6 · 四项 Review 已关闭</span><a href="design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">RBAC 用户编辑差异写入与单事务收口独立设计（2026-10）</a><span class="blurb">签名意图、数据库当前授权、行锁三方比较、同事务审计、前端预检与安全审计展示均已完成</span></div>
+        <div class="links"><a href="design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.html">HTML</a><a href="design/RBAC用户编辑差异写入与单事务收口独立设计-2026-10.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">问题① · 已验证</span><a href="design/任务编辑无变更保存零副作用独立设计-2026-10.html">任务编辑无变更保存零副作用独立设计（2026-10）</a><span class="blurb">前端零 POST、后端零写入/日志/调度；专项、双后端、浏览器及原生回退已验证</span></div>
+        <div class="links"><a href="design/任务编辑无变更保存零副作用独立设计-2026-10.html">HTML</a><a href="design/任务编辑无变更保存零副作用独立设计-2026-10.md">MD</a></div>
+      </li>
+      <li><div class="title"><span class="badge b-done">rev.2 · 验收通过</span><a href="design/任务API超时参数类型兼容修复设计-2026-11-02.html">任务 API 超时参数类型兼容修复设计（2026-11-02）</a><span class="blurb">兼容 Schema 整数与表单字符串；专项、双后端及浏览器验收通过</span></div><div class="links"><a href="design/任务API超时参数类型兼容修复设计-2026-11-02.html">HTML</a><a href="design/任务API超时参数类型兼容修复设计-2026-11-02.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-done">D2 rev.4 · 本批验收通过</span><a href="design/任务启停结果判定与冲突报错D2设计-2026-11-02.html">任务启停结果判定与冲突报错 D2 设计（2026-11-02）</a><span class="blurb">明确目标签名重试，双后端 Web/API 验证</span></div><div class="links"><a href="design/任务启停结果判定与冲突报错D2设计-2026-11-02.html">HTML</a><a href="design/任务启停结果判定与冲突报错D2设计-2026-11-02.md">MD</a></div></li>
+      <li>
+        <div class="title"><span class="badge b-draft">W2 · 历史候选</span><a href="design/任务调度写入协调与恢复W2独立设计-2026-10-30.html">任务调度写入协调与恢复 W2 独立设计（2026-10-30）</a><span class="blurb">后续可选协调/恢复路线及 C-0 证据；本批改为冲突检测与明确报错</span></div>
+        <div class="links"><a href="design/任务调度写入协调与恢复W2独立设计-2026-10-30.html">HTML</a><a href="design/任务调度写入协调与恢复W2独立设计-2026-10-30.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-draft">W2 rev.4 · D1 验收通过</span><a href="design/任务调度冲突检测与明确报错W2设计-2026-10-30.html">任务调度冲突检测与明确报错 W2 设计（2026-10-30）</a><span class="blurb">正常返回信任同步契约；版本冲突单独报错，仅不确定异常查询</span></div>
+        <div class="links"><a href="design/任务调度冲突检测与明确报错W2设计-2026-10-30.html">HTML</a><a href="design/任务调度冲突检测与明确报错W2设计-2026-10-30.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-draft">问题⑤ · 待 Review</span><a href="design/暂停任务编辑注册窗口独立设计-2026-10-30.html">暂停任务编辑注册窗口独立设计（2026-10-30）</a><span class="blurb">按有效变化决定调度副作用；暂停规则修改方案待真实 JobStore 验证</span></div>
+        <div class="links"><a href="design/暂停任务编辑注册窗口独立设计-2026-10-30.html">HTML</a><a href="design/暂停任务编辑注册窗口独立设计-2026-10-30.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-draft">问题② · 待 Review</span><a href="design/任务编辑陈旧页面并发覆盖独立设计-2026-10.html">任务编辑陈旧页面并发覆盖独立设计（2026-10）</a><span class="blurb">可信基线、字段意图、三方比较与原子版本；未编辑值保留、完整写者协议和冲突页面对比</span></div>
+        <div class="links"><a href="design/任务编辑陈旧页面并发覆盖独立设计-2026-10.html">HTML</a><a href="design/任务编辑陈旧页面并发覆盖独立设计-2026-10.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-wip">修复复盘</span><a href="postmortem/2026-10-任务编辑无变更保存副作用.html">任务编辑无变更保存副作用修复复盘（2026-10-29）</a><span class="blurb">只读比较、零 DML/日志/调度；按钮/回车/原生回退及双后端验证</span></div>
+        <div class="links"><a href="postmortem/2026-10-任务编辑无变更保存副作用.html">HTML</a><a href="postmortem/2026-10-任务编辑无变更保存副作用.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-wip">M1 · 综合背景</span><a href="design/任务编辑差异写入与调度一致性M1设计-2026-10.html">任务编辑差异写入与调度一致性 M1 设计（2026-10）</a><span class="blurb">保留五项分析背景；当前按用户要求逐项独立设计，先评审问题①</span></div>
+        <div class="links"><a href="design/任务编辑差异写入与调度一致性M1设计-2026-10.html">HTML</a><a href="design/任务编辑差异写入与调度一致性M1设计-2026-10.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-wip">A · 校准通过</span><a href="qa/RBAC用户编辑差异写入与单事务收口方案专业Review-2026-10-28.html">RBAC 用户编辑差异写入与单事务收口方案专业 Review（2026-10-28）</a><span class="blurb">准确性 A、专业性 A、合理性 A；G1–G4 已关闭，凭据操作必须审计但凭据值永不记录</span></div>
+        <div class="links"><a href="qa/RBAC用户编辑差异写入与单事务收口方案专业Review-2026-10-28.html">HTML</a><a href="qa/RBAC用户编辑差异写入与单事务收口方案专业Review-2026-10-28.md">MD</a></div>
+      </li>
+      <li>
         <div class="title"><span class="badge b-done">A- · 正式通过</span><a href="qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html">RBAC 全局权限授予边界 S0–S5 全过程专业 Review（2026-10-16）</a><span class="blurb">写入安全、批量反馈、列表 Scope、持久化证据与幂等 fixture 均已收口，S5 关闭</span></div>
         <div class="links"><a href="qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.html">HTML</a><a href="qa/RBAC全局权限授予边界S0-S5全过程专业Review-2026-10-16.md">MD</a></div>
       </li>
@@ -444,11 +491,11 @@
         <div class="links"><a href="qa/当前项目全面专业性Bugbot评估-2026-10-27.html">HTML</a><a href="qa/当前项目全面专业性Bugbot评估-2026-10-27.md">MD</a></div>
       </li>
       <li>
-        <div class="title"><span class="badge b-done">下一步评估</span><a href="qa/当前提交基线后续优化步骤评估-2026-10-27.html">当前提交基线后续优化步骤评估（2026-10-27）</a><span class="blurb">先原子提交发布治理批次，再核验远端信任根；之后校准并确认 RBAC 用户编辑 U0</span></div>
+        <div class="title"><span class="badge b-done">历史下一步评估</span><a href="qa/当前提交基线后续优化步骤评估-2026-10-27.html">当前提交基线后续优化步骤评估（2026-10-27）</a><span class="blurb">当时建议先核验远端信任根；所有者后续已接受单维护者残余风险，当前转入 RBAC U0</span></div>
         <div class="links"><a href="qa/当前提交基线后续优化步骤评估-2026-10-27.html">HTML</a><a href="qa/当前提交基线后续优化步骤评估-2026-10-27.md">MD</a></div>
       </li>
       <li>
-        <div class="title"><span class="badge b-draft">远端 P0 阻断</span><a href="qa/GitHub发布信任根核验-2026-10-27.html">GitHub 发布信任根核验（2026-10-27）</a><span class="blurb">远端仍为旧 workflow；main 未保护、ruleset 为空；Environment/Actions 权限待管理员认证核验</span></div>
+        <div class="title"><span class="badge b-sub">所有者已接受风险</span><a href="qa/GitHub发布信任根核验-2026-10-27.html">GitHub 发布信任根核验（2026-10-27）</a><span class="blurb">main 未保护、ruleset 为空的事实保留；单人执行 commit/tag/Release，不再阻断当前产品优化</span></div>
         <div class="links"><a href="qa/GitHub发布信任根核验-2026-10-27.html">HTML</a><a href="qa/GitHub发布信任根核验-2026-10-27.md">MD</a></div>
       </li>
       <li>
@@ -502,6 +549,18 @@
       <li>
         <div class="title"><span class="badge b-done">已修复</span><a href="postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.html">RBAC 全局管理员表单 Scope 回显缺失复盘（2026-10-27）</a><span class="blurb">零关联行 global Scope 的表单 marker 回显</span></div>
         <div class="links"><a href="postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.html">HTML</a><a href="postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">U1 已修复</span><a href="postmortem/2026-10-RBAC用户编辑写前意图缺失.html">RBAC 用户编辑写前意图缺失 U1 修复复盘（2026-10-28）</a><span class="blurb">签名快照、纯规范化、no-op 写前短路、邮箱清空确认契约与状态只读</span></div>
+        <div class="links"><a href="postmortem/2026-10-RBAC用户编辑写前意图缺失.html">HTML</a><a href="postmortem/2026-10-RBAC用户编辑写前意图缺失.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">U2 已修复</span><a href="postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.html">RBAC 用户编辑并发覆盖与审计分裂 U2 修复复盘（2026-10-29）</a><span class="blurb">数据库当前授权、确定顺序行锁、三方比较、业务与审计同事务</span></div>
+        <div class="links"><a href="postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.html">HTML</a><a href="postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">U3 已修复</span><a href="postmortem/2026-10-RBAC用户编辑U3前端回退与审计展示.html">RBAC 用户编辑 U3 前端回退与审计展示修复复盘（2026-10-29）</a><span class="blurb">前端 no-op 预检、邮箱清空二次确认、稳定 outcome 与版本化审计安全展示</span></div>
+        <div class="links"><a href="postmortem/2026-10-RBAC用户编辑U3前端回退与审计展示.html">HTML</a><a href="postmortem/2026-10-RBAC用户编辑U3前端回退与审计展示.md">MD</a></div>
       </li>
       <li>
         <div class="title"><span class="badge b-done">已修复</span><a href="postmortem/2026-10-RBAC用户管理陈旧Session读取.html">RBAC 用户管理陈旧 Session 读取复盘（2026-10-27）</a><span class="blurb">7 个入口数据库当前 actor · 单事务版本撤销</span></div>
@@ -1336,6 +1395,40 @@
     <h2>⑧ 验收、工程与合规</h2>
     <p class="dim-desc">怎么验、文档怎么同步、许可边界。</p>
     <ul class="doc-list">
+<li><div class="title"><span class="badge b-done">专项通过</span><a href="qa/SQLite用户编辑原子保护验收-2026-11-02.html">SQLite 用户编辑原子保护验收（2026-11-02）</a><span class="blurb">局部事务、多连接与真实浏览器；任务子项和全量基线失败保留</span></div><div class="links"><a href="qa/SQLite用户编辑原子保护验收-2026-11-02.html">HTML</a><a href="qa/SQLite用户编辑原子保护验收-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-done">修复复盘</span><a href="postmortem/2026-11-SQLite用户编辑保存边界原子保护.html">SQLite 用户编辑保存边界原子保护复盘</a><span class="blurb">根因、测试盲区、最小修复与真竞争预防；保留发布边界</span></div><div class="links"><a href="postmortem/2026-11-SQLite用户编辑保存边界原子保护.html">HTML</a><a href="postmortem/2026-11-SQLite用户编辑保存边界原子保护.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-wip">条件通过</span><a href="qa/下一步方案合理性专业性准确性评估-2026-11-02.html">下一步方案合理性、专业性与准确性评估（2026-11-02）</a><span class="blurb">优先级合理；需补串行顺序、独立竞争验收及基线绑定</span></div><div class="links"><a href="qa/下一步方案合理性专业性准确性评估-2026-11-02.html">HTML</a><a href="qa/下一步方案合理性专业性准确性评估-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-wip">后续优先级</span><a href="qa/验收后下一步与发布前优先级梳理-2026-11-02.html">验收后下一步与发布前优先级梳理（2026-11-02）</a><span class="blurb">SQLite保存边界优先；最终基线、提交/发布与治理分批</span></div><div class="links"><a href="qa/验收后下一步与发布前优先级梳理-2026-11-02.html">HTML</a><a href="qa/验收后下一步与发布前优先级梳理-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><a href="qa/统一调度状态机制对现有实现的改动评估-2026-11-03.html">统一调度状态机制对现有实现的改动评估</a></div><div class="links"><a href="qa/统一调度状态机制对现有实现的改动评估-2026-11-03.html">HTML</a><a href="qa/统一调度状态机制对现有实现的改动评估-2026-11-03.md">MD</a></div></li>
+<li><div class="title"><a href="arch/调度变更统一状态与恢复机制评估-2026-11-02.html">调度变更统一状态与恢复机制评估</a></div><div class="links"><a href="arch/调度变更统一状态与恢复机制评估-2026-11-02.html">HTML</a><a href="arch/调度变更统一状态与恢复机制评估-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><a href="qa/D2完成后下一步与D3下线风险评估-2026-11-02.html">D2 完成后下一步与 D3 下线风险评估</a></div><div class="links"><a href="qa/D2完成后下一步与D3下线风险评估-2026-11-02.html">HTML</a><a href="qa/D2完成后下一步与D3下线风险评估-2026-11-02.md">MD</a></div></li>
+<li><div class="title"><a href="qa/W1-preview-test1未执行原因核查-2026-10-30.html">W1 预览 test1 未执行原因核查</a></div><div class="links"><a href="qa/W1-preview-test1未执行原因核查-2026-10-30.html">HTML</a><a href="qa/W1-preview-test1未执行原因核查-2026-10-30.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">发布暂缓</span><a href="qa/v4.2.0-release-review-2026-10-30.html">v4.2.0 发布前未提交代码与文档全面审查（2026-10-30）</a><span class="blurb">SQLite 授权与覆盖竞态独立复现、发布门禁与升级边界；本轮验证见源报告</span></div><div class="links"><a href="qa/v4.2.0-release-review-2026-10-30.html">HTML</a><a href="qa/v4.2.0-release-review-2026-10-30.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-done">已验证</span><a href="qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html">RBAC 用户编辑七状态浏览器验收（2026-10-30）</a><span class="blurb">七状态真实页面、原生POST与提交前后异常对照；逐项证据见源验收</span></div><div class="links"><a href="qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html">HTML</a><a href="qa/RBAC用户编辑七状态浏览器验收-2026-10-30.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-done">F2/F3关闭</span><a href="postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.html">RBAC 七状态浏览器验收与锁成本校准复盘</a><span class="blurb">七项复盘、隔离与故障恢复守卫、成本描述校准；未修改生产行为</span></div><div class="links"><a href="postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.html">HTML</a><a href="postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-done">F1已关闭</span><a href="postmortem/2026-10-RBAC锁释放验收观察边界.html">RBAC 锁释放验收观察边界修复复盘（2026-10-29）</a><span class="blurb">同上下文真实MySQL探针、负向校准与七项复盘；当前受测实现无锁释放缺陷</span></div><div class="links"><a href="postmortem/2026-10-RBAC锁释放验收观察边界.html">HTML</a><a href="postmortem/2026-10-RBAC锁释放验收观察边界.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">代码规范评估</span><a href="qa/数据库事务与锁使用规范及当前实现评估-2026-10-29.html">数据库事务与锁使用规范及当前实现评估（2026-10-29）</a><span class="blurb">事务所有权、Session生命周期、最小锁与统一写协议、索引/隔离、异常重试；当前实现对照</span></div><div class="links"><a href="qa/数据库事务与锁使用规范及当前实现评估-2026-10-29.html">HTML</a><a href="qa/数据库事务与锁使用规范及当前实现评估-2026-10-29.md">MD</a></div></li>
+      <li><div class="title"><span class="badge">历史评估</span><a href="qa/未提交代码与方案补修后全面复核-2026-10-29.html">未提交代码与方案补修后全面复核（2026-10-29）</a><span class="blurb">F1/F2/F3均已按专项关闭；原始发现与历史证据保留</span></div><div class="links"><a href="qa/未提交代码与方案补修后全面复核-2026-10-29.html">HTML</a><a href="qa/未提交代码与方案补修后全面复核-2026-10-29.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">R5 已验证</span><a href="postmortem/2026-10-RBAC用户编辑范围外组误删.html">RBAC 用户编辑范围外组误删修复复盘（2026-10-29）</a><span class="blurb">签名编辑范围、同范围意图、外组保留；双后端与真实浏览器</span></div><div class="links"><a href="postmortem/2026-10-RBAC用户编辑范围外组误删.html">HTML</a><a href="postmortem/2026-10-RBAC用户编辑范围外组误删.md">MD</a></div></li>
+<li><div class="title"><span class="badge b-done">P2 已验证</span><a href="postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">RBAC 两项 P2 组选择与审计契约回退修复复盘（2026-10-29）</a><span class="blurb">228 项联合、18 组 preflight、16 项 live；P1 回归，初始四项发现闭合；新 R5 外组绑定已另批修复</span></div><div class="links"><a href="postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">HTML</a><a href="postmortem/2026-10-RBAC两项P2组选择与审计契约回退.md">MD</a></div></li>
+      <li><div class="title"><span class="badge b-wip">P1 已验证</span><a href="postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html">RBAC 两项 P1 快照回显与验收库隔离修复复盘（2026-10-29）</a><span class="blurb">七项复盘、永久负向测试、受限 MySQL 与目标角色浏览器证据；独立 P2 保留</span></div><div class="links"><a href="postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html">HTML</a><a href="postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.md">MD</a></div></li>
+      <li><div class="title"><span class="badge">初评历史</span><a href="qa/未提交代码与文档专业评估-2026-10-29.html">未提交代码与文档专业评估（2026-10-29）</a><span class="blurb">并发确认快照、测试库隔离、组选择器与设计契约偏差；2 项 P1、2 项 P2</span></div><div class="links"><a href="qa/未提交代码与文档专业评估-2026-10-29.html">HTML</a><a href="qa/未提交代码与文档专业评估-2026-10-29.md">MD</a></div></li>
+      <li>
+        <div class="title"><span class="badge b-done">U0 已完成</span><a href="qa/RBAC用户编辑U0契约基线与缺口证据-2026-10-28.html">RBAC 用户编辑 U0 契约基线与缺口证据（2026-10-28）</a><span class="blurb">no-op 双 commit/审计/缓存副作用、邮箱清空意图丢失、写边界授权和审计原子性缺口；安全基线 18/18</span></div>
+        <div class="links"><a href="qa/RBAC用户编辑U0契约基线与缺口证据-2026-10-28.html">HTML</a><a href="qa/RBAC用户编辑U0契约基线与缺口证据-2026-10-28.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">U2 通过</span><a href="qa/RBAC用户编辑U2事务收口验收-2026-10-29.html">RBAC 用户编辑 U2 事务收口验收（2026-10-29）</a><span class="blurb">19 项专项、106 项相关、真实 MySQL 双连接、浏览器正反向；准确性/专业性/合理性 A</span></div>
+        <div class="links"><a href="qa/RBAC用户编辑U2事务收口验收-2026-10-29.html">HTML</a><a href="qa/RBAC用户编辑U2事务收口验收-2026-10-29.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-done">U3 通过</span><a href="qa/RBAC用户编辑U3交互与审计展示验收-2026-10-29.html">RBAC 用户编辑 U3 交互与审计展示验收（2026-10-29）</a><span class="blurb">24 项专项、111 项相关、81 项 Scope 回归、86 条路由及浏览器正反向验证；准确性/专业性/合理性 A</span></div>
+        <div class="links"><a href="qa/RBAC用户编辑U3交互与审计展示验收-2026-10-29.html">HTML</a><a href="qa/RBAC用户编辑U3交互与审计展示验收-2026-10-29.md">MD</a></div>
+      </li>
+      <li>
+        <div class="title"><span class="badge b-wip">同类风险审计</span><a href="qa/编辑与修改业务流程同类一致性风险审计-2026-10-28.html">编辑与修改业务流程同类一致性风险审计（2026-10-28）</a><span class="blurb">任务编辑 P0；个人资料/业务组/标签存在 no-op 与陈旧覆盖；凭据和审批存在成功审计二次提交</span></div>
+        <div class="links"><a href="qa/编辑与修改业务流程同类一致性风险审计-2026-10-28.html">HTML</a><a href="qa/编辑与修改业务流程同类一致性风险审计-2026-10-28.md">MD</a></div>
+      </li>
       <li>
         <div class="title"><span class="badge b-done">R2-1 已验收</span><a href="qa/RBAC注册审批列表R2-1实施说明与专业评估-2026-10-19.html">RBAC 注册审批列表 R2-1 实施说明与专业评估（2026-10-19）</a><span class="blurb">数据库当前 actor、302/403/500、请求级同源；浏览器陈旧会话降权 403 已验证</span></div>
         <div class="links"><a href="qa/RBAC注册审批列表R2-1实施说明与专业评估-2026-10-19.html">HTML</a><a href="qa/RBAC注册审批列表R2-1实施说明与专业评估-2026-10-19.md">MD</a></div>

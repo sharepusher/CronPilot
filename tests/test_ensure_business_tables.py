@@ -6,6 +6,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from sqlalchemy import BigInteger
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -92,7 +94,7 @@ class TestEnsureRbacUsersColumns(unittest.TestCase):
 
 
 class TestEnsureCronInfosColumns(unittest.TestCase):
-    def test_adds_only_req_method_and_req_body_for_legacy_table(self):
+    def test_adds_missing_task_columns_for_legacy_table(self):
         mod = _load_ensure()
         executed_sql = []
 
@@ -125,13 +127,14 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         )
 
         with patch.object(mod, 'db', fake_db), patch('sqlalchemy.inspect', return_value=fake_inspector):
-            mod._ensure_cron_infos_columns()
+            mod._ensure_cron_infos_columns(backend='sqlite')
 
-        self.assertEqual(len(executed_sql), 3)
+        self.assertEqual(len(executed_sql), 4)
         sql_text = '\n'.join(executed_sql)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN req_method VARCHAR(10) DEFAULT', sql_text)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT', sql_text)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN timeout_sec INTEGER', sql_text)
+        self.assertIn('ADD COLUMN edit_revision BIGINT NOT NULL DEFAULT 0', sql_text)
 
     def test_does_nothing_when_columns_already_exist(self):
         mod = _load_ensure()
@@ -165,11 +168,13 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
                 {'name': 'last_operator_name'},
                 {'name': 'last_operated_at'},
                 {'name': 'timeout_sec'},
+                {'name': 'edit_revision', 'nullable': False, 'type': BigInteger(),
+                 'default': '0'},
             ],
         )
 
         with patch.object(mod, 'db', fake_db), patch('sqlalchemy.inspect', return_value=fake_inspector):
-            mod._ensure_cron_infos_columns()
+            mod._ensure_cron_infos_columns(backend='sqlite')
 
         self.assertEqual(executed_sql, [])
 
@@ -211,6 +216,53 @@ class TestEnsureCronInfosColumns(unittest.TestCase):
         sql_text = '\n'.join(executed_sql)
         self.assertIn('ALTER TABLE cron_infos ADD COLUMN req_body TEXT', sql_text)
         self.assertNotIn("ALTER TABLE cron_infos ADD COLUMN req_body TEXT DEFAULT ''", sql_text)
+
+
+    def test_sqlite_revision_migration_preserves_rows_defaults_and_is_idempotent(self):
+        from flask import Flask
+        from sqlalchemy import inspect, text
+        from sqlalchemy.exc import IntegrityError
+
+        from app import db
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config.update(SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+                          SQLALCHEMY_TRACK_MODIFICATIONS=False)
+        db.init_app(app)
+        with app.app_context():
+            with db.engine.begin() as connection:
+                connection.execute(text('CREATE TABLE cron_infos (id INTEGER PRIMARY KEY)'))
+                connection.execute(text('INSERT INTO cron_infos (id) VALUES (1)'))
+            mod._ensure_cron_infos_columns(backend='sqlite')
+            mod._ensure_cron_infos_columns(backend='sqlite')
+            column = next(c for c in inspect(db.engine).get_columns('cron_infos')
+                          if c['name'] == 'edit_revision')
+            self.assertFalse(column['nullable'])
+            with db.engine.begin() as connection:
+                self.assertEqual(connection.execute(text('SELECT edit_revision FROM cron_infos')).scalar_one(), 0)
+                connection.execute(text('INSERT INTO cron_infos (id) VALUES (2)'))
+                self.assertEqual(connection.execute(text('SELECT edit_revision FROM cron_infos WHERE id=2'))
+                                 .scalar_one(), 0)
+                with self.assertRaises(IntegrityError):
+                    connection.execute(text('INSERT INTO cron_infos (id, edit_revision) VALUES (3, NULL)'))
+
+    def test_invalid_existing_revision_column_blocks_startup(self):
+        from flask import Flask
+        from sqlalchemy import text
+
+        from app import db
+
+        mod = _load_ensure()
+        app = Flask(__name__)
+        app.config.update(SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+                          SQLALCHEMY_TRACK_MODIFICATIONS=False)
+        db.init_app(app)
+        with app.app_context():
+            with db.engine.begin() as connection:
+                connection.execute(text('CREATE TABLE cron_infos (id INTEGER PRIMARY KEY, edit_revision BIGINT)'))
+            with self.assertRaisesRegex(RuntimeError, 'NOT NULL DEFAULT 0'):
+                mod._ensure_cron_infos_columns(backend='sqlite')
 
 
 class TestEnsureEmptyDbReplay(unittest.TestCase):

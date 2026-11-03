@@ -1,0 +1,35 @@
+{
+  "results": {
+    "global_noop_zero_posts": true,
+    "global_to_specific_one_bump_token_audit": true,
+    "specific_to_global_one_bump_token_audit": true,
+    "add_group_one_bump_token_audit": true,
+    "remove_group_one_bump_token_audit": true,
+    "empty_selection_reaches_server_and_refused": true,
+    "single_hidden_noop": true,
+    "outside_scope_refused": true,
+    "multi_select_and_order_noop": true,
+    "scoped_global_injection_refused": true,
+    "global_audit_full_partial_xss_safe": true,
+    "multi_audit_full_partial_xss_safe": true,
+    "single_audit_full_partial_xss_safe": true,
+    "audit_raw_values_unchanged": true,
+    "viewer_reverse_403": true,
+    "operator_reverse_403": true
+  },
+  "ids": {
+    "global": 39,
+    "multi": 40,
+    "single": 41,
+    "target": 42,
+    "scoped_target": 43,
+    "viewer": 44,
+    "operator": 45,
+    "outside": 46
+  },
+  "groups": [
+    13,
+    14,
+    15
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "status": "calibration_passed",
+  "run_id": "7348de827115b26d",
+  "calibration": [
+    {
+      "mode": "DELETE",
+      "unprotected": {
+        "state": "committed"
+      },
+      "protected": {
+        "state": "busy",
+        "code": 5
+      },
+      "after_release": {
+        "state": "committed"
+      },
+      "passed": true
+    },
+    {
+      "mode": "WAL",
+      "unprotected": {
+        "state": "committed"
+      },
+      "protected": {
+        "state": "busy",
+        "code": 5
+      },
+      "after_release": {
+        "state": "committed"
+      },
+      "passed": true
+    }
+  ],
+  "temporary_files_removed": true
+}

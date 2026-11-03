@@ -9,6 +9,7 @@ B0 在修复批量反馈前冻结全成功、部分成功、全失败的响应�
 R2-0 在修复审批列表前冻结精确组 token、数据库当前 actor、分页/计数
 同源契约；旧实现上的安全红线应稳定失败，既有会话失效基线保持通过。
 """
+import re
 import unittest
 from unittest import mock
 
@@ -140,10 +141,16 @@ class _GlobalScopeAssignmentFixture(unittest.TestCase):
         )
 
     def _post_edit(self, client, group_ids):
+        page = client.get('/rbac/users/edit?id=%s' % self.target_id)
+        match = re.search(
+            r'name="edit_snapshot_token"\s+value="([^"]+)"',
+            page.get_data(as_text=True),
+        )
         return client.post(
             '/rbac/users/edit',
             data={
                 'id': str(self.target_id),
+                'edit_snapshot_token': match.group(1) if match else '',
                 'role': 'admin',
                 'is_active': '1',
                 'group_ids': group_ids,
@@ -284,7 +291,12 @@ class TestUserManagementCurrentActorRedLines(_GlobalScopeAssignmentFixture):
 
     def test_atomic_user_update_bumps_auth_version_once_only_for_authorization_change(self):
         """B2: 角色/组变更与资料同事务，授权变更仅 bump 一次。"""
-        from app.rbac.services import update_user_management
+        from app.rbac.services import (
+            build_user_edit_intent,
+            build_user_edit_snapshot,
+            get_user_group_ids_for_user,
+            update_user_management,
+        )
         from datas.model.rbac_user import RbacUser
 
         with self.app.test_request_context('/rbac/users/edit'):
@@ -293,14 +305,24 @@ class TestUserManagementCurrentActorRedLines(_GlobalScopeAssignmentFixture):
             session['user_id'] = self.actor_ids['seed']
             target = self.db.session.get(RbacUser, self.target_id)
             before = target.auth_version
+            original = build_user_edit_snapshot(
+                self.actor_ids['seed'],
+                target,
+                get_user_group_ids_for_user(target.id),
+            )
+            requested = {
+                'role': 'admin',
+                'group_ids': [self.group_ids[0]],
+                'email': 'atomic@example.invalid',
+                'nickname': 'atomic',
+                'job_title': 'ops',
+            }
             changed = update_user_management(
+                self.actor_ids['seed'],
                 self.target_id,
-                role='admin',
-                is_active=1,
-                group_ids=[self.group_ids[0]],
-                email='atomic@example.invalid',
-                nickname='atomic',
-                job_title='ops',
+                original,
+                requested,
+                build_user_edit_intent(original, requested),
             )
             self.assertTrue(changed['ok'])
             self.assertTrue(changed['auth_version_bumped'])
@@ -308,14 +330,24 @@ class TestUserManagementCurrentActorRedLines(_GlobalScopeAssignmentFixture):
             self.assertEqual(target.auth_version, before + 1)
             self.assertEqual(target.email, 'atomic@example.invalid')
 
+            original = build_user_edit_snapshot(
+                self.actor_ids['seed'],
+                target,
+                get_user_group_ids_for_user(target.id),
+            )
+            requested = {
+                'role': 'admin',
+                'group_ids': [self.group_ids[0]],
+                'email': 'atomic@example.invalid',
+                'nickname': 'atomic-2',
+                'job_title': 'qa',
+            }
             profile_only = update_user_management(
+                self.actor_ids['seed'],
                 self.target_id,
-                role='admin',
-                is_active=1,
-                group_ids=[self.group_ids[0]],
-                email='atomic@example.invalid',
-                nickname='atomic-2',
-                job_title='qa',
+                original,
+                requested,
+                build_user_edit_intent(original, requested),
             )
             self.assertTrue(profile_only['ok'])
             self.assertFalse(profile_only['auth_version_bumped'])
@@ -675,10 +707,16 @@ class TestGlobalScopeAssignmentRouteGuard(_GlobalScopeAssignmentFixture):
         before = self._target_state()
         with self.app.test_client() as client:
             self._login(client, 'multi')
+            page = client.get('/rbac/users/edit?id=%s' % self.target_id)
+            token = re.search(
+                r'name="edit_snapshot_token"\s+value="([^"]+)"',
+                page.get_data(as_text=True),
+            ).group(1)
             response = client.post(
                 '/rbac/users/edit',
                 data={
                     'id': str(self.target_id),
+                    'edit_snapshot_token': token,
                     'role': 'admin',
                     'is_active': '1',
                     'group_ids': '__ALL__',

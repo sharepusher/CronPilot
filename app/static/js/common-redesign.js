@@ -42,6 +42,10 @@
       return;
     }
 
+    var preflight = $.Event('cp:form-before-ajax-submit');
+    $form.trigger(preflight, [$btn]);
+    if (preflight.isDefaultPrevented()) return;
+
     $btn.data('loading', true);
     var origText = $btn.text();
     $btn.text(origText + '中…').prop('disabled', true).addClass('disabled');
@@ -68,6 +72,12 @@
           $(document).trigger('cp:form-confirm-reactivation', [data, $form, $btn]);
           return;
         }
+
+        var outcome = data.data && data.data.outcome;
+        if (outcome) {
+          $(document).trigger('cp:form-outcome', [data, $form, $btn]);
+        }
+        if (outcome === 'confirm_required') return;
 
         if (data.errmsg && window.CpToast) {
           if (data.errcode === 0) {
@@ -113,7 +123,10 @@
           }
         }
 
-        if (data.url && data.errcode === 0) {
+        if (outcome === 'no_change' || outcome === 'already_applied' ||
+            outcome === 'confirm_required') {
+          return;
+        } else if (data.url && data.errcode === 0) {
           window.location.href = data.url;
         } else if (data.url && data.errcode !== 0) {
           setTimeout(function() { window.location.href = data.url; }, 800);

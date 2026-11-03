@@ -1,0 +1,1 @@
+{"host_local_lifetime_lock": true, "second_owner_rejected_before_jobstore": true, "takeover_after_confirmed_process_exit": true, "restart_retains_jobstore_state": true, "scheduler_globally_paused": true, "isolated_cleanup": true}

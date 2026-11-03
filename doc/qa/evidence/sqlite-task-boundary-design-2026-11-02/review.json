@@ -1,0 +1,930 @@
+{
+  "date": "2026-11-02",
+  "scope": "design_review_only",
+  "business_implementation_changed": false,
+  "python": "3.11.4",
+  "sqlalchemy": "2.0.36",
+  "sqlite": "3.51.2",
+  "source_files": [
+    {
+      "path": "app/services/cron_edit_concurrency.py",
+      "sha256": "eb635deb4269de9063bad2fcf3f2a73cfb88c56a18790f7a48058355fb4a7bec",
+      "functions": [
+        {
+          "name": "TaskEditError",
+          "start": 35,
+          "end": 36
+        },
+        {
+          "name": "_serializer",
+          "start": 39,
+          "end": 40
+        },
+        {
+          "name": "_digest",
+          "start": 43,
+          "end": 47
+        },
+        {
+          "name": "_actor",
+          "start": 50,
+          "end": 61
+        },
+        {
+          "name": "task_edit_values",
+          "start": 64,
+          "end": 87
+        },
+        {
+          "name": "_unit",
+          "start": 90,
+          "end": 91
+        },
+        {
+          "name": "build_task_edit_snapshot",
+          "start": 94,
+          "end": 106
+        },
+        {
+          "name": "verify_task_edit_snapshot",
+          "start": 109,
+          "end": 129
+        },
+        {
+          "name": "_result",
+          "start": 132,
+          "end": 133
+        },
+        {
+          "name": "save_task_edit",
+          "start": 136,
+          "end": 264
+        }
+      ]
+    },
+    {
+      "path": "app/services/cron_edit_apply.py",
+      "sha256": "bf31c194c8723f0f1e536c0051423041370598a795a0fdfec2958a2f88185749",
+      "functions": [
+        {
+          "name": "EditWriteError",
+          "start": 15,
+          "end": 16
+        },
+        {
+          "name": "current_version",
+          "start": 19,
+          "end": 22
+        },
+        {
+          "name": "check_version",
+          "start": 25,
+          "end": 34
+        },
+        {
+          "name": "_same_trigger",
+          "start": 37,
+          "end": 47
+        },
+        {
+          "name": "query_target",
+          "start": 50,
+          "end": 57
+        },
+        {
+          "name": "job_matches_target",
+          "start": 60,
+          "end": 74
+        },
+        {
+          "name": "apply_edit",
+          "start": 77,
+          "end": 103
+        }
+      ]
+    },
+    {
+      "path": "app/services/cron_validator.py",
+      "sha256": "b584b8d501ff7c8f3b0b4f82ae1850c9a256575c69d888f3407c7ea1c5b6943b",
+      "functions": [
+        {
+          "name": "_validate_day_of_week",
+          "start": 11,
+          "end": 48
+        },
+        {
+          "name": "_validate_part",
+          "start": 51,
+          "end": 103
+        },
+        {
+          "name": "normalize_cron_form",
+          "start": 106,
+          "end": 243
+        },
+        {
+          "name": "validate_cron_form",
+          "start": 246,
+          "end": 257
+        },
+        {
+          "name": "validate_retire_reason",
+          "start": 260,
+          "end": 267
+        }
+      ]
+    },
+    {
+      "path": "app/services/url_security.py",
+      "sha256": "ed5410c5cfdedba60c64b619d1b2acfbc18430f68ab8266a4e74f41ba49404b0",
+      "functions": [
+        {
+          "name": "_parse_allow_hosts",
+          "start": 16,
+          "end": 21
+        },
+        {
+          "name": "_block_private_ip_enabled",
+          "start": 24,
+          "end": 26
+        },
+        {
+          "name": "_observe_only",
+          "start": 29,
+          "end": 31
+        },
+        {
+          "name": "_is_hard_blocked_ip",
+          "start": 34,
+          "end": 54
+        },
+        {
+          "name": "_url_structure_error",
+          "start": 57,
+          "end": 78
+        },
+        {
+          "name": "_hard_block_message",
+          "start": 81,
+          "end": 84
+        },
+        {
+          "name": "_resolve_host_ips",
+          "start": 87,
+          "end": 99
+        },
+        {
+          "name": "validate_trigger_url",
+          "start": 102,
+          "end": 131
+        },
+        {
+          "name": "_fail_or_observe",
+          "start": 134,
+          "end": 137
+        },
+        {
+          "name": "validate_and_resolve_url",
+          "start": 144,
+          "end": 178
+        },
+        {
+          "name": "_PinnedIPAdapter",
+          "start": 181,
+          "end": 212
+        },
+        {
+          "name": "make_pinned_session",
+          "start": 215,
+          "end": 226
+        }
+      ]
+    },
+    {
+      "path": "app/services/sqlite_write_boundary.py",
+      "sha256": "01fe00314e7fb1dd3b1da1cbc991ac4afafab34705c6a14ed8fe9d672b71ff72",
+      "functions": [
+        {
+          "name": "SQLiteBoundaryError",
+          "start": 7,
+          "end": 8
+        },
+        {
+          "name": "rollback_or_invalidate",
+          "start": 11,
+          "end": 22
+        },
+        {
+          "name": "begin_sqlite_write_boundary",
+          "start": 25,
+          "end": 68
+        }
+      ]
+    },
+    {
+      "path": "app/services/tag_service.py",
+      "sha256": "b9c5cfdbf99a941263a876381ee8ab173a737877c43c78ead57d80b887adbd82",
+      "functions": [
+        {
+          "name": "_build_tag_query",
+          "start": 16,
+          "end": 23
+        },
+        {
+          "name": "get_or_create_tag",
+          "start": 26,
+          "end": 51
+        },
+        {
+          "name": "sync_task_tags",
+          "start": 54,
+          "end": 82
+        },
+        {
+          "name": "get_task_tag_names",
+          "start": 85,
+          "end": 92
+        },
+        {
+          "name": "build_task_tag_map",
+          "start": 95,
+          "end": 107
+        },
+        {
+          "name": "suggest_tags",
+          "start": 110,
+          "end": 125
+        },
+        {
+          "name": "all_tags",
+          "start": 128,
+          "end": 146
+        },
+        {
+          "name": "all_tags_with_count",
+          "start": 149,
+          "end": 174
+        },
+        {
+          "name": "create_tag",
+          "start": 177,
+          "end": 199
+        },
+        {
+          "name": "update_tag",
+          "start": 202,
+          "end": 235
+        },
+        {
+          "name": "rename_tag",
+          "start": 238,
+          "end": 240
+        },
+        {
+          "name": "delete_tag",
+          "start": 243,
+          "end": 289
+        },
+        {
+          "name": "get_tag_tasks",
+          "start": 292,
+          "end": 304
+        }
+      ]
+    },
+    {
+      "path": "app/services/task_revision.py",
+      "sha256": "34d4d0404093b11c4a8f58216962c5eaa41c8e87ce95a47118ff24d7e9e53fb9",
+      "functions": [
+        {
+          "name": "touch_task_revisions",
+          "start": 8,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "path": "app/services/operation_log_service.py",
+      "sha256": "a0c757128b05786caf962e50362425564024999153865fbc642ccf745de3fa57",
+      "functions": [
+        {
+          "name": "OperatorContext",
+          "start": 60,
+          "end": 65
+        },
+        {
+          "name": "_parse_detail",
+          "start": 68,
+          "end": 73
+        },
+        {
+          "name": "_status_int",
+          "start": 76,
+          "end": 80
+        },
+        {
+          "name": "toggle_status_verb",
+          "start": 83,
+          "end": 96
+        },
+        {
+          "name": "operation_action_label",
+          "start": 99,
+          "end": 106
+        },
+        {
+          "name": "operation_channel_label",
+          "start": 109,
+          "end": 111
+        },
+        {
+          "name": "operation_result_label",
+          "start": 114,
+          "end": 116
+        },
+        {
+          "name": "snapshot_cron",
+          "start": 119,
+          "end": 125
+        },
+        {
+          "name": "build_cron_diff",
+          "start": 128,
+          "end": 139
+        },
+        {
+          "name": "_client_ip",
+          "start": 142,
+          "end": 146
+        },
+        {
+          "name": "_detect_channel",
+          "start": 149,
+          "end": 155
+        },
+        {
+          "name": "resolve_operator_from_request",
+          "start": 158,
+          "end": 190
+        },
+        {
+          "name": "record_operation",
+          "start": 193,
+          "end": 240
+        },
+        {
+          "name": "trim_operation_logs",
+          "start": 243,
+          "end": 263
+        },
+        {
+          "name": "format_detail_summary",
+          "start": 266,
+          "end": 307
+        }
+      ]
+    },
+    {
+      "path": "app/services/cron_service.py",
+      "sha256": "22626a567dba0272fe117693ff7b26eabd6acd910399f3a7e21dd80faec8a731",
+      "functions": [
+        {
+          "name": "toggle_status",
+          "start": 26,
+          "end": 40
+        },
+        {
+          "name": "stamp_last_operator",
+          "start": 44,
+          "end": 50
+        },
+        {
+          "name": "build_scheduler_kwargs",
+          "start": 53,
+          "end": 72
+        },
+        {
+          "name": "register_cron_job",
+          "start": 75,
+          "end": 106
+        },
+        {
+          "name": "reschedule_orphan_task",
+          "start": 109,
+          "end": 152
+        },
+        {
+          "name": "apply_normalized_to_model",
+          "start": 155,
+          "end": 170
+        },
+        {
+          "name": "create_cron",
+          "start": 173,
+          "end": 226
+        },
+        {
+          "name": "update_cron",
+          "start": 229,
+          "end": 231
+        },
+        {
+          "name": "update_cron_with_outcome",
+          "start": 234,
+          "end": 240
+        },
+        {
+          "name": "_update_cron_with_outcome",
+          "start": 243,
+          "end": 300
+        },
+        {
+          "name": "apply_retire",
+          "start": 303,
+          "end": 309
+        },
+        {
+          "name": "_record_retire",
+          "start": 312,
+          "end": 324
+        },
+        {
+          "name": "retire_cron_by_id",
+          "start": 327,
+          "end": 350
+        },
+        {
+          "name": "retire_cron_by_task_name",
+          "start": 353,
+          "end": 378
+        },
+        {
+          "name": "upsert_cron_by_task_name",
+          "start": 381,
+          "end": 419
+        },
+        {
+          "name": "add_cron_web",
+          "start": 422,
+          "end": 438
+        },
+        {
+          "name": "edit_cron_web",
+          "start": 441,
+          "end": 443
+        },
+        {
+          "name": "_edit_cron_web_result",
+          "start": 446,
+          "end": 484
+        }
+      ]
+    },
+    {
+      "path": "app/main/views.py",
+      "sha256": "9abdb4addf5883a369df639739106b122cab6b5684762136d761aedc469a2344",
+      "functions": [
+        {
+          "name": "_parse_log_outcome_param",
+          "start": 51,
+          "end": 60
+        },
+        {
+          "name": "_cron_repo",
+          "start": 65,
+          "end": 66
+        },
+        {
+          "name": "_job_log_repo",
+          "start": 69,
+          "end": 70
+        },
+        {
+          "name": "_operation_log_repo",
+          "start": 73,
+          "end": 74
+        },
+        {
+          "name": "_session_bypasses_scope",
+          "start": 77,
+          "end": 83
+        },
+        {
+          "name": "_scope_groups_for_form",
+          "start": 86,
+          "end": 96
+        },
+        {
+          "name": "_parse_ui_scope_view",
+          "start": 104,
+          "end": 127
+        },
+        {
+          "name": "_build_task_group_map",
+          "start": 130,
+          "end": 143
+        },
+        {
+          "name": "_scope_form_context",
+          "start": 146,
+          "end": 154
+        },
+        {
+          "name": "_apply_scope_from_form",
+          "start": 157,
+          "end": 195
+        },
+        {
+          "name": "cron_list",
+          "start": 201,
+          "end": 410
+        },
+        {
+          "name": "api_doc",
+          "start": 415,
+          "end": 427
+        },
+        {
+          "name": "task_detail_v2",
+          "start": 432,
+          "end": 576
+        },
+        {
+          "name": "job_log_list",
+          "start": 581,
+          "end": 653
+        },
+        {
+          "name": "job_log_item_list",
+          "start": 657,
+          "end": 668
+        },
+        {
+          "name": "job_log_detail",
+          "start": 673,
+          "end": 721
+        },
+        {
+          "name": "job_log_all_list",
+          "start": 726,
+          "end": 792
+        },
+        {
+          "name": "job_log_delete",
+          "start": 797,
+          "end": 798
+        },
+        {
+          "name": "job_batch_delete",
+          "start": 803,
+          "end": 804
+        },
+        {
+          "name": "cron_add",
+          "start": 810,
+          "end": 851
+        },
+        {
+          "name": "cron_edit",
+          "start": 857,
+          "end": 937
+        },
+        {
+          "name": "update_status",
+          "start": 945,
+          "end": 989
+        },
+        {
+          "name": "cron_run_now",
+          "start": 995,
+          "end": 1018
+        },
+        {
+          "name": "cron_retire",
+          "start": 1024,
+          "end": 1044
+        },
+        {
+          "name": "cron_reschedule",
+          "start": 1050,
+          "end": 1068
+        },
+        {
+          "name": "operation_log_list",
+          "start": 1073,
+          "end": 1176
+        },
+        {
+          "name": "tag_suggest",
+          "start": 1181,
+          "end": 1194
+        },
+        {
+          "name": "cron_del",
+          "start": 1199,
+          "end": 1200
+        },
+        {
+          "name": "cron_batch_del",
+          "start": 1205,
+          "end": 1206
+        }
+      ]
+    },
+    {
+      "path": "app/rbac/authorize.py",
+      "sha256": "5e940d33f4e99cafe37c5f7c8462352aed8ef72ba48b9be567f808c1c88c85e4",
+      "functions": [
+        {
+          "name": "AuthorizationError",
+          "start": 7,
+          "end": 12
+        },
+        {
+          "name": "authorize",
+          "start": 15,
+          "end": 41
+        }
+      ]
+    },
+    {
+      "path": "app/rbac/scope.py",
+      "sha256": "f3dbd5300db6267e3af53d45616df613d9b5a1313158a351b0e9bc9c724a04f0",
+      "functions": [
+        {
+          "name": "get_user_group_ids",
+          "start": 17,
+          "end": 28
+        },
+        {
+          "name": "normalize_scope_fields",
+          "start": 31,
+          "end": 50
+        },
+        {
+          "name": "user_can_assign_group",
+          "start": 53,
+          "end": 59
+        },
+        {
+          "name": "get_task_group_id",
+          "start": 62,
+          "end": 69
+        },
+        {
+          "name": "get_task_group_ids",
+          "start": 72,
+          "end": 75
+        },
+        {
+          "name": "has_scope",
+          "start": 78,
+          "end": 93
+        },
+        {
+          "name": "build_scope_filter_clause",
+          "start": 96,
+          "end": 113
+        }
+      ]
+    },
+    {
+      "path": "app/crons.py",
+      "sha256": "9718a54f892db6052b517948f6b1e8d041ee78627c8ef9e324fcb8633d6bd166",
+      "functions": [
+        {
+          "name": "get_orphan_cache",
+          "start": 60,
+          "end": 62
+        },
+        {
+          "name": "_notify_job_outcome",
+          "start": 65,
+          "end": 77
+        },
+        {
+          "name": "_build_trigger_signature_params",
+          "start": 80,
+          "end": 89
+        },
+        {
+          "name": "_build_get_actual_url",
+          "start": 92,
+          "end": 94
+        },
+        {
+          "name": "_mask_cronpilot_sign",
+          "start": 97,
+          "end": 99
+        },
+        {
+          "name": "_redact_event_text",
+          "start": 102,
+          "end": 106
+        },
+        {
+          "name": "_ssrf_block_detail",
+          "start": 109,
+          "end": 121
+        },
+        {
+          "name": "_save_job_log",
+          "start": 124,
+          "end": 198
+        },
+        {
+          "name": "_create_pending_job_log",
+          "start": 201,
+          "end": 214
+        },
+        {
+          "name": "cron_check_db_sleep",
+          "start": 218,
+          "end": 225
+        },
+        {
+          "name": "cron_do",
+          "start": 231,
+          "end": 668
+        },
+        {
+          "name": "cron_check",
+          "start": 671,
+          "end": 757
+        },
+        {
+          "name": "cron_del_job_log",
+          "start": 760,
+          "end": 767
+        },
+        {
+          "name": "cron_del_operation_log",
+          "start": 771,
+          "end": 791
+        }
+      ]
+    },
+    {
+      "path": "datas/model/cron_infos.py",
+      "sha256": "1e6a0e41b00035b25483a07c0c52c6ee77f7f8716a64616a89b9085670f7b866",
+      "functions": [
+        {
+          "name": "CronInfos",
+          "start": 11,
+          "end": 87
+        }
+      ]
+    },
+    {
+      "path": "datas/model/rbac_user.py",
+      "sha256": "55793f255ce3cf990ee60180df2531058e7a5748aac9422fa94d07edeef60426",
+      "functions": [
+        {
+          "name": "RbacUser",
+          "start": 12,
+          "end": 58
+        }
+      ]
+    },
+    {
+      "path": "datas/model/user_group.py",
+      "sha256": "f5ee91a25d8a158d8b72efabd139bf21e7767e16883638d99889465954cb4b02",
+      "functions": [
+        {
+          "name": "UserGroup",
+          "start": 10,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "path": "datas/model/task_group.py",
+      "sha256": "8afd31bb897ac4d2af8cf3a5a508a7104e2258dc944694567c3e4a92c2d60116",
+      "functions": [
+        {
+          "name": "TaskGroup",
+          "start": 14,
+          "end": 24
+        }
+      ]
+    },
+    {
+      "path": "datas/model/task_tag.py",
+      "sha256": "1a22b544170f6289ed959e551201491b0e555e7be914f7f329510528d4af12d5",
+      "functions": [
+        {
+          "name": "TaskTag",
+          "start": 10,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "path": "datas/model/tag.py",
+      "sha256": "d643a2662493545bf04042a16263a8b51d129ca72ec056ec9da27e06fcf3fb7a",
+      "functions": [
+        {
+          "name": "Tag",
+          "start": 14,
+          "end": 35
+        }
+      ]
+    },
+    {
+      "path": "datas/model/resource_group.py",
+      "sha256": "4259dfc4661230ff3c5507eba33c48e9c1b6f722b9937b134d719888f2cac919",
+      "functions": [
+        {
+          "name": "ResourceGroup",
+          "start": 10,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "path": "scripts/user_edit_sqlite_task_probe.py",
+      "sha256": "ddc8c231f2f09c0c9a14074927f3253c9f718ec24bb268b541950ad8b7ed094a",
+      "functions": [
+        {
+          "name": "_worker",
+          "start": 17,
+          "end": 45
+        },
+        {
+          "name": "probe",
+          "start": 48,
+          "end": 91
+        }
+      ]
+    },
+    {
+      "path": "tests/test_cron_edit_concurrency.py",
+      "sha256": "1daef242b1e7decf55155b25d9ca78b63e713154d7fe7b188903cd68f56a29fe",
+      "functions": [
+        {
+          "name": "TestTaskEditConcurrency",
+          "start": 27,
+          "end": 324
+        }
+      ]
+    }
+  ],
+  "prior_race_evidence": {
+    "path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/results.json",
+    "sha256": "5ec950a2185750392d7db49a6a4b1006f39f1caf081160b7630a3039e5dddbc7",
+    "reexecuted_this_turn": false,
+    "task_probes": [
+      {
+        "mode": "DELETE",
+        "probe": "task_authorization",
+        "mutation": {
+          "state": "committed"
+        },
+        "result": {
+          "outcome": "updated",
+          "actor_role": "viewer",
+          "stored_value": "requested"
+        },
+        "remaining_issue_observed": true,
+        "task_business_modified": false
+      },
+      {
+        "mode": "WAL",
+        "probe": "task_authorization",
+        "mutation": {
+          "state": "committed"
+        },
+        "result": {
+          "outcome": "updated",
+          "actor_role": "viewer",
+          "stored_value": "requested"
+        },
+        "remaining_issue_observed": true,
+        "task_business_modified": false
+      }
+    ]
+  },
+  "existing_regression": {
+    "command": ".venv-py311/bin/python -m unittest tests.test_cron_edit_concurrency tests.test_user_edit_sqlite_boundary -q",
+    "tests": 36,
+    "seconds": 11.231,
+    "result": "OK",
+    "scope": "current_code_baseline_not_proposed_implementation"
+  },
+  "documentation_validation": {
+    "registered_html": 393,
+    "references": 3046,
+    "broken": 0,
+    "index_tests": 4,
+    "source_hashes_unchanged": true,
+    "urls": [
+      "http://127.0.0.1:5091/docs/design/SQLite%E4%BB%BB%E5%8A%A1%E7%BC%96%E8%BE%91%E4%BF%9D%E5%AD%98%E8%BE%B9%E7%95%8C%E5%8E%9F%E5%AD%90%E4%BF%9D%E6%8A%A4%E8%AE%BE%E8%AE%A1-2026-11-02.html",
+      "http://127.0.0.1:5091/docs/design/SQLite%E4%BB%BB%E5%8A%A1%E7%BC%96%E8%BE%91%E4%BF%9D%E5%AD%98%E8%BE%B9%E7%95%8C%E5%8E%9F%E5%AD%90%E4%BF%9D%E6%8A%A4%E8%AE%BE%E8%AE%A1-2026-11-02.md"
+    ],
+    "http": [
+      200,
+      200
+    ],
+    "browser_opened": true
+  }
+}

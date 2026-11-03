@@ -12,6 +12,50 @@ v4.0.0 2026-09-04 · V1 UI decommission · security hardening · performance · 
 [Markdown 版（仓库根）](../RELEASE_NOTES.md) ·
 [Markdown 版（doc）](RELEASE_NOTES.md)
 
+## [Unreleased]
+
+SQLite user edits now protect current authorization and profile comparisons through the write transaction. MySQL behavior and existing response fields are unchanged. This fix is scoped to user editing; task-save authorization and existing full-suite failures remain separate release blockers. See the [SQLite user-edit post-mortem](postmortem/2026-11-SQLite用户编辑保存边界原子保护.html).
+
+Task status changes support explicit targets and signed retries without unverified database compensation. ⚠️ API Breaking Change: /api/cron/status adds the optional X-Cron-Status-Retry request/response header. Existing JSON fields remain compatible. See the [post-mortem](design/任务启停结果判定与冲突报错D2设计-2026-11-02.html#postmortem-d2).
+
+A successful task pause or resume no longer has its database status rolled back solely because the success log failed. See the [status logging post-mortem](design/任务启停结果判定与冲突报错D2设计-2026-11-02.html).
+
+Fixed task API timeout validation after integer schema deserialization. Web and legacy string inputs remain compatible; invalid types and values are rejected without task writes. See the [timeout-validation post-mortem](design/任务API超时参数类型兼容修复设计-2026-11-02.html#postmortem).
+
+Task edits report detected scheduling conflicts and uncertain application results through existing Web/API error fields. Paused edits register directly paused. Successful synchronous scheduler calls require no JobStore confirmation query; uncertain exceptions receive a single target check. See the [implementation post-mortem](design/任务调度冲突检测与明确报错W2设计-2026-10-30.html#d1-implementation).
+
+Editing task details that do not affect the schedule no longer rewrites the scheduler job. Schedule changes and explicit resume retain their existing scheduling behavior.
+
+Task editing detects conflicting changes from stale forms and preserves unrelated changes made by another editor. Related task status and tag changes participate in revision checks. Reload existing task-edit pages after upgrading; the upgrade adds an `edit_revision` database column.
+
+Unchanged task edits now stay on the page without sending a request. Server-side comparison also suppresses task writes, relationship rebuilding, operation logs, and scheduler updates when the submitted target already exists. Actual edits retain full validation, and native forms include CSRF protection. See the [task-edit post-mortem](postmortem/2026-10-任务编辑无变更保存副作用.html).
+
+### What changed
+
+- Scoped user edits now compare values within the signed editable scope and preserve memberships outside that scope. Profile-only edits leave roles, memberships, tokens, and authentication versions unchanged. See the [membership-preservation post-mortem](postmortem/2026-10-RBAC用户编辑范围外组误删.html).
+- User edits preserve signed original values across confirmation and validation retries, preventing stale forms from clearing concurrently updated email addresses. Invalid snapshots require an explicit reload. See the [snapshot and verification-isolation post-mortem](postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html).
+- User edits record effective field changes and email-clear reasons in the same transaction as the business update, with current authorization checks, conflict handling, and versioned audit-detail rendering. See the [U1 post-mortem](postmortem/2026-10-RBAC用户编辑写前意图缺失.html), [U2 post-mortem](postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.html), and [U3 post-mortem](postmortem/2026-10-RBAC用户编辑U3前端回退与审计展示.html).
+- MySQL verification refuses unsafe or occupied databases, creates only its explicit test tables, and never deletes existing tables.
+- Corrected user-edit group comparison: explicit scope changes are submitted, valid unchanged selections stay local, and invalid inputs reach server validation. Audit JSON v1 renders only after whole-event validation; malformed or unknown data uses a generic fallback without partial field rendering. See the [group-selection and audit-contract post-mortem](postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html).
+
+Database verification now checks lock release before request cleanup, with independent-connection calibration and rollback-omission controls. The 74-case related suite, nine normal database paths, and three defect controls passed. See the [verification-boundary post-mortem](postmortem/2026-10-RBAC锁释放验收观察边界.html).
+
+### Why
+
+Preserve original editing intent through retries and prevent verification tools from overwriting a caller's database.
+
+Task-edit validation: 18 focused tests, 64 related regressions, 86 route checks, 10 browser cases including JavaScript-disabled submission, isolated SQLite golden path, and real MySQL no-op probes passed. Full discovery ran 1052 tests: 1040 passed and 12 skipped (11 live HTTP probes unavailable in the sandbox and one existing SQLite ID-reuse demonstration).
+
+Added isolated, replayable browser verification for all seven user-edit outcomes, including native form fallbacks, restricted-role access, and commit-before/after failure controls. All 27 browser scenarios, 64 related regressions, and 18 preflight cases passed. This adds verification tooling and corrects lock-cost documentation without changing production behavior. See the [outcome-verification post-mortem](postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.html).
+
+### Validation
+
+Persistent snapshot-continuity and isolation tests; restricted-account MySQL execution, concurrent startup, partial DDL failure, and real-browser confirmation paths. Latest validation: full suite 1020 tests, OK (12 skipped); 10 scope-projection cases, 86 route checks, 18 preflight cases, real MySQL verification, and target-role browser checks passed.
+
+### Compatibility & Risk
+
+Administrator permissions and public API response fields remain unchanged. Verification requires a fresh dedicated MySQL schema per run and preserves it for inspection. Stored audit JSON remains intact; unsupported or malformed details now use the generic fallback. Old v1 user-edit forms require a refresh: the v2 signed baseline now includes editable scope. Existing administrator permissions remain unchanged.
+
 ## [4.1.1] — 2026-10-27 · RBAC Scope Boundary Hardening
 
 本节是发布摘要；实现细节、历史发现与验证证据保留在关联的设计、复盘和 QA 文档中。正式版本仍以仓库根 [`RELEASE_NOTES.md`](../RELEASE_NOTES.md) 为准。

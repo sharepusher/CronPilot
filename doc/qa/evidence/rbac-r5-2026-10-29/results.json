@@ -1,0 +1,37 @@
+{
+  "results": {
+    "single_partial_noop_zero_posts": true,
+    "nickname_only_preserves_all_other_state": true,
+    "profile_preserves_concurrent_outside_groups": true,
+    "outside_target_denied": true,
+    "native_profile_same_contract": true,
+    "actual_group_change_keeps_outside_B": true,
+    "auth_concurrency_rejected": true,
+    "operator_denied": true
+  },
+  "ids": {
+    "single": 47,
+    "multi": 48,
+    "target": 49,
+    "outside": 50,
+    "operator": 51
+  },
+  "groups": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "final_state": {
+    "groups": [
+      16,
+      17
+    ],
+    "nickname": "Summer-native",
+    "email": "r5_review_target@example.invalid",
+    "role": "viewer",
+    "version": 1,
+    "token": "[fixture credential omitted]",
+    "audits": 5
+  }
+}

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RBAC 用户编辑差异写入与单事务收口独立设计（2026-10）</title>
+<style>body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.72;max-width:1120px;margin:auto;padding:30px;color:#1f2937}h1,h2,h3{color:#111827}h2{margin-top:2rem;border-bottom:1px solid #d1d5db;padding-bottom:.35rem}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border:1px solid #d1d5db;padding:.65rem;vertical-align:top;text-align:left}th{background:#f3f4f6}code,pre{background:#f3f4f6}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}.gate,.decision,.risk,.ok,.note{padding:1rem 1.1rem;border-left:5px solid;margin:1rem 0}.gate{background:#fff7ed;border-color:#f97316}.decision{background:#eff6ff;border-color:#2563eb}.risk{background:#fef2f2;border-color:#dc2626}.ok{background:#ecfdf5;border-color:#059669}.note{background:#f8fafc;border-color:#64748b}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.screen{border:1px solid #d1d5db;border-radius:10px;overflow:hidden}.screen h3{margin:0;padding:12px;background:#f3f4f6}.screen-body{padding:14px}.field{border:1px solid #d1d5db;padding:8px;margin:8px 0}.toast{padding:9px;margin:9px 0}.neutral{background:#eff6ff}.bad{background:#fef2f2}.small{font-size:.9rem;color:#64748b}@media(max-width:760px){.compare{grid-template-columns:1fr}body{padding:18px}}</style></head><body>
+<div class="gate"><strong>2026-10-29 后续 Review 状态：</strong>初始评估的两项 P1、两项 P2 已分别按确认设计修复并验证；新增 R5“按组编辑多组目标的范围外绑定保留”也已按确认设计修复，见<a href="../postmortem/2026-10-RBAC用户编辑范围外组误删.html">R5 复盘</a>。<a href="../postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html">P2 复盘与最新验收</a>；原设计/历史批次记录保留。</div><main>
+<h1>RBAC 用户编辑差异写入与单事务收口独立设计</h1>
+<p>版本：rev.2.8 · 日期：2026-10-30 · 状态：<strong>基础实现与补修已验证；F2七状态浏览器证据已补齐，F3锁成本描述已校准</strong> · 对象：<code>GET/POST /rbac/users/edit</code></p>
+<p>参考但不依赖：<a href="RBAC用户编辑差异写入与事务闭环优化方案-2026-10.html">旧方案 rev.1</a> · <a href="../qa/RBAC用户编辑差异写入与事务闭环方案专业Review-2026-10-15.html">旧方案 Review</a></p>
+<div class="gate"><strong>实施状态：</strong>用户已逐批确认 U0–U3。本页保留 U0–U3 的基础实施与历史验收记录；后续 Review 的两项 P1 已补修并通过本轮验收。两项 P2 已继续补修，前端真实组 no-op 与审计整条回退已通过最新验收，初始四项 Review 均已关闭。</div>
+<table><thead><tr><th>版本</th><th>日期</th><th>变更</th></tr></thead><tbody>
+<tr><td>rev.2.8</td><td>2026-10-30</td><td>按确认设计补齐七状态浏览器证据，校准普通写入与管理员降权的锁成本；无生产代码改动。见<a href="../qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html">27场景验收</a>与<a href="../postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.html">复盘</a>。</td></tr>
+<tr><td>rev.2.7</td><td>2026-10-29</td><td>按确认 R5 更新 v2 签名编辑范围与可编辑投影；外组保留、资料-only 零授权副作用和全量授权并发保护完成，见 R5 专项设计/复盘。</td></tr><tr><td>rev.2.6</td><td>2026-10-29</td><td>两项 P2 修复与验收完成，初始四项 Review 均关闭；v1 reader 继续遵循 D6c。</td></tr><tr><td>rev.2.5</td><td>2026-10-29</td><td>补充两项 P1 修复验收结果和两项 P2 未关闭边界。</td></tr><tr><td>rev.2.4</td><td>2026-10-29</td><td>记录 U3 完成：前端 no-op 零 POST、邮箱清空 CpModal/原生回退、显式 outcome 留页/PRG、JSON v1 审计安全展示及浏览器矩阵通过；U0–U3 全部闭环。</td></tr>
+<tr><td>rev.2.3</td><td>2026-10-29</td><td>记录 U2 完成：数据库当前授权、确定顺序行锁、三方比较、effective change set、业务与 JSON v1 审计单事务、授权副作用和结果真值；SQLite、真实 MySQL 双连接及浏览器并发冲突均通过。</td></tr>
+<tr><td>rev.2.2</td><td>2026-10-28</td><td>记录 U1 完成：签名页面快照、规范化与意图 change set、无变更零写入入口、编辑页状态只读、邮箱清空写前确认/理由契约和永久绿色测试；U2 事务收口仍待确认。</td></tr>
+<tr><td>rev.2.1</td><td>2026-10-28</td><td>记录用户实施确认与 U0 完成；链接 U0 运行证据和永久测试规格；生产实现仍未开始。</td></tr>
+<tr><td>rev.2</td><td>2026-10-28</td><td>完成页面快照、三方比较、邮箱清空理由、审计白名单与 JSON 容错校准。</td></tr>
+</tbody></table>
+<div class="ok"><strong>U0 验收：</strong><a href="../qa/RBAC用户编辑U0契约基线与缺口证据-2026-10-28.html">契约基线与缺口证据</a>已落库；临时 harness 复现 no-op 双 commit/审计/缓存副作用、邮箱清空意图丢失、写边界 actor/停用目标校验缺失和业务/审计分裂；既有安全基线 18/18 通过。</div>
+<div class="decision"><strong>校准结论：</strong>用户意图以“页面原始快照 → 请求值”判定，不需要在页面停留期间保持事务；只有存在有效修改意图时才进入写事务，并在行锁内用“原始值 / 数据库当前值 / 请求值”三方比较防止覆盖并发修改。本版已同时冻结审计白名单与 JSON 兼容契约；重新确认后才进入 U0。</div>
+
+<h2>1. 当前基线与偏差校准</h2>
+<table><thead><tr><th>领域</th><th>当前真实实现</th><th>剩余问题</th><th>本方案处理</th></tr></thead><tbody>
+<tr><td>主业务事务</td><td><code>update_user_management()</code> 已用一次 <code>db.session.commit()</code> 更新角色、组、资料和 <code>auth_version</code>。</td><td>旧方案的“多次业务提交”已过时，不应重复重构。</td><td>保留当前单业务提交架构，只收口剩余缺口。</td></tr>
+<tr><td>no-op</td><td>已计算角色/组是否变化，但仍赋值资料、执行 commit、写成功审计并失效缓存。</td><td>“什么都没改”仍有真实审计 INSERT 和事务/缓存副作用。</td><td>引入服务端规范化快照和显式 change set；空集合直接 <code>NO_CHANGE</code>。</td></tr>
+<tr><td>页面快照</td><td>GET 已读取并回显用户资料，但 POST 没有可验证的页面原始快照。</td><td>无法稳定区分“用户没改”与“页面打开后数据库被别人改过”。</td><td>GET 生成签名原始快照令牌；前端以 DOM 初值做即时判断，服务端以签名快照重算修改意图。</td></tr>
+<tr><td>审计</td><td>业务 commit 成功后调用 <code>write_audit_log()</code>，该函数再独立 commit 并吞掉审计异常。</td><td>“业务已成功但成功审计缺失”仍可能。</td><td>为该端点增加不提交的审计入队原语，与业务同 Session、同 flush、同 commit。</td></tr>
+<tr><td>Scope</td><td>路由已使用数据库当前 actor 与 <code>validate_user_scope_assignment()</code>，关闭了旧 Review 的 <code>__ALL__</code> 提权面。</td><td>路由校验到 commit 之间仍存在 TOCTOU 窗口；服务函数明确假设“调用方已校验”。</td><td>路由保留早期拒绝；写边界再以 <code>actor_user_id</code> 和锁定后数据库状态复核。</td></tr>
+<tr><td>停用</td><td>编辑页仍可直接把 <code>is_active</code> 改为 0；专用 <code>/users/set_active</code> 则强制停用缘由。</td><td>同一策略存在“有缘由”与“无缘由”两条写入路径。</td><td>编辑页状态改为只读；停用继续统一走已有专用流程。</td></tr>
+<tr><td>前端响应</td><td><code>errcode=0</code> 且有 URL 立即跳转；无 URL 则立即刷新。</td><td>旧方案声称 no-op Toast 可稳定可见，与公共 JS 事实不符。</td><td>增加显式、加法式 <code>data.outcome=no_change</code> 契约，仅此结果留在本页。</td></tr>
+</tbody></table>
+
+<h2>2. 问题与根因</h2>
+<h3>2.1 问题</h3>
+<ul><li>无变更依然执行 commit、审计 INSERT 和缓存失效，增加无意义的失败面。</li><li>资料-only 变更也失效 API Scope 缓存，与授权语义无关。</li><li>成功审计在第二个事务中写入，不能作为业务成功的原子证据。</li><li>编辑页可绕过专用停用页的缘由契约。</li><li>通用异常被统一映射为“保存失败”，无法表达 commit 确认丢失时的结果不确定。</li></ul>
+<h3>2.2 根因</h3>
+<ul><li>当前服务以“执行了保存流程”代替“数据状态确实改变”，没有端点级 change set。</li><li>旧设计把“判断用户是否改动”放到行锁之后，混淆了页面意图判定与数据库并发保护两个阶段。</li><li><code>write_audit_log()</code> 同时承担建模、入 Session、commit 和异常吞掉，无法被原子业务服务组合。</li><li>路由级 Scope 校验被误当成写边界授权证据。</li><li>审计安全边界若只靠“排除密码/Token”黑名单，新增凭据字段时可能被意外序列化。</li><li>状态修改历史上分散在编辑页和专用停用页，策略未收口。</li></ul>
+
+<h2>3. 目标、范围与非范围</h2>
+<h3>3.1 目标</h3>
+<ol><li>GET 完成后结束请求级会话/事务，不跨用户思考时间持有数据库事务或行锁。</li><li>以签名页面原始快照与规范化请求值计算意图 change set；无意图变更时不进入写事务。</li><li>无变更时零业务 DML、零写事务 commit、零成功审计、零 Token/缓存副作用。</li><li>有变更时才在写边界使用数据库当前 actor/target/scope 事实复核授权，并以三方比较拒绝覆盖并发变更。</li><li>只修改有效差异，并把用户、组关系、授权版本和成功审计收口到一次 commit。</li><li>审计以“事件必记录、凭据值永不记录”为边界，每种事件使用固定字段白名单。</li><li>确定失败、并发冲突与提交结果未知均不得返回成功或自动重试。</li></ol>
+<h3>3.2 修改范围</h3>
+<ul><li><code>app/rbac/services.py</code>：规范化、change set、事务内授权复核、同事务审计和结果分类。</li><li><code>app/rbac/views.py</code>：传入 actor ID、响应适配、审计语义展示和原生 POST 的 PRG 通知。</li><li><code>app/templates/redesign/user_form.html</code>：状态改为只读说明，提供可访问的 no-op/邮箱删除确认/未知结果提示。</li><li><code>app/templates/redesign/_audit_logs_rows.html</code>：新邮箱清空记录显示语义化文案，旧记录保持原显示。</li><li><code>app/static/js/common-redesign.js</code>：仅新增显式 outcome 的 opt-in 留页分支，不改其他 Ajax 表单默认行为。</li><li>新增专项测试文件，并扩展用户管理 Scope、Ajax 守卫和浏览器验收。</li></ul>
+<h3>3.3 明确不做</h3>
+<ul><li>不重写所有 RBAC 服务，不引入全站 Unit of Work 框架。</li><li>不改外部 <code>app/api/</code> 响应字段，不属于 API Breaking Change。</li><li>不增加数据库列、不引入乐观锁版本字段。</li><li>不修改停用不可直接恢复、种子 <code>admin</code> 不可停用等已有策略。</li><li>不用跨请求内存缓存保存页面快照；快照由签名令牌随表单回传，数据库当前值仍是并发一致性依据。</li><li>本切片不重构密码、Token 或 Session 的既有业务流程；它们仍必须产生安全事件审计，但 Token 专用 action 命名收口需另立设计。</li></ul>
+
+<h2>4. 已冻结的设计决策</h2>
+<table><thead><tr><th>决策</th><th>契约</th><th>理由</th></tr></thead><tbody>
+<tr><td>D1a GET 原始快照</td><td>GET 读取对象后，渲染前冻结 <code>schema_version</code>、<code>actor_user_id</code>、<code>target_user_id</code>、<code>email</code>、<code>nickname</code>、<code>job_title</code>、<code>role</code> 和排序去重的完整 <code>group_ids</code>，另签名 <code>editor_scope</code>（bypass 与可编辑组）。JS 与服务端意图使用同一可编辑投影；旧 v1 编辑页必须刷新。用已固定的 <code>itsdangerous==2.2.0</code> 中 <code>URLSafeSerializer(current_app.secret_key, salt='rbac-user-edit-snapshot-v2')</code> 的 <code>dumps()</code> 生成 <code>edit_snapshot_token</code>；GET 响应结束时不保留跨请求事务或行锁。令牌不设业务过期时间，但签名无效、版本/类型不符、actor/target 不匹配或密钥轮换后一律返回 <code>FAILED</code> 并要求刷新页面。</td><td>签名保证原始快照完整性，不将隐藏字段当作可信事实；它不加密，但载荷只含可管理目标的资料、完整组原值与编辑范围，不含密码/Token。完整组原值用于并发保护，不是可编辑控件的比较基准。使用的依赖版本、构造参数与 <code>dumps()/loads()</code> 签名已于设计写入前在当前环境核对。</td></tr>
+<tr><td>D1b 提交前意图判定</td><td>前端使用签名原值派生的同一可编辑投影作为规范化初值，提交前与当前表单值比较：无变化则在本地提示且不发 POST；非空邮箱转空则先打开 <code>CpModal</code> 收集理由。服务端不信任前端结果：POST 先用 <code>loads()</code> 验签并重做规范化，再以“请求值 − 签名原值的可编辑投影”构建 <code>intent_change_set</code>。空集合直接 <code>NO_CHANGE</code>；参数、确认或理由无效在写事务前拒绝。</td><td>页面判定提供及时交互，服务端重算防止绕过 JavaScript；无变更不需要为了“判断无变更”而先获取行锁。</td></tr>
+<tr><td>D1c 写事务三方比较</td><td>只有 <code>intent_change_set</code> 非空才开启写边界并按确定顺序锁 actor/target。对每个资料字段比较 <code>original/current/requested</code>：<code>current == original</code> 时纳入有效写入；<code>current == requested</code> 时标记已被其他操作等价完成，不重复写；其他情况返回 <code>CONFLICT</code>。<code>role + group_ids</code> 作为一个耦合授权单元整体比较，不拼接两个不同时点的授权状态。若所有意图变更都已等价完成，返回 <code>ALREADY_APPLIED</code> 并零 DML/零成功审计。</td><td>用户意图与并发保护分层；不用陈旧页面无声覆盖数据库新值，也不对已经到达的目标状态重复写入。</td></tr>
+<tr><td>D2 状态修改</td><td><code>/users/edit</code> 不再接收 <code>is_active</code> 变更；页面只读显示状态并引导回用户列表使用专用停用流程。已停用目标的 GET 固定重定向只读详情页；Ajax POST 返回固定错误文案和受信任的详情页 URL；原生 POST 重定向详情页。三者均不允许修改资料或权限；重新使用只能走已有同名覆盖启用流程。</td><td>统一停用缘由、审计、最后管理员和种子账号保护，并对齐列表/详情已有的“停用账号不可编辑”可见语义。</td></tr>
+<tr><td>D3 全局 Scope</td><td><code>__ALL__</code> 仍表示“admin + 无 UserGroup 关系行”；表单回显继续使用已实施的 <code>_form_group_ids_for_user()</code> 双向映射。</td><td>不新增标志列，不改已闭环的全局授权模型。</td></tr>
+<tr><td>D4 资料规范化</td><td>邮箱字段必须出现在编辑请求中：缺少字段视为请求不完整并返回 <code>FAILED</code>；字段存在且 trim 后为空，表示管理员明确删除原邮箱，持久化为 SQL <code>NULL</code>；非空则须包含 <code>@</code> 且最长 128。花名 trim，空值为 <code>None</code>，最长 64；岗位必填，标准值须在现有枚举内，<code>other:</code> 自定义值 1–20 字符，超长拒绝而非截断。</td><td>区分“没有提交该字段”和“用户明确提交空值”，并消除路由静默截断和服务缺校验的偏差。</td></tr>
+<tr><td>D4b 删除邮箱确认与理由</td><td>仅当签名原始快照的邮箱非空、规范化请求邮箱为空时触发。前端在首次 POST 之前用表单型 <code>CpModal</code> 要求管理员填写 trim 后 1–500 字的清空理由；取消不发 POST。确认提交携带 <code>edit_snapshot_token</code>、<code>confirm_clear_email=1</code> 与 <code>email_clear_reason</code>，各字段名唯一，动态写入前移除同名旧节点。直接绕过前端且缺少确认时，服务端在写事务前返回非终态 <code>CONFIRM_REQUIRED</code>；理由为空/超长返回 <code>FAILED</code>。写事务内若当前邮箱既不等于快照原值，也不是已经为空，则返回 <code>CONFLICT</code> 并要求刷新。</td><td>清空是低频信息删除，需要明确意图与可追溯原因；签名快照已绑定管理员当时看到的原值，无需再信任一个可篡改的 <code>expected_current_email</code> 隐藏字段。</td></tr>
+<tr><td>D5 change set</td><td><code>intent_change_set</code> 只包含请求相对签名原始快照的意图变化；写事务内再生成 <code>effective_change_set</code>，只包含安全可应用且当前尚未到达请求值的 <code>role</code>、<code>group_ids</code>、<code>email</code>、<code>nickname</code>、<code>job_title</code>。组按去重后整数升序列表比较，忽略提交顺序。</td><td>分开“想改什么”与“锁内还需改什么”，精确触发审计、Token、<code>auth_version</code> 和缓存副作用。</td></tr>
+<tr><td>D6a <code>user:update</code> 审计白名单</td><td>保留单条 <code>user:update</code> 和相同用户 resource。<code>detail</code> 必须直接从 <code>effective_change_set</code> 构建，允许的快照字段精确为 <code>{email,nickname,job_title,role,group_ids}</code>；禁止序列化整个 <code>RbacUser</code> 后再删除敏感键。固定 JSON v1 结构为 <code>{"schema_version":1,"changes":{"email":{"before":"old@example.com","after":null}},"reason":"..."}</code>；<code>reason</code> 仅在邮箱清空时存在，<code>group_ids</code> 以升序整数列表记录。审计行与业务同事务；no-op、已等价完成、未确认、取消、理由无效和并发冲突都不写成功审计。用户变更审计不设时间过期或自动清理。</td><td>审计安全边界由“允许什么”定义，而不是依赖永远不完整的敏感字段黑名单。邮箱是个人信息但不是认证凭据，当前只在 admin/种子 admin 的 <code>audit:read</code> 面持续保留。</td></tr>
+<tr><td>D6b 凭据事件审计边界</td><td>“凭据值不进快照”不等于“凭据操作不审计”。密码修改、密码重置、Token 签发/重置/撤销必须记录独立安全事件的 actor、target、action、结果、来源/理由与“Session/Token 是否失效”等安全副作用；密码明文、密码哈希、完整 Token、Session ID、CSRF Token 及可恢复/校验凭据的材料永不记录。当前 <code>user:password</code>/<code>user:password_reset</code> 事件保持；当前 Token 流程的泛化 <code>user:update</code> 命名不在本切片内改动，另立需求收口为专用 action。</td><td>“事件必记录、秘密值永不复制”同时满足问责性与最小暴露原则，也避免将本端点的字段白名单误解为全局审计白名单。</td></tr>
+<tr><td>D6c 审计 JSON 容错</td><td>审计页只解析 <code>schema_version == 1</code>、顶层键符合契约、<code>changes</code> 为对象、字段属于五项白名单且每项只有 <code>before/after</code> 的记录。空 detail、非法 JSON、未知版本、未知字段或类型/形状错误均安全回退到现有通用 resource 文案，不 500、不部分猜测渲染。所有前后值和理由使用 Jinja 普通自动转义，禁止 <code>|safe</code>。</td><td>版本化只有在模式和失败行为都固定时才能兼容历史数据，并防止损坏或恶意 detail 影响审计页可用性。</td></tr>
+<tr><td>D7 授权副作用</td><td>角色或组真实变化时，<code>auth_version</code> 只增加一次并重签 Token；资料-only 不 bump、不重签。Scope 缓存仅在授权变化且 commit 成功后失效。</td><td>继承已实施 B2 契约，去掉资料变更的无关副作用。</td></tr>
+<tr><td>D8 异常与冲突分类</td><td>参数/签名快照/确认/授权/存在性失败为 <code>FAILED</code>；当前值既不是原值也不是请求值为 <code>CONFLICT</code>；显式 <code>flush()</code> 失败为 <code>FAILED</code>；进入 <code>commit()</code> 后抛异常保守归为 <code>COMMIT_UNKNOWN</code>。所有已进入锁区但未 commit 的终态（包括 <code>CONFLICT</code>/<code>ALREADY_APPLIED</code>/锁后 <code>FAILED</code>）在返回前显式 <code>rollback()</code> 或正常退出事务上下文，不遗留行锁。结果不自动重试；若本次曾尝试角色/组变更，<code>COMMIT_UNKNOWN</code> 后仍 best-effort 失效当前 worker Scope 缓存。</td><td>冲突是可预期业务结果，不是服务器异常；连接在 commit 确认阶段丢失时，应用不能证明数据库最终选择。</td></tr>
+<tr><td>D9 no-op/已应用响应</td><td>前端直接识别 no-op 时不发 POST；绕过前端的 Ajax <code>NO_CHANGE</code> 使用 <code>errcode=0</code>、<code>data.outcome=no_change</code>、无 URL，显示 Toast 后留页。<code>ALREADY_APPLIED</code> 使用 <code>data.outcome=already_applied</code> 和“目标状态已存在，无需重复保存”。原生 POST 均以 303/302 PRG 回同一编辑页，由固定 outcome 映射可信提示。</td><td>不把原始消息放入 URL，不修改其他表单默认跳转，并区分“用户未修改”与“并发操作已等价完成”。</td></tr>
+<tr><td>D9a 冲突响应</td><td>Ajax 返回 <code>errcode=1</code>、<code>data.outcome=conflict</code>，显示“该用户信息已变更，未覆盖新数据，请刷新后重新确认”；原生 POST 以 PRG 回编辑 GET 并显示同类固定文案。</td><td>不回显陈旧值冒充最新数据，不将可恢复的并发冲突泛化为“服务器错误”。</td></tr>
+<tr><td>D9b 未知结果响应</td><td>Ajax 在当前页显示“保存结果无法确认，请刷新核实当前信息”；原生 POST 使用 PRG 回到同一编辑 GET，用固定 <code>outcome=commit_unknown</code> 映射同类警示，GET 重新读取数据库当前值。</td><td>避免 POST 结果页刷新导致重复提交，也不用提交前表单值冒充数据库最终事实。</td></tr>
+<tr><td>D10 缓存风险</td><td>当前 worker 在授权 commit 后立即失效；其他 worker 仍接受现有 120 秒 TTL 安全网。本切片不宣称多 worker 立即撤权。</td><td>如要零窗口多 worker 撤权，需另立共享缓存/版本校验方案。</td></tr>
+</tbody></table>
+
+<div class="note"><strong>邮箱语义示例：</strong><ul><li>数据库原值为 <code>old@example.com</code>，编辑页不改邮箱并保存：请求仍提交 <code>old@example.com</code>，判定为未变更。</li><li>管理员删除输入框内全部内容并保存：请求明确提交 <code>email=""</code>，数据库由 <code>old@example.com</code> 变为 SQL <code>NULL</code>。</li><li>异常请求完全没有 <code>email</code> 字段：返回参数不完整，不保存，也不将其解释为清空。</li></ul><strong>当前代码的差异：</strong><code>user.email = (email or '').strip() or user.email</code> 会把明确提交的空值重新替换成旧邮箱，因此当前无法通过编辑页删除已有邮箱。</div>
+
+<h2>5. 输入与结果契约</h2>
+<table><thead><tr><th>类型</th><th>数据库事实</th><th>Ajax</th><th>原生 POST</th><th>副作用</th></tr></thead><tbody>
+<tr><td><code>CONFIRM_REQUIRED</code><br>（非终态）</td><td>签名原始快照中的邮箱将被清空，但直接 POST 尚未携带有效确认和理由；未获取行锁，数据库不改变。</td><td><code>errcode=1</code> 且 <code>data.confirm_clear_email=true</code>；使用包含 <code>textarea</code> 的表单型 <code>CpModal</code>，禁止使用不支持输入的 <code>CpConfirm.show()</code>。正常 JS 路径在首次 POST 前已完成该流程；服务端结果是绕过前端时的防护。</td><td>回渲染表单、保留输入，显示理由输入区和“确认清空邮箱并保存”二次动作；重提交保留同一签名快照令牌。</td><td>全部为 0；取消时留在编辑页且不提交。</td></tr>
+<tr><td><code>UPDATED</code></td><td><code>effective_change_set</code> 已应用，业务和成功审计同一次 commit 已确认。</td><td><code>errcode=0</code>，保存成功，跳用户列表。</td><td>PRG 到用户列表。</td><td>仅按有效差异触发。</td></tr>
+<tr><td><code>NO_CHANGE</code></td><td>请求值相对签名页面原始快照没有修改意图；无行锁、无业务 DML/写 commit/审计。</td><td>通常由前端本地提示且不发 POST；服务端收到构造请求时仍返回 <code>no_change</code> 并留页。</td><td>PRG 到同一编辑页并显示“未检测到变更，无需保存”。</td><td>全部为 0。</td></tr>
+<tr><td><code>ALREADY_APPLIED</code></td><td>请求存在修改意图，但锁内数据库当前值已等于全部请求值；显式结束锁事务。</td><td><code>errcode=0</code>、<code>data.outcome=already_applied</code>，留页并提示目标状态已存在。</td><td>PRG 回编辑 GET 并从数据库重读。</td><td>零 DML/零 commit/零成功审计/零授权副作用。</td></tr>
+<tr><td><code>CONFLICT</code></td><td>至少一个意图字段的当前值既不是原值也不是请求值；全部拒绝并显式 rollback/退出事务，禁止部分保存。</td><td><code>errcode=1</code>、<code>data.outcome=conflict</code>，要求刷新后重新确认。</td><td>PRG 回编辑 GET，显示固定冲突文案和最新数据。</td><td>零业务 DML/零成功审计/零 Token/缓存副作用。</td></tr>
+<tr><td><code>FAILED</code></td><td>提交前确定失败；rollback 后无业务改变。</td><td><code>errcode=1</code>，字段或通用错误，留页。</td><td>回渲染并保留合法输入。</td><td>无成功审计/缓存失效。</td></tr>
+<tr><td><code>COMMIT_UNKNOWN</code></td><td>应用无法证明 commit 最终结果。</td><td><code>errcode=1</code>，“保存结果无法确认，请刷新核实当前信息”，不跳转。</td><td>PRG 回编辑 GET，显示同类警示并从数据库重读当前值。</td><td>不自动补成功审计或重试业务；若尝试过授权变更，则 best-effort 失效当前 worker Scope 缓存。</td></tr>
+</tbody></table>
+
+<h2>6. 推荐调用链与事务边界</h2>
+<pre>GET /rbac/users/edit?id=target_id
+  → 校验当前 actor / target / Scope，读取用户和组回显值
+  → 构建规范化 original snapshot
+  → URLSafeSerializer.dumps(original snapshot) 生成 edit_snapshot_token
+  → 渲染页面；请求结束，不跨页面停留持有事务/行锁
+
+浏览器提交前
+  → 以 DOM 初值与当前值计算本地差异
+  → 无差异：提示 NO_CHANGE，不发 POST
+  → 邮箱非空转空：CpModal 二次确认 + 必填理由；取消不发 POST
+
+POST /rbac/users/edit
+  → CSRF + 数据库当前 actor guard + 禁止自编辑
+  → URLSafeSerializer.loads(edit_snapshot_token)；校验 schema/actor/target/字段类型
+  → 核对签名 editor_scope 与当前范围；规范化 requested，以同一可编辑投影构建 intent_change_set
+  → 空集合：NO_CHANGE（无行锁，显式结束请求内读事务）
+  → 邮箱清空缺确认：CONFIRM_REQUIRED（无行锁）
+  → 参数/理由无效：FAILED（无行锁）
+  → update_user_management(actor_user_id, target_user_id, original, requested, intent_change_set)
+      → 按确定顺序锁定 actor/target 用户行
+      → 重读 actor 权限、禁止自编辑、target 启用状态、target Scope、可分配组与目标组
+      → 三方比较 original / current / requested
+      → 冲突：CONFLICT（rollback/退出事务）
+      → 已全部等价完成：ALREADY_APPLIED（rollback/退出事务）
+      → 构建 effective_change_set；资料-only 不写组；真实授权变化仅 diff 可管理关系、保留范围外绑定
+      → 按有效授权变化 bump auth_version / 重签 Token
+      → 仅从五字段白名单构建 JSON v1，将单条 user:update 审计 add 到同一 Session
+      → flush（失败 = FAILED）
+      → commit（成功 = UPDATED；异常 = COMMIT_UNKNOWN）
+  → 授权有效变化且结果为 UPDATED 或 COMMIT_UNKNOWN 时，best-effort 失效当前 worker API Scope 缓存
+  → 路由适配 Ajax / 原生 POST</pre>
+<p>实施必须复用已核对的 SQLAlchemy <code>db.session.add()</code>、<code>flush()</code>、<code>commit()</code>、<code>rollback()</code> 与 <code>select(...).with_for_update()</code>；禁止在设计确认后临时换成未经代码核对的事务 API。</p>
+
+<h2>7. 并发、锁顺序与性能</h2>
+<ul><li><strong>同一目标编辑：</strong>行锁不用来判断用户是否动过表单；它只在存在修改意图时保护数据库当前值的三方比较与原子写入。</li><li><strong>字段冲突：</strong>资料字段独立比较；角色和组作为一个授权单元。任一意图字段冲突则本次整体拒绝，不做部分保存。</li><li><strong>死锁预防：</strong>actor 和 target 以用户 ID 升序锁定；组行也以 ID 升序读取/锁定。</li><li><strong>最后管理员：</strong>本端点不再处理停用；角色从 admin 降级时，在确定顺序锁定启用 admin 行后重新计数。</li><li><strong>SQLite/MySQL：</strong>SQLite 不依赖 <code>FOR UPDATE</code> 提供行锁语义，验收要求实内存 SQLite 功能回归和真实 MySQL 并发/锁释放演练分开执行。</li><li><strong>成本：</strong>签名快照为小型JSON的本地签名/验签。普通资料/授权写入路径读取并锁定actor、target、相关关系行及所选业务组；管理员降权还会锁定启用管理员集合以维护最后管理员约束，成本随管理员数量及相关关系/组规模变化。同一actor或公共业务组可能形成竞争。不能仅凭低并发场景或ORDER BY认定成本可忽略或不会死锁；热点与物理锁范围须结合实际索引、执行计划和并发测量评估。</li><li><strong>no-op 收益：</strong>正常页面路径连 POST 都不发；服务端防绕过路径也不获取行锁、不 commit、不写审计、不扫描缓存。不引入跨请求内存缓存，避免服务器粘滞状态与失效复杂度。</li></ul>
+
+<h2 id="page-compare">8. 页面 Before / After</h2>
+<p>可见变更涉及编辑用户页与访问审计页：编辑页增加邮箱清空确认、只读状态、no-op 稳定留页与 commit 未知警示；审计页在现有描述单元格内显示新记录的字段级前后值，不增加列，不改历史记录展示。</p>
+<div class="compare">
+<section class="screen"><h3>BEFORE · 当前</h3><div class="screen-body"><strong>编辑用户</strong><div class="field">角色：viewer</div><div class="field">状态：<select><option>启用</option><option>停用（不可直接启用）</option></select></div><div class="field">邮箱：user@company.com</div><button>保存</button><div class="toast neutral">保存成功后立即跳转</div><p class="small">原样提交仍会 commit、审计和失效缓存；停用可绕过缘由页。</p></div></section>
+<section class="screen"><h3>AFTER · 目标</h3><div class="screen-body"><strong>编辑用户</strong><div class="field">角色：viewer</div><div class="field">状态：启用（如需停用，请返回用户管理填写缘由）</div><div class="field">邮箱：user@company.com</div><button>保存</button><div class="toast bad"><strong>确认清空邮箱？</strong><br>清空后该用户将没有登记邮箱。<div class="field">清空理由（必填，1–500 字）<br><textarea rows="3" placeholder="请说明为什么清空邮箱"></textarea></div><button>取消</button> <button>确认清空并保存</button></div><div class="toast neutral">未检测到变更，无需保存</div><div class="toast bad">该用户信息已变更，未覆盖新数据，请刷新后重新确认</div><div class="toast bad">保存结果无法确认，请刷新核实当前信息</div><p class="small">仅“原邮箱非空 → 新邮箱为空”弹出表单型确认；理由必填并进入审计；no-op 在前端留页且不发 POST；并发冲突不覆盖新值。</p></div></section>
+</div>
+<div class="compare">
+<section class="screen"><h3>BEFORE · 访问审计</h3><div class="screen-body"><strong>更新用户</strong><div class="field">账号 alice（角色/启用停用/密码等）</div><p class="small">无法判断是否清空了邮箱。</p></div></section>
+<section class="screen"><h3>AFTER · 访问审计</h3><div class="screen-body"><strong>更新用户</strong><div class="field">账号 alice<br>邮箱：alice@example.com → —（已清空）<br>清空理由：员工已离职，注销原企业邮箱<br>花名：小夏 → Summer</div><p class="small">对实际变更的个人信息/授权字段展示前后值；邮箱清空理由与变更同事务记录。密码、Token、Session 等凭据的操作仍产生安全事件审计，但凭据值永不进入快照。</p></div></section>
+</div>
+
+<h2>9. 分批实施计划</h2>
+<table><thead><tr><th>批次</th><th>产出</th><th>验收</th><th>停止条件</th></tr></thead><tbody>
+<tr><td><strong>U0 契约基线</strong></td><td>建立专项诊断 harness 与测试规格，冻结签名快照、双 change set、no-op 无锁、邮箱删除确认、三方并发比较、审计白名单/JSON 容错、Scope 复核、六个终态与一个非终态响应；不改生产代码，不把故意失败的测试提交进 CI。</td><td>用临时诊断 harness 证明每个目标契约在当前缺口上按预期失败；已经完成的 B2/Scope 契约保持通过；目标用例在 U1/U2 对应修复同轮转为永久绿色回归。</td><td>签名快照形状、字段规则、审计模式或响应无法用可重现断言表达时停止，回到设计。</td></tr>
+<tr><td><strong>U1 快照、规范化与意图</strong></td><td>签名快照生成/验证原语；纯规范化与 <code>intent_change_set</code>；移除编辑页状态变更；空意图返回 <code>NO_CHANGE</code> 且不获锁；邮箱清空缺少确认或有效理由时在写事务前返回 <code>CONFIRM_REQUIRED</code>/<code>FAILED</code>。</td><td>快照篡改、actor/target/版本/类型不符、全字段 no-op、组顺序/重复、全局 admin、邮箱清空确认/取消/空理由/超长理由、其他资料清空和超长请求均通过。</td><td>no-op、未确认或无有效理由的邮箱删除仍获取行锁或产生 DML/commit/审计/Token/缓存任一副作用时不进入 U2。</td></tr>
+<tr><td><strong>U2 写边界与审计</strong></td><td>事务内复核 actor/target/scope；实施资料字段独立、授权单元耦合的三方比较和 <code>effective_change_set</code>；仅从五字段白名单构建 JSON v1；审计入队原语；flush/commit 分阶段结果；所有非 commit 终态显式释放锁。</td><td>原值=当前值正常应用；当前值=请求值返回 <code>ALREADY_APPLIED</code>；三值不同返回 <code>CONFLICT</code> 且不部分保存。成功仅一次 commit；审计 before/after 与业务一致；快照键精确等于白名单交集；密码/Token/Session/CSRF 值不出现于 detail；审计失败同回滚；真 MySQL 第二连接证明锁及时释放。</td><td>任一失败注入留下部分业务事实、成功审计，冲突被覆盖，锁未释放，快照与实际差异不一致，或非白名单/凭据字段泄入 detail 时不进入 U3。</td></tr>
+<tr><td><strong>U3 响应与交付</strong></td><td>Ajax outcome 加法契约、原生 POST PRG、前端 no-op 不发 POST、包含必填理由的邮箱清空 <code>CpModal</code>、冲突提示、停用目标固定详情页去向、审计 JSON 安全回退、文档/复盘/浏览器证据。</td><td>目标角色浏览器覆盖 CONFIRM_REQUIRED/UPDATED/NO_CHANGE/ALREADY_APPLIED/CONFLICT/FAILED/COMMIT_UNKNOWN，邮箱清空覆盖取消、空/超长理由、有效确认和并发冲突，并在审计页核对理由、前后值、空/损坏/未知版本/未知字段回退；同时验证三个动态字段无同名节点、原生 POST 与路由无 500。</td><td>任一 outcome 误显成功、误跳转、POST 刷新重提交、未确认/无理由邮箱被清空、冲突覆盖新值、detail 渲染导致 XSS/500 或公共 Ajax 表单回归时不交付。</td></tr>
+</tbody></table>
+
+<h2>10. U0 详细执行说明</h2>
+<p>U0 是确认后的<strong>第一个实施批次</strong>，目的是把上述决策转换为可运行契约，而不是提前修复代码。</p>
+<ol><li>在 <code>/private/tmp</code> 中建立一次性诊断 harness，并将永久目标用例规格固化在 U0 验收文档；不将故意红色的测试文件提交到仓库。正式 <code>tests/test_user_edit_change_set.py</code> 在 U1/U2 修复同轮创建并必须全绿。</li><li>诊断 harness 使用 <code>create_app('testing')</code> 与内存 SQLite，禁止导入 <code>manage</code>；建立 seed/global admin、受限 Biz Admin、启用/停用目标、两个业务组和审计/锁/副作用计数 fixture。</li><li>冻结签名载荷的精确 schema，并定义篡改、未知版本、错误类型、actor/target 不匹配为失败；证明载荷不含密码/Token/Session/CSRF 或未回显字段。</li><li>冻结业务观测快照：用户标量字段、UserGroup 集合、<code>auth_version</code>、Token/过期时间、成功审计数、缓存失效次数、DML/commit/rollback/行锁次数。</li><li>证明 no-op 缺口：原样提交、组顺序变化、重复组 ID、全局 admin <code>__ALL__</code> 原样提交，对照目标“前端不 POST；构造 POST 也不获行锁且所有写副作用为 0”。</li><li>冻结三方比较矩阵：<code>current=original</code> 可应用；<code>current=requested</code> 不重复写；三值不同整体冲突；角色+组不允许混合两个时点状态。</li><li>证明写边界缺口：路由早期校验后、服务写入前降级 actor/改变 actor 组，以及对停用目标直接调用编辑服务，记录当前服务没有再校验的证据。</li><li>冻结 JSON v1 精确结构、五字段白名单与空/损坏/未知版本/未知字段安全回退；另行断言“密码/Token 操作必须有事件审计，但凭据值零出现”。</li><li>证明事务缺口：注入审计失败与 commit 异常，记录当前“业务与审计非原子”和“结果未知未表达”证据；为 U2 定义真 MySQL 双连接锁释放脚本。</li><li>冻结六个终态和一个非终态的 Ajax/原生 POST 响应规格；运行已有 <code>TestUserManagementCurrentActorRedLines</code>、<code>TestGlobalScopeAssignmentRedline</code>、<code>TestDisabledSessionRevocation</code> 和 Ajax 表单守卫，确认已闭环安全基线全绿。</li></ol>
+<div class="note"><strong>U0 成功标准：</strong>临时 harness 对目标契约的不满足有可重现证据，不把故意失败或反向断言提交到 CI；已经实施的安全契约继续全绿。邮箱清空必须冻结“取消不 POST、未确认/理由无效不获锁且零写入、有效确认后才进写事务、当前值冲突不覆盖、当前值已为空则不重复写”契约。U1/U2 实施时，对应目标用例必须与修复同轮进入正式测试集。</div>
+
+<h2>11. 最终验收矩阵</h2>
+<table><thead><tr><th>场景</th><th>数据库</th><th>审计/Token/缓存</th><th>页面</th></tr></thead><tbody>
+<tr><td>全字段 no-op</td><td>前端 0 POST；构造 POST 也 0 行锁、0 DML、0 写 commit。</td><td>0 成功审计，0 Token 变化，0 失效。</td><td>“未检测到变更，无需保存”，留页。</td></tr>
+<tr><td>快照无效/篡改</td><td>不进入写事务，零业务变化。</td><td>无成功审计和授权副作用。</td><td>“编辑页数据已失效，请刷新后重试”。</td></tr>
+<tr><td>有值邮箱清空</td><td>首次提交、取消、理由空/超长均 0 DML/0 commit；仅有效确认、理由 1–500 字且原值未变时写为 SQL <code>NULL</code>。</td><td>首次提交/取消/理由无效/陈旧确认均无成功审计与其他副作用；有效确认产生 1 条同事务审计，detail 记录完整旧邮箱 → <code>null</code> 与 trim 后理由，不 bump Token/权限缓存。</td><td>只有该转换弹出带必填理由的“确认清空邮箱”；取消留页；陈旧确认要求刷新；审计页可见前后值与理由，记录持续保留。</td></tr>
+<tr><td>资料-only</td><td>仅对应标量变化，业务+审计一次 commit。</td><td>1 条成功审计，detail 仅含实际变化的个人信息字段 before/after；0 bump，0 Token，0 Scope 失效。</td><td>保存成功并跳列表；审计页可查变更内容。</td></tr>
+<tr><td>角色/组变更</td><td>必要标量/关系差异，一次 commit。</td><td>1 条审计，<code>auth_version + 1</code>，Token 重签，commit 后失效 1 次。</td><td>保存成功。</td></tr>
+<tr><td>并发已等价完成</td><td>当前值=请求值；释放行锁，0 DML/0 commit。</td><td>0 成功审计，0 Token/缓存副作用。</td><td>“目标状态已存在，无需重复保存”。</td></tr>
+<tr><td>并发冲突</td><td>当前值同时不同于原值/请求值；整体 rollback，零部分保存，及时释放行锁。</td><td>无成功审计和 Token/缓存副作用。</td><td>不覆盖新值，要求刷新后重新确认。</td></tr>
+<tr><td>审计快照</td><td>只有 <code>UPDATED</code> 随业务同事务写入。</td><td><code>changes</code> 键只能是五项白名单中实际变化字段；凭据操作有安全事件，凭据值永不记录。</td><td>正常 v1 显示前后值；空/损坏/未知结构安全回退，不 500/XSS。</td></tr>
+<tr><td>越界 Scope/陈旧 actor</td><td>零业务变化。</td><td>只允许 deny 审计，不得有成功审计。</td><td>403 或约定拒绝，不误报成功。</td></tr>
+<tr><td>审计/flush 失败</td><td>全部 rollback。</td><td>无成功审计、无失效。</td><td>确定失败，留页。</td></tr>
+<tr><td>commit 确认丢失</td><td>应用不猜测最终状态。</td><td>不自动重试、不自动补审计；若尝试授权变更，best-effort 失效当前 worker 缓存。</td><td>结果无法确认，要求刷新核实。</td></tr>
+<tr><td>停用</td><td>编辑端点不提交状态变化。</td><td>继续由专用停用流程管理缘由和安全副作用。</td><td>编辑页状态只读。</td></tr>
+<tr><td>停用目标直接编辑</td><td>GET/POST 均不修改用户或关系行。</td><td>无成功审计、无 Token/缓存副作用。</td><td>GET 和原生 POST 固定去只读详情页；Ajax POST 显示固定错误后跳详情页，并引导同名覆盖启用流程。</td></tr>
+</tbody></table>
+
+<h2>12. 风险、回滚与预防</h2>
+<table><thead><tr><th>风险</th><th>控制</th><th>回滚</th></tr></thead><tbody>
+<tr><td>同事务审计使审计库故障阻断编辑</td><td>这是“成功必须有成功证据”的明确取舍；仅对用户编辑端点收紧。</td><td>可回退为原子业务+独立 best-effort 审计，但必须同步恢复文档契约。</td></tr>
+<tr><td>签名快照失效或被篡改</td><td>独立 salt、固定 schema 与 actor/target 绑定；验签/类型失败一律拒绝并要求刷新。令牌不是授权证据，写边界仍重查当前 actor/Scope。</td><td>可回退为服务端临时快照存储，但会引入跨 worker 共享状态，不是首选。</td></tr>
+<tr><td>新锁顺序增加等待</td><td>无意图或无效请求不获锁；只有低并发真写路径按 ID 确定顺序锁定，真 MySQL 记录锁等待/死锁。</td><td>回退事务内锁扩展，保留签名意图模型，并登记并发残余风险。</td></tr>
+<tr><td>通用 JS outcome 分支影响其他表单</td><td>仅对显式 <code>data.outcome=no_change</code> 生效；静态门禁+所有 Ajax 表单回归。</td><td>移除 opt-in 分支即恢复原行为。</td></tr>
+<tr><td>邮箱空值改为可清空的行为变更</td><td>Before/After 和测试明确冻结；只影响用户明确提交空邮箱。</td><td>若确认前不接受，将 D4 调整为空值继承原值，不在实施时临时决策。</td></tr>
+<tr><td>邮箱确认被绕过或确认后原值已变更</td><td>服务端在写事务前强制复核确认标志/理由，在行锁内将当前邮箱与签名原值/请求值三方比较；不依赖可篡改的 <code>expected_current_email</code>。确认参数不进 URL，不写日志。</td><td>可移除清空能力并改为空值校验失败；不允许回退到静默保留旧值。</td></tr>
+<tr><td>清空理由缺失、超长或被当作 HTML 渲染</td><td>前端只做即时反馈；服务端强制 trim 后 1–500 字，无效时零写入。审计页以 Jinja 自动转义文本展示理由，禁止 <code>|safe</code>。</td><td>可临时停用邮箱清空入口；不允许在理由丢失的情况下继续删除。</td></tr>
+<tr><td>审计 detail 持久化邮箱/花名等个人信息</td><td>访问面继续限于 <code>audit:read</code>（当前仅 admin/种子 admin）；页面使用 Jinja 自动转义；只从五字段白名单与 <code>effective_change_set</code> 交集构建 detail，禁止整模型序列化；凭据操作另记事件，凭据值不记录。</td><td>可改为仅记录字段名/操作语义，但属于审计精度降级，需同步设计与验收契约。</td></tr>
+</tbody></table>
+<h3>可落地预防措施</h3>
+<ul><li>在新增专项测试中固化“no-op 不获行锁、零写 commit/零审计/零失效”计数断言。</li><li>为签名快照固化 schema、独立 salt、actor/target 绑定、篡改/未知版本/错误类型拒绝测试。</li><li>为邮箱清空固化未确认、取消、理由空/超长、有效确认与理由入审计、三方并发比较和动态 hidden input 唯一命名防护测试。</li><li>为审计 detail 增加“键集合精确等于五字段白名单与有效差异的交集”、“前后值/理由与同事务业务事实一致”、“凭据操作有事件但凭据值零出现”和四类损坏数据回退断言。</li><li>为 <code>update_user_management()</code> 固化“必须传 actor_user_id，写边界再授权”契约，防止新调用方绕过。</li><li>在 Ajax 守卫中增加“只有显式 outcome 才留页”静态断言，防止全局行为漂移。</li><li>实施后以专项复盘记录旧方案时态偏差、测试漏洞和防再发门禁。</li></ul>
+
+<h2>13. 下一确认点</h2>
+<div class="decision">U0–U3 已全部完成。后续若扩展到密码、Token、停用、审批或其他编辑入口，应另立设计并复用本方案的写前意图、数据库当前授权、结果真值和审计事件边界，不在本方案内继续扩张。</div>
+</main><footer><a href="../index.html">文档索引</a> · <a href="RBAC用户编辑差异写入与单事务收口独立设计-2026-10.md">Markdown</a></footer></body></html>

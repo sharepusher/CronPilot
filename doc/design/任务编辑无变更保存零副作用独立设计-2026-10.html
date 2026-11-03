@@ -1,0 +1,97 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>任务编辑无变更保存零副作用独立设计</title>
+<style>body{font-family:system-ui,sans-serif;max-width:1080px;margin:auto;padding:28px;line-height:1.75;color:#1e293b}h2{margin-top:2rem;border-bottom:1px solid #cbd5e1}table{width:100%;border-collapse:collapse}td,th{padding:.6rem;border:1px solid #cbd5e1;text-align:left;vertical-align:top}code,pre{background:#f1f5f9}pre{padding:16px;white-space:pre-wrap}.note{padding:16px;border-left:4px solid #2563eb;background:#eff6ff}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{border:1px solid #cbd5e1;border-radius:8px;padding:16px}.field{border:1px solid #cbd5e1;padding:8px;margin:10px 0}.hint{background:#f1f5f9;padding:12px}button{padding:8px}@media(max-width:760px){.compare{grid-template-columns:1fr}}</style></head><body><main>
+<h1>任务编辑无变更保存零副作用独立设计</h1>
+<p>版本：rev.1.1 · 日期：2026-10-29 · 状态：<strong>问题①已实施并验证；其余四项不在本次范围</strong> · 编号：M1-P1（M1 五项问题中的第 1 项，不是 OPT 优先级编号）</p>
+<div class="note"><strong>目标：</strong>任务没有实际变化时点击“保存修改”，页面提示“未检测到变更，无需保存”；不修改任务、时间、操作人、业务组和标签，不增加变更日志，不调用调度器。本文是可独立评审和验收的第一项方案，不以其余四项或完整调度恢复工程作为前置。</div>
+<h2>版本记录</h2><table><tr><th>版本</th><th>日期</th><th>变更</th></tr><tr><td>rev.1.1</td><td>2026-10-29</td><td>用户确认后记录实现：只读比较、纯解析/动态校验拆分、共享返回兼容、前端预检及原生 CSRF；按实际 policy 校准角色矩阵，业务权限未变。</td></tr><tr><td>rev.1</td><td>2026-10-29</td><td>按用户要求从 M1 综合初稿拆出问题①；固定 no-op 判定、前后端流程、共享服务兼容、独立分批与页面对比。</td></tr></table>
+<h2>交付契约矩阵</h2><table><tr><th>维度</th><th>契约</th></tr>
+<tr><td>对象与调用方</td><td>GET /cron_edit 展示、POST /cron_edit Ajax/原生提交；API 同名 upsert 共用写服务。</td></tr>
+<tr><td>认证边界</td><td>保持现有权限、Scope、CSRF、目标存在与已下线检查；后端不能因值相同跳过授权。前端本地阻止提交不授予任何服务端能力。</td></tr>
+<tr><td>唯一性与身份</td><td>按已有 task_id 定位，不新增 request_id、版本列、同步状态表或分布式锁。</td></tr>
+<tr><td>非法/缺失</td><td>无法确定为相同的输入交后端处理；缺字段不得自动解释成“保持原值”，须遵守既有入口默认值。授权失败、任务已下线和非法结构走既有失败路径。</td></tr>
+<tr><td>响应与日志</td><td>Web no_change：errcode=0，errmsg 为“未检测到变更，无需保存”，data.outcome=no_change，无跳转 URL；零成功变更日志。读取、安全拒绝或技术访问日志不在“零变更日志”承诺内。</td></tr>
+<tr><td>浏览器验收</td><td>Operator 点击/回车、改后还原、真实修改、禁用 JS、重复点击；普通业务管理员可编辑，Viewer 与种子账号 admin 反向拒绝。以当前 policy.py 为准，不改变权限；以网络请求和数据库副作用共同验收。</td></tr>
+<tr><td>交付物</td><td>本 HTML/Markdown、索引、专项测试、浏览器证据、修复复盘和本地可验收环境。确认后实施，不自动提交 Git。</td></tr></table>
+
+<h2>1. 问题与证据</h2>
+<p>修复前，用户打开已有任务，不更改任何内容，直接保存；<code>update_cron()</code> 仍先赋值和更新元数据，再重建业务组/标签关联，提交配置，重新注册调度任务，最后独立提交操作日志。</p>
+<p>已执行 <code>.venv-py311/bin/python scripts/verify_cron_edit_baseline.py</code>：no_change 样例使用单组、单标签暂停任务，记录 6 条真实 DML、2 次 commit、1 次 register 和 1 次 pause；时间与操作人变化，日志增加 1 条。该数字只是这一样例，不外推为所有任务固定成本。问题已被证明；写入失败的线上频率没有测量。</p>
+<p>根因是写服务没有在任何赋值、自动 flush、关联同步和外部调用之前判断“目标值是否已经等于当前持久化值”。前端也没有使用页面原值阻止无变化提交。ORM 偶尔不产生某一列 UPDATE，并不能阻止关系表重建和调度调用。</p>
+
+<h2>2. 范围与完成定义</h2>
+<p>本文只解决整个编辑请求没有有效变化时的零副作用。真正修改一个字段后的其他关系是否还全量重建，不在本次完成定义；由后续按需优化评估。旧表单覆盖、日志原子性、调度失败恢复和暂停注册窗口仍按原问题保留，不宣称本批关闭。</p>
+<p>不新增数据库字段和迁移，不改业务角色权限，不改调度器的真实变更应用顺序。无变化保存不是“修复调度异常”命令：即使 job 缺失，也不借保存按钮隐式重注册，应使用现有明确操作入口。</p>
+<p><strong>验收不变量：</strong>对于通过授权、可编辑、请求目标等于当前配置的任务，业务表和关系表零 INSERT/UPDATE/DELETE，零配置 commit，时间/操作人不变，零变更操作日志，零 scheduler 写操作。可以读取当前任务、组和标签；SQLAlchemy 读请求可能产生短读事务，不宣称整个请求“绝无事务”。</p>
+
+<h2>3. 无变化如何判断</h2>
+<p>前端比较“当前表单”与“页面加载时实际显示的原始表单”，后端比较“按该入口语义解释后的目标配置”与“数据库当前配置”。两个基准用途不同：前端减少无效提交，后端抵御绕过 JS。前端认为没改时，即使 DB 已被别人改变，也只是留页不写库；前端认为改了而后端发现目标已存在，则仍返回 no_change。</p>
+<table><tr><th>比较对象</th><th>规则</th><th>防误判要求</th></tr>
+<tr><td>task_name、task_keyword</td><td>请求采用既有 trim 规则；任务名也纳入比较，虽页面 readonly。当前 DB 的非空文本不随意 trim 成另一个值后宣称已相同。</td><td>不借本批新增任务名编辑能力；不因比较遗漏说明字段而吞掉真实修改。</td></tr>
+<tr><td>调度模式与 run_date/day_of_week/day/hour/minute/second</td><td>模式选择与字段处理沿用当前规范化。空文本与遗留 NULL 的展示等价需固定测试；不把空值与 *、0 与空秒、不同 Cron 语法擅自等价。体验版禁用秒字段沿用现行规则。</td><td>模式相关字段、disabled 字段也须按提交语义比较，不能直接序列化 DOM 后就断言业务等价。</td></tr>
+<tr><td>req_url、req_method、req_body</td><td>URL/Body trim、方法 upper 沿用当前校验器。Body 保持文本比较；JSON 键序改变不在本次自动合并范围。GET 下现有非空 Body 仍按当前持久化语义纳入比较。</td><td>不打印 URL/Body 到控制台、日志或浏览器持久缓存，不引入新的明文快照 token。</td></tr>
+<tr><td>timeout_sec</td><td>空输入对应 None，合法数字按整数比较；None 与显式 5 不等价。</td><td>不能忽略超时而误判 no-op；非法数字先报字段错误。</td></tr>
+<tr><td>scope_type + 业务组关联</td><td>作为一个整体比较。GROUP 对应恰好一条有效关系，GLOBAL 对应零关系。比较实际完整关联集合，而非只取第一条。</td><td>历史多组或 GLOBAL 带关联的异常结构不能被直接视为 no-op，也不能本批自动清理。应返回配置需检查并保持零写入。</td></tr>
+<tr><td>标签</td><td>读取现有关联、Tag.name 和 group_id；按当前 trim、lower 去重和无序集合语义比较，标签命名空间必须属于目标业务组/全局。</td><td>比较只读，不调用 get_or_create_tag 或 sync_task_tags。不能跨组把同名标签视为相同关系；已有大小写冲突等异常进入检查路径，不擅自归并。</td></tr>
+<tr><td>恢复运行意图</td><td>暂停任务显式 resume_after_save=true 是有效变化；运行任务再次请求运行本身不构成变化；下线任务既有拒绝优先。</td><td>不能把状态命令遗漏而错误阻止恢复；虽然当前页面没有恢复开关，共享服务已有此参数，必须测试。</td></tr>
+<tr><td>元数据与 CSRF</td><td>updated_at、last_operator_name、last_operated_at 为写入副作用，不作为用户输入比较项；csrf_token、按钮 loading 文案不参与业务比较。</td><td>比较前不能 stamp_last_operator 或 apply_normalized_to_model。</td></tr></table>
+<p>字段缺失按现有入口解释：API 未传 scope/tag 时比较域不包括它们，保持既有服务行为；Web 明确提交空标签表示清空，是实质变化。API 普通配置字段的既有默认仍可能清空/重置字段，不在本批偷偷变为 PATCH。GLOBAL 与 group_id=None 的现有真实变化行为风险保留，不能利用 no-op 优化顺手修另一问题。</p>
+
+<h2>4. 流程与校验顺序</h2>
+<pre>GET 编辑页：沿用权限与读取 → 渲染原值 → 请求结束；不跨用户编辑时间持有事务
+
+点击或回车：轻量规范化 → 与原表单比较
+  明确相同：显示“未检测到变更，无需保存”，不发 POST
+  有变化/无法证明相同：进入现有提交与 loading 守卫
+
+POST：认证/授权/CSRF/目标可编辑检查 → 纯输入解析与规范化
+  → 读取当前配置、完整组/标签关联（不赋值、不写库）
+  → 无法证明相同/发现非法结构：错误或继续既有完整校验
+  → 全部相同且无状态变化：返回 no_change，不进入写路径
+  → 真实变化：完整业务校验通过后，进入原有更新流程</pre>
+<p>纯规范化与动态校验须分清：字符串/数字/标签结构先检查；SSRF DNS、一次性时间过期等随时间变化的校验，在“真实修改”路径仍完整执行。对于确实相同且只读的请求，无须为了再次保存旧配置做 DNS 探测或要求重选一次性时间；no_change 不代表当前配置被重新批准执行。实施时可抽出既有纯解析内核并保持旧 validator 默认完整行为，不增加全局 skip_validation 开关。新增任务/API 真变更不能绕过完整校验。</p>
+<p>比较路径必须在 ORM 赋值之前执行，避免查询自动 flush 已有脏对象。请求不应带入别的待写业务对象；不能为返回 no_change 而全局 rollback 共享 Session，从而撤销调用方已有工作。no-op 不显式 commit，由请求清理结束读事务。发现服务被嵌入已有写事务的调用方时，记录该调用契约并测试，而不是任意改变它的事务。</p>
+
+<h2>5. 共享服务与返回兼容</h2>
+<p>权威比较应在 Web/API 共同可用的写入边界之前；不要只在 Web view 加一次 if，而让 API 继续制造副作用。设计增加内部显式结果（changed/no_change + task），由适配层使用；现有 <code>update_cron()</code> 的返回 CronInfos、<code>upsert_cron_by_task_name()</code> 的二元组和 <code>edit_cron_web()</code> 的旧调用约定须保留兼容包装，避免隐式改变全部调用方。具体新内部函数名在实施时以全仓库调用点核对后确定。</p>
+<p>Web 适配输出 no_change，公共 Ajax 已识别该 outcome 留页；仍须实测 loading 重置、toast 和原生响应。API 保持既有响应结构及成功语义，本批仅抑制有效 no-op 的副作用，不新增 API 字段。若实施确需改动公开 API 字段，须先回到本文补充兼容说明并再次确认，发布说明标注 API Breaking Change。</p>
+<p>原生 POST 的 no_change 回退采用重定向回同一编辑页并显示固定提示，沿用既有入口参数构造；不得使用用户任意 next URL。结果提示只解释最近请求，不能当作数据库事实或权限依据。</p>
+
+<h2>6. 页面 Before / After</h2>
+<p>基准为当前 <code>app/templates/redesign/task_form.html</code>。保持原单列表单、字段顺序和“保存修改/返回”按钮；仅增加无变化提示。本独立方案不引入冲突、同步状态或后台重试 UI，也不承接综合草案的那些 AFTER 状态。</p>
+<div class="compare" id="page-compare"><section class="panel"><h3>BEFORE：无变化仍提交</h3><h4>编辑任务</h4><div class="field">任务名称：订单同步（只读）</div><div class="field">任务说明：同步订单</div><div class="field">业务组：A；标签：订单</div><div class="field">调度时间、触发 URL、超时均保持原值</div><button type="button">保存修改</button><p class="hint">点击 → 发 POST → 写入与注册调度 → “修改成功！” → 跳转任务列表</p></section><section class="panel"><h3>AFTER：无变化直接提示</h3><h4>编辑任务</h4><div class="field">任务名称：订单同步（只读）</div><div class="field">任务说明：同步订单</div><div class="field">业务组：A；标签：订单</div><div class="field">调度时间、触发 URL、超时均保持原值</div><button type="button">保存修改</button><p class="hint" role="status">未检测到变更，无需保存。</p><p>不发 POST，留在编辑页；修改后再保存，沿用正常提交。</p></section></div>
+<p>保持按钮 type=submit、js-ajax-form、js-ajax-submit；接入已有 cp:form-before-ajax-submit，不能重复绑定两套 Ajax。common-redesign 主要监听按钮 click，还须追踪原生 submit、回车与全局防重守卫：各路径均应有前端预检，后端仍独立兜底。无变化必须在 loading 锁定前取消。页面加载/控件初始化完成再建立原值，标签 chip、隐藏 tags、模式和 disabled 值须取同一模型；不确定的规范化差异允许提交后端，不能误吞真实变化。无需弹确认框。</p>
+
+<h2>7. 分批计划</h2><table><tr><th>批次</th><th>工作</th><th>退出条件</th></tr>
+<tr><td>P1-0 契约与基线</td><td>锁定完整字段/缺省语义，补覆盖 GLOBAL、GROUP、标签、timeout、恢复意图及 API 默认值；记录真实 SQL 和调用数。</td><td>确认应为 no-op 与应为真变更的矩阵；现有五场景工具只作为取证，不要求其他四个问题在本批通过。</td></tr>
+<tr><td>P1-1 后端零副作用</td><td>纯解析/只读比较、共享服务结果适配、Web no_change JSON/原生留页；不动数据库模型。</td><td>相同目标零 DML/commit/日志/scheduler，真修改不被吞；所有旧调用返回类型兼容。</td></tr>
+<tr><td>P1-2 前端预检</td><td>页面原值模型、按钮/回车预检与提示；保持提交和 loading 守卫。</td><td>无变化零 POST；改后还原零 POST；真实变更只发一次 POST；无 JS 后端兜底正确。</td></tr>
+<tr><td>P1-3 验证与交付</td><td>单元/路由/角色浏览器、真实 SQLite/MySQL no-op 验证，复盘、重启、本地验收和文档。</td><td>完成独立验收；其余四项明确保留，用户自行 commit。</td></tr></table>
+
+<h2>8. 验收标准与风险</h2>
+<ul><li>相同任务：GROUP/GLOBAL、空标签/已有标签、运行/暂停、GET/POST、NULL/显式超时、周期/一次性；任务和关联/日志零 DML，元数据完全不变，commit=0，scheduler 全部写操作=0。</li>
+<li>规范化：说明首尾空格、方法大小写、标签重复/重排/命名空间；不把 NULL 超时与 5、空 Cron 与 *、JSON 重排误认等价。标签脏结构报错零写入。</li>
+<li>真变更反例：只改说明/timeout/Body/标签/业务组/调度方式，各自不能误报 no_change；暂停任务显式恢复不能短路。</li>
+<li>入口兼容：Web、API upsert 更新分支、直接服务调用返回兼容；新增任务原行为；旧暂停保持和恢复用例通过。</li>
+<li>校验：未授权/CSRF/下线优先拒绝；真变更不绕过 SSRF、非法 JSON、过期时间；仅无变化不因 DNS/旧时间阻塞。</li>
+<li>UI：Operator 完整登录操作与截图；无变化/改后还原 Network 断言零 POST，正常修改一次 POST；回车/双击/无 JS；提示后可继续编辑保存，按钮无卡死。</li>
+<li>数据库隔离：单测 sqlite:///:memory:，真实 MySQL 使用专用隔离库；实际 SQL 与调度调用计数不能仅依赖“最终字段一样”。</li></ul>
+<p>主要风险是漏字段导致真实变化被吞、缺省语义被改变、前端初始化导致误比较、比较阶段 autoflush，以及无变化被误作授权绕过。防护是正反矩阵、只读比较和入口回归。旧页面覆盖仍可能发生；本设计不新增页面版本或三方比较，后续问题②单独解决。</p>
+
+<h2>9. 专业性、准确性与合理性评估</h2>
+<p>问题有真实服务/SQL 证据，准确性高；改善减少无意义写入与调度调用，不能声称消除所有写失败。对单任务字段和小型标签集合做内存比较，无需复杂 SQL 或全局缓存；后端增加必要的关联读取，读取按已有 task_id 索引定位。成本随该任务标签数增长，而非任务总量；不写未经测量的收益比例。</p>
+<p>不新增版本表和调度恢复系统，使首项方案可独立实施；两级预检符合用户“提交前能判断就先判断”的要求，后端兜底避免绕过 JS。实际变更保持旧流程，因此此批是可控优化，不包装为完整事务或并发治理完成。</p>
+
+<h2>10. 依据与本轮核验</h2>
+<p>已逐项读取：<code>app/services/cron_service.py:apply_normalized_to_model/update_cron/edit_cron_web/upsert_cron_by_task_name</code>、<code>app/services/cron_validator.py:validate_cron_form</code>、<code>app/services/tag_service.py</code>、<code>app/main/views.py:cron_edit</code>；公共提交与当前表单依据见综合稿代码证据。本文未把拟新增内部函数当成现有 API。</p>
+<p>初稿交付时只做文档检查；用户确认后已实现并执行专项、MySQL 与浏览器验证，最新汇总见第 11 节。编辑规范新增期间仍按本已确认独立范围推进：本批落实有效副作用与 no_change，不把尚未实施的并发、当前授权增强和原子审计声明为已合规。</p>
+<h2 id="acceptance">11. 实现与验收记录</h2>
+<ul><li>新增 app/services/cron_edit_noop.py 只读比较和 app/static/js/cron-edit-noop.js 预检；旧 update_cron 返回模型、edit_cron_web 默认二元组、API 响应字段保持兼容。</li>
+<li>MySQL 8.0.46 专用库验证：直接/Web/API 3 个入口，DML=0、commit=0、scheduler writes=0；临时库删除确认。证据：<a href="../qa/evidence/task-edit-noop-2026-10-29/mysql.json">mysql.json</a>。</li>
+<li>实际浏览器 10/10：<a href="../qa/evidence/task-edit-noop-2026-10-29/result.json">result.json</a>；<a href="../qa/evidence/task-edit-noop-2026-10-29/operator-noop.png">Operator no-op</a> 与 <a href="../qa/evidence/task-edit-noop-2026-10-29/native-noop.png">禁用 JS 原生 PRG</a>。按钮/改后还原与回车零 POST；绕过 JS 返回 no_change；真实修改一次 POST；待输入标签保存成功；Viewer/种子 admin 为 403、普通管理员为 200。测试用户/任务/组为 0，fixture job 已移除。</li>
+<li><code>.venv-py311/bin/python -m unittest tests.test_cron_edit_noop tests.test_cron_edit_status -q</code>：18/18 通过；覆盖字段变化反例、只读比较不 flush 外层待写对象及 group-only 旧调用。</li>
+<li><code>bash scripts/cronpilot.sh test</code>：1052 tests，OK，1040 通过、12 skipped。11 项运行态 HTTP 集成因沙箱探测不到本地服务跳过；1 项为既有 SQLite ID 重用漏洞示范。独立真实浏览器矩阵和黄金路径已在可访问宿主环境执行，不把跳过写成通过。</li>
+<li><code>python -m unittest tests.test_ajax_form_guard tests.test_p0_phase_a tests.test_cron_schedule_display tests.test_rbac_scope.TestScopeIntegration -q</code>：64/64；<code>python scripts/smoke_routes.py --check</code>：86/86；<code>bash scripts/verify_golden_path.sh</code>：GOLDEN_PATH: OK。</li>
+<li><code>ruff check app/</code>、新增脚本/专项测试 lint、UI 契约、颜色审计、main 路由完整性、<code>git diff --check</code> 通过；开发 SQLite 表完整。文档 HTML/MD 同步、登记和链接门禁随最终交付再次检查。</li>
+<li>本地已重新启动供复验：<code>http://127.0.0.1:5001/cron_list</code>；使用已有 Operator 或普通业务管理员账号，进入任务编辑，原样保存应提示“未检测到变更，无需保存”并留页；改说明再还原也不发送 POST。种子 admin 仅可读，不能用来验收编辑。真实变更仅在专用 fixture 中验证并清理。</li></ul>
+<p>复盘：<a href="../postmortem/2026-10-任务编辑无变更保存副作用.html">七项修复复盘与防护措施</a>。只关闭问题①，其余四项未改变实施状态。</p>
+</main><footer><a href="../index.html">文档索引</a> · <a href="任务编辑无变更保存零副作用独立设计-2026-10.md">Markdown</a> · <a href="../qa/编辑与修改业务流程同类一致性风险审计-2026-10-28.html#m1-0-baseline">复现证据</a></footer></body></html>

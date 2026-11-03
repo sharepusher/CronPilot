@@ -1,0 +1,43 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>RBAC 两项 P2：组选择与审计契约回退修复复盘</title><style>body{font-family:system-ui,sans-serif;max-width:1080px;margin:auto;padding:32px;line-height:1.8}h2{margin-top:2em}table{border-collapse:collapse;width:100%}td,th{border:1px solid;padding:10px;text-align:left;vertical-align:top}pre{background:whitesmoke;padding:16px;overflow:auto}img{max-width:100%}</style></head><body>
+<h1>RBAC 两项 P2：组选择与审计契约回退修复复盘</h1>
+<p>日期：2026-10-29 · 版本：rev.1 · 状态：<strong>已按确认设计实施并验证</strong> · 原四项 Review 的两项 P1、两项 P2 均已补修</p>
+<table><tr><th>版本</th><th>日期</th><th>说明</th></tr><tr><td>rev.1</td><td>2026-10-29</td><td>记录组 DOM 读取/可比较性、审计整条 v1 验证、永久测试及目标角色浏览器结果。</td></tr></table>
+<h2>1. Bug 定位</h2>
+<p><strong>P2-A：</strong><code>app/templates/redesign/user_form.html::requestedValues</code> 曾用 <code>[name="group_ids"]:selected</code> 读取选项；name 实际在 select，selected 在 option。具体组 no-op 多发请求，全局改具体组却被误判无变化；无选择也被归一为空数组、误当明确全局。<strong>P2-B：</strong><code>app/rbac/services.py::format_user_update_audit_detail</code> 与 <code>_audit_logs_rows.html</code> 曾允许未知字段 partial 渲染、未知顶层键、bool/float 版本与错误字段类型，偏离父设计 D6c。</p>
+<h2>2. 根因</h2>
+<p>前端用“可选字段当前值”和“可靠的业务集合”共用一个空数组表示，既选错 DOM 层级，又没有单列不可比较状态。审计 reader 把兼容理解为“能解析多少就展示多少”，用 Python 宽松相等/str 转换代替版本和字段类型契约。编写 partial 测试时沿用实现输出作为预期，没有以已冻结 D6c 作为独立判据。</p>
+<h2>3. 测试漏洞</h2>
+<ul><li>静态测试只检查 preflight 字符串，后端 no-op 用例不执行 JS；只验证 locked hidden 或全局原样会碰巧通过，没有跨 select/hidden 和全局/具体/空选择的请求数矩阵。</li><li>审计用例明确期待 partial，只断言已知字段可显示，未检查坏字段应使整条变化/理由都不返回，也缺 full/Ajax partial 与数据库原文保持断言。</li><li>本轮新增 partial 测试曾写错响应 envelope，已根据实际 views.py 修正为 rows；live harness 遇到 Ajax 成功后立即跳转导致响应体不可读，改以 HTTP 状态、真实 URL 和 DB/版本/Token/审计断言判断成功，未改变产品行为适配测试。</li></ul>
+<h2>4. 修复</h2>
+<ul><li>增加局部 requestedGroups：读启用 select.val() 或锁定 hidden；明确 marker 才映射 []，合法具体组严格转整数、去重升序。空选、混合 marker、坏 ID、多来源用 null 表示不可比较，继续交后端原校验。</li><li>不改表单 payload、授权策略、公共 Ajax 或 P1 token。只有合法、可可靠比较且等于原值时阻止 POST。</li><li>reader 验证精确整数版本、顶层键、changes 白名单和 before/after 形状；资料字符串/null、角色字符串、组排序整数数组与理由语义均整条验证。任何错误返回空 changes/无 reason，不部分展示。</li><li>模板只在 ok 时显示变化；legacy/invalid/unsupported 保留基础事件和固定提示。删除 partial 解释分支，不迁移、不删除历史 detail。</li><li>兼容保留历史角色/岗位字符串，不执行当前业务枚举/邮箱格式的二次校验；无新增依赖、DB 字段或外部 API 结构变化。</li></ul>
+<h2>5. 防护测试与验收</h2>
+<table><tr><th>证据</th><th>结果</th></tr>
+<tr><td>联合回归</td><td>228/228，294.690 秒；含原 P1、Scope、RBAC、用户恢复、Ajax、导航及 MySQL 守卫。</td></tr>
+<tr><td>真实 DOM preflight</td><td>18/18；执行当前模板的实际 JS、jquery.js 和 common-redesign.js，检查 POST 数量及序列化参数原样；无业务数据库连接。</td></tr>
+<tr><td>新增审计单元测试</td><td>5 个方法含多组负例：版本/顶层、整条字段、reason、真实 writer 兼容、full/partial 与 DB 原文保持；既有 partial 测试改为整条 invalid。</td></tr>
+<tr><td>路由与静态</td><td>86/86；Ruff app/改动测试/浏览器脚本、UI 契约、颜色审计、路由完整性、git diff --check 通过。</td></tr>
+<tr><td>目标角色 live 浏览器</td><td>16 项全 true：global、single、multi 正向；组切换/增减均一次 bump、Token 重签、成功审计 1 行；再次 no-op 0 POST；空选服务端拒绝、越组/越权仍拒绝；三类管理员审计 full/partial 安全；Operator/Viewer 用户管理和审计均 403。</td></tr>
+<tr><td>审计样本</td><td>11 类仅 fixture 数据：空/正常/合法清空、未知字段/顶层、bool 版本、错类型、错理由、未知版本、损坏 JSON、乱序组；合法 HTML 字符串被转义，window.p2_xss 未执行，原始 detail 逐条不变。</td></tr>
+<tr><td>P1 浏览器回归</td><td>原生 T0、并发冲突、无效 token 无表单、恢复 JS 参数唯一、正常 JS 清空及角色反向六项继续通过。</td></tr>
+</table>
+<p>验收入口：</p><pre>.venv-py311/bin/python -m unittest tests.test_user_edit_change_set tests.test_user_edit_mysql_guard tests.test_rbac_global_scope_assignment tests.test_rbac_phase tests.test_user_reactivation tests.test_ajax_form_guard tests.test_redesign_sidebar -q
+.venv-py311/bin/python scripts/verify_user_edit_group_preflight.py --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+.venv-py311/bin/python scripts/smoke_routes.py --check</pre>
+<p>浏览器默认使用 Playwright Chromium，可通过 executable-path 指定系统 Chrome。本轮已执行；当前单元测试 discovery 不自动安装浏览器，发布/改动对应路径的验收环境需单独执行此脚本。</p>
+<h2>6. 同类排查</h2>
+<p><code>rg -n 'state.*partial|含未知字段，已安全忽略|\[name="group_ids"\]:selected' app/</code> 无残余错误模式；测试中旧提示仅用于断言它不应出现。普通 Ajax partial 分页与注册审批 partial_failure 是不同语义，没有随同改名。所有 formatter 消费者仍只有用户更新审计展示；full 与 partial 共用同一模板和上下文。未发现本次需要扩展的新状态枚举。</p>
+<h3>6.1 新发现 R5：单组管理员编辑多组目标的范围外绑定保留</h3>
+<p><strong>历史发现，已由后续 R5 批次修复。</strong> 见<a href="2026-10-RBAC用户编辑范围外组误删.html">R5 修复与最新验收</a>。以下保留 P2 当时的发现与只读证据。<a href="../design/管理员admin-Scope差异化设计.html">管理员 Scope 设计</a> §3.6（HTML 第 231–233 行）和 §7（第 467–469 行）明确：只 diff 管理员可见组，保留范围外绑定。</p>
+<p>只读浏览器探针：单组 actor 管理组 13，目标原始签名 group_ids=[13,14]，表单 hidden 只有 13；不修改字段点击保存仍准备发送 group_ids=[13]。探针在 Ajax transport 前截获，<strong>实际业务 POST=0</strong>，未对该目标实施删除绑定。<a href="../qa/evidence/rbac-p2-2026-10-29/additional-scope-probe.json">原始结果</a>。</p>
+<p>服务当前按完整 desired_group_ids 删除目标多余绑定，未实现上述“保留范围外组”的设计。此缺口在旧 hidden 读取路径也存在，与本次修正 select 选择器不同；不能用强行 no-op 或前端补回范围外组来掩盖。需要单独设计明确 actor 可编辑投影、签名原值/授权单元比较、服务端只 diff 可管理集合与外组保留，并补“未改表单”和“真实改可见组”两类否定路径。</p>
+<p>初始四项 Review 发现已经补修，但新增 R5 当时仍开放，后续已按独立确认设计关闭。当前 228 项回归与 16 项 live 的通过范围不覆盖这一组合；请勿将它们解释为范围外绑定保护已经成立。</p>
+<h2>7. 预防方案</h2>
+<ul><li><code>scripts/verify_user_edit_group_preflight.py</code> 固化 18 场景，使用实际模板代码而非复制算法；每场验证请求数量、请求参数原样或 no-op 提示。第三方可执行上面的永久命令复现。新入口已登记 AGENTS.md 快速命令与依赖 RFC §7.5，不改变依赖 pin。</li><li><code>tests/test_user_edit_change_set.py</code> 的五个 audit_v1/real_writer/bad_audit 测试把“错误对象整条 == invalid/[]/None”与“原始 DB 不变”作为判据，已纳入现有 unittest discovery。</li><li>合法 writer 的三类真实事件直接喂给 reader，防止过严校验误伤合法历史文本；未来版本必须先定义 reader 分支与坏样本，再变更 writer。</li><li>对前端提交优化的验收同时量测网络和业务副作用；对审计兼容同时量测完整记录、坏记录与原始持久化值，不以单个 Toast 或绿测数量代替契约。</li></ul>
+<h2>8. 可复验本地环境与证据</h2>
+<p>服务已按要求 restart；daemon 在工具命令退出后未保留，现用持久前台会话运行。<code>http://127.0.0.1:5001/rbac/login</code> GET 200，已实际 POST 登录。开发 SQLite 业务表清单完整。测试账号与专用组/审计样本保留用于复验，没有谎称残留为零。</p>
+<p>账号 <code>p2_review_global</code>、<code>p2_review_multi</code>、<code>p2_review_single</code>，本地 fixture 密码统一 <code>P2Review!2026</code>。目标 <code>p2_review_target</code>（id=42，当前全局 admin）和 <code>p2_review_scoped_target</code>（id=43，组 A/B admin）。</p>
+<ol><li>global 登录后打开 <code>/rbac/users/edit?id=42</code>，将“全部”改为 P2-review-A；保存应跳列表并显示组 A。重新进入原样保存，应留页提示无变更，不发 POST。</li><li>multi 登录编辑 id=43，只能授予组 A/B；注入全局仍被后端拒绝。single 的 hidden no-op 证据是在目标仅属于组 A 时取得；当前 id=43 已用于多组场景，不应据此原样保存，范围外绑定风险见 R5。访问组 C 目标仍受限。</li><li>访问 <code>/rbac/audit-logs?username=p2_fixture_audits</code>：6 列保留；valid/clear 显示完整已知值，其他坏样本固定回退，legacy 保持基础描述；切换筛选/分页同样生效。</li></ol>
+<p><a href="../qa/evidence/rbac-p2-2026-10-29/results.json">16 项 live 结果</a> · <a href="../qa/evidence/rbac-p2-2026-10-29/preflight.json">18 项 preflight 结果</a> · <a href="../qa/evidence/rbac-p2-2026-10-29/validation.txt">命令输出摘要</a>。</p>
+<p><a href="../qa/evidence/rbac-p2-2026-10-29/specific-noop.png">具体组 no-op</a> · <a href="../qa/evidence/rbac-p2-2026-10-29/empty-selection-rejected.png">空选择拒绝</a> · <a href="../qa/evidence/rbac-p2-2026-10-29/global-audit-fallback.png">审计合法/异常并列</a> · <a href="../qa/evidence/rbac-p2-2026-10-29/scoped-global-denied.png">受限管理员拒绝全局</a>。</p>
+<p>本轮无 DB 迁移/SQL 写算法变化，未重跑真实 MySQL 锁演练；P1 已有 MySQL 实证与本轮守卫单测保持。原四项发现已闭合；新发现 R5 仍待独立设计与修复。复盘完整性门禁退出 0，但有 41 条已有历史 Release 引用告警；本次复盘已引用。文档同步、索引 364 份 HTML、2797 个链接检查、4 项索引门禁测试、OPT 和 pending_sync 检查均通过。</p>
+<footer><a href="../design/RBAC用户编辑两项P2评估与修复设计-2026-10-29.html">确认设计与实施记录</a> · <a href="index.html">复盘索引</a> · <a href="../index.html">文档索引</a> · <a href="2026-10-RBAC两项P2组选择与审计契约回退.md">Markdown 版</a></footer></body></html>

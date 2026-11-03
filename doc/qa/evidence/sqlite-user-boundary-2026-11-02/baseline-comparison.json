@@ -1,0 +1,23 @@
+{
+  "before_cases": 17,
+  "before_failures": [
+    "test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)",
+    "test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)",
+    "test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)",
+    "test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)",
+    "test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)",
+    "test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)"
+  ],
+  "after_cases": 1132,
+  "after_failures": [
+    "test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)",
+    "test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)",
+    "test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)",
+    "test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)",
+    "test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)",
+    "test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)"
+  ],
+  "after_skipped": 12,
+  "same_failure_set": true,
+  "baseline_only_services_py_restored": true
+}

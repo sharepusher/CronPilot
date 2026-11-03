@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>数据库事务与锁使用规范及当前实现评估（2026-10-29）</title>
+<style>body{font-family:system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px;line-height:1.75;color:#172033}h2{margin-top:2em;border-bottom:1px solid #dbe2ea}table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #dbe2ea;padding:10px;text-align:left;vertical-align:top}th{background:#f1f5f9}pre{background:#f1f5f9;padding:14px;white-space:pre-wrap}.decision{padding:16px;border-left:5px solid #2563eb;background:#eff6ff}code{overflow-wrap:anywhere}a{color:#155eaa}</style></head><body><main>
+<h1>数据库事务与锁使用规范及当前实现评估</h1>
+<p><strong>后续实施：</strong>用户已确认锁释放验收专项，已完成当前编辑服务的MySQL正反向验证，见<a href="../postmortem/2026-10-RBAC锁释放验收观察边界.html">验收工具修复复盘</a>。2026-10-30另已完成<a href="RBAC用户编辑七状态浏览器验收-2026-10-30.html">七状态浏览器验收与锁成本文案校准</a>。这不表示本文的全仓事务/锁规范建议已全部实施。</p>
+<p>日期：2026-10-29 · rev.1 · 类型：代码使用规范建议与静态评估 · 基线：当前工作区的RBAC用户编辑实现及代表性相关服务。本轮不修改生产代码、配置、永久测试或仓库规则。</p>
+<div class="decision"><strong>结论：</strong>数据库锁使用质量由事务所有权、并发不变量、参与写入口、索引/隔离级别和失败语义共同决定。当前用户编辑主流程已有合理基础；仍应明确跨入口协议、锁成本、失败分类与Session使用边界。测试增强只证明这些契约是否成立，不能替代代码规范。</div>
+<table><tr><th>版本</th><th>日期</th><th>内容</th></tr><tr><td>rev.1</td><td>2026-10-29</td><td>结合MySQL、Microsoft、AWS与SQLAlchemy官方资料，给出代码层面规范及当前实现对照；区分已符合、待核验和可演进项。</td></tr></table>
+
+<h2>1. 依据与适用边界</h2>
+<p>来源是厂商公开工程资料与当前ORM官方文档，不代表这些公司的所有系统采用同一实现。Microsoft资料针对EF Core，AWS资料针对API重试，本文只迁移对应原则；SQLAlchemy在线2.0文档已高于本地2.0.36补丁版本，具体代码行为以已读取的本地源码和现有调用为准。</p>
+<ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html">MySQL：减少和处理死锁</a>——短事务、一致访问顺序、索引及失败处理。</li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locks-set.html">MySQL：SQL实际设置的锁</a>——锁范围与扫描的索引记录有关。</li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html">MySQL：错误处理</a>——死锁与锁等待超时的事务后果不同。</li><li><a href="https://learn.microsoft.com/en-us/ef/core/saving/concurrency">Microsoft：并发冲突处理</a>——乐观并发与短时事务的取舍，避免事务跨越用户等待。</li><li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">AWS：使重试具有幂等性</a>——重复执行、提交结果不明与副作用的边界。</li><li><a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">SQLAlchemy：Session基础</a>——事务生命周期、commit/rollback和并发Session归属。</li><li><a href="https://docs.sqlalchemy.org/en/20/core/pooling.html#disconnect-handling-pessimistic">SQLAlchemy：连接池与断连</a>——连接健康检查的能力边界。</li></ul>
+
+<h2>2. 建议采用的代码规范</h2>
+<p>以下为建议规范，尚未自动写入AGENTS.md或.cursor/rules，也不是已确认实施的代码改动。</p>
+<table><tr><th>领域</th><th>建议规范</th><th>理由与边界</th></tr>
+<tr><td>事务所有权</td><td>每个业务用例由一个顶层服务拥有commit/rollback；可组合的Repo/helper只查询或flush，不私自提交。入口若会结束已有事务，必须声明调用前无未提交业务写入。</td><td>底层隐式提交会拆散原子性；底层隐式rollback会丢弃调用方的工作。不能把清空共享Session当成通用事务管理。</td></tr>
+<tr><td>Session与连接归属</td><td>Engine/连接池可复用；同一可变Session/事务Connection不可被多个并发任务同时操作。线程、任务或请求各自持有适当作用域的Session，结束时归还资源。</td><td>Flask-SQLAlchemy的db.session是作用域代理，不等于所有请求共享同一个具体Session。后台任务须独立建立上下文，不能捕获请求Session供并发使用；gevent也需核对实际作用域。</td></tr>
+<tr><td>短事务</td><td>格式规范化、可前置校验在加锁前完成；锁内只保留必须原子完成的数据库校验与变更。不在持锁期间等待用户、HTTP、邮件、长计算或sleep。</td><td>GET展示与用户停留不持锁；提交时再读当前事实。短事务减少连接占用、等待和死锁机会。</td></tr>
+<tr><td>先定义并发不变量</td><td>明确本次要共同保护的字段/关系；读改写需要同事务锁定后复核，或使用可靠的版本条件更新。单条计数可考虑数据库原子更新，避免应用读后无条件覆盖。</td><td>资料并发、授权单元、最后管理员等不变量不同，不能用一个“已加锁”标签替代证明。数据行锁不自动等于其他关系也受保护。</td></tr>
+<tr><td>乐观与悲观并发</td><td>页面编辑用原始快照/版本识别陈旧意图；真正提交时仅短时锁定必要数据。需要版本条件更新时必须检查受影响行数和冲突分支。</td><td>无需在用户填写表单期间持锁。快照值三方比较不等于版本追踪，不能自动识别所有ABA历史变化；是否需要识别属于业务取舍。</td></tr>
+<tr><td>最小锁范围与索引</td><td>为每个FOR UPDATE说明所保护的不变量；优先精确索引条件，检查物理索引与EXPLAIN。范围查询评估记录锁/间隙锁影响。</td><td>普通SELECT和DML的锁行为不同；INSERT/UPDATE/DELETE自身也会加锁。“没有显式FOR UPDATE”不能直接判为无锁Bug。</td></tr>
+<tr><td>统一访问协议</td><td>为所有修改同一不变量的可达入口定义表顺序和行键顺序；审查创建、编辑、停用、审批、后台/脚本等参与者。</td><td>单一函数排序不能约束其他函数。修改子关系时可采用统一父行锁作为协调点，但必须所有相关写入口遵守，不能仅锁已有子行就假定不存在的新绑定也受保护。</td></tr>
+<tr><td>数据库约束</td><td>用唯一约束等数据库能力保护基本不变量；外键/删除策略按语义明确设计，不只依赖“先查存在”。</td><td>数据库约束是纵深防御，不能替代当前actor授权与Scope。是否引入新约束需单独迁移设计，兼顾SQLite/MySQL。</td></tr>
+<tr><td>失败退出</td><td>每个已进入事务的失败/冲突/无效写入终态必须明确结束所属事务；flush失败后先rollback再复用Session。业务更新与必须成功的审计同事务。</td><td>请求teardown是最后资源保护，不代替服务契约。rollback自身失败时不得覆盖成成功，应保留原始异常、记录清理失败并处置失效连接。</td></tr>
+<tr><td>死锁、超时和重试</td><td>区分校验冲突、死锁、锁等待超时、断连与提交结果未知。需要重试时完整重开事务、重读授权/当前事实、有限次数且有等待预算。</td><td>禁止只重放失败SQL或无限重试。1205默认通常只回滚当前语句；1213通常回滚整个事务，应用仍需整理Session。具体以后端行为核对。</td></tr>
+<tr><td>提交结果未知</td><td>进入commit后断连不能靠本地rollback证明没有提交。无幂等或状态核对契约时，不自动重放。外部副作用放提交后；需可靠送达时另用outbox等明确方案。</td><td>事务回滚不了已经发出的HTTP/邮件。当前缓存失效是提交后的best-effort，本地缓存失效不能冒称跨worker一致性。</td></tr>
+<tr><td>连接与可观测性</td><td>区分连接池等待、连接超时、网络读写超时、DB锁等待与业务预算；日志记录操作/阶段/trace_id/错误码和耗时，不记录凭据。</td><td>pool_recycle/pre_ping只解决部分闲置连接问题，不解决死锁或事务中断连，也不保证一次写入自动恢复。</td></tr></table>
+
+<h2>3. 当前用户编辑实现已符合的部分</h2>
+<ul><li><strong>事务集中：</strong>update_user_management在同一Session内写资料/授权/认证版本和RbacAuditLog，显式flush后一次commit。</li><li><strong>只在提交时锁：</strong>页面快照不跨用户等待持锁；无写入意图由路由提前返回。服务锁内重查actor/target状态、权限与编辑范围。</li><li><strong>意图与当前事实分离：</strong>资料字段独立三方比较，角色+完整组作为授权单元；只写有效差异，保留范围外组。</li><li><strong>退出分支明确：</strong>CONFLICT、ALREADY_APPLIED和锁后FAILED有rollback；flush与commit异常分开表达，commit异常保守返回commit_unknown。</li><li><strong>锁区无远程调用：</strong>已读_auto_issue_token只本地生成随机Token与期限；缓存失效在commit后调用。没有发现该服务持锁等待用户或HTTP的情况。</li><li><strong>有逻辑排序与基础索引：</strong>用户/关系/资源组查询带排序，模型声明UserGroup索引和唯一约束。它们是良好基础，物理索引和真实锁顺序仍需数据库实证。</li></ul>
+
+<h2>4. 当前需要补强或明确的代码契约</h2>
+<h3>4.1 入口无条件rollback的适用范围</h3>
+<p><code>services.py::update_user_management</code>在写边界先rollback，以结束路由只读事务并避免旧快照，当前路由调用方式有合理依据。但这是<strong>顶层服务专属调用契约</strong>：若未来在已有未提交业务写入中调用它，会丢弃调用方事务；成功后还会独立commit。应明确“调用前只能有可丢弃的读取”，或另设计可组合helper。仅检查Session.dirty/new/deleted也不足以证明没有原生SQL未提交写入。本轮不把当前正常路由判为丢数据Bug。</p>
+<h3>4.2 多入口必须共同维护同一不变量</h3>
+<p>已读update_user、set_user_active、set_user_groups和_replace_user_groups_in_session；这些路径没有完全复用用户编辑服务的显式锁前读取、三方比较与同事务审计。它们的DML仍会取得数据库锁，不能据此认定为“完全无锁”。但也不能从新编辑服务的正确性推出全仓库并发协议已经统一。后续需先枚举真实可达调用方和共同不变量，再决定哪些应使用同一父行协调点、版本或锁序；未做真实并发复现前不宣称已发现具体越权/丢写事故。</p>
+<h3>4.3 锁范围、热点与执行计划</h3>
+<p>当前服务普通资料写也独占锁actor、target及其关系和所选ResourceGroup；同一管理员操作不同目标时可能在actor行串行，公共组也可能形成热点。管理员降权分支还会读取锁定全部启用管理员，规模随管理员数量变化。这些锁有授权或存在性保护用途，不能直接删除；需用不变量、并发等待与EXPLAIN评估是否可缩小。ORDER BY只是逻辑排序意图，不能仅凭其存在宣称无死锁；实际索引扫描/排序与其他入口顺序同样重要。</p>
+<h3>4.4 清理与错误分类</h3>
+<p>服务有显式rollback，但多处分支手写，维护时可能漏加；入口rollback位于主try前，异常处理中的rollback也可能再次抛错。当前未复现这些基础设施失败路径，属于可靠性审阅点。规范应要求异常链与清理失败被保留，而不是先断言必须重构成某个事务API。本函数也未专门区分1213/1205的恢复策略；对低并发管理操作，明确失败并允许用户刷新重试可以是取舍，不需要为了“最佳实践”强加自动重试。未来若增加自动重试，必须保持原始意图、重新授权并区分commit_unknown。</p>
+<h3>4.5 连接配置的能力边界</h3>
+<p><code>config.py::Config.SQLALCHEMY_ENGINE_OPTIONS</code>显式配置pool_recycle；在所读业务engine配置中未看到显式pool_pre_ping或业务级锁等待预算。这不是已确认的连接故障：实际部署配置与数据库会话变量本轮未核验。可进一步确定业务连接池、MySQL等待、driver网络超时和工作进程预算，避免把开发脚本的1秒测试锁等待直接变成生产配置。调度器engine另有pool_pre_ping，不等于业务engine已有同设置。</p>
+<h3>4.6 基本约束与审计边界</h3>
+<p>UserGroup模型已有user_id/group_id唯一约束，值得保留；已读模型中未声明这两个字段的外键，本轮没有检查部署库是否另行建立约束。应把“关联记录一致性如何保障”写清楚，再决定应用协议或数据库约束，不直接添加迁移。旧update_user/set_user_groups/set_user_active仍在业务commit后调用write_audit_log，不能泛称用户管理所有动作都有原子成功审计。</p>
+
+<h2>5. 建议实施顺序与边界</h2>
+<ol><li><strong>先明确所有权与不变量：</strong>建立各服务是否拥有commit/rollback、是否可被其他事务组合的清单；列出角色、组、停用、最后管理员等真实写入口。此为代码审查输入。</li><li><strong>验证当前实现：</strong>沿用<a href="../design/RBAC用户编辑锁释放验收增强设计-2026-10-29.html">锁释放验收设计</a>对当前代码执行独立MySQL验证；按真实数据规模核对物理索引与EXPLAIN。已有设计仍待确认。</li><li><strong>再决定最小代码优化：</strong>若有实证，再针对清理失败、锁热点、跨入口协议或失败恢复另立正式设计；不一次重构全站，不盲目降低隔离级别或改成分布式锁。</li><li><strong>需要治理规范时另行落规则：</strong>本报告提供规范建议，不擅自更新AGENTS.md/.cursor/rules。用户确认规则范围后再固化到对应规范及可验证门禁。</li></ol>
+
+<h2>6. 本轮证据和限制</h2>
+<p>已读取当前services.py的update_user_management、update_user、set_user_active、set_user_groups、_replace_user_groups_in_session、_auto_issue_token与缓存helper；模型user_group/rbac_user/resource_group/rbac_audit_log；app初始化、config.py业务engine声明和调度executor。官方资料访问日期为2026-10-29。本轮是静态核对，未跑真实MySQL并发、EXPLAIN、线上锁采样或全仓库线程安全审计；未修改任何实现。代表性旧入口的差异不是自动成立的安全漏洞，必须结合可达性和并发反例进一步判断。</p>
+<p>本轮文档门禁：<code>check_doc_completeness.py --check</code> 372份HTML全部登记、0失效引用；<code>check_doc_links.py --check</code> 扫描2862个引用、0断链；<code>python -m unittest tests.test_check_doc_completeness -q</code> 4/4通过；<code>git diff --check</code> 通过。本评估HTML/Markdown按生成器逐字一致性检查通过；不把并行工作区的其他文档同步状态归为本轮业务验收。业务验证与全量测试不因文档变更重复计算。</p>
+</main><footer><a href="../index.html">文档索引</a> · <a href="数据库事务与锁使用规范及当前实现评估-2026-10-29.md">Markdown 版</a></footer></body></html>

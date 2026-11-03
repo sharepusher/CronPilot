@@ -1,0 +1,30 @@
+[
+  {
+    "omit_terminal_rollback": false,
+    "outcome": "conflict",
+    "rollback_calls": 2,
+    "active_before_teardown": false,
+    "active_after_teardown": false,
+    "stored_nickname": "concurrent",
+    "events": [
+      "rollback_1:executed",
+      "rollback_2:executed",
+      "service_return:conflict active=False",
+      "context_exit:active=False"
+    ]
+  },
+  {
+    "omit_terminal_rollback": true,
+    "outcome": "conflict",
+    "rollback_calls": 2,
+    "active_before_teardown": true,
+    "active_after_teardown": false,
+    "stored_nickname": "concurrent",
+    "events": [
+      "rollback_1:executed",
+      "rollback_2:suppressed",
+      "service_return:conflict active=True",
+      "context_exit:active=False"
+    ]
+  }
+]

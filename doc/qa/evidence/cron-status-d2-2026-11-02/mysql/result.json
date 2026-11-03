@@ -1,0 +1,6 @@
+{
+  "api_retry": true,
+  "repeated_resume_keeps_next_run": true,
+  "stale_retry_rejected": true,
+  "browser_confirm_and_retry": true
+}

@@ -11,6 +11,7 @@ from apscheduler.executors.base import MaxInstancesReachedError
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.base import STATE_PAUSED
 from apscheduler.util import timedelta_seconds
+from sqlalchemy.orm.exc import StaleDataError
 
 
 class CuBackgroundScheduler(BackgroundScheduler):
@@ -28,16 +29,23 @@ class CuBackgroundScheduler(BackgroundScheduler):
 
             reason = reason or RETIRE_REASON_ONE_SHOT
             with scheduler.app.app_context():
+                original_revision = None
                 try:
                     cif = db.session.get(CronInfos, cron_pk)
                     if cif and cif.status != -1:
+                        original_revision = cif.edit_revision
                         apply_retire(cif, reason)
                         db.session.commit()
+                except StaleDataError:
+                    db.session.rollback()
+                    self._logger.warning('concurrent task update, not retiring cron_pk=%s', cron_pk)
+                    return
                 except Exception:
                     db.session.rollback()
                     try:
                         cif = db.session.get(CronInfos, cron_pk)
-                        if cif and cif.status != -1:
+                        if (cif and original_revision is not None
+                                and cif.edit_revision == original_revision and cif.status != -1):
                             cif.status = -1
                             db.session.commit()
                     except Exception:

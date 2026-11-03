@@ -436,8 +436,20 @@ def _ensure_cron_infos_columns(backend=''):
     insp = inspect(db.engine)
     if not insp.has_table('cron_infos'):
         return
-    cols = {c['name'] for c in insp.get_columns('cron_infos')}
+    details = {c['name']: c for c in insp.get_columns('cron_infos')}
+    cols = set(details)
+    if 'edit_revision' in details:
+        from sqlalchemy import Integer
+        revision = details['edit_revision']
+        default = str(revision.get('default')).strip("()'\" ")
+        if (revision.get('nullable') is not False or not isinstance(revision.get('type'), Integer)
+                or default != '0'):
+            raise RuntimeError('cron_infos.edit_revision requires integer NOT NULL DEFAULT 0')
     alters = []
+    if 'edit_revision' not in cols:
+        if backend not in ('sqlite', 'mysql'):
+            raise RuntimeError('unsupported task revision migration backend')
+        alters.append('ALTER TABLE cron_infos ADD COLUMN edit_revision BIGINT NOT NULL DEFAULT 0')
     if 'created_at' not in cols:
         alters.append("ALTER TABLE cron_infos ADD COLUMN created_at BIGINT DEFAULT 0")
     if 'updated_at' not in cols:

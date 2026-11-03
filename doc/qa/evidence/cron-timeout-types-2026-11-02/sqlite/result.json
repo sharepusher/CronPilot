@@ -1,0 +1,30 @@
+{
+  "api": [
+    {
+      "route": "/api/cron",
+      "create": 5,
+      "update": 17,
+      "cleared": true,
+      "noop_zero_dml": true,
+      "invalid_zero_dml": true,
+      "timeout_only_zero_scheduler": true,
+      "unauthorized": 401
+    },
+    {
+      "route": "/api/cron/add",
+      "create": 5,
+      "update": 17,
+      "cleared": true,
+      "noop_zero_dml": true,
+      "invalid_zero_dml": true,
+      "timeout_only_zero_scheduler": true,
+      "unauthorized": 401
+    }
+  ],
+  "web": {
+    "saved": 12,
+    "cleared": true,
+    "noop_posts": 0,
+    "outside_scope": 403
+  }
+}

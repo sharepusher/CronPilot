@@ -550,10 +550,41 @@ def cron_status(form_data):
     if denied is not None:
         return denied
 
-    from app.services.cron_service import toggle_status
+    import hashlib
+    import hmac
 
-    ok, msg, _old, _new = toggle_status(ci.id, target_status=status)
-    return api_return(errcode=0 if ok else 1, errmsg=msg)
+    from itsdangerous import BadData, URLSafeSerializer
+
+    from app.services.cron_status_apply import save_status
+
+    from . import _extract_bearer_token
+
+    actor = hmac.new(str(current_app.secret_key).encode(), _extract_bearer_token().encode(),
+                     hashlib.sha256).hexdigest()
+    serializer = URLSafeSerializer(current_app.secret_key, salt='cron-status-api-retry-v1')
+    expected = None
+    expected_config = None
+    retry_token = request.headers.get('X-Cron-Status-Retry')
+    if retry_token:
+        try:
+            value = serializer.loads(retry_token)
+            if (not isinstance(value, dict) or set(value) != {'actor', 'task', 'revision', 'target', 'config'}
+                    or value['actor'] != actor or value['task'] != ci.id
+                    or type(value['revision']) is not int or value['revision'] < 0
+                    or type(value['target']) is not int or value['target'] not in (0, 1)
+                    or status != value['target']):
+                raise BadData('invalid retry')
+            expected = value['revision']
+            expected_config = value['config']
+        except BadData:
+            return api_return(errcode=1, errmsg='重试基线无效，请重新查询任务')
+    context = {}
+    ok, msg, _old, _new = save_status(ci.id, target_status=status, expected_revision=expected, context=context, expected_config=expected_config)
+    response = api_return(errcode=0 if ok else 1, errmsg=msg)
+    if not ok and context:
+        response.headers['X-Cron-Status-Retry'] = serializer.dumps(dict(context, actor=actor))
+    return response
+
 
 
 # ---------------------------------------------------------------------------

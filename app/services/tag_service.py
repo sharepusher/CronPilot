@@ -36,7 +36,7 @@ def get_or_create_tag(name, created_by='', group_id=None):
     if not name:
         return None
     q = _build_tag_query(name, group_id)
-    tag = db.session.scalars(q).first()
+    tag = db.session.scalars(q.with_for_update()).first()
     if tag:
         return tag
     now = utc_now_hms()
@@ -47,16 +47,27 @@ def get_or_create_tag(name, created_by='', group_id=None):
             db.session.add(tag)
     except IntegrityError:
         # 并发插入导致唯一约束冲突 → SAVEPOINT 已自动回滚
-        tag = db.session.scalars(_build_tag_query(name, group_id)).first()
+        tag = db.session.scalars(_build_tag_query(name, group_id).with_for_update()).first()
     return tag
 
 
-def sync_task_tags(task_id, tag_names, created_by='', group_id=None):
+def sync_task_tags(task_id, tag_names, created_by='', group_id=None, *, bump_revision=True):
     """同步任务的标签列表：删除旧关联、创建缺失标签、写入新关联。
 
     tag_names: 标签名列表（字符串）。
     group_id: 任务所属业务组 ID；None 表示 GLOBAL 任务。
     """
+    current = db.session.execute(select(Tag.name, Tag.group_id).join(
+        TaskTag, Tag.id == TaskTag.tag_id).where(TaskTag.task_id == task_id)).all()
+    desired = {name.strip().lower() for name in (tag_names or []) if name.strip()}
+    existing = {name.strip().lower() for name, _gid in current}
+    link_count = db.session.scalar(select(func.count()).select_from(TaskTag).where(TaskTag.task_id == task_id))
+    if (desired == existing and len(current) == link_count == len(existing)
+            and all(gid == group_id for _name, gid in current)):
+        return
+    if bump_revision:
+        from app.services.task_revision import touch_task_revisions
+        touch_task_revisions([task_id])
     db.session.execute(
         TaskTag.__table__.delete().where(TaskTag.task_id == task_id)
     )
@@ -254,6 +265,24 @@ def delete_tag(tag_id, force=False):
         tasks = [{'id': r[0], 'name': r[1]} for r in rows]
         return False, '标签「{}」仍有 {} 个任务在使用'.format(name, count), \
             {'task_count': count, 'tasks': tasks, 'need_confirm': True}
+    from app.services.task_revision import touch_task_revisions
+    task_ids = list(db.session.scalars(select(TaskTag.task_id).where(TaskTag.tag_id == tag.id)))
+    touch_task_revisions(task_ids)
+    # 顺序为父任务（ID 升序）→ Tag → 关系。同步标签的写者也锁 Tag，
+    # 使收集任务之后新出现的关联不能绕过版本更新而被批量删掉。
+    tag = db.session.scalar(select(Tag).where(Tag.id == tag.id).with_for_update()
+                            .execution_options(populate_existing=True))
+    if not tag:
+        db.session.rollback()
+        return False, '标签已变化，请刷新后重试', None
+    current_ids = set(db.session.scalars(select(TaskTag.task_id).where(
+        TaskTag.tag_id == tag.id).with_for_update()))
+    if current_ids != set(task_ids):
+        db.session.rollback()
+        return False, '标签关联已变化，请刷新后重试', None
+    if current_ids and not force:
+        db.session.rollback()
+        return False, '标签关联已变化，请刷新后重新确认', None
     db.session.execute(TaskTag.__table__.delete().where(TaskTag.tag_id == tag.id))
     db.session.delete(tag)
     db.session.commit()

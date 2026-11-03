@@ -1,0 +1,6 @@
+{
+  "job_absent_after_commit_failure": true,
+  "db_status_after_rollback": 0,
+  "original_database_used": false,
+  "callback_executed": false
+}

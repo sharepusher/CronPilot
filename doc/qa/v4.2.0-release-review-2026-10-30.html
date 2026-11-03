@@ -1,0 +1,62 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>v4.2.0 发布前未提交代码与文档全面审查（2026-10-30）</title><style>body{font:16px/1.75 system-ui,sans-serif;max-width:1100px;margin:auto;padding:28px}h1,h2,h3{line-height:1.4}section{margin:2rem 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:rgb(244,246,248);padding:16px}code{overflow-wrap:anywhere}.decision{border-left:5px solid rgb(180,60,40);padding:16px;background:rgb(255,245,240)}a{overflow-wrap:anywhere}</style></head><body><main>
+<h1>v4.2.0 发布前未提交代码与文档全面审查</h1>
+<p>日期：2026-10-30（Asia/Shanghai）· rev.1 · 基线：HEAD <code>3b7583f</code> 与本轮开始时的工作区，含未跟踪实现、测试、设计、复盘和证据。类型：只读业务审查及隔离缺陷复现。</p>
+<div class="decision"><strong>结论：暂不建议发布 v4.2.0。</strong>已独立复现 SQLite 保存边界的权限竞态及用户同字段覆盖；版本和术语门禁未通过。核心设计方向合理，MySQL 行锁与任务版本条件写入各有价值，但不能把相应验证外推为 SQLite 已具备同等原子保护。</div>
+<p><strong>后续状态（2026-11-02）：</strong>RBAC用户编辑保存边界已按批准设计修复并专项验收；任务保存独立诊断仍复现同类问题，全量基线6项失败仍在。见<a href="SQLite用户编辑原子保护验收-2026-11-02.html">最新专项验收</a>。下文为历史发现与当时状态，不代表整体问题已关闭。</p>
+<h2>版本记录</h2><ul><li>rev.1 · 2026-10-30：复核代码、文档和发布状态；新增三个独立 SQLite 连接交错复现；记录本轮重跑结果与历史证据边界。</li></ul>
+<h2>交付与证据契约</h2><p>对象为当前未提交工作区；调用方为仓库维护者。只新增本报告、索引和隔离复现证据，不修改业务行为，不 commit、tag、push 或发布。复现数据全部位于临时 SQLite 文件；外部调度和 URL 检查在任务复现中替换，真实授权、比较、ORM 写入及 commit 均执行。报告不包含实际凭据。失败结果按原样记录，不把测试跳过写成通过。</p>
+<section><h2>1. 范围与方法</h2>
+<p>检查所有生产变更：两个自定义 Scheduler、main/RBAC 路由与服务、cron_service/cron_validator/tag_service、三个新任务编辑模块、CronInfos 版本列、双后端迁移、公共 Ajax、两类编辑表单、审计模板与 CSS。检查新增测试、浏览器/MySQL 工具的隔离和故障注入边界，并交叉核对设计、复盘、验收、Release Notes、依赖 RFC、索引和发布信任根文档。</p>
+<p>以实际代码及可执行反例判断；文档所记历史用户确认不等于本轮重新认证其聊天审批。新旧 HTML/Markdown 的同步采用仓库门禁验证，正文以 HTML 源稿为准。图片和 JSON 是历史执行证据，不因其存在就认为新代码已重新验证。没有重新核验 GitHub 远端设置、漏洞数据库、全部真实 MySQL 时序或 Docker 发布包安装。</p></section>
+<section><h2>2. 发现与优先级</h2>
+<h3>F1 · P1 · SQLite 未将授权与用户三方比较保护到写入完成</h3>
+<p><strong>定位：</strong><code>app/services/cron_edit_concurrency.py:148–156</code>、<code>app/rbac/services.py:994–1024</code>。两个保存边界以 <code>with_for_update()</code> 保护 actor/target/关系，但 SQLite 不执行行级 FOR UPDATE。当前 Python 3.11 sqlite3 默认事务模式下，SQLAlchemy Session 已进入逻辑事务也不意味着 SELECT 已开始可保护后续写入的 SQLite 读写事务。</p>
+<p><strong>复现：</strong>在保存已读 actor 或 actor+target、尚未读完关系时，使用另一个独立 engine/connection 完成提交。第一例将任务编辑者从 Operator 改为 Viewer；第二例将用户管理者从 Admin 改为 Viewer；第三例将目标花名改为 concurrent-value。原请求随后继续执行真实保存边界。</p>
+<pre>task_revoke: independent_commit=true, outcome=updated, current_actor_role=viewer, stored_value=request-value
+user_revoke: independent_commit=true, outcome=updated, current_actor_role=viewer, stored_value=request-value
+user_conflict: independent_commit=true, outcome=updated, stored_value=request-value</pre>
+<p>第三例覆盖了另一连接已经提交的 concurrent-value，却没有返回 conflict。任务 edit_revision 只保护任务自身，无法发现 actor 行发生变化；用户编辑没有为读取的 target 字段提供 SQLite 等效原子比较条件。只要依赖的行未进入同一有效保护协议，增加一次普通重读也会留下新的竞态窗口。</p>
+<p><strong>影响：</strong>SQLite 部署中，已撤销权限的在途请求仍可能完成写入；用户资料同字段并发仍可能丢失更新。未证实 MySQL 同样存在本交错，不能据此否定 MySQL FOR UPDATE。三个场景均是在临时库独立连接上完成，不是仅修改同一 Session 对象的顺序测试。</p>
+<p><strong>建议：</strong>先设计并确认 SQLite 保存事务策略，使保护从读取当前授权/目标前开始，覆盖到业务和审计提交结束；或采用能原子约束所有相关授权/目标事实的条件写协议。评估 SQLite 写锁等待和错误分类，保留 no-op 零业务写语义。新增独立连接的授权撤销、同字段更新、目标停用与关系变更交错，并为原有 MySQL 锁回归保留验证。修复前不应宣称双后端编辑原子性完成。</p>
+<p><strong>可重放证据：</strong><a href="evidence/v4.2.0-review-2026-10-30/sqlite_authorization_race.py">复现脚本</a> · <a href="evidence/v4.2.0-review-2026-10-30/sqlite-race-results.json">原始结果</a>。</p>
+<pre>.venv-py311/bin/python doc/qa/evidence/v4.2.0-review-2026-10-30/sqlite_authorization_race.py</pre>
+<p>当前脚本断言“缺陷可观察”，不是未来修复验收。修复后应转成拒绝/冲突或受控串行的正向保障测试，不能为维持绿色继续期待错误覆盖。</p>
+<h3>F2 · P2 · 新文档触发术语 CI，现有绿色结论不适用于当前工作区</h3>
+<p><strong>定位：</strong><code>doc/design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.html:112</code> 与 <code>doc/design/任务编辑差异写入与调度一致性M1设计-2026-10.html:79</code>。新增文字描述 JavaScript 或异步处理，但现有 <code>check_terminology.py</code> 的技术术语例外不足以识别，实际退出 1；另有 HEAD 既有命中，不能全部算作本次新增。</p>
+<p>这是 CI 阻断及门禁边界问题，不是将上述 JavaScript 技术概念判为业务模型错误。建议准确改写或给检查器增加有范围、有反例的技术例外；不得关闭检查或对所有相关词一概放行。<code>docs-sync.yml</code> 与 <code>unit-tests.yml</code> 均运行此检查。复跑命令：<code>.venv-py311/bin/python scripts/check_terminology.py --check</code>。</p>
+<h3>F3 · P2 · 对外升级说明缺少版本列升级的停写与混跑边界</h3>
+<p><strong>定位：</strong><code>RELEASE_NOTES.md:13</code> 只说明升级会新增 edit_revision，而已实现的<a href="../design/任务编辑陈旧页面并发覆盖独立设计-2026-10.html">任务并发设计 §11</a>明确要求先停止旧写入进程、执行迁移后启动新版本，不支持旧写入者混跑。旧版本不会维护新版本列；新模型在未补列旧库上查询则会失败。</p>
+<p>应将备份、停旧写入者、执行 <code>bash scripts/ensure_business_tables.sh</code>、验证新列、启动新版本和回滚边界写入 v4.2.0 对外升级说明，并明确仅支持受控停机升级。不能只在内部设计末尾给出这一发布前置条件。此项是操作说明缺口，未声称现有启动脚本未调用迁移。</p>
+<h3>F4 · P3 · 新增旧缺陷基线脚本无法在当前代码重放</h3>
+<p><strong>定位：</strong><code>scripts/verify_cron_edit_baseline.py:31–44,99–105</code>。fixture 引用了组 7，却未创建 ResourceGroup；新增只读检查首先抛出“任务业务组关联异常”，五场景均未输出。即使补齐该组，no_change 分支仍期待修复前的重写/审计行为。</p>
+<p>它可以作为旧版本历史实验，但须绑定可执行历史基线并注明运行方式，或者转为当前行为的绿色回归。不要以“current defect scenarios reproduced”描述当前代码。此问题影响证据可重放性，不代表生产任务保存失败；本轮未修该脚本。</p></section>
+<section><h2>3. 发布前置条件与已知边界</h2>
+<p><strong>版本归档尚未完成：</strong><code>check_version_consistency.py --check</code> 退出 1，指出 Unreleased 下有 4 个子节、13 个实质列表项。README、路线图和版本索引仍为 v4.1.1。准备阶段保留 Unreleased 合理，但这些内容在创建 v4.2.0 标签前必须合并到正式版本并同步所有发布入口；当前不能视为 release-ready。</p>
+<p><strong>调度风险已被设计明确保留：</strong>任务保存先 commit 再注册 Job；外部注册失败可能使已保存配置与实际 Job 不一致。暂停任务替换 Job 后再 pause 存在窗口；任务变更日志仍为提交后 best-effort。对应问题③④⑤在综合设计中有记录，不能误报成此次 SQLite 新发现，也不能因本次版本列实现而宣称它们关闭。发布说明应明确剩余限制和运维核对方式，是否纳入本版须由发布范围决定。</p>
+<p><strong>发布治理：</strong>仓库记载所有者已接受单维护者规则保护残余风险，本轮沿用该决策，不重新包装为新的产品阻断；没有对远端保护配置作实时认证。</p>
+<p><strong>交付物纳入：</strong>此次大量模块和证据尚未跟踪，单看 git diff --stat 会漏掉关键实现。提交前必须以 git status --short --untracked-files=all 显式确认新 Python/JS、测试、HTML/MD、证据均纳入，避免“报告已通过但包里缺文件”。</p></section>
+<section><h2>4. 准确性、专业性与合理性评价</h2>
+<p><strong>准确性：需修正双后端保障范围。</strong>无变更检测、范围外组保留、T0 连续、HMAC 保密基线、有效差异和结果未知分类均有对应实现；但“事务中读取+FOR UPDATE”不能在 SQLite 上替代真实原子保护。已有验收计数主要是不同批次的历史快照，Release 应汇总最终基线而非叠加计数。</p>
+<p><strong>专业性：基础良好，发布证据仍不充分。</strong>无新增运行时依赖；敏感 URL/body 不进入明文快照；审计 reader 使用整条结构白名单和转义；用户业务与审计同事务；MySQL 验收工具拒绝占用库且具备负向校准。这些选择克制且可维护。保存函数较长，后续可在场景不变量保护下提取纯比较策略，但不应为赶本版同时扩大结构重构。</p>
+<p><strong>合理性：分批路线合理。</strong>任务 edit_revision 区分墙钟与逻辑并发版本；三方比较允许无关字段合并；保留旧调用返回约定减少兼容风险。问题在后端事务实现覆盖与测试交错矩阵，不在选择版本列本身。无需因本次发现推翻整个设计，也不能只补 UI 提示规避数据边界问题。</p>
+<p><strong>文档可读性：</strong>历史评估已标注后续状态，双索引齐全；但设计中“当前没有版本字段/当前仅文档”的初稿语句与“已实现”页眉并存，建议将其标为实施前快照。内部设计标识应留在维护文档，最终 Release 以用户变化、升级、验证和剩余风险为主，避免复盘链接和历史数字喧宾夺主。</p></section>
+<section><h2>5. 本轮实际验证</h2>
+<ul>
+<li><code>.venv-py311/bin/python -m unittest tests.test_cron_edit_concurrency tests.test_cron_edit_noop tests.test_user_edit_change_set tests.test_user_edit_scope_projection tests.test_user_edit_browser_harness_guard tests.test_user_edit_lock_release_guard tests.test_user_edit_mysql_guard tests.test_ensure_business_tables tests.test_rbac_global_scope_assignment tests.test_rbac_phase tests.test_user_reactivation -q</code>：297 项，379.407 秒，OK。</li>
+<li><code>.venv-py311/bin/python scripts/smoke_routes.py --check</code>：86/86，通过。</li>
+<li><code>.venv-py311/bin/python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/cronpilot-v420-outcomes-review-retry --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'</code>：27/27；<a href="evidence/v4.2.0-review-2026-10-30/browser-results.json">本轮结果</a>。首次沙箱内无法绑定服务，获准后沙箱外重跑通过。</li>
+<li><code>.venv-py311/bin/python scripts/verify_user_edit_group_preflight.py --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'</code>：18/18；沙箱内 Chrome 启动失败，获准后外部重跑通过。</li>
+<li><code>.venv-py311/bin/python -m unittest tests.test_check_doc_completeness -q</code>：4/4，通过。</li>
+<li>SQLite 三个独立连接交错全部复现 F1；旧基线脚本退出 1，复现 F4。</li>
+</ul>
+<p><code>.venv-py311/bin/python -m unittest discover -s tests -q</code>：1086 项，499.023 秒，OK（12 skipped，1074 通过）；297 项专项是该套件的子集，不与全量相加。全量绿色没有覆盖本轮独立复现的 SQLite 交错。</p><p>报告 HTML 已实际在浏览器打开；本机 5001 文档地址返回 200，纯文档交付无需重启业务服务。</p>
+<p>Ruff app、UI 契约、硬编码颜色、CSS 死代码、CSS token 可达、文档完整性、文档链接、OPT 一致性、HTML/Markdown 同步、pending_sync、git diff --check 均通过。复盘完整性退出 0，仍有既有 Release 引用警告，不将警告等同新增失败。</p>
+<p>版本与术语门禁失败，详 F2 与发布前置条件。开发 SQLite 表清单检查包含任务、RBAC、组、标签、审计等业务表；只证明表存在，不是逐行数据对比。全量及专项中的异常日志包含故障注入，结论以 unittest 最终汇总为准。</p>
+<p>本轮未重新执行真实 MySQL 和 Docker 包外安装，历史证据仍见源设计/验收；不能把本轮 SQLite 三交错实验扩张为所有并发和隔离级别的覆盖。也不能以七状态浏览器绿色否认 F1：浏览器矩阵的请求已串行处理，未覆盖此次服务内部独立连接交错。</p></section>
+<section><h2>6. 建议收口顺序</h2><ol>
+<li>为 F1 补正式 SQLite 保存边界设计并经用户 Review 确认，再实现和编写双连接防护测试；修复后补七项复盘。</li>
+<li>校准 F2 门禁与 F4 历史脚本边界；完整重跑 CI 入口，保留原始命令、返回码与失败原因。</li>
+<li>补 F3 升级说明，将 Unreleased 整理为 v4.2.0，同步 README、路线图、版本索引、HTML/Markdown；明确延期风险。</li>
+<li>对最终候选 commit 执行双后端迁移/保存、目标角色浏览器、SQLite 黄金路径与 Docker 发布包验证，然后再创建标签和 Release。</li>
+</ol><p>本轮只审查与复现，没有实施业务修复，不宣称交付闭环完成，也没有新增修复复盘。报告及证据为后续设计 Review 提供可重现依据。</p></section>
+</main><footer><a href="../index.html">文档索引</a> · <a href="v4.2.0-release-review-2026-10-30.md">Markdown 版</a></footer></body></html>

@@ -35,26 +35,35 @@ from .services import (
     audit_resource_label,
     audit_status_label,
     authenticate_user,
+    build_user_edit_intent,
+    build_user_edit_snapshot,
     change_own_password,
     check_registration_status,
     create_resource_group,
     create_user,
+    format_user_update_audit_detail,
     get_resource_group,
     get_user_by_id,
     get_user_group_ids_for_user,
     list_resource_groups,
+    normalize_user_edit_values,
+    project_user_edit_values,
     reject_registration,
     save_profile_completion,
     set_user_active,
+    sign_user_edit_snapshot,
     submit_registration,
     trigger_password_reset,
     update_own_profile,
     update_resource_group,
     update_user_management,
+    user_edit_editor_scope,
     user_in_management_scope,
     user_must_reset_password,
     user_needs_profile_completion,
+    validate_user_edit_confirmation,
     validate_user_scope_assignment,
+    verify_user_edit_snapshot,
     web_session_user_is_valid,
     write_audit_log,
 )
@@ -98,6 +107,15 @@ def _form_group_ids_for_user(user):
     ):
         return ['__ALL__']
     return group_ids
+
+
+def _user_edit_snapshot_token(user, snapshot=None):
+    """基于 GET 当前展示事实生成无状态签名快照。"""
+    snapshot = snapshot or build_user_edit_snapshot(
+        session.get('user_id'), user, get_user_group_ids_for_user(user.id),
+        actor_scope=current_user_management_actor_scope(),
+    )
+    return sign_user_edit_snapshot(current_app.secret_key, snapshot)
 
 
 def _can_current_actor_assign_global(target_user=None):
@@ -762,12 +780,21 @@ def users_edit():
     user = get_user_by_id(user_id)
     if not user:
         return _users_form_response(False, '用户不存在', url='/rbac/users')
+    if not user.is_active:
+        msg = '已停用用户不可编辑；如需重新使用，请通过同名覆盖启用流程'
+        detail_url = '/rbac/users/view?id=%s' % user.id
+        if request.method == 'POST' and _wants_ajax_json():
+            return web_api_return(code=1, msg=msg, url=detail_url)
+        return redirect(detail_url)
     session_uid = session.get('user_id')
     if session_uid is not None and int(session_uid) == int(user.id):
         msg = '不能在用户管理中编辑自己的账号；请使用「修改密码」调整密码'
         if _wants_ajax_json():
             return web_api_return(code=1, msg=msg, url='/rbac/password')
         return redirect('/rbac/password')
+    denied = _check_management_scope(user_id)
+    if denied:
+        return denied
     bypass = _user_management_actor_bypasses_scope()
     groups = list_resource_groups() if bypass else [
         g for g in list_resource_groups()
@@ -778,21 +805,57 @@ def users_edit():
         groups=groups,
         locked_group=locked_group,
         can_assign_global=_can_current_actor_assign_global(user),
-        user_group_ids=_form_group_ids_for_user(user),
         default_password=DEFAULT_USER_PASSWORD,
         job_title_choices=JOB_TITLE_CHOICES,
     )
     if request.method == 'GET':
-        denied = _check_management_scope(user_id)
-        if denied:
-            return denied
+        edit_snapshot = build_user_edit_snapshot(
+            session.get('user_id'), user, get_user_group_ids_for_user(user.id),
+            actor_scope=current_user_management_actor_scope(),
+        )
+        edit_ctx.update(
+            user_group_ids=_form_group_ids_for_user(user),
+            edit_snapshot_token=_user_edit_snapshot_token(user, edit_snapshot),
+            user_edit_original=project_user_edit_values(edit_snapshot),
+        )
+        outcome_messages = {
+            'no_change': ('ok', '未检测到变更，无需保存'),
+            'already_applied': ('ok', '目标状态已存在，无需重复保存'),
+            'conflict': ('error', '该用户信息已变更，未覆盖新数据，请刷新后重新确认'),
+            'commit_unknown': ('error', '保存结果无法确认，请刷新核实当前信息'),
+        }
+        outcome_notice = outcome_messages.get(request.args.get('outcome') or '')
         return render_template(
             'redesign/user_form.html',
             user=user,
             roles=ROLE_ORDER,
+            outcome_notice=outcome_notice,
             **edit_ctx,
         )
-    new_role = request.values.get('role', user.role)
+    incoming_token = request.values.get('edit_snapshot_token', '')
+    snapshot_result = verify_user_edit_snapshot(
+        current_app.secret_key, incoming_token, session.get('user_id'), user.id,
+    )
+    if not snapshot_result['ok']:
+        return _users_form_response(
+            False, snapshot_result['msg'], template='redesign/user_form.html',
+            data={'outcome': 'failed', 'field': 'uf-submit'},
+            user=user, edit_unavailable=True, **edit_ctx,
+        )
+    original = snapshot_result['snapshot']
+    if original['editor_scope'] != user_edit_editor_scope(current_user_management_actor_scope()):
+        return _users_form_response(
+            False, '管理范围已变更，请刷新后重试', template='redesign/user_form.html',
+            user=user, edit_unavailable=True, **edit_ctx,
+        )
+    # Only GET may establish a baseline. Every recoverable POST echoes T0,
+    # even when current database facts have changed since the page was opened.
+    edit_ctx.update(
+        edit_snapshot_token=incoming_token,
+        user_edit_original=project_user_edit_values(original),
+        user_group_ids=original['group_ids'],
+    )
+    new_role = request.values.get('role', original['role'])
     raw_group_ids = request.values.getlist('group_ids')
     scope_result = validate_user_scope_assignment(
         session.get('user_id'),
@@ -818,50 +881,102 @@ def users_edit():
             scope_result['msg'],
             template='redesign/user_form.html',
             user=user,
+            edit_unavailable=True,
             **edit_ctx,
         )
-    group_ids = (
-        ['__ALL__']
-        if scope_result['is_global']
-        else [str(group_id) for group_id in scope_result['group_ids']]
+    form_groups = ['__ALL__'] if scope_result['is_global'] else scope_result['group_ids']
+    raw_job_title = request.values.get('job_title', '')
+    if raw_job_title == 'other':
+        raw_job_title = 'other:' + request.values.get('job_title_other', '')
+    edit_ctx['form_values'] = {
+        'role': new_role,
+        'group_ids': form_groups,
+        'email': request.values.get('email', ''),
+        'nickname': request.values.get('nickname', ''),
+        'job_title': raw_job_title,
+    }
+    normalized = normalize_user_edit_values(
+        new_role,
+        scope_result['group_ids'],
+        email_present='email' in request.values,
+        email=request.values.get('email'),
+        nickname=request.values.get('nickname'),
+        job_title=request.values.get('job_title'),
+        job_title_other=request.values.get('job_title_other'),
     )
-    raw_jt = request.values.get('job_title', '').strip()
-    if raw_jt == 'other':
-        custom_jt = request.values.get('job_title_other', '').strip()
-        if not custom_jt:
-            return _users_form_response(
-                False,
-                '选择「其他」时须填写自定义岗位名称',
-                template='redesign/user_form.html',
-                user=user,
-                **edit_ctx,
-            )
-        raw_jt = 'other:' + custom_jt[:20]
-    if not raw_jt:
+    if not normalized['ok']:
         return _users_form_response(
             False,
-            '岗位类型为必填项，请选择岗位',
+            normalized['msg'],
             template='redesign/user_form.html',
+            data={'outcome': 'failed', 'field': normalized.get('field')},
             user=user,
             **edit_ctx,
         )
-    result = update_user_management(
-        user_id,
-        role=new_role,
-        is_active=request.values.get('is_active', user.is_active),
-        group_ids=group_ids,
-        email=request.values.get('email'),
-        nickname=request.values.get('nickname'),
-        job_title=raw_jt,
+    requested_values = normalized['values']
+    edit_ctx['form_values'] = dict(requested_values, group_ids=form_groups)
+    intent_change_set = build_user_edit_intent(
+        snapshot_result['snapshot'],
+        requested_values,
     )
-    if not result['ok']:
-        user.role = request.values.get('role', user.role)
-        try:
-            user.is_active = int(request.values.get('is_active', user.is_active))
-        except (TypeError, ValueError):
-            pass
-    # 刷新编辑上下文（业务组可能已变更）
-    edit_ctx['user_group_ids'] = _form_group_ids_for_user(user)
+    confirmation = validate_user_edit_confirmation(
+        snapshot_result['snapshot'],
+        requested_values,
+        request.values.get('confirm_clear_email'),
+        request.values.get('email_clear_reason'),
+    )
+    if not confirmation['ok']:
+        return _users_form_response(
+            False,
+            confirmation['msg'],
+            template='redesign/user_form.html',
+            data={
+                'outcome': confirmation['outcome'],
+                'field': 'uf-email',
+                'confirm_clear_email': confirmation['outcome'] == 'confirm_required',
+            },
+            user=user,
+            server_confirm_clear_email=True,
+            email_clear_reason=request.values.get('email_clear_reason', ''),
+            **edit_ctx,
+        )
+    if not intent_change_set:
+        msg = '未检测到变更，无需保存'
+        if _wants_ajax_json():
+            return web_api_return(
+                code=0,
+                msg=msg,
+                data={'outcome': 'no_change'},
+            )
+        return redirect('/rbac/users/edit?id=%s&outcome=no_change' % user.id)
+    result = update_user_management(
+        session.get('user_id'),
+        user_id,
+        snapshot_result['snapshot'],
+        requested_values,
+        intent_change_set,
+        reason=confirmation['reason'],
+    )
+    outcome = result.get('outcome') or ('updated' if result['ok'] else 'failed')
+    if outcome == 'already_applied':
+        if _wants_ajax_json():
+            return web_api_return(
+                code=0,
+                msg=result['msg'],
+                data={'outcome': outcome},
+            )
+        return redirect(
+            '/rbac/users/edit?id=%s&outcome=already_applied' % user.id
+        )
+    if outcome in ('conflict', 'commit_unknown'):
+        if _wants_ajax_json():
+            return web_api_return(
+                code=1,
+                msg=result['msg'],
+                data={'outcome': outcome, 'field': 'uf-submit'},
+            )
+        return redirect('/rbac/users/edit?id=%s&outcome=%s' % (user.id, outcome))
+    # Keep requested display values separate from the persistent ORM object.
     return _users_form_response(
         result['ok'],
         result['msg'],
@@ -1146,6 +1261,7 @@ def audit_logs():
             audit_action_label=audit_action_label,
             audit_resource_label=audit_resource_label,
             audit_status_label=audit_status_label,
+            format_user_update_audit_detail=format_user_update_audit_detail,
             search=search,
             chip=chip,
         )
@@ -1163,6 +1279,7 @@ def audit_logs():
         audit_action_label=audit_action_label,
         audit_resource_label=audit_resource_label,
         audit_status_label=audit_status_label,
+        format_user_update_audit_detail=format_user_update_audit_detail,
         search=search,
         chip=chip,
         AUDIT_ACTION_LABELS=AUDIT_ACTION_LABELS,

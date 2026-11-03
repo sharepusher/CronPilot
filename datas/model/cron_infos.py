@@ -10,6 +10,14 @@ from app import db
 
 class CronInfos(db.Model):
     __tablename__ = 'cron_infos'
+    edit_revision: Mapped[int] = mapped_column(
+        db.BigInteger, nullable=False, default=0, server_default='0',
+        doc='任务配置/状态/关系的并发版本；不是更新时间或调度版本',
+    )
+    __mapper_args__ = {
+        'version_id_col': edit_revision,
+        'version_id_generator': lambda previous: 0 if previous is None else previous + 1,
+    }
     id: Mapped[int] = mapped_column(
         db.BigInteger().with_variant(db.Integer, 'sqlite'),
         primary_key=True,

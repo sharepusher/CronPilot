@@ -77,6 +77,14 @@ scripts/build\_release\_asset.py、tests/test\_release\_asset.py、发布设计/
 
 0e31f8f 业务及 73854ac 归档候选全量 1168 tests / OK / skipped=12；07dddb3 双构建相同、资产检查通过，但该包模板 parse 明确失败。新回归尚未编写，B1–B4 均未实施。状态清单已改 blocked，不能把源码绿色结果代替包页面验收。
 
+## 历史归因核验（2026-11-04）
+
+git blame -L 114,147 scripts/build\_release\_asset.py 指向 bed58fdad7aa4771a21cf6cffef99dccacf8e725（2026-10-14，build: add image governance and release tooling）。git diff v4.1.1..HEAD -- scripts/build\_release\_asset.py app/templates/redesign/\_exec\_logs\_pagination.html release/package-manifest.txt 为空；本轮发布收尾未改这三个输入，0e31f8f..HEAD 的改动仅是文档与发布状态清单。
+
+实际历史重现：.venv-py311/bin/python scripts/build\_release\_asset.py --version 4.1.1 --ref v4.1.1 --output /private/tmp/cronpilot-v411-historical-reproduction/cronpilot-4.1.1.tar.gz 成功。直接解析 v4.1.1 Git blob 的该模板通过；对该重建 tar 中模板执行同一 Jinja parse，报相同 TemplateSyntaxError: Encountered unknown tag 'endif'（期待 endfor）。故已证实仓库内历史打包逻辑在 v4.1.1 已有此缺陷，本轮只是重建并发现，没有引入打包器回归。
+
+边界：未下载、核对之前实际上传的 GitHub Release 附件，不能据此断言历史线上部署一定使用了损坏包。直接从 Git 源码运行不会经过文档重写。此次交付问题是源码/空库门禁未覆盖非空执行记录的最终制品，曾过早将状态置为 ready；已按实际制品失败撤回。
+
 ## 文档验收结果
 
 .venv-py311/bin/python scripts/html\_docs\_to\_markdown.py --check、scripts/check\_doc\_completeness.py --check、scripts/check\_doc\_links.py --check、scripts/check\_opt\_consistency.py --check，以及 bash scripts/check\_pending\_sync.sh、git diff --check 均退出 0；413 个 HTML 已登记，3156 个引用无 broken。scripts/check\_version\_consistency.py --check --tag v4.2.0 退出 1，明确因 blocked 与非空 release\_blockers 拒绝发布，这是当前预期门禁结果。

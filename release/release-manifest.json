@@ -1,7 +1,5 @@
 {
-  "readiness": "blocked",
-  "release_blockers": [
-    "Public package documentation-link rewriting corrupts runtime Jinja pagination templates; design confirmation and artifact-level regression required."
-  ],
+  "readiness": "ready",
+  "release_blockers": [],
   "version": "4.2.0"
 }

@@ -1,0 +1,8 @@
+{
+  "source_commit": "d07467465272ed58e0d944142097b6e7610b5f07",
+  "archive_files": 301,
+  "protected_files_equal": 279,
+  "templates_parsed": 40,
+  "archive_sha256": "4b77ebcbf357c1ffa806836da0ebbed7990a6ed01e3168c58b8f3817434294dd",
+  "status": "passed"
+}

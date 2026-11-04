@@ -35,11 +35,10 @@ This version is a release candidate. The latest published version remains 4.1.1;
 
 ### Validation
 
-* Final candidate regression: 1,168 tests run, 0 failures, 12 skipped (453.150 seconds). Route smoke: 86/86 passed. A clean extracted package installed its pinned core dependencies and passed double restart, POST login, API, documentation, task-list, and isolated-empty-database checks. Ruff, documentation, terminology, and image-governance gates passed. MySQL, Docker, and Python 3.8–3.10 were not rerun in this finalization; earlier evidence retains its original scope.
+* Full unittest regression: 1,172 tests run, 0 failures, 12 skipped (563.365 seconds). Release-package focused tests: 11/11 passed. Route smoke: 86/86 passed. The extracted package passed clean core-dependency installation, double restart, POST login, and the SQLite golden path. An isolated Operator passed 13 HTTP checks covering populated/empty GET and AJAX logs and pagination; browser login, filtering, page changes, and empty results also passed without screenshots. All 279 non-documentation files matched their Git blobs, and all 40 packaged templates parsed. Deterministic double-build, independent archive validation, Ruff, documentation, version, terminology, and image-governance checks passed. MySQL, Docker, and Python 3.8–3.10 were not rerun in this finalization; earlier evidence retains its original scope.
 
 ### Compatibility & Risk
 
-* Subsequent archive-level validation found that documentation-link rewriting corrupts a runtime Jinja pagination template. Publication is blocked until template preservation and populated-log page checks pass. See the [package-template repair design](doc/design/release-runtime-template-preservation-2026-11-04.html).
 
 * Back up the business and execution-log databases, then run the standard startup migration before serving requests. The migration adds `cron_infos.edit_revision`; existing task-edit pages must be reloaded. Old user-edit pages also require a refresh because their signed baseline now includes editable scope.
 * Existing administrator roles, permission definitions, API JSON fields, and stored audit JSON remain unchanged. Unsupported or malformed audit details use a generic display fallback. Permission reductions do not cancel operations that already passed authorization.

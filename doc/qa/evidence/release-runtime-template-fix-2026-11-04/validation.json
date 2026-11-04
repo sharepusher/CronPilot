@@ -1,0 +1,43 @@
+{
+  "status": "passed",
+  "implementation_commit": "d07467465272ed58e0d944142097b6e7610b5f07",
+  "before_fix": {
+    "tests": 5,
+    "failures": 2,
+    "errors": 1
+  },
+  "focused": {
+    "tests": 11,
+    "seconds": 4.25,
+    "status": "passed"
+  },
+  "full": {
+    "tests": 1172,
+    "seconds": 563.365,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 12
+  },
+  "initial_full": {
+    "tests": 1172,
+    "seconds": 475.291,
+    "failures": 1,
+    "skipped": 12,
+    "reason": "manifest intentionally blocked; readiness fixture rejected it, followed by a complete successful rerun after package verification"
+  },
+  "routes": {
+    "passed": 86,
+    "failed": 0
+  },
+  "golden": "passed, independent extracted install, double restart and POST login",
+  "http": "13 checks passed, memory-only Operator fixture",
+  "browser": "cua_repl operator login, table, pagination, filters, empty AJAX; no screenshots",
+  "artifact": "279 non-documentation files equal Git blobs, 40 templates parsed, deterministic double build and independent asset check passed",
+  "not_rerun": [
+    "MySQL",
+    "Docker",
+    "Python 3.8–3.10"
+  ],
+  "fixture_preparation": "initial HTTP fixture omitted registration models; import all model modules before create_all, then rerun passed; no product change for this setup issue",
+  "final_artifact_validation": "/private/tmp/cronpilot-v420-release-ready/release-validation.json"
+}

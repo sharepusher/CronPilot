@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "tool": "cua_repl",
+  "artifact_commit": "d07467465272ed58e0d944142097b6e7610b5f07",
+  "role": "operator",
+  "url": "http://127.0.0.1:50993",
+  "screenshots": false,
+  "checks": [
+    "POST login -> cron_list",
+    "populated execution logs: 7 columns, first id 45",
+    "AJAX page 2: first id 25",
+    "typed apostrophe keyword and failure filter",
+    "filtered AJAX page 2 preserves outcome/task_name/page",
+    "empty AJAX: zero rows and pagination 0 total",
+    "restore populated filtered view"
+  ]
+}

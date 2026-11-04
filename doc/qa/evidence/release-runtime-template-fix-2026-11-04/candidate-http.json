@@ -1,0 +1,110 @@
+{
+  "status": "passed",
+  "role": "operator",
+  "database": "sqlite:///:memory:",
+  "application_root": "/private/tmp/cronpilot-template-fix-candidate/install/cronpilot-4.2.0",
+  "base_url": "http://127.0.0.1:50993",
+  "fixture_logs": 45,
+  "checks": [
+    {
+      "case": "operator_login_post",
+      "status": 302
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": false,
+      "empty": false,
+      "page": 1,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": false,
+      "empty": false,
+      "page": 2,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": false,
+      "empty": true,
+      "page": 1,
+      "status": 200,
+      "row_count": 0
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": true,
+      "empty": false,
+      "page": 1,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": true,
+      "empty": false,
+      "page": 2,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_all_list",
+      "partial": true,
+      "empty": true,
+      "page": 1,
+      "status": 200,
+      "row_count": 0
+    },
+    {
+      "route": "/job_log_list",
+      "partial": false,
+      "empty": false,
+      "page": 1,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_list",
+      "partial": false,
+      "empty": false,
+      "page": 2,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_list",
+      "partial": false,
+      "empty": true,
+      "page": 1,
+      "status": 200,
+      "row_count": 0
+    },
+    {
+      "route": "/job_log_list",
+      "partial": true,
+      "empty": false,
+      "page": 1,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_list",
+      "partial": true,
+      "empty": false,
+      "page": 2,
+      "status": 200,
+      "row_count": 20
+    },
+    {
+      "route": "/job_log_list",
+      "partial": true,
+      "empty": true,
+      "page": 1,
+      "status": 200,
+      "row_count": 0
+    }
+  ]
+}

@@ -4,9 +4,11 @@
 
 # 发布包运行时模板字节保护修复设计
 
-2026-11-04 · v3 · 用户已明确确认实施，B1/B2 完成，B3/B4 验收中 · 阻断 v4.2.0 发布 · [Before/After 页面行为对比](#page-compare)
+2026-11-04 · v4 · 已按确认方案修复并验收，发布状态 ready，待用户手动发布 · 阻断 v4.2.0 发布 · [Before/After 页面行为对比](#page-compare)
 
 ## 版本记录
+
+v4（2026-11-04）：B1–B4 验收完成，源码修复提交 d074674；最终发布文档和 ready 清单收口后从最终 SHA 重建附件，来源以 build.json 为准，不将未来 SHA 写回源文件造成循环。
 
 v3（2026-11-04）：用户回复“确认实施”。已按 v2 修改构建器、独立检查器与测试；旧实现 5 项包回归出现 2 失败、1 错误，修复后发布专项 11/11 通过。全量及最终包链路验收进行中，发布仍 blocked。
 
@@ -144,6 +146,20 @@ git blame -L 114,147 scripts/build\_release\_asset.py 指向 bed58fdad7aa4771a21
 ## v2 文档验收
 
 .venv-py311/bin/python scripts/html\_docs\_to\_markdown.py --check、scripts/check\_doc\_completeness.py --check、scripts/check\_doc\_links.py --check、scripts/check\_opt\_consistency.py --check，以及 bash scripts/check\_pending\_sync.sh、git diff --check 均退出 0；413 个 HTML 已登记，3156 个引用无 broken。两份诊断脚本在当前未改实现上运行退出 0，query\_probe 的被测 checker 按预期退出 1，不能记成产品验收通过。发布保持 blocked，不代表 v2 已实施或已确认。
+
+## 最终实施验收（v4）
+
+全量 ready 状态回归：1172 tests / 563.365s / OK (skipped=12)，退出 0；发布专项 11/11，路由 86/86。首次全量的唯一失败是清单仍 blocked 时的 tag-preparable 自检；真实包验证通过、清单恢复 ready 后已完整重跑成功，未将该失败隐去或当作产品修复。
+
+实际候选 d074674：301 个文件，279 个非文档成员全部与 Git blob 相同；40 个模板均解析通过；两次 tar 完全相同；独立资产检查通过。全新目录和 venv 安装锁定核心依赖成功；50994 隔离 SQLite 黄金路径双重启、POST 登录 302、核心页面/API 200、空库断言通过。
+
+解压包原生应用、内存数据库和 Operator：13 项 HTTP 断言通过，覆盖全局/单任务日志的有记录、空结果、第一页/第二页 GET/AJAX；真实浏览器登录、7 列日志、分页、带单引号关键词筛选及空结果 DOM 验证通过。测试数据为 45 条临时日志，无截图；50993 服务保留供用户复验。
+
+Agent 自证：SOURCE\_RUNTIME\_BYTES\_EQUAL=279；JINJA\_TEMPLATES\_PARSE\_OK=40；OPERATOR\_HTTP\_CHECKS=13；BROWSER\_FILTERED\_PAGE2\_FIRST\_RECORD=25；EMPTY\_AJAX\_ROWS=0；GOLDEN\_PATH: OK。
+
+证据：[汇总](../qa/evidence/release-runtime-template-fix-2026-11-04/validation.json)、[包字节结果](../qa/evidence/release-runtime-template-fix-2026-11-04/candidate-artifact.json)、[HTTP](../qa/evidence/release-runtime-template-fix-2026-11-04/candidate-http.json)、[浏览器文字记录](../qa/evidence/release-runtime-template-fix-2026-11-04/browser.json)。复现工具：[verify\_artifact.py](../qa/evidence/release-runtime-template-fix-2026-11-04/verify_artifact.py)、[verify\_packaged\_logs.py](../qa/evidence/release-runtime-template-fix-2026-11-04/verify_packaged_logs.py)。
+
+HTTP 验收首次夹具缺注册申请模型表，已在 db.create\_all 前导入完整模型后重跑通过；这是验证准备修正，未修改产品。保护措施为明确内存 URL、StaticPool、源应用路径、禁调度及完整模型注册。真实 MySQL、Docker、Python 3.8–3.10 未重跑，未沿用旧截图充当新证据。
 
 ## 实施记录与七项修复复盘
 

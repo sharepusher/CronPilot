@@ -216,6 +216,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **发布包运行时模板字节保护修复设计** | 发布阻断，待确认 | [HTML](design/release-runtime-template-preservation-2026-11-04.html) | [MD](design/release-runtime-template-preservation-2026-11-04.md) |
 | **v4.2.0 发布评估与手动命令** | 候选准备、无截图安装包验证 | [HTML](qa/v4.2.0-release-assessment-2026-11-04.html) | [MD](qa/v4.2.0-release-assessment-2026-11-04.md) |
 | **v4.1.1 后全部提交 Bugbot 复审（HEAD 0e31f8f）** | 六个提交、当前复核与验证边界 | [HTML](qa/post-v4.1.1-bugbot-review-head-0e31f8f-2026-11-04.html) | [MD](qa/post-v4.1.1-bugbot-review-head-0e31f8f-2026-11-04.md) |
 | **缓存失效与提交后读取同类排查** | 入口矩阵及故障探针 | [HTML](qa/cache-postcommit-audit-2026-11-04.html) | [MD](qa/cache-postcommit-audit-2026-11-04.md) |

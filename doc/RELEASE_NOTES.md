@@ -44,6 +44,8 @@ This version is a release candidate. The latest published version remains 4.1.1;
 
 ### Compatibility & Risk
 
+Subsequent archive-level validation found that documentation-link rewriting corrupts a runtime Jinja pagination template. Publication is blocked until template preservation and populated-log page checks pass. See the [package-template repair design](design/release-runtime-template-preservation-2026-11-04.html).
+
 - Back up the business and execution-log databases, then run the standard startup migration before serving requests. The migration adds `cron_infos.edit_revision`; existing task-edit pages must be reloaded. Old user-edit pages also require a refresh because their signed baseline now includes editable scope.
 - Existing administrator roles, permission definitions, API JSON fields, and stored audit JSON remain unchanged. Unsupported or malformed audit details use a generic display fallback. Permission reductions do not cancel operations that already passed authorization.
 - Database commit and scheduler application remain separate boundaries. An uncertain result is reported for inspection or a signed retry; it is not evidence that the previous state was restored. Independent post-commit audit failures are logged and cannot roll back a committed account change.

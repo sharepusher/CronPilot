@@ -1,0 +1,101 @@
+{
+  "archive": {
+    "archive_commit": "07dddb3dab8a57c8c63968d273a303377b05cca5",
+    "rewrite_total": 1837,
+    "rewrite_counts": {
+      "INSTALL.md": 5,
+      "README.md": 7,
+      "RELEASE_NOTES.md": 44,
+      "app/templates/redesign/_exec_logs_pagination.html": 3,
+      "doc/RELEASE_NOTES.html": 7,
+      "doc/RELEASE_NOTES.md": 7,
+      "doc/deps/依赖升级RFC.html": 23,
+      "doc/deps/依赖升级RFC.md": 23,
+      "doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.html": 1,
+      "doc/design/任务触发URL-3xx失败语义与Pinning修复设计-2026-10.md": 1,
+      "doc/index.html": 1058,
+      "doc/index.md": 526,
+      "doc/postmortem/2026-09-MySQL任务ID关联列类型修复.html": 2,
+      "doc/postmortem/2026-09-MySQL任务ID关联列类型修复.md": 2,
+      "doc/postmortem/2026-09-SSRF内外网区域校验修复.html": 2,
+      "doc/postmortem/2026-09-SSRF内外网区域校验修复.md": 2,
+      "doc/交付状态与路线图.html": 62,
+      "doc/交付状态与路线图.md": 62
+    },
+    "protected_files_changed": [
+      "app/templates/redesign/_exec_logs_pagination.html"
+    ],
+    "source_template_parse_errors": [],
+    "archive_template_parse_errors": [
+      {
+        "path": "app/templates/redesign/_exec_logs_pagination.html",
+        "error": "Encountered unknown tag 'endif'. Jinja was looking for the following tags: 'endfor'. The innermost block that needs to be closed is 'for'.",
+        "line": 21
+      }
+    ],
+    "templates_checked": 40,
+    "protected_count": 279
+  },
+  "probes": [
+    {
+      "source": "app/templates/redesign/sample.html",
+      "input": "<a href=\"?page={{ p }}&outcome={{ outcome }}{% if keywords.get('task_name') %}&task_name={{ keywords.task_name }}{% endif %}\">x</a>",
+      "output": "<a href=\"https://example.test/repo/tree/testref/app/templates/redesign'task_name') %}&task_name={{ keywords.task_name }}{% endif %}\">x</a>",
+      "rewrite_count": 1,
+      "checker_target": "app/templates/redesign"
+    },
+    {
+      "source": "doc/index.html",
+      "input": "<a href=\"?page=2\">x</a>",
+      "output": "<a href=\"https://example.test/repo/tree/testref/doc\">x</a>",
+      "rewrite_count": 1,
+      "checker_target": "doc"
+    },
+    {
+      "source": "doc/index.html",
+      "input": "<a href=\"#here\">x</a>",
+      "output": "<a href=\"#here\">x</a>",
+      "rewrite_count": 0,
+      "checker_target": null
+    },
+    {
+      "source": "doc/index.html",
+      "input": "<a href=\"hidden.html#here\">x</a>",
+      "output": "<a href=\"https://example.test/repo/blob/testref/doc/hidden.html#here\">x</a>",
+      "rewrite_count": 1,
+      "checker_target": "doc/hidden.html"
+    },
+    {
+      "source": "doc/index.html",
+      "input": "<a href=\"retained.html\">x</a>",
+      "output": "<a href=\"retained.html\">x</a>",
+      "rewrite_count": 0,
+      "checker_target": "doc/retained.html"
+    },
+    {
+      "source": "doc/index.html",
+      "input": "<a href=\"a'b.html\">x</a>",
+      "output": "<a href=\"a'b.html\">x</a>",
+      "rewrite_count": 0,
+      "checker_target": "doc/a'b.html"
+    }
+  ],
+  "valid_query_archive_checker": {
+    "returncode": 1,
+    "stderr": "ERROR: broken package-local link: README.md -> ?view=compact\nERROR: broken package-local link: doc/index.html -> ?page=2\nrelease asset check failed: 2 error(s)\n",
+    "fixture_files": [
+      "README.md",
+      "INSTALL.md",
+      "LICENSE",
+      "RELEASE_NOTES.md",
+      "manage.py",
+      "requirements.txt",
+      "doc/index.html"
+    ]
+  },
+  "doc_corpus": {
+    "selected_doc_html_count": 9,
+    "query_only_links_found": 0,
+    "opposite_quote_attribute_links_found": 0
+  }
+}

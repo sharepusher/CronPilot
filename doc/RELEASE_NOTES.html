@@ -47,6 +47,7 @@
 <h2 id="v4-2-0">[4.2.0] — Pending release · Editing Integrity and Reliable Status Changes</h2>
 <p>This version is a release candidate. The latest published version remains 4.1.1; the release date will be recorded after publication.</p>
 <h3>What changed</h3>
+<ul><li>Public installation packages now preserve runtime files byte-for-byte, including Jinja templates; documentation-only link rewriting and valid current-document query links are covered by archive-level regression tests.</li></ul>
 <ul>
 <li>Task edits detect stale-form conflicts, preserve unrelated concurrent changes, and avoid database, relationship, log, and scheduler writes for unchanged submissions. Changes that do not affect scheduling leave the scheduler job intact.</li>
 <li>Task status pages submit explicit pause/resume targets. Scheduling conflicts and uncertain application results use the existing error fields; successful synchronous scheduler calls need no additional JobStore confirmation query. A success-log failure no longer reverses a completed status change.</li>

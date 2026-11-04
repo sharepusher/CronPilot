@@ -14,7 +14,6 @@ import tarfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
-
 MARKDOWN_LINK_RE = re.compile(r"!??\[[^\]]*\]\((?P<url>[^)]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*['\"](?P<url>[^'\"]+)['\"]", re.IGNORECASE)
 DOC_SUFFIXES = {".md", ".html", ".htm"}
@@ -35,6 +34,7 @@ def normalize_target(source: str, url: str) -> str | None:
     parsed = urlsplit(clean)
     if (
         not clean
+        or not parsed.path
         or clean.startswith("#")
         or clean.startswith("/")
         or clean.startswith("//")
@@ -113,7 +113,7 @@ def main() -> int:
         except UnicodeDecodeError:
             errors.append(f"documentation file is not UTF-8: {path}")
             continue
-        pattern = MARKDOWN_LINK_RE if path.endswith(".md") else HTML_LINK_RE
+        pattern = MARKDOWN_LINK_RE if Path(path).suffix.lower() == '.md' else HTML_LINK_RE
         for match in pattern.finditer(text):
             target = normalize_target(path, match.group("url"))
             if target is not None and target not in files:

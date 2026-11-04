@@ -1,5 +1,8 @@
 import hashlib
+import html
 import importlib.util
+import json
+import re
 import shutil
 import subprocess
 import sys
@@ -7,6 +10,10 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
+
+from jinja2 import Environment
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTRACTOR_SPEC = importlib.util.spec_from_file_location(
@@ -99,6 +106,107 @@ class ReleaseAssetTest(unittest.TestCase):
             text=True,
         )
         self.assertEqual(0, result.returncode, result.stderr)
+
+    def commit_files(self, files):
+        manifest = self.repo / 'release/package-manifest.txt'
+        for relative, content in files.items():
+            path = self.repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content if isinstance(content, bytes) else content.encode())
+        with manifest.open('a') as handle:
+            handle.write(''.join(path + '\n' for path in files))
+        subprocess.run(['git', 'add', '.'], cwd=self.repo, check=True)
+        subprocess.run(['git', 'commit', '-qm', 'extended fixture'], cwd=self.repo, check=True)
+
+    def check_archive(self, archive):
+        return subprocess.run(
+            [sys.executable, 'scripts/check_release_asset.py', '--archive', str(archive),
+             '--version', '4.1.0'],
+            cwd=self.repo, capture_output=True, text=True, check=False,
+        )
+
+    def test_runtime_files_preserve_git_bytes_and_pagination_renders(self):
+        template_path = 'app/templates/redesign/_exec_logs_pagination.html'
+        files = {template_path: (ROOT / template_path).read_bytes()}
+        # Independent fixture expectations, not the builder's classification helper.
+        for path in ('app/templates/runtime.html', 'frontend/index.html',
+                     'frontend/README.md', 'scripts/help.html', 'scripts/README.md',
+                     'datas/runtime.html', 'docs/runtime.html', 'doc-example/runtime.htm',
+                     'runtime.html', 'doc/runtime.py'):
+            files[path] = b'<a href="?page=2">unchanged</a>\n'
+        self.commit_files(files)
+        archive = self.build('runtime.tar.gz')
+        with tarfile.open(archive) as tar:
+            for path in files:
+                expected = subprocess.check_output(
+                    ['git', 'show', 'HEAD:' + path], cwd=self.repo)
+                self.assertEqual(tar.extractfile('cronpilot-4.1.0/' + path).read(), expected, path)
+            template = Environment(autoescape=True).from_string(
+                tar.extractfile('cronpilot-4.1.0/' + template_path).read().decode())
+        report = json.loads(Path(str(archive) + '.build.json').read_text())
+        self.assertTrue(all(item['source_path'] not in files for item in report['link_rewrites']))
+        for total, pages, page in ((0, 0, 1), (1, 1, 1), (25, 3, 2)):
+            with self.subTest(total=total):
+                page_data = SimpleNamespace(
+                    total=total, pages=pages, page=page, has_prev=page > 1,
+                    has_next=page < pages, prev_num=page - 1, next_num=page + 1,
+                    iter_pages=lambda **kwargs: range(1, pages + 1),
+                )
+                rendered = template.render(
+                    page_data=page_data, outcome='fail', keywords={'task_name': "O'Reilly"})
+                links = re.findall(r'href="([^"]+)"', rendered)
+                if pages <= 1:
+                    self.assertEqual(links, [])
+                else:
+                    self.assertEqual(len(links), 5)
+                    self.assertEqual(
+                        [parse_qs(urlsplit(html.unescape(link)).query)['page'][0]
+                         for link in links], ['1', '1', '2', '3', '3'])
+                for link in links:
+                    self.assertTrue(link.startswith('?page='), link)
+                    params = parse_qs(urlsplit(html.unescape(link)).query)
+                    self.assertEqual(params['outcome'], ['fail'])
+                    self.assertEqual(params['task_name'], ["O'Reilly"])
+
+    def test_runtime_html_is_preserved_before_utf8_decoding(self):
+        self.commit_files({'frontend/binary.html': b'\xff\x00\xfe'})
+        with tarfile.open(self.build('binary.tar.gz')) as tar:
+            self.assertEqual(tar.extractfile('cronpilot-4.1.0/frontend/binary.html').read(),
+                             b'\xff\x00\xfe')
+
+    def test_document_queries_survive_build_and_independent_validation(self):
+        readme = (self.repo / 'README.md').read_text() + '[self](?view=compact#top)\n'
+        self.commit_files({
+            'README.md': readme,
+            'GUIDE.MD': '[hidden](doc/hidden.md)\n',
+            'doc/index.html': (
+                '<a href="?page=2&amp;mode=compact#rows">query</a>'
+                '<a href="#rows">anchor</a><a href="">empty</a>'
+                '<a href="retained.html">local</a>'
+                '<a href="hidden.md#part">hidden</a>'
+                '<a href="https://example.invalid/">external</a>'),
+            'doc/retained.html': '<p id="rows">retained</p>',
+        })
+        archive = self.build('queries.tar.gz')
+        with tarfile.open(archive) as tar:
+            index = tar.extractfile('cronpilot-4.1.0/doc/index.html').read().decode()
+            self.assertIn('href="?page=2&amp;mode=compact#rows"', index)
+            for value in ('#rows', '', 'retained.html', 'https://example.invalid/'):
+                self.assertIn('href="' + value + '"', index)
+            self.assertIn('/doc/hidden.md#part', index)
+            self.assertIn('https://github.com/sharepusher/CronPilot/blob/', index)
+            self.assertIn('[self](?view=compact#top)',
+                          tar.extractfile('cronpilot-4.1.0/README.md').read().decode())
+            self.assertIn('https://github.com/sharepusher/CronPilot/blob/',
+                          tar.extractfile('cronpilot-4.1.0/GUIDE.MD').read().decode())
+        result = self.check_archive(archive)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_independent_validator_still_rejects_missing_document(self):
+        self.commit_files({'README.md': '[missing](does-not-exist.md)\n'})
+        result = self.check_archive(self.build('missing.tar.gz'))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('broken package-local link: README.md -> does-not-exist.md', result.stderr)
 
 
 class ReleaseWorkflowTest(unittest.TestCase):

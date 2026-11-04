@@ -15,6 +15,8 @@ This version is a release candidate. The latest published version remains 4.1.1;
 
 ### What changed
 
+* Public installation packages now preserve runtime files byte-for-byte, including Jinja templates; documentation-only link rewriting and valid current-document query links are covered by archive-level regression tests.
+
 * Task edits detect stale-form conflicts, preserve unrelated concurrent changes, and avoid database, relationship, log, and scheduler writes for unchanged submissions. Changes that do not affect scheduling leave the scheduler job intact.
 * Task status pages submit explicit pause/resume targets. Scheduling conflicts and uncertain application results use the existing error fields; successful synchronous scheduler calls need no additional JobStore confirmation query. A success-log failure no longer reverses a completed status change.
 * ⚠️ API Breaking Change: `/api/cron/status` adds the optional `X-Cron-Status-Retry` response/request header for signed retries following a confirmed database commit. Existing JSON fields and ordinary requests remain compatible. Repeating an ordinary same-target request does not verify scheduler state.

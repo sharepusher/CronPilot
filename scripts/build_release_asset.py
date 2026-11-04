@@ -17,7 +17,6 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, unquote, urlsplit
 
-
 MARKDOWN_LINK_RE = re.compile(r"(?P<prefix>!??\[[^\]]*\]\()(?P<url>[^)]+)(?P<suffix>\))")
 HTML_LINK_RE = re.compile(
     r"(?P<prefix>\b(?:href|src)\s*=\s*['\"])(?P<url>[^'\"]+)(?P<suffix>['\"])",
@@ -89,6 +88,8 @@ def resolved_repo_target(source_path: str, url: str) -> str | None:
     if not clean or clean.startswith("#") or is_external(clean) or clean.startswith("/"):
         return None
     parsed = urlsplit(clean)
+    if not parsed.path:
+        return None
     target = PurePosixPath(source_path).parent / unquote(parsed.path)
     parts: list[str] = []
     for part in target.parts:
@@ -119,10 +120,17 @@ def rewrite_links(
     repository_url: str,
     public_ref: str,
 ) -> tuple[bytes, list[dict[str, str]]]:
-    if Path(source_path).suffix.lower() not in DOC_SUFFIXES:
+    path = PurePosixPath(source_path)
+    suffix = path.suffix.lower()
+    if suffix not in DOC_SUFFIXES:
+        return data, []
+    # Runtime HTML/Markdown is program input, not release documentation.
+    # Preserve it before decoding or applying any link transformation.
+    root_markdown = len(path.parts) == 1 and suffix == '.md'
+    if not root_markdown and path.parts[0] != 'doc':
         return data, []
     text = data.decode("utf-8")
-    pattern = MARKDOWN_LINK_RE if source_path.endswith(".md") else HTML_LINK_RE
+    pattern = MARKDOWN_LINK_RE if suffix == '.md' else HTML_LINK_RE
     rewrites: list[dict[str, str]] = []
 
     def replace(match: re.Match[str]) -> str:

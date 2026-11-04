@@ -4,9 +4,11 @@
 
 # 发布包运行时模板字节保护修复设计
 
-2026-11-04 · v2 · 分析复核完成，仍待用户确认，未修改实现 · 阻断 v4.2.0 发布 · [Before/After 页面行为对比](#page-compare)
+2026-11-04 · v3 · 用户已明确确认实施，B1/B2 完成，B3/B4 验收中 · 阻断 v4.2.0 发布 · [Before/After 页面行为对比](#page-compare)
 
 ## 版本记录
+
+v3（2026-11-04）：用户回复“确认实施”。已按 v2 修改构建器、独立检查器与测试；旧实现 5 项包回归出现 2 失败、1 错误，修复后发布专项 11/11 通过。全量及最终包链路验收进行中，发布仍 blocked。
 
 v2（2026-11-04）：全包原字节及全模板复核；补入独立检查器的 query-only 契约对齐，明确三文件实现范围和分层验收；区分直接证据与路由推断。用户本轮只要求分析，未视为实现确认。
 
@@ -111,7 +113,7 @@ scripts/build\_release\_asset.py、scripts/check\_release\_asset.py、tests/test
 
 [RFC 3986 §5.2.2](https://www.rfc-editor.org/rfc/rfc3986.html#section-5.2.2)：无路径引用沿用基准路径，查询存在时使用新查询，不能把当前文档当父目录。[Jinja 官方 parse API](https://jinja.palletsprojects.com/en/stable/api/#jinja2.Environment.parse)及本机 environment.py:599–626 已核对：parse 产出语法树，不等于完成应用渲染。
 
-## 当前验证结果（未修复）
+## v2 分析时验证结果（历史，修复前）
 
 0e31f8f 业务及 73854ac 归档候选全量 1168 tests / OK / skipped=12；07dddb3 双构建相同、资产检查通过，但该包模板 parse 明确失败。本轮只运行诊断，未编写防护测试或修改实现；v2 的 B1–B4 均未实施。状态清单已改 blocked，不能把源码绿色结果代替包页面验收。
 
@@ -142,6 +144,16 @@ git blame -L 114,147 scripts/build\_release\_asset.py 指向 bed58fdad7aa4771a21
 ## v2 文档验收
 
 .venv-py311/bin/python scripts/html\_docs\_to\_markdown.py --check、scripts/check\_doc\_completeness.py --check、scripts/check\_doc\_links.py --check、scripts/check\_opt\_consistency.py --check，以及 bash scripts/check\_pending\_sync.sh、git diff --check 均退出 0；413 个 HTML 已登记，3156 个引用无 broken。两份诊断脚本在当前未改实现上运行退出 0，query\_probe 的被测 checker 按预期退出 1，不能记成产品验收通过。发布保持 blocked，不代表 v2 已实施或已确认。
+
+## 实施记录与七项修复复盘
+
+1. **Bug 定位：**scripts/build\_release\_asset.py 的 rewrite\_links 把运行时 HTML 当成文档；实际包分页模板与 Git blob 不同、出现未知 endif。check\_release\_asset.py 对合法 query-only 文档链接另有误报。
+2. **根因：**仅凭文件后缀判断可重写对象；正则不理解 Jinja，空 path 被并入父目录；生成端与独立检查端没有同一 URL 语义契约。
+3. **测试漏洞：**原夹具只检查 README 隐藏文档外链和确定性，没有运行时模板、原字节对比或 query-only；空库普通页面不加载该模板，单测与空库黄金路径未覆盖制品渲染。
+4. **修复：**仅根级 Markdown/doc 文档进入重写，其余在解码前原样返回；生成器和 checker 各自识别无 path 链接；后缀大小写识别与格式选择一致。业务模板、权限、模型、工作流未改。
+5. **防护测试：**tests.test\_release\_asset.ReleaseAssetTest 新增 test\_runtime\_files\_preserve\_git\_bytes\_and\_pagination\_renders、test\_runtime\_html\_is\_preserved\_before\_utf8\_decoding、test\_document\_queries\_survive\_build\_and\_independent\_validation、test\_independent\_validator\_still\_rejects\_missing\_document。分别断言 Git 字节、零/单/多页筛选、解码前保护、合法查询及真正断链拒绝。旧实现 2 fail/1 error，修复后全部 11 项通过（4.250s）。
+6. **同类排查：**既有失败包 279 个非文档成员仅一处不同；40 源模板均可解析，失败包仅该模板报错。正式候选还须全包逐字节对比和真实 GET/AJAX，而非只回测这个模板。
+7. **预防方案：**已在 tests/test\_release\_asset.py 落实独立 Git fixture 原字节、真实模板和 builder→checker 正反用例门禁；运行 .venv-py311/bin/python -m unittest tests.test\_release\_asset -v 可重现。最终包另验证独立数据库下有/无记录 GET/AJAX 与多页交互，验收结果归档至 doc/qa/evidence/release-runtime-template-fix-2026-11-04/。
 
 ## v1 文档验收记录（历史）
 

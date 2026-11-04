@@ -31,6 +31,7 @@ This version is a release candidate. The latest published version remains 4.1.1;
 - RBAC account changes capture stable values before commit for cache invalidation, independent audit parameters, and responses. Successful changes no longer depend on refreshing expired user objects. Requests started after a committed permission reduction use the new authorization state; already authorized concurrent operations may finish.
 - Verification tools use isolated fixtures, refuse occupied MySQL schemas, and check lock release before request cleanup. Terminology checks distinguish exact technical identifiers and frozen diagnostic fields; the task-edit baseline tool checks the current editing contracts.
 - Documentation screenshots use content-addressed paths with preserved-byte migration mappings. Public installation packages exclude historical screenshots and test evidence.
+- Manual release instructions isolate strict Bash options in a subshell, so a failed prerequisite does not close the caller's terminal. See the [release finalization and operational post-mortem](design/v4.2.0-release-finalization-2026-11-04.html).
 
 ### Why
 
@@ -39,7 +40,7 @@ This version is a release candidate. The latest published version remains 4.1.1;
 
 ### Validation
 
-- Finalization checks are in progress against committed code `0e31f8f`. Final candidate acceptance and package provenance remain pending until the version archive is committed. Historical verification results remain in their linked evidence and are not presented as final-candidate results.
+- Final candidate regression: 1,168 tests run, 0 failures, 12 skipped (453.150 seconds). Route smoke: 86/86 passed. A clean extracted package installed its pinned core dependencies and passed double restart, POST login, API, documentation, task-list, and isolated-empty-database checks. Ruff, documentation, terminology, and image-governance gates passed. MySQL, Docker, and Python 3.8–3.10 were not rerun in this finalization; earlier evidence retains its original scope.
 
 ### Compatibility & Risk
 

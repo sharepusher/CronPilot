@@ -57,11 +57,12 @@
 <li>RBAC account changes capture stable values before commit for cache invalidation, independent audit parameters, and responses. Successful changes no longer depend on refreshing expired user objects. Requests started after a committed permission reduction use the new authorization state; already authorized concurrent operations may finish.</li>
 <li>Verification tools use isolated fixtures, refuse occupied MySQL schemas, and check lock release before request cleanup. Terminology checks distinguish exact technical identifiers and frozen diagnostic fields; the task-edit baseline tool checks the current editing contracts.</li>
 <li>Documentation screenshots use content-addressed paths with preserved-byte migration mappings. Public installation packages exclude historical screenshots and test evidence.</li>
+<li>Manual release instructions isolate strict Bash options in a subshell, so a failed prerequisite does not close the caller's terminal. See the <a href="design/v4.2.0-release-finalization-2026-11-04.html">release finalization and operational post-mortem</a>.</li>
 </ul>
 <h3>Why</h3>
 <ul><li>Preserve editing intent, prevent stale forms from overwriting unrelated changes, and make scheduling outcomes explicit when database and scheduler work cannot be confirmed together.</li><li>Keep post-commit cache and response handling independent of ORM refresh queries, and make release verification reproducible without touching deployment data.</li></ul>
 <h3>Validation</h3>
-<ul><li>Finalization checks are in progress against committed code <code>0e31f8f</code>. Final candidate acceptance and package provenance remain pending until the version archive is committed. Historical verification results remain in their linked evidence and are not presented as final-candidate results.</li></ul>
+<ul><li>Final candidate regression: 1,168 tests run, 0 failures, 12 skipped (453.150 seconds). Route smoke: 86/86 passed. A clean extracted package installed its pinned core dependencies and passed double restart, POST login, API, documentation, task-list, and isolated-empty-database checks. Ruff, documentation, terminology, and image-governance gates passed. MySQL, Docker, and Python 3.8–3.10 were not rerun in this finalization; earlier evidence retains its original scope.</li></ul>
 <h3>Compatibility &amp; Risk</h3>
 <ul>
 <li>Back up the business and execution-log databases, then run the standard startup migration before serving requests. The migration adds <code>cron_infos.edit_revision</code>; existing task-edit pages must be reloaded. Old user-edit pages also require a refresh because their signed baseline now includes editable scope.</li>

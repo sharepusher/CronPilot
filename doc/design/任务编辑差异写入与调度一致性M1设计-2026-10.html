@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>任务编辑差异写入与调度一致性 M1 设计</title>
 <style>body{font-family:system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px;line-height:1.75;color:#1e293b}h2{border-bottom:1px solid #cbd5e1;margin-top:2rem}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:.6rem;text-align:left;vertical-align:top}code,pre{background:#f1f5f9}pre{padding:1rem;white-space:pre-wrap}.note,.risk{padding:1rem;border-left:4px solid #2563eb;background:#eff6ff}.risk{border-color:#b45309;background:#fffbeb}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{border:1px solid #cbd5e1;border-radius:8px;padding:18px}.field{border:1px solid #cbd5e1;padding:8px;margin:8px 0}.notice{padding:10px;background:#f1f5f9}button{padding:8px;margin:5px} @media(max-width:760px){.compare{grid-template-columns:1fr}}</style></head><body><main>
-<h1>任务编辑差异写入与调度一致性 M1 设计</h1>
+<h1>任务编辑差异写入与调度一致性 M1 设计</h1><p><strong>2026-11-03 后续：</strong>术语门禁及旧基线工具两项已按确认设计修复，见<a href="../design/terminology-baseline-repair-2026-11-03.html">最新专项验收与发布边界</a>。本文原测试记录保留为历史观察；旧基线入口现默认验证六项 current_contract，原缺陷实验已归档。其他发布阻断不因这两项完成而关闭。</p>
 <p>版本：rev.1 · 日期：2026-10-29 · 状态：<strong>设计待 Review；未授权实施</strong> · 范围：任务编辑及其共享写入、操作日志与调度应用边界</p>
 <div class="note"><strong>当前决策（2026-10-29）：用户要求五项问题逐项独立设计。本文保留为综合分析背景，不作为整包实施授权；先评审<a href="任务编辑无变更保存零副作用独立设计-2026-10.html">第 1 项：无变更保存零副作用独立设计</a>。</strong>本设计基于五项已复现问题。M1-0 的隔离风险基线已完成；本文完成设计初稿，尚不等于 M1-0 全部验收。M1-3 涉及持久化调度恢复，必须先完成真实 JobStore、部署拓扑、全部修改入口和双后端迁移的机制校准。</div>
 <h2>版本变更记录</h2><table><tr><th>版本</th><th>日期</th><th>内容</th></tr><tr><td>rev.1</td><td>2026-10-29</td><td>逐项评估五项复现的证据强度与影响；制定差异集、三方比较、同事务配置日志、暂停注册和持久化调度恢复方案；定义分批门禁、页面对比与验收矩阵。</td></tr></table>
@@ -76,7 +76,7 @@
 <h3>6.3 应用所有权与并发</h3>
 <p>generation 条件写回只能防止旧操作伪报 READY，不能阻止旧操作实际覆盖 JobStore。因此不能仅写“加版本号和 Redis TTL 锁即可”。本设计推荐首期由唯一的调度所有者顺序处理应用队列，Web/API 只提交期望，既有直接 scheduler 写者逐项迁移。所有者选择、部署启动校验和接管必须可执行验证；旧实例确认停止后才接管，不以租约超时即证明旧实例已停止。</p>
 <p>若当前多进程/多主机拓扑无法强制唯一所有者，则 M1-3 暂不具备上线条件，须先在 P0-C C-0 冻结跨进程 fencing 与 JobStore 访问约束；禁止以进程内 mutex 或现有两分钟无续租执行锁冒充分布式写保护。无需在 M1-1/2 一开始就为尚未确认的规模引入新锁基础设施。</p>
-<p>应用者以最新 generation 构建 job，暂停直接 None；应用后读取 job 的 trigger/入口/参数/目标状态核对，再条件写回 applied_generation 和 READY。对账发现新 generation 时继续处理最新期望，旧回调不能覆盖新状态。进程崩溃后从持久化 PENDING/FAILED 恢复。实际 job 已存在但 trigger 陈旧也要恢复，不只处理缺失 job。</p>
+<p>应用者以最新 generation 构建 job，暂停直接 None；应用后读取 job 的 trigger/入口/参数/目标状态核对，再条件写回 applied_generation 和 READY。对账发现新 generation 时继续处理最新期望，旧应用尝试不能覆盖新状态。进程崩溃后从持久化 PENDING/FAILED 恢复。实际 job 已存在但 trigger 陈旧也要恢复，不只处理缺失 job。</p>
 <p>APScheduler 单独持久化并非跨库原子事务。尚未收敛的窗口内旧 trigger 可能仍触发；若产品要求“保存后绝不按旧计划触发”，需要执行侧 generation 检查并协调提交栅栏，作为 P0-C 的额外强保证，当前方案不冒称已经提供。执行开始后或 HTTP 已发出不能撤销。</p>
 <h3>6.4 失败阶段与准确响应</h3>
 <table><tr><th>故障</th><th>事实与处理</th></tr>

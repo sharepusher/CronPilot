@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-04",
+  "entries": [
+    {
+      "legacy_path": "doc/qa/evidence/cron-status-d2-2026-11-02/mysql/retry-success.png",
+      "sha256": "e54fefb80f9cf1ac005172cf71e34836ca5757efb2c9e1ccba16ee886749bfa6",
+      "canonical_path": "doc/assets/screenshots/e54fefb80f9cf1ac005172cf71e34836ca5757efb2c9e1ccba16ee886749bfa6.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; isolated D1 fixture; PNG contains no metadata chunks",
+      "consumers": "no active file reference found; paths remain in frozen inventory as historical evidence"
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-status-d2-2026-11-02/mysql/retry-visible.png",
+      "sha256": "80e610c308bf06101adc99a5e5a9ebb121094a66dac9b7ba97eb05c502dd9f6d",
+      "canonical_path": "doc/assets/screenshots/80e610c308bf06101adc99a5e5a9ebb121094a66dac9b7ba97eb05c502dd9f6d.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; isolated D1 fixture; PNG contains no metadata chunks",
+      "consumers": "no active file reference found; paths remain in frozen inventory as historical evidence"
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-status-d2-2026-11-02/sqlite/retry-success.png",
+      "sha256": "29c15461444708b548ff95c5826b549a3ccb60181be6645b27f783ef903d32da",
+      "canonical_path": "doc/assets/screenshots/29c15461444708b548ff95c5826b549a3ccb60181be6645b27f783ef903d32da.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; isolated D1 fixture; PNG contains no metadata chunks",
+      "consumers": "no active file reference found; paths remain in frozen inventory as historical evidence"
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-status-d2-2026-11-02/sqlite/retry-visible.png",
+      "sha256": "8481d04ae17d1b55f3601d4745470f90ce835e1ffd69331cb57eea401d0e1058",
+      "canonical_path": "doc/assets/screenshots/8481d04ae17d1b55f3601d4745470f90ce835e1ffd69331cb57eea401d0e1058.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; isolated D1 fixture; PNG contains no metadata chunks",
+      "consumers": "no active file reference found; paths remain in frozen inventory as historical evidence"
+    }
+  ]
+}

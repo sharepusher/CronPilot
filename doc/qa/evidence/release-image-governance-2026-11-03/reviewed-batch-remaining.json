@@ -1,0 +1,1275 @@
+{
+  "date": "2026-11-04",
+  "review_method": "contact sheets and local OCR, flagged images separately inspected; no claim of perfect detection",
+  "entries": [
+    {
+      "legacy_path": "doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-outside-scope.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-outside-scope.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-timeout-noop.png",
+      "sha256": "5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9",
+      "canonical_path": "doc/assets/screenshots/5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-timeout-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-outside-scope.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-outside-scope.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-timeout-noop.png",
+      "sha256": "5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9",
+      "canonical_path": "doc/assets/screenshots/5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-timeout-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/already_applied.png",
+      "sha256": "2f926570340a7c0ff022357daacebbcbe25fbdbc1c4a90d284a3cf14b0db9c38",
+      "canonical_path": "doc/assets/screenshots/2f926570340a7c0ff022357daacebbcbe25fbdbc1c4a90d284a3cf14b0db9c38.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/already_applied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save.png",
+      "sha256": "64d828c7386b6825a65dc390cfb6720a1de4bbdb80e1120d5984a48a172d9ded",
+      "canonical_path": "doc/assets/screenshots/64d828c7386b6825a65dc390cfb6720a1de4bbdb80e1120d5984a48a172d9ded.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server-modal.png",
+      "sha256": "7b8a8b57f983fa63a7cb374f0eb7bb208ec241f50a2b5ede36c93922ab446f57",
+      "canonical_path": "doc/assets/screenshots/7b8a8b57f983fa63a7cb374f0eb7bb208ec241f50a2b5ede36c93922ab446f57.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server-modal.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server.png",
+      "sha256": "50a01e19f7e7117683c1d1987709fe2ebaa1bc9ae4ab80f21715c666b04182d2",
+      "canonical_path": "doc/assets/screenshots/50a01e19f7e7117683c1d1987709fe2ebaa1bc9ae4ab80f21715c666b04182d2.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/conflict.png",
+      "sha256": "47c518c346560d047a63e786dcac33e524c33a2ab7c907dc364c2279d895c7cc",
+      "canonical_path": "doc/assets/screenshots/47c518c346560d047a63e786dcac33e524c33a2ab7c907dc364c2279d895c7cc.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/csrf_denied.png",
+      "sha256": "6163f39cda284f03eee3644f11e37bf4ae95969cd487cf52fb2e4af53c887990",
+      "canonical_path": "doc/assets/screenshots/6163f39cda284f03eee3644f11e37bf4ae95969cd487cf52fb2e4af53c887990.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/csrf_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/failed_field.png",
+      "sha256": "44b13ea88e5617d43a8a9a7c9975cdd5d8682f219e5935feae4be508e88e402e",
+      "canonical_path": "doc/assets/screenshots/44b13ea88e5617d43a8a9a7c9975cdd5d8682f219e5935feae4be508e88e402e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/failed_field.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/failed_flush.png",
+      "sha256": "d403a7addab718f9d3d9bd430cc62208bc1ecd66d5d3299700a982b812f87d92",
+      "canonical_path": "doc/assets/screenshots/d403a7addab718f9d3d9bd430cc62208bc1ecd66d5d3299700a982b812f87d92.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/failed_flush.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/global_no_change.png",
+      "sha256": "648339ddd95c9aecc6d20b0793e2b56853cc1b8454421694f1355ba942995c21",
+      "canonical_path": "doc/assets/screenshots/648339ddd95c9aecc6d20b0793e2b56853cc1b8454421694f1355ba942995c21.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/global_no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/global_updated.png",
+      "sha256": "5b01cf01dac815fdfd8ef082f39c1ec850fe9b4cc429eb1541eeeac929d837aa",
+      "canonical_path": "doc/assets/screenshots/5b01cf01dac815fdfd8ef082f39c1ec850fe9b4cc429eb1541eeeac929d837aa.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/global_updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_already_applied.png",
+      "sha256": "64e9fe7e1f54179800f2d55603f911e221cd039ebecf906ea243e45d6a5181be",
+      "canonical_path": "doc/assets/screenshots/64e9fe7e1f54179800f2d55603f911e221cd039ebecf906ea243e45d6a5181be.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_already_applied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm.png",
+      "sha256": "1b4b2c9d7a9a8c71e299fbf27f4186a15d67922b930b3698cdb7282ebf7a6778",
+      "canonical_path": "doc/assets/screenshots/1b4b2c9d7a9a8c71e299fbf27f4186a15d67922b930b3698cdb7282ebf7a6778.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_conflict.png",
+      "sha256": "9c2a369fae311a320c7c7aee7fdfd5fb50d60f5d19804530fce4e50bd9aa7f5b",
+      "canonical_path": "doc/assets/screenshots/9c2a369fae311a320c7c7aee7fdfd5fb50d60f5d19804530fce4e50bd9aa7f5b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_failed.png",
+      "sha256": "271abc1aa30ca1a1c0f85575c363af0851173d98585f1a773a009a91e77d89cc",
+      "canonical_path": "doc/assets/screenshots/271abc1aa30ca1a1c0f85575c363af0851173d98585f1a773a009a91e77d89cc.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_failed.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_no_change.png",
+      "sha256": "d6dc8f21a98ffdf8334d488379fab97d1673991f1cb5009cc748a2dac4f835bc",
+      "canonical_path": "doc/assets/screenshots/d6dc8f21a98ffdf8334d488379fab97d1673991f1cb5009cc748a2dac4f835bc.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_after.png",
+      "sha256": "0b9e6603382381b5e9e98ecbaf2d51c58c678d8948b6a444f689d7a3761302f2",
+      "canonical_path": "doc/assets/screenshots/0b9e6603382381b5e9e98ecbaf2d51c58c678d8948b6a444f689d7a3761302f2.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_after.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_before.png",
+      "sha256": "38aab584bbade67479513bb3e46c406f12ea2bcec658104cf09ebfa0d0e304e8",
+      "canonical_path": "doc/assets/screenshots/38aab584bbade67479513bb3e46c406f12ea2bcec658104cf09ebfa0d0e304e8.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_before.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_updated.png",
+      "sha256": "81f24aa7b4ee667ad31e7560e68d0fc79b569d2652cb30cb2fff3b667a92383c",
+      "canonical_path": "doc/assets/screenshots/81f24aa7b4ee667ad31e7560e68d0fc79b569d2652cb30cb2fff3b667a92383c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/no_change.png",
+      "sha256": "b2afcf28377a9fcd5cd852fbdef68a68016c7c72e5a1fd4813692ec931a74b85",
+      "canonical_path": "doc/assets/screenshots/b2afcf28377a9fcd5cd852fbdef68a68016c7c72e5a1fd4813692ec931a74b85.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/no_change_server.png",
+      "sha256": "d7c6c5219ba0840d51b742c406322c495b3552e5325f32d259bbde73009c4acb",
+      "canonical_path": "doc/assets/screenshots/d7c6c5219ba0840d51b742c406322c495b3552e5325f32d259bbde73009c4acb.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/no_change_server.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/operator_denied.png",
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/operator_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/recovery.png",
+      "sha256": "f4b276cf8b12536654c3cecf4595c86caf0645f449e4d299d53d61ca7eec9570",
+      "canonical_path": "doc/assets/screenshots/f4b276cf8b12536654c3cecf4595c86caf0645f449e4d299d53d61ca7eec9570.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/recovery.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/scope_denied.png",
+      "sha256": "f1453590617be31d8d36eb9d9124d835f8c4ea15f192a385b8d534687e210ef4",
+      "canonical_path": "doc/assets/screenshots/f1453590617be31d8d36eb9d9124d835f8c4ea15f192a385b8d534687e210ef4.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/scope_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after_auth.png",
+      "sha256": "516ba2d09afb4e3a34676d7989379c6cd66649c4370e87777f75d97bdc9d8414",
+      "canonical_path": "doc/assets/screenshots/516ba2d09afb4e3a34676d7989379c6cd66649c4370e87777f75d97bdc9d8414.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after_auth.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_before.png",
+      "sha256": "b14407c395011d7cac361d24d0af2504c5e7eaf9fe54436976d3103eb05c3ce6",
+      "canonical_path": "doc/assets/screenshots/b14407c395011d7cac361d24d0af2504c5e7eaf9fe54436976d3103eb05c3ce6.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_before.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/updated.png",
+      "sha256": "40fbcb8ec80650ad796a89c223c3eedaa6ea8cbf5e6109003b02c1c4de8c7414",
+      "canonical_path": "doc/assets/screenshots/40fbcb8ec80650ad796a89c223c3eedaa6ea8cbf5e6109003b02c1c4de8c7414.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/viewer_denied.png",
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/viewer_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/global-conflict.png",
+      "sha256": "bfd067e4c25ad3a8b269a4a89dc1c9cf5d4e32184e79cb8e96350b6a353e41b7",
+      "canonical_path": "doc/assets/screenshots/bfd067e4c25ad3a8b269a4a89dc1c9cf5d4e32184e79cb8e96350b6a353e41b7.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/global-invalid-token.png",
+      "sha256": "20bc7d5fb2e70c887afabe88143939730472d19016870648e60aac1bb97914ce",
+      "canonical_path": "doc/assets/screenshots/20bc7d5fb2e70c887afabe88143939730472d19016870648e60aac1bb97914ce.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-invalid-token.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/global-native-t0.png",
+      "sha256": "08b67f820bdcde96aa1cda2fa2707592f80f7dd78629be85000c54b7d0d55f3e",
+      "canonical_path": "doc/assets/screenshots/08b67f820bdcde96aa1cda2fa2707592f80f7dd78629be85000c54b7d0d55f3e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-native-t0.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/js-modal.png",
+      "sha256": "9d52405dbc0ebe1d539e513750dc6a590917b9045e86a282326d89388046f0ec",
+      "canonical_path": "doc/assets/screenshots/9d52405dbc0ebe1d539e513750dc6a590917b9045e86a282326d89388046f0ec.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/js-modal.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/js-restored-conflict.png",
+      "sha256": "c2f5707293ac1877d128f1cc8b9a7ce1ed90d2c478fb827d807e355f8cfed2cd",
+      "canonical_path": "doc/assets/screenshots/c2f5707293ac1877d128f1cc8b9a7ce1ed90d2c478fb827d807e355f8cfed2cd.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/js-restored-conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/operator-403.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/operator-403.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/restore-before-click.png",
+      "sha256": "3f855ad1055dd36bc3639ec6f143c69c5a18e4c58413c12561f3e842b94153ba",
+      "canonical_path": "doc/assets/screenshots/3f855ad1055dd36bc3639ec6f143c69c5a18e4c58413c12561f3e842b94153ba.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/restore-before-click.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/scoped-conflict.png",
+      "sha256": "0cb3d0297d12402f3d00472c413cfd7b4c61c412435257b46145871f64b683d7",
+      "canonical_path": "doc/assets/screenshots/0cb3d0297d12402f3d00472c413cfd7b4c61c412435257b46145871f64b683d7.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/scoped-invalid-token.png",
+      "sha256": "c0f984a33392019d4c92dfbcf5b0440a59bcd0934235cdc8de466f423a489500",
+      "canonical_path": "doc/assets/screenshots/c0f984a33392019d4c92dfbcf5b0440a59bcd0934235cdc8de466f423a489500.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-invalid-token.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/scoped-native-t0.png",
+      "sha256": "b340fb7ca8addd2ba0b2f5fcd7c7957df6f33b3d6194f0b3729b5463f550795e",
+      "canonical_path": "doc/assets/screenshots/b340fb7ca8addd2ba0b2f5fcd7c7957df6f33b3d6194f0b3729b5463f550795e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-native-t0.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/scoped-outside-denied.png",
+      "sha256": "4151686a8c605a6653c4456d2615673865e8c96f75a7f6011b566281c178707a",
+      "canonical_path": "doc/assets/screenshots/4151686a8c605a6653c4456d2615673865e8c96f75a7f6011b566281c178707a.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-outside-denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p1-2026-10-29/target-403.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/target-403.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/empty-selection-rejected.png",
+      "sha256": "dc2e0f0ed06b6f2ebaafdd943d489334e70fda94228fb5e9832b023de83832ef",
+      "canonical_path": "doc/assets/screenshots/dc2e0f0ed06b6f2ebaafdd943d489334e70fda94228fb5e9832b023de83832ef.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/empty-selection-rejected.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/global-audit-fallback.png",
+      "sha256": "f3abc018db7ee4cbcb0be2d64f72e55e5b2d7d3d6ba64804963537ae2b00b261",
+      "canonical_path": "doc/assets/screenshots/f3abc018db7ee4cbcb0be2d64f72e55e5b2d7d3d6ba64804963537ae2b00b261.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/global-audit-fallback.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/multi-audit-fallback.png",
+      "sha256": "7868eb93ee067c71cf78075703ecf5f6e43561ed51f53952e319cdded5dcae0b",
+      "canonical_path": "doc/assets/screenshots/7868eb93ee067c71cf78075703ecf5f6e43561ed51f53952e319cdded5dcae0b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/multi-audit-fallback.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/operator-403.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/operator-403.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/scoped-global-denied.png",
+      "sha256": "cac650d0a31bcf761c69020c6fc24b789b392487b53b072d86f7b5e31957964f",
+      "canonical_path": "doc/assets/screenshots/cac650d0a31bcf761c69020c6fc24b789b392487b53b072d86f7b5e31957964f.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/scoped-global-denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/single-audit-fallback.png",
+      "sha256": "88ddea8d468eec195f914c44307a3ffec146ad4db4f5231b409a2b759c2e3bd7",
+      "canonical_path": "doc/assets/screenshots/88ddea8d468eec195f914c44307a3ffec146ad4db4f5231b409a2b759c2e3bd7.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/single-audit-fallback.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/single-hidden-noop.png",
+      "sha256": "500b1478b25fd5222915a47652e52a6f46e4f1ed3423537d945b6bf0325a18f5",
+      "canonical_path": "doc/assets/screenshots/500b1478b25fd5222915a47652e52a6f46e4f1ed3423537d945b6bf0325a18f5.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/single-hidden-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/specific-noop.png",
+      "sha256": "3928cbe68252a9e7fad808682661630650ece6281744355ad8805a932dc7b8d9",
+      "canonical_path": "doc/assets/screenshots/3928cbe68252a9e7fad808682661630650ece6281744355ad8805a932dc7b8d9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/specific-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-p2-2026-10-29/viewer-403.png",
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/viewer-403.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-r5-2026-10-29/authorization-conflict.png",
+      "sha256": "b225ea185d400352632943fb800e09fafbe2a5b32044793c18cbff6f2d978f54",
+      "canonical_path": "doc/assets/screenshots/b225ea185d400352632943fb800e09fafbe2a5b32044793c18cbff6f2d978f54.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/authorization-conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-r5-2026-10-29/design-compare.png",
+      "sha256": "02b4e92c93f9797ee5bf134528d06e27715d17272094939a689da61e4ccf2d37",
+      "canonical_path": "doc/assets/screenshots/02b4e92c93f9797ee5bf134528d06e27715d17272094939a689da61e4ccf2d37.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/design-compare.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-r5-2026-10-29/multi-keeps-outside-B.png",
+      "sha256": "fe122e19470345bf4ee43139d20cc44047257e46321d32cbfd91fc575600b369",
+      "canonical_path": "doc/assets/screenshots/fe122e19470345bf4ee43139d20cc44047257e46321d32cbfd91fc575600b369.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/multi-keeps-outside-B.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-r5-2026-10-29/single-nickname-only.png",
+      "sha256": "bbc6e4728d6a30fb8fe5ce99862e25edd8f3613507a9d16ae304dfcc0adf6312",
+      "canonical_path": "doc/assets/screenshots/bbc6e4728d6a30fb8fe5ce99862e25edd8f3613507a9d16ae304dfcc0adf6312.png",
+      "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/single-nickname-only.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/global.png",
+      "sha256": "38392204b9b757f4512bd219320575d095a76bfd1a210b7fe06a50a621b03263",
+      "canonical_path": "doc/assets/screenshots/38392204b9b757f4512bd219320575d095a76bfd1a210b7fe06a50a621b03263.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/global.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1-page2.png",
+      "sha256": "cf0b71d5ac5ab3632af65c4d9a2e920696220dbdfc2e0a1b4e8cdf7bb78c007f",
+      "canonical_path": "doc/assets/screenshots/cf0b71d5ac5ab3632af65c4d9a2e920696220dbdfc2e0a1b4e8cdf7bb78c007f.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1-page2.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1.png",
+      "sha256": "676a9b00f7ad92e6f703951f4d43e4d2cf478622b064e9e677e7ce084d7a01dd",
+      "canonical_path": "doc/assets/screenshots/676a9b00f7ad92e6f703951f4d43e4d2cf478622b064e9e677e7ce084d7a01dd.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group10.png",
+      "sha256": "177ec60b56b81b28ee506e7c58b1f0295529dfd99b85c006ced60412cdeaeab6",
+      "canonical_path": "doc/assets/screenshots/177ec60b56b81b28ee506e7c58b1f0295529dfd99b85c006ced60412cdeaeab6.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group10.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/multi.png",
+      "sha256": "805385d3849e231cc36180de89a1f756475e39b72d98fc656b9927f5da186122",
+      "canonical_path": "doc/assets/screenshots/805385d3849e231cc36180de89a1f756475e39b72d98fc656b9927f5da186122.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/multi.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/stale-session-downgraded.png",
+      "sha256": "61bcdb05f916ed78f2bb614201433522fa389f7eee922db3122abb4bf16b33c1",
+      "canonical_path": "doc/assets/screenshots/61bcdb05f916ed78f2bb614201433522fa389f7eee922db3122abb4bf16b33c1.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/stale-session-downgraded.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-user-management-r02-2026-10-27/global-scope-form-selected.png",
+      "sha256": "970ec4cdf70263f301b65676d7eadb7646252154b9021f0ba3db77753fa257c7",
+      "canonical_path": "doc/assets/screenshots/970ec4cdf70263f301b65676d7eadb7646252154b9021f0ba3db77753fa257c7.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-user-management-r02-2026-10-27/global-scope-form-selected.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-user-management-r02-2026-10-27/stale-session-downgraded.png",
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-user-management-r02-2026-10-27/stale-session-downgraded.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/already_applied.png",
+      "sha256": "b9a1369bbf461c604b87507688f66b9a7aab9d14a28fef7080877f23ea2b9fd4",
+      "canonical_path": "doc/assets/screenshots/b9a1369bbf461c604b87507688f66b9a7aab9d14a28fef7080877f23ea2b9fd4.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/already_applied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save-modal.png",
+      "sha256": "606dd42f0f1da1d3b3c6fd8cc2ef4dc5867014aecc124d05a4be8246f6bc4ecc",
+      "canonical_path": "doc/assets/screenshots/606dd42f0f1da1d3b3c6fd8cc2ef4dc5867014aecc124d05a4be8246f6bc4ecc.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save-modal.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save.png",
+      "sha256": "eef428b221e4696a3546099a38ddf80ebe0e5e5c6e92fe5bcb8b5445dace7c7c",
+      "canonical_path": "doc/assets/screenshots/eef428b221e4696a3546099a38ddf80ebe0e5e5c6e92fe5bcb8b5445dace7c7c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server-modal.png",
+      "sha256": "87150540d0244b8263fc70783fe92d158d23ab58d860383ce23bd3d800e7bd93",
+      "canonical_path": "doc/assets/screenshots/87150540d0244b8263fc70783fe92d158d23ab58d860383ce23bd3d800e7bd93.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server-modal.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server.png",
+      "sha256": "a5a5f1eeae959450c33ad1e13ac5783ee82b5795341f94636ff565d1d33c1a69",
+      "canonical_path": "doc/assets/screenshots/a5a5f1eeae959450c33ad1e13ac5783ee82b5795341f94636ff565d1d33c1a69.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/conflict.png",
+      "sha256": "68515de6bc079a8abc269eb8dd049ca3f2699e76bcd492e1fadc578319b4d39f",
+      "canonical_path": "doc/assets/screenshots/68515de6bc079a8abc269eb8dd049ca3f2699e76bcd492e1fadc578319b4d39f.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/csrf_denied.png",
+      "sha256": "8249d30bf114c005da033d7e1a426e3897170e77818b09441190b76b0afe9a0d",
+      "canonical_path": "doc/assets/screenshots/8249d30bf114c005da033d7e1a426e3897170e77818b09441190b76b0afe9a0d.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/csrf_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_field.png",
+      "sha256": "6d8bb9338228d134ae2b2c4f240562a8d3ba3272024b9916ee56185e95a72ae8",
+      "canonical_path": "doc/assets/screenshots/6d8bb9338228d134ae2b2c4f240562a8d3ba3272024b9916ee56185e95a72ae8.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_field.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_flush.png",
+      "sha256": "236eb6b64600e2614cba1cbc29dfa1ee04f6f333f1f900a040356488901f86df",
+      "canonical_path": "doc/assets/screenshots/236eb6b64600e2614cba1cbc29dfa1ee04f6f333f1f900a040356488901f86df.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_flush.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_no_change.png",
+      "sha256": "6ed882abfc7f5bc2f565682ab6bc79ac47c4f983bde5402345e7113de5538987",
+      "canonical_path": "doc/assets/screenshots/6ed882abfc7f5bc2f565682ab6bc79ac47c4f983bde5402345e7113de5538987.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_updated.png",
+      "sha256": "af42d1611541473753ff1213e50e727a71cd824b899f940abd3446b49704fba1",
+      "canonical_path": "doc/assets/screenshots/af42d1611541473753ff1213e50e727a71cd824b899f940abd3446b49704fba1.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_already_applied.png",
+      "sha256": "7bb6f14ae3dca944bcbe9ef7da20fded604298f5eb543490182fd15a83f28c11",
+      "canonical_path": "doc/assets/screenshots/7bb6f14ae3dca944bcbe9ef7da20fded604298f5eb543490182fd15a83f28c11.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_already_applied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm-fallback.png",
+      "sha256": "d692f8072d298131af8b2b9e6909f52b618641933813dae4737295de63a0541e",
+      "canonical_path": "doc/assets/screenshots/d692f8072d298131af8b2b9e6909f52b618641933813dae4737295de63a0541e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm-fallback.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm.png",
+      "sha256": "ce9e1c5e2be2a213cea68332435185f79c7f0dcad34b2eddebac45e6e6a253b7",
+      "canonical_path": "doc/assets/screenshots/ce9e1c5e2be2a213cea68332435185f79c7f0dcad34b2eddebac45e6e6a253b7.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_conflict.png",
+      "sha256": "c725e91aa98a8aa917279640e9297e38912bffdea6aaa57a7692875867b26052",
+      "canonical_path": "doc/assets/screenshots/c725e91aa98a8aa917279640e9297e38912bffdea6aaa57a7692875867b26052.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_failed.png",
+      "sha256": "daaffd45b5cd35212cab79e22e4b6bb9228a8468d11784820a2ccff30eeec9e2",
+      "canonical_path": "doc/assets/screenshots/daaffd45b5cd35212cab79e22e4b6bb9228a8468d11784820a2ccff30eeec9e2.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_failed.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_no_change.png",
+      "sha256": "daf4bccf972d463e7c4877c4638b1fba40eaeeb7f2d426b0e3f5f0536e20ca61",
+      "canonical_path": "doc/assets/screenshots/daf4bccf972d463e7c4877c4638b1fba40eaeeb7f2d426b0e3f5f0536e20ca61.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_after.png",
+      "sha256": "e61074c163ba0f9d201ba3478d3b116d237c49dc0fd7095854c05f6e0f3a02e9",
+      "canonical_path": "doc/assets/screenshots/e61074c163ba0f9d201ba3478d3b116d237c49dc0fd7095854c05f6e0f3a02e9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_after.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_before.png",
+      "sha256": "82cf31b8041f16d1f59b3034d7553a0f02b1d696f8995cf21c40a4bf3772425e",
+      "canonical_path": "doc/assets/screenshots/82cf31b8041f16d1f59b3034d7553a0f02b1d696f8995cf21c40a4bf3772425e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_before.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_updated.png",
+      "sha256": "4779d3c8301eacec43fec80ef05e91b1606121e06d8cf1c6262956dabdc1e2af",
+      "canonical_path": "doc/assets/screenshots/4779d3c8301eacec43fec80ef05e91b1606121e06d8cf1c6262956dabdc1e2af.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change.png",
+      "sha256": "764743a3681bfc56807ddd3683fe2402d633843b457a1617af859ff8a86563ab",
+      "canonical_path": "doc/assets/screenshots/764743a3681bfc56807ddd3683fe2402d633843b457a1617af859ff8a86563ab.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change_server.png",
+      "sha256": "a6ede773de6c41cb5d357c67cac0f8f0fc5e010a6cb4a6f90336a33ab9b21f5b",
+      "canonical_path": "doc/assets/screenshots/a6ede773de6c41cb5d357c67cac0f8f0fc5e010a6cb4a6f90336a33ab9b21f5b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change_server.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/operator_denied.png",
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/operator_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/recovery.png",
+      "sha256": "ef8a6def10e0ec4302e1ebe839bf1b33341cfb154234c50629cb5bc1a0ea65bc",
+      "canonical_path": "doc/assets/screenshots/ef8a6def10e0ec4302e1ebe839bf1b33341cfb154234c50629cb5bc1a0ea65bc.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/recovery.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/scope_denied.png",
+      "sha256": "5e10e6132ad5bfaf4408cb3da8eedf99935100f896d005b1dbd8f7162ea630fd",
+      "canonical_path": "doc/assets/screenshots/5e10e6132ad5bfaf4408cb3da8eedf99935100f896d005b1dbd8f7162ea630fd.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/scope_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after.png",
+      "sha256": "3865a8af6aae32ce45c476388fd5ef93f617ead731242480db6de2349e5c1f89",
+      "canonical_path": "doc/assets/screenshots/3865a8af6aae32ce45c476388fd5ef93f617ead731242480db6de2349e5c1f89.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after_auth.png",
+      "sha256": "87cd7bcea469360b7e436da3cd20c0faddb5aa0f331ddb3e84c0778cdc6a8a86",
+      "canonical_path": "doc/assets/screenshots/87cd7bcea469360b7e436da3cd20c0faddb5aa0f331ddb3e84c0778cdc6a8a86.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after_auth.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_before.png",
+      "sha256": "dff613f0410ffd6689e194c1395b5d3253fb1d31f755a6812597f9f2fcbdadf4",
+      "canonical_path": "doc/assets/screenshots/dff613f0410ffd6689e194c1395b5d3253fb1d31f755a6812597f9f2fcbdadf4.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_before.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/updated.png",
+      "sha256": "a9ad7b8f0a7a25227bb763a83464a0443aa2ff90648af228976f5e006a9842ad",
+      "canonical_path": "doc/assets/screenshots/a9ad7b8f0a7a25227bb763a83464a0443aa2ff90648af228976f5e006a9842ad.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/updated.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/viewer_denied.png",
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/viewer_denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-outside-denied.png",
+      "sha256": "001b1276a0f525c207b6eb146e2943ce7d2affd6860aa9b519a16c50bd801db4",
+      "canonical_path": "doc/assets/screenshots/001b1276a0f525c207b6eb146e2943ce7d2affd6860aa9b519a16c50bd801db4.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-outside-denied.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-profile-saved.png",
+      "sha256": "11929e24002f468dbd2388552f654549aeac7db2999c6fcf800a9fcd43a31117",
+      "canonical_path": "doc/assets/screenshots/11929e24002f468dbd2388552f654549aeac7db2999c6fcf800a9fcd43a31117.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-profile-saved.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-actor.png",
+      "sha256": "2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19",
+      "canonical_path": "doc/assets/screenshots/2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-competitor.png",
+      "sha256": "ef2846299fe38459c18d38cdef6e39d19f50907c5ac2f260785d5a8cf0939585",
+      "canonical_path": "doc/assets/screenshots/ef2846299fe38459c18d38cdef6e39d19f50907c5ac2f260785d5a8cf0939585.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-actor.png",
+      "sha256": "458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b",
+      "canonical_path": "doc/assets/screenshots/458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-competitor.png",
+      "sha256": "205f4c2431e747b5bb68d423e475616d4bf25e706defc5e11b3ae4c3cd31ccff",
+      "canonical_path": "doc/assets/screenshots/205f4c2431e747b5bb68d423e475616d4bf25e706defc5e11b3ae4c3cd31ccff.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-actor.png",
+      "sha256": "8085196b7b787d6f7d923faea977c2eda349ec7633872e73768cdfffa7f72f8b",
+      "canonical_path": "doc/assets/screenshots/8085196b7b787d6f7d923faea977c2eda349ec7633872e73768cdfffa7f72f8b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-competitor.png",
+      "sha256": "3138072a6ce669bac4afefa9fc5664fda6a906653e8ebd3e47b3a4c756f367f5",
+      "canonical_path": "doc/assets/screenshots/3138072a6ce669bac4afefa9fc5664fda6a906653e8ebd3e47b3a4c756f367f5.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-actor.png",
+      "sha256": "5905b69c28b68f8781690d29a07ea072bef0bb663c8442809afcae66d8f1b070",
+      "canonical_path": "doc/assets/screenshots/5905b69c28b68f8781690d29a07ea072bef0bb663c8442809afcae66d8f1b070.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-competitor.png",
+      "sha256": "5b98868e51e265bcde20742f5367f2693feeb177303dc84675b366450ff284e0",
+      "canonical_path": "doc/assets/screenshots/5b98868e51e265bcde20742f5367f2693feeb177303dc84675b366450ff284e0.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-competitor.png",
+      "sha256": "0040010d4230ac85b31146ecd1b69a1421e2a7a5141caa1bf4459203f1fa80c3",
+      "canonical_path": "doc/assets/screenshots/0040010d4230ac85b31146ecd1b69a1421e2a7a5141caa1bf4459203f1fa80c3.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-actor.png",
+      "sha256": "458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b",
+      "canonical_path": "doc/assets/screenshots/458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-competitor.png",
+      "sha256": "0e628edfd0f268d37c4c96e725fa5b2c4ccd8ada21a44ce54fae64e2818e85b3",
+      "canonical_path": "doc/assets/screenshots/0e628edfd0f268d37c4c96e725fa5b2c4ccd8ada21a44ce54fae64e2818e85b3.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-competitor.png",
+      "sha256": "3d88db8da623149b287f35ef26a2740d9545a83914ddda0c7a1f5d674a3104da",
+      "canonical_path": "doc/assets/screenshots/3d88db8da623149b287f35ef26a2740d9545a83914ddda0c7a1f5d674a3104da.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-actor.png",
+      "sha256": "b36e819171f98d400d9c35a9bbecdfb4f226d694a645f6af36fcc1dd413a7288",
+      "canonical_path": "doc/assets/screenshots/b36e819171f98d400d9c35a9bbecdfb4f226d694a645f6af36fcc1dd413a7288.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-actor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-competitor.png",
+      "sha256": "1b9f36c3427b71f2865f7490491a69cc9947df95a388a90395542812f10b398c",
+      "canonical_path": "doc/assets/screenshots/1b9f36c3427b71f2865f7490491a69cc9947df95a388a90395542812f10b398c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-competitor.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-concurrency-2026-10-29/conflict.png",
+      "sha256": "6147d367a6c9a88523ba216887233fa61ae2a9e19554259516ed1c69b87169a9",
+      "canonical_path": "doc/assets/screenshots/6147d367a6c9a88523ba216887233fa61ae2a9e19554259516ed1c69b87169a9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-concurrency-2026-10-29/native-noop.png",
+      "sha256": "1d1db8c61ded2b1d145293df7a55879107512cf82f0367d8dd9eb8ca6748e6bb",
+      "canonical_path": "doc/assets/screenshots/1d1db8c61ded2b1d145293df7a55879107512cf82f0367d8dd9eb8ca6748e6bb.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-edit.png",
+      "sha256": "c357d1ba2eeb9f0960252a72bf05a22cfeb4a3833797b5f3115f5b93fc67ce09",
+      "canonical_path": "doc/assets/screenshots/c357d1ba2eeb9f0960252a72bf05a22cfeb4a3833797b5f3115f5b93fc67ce09.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-noop.png",
+      "sha256": "9e2a06c2b76b50706357f285c469efeab6a32e7f498916f22913ec984f2965a3",
+      "canonical_path": "doc/assets/screenshots/9e2a06c2b76b50706357f285c469efeab6a32e7f498916f22913ec984f2965a3.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/ajax-error.png",
+      "sha256": "65a94e0bf072baffcb3382a1aa74270533c4fdebfbeca4ce50e60d66d67f73ed",
+      "canonical_path": "doc/assets/screenshots/65a94e0bf072baffcb3382a1aa74270533c4fdebfbeca4ce50e60d66d67f73ed.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/ajax-error.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/conflict.png",
+      "sha256": "bb993e65d4175a7074696422b1fdb102817793e8f00ed5872fa0e434e2ed120d",
+      "canonical_path": "doc/assets/screenshots/bb993e65d4175a7074696422b1fdb102817793e8f00ed5872fa0e434e2ed120d.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/ajax-error.png",
+      "sha256": "dad423439a2367f7f5c926bbc91b7c0f2d23810fdeeb5028ecd00ff4208ce6e1",
+      "canonical_path": "doc/assets/screenshots/dad423439a2367f7f5c926bbc91b7c0f2d23810fdeeb5028ecd00ff4208ce6e1.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/ajax-error.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/conflict.png",
+      "sha256": "5fabc8682d6fb69610fe359140a7818222e5eae4b7a84f5158a31647fe4d3ff9",
+      "canonical_path": "doc/assets/screenshots/5fabc8682d6fb69610fe359140a7818222e5eae4b7a84f5158a31647fe4d3ff9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-error.png",
+      "sha256": "6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1",
+      "canonical_path": "doc/assets/screenshots/6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-error.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-noop.png",
+      "sha256": "c3c31c8fd6b46cfe28aa0e90d22df1b214173fe83ce06fcbdb32fa361e47fc54",
+      "canonical_path": "doc/assets/screenshots/c3c31c8fd6b46cfe28aa0e90d22df1b214173fe83ce06fcbdb32fa361e47fc54.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-edit.png",
+      "sha256": "60e4cfa90137bca1d1be9b4a5f3675e837913561c226dffe50e35c87bad7359e",
+      "canonical_path": "doc/assets/screenshots/60e4cfa90137bca1d1be9b4a5f3675e837913561c226dffe50e35c87bad7359e.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-noop.png",
+      "sha256": "fa896f98e0afaf9a1f255268ce37f9996a0d3a499f3fd5436f3bb4d2af8dd743",
+      "canonical_path": "doc/assets/screenshots/fa896f98e0afaf9a1f255268ce37f9996a0d3a499f3fd5436f3bb4d2af8dd743.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/native-noop.png",
+      "sha256": "c49c32520b2fe3eb5e5d3501719e10130015df70f60a034bcd58eda185f6a19d",
+      "canonical_path": "doc/assets/screenshots/c49c32520b2fe3eb5e5d3501719e10130015df70f60a034bcd58eda185f6a19d.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/operator-edit.png",
+      "sha256": "f695a0e9304efc44be8725e79cb6582ca8d00348536e5e77e23f361ca60cb273",
+      "canonical_path": "doc/assets/screenshots/f695a0e9304efc44be8725e79cb6582ca8d00348536e5e77e23f361ca60cb273.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/operator-noop.png",
+      "sha256": "e8bdd7be54db368d8ac9529744bc066c3d94cbc9ce7183de0cc02c6576ddc8d0",
+      "canonical_path": "doc/assets/screenshots/e8bdd7be54db368d8ac9529744bc066c3d94cbc9ce7183de0cc02c6576ddc8d0.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/operator-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/ajax-error.png",
+      "sha256": "6b94b15bb2f04d7d2f69b177b1ba644bc771b1ed58622d5f09024dd33bea3b6a",
+      "canonical_path": "doc/assets/screenshots/6b94b15bb2f04d7d2f69b177b1ba644bc771b1ed58622d5f09024dd33bea3b6a.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/ajax-error.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/conflict.png",
+      "sha256": "eec70362b8f2505355be8b189d0c0e3c66d41e9e86ff48b11329aec7c76248fa",
+      "canonical_path": "doc/assets/screenshots/eec70362b8f2505355be8b189d0c0e3c66d41e9e86ff48b11329aec7c76248fa.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-error.png",
+      "sha256": "6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1",
+      "canonical_path": "doc/assets/screenshots/6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-error.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-noop.png",
+      "sha256": "fafb96ae0151fbd392e3bfad217a8e14f500720f98a797d8ce55f8b14def4b7f",
+      "canonical_path": "doc/assets/screenshots/fafb96ae0151fbd392e3bfad217a8e14f500720f98a797d8ce55f8b14def4b7f.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-edit.png",
+      "sha256": "72d61e32ff2a68e3a1700b51883be728a191c2250094cf653b0b58dd964aad61",
+      "canonical_path": "doc/assets/screenshots/72d61e32ff2a68e3a1700b51883be728a191c2250094cf653b0b58dd964aad61.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-noop.png",
+      "sha256": "57b820f6cabebfb816341a768c3f9db84f858f3c372ce14c8d31adfa19b9cbd2",
+      "canonical_path": "doc/assets/screenshots/57b820f6cabebfb816341a768c3f9db84f858f3c372ce14c8d31adfa19b9cbd2.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-noop-2026-10-29/native-noop.png",
+      "sha256": "c5561266a5401abee76c659a770fc3e16b533dde2c367ed1e0a3a8702f65973c",
+      "canonical_path": "doc/assets/screenshots/c5561266a5401abee76c659a770fc3e16b533dde2c367ed1e0a3a8702f65973c.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-noop-2026-10-29/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": [
+        "doc/design/任务编辑无变更保存零副作用独立设计-2026-10.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-noop-2026-10-29/operator-edit.png",
+      "sha256": "5429a3d15ec877cdcb9be92351e0731687f428cdae3fe75d8f0e6d38356e7e62",
+      "canonical_path": "doc/assets/screenshots/5429a3d15ec877cdcb9be92351e0731687f428cdae3fe75d8f0e6d38356e7e62.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-noop-2026-10-29/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-w1-2026-10-30/conflict.png",
+      "sha256": "dc6710ba3bcbbf0eeff04cbd127f17ec63186d2741bb4dbd12656c6a2d02edb9",
+      "canonical_path": "doc/assets/screenshots/dc6710ba3bcbbf0eeff04cbd127f17ec63186d2741bb4dbd12656c6a2d02edb9.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/conflict.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-w1-2026-10-30/native-noop.png",
+      "sha256": "8926f35c836da4d11f3c33dd67826dfb431fb1d1497fffdf64c0c6fe004b0c98",
+      "canonical_path": "doc/assets/screenshots/8926f35c836da4d11f3c33dd67826dfb431fb1d1497fffdf64c0c6fe004b0c98.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/native-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-w1-2026-10-30/operator-edit.png",
+      "sha256": "06c949f4640b38cbd539bb9ee15bac00b04e0e9e0a4ec1db30693e5220f07a63",
+      "canonical_path": "doc/assets/screenshots/06c949f4640b38cbd539bb9ee15bac00b04e0e9e0a4ec1db30693e5220f07a63.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/operator-edit.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-w1-2026-10-30/operator-noop.png",
+      "sha256": "125dccae976d0c2e10e7065cae7f436fe5b84894a31e76c22f6139b526bc0262",
+      "canonical_path": "doc/assets/screenshots/125dccae976d0c2e10e7065cae7f436fe5b84894a31e76c22f6139b526bc0262.png",
+      "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/operator-noop.png",
+      "reviewed_by": "Codex",
+      "review_basis": "visual contact sheets, PNG chunk inspection and local OCR; flagged results examined at original resolution",
+      "consumers": []
+    }
+  ],
+  "updated_html": [
+    "doc/design/任务编辑无变更保存零副作用独立设计-2026-10.html",
+    "doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html",
+    "doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html",
+    "doc/qa/RBAC注册审批R2-4浏览器最终验收与F-02关闭-2026-10-26.html"
+  ]
+}

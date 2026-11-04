@@ -109,7 +109,7 @@ bash scripts/check_pending_sync.sh</pre>
 <h2>10. 分步分析与实施记录（2026-10-30）</h2>
 <h3>B1 · 隔离与可观测性</h3>
 <p><strong>实施前分析：</strong>生产工厂会绑定配置和调度器，不适合故障注入；采用最小Flask工厂、实际蓝图/模板/静态资源和内存StaticPool。URI先校验再初始化engine；HTTP线程与fixture通过同一锁串行，run_id哨兵逐请求验证实际数据库。登录真实执行认证与CSRF，基线在登录后采集。注入只在实际服务调用期间绑定具体Session，退出即恢复；统计不混入登录/并发准备。</p>
-<p><strong>风险与处置：</strong>首轮真实登录暴露测试工厂漏加载注册申请模型，已补齐并新增实际登录/CSRF工厂回归；未触碰开发库。Chrome成功保存导航会销毁响应体，观察改为Ajax prefilter只读done订阅，在业务success导航前输出白名单响应给runner，不更改options、响应或回调结果；等待明确console响应事件，不依赖sleep。</p>
+<p><strong>风险与处置：</strong>首轮真实登录暴露测试工厂漏加载注册申请模型，已补齐并新增实际登录/CSRF工厂回归；未触碰开发库。Chrome成功保存导航会销毁响应体，观察改为Ajax prefilter只读done订阅，在业务success导航前输出白名单响应给runner，不更改options、响应或处理结果；等待明确console响应事件，不依赖sleep。</p>
 <p><strong>阶段结论：</strong>9项隔离/结果集合/注入恢复/真实工厂登录守卫通过；B1真实浏览器UPDATED通过，单次提交、成功审计、关系零DML及缓存零失效均已观察。进入B2。</p>
 <h3>B2 · 七状态与故障矩阵</h3>
 <p><strong>实施前分析：</strong>并发等价/冲突采用第二个实际管理员会话通过现有入口写入，主请求保持T0；计数在准备后重置。未知结果在真实commit前/后分别抛错并独立读取，不能只看相同提示。UPDATED/部分FAILED没有显式outcome，按既有语义判定，不改生产响应。覆盖原生POST和受限角色，结果未知后刷新再验证按钮可用，避免盲目重试。SQLite不承担MySQL物理锁结论。</p>

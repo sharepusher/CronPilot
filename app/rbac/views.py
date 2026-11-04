@@ -948,7 +948,7 @@ def users_edit():
                 msg=msg,
                 data={'outcome': 'no_change'},
             )
-        return redirect('/rbac/users/edit?id=%s&outcome=no_change' % user.id)
+        return redirect('/rbac/users/edit?id=%s&outcome=no_change' % user_id)
     result = update_user_management(
         session.get('user_id'),
         user_id,
@@ -966,7 +966,7 @@ def users_edit():
                 data={'outcome': outcome},
             )
         return redirect(
-            '/rbac/users/edit?id=%s&outcome=already_applied' % user.id
+            '/rbac/users/edit?id=%s&outcome=already_applied' % user_id
         )
     if outcome in ('conflict', 'commit_unknown'):
         if _wants_ajax_json():
@@ -975,7 +975,7 @@ def users_edit():
                 msg=result['msg'],
                 data={'outcome': outcome, 'field': 'uf-submit'},
             )
-        return redirect('/rbac/users/edit?id=%s&outcome=%s' % (user.id, outcome))
+        return redirect('/rbac/users/edit?id=%s&outcome=%s' % (user_id, outcome))
     # Keep requested display values separate from the persistent ORM object.
     return _users_form_response(
         result['ok'],

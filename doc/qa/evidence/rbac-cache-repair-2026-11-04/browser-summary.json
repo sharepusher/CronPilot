@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "case_count": 27,
+  "semantics": [
+    "access_denied",
+    "already_applied",
+    "commit_unknown",
+    "confirm_required",
+    "conflict",
+    "failed",
+    "no_change",
+    "updated"
+  ]
+}

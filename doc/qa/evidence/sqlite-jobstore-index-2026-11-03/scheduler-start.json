@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-03",
+  "authorization": "user explicitly confirmed starting real scheduler",
+  "mode": "CRONPILOT_SCHEDULER_ENABLED=true",
+  "preflight": {
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "jobs": 34,
+    "due": 18
+  },
+  "after_start": {
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "jobs": 34,
+    "due": 0,
+    "login_get": 200,
+    "login_post": 302,
+    "task_center": 200,
+    "log_malformed_count": 0,
+    "log_traceback_count": 0,
+    "log_submit_error_count": 0
+  },
+  "limitation": "advanced schedules do not prove task execution or success"
+}

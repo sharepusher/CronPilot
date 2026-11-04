@@ -1,0 +1,161 @@
+# 术语门禁与任务编辑基线工具修复设计（2026-11-03）
+
+> HTML 版：[terminology-baseline-repair-2026-11-03.html](terminology-baseline-repair-2026-11-03.html) · [文档索引](../index.html) · [索引 Markdown](../index.md)
+
+# 术语门禁与任务编辑基线工具修复设计
+
+rev.2 · 2026-11-03（Asia/Shanghai）· 基线 `d3298c7` · 状态：**用户已明确确认并实施，专项验证通过。**
+
+用户明确“确认并实施”后完成 T0–T2；T3 最新验收见第 10 节。原第 9 节保留设计确认前历史记录。两项工程问题关闭不代表 4.2.0 已可发布。
+
+## 版本记录
+
+- rev.2 · 2026-11-03：按用户明确确认实施，补齐两份复盘及当前命令验收。
+- rev.1 · 2026-11-03：完成命中分类、证据保留方案、旧工具当前契约迁移和独立验收边界；等明确确认后实施。
+
+## 交付契约
+
+- **对象与调用方：**CI/开发者执行术语检查器；开发者沿用 `scripts/verify_cron_edit_baseline.py` 入口验证当前任务编辑契约。
+- **权限与数据：**没有业务权限、Web/API 协议或数据库字段变更。工具使用独立 Flask/内存 SQLite 和隔离调度器，不导入 manage，不连接开发业务库或调用真实触发 URL。
+- **唯一事实来源：**HTML 为文档源；MD 由既有生成器同步。修复前脚本按原字节归档并记录 commit/SHA256；历史验收结果保留其原始时间和语义。
+- **错误行为：**业务旧称仍令 CI 非零退出；真实契约违反、场景缺失、内部异常均令验证脚本非零退出。不能靠删场景或跳过断言取得绿色。
+- **结果与关联：**工具报告场景、模式、结果及数据库/关系/审计/调度观测；不打印真实凭据。历史诊断字段和现行文档正文分别处理。
+- **页面影响：**不修改管理端页面、模板、CSS/JS 或按钮交互；不需产品 Before/After。技术文档会展示新工具说明，浏览器交付检查仅证明文档可打开，不冒称业务 UI 验收。
+- **交付物：**本 HTML/MD、工具与测试、两项问题的持久化七项复盘、最新验收记录与索引；未要求本轮自动 commit、push、tag 或 Release。
+
+## 1. 问题和根因
+
+### 1.1 术语检查失败
+
+基线检查实际退出 1，41 个命中行分布于源 HTML、生成 MD、脚本及证据 JSON。命中不是一种问题：部分叙述使用业务模型旧称，部分在描述 JavaScript/事件处理函数，另有已冻结 JSON 字段和保存的检查器诊断文本。不能把 41 行全部当成误报，也不能重复计算 HTML 与 MD 为不同业务缺陷。
+
+根因是宽泛字符串搜索加少量整行技术/历史例外，无法精确表达每个出现位置的语义；文档和新工具演进时也未持续执行全仓检查。历史检查输出再次被扫描后形成自我命中。
+
+### 1.2 旧基线工具失效
+
+旧工具创建指向组 7 的任务/标签关联，却未创建相应组对象，当前只读完整性校验先抛出 ValueError。其 no\_change 分支仍期待关系重建、成功日志和调度写；其他分支依赖旧写入链，不能仅补组记录后继续当当前验收。旧工具证明的是修复前缺陷，不是当前应继续满足的行为。
+
+根因是历史缺陷实验和长期回归工具共用一个未绑定版本的默认入口，没有随着任务编辑的可信基线、差异写入和调度结果契约更新。已有单元测试未验证这个命令本身可执行且场景完整。
+
+## 2. 已读代码与 API 依据
+
+已在写入本稿前逐段读取下列真实实现；指纹与全部命中定位见[源基线记录](../qa/evidence/terminology-baseline-design-2026-11-03/source-baseline.json)。实施前若指纹漂移必须重新读取，不凭本设计复制旧行号。
+
+- `scripts/check_terminology.py`：当前按行搜索，技术或历史例外使整行放行；find\_violations 扫描包含 doc/qa/evidence 的 JSON。`tests/test_check_terminology.py` 固定现有合法技术用语和历史引用兼容。
+- `scripts/verify_cron_edit_baseline.py`：旧五场景、缺组 fixture、双提交/重复调度预期及脚本输出均已核对。
+- `cron_edit_noop.py`：必须存在恰好一个有效组和同命名空间标签；无变化比较在 no\_autoflush 范围执行。
+- `cron_service.py`：update\_cron 保留返回模型；当前无变化返回原对象；仅调度字段变化或显式恢复才操作调度。
+- `cron_edit_concurrency.py`：build\_task\_edit\_snapshot 绑定 actor/task 原值；save\_task\_edit 执行三方比较，返回 no\_change/already\_applied/conflict/updated/saved\_scheduler\_error 等当前结果。真实 actor、UserGroup、TaskGroup、Tag、TaskTag 必须完整建立。
+- `cron_edit_apply.py`：暂停目标通过注册时传入 paused 实现；异常有限核实，错误为 EditWriteError。`operation_log_service.py`：record\_operation 在业务提交后独立提交，失败仅记录并回滚日志事务；本批不把该事实改为强审计。
+
+## 3. 方案 A：术语分类与最小例外
+
+1. **业务模型正文校准：**表示到点执行或请求发起时，改为“任务执行”“触发请求”等准确词；指异步/事件处理函数时写明“响应处理函数”“事件处理函数”或“处理结果”。按每个 HTML 源段落确认语义后修改，再生成 MD。脚本说明同样精确校准，不做全仓机械替换，不改入库中文文案、业务判定或协议字段。
+2. **既有机器字段保持：**保留 `doc/qa/evidence/cron-retire-d3-assessment-2026-11-02/result.json:5` 的原始执行探针字段，不重命名历史 JSON。检查器仅忽略该精确技术标识符的出现位置，随后继续检查剩余文本；一行同时存在业务旧称仍必须报错。禁止因为出现这个键就整行放行。
+3. **历史检查输出保持：**保留 `doc/qa/evidence/commit-review-2026-11-03/gates.json` 原字节及 SHA256。仅对该显式登记路径中命令为既有术语检查、退出非零、结构合法的记录，豁免其诊断字段 output\_tail。该 JSON 中其他命令记录、其他字段和普通文档继续扫描；不能按目录或按任何带 output\_tail 的 JSON 全量跳过。以解析后的字符串与对应原始编码片段定位屏蔽诊断值，保留原始行号，避免 JSON 重排导致错误定位。
+4. **检查器边界测试：**保留原合法技术/历史引用用例；新增精确标识符正例、同一行混有业务旧称反例、非登记路径/错命令/错退出码/坏 JSON 反例、登记文件非诊断字段反例，以及全仓扫描退出码回归。不得扩大现有整行例外来覆盖这些新命中。
+
+备选为只改所有文字并把证据文件列入整文件白名单；虽然更短，但会改变历史事实或掩盖同文件中的新业务问题，故不采用。此次不重构现有全部技术例外，也不关闭术语 CI。
+
+## 4. 方案 B：保留旧证据，默认验证当前契约
+
+沿用既有命令路径，默认模式改为 **current\_contract**。将修复前脚本原字节另存为本批证据附件，记录来源 d3298c7、SHA256 和“历史实验，不在当前代码保证可运行”；正文早期 5/5 结果保留为当时记录，追加当前入口说明。不开一个在当前服务上故意期待错误行为的“历史成功”模式，不依赖 fetch、临时 checkout 或仓库外文件。
+
+当前脚本自建完整内存 fixture：组 7、Operator、用户组、GROUP 任务、同组标签及任务关系；Flask/Session 独立，不复用开发配置。调度器使用本工具隔离实例并全局暂停，确保不会执行触发请求。只对指定 URL 检查和故障点做测试替换；ORM、关系、快照、比较、提交及日志按真实当前服务执行。
+
+默认六场景，每场独立 fixture，实际观测 DML/提交次数、关系、版本、日志及调度调用，不只判断最终说明值：
+
+- **原样保存：**验证旧直接调用返回模型约定及 Web 结果 no\_change；零业务 DML、零 commit、零日志、零调度写；比较器本身不 flush 调用方待写对象的回归仍由现有单测保护。
+- **无关字段合并：**先签发 Web T0，再让另一保存把说明改为新值，旧页面仅改超时；保留当前说明，只保存超时，不重建关系或改 Job。这里是顺序陈旧页面回归，不冒称独立文件 SQLite 并发保护已修复。
+- **同字段冲突：**同一 T0 后目标说明被更新；旧请求再提交不同说明并夹带超时变更，返回 conflict，另一方新值保留，超时不部分写入。
+- **调度应用失败：**真实保存调度字段后，对调度调用注入写前异常；返回 saved\_scheduler\_error 并明确配置已保存，DB 保留目标，原 Job 保留，不冒称事务整体回滚。
+- **日志写入失败：**真实资料变更提交后，在日志提交点注入故障；业务保持已保存，日志无成功行，当前返回契约保持，调度零写。此场景验证已有 best-effort 边界，不意味着本批修复审计原子性。
+- **暂停注册：**修改暂停任务调度字段，使用真实隔离 Job 注册并验证 next\_run\_time=None；不靠后续 pause 补偿。全局暂停只用于禁止真实执行，不替代对单 Job 暂停状态的断言。
+
+输出逐场景受控结果和最终 `CRON_EDIT_BASELINE: OK cases=6 mode=current_contract`；只有六项完整、有效断言通过才退出 0。失败标明场景并退出非零。不得保留旧的“五个当前缺陷已复现”成功文案。默认命令无新必需参数，CI/文档现有调用方不用改路径。
+
+新增 `tests/test_cron_edit_baseline.py`：子进程执行真实脚本，检查六场景完整和零退出；再以导入后指定观测反例证明断言会拒绝错误结果，避免测试只镜像脚本实现。测试使用内存业务库，不导入 manage，不构造开发数据库连接。
+
+## 5. 范围与不变边界
+
+计划实现涉及 `scripts/check_terminology.py`、`tests/test_check_terminology.py`、`scripts/verify_cron_edit_baseline.py`、一个新测试文件，以及当前命中 HTML 源/脚本说明、对应生成 MD、历史入口说明、复盘与索引。历史原始 JSON 和旧脚本归档只新增指纹或快照，不修改其记录值。
+
+不改 app/、API、模型、迁移、管理端模板、依赖 pin、生产配置或业务权限。上次审查中的 SQLite 任务/启停撤权、启停提交后隐式读取、全量六失败、版本归档及发布升级说明仍是独立问题；本批不得宣称关闭这些项。没有产品可见 UI 变更，不要求为工具修复重启业务服务；本地文档预览与命令提供可复验交付。
+
+## 6. 实施分批
+
+1. **T0 基线：**用户确认本稿后冻结源码与历史脚本/JSON 指纹，保存实际失败输出及场景列表；仅测试失败不是允许修改生产逻辑的理由。
+2. **T1 术语：**先增加正反向检查器用例，再按第 3 节实现最小例外和源文案校准；同步 MD，独立确认全仓门禁退出 0，原始 JSON 指纹未变。
+3. **T2 工具：**完成原脚本归档、完整 fixture、六项当前契约及命令级防护测试；确认新工具成功且故意破坏观测时失败，相关编辑/调度回归不退化。
+4. **T3 交付：**持久化两项七要素复盘、Release Notes 工程验证说明及源设计后续状态，更新索引并验证 HTML/MD。总结仅本批测试和已知范围外失败；未获新的提交要求不自动 commit。
+
+## 7. 验收与可执行命令
+
+```
+.venv-py311/bin/python -m unittest tests.test_check_terminology -v
+.venv-py311/bin/python scripts/check_terminology.py --check
+.venv-py311/bin/python scripts/verify_cron_edit_baseline.py
+.venv-py311/bin/python -m unittest tests.test_cron_edit_baseline tests.test_cron_edit_noop tests.test_cron_edit_concurrency tests.test_cron_edit_apply -q
+.venv-py311/bin/ruff check app/ scripts/check_terminology.py scripts/verify_cron_edit_baseline.py tests/test_check_terminology.py tests/test_cron_edit_baseline.py
+.venv-py311/bin/python scripts/html_docs_to_markdown.py --check
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+.venv-py311/bin/python scripts/check_doc_links.py --check
+.venv-py311/bin/python -m unittest tests.test_check_doc_completeness -q
+bash scripts/check_pending_sync.sh
+sqlite3 datas/job_log.sqlite ".tables"
+```
+
+以下为 rev.1 的计划验收要求，实际结果见第 10 节。必须额外核对历史 JSON SHA256 未变、六场景没有 SKIP、业务旧称负例仍被拦截、Markdown 只由 HTML 生成。工具本身的真实 ORM/隔离 Job 测试可代替不存在的产品页面路径，不把文档打开当业务浏览器验收。全量 discovery 后如仍是基线六失败，逐项列出并区分新回归，禁止报全量通过。
+
+## 8. 风险、回滚与预防
+
+- **例外过宽：**以单个标识符和登记诊断值为界，用同一行混合业务词、相邻字段、错命令和错路径否定用例约束；不增加目录白名单。
+- **污染历史证据：**修改前后校验 JSON 原字节指纹；源设计补充后续说明不覆写旧测试结果。若改坏，回滚本批工具/文字补丁并恢复对应测试，不能回滚业务保障来满足旧断言。
+- **工具验证对象漂移：**Web 陈旧页面必须经过真实可信快照服务；直接 update\_cron 不具备客户端 T0，不能用它验证 Web 的冲突承诺。内存顺序测试不替代跨连接权限竞态测试。
+- **故障注入失真：**记录故障命中次数，确认异常发生在目标阶段；日志失败与调度失败分开观测。调度全局暂停，fixture 拆除和 event/mock 清理放 finally。
+- **预防落点：**现有术语 CI 自动消费扩展后的测试；新 tests/test\_cron\_edit\_baseline.py 进入 unittest discover，固定真实入口及场景集合。两份复盘均给出路径、命令和可被第三方重放的否定控制，避免再次只有聊天总结。
+
+## 9. 本设计阶段的实际核验
+
+基线 d3298c7：术语检查退出 1、41 命中行；旧工具退出 1、缺少有效组的 ValueError；相关实现文件已读取并记录指纹。以上为已有实际执行，不是修复验收。本轮未改工具或测试实现。已执行 HTML/Markdown 同步、397 份 HTML 登记完整性、3066 个文档链接检查、4 项索引结构测试、pending\_sync 和 git diff --check，均通过；新增文档未增加原 41 个术语命中。5095 文档预览的本 HTML 与同名 MD 均 HTTP 200，HTML 已实际在浏览器打开。设计确认前不运行不存在的计划新测试，也不以设计说明替代实施证据。
+
+## 10. 确认后实施与实际验收
+
+T0 冻结原脚本与历史 JSON 指纹；T1 校准源文案和最小术语例外；T2 将默认入口迁为六项当前契约；T3 补充复盘、历史说明、索引及 Release Notes。没有业务代码、协议或数据库变更。
+
+- 术语：全仓 check\_terminology.py --check 退出 0；检查器 12 项回归通过。
+- 基线：实际默认命令输出 CRON\_EDIT\_BASELINE: OK cases=6 mode=current\_contract；命令级防护 6 项通过。
+- 相关回归：python -m unittest tests.test\_cron\_edit\_baseline tests.test\_cron\_edit\_noop tests.test\_cron\_edit\_concurrency tests.test\_cron\_edit\_apply tests.test\_check\_terminology -q：73 项通过（4.886s）。
+- Ruff：app/ 与本批两脚本、两测试文件检查通过。
+
+完整七项复盘：[术语分类与历史证据边界](../postmortem/2026-11-术语门禁分类与历史证据边界.html)；[基线工具语义漂移](../postmortem/2026-11-任务编辑基线工具语义漂移.html)。冻结清单：[源码及证据 SHA256](../qa/evidence/terminology-baseline-repair-2026-11-03/manifest.json)。
+
+### 最终核验（2026-11-03）
+
+全量命令 `.venv-py311/bin/python -m unittest discover -s tests -q`：1146 项，1128 通过、6 失败、12 跳过，450.860s，退出 1。失败集合与修复前一致，没有新增失败：
+
+- `test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)`
+- `test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)`
+- `test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)`
+- `test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)`
+- `test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)`
+- `test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)`
+
+最终专项与索引回归 `python -m unittest tests.test_check_terminology tests.test_cron_edit_baseline tests.test_check_doc_completeness -q`：22 项通过。Ruff、HTML/MD 同步、文档完整性、链接、pending\_sync 和 git diff --check 均通过；check\_postmortem\_completeness 退出 0，仍有 41 条既有 Release Notes 引用警告。两份历史 JSON 与旧脚本归档 SHA256 未变；测试后 `sqlite3 datas/job_log.sqlite ".tables"` 确认开发库表仍完整。
+
+验收证据：[结构化结果](../qa/evidence/terminology-baseline-repair-2026-11-03/acceptance.json)；[六场景实际输出](../qa/evidence/terminology-baseline-repair-2026-11-03/baseline-current.txt)。旧脚本快照仅供历史分析，不作为可运行验收。
+
+本地复验：无需登录，打开下列 HTML 或 MD；执行第 7 节两个工具入口，预期均退出 0，基线末行应为 `CRON_EDIT_BASELINE: OK cases=6 mode=current_contract`。HTTP 实测 HTML 200 / MD 200，浏览器刷新后显示 rev.2“用户已明确确认并实施”。文档服务保持运行；工具与文档变更不需要重启业务服务。
+
+```
+http://127.0.0.1:5095/design/terminology-baseline-repair-2026-11-03.html
+http://127.0.0.1:5095/design/terminology-baseline-repair-2026-11-03.md
+```
+
+**结论：**本批 P2 术语门禁与 P3 旧基线工具问题已关闭。原 SQLite 任务/启停授权竞态、启停提交后读取、版本归档与全量六失败等仍独立存在，不能据此宣称 4.2.0 发布就绪。本轮修改尚未提交。
+
+[文档索引](../index.html) · [Markdown 版](terminology-baseline-repair-2026-11-03.md)
+
+---
+
+[← 文档索引（HTML）](../index.html) · [← 文档索引（Markdown）](../index.md)

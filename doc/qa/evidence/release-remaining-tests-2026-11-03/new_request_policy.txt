@@ -1,0 +1,7 @@
+old_session /cron_edit HTTP 200 denied=True
+old_session /update_status HTTP 200 denied=True
+old_session /cron_add HTTP 200 denied=True
+viewer_login /cron_edit HTTP 403 denied=True
+viewer_login /update_status HTTP 403 denied=True
+viewer_login /cron_add HTTP 403 denied=True
+NEW_REQUEST_AUTHORIZATION: OK cases=6

@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>提交 c727146 后代码与文档复审（2026-11-03）</title><style>body{font:16px/1.8 system-ui,sans-serif;max-width:1120px;margin:auto;padding:28px}h1,h2,h3{line-height:1.4}section{margin:2em 0}pre{padding:16px;background:rgb(244,246,248);white-space:pre-wrap;overflow-wrap:anywhere}code,a{overflow-wrap:anywhere}.decision{padding:16px;border-left:5px solid rgb(180,60,40);background:rgb(255,246,240)}</style></head><body><main>
-<h1>提交 c727146 后代码与文档复审</h1>
+<h1>提交 c727146 后代码与文档复审</h1><p><strong>2026-11-03 后续：</strong>术语门禁及旧基线工具两项已按确认设计修复，见<a href="../design/terminology-baseline-repair-2026-11-03.html">最新专项验收与发布边界</a>。本文原测试记录保留为历史观察；旧基线入口现默认验证六项 current_contract，原缺陷实验已归档。其他发布阻断不因这两项完成而关闭。</p>
 <p>2026-11-03（Asia/Shanghai）· rev.1 · 复审对象：<code>c727146edb455df14bf91dd3bcff4b2b9bb66dee</code>，父提交 <code>3b7583f</code>。本页为提交后独立复审，后续报告提交不改变被审查业务代码。</p>
 <div class="decision"><strong>已按用户指令提交全部原有未提交变更；当前仍不建议发布 v4.2.0。</strong>用户编辑 SQLite 保护已落实，但任务编辑及启停仍有撤权竞态；启停新增提交后读取异常未被结果分类保护。全量与发布门禁结果见本页验证节，不以专项绿色替代全量状态。</div>
 <h2>版本记录</h2><ul><li>rev.1 · 2026-11-03：记录全部变更提交、以固定 commit 复审、新增启停撤权及提交后读取反例、任务遗留问题复核及用户边界正向验证。</li></ul>

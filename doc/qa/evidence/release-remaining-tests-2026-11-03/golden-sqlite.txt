@@ -1,0 +1,51 @@
+/private/tmp/cronpilot-golden-check-20261103/conf.ini
+cron_db_url = sqlite:////private/tmp/cronpilot-golden-datas.9vCB9T/cron.sqlite
+login_pwd = verify-golden-test
+OK: trace_id 列已存在，无需重命名
+OK: registration request groups (final-sync) -> requests=0 concrete=0 global=0 invalid=0 normalized=0 relations=0
+OK: 复合索引已创建 -> job_log(cron_info_id, create_time), job_log_events(run_id, seq)
+OK: 时间戳列已是 BIGINT，无需迁移
+OK: 未满阈值失败 health 无需校正
+OK: 已为 1 名存量用户补签 API Token
+OK: OPT-P0-22 auth_version 一次性 bump 已执行
+OK: sqlite 业务表已就绪 -> sqlite:////private/tmp/cronpilot-golden-datas.9vCB9T/job_log.sqlite
+=== golden: double restart ===
+未运行 (CronPilot local (127.0.0.1:50991))
+CronPilot 自动匹配: .venv-py311/bin/python (Python 3.11.4)
+虚拟环境: .venv-py311
+OK: trace_id 列已存在，无需重命名
+OK: registration request groups (verify-only) -> requests=0 concrete=0 global=0 invalid=0 normalized=0 relations=0
+OK: 时间戳列已是 BIGINT，无需迁移
+OK: 未满阈值失败 health 无需校正
+OK: sqlite 业务表已就绪 -> sqlite:////private/tmp/cronpilot-golden-datas.9vCB9T/job_log.sqlite
+管理端:     http://127.0.0.1:50991/  (login_pwd=verify-golden-test)
+技术文档:   http://127.0.0.1:50991/docs/
+后台已启动 PID 81200，日志: /private/tmp/cronpilot-golden-check-20261103/datas/logs/local-server.log
+停止 CronPilot local (127.0.0.1:50991) (PID: 81200 )...
+已停止 (CronPilot local (127.0.0.1:50991))
+CronPilot 自动匹配: .venv-py311/bin/python (Python 3.11.4)
+虚拟环境: .venv-py311
+OK: trace_id 列已存在，无需重命名
+OK: registration request groups (verify-only) -> requests=0 concrete=0 global=0 invalid=0 normalized=0 relations=0
+OK: 时间戳列已是 BIGINT，无需迁移
+OK: 未满阈值失败 health 无需校正
+OK: sqlite 业务表已就绪 -> sqlite:////private/tmp/cronpilot-golden-datas.9vCB9T/job_log.sqlite
+管理端:     http://127.0.0.1:50991/  (login_pwd=verify-golden-test)
+技术文档:   http://127.0.0.1:50991/docs/
+后台已启动 PID 81298，日志: /private/tmp/cronpilot-golden-check-20261103/datas/logs/local-server.log
+=== golden: login → cron_list ===
+PASS home (200)
+PASS docs (200)
+PASS docs_index (200)
+PASS docs_rfc (200)
+PASS login_page (200)
+PASS login_post (302)
+PASS api_test (200)
+PASS cron_list (page OK)
+PASS not_found (guest + logged-in 404 page OK)
+PASS isolated DB empty (cron_infos=0)
+GOLDEN_PATH: OK
+  URL:      http://127.0.0.1:50991
+  password: verify-golden-test (isolated verify only)
+停止 CronPilot local (127.0.0.1:50991) (PID: 81298 )...
+已停止 (CronPilot local (127.0.0.1:50991))

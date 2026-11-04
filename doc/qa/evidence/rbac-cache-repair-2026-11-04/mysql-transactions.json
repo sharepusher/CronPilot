@@ -1,0 +1,810 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case_id": "calibration",
+      "held": {
+        "table": "rbac_users",
+        "id": 4,
+        "state": "blocked",
+        "error_code": 1205,
+        "elapsed_ms": 1003.639
+      },
+      "released": {
+        "table": "rbac_users",
+        "id": 4,
+        "state": "acquired",
+        "row_count": 1,
+        "elapsed_ms": 1.782
+      },
+      "writer_connection_id": 11,
+      "probe_connection_id": 10
+    },
+    {
+      "outcome": "conflict",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 5,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.492
+        },
+        {
+          "table": "rbac_users",
+          "id": 6,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.182
+        },
+        {
+          "table": "user_groups",
+          "id": 12,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.103
+        },
+        {
+          "table": "user_groups",
+          "id": 13,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.098
+        },
+        {
+          "table": "user_groups",
+          "id": 14,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.211
+        },
+        {
+          "table": "user_groups",
+          "id": 15,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.252
+        },
+        {
+          "table": "resource_groups",
+          "id": 8,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.249
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "profile-conflict",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "conflict",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 7,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.16
+        },
+        {
+          "table": "rbac_users",
+          "id": 8,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.118
+        },
+        {
+          "table": "user_groups",
+          "id": 16,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.166
+        },
+        {
+          "table": "user_groups",
+          "id": 17,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.112
+        },
+        {
+          "table": "user_groups",
+          "id": 18,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.277
+        },
+        {
+          "table": "user_groups",
+          "id": 19,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.177
+        },
+        {
+          "table": "resource_groups",
+          "id": 13,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.203
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "auth-conflict",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "already_applied",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 9,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.465
+        },
+        {
+          "table": "rbac_users",
+          "id": 10,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.043
+        },
+        {
+          "table": "user_groups",
+          "id": 20,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.414
+        },
+        {
+          "table": "user_groups",
+          "id": 21,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.067
+        },
+        {
+          "table": "user_groups",
+          "id": 22,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.141
+        },
+        {
+          "table": "user_groups",
+          "id": 23,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 0.982
+        },
+        {
+          "table": "resource_groups",
+          "id": 14,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.065
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "already-applied",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 11,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.193
+        },
+        {
+          "table": "rbac_users",
+          "id": 12,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.119
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "actor-denied",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 13,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.059
+        },
+        {
+          "table": "rbac_users",
+          "id": 14,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.016
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "target-disabled",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 15,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.118
+        },
+        {
+          "table": "rbac_users",
+          "id": 16,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.125
+        },
+        {
+          "table": "user_groups",
+          "id": 32,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.052
+        },
+        {
+          "table": "user_groups",
+          "id": 34,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.162
+        },
+        {
+          "table": "user_groups",
+          "id": 35,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.174
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "scope-drift",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 17,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.237
+        },
+        {
+          "table": "rbac_users",
+          "id": 18,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.078
+        },
+        {
+          "table": "user_groups",
+          "id": 36,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.041
+        },
+        {
+          "table": "user_groups",
+          "id": 37,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.129
+        },
+        {
+          "table": "user_groups",
+          "id": 38,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.168
+        },
+        {
+          "table": "user_groups",
+          "id": 39,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.106
+        },
+        {
+          "table": "resource_groups",
+          "id": 26,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.243
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "missing-reason",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 19,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.384
+        },
+        {
+          "table": "rbac_users",
+          "id": 20,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.186
+        },
+        {
+          "table": "user_groups",
+          "id": 40,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.024
+        },
+        {
+          "table": "user_groups",
+          "id": 41,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.105
+        },
+        {
+          "table": "user_groups",
+          "id": 42,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.335
+        },
+        {
+          "table": "user_groups",
+          "id": 43,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 3.042
+        },
+        {
+          "table": "resource_groups",
+          "id": 29,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.039
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 2,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "flush-failed",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "updated",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": false,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 21,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.425
+        },
+        {
+          "table": "rbac_users",
+          "id": 22,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.476
+        },
+        {
+          "table": "user_groups",
+          "id": 44,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.582
+        },
+        {
+          "table": "user_groups",
+          "id": 45,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.628
+        },
+        {
+          "table": "user_groups",
+          "id": 46,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.525
+        },
+        {
+          "table": "user_groups",
+          "id": 47,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 2.0
+        },
+        {
+          "table": "resource_groups",
+          "id": 32,
+          "state": "acquired",
+          "row_count": 1,
+          "elapsed_ms": 1.962
+        }
+      ],
+      "mutation_detected": false,
+      "suppressed_rollbacks": 0,
+      "dml_count": 2,
+      "commit_count": 1,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "updated",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "conflict",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": true,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 23,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.292
+        },
+        {
+          "table": "rbac_users",
+          "id": 24,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.365
+        },
+        {
+          "table": "user_groups",
+          "id": 48,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.932
+        },
+        {
+          "table": "user_groups",
+          "id": 49,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.582
+        },
+        {
+          "table": "user_groups",
+          "id": 50,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.606
+        },
+        {
+          "table": "user_groups",
+          "id": 51,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.645
+        },
+        {
+          "table": "resource_groups",
+          "id": 35,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.184
+        }
+      ],
+      "mutation_detected": true,
+      "suppressed_rollbacks": 1,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "context_exit"
+      ],
+      "after_teardown": {
+        "table": "rbac_users",
+        "id": 24,
+        "state": "acquired",
+        "row_count": 1,
+        "elapsed_ms": 2.414
+      },
+      "case_id": "profile-conflict-mutation",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "already_applied",
+      "writer_connection_id": 10,
+      "probe_connection_id": 11,
+      "context_alive": true,
+      "transaction_active_at_return": true,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 25,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.841
+        },
+        {
+          "table": "rbac_users",
+          "id": 26,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.308
+        },
+        {
+          "table": "user_groups",
+          "id": 52,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1004.019
+        },
+        {
+          "table": "user_groups",
+          "id": 53,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.921
+        },
+        {
+          "table": "user_groups",
+          "id": 54,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.611
+        },
+        {
+          "table": "user_groups",
+          "id": 55,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.406
+        },
+        {
+          "table": "resource_groups",
+          "id": 38,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1004.101
+        }
+      ],
+      "mutation_detected": true,
+      "suppressed_rollbacks": 1,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "already-applied-mutation",
+      "business_verified": true,
+      "cleanup_verified": true
+    },
+    {
+      "outcome": "failed",
+      "writer_connection_id": 11,
+      "probe_connection_id": 10,
+      "context_alive": true,
+      "transaction_active_at_return": true,
+      "resources": [
+        {
+          "table": "rbac_users",
+          "id": 27,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.702
+        },
+        {
+          "table": "rbac_users",
+          "id": 28,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.028
+        },
+        {
+          "table": "user_groups",
+          "id": 56,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1002.909
+        },
+        {
+          "table": "user_groups",
+          "id": 57,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.12
+        },
+        {
+          "table": "user_groups",
+          "id": 58,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.726
+        },
+        {
+          "table": "user_groups",
+          "id": 59,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1005.643
+        },
+        {
+          "table": "resource_groups",
+          "id": 41,
+          "state": "blocked",
+          "error_code": 1205,
+          "elapsed_ms": 1003.167
+        }
+      ],
+      "mutation_detected": true,
+      "suppressed_rollbacks": 1,
+      "dml_count": 0,
+      "commit_count": 0,
+      "timeline": [
+        "service_enter",
+        "service_return",
+        "probe_complete",
+        "cleanup",
+        "context_exit"
+      ],
+      "case_id": "missing-reason-mutation",
+      "business_verified": true,
+      "cleanup_verified": true
+    }
+  ]
+}

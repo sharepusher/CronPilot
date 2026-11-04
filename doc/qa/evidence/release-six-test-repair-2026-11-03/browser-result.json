@@ -1,0 +1,9 @@
+{
+  "operator": true,
+  "viewer_denied": true,
+  "request_body": true,
+  "jobstore": true,
+  "globally_paused": true,
+  "missing_module_detected": true,
+  "altered_target_detected": true
+}

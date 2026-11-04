@@ -823,6 +823,7 @@ def create_user(
             'user_id': existing.id,
         }
     if existing:
+        committed_user_id = None
         try:
             snap = _overwrite_disabled_user_inplace(
                 existing,
@@ -835,15 +836,18 @@ def create_user(
                 status_reason='管理员确认同名覆盖启用',
                 password_plain=DEFAULT_USER_PASSWORD,
             )
+            committed_user_id = existing.id
             db.session.commit()
         except Exception:
             logger.exception('overwrite disabled user commit failed username=%s', username)
-            db.session.rollback()
+            rollback_or_invalidate(db.session())
+            if committed_user_id is not None:
+                _invalidate_api_scope_cache(committed_user_id)
             return {'ok': False, 'msg': '覆盖启用失败'}
-        _invalidate_api_scope_cache(existing.id)
+        _invalidate_api_scope_cache(committed_user_id)
         _write_reactivate_audit(
             username,
-            existing.id,
+            committed_user_id,
             'admin_create',
             snap['before'],
             snap['after'],
@@ -851,7 +855,7 @@ def create_user(
         return {
             'ok': True,
             'msg': '原账号资料已覆盖并重新启用',
-            'user_id': existing.id,
+            'user_id': committed_user_id,
             'reactivated': True,
         }
     user = RbacUser(
@@ -871,13 +875,14 @@ def create_user(
         db.session.flush()
         if group_ids is not None:
             _replace_user_groups_in_session(user.id, group_ids)
+        committed_user_id = user.id
         db.session.commit()
     except Exception:
         logger.exception('create_user commit failed username=%s', username)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
         return {'ok': False, 'msg': '创建失败'}
     write_audit_log(action='user:create', resource=username)
-    return {'ok': True, 'msg': '创建成功', 'user_id': user.id, 'reactivated': False}
+    return {'ok': True, 'msg': '创建成功', 'user_id': committed_user_id, 'reactivated': False}
 
 
 def update_user(user_id, role=None, is_active=None):
@@ -913,13 +918,15 @@ def update_user(user_id, role=None, is_active=None):
         user.api_token = None
         user.api_token_expires_at = None
     try:
+        committed_username = user.username
         db.session.commit()
     except Exception:
         logger.exception('update_user commit failed user_id=%s', user_id)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '保存失败'}
-    write_audit_log(action='user:update', resource=user.username)
     _invalidate_api_scope_cache(user_id)
+    write_audit_log(action='user:update', resource=committed_username)
     return {'ok': True, 'msg': '保存成功'}
 
 
@@ -1255,7 +1262,7 @@ def update_user_management(
         }
 
     if auth_changed:
-        _invalidate_api_scope_cache(user.id)
+        _invalidate_api_scope_cache(user_id)
     return {
         'ok': True,
         'outcome': 'updated',
@@ -1311,20 +1318,22 @@ def set_user_active(user_id, is_active, reason='', actor_user_id=None):
         user.api_token = None
         user.api_token_expires_at = None
     try:
+        committed_username = user.username
         db.session.commit()
     except Exception:
         logger.exception('set_user_active commit failed user_id=%s active=%s', user_id, want_active)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '保存失败'}
     action = 'user:enable' if want_active else 'user:disable'
+    _invalidate_api_scope_cache(user_id)
     write_audit_log(
         action=action,
-        resource='%s：%s' % (user.username, reason),
+        resource='%s：%s' % (committed_username, reason),
     )
-    _invalidate_api_scope_cache(user_id)
     return {
         'ok': True,
-        'msg': '已%s用户「%s」' % (('启用' if want_active else '停用'), user.username),
+        'msg': '已%s用户「%s」' % (('启用' if want_active else '停用'), committed_username),
     }
 
 
@@ -1342,13 +1351,15 @@ def trigger_password_reset(user_id, actor_user_id=None):
     user.must_reset_password = 1
     _auto_issue_token(user)
     try:
+        committed_username = user.username
         db.session.commit()
     except Exception:
         logger.exception('trigger_password_reset commit failed user_id=%s', user_id)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '触发重置失败'}
-    write_audit_log(action='user:password_reset', resource=user.username)
     _invalidate_api_scope_cache(user_id)
+    write_audit_log(action='user:password_reset', resource=committed_username)
     return {'ok': True, 'msg': '已触发密码重置，默认密码为 %s' % DEFAULT_USER_PASSWORD}
 
 
@@ -1377,17 +1388,19 @@ def change_own_password(user_id, old_password, new_password, confirm_password):
     user.must_reset_password = 0
     _auto_issue_token(user)
     try:
+        committed_username = user.username
         db.session.commit()
     except Exception:
         logger.exception('change_own_password commit failed user_id=%s', user_id)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '保存失败'}
     _invalidate_api_scope_cache(user_id)
     write_audit_log(
         action='user:password',
-        resource=user.username,
-        user_id=user.id,
-        username=user.username,
+        resource=committed_username,
+        user_id=user_id,
+        username=committed_username,
     )
     return {'ok': True, 'msg': '密码已修改'}
 
@@ -1491,14 +1504,18 @@ def issue_user_api_token(user_id):
         return {'ok': False, 'msg': '用户已停用', 'token': '', 'expires_at': ''}
     _auto_issue_token(user)
     try:
+        committed_username = user.username
+        committed_token = user.api_token
+        committed_expires_at = user.api_token_expires_at
         db.session.commit()
     except Exception:
         logger.exception('issue_user_api_token commit failed user_id=%s', user_id)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '签发失败', 'token': '', 'expires_at': ''}
     _invalidate_api_scope_cache(user_id)
-    write_audit_log(action='user:update', resource='%s:api_token:issue' % user.username)
-    return {'ok': True, 'msg': 'Token 已重置', 'token': user.api_token, 'expires_at': user.api_token_expires_at}
+    write_audit_log(action='user:update', resource='%s:api_token:issue' % committed_username)
+    return {'ok': True, 'msg': 'Token 已重置', 'token': committed_token, 'expires_at': committed_expires_at}
 
 
 def _invalidate_api_scope_cache(user_id):
@@ -1564,13 +1581,15 @@ def set_user_groups(user_id, group_ids, role=None, username=None):
             db.session.add(UserGroup(user_id=user_id, group_id=gid))
         if desired_group_ids != existing_group_ids:
             _auto_issue_token(user)
+        committed_username = user.username
         db.session.commit()
     except Exception:
         logger.exception('set_user_groups commit failed user_id=%s', user_id)
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        _invalidate_api_scope_cache(user_id)
         return {'ok': False, 'msg': '保存业务组失败'}
-    write_audit_log(action='user:update', resource='%s:groups' % user.username)
     _invalidate_api_scope_cache(user_id)
+    write_audit_log(action='user:update', resource='%s:groups' % committed_username)
     return {'ok': True, 'msg': '保存成功'}
 
 
@@ -2265,6 +2284,7 @@ def approve_registration(request_id, reviewer_id=None):
 
     group_ids = storage_result['group_ids']
     reactivated = target is not None
+    committed_user_id = None
     try:
         if target:
             snap = _overwrite_disabled_user_inplace(
@@ -2300,6 +2320,9 @@ def approve_registration(request_id, reviewer_id=None):
         req.pending_username = None
         req.reviewer_id = actor_user_id
         req.update_time = utc_now_hms()
+        committed_user_id = user.id
+        committed_request_id = req.id
+        committed_username = req.username
         db.session.commit()
     except Exception:
         trace_id = uuid.uuid4().hex
@@ -2308,32 +2331,34 @@ def approve_registration(request_id, reviewer_id=None):
             trace_id,
             request_id,
         )
-        db.session.rollback()
+        rollback_or_invalidate(db.session())
+        if committed_user_id is not None:
+            _invalidate_api_scope_cache(committed_user_id)
         return {
             'ok': False,
             'msg': '服务器内部错误，请稍后重试',
             'error_kind': 'internal',
             'trace_id': trace_id,
         }
-    _invalidate_api_scope_cache(user.id)
+    _invalidate_api_scope_cache(committed_user_id)
     if reactivated and snap:
         _write_reactivate_audit(
-            req.username,
-            user.id,
+            committed_username,
+            committed_user_id,
             'registration_approve',
             snap['before'],
             snap['after'],
-            request_id=req.id,
+            request_id=committed_request_id,
         )
     else:
-        write_audit_log(action='user:register_approve', resource=req.username)
+        write_audit_log(action='user:register_approve', resource=committed_username)
     return {
         'ok': True,
         'msg': (
             '已批准，原账号资料已覆盖并重新启用'
-            if reactivated else '已批准，用户 %s 可正常登录' % req.username
+            if reactivated else '已批准，用户 %s 可正常登录' % committed_username
         ),
-        'user_id': user.id,
+        'user_id': committed_user_id,
         'reactivated': reactivated,
     }
 

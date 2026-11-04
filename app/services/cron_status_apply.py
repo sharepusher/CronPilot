@@ -16,10 +16,16 @@ from datas.model.cron_infos import CronInfos
 logger = logging.getLogger(__name__)
 
 
-def status_config(task):
-    fields = ('run_date', 'day_of_week', 'day', 'hour', 'minute', 'second')
-    data = json.dumps({k: getattr(task, k) or '' for k in fields}, sort_keys=True).encode()
+STATUS_CONFIG_FIELDS = ('run_date', 'day_of_week', 'day', 'hour', 'minute', 'second')
+
+
+def status_config_snapshot(snapshot):
+    data = json.dumps({k: snapshot[k] or '' for k in STATUS_CONFIG_FIELDS}, sort_keys=True).encode()
     return hmac.new(str(current_app.secret_key).encode(), data, hashlib.sha256).hexdigest()
+
+
+def status_config(task):
+    return status_config_snapshot({k: getattr(task, k) for k in STATUS_CONFIG_FIELDS})
 
 
 def apply_status(task_id, revision, target, *, retry=False):
@@ -91,21 +97,28 @@ def save_status(task_id, target_status=None, *, expected_revision=None, context=
     else:
         target = int(target_status)
     retry = expected_revision is not None
-    if expected_config is not None and expected_config != status_config(task):
-        db.session.rollback()
-        return False, '任务配置已有变化，请刷新确认', None, None
+    if expected_config is not None:
+        try:
+            config_matches = expected_config == status_config(task)
+        except Exception:
+            logger.exception('status retry configuration read failed task_id=%s', task_id)
+            db.session.rollback()
+            return False, '状态保存失败，请稍后重试', None, None
+        if not config_matches:
+            db.session.rollback()
+            return False, '任务配置已有变化，请刷新确认', None, None
     if retry and (task.edit_revision != expected_revision or task.status != target):
         db.session.rollback()
         return False, '任务已有后续修改，旧重试已拒绝，请刷新确认', None, None
     if old == target and not retry:
         db.session.rollback()
         return True, '配置状态未变化，未执行新的调度操作', old, target
-    snapshot = {key: getattr(task, key) or '' for key in (
-        'run_date', 'day_of_week', 'day', 'hour', 'minute', 'second')}
-    snapshot['status'] = target
-    name = task.task_name
     committing = False
     try:
+        snapshot = {key: getattr(task, key) or '' for key in STATUS_CONFIG_FIELDS}
+        config_digest = status_config_snapshot(snapshot) if context is not None else None
+        snapshot['status'] = target
+        name = task.task_name
         if not retry:
             task.status = target
             db.session.flush()
@@ -114,13 +127,15 @@ def save_status(task_id, target_status=None, *, expected_revision=None, context=
         db.session.commit()  # 结束读取事务，再进行独立版本核验。
     except StaleDataError:
         db.session.rollback()
+        if committing:
+            return False, '状态保存结果待核实，请刷新确认', None, None
         return False, '任务已被修改，本次未保存，请刷新确认', None, None
     except Exception:
         logger.exception('status persistence failed task_id=%s', task_id)
         db.session.rollback()
         return False, '状态保存结果待核实，请刷新确认' if committing else '状态保存失败，请稍后重试', None, None
     if context is not None:
-        context.update(task=task_id, revision=revision, target=target, config=status_config(task))
+        context.update(task=task_id, revision=revision, target=target, config=config_digest)
     try:
         message = apply_status(task_id, revision, snapshot, retry=retry)
     except EditWriteError as exc:

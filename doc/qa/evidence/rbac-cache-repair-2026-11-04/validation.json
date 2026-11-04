@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-04",
+  "before": "3 test methods, 12 failing subcases",
+  "related": "139 passed",
+  "specialized_sqlite": "5 passed",
+  "specialized_mysql": "5 passed",
+  "mysql_transactions": "13 cases passed",
+  "browser": "27 cases passed",
+  "negative_controls": {
+    "expired_id": true,
+    "expired_username": true,
+    "expired_token": true
+  },
+  "routes": "86/86 passed",
+  "ruff": "passed",
+  "mysql_container_removed": true,
+  "local": "restart completed; login GET 200; browser POST login succeeded"
+}

@@ -37,7 +37,7 @@
 <table><thead><tr><th>位置</th><th>事实</th><th>结论</th></tr></thead><tbody>
 <tr><td><code>app/rbac/views.py::registration_batch_approve</code></td><td>逐项调用 <code>approve_registration()</code>，收集 <code>ok_count</code>/<code>fail_msgs</code> 后固定 <code>code=0</code>。</td><td>数据库逐项结果正确，但 HTTP 结果没有区分全成、部分失败、全失败。</td></tr>
 <tr><td><code>registration_batch_reject</code></td><td>采用同样的固定成功码和 URL 模式。</td><td>同源问题必须一起修，不得只修“批量通过”。</td></tr>
-<tr><td><code>registration_review.html</code></td><td>两个批量 <code>$.post()</code> 回调遇 URL 即跳转。</td><td>即使后端文字包含失败项，页面也不会向用户展示。</td></tr>
+<tr><td><code>registration_review.html</code></td><td>两个批量 <code>$.post()</code> 响应处理遇 URL 即跳转。</td><td>即使后端文字包含失败项，页面也不会向用户展示。</td></tr>
 <tr><td><code>datas.utils.json.json_response</code></td><td><code>data</code> 同时映射到历史字段 <code>result</code>，可安全承载结构化摘要。</td><td>无需改变全局 JSON 信封。</td></tr>
 <tr><td><code>redesign-toast.js</code></td><td>已有 <code>CpToast.success/error/warning</code>；消息使用 <code>textContent</code> 写入。</td><td>可复用现有安全提示能力，不引入第三方组件。</td></tr>
 </tbody></table>
@@ -136,7 +136,7 @@ DatabaseError: [原始异常仅在服务端日志]</pre>
 <p>页面专属样式必须放入 <code>app/static/css/redesign-pages.css</code> 的 <code>.cp-page-reg-review</code> 作用域，使用既有 <code>--cp-*</code> token；模板内不新增超过 3 行的非注释 CSS。</p>
 
 <h3>6.3 防重复提交与确认框</h3>
-<p>现有批量批准确认框和批量拒绝输入框保留。两个异步回调在请求开始时禁用相应确认按钮，完成、失败、网络错误后恢复；页面级结果展示不得通过嵌套 form 或 Bootstrap modal 实现。批准仍使用 <code>CpConfirm.show({body: ...})</code>，拒绝仍使用现有页面内 <code>CpModal</code>。</p>
+<p>现有批量批准确认框和批量拒绝输入框保留。两个异步响应处理函数在请求开始时禁用相应确认按钮，完成、失败、网络错误后恢复；页面级结果展示不得通过嵌套 form 或 Bootstrap modal 实现。批准仍使用 <code>CpConfirm.show({body: ...})</code>，拒绝仍使用现有页面内 <code>CpModal</code>。</p>
 
 <h2>7. 分批实施计划</h2>
 <table><thead><tr><th>批次</th><th>动作</th><th>前置与停止条件</th><th>验收</th></tr></thead><tbody>
@@ -153,7 +153,7 @@ DatabaseError: [原始异常仅在服务端日志]</pre>
 <tr><td>BF-03</td><td>批量通过，全部无权</td><td>code=1、all_failure、无 URL</td><td>error 结果条；不跳转；全部 pending，无用户创建。</td></tr>
 <tr><td>BF-04</td><td>批量拒绝，部分项已处理/失效</td><td>与 BF-02 对称</td><td>成功项 rejected；失败项状态不变；原因可见。</td></tr>
 <tr><td>BF-05</td><td>未选任何项/缺拒绝原因/CSRF 失败</td><td>保留 code=1 既有文案</td><td>不跳转，不产生业务写入。</td></tr>
-<tr><td>BF-06</td><td>网络或非 JSON 错误</td><td>客户端 error 回调</td><td>错误 Toast；确认按钮恢复可点击；无假成功提示。</td></tr>
+<tr><td>BF-06</td><td>网络或非 JSON 错误</td><td>客户端 error 处理函数</td><td>错误 Toast；确认按钮恢复可点击；无假成功提示。</td></tr>
 <tr><td>BF-07</td><td>失败消息含 HTML 特殊字符</td><td>结构化 data 原样承载</td><td>结果条按文本显示，不执行 HTML/脚本。</td></tr>
 <tr><td>BF-08</td><td>批量项触发未知/数据库异常</td><td>code=1，只含通用文案与 <code>trace_id</code></td><td>响应不含原始异常；服务端日志可按同一 <code>trace_id</code> 找到原文和 traceback。</td></tr>
 </tbody></table>

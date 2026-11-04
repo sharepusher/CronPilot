@@ -212,14 +212,15 @@ class TestCronListRunNowButton(unittest.TestCase):
         self.assertIn('health-badge', html)
 
     def test_vue_mount_point_data_attrs_present(self):
-        """Redesign dashboard: inline JS posts id in request body (not Vue data-* props)."""
+        """Dashboard delegates status changes to the loaded shared module."""
         self._login(self.admin_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn('cp-dashboard-tbody', html)
         self.assertIn('function cpRunNow(cronId', html)
         self.assertIn("$.post('/cron_run_now', {id: cronId", html)
         self.assertIn('function cpToggleStatus(cronId', html)
-        self.assertIn("$.post('/update_status', {id: cronId", html)
+        self.assertIn('/static/js/cron-status.js', html)
+        self.assertIn('CpStatus.perform(cronId, newStatus, btn)', html)
         self.assertIn('function cpRetire(cronId', html)
         self.assertIn("$.post('/cron_retire', {id: cronId", html)
         self.assertIn('tc-lifecycle active', html)
@@ -239,9 +240,15 @@ class TestCronListRunNowButton(unittest.TestCase):
         self._login(self.admin_session)
         html = self.client.get('/cron_list').get_data(as_text=True)
         self.assertIn("$.post('/cron_run_now', {id: cronId", html)
-        self.assertIn("$.post('/update_status', {id: cronId", html)
+        script = self.client.get('/static/js/cron-status.js')
+        self.assertEqual(script.status_code, 200)
+        js = script.get_data(as_text=True)
+        script.close()
+        self.assertIn("token ? '/cron_status_apply' : '/update_status'", js)
+        self.assertIn('id: id, status: target, csrf_token:', js)
         self.assertNotIn('/cron_run_now?', html)
         self.assertNotIn('/update_status?', html)
+        self.assertNotIn('/update_status?', js)
 
     def test_viewer_no_run_now_button(self):
         self._login(self.viewer_session)

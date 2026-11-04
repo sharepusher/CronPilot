@@ -69,6 +69,7 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
         self.db = db
         with app.app_context():
             from datas.model.cron_infos import CronInfos
+            from datas.model.operation_log import OperationLog  # noqa: F401
             from datas.model.rbac_user import RbacUser
             from datas.model.tag import Tag  # noqa: F401
             from datas.model.task_group import TaskGroup  # noqa: F401
@@ -107,22 +108,41 @@ class TestCsrfOnUpdateStatus(unittest.TestCase):
 
     def test_post_without_token_rejected(self):
         self._login()
-        resp = self.client.post('/update_status?id=%s' % self.cron_id)
+        with patch('app.services.cron_status_apply.apply_status', return_value='已暂停') as apply:
+            resp = self.client.post('/update_status?id=%s' % self.cron_id)
+        apply.assert_not_called()
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.get_json().get('errcode'), 1)
         self.assertIn('CSRF', resp.get_json().get('errmsg') or '')
+        with self.app.app_context():
+            from datas.model.cron_infos import CronInfos
+            self.assertEqual(self.db.session.get(CronInfos, self.cron_id).status, 1)
+
+    def test_post_wrong_token_rejected_without_writes(self):
+        self._login()
+        with patch('app.services.cron_status_apply.apply_status', return_value='已暂停') as apply:
+            resp = self.client.post('/update_status?id=%s' % self.cron_id,
+                                    data={CSRF_PARAM: 'invalid'})
+        self.assertEqual(resp.get_json().get('errcode'), 1)
+        self.assertIn('CSRF', resp.get_json().get('errmsg') or '')
+        apply.assert_not_called()
+        with self.app.app_context():
+            from datas.model.cron_infos import CronInfos
+            self.assertEqual(self.db.session.get(CronInfos, self.cron_id).status, 1)
 
     def test_post_with_token_ok(self):
         self._login()
-        with patch('app.services.cron_service.scheduler') as sch:
-            sch.pause_job.return_value = None
-            sch.resume_job.return_value = None
+        with patch('app.services.cron_status_apply.apply_status', return_value='已暂停') as apply:
             resp = self.client.post(
                 '/update_status?id=%s' % self.cron_id,
                 data={CSRF_PARAM: 'good-csrf-token-32chars-min!!'},
             )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.get_json().get('errcode'), 0)
+        apply.assert_called_once()
+        with self.app.app_context():
+            from datas.model.cron_infos import CronInfos
+            self.assertEqual(self.db.session.get(CronInfos, self.cron_id).status, 0)
 
     def test_login_page_has_csrf_fields(self):
         resp = self.client.get('/rbac/login')

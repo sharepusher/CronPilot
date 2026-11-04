@@ -1,0 +1,29 @@
+{
+  "full_suite": {
+    "run": 1158,
+    "failed": 0,
+    "skipped": 12,
+    "seconds": 469.026
+  },
+  "focused_and_related": {
+    "run": 35,
+    "failed": 0
+  },
+  "routes": {
+    "passed": 86,
+    "total": 86
+  },
+  "mysql_d2": "D2_VERIFIED; D1_API_VERIFIED",
+  "mutation_calibration": {
+    "scope_bypass_detected": true,
+    "csrf_bypass_detected": true
+  },
+  "docker_incident": {
+    "started_at_local": "2026-11-03 17:14:45",
+    "stopped_at_local": "2026-11-03 17:22:36",
+    "logged_schedule_rows": 1,
+    "same_task_minute_duplicate_groups": 0,
+    "sqlite_disk_io_error_observed": true,
+    "limitation": "Logged rows do not exclude unlogged or temporally separated duplicate requests."
+  }
+}

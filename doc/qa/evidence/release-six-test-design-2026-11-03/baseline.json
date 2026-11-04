@@ -1,0 +1,16 @@
+{
+  "head": "d3298c71f634ab6f74dac049fef78a27ca1400b6",
+  "scope": "current working tree including uncommitted changes",
+  "files": {
+    "tests/test_api_scope_s6.py": "986baea8842ddc2a83ac8a2559f7b8296125f35abedb18b16810dfe6185c27d3",
+    "tests/test_cron_run_now.py": "c6ffb7ef99c378c4c8a09d9931706bc7431a4f5d77a1a183a5f975de0f050437",
+    "tests/test_csrf.py": "850f3fc00f47e156d82fe8cecf1162e52caa4e7eec329c5fb689d74abacab686",
+    "app/services/cron_status_apply.py": "d0abaae60bb85b95741df1fe4b7683a4cb131040a2d814910b4930c1c8cf7fbf",
+    "app/templates/redesign/dashboard.html": "e5fb6f6ce9136a6ac80a36bb4f3daa3f4d95f21181c73dc1e22be10aea4fc9c5",
+    "app/static/js/cron-status.js": "a88fe425d444e62d49209d70d6e6defe61dde96fde55ad5acdd427260f32c2ca"
+  },
+  "command": ".venv-py311/bin/python -m unittest tests.test_api_scope_s6.TestScopeIsolation tests.test_cron_run_now.TestCronListRunNowButton tests.test_csrf.TestCsrfOnUpdateStatus -q",
+  "run": 17,
+  "failures": 6,
+  "exit_code": 1
+}

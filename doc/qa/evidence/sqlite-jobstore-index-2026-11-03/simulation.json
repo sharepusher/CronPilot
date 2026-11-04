@@ -1,0 +1,13 @@
+{
+  "snapshot_integrity": [
+    "row 8 missing from index ix_apscheduler_jobs_next_run_time"
+  ],
+  "simulation_integrity": [
+    "ok"
+  ],
+  "table_count": 18,
+  "all_table_rows_identical": true,
+  "schema_identical": true,
+  "scope": "isolated SQLite backup and copy only; no live database repair",
+  "snapshot_directory": "/private/tmp/cronpilot-db-assessment-ue_sp244"
+}

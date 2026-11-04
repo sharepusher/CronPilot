@@ -1,0 +1,42 @@
+[
+  {
+    "case": "disable",
+    "committed": true,
+    "raised_after_commit": true,
+    "old_token_still_resolves": true,
+    "stored_active": false,
+    "old_token_still_stored": false
+  },
+  {
+    "case": "reset_password",
+    "committed": true,
+    "raised_after_commit": true,
+    "old_token_still_resolves": true,
+    "stored_active": true,
+    "old_token_still_stored": false
+  },
+  {
+    "case": "set_groups",
+    "committed": true,
+    "raised_after_commit": true,
+    "old_token_still_resolves": true,
+    "stored_active": true,
+    "old_token_still_stored": false
+  },
+  {
+    "case": "change_password",
+    "committed": true,
+    "raised_after_commit": true,
+    "old_token_still_resolves": false,
+    "stored_active": true,
+    "old_token_still_stored": false
+  },
+  {
+    "case": "issue_token",
+    "committed": true,
+    "raised_after_commit": true,
+    "old_token_still_resolves": false,
+    "stored_active": true,
+    "old_token_still_stored": false
+  }
+]

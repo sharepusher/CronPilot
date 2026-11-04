@@ -11,13 +11,13 @@
 
 <h2>2. 浏览器矩阵结果</h2>
 <table><thead><tr><th>场景</th><th>当前数据库 Scope</th><th>可见申请</th><th>total</th><th>标题/导航 pending</th><th>证据</th></tr></thead><tbody>
-<tr><td>组 1 Biz Admin</td><td>[1]</td><td>组 1 交集 viewer、组 1 子集 admin、组 1 已批准；不含组 10-only 与 global</td><td>4</td><td>24 / 24</td><td><a href="evidence/rbac-registration-r2-4-2026-10-26/group1.png">截图</a></td></tr>
-<tr><td>组 10 Biz Admin</td><td>[10]</td><td>组 10 交集 viewer、组 10 子集 admin；不含组 1-only 与 global</td><td>3</td><td>3 / 3</td><td><a href="evidence/rbac-registration-r2-4-2026-10-26/group10.png">截图</a></td></tr>
-<tr><td>多组 Biz Admin</td><td>[1,10]</td><td>全部 7 条具体组申请；不含 global</td><td>7</td><td>27 / 27</td><td><a href="evidence/rbac-registration-r2-4-2026-10-26/multi.png">截图</a></td></tr>
-<tr><td>非种子全局 Admin</td><td>[]</td><td>全部 8 条，包括 global admin 申请</td><td>8</td><td>30 / 30</td><td><a href="evidence/rbac-registration-r2-4-2026-10-26/global.png">截图</a></td></tr>
-<tr><td>旧 Cookie 降权</td><td>登录后由 [] 改为 [1]</td><td>同一 Cookie 立即收敛为组 1 的 4 条；不含组 10-only 与 global</td><td>4</td><td>24 / 24</td><td><a href="evidence/rbac-registration-r2-4-2026-10-26/stale-session-downgraded.png">截图</a></td></tr>
+<tr><td>组 1 Biz Admin</td><td>[1]</td><td>组 1 交集 viewer、组 1 子集 admin、组 1 已批准；不含组 10-only 与 global</td><td>4</td><td>24 / 24</td><td><a href="../assets/screenshots/676a9b00f7ad92e6f703951f4d43e4d2cf478622b064e9e677e7ce084d7a01dd.png">截图</a></td></tr>
+<tr><td>组 10 Biz Admin</td><td>[10]</td><td>组 10 交集 viewer、组 10 子集 admin；不含组 1-only 与 global</td><td>3</td><td>3 / 3</td><td><a href="../assets/screenshots/177ec60b56b81b28ee506e7c58b1f0295529dfd99b85c006ced60412cdeaeab6.png">截图</a></td></tr>
+<tr><td>多组 Biz Admin</td><td>[1,10]</td><td>全部 7 条具体组申请；不含 global</td><td>7</td><td>27 / 27</td><td><a href="../assets/screenshots/805385d3849e231cc36180de89a1f756475e39b72d98fc656b9927f5da186122.png">截图</a></td></tr>
+<tr><td>非种子全局 Admin</td><td>[]</td><td>全部 8 条，包括 global admin 申请</td><td>8</td><td>30 / 30</td><td><a href="../assets/screenshots/38392204b9b757f4512bd219320575d095a76bfd1a210b7fe06a50a621b03263.png">截图</a></td></tr>
+<tr><td>旧 Cookie 降权</td><td>登录后由 [] 改为 [1]</td><td>同一 Cookie 立即收敛为组 1 的 4 条；不含组 10-only 与 global</td><td>4</td><td>24 / 24</td><td><a href="../assets/screenshots/61bcdb05f916ed78f2bb614201433522fa389f7eee922db3122abb4bf16b33c1.png">截图</a></td></tr>
 </tbody></table>
-<p>组 1 的 21 条分页专用申请另验证第二页只出现预期末项、total=21 且 badge 不受搜索和翻页影响：<a href="evidence/rbac-registration-r2-4-2026-10-26/group1-page2.png">分页截图</a>。结构化结果见 <a href="evidence/rbac-registration-r2-4-2026-10-26/evidence.json">evidence.json</a>。</p>
+<p>组 1 的 21 条分页专用申请另验证第二页只出现预期末项、total=21 且 badge 不受搜索和翻页影响：<a href="../assets/screenshots/cf0b71d5ac5ab3632af65c4d9a2e920696220dbdfc2e0a1b4e8cdf7bb78c007f.png">分页截图</a>。结构化结果见 <a href="evidence/rbac-registration-r2-4-2026-10-26/evidence.json">evidence.json</a>。</p>
 
 <h2>3. 自动化、清理与完整回归</h2>
 <pre>.venv-py311/bin/python scripts/verify_registration_scope_browser.py

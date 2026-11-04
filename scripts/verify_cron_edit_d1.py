@@ -1,4 +1,4 @@
-"""D1 隔离端到端验收；D1_PREVIEW=1 保持 5003 预览，全局暂停禁止执行回调。"""
+"""D1 隔离端到端验收；D1_PREVIEW=1 保持 5003 预览，全局暂停禁止触发任务。"""
 import configparser
 from contextlib import contextmanager
 import uuid
@@ -89,28 +89,27 @@ with tempfile.TemporaryDirectory(prefix='cronpilot-d1-browser-') as directory, b
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
+        # Verification output is transient until it has passed image governance.
+        output_root = Path(tempfile.mkdtemp(prefix='cronpilot-d1-evidence-'))
+        print('D1_EVIDENCE_DIR=' + str(output_root), flush=True)
         from scripts.verify_cron_edit_noop_browser import verify
         if not os.environ.get('D1_SKIP_BROWSER'):
             verify('http://127.0.0.1:%s' % server.server_port,
-               ROOT / ('doc/qa/evidence/task-edit-d1-2026-10-30/' + os.environ.get('D1_BACKEND', 'sqlite')),
+               output_root / 'noop',
                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
         scheduler.scheduler.start(paused=True)
         from playwright.sync_api import sync_playwright
-        output = ROOT / ('doc/qa/evidence/task-edit-d1-2026-10-30/' + os.environ.get('D1_BACKEND', 'sqlite'))
+        output = output_root / 'd1'
         output.mkdir(parents=True, exist_ok=True)
         base = 'http://127.0.0.1:%s' % server.server_port
         with app.app_context():
             demo_id = db.session.scalar(db.select(CronInfos.id).where(CronInfos.task_name == 'D1暂停示例'))
         if os.environ.get('VERIFY_D2'):
             from scripts.verify_cron_status_d2 import verify as verify_d2
-            verify_d2(app, scheduler, base, demo_id,
-                      ROOT / ('doc/qa/evidence/cron-status-d2-2026-11-02/'
-                              + os.environ.get('D1_BACKEND', 'sqlite')))
+            verify_d2(app, scheduler, base, demo_id, output_root / 'd2')
         if os.environ.get('VERIFY_TIMEOUT'):
             from scripts.verify_cron_timeout import verify as verify_timeout
-            verify_timeout(app, scheduler, base, demo_id,
-                           ROOT / ('doc/qa/evidence/cron-timeout-types-2026-11-02/'
-                                   + os.environ.get('D1_BACKEND', 'sqlite')))
+            verify_timeout(app, scheduler, base, demo_id, output_root / 'timeout')
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True,
                 executable_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')

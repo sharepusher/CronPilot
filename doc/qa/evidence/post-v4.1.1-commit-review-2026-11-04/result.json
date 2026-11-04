@@ -1,0 +1,38 @@
+{
+  "base": "ed8155a3db7ebe5c9c6a0110bf6fd80d62a0c93d",
+  "head": "d3298c71f634ab6f74dac049fef78a27ca1400b6",
+  "commits": 5,
+  "changed_files": 404,
+  "focused": {
+    "run": 133,
+    "failures": 6
+  },
+  "postcommit_status_probe": {
+    "run": 11,
+    "failures": 1,
+    "errors": 7,
+    "source": "uncommitted regression used against archived HEAD"
+  },
+  "rbac_postcommit_probe": {
+    "raised_after_commit": true,
+    "stored_role": "operator",
+    "also_reproduced_in_worktree": true
+  },
+  "routes": {
+    "passed": 86,
+    "failed": 0
+  },
+  "ruff": "passed",
+  "committed_image_gate_errors": 162,
+  "committed_terminology": "failed",
+  "committed_baseline": "failed: missing ResourceGroup fixture",
+  "publish_repository_context": "missing GH_REPO/--repo and no checkout; static confirmation; local gh unavailable",
+  "full_suite": {
+    "run": 1132,
+    "seconds": 475.009,
+    "failures": 7,
+    "skipped": 12,
+    "environment_failure": "test_offline_check_does_not_require_network; passed after providing existing virtualenv on isolated snapshot",
+    "remaining_assertion_failures": 6
+  }
+}

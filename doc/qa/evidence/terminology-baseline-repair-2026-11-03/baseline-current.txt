@@ -1,0 +1,43 @@
+{"case": "no_change", "outcome": "no_change", "passed": true, "dml_count": 0, "relationship_dml": 0, "commit_attempts": 0, "committed": 0, "fault_hits": 0, "scheduler_writes": 0, "revision_delta": 0, "audit_delta": 0, "paused": true}
+{"case": "unrelated_merge", "outcome": "updated", "passed": true, "dml_count": 2, "relationship_dml": 0, "commit_attempts": 2, "committed": 2, "fault_hits": 0, "scheduler_writes": 0, "revision_delta": 1, "audit_delta": 1, "paused": true}
+{"case": "same_field_conflict", "outcome": "conflict", "passed": true, "dml_count": 0, "relationship_dml": 0, "commit_attempts": 0, "committed": 0, "fault_hits": 0, "scheduler_writes": 0, "revision_delta": 0, "audit_delta": 0, "paused": true}
+edit scheduler call uncertain task_id=1 revision=1
+Traceback (most recent call last):
+  File "/Users/summer/projects/opensource/CronPilot/app/services/cron_edit_apply.py", line 85, in apply_edit
+    job = register_cron_job(task_id, target, paused=target['status'] == 0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1189, in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/summer/projects/opensource/CronPilot/scripts/verify_cron_edit_baseline.py", line 126, in register
+    raise RuntimeError('verification scheduler write failure')
+RuntimeError: verification scheduler write failure
+{"case": "scheduler_failure", "outcome": "saved_scheduler_error", "passed": true, "dml_count": 1, "relationship_dml": 0, "commit_attempts": 1, "committed": 1, "fault_hits": 1, "scheduler_writes": 1, "revision_delta": 1, "audit_delta": 0, "paused": true}
+operation_log write failed action=update_cron
+Traceback (most recent call last):
+  File "/Users/summer/projects/opensource/CronPilot/app/services/operation_log_service.py", line 234, in record_operation
+    db.session.commit()
+  File "/Users/summer/projects/opensource/CronPilot/.venv-py311/lib/python3.11/site-packages/sqlalchemy/orm/scoping.py", line 597, in commit
+    return self._proxied.commit()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.4/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1189, in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/summer/projects/opensource/CronPilot/scripts/verify_cron_edit_baseline.py", line 118, in commit
+    raise RuntimeError('verification audit commit failure')
+RuntimeError: verification audit commit failure
+{"case": "audit_failure", "outcome": "updated", "passed": true, "dml_count": 1, "relationship_dml": 0, "commit_attempts": 2, "committed": 1, "fault_hits": 1, "scheduler_writes": 0, "revision_delta": 1, "audit_delta": 0, "paused": true}
+{"case": "paused_registration", "outcome": "updated", "passed": true, "dml_count": 2, "relationship_dml": 0, "commit_attempts": 2, "committed": 2, "fault_hits": 0, "scheduler_writes": 1, "revision_delta": 1, "audit_delta": 1, "paused": true}
+CRON_EDIT_BASELINE: OK cases=6 mode=current_contract

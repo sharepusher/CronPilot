@@ -1,0 +1,13 @@
+{
+  "commit_completed": true,
+  "post_commit_read_failed": false,
+  "exception_escaped": null,
+  "stored_status": 1,
+  "scheduler_apply_calls": 1,
+  "retry_context": {
+    "task": 1,
+    "revision": 1,
+    "target": 1,
+    "config": "90f2efb6d6d502a72d53b7903a93c8976da02c0ab2d77c434024f68fd413f5d6"
+  }
+}

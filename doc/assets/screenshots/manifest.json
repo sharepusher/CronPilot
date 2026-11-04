@@ -1,6 +1,69 @@
 {
   "assets": [
     {
+      "sha256": "001b1276a0f525c207b6eb146e2943ce7d2affd6860aa9b519a16c50bd801db4",
+      "byte_size": 148778,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/001b1276a0f525c207b6eb146e2943ce7d2affd6860aa9b519a16c50bd801db4.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-outside-denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-outside-denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "0040010d4230ac85b31146ecd1b69a1421e2a7a5141caa1bf4459203f1fa80c3",
+      "byte_size": 147905,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/0040010d4230ac85b31146ecd1b69a1421e2a7a5141caa1bf4459203f1fa80c3.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "02b4e92c93f9797ee5bf134528d06e27715d17272094939a689da61e4ccf2d37",
+      "byte_size": 45059,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/02b4e92c93f9797ee5bf134528d06e27715d17272094939a689da61e4ccf2d37.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-r5-2026-10-29/design-compare.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/design-compare.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 161223,
       "canonical_path": "doc/assets/screenshots/0354c7cf38f836d8755e62be8c89d84ffe4010ad1580882f3a1bc50e0a1bfe0f.png",
       "content_review": {
@@ -22,6 +85,27 @@
         "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
       ],
       "sha256": "0354c7cf38f836d8755e62be8c89d84ffe4010ad1580882f3a1bc50e0a1bfe0f"
+    },
+    {
+      "sha256": "06c949f4640b38cbd539bb9ee15bac00b04e0e9e0a4ec1db30693e5220f07a63",
+      "byte_size": 119448,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/06c949f4640b38cbd539bb9ee15bac00b04e0e9e0a4ec1db30693e5220f07a63.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-w1-2026-10-30/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 411958,
@@ -74,6 +158,27 @@
       "sha256": "08ae822041bc6cf2ff48feb40a3bfbd10e311a37605bee160ce1237cd473d717"
     },
     {
+      "sha256": "08b67f820bdcde96aa1cda2fa2707592f80f7dd78629be85000c54b7d0d55f3e",
+      "byte_size": 137206,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/08b67f820bdcde96aa1cda2fa2707592f80f7dd78629be85000c54b7d0d55f3e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/global-native-t0.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-native-t0.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 180964,
       "canonical_path": "doc/assets/screenshots/0b82f5b998d8515f5d47b879c3206ccfb84f6953326d30c623e719cd0f477c06.png",
       "content_review": {
@@ -96,6 +201,90 @@
         "doc/archive/design-eval-rounds/UI重设计-第九轮Mockup对比评估.md"
       ],
       "sha256": "0b82f5b998d8515f5d47b879c3206ccfb84f6953326d30c623e719cd0f477c06"
+    },
+    {
+      "sha256": "0b9e6603382381b5e9e98ecbaf2d51c58c678d8948b6a444f689d7a3761302f2",
+      "byte_size": 121216,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/0b9e6603382381b5e9e98ecbaf2d51c58c678d8948b6a444f689d7a3761302f2.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_after.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_after.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "0cb3d0297d12402f3d00472c413cfd7b4c61c412435257b46145871f64b683d7",
+      "byte_size": 105891,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/0cb3d0297d12402f3d00472c413cfd7b4c61c412435257b46145871f64b683d7.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/scoped-conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "0e628edfd0f268d37c4c96e725fa5b2c4ccd8ada21a44ce54fae64e2818e85b3",
+      "byte_size": 149224,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/0e628edfd0f268d37c4c96e725fa5b2c4ccd8ada21a44ce54fae64e2818e85b3.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "11929e24002f468dbd2388552f654549aeac7db2999c6fcf800a9fcd43a31117",
+      "byte_size": 112255,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/11929e24002f468dbd2388552f654549aeac7db2999c6fcf800a9fcd43a31117.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-profile-saved.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/preview/restricted-profile-saved.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 160388,
@@ -121,6 +310,135 @@
       "sha256": "11fd24258be10f3f95a76a227afa7a976680bf063f1b96832ebbaea0afc4cfec"
     },
     {
+      "sha256": "125dccae976d0c2e10e7065cae7f436fe5b84894a31e76c22f6139b526bc0262",
+      "byte_size": 123021,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/125dccae976d0c2e10e7065cae7f436fe5b84894a31e76c22f6139b526bc0262.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-w1-2026-10-30/operator-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/operator-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "16690ebafa024776409567a35a4b074914911d1152745e09e4769ef9f34b7b8c",
+      "byte_size": 100459,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/16690ebafa024776409567a35a4b074914911d1152745e09e4769ef9f34b7b8c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-r5-2026-10-29/final-review.png"
+      ],
+      "referenced_by": [
+        "doc/postmortem/2026-10-RBAC用户编辑范围外组误删.html",
+        "doc/postmortem/2026-10-RBAC用户编辑范围外组误删.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "doc/qa/evidence/rbac-r5-2026-10-29/results.json",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "177ec60b56b81b28ee506e7c58b1f0295529dfd99b85c006ced60412cdeaeab6",
+      "byte_size": 89378,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/177ec60b56b81b28ee506e7c58b1f0295529dfd99b85c006ced60412cdeaeab6.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group10.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group10.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "1b4b2c9d7a9a8c71e299fbf27f4186a15d67922b930b3698cdb7282ebf7a6778",
+      "byte_size": 142531,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/1b4b2c9d7a9a8c71e299fbf27f4186a15d67922b930b3698cdb7282ebf7a6778.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "1b9f36c3427b71f2865f7490491a69cc9947df95a388a90395542812f10b398c",
+      "byte_size": 159776,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/1b9f36c3427b71f2865f7490491a69cc9947df95a388a90395542812f10b398c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "1d1db8c61ded2b1d145293df7a55879107512cf82f0367d8dd9eb8ca6748e6bb",
+      "byte_size": 105954,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/1d1db8c61ded2b1d145293df7a55879107512cf82f0367d8dd9eb8ca6748e6bb.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-concurrency-2026-10-29/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 417297,
       "canonical_path": "doc/assets/screenshots/1d65b8a55796841bf319759d53cb0ba364216a496735f5f65c409e49d1e6c954.png",
       "content_review": {
@@ -143,6 +461,114 @@
         "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
       ],
       "sha256": "1d65b8a55796841bf319759d53cb0ba364216a496735f5f65c409e49d1e6c954"
+    },
+    {
+      "sha256": "1f12e839308f02bb4b18d29d899a1b804c5811b1080f7f8007dd53202e3f1bfe",
+      "byte_size": 145440,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/1f12e839308f02bb4b18d29d899a1b804c5811b1080f7f8007dd53202e3f1bfe.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm-fallback.png"
+      ],
+      "referenced_by": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html",
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "205f4c2431e747b5bb68d423e475616d4bf25e706defc5e11b3ae4c3cd31ccff",
+      "byte_size": 149239,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/205f4c2431e747b5bb68d423e475616d4bf25e706defc5e11b3ae4c3cd31ccff.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "20bc7d5fb2e70c887afabe88143939730472d19016870648e60aac1bb97914ce",
+      "byte_size": 61918,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/20bc7d5fb2e70c887afabe88143939730472d19016870648e60aac1bb97914ce.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/global-invalid-token.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-invalid-token.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "236eb6b64600e2614cba1cbc29dfa1ee04f6f333f1f900a040356488901f86df",
+      "byte_size": 114710,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/236eb6b64600e2614cba1cbc29dfa1ee04f6f333f1f900a040356488901f86df.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_flush.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_flush.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "271abc1aa30ca1a1c0f85575c363af0851173d98585f1a773a009a91e77d89cc",
+      "byte_size": 118325,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/271abc1aa30ca1a1c0f85575c363af0851173d98585f1a773a009a91e77d89cc.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_failed.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_failed.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 244534,
@@ -191,6 +617,27 @@
       "sha256": "29737800c08222b278a9d2b62538163de007f8c32f3b8385b41de257df0fb8c9"
     },
     {
+      "sha256": "29c15461444708b548ff95c5826b549a3ccb60181be6645b27f783ef903d32da",
+      "byte_size": 90269,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/29c15461444708b548ff95c5826b549a3ccb60181be6645b27f783ef903d32da.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-status-d2-2026-11-02/sqlite/retry-success.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated D2 browser verification",
+        "source_ref": "scripts/verify_cron_status_d2.py",
+        "basis": "project-owned synthetic D1 fixture and paused scheduler"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 459242,
       "canonical_path": "doc/assets/screenshots/2c7a96be89a7297f9db1adf0662d7d4be28fce60030f2fd3bcd4e23de037501e.png",
       "content_review": {
@@ -237,6 +684,73 @@
       "sha256": "2e38e9724e74e33ab709039d4c8b346644200700ac1f1378088bc58bc7fe3cb6"
     },
     {
+      "sha256": "2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19",
+      "byte_size": 115876,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-actor.png",
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-actor.png"
+      ],
+      "referenced_by": [
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.html",
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_user_edit_sqlite_boundary.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "2f926570340a7c0ff022357daacebbcbe25fbdbc1c4a90d284a3cf14b0db9c38",
+      "byte_size": 116595,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/2f926570340a7c0ff022357daacebbcbe25fbdbc1c4a90d284a3cf14b0db9c38.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/already_applied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/already_applied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "3138072a6ce669bac4afefa9fc5664fda6a906653e8ebd3e47b3a4c756f367f5",
+      "byte_size": 162489,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3138072a6ce669bac4afefa9fc5664fda6a906653e8ebd3e47b3a4c756f367f5.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 357258,
       "canonical_path": "doc/assets/screenshots/32be76beffebcf5b7907588f90ba8adbbfead8c15302d41133a596bc717f3784.png",
       "content_review": {
@@ -280,6 +794,27 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "3362000dc0be42af5b7abf350cc61f19cbe3289a4f551867a38e02ec677c04f3"
+    },
+    {
+      "sha256": "3536ec1ba8bc73fdc7b090ccc965ccaf3c84e60a4909233044e07d6f665df9cc",
+      "byte_size": 74659,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3536ec1ba8bc73fdc7b090ccc965ccaf3c84e60a4909233044e07d6f665df9cc.png",
+      "content_review": {
+        "reviewed_on": "2026-11-03",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated browser test",
+        "source_ref": "scripts/verify_dashboard_status_browser.py",
+        "basis": "isolated fixture; no real credentials"
+      },
+      "legacy_paths": [],
+      "referenced_by": [
+        "doc/design/release-six-test-baseline-2026-11-03.html",
+        "doc/design/release-six-test-baseline-2026-11-03.md"
+      ]
     },
     {
       "byte_size": 194223,
@@ -351,6 +886,69 @@
       "sha256": "363c93c28bc0572e5e1942227ce5a6586ec96cb84e22669184e0fc17d229df97"
     },
     {
+      "sha256": "38392204b9b757f4512bd219320575d095a76bfd1a210b7fe06a50a621b03263",
+      "byte_size": 133469,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/38392204b9b757f4512bd219320575d095a76bfd1a210b7fe06a50a621b03263.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/global.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/global.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "3865a8af6aae32ce45c476388fd5ef93f617ead731242480db6de2349e5c1f89",
+      "byte_size": 118652,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3865a8af6aae32ce45c476388fd5ef93f617ead731242480db6de2349e5c1f89.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "38aab584bbade67479513bb3e46c406f12ea2bcec658104cf09ebfa0d0e304e8",
+      "byte_size": 121265,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/38aab584bbade67479513bb3e46c406f12ea2bcec658104cf09ebfa0d0e304e8.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_before.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_unknown_before.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 430794,
       "canonical_path": "doc/assets/screenshots/38eb3272d5e2820dd6694bc78151fd7eb37af4ea6a3432bec5634e7b41e0933e.png",
       "content_review": {
@@ -369,6 +967,48 @@
       },
       "referenced_by": [],
       "sha256": "38eb3272d5e2820dd6694bc78151fd7eb37af4ea6a3432bec5634e7b41e0933e"
+    },
+    {
+      "sha256": "3928cbe68252a9e7fad808682661630650ece6281744355ad8805a932dc7b8d9",
+      "byte_size": 105818,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3928cbe68252a9e7fad808682661630650ece6281744355ad8805a932dc7b8d9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/specific-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/specific-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "3d88db8da623149b287f35ef26a2740d9545a83914ddda0c7a1f5d674a3104da",
+      "byte_size": 159316,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3d88db8da623149b287f35ef26a2740d9545a83914ddda0c7a1f5d674a3104da.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 151073,
@@ -417,6 +1057,93 @@
       "sha256": "3e404209f981c3e591825b44853bce989e9144a84bb09c95d2794224b6e46d76"
     },
     {
+      "sha256": "3f855ad1055dd36bc3639ec6f143c69c5a18e4c58413c12561f3e842b94153ba",
+      "byte_size": 134341,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/3f855ad1055dd36bc3639ec6f143c69c5a18e4c58413c12561f3e842b94153ba.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/restore-before-click.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/restore-before-click.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "40fbcb8ec80650ad796a89c223c3eedaa6ea8cbf5e6109003b02c1c4de8c7414",
+      "byte_size": 148320,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/40fbcb8ec80650ad796a89c223c3eedaa6ea8cbf5e6109003b02c1c4de8c7414.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "4151686a8c605a6653c4456d2615673865e8c96f75a7f6011b566281c178707a",
+      "byte_size": 108541,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/4151686a8c605a6653c4456d2615673865e8c96f75a7f6011b566281c178707a.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/scoped-outside-denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-outside-denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "415a4e3d919c5f71242a90b412d55fdf3eb419002f84a2cb51acfa39d58253b9",
+      "byte_size": 148270,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/415a4e3d919c5f71242a90b412d55fdf3eb419002f84a2cb51acfa39d58253b9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-actor.png"
+      ],
+      "referenced_by": [
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.html",
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_user_edit_sqlite_boundary.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 421796,
       "canonical_path": "doc/assets/screenshots/4319d7077fa8647ad44afe59230591e08e192e155aecde20e497006f9388ecaa.png",
       "content_review": {
@@ -437,6 +1164,27 @@
         "doc/design/CSS硬编码颜色修复设计.html"
       ],
       "sha256": "4319d7077fa8647ad44afe59230591e08e192e155aecde20e497006f9388ecaa"
+    },
+    {
+      "sha256": "44b13ea88e5617d43a8a9a7c9975cdd5d8682f219e5935feae4be508e88e402e",
+      "byte_size": 115401,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/44b13ea88e5617d43a8a9a7c9975cdd5d8682f219e5935feae4be508e88e402e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/failed_field.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/failed_field.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 415559,
@@ -485,6 +1233,175 @@
       "sha256": "45861ba76e2ef833912083c58bf395ead2a956abb1a72b2291f517129303317b"
     },
     {
+      "sha256": "458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b",
+      "byte_size": 121186,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/458c8dedf8456e2d86a6452b6c83e108916efc5c310c5cfcc307be90b6a0c06b.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-actor.png",
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_target-actor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_target-actor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "4779d3c8301eacec43fec80ef05e91b1606121e06d8cf1c6262956dabdc1e2af",
+      "byte_size": 146371,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/4779d3c8301eacec43fec80ef05e91b1606121e06d8cf1c6262956dabdc1e2af.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "47c518c346560d047a63e786dcac33e524c33a2ab7c907dc364c2279d895c7cc",
+      "byte_size": 118431,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/47c518c346560d047a63e786dcac33e524c33a2ab7c907dc364c2279d895c7cc.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "500b1478b25fd5222915a47652e52a6f46e4f1ed3423537d945b6bf0325a18f5",
+      "byte_size": 95759,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/500b1478b25fd5222915a47652e52a6f46e4f1ed3423537d945b6bf0325a18f5.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/single-hidden-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/single-hidden-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "50a01e19f7e7117683c1d1987709fe2ebaa1bc9ae4ab80f21715c666b04182d2",
+      "byte_size": 112836,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/50a01e19f7e7117683c1d1987709fe2ebaa1bc9ae4ab80f21715c666b04182d2.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "516ba2d09afb4e3a34676d7989379c6cd66649c4370e87777f75d97bdc9d8414",
+      "byte_size": 119743,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/516ba2d09afb4e3a34676d7989379c6cd66649c4370e87777f75d97bdc9d8414.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after_auth.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after_auth.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "52ac2466df2aad37db64ae31eda4b9ef6beabb51b18b8c16a66f6067c3bf352e",
+      "byte_size": 78724,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/52ac2466df2aad37db64ae31eda4b9ef6beabb51b18b8c16a66f6067c3bf352e.png",
+      "content_review": {
+        "reviewed_on": "2026-11-03",
+        "status": "reviewed-no-obvious-sensitive-content"
+      },
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated browser test",
+        "source_ref": "scripts/verify_dashboard_status_browser.py",
+        "basis": "isolated fixture; no real credentials"
+      },
+      "legacy_paths": [],
+      "referenced_by": [
+        "doc/design/release-six-test-baseline-2026-11-03.html",
+        "doc/design/release-six-test-baseline-2026-11-03.md"
+      ]
+    },
+    {
+      "sha256": "5429a3d15ec877cdcb9be92351e0731687f428cdae3fe75d8f0e6d38356e7e62",
+      "byte_size": 118359,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5429a3d15ec877cdcb9be92351e0731687f428cdae3fe75d8f0e6d38356e7e62.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-noop-2026-10-29/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-noop-2026-10-29/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 402611,
       "canonical_path": "doc/assets/screenshots/577975fbe3d39df01f02e0c65a13046e121fe370e17f1ab83abacf4fb675fcf0.png",
       "content_review": {
@@ -509,6 +1426,69 @@
       "sha256": "577975fbe3d39df01f02e0c65a13046e121fe370e17f1ab83abacf4fb675fcf0"
     },
     {
+      "sha256": "57b820f6cabebfb816341a768c3f9db84f858f3c372ce14c8d31adfa19b9cbd2",
+      "byte_size": 118810,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/57b820f6cabebfb816341a768c3f9db84f858f3c372ce14c8d31adfa19b9cbd2.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "5905b69c28b68f8781690d29a07ea072bef0bb663c8442809afcae66d8f1b070",
+      "byte_size": 148754,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5905b69c28b68f8781690d29a07ea072bef0bb663c8442809afcae66d8f1b070.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-actor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-actor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "5b01cf01dac815fdfd8ef082f39c1ec850fe9b4cc429eb1541eeeac929d837aa",
+      "byte_size": 343430,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5b01cf01dac815fdfd8ef082f39c1ec850fe9b4cc429eb1541eeeac929d837aa.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/global_updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/global_updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 418174,
       "canonical_path": "doc/assets/screenshots/5b307eb2098695294eb249d839db4628df653e42fea0e58b4f6821b6dbeee6ec.png",
       "content_review": {
@@ -527,6 +1507,70 @@
       },
       "referenced_by": [],
       "sha256": "5b307eb2098695294eb249d839db4628df653e42fea0e58b4f6821b6dbeee6ec"
+    },
+    {
+      "sha256": "5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9",
+      "byte_size": 112018,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5b5e340f30420f9d4b2d9abf7569fd5b83aebd7767bac9915b712065443f52c9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-timeout-noop.png",
+        "doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-timeout-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-timeout-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "5b98868e51e265bcde20742f5367f2693feeb177303dc84675b366450ff284e0",
+      "byte_size": 162296,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5b98868e51e265bcde20742f5367f2693feeb177303dc84675b366450ff284e0.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_target-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "5e10e6132ad5bfaf4408cb3da8eedf99935100f896d005b1dbd8f7162ea630fd",
+      "byte_size": 146359,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5e10e6132ad5bfaf4408cb3da8eedf99935100f896d005b1dbd8f7162ea630fd.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/scope_denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/scope_denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 163349,
@@ -555,6 +1599,111 @@
       "sha256": "5ef3e4ee2fb1831bc9a9c427f422c3efa86dfc74776ee6dbad73201c2bd8cc3c"
     },
     {
+      "sha256": "5fabc8682d6fb69610fe359140a7818222e5eae4b7a84f5158a31647fe4d3ff9",
+      "byte_size": 130560,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/5fabc8682d6fb69610fe359140a7818222e5eae4b7a84f5158a31647fe4d3ff9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "606dd42f0f1da1d3b3c6fd8cc2ef4dc5867014aecc124d05a4be8246f6bc4ecc",
+      "byte_size": 134907,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/606dd42f0f1da1d3b3c6fd8cc2ef4dc5867014aecc124d05a4be8246f6bc4ecc.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save-modal.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save-modal.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "60e4cfa90137bca1d1be9b4a5f3675e837913561c226dffe50e35c87bad7359e",
+      "byte_size": 120969,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/60e4cfa90137bca1d1be9b4a5f3675e837913561c226dffe50e35c87bad7359e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6147d367a6c9a88523ba216887233fa61ae2a9e19554259516ed1c69b87169a9",
+      "byte_size": 129309,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6147d367a6c9a88523ba216887233fa61ae2a9e19554259516ed1c69b87169a9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-concurrency-2026-10-29/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6163f39cda284f03eee3644f11e37bf4ae95969cd487cf52fb2e4af53c887990",
+      "byte_size": 112343,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6163f39cda284f03eee3644f11e37bf4ae95969cd487cf52fb2e4af53c887990.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/csrf_denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/csrf_denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 327841,
       "canonical_path": "doc/assets/screenshots/617102336119f35086879487b2510ffc23a57b2aa605fc952b6a3835d8f357e7.png",
       "content_review": {
@@ -576,6 +1725,135 @@
         "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
       ],
       "sha256": "617102336119f35086879487b2510ffc23a57b2aa605fc952b6a3835d8f357e7"
+    },
+    {
+      "sha256": "61bcdb05f916ed78f2bb614201433522fa389f7eee922db3122abb4bf16b33c1",
+      "byte_size": 95064,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/61bcdb05f916ed78f2bb614201433522fa389f7eee922db3122abb4bf16b33c1.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/stale-session-downgraded.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/stale-session-downgraded.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6476724413bd8cdde57e0de10c39df21eda027d28d3809445e344981a07ab27a",
+      "byte_size": 119396,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6476724413bd8cdde57e0de10c39df21eda027d28d3809445e344981a07ab27a.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after.png"
+      ],
+      "referenced_by": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html",
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "648339ddd95c9aecc6d20b0793e2b56853cc1b8454421694f1355ba942995c21",
+      "byte_size": 121780,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/648339ddd95c9aecc6d20b0793e2b56853cc1b8454421694f1355ba942995c21.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/global_no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/global_no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "64d828c7386b6825a65dc390cfb6720a1de4bbdb80e1120d5984a48a172d9ded",
+      "byte_size": 152825,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/64d828c7386b6825a65dc390cfb6720a1de4bbdb80e1120d5984a48a172d9ded.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "64e9fe7e1f54179800f2d55603f911e221cd039ebecf906ea243e45d6a5181be",
+      "byte_size": 120533,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/64e9fe7e1f54179800f2d55603f911e221cd039ebecf906ea243e45d6a5181be.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_already_applied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_already_applied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "65a94e0bf072baffcb3382a1aa74270533c4fdebfbeca4ce50e60d66d67f73ed",
+      "byte_size": 91137,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/65a94e0bf072baffcb3382a1aa74270533c4fdebfbeca4ce50e60d66d67f73ed.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/ajax-error.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/ajax-error.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 147267,
@@ -629,6 +1907,49 @@
         "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
       ],
       "sha256": "66c6916e78859af83cd1b56bc66747cb387c9b1371d63ba5771113501fc24f45"
+    },
+    {
+      "sha256": "67168e6dc20910d14977772560f482fa925ed0c644e1d1ee9e16e8c48421769f",
+      "byte_size": 145601,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/67168e6dc20910d14977772560f482fa925ed0c644e1d1ee9e16e8c48421769f.png",
+      "legacy_paths": [],
+      "referenced_by": [
+        "doc/design/rbac-cache-postcommit-boundary-2026-11-04.html",
+        "doc/design/rbac-cache-postcommit-boundary-2026-11-04.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated browser verification",
+        "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+        "basis": "project-owned synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "676a9b00f7ad92e6f703951f4d43e4d2cf478622b064e9e677e7ce084d7a01dd",
+      "byte_size": 95068,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/676a9b00f7ad92e6f703951f4d43e4d2cf478622b064e9e677e7ce084d7a01dd.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 507314,
@@ -695,6 +2016,49 @@
       "sha256": "681d8b7e618844bdfe249189d07799c965292fa5df99d0ded8561ff9fa20514a"
     },
     {
+      "sha256": "68515de6bc079a8abc269eb8dd049ca3f2699e76bcd492e1fadc578319b4d39f",
+      "byte_size": 117751,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/68515de6bc079a8abc269eb8dd049ca3f2699e76bcd492e1fadc578319b4d39f.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1",
+      "byte_size": 20963,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6a1d725240634f7705c20d11f826eb08af6ec4e9e01436e54d3d0f6bac1bebe1.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-error.png",
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-error.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-error.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 357092,
       "canonical_path": "doc/assets/screenshots/6b217c3bf5ee519c0d5372b79b2953b0e04ec88fd7651bae8279a8050dbff1b3.png",
       "content_review": {
@@ -715,6 +2079,69 @@
         "doc/design/CSS硬编码颜色修复设计.html"
       ],
       "sha256": "6b217c3bf5ee519c0d5372b79b2953b0e04ec88fd7651bae8279a8050dbff1b3"
+    },
+    {
+      "sha256": "6b94b15bb2f04d7d2f69b177b1ba644bc771b1ed58622d5f09024dd33bea3b6a",
+      "byte_size": 85453,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6b94b15bb2f04d7d2f69b177b1ba644bc771b1ed58622d5f09024dd33bea3b6a.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/ajax-error.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/ajax-error.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6d8bb9338228d134ae2b2c4f240562a8d3ba3272024b9916ee56185e95a72ae8",
+      "byte_size": 117266,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6d8bb9338228d134ae2b2c4f240562a8d3ba3272024b9916ee56185e95a72ae8.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_field.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/failed_field.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "6ed882abfc7f5bc2f565682ab6bc79ac47c4f983bde5402345e7113de5538987",
+      "byte_size": 121565,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/6ed882abfc7f5bc2f565682ab6bc79ac47c4f983bde5402345e7113de5538987.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 470006,
@@ -763,6 +2190,27 @@
       "sha256": "7278db7440b4839bf74a5af14ffaba8951b1166bd5302d38f06c12e15017f3d0"
     },
     {
+      "sha256": "72d61e32ff2a68e3a1700b51883be728a191c2250094cf653b0b58dd964aad61",
+      "byte_size": 125024,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/72d61e32ff2a68e3a1700b51883be728a191c2250094cf653b0b58dd964aad61.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 25293,
       "canonical_path": "doc/assets/screenshots/73e5ed4763101e5b31b71ca8ab2f8779802d23ce9f142edb720afcca34ce2ce3.png",
       "content_review": {
@@ -786,6 +2234,27 @@
       "sha256": "73e5ed4763101e5b31b71ca8ab2f8779802d23ce9f142edb720afcca34ce2ce3"
     },
     {
+      "sha256": "764743a3681bfc56807ddd3683fe2402d633843b457a1617af859ff8a86563ab",
+      "byte_size": 114950,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/764743a3681bfc56807ddd3683fe2402d633843b457a1617af859ff8a86563ab.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 104622,
       "canonical_path": "doc/assets/screenshots/773ad9e068584bfab384369b648a1bf8dbf200b4d600a9aa154380a3ad040c5e.png",
       "content_review": {
@@ -807,6 +2276,27 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "773ad9e068584bfab384369b648a1bf8dbf200b4d600a9aa154380a3ad040c5e"
+    },
+    {
+      "sha256": "7868eb93ee067c71cf78075703ecf5f6e43561ed51f53952e319cdded5dcae0b",
+      "byte_size": 224483,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/7868eb93ee067c71cf78075703ecf5f6e43561ed51f53952e319cdded5dcae0b.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/multi-audit-fallback.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/multi-audit-fallback.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 204510,
@@ -855,6 +2345,48 @@
       "sha256": "7b863a526e4c62bfbc9ba18aed3361f28389cfb98f43dff6af4a08c232c42f82"
     },
     {
+      "sha256": "7b8a8b57f983fa63a7cb374f0eb7bb208ec241f50a2b5ede36c93922ab446f57",
+      "byte_size": 135434,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/7b8a8b57f983fa63a7cb374f0eb7bb208ec241f50a2b5ede36c93922ab446f57.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server-modal.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_server-modal.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "7bb6f14ae3dca944bcbe9ef7da20fded604298f5eb543490182fd15a83f28c11",
+      "byte_size": 120184,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/7bb6f14ae3dca944bcbe9ef7da20fded604298f5eb543490182fd15a83f28c11.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_already_applied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_already_applied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 212306,
       "canonical_path": "doc/assets/screenshots/7c15e1a90514403ea7c6a3488284f8288785c530e27b84a6d917c2e3da5e992b.png",
       "content_review": {
@@ -878,6 +2410,132 @@
       "sha256": "7c15e1a90514403ea7c6a3488284f8288785c530e27b84a6d917c2e3da5e992b"
     },
     {
+      "sha256": "805385d3849e231cc36180de89a1f756475e39b72d98fc656b9927f5da186122",
+      "byte_size": 123686,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/805385d3849e231cc36180de89a1f756475e39b72d98fc656b9927f5da186122.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/multi.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/multi.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "8085196b7b787d6f7d923faea977c2eda349ec7633872e73768cdfffa7f72f8b",
+      "byte_size": 148290,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/8085196b7b787d6f7d923faea977c2eda349ec7633872e73768cdfffa7f72f8b.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-actor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-save_first_role-actor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "80e610c308bf06101adc99a5e5a9ebb121094a66dac9b7ba97eb05c502dd9f6d",
+      "byte_size": 95475,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/80e610c308bf06101adc99a5e5a9ebb121094a66dac9b7ba97eb05c502dd9f6d.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-status-d2-2026-11-02/mysql/retry-visible.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated D2 browser verification",
+        "source_ref": "scripts/verify_cron_status_d2.py",
+        "basis": "project-owned synthetic D1 fixture and paused scheduler"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "81f24aa7b4ee667ad31e7560e68d0fc79b569d2652cb30cb2fff3b667a92383c",
+      "byte_size": 144773,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/81f24aa7b4ee667ad31e7560e68d0fc79b569d2652cb30cb2fff3b667a92383c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "8249d30bf114c005da033d7e1a426e3897170e77818b09441190b76b0afe9a0d",
+      "byte_size": 112294,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/8249d30bf114c005da033d7e1a426e3897170e77818b09441190b76b0afe9a0d.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/csrf_denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/csrf_denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "82cf31b8041f16d1f59b3034d7553a0f02b1d696f8995cf21c40a4bf3772425e",
+      "byte_size": 121442,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/82cf31b8041f16d1f59b3034d7553a0f02b1d696f8995cf21c40a4bf3772425e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_before.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_before.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 98989,
       "canonical_path": "doc/assets/screenshots/845b82f18b406312c914410ddb38b9e9a34f45a027e417afacbda7d89fa821f8.png",
       "content_review": {
@@ -899,6 +2557,27 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "845b82f18b406312c914410ddb38b9e9a34f45a027e417afacbda7d89fa821f8"
+    },
+    {
+      "sha256": "8481d04ae17d1b55f3601d4745470f90ce835e1ffd69331cb57eea401d0e1058",
+      "byte_size": 93246,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/8481d04ae17d1b55f3601d4745470f90ce835e1ffd69331cb57eea401d0e1058.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-status-d2-2026-11-02/sqlite/retry-visible.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated D2 browser verification",
+        "source_ref": "scripts/verify_cron_status_d2.py",
+        "basis": "project-owned synthetic D1 fixture and paused scheduler"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 214905,
@@ -926,6 +2605,90 @@
         "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
       ],
       "sha256": "85d51931b7cc60cdbc45fa88ef97f649c6e98d8e5ac4b2be4c1e998cb0acc520"
+    },
+    {
+      "sha256": "87150540d0244b8263fc70783fe92d158d23ab58d860383ce23bd3d800e7bd93",
+      "byte_size": 133646,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/87150540d0244b8263fc70783fe92d158d23ab58d860383ce23bd3d800e7bd93.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server-modal.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server-modal.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "87cd7bcea469360b7e436da3cd20c0faddb5aa0f331ddb3e84c0778cdc6a8a86",
+      "byte_size": 120074,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/87cd7bcea469360b7e436da3cd20c0faddb5aa0f331ddb3e84c0778cdc6a8a86.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after_auth.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_after_auth.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "88ddea8d468eec195f914c44307a3ffec146ad4db4f5231b409a2b759c2e3bd7",
+      "byte_size": 224558,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/88ddea8d468eec195f914c44307a3ffec146ad4db4f5231b409a2b759c2e3bd7.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/single-audit-fallback.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/single-audit-fallback.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "8926f35c836da4d11f3c33dd67826dfb431fb1d1497fffdf64c0c6fe004b0c98",
+      "byte_size": 118691,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/8926f35c836da4d11f3c33dd67826dfb431fb1d1497fffdf64c0c6fe004b0c98.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-w1-2026-10-30/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 413445,
@@ -1017,6 +2780,90 @@
       "sha256": "94de3901d8e53ef651bcb10c6d0c8df194b10a1138eeee44686f04224ac03538"
     },
     {
+      "sha256": "970ec4cdf70263f301b65676d7eadb7646252154b9021f0ba3db77753fa257c7",
+      "byte_size": 102090,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/970ec4cdf70263f301b65676d7eadb7646252154b9021f0ba3db77753fa257c7.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-user-management-r02-2026-10-27/global-scope-form-selected.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-user-management-r02-2026-10-27/global-scope-form-selected.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "9c2a369fae311a320c7c7aee7fdfd5fb50d60f5d19804530fce4e50bd9aa7f5b",
+      "byte_size": 120386,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/9c2a369fae311a320c7c7aee7fdfd5fb50d60f5d19804530fce4e50bd9aa7f5b.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "9d52405dbc0ebe1d539e513750dc6a590917b9045e86a282326d89388046f0ec",
+      "byte_size": 122150,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/9d52405dbc0ebe1d539e513750dc6a590917b9045e86a282326d89388046f0ec.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/js-modal.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/js-modal.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "9e2a06c2b76b50706357f285c469efeab6a32e7f498916f22913ec984f2965a3",
+      "byte_size": 119607,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/9e2a06c2b76b50706357f285c469efeab6a32e7f498916f22913ec984f2965a3.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 33908,
       "canonical_path": "doc/assets/screenshots/a271663b6dcca6c9c6a53554c58f3e8d73d3e4160781c268f6c8f3d4a152cab7.png",
       "content_review": {
@@ -1063,6 +2910,48 @@
       "sha256": "a2a1d23e0bea38a8bfb251002f72f14b768c46a35a81e0693b09724de7ada907"
     },
     {
+      "sha256": "a5a5f1eeae959450c33ad1e13ac5783ee82b5795341f94636ff565d1d33c1a69",
+      "byte_size": 112533,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/a5a5f1eeae959450c33ad1e13ac5783ee82b5795341f94636ff565d1d33c1a69.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_server.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "a6ede773de6c41cb5d357c67cac0f8f0fc5e010a6cb4a6f90336a33ab9b21f5b",
+      "byte_size": 114145,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/a6ede773de6c41cb5d357c67cac0f8f0fc5e010a6cb4a6f90336a33ab9b21f5b.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change_server.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/no_change_server.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 339079,
       "canonical_path": "doc/assets/screenshots/a7302856a17dbb61d85fe468946cd25c9f597a15cf3a3a25bf210b59cdd04ab8.png",
       "content_review": {
@@ -1084,6 +2973,48 @@
         "doc/archive/design-eval-rounds/UI重设计-第十四轮Mockup对比评估.md"
       ],
       "sha256": "a7302856a17dbb61d85fe468946cd25c9f597a15cf3a3a25bf210b59cdd04ab8"
+    },
+    {
+      "sha256": "a9ad7b8f0a7a25227bb763a83464a0443aa2ff90648af228976f5e006a9842ad",
+      "byte_size": 148031,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/a9ad7b8f0a7a25227bb763a83464a0443aa2ff90648af228976f5e006a9842ad.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "af42d1611541473753ff1213e50e727a71cd824b899f940abd3446b49704fba1",
+      "byte_size": 353902,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/af42d1611541473753ff1213e50e727a71cd824b899f940abd3446b49704fba1.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_updated.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/global_updated.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 312521,
@@ -1132,6 +3063,48 @@
       "sha256": "b0a0cdbad7f6ae7913ba9eb29f7b9f2c3eb7e72fcf240821cbacd84f6e3d4ab5"
     },
     {
+      "sha256": "b14407c395011d7cac361d24d0af2504c5e7eaf9fe54436976d3103eb05c3ce6",
+      "byte_size": 118960,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b14407c395011d7cac361d24d0af2504c5e7eaf9fe54436976d3103eb05c3ce6.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_before.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_before.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "b225ea185d400352632943fb800e09fafbe2a5b32044793c18cbff6f2d978f54",
+      "byte_size": 110609,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b225ea185d400352632943fb800e09fafbe2a5b32044793c18cbff6f2d978f54.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-r5-2026-10-29/authorization-conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/authorization-conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 60834,
       "canonical_path": "doc/assets/screenshots/b27f693a4542408f622d8af751ac29089467d90a51865eccca1d8a52014c30cf.png",
       "content_review": {
@@ -1153,6 +3126,90 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "b27f693a4542408f622d8af751ac29089467d90a51865eccca1d8a52014c30cf"
+    },
+    {
+      "sha256": "b2afcf28377a9fcd5cd852fbdef68a68016c7c72e5a1fd4813692ec931a74b85",
+      "byte_size": 115478,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b2afcf28377a9fcd5cd852fbdef68a68016c7c72e5a1fd4813692ec931a74b85.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "b340fb7ca8addd2ba0b2f5fcd7c7957df6f33b3d6194f0b3729b5463f550795e",
+      "byte_size": 130191,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b340fb7ca8addd2ba0b2f5fcd7c7957df6f33b3d6194f0b3729b5463f550795e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/scoped-native-t0.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-native-t0.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "b36e819171f98d400d9c35a9bbecdfb4f226d694a645f6af36fcc1dd413a7288",
+      "byte_size": 148736,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b36e819171f98d400d9c35a9bbecdfb4f226d694a645f6af36fcc1dd413a7288.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-actor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_target-actor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "b9a1369bbf461c604b87507688f66b9a7aab9d14a28fef7080877f23ea2b9fd4",
+      "byte_size": 117957,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/b9a1369bbf461c604b87507688f66b9a7aab9d14a28fef7080877f23ea2b9fd4.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/already_applied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/already_applied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 415722,
@@ -1178,6 +3235,72 @@
       "sha256": "bb40553e44ff38c2202a88b090ff9dd4542086befd5906288fbe608da6a3c606"
     },
     {
+      "sha256": "bb993e65d4175a7074696422b1fdb102817793e8f00ed5872fa0e434e2ed120d",
+      "byte_size": 128795,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/bb993e65d4175a7074696422b1fdb102817793e8f00ed5872fa0e434e2ed120d.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "bbc6e4728d6a30fb8fe5ce99862e25edd8f3613507a9d16ae304dfcc0adf6312",
+      "byte_size": 98832,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/bbc6e4728d6a30fb8fe5ce99862e25edd8f3613507a9d16ae304dfcc0adf6312.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-r5-2026-10-29/single-nickname-only.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/single-nickname-only.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "bd3b58d8d71887397785176cf54b964efa245450f57ee686c1f62b69f9c5fdc3",
+      "byte_size": 117622,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/bd3b58d8d71887397785176cf54b964efa245450f57ee686c1f62b69f9c5fdc3.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-noop-2026-10-29/operator-noop.png"
+      ],
+      "referenced_by": [
+        "doc/postmortem/2026-10-任务编辑无变更保存副作用.html",
+        "doc/postmortem/2026-10-任务编辑无变更保存副作用.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_cron_edit_noop_browser.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 413427,
       "canonical_path": "doc/assets/screenshots/bf9ad8a62c8566ba16e8e3c0394118dbdad7439a5606f62703fca3def4626259.png",
       "content_review": {
@@ -1198,6 +3321,160 @@
         "doc/design/CSS硬编码颜色修复设计.html"
       ],
       "sha256": "bf9ad8a62c8566ba16e8e3c0394118dbdad7439a5606f62703fca3def4626259"
+    },
+    {
+      "sha256": "bfd067e4c25ad3a8b269a4a89dc1c9cf5d4e32184e79cb8e96350b6a353e41b7",
+      "byte_size": 112833,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/bfd067e4c25ad3a8b269a4a89dc1c9cf5d4e32184e79cb8e96350b6a353e41b7.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/global-conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/global-conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c",
+      "byte_size": 22841,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c0c2bac1a0f8650595843fe10adbbf38e57c57c1798ce573ebc7922c7b8ab19c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/operator_denied.png",
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/viewer_denied.png",
+        "doc/qa/evidence/rbac-user-management-r02-2026-10-27/stale-session-downgraded.png",
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/operator_denied.png",
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/viewer_denied.png"
+      ],
+      "referenced_by": [
+        "doc/design/rbac-cache-postcommit-boundary-2026-11-04.html",
+        "doc/design/rbac-cache-postcommit-boundary-2026-11-04.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/operator_denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c0f984a33392019d4c92dfbcf5b0440a59bcd0934235cdc8de466f423a489500",
+      "byte_size": 61653,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c0f984a33392019d4c92dfbcf5b0440a59bcd0934235cdc8de466f423a489500.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/scoped-invalid-token.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/scoped-invalid-token.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c2f5707293ac1877d128f1cc8b9a7ce1ed90d2c478fb827d807e355f8cfed2cd",
+      "byte_size": 142272,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c2f5707293ac1877d128f1cc8b9a7ce1ed90d2c478fb827d807e355f8cfed2cd.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p1-2026-10-29/js-restored-conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p1-2026-10-29/js-restored-conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c357d1ba2eeb9f0960252a72bf05a22cfeb4a3833797b5f3115f5b93fc67ce09",
+      "byte_size": 117719,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c357d1ba2eeb9f0960252a72bf05a22cfeb4a3833797b5f3115f5b93fc67ce09.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-concurrency-2026-10-29/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c3c31c8fd6b46cfe28aa0e90d22df1b214173fe83ce06fcbdb32fa361e47fc54",
+      "byte_size": 115064,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c3c31c8fd6b46cfe28aa0e90d22df1b214173fe83ce06fcbdb32fa361e47fc54.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c49c32520b2fe3eb5e5d3501719e10130015df70f60a034bcd58eda185f6a19d",
+      "byte_size": 109476,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c49c32520b2fe3eb5e5d3501719e10130015df70f60a034bcd58eda185f6a19d.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 203095,
@@ -1246,6 +3523,53 @@
       "sha256": "c4f231c2def09d39a584a991d20393bb5c3c10b0816e7f0416cba1185e526cc1"
     },
     {
+      "sha256": "c5561266a5401abee76c659a770fc3e16b533dde2c367ed1e0a3a8702f65973c",
+      "byte_size": 111617,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c5561266a5401abee76c659a770fc3e16b533dde2c367ed1e0a3a8702f65973c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-noop-2026-10-29/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-noop-2026-10-29/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242",
+      "byte_size": 20208,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c559e2f382692d9dccffc3ef21edabe0a58422cae8ad361376b5907e7a200242.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-outside-scope.png",
+        "doc/qa/evidence/cron-timeout-types-2026-11-02/sqlite/operator-outside-scope.png",
+        "doc/qa/evidence/rbac-p1-2026-10-29/operator-403.png",
+        "doc/qa/evidence/rbac-p1-2026-10-29/target-403.png",
+        "doc/qa/evidence/rbac-p2-2026-10-29/operator-403.png",
+        "doc/qa/evidence/rbac-p2-2026-10-29/viewer-403.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/cron-timeout-types-2026-11-02/mysql/operator-outside-scope.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 240919,
       "canonical_path": "doc/assets/screenshots/c696344f03142ce69ee9d11435c42684a5cbe79a05e300eaf5e30b5225636a6d.png",
       "content_review": {
@@ -1269,6 +3593,48 @@
       "sha256": "c696344f03142ce69ee9d11435c42684a5cbe79a05e300eaf5e30b5225636a6d"
     },
     {
+      "sha256": "c725e91aa98a8aa917279640e9297e38912bffdea6aaa57a7692875867b26052",
+      "byte_size": 120823,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/c725e91aa98a8aa917279640e9297e38912bffdea6aaa57a7692875867b26052.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "cac650d0a31bcf761c69020c6fc24b789b392487b53b072d86f7b5e31957964f",
+      "byte_size": 98422,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/cac650d0a31bcf761c69020c6fc24b789b392487b53b072d86f7b5e31957964f.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/scoped-global-denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/scoped-global-denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 82488,
       "canonical_path": "doc/assets/screenshots/ce4cc03607834174831c7dac9e8ca8403337b3cfe893642a726de48687536600.png",
       "content_review": {
@@ -1290,6 +3656,48 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "ce4cc03607834174831c7dac9e8ca8403337b3cfe893642a726de48687536600"
+    },
+    {
+      "sha256": "ce9e1c5e2be2a213cea68332435185f79c7f0dcad34b2eddebac45e6e6a253b7",
+      "byte_size": 144395,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/ce9e1c5e2be2a213cea68332435185f79c7f0dcad34b2eddebac45e6e6a253b7.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "cf0b71d5ac5ab3632af65c4d9a2e920696220dbdfc2e0a1b4e8cdf7bb78c007f",
+      "byte_size": 68957,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/cf0b71d5ac5ab3632af65c4d9a2e920696220dbdfc2e0a1b4e8cdf7bb78c007f.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1-page2.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:e2ec4a1:doc/qa/evidence/rbac-registration-r2-4-2026-10-26/group1-page2.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 139176,
@@ -1327,6 +3735,27 @@
         "doc/archive/design-eval-rounds/UI重设计-第四轮Mockup对比评估.md"
       ],
       "sha256": "d06ed973bc2aad69afa3b1f3d8cebce06d5afad23c2d1a3362b93e244e5c11e7"
+    },
+    {
+      "sha256": "d403a7addab718f9d3d9bd430cc62208bc1ecd66d5d3299700a982b812f87d92",
+      "byte_size": 114807,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/d403a7addab718f9d3d9bd430cc62208bc1ecd66d5d3299700a982b812f87d92.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/failed_flush.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/failed_flush.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 168168,
@@ -1372,6 +3801,48 @@
       "sha256": "d4be202555bfadd3408eef1634329a4d58ceeba2d2f305bf4ab797b3c124b2b5"
     },
     {
+      "sha256": "d692f8072d298131af8b2b9e6909f52b618641933813dae4737295de63a0541e",
+      "byte_size": 145753,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/d692f8072d298131af8b2b9e6909f52b618641933813dae4737295de63a0541e.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm-fallback.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_confirm-fallback.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "d6dc8f21a98ffdf8334d488379fab97d1673991f1cb5009cc748a2dac4f835bc",
+      "byte_size": 118484,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/d6dc8f21a98ffdf8334d488379fab97d1673991f1cb5009cc748a2dac4f835bc.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/native_no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/native_no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 418670,
       "canonical_path": "doc/assets/screenshots/d76785b0459dabdd645e3b37b8700d584c2638b40870bbba1a58f914fbb24b47.png",
       "content_review": {
@@ -1392,6 +3863,27 @@
         "doc/design/CSS硬编码颜色修复设计.html"
       ],
       "sha256": "d76785b0459dabdd645e3b37b8700d584c2638b40870bbba1a58f914fbb24b47"
+    },
+    {
+      "sha256": "d7c6c5219ba0840d51b742c406322c495b3552e5325f32d259bbde73009c4acb",
+      "byte_size": 114183,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/d7c6c5219ba0840d51b742c406322c495b3552e5325f32d259bbde73009c4acb.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/no_change_server.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/no_change_server.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 66595,
@@ -1415,6 +3907,132 @@
         "doc/qa/xiaoniu_cron与CronPilot-页面截图对照-2026-09.md"
       ],
       "sha256": "d8674261d463817a7199d05b8d75dccfb41044e2ac4c1fa32f3c0bb8368443c0"
+    },
+    {
+      "sha256": "daaffd45b5cd35212cab79e22e4b6bb9228a8468d11784820a2ccff30eeec9e2",
+      "byte_size": 118650,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/daaffd45b5cd35212cab79e22e4b6bb9228a8468d11784820a2ccff30eeec9e2.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_failed.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_failed.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "dad423439a2367f7f5c926bbc91b7c0f2d23810fdeeb5028ecd00ff4208ce6e1",
+      "byte_size": 91643,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/dad423439a2367f7f5c926bbc91b7c0f2d23810fdeeb5028ecd00ff4208ce6e1.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/ajax-error.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/ajax-error.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "daf4bccf972d463e7c4877c4638b1fba40eaeeb7f2d426b0e3f5f0536e20ca61",
+      "byte_size": 118381,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/daf4bccf972d463e7c4877c4638b1fba40eaeeb7f2d426b0e3f5f0536e20ca61.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_no_change.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_no_change.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "dc2e0f0ed06b6f2ebaafdd943d489334e70fda94228fb5e9832b023de83832ef",
+      "byte_size": 99622,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/dc2e0f0ed06b6f2ebaafdd943d489334e70fda94228fb5e9832b023de83832ef.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/empty-selection-rejected.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/empty-selection-rejected.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "dc6710ba3bcbbf0eeff04cbd127f17ec63186d2741bb4dbd12656c6a2d02edb9",
+      "byte_size": 130034,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/dc6710ba3bcbbf0eeff04cbd127f17ec63186d2741bb4dbd12656c6a2d02edb9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-w1-2026-10-30/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-w1-2026-10-30/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "dff613f0410ffd6689e194c1395b5d3253fb1d31f755a6812597f9f2fcbdadf4",
+      "byte_size": 118193,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/dff613f0410ffd6689e194c1395b5d3253fb1d31f755a6812597f9f2fcbdadf4.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_before.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/unknown_before.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 362096,
@@ -1462,6 +4080,48 @@
       "sha256": "e44a79d80db123b377d6b68125a347fa9325631539f4eef39335e6b65d9627cb"
     },
     {
+      "sha256": "e54fefb80f9cf1ac005172cf71e34836ca5757efb2c9e1ccba16ee886749bfa6",
+      "byte_size": 89591,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/e54fefb80f9cf1ac005172cf71e34836ca5757efb2c9e1ccba16ee886749bfa6.png",
+      "legacy_paths": [
+        "doc/qa/evidence/cron-status-d2-2026-11-02/mysql/retry-success.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "isolated D2 browser verification",
+        "source_ref": "scripts/verify_cron_status_d2.py",
+        "basis": "project-owned synthetic D1 fixture and paused scheduler"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "e61074c163ba0f9d201ba3478d3b116d237c49dc0fd7095854c05f6e0f3a02e9",
+      "byte_size": 121358,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/e61074c163ba0f9d201ba3478d3b116d237c49dc0fd7095854c05f6e0f3a02e9.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_after.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/native_unknown_after.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 232013,
       "canonical_path": "doc/assets/screenshots/e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607.png",
       "content_review": {
@@ -1483,6 +4143,27 @@
         "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
       ],
       "sha256": "e887c78c1061db46560cbab1e148b8e475b9a94b9f24fc4acf20bac58dd14607"
+    },
+    {
+      "sha256": "e8bdd7be54db368d8ac9529744bc066c3d94cbc9ce7183de0cc02c6576ddc8d0",
+      "byte_size": 119211,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/e8bdd7be54db368d8ac9529744bc066c3d94cbc9ce7183de0cc02c6576ddc8d0.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/operator-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/operator-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 412227,
@@ -1575,6 +4256,90 @@
       "sha256": "ecd350efef225e2b54343a4c7d015e3a547e292574271168be8edfc18d2b6b1a"
     },
     {
+      "sha256": "eec70362b8f2505355be8b189d0c0e3c66d41e9e86ff48b11329aec7c76248fa",
+      "byte_size": 129730,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/eec70362b8f2505355be8b189d0c0e3c66d41e9e86ff48b11329aec7c76248fa.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/conflict.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/conflict.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "eef428b221e4696a3546099a38ddf80ebe0e5e5c6e92fe5bcb8b5445dace7c7c",
+      "byte_size": 148587,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/eef428b221e4696a3546099a38ddf80ebe0e5e5c6e92fe5bcb8b5445dace7c7c.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/confirm_cancel_save.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "ef2846299fe38459c18d38cdef6e39d19f50907c5ac2f260785d5a8cf0939585",
+      "byte_size": 147912,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/ef2846299fe38459c18d38cdef6e39d19f50907c5ac2f260785d5a8cf0939585.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-competitor.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/DELETE-revoke_first_role-competitor.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "ef8a6def10e0ec4302e1ebe839bf1b33341cfb154234c50629cb5bc1a0ea65bc",
+      "byte_size": 158250,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/ef8a6def10e0ec4302e1ebe839bf1b33341cfb154234c50629cb5bc1a0ea65bc.png",
+      "legacy_paths": [
+        "doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/recovery.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/sqlite-user-boundary-2026-11-02/outcomes/recovery.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
       "byte_size": 235019,
       "canonical_path": "doc/assets/screenshots/f04c19acc87a823226f658cdebb7399d0a827155ac786f1ab339b7c5bba9c614.png",
       "content_review": {
@@ -1593,6 +4358,69 @@
       },
       "referenced_by": [],
       "sha256": "f04c19acc87a823226f658cdebb7399d0a827155ac786f1ab339b7c5bba9c614"
+    },
+    {
+      "sha256": "f1453590617be31d8d36eb9d9124d835f8c4ea15f192a385b8d534687e210ef4",
+      "byte_size": 144638,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/f1453590617be31d8d36eb9d9124d835f8c4ea15f192a385b8d534687e210ef4.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/scope_denied.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/scope_denied.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "f3abc018db7ee4cbcb0be2d64f72e55e5b2d7d3d6ba64804963537ae2b00b261",
+      "byte_size": 225156,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/f3abc018db7ee4cbcb0be2d64f72e55e5b2d7d3d6ba64804963537ae2b00b261.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-p2-2026-10-29/global-audit-fallback.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-p2-2026-10-29/global-audit-fallback.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "f4b276cf8b12536654c3cecf4595c86caf0645f449e4d299d53d61ca7eec9570",
+      "byte_size": 157098,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/f4b276cf8b12536654c3cecf4595c86caf0645f449e4d299d53d61ca7eec9570.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/recovery.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-outcomes-2026-10-29/recovery.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 269397,
@@ -1616,6 +4444,72 @@
         "doc/archive/design-eval-rounds/UI重设计-第十轮Mockup对比评估.md"
       ],
       "sha256": "f5cc7b537d057772ba6dcbbf842c8723c05cb489a9a5f0b8c82721aa26781541"
+    },
+    {
+      "sha256": "f695a0e9304efc44be8725e79cb6582ca8d00348536e5e77e23f361ca60cb273",
+      "byte_size": 119210,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/f695a0e9304efc44be8725e79cb6582ca8d00348536e5e77e23f361ca60cb273.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/operator-edit.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/operator-edit.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "f76ec7f081149236c0444296c63dc577ab29019760422c9471f8f65d1fe81e14",
+      "byte_size": 130344,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/f76ec7f081149236c0444296c63dc577ab29019760422c9471f8f65d1fe81e14.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save-modal.png"
+      ],
+      "referenced_by": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html",
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.md"
+      ],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project QA browser evidence",
+        "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+        "basis": "project-generated test account and synthetic fixture"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "fa896f98e0afaf9a1f255268ce37f9996a0d3a499f3fd5436f3bb4d2af8dd743",
+      "byte_size": 123508,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/fa896f98e0afaf9a1f255268ce37f9996a0d3a499f3fd5436f3bb4d2af8dd743.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/mysql/operator-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 150910,
@@ -1642,6 +4536,48 @@
         "doc/postmortem/2026-08-确认对话框修复与个人资料页.md"
       ],
       "sha256": "faf38f874c249735a9f06cb6c85fa20b31ebddc0f6bb9c8a2914c0b951d234bb"
+    },
+    {
+      "sha256": "fafb96ae0151fbd392e3bfad217a8e14f500720f98a797d8ce55f8b14def4b7f",
+      "byte_size": 108787,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/fafb96ae0151fbd392e3bfad217a8e14f500720f98a797d8ce55f8b14def4b7f.png",
+      "legacy_paths": [
+        "doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-noop.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/task-edit-d1-2026-10-30/sqlite/native-noop.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
+    },
+    {
+      "sha256": "fe122e19470345bf4ee43139d20cc44047257e46321d32cbfd91fc575600b369",
+      "byte_size": 104150,
+      "mime": "image/png",
+      "canonical_path": "doc/assets/screenshots/fe122e19470345bf4ee43139d20cc44047257e46321d32cbfd91fc575600b369.png",
+      "legacy_paths": [
+        "doc/qa/evidence/rbac-r5-2026-10-29/multi-keeps-outside-B.png"
+      ],
+      "referenced_by": [],
+      "provenance": {
+        "owner": "CronPilot",
+        "source": "project historical QA evidence",
+        "source_ref": "git:c727146:doc/qa/evidence/rbac-r5-2026-10-29/multi-keeps-outside-B.png",
+        "basis": "repository-owned QA screenshot, source and prior location recorded in migration map"
+      },
+      "content_review": {
+        "reviewed_on": "2026-11-04",
+        "reviewed_by": "Codex",
+        "status": "reviewed-no-obvious-sensitive-content"
+      }
     },
     {
       "byte_size": 47069,

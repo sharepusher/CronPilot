@@ -34,9 +34,9 @@
 <li><code>native_unknown_after</code>：commit_unknown；native；通过。</li>
 <li><code>csrf_denied</code>：failed；browser_fetch；通过。</li></ol>
 <h2>4. 关键截图</h2><p>以下均来自受限Biz Admin的实际页面，其他状态截图位于同一证据目录。</p>
-<h3>正常清空确认（取消前）</h3><img alt="受限管理员清空邮箱确认与理由输入" src="evidence/rbac-outcomes-2026-10-29/confirm_cancel_save-modal.png">
-<h3>真实提交完成后，应用仍提示结果未知</h3><img alt="提交确认丢失后的未知提示与恢复的保存按钮" src="evidence/rbac-outcomes-2026-10-29/unknown_after.png">
-<h3>原生POST保留输入和确认理由入口</h3><img alt="JavaScript禁用时的确认回显" src="evidence/rbac-outcomes-2026-10-29/native_confirm-fallback.png">
+<h3>正常清空确认（取消前）</h3><img alt="受限管理员清空邮箱确认与理由输入" src="../assets/screenshots/f76ec7f081149236c0444296c63dc577ab29019760422c9471f8f65d1fe81e14.png">
+<h3>真实提交完成后，应用仍提示结果未知</h3><img alt="提交确认丢失后的未知提示与恢复的保存按钮" src="../assets/screenshots/6476724413bd8cdde57e0de10c39df21eda027d28d3809445e344981a07ab27a.png">
+<h3>原生POST保留输入和确认理由入口</h3><img alt="JavaScript禁用时的确认回显" src="../assets/screenshots/1f12e839308f02bb4b18d29d899a1b804c5811b1080f7f8007dd53202e3f1bfe.png">
 <h2>5. 验收命令与自证</h2><pre>.venv-py311/bin/python scripts/verify_user_edit_outcomes_browser.py --output-dir /private/tmp/rbac-outcomes-complete --executable-path '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 RBAC_OUTCOMES: OK cases=27 isolated_memory=1 seven_states=1
 

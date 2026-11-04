@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-03",
+  "mode": "current_contract",
+  "terminology": {
+    "exit_code": 0,
+    "tests": 12
+  },
+  "baseline": {
+    "exit_code": 0,
+    "cases": 6,
+    "tests": 6
+  },
+  "related_tests": {
+    "run": 73,
+    "failed": 0
+  },
+  "final_focused_tests": {
+    "run": 22,
+    "failed": 0
+  },
+  "full_suite": {
+    "command": ".venv-py311/bin/python -m unittest discover -s tests -q",
+    "exit_code": 1,
+    "run": 1146,
+    "passed": 1128,
+    "failures": [
+      "test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)",
+      "test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)",
+      "test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)",
+      "test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)",
+      "test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)",
+      "test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)"
+    ],
+    "skipped": 12,
+    "seconds": 450.86,
+    "comparison": "same six pre-existing failures; no additional failures"
+  },
+  "docs": {
+    "completeness": "pass",
+    "links": "pass",
+    "generated_markdown": "pass",
+    "pending_sync": "pass",
+    "postmortem_check": "exit 0, 41 pre-existing warnings"
+  },
+  "ruff": "pass",
+  "historical_hashes": "unchanged",
+  "preview": {
+    "html": 200,
+    "markdown": 200
+  }
+}

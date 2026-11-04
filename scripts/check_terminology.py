@@ -5,9 +5,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 INCLUDE_DIRS = (
@@ -60,15 +60,65 @@ HISTORICAL_LINE = re.compile(
     r"(?:旧文案|BLOCKED_URL_PREFIXES|违反教训|单向改|changed from|"
     r"['`「\"]回调URL安全校验未通过)"
 )
+TECHNICAL_IDENTIFIER = re.compile(r"\bcallback_executed\b")
+FROZEN_DIAGNOSTIC_PATH = "doc/qa/evidence/commit-review-2026-11-03/gates.json"
+FROZEN_DIAGNOSTIC_COMMAND = ".venv-py311/bin/python scripts/check_terminology.py --check"
+JSON_STRING = re.compile(r'"(?:[^"\\]|\\.)*"')
 
 
 def is_business_terminology_violation(line):
     """Return True for deprecated business wording, not technical or historical citations."""
+    # This machine identifier describes a probe; other words on its line still count.
+    line = TECHNICAL_IDENTIFIER.sub("", line)
     if not PATTERN.search(line):
         return False
     if TECHNICAL_LINE.search(line) or HISTORICAL_LINE.search(line):
         return False
     return True
+
+
+def mask_frozen_diagnostics(rel_path, text):
+    """Mask only registered historical diagnostic values, retaining source line numbers."""
+    if rel_path != FROZEN_DIAGNOSTIC_PATH:
+        return text
+    try:
+        records = json.loads(text)
+    except (TypeError, ValueError):
+        return text
+    if not isinstance(records, list):
+        return text
+    decoder = json.JSONDecoder()
+    cursor = text.index('[') + 1
+    spans = []
+    for record in records:
+        cursor += len(text[cursor:]) - len(text[cursor:].lstrip())
+        _value, end = decoder.raw_decode(text, cursor)
+        if (isinstance(record, dict) and set(record) == {'command', 'exit_code', 'output_tail'}
+                and record['command'] == FROZEN_DIAGNOSTIC_COMMAND
+                and type(record['exit_code']) is int and record['exit_code'] != 0
+                and isinstance(record['output_tail'], str)):
+            # Valid records have scalar values. Tokenizing JSON strings distinguishes
+            # property keys from escaped key-like text inside the diagnostic itself.
+            properties = []
+            for match in JSON_STRING.finditer(text, cursor, end):
+                after = match.end()
+                after += len(text[after:end]) - len(text[after:end].lstrip())
+                if text[after:after + 1] == ':':
+                    value_start = after + 1
+                    value_start += len(text[value_start:end]) - len(text[value_start:end].lstrip())
+                    properties.append((json.loads(match.group()), value_start))
+            # json.loads normally accepts duplicate keys; do not exempt such a record.
+            if len(properties) == 3 and {key for key, _start in properties} == set(record):
+                value_start = next(start for key, start in properties if key == 'output_tail')
+                _diagnostic, value_end = decoder.raw_decode(text, value_start)
+                spans.append((value_start, value_end))
+        cursor = end
+        cursor += len(text[cursor:]) - len(text[cursor:].lstrip())
+        if text[cursor:cursor + 1] == ',':
+            cursor += 1
+    for start, end in reversed(spans):
+        text = text[:start] + re.sub(r'[^\n\r]', ' ', text[start:end]) + text[end:]
+    return text
 
 
 def _iter_files():
@@ -102,16 +152,17 @@ def find_violations():
         except Exception:
             continue
         rel_path = p.relative_to(ROOT).as_posix()
-        for idx, line in enumerate(text.splitlines(), 1):
+        scan_lines = mask_frozen_diagnostics(rel_path, text).splitlines()
+        for idx, line in enumerate(scan_lines, 1):
             if is_business_terminology_violation(line):
-                hits.append((rel_path, idx, line.strip()))
+                hits.append((rel_path, idx, text.splitlines()[idx - 1].strip()))
     return hits
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="Only report violations and exit non-zero.")
-    args = parser.parse_args()
+    parser.parse_args()
 
     hits = find_violations()
 

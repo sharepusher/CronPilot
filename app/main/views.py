@@ -965,6 +965,7 @@ def update_status():
         payload = dict(actor=actor.id, task=cif.id, revision=cif.edit_revision, target=cif.status, config=status_config(cif))
         return web_api_return(code=0, msg='已读取当前目标，请按明确目标操作',
                               data=dict(retry_token=serializer.dumps(payload), target=cif.status))
+    actor_id = actor.id  # commit expires ORM objects; retry signing needs the original identity.
     expected = None
     expected_config = None
     target = request.form.get('status')
@@ -972,7 +973,7 @@ def update_status():
         try:
             payload = serializer.loads(request.form.get('retry_token', ''))
             if (not isinstance(payload, dict) or set(payload) != {'actor', 'task', 'revision', 'target', 'config'}
-                    or payload['actor'] != actor.id or payload['task'] != cif.id
+                    or payload['actor'] != actor_id or payload['task'] != cif.id
                     or type(payload['revision']) is not int or payload['revision'] < 0
                     or type(payload['target']) is not int or payload['target'] not in (0, 1)
                     or str(payload['target']) != target):
@@ -982,10 +983,10 @@ def update_status():
         except BadData:
             return web_api_return(code=1, msg='重试基线无效，请刷新确认')
     context = {}
-    ok, msg, _old, _new = save_status(cif.id, target, expected_revision=expected, context=context, actor_id=actor.id, expected_config=expected_config)
+    ok, msg, _old, _new = save_status(cif.id, target, expected_revision=expected, context=context, actor_id=actor_id, expected_config=expected_config)
     data = None
     if not ok and context:
-        data = dict(retry_token=serializer.dumps(dict(context, actor=actor.id)), target=context['target'])
+        data = dict(retry_token=serializer.dumps(dict(context, actor=actor_id)), target=context['target'])
     return web_api_return(code=0 if ok else 1, msg=msg, data=data)
 
 

@@ -1,0 +1,13 @@
+{
+  "source_commit": "d3298c71f634ab6f74dac049fef78a27ca1400b6",
+  "legacy_script": {
+    "source": "scripts/verify_cron_edit_baseline.py",
+    "snapshot": "legacy_verify_cron_edit_baseline.py",
+    "sha256": "2af7a9747b38827687cfd4d74dc8533b73791d042d490a4e2b010146b212aa4e",
+    "role": "historical experiment; not current acceptance"
+  },
+  "unchanged_evidence": {
+    "doc/qa/evidence/commit-review-2026-11-03/gates.json": "23fdb8c1b90b25b9ec40faacf55d993532a860330094b77463f49302bb1ab3c6",
+    "doc/qa/evidence/cron-retire-d3-assessment-2026-11-02/result.json": "3330198fa3d07ed00266cf06824a3d8909d9f943f3ce1778f246d38a25b75ea7"
+  }
+}

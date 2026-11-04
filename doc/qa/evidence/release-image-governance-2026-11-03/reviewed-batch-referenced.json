@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-04",
+  "entries": [
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/confirm_cancel_save-modal.png",
+      "sha256": "f76ec7f081149236c0444296c63dc577ab29019760422c9471f8f65d1fe81e14",
+      "canonical_path": "doc/assets/screenshots/f76ec7f081149236c0444296c63dc577ab29019760422c9471f8f65d1fe81e14.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+      "consumers": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/native_confirm-fallback.png",
+      "sha256": "1f12e839308f02bb4b18d29d899a1b804c5811b1080f7f8007dd53202e3f1bfe",
+      "canonical_path": "doc/assets/screenshots/1f12e839308f02bb4b18d29d899a1b804c5811b1080f7f8007dd53202e3f1bfe.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+      "consumers": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-outcomes-2026-10-29/unknown_after.png",
+      "sha256": "6476724413bd8cdde57e0de10c39df21eda027d28d3809445e344981a07ab27a",
+      "canonical_path": "doc/assets/screenshots/6476724413bd8cdde57e0de10c39df21eda027d28d3809445e344981a07ab27a.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_user_edit_outcomes_browser.py",
+      "consumers": [
+        "doc/qa/RBAC用户编辑七状态浏览器验收-2026-10-30.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/rbac-r5-2026-10-29/final-review.png",
+      "sha256": "16690ebafa024776409567a35a4b074914911d1152745e09e4769ef9f34b7b8c",
+      "canonical_path": "doc/assets/screenshots/16690ebafa024776409567a35a4b074914911d1152745e09e4769ef9f34b7b8c.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "doc/qa/evidence/rbac-r5-2026-10-29/results.json",
+      "consumers": [
+        "doc/postmortem/2026-10-RBAC用户编辑范围外组误删.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-revoke_first_role-actor.png",
+      "sha256": "2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19",
+      "canonical_path": "doc/assets/screenshots/2f3b8f3f95c68660e84bd8f04a9eaeaa2e2a712dfe5237ba4b70398259c97d19.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_user_edit_sqlite_boundary.py",
+      "consumers": [
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/sqlite-user-boundary-2026-11-02/sqlite/WAL-save_first_role-actor.png",
+      "sha256": "415a4e3d919c5f71242a90b412d55fdf3eb419002f84a2cb51acfa39d58253b9",
+      "canonical_path": "doc/assets/screenshots/415a4e3d919c5f71242a90b412d55fdf3eb419002f84a2cb51acfa39d58253b9.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_user_edit_sqlite_boundary.py",
+      "consumers": [
+        "doc/qa/SQLite用户编辑原子保护验收-2026-11-02.html"
+      ]
+    },
+    {
+      "legacy_path": "doc/qa/evidence/task-edit-noop-2026-10-29/operator-noop.png",
+      "sha256": "bd3b58d8d71887397785176cf54b964efa245450f57ee686c1f62b69f9c5fdc3",
+      "canonical_path": "doc/assets/screenshots/bd3b58d8d71887397785176cf54b964efa245450f57ee686c1f62b69f9c5fdc3.png",
+      "reviewed_by": "Codex",
+      "review_basis": "original-resolution visual check; PNG has no metadata chunks",
+      "source_ref": "scripts/verify_cron_edit_noop_browser.py",
+      "consumers": [
+        "doc/design/任务编辑无变更保存零副作用独立设计-2026-10.html",
+        "doc/postmortem/2026-10-任务编辑无变更保存副作用.html"
+      ]
+    }
+  ]
+}

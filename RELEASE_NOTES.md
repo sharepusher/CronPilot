@@ -9,6 +9,14 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ### What changed
 
+- RBAC account changes now use stable values after database commit for cache invalidation, audit parameters, and responses. Successful changes no longer depend on reloading expired user objects. See the [post-mortem](doc/design/rbac-cache-postcommit-boundary-2026-11-04.html).
+
+- Documentation evidence screenshots now use content-addressed paths, with a manifest mapping historical locations to preserved bytes. Existing external links to old screenshot paths may need updating. See the [image governance post-mortem](doc/design/release-image-governance-2026-11-03.html).
+
+- Task status changes preserve their retry context without reading expired database objects after commit. A committed status can now return the existing signed retry information when scheduling needs attention. See the [post-mortem](doc/design/status-postcommit-snapshot-repair-2026-11-03.html#postmortem).
+
+- Engineering verification: terminology checks now distinguish exact technical identifiers and frozen diagnostic fields while retaining business wording checks. The task-edit baseline tool now verifies six current contracts with isolated fixtures and command-level regression tests. See the [terminology post-mortem](doc/postmortem/2026-11-术语门禁分类与历史证据边界.html) and [baseline-tool post-mortem](doc/postmortem/2026-11-任务编辑基线工具语义漂移.html).
+
 - SQLite user edits now protect current authorization and profile comparisons through the write transaction, preventing stale in-flight saves from bypassing revocation or overwriting newer values. MySQL behavior and existing response fields are unchanged. This fix is scoped to user editing; task-save authorization and existing full-suite failures remain separate release blockers. See the [SQLite user-edit post-mortem](doc/postmortem/2026-11-SQLite用户编辑保存边界原子保护.html).
 
 - Task status changes now report uncertain results without restoring an unverified old database state. Web pages submit explicit targets and support signed retries; matching scheduler state avoids duplicate resume calls.

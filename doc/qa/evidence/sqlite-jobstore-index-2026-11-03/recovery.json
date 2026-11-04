@@ -1,0 +1,10 @@
+{
+  "backup_directory": "/Users/summer/projects/opensource/CronPilot/datas/backups/job-log-20261103-uycaovui",
+  "integrity_after": [
+    "ok"
+  ],
+  "foreign_key_count": 0,
+  "tables_verified": 18,
+  "rows_schema_fk_unchanged": true,
+  "sha256_after": "151eb5d271b56b87093a9121603b9db23471a68e778b96f177347ebf933ff0ab"
+}

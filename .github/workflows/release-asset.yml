@@ -47,6 +47,9 @@ jobs:
       - name: Validate documentation image governance
         run: python scripts/check_doc_image_assets.py --check
 
+      - name: Verify historical QA image migration
+        run: python scripts/check_qa_image_migration.py
+
       - name: Build deterministic asset twice
         run: |
           python scripts/build_release_asset.py --version "$VERSION" --ref "$GITHUB_REF_NAME" --output "dist/cronpilot-$VERSION.tar.gz"

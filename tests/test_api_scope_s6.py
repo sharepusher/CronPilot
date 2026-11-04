@@ -152,6 +152,7 @@ class TestScopeIsolation(unittest.TestCase):
         self.client = self.app.test_client()
         with self.app.app_context():
             from datas.model.cron_infos import CronInfos
+            from datas.model.operation_log import OperationLog  # noqa: F401
             from datas.model.rbac_audit_log import RbacAuditLog
             from datas.model.rbac_user import RbacUser
             from datas.model.resource_group import ResourceGroup
@@ -175,9 +176,9 @@ class TestScopeIsolation(unittest.TestCase):
             self.u_id = u.id
             self.db.session.add(UserGroup(user_id=u.id, group_id=g1.id))
 
-            tg = CronInfos(task_name='t-global', req_url='http://x.com', scope_type='GLOBAL')
-            t1 = CronInfos(task_name='t-g1', req_url='http://x.com', scope_type='GROUP')
-            t2 = CronInfos(task_name='t-g2', req_url='http://x.com', scope_type='GROUP')
+            tg = CronInfos(task_name='t-global', req_url='http://x.com', scope_type='GLOBAL', status=0)
+            t1 = CronInfos(task_name='t-g1', req_url='http://x.com', scope_type='GROUP', status=0)
+            t2 = CronInfos(task_name='t-g2', req_url='http://x.com', scope_type='GROUP', status=0)
             self.db.session.add_all([tg, t1, t2])
             self.db.session.flush()
             self.db.session.add(TaskGroup(task_id=t1.id, group_id=g1.id))
@@ -186,24 +187,38 @@ class TestScopeIsolation(unittest.TestCase):
 
     def _post(self, task_name, token='bot-tok'):
         with patch('configs.configs', return_value='global-tok'), \
-             patch('app.services.cron_service.scheduler') as ms:
-            ms.pause_job.return_value = None
-            ms.resume_job.return_value = None
-            return self.client.post('/api/cron/status',
-                                    data={'task_name': task_name},
-                                    headers={'Authorization': 'Bearer %s' % token})
+             patch('app.services.cron_status_apply.apply_status', return_value='已启动') as apply:
+            response = self.client.post('/api/cron/status',
+                                        data={'task_name': task_name, 'status': '1'},
+                                        headers={'Authorization': 'Bearer %s' % token})
+            self.apply_calls = apply.call_count
+            return response
+
+    def assert_task_status(self, task_name, expected):
+        from sqlalchemy import select
+
+        from datas.model.cron_infos import CronInfos
+        with self.app.app_context():
+            task = self.db.session.scalar(select(CronInfos).where(CronInfos.task_name == task_name))
+            self.assertEqual(task.status, expected)
 
     def test_own_group_allowed(self):
         resp = self._post('t-g1')
         self.assertEqual(resp.get_json()['errcode'], 0)
+        self.assertEqual(self.apply_calls, 1)
+        self.assert_task_status('t-g1', 1)
 
     def test_global_task_allowed(self):
         resp = self._post('t-global')
         self.assertEqual(resp.get_json()['errcode'], 0)
+        self.assertEqual(self.apply_calls, 1)
+        self.assert_task_status('t-global', 1)
 
     def test_other_group_denied(self):
         resp = self._post('t-g2')
         self.assertEqual(resp.get_json()['errmsg'], '任务不存在')
+        self.assertEqual(self.apply_calls, 0)
+        self.assert_task_status('t-g2', 0)
 
     def test_anti_enumeration(self):
         r1 = self._post('t-g2')
@@ -212,12 +227,16 @@ class TestScopeIsolation(unittest.TestCase):
 
     def test_global_token_all_access(self):
         resp = self._post('t-g2', token='global-tok')
-        self.assertNotEqual(resp.status_code, 401)
+        self.assertEqual(resp.get_json()['errcode'], 0)
+        self.assertEqual(self.apply_calls, 1)
+        self.assert_task_status('t-g2', 1)
 
     def test_group_change_immediate(self):
         with self.app.app_context():
             resp1 = self._post('t-g2')
             self.assertEqual(resp1.get_json()['errmsg'], '任务不存在')
+            self.assertEqual(self.apply_calls, 0)
+            self.assert_task_status('t-g2', 0)
 
             from datas.model.user_group import UserGroup
             self.db.session.add(UserGroup(user_id=self.u_id, group_id=self.g2_id))
@@ -228,17 +247,22 @@ class TestScopeIsolation(unittest.TestCase):
 
             resp2 = self._post('t-g2')
             self.assertEqual(resp2.get_json()['errcode'], 0)
+            self.assertEqual(self.apply_calls, 1)
+            self.assert_task_status('t-g2', 1)
 
     def test_empty_global_passthrough(self):
         with patch('configs.configs', return_value=''), \
-             patch('app.services.cron_service.scheduler') as ms:
-            ms.pause_job.return_value = None
-            resp = self.client.post('/api/cron/status', data={'task_name': 't-g1'})
-        self.assertNotEqual(resp.status_code, 401)
+             patch('app.services.cron_status_apply.apply_status', return_value='已启动') as apply:
+            resp = self.client.post('/api/cron/status', data={'task_name': 't-g1', 'status': '1'})
+        self.assertEqual(resp.get_json()['errcode'], 0)
+        apply.assert_called_once()
+        self.assert_task_status('t-g1', 1)
 
     def test_wrong_token_401(self):
         resp = self._post('t-g1', token='bad')
         self.assertEqual(resp.status_code, 401)
+        self.assertEqual(self.apply_calls, 0)
+        self.assert_task_status('t-g1', 0)
 
 
 class TestAutoResetOnMutation(unittest.TestCase):

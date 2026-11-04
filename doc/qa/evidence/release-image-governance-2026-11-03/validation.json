@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-04",
+  "legacy_paths": 148,
+  "unique_images": 135,
+  "original_hash_preserved": true,
+  "review": "contact sheets and local OCR for remaining 125 images; flagged cases inspected at original resolution; 11 initially reviewed at original resolution; automated recognition is not exhaustive",
+  "image_gate": "passed",
+  "mapping_gate": "passed",
+  "unit_tests": "8 passed",
+  "document_browser": "4 pages; 7 migrated images loaded",
+  "d1_browser": "noop, d1, d2, timeout output isolated; D2_VERIFIED, TIMEOUT_TYPES_VERIFIED, D1_API_VERIFIED",
+  "temporary_snapshot_release_rehearsal": "2 identical builds; 301 files; asset check passed; snapshot is not final candidate"
+}

@@ -37,6 +37,9 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **用户授权编辑提交后读取故障分析与修复设计**（待确认） | 稳定 ID、缓存与故障验收 | [HTML](design/rbac-user-edit-postcommit-2026-11-04.html) | [MD](design/rbac-user-edit-postcommit-2026-11-04.md) |
+| **发布 job 仓库上下文缺失分析与修复设计**（待确认） | GH_REPO 作用域及发布防护 | [HTML](design/release-publish-repository-context-2026-11-04.html) | [MD](design/release-publish-repository-context-2026-11-04.md) |
+| **术语门禁与任务编辑基线工具修复设计（2026-11-03）**（待确认） | 术语分层、历史证据保持、当前契约六场景与命令级防护 | [HTML](design/terminology-baseline-repair-2026-11-03.html) | [MD](design/terminology-baseline-repair-2026-11-03.md) |
 | **SQLite 任务编辑保存边界原子保护设计与评估（2026-11-02）**（待确认） | 锁外DNS与受保护重算、有限预算、调度/日志边界和三维评估 | [HTML](design/SQLite任务编辑保存边界原子保护设计-2026-11-02.html) | [MD](design/SQLite任务编辑保存边界原子保护设计-2026-11-02.md) |
 | **SQLite 用户编辑保存边界原子保护设计（2026-11-02）**（专项通过） | 局部即时事务、串行规则、独立竞争验收与集成隔离例外 | [HTML](design/SQLite用户编辑保存边界原子保护设计-2026-11-02.html) | [MD](design/SQLite用户编辑保存边界原子保护设计-2026-11-02.md) |
 | **RBAC 用户编辑七状态浏览器验收与锁成本文案校准设计**（已验证） | F2实际登录与七状态证据、提交前后故障对照；F3锁成本表述校准 | [HTML](design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.html) | [MD](design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.md) |
@@ -158,6 +161,11 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **RBAC 缓存失效与提交后处理边界统一修复设计**（已实施） | 跨入口快照、事务及缓存防护 | [HTML](design/rbac-cache-postcommit-boundary-2026-11-04.html) | [MD](design/rbac-cache-postcommit-boundary-2026-11-04.md) |
+| **4.2.0 发布前图片证据治理设计**（已实施） | 发布门禁、证据保留及安全审查 | [HTML](design/release-image-governance-2026-11-03.html) | [MD](design/release-image-governance-2026-11-03.md) |
+| **发布前六项测试失败分类与修复设计**（已实施） | Scope、CSRF 与状态模块测试契约 | [HTML](design/release-six-test-baseline-2026-11-03.html) | [MD](design/release-six-test-baseline-2026-11-03.md) |
+| **SQLite 调度索引完整性异常诊断与恢复设计**（已修复） | 隔离复演、备份、停写与定向恢复 | [HTML](design/sqlite-jobstore-index-recovery-2026-11-03.html) | [MD](design/sqlite-jobstore-index-recovery-2026-11-03.md) |
+| **任务启停提交后读取异常修复设计**（已实施） | 摘要快照、兼容重试与失败分类 | [HTML](design/status-postcommit-snapshot-repair-2026-11-03.html) | [MD](design/status-postcommit-snapshot-repair-2026-11-03.md) |
 | **任务链路日志完整性增强设计**（已交付） | 过程日志 · job_log 四列 · 详情页触发来源 | [HTML](design/任务链路日志完整性增强设计.html) | [MD](design/任务链路日志完整性增强设计.md) |
 | **管理员 admin Scope 差异化** OPT-P2-15 | 种子只读 · 管理员按组 · `__ALL__` · **v2.7.0** | [HTML](design/管理员admin-Scope差异化设计.html) | [MD](design/管理员admin-Scope差异化设计.md) |
 | **OPT-P0-22 停用用户同名申请恢复设计**（已交付） | 覆盖 OPT-P1-10 §3.1.7 · 保留原 user_id · 审批警示 · auth_version · 文案契约 | [HTML](design/停用用户同名恢复设计.html) · [页面对比 Demo](design/停用用户同名恢复-页面对比Demo.html) | [MD](design/停用用户同名恢复设计.md) |
@@ -207,6 +215,8 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **缓存失效与提交后读取同类排查** | 入口矩阵及故障探针 | [HTML](qa/cache-postcommit-audit-2026-11-04.html) | [MD](qa/cache-postcommit-audit-2026-11-04.md) |
+| **v4.1.1 后全部提交复审（2026-11-04）** | 独立 HEAD 及发布阻断复核 | [HTML](qa/post-v4.1.1-commit-review-2026-11-04.html) | [MD](qa/post-v4.1.1-commit-review-2026-11-04.md) |
 | **v4.2.0 发布前未提交代码与文档全面审查（2026-10-30）** | 暂缓发布：SQLite 独立连接竞态、门禁与升级边界；详源报告 | [HTML](qa/v4.2.0-release-review-2026-10-30.html) | [MD](qa/v4.2.0-release-review-2026-10-30.md) |
 | **SQLite 用户编辑原子保护验收（2026-11-02）** | 专项通过；任务子项与全量基线失败保留 | [HTML](qa/SQLite用户编辑原子保护验收-2026-11-02.html) | [MD](qa/SQLite用户编辑原子保护验收-2026-11-02.md) |
 | **SQLite 用户编辑保存边界原子保护复盘** | 七项复盘与真实竞争预防 | [HTML](postmortem/2026-11-SQLite用户编辑保存边界原子保护.html) | [MD](postmortem/2026-11-SQLite用户编辑保存边界原子保护.md) |
@@ -243,6 +253,9 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **SQLite 任务在途撤权发布阻断评估** | 当前证据与修复顺序 | [HTML](qa/sqlite-revocation-next-assessment-2026-11-03.html) | [MD](qa/sqlite-revocation-next-assessment-2026-11-03.md) |
+| **术语门禁分类与历史证据边界修复（2026-11-03）** | 工具契约、否定测试与历史证据 | [HTML](postmortem/2026-11-术语门禁分类与历史证据边界.html) | [MD](postmortem/2026-11-术语门禁分类与历史证据边界.md) |
+| **任务编辑基线工具语义漂移修复（2026-11-03）** | 工具契约、否定测试与历史证据 | [HTML](postmortem/2026-11-任务编辑基线工具语义漂移.html) | [MD](postmortem/2026-11-任务编辑基线工具语义漂移.md) |
 | **RBAC 全局管理员表单 Scope 回显缺失（2026-10-27）** | 零关联行 global Scope 的表单 marker 回显 | [HTML](postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.html) | [MD](postmortem/2026-10-RBAC全局管理员表单Scope回显缺失.md) |
 | **RBAC 用户编辑写前意图缺失 U1 修复（2026-10-28）** | 签名快照、纯规范化、no-op 写前短路、邮箱清空确认契约与状态只读 | [HTML](postmortem/2026-10-RBAC用户编辑写前意图缺失.html) | [MD](postmortem/2026-10-RBAC用户编辑写前意图缺失.md) |
 | **RBAC 用户编辑并发覆盖与审计分裂 U2 修复（2026-10-29）** | 数据库当前授权、确定顺序行锁、三方比较、业务与审计同事务 | [HTML](postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.html) | [MD](postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.md) |

@@ -1,0 +1,54 @@
+{
+  "full": {
+    "count": 1146,
+    "passed": 1128,
+    "failed": 6,
+    "skipped": 12,
+    "seconds": 495.216,
+    "failures": [
+      "test_global_task_allowed (test_api_scope_s6.TestScopeIsolation.test_global_task_allowed)",
+      "test_group_change_immediate (test_api_scope_s6.TestScopeIsolation.test_group_change_immediate)",
+      "test_own_group_allowed (test_api_scope_s6.TestScopeIsolation.test_own_group_allowed)",
+      "test_run_url_already_contains_id_param (test_cron_run_now.TestCronListRunNowButton.test_run_url_already_contains_id_param)",
+      "test_vue_mount_point_data_attrs_present (test_cron_run_now.TestCronListRunNowButton.test_vue_mount_point_data_attrs_present)",
+      "test_post_with_token_ok (test_csrf.TestCsrfOnUpdateStatus.test_post_with_token_ok)"
+    ]
+  },
+  "auth_suite": {
+    "count": 90,
+    "failed": 0
+  },
+  "new_request_http": {
+    "cases": 6,
+    "passed": 6,
+    "scope": "Flask test client, SQLite memory, changed role and auth_version directly"
+  },
+  "routes": {
+    "count": 86,
+    "failed": 0
+  },
+  "sqlite_boundary": {
+    "business": 36,
+    "http": 8,
+    "controls": 6,
+    "file": "sqlite-boundary.json",
+    "scope": "rbac_user_edit_only"
+  },
+  "edit_status": {
+    "sqlite": "D2_VERIFIED and D1_API_VERIFIED",
+    "mysql": "D2_VERIFIED and D1_API_VERIFIED",
+    "d1_browser_skipped": true
+  },
+  "mysql_edit": "passed; isolated database removed",
+  "golden": "passed in isolated working copy and SQLite",
+  "version_check": "failed: Unreleased has 4 headings and 21 entries",
+  "image_assets": "failed: 162 errors",
+  "container_release": "not run: Docker daemon did not answer",
+  "release_asset": "not run: no final candidate commit/tag",
+  "sha256": {
+    "app/services/cron_status_apply.py": "075f7116d0367a1ddf9fbc14ef8255fabaf80eccf48af35f1d09b038f68ff0fb",
+    "app/services/cron_edit_concurrency.py": "eb635deb4269de9063bad2fcf3f2a73cfb88c56a18790f7a48058355fb4a7bec",
+    "scripts/check_terminology.py": "3b04626c4c5d2e97c4c553d3d598d001484b028439f069d232bedc46061eee1e",
+    "scripts/verify_cron_edit_baseline.py": "2241870f66c44c8761250deed80a73546a416441492fcdd50fddaad4df0a7556"
+  }
+}

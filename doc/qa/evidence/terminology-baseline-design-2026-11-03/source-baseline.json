@@ -1,0 +1,183 @@
+{
+  "head": "d3298c71f634ab6f74dac049fef78a27ca1400b6",
+  "date": "2026-11-03",
+  "purpose": "Design evidence only; no implementation",
+  "files": {
+    "scripts/check_terminology.py": "8e5bbd6bd21af0ce818abb9eff82d92d141e30d1ae2141fe82060a258dedc9ed",
+    "tests/test_check_terminology.py": "2f43dd21a9e376f0197012f5fa86bcddba3a544930429a4acd16171df460a23d",
+    "scripts/verify_cron_edit_baseline.py": "2af7a9747b38827687cfd4d74dc8533b73791d042d490a4e2b010146b212aa4e",
+    "app/services/cron_service.py": "22626a567dba0272fe117693ff7b26eabd6acd910399f3a7e21dd80faec8a731",
+    "app/services/cron_edit_noop.py": "4a4684ca50559a90a4df07193b092c8d15d2d2bb36e2649aea08643ed0c03272",
+    "app/services/cron_edit_concurrency.py": "eb635deb4269de9063bad2fcf3f2a73cfb88c56a18790f7a48058355fb4a7bec",
+    "app/services/cron_edit_apply.py": "bf31c194c8723f0f1e536c0051423041370598a795a0fdfec2958a2f88185749",
+    "app/services/operation_log_service.py": "a0c757128b05786caf962e50362425564024999153865fbc642ccf745de3fa57"
+  },
+  "terminology_hits": [
+    {
+      "path": "doc/arch/调度变更统一状态与恢复机制评估-2026-11-02.html",
+      "line": 6
+    },
+    {
+      "path": "doc/arch/调度变更统一状态与恢复机制评估-2026-11-02.html",
+      "line": 8
+    },
+    {
+      "path": "doc/arch/调度变更统一状态与恢复机制评估-2026-11-02.md",
+      "line": 32
+    },
+    {
+      "path": "doc/arch/调度变更统一状态与恢复机制评估-2026-11-02.md",
+      "line": 52
+    },
+    {
+      "path": "doc/design/RBAC批量审批失败项最终状态真值优化方案-2026-10.html",
+      "line": 10
+    },
+    {
+      "path": "doc/design/RBAC批量审批失败项最终状态真值优化方案-2026-10.md",
+      "line": 55
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html",
+      "line": 40
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html",
+      "line": 139
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.html",
+      "line": 156
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.md",
+      "line": 43
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.md",
+      "line": 172
+    },
+    {
+      "path": "doc/design/RBAC注册审批批量反馈真值闭环优化方案-2026-10.md",
+      "line": 192
+    },
+    {
+      "path": "doc/design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.html",
+      "line": 112
+    },
+    {
+      "path": "doc/design/RBAC用户编辑七状态浏览器验收与锁成本文案校准设计-2026-10-29.md",
+      "line": 143
+    },
+    {
+      "path": "doc/design/SQLite任务编辑保存边界原子保护设计-2026-11-02.html",
+      "line": 15
+    },
+    {
+      "path": "doc/design/SQLite任务编辑保存边界原子保护设计-2026-11-02.md",
+      "line": 34
+    },
+    {
+      "path": "doc/design/任务API超时参数类型兼容修复设计-2026-11-02.html",
+      "line": 21
+    },
+    {
+      "path": "doc/design/任务API超时参数类型兼容修复设计-2026-11-02.md",
+      "line": 109
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html",
+      "line": 16
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html",
+      "line": 21
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html",
+      "line": 30
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.md",
+      "line": 63
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.md",
+      "line": 114
+    },
+    {
+      "path": "doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.md",
+      "line": 223
+    },
+    {
+      "path": "doc/design/任务编辑差异写入与调度一致性M1设计-2026-10.html",
+      "line": 79
+    },
+    {
+      "path": "doc/design/任务编辑差异写入与调度一致性M1设计-2026-10.md",
+      "line": 115
+    },
+    {
+      "path": "doc/design/任务调度冲突检测与明确报错W2设计-2026-10-30.html",
+      "line": 9
+    },
+    {
+      "path": "doc/design/任务调度冲突检测与明确报错W2设计-2026-10-30.html",
+      "line": 36
+    },
+    {
+      "path": "doc/design/任务调度冲突检测与明确报错W2设计-2026-10-30.md",
+      "line": 66
+    },
+    {
+      "path": "doc/design/任务调度冲突检测与明确报错W2设计-2026-10-30.md",
+      "line": 170
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.html",
+      "line": 6
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.html",
+      "line": 7
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.html",
+      "line": 9
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.html",
+      "line": 14
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md",
+      "line": 28
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md",
+      "line": 32
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md",
+      "line": 47
+    },
+    {
+      "path": "doc/qa/D2完成后下一步与D3下线风险评估-2026-11-02.md",
+      "line": 95
+    },
+    {
+      "path": "doc/qa/evidence/commit-review-2026-11-03/gates.json",
+      "line": 40
+    },
+    {
+      "path": "doc/qa/evidence/cron-retire-d3-assessment-2026-11-02/result.json",
+      "line": 5
+    },
+    {
+      "path": "scripts/verify_cron_edit_d1.py",
+      "line": 1
+    }
+  ],
+  "baseline_observed_error": "ValueError: task group association invalid",
+  "baseline_fixture_missing_group_id": 7
+}

@@ -1,0 +1,70 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>v4.2.0 发布评估与手动命令（2026-11-04）</title><style>body{font:16px/1.8 system-ui,sans-serif;max-width:1100px;margin:auto;padding:28px}pre{white-space:pre-wrap;overflow-wrap:anywhere}code{overflow-wrap:anywhere}</style></head><body><main>
+<h1>v4.2.0 发布评估与手动命令</h1><p>2026-11-04（Asia/Shanghai） · v1 · 仅评估及构建演练，未提交、打标签、推送或创建 Release；不含截图。</p>
+<h2>版本记录</h2><p>v1：核对当前工作区、发布清单、打包白名单及手动发布流程；基于 0e31f8f 实测双构建和独立资产检查。</p>
+<h2>结论</h2><p><strong>代码可作为 4.2.0 发布候选，但当前尚不能直接发布。</strong>本轮版本检查 <code>.venv-py311/bin/python scripts/check_version_consistency.py --check --tag v4.2.0</code> 退出 1，唯一报告项为 <code>release manifest version 与 tag 不一致</code>。结构化清单仍是 4.1.1/published；版本归档文档尚未提交。包构建只读取 Git 提交，不会包含工作区 4.2.0 文案，因此当前演练包不可当正式 4.2.0 发布包。</p>
+<p>此前 Bugbot 审查未发现新增高置信缺陷：全量 1168 项、0 失败、12 跳过；聚焦 122 项通过；路由 86/86 通过。来源、命令和边界见<a href="post-v4.1.1-bugbot-review-head-0e31f8f-2026-11-04.html">HEAD 0e31f8f 审查报告</a>。这些结果针对业务提交，不冒称已完成最终版本归档提交的安装验收。</p>
+<h2>发布前剩余事项</h2><ol><li>完成既有发布收尾设计：将候选说明中的进行中验收文案更新为实际结果；确认英文说明、升级步骤与版本入口一致。按真实验收结果记录 4.2.0/ready，不能只改清单绕过验收。实际发布日期及 published 状态在发布成功后登记。</li><li>将发布文档、清单及评估报告等审阅后的文件提交，冻结最终 SHA。不要直接使用 git add . 混入无关内容。</li><li>从确切最终 SHA 重新双构建、资产检查、校验和及构建来源检查；执行仓库外解压安装、启动、POST 登录与隔离黄金路径。最后文案/清单改动使 SHA 改变时，重建最终产物并核对来源。</li><li>按下方命令手动发布。当前未安装 gh；本轮没有查询远端标签、Release、分支保护或 CI。推送 tag 会触发现有 workflow；已知自动 publish job 仓库上下文问题仍延期，手动 gh 命令显式使用 --repo。</li></ol>
+<p>既有设计：<a href="../design/v4.2.0-release-finalization-2026-11-04.html">版本归档与最终候选验收方案</a>。本轮没有更改该方案或业务实现。</p>
+<h2>包边界与实测</h2><p>发布仅上传三个资产：<code>cronpilot-4.2.0.tar.gz</code>、<code>cronpilot-4.2.0.tar.gz.sha256</code>、<code>cronpilot-4.2.0.tar.gz.build.json</code>。发布说明单独通过 --notes-file 使用，不额外作为附件上传。禁止使用 dist/* 泛传。保留程序运行所需静态图片；不包含 QA 截图、测试证据、数据库、conf.ini、虚拟环境及日志。</p>
+<p>实测命令：<code>scripts/build_release_asset.py --version 4.2.0 --ref 0e31f8f469b004d095e2a980862a8f661a4750ce --output /private/tmp/cronpilot-v420-assessment-a/cronpilot-4.2.0.tar.gz</code>，使用仓库 .venv-py311/bin/python，另在 assessment-b 目录重复构建；cmp 退出 0。独立 <code>scripts/check_release_asset.py --archive /private/tmp/cronpilot-v420-assessment-a/cronpilot-4.2.0.tar.gz --version 4.2.0</code> 通过：301 files / 747467 bytes（0.71 MiB），SHA-256 为 <code>05cfe901094385d1fecadfd2beb61166debbc47260c40c5f8253234e0aae47e9</code>。该脚本同时按历史截图内容哈希拒绝变名夹带，不只检查目录名。正式候选 SHA 改变后不得沿用此哈希。</p>
+<p>GitHub 自动生成的 Source code 仍是完整仓库审计快照，可能包含仓库中的截图材料；不是推荐生产安装包。此处排除承诺针对自定义安装附件，不表示删除仓库截图历史或平台自动源码入口。</p>
+<h2>手动发布命令</h2><p>以下是最终候选就绪后执行的命令，不是对当前工作区直接发布的授权或完成声明。请保持同一 Bash 会话；任一步失败即停止。不得强推已有标签。完整候选单测和安装验证需先按上节完成。</p><pre># 前置：发布归档已完成、最终候选已验收并提交，manifest 为 4.2.0/ready。
+# 当前工作区不满足此前置；不要直接运行发布段。
+set -euo pipefail
+cd /Users/summer/projects/opensource/CronPilot
+test -z &quot;$(git status --porcelain)&quot;
+.venv-py311/bin/python scripts/check_version_consistency.py --check --tag v4.2.0
+.venv-py311/bin/python scripts/html_docs_to_markdown.py --check
+.venv-py311/bin/python scripts/check_doc_completeness.py --check
+.venv-py311/bin/python scripts/check_doc_links.py --check
+.venv-py311/bin/python scripts/check_doc_image_assets.py --check
+.venv-py311/bin/python scripts/check_qa_image_migration.py
+.venv-py311/bin/python scripts/check_terminology.py --check
+.venv-py311/bin/ruff check app/
+bash scripts/check_pending_sync.sh
+
+CRONPILOT_RELEASE_SHA=$(git rev-parse HEAD)
+CRONPILOT_RELEASE_OUT=$(mktemp -d /private/tmp/cronpilot-v420-release.XXXXXX)
+.venv-py311/bin/python scripts/build_release_asset.py --version 4.2.0 --ref &quot;$CRONPILOT_RELEASE_SHA&quot; --output &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz&quot;
+.venv-py311/bin/python scripts/build_release_asset.py --version 4.2.0 --ref &quot;$CRONPILOT_RELEASE_SHA&quot; --output &quot;$CRONPILOT_RELEASE_OUT/rebuild-cronpilot-4.2.0.tar.gz&quot;
+cmp &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz&quot; &quot;$CRONPILOT_RELEASE_OUT/rebuild-cronpilot-4.2.0.tar.gz&quot;
+.venv-py311/bin/python scripts/check_release_asset.py --archive &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz&quot; --version 4.2.0
+(cd &quot;$CRONPILOT_RELEASE_OUT&quot; &amp;&amp; shasum -a 256 -c cronpilot-4.2.0.tar.gz.sha256)
+git show &quot;$CRONPILOT_RELEASE_SHA:RELEASE_NOTES.md&quot; &gt; &quot;$CRONPILOT_RELEASE_OUT/RELEASE_NOTES.source.md&quot;
+.venv-py311/bin/python scripts/extract_release_notes.py --version 4.2.0 --input &quot;$CRONPILOT_RELEASE_OUT/RELEASE_NOTES.source.md&quot; --output &quot;$CRONPILOT_RELEASE_OUT/release-notes.md&quot; --require-version-section
+
+# 只在最终候选验收与隔离安装完成后执行以下发布操作。
+gh auth status
+# 若 gh 未安装：brew install gh；首次使用：gh auth login
+# 确认本地及远端没有同名标签/Release，不重用或强推已有版本。
+test -z &quot;$(git tag --list v4.2.0)&quot;
+CRONPILOT_REMOTE_TAG=$(git ls-remote --tags origin refs/tags/v4.2.0)
+test -z &quot;$CRONPILOT_REMOTE_TAG&quot;
+test -z &quot;$(git status --porcelain)&quot;
+test &quot;$(git rev-parse HEAD)&quot; = &quot;$CRONPILOT_RELEASE_SHA&quot;
+git tag -a v4.2.0 &quot;$CRONPILOT_RELEASE_SHA&quot; -m &quot;CronPilot 4.2.0&quot;
+git push origin main
+git push origin refs/tags/v4.2.0
+gh release create v4.2.0 --repo sharepusher/CronPilot --verify-tag --draft --title &quot;CronPilot 4.2.0&quot; --notes-file &quot;$CRONPILOT_RELEASE_OUT/release-notes.md&quot; &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz&quot; &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz.sha256&quot; &quot;$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz.build.json&quot;
+gh release view v4.2.0 --repo sharepusher/CronPilot --json isDraft,tagName,assets
+
+# 上传后比对，再发布。
+mkdir &quot;$CRONPILOT_RELEASE_OUT/remote&quot;
+gh release download v4.2.0 --repo sharepusher/CronPilot --dir &quot;$CRONPILOT_RELEASE_OUT/remote&quot; --pattern &#x27;cronpilot-4.2.0.tar.gz*&#x27;
+for asset in cronpilot-4.2.0.tar.gz cronpilot-4.2.0.tar.gz.sha256 cronpilot-4.2.0.tar.gz.build.json; do
+  cmp &quot;$CRONPILOT_RELEASE_OUT/$asset&quot; &quot;$CRONPILOT_RELEASE_OUT/remote/$asset&quot;
+done
+(cd &quot;$CRONPILOT_RELEASE_OUT/remote&quot; &amp;&amp; shasum -a 256 -c cronpilot-4.2.0.tar.gz.sha256)
+gh release edit v4.2.0 --repo sharepusher/CronPilot --draft=false --latest
+gh release view v4.2.0 --repo sharepusher/CronPilot --json url,isDraft,tagName,assets
+</pre>
+<h2>隔离安装命令参考</h2><p>在正式包目录确定后，使用独立目录和端口；不要在开发仓库执行黄金路径，以免其重启共享服务。bootstrap 如需安装依赖须使用可联网的宿主环境。以下操作仍是待执行验收。</p><pre>CRONPILOT_VERIFY_DIR=$(mktemp -d /private/tmp/cronpilot-v420-install.XXXXXX)
+tar -xzf "$CRONPILOT_RELEASE_OUT/cronpilot-4.2.0.tar.gz" -C "$CRONPILOT_VERIFY_DIR"
+(
+  cd "$CRONPILOT_VERIFY_DIR/cronpilot-4.2.0"
+  bash scripts/bootstrap_venv.sh
+  LOCAL_PORT=50992 bash scripts/verify_golden_path.sh
+)</pre>
+<h2>验证边界与文档验收</h2><p>本轮只执行版本检查、当前提交双构建、cmp、资产检查与候选说明提取。没有重跑 MySQL、Docker、浏览器角色矩阵、Python 3.8–3.10 或正式候选包隔离安装；不存在新截图。文档验收命令：以 .venv-py311/bin/python 执行 scripts/html_docs_to_markdown.py --check、scripts/check_doc_completeness.py --check、scripts/check_doc_links.py --check，以及 bash scripts/check_pending_sync.sh，全部通过：412 个 HTML 已登记，3145 个引用无 broken。本文 HTML 与 Markdown 本地文档 URL 均返回 HTTP 200。</p>
+<p>CLI 语义依据：<a href="https://cli.github.com/manual/gh_release_create">gh release create</a>（--verify-tag、--draft、--repo、显式附件），<a href="https://cli.github.com/manual/gh_release_edit">gh release edit</a>（--draft=false、--latest）。</p>
+</main><footer><a href="v4.2.0-release-assessment-2026-11-04.md">Markdown</a> · <a href="../index.html">文档索引</a></footer></body></html>

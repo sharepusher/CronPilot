@@ -7,58 +7,45 @@ HTML 版：[doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html)
 
 ## [Unreleased]
 
+No draft changes.
+
+## [4.2.0] — Pending release · Editing Integrity and Reliable Status Changes
+
+This version is a release candidate. The latest published version remains 4.1.1; the release date will be recorded after publication.
+
 ### What changed
 
-- RBAC account changes now use stable values after database commit for cache invalidation, audit parameters, and responses. Successful changes no longer depend on reloading expired user objects. See the [post-mortem](doc/design/rbac-cache-postcommit-boundary-2026-11-04.html).
-
-- Documentation evidence screenshots now use content-addressed paths, with a manifest mapping historical locations to preserved bytes. Existing external links to old screenshot paths may need updating. See the [image governance post-mortem](doc/design/release-image-governance-2026-11-03.html).
-
-- Task status changes preserve their retry context without reading expired database objects after commit. A committed status can now return the existing signed retry information when scheduling needs attention. See the [post-mortem](doc/design/status-postcommit-snapshot-repair-2026-11-03.html#postmortem).
-
-- Engineering verification: terminology checks now distinguish exact technical identifiers and frozen diagnostic fields while retaining business wording checks. The task-edit baseline tool now verifies six current contracts with isolated fixtures and command-level regression tests. See the [terminology post-mortem](doc/postmortem/2026-11-术语门禁分类与历史证据边界.html) and [baseline-tool post-mortem](doc/postmortem/2026-11-任务编辑基线工具语义漂移.html).
-
-- SQLite user edits now protect current authorization and profile comparisons through the write transaction, preventing stale in-flight saves from bypassing revocation or overwriting newer values. MySQL behavior and existing response fields are unchanged. This fix is scoped to user editing; task-save authorization and existing full-suite failures remain separate release blockers. See the [SQLite user-edit post-mortem](doc/postmortem/2026-11-SQLite用户编辑保存边界原子保护.html).
-
-- Task status changes now report uncertain results without restoring an unverified old database state. Web pages submit explicit targets and support signed retries; matching scheduler state avoids duplicate resume calls.
-- ⚠️ API Breaking Change: `/api/cron/status` adds the optional `X-Cron-Status-Retry` response/request header for safe retries after a confirmed database commit. Existing JSON fields and ordinary requests remain compatible. Repeating an ordinary same-target request does not verify scheduler state. See the [status-handling post-mortem](doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html#postmortem-d2).
-
-- A task pause or resume that succeeds no longer has its database status rolled back solely because writing the success log failed. See the [status logging post-mortem](doc/design/任务启停结果判定与冲突报错D2设计-2026-11-02.html).
-
-- Fixed task API timeout validation after integer schema deserialization. Web and legacy string inputs remain compatible; invalid types and values are rejected without task writes. See the [timeout-validation post-mortem](doc/design/任务API超时参数类型兼容修复设计-2026-11-02.html#postmortem).
-
-- Task edits now report detected scheduling conflicts and uncertain application results through existing Web/API error fields. Paused edits register directly in the paused state. Successful synchronous scheduler calls require no JobStore confirmation query; uncertain exceptions receive a single target check. See the [implementation post-mortem](doc/design/任务调度冲突检测与明确报错W2设计-2026-10-30.html#d1-implementation).
-
-- Editing task details that do not affect the schedule no longer rewrites the scheduler job. Schedule changes and explicit resume retain their existing scheduling behavior.
-
-- Task editing now detects conflicting changes from stale forms and preserves unrelated changes made by another editor. Related task status and tag changes participate in revision checks. Old task-edit pages must be reloaded after upgrade; the upgrade adds an `edit_revision` database column.
-
-- Unchanged task edits now stay on the page without sending a request. Server-side comparison also suppresses task writes, relationship rebuilding, operation logs, and scheduler updates when the submitted target already exists. Actual edits retain full validation, and native forms include CSRF protection. See the [task-edit post-mortem](doc/postmortem/2026-10-任务编辑无变更保存副作用.html).
-
-- Scoped user edits now compare values within the signed editable scope and preserve memberships outside that scope. Profile-only edits leave roles, memberships, tokens, and authentication versions unchanged. See the [membership-preservation post-mortem](doc/postmortem/2026-10-RBAC用户编辑范围外组误删.html).
-
-- User edits preserve signed original values across confirmation and validation retries, preventing stale forms from clearing concurrently updated email addresses. Invalid snapshots now require an explicit reload. See the [snapshot and verification-isolation post-mortem](doc/postmortem/2026-10-RBAC两项P1快照回显与验收库隔离.html).
-- User edits record effective field changes and email-clear reasons in the same transaction as the business update, with current authorization checks, conflict handling, and versioned audit-detail rendering. See the [U1 post-mortem](doc/postmortem/2026-10-RBAC用户编辑写前意图缺失.html), [U2 post-mortem](doc/postmortem/2026-10-RBAC用户编辑并发覆盖与审计分裂.html), and [U3 post-mortem](doc/postmortem/2026-10-RBAC用户编辑U3前端回退与审计展示.html).
-- MySQL verification refuses unsafe or occupied databases, creates only its explicit test tables, and never deletes existing tables.
-
-- Corrected user-edit group comparison so explicit scope changes are submitted, while valid unchanged selections remain local no-ops. Invalid or empty selections reach the existing server validation. Audit details now render only when the entire JSON v1 event is valid; malformed and unknown structures retain their generic event description without partial field rendering. See the [group-selection and audit-contract post-mortem](doc/postmortem/2026-10-RBAC两项P2组选择与审计契约回退.html).
+* Task edits detect stale-form conflicts, preserve unrelated concurrent changes, and avoid database, relationship, log, and scheduler writes for unchanged submissions. Changes that do not affect scheduling leave the scheduler job intact.
+* Task status pages submit explicit pause/resume targets. Scheduling conflicts and uncertain application results use the existing error fields; successful synchronous scheduler calls need no additional JobStore confirmation query. A success-log failure no longer reverses a completed status change.
+* ⚠️ API Breaking Change: `/api/cron/status` adds the optional `X-Cron-Status-Retry` response/request header for signed retries following a confirmed database commit. Existing JSON fields and ordinary requests remain compatible. Repeating an ordinary same-target request does not verify scheduler state.
+* Task status responses preserve committed retry context without reloading expired ORM objects. Task API timeout validation accepts schema-deserialized integers while rejecting invalid types and values before task writes.
+* Scoped user edits preserve memberships outside the signed editable scope. Profile-only edits leave roles, group associations, tokens, and authentication versions unchanged. Signed original values survive validation and confirmation retries; invalid snapshots require a reload.
+* User edits recheck current authorization and changed fields at the write boundary, record effective changes and email-clear reasons in the business transaction, and render audit details only when the entire versioned event is valid. SQLite protects comparisons through the write transaction; MySQL retains its existing transaction strategy.
+* RBAC account changes capture stable values before commit for cache invalidation, independent audit parameters, and responses. Successful changes no longer depend on refreshing expired user objects. Requests started after a committed permission reduction use the new authorization state; already authorized concurrent operations may finish.
+* Verification tools use isolated fixtures, refuse occupied MySQL schemas, and check lock release before request cleanup. Terminology checks distinguish exact technical identifiers and frozen diagnostic fields; the task-edit baseline tool checks the current editing contracts.
+* Documentation screenshots use content-addressed paths with preserved-byte migration mappings. Public installation packages exclude historical screenshots and test evidence.
 
 ### Why
 
-- Preserve the original editing intent through retries and prevent verification tools from overwriting a caller's database.
+* Preserve editing intent, prevent stale forms from overwriting unrelated changes, and make scheduling outcomes explicit when database and scheduler work cannot be confirmed together.
+* Keep post-commit cache and response handling independent of ORM refresh queries, and make release verification reproducible without touching deployment data.
 
 ### Validation
 
-- Added isolated, replayable browser verification for all seven user-edit outcomes, including native form fallbacks, restricted-role access, and commit-before/after failure controls. All 27 browser scenarios, 64 related regressions, and 18 preflight cases passed. This adds verification tooling and corrects lock-cost documentation without changing production behavior. See the [outcome-verification post-mortem](doc/postmortem/2026-10-RBAC七状态浏览器验收与锁成本校准.html).
-
-- Task-edit validation: 18 focused tests, 64 related regressions, 86 route checks, 10 browser cases including JavaScript-disabled submission, isolated SQLite golden path, and real MySQL no-op probes passed. Full discovery ran 1052 tests: 1040 passed and 12 skipped (11 live HTTP probes unavailable in the sandbox and one existing SQLite ID-reuse demonstration).
-
-- Strengthened MySQL verification to check lock release before request cleanup, with independent-connection calibration and rollback-omission controls. The 74-case related suite, nine normal database paths, and three defect controls passed. See the [verification-boundary post-mortem](doc/postmortem/2026-10-RBAC锁释放验收观察边界.html).
-
-- Added persistent snapshot-continuity and database-isolation tests; validation also covers restricted-account MySQL execution, concurrent startup, partial DDL failure, and real-browser confirmation paths. The full suite ran 1020 tests successfully (12 skipped); the 10-case scope-projection suite, 86 route checks, 18 preflight cases, real MySQL verification, and target-role browser checks also passed.
+* Finalization checks are in progress against committed code `0e31f8f`. Final candidate acceptance and package provenance remain pending until the version archive is committed. Historical verification results remain in their linked evidence and are not presented as final-candidate results.
 
 ### Compatibility & Risk
 
-- Existing administrator permissions and public API response fields remain unchanged. Verification now requires a fresh dedicated MySQL schema for every run and leaves it intact for inspection. Existing audit JSON remains unchanged in storage; previously partially rendered unsupported or malformed details now use the generic fallback. Old v1 user-edit forms require a refresh because the signed editing baseline now includes the editable scope in v2. Administrator permissions remain governed by the existing design.
+* Back up the business and execution-log databases, then run the standard startup migration before serving requests. The migration adds `cron_infos.edit_revision`; existing task-edit pages must be reloaded. Old user-edit pages also require a refresh because their signed baseline now includes editable scope.
+* Existing administrator roles, permission definitions, API JSON fields, and stored audit JSON remain unchanged. Unsupported or malformed audit details use a generic display fallback. Permission reductions do not cancel operations that already passed authorization.
+* Database commit and scheduler application remain separate boundaries. An uncertain result is reported for inspection or a signed retry; it is not evidence that the previous state was restored. Independent post-commit audit failures are logged and cannot roll back a committed account change.
+* External links to historical screenshot paths may need updating. MySQL verification requires a fresh dedicated schema for each run and preserves it for inspection.
+
+### Release assets
+
+After publication, download `cronpilot-4.2.0.tar.gz` and verify it with `cronpilot-4.2.0.tar.gz.sha256`. This is the supported production deployment package; its companion `cronpilot-4.2.0.tar.gz.build.json` identifies the exact source commit and build inputs.
+
+GitHub automatic “Source code” archives are complete audit snapshots and are **not recommended for production deployment**. The candidate package and checksums must be rebuilt from the final committed candidate before publication.
 
 ---
 
@@ -2029,6 +2016,7 @@ HTTP 定时触发调度、Web / API 管理、基础安全与质量能力、技�
 
 | Version | Highlights |
 |---------|------------|
+| **4.2.0** (pending) | Editing integrity, explicit status outcomes, stable post-commit handling, and isolated verification |
 | **4.1.1** | RBAC Scope boundary hardening, database-current authorization, normalized registration-request group associations, stale-session revocation, and browser-backed verification |
 | **4.1.0** | Task-trigger DNS/3xx hardening, database-generated IDs, execution observability, lifecycle protection, and reproducible packaging |
 | **4.0.0** | V1 UI decommission, 7 P0 security fixes, timestamp BIGINT UTC, AJAX partial refresh (5 pages), overdue detection, orphan reconciliation, ghost job cleanup, inline form errors, Heroicons, Ruff lint |

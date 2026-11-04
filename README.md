@@ -4,6 +4,8 @@
 
 当前版本 **v4.1.1**（RBAC Scope 授予边界加固 · 数据库当前授权 · 注册审批关联表精确授权 · 陈旧 Session 撤销；运行时 Flask 2.3 + SQLAlchemy 2.0）；详见 [Release Notes](RELEASE_NOTES.md)。产品与工程进度总览：[doc/交付状态与路线图.html](doc/交付状态与路线图.html)（面向维护者）。
 
+待发布候选 **v4.2.0**：任务与用户编辑完整性、明确启停结果、提交后缓存处理和隔离验收。当前已发布版本仍为 v4.1.1；候选状态与升级说明见 [Release Notes](RELEASE_NOTES.md#420--pending-release--editing-integrity-and-reliable-status-changes)。
+
 ## 下载与安装包选择
 
 生产部署请从 [GitHub Releases](https://github.com/sharepusher/CronPilot/releases) 下载 `cronpilot-<version>.tar.gz`，并使用同名 `.sha256` 文件校验完整性。该文件是经过白名单构建、重复构建一致性检查和仓库外安装验证的**推荐安装包**，不包含历史截图、测试代码和开发期证据资产。
@@ -14,6 +16,7 @@ GitHub 自动生成的 “Source code” 压缩包以及 `git clone` 得到的�
 
 | 版本 | 能力 |
 |------|------|
+| **v4.2.0**（待发布） | 任务/用户编辑并发保护 · 无变更零副作用 · 明确启停结果与签名重试 · 提交后缓存及响应边界 |
 | **v4.1.1** | RBAC Scope 授予边界加固 · 数据库当前授权 · 注册审批关联表精确匹配 · 陈旧 Session 撤销 · 全局管理员 Scope 回显 |
 | **v4.1.0** | 任务触发 DNS 单次解析与 IP pinning · 首跳 3xx 阻断 · 数据库自增 ID 与 MySQL BIGINT 对齐 · 执行链路关联与 Run Inspector · 用户/任务生命周期加固 · 可复现轻量发布包 |
 | **v4.0.0** | V1 UI 下线 · 安全加固（7 项 P0）· 时间戳 BIGINT UTC · AJAX 局部刷新（5 页）· 逾期检测 · 孤儿 Job 对账 · 表单字段错误 · Heroicons · Ruff lint |
@@ -290,12 +293,12 @@ server {
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5860/docs/
 # 期望 200
 
-bash scripts/cronpilot.sh test        # 全量单测（679 用例）
+bash scripts/cronpilot.sh test        # 全量单测（以当次运行结果为准）
 ```
 
 ## Release Notes
 
-**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 当前 **v4.1.1**；历史见文档内版本节。
+**[RELEASE_NOTES.md](RELEASE_NOTES.md)** · [doc/RELEASE_NOTES.html](doc/RELEASE_NOTES.html) — 已发布 **v4.1.1**，待发布候选 **v4.2.0**；历史见文档内版本节。
 
 ## 技术文档（HTML + Markdown）
 

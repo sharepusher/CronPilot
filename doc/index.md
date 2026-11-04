@@ -37,6 +37,7 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **v4.2.0 版本归档与最终候选验收方案**（待确认） | 冻结提交、验收及手动发布 | [HTML](design/v4.2.0-release-finalization-2026-11-04.html) | [MD](design/v4.2.0-release-finalization-2026-11-04.md) |
 | **用户授权编辑提交后读取故障分析与修复设计**（待确认） | 稳定 ID、缓存与故障验收 | [HTML](design/rbac-user-edit-postcommit-2026-11-04.html) | [MD](design/rbac-user-edit-postcommit-2026-11-04.md) |
 | **发布 job 仓库上下文缺失分析与修复设计**（待确认） | GH_REPO 作用域及发布防护 | [HTML](design/release-publish-repository-context-2026-11-04.html) | [MD](design/release-publish-repository-context-2026-11-04.md) |
 | **术语门禁与任务编辑基线工具修复设计（2026-11-03）**（待确认） | 术语分层、历史证据保持、当前契约六场景与命令级防护 | [HTML](design/terminology-baseline-repair-2026-11-03.html) | [MD](design/terminology-baseline-repair-2026-11-03.md) |
@@ -215,6 +216,8 @@
 
 | 文档 | 说明 | HTML | Markdown |
 |------|------|------|----------|
+| **v4.2.0 发布评估与手动命令** | 候选准备、无截图安装包验证 | [HTML](qa/v4.2.0-release-assessment-2026-11-04.html) | [MD](qa/v4.2.0-release-assessment-2026-11-04.md) |
+| **v4.1.1 后全部提交 Bugbot 复审（HEAD 0e31f8f）** | 六个提交、当前复核与验证边界 | [HTML](qa/post-v4.1.1-bugbot-review-head-0e31f8f-2026-11-04.html) | [MD](qa/post-v4.1.1-bugbot-review-head-0e31f8f-2026-11-04.md) |
 | **缓存失效与提交后读取同类排查** | 入口矩阵及故障探针 | [HTML](qa/cache-postcommit-audit-2026-11-04.html) | [MD](qa/cache-postcommit-audit-2026-11-04.md) |
 | **v4.1.1 后全部提交复审（2026-11-04）** | 独立 HEAD 及发布阻断复核 | [HTML](qa/post-v4.1.1-commit-review-2026-11-04.html) | [MD](qa/post-v4.1.1-commit-review-2026-11-04.md) |
 | **v4.2.0 发布前未提交代码与文档全面审查（2026-10-30）** | 暂缓发布：SQLite 独立连接竞态、门禁与升级边界；详源报告 | [HTML](qa/v4.2.0-release-review-2026-10-30.html) | [MD](qa/v4.2.0-release-review-2026-10-30.md) |

@@ -1,0 +1,7 @@
+{
+  "simulated_tag": "v4.2.0",
+  "real_tags_unchanged": true,
+  "readme_sha256": "42c81b603228ee84e5b092483c9b9ec052294943c5e9a75714d72c86f92030d6",
+  "gate_exit": 0,
+  "output": "✓ 版本一致性检查通过（23 个 tag，全部在 README/路线图/RELEASE_NOTES 中找到）。\n"
+}

@@ -5,6 +5,17 @@ on:
     tags:
       - "v*.*.*"
 
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag (vX.Y.Z)
+        required: true
+        type: string
+      repair_published:
+        description: Add missing assets to an existing published release without overwriting
+        default: false
+        type: boolean
+
 permissions:
   contents: read
 
@@ -13,10 +24,30 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      release_tag: ${{ steps.target.outputs.release_tag }}
+      source_commit: ${{ steps.source.outputs.source_commit }}
     steps:
+      - name: Validate target before checkout
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then tag="$INPUT_TAG"; fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Malformed release tag" >&2
+            exit 1
+          fi
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+
       - name: Check out tagged source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: refs/tags/${{ steps.target.outputs.release_tag }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -25,18 +56,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Resolve release version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-
-      - name: Reject malformed release tag
+      - name: Record immutable build source
+        id: source
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Malformed release tag: $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
+          source_commit="$(git rev-parse HEAD)"
+          test "$source_commit" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
 
       - name: Check version and release-note consistency
-        run: python scripts/check_version_consistency.py --check --tag "$GITHUB_REF_NAME"
+        run: python scripts/check_version_consistency.py --check --tag "$RELEASE_TAG"
 
       - name: Verify structured release readiness
         run: |
@@ -52,8 +80,8 @@ jobs:
 
       - name: Build deterministic asset twice
         run: |
-          python scripts/build_release_asset.py --version "$VERSION" --ref "$GITHUB_REF_NAME" --output "dist/cronpilot-$VERSION.tar.gz"
-          python scripts/build_release_asset.py --version "$VERSION" --ref "$GITHUB_REF_NAME" --output "dist/rebuild-cronpilot-$VERSION.tar.gz"
+          python scripts/build_release_asset.py --version "$VERSION" --ref "$RELEASE_TAG" --output "dist/cronpilot-$VERSION.tar.gz"
+          python scripts/build_release_asset.py --version "$VERSION" --ref "$RELEASE_TAG" --output "dist/rebuild-cronpilot-$VERSION.tar.gz"
           cmp "dist/cronpilot-$VERSION.tar.gz" "dist/rebuild-cronpilot-$VERSION.tar.gz"
           cp release/release-manifest.json "dist/release-manifest.json"
 
@@ -83,6 +111,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: release-${{ github.repository }}-${{ needs.build-validate.outputs.release_tag }}
+      cancel-in-progress: false
     environment:
       name: release
     steps:
@@ -92,75 +123,116 @@ jobs:
           name: release-assets
           path: dist
 
-      - name: Resolve and validate release version
-        run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Malformed release tag: $GITHUB_REF_NAME" >&2
-            exit 1
-          fi
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-
-      - name: Create or refresh draft Release and upload assets
+      - name: Publish validated release assets
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-validate.outputs.release_tag }}
+          EXPECTED_SOURCE_COMMIT: ${{ needs.build-validate.outputs.source_commit }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPAIR_PUBLISHED: ${{ inputs.repair_published }}
         run: |
+          set -euo pipefail
+          : "${GH_REPO:?Repository context is required}"
+          : "${GH_TOKEN:?Authentication is required}"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$EXPECTED_SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          VERSION="${RELEASE_TAG#v}"
           assets=(
             "dist/cronpilot-$VERSION.tar.gz"
             "dist/cronpilot-$VERSION.tar.gz.sha256"
             "dist/cronpilot-$VERSION.tar.gz.build.json"
           )
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"
-            if [ "$is_draft" != "true" ]; then
-              echo "Release $GITHUB_REF_NAME already exists and is published; refusing to overwrite it." >&2
-              exit 1
-            fi
-            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
-            gh release edit "$GITHUB_REF_NAME" \
-              --title "CronPilot $VERSION" \
-              --notes-file dist/release-notes.md
-          else
-            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
-              --draft \
-              --verify-tag \
-              --title "CronPilot $VERSION" \
-              --notes-file dist/release-notes.md
-          fi
-          release_state="$(gh release view "$GITHUB_REF_NAME" --json isDraft,tagName)"
-          jq -e --arg tag "$GITHUB_REF_NAME" '.tagName == $tag and .isDraft == true' <<<"$release_state" >/dev/null
-          release_assets="$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')"
-          for asset in "${assets[@]}"; do
-            asset_name="${asset#dist/}"
-            if ! grep -Fqx "$asset_name" <<<"$release_assets"; then
-              echo "Release asset is missing after upload: $asset_name" >&2
-              exit 1
-            fi
-          done
-          rm -rf remote-assets
-          mkdir -p remote-assets
-          gh release download "$GITHUB_REF_NAME" \
-            --pattern "cronpilot-$VERSION.tar.gz" \
-            --pattern "cronpilot-$VERSION.tar.gz.sha256" \
-            --pattern "cronpilot-$VERSION.tar.gz.build.json" \
-            --dir remote-assets --clobber
-          cmp "dist/cronpilot-$VERSION.tar.gz" "remote-assets/cronpilot-$VERSION.tar.gz"
-          cmp "dist/cronpilot-$VERSION.tar.gz.sha256" "remote-assets/cronpilot-$VERSION.tar.gz.sha256"
-          cmp "dist/cronpilot-$VERSION.tar.gz.build.json" "remote-assets/cronpilot-$VERSION.tar.gz.build.json"
-          (cd remote-assets && sha256sum -c "cronpilot-$VERSION.tar.gz.sha256")
-          jq -e --arg commit "$GITHUB_SHA" '.source_commit == $commit' \
-            "remote-assets/cronpilot-$VERSION.tar.gz.build.json" >/dev/null
+          # Resolve lightweight and annotated tags through the API, without checkout.
+          verify_tag_source() {
+            local object kind sha depth
+            object="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG")"
+            for depth in {1..10}; do
+              kind="$(jq -er '.object.type' <<<"$object")"
+              sha="$(jq -er '.object.sha' <<<"$object")"
+              if [ "$kind" = commit ]; then
+                test "$sha" = "$EXPECTED_SOURCE_COMMIT"
+                return
+              fi
+              test "$kind" = tag
+              object="$(gh api "repos/$GH_REPO/git/tags/$sha")"
+            done
+            echo "Tag resolution exceeded the safe depth" >&2
+            return 1
+          }
+          verify_tag_source
+          jq -e --arg commit "$EXPECTED_SOURCE_COMMIT" --arg version "$VERSION" --arg tag "$RELEASE_TAG" \
+            '.source_commit == $commit and .version == $version and .source_ref == $tag' \
+            "dist/cronpilot-$VERSION.tar.gz.build.json" >/dev/null
           jq -e --arg version "$VERSION" \
             '.version == $version and (.readiness == "ready" or .readiness == "published") and .release_blockers == []' \
-            "dist/release-manifest.json" >/dev/null
-          release_body="$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)"
-          for required_text in \
-            "cronpilot-$VERSION.tar.gz" \
-            "cronpilot-$VERSION.tar.gz.sha256" \
-            "Source code" \
-            "not recommended for production deployment"; do
-            if ! grep -Fq "$required_text" <<<"$release_body"; then
-              echo "Release body is missing required deployment-boundary text: $required_text" >&2
+            dist/release-manifest.json >/dev/null
+          (cd dist && sha256sum -c "cronpilot-$VERSION.tar.gz.sha256")
+          # A failed API request must never be mistaken for a missing release.
+          pages="$(gh api --paginate --slurp "repos/$GH_REPO/releases?per_page=100")"
+          release="$(jq -ce --arg tag "$RELEASE_TAG" \
+            '[.[][] | select(.tag_name == $tag)] | if length <= 1 then . else error("Duplicate release tag") end' <<<"$pages")"
+          count="$(jq 'length' <<<"$release")"
+          published=false
+          if [ "$count" = 1 ]; then
+            published="$(jq -r '.[0].draft == false' <<<"$release")"
+          fi
+          if [ "$published" = true ]; then
+            if [ "$EVENT_NAME" != workflow_dispatch ] || [ "$REPAIR_PUBLISHED" != true ]; then
+              echo "Published releases require explicit manual repair authorization" >&2
               exit 1
             fi
+            jq -e '.[0].immutable != true' <<<"$release" >/dev/null
+            release_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+            mkdir -p existing-assets
+            missing=()
+            # Complete the conflict preflight before the first write.
+            for asset in "${assets[@]}"; do
+              name="${asset#dist/}"
+              if grep -Fqx "$name" <<<"$release_assets"; then
+                gh release download "$RELEASE_TAG" --pattern "$name" --dir existing-assets --clobber
+                cmp "$asset" "existing-assets/$name"
+              else
+                missing+=("$asset")
+              fi
+            done
+            verify_tag_source
+            if [ "${#missing[@]}" -gt 0 ]; then
+              gh release upload "$RELEASE_TAG" "${missing[@]}"
+            fi
+          else
+            # Validate release-note boundaries before creating or updating a draft.
+            release_body="$(cat dist/release-notes.md)"
+            for required_text in "cronpilot-$VERSION.tar.gz" "cronpilot-$VERSION.tar.gz.sha256" \
+              "Source code" "not recommended for production deployment"; do
+              grep -Fq "$required_text" <<<"$release_body"
+            done
+            verify_tag_source
+            if [ "$count" = 1 ]; then
+              gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+              gh release edit "$RELEASE_TAG" --title "CronPilot $VERSION" --notes-file dist/release-notes.md
+            else
+              gh release create "$RELEASE_TAG" "${assets[@]}" --draft --verify-tag \
+                --title "CronPilot $VERSION" --notes-file dist/release-notes.md
+            fi
+          fi
+          release_state="$(gh release view "$RELEASE_TAG" --json isDraft,tagName)"
+          jq -e --arg tag "$RELEASE_TAG" --argjson published "$published" \
+            '.tagName == $tag and .isDraft == ($published | not)' <<<"$release_state" >/dev/null
+          release_assets="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+          mkdir -p remote-assets
+          for asset in "${assets[@]}"; do
+            name="${asset#dist/}"
+            grep -Fqx "$name" <<<"$release_assets"
+            gh release download "$RELEASE_TAG" --pattern "$name" --dir remote-assets --clobber
+            cmp "$asset" "remote-assets/$name"
           done
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          (cd remote-assets && sha256sum -c "cronpilot-$VERSION.tar.gz.sha256")
+          jq -e --arg commit "$EXPECTED_SOURCE_COMMIT" '.source_commit == $commit' \
+            "remote-assets/cronpilot-$VERSION.tar.gz.build.json" >/dev/null
+          verify_tag_source
+          if [ "$published" = false ]; then
+            release_body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
+            cmp dist/release-notes.md <(printf '%s\n' "$release_body")
+            gh release edit "$RELEASE_TAG" --draft=false --latest
+          fi

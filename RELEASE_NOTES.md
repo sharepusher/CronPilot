@@ -15,6 +15,8 @@ This version is a release candidate. The latest published version remains 4.1.1;
 
 ### What changed
 
+* GitHub release publishing now supplies explicit repository context and offers an opt-in recovery action that builds an existing tag and adds missing installation assets without replacing published files or changing release metadata. See the [release automation post-mortem](doc/design/release-publish-repository-context-2026-11-04.html).
+
 * Public installation packages now preserve runtime files byte-for-byte, including Jinja templates; documentation-only link rewriting and valid current-document query links are covered by archive-level regression tests.
 
 * Task edits detect stale-form conflicts, preserve unrelated concurrent changes, and avoid database, relationship, log, and scheduler writes for unchanged submissions. Changes that do not affect scheduling leave the scheduler job intact.

@@ -293,8 +293,8 @@ Download `cronpilot-4.1.0.tar.gz`.
         workflow = (ROOT / ".github" / "workflows" / "release-asset.yml").read_text(
             encoding="utf-8"
         )
-        create = workflow.index('gh release create "$GITHUB_REF_NAME"')
-        publish = workflow.index('gh release edit "$GITHUB_REF_NAME" --draft=false --latest')
+        create = workflow.index('gh release create "$RELEASE_TAG"')
+        publish = workflow.index('gh release edit "$RELEASE_TAG" --draft=false --latest')
         self.assertLess(create, publish)
         self.assertIn("--draft", workflow[create:publish])
         self.assertIn("--verify-tag", workflow[create:publish])
@@ -306,7 +306,7 @@ Download `cronpilot-4.1.0.tar.gz`.
         self.assertIn('"remote-assets/cronpilot-$VERSION.tar.gz.build.json"', workflow)
         self.assertIn(".source_commit == $commit", workflow)
         self.assertNotIn(".source_commit == $commit and .release_blockers", workflow)
-        self.assertIn('gh release view "$GITHUB_REF_NAME" --json assets', workflow)
+        self.assertIn('gh release view "$RELEASE_TAG" --json assets', workflow)
         self.assertIn("not recommended for production deployment", workflow)
         self.assertLess(workflow.index("release_assets=\"$(gh release view"), publish)
         self.assertLess(workflow.index("release_body=\"$(gh release view"), publish)

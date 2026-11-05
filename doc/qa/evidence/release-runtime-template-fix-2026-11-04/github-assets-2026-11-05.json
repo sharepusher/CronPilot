@@ -1,0 +1,29 @@
+{
+  "observed_date": "2026-11-05 Asia/Shanghai",
+  "release_url": "https://github.com/sharepusher/CronPilot/releases/tag/v4.2.0",
+  "published_at_utc": "2026-11-05T01:59:46Z",
+  "release_assets": [],
+  "workflow_run": "https://github.com/sharepusher/CronPilot/actions/runs/41952060019",
+  "jobs": [
+    {
+      "name": "build-validate",
+      "conclusion": "success",
+      "failed_steps": []
+    },
+    {
+      "name": "publish",
+      "conclusion": "failure",
+      "failed_steps": [
+        "Create or refresh draft Release and upload assets"
+      ]
+    }
+  ],
+  "local_install_archive": {
+    "path": "/private/tmp/cronpilot-v420-release-ready/cronpilot-4.2.0.tar.gz",
+    "bytes": 746811,
+    "historical_screenshot_paths": 0,
+    "source_commit": "dd4a9a2bcfc63cfa87686d006b97e00c77618bae",
+    "independent_asset_check": "passed"
+  },
+  "boundary": "No remote archive downloaded or remote Release modified. The user-reported 40 MB archive was not provided; empty Release assets and local size establish that the validated thin archive is not the 40 MB file."
+}
